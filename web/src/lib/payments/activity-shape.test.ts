@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  formatVenueDateTime,
   paymentMethodKey,
   paymentMethodLabelKey,
   groupTakingsByMethod,
@@ -115,4 +116,45 @@ test("a closed shift's variance is counted minus expected, signed", () => {
     expectedCashCents: 20000,
   });
   assert.equal(short.varianceCents, -500);
+});
+
+// ── Moments a person reads ──────────────────────────────────────────────
+
+test("a moment is rendered on the WORKSPACE's clock, not the renderer's", () => {
+  // 2026-09-10T09:03Z is 04:03 in Cancun (UTC-5 all year, no DST) and 02:03
+  // in Los Angeles (PDT in September). A server on UTC formatting with no
+  // zone would print 09:03 to both venues, unlabelled.
+  const iso = "2026-09-10T09:03:00.000Z";
+  const cancun = formatVenueDateTime(iso, { locale: "en-US", timeZone: "America/Cancun" });
+  const la = formatVenueDateTime(iso, { locale: "en-US", timeZone: "America/Los_Angeles" });
+  assert.ok(cancun);
+  assert.ok(la);
+  assert.ok(cancun.includes("4:03"), `expected the Cancun wall clock, got ${cancun}`);
+  assert.ok(la.includes("2:03"), `expected the Los Angeles wall clock, got ${la}`);
+  assert.notEqual(cancun, la);
+});
+
+test("a moment always says which clock it is on", () => {
+  const shown = formatVenueDateTime("2026-09-10T09:03:00.000Z", {
+    locale: "en-US",
+    timeZone: "America/Cancun",
+  });
+  assert.ok(shown);
+  // The zone name is part of the string, so an hour can never be read as the
+  // wrong hour without the reader being able to see why.
+  assert.ok(/(EST|GMT|UTC)/.test(shown), `no zone name in ${shown}`);
+});
+
+test("absence and an unusable zone REFUSE rather than answer", () => {
+  assert.equal(formatVenueDateTime(null, { locale: "en-US", timeZone: "America/Cancun" }), null);
+  assert.equal(formatVenueDateTime("", { locale: "en-US", timeZone: "America/Cancun" }), null);
+  assert.equal(
+    formatVenueDateTime("not-a-date", { locale: "en-US", timeZone: "America/Cancun" }),
+    null,
+  );
+  // Not "fall back to UTC": that prints a confident time wrong by hours.
+  assert.equal(
+    formatVenueDateTime("2026-09-10T09:03:00.000Z", { locale: "en-US", timeZone: "Mars/Olympus" }),
+    null,
+  );
 });

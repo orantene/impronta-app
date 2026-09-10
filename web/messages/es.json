@@ -12045,7 +12045,7 @@
       "methodMercadoPago": "Mercado Pago",
       "methodMercadoPagoPoint": "Mercado Pago Point",
       "owedTitle": "Aún se debe",
-      "owedSub": "Suma de lo que aún se debe en pedidos pendientes de pago — la misma regla que usa el escritorio de pedidos.",
+      "owedSub": "Suma de lo que aún se debe en pedidos pendientes de pago, con la misma regla que usa el escritorio de pedidos.",
       "owedEmpty": "No se debe nada en este momento.",
       "owedNote": "Ver el detalle pedido por pedido",
       "refundsTitle": "Reembolsos",
@@ -12065,9 +12065,11 @@
       "drawerVariance": "Diferencia",
       "drawerOpenedAt": "Abierta",
       "drawerClosedAt": "Cerrada",
-      "drawerStillOpenNote": "Todavía abierta — el conteo de cierre aún no existe.",
+      "drawerStillOpenNote": "Todavía abierta, así que el conteo de cierre aún no existe.",
       "movementsGapNote": "El detalle movimiento por movimiento y el conteo por denominación aún no se registran en la base de datos; solo este total corriente está disponible.",
-      "financialsLink": "Ver Finanzas (reporte de pagos por talento)"
+      "financialsLink": "Ver Finanzas (reporte de pagos por talento)",
+      "timeNotRecorded": "Sin registrar",
+      "timesInVenueZone": "Los horarios se muestran en la zona horaria del espacio de trabajo."
     },
     "discounts": {
       "pageTitle": "Descuentos",

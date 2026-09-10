@@ -508,14 +508,16 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     group: "money",
     segment: "payments",
     aliases: ["financials", "payouts"],
-    // Not built: Payments is the consolidation of Financials and Payouts, and
-    // neither has been folded in yet. Financials is the richer of the two and
-    // is a real canonical route, so that is where a /payments URL lands.
-    fallbackSegment: "financials",
+    // BUILT: `/admin/payments` is a real server page now (takings by method,
+    // what is owed, refunds, drawer sessions). `fallbackSegment: "financials"`
+    // is REMOVED, not left in place — a fallback beats `built` in
+    // `liveRouteSegment`, so keeping it would send every rail click to
+    // Financials while the page it names rendered only for a typed URL. Both
+    // aliases still resolve here and /admin/financials is untouched.
     render: "canonical",
     icon: "credit",
     label: "Payments",
-    built: false,
+    built: true,
     requires: { billing: true },
   },
   analytics: {

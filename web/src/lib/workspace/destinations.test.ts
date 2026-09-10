@@ -145,17 +145,6 @@ test("an unbuilt destination's URL falls back to a page that exists", () => {
   assert.equal(projects && liveRouteSegment(projects), "messages");
   assert.equal(projects && destinationHref(projects, "/admin"), "/admin/messages");
 
-  const payments = resolveDestination("payments");
-  assert.equal(payments?.built, false);
-  assert.equal(payments && liveRouteSegment(payments), "financials");
-  assert.equal(
-    payments && destinationHref(payments, "/acme/admin"),
-    "/acme/admin/financials",
-  );
-  // The legacy URLs still land where they always did.
-  assert.equal(resolveDestination("financials")?.id, "payments");
-  assert.equal(resolveDestination("payouts")?.id, "payments");
-
   // mywork has nowhere honest to send a URL yet, and says so.
   const mywork = resolveDestination("mywork");
   assert.equal(mywork?.built, false);
@@ -308,6 +297,22 @@ test("the tenant flags gate Reservations and Events, and nothing else", () => {
   assert.ok(!off.includes("reservations"));
   assert.ok(!off.includes("events"));
   assert.ok(off.includes("calendar") && off.includes("orders"));
+});
+
+test("the Payments item in the rail opens the Payments page, not Financials", () => {
+  // The door. While `/admin/payments` was a redirect stub this entry carried
+  // `fallbackSegment: "financials"`, and a fallback WINS over `built` in
+  // `liveRouteSegment` — so a rail click went to Financials and the Payments
+  // page rendered only for someone who typed its URL. If that fallback ever
+  // comes back, this goes red rather than the screen going quietly unreachable.
+  const payments = resolveDestination("payments");
+  assert.equal(payments?.built, true);
+  assert.equal(payments?.fallbackSegment, undefined);
+  assert.equal(payments && liveRouteSegment(payments), "payments");
+  assert.equal(payments && destinationHref(payments, "/acme/admin"), "/acme/admin/payments");
+  // And every address that worked before still resolves to this destination.
+  assert.equal(resolveDestination("financials")?.id, "payments");
+  assert.equal(resolveDestination("payouts")?.id, "payments");
 });
 
 test("Payments needs the billing permission, and My work needs the professional hat", () => {

@@ -54,6 +54,13 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // `sales`, `discounts`, `pos`, `tables`, `preparation` and `reservations`
   // used to be nine hand-written lines here; they are now that projection.
   ...REGISTRY_MATCHERS,
+  // /<tenant>/admin/financials — a real server page (the per-talent payout
+  // report). It used to reach the list above only as the UNBUILT `payments`
+  // destination's `fallbackSegment`; when Payments became a real page that
+  // fallback went away and took `financials` with it, which would have stacked
+  // the prototype SPA back on top of a live route. It is named here because it
+  // is canonical on its own account, not because something else points at it.
+  (s) => s[0] === "admin" && s[1] === "financials",
   // /<tenant>/admin/work/<id> — canonical booking detail w/ payment state machine
   (s) => s[0] === "admin" && s[1] === "work" && typeof s[2] === "string" && s[2].length > 0,
   // /<tenant>/admin/policy/<…> — workspace policy pages (auto-ack, etc.)

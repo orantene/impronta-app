@@ -11,7 +11,57 @@
  * plausible, confidently labelled, wrong figure. Never done here.
  */
 
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
+
 export type PaymentsLocale = "en" | "es" | "fr";
+
+// ── Moments a person reads ──────────────────────────────────────────────
+
+/**
+ * A stored instant, rendered on the WORKSPACE's clock and wearing its name.
+ *
+ * THREE CLOCKS, ONE ANSWER. The row's `paid_at` / `opened_at` is a UTC
+ * instant. The server that renders this page runs on UTC in production. The
+ * manager reading it stands in the venue. `Intl.DateTimeFormat` with no
+ * `timeZone` silently uses the RENDERER's zone, so "Opened 09:03" meant
+ * nine in the morning on Vercel's clock and was never labelled as such.
+ * `timeZone` is therefore required by the signature, and `timeZoneName:
+ * "short"` puts the zone on screen so a figure can never be read as the
+ * wrong hour without the reader seeing why.
+ *
+ * The caller gets that zone from `tenantTimezone`, which is the platform's
+ * one ladder (venue, then workspace, then UTC) and only ever returns a zone
+ * that parses.
+ *
+ * REFUSES RATHER THAN ANSWERS. `null` for a missing instant, an unparseable
+ * one, or a zone that is not a real IANA zone. Falling back to UTC in that
+ * last case would print a confident time that is wrong by hours, which is
+ * the failure this function exists to end. The caller renders its own
+ * translated "not recorded" line for a `null`.
+ */
+export function formatVenueDateTime(
+  iso: string | null | undefined,
+  opts: { locale: string; timeZone: string },
+): string | null {
+  if (!iso) return null;
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return null;
+  if (!isValidIanaTimeZone(opts.timeZone)) return null;
+  // Spelled out field by field rather than `dateStyle`/`timeStyle`, because
+  // `Intl` REFUSES `timeZoneName` alongside either of those: pairing them
+  // throws "Can't set option timeZoneName when dateStyle is used" at render.
+  // The fields below are what `dateStyle: "medium"` + `timeStyle: "short"`
+  // produce, plus the zone this function exists to show.
+  return new Intl.DateTimeFormat(opts.locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: opts.timeZone,
+    timeZoneName: "short",
+  }).format(at);
+}
 
 // ── Takings by method ───────────────────────────────────────────────────
 
@@ -21,10 +71,15 @@ export type TakingsSourceRow = {
   /** `booking_transactions.provider` — 'manual', 'stripe', 'mercado_pago_point', etc. */
   provider: string;
   /**
-   * `booking_transactions.provider_metadata.paid_via` when the caller found
-   * one — only meaningful when `provider === 'manual'` (cash and at-counter
-   * card both write `provider: 'manual'`; the metadata is what tells them
-   * apart). `null` when absent, never guessed.
+   * `booking_transactions.metadata.paid_via` when the caller found one — only
+   * meaningful when `provider === 'manual'` (cash and at-counter card both
+   * write `provider: 'manual'`; the tender bag is what tells them apart).
+   * `null` when absent, never guessed.
+   *
+   * THAT COLUMN, not `provider_metadata`. `settleAtDoor` is the only writer of
+   * an at-counter tender and it writes `metadata`; reading the provider's bag
+   * instead returned `null` for every manual row and collapsed cash and card
+   * into one "other" total. See `_data-bridge/payments-activity.ts`.
    */
   paidVia: string | null;
 };

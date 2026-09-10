@@ -12,15 +12,36 @@ import type { TakingsSourceRow, DrawerSessionRow } from "@/lib/payments/activity
  * every kind of sale this platform has) and `pos_shifts` (drawer sessions).
  *
  * Deliberately does NOT import anything from `lib/pos/*` — the point-of-sale
- * library belongs to the counter-screen slice. `provider_metadata` is read
- * directly here rather than through `lib/pos/shift.ts`'s `metadata` column
- * name, which does not exist on `booking_transactions` (confirmed against
- * `database.types.ts`: the real jsonb column is `provider_metadata`). See
- * the handoff note in this program's report for that finding.
+ * library belongs to the counter-screen slice.
+ *
+ * HOW THE TENDER IS READ, and why it is this column. `settleAtDoor` — the one
+ * writer of an at-counter tender — puts the whole bag, `paid_via` included,
+ * into `booking_transactions.metadata`. This file used to read
+ * `provider_metadata` instead, which nothing writes a `paid_via` into: every
+ * manual row therefore came back with `paidVia: null` and the screen showed a
+ * drawer of cash and a counter card swipe as one "other" bucket. Reproduced
+ * on the isolated branch through the real settle path, then fixed here and
+ * re-run; see `20261231020400_booking_transactions_metadata_for_takings.sql`,
+ * which is also what makes the column safe to select in production.
+ *
+ * `provider_metadata` is left alone on purpose. That bag belongs to the
+ * provider — `markPaid` writes Stripe's `payment_intent_id` into it and a
+ * refund reads it back — and how a cashier took the money is not a fact
+ * Stripe would recognise.
+ *
+ * `PAYMENT_METHOD_COLUMN` and `PAID_VIA_KEY` are named constants rather than
+ * inline strings so `payments-method-source.static.test.ts` can hold this
+ * reader and `lib/orders/settle-at-door.ts` to the same column and the same
+ * key. That guard is the one that would have caught the original defect.
  */
 
 const PAID = "paid";
 const REFUNDED = "refunded";
+
+/** The `booking_transactions` jsonb column the at-counter tender bag is written into. */
+export const PAYMENT_METHOD_COLUMN = "metadata";
+/** The key inside that bag naming how the money was taken. */
+export const PAID_VIA_KEY = "paid_via";
 
 function asMeta(raw: unknown): Record<string, unknown> {
   if (raw && typeof raw === "object") return raw as Record<string, unknown>;
@@ -29,7 +50,7 @@ function asMeta(raw: unknown): Record<string, unknown> {
 
 function paidViaOf(raw: unknown): string | null {
   const meta = asMeta(raw);
-  const v = meta["paid_via"];
+  const v = meta[PAID_VIA_KEY];
   return typeof v === "string" ? v : null;
 }
 
@@ -51,7 +72,7 @@ export async function loadTenantTakings(tenantId: string, opts: { limit?: number
   const limit = Math.min(Math.max(opts.limit ?? 1000, 1), 2000);
   const { data, error } = await admin
     .from("booking_transactions")
-    .select("gross_amount_cents, currency, provider, provider_metadata")
+    .select(`gross_amount_cents, currency, provider, ${PAYMENT_METHOD_COLUMN}`)
     .eq("source_tenant_id", tenantId)
     .eq("status", PAID)
     .order("paid_at", { ascending: false })
@@ -65,13 +86,13 @@ export async function loadTenantTakings(tenantId: string, opts: { limit?: number
       gross_amount_cents: number | string;
       currency: string | null;
       provider: string | null;
-      provider_metadata: unknown;
+      metadata: unknown;
     };
     return {
       grossAmountCents: num(row.gross_amount_cents),
       currency: row.currency ?? "USD",
       provider: row.provider ?? "manual",
-      paidVia: paidViaOf(row.provider_metadata),
+      paidVia: paidViaOf(row.metadata),
     };
   });
   return { ok: true, rows };

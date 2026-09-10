@@ -158,6 +158,63 @@ export function salesMoneyPresentation(input: {
   return { treatAsFree: false, amountDueLabel: null };
 }
 
+// ── Filter addresses ────────────────────────────────────────────────────
+
+/** The Sales list itself, with nothing selected. Every chip's address starts here. */
+export function salesListPath(tenantSlug: string): string {
+  return `/${tenantSlug}/admin/sales`;
+}
+
+/**
+ * The address a filter chip navigates to. ALWAYS ABSOLUTE, and that is the
+ * whole point of this function existing.
+ *
+ * THE DEFECT IT REPLACES. The page built chip addresses as a bare query
+ * string and returned `""` when the resulting filter set was empty, which is
+ * exactly the reset chips: "All kinds" and "All channels". An empty `href`
+ * is not "no query", it is "this document":
+ *
+ *     new URL("", "https://host/acme/admin/sales?kind=order&channel=pos").href
+ *       === "https://host/acme/admin/sales?kind=order&channel=pos"
+ *
+ * so both reset chips resolved back to the filtered page they were meant to
+ * clear and nothing happened when a person clicked them. Next's own
+ * `resolveHref` does not save it either: it answers `""` with the raw route
+ * pattern, `/[tenantSlug]/admin/sales`, brackets and all.
+ *
+ * Returning the path even when there is no query is therefore not tidiness.
+ * It is the difference between a reset that resets and a dead control.
+ */
+export function salesFilterHref(input: {
+  tenantSlug: string;
+  kind: SalesKindFilter;
+  channel: string;
+}): string {
+  const params = new URLSearchParams();
+  if (input.kind !== "all") params.set("kind", input.kind);
+  if (input.channel && input.channel !== "all") params.set("channel", input.channel);
+  const qs = params.toString();
+  const path = salesListPath(input.tenantSlug);
+  return qs ? `${path}?${qs}` : path;
+}
+
+/**
+ * The channel chips to offer: the channels present in the rows, plus the one
+ * currently selected even when it is present in none of them.
+ *
+ * WHY THE SELECTED ONE IS FORCED IN. Pick a channel, then pick a kind that
+ * has no rows on that channel, and the row set is empty, so the channels
+ * computed from it are empty, so the whole channel strip used to disappear
+ * while `?channel=` was still applied. The list was empty, the reason was
+ * off screen, and the control that would undo it was gone. A filter a person
+ * cannot see is a filter a person cannot remove.
+ */
+export function salesChannelChips(available: readonly string[], selected: string): string[] {
+  const chips = new Set(available);
+  if (selected && selected !== "all") chips.add(selected);
+  return [...chips].sort();
+}
+
 export function salesSourceHref(input: {
   tenantSlug: string;
   kind: string;

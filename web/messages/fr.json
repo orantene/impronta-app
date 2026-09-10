@@ -1178,7 +1178,7 @@
       "methodMercadoPago": "Mercado Pago",
       "methodMercadoPagoPoint": "Mercado Pago Point",
       "owedTitle": "Ce qui reste dû",
-      "owedSub": "Somme de « still owed » sur les commandes en attente de paiement — la même règle que le bureau des commandes.",
+      "owedSub": "Somme de ce qui reste dû sur les commandes en attente de paiement, selon la règle utilisée par le bureau des commandes.",
       "owedEmpty": "Rien n'est dû en ce moment.",
       "owedNote": "Voir le détail par commande",
       "refundsTitle": "Remboursements",
@@ -1188,7 +1188,7 @@
       "colRefunded": "Remboursé",
       "colOriginalPayment": "Paiement d'origine",
       "drawerTitle": "Caisses",
-      "drawerSub": "Ce qui a été compté par rapport à ce qui était attendu. Seul le total en cours existe aujourd'hui — pas encore de détail par mouvement.",
+      "drawerSub": "Ce qui a été compté par rapport à ce qui était attendu. Seul le total en cours existe aujourd'hui, sans détail par mouvement.",
       "drawerEmpty": "Aucune caisse ouverte pour le moment.",
       "drawerOpenLabel": "Ouverte",
       "drawerClosedLabel": "Fermée",
@@ -1198,9 +1198,11 @@
       "drawerVariance": "Écart",
       "drawerOpenedAt": "Ouverte le",
       "drawerClosedAt": "Fermée le",
-      "drawerStillOpenNote": "Caisse toujours ouverte — le compte final n'existe pas encore.",
+      "drawerStillOpenNote": "Caisse toujours ouverte, le compte final n'existe donc pas encore.",
       "movementsGapNote": "Le détail des mouvements et le comptage par dénomination ne sont pas encore enregistrés en base ; seul ce total en cours est disponible.",
-      "financialsLink": "Voir Finances (rapport par talent)"
+      "financialsLink": "Voir Finances (rapport par talent)",
+      "timeNotRecorded": "Non enregistré",
+      "timesInVenueZone": "Les heures sont affichées dans le fuseau horaire de cet espace de travail."
     }
   },
   "client": {

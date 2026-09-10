@@ -12045,7 +12045,7 @@
       "methodMercadoPago": "Mercado Pago",
       "methodMercadoPagoPoint": "Mercado Pago Point",
       "owedTitle": "Still owed",
-      "owedSub": "Sum of what is still owed on orders awaiting payment — the same rule the Orders desk uses.",
+      "owedSub": "Sum of what is still owed on orders awaiting payment, using the same rule the Orders desk uses.",
       "owedEmpty": "Nothing is owed right now.",
       "owedNote": "See the order-by-order breakdown",
       "refundsTitle": "Refunds",
@@ -12065,9 +12065,11 @@
       "drawerVariance": "Variance",
       "drawerOpenedAt": "Opened",
       "drawerClosedAt": "Closed",
-      "drawerStillOpenNote": "Still open — the closing count does not exist yet.",
+      "drawerStillOpenNote": "Still open, so the closing count does not exist yet.",
       "movementsGapNote": "Movement-by-movement detail and a denomination count are not recorded in the database yet; only this running total is available.",
-      "financialsLink": "See Financials (per-talent payout report)"
+      "financialsLink": "See Financials (per-talent payout report)",
+      "timeNotRecorded": "Not recorded",
+      "timesInVenueZone": "Times are shown in this workspace's own time zone."
     },
     "discounts": {
       "pageTitle": "Discounts",

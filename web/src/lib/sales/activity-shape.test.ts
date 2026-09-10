@@ -7,7 +7,9 @@ import {
   filterSalesRows,
   filterSalesRowsByChannel,
   distinctChannels,
+  salesChannelChips,
   salesChannelLabel,
+  salesFilterHref,
   salesKindLabel,
 } from "./activity-shape";
 
@@ -79,4 +81,77 @@ test("an unrecognised channel still renders — its raw value, never hidden", ()
   assert.equal(salesChannelLabel("some_future_channel", "en"), "some_future_channel");
   assert.equal(salesChannelLabel("pos", "en"), "Counter");
   assert.equal(salesChannelLabel("pos", "fr"), "Comptoir");
+});
+
+// ── Filter addresses ────────────────────────────────────────────────────
+//
+// These four exist because the reset chips shipped dead. The page built a
+// chip's address as a bare query string and returned "" when the resulting
+// filter set was empty, which is precisely the two reset chips. An empty
+// href means "this document", so clicking "All kinds" on a filtered page
+// re-resolved to that same filtered page. The assertion that would have
+// caught it is the third one: RESOLVE the address the way a browser does,
+// then look at what is left.
+
+test("a reset chip's address is the list itself, never an empty string", () => {
+  const href = salesFilterHref({ tenantSlug: "acme", kind: "all", channel: "all" });
+  assert.notEqual(href, "");
+  assert.equal(href, "/acme/admin/sales");
+});
+
+test("a chip that narrows carries the filters in its own address", () => {
+  assert.equal(
+    salesFilterHref({ tenantSlug: "acme", kind: "order", channel: "pos" }),
+    "/acme/admin/sales?kind=order&channel=pos",
+  );
+  // Clearing the kind keeps the channel, and vice versa: the two filters are
+  // independent and one chip must never silently drop the other.
+  assert.equal(
+    salesFilterHref({ tenantSlug: "acme", kind: "all", channel: "pos" }),
+    "/acme/admin/sales?channel=pos",
+  );
+  assert.equal(
+    salesFilterHref({ tenantSlug: "acme", kind: "order", channel: "all" }),
+    "/acme/admin/sales?kind=order",
+  );
+});
+
+test("resolved from a filtered page, every reset chip lands on the UNFILTERED list", () => {
+  const onAFilteredPage = "https://app.example/acme/admin/sales?kind=order&channel=pos";
+
+  // "All kinds" while a channel is also on: the kind goes, the channel stays.
+  const allKinds = new URL(
+    salesFilterHref({ tenantSlug: "acme", kind: "all", channel: "pos" }),
+    onAFilteredPage,
+  );
+  assert.equal(allKinds.pathname, "/acme/admin/sales");
+  assert.equal(allKinds.search, "?channel=pos");
+
+  // "All channels" while a kind is also on.
+  const allChannels = new URL(
+    salesFilterHref({ tenantSlug: "acme", kind: "order", channel: "all" }),
+    onAFilteredPage,
+  );
+  assert.equal(allChannels.search, "?kind=order");
+
+  // Both cleared: nothing survives the resolution. This is the assertion an
+  // empty href fails — it would resolve back to "?kind=order&channel=pos".
+  const cleared = new URL(
+    salesFilterHref({ tenantSlug: "acme", kind: "all", channel: "all" }),
+    onAFilteredPage,
+  );
+  assert.equal(cleared.pathname, "/acme/admin/sales");
+  assert.equal(cleared.search, "");
+});
+
+test("the chip that clears a channel survives a kind with no rows on that channel", () => {
+  // The kind filter emptied the list, so the rows carry no channels at all.
+  // The selected channel must still be offered, or the only control that
+  // could undo it disappears along with the rows it filtered away.
+  assert.deepEqual(salesChannelChips([], "pos"), ["pos"]);
+  assert.deepEqual(salesChannelChips(["menu"], "pos"), ["menu", "pos"]);
+  // Nothing selected and nothing present: no strip, which is correct.
+  assert.deepEqual(salesChannelChips([], "all"), []);
+  // Already present: offered once, not twice.
+  assert.deepEqual(salesChannelChips(["menu", "pos"], "pos"), ["menu", "pos"]);
 });

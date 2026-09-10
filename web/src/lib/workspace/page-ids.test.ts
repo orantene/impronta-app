@@ -80,7 +80,11 @@ test("every legacy URL opens the page it always opened", () => {
     ["sessions", "sessions"],
     ["roster", "roster"],
     ["tables", "tables"],
-    ["financials", "financials"],
+    // `financials` is an alias of the Payments destination, which is BUILT
+    // now, so the shell's page id under that URL is `payments`. Both
+    // addresses are canonical server routes, so this id is only the SPA page
+    // underneath and neither URL changed what it renders.
+    ["financials", "payments"],
     ["orders", "orders"],
     ["", "overview"],
   ];
@@ -90,11 +94,12 @@ test("every legacy URL opens the page it always opened", () => {
 });
 
 test("payouts is the one legacy id that keeps its own body", () => {
-  // The registry folds it into `payments` (live route: financials). The SPA
-  // still has a `payouts` case and /admin/payouts has no canonical matcher, so
-  // folding it would render nothing at all.
+  // The registry folds it into `payments`. The SPA still has a `payouts` case
+  // and /admin/payouts has no canonical matcher, so folding it would render
+  // nothing at all.
   assert.equal(resolveWorkspacePageId("payouts"), "payouts");
-  assert.equal(resolveWorkspacePageId("payments"), "financials");
+  // Payments now resolves to itself rather than to its old stand-in.
+  assert.equal(resolveWorkspacePageId("payments"), "payments");
 });
 
 test("anything the registry does not describe lands on overview", () => {
@@ -116,8 +121,10 @@ test("navWorkspacePages is one entry per built destination, in registry order", 
     "nav order must follow the registry, which is the rail order",
   );
   // Unbuilt destinations are absent: a rail row for Projects would be a second
-  // door onto Messages, and one for Payments a second door onto Financials.
-  for (const absent of ["projects", "payments", "mywork"] as WorkspacePage[]) {
+  // door onto Messages. Payments is NOT in this list any more, and that is the
+  // point of the change that removed it: while it was unbuilt it had no rail
+  // row, so the page could only be reached by typing its URL.
+  for (const absent of ["projects", "mywork"] as WorkspacePage[]) {
     assert.ok(!pages.includes(absent), `${absent} is not built and must not be a nav page`);
   }
 });

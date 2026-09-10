@@ -129,13 +129,17 @@ test("every rail row points at a route that exists and a page the shell can open
 });
 
 test("an unbuilt destination is not a row, even though its URL resolves", () => {
-  // Projects lands on Messages and Payments on Financials so a URL for them
-  // works. A rail row would be a second, differently-labelled door onto a page
-  // that already has one.
+  // Projects lands on Messages so a URL for it works. A rail row would be a
+  // second, differently-labelled door onto a page that already has one.
+  //
+  // Payments used to be in this list. It is a rail row now, asserted just
+  // below, because a built page with no row is a page nobody can reach.
   const ids = flat(build()).map((i) => i.id);
-  for (const absent of ["projects", "payments", "mywork"]) {
+  for (const absent of ["projects", "mywork"]) {
     assert.ok(!ids.includes(absent as WorkspaceNavItem["id"]), `${absent} is a rail row`);
   }
+  // The door onto the Payments page, in the rail a person actually looks at.
+  assert.ok(ids.includes("payments" as WorkspaceNavItem["id"]), "Payments has no rail row");
 });
 
 // ── Preset labels, from the tenant row ───────────────────────────────

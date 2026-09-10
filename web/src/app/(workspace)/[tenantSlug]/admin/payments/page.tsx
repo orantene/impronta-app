@@ -36,10 +36,12 @@ import {
   loadTenantDrawerSessions,
 } from "../../_data-bridge/payments-activity";
 import {
+  formatVenueDateTime,
   groupTakingsByMethod,
   paymentMethodLabelKey,
   withVariance,
 } from "@/lib/payments/activity-shape";
+import { tenantTimezone } from "@/lib/spaces/venues";
 
 export const dynamic = "force-dynamic";
 
@@ -47,15 +49,6 @@ type PageParams = Promise<{ tenantSlug: string }>;
 
 /** Cash drawer amounts have no currency column on `pos_shifts` — USD per the platform's primary-currency rule (never inferred from a stored default). */
 const DRAWER_CURRENCY = "USD";
-
-function formatDateTime(iso: string | null, locale: string): string {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
 
 const CARD = "rounded-xl border border-border bg-card";
 
@@ -72,12 +65,20 @@ export default async function PaymentsPage({ params }: { params: PageParams }) {
   const t = (k: string) => tr(`dashboard.payments.${k}`);
   const intlLocale = locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "en-US";
 
-  const [takingsLoad, ordersLoad, refundsLoad, drawerLoad] = await Promise.all([
+  const [takingsLoad, ordersLoad, refundsLoad, drawerLoad, timeZone] = await Promise.all([
     loadTenantTakings(scope.tenantId),
     loadWorkspaceOrders(scope.tenantId),
     loadTenantRefunds(scope.tenantId),
     loadTenantDrawerSessions(scope.tenantId),
+    // Every moment on this page is rendered on the WORKSPACE's clock, not on
+    // the render server's and not on the reader's browser. `tenantTimezone`
+    // is the platform's own ladder (the venue in play, then the workspace,
+    // then UTC) and the zone is printed beside each time.
+    tenantTimezone(scope.tenantId),
   ]);
+
+  const at = (iso: string | null) =>
+    formatVenueDateTime(iso, { locale: intlLocale, timeZone }) ?? t("timeNotRecorded");
 
   const takingsGroups = takingsLoad.ok ? groupTakingsByMethod(takingsLoad.rows) : [];
 
@@ -93,12 +94,17 @@ export default async function PaymentsPage({ params }: { params: PageParams }) {
           <h1 className="m-0 text-2xl font-semibold">{t("pageTitle")}</h1>
           <p className="mt-1.5 text-[13px] text-muted-foreground">{t("pageIntro")}</p>
         </div>
-        <Link
-          href={`/${tenantSlug}/admin/financials`}
-          className="text-[12.5px] text-foreground underline underline-offset-2"
-        >
-          {t("financialsLink")}
-        </Link>
+        <div className="flex flex-col items-end gap-1">
+          <Link
+            href={`/${tenantSlug}/admin/financials`}
+            className="text-[12.5px] text-foreground underline underline-offset-2"
+          >
+            {t("financialsLink")}
+          </Link>
+          {/* The zone is on every timestamp as well; this says once, in
+              words, whose clock the page is on. */}
+          <span className="text-[11.5px] text-muted-foreground">{t("timesInVenueZone")}</span>
+        </div>
       </div>
 
       <div className="flex flex-col gap-8">
@@ -202,7 +208,7 @@ export default async function PaymentsPage({ params }: { params: PageParams }) {
                 <tbody>
                   {refundsLoad.rows.map((r) => (
                     <tr key={r.id} className="border-t border-border">
-                      <td className="px-3.5 py-2.5 text-muted-foreground">{formatDateTime(r.refundedAt, intlLocale)}</td>
+                      <td className="px-3.5 py-2.5 text-muted-foreground">{at(r.refundedAt)}</td>
                       <td className="px-3.5 py-2.5 font-mono text-[12px] text-muted-foreground">
                         {r.orderId ? (
                           <Link href={`/${tenantSlug}/admin/orders/${r.orderId}`} className="hover:underline">
@@ -251,11 +257,11 @@ export default async function PaymentsPage({ params }: { params: PageParams }) {
                       {s.status === "open" ? t("drawerOpenLabel") : t("drawerClosedLabel")}
                     </span>
                     <span className="text-[12.5px] text-muted-foreground">
-                      {t("drawerOpenedAt")} {formatDateTime(s.openedAt, intlLocale)}
+                      {t("drawerOpenedAt")} {at(s.openedAt)}
                     </span>
                     {s.closedAt ? (
                       <span className="text-[12.5px] text-muted-foreground">
-                        · {t("drawerClosedAt")} {formatDateTime(s.closedAt, intlLocale)}
+                        · {t("drawerClosedAt")} {at(s.closedAt)}
                       </span>
                     ) : null}
                   </div>

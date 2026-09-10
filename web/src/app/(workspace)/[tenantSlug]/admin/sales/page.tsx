@@ -19,7 +19,9 @@ import { createTranslator } from "@/i18n/messages";
 import { loadWorkspaceSalesActivity, type SalesActivityRow } from "../../_data-bridge/sales-activity";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import {
+  salesChannelChips,
   salesChannelLabel,
+  salesFilterHref,
   salesKindLabel,
   salesMoneyPresentation,
   SALES_TYPE_CHIPS,
@@ -92,16 +94,19 @@ export default async function SalesPage({
   // strip hides itself rather than offering filters that would always
   // empty the list.
   const availableChannels = load.ok ? load.channels : [];
+  // The strip must survive a kind that has no rows on the selected channel,
+  // or the chip that would clear that channel vanishes with it.
+  const channelChips = salesChannelChips(availableChannels, channel);
 
-  function queryString(next: { kind?: SalesKindFilter; channel?: string }): string {
-    const params = new URLSearchParams();
-    const k = next.kind ?? kind;
-    const c = next.channel ?? channel;
-    if (k !== "all") params.set("kind", k);
-    if (c !== "all") params.set("channel", c);
-    const qs = params.toString();
-    return qs ? `?${qs}` : "";
-  }
+  // ALWAYS an absolute path, never a bare query string: a chip whose address
+  // is "" resolves to the current URL, query included, so both reset chips
+  // used to do nothing at all. See `salesFilterHref`.
+  const chipHref = (next: { kind?: SalesKindFilter; channel?: string }): string =>
+    salesFilterHref({
+      tenantSlug,
+      kind: next.kind ?? kind,
+      channel: next.channel ?? channel,
+    });
 
   return (
     <main className="mx-auto max-w-[1180px] px-7 py-8 text-foreground">
@@ -122,7 +127,7 @@ export default async function SalesPage({
         {kindFilters.map((f) => (
           <Link
             key={f.id}
-            href={queryString({ kind: f.id })}
+            href={chipHref({ kind: f.id })}
             className={`${CHIP_BASE} ${f.id === kind ? CHIP_ACTIVE : CHIP_IDLE}`}
           >
             {f.label}
@@ -130,19 +135,19 @@ export default async function SalesPage({
         ))}
       </nav>
 
-      {availableChannels.length > 0 ? (
+      {channelChips.length > 0 ? (
         <nav aria-label={t("filterChannelLabel")} className="mb-6 flex flex-wrap items-center gap-2">
           <span className="text-[12px] text-muted-foreground">{t("filterChannelLabel")}:</span>
           <Link
-            href={queryString({ channel: "all" })}
+            href={chipHref({ channel: "all" })}
             className={`${CHIP_BASE} h-7 ${channel === "all" ? CHIP_ACTIVE : CHIP_IDLE}`}
           >
             {t("filterAllChannels")}
           </Link>
-          {availableChannels.map((c) => (
+          {channelChips.map((c) => (
             <Link
               key={c}
-              href={queryString({ channel: c })}
+              href={chipHref({ channel: c })}
               className={`${CHIP_BASE} h-7 ${channel === c ? CHIP_ACTIVE : CHIP_IDLE}`}
             >
               {salesChannelLabel(c, loc)}

@@ -44,6 +44,7 @@ const ALL_PAGES: WorkspacePage[] = [
   "pitches",
   "reviews",
   "sales",
+  "payments",   // built as of P4-money; it used to fall back to financials
   "analytics",
   "website",
   "media",
@@ -128,6 +129,7 @@ test("visibleWorkspacePages drops exactly pitches for a business workspace", () 
     "roster", // People — every workspace has people; a restaurant has staff
     "reviews",
     "sales",
+    "payments",
     "analytics",
     "website",
     "media",
