@@ -59,6 +59,31 @@ const ES_TEXT: Record<string, string> = {
   "Notification preferences": "Preferencias de notificaciones",
   "Dismiss": "Descartar",
   // Sidebar rail — group labels + Website sub-links (Shopify polish W1/W7)
+  // T2: the rail is now a projection of lib/workspace/destinations.ts, so every
+  // destination label, preset label and sub-view label it can render needs a
+  // row here — ES_TEXT is keyed by the English literal and there is nowhere
+  // else for a translated nav string to live.
+  "Appointments": "Citas",
+  "Reservations": "Reservas",
+  "Orders": "Pedidos",
+  "Issues": "Incidencias",
+  "Events": "Eventos",
+  "Spaces": "Espacios",
+  "People": "Personas",
+  "Projects": "Proyectos",
+  "My work": "Mi trabajo",
+  // Preset labels: a cafe's catalog is its menu, a solo professional's is their
+  // services (already translated below).
+  "Menu and catalog": "Menú y catálogo",
+  // People / Appointments sub-views. They render once those destinations move
+  // to their own segments; the Spanish lands now so that day is a route change
+  // and nothing else.
+  "Everyone": "Todos",
+  "Bookable": "Reservable",
+  "Access": "Acceso",
+  "Applications": "Solicitudes",
+  "Series": "Series",
+  "Waitlist": "Lista de espera",
   "Operate": "Operar",
   "Sell": "Vender",
   "Sell and grow": "Vender y crecer",

@@ -323,7 +323,19 @@ const BUDGETS: Record<string, number> = {
   // projection of, so a page in one and not the other is either a compile error
   // or an unreachable screen. Re-recorded rather than extracted for the reason
   // given on the Orders line: the diff is +1/-0 per entry with nothing to trim.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5163,
+  // 2026-09-09 T2 (registry-driven rail): +21. WORKSPACE_PAGES and
+  // resolveWorkspacePage SHRANK — both are now one-line projections of
+  // `lib/workspace/page-ids.ts` — but PAGE_META grew, because the union it is
+  // exhaustive over gained the nine registry ids the shell had no rows for
+  // (appts, catalog, people, spaces, issues, projects, mywork, payments,
+  // exceptions), each needing a `pageMeta(...)` line, plus the helper and the
+  // note explaining why the table is exhaustive by TYPE. The labels and icons
+  // inside those rows are no longer written here at all: they come from the
+  // registry, so this table can no longer disagree with the rail about what a
+  // page is called. Re-recorded rather than extracted — an exhaustive Record is
+  // the compile-time proof, and moving it out of the module that owns the page
+  // vocabulary would buy lines and lose that.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5184,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -388,7 +400,16 @@ const BUDGETS: Record<string, number> = {
   // because the old ones were describing something that did not exist. ES_TEXT
   // is a flat map keyed by the English literal, so a translated string has
   // nowhere to live except here.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3564,
+  // 2026-09-09 T2: +25. Spanish for every label the registry-driven rail can
+  // render — nine destination labels the old template never showed (Appointments,
+  // Reservations, Orders, Issues, Events, Spaces, People, Projects, My work),
+  // the "Menu and catalog" preset label, and the six People/Appointments
+  // sub-view labels that land the day those destinations move to their own
+  // segments. ES_TEXT is a flat map keyed by the English literal, so a
+  // translated nav string has nowhere else to live. The inline
+  // `copy.isSpanish ? … : …` sub-item strings this replaces were in
+  // WorkspaceShell.tsx, which lost 251 lines.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3589,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
@@ -472,7 +493,12 @@ const BUDGETS: Record<string, number> = {
   // the same gate the Publish button enforces.
   // +2 POS — WorkspacePage union member `pos` (P3 New Sale).
   // +2 P5 — WorkspacePage union members `tables` and `preparation`.
-  "src/components/admin/shell/internal/state/types.ts": 2886,
+  // 2026-09-09 T2: +4. The WorkspacePage union stopped being a literal member
+  // list and became `DestinationId | LegacyWorkspacePage` — one line for the
+  // derivation, thirteen for the legacy segments still in the wild, and the
+  // note saying why deriving it turns a missed registration into a compile
+  // error. Net +4 against the 29 literals it replaced.
+  "src/components/admin/shell/internal/state/types.ts": 2890,
   // 2026-09-09 messages mobile pass: the ≤720px messages stylesheet (360
   // lines, no interpolation, a self-contained concern) moved out to
   // internal/messages-mobile-css.ts rather than growing this file past its

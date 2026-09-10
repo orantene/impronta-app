@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import type { WorkspacePage } from "@/components/admin/shell/internal/state/types";
 import { resolveWorkspaceAdminPage } from "@/app/(workspace)/[tenantSlug]/admin/workspace-page-routing";
+import { navWorkspacePages } from "@/lib/workspace/page-ids";
 import {
   BUSINESS_HIDDEN_PAGES,
   DEFAULT_WORKSPACE_TYPE,
@@ -15,32 +16,45 @@ import {
 } from "./workspace-type";
 
 /**
- * Mirror of `internal/state/fixtures.ts`'s WORKSPACE_PAGES. Duplicated here
- * rather than imported because that module is `"use client"` and this lane must
- * stay free of the shell graph. The `pages list matches the shell's` test below
- * pins the two together, so drift fails here rather than in production.
+ * The shell's WORKSPACE_PAGES, spelled out.
+ *
+ * It used to be a HAND mirror of `internal/state/fixtures.ts` (that module is
+ * `"use client"` and this lane must stay free of the shell graph), and it had
+ * already drifted — `reservations` was in the shell's list and not in this one.
+ * It is now written out AND checked against `navWorkspacePages()`, the pure
+ * projection of the destination registry that produces the real list. Keeping
+ * the literal is deliberate: it is what makes a change to the registry visible
+ * in this diff instead of silently re-deriving underneath the assertions below.
  */
 const ALL_PAGES: WorkspacePage[] = [
   "overview",
   "messages",
   "calendar",
-  "sessions",
-  "menu",
+  "sessions",     // the Appointments destination, at its live route
+  "reservations",
+  "orders",
+  "exceptions",   // the Issues destination, at its live route
+  "preparation",
+  "menu",         // the Catalog destination, at its live route
   "events",
-  "roster",
+  "tables",       // the Spaces destination, at its live route
+  "discounts",
   "clients",
+  "roster",       // the People destination, at its live route
   "pitches",
   "reviews",
+  "sales",
   "analytics",
   "website",
   "media",
-  "sales",
-  "discounts",
-  "pos",
-  "tables",
-  "preparation",
   "settings",
+  "pos",
 ];
+
+test("ALL_PAGES is exactly what the registry produces", () => {
+  // The mirror above cannot drift from the shell any more: both are this.
+  assert.deepEqual(ALL_PAGES, navWorkspacePages());
+});
 
 // ─── normalizeWorkspaceType — fails CLOSED toward "talent" ───────────────────
 
@@ -102,19 +116,22 @@ test("visibleWorkspacePages drops exactly roster + pitches for a business worksp
     "messages",
     "calendar",
     "sessions",
+    "reservations",
+    "orders",
+    "exceptions",
+    "preparation",
     "menu",
     "events",
+    "tables",
+    "discounts",
     "clients",
     "reviews",
+    "sales",
     "analytics",
     "website",
     "media",
-    "sales",
-    "discounts",
-    "pos",
-    "tables",
-    "preparation",
     "settings",
+    "pos",
   ]);
   // Nothing beyond the documented two is removed — a business workspace keeps
   // the full site builder, inbox, calendar, clients, media and settings.

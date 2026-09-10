@@ -10,6 +10,8 @@ import { seatCapLabel } from "@/lib/saas/plan-seat-caps";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
 import { resolveWorkspaceLiveAddress } from "@/lib/saas/workspace-live-url";
 import { deriveWebsitePageStatus } from "./website-page-status";
+import { navWorkspacePages, resolveWorkspacePageId } from "@/lib/workspace/page-ids";
+import { resolveDestination } from "@/lib/workspace/destinations";
 import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsiteDomainRecord, WebsitePageMetrics, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
 import type { DrawerId } from "./drawer-ids";
 
@@ -18,42 +20,26 @@ export const PLANS: Plan[] = ["free", "website", "studio", "agency", "network"];
 export const ROLES: Role[] = ["viewer", "editor", "manager", "admin", "owner"];
 export const ENTITY_TYPES: EntityType[] = ["agency", "hub"];
 export const CLIENT_PLANS: ClientPlan[] = ["free", "pro", "enterprise"];
-// WS-3.1 — The canonical nav pages. Legacy aliases excluded.
-export const WORKSPACE_PAGES: WorkspacePage[] = [
-  "overview",
-  "messages",
-  "calendar",
-  "sessions",
-  "reservations", // host stand; context.tsx filters it out when takes_reservations is false
-  "menu",
-  "events",   // context.tsx hides it when runs_events is false
-  "roster",
-  "clients",
-  "pitches",   // Phase 9 — pitch history surface.
-  "reviews",   // WP1 — reputation surface (moderation queue + review photos)
-  "analytics", // WP1 — funnel / money / website / reviews, honest empty states
-  "website",   // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain). Sits between Production and Settings.
-  "media",     // Agency/Studio — workspace media gallery + watermark control
-  "sales",
-  "discounts",
-  "pos",
-  "tables",
-  "preparation",
-  "settings",
-];
+/**
+ * The canonical nav pages — a PROJECTION of the destination registry, not a
+ * list. One entry per BUILT destination, at the segment it renders as today,
+ * in registry (rail) order. Legacy aliases are excluded; unbuilt destinations
+ * are excluded because a nav entry for one would put a second row in front of
+ * a page that already has its own.
+ *
+ * EVERY nav consumer reads `state.visiblePages`, never this — see context.tsx.
+ */
+export const WORKSPACE_PAGES: WorkspacePage[] = navWorkspacePages();
 
-// WS-3.6 — resolve a legacy URL alias to its canonical page.
-export function resolveWorkspacePage(raw: string): WorkspacePage {
-  const aliases: Record<string, WorkspacePage> = {
-    inbox:     "messages",
-    work:      "messages",
-    talent:    "roster",
-    site:      "website",   // 2026 — legacy /site URL now lands on the new Website page
-    billing:   "settings",
-    workspace: "settings",
-  };
-  return (aliases[raw] as WorkspacePage | undefined) ?? (raw as WorkspacePage) ?? "overview";
-}
+/**
+ * Resolve a legacy URL alias to the page that renders it.
+ *
+ * Delegates to the registry so this file, the admin route resolver and the
+ * sidebar cannot answer the same question three ways. `inbox` → messages,
+ * `work` → messages (projects is not built), `talent` → roster, `site` →
+ * website, `billing`/`workspace` → settings, exactly as before.
+ */
+export const resolveWorkspacePage = resolveWorkspacePageId;
 // Messages replaces Inbox as the canonical chat-first surface. Inbox
 // stays in the type union for URL backward-compat but is hidden from
 // the topbar nav.
@@ -234,40 +220,75 @@ export const SURFACE_META: Record<
   talent: { label: "Talent", short: "Talent", ready: true },
 };
 
-// WS-3.2 — canonical page metadata.  Legacy aliases included so code that
-// still references them doesn't throw; they redirect immediately in nav.
-export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; description?: string }> = {
-  // ── canonical pages ──
-  overview:  { label: "Overview",  icon: "home",     description: "Today's snapshot: unread, pending actions, recent activity" },
-  messages:  { label: "Messages",  icon: "mail",     description: "All threads across active inquiries and bookings" },
-  calendar:  { label: "Calendar",  icon: "calendar", description: "Scheduled shoots, holds, and deadlines" },
-  sessions:  { label: "Schedule",  icon: "layers",   description: "Series and their occurrences, with the series editor" },
-  menu:      { label: "Menu",      icon: "layers",   description: "Workspace-owned items customers can order from your site" },
-  roster:    { label: "Roster",    icon: "users",    description: "Your talent, availability, and performance" },
-  clients:   { label: "Clients",   icon: "briefcase", description: "Client accounts, trust tiers, and booking history" },
-  reviews:   { label: "Reviews",   icon: "star",     description: "Reported reviews, review photos, and rating integrity" },
-  analytics: { label: "Analytics", icon: "chart",    description: "Funnel, money, website, and reviews" },
-  website:   { label: "Website",   icon: "globe",    description: "Pages, posts, redirects, custom code, tracking, SEO, domain" },
-  media:     { label: "Media",     icon: "camera",   description: "Workspace photo library, watermark control, and usage tracking" },
-  pitches:   { label: "Pitches",   icon: "send",     description: "Curated talent suggestions sent to clients" },
-  financials:{ label: "Financials",icon: "trending-up", description: "Revenue, payouts, commissions, and payment status" },
-  orders:    { label: "Orders",    icon: "credit",      description: "Every order taken, and what is still owed on each" },
-  sales:     { label: "Sales",     icon: "credit",      description: "Bookings, orders, appointments and registrations in one list" },
-  discounts: { label: "Discounts", icon: "tag",         description: "Promo codes this workspace owns" },
-  pos:       { label: "New sale",  icon: "credit",      description: "Open a walk-in sale, add items, and collect" },
-  tables:    { label: "Tables",    icon: "layers",      description: "Open checks on the floor" },
-  preparation: { label: "Preparation", icon: "layers",   description: "Tickets the kitchen and pickup station see" },
-  reservations: { label: "Reservations", icon: "calendar", description: "The host stand: today's book, arrivals, and who is still unseated" },
-  events:    { label: "Events",    icon: "calendar",    description: "Ticketed events: tiers, lineup, sales, and the door" },
-  payouts:   { label: "Payouts",   icon: "credit-card", description: "Stripe Connect payout onboarding and base reservation fee" },
-  settings:  { label: "Settings",  icon: "settings", description: "Account, plan, branding, integrations, team, and danger zone" },
-  // ── legacy aliases (hidden from nav) ──
-  inbox:     { label: "Inbox",     icon: "mail" },
-  work:      { label: "Workflow",  icon: "layers" },
-  talent:    { label: "Talent",    icon: "users" },
-  site:      { label: "Public site", icon: "globe" },
-  billing:   { label: "Billing",   icon: "credit-card" },
-  workspace: { label: "Settings",  icon: "settings" },
+/**
+ * Page metadata — label and icon come from the destination registry, the
+ * one-line description is copy this file owns (the registry carries neither
+ * prose nor Spanish).
+ *
+ * EXHAUSTIVE BY TYPE, ON PURPOSE. `Record<WorkspacePage, …>` and a union
+ * derived from `DestinationId` mean a destination added to the registry fails
+ * to COMPILE here until it is given a row. That replaces the old failure mode,
+ * where a missed registration degraded an icon to a circle or 404'd a segment
+ * to Overview with every gate green.
+ *
+ * A legacy alias takes its destination's label: `/admin/site` is the Website
+ * page, so calling it "Public site" in a palette entry was a second name for
+ * one surface.
+ */
+type PageMetaEntry = { label: string; icon: string; description?: string };
+
+function pageMeta(page: WorkspacePage, description?: string): PageMetaEntry {
+  const destination = resolveDestination(page);
+  return {
+    // `resolveDestination` cannot miss — every WorkspacePage is a registry
+    // segment or alias — but a total function beats a non-null assertion.
+    label: destination ? destination.label : page,
+    icon: destination ? destination.icon : "circle",
+    ...(description ? { description } : {}),
+  };
+}
+
+export const PAGE_META: Record<WorkspacePage, PageMetaEntry> = {
+  // ── destinations ──
+  overview:  pageMeta("overview",  "Today's snapshot: unread, pending actions, recent activity"),
+  messages:  pageMeta("messages",  "All threads across active inquiries and bookings"),
+  calendar:  pageMeta("calendar",  "Scheduled shoots, holds, and deadlines"),
+  appts:     pageMeta("appts",     "Appointments, sessions and series, with the series editor"),
+  reservations: pageMeta("reservations", "The host stand: today's book, arrivals, and who is still unseated"),
+  orders:    pageMeta("orders",    "Every order taken, and what is still owed on each"),
+  projects:  pageMeta("projects",  "Jobs with a brief, a crew and a deadline"),
+  mywork:    pageMeta("mywork",    "Your own shifts, bookings and jobs"),
+  issues:    pageMeta("issues",    "Refunds, tickets, inquiries and jobs that need a human"),
+  preparation: pageMeta("preparation", "Tickets the kitchen and pickup station see"),
+  catalog:   pageMeta("catalog",   "What this workspace sells, and what customers can order"),
+  events:    pageMeta("events",    "Ticketed events: tiers, lineup, sales, and the door"),
+  spaces:    pageMeta("spaces",    "Rooms, tables and the open checks on them"),
+  discounts: pageMeta("discounts", "Promo codes this workspace owns"),
+  clients:   pageMeta("clients",   "Client accounts, trust tiers, and booking history"),
+  people:    pageMeta("people",    "Everyone who works here, is bookable here, or has access"),
+  pitches:   pageMeta("pitches",   "Curated talent suggestions sent to clients"),
+  reviews:   pageMeta("reviews",   "Reported reviews, review photos, and rating integrity"),
+  sales:     pageMeta("sales",     "Bookings, orders, appointments and registrations in one list"),
+  payments:  pageMeta("payments",  "Revenue, payouts, commissions, and payment status"),
+  analytics: pageMeta("analytics", "Funnel, money, website, and reviews"),
+  website:   pageMeta("website",   "Pages, posts, redirects, custom code, tracking, SEO, domain"),
+  media:     pageMeta("media",     "Workspace photo library, watermark control, and usage tracking"),
+  settings:  pageMeta("settings",  "Account, plan, branding, integrations, team, and danger zone"),
+  pos:       pageMeta("pos",       "Open a walk-in sale, add items, and collect"),
+  // ── legacy aliases (hidden from nav, kept for URL compat) ──
+  inbox:     pageMeta("inbox"),
+  work:      pageMeta("work"),
+  sessions:  pageMeta("sessions",  "Appointments, sessions and series, with the series editor"),
+  menu:      pageMeta("menu",      "Workspace-owned items customers can order from your site"),
+  roster:    pageMeta("roster",    "Your talent, availability, and performance"),
+  talent:    pageMeta("talent"),
+  exceptions: pageMeta("exceptions", "Refunds, tickets, inquiries and jobs that need a human"),
+  tables:    pageMeta("tables",    "Open checks on the floor"),
+  financials: pageMeta("financials", "Revenue, payouts, commissions, and payment status"),
+  payouts:   pageMeta("payouts",   "Stripe Connect payout onboarding and base reservation fee"),
+  site:      pageMeta("site"),
+  workspace: pageMeta("workspace"),
+  billing:   pageMeta("billing"),
 };
 
 export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {

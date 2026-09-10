@@ -6,6 +6,38 @@
  * below shipped precisely because nothing covered it.
  */
 
+import { DESTINATION_LIST, liveRouteSegment } from "@/lib/workspace/destinations";
+
+/**
+ * The canonical segments the DESTINATION REGISTRY owns.
+ *
+ * A destination marked `render: "canonical"` is a real Next.js server page, and
+ * the shell must yield to it rather than stacking the prototype SPA underneath.
+ * Both names are matched: the canonical segment a destination is moving to, and
+ * `liveRouteSegment` — the one it renders at TODAY. Several are not the same
+ * (`spaces` renders at /admin/tables, `issues` at /admin/exceptions, the unbuilt
+ * `payments` at /admin/financials), and matching only the first would have
+ * un-canonicalised three live pages.
+ *
+ * ALIASES ARE DELIBERATELY NOT INCLUDED. `payouts` is an alias of `payments`,
+ * but `/admin/payouts` is an SPA section whose page.tsx is a bare
+ * PageRouteSyncer: making it canonical would yield to a route that renders
+ * `null` and paint a blank screen.
+ */
+const REGISTRY_CANONICAL_SEGMENTS: readonly string[] = [
+  ...new Set(
+    DESTINATION_LIST.filter((d) => d.render === "canonical").flatMap((d) => {
+      const live = liveRouteSegment(d);
+      return live === null || live === "" ? [d.segment] : [d.segment, live];
+    }),
+  ),
+];
+
+const REGISTRY_MATCHERS: Array<(segments: string[]) => boolean> =
+  REGISTRY_CANONICAL_SEGMENTS.map(
+    (segment) => (s: string[]) => s[0] === "admin" && s[1] === segment,
+  );
+
 /**
  * Route patterns that should render the canonical Next.js page (children)
  * INSTEAD of the prototype SPA. Matched against `usePathname()` segments
@@ -16,6 +48,12 @@
  * The tenant slug itself isn't passed (it's variable across workspaces).
  */
 export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
+  // Every destination the registry marks `render: "canonical"`, at BOTH its
+  // canonical segment and the segment it actually renders at today — see
+  // REGISTRY_CANONICAL_SEGMENTS above. `financials`, `exceptions`, `orders`,
+  // `sales`, `discounts`, `pos`, `tables`, `preparation` and `reservations`
+  // used to be nine hand-written lines here; they are now that projection.
+  ...REGISTRY_MATCHERS,
   // /<tenant>/admin/work/<id> — canonical booking detail w/ payment state machine
   (s) => s[0] === "admin" && s[1] === "work" && typeof s[2] === "string" && s[2].length > 0,
   // /<tenant>/admin/policy/<…> — workspace policy pages (auto-ack, etc.)
@@ -58,32 +96,10 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // explicit owner sign-off.
   // /<tenant>/admin/triage — focused queue (separate from Messages shell).
   (s) => s[0] === "admin" && s[1] === "triage",
-  // /<tenant>/admin/financials — Business Financials page (L46).
-  (s) => s[0] === "admin" && s[1] === "financials",
-  // /<tenant>/admin/exceptions — the Exceptions inbox (M0). Real server page
-  // reading five sources directly; "exceptions" is not a WorkspacePage id, so
-  // without a matcher the SPA overview would stack underneath it — the same
-  // failure the bookings/account matchers were added for.
-  (s) => s[0] === "admin" && s[1] === "exceptions",
-  // /<tenant>/admin/orders — the Orders desk (0.10). Canonical server route
-  // like `financials`, not a prototype SPA tab: it reads `orders` directly and
-  // has no shell data-bridge projection to hang off.
-  (s) => s[0] === "admin" && s[1] === "orders",
-  (s) => s[0] === "admin" && s[1] === "sales",
-  (s) => s[0] === "admin" && s[1] === "discounts",
-  (s) => s[0] === "admin" && s[1] === "pos",
-  (s) => s[0] === "admin" && s[1] === "tables",
-  (s) => s[0] === "admin" && s[1] === "preparation",
   // /<tenant>/admin/events/door — live check-in desk. The Events SPA owns
   // /admin/events (list + tabs); the door is a real server page and must not
   // stack under EventsPage.
   (s) => s[0] === "admin" && s[1] === "events" && s[2] === "door",
-  // /<tenant>/admin/reservations/** — R3 host stand. Canonical server route
-  // like `orders`, not a prototype SPA tab: it reads `lib/reservations/book.ts`
-  // directly. Matching on s[1] alone covers /reservations, /reservations/[date]
-  // and /reservations/settings so all three render in the shell <main> rather
-  // than stacking under the SPA overview.
-  (s) => s[0] === "admin" && s[1] === "reservations",
   // /<tenant>/admin/reviews/** — WP1. The review-photo moderation grid at
   // /admin/reviews/media is a real server page; the new Reviews page-module
   // links to it. Without this matcher it rendered without shell chrome /

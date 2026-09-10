@@ -181,20 +181,37 @@ test("a built destination renamed ahead of its route still points at the live on
   }
 });
 
-test("every segment today's router accepts has a destination", () => {
-  const src = read(`${ADMIN_DIR}/workspace-page-routing.ts`);
-  const segments = [...src.matchAll(/^\s*"([a-z-]+)",/gm)].map((m) => m[1]);
-  assert.ok(segments.length >= 20, `expected the segment list, found ${segments.length}`);
-  const aliasBlock = src.slice(
-    src.indexOf("WORKSPACE_PAGE_ALIASES"),
-    src.indexOf("WORKSPACE_PAGE_SEGMENTS"),
+/**
+ * Every segment the admin router accepted before it delegated to this registry.
+ *
+ * This used to be SCRAPED out of `workspace-page-routing.ts`, which carried its
+ * own `WORKSPACE_PAGE_ALIASES` map and `WORKSPACE_PAGE_SEGMENTS` allow-list.
+ * That file is now four lines that call `resolveWorkspacePageId`, so scraping it
+ * would assert that the registry agrees with itself. The list is frozen here
+ * instead: these are URLs in the wild — bookmarks, emailed links, browser
+ * history — and none of them may ever stop resolving, whatever the registry
+ * does next.
+ */
+const SEGMENTS_THE_ROUTER_ACCEPTED_BEFORE_THE_REGISTRY: readonly string[] = [
+  "overview", "messages", "calendar", "sessions", "menu", "roster", "clients",
+  "reviews", "analytics", "website", "media", "pitches", "financials", "orders",
+  "sales", "discounts", "pos", "tables", "preparation", "reservations", "events",
+  "payouts", "settings",
+  // aliases
+  "inbox", "work", "talent", "site", "billing", "workspace",
+];
+
+test("every segment the router accepted before the registry still has a destination", () => {
+  const accepted = SEGMENTS_THE_ROUTER_ACCEPTED_BEFORE_THE_REGISTRY;
+  assert.ok(accepted.length >= 29, `expected the frozen URL list, found ${accepted.length}`);
+  assert.ok(
+    read(`${ADMIN_DIR}/workspace-page-routing.ts`).includes("resolveWorkspacePageId"),
+    "the admin router must delegate to the registry",
   );
-  const aliases = [...aliasBlock.matchAll(/^\s*([a-z]+):/gm)].map((m) => m[1]);
-  assert.ok(aliases.length >= 6, `expected the alias list, found ${aliases.length}`);
-  for (const raw of [...segments, ...aliases]) {
+  for (const raw of accepted) {
     assert.ok(
       resolveDestination(raw) !== null,
-      `/${raw} is an accepted admin URL today and resolves to no destination`,
+      `/${raw} was an accepted admin URL and resolves to no destination`,
     );
   }
 });
