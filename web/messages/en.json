@@ -12063,7 +12063,96 @@
       "shiftExpected": "Expected cash",
       "shiftVariance": "Variance",
       "shiftNone": "No open shift. Cash still collects.",
-      "shiftOpenHint": "Leaving this page does not close the shift."
+      "shiftOpenHint": "Leaving this page does not close the shift.",
+      "counter": {
+        "rail": {
+          "label": "Counter",
+          "sell": "Sell",
+          "orders": "Orders",
+          "shifts": "Shifts"
+        },
+        "sell": {
+          "searchPlaceholder": "Search items",
+          "searchLabel": "Search",
+          "favourites": "Favorites",
+          "allCategories": "All",
+          "add": "Add",
+          "empty": "No items match your search.",
+          "emptyCatalog": "Nothing published for sale yet."
+        },
+        "variant": {
+          "chooseLabel": "Choose one"
+        },
+        "basket": {
+          "title": "Basket",
+          "empty": "Add an item to start this sale.",
+          "decrease": "Decrease quantity",
+          "increase": "Increase quantity",
+          "remove": "Remove",
+          "discountLabel": "Discount or promo code",
+          "discountPlaceholder": "Enter a code",
+          "applyDiscount": "Apply",
+          "discountNotCombinable": "This discount cannot combine with the one already applied.",
+          "subtotal": "Subtotal",
+          "discount": "Discount",
+          "total": "Total",
+          "charge": "Charge",
+          "chargeEmptyHint": "Add an item before charging.",
+          "chargeLoading": "Charging"
+        },
+        "customer": {
+          "title": "Customer",
+          "walkIn": "Walk-in",
+          "search": "Find a customer",
+          "searchPlaceholder": "Name, email or phone",
+          "create": "Create new",
+          "attach": "Attach",
+          "attachRetry": "Retry attach",
+          "none": "No customer attached yet."
+        },
+        "collect": {
+          "title": "Collect payment",
+          "methodCash": "Cash",
+          "methodCard": "Card",
+          "methodLink": "Payment link",
+          "methodPass": "Pass credit",
+          "amountDue": "Amount due",
+          "tendered": "Tendered",
+          "change": "Change due",
+          "confirmCash": "Confirm cash",
+          "keypadClear": "Clear",
+          "cardWaiting": "Waiting for the card reader.",
+          "linkReady": "Generate a payment link for the customer to pay.",
+          "passReady": "This amount will be deducted from the customer's pass balance.",
+          "cardUnavailable": "No card reader is connected on this device.",
+          "linkUnavailable": "This workspace has no payment link provider set up.",
+          "passUnavailable": "Pass credits are not enabled for this workspace.",
+          "methodUnavailableFallback": "This payment method is not available right now."
+        },
+        "paid": {
+          "title": "Paid",
+          "amount": "Amount collected",
+          "change": "Change given",
+          "printReceipt": "Print receipt",
+          "emailReceipt": "Email receipt",
+          "nextCustomer": "Next customer"
+        },
+        "held": {
+          "title": "Held sales",
+          "empty": "No sales on hold.",
+          "resume": "Resume",
+          "heldSince": "Held since"
+        },
+        "refusal": {
+          "balanceChanged": "Someone already collected part of this balance. The amount owing has changed.",
+          "saleReloading": "This sale changed while you had it open. Reloading now.",
+          "needsCustomerName": "This item needs the customer's name before it can be sold.",
+          "paymentDeclined": "The payment did not go through. Nothing was charged.",
+          "paymentUnknown": "The payment may have gone through. Check before trying again.",
+          "retry": "Try again",
+          "reload": "Reload"
+        }
+      }
     },
     "tables": {
       "pageTitle": "Tables",
