@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { liveRouteSegment, resolveDestination } from "../workspace/destinations";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
@@ -27,10 +28,16 @@ test("layer 3 — tables and preparation are allowed workspace segments", () => 
   assert.ok(list.includes('"preparation"'));
 });
 
-test("layer 4 — nav registry routes restaurant destinations to built pages", () => {
-  const src = read("src/lib/workspace/navigation-registry.ts");
-  assert.match(src, /tables: \{ id: "tables", path: "tables"/);
-  assert.match(src, /preparation: \{ id: "preparation", path: "preparation"/);
+test("layer 4 — the destination registry routes restaurant destinations to built pages", () => {
+  // Repointed from the dead `lib/workspace/navigation-registry.ts` (deleted in
+  // T2-A) to the one registry of workspace destinations. `spaces` is the
+  // canonical name; /admin/tables is still the live route, and still resolves.
+  const spaces = resolveDestination("tables");
+  assert.equal(spaces?.id, "spaces");
+  assert.equal(spaces && liveRouteSegment(spaces), "tables");
+  const prep = resolveDestination("preparation");
+  assert.equal(prep?.id, "preparation");
+  assert.equal(prep && liveRouteSegment(prep), "preparation");
 });
 
 test("tables and preparation actions require workspace staff and view_dashboard", () => {

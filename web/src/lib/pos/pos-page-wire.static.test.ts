@@ -2,6 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  isPosSegment,
+  liveRouteSegment,
+  resolveDestination,
+} from "../workspace/destinations";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
@@ -22,9 +27,16 @@ test("layer 3 — 'pos' is an allowed workspace segment", () => {
   assert.ok(list.includes('"pos"'));
 });
 
-test("layer 4 — the nav registry routes New Sale to pos", () => {
-  const src = read("src/lib/workspace/navigation-registry.ts");
-  assert.match(src, /pos: \{ id: "pos", path: "pos"/);
+test("layer 4 — the destination registry routes New sale to the POS route", () => {
+  // Repointed from the dead `lib/workspace/navigation-registry.ts` (deleted in
+  // T2-A: nothing consumed it) to the one registry of workspace destinations.
+  const pos = resolveDestination("pos");
+  assert.ok(pos, "pos must resolve to a destination");
+  assert.equal(pos.id, "pos");
+  assert.equal(liveRouteSegment(pos), "pos");
+  // POS owns the whole screen; it must never be reachable as a rail row.
+  assert.equal(pos.chrome, "pos");
+  assert.ok(isPosSegment("pos"));
 });
 
 test("POS actions require workspace staff and booking.payment.request", () => {
