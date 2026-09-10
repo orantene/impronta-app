@@ -4,14 +4,14 @@ import { useMemo } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 
-import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
+import { RAIL_ES_TEXT } from "./dashboard-i18n-rail";
 
 function isSpanish(locale: string): boolean {
   return locale.toLowerCase().startsWith("es");
 }
 
 const ES_TEXT: Record<string, string> = {
-  ...LINKS_ES_TEXT,
+  ...RAIL_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",

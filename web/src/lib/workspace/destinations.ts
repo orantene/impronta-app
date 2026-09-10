@@ -70,19 +70,14 @@ export const DESTINATION_GROUPS = [
 export type DestinationGroup = (typeof DESTINATION_GROUPS)[number];
 
 /**
- * Rail order. `pos` is deliberately absent: the point of sale owns the whole
- * screen (see `chrome`) and must never appear as a rail row — `posGroup` is a
- * grouping for the registry, not a section of the sidebar.
+ * Rail order: the vocabulary above, minus the point of sale, which owns the
+ * whole screen (see `chrome`) and must never be a rail row. DERIVED, because a
+ * second hand-kept copy of one vocabulary is the failure this module exists to
+ * end, and it had grown one here.
  */
-export const SIDEBAR_GROUP_ORDER: readonly DestinationGroup[] = [
-  "home",
-  "operate",
-  "sell",
-  "relationships",
-  "money",
-  "grow",
-  "settings",
-];
+export const SIDEBAR_GROUP_ORDER: readonly DestinationGroup[] = DESTINATION_GROUPS.filter(
+  (group) => group !== "pos",
+);
 
 /** `null` = the group renders with no heading (the single Overview row). */
 export const DESTINATION_GROUP_LABELS: Readonly<Record<DestinationGroup, string | null>> = {
@@ -278,9 +273,14 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     shortLabel: "Bookings",
     built: true,
     mobilePriority: 4,
-    // NO SUB-VIEWS. Appointments renders at /admin/sessions, and that directory
-    // holds exactly one page.tsx: Series and Waitlist are the surface this
-    // destination is heading for, not routes. They belong here the day they are.
+    // TABS, not routes: /admin/sessions still holds one page.tsx, so the three
+    // views hang off the live route under a `view` query, the shape Events'
+    // Tickets child already has. See AppointmentsPage.
+    subViews: [
+      { id: "list", label: "Appointments", segment: "" },
+      { id: "sessions", label: "Sessions and series", segment: "", query: "view=sessions" },
+      { id: "waitlist", label: "Waitlist", segment: "", query: "view=waitlist" },
+    ],
   },
   reservations: {
     id: "reservations",

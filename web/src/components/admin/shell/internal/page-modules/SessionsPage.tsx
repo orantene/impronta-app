@@ -24,7 +24,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useAdminShell } from "../state";
 import { useT } from "@/i18n/use-t";
 import { PageHeader } from "./pages-shared";
-import { loadSchedule, type ScheduleSeries } from "@/lib/sessions/schedule-actions";
+import {
+  loadSchedule,
+  type ScheduleOccurrence,
+  type ScheduleSeries,
+} from "@/lib/sessions/schedule-actions";
 import { ScheduleNightForm } from "./ScheduleNightForm";
 
 const ISO_WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -55,7 +59,31 @@ function formatWhen(iso: string, timeZone: string | null): string {
   }
 }
 
-export function SessionsPage() {
+/** A class the engine has actually called full. Unknown seats are not full. */
+function isFull(occurrence: ScheduleOccurrence): boolean {
+  return occurrence.seatsTotal !== null && occurrence.seatsRemaining !== null
+    && occurrence.seatsRemaining <= 0;
+}
+
+/**
+ * `embedded` suppresses this module's own PageHeader.
+ *
+ * The Schedule surface is now one VIEW of the Appointments destination
+ * (`AppointmentsPage`), which has already drawn the page heading by the time
+ * this renders; two headings stacked reads as a broken layout. It is a prop
+ * rather than a split component because the body below is the whole point of
+ * the file and nothing else about it changes.
+ *
+ * `onOpenWaitlist` is the door to the queue, and it is here because THIS is
+ * the screen where somebody finds out a class is full. Without it the waitlist
+ * was a tab you had to already know about, listing only queues that already
+ * existed, so no first person could ever be added to one. Absent (the
+ * standalone Schedule route), a full class simply says it is full.
+ */
+export function SessionsPage({
+  embedded = false,
+  onOpenWaitlist,
+}: { embedded?: boolean; onOpenWaitlist?: (sessionId: string) => void } = {}) {
   const { bridgeTenantIdentity } = useAdminShell();
   const t = useT();
   const tenantId = bridgeTenantIdentity?.tenantId ?? null;
@@ -91,7 +119,7 @@ export function SessionsPage() {
   if (!tenantId) {
     return (
       <>
-        <PageHeader title={t("dashboard.adminSessions.title")} />
+        {embedded ? null : <PageHeader title={t("dashboard.adminSessions.title")} />}
         <div className="p-6 text-sm text-admin-ink-muted">
           {t("dashboard.adminSessions.noTenant")}
         </div>
@@ -106,10 +134,12 @@ export function SessionsPage() {
 
   return (
     <>
-      <PageHeader
-        title={t("dashboard.adminSessions.title")}
-        subtitle={t("dashboard.adminSessions.subtitle")}
-      />
+      {embedded ? null : (
+        <PageHeader
+          title={t("dashboard.adminSessions.title")}
+          subtitle={t("dashboard.adminSessions.subtitle")}
+        />
+      )}
 
       {error ? (
         <div className="mb-[16px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[16px] text-[13.5px] text-admin-ink">
@@ -229,6 +259,16 @@ export function SessionsPage() {
                         </td>
                         <td className="py-[6px] text-admin-ink-muted">
                           {t(`dashboard.adminSessions.status.${o.status}`)}
+                          {onOpenWaitlist && isFull(o) ? (
+                            <button
+                              type="button"
+                              data-testid="session-open-waitlist"
+                              className="ml-[10px] rounded-admin border border-admin-line px-2 py-1 text-[12.5px] text-admin-ink"
+                              onClick={() => onOpenWaitlist(o.id)}
+                            >
+                              {t("dashboard.adminAppointments.waitlist.openFromSession")}
+                            </button>
+                          ) : null}
                         </td>
                       </tr>
                     ))}
