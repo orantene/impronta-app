@@ -78,6 +78,9 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   takesReservations: false,
   // No tenant, no events. False as a fact.
   runsEvents: false,
+  // No `agencies` row, so no industry preset. Null as a fact; the nav shapes
+  // it reads are a workspace-rail concern and this surface has no rail.
+  industryPreset: null,
   logoUrl: null,
   accentColor: null,
   verifiedDomain: null,

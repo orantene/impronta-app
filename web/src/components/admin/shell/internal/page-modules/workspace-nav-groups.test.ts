@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import type { WorkspaceNavContext } from "@/lib/workspace/destinations";
+import { workspaceNavContext } from "@/lib/workspace/nav-context";
 import { navWorkspacePages } from "@/lib/workspace/page-ids";
+import { visibleWorkspacePages } from "@/lib/saas/workspace-type";
 import type { WorkspacePage } from "../state/types";
 import {
   workspaceNavGroups,
@@ -52,6 +54,48 @@ const flat = (result: ReturnType<typeof build>): WorkspaceNavItem[] => [
 ];
 const labelOf = (result: ReturnType<typeof build>, id: string): string | undefined =>
   flat(result).find((i) => i.id === id)?.label;
+const itemOf = (result: ReturnType<typeof build>, id: string): WorkspaceNavItem | undefined =>
+  flat(result).find((i) => i.id === id);
+
+/**
+ * THE RAIL FROM A TENANT ROW, not from a hand-made context.
+ *
+ * `tenantIdentity` and `sessionIdentity` are shaped exactly as the identity
+ * bridge delivers them, and `visiblePages` is computed by the same
+ * `visibleWorkspacePages` the provider uses, so what these tests exercise is
+ * the whole client-side chain: bridge → `workspaceNavContext` → registry →
+ * rail. A label proven this way cannot be green while the shell is passing the
+ * derivation a stubbed preset.
+ */
+function railFor(
+  tenant: { industryPreset?: string | null; workspaceType?: "talent" | "business" },
+  over: { teamMemberCount?: number; plan?: WorkspaceNavContext["plan"] } & Partial<
+    Pick<WorkspaceNavInput, "activePage" | "pathname" | "search" | "subBadges">
+  > = {},
+) {
+  const workspaceType = tenant.workspaceType ?? "talent";
+  const visiblePages = visibleWorkspacePages(workspaceType, ALL_PAGES);
+  return workspaceNavGroups({
+    context: workspaceNavContext({
+      tenantIdentity: { industryPreset: tenant.industryPreset ?? null },
+      sessionIdentity: { role: "owner", canManageBilling: true },
+      workspaceType,
+      plan: over.plan ?? "agency",
+      visiblePages,
+      teamMemberCount: over.teamMemberCount ?? 6,
+      hasTalentProfile: false,
+      fallbackRole: "viewer",
+    }),
+    adminBase: "/admin",
+    visiblePages,
+    activePage: over.activePage ?? "overview",
+    pathname: over.pathname ?? "/admin",
+    search: over.search ?? "",
+    badges: {},
+    subBadges: over.subBadges,
+    websiteSubItems: [],
+  });
+}
 
 // ── Shape ────────────────────────────────────────────────────────────
 
@@ -94,25 +138,44 @@ test("an unbuilt destination is not a row, even though its URL resolves", () => 
   }
 });
 
-// ── Preset labels ────────────────────────────────────────────────────
+// ── Preset labels, from the tenant row ───────────────────────────────
+//
+// These four are the proof for the regression that the rail passed the
+// derivation `industryPreset: undefined` while holding the tenant row, so every
+// workspace on the platform resolved to `hybrid` and a restaurant's rail row
+// went from "Menu" to "Catalog". They start at a bridge payload and end at a
+// drawn label; nothing in them names a preset shape by hand.
 
-test("a cafe says Menu and catalog, and Team", () => {
-  const cafe = build({}, { preset: "cafe" });
+test("a cafe tenant's rail says Menu and catalog, and Team", () => {
+  // `restaurant` sells a menu and books nobody — the cafe shape.
+  const cafe = railFor({ industryPreset: "restaurant" });
   assert.equal(labelOf(cafe, "catalog"), "Menu and catalog");
   assert.equal(labelOf(cafe, "people"), "Team");
 });
 
-test("a solo professional says Services", () => {
-  const solo = build({}, { preset: "solo" });
+test("a solo professional's rail says Services", () => {
+  // `salon_barber` books appointments; one person on the team makes it solo.
+  const solo = railFor({ industryPreset: "salon_barber" }, { teamMemberCount: 1 });
   assert.equal(labelOf(solo, "catalog"), "Services");
   // Appointments needs no override — it is the base label.
   assert.equal(labelOf(solo, "appts"), "Appointments");
 });
 
-test("hybrid — the shape that relabels nothing — keeps the base labels", () => {
-  const hybrid = build();
-  assert.equal(labelOf(hybrid, "catalog"), "Catalog");
-  assert.equal(labelOf(hybrid, "people"), "People");
+test("the same trade with a team is hybrid and keeps the base labels", () => {
+  const team = railFor({ industryPreset: "salon_barber" }, { teamMemberCount: 9 });
+  assert.equal(labelOf(team, "catalog"), "Catalog");
+  assert.equal(labelOf(team, "people"), "People");
+});
+
+test("a workspace with no preset on the bridge keeps the base labels", () => {
+  // The shape that relabels nothing. This is the CORRECT answer for a tenant
+  // with no `industry_preset`, and the WRONG answer for every other tenant —
+  // which is why the three tests above exist beside it.
+  for (const missing of [null, undefined]) {
+    const none = railFor({ industryPreset: missing });
+    assert.equal(labelOf(none, "catalog"), "Catalog", String(missing));
+    assert.equal(labelOf(none, "people"), "People", String(missing));
+  }
 });
 
 // ── Gating ───────────────────────────────────────────────────────────
@@ -137,29 +200,123 @@ test("a workspace that takes no reservations and runs no events gets neither row
 });
 
 test("a row the workspace type refuses is never drawn", () => {
-  // `clampWorkspacePage` sends /admin/roster and /admin/pitches to Overview on a
-  // business workspace. A rail row for either would bounce on click — the bug
-  // WP1 fixed. The registry alone would still show People; visiblePages is what
-  // keeps the link and the route in agreement.
-  const visiblePages = ALL_PAGES.filter(
-    (p) => p !== "roster" && p !== "pitches",
-  ) as WorkspacePage[];
+  // `clampWorkspacePage` sends /admin/pitches to Overview on a business
+  // workspace, so a Pitches row would bounce on click — the bug WP1 fixed. The
+  // registry alone would still show it; visiblePages is what keeps the link and
+  // the route in agreement.
+  const visiblePages = ALL_PAGES.filter((p) => p !== "pitches") as WorkspacePage[];
   const items = flat(build({ visiblePages }, { workspaceType: "business" })).map((i) => i.id);
-  assert.ok(!items.includes("people"), "People bounces on a business workspace today");
   assert.ok(!items.includes("pitches"));
   assert.ok(items.includes("clients"), "everything else in Relationships stays");
 });
 
+test("a business workspace still gets People, with only its talent-only children hidden", () => {
+  // A restaurant represents nobody, but it has staff, and People is the row
+  // that lists them. What a business genuinely cannot open is the roster's
+  // representation queues: /admin/roster/{applications,registration,rates} each
+  // call `assertRosterWorkspace` and 404. The rail must agree with that split —
+  // not drop the whole row, which is what hiding the `roster` page id did.
+  const biz = railFor({ industryPreset: "restaurant", workspaceType: "business" });
+  const people = itemOf(biz, "people");
+  assert.ok(people, "a business workspace has no People row at all");
+  assert.equal(people.label, "Team", "a cafe-shaped business calls its people Team");
+  assert.deepEqual(
+    people.subItems.map((s) => s.id),
+    ["people-everyone"],
+    "a business workspace was offered a roster queue its routes 404",
+  );
+  assert.ok(!flat(biz).some((i) => i.id === "pitches"), "Pitches is still hidden");
+
+  // The same rail on a talent workspace keeps all four.
+  const talent = railFor({ industryPreset: "restaurant" });
+  assert.deepEqual(
+    itemOf(talent, "people")?.subItems.map((s) => s.id),
+    ["people-everyone", "people-applications", "people-registration", "people-rates"],
+  );
+});
+
 // ── Sub-views ────────────────────────────────────────────────────────
 
-test("registry sub-views wait for their destination to move", () => {
-  // People and Appointments both carry sub-views and both still render at their
-  // legacy route. /admin/roster/talent is the roster's [id] page and
-  // /admin/sessions/series is not a route at all, so drawing the tabs would be
-  // four links into nothing.
-  const items = flat(build());
-  assert.deepEqual(items.find((i) => i.id === "people")?.subItems, []);
-  assert.deepEqual(items.find((i) => i.id === "appts")?.subItems, []);
+test("the roster queues hang off People at the route People renders on", () => {
+  // People's canonical segment is /admin/people; it RENDERS at /admin/roster,
+  // and its children have to be where the pages are. Gating them on "has this
+  // destination reached its canonical segment" is what silently deleted them.
+  const people = itemOf(railFor({ industryPreset: "agency" }), "people");
+  assert.deepEqual(
+    people?.subItems.map((s) => [s.label, s.href]),
+    [
+      ["Everyone", "/admin/roster"],
+      ["Applications", "/admin/roster/applications"],
+      ["Registration", "/admin/roster/registration"],
+      ["Rates", "/admin/roster/rates"],
+    ],
+  );
+});
+
+test("the pending count rides the Applications child, not just the parent", () => {
+  // The parent badge says "12 awaiting review"; this is the one click to the
+  // twelve. A child with no count is the affordance the rail used to have.
+  const people = itemOf(
+    railFor({ industryPreset: "agency" }, { subBadges: { "people-applications": 12 } }),
+    "people",
+  );
+  const applications = people?.subItems.find((s) => s.id === "people-applications");
+  assert.equal(applications?.count, 12);
+  assert.equal(
+    people?.subItems.find((s) => s.id === "people-everyone")?.count,
+    undefined,
+    "a count leaked onto a child it was not addressed to",
+  );
+});
+
+test("the five Events children are drawn, queries and cross-link included", () => {
+  // Composing an event and the ticket tab are STATES of the events list, not
+  // routes; Orders is its own destination, cross-linked because the door and
+  // the ticket orders it checks in are one job.
+  const events = itemOf(railFor({ industryPreset: "bar_club" }), "events");
+  assert.deepEqual(
+    events?.subItems.map((s) => [s.label, s.href]),
+    [
+      ["All events", "/admin/events"],
+      ["Add new event", "/admin/events?compose=new"],
+      ["Tickets", "/admin/events?tab=tickets"],
+      ["Orders", "/admin/orders"],
+      ["Live check-in", "/admin/events/door"],
+    ],
+  );
+});
+
+test("only one Events child looks current at a time", () => {
+  const onList = itemOf(railFor({ industryPreset: "bar_club" }, {
+    activePage: "events", pathname: "/admin/events", search: "",
+  }), "events");
+  assert.deepEqual(
+    onList?.subItems.filter((s) => s.active).map((s) => s.id),
+    ["events-all"],
+  );
+
+  const composing = itemOf(railFor({ industryPreset: "bar_club" }, {
+    activePage: "events", pathname: "/admin/events", search: "compose=new",
+  }), "events");
+  assert.deepEqual(
+    composing?.subItems.filter((s) => s.active).map((s) => s.id),
+    ["events-new"],
+    "the landing view stayed lit while a sibling query was on",
+  );
+
+  const atDoor = itemOf(railFor({ industryPreset: "bar_club" }, {
+    activePage: "events", pathname: "/admin/events/door", search: "",
+  }), "events");
+  assert.deepEqual(
+    atDoor?.subItems.filter((s) => s.active).map((s) => s.id),
+    ["events-door"],
+  );
+});
+
+test("Appointments draws no children, because it has no routes to draw", () => {
+  // /admin/sessions holds one page.tsx. Series and Waitlist are the surface
+  // this destination is heading for, and a link to either is a link to a 404.
+  assert.deepEqual(itemOf(railFor({ industryPreset: "agency" }), "appts")?.subItems, []);
 });
 
 test("the Website sub-nav is passed through with active state resolved", () => {

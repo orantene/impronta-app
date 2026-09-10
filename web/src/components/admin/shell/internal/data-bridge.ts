@@ -350,6 +350,15 @@ export type BridgeData = {
      * whether the Events LINK is drawn and never whether the route resolves.
      */
     runsEvents?: boolean;
+    /**
+     * Raw `agencies.settings.industry_preset`. The rail folds it into three
+     * shapes (`cafe` / `solo` / `hybrid`) in `lib/workspace/nav-context.ts` and
+     * reads them for its labels — "Menu and catalog" and "Team" for a cafe,
+     * "Services" for a solo professional. OPTIONAL on the wire like the two
+     * flags above: an omission is not a preset, and the derivation falls
+     * through to `hybrid`, the shape that relabels nothing.
+     */
+    industryPreset?: string | null;
   } | null;
   /**
    * Real signed-in user identity. When provided, the prototype's chrome

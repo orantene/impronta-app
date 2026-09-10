@@ -24,11 +24,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { visibleWorkspacePages } from "./workspace-type";
 import {
   DESTINATION_GROUP_LABELS,
   DESTINATION_LIST,
   SIDEBAR_GROUP_ORDER,
+  liveRouteSegment,
+  DESTINATIONS,
 } from "@/lib/workspace/destinations";
 import { navWorkspacePages } from "@/lib/workspace/page-ids";
 import type { WorkspacePage } from "@/components/admin/shell/internal/state/types";
@@ -36,11 +39,31 @@ import type { WorkspacePage } from "@/components/admin/shell/internal/state/type
 const root = process.cwd();
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 
+/**
+ * Source with its prose removed: block comments and whole-line `//` / ` *`
+ * comments. A guard that forbids a construct must forbid the CODE, not a
+ * sentence explaining why the code is gone — a comment naming the field it
+ * warns about would otherwise fail the very check it documents.
+ */
+const codeOnly = (src: string): string =>
+  src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((line) => {
+      const t = line.trim();
+      return !t.startsWith("//") && !t.startsWith("*");
+    })
+    .join("\n");
+
 const TYPES = "src/components/admin/shell/internal/state/types.ts";
 const FIXTURES = "src/components/admin/shell/internal/state/fixtures.ts";
 const SHELL = "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx";
 const NAV_HOOK = "src/components/admin/shell/internal/page-modules/workspace-nav.ts";
 const NAV_GROUPS = "src/components/admin/shell/internal/page-modules/workspace-nav-groups.ts";
+const IDENTITY_LOADER = "src/app/(workspace)/[tenantSlug]/_layout-identity.ts";
+const DATA_BRIDGE = "src/components/admin/shell/internal/data-bridge.ts";
+const DASHBOARD_I18N = "src/components/admin/shell/internal/dashboard-i18n.ts";
+const ADMIN_ROUTES = "src/app/(workspace)/[tenantSlug]/admin";
 
 test("WorkspacePage is the registry's ids plus its aliases, nothing hand-listed", () => {
   const src = read(TYPES);
@@ -170,12 +193,134 @@ test("the nav hook reads the shell's own state and the registry, nothing else", 
   assert.ok(!/\$\{[^}]*slug[^}]*\}\/admin/i.test(groups), "a tenant slug is hardcoded in the rail");
 });
 
-test("visibleWorkspacePages hides Roster and Pitches for a business workspace", () => {
+test("visibleWorkspacePages hides Pitches — and NOT People — for a business workspace", () => {
   const pages: WorkspacePage[] = ["overview", "messages", "roster", "pitches", "reviews", "analytics", "settings"];
   const business = visibleWorkspacePages("business", pages);
-  assert.ok(!business.includes("roster"), "business must not see roster");
   assert.ok(!business.includes("pitches"), "business must not see pitches");
+  // `roster` is People's live page. Hiding it dropped the People row from the
+  // rail of every business workspace and clamped the page to Overview — a
+  // surface with no door, not a surface that does not apply. A restaurant has
+  // staff; what it cannot open is the roster's representation queues, and those
+  // are refused by `assertRosterWorkspace` on the routes themselves.
+  assert.ok(business.includes("roster"), "business lost its People row again");
   assert.deepEqual(visibleWorkspacePages("talent", pages), pages, "talent sees every page verbatim");
+});
+
+test("the roster's talent-only routes still refuse a business workspace", () => {
+  // The other half of the rule above. People is visible to everyone BECAUSE the
+  // refusal lives on the routes that need it — if these guards go, hiding the
+  // page id is the only thing standing between a business workspace and a
+  // roster queue, and this test is what says so.
+  for (const route of ["new", "applications", "registration", "rates"]) {
+    const src = read(`${ADMIN_ROUTES}/roster/${route}/page.tsx`);
+    assert.ok(
+      /await assertRosterWorkspace\(/.test(src),
+      `/admin/roster/${route} no longer refuses a business workspace`,
+    );
+  }
+  // And the rail agrees with them: those three children are talent-only in the
+  // registry, so a business workspace is never offered a link into a 404.
+  const gated = (DESTINATIONS.people.subViews ?? []).filter(
+    (s) => s.requires?.workspaceType === "talent",
+  );
+  assert.deepEqual(
+    gated.map((s) => s.segment),
+    ["applications", "registration", "rates"],
+    "the rail's talent-only People children drifted from the routes that 404",
+  );
+});
+
+test("the rail's preset comes from the tenant bridge, never from a literal", () => {
+  // THE REGRESSION THIS EXISTS FOR. The hook held `bridgeTenantIdentity` and
+  // still called the preset derivation with `industryPreset: undefined`, so
+  // every workspace on the platform resolved to `hybrid`: no tenant ever saw
+  // "Menu and catalog", "Team" or "Services", and a restaurant's rail row went
+  // BACKWARDS from "Menu" to "Catalog". The runtime proof is in
+  // workspace-nav-groups.test (bridge row → drawn label); this is the half a
+  // pure test cannot see — that the shell hands over the row it is holding.
+  const hook = codeOnly(read(NAV_HOOK));
+  assert.ok(hook.includes("workspaceNavContext("), "the hook must build its context in one place");
+  assert.ok(
+    /tenantIdentity:\s*bridgeTenantIdentity/.test(hook),
+    "the hook must pass the tenant identity bridge, whole",
+  );
+  assert.ok(
+    !/industryPreset\s*:/.test(hook),
+    "the hook is naming the preset field again instead of passing the bridge",
+  );
+  assert.ok(
+    !/\bpreset\s*:/.test(hook),
+    "the hook is building the nav preset by hand again",
+  );
+});
+
+test("the identity bridge carries the industry preset from the agencies row", () => {
+  // The other end of the same chain: the field has to be READ and it has to be
+  // DECLARED, or the hook passes a bridge that never carries it.
+  const loader = read(IDENTITY_LOADER);
+  assert.ok(
+    /industryPreset:\s*\n?\s*typeof data\.settings\?\.industry_preset === "string"/.test(loader),
+    "loadTenantIdentity no longer reads settings.industry_preset onto the payload",
+  );
+  assert.ok(
+    /industryPreset: string \| null;/.test(loader),
+    "TenantIdentityPayload no longer declares industryPreset",
+  );
+  assert.ok(
+    /industryPreset\?: string \| null;/.test(read(DATA_BRIDGE)),
+    "the client data bridge no longer declares industryPreset",
+  );
+});
+
+test("every registry sub-view names a route that exists today", () => {
+  // A child is drawn under the row the operator just opened. One that 404s is
+  // worse than an absent one, and nothing else in the build can see it: these
+  // are data, not imports. The href the rail builds is the destination's LIVE
+  // route plus the sub-view segment, so that is exactly what is checked here.
+  const missing: string[] = [];
+  for (const destination of DESTINATION_LIST) {
+    for (const view of destination.subViews ?? []) {
+      const owner = view.under !== undefined ? DESTINATIONS[view.under] : destination;
+      const base = liveRouteSegment(owner);
+      assert.notEqual(
+        base,
+        null,
+        `${destination.id}/${view.id} hangs off ${owner.id}, which has no route at all`,
+      );
+      const parts = [ADMIN_ROUTES, base, view.segment].filter((p) => p !== "" && p !== null);
+      const file = join(root, ...(parts as string[]), "page.tsx");
+      if (!existsSync(file)) missing.push(`${destination.id}/${view.id} → ${file}`);
+    }
+  }
+  assert.deepEqual(missing, [], `sub-views pointing at nothing:\n${missing.join("\n")}`);
+});
+
+test("every registry label the rail can draw has a Spanish row", () => {
+  // The rail renders English literals through `copy.t()`, which is keyed by the
+  // English string. A registry label with no ES_TEXT row renders in English on
+  // a Spanish workspace, and nothing else notices.
+  const src = read(DASHBOARD_I18N);
+  const table = src.slice(src.indexOf("const ES_TEXT"));
+  const translated = new Set(
+    [...table.matchAll(/^\s*"((?:[^"\\]|\\.)*)":\s*"/gm)].map((m) => m[1]),
+  );
+  assert.ok(translated.size > 500, `expected the ES table, found ${translated.size} rows`);
+  const wanted = new Set<string>();
+  for (const destination of DESTINATION_LIST) {
+    if (!destination.built) continue;
+    wanted.add(destination.label);
+    for (const label of Object.values(destination.presetLabels ?? {})) wanted.add(label);
+    for (const view of destination.subViews ?? []) wanted.add(view.label);
+  }
+  for (const group of SIDEBAR_GROUP_ORDER) {
+    const label = DESTINATION_GROUP_LABELS[group];
+    if (label !== null) wanted.add(label);
+  }
+  assert.deepEqual(
+    [...wanted].filter((label) => !translated.has(label)),
+    [],
+    "a rail label has no Spanish",
+  );
 });
 
 test("no source file imports the deleted admin-nav island", () => {

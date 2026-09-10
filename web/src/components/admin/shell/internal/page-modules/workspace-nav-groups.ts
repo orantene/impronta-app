@@ -20,9 +20,9 @@
 import {
   destinationHref,
   destinationLabel,
-  liveRouteSegment,
   resolveDestination,
   sidebarGroups,
+  subViewHref,
   visibleSubViews,
   type Destination,
   type DestinationGroup,
@@ -99,6 +99,14 @@ export type WorkspaceNavInput = {
   /** Raw query string — sub-items that differ only by `?tab=` / `?compose=`. */
   readonly search: string;
   readonly badges: Readonly<Partial<Record<DestinationId, WorkspaceNavBadge>>>;
+  /**
+   * Counts for individual CHILDREN, keyed by the sub-item id the builder makes
+   * (`<destination>-<subView>`, e.g. `people-applications`). Separate from
+   * `badges` because a child's number is a different question from its
+   * parent's: People counts everything awaiting a human, Applications counts
+   * only the queue its link opens.
+   */
+  readonly subBadges?: Readonly<Partial<Record<string, number>>>;
   /** Website's sub-nav, which is its own single source of truth (website-nav.ts). */
   readonly websiteSubItems: readonly Omit<WorkspaceNavSubItem, "active">[];
 };
@@ -130,13 +138,12 @@ function subItemActive(
 /**
  * A destination's sub-views, as links.
  *
- * REGISTRY SUB-VIEWS ONLY RENDER ONCE THE DESTINATION IS AT ITS CANONICAL
- * SEGMENT. `people` and `appts` both carry sub-views and both still render at
- * their legacy route: `/admin/roster/talent` is the roster's `[id]` page, not a
- * People tab, and `/admin/sessions/series` is not a route at all. Drawing them
- * would hand the operator four links into nothing. `liveRouteSegment` is the
- * registry's own signal for "has this moved yet", so that is what gates them,
- * and the tabs appear by themselves the day the routes land.
+ * SUB-VIEWS HANG OFF THE LIVE ROUTE, NOT THE CANONICAL SEGMENT. People renders
+ * at /admin/roster, so its children are /admin/roster/applications and friends;
+ * they move with it the day the People surface lands, because `subViewHref`
+ * asks the registry where the destination renders TODAY. An earlier cut of this
+ * gated children on "has the destination reached its canonical segment", which
+ * is why every child of every row vanished: no destination has.
  */
 function subItemsFor(
   destination: Destination,
@@ -145,17 +152,21 @@ function subItemsFor(
   const raw: Array<Omit<WorkspaceNavSubItem, "active">> =
     destination.id === "website"
       ? [...input.websiteSubItems]
-      : liveRouteSegment(destination) !== destination.segment
-        ? []
-        : visibleSubViews(destination, input.context).map((view) => {
-            const base = destinationHref(destination, input.adminBase) ?? input.adminBase;
-            return {
-              id: `${destination.id}-${view.id}`,
+      : visibleSubViews(destination, input.context).flatMap((view) => {
+          const href = subViewHref(destination, view, input.adminBase);
+          // `null` = the owner has no route. Nothing to link to, so no link.
+          if (href === null) return [];
+          const id = `${destination.id}-${view.id}`;
+          return [
+            {
+              id,
               label: view.label,
-              href: view.segment === "" ? base : `${base}/${view.segment}`,
+              href,
               exact: view.segment === "",
-            };
-          });
+              count: input.subBadges?.[id],
+            },
+          ];
+        });
   return raw.map((sub) => ({ ...sub, active: subItemActive(sub, input.pathname, input.search) }));
 }
 

@@ -253,11 +253,14 @@ test("a business workspace sees People, but no talent sub-views and no Pitches",
   assert.ok(visible.includes("people"), "a business still has people");
   assert.ok(!visible.includes("pitches"), "Pitches needs a roster to pitch");
 
+  // Only the landing view. The other three open the roster's representation
+  // queues, whose routes call `assertRosterWorkspace` and 404 for a business
+  // workspace — the nav must not offer a link into that.
   const subs = visibleSubViews(DESTINATIONS.people, business).map((s) => s.id);
-  assert.deepEqual(subs, ["everyone", "access"]);
+  assert.deepEqual(subs, ["everyone"]);
 
   const talent = visibleSubViews(DESTINATIONS.people, ctx()).map((s) => s.id);
-  assert.deepEqual(talent, ["everyone", "talent", "bookable", "access", "applications"]);
+  assert.deepEqual(talent, ["everyone", "applications", "registration", "rates"]);
   assert.ok(visibleDestinations(ctx()).map((d) => d.id).includes("pitches"));
 });
 

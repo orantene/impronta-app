@@ -20,11 +20,7 @@
 import { useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-import {
-  canManageBilling as roleManagesBilling,
-  deriveHats,
-  derivePreset,
-} from "@/lib/workspace/nav-context";
+import { workspaceNavContext } from "@/lib/workspace/nav-context";
 import type { WorkspaceNavContext } from "@/lib/workspace/destinations";
 import { useAdminShell } from "../state";
 import { useWebsiteSubnav } from "./website-nav";
@@ -35,11 +31,17 @@ import {
 } from "./workspace-nav-groups";
 
 /**
- * The two live counts the rail shows. Kept here rather than in the pure builder
- * so the builder stays a function of the registry and the shell's state, with
- * no opinion about which row gets a badge.
+ * The live counts the rail shows. Kept here rather than in the pure builder so
+ * the builder stays a function of the registry and the shell's state, with no
+ * opinion about which row gets a badge.
+ *
+ * TWO NUMBERS, NOT ONE. The People ROW counts everything awaiting a human:
+ * pending roster approvals plus open verification requests. The Applications
+ * CHILD counts only the approvals, because that is the queue the link opens —
+ * a child badge that included verifications would send the operator to a page
+ * whose list is shorter than the number that sent them there.
  */
-function usePendingPeople(): number {
+function usePeopleCounts(): { readonly row: number; readonly applications: number } {
   const { effectiveRoster, verificationRequests, overviewMetrics } = useAdminShell();
   return useMemo(() => {
     const pendingVerifications = verificationRequests.filter(
@@ -51,14 +53,20 @@ function usePendingPeople(): number {
     const livePending = effectiveRoster.filter((p) => p.state === "awaiting-approval").length;
     const approvals =
       overviewMetrics !== null ? (overviewMetrics.pendingApprovals ?? 0) : livePending;
-    return approvals + pendingVerifications;
+    return { row: approvals + pendingVerifications, applications: approvals };
   }, [effectiveRoster, verificationRequests, overviewMetrics]);
 }
 
 export function useWorkspaceNav(): WorkspaceNavResult {
-  const { state, totalUnread, adminBasePath, effectiveTeamMembers, bridgeSessionIdentity } =
-    useAdminShell();
-  const pendingPeople = usePendingPeople();
+  const {
+    state,
+    totalUnread,
+    adminBasePath,
+    effectiveTeamMembers,
+    bridgeSessionIdentity,
+    bridgeTenantIdentity,
+  } = useAdminShell();
+  const peopleCounts = usePeopleCounts();
   const websiteSubnav = useWebsiteSubnav();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -80,39 +88,38 @@ export function useWorkspaceNav(): WorkspaceNavResult {
   const visiblePages = state.visiblePages;
   const plan = state.plan;
   const workspaceType = state.workspaceType;
-  const membershipRole = bridgeSessionIdentity?.role ?? state.role;
   const alsoTalent = state.alsoTalent;
-  const canBill = bridgeSessionIdentity?.canManageBilling;
+  const fallbackRole = state.role;
   const teamSize = effectiveTeamMembers.length;
 
-  const context = useMemo<WorkspaceNavContext>(() => {
-    const hats = deriveHats({ membershipRole, hasTalentProfile: alsoTalent });
-    return {
+  // Every input is a bridge object or shell state, handed over whole. The
+  // derivation itself lives in `lib/workspace/nav-context.ts` and is tested
+  // from a bridge-shaped row — see `workspaceNavContext`'s header for the
+  // regression that shape closes (a caller holding the tenant row and passing
+  // `industryPreset: undefined`, which made every workspace `hybrid`).
+  const context = useMemo<WorkspaceNavContext>(
+    () =>
+      workspaceNavContext({
+        tenantIdentity: bridgeTenantIdentity,
+        sessionIdentity: bridgeSessionIdentity,
+        workspaceType,
+        plan,
+        visiblePages,
+        teamMemberCount: teamSize,
+        hasTalentProfile: alsoTalent,
+        fallbackRole,
+      }),
+    [
+      bridgeTenantIdentity,
+      bridgeSessionIdentity,
       workspaceType,
       plan,
-      // THE ONE INPUT THE CLIENT DOES NOT HAVE. The preset lives in
-      // `agencies.settings.industry_preset`; the server layout reads that row
-      // (`_layout-identity.ts`) but does not put the field on the identity
-      // bridge, and reading it in an effect would make it null on the first
-      // render — exactly what a layout decision may not be keyed on.
-      // `derivePreset` fails OPEN to `hybrid`, the shape that relabels nothing,
-      // so the rail is correct today and the cafe/solo labels ("Menu and
-      // catalog", "Team", "Services") light up the moment the bridge carries
-      // the field. Team size is already here and is passed for that day.
-      preset: derivePreset({ industryPreset: undefined, teamMemberCount: teamSize }),
-      role: hats.role,
-      professional: hats.professional,
-      // The tenant flags are already folded into `visiblePages` by the provider
-      // (`takes_reservations` / `runs_events` off the same bridge object), so
-      // reading them back from it costs nothing and cannot disagree with it.
-      takesReservations: visiblePages.includes("reservations"),
-      runsEvents: visiblePages.includes("events"),
-      posEnabled: visiblePages.includes("pos"),
-      // The server-resolved capability when we have it; the role ladder's own
-      // answer otherwise. Never a guess from the plan tier.
-      canManageBilling: canBill ?? roleManagesBilling(hats.role),
-    };
-  }, [workspaceType, plan, teamSize, membershipRole, alsoTalent, visiblePages, canBill]);
+      visiblePages,
+      teamSize,
+      alsoTalent,
+      fallbackRole,
+    ],
+  );
 
   return useMemo(
     () =>
@@ -125,8 +132,11 @@ export function useWorkspaceNav(): WorkspaceNavResult {
         search,
         badges: {
           messages: { count: totalUnread, tone: "brand" },
-          people: { count: pendingPeople, tone: "amber" },
+          people: { count: peopleCounts.row, tone: "amber" },
         },
+        // The pending count the parent badge advertises, on the child that
+        // opens the queue — one click from "12 awaiting review" to the twelve.
+        subBadges: { "people-applications": peopleCounts.applications },
         websiteSubItems,
       }),
     [
@@ -137,7 +147,7 @@ export function useWorkspaceNav(): WorkspaceNavResult {
       pathname,
       search,
       totalUnread,
-      pendingPeople,
+      peopleCounts,
       websiteSubItems,
     ],
   );
