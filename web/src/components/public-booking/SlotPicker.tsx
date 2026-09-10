@@ -52,6 +52,13 @@ export function SlotPicker({
 }: Props) {
   const t = useT();
   const [slots, setSlots] = useState<string[]>([]);
+  // WHY THE LIST IS EMPTY, when it is. The endpoint says (`no_booking_hours`,
+  // `closed_in_window`, `fully_booked`) and this used to drop it, so a
+  // calendar nobody had ever set read "No open times in the next two weeks",
+  // which is what a fully booked barber says. A guest cannot tell "come back
+  // later" from "there is nothing to come back to", and the second is the
+  // honest sentence for a person whose hours are still a proposal.
+  const [emptyReason, setEmptyReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolvedTz, setResolvedTz] = useState(timezone);
@@ -76,14 +83,17 @@ export function SlotPicker({
           slots?: string[];
           timezone?: string;
           error?: string;
+          reason?: string;
         };
         if (cancelled) return;
         if (!res.ok) {
           setSlots([]);
+          setEmptyReason(null);
           setError(t("public.slotPicker.unavailable"));
           return;
         }
         setSlots(Array.isArray(body.slots) ? body.slots : []);
+        setEmptyReason(typeof body.reason === "string" ? body.reason : null);
         if (typeof body.timezone === "string" && body.timezone.trim()) {
           setResolvedTz(body.timezone.trim());
         }
@@ -118,8 +128,18 @@ export function SlotPicker({
       ) : error ? (
         <p className="mt-3 text-xs text-[#dc2626]">{error}</p>
       ) : slots.length === 0 ? (
-        <p className="mt-3 text-xs text-[var(--plt-muted,rgba(11,11,13,0.62))]">
-          {t("public.slotPicker.empty")}
+        <p
+          className="mt-3 text-xs text-[var(--plt-muted,rgba(11,11,13,0.62))]"
+          data-testid="slot-picker-empty"
+          data-reason={emptyReason ?? "unknown"}
+        >
+          {emptyReason === "no_booking_hours"
+            ? t("public.slotPicker.noHours")
+            : emptyReason === "closed_in_window"
+              ? t("public.slotPicker.closed")
+              : emptyReason === "fully_booked"
+                ? t("public.slotPicker.fullyBooked")
+                : t("public.slotPicker.empty")}
         </p>
       ) : (
         <div className="mt-3 flex flex-col gap-1.5 max-h-64 overflow-auto">

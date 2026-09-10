@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { commitCapacity } from "@/lib/capacity";
+import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import {
   linesNeedingCompensation,
   recordCapacityLostCompensation,
@@ -205,6 +206,19 @@ export async function completeOrderForTransaction(
       });
     }
 
+    // The person legs, same rule as the capacity legs above: the money has
+    // landed, so the flip proceeds either way, and a person whose hold lapsed
+    // before the card cleared is alerted for a human rather than re-held over
+    // whoever may have booked them since.
+    const kept = await commitOrderTalentHolds(admin, { tenantId: row.tenant_id, orderId });
+    if (!kept.ok) {
+      logServerError(
+        "orders.completeOrder/PERSON_LOST_AFTER_PAYMENT",
+        `order ${orderId} paid but its talent holds could not be made permanent (${kept.error}) - `
+          + `the person booked may be offered to somebody else. Needs a human.`,
+      );
+    }
+
     // ── DECISION 3: the flip is optimistic-concurrency guarded, and a failure
     //    AFTER this point never rolls it back.
     const { error: flipErr } = await admin
@@ -347,6 +361,21 @@ export async function completeZeroTotalOrder(
         }
         zeroCommitted = commit.committed;
       }
+    }
+
+    // The person legs of a free sale. Refused like the places above: nothing
+    // has been charged, and a confirmation that names a person the calendar
+    // will drop in fifteen minutes is the defect, not the refusal.
+    const keptPeople = await commitOrderTalentHolds(admin, {
+      tenantId: input.tenantId,
+      orderId: row.id,
+    });
+    if (!keptPeople.ok) {
+      logServerError(
+        "orders.completeZero/holds",
+        `order ${row.id}: free sale could not keep its people (${keptPeople.error}).`,
+      );
+      return { ok: false, reason: "unavailable", error: "Could not keep that time." };
     }
 
     const { data: flipped, error: flipErr } = await admin

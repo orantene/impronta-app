@@ -533,6 +533,11 @@
       "soldOut": "Epuise",
       "soldOutError": "{item} est epuise.",
       "submit": "Envoyer la commande"
+    },
+    "slotPicker": {
+      "noHours": "Personne n'a encore defini les horaires de reservation de ce service, il n'y a donc rien a reserver en ligne ici. Envoyez une demande a la place.",
+      "closed": "Ferme tous les jours des deux prochaines semaines. Essayez une date plus tard, ou envoyez une demande.",
+      "fullyBooked": "Tous les creneaux libres des deux prochaines semaines sont pris. Reessayez plus tard, ou envoyez une demande."
     }
   },
   "dashboard": {
@@ -1475,7 +1480,8 @@
         "source": {
           "publish_default": "ecrit lors de la publication d'une offre",
           "staff_suggestion": "suggere par un collegue"
-        }
+        },
+        "selfManaged": "Cette personne definit ses propres horaires. Elle trouvera ces horaires proposes sur sa propre page Calendrier et pourra les accepter la; la page publique de reservation indique qu'il n'y a pas d'horaires tant qu'elle ne l'a pas fait."
       },
       "state": {
         "draft": "Brouillon",
@@ -1949,6 +1955,13 @@
       "ageJustNow": "a l'instant",
       "working": "En cours…",
       "open": "Ouvrir"
+    },
+    "adminSessions": {
+      "nights": {
+        "title": "Séances ponctuelles",
+        "help": "Des cours programmés pour une seule date, sans série récurrente. Chacune a ses propres places.",
+        "untitled": "Séance sans titre"
+      }
     }
   },
   "client": {

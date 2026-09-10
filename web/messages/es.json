@@ -1403,7 +1403,10 @@
       "requestInstead": "Pedir este horario en su lugar",
       "pickTimeFirst": "Elige un horario y luego confirma.",
       "notBookableOnline": "Este servicio aun no admite reservas en linea. Envia una solicitud en su lugar.",
-      "confirmFailed": "No pudimos confirmar esa reserva. Intenta de nuevo."
+      "confirmFailed": "No pudimos confirmar esa reserva. Intenta de nuevo.",
+      "noHours": "Nadie ha definido todavia los horarios de reserva de este servicio, asi que aqui no hay nada que reservar en linea. Envia una solicitud en su lugar.",
+      "closed": "Cerrado todos los dias de las proximas dos semanas. Prueba con una fecha posterior o envia una solicitud.",
+      "fullyBooked": "Todos los horarios libres de las proximas dos semanas estan tomados. Intenta mas tarde o envia una solicitud."
     },
     "instantBook": {
       "guestName": "Tu nombre",
@@ -12608,6 +12611,11 @@
         "submitting": "Programando...",
         "created": "Programada, con plazas para {count} niveles.",
         "loadFailed": "No se pudieron cargar los eventos."
+      },
+      "nights": {
+        "title": "Noches sueltas",
+        "help": "Clases programadas para una sola fecha, sin una serie que se repita. Cada una tiene sus propios lugares.",
+        "untitled": "Noche sin título"
       }
     },
     "adminAppointments": {
@@ -12757,7 +12765,8 @@
         "source": {
           "publish_default": "escrito al publicar una oferta",
           "staff_suggestion": "sugerido por un companero"
-        }
+        },
+        "selfManaged": "Esta persona define sus propios horarios. Encontrara estos horarios propuestos en su propia pagina de Calendario y puede aceptarlos alli; la pagina publica de reservas dice que no hay horarios hasta que lo haga."
       },
       "state": {
         "draft": "Borrador",

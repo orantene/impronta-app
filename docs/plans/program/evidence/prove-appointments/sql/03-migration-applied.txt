@@ -1,0 +1,13 @@
+$ npm run journeys:repair -- 20261231030700_reschedule_moves_order_holds.sql
+[repair] isolated target fxlankepwnvelxjrahwk
+  OK    20261231030700_reschedule_moves_order_holds.sql
+[repair] done. Now run probe-journeys-isolated.mjs — the ledger is not evidence.
+(exit 0; run twice: 15:29Z first body, 16:41Z after the person legs were moved after the capacity legs)
+
+-- read back on the branch (the ledger is not evidence; the function body is):
+select position('from public.capacity_allocations a' in d) < position('select th.*' in d) as capacity_before_person,
+       position('select th.*' in d) < position('update public.agency_bookings' in d) as person_before_parent
+  from (select lower(pg_get_functiondef('public.reschedule_booking_set(uuid,uuid,text,uuid,timestamptz,timestamptz,integer,integer,timestamptz,timestamptz)'::regprocedure)) as d) x;
+-- capacity_before_person = true, person_before_parent = true
+select version from supabase_migrations.schema_migrations where version = '20261231030700';
+-- 20261231030700

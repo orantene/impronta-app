@@ -1,0 +1,4 @@
+# Observed 2026-09-10T15:22:46Z on the local production build of deca2efc8 + previous run's fixes (BEFORE the hold-commit fix), isolated db fxlankepwnvelxjrahwk
+# Three Gel manicure appointments booked at 15:00Z, 15:45Z, 16:30Z are Confirmed on the board. Their talent holds carried expires_at = created + 15 min.
+# GET /api/public/booking/slots?offering=33330012-0000-4000-8000-000000000001&from=2026-09-10&days=2 at 15:21:56Z:
+{"slots":["2026-09-10T15:00:00.000Z","2026-09-10T15:45:00.000Z","2026-09-10T16:30:00.000Z","2026-09-10T17:15:00.000Z","2026-09-10T18:00:00.000Z","2026-09-10T18:45:00.000Z","2026-09-10T19:30:00.000Z","2026-09-10T20:15:00.000Z","2026-09-10T21:00:00.000Z","2026-09-10T21:45:00.000Z","2026-09-10T22:30:00.000Z","2026-09-10T23:15:00.000Z"],"timezone":"America/Mexico_City"}
