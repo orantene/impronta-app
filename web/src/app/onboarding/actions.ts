@@ -7,7 +7,7 @@ import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-se
 import { requireSession } from "@/lib/server/action-guards";
 import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
-import { applyRegistrationPolicy } from "@/lib/saas/registration-policy";
+import { applyRegistrationPolicy, ensurePlatformHubRoster } from "@/lib/saas/registration-policy";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { verifyGuestCookie } from "@/lib/guest-cookie";
 import { revalidatePath } from "next/cache";
@@ -118,11 +118,26 @@ async function ensureTalentRosterForNext(
   nextPath: string | undefined,
 ): Promise<{ destination: string | null; error?: string }> {
   const parsed = parsePortalNext(nextPath, "talent");
-  if (!parsed) return { destination: null };
-  if (!parsed.tenantSlug) return { destination: parsed.destination };
+  const admin = createServiceRoleClient();
+
+  // No agency in the URL = a PLATFORM signup (marketing site). That person is
+  // on Tulala from the first save; without this row every tenant-scoped part
+  // of their own profile refused with "not on any active roster" (found live
+  // 2026-09-10, first real signup). Failure here is logged, never fatal: the
+  // profile exists and the dashboard can still open.
+  if (!parsed?.tenantSlug) {
+    if (admin) {
+      const hub = await ensurePlatformHubRoster(admin, {
+        talentProfileId,
+        userId,
+        originDomain: await currentOriginDomain(),
+      });
+      if (!hub.ok) logServerError("onboarding.platformHubRoster", new Error(hub.error));
+    }
+    return { destination: parsed?.destination ?? null };
+  }
 
   const scope = await getTenantPortalScopeBySlug(parsed.tenantSlug);
-  const admin = createServiceRoleClient();
   if (!scope || !admin) return { destination: null };
 
   const outcome = await applyRegistrationPolicy(admin, {
@@ -437,8 +452,19 @@ export async function completeTalentProfileInPlace(
         revalidatePath(`/${parsed.tenantSlug}/talent`, "layout");
         dashboardUrl = `${getAppUrl()}${parsed.destination}`;
       }
-    } else if (parsed?.destination) {
-      dashboardUrl = `${getAppUrl()}${parsed.destination}`;
+    } else {
+      // Platform signup: on the Tulala hub roster from the first save (see
+      // ensureTalentRosterForNext for why, and why failure is not fatal).
+      const admin = createServiceRoleClient();
+      if (admin) {
+        const hub = await ensurePlatformHubRoster(admin, {
+          talentProfileId: tp.id,
+          userId: user.id,
+          originDomain: await currentOriginDomain(),
+        });
+        if (!hub.ok) logServerError("onboarding.platformHubRoster", new Error(hub.error));
+      }
+      if (parsed?.destination) dashboardUrl = `${getAppUrl()}${parsed.destination}`;
     }
   }
 
