@@ -241,6 +241,52 @@ test("the row carries what the worker has already tried", () => {
   assert.match(never.detail, /has not been asked yet/);
 });
 
+test("a payment the worker has given up on says so, and keeps its button", () => {
+  // A queue that stops silently is indistinguishable from a queue that is
+  // working. The worker's budget is bounded on purpose, so the row has to be
+  // able to say that the machine has stopped and that a person is now the one
+  // being asked to move.
+  const row = classifyUnresolvedCollection(
+    collection({
+      recoveryAttempts: 8,
+      lastRecoveryState: "unknown",
+      lastRecoveryAt: minutesAgo(11),
+      recoveryEscalatedAt: minutesAgo(10),
+    }),
+    NOW,
+    null,
+  );
+  assert.ok(row);
+  assert.match(row.title, /asking has stopped/i);
+  assert.match(row.detail, /asked 8 times/);
+  assert.match(row.detail, /stopped on its own/i);
+  // STILL A BUTTON, and still the same verb. Asking is the only safe move
+  // whether or not the machine has run out of tries, and a row a person can
+  // only look at is a row that waits for the till.
+  assert.equal(row.nextAction.kind, "resume");
+  assert.equal(
+    row.nextAction.kind === "resume" ? row.nextAction.verb : null,
+    "recover_unresolved_collection",
+  );
+  assert.doesNotMatch(row.nextAction.label, /charge|collect/i);
+  assert.match(row.detail, /never charges/);
+});
+
+test("an escalation on a payment nobody can ask about does not invent a button", () => {
+  // `escalated_at` can only be reached through the claim, which never enrols a
+  // transaction with no provider reference. Asserted anyway: the no-button
+  // branch is the half of this rule that protects a customer from a second
+  // charge, and it must not be reachable around.
+  const row = classifyUnresolvedCollection(
+    collection({ providerRequestId: null, recoveryEscalatedAt: minutesAgo(10) }),
+    NOW,
+    null,
+  );
+  assert.ok(row);
+  assert.equal(row.nextAction.kind, "inspect");
+  assert.doesNotMatch(row.title, /asking has stopped/i);
+});
+
 test("a dead outbox message is high, not critical", () => {
   // It must not outrank a missing ticket. See the note on classifyOutboxDead.
   const row = classifyOutboxDead({

@@ -27,6 +27,15 @@ import "server-only";
  *   unknown    we asked and could not be told. Leave everything alone, count
  *              the attempt, come back later.
  *
+ * AND IT GIVES UP, WHICH IS A FEATURE. Every pass that does not resolve the
+ * payment writes the next time to ask, and the claim refuses to hand out a row
+ * that has spent its `max_attempts`, stamping it `escalated_at` instead. A
+ * payment nobody can settle therefore stops being asked about after a bounded
+ * number of tries and sits in the exceptions inbox wearing the provider's last
+ * answer and the number of times it was asked, where a person can read it and
+ * grant it more. Without that the same unresolvable row came back every five
+ * minutes for ever and nothing anywhere said so.
+ *
  * IT CANNOT START A PAYMENT. There is no create in this module's imports, and
  * that is deliberate rather than incidental: a recovery worker with a create in
  * scope is one editing mistake away from being the thing that charges a
@@ -96,6 +105,17 @@ export const RECOVERY_STALE_SECONDS = 20 * 60;
 export const RECOVERY_VISIBILITY_SECONDS = 5 * 60;
 
 /**
+ * How much more rope a PERSON may give a payment the machine has given up on.
+ *
+ * The budget itself lives on the row (`max_attempts`, default 8) rather than
+ * here, because a constant in this file could not be raised for one payment
+ * without being raised for every payment. This is what the exceptions inbox's
+ * "ask again" adds to a row it finds escalated: small, because a person who
+ * presses it is standing in front of the answer and can press it again.
+ */
+export const RECOVERY_ATTEMPT_GRANT = 3;
+
+/**
  * How many collections one pass reconciles.
  *
  * SMALLER THAN THE OUTBOX'S 25, and the number comes from the route rather
@@ -126,7 +146,13 @@ export type RecoverySummary = {
   released: number;
   /** Still in flight at the provider, or the provider could not be asked. */
   inconclusive: number;
-  /** The answer was terminal but we could not act on it. A person is needed. */
+  /**
+   * The answer was terminal but we could not act on it. A person is needed.
+   *
+   * It is still counted and still backs off: a stuck pass ends like any other
+   * unresolved pass, so the row runs out its budget and escalates rather than
+   * being asked about until somebody happens to look.
+   */
   stuck: number;
 };
 
@@ -209,12 +235,12 @@ async function resolveOne(
   } catch (err) {
     // A throw is not an answer. Same treatment as a refusal: nothing changes.
     logServerError("pos.recoverCollections.probe", err);
-    await inconclusive(admin, row, "unknown", err instanceof Error ? err.message : String(err));
+    await standDown(admin, row, "unknown", err instanceof Error ? err.message : String(err));
     return "inconclusive";
   }
 
   if ("ok" in snapshot && snapshot.ok === false) {
-    await inconclusive(admin, row, "unknown", snapshot.error);
+    await standDown(admin, row, "unknown", snapshot.error);
     return "inconclusive";
   }
 
@@ -229,7 +255,7 @@ async function resolveOne(
   // order was never completed and completing it now would settle a sale that
   // has already been returned. That is a human's decision, not this worker's,
   // and the row stays in the exceptions inbox wearing its answer.
-  await inconclusive(admin, row, state, null);
+  await standDown(admin, row, state, null);
   return "inconclusive";
 }
 
@@ -250,7 +276,7 @@ async function settle(
       `transaction ${row.transaction_id}: the provider confirms this collection succeeded but the `
         + `paid transition refused (${result.error}). The customer HAS been charged. Needs a human.`,
     );
-    await record(admin, row, { last_state: "succeeded", last_error: result.error });
+    await standDown(admin, row, "succeeded", result.error);
     return "stuck";
   }
   // `markPaid` closes the collection reservation itself, at the moment the row
@@ -283,7 +309,7 @@ async function release(
       `transaction ${row.transaction_id}: the provider says this collection ${state} but the failed `
         + `transition refused (${failed.error}). The balance stays claimed until its TTL. Needs a human.`,
     );
-    await record(admin, row, { last_state: state, last_error: failed.error });
+    await standDown(admin, row, state, failed.error);
     return "stuck";
   }
 
@@ -312,15 +338,32 @@ async function release(
 }
 
 /**
- * Nothing changed. Count the attempt and come back later.
+ * END THE PASS. Write the answer, drop the lease, and name the next time to
+ * ask.
  *
- * The attempt was already counted by the claim; what this writes is the answer
- * and the next time to ask. `resolved_at` stays null on purpose — an
- * inconclusive pass has resolved nothing, and a row that said otherwise would
- * disappear from the exceptions inbox while the money was still unaccounted
- * for.
+ * `resolved_at` stays null on purpose — a pass that ends here has resolved
+ * nothing, and a row that said otherwise would disappear from the exceptions
+ * inbox while the money was still unaccounted for. The attempt was already
+ * counted by the claim; what this writes is the answer and the next due time.
+ *
+ * THE DEFECT THIS CLOSES, and it was every bit as expensive as a lost payment.
+ * The `stuck` outcome used to write the answer and NOTHING ELSE: no
+ * `resolved_at`, no `next_attempt_at`, and the lease IS `next_attempt_at`. So
+ * five minutes later the claim found the row due again, handed it to the same
+ * worker, got the same refusal and wrote the same nothing — for ever, with no
+ * cap and nobody told. Proven on the isolated branch: eight passes, attempts
+ * climbing 1 to 8, and the ninth claim still returned the row.
+ *
+ * EVERY PASS THAT DOES NOT RESOLVE ENDS HERE, which is why there is one
+ * function and not two. A pass either resolves the payment (`settle`,
+ * `release` — both write `resolved_at`) or it stands down, and standing down
+ * always means the same three facts. The budget itself is not enforced here:
+ * `pos_claim_stale_collections` refuses to hand out a row that has spent its
+ * `max_attempts` and stamps it `escalated_at` in the same statement. That
+ * belongs in the claim precisely because the loop being closed is the one
+ * where THIS code never runs.
  */
-async function inconclusive(
+async function standDown(
   admin: Admin,
   row: ClaimedRow,
   state: PaymentRequestState,

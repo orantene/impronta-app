@@ -390,6 +390,16 @@ export type UnresolvedCollectionFacts = {
   /** The provider's last answer, in the engine's vocabulary. */
   lastRecoveryState?: string | null;
   lastRecoveryAt?: string | null;
+  /**
+   * When the worker spent this payment's budget and stopped asking.
+   *
+   * The row does NOT leave this inbox when that happens — the transaction is
+   * still in `payment_requested` and the money is still unaccounted for. What
+   * changes is who is expected to move next, and a row that says "asked 8
+   * times, still no answer" while a machine silently keeps asking every five
+   * minutes is the shape of a queue nobody trusts.
+   */
+  recoveryEscalatedAt?: string | null;
 };
 
 /**
@@ -415,6 +425,16 @@ export type UnresolvedCollectionFacts = {
  * transaction with no provider request id — opened before the stamp existed, or
  * opened in mock mode — has nothing to ask about, so there is no worker to arm
  * and it still needs a person. That row gets `inspect`, exactly as before.
+ *
+ * AND THERE IS A THIRD STATE NOW: the worker has asked as many times as its
+ * budget allowed and stopped. The button stays, because asking is still the
+ * only safe move and a person may know something the machine does not — a
+ * terminal that has come back online, a provider incident that has ended. What
+ * changes is the sentence: it says the machine has stopped, so pressing it is
+ * understood as granting more rather than as nudging something already
+ * running. This is the same shape as the engine-effect row's "Grant it one
+ * more attempt", and for the same reason: a queue that gives up silently is
+ * indistinguishable from a queue that is working.
  */
 export function classifyUnresolvedCollection(
   facts: UnresolvedCollectionFacts,
@@ -427,21 +447,25 @@ export function classifyUnresolvedCollection(
   const askable = facts.providerRequestId !== null && facts.providerRequestId.length > 0;
   const attempts = facts.recoveryAttempts ?? 0;
   const lastState = facts.lastRecoveryState ?? null;
+  const givenUp = askable && Boolean(facts.recoveryEscalatedAt);
+  const asked = lastState
+    ? `The provider was asked ${attempts} time${attempts === 1 ? "" : "s"} and last said: ${lastState}. `
+    : "The provider has not been asked yet. ";
   return {
     key: `unresolved_collection:${facts.transactionId}`,
     source: "unresolved_collection",
     severity: "high",
     owner: "money",
     sourceId: facts.transactionId,
-    title: "Card payment never came back",
-    detail: askable
+    title: givenUp ? "Card payment never came back, and asking has stopped" : "Card payment never came back",
+    detail: givenUp
       ? `${amount} was requested and no result was recorded. `
-        + (lastState
-          ? `The provider was asked ${attempts} time${attempts === 1 ? "" : "s"} and last said: ${lastState}. `
-          : "The provider has not been asked yet. ")
-        + "Asking again is safe. It never charges."
-      : `${amount} was requested from a reader and no result was recorded, and this payment carries `
-        + "no provider reference, so it cannot be looked up. Check the terminal before re-charging.",
+        + asked
+        + "Asking has stopped on its own after that many tries. Asking again is still safe. It never charges."
+      : askable
+        ? `${amount} was requested and no result was recorded. ` + asked + "Asking again is safe. It never charges."
+        : `${amount} was requested from a reader and no result was recorded, and this payment carries `
+          + "no provider reference, so it cannot be looked up. Check the terminal before re-charging.",
     attempts,
     firstSeenAt: facts.requestedAt,
     lastAttemptAt: facts.lastRecoveryAt ?? null,
@@ -453,7 +477,12 @@ export function classifyUnresolvedCollection(
           // what already happened and finishes the job the answer describes;
           // saying anything that sounds like a new charge would be a lie about
           // the one thing an operator is frightened of here.
-          label: "Ask the provider what happened",
+          //
+          // The escalated label says who is being asked to move. The verb is
+          // the same because the ACT is the same: a person cannot ask the
+          // provider from here either way, and pretending the two buttons do
+          // different things would be the lie.
+          label: givenUp ? "Ask the provider once more" : "Ask the provider what happened",
         }
       : {
           kind: "inspect",

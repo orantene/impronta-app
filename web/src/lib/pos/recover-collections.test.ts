@@ -315,6 +315,66 @@ test("a provider success our own transition refuses is stuck, not retried into a
   assert.equal(patch.resolved_at, undefined);
 });
 
+test("a stuck row ends its own pass: the lease is dropped and a next attempt is named", async () => {
+  // THE DEFECT. The stuck write used to set the answer and nothing else — no
+  // `resolved_at`, no `next_attempt_at` — and the lease IS `next_attempt_at`.
+  // So the claim found the row due five minutes later and handed it back to
+  // the same refusal, for ever. A row that neither resolves nor schedules
+  // itself is a row nobody ever stops paying for.
+  const { admin, writes } = fakeAdmin([{ ...LOST, attempts: 3 }]);
+  const s = spies();
+  const { probe } = probeReturning({
+    requestId: "cs_lost_1",
+    state: "succeeded",
+    amountCents: 5000,
+    currency: "USD",
+    paymentReference: "pi_lost_1",
+  });
+  const before = Date.now();
+
+  const summary = await recoverUnresolvedCollections(admin, {
+    probe,
+    markPaid: (async () => ({ ok: false as const, error: "no payout receiver" })) as never,
+    markFailed: s.deps.markFailed,
+    release: s.deps.release,
+  });
+
+  assert.equal(summary.stuck, 1);
+  const patch = writes.at(-1)?.patch as Row;
+  assert.equal(patch.claimed_at, null, "a stuck pass that keeps its lease is a pass that never ends");
+  assert.ok(typeof patch.next_attempt_at === "string", "a stuck row must name when it may be asked again");
+  assert.ok(
+    Date.parse(patch.next_attempt_at as string) >= before + recoveryBackoffMs(3),
+    "the stuck row backs off on the same curve as any other unresolved pass",
+  );
+  assert.equal(patch.resolved_at, undefined, "nothing was resolved, and the row must stay in the inbox");
+});
+
+test("a stuck failed-transition also ends its pass", async () => {
+  const { admin, writes } = fakeAdmin([{ ...LOST, attempts: 2 }]);
+  const s = spies();
+  const { probe } = probeReturning({
+    requestId: "cs_lost_1",
+    state: "failed",
+    amountCents: 5000,
+    currency: "USD",
+    paymentReference: null,
+  });
+
+  const summary = await recoverUnresolvedCollections(admin, {
+    probe,
+    markPaid: s.deps.markPaid,
+    markFailed: (async () => ({ ok: false as const, error: "transition refused" })) as never,
+    release: s.deps.release,
+  });
+
+  assert.equal(summary.stuck, 1);
+  const patch = writes.at(-1)?.patch as Row;
+  assert.equal(patch.claimed_at, null);
+  assert.ok(typeof patch.next_attempt_at === "string");
+});
+
+
 test("a refused failed-transition keeps the balance claimed", async () => {
   // Releasing a claim over a row still reading `payment_requested` would let a
   // second till take a balance the first row still looks entitled to.
@@ -460,6 +520,25 @@ test("the recovery worker contains no way to open a payment", () => {
     false,
     "the recovery worker can reach a payment create; that is one edit away from a second charge",
   );
+});
+
+test("the worker never writes the escalation itself", () => {
+  // WHERE THE CAP LIVES, and why it is not here. The loop being closed is the
+  // one where this module dies mid-pass and writes nothing at all, so a cap
+  // this module had to write would be a cap that is never written. It belongs
+  // in `pos_claim_stale_collections`, which refuses to hand out a row that has
+  // spent its budget and stamps `escalated_at` in the same statement.
+  assert.equal(
+    /escalated_at/.test(stripComments(SRC)),
+    false,
+    "the recovery worker must not be the thing that decides a payment is escalated",
+  );
+  const migration = readFileSync(
+    join(process.cwd(), "..", "supabase/migrations/20261231001200_pos_collection_recovery.sql"),
+    "utf8",
+  );
+  assert.match(migration, /AND r\.attempts < r\.max_attempts/, "the claim must refuse an over-budget row");
+  assert.match(migration, /SET escalated_at = now\(\)/, "the claim must stamp the row it refuses");
 });
 
 test("GUARD BITES: the same matcher catches a worker that could charge", () => {

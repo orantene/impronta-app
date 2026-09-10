@@ -44,6 +44,7 @@ import { makeEnvelope } from "@/lib/commands/envelope";
 import { CommandFailure, runCommand } from "@/lib/commands/run";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { paymentRequestIdFromMetadata } from "@/lib/pos/collection-reservations";
+import { RECOVERY_ATTEMPT_GRANT } from "@/lib/pos/recover-collections";
 import type { ResumeVerb } from "./model";
 
 type Admin = SupabaseClient;
@@ -186,7 +187,7 @@ async function armCollectionRecovery(
 ): Promise<ResumeResult> {
   const { data, error } = await admin
     .from("booking_transactions")
-    .select("id, status, source_tenant_id, metadata")
+    .select("id, status, source_tenant_id")
     .eq("id", transactionId)
     // `source_tenant_id`, not `tenant_id`: this table predates the convention
     // and names the workspace that took the money under its own column.
@@ -199,7 +200,27 @@ async function armCollectionRecovery(
   // Anything but `payment_requested` has resolved itself while this screen was
   // open, and re-arming would ask about a payment that has an answer.
   if (data.status !== "payment_requested") return { ok: true, outcome: "already" };
-  if (!paymentRequestIdFromMetadata((data as { metadata?: unknown }).metadata)) {
+
+  // READ SEPARATELY FROM THE STATUS, for the reason the inbox reader states at
+  // length: a database without `booking_transactions.metadata` would otherwise
+  // fail this whole read, and "not found" is the wrong answer to give about a
+  // transaction that is sitting right there. Here the failure is REFUSED
+  // rather than degraded — this path is about to arm a worker over money, and
+  // "we could not tell whether there is anything to ask about" must not become
+  // "there is nothing to ask about". The operator gets a sentence.
+  const { data: meta, error: mErr } = await admin
+    .from("booking_transactions")
+    .select("id, metadata")
+    .eq("id", transactionId)
+    .eq("source_tenant_id", tenantId)
+    .maybeSingle();
+  if (mErr) {
+    throw new CommandFailure(
+      "none",
+      `could not read what this collection asked the provider for: ${mErr.message}`,
+    );
+  }
+  if (!paymentRequestIdFromMetadata((meta as { metadata?: unknown } | null)?.metadata)) {
     // Nothing to ask about. The model routes this row to `inspect`, so this is
     // the server-side half of that: a server action is reachable without the
     // screen that renders it, and "the UI would not offer it" is not a guard.
@@ -208,7 +229,7 @@ async function armCollectionRecovery(
 
   const { data: existing, error: rErr } = await admin
     .from("pos_collection_recoveries")
-    .select("transaction_id, resolved_at")
+    .select("transaction_id, resolved_at, attempts")
     .eq("transaction_id", transactionId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -226,13 +247,29 @@ async function armCollectionRecovery(
   }
   if (existing.resolved_at) return { ok: true, outcome: "already" };
 
+  // GRANTING MORE ROPE IS THE OTHER HALF OF THE BUTTON, and without it the
+  // button was a lie on exactly the rows that most needed it. The claim stops
+  // handing out a row that has spent its `max_attempts` and stamps it
+  // `escalated_at`; pressing "ask once more" on such a row while leaving the
+  // budget where it is would clear the due time, achieve nothing, and report
+  // success. So the ceiling is raised from where the row actually stands, and
+  // the escalation is cleared in the same statement that makes it untrue.
+  //
+  // `attempts` is NOT reset. It is the row's history and the inbox reads it
+  // back to the operator; a counter that a button silently zeroes is how "we
+  // have asked eight times" becomes "we have never asked".
+  const attempts = Number((existing as { attempts?: unknown }).attempts ?? 0);
   const { error: uErr } = await admin
     .from("pos_collection_recoveries")
     .update({
       next_attempt_at: new Date().toISOString(),
-      // Dropping the lease is what makes "sooner" real: a claimed row is
-      // skipped by the claim regardless of its due time.
+      // Dropping the lease is what makes "sooner" real: the lease IS the due
+      // time, so a row claimed moments ago is otherwise invisible to the claim
+      // until its visibility window lapses.
       claimed_at: null,
+      max_attempts: attempts + RECOVERY_ATTEMPT_GRANT,
+      escalated_at: null,
+      escalation_reason: null,
       updated_at: new Date().toISOString(),
     })
     .eq("transaction_id", transactionId)

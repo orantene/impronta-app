@@ -175,7 +175,7 @@ async function readUnresolvedCollections(
   // name. Scoping on the wrong column here would read every workspace's tills.
   const { data, error } = await admin
     .from("booking_transactions")
-    .select("id, order_id, gross_amount_cents, currency, requested_at, created_at, metadata")
+    .select("id, order_id, gross_amount_cents, currency, requested_at, created_at")
     .eq("source_tenant_id", tenantId)
     .eq("status", "payment_requested")
     .order("created_at", { ascending: true })
@@ -187,6 +187,31 @@ async function readUnresolvedCollections(
 
   const transactions = (data ?? []) as Array<Record<string, unknown>>;
 
+  // WHY `metadata` IS READ SEPARATELY AND NOT IN THE SELECT ABOVE.
+  //
+  // A REVIEW FINDING, not a style choice. `metadata` was added to this select
+  // to find the provider request id, and on any database that does not have
+  // that column the whole select fails — which turned a working section of
+  // this inbox into a "could not read" banner. The exception is real whether
+  // or not this enrichment can be read: an operator who can see that 18.00 was
+  // requested and never came back is better served than one who is told the
+  // queue is broken. So the facts that make the row EXIST are read with
+  // columns every database has, and the fact that adds a BUTTON is read
+  // separately and degrades to absent — the same shape as the recovery read
+  // below, for the same reason.
+  const providerRequestIds = new Map<string, string | null>();
+  if (transactions.length > 0) {
+    const { data: metaRows, error: mErr } = await admin
+      .from("booking_transactions")
+      .select("id, metadata")
+      .eq("source_tenant_id", tenantId)
+      .in("id", transactions.map((t) => String(t.id)));
+    if (mErr) logServerError("exceptions/read.collectionMetadata", mErr);
+    for (const raw of (metaRows ?? []) as Array<Record<string, unknown>>) {
+      providerRequestIds.set(String(raw.id), paymentRequestIdFromMetadata(raw.metadata));
+    }
+  }
+
   // WHAT THE WORKER HAS ALREADY TRIED. Without this the row can only say "no
   // result was recorded", which is exactly as true after six failed lookups as
   // before the first, and an operator reading it has no way to tell a payment
@@ -194,11 +219,15 @@ async function readUnresolvedCollections(
   // read here is NOT a failed section: the exception is still real and still
   // worth showing, so the attempt history degrades to absent rather than
   // taking the whole queue down with it.
-  const recoveries = new Map<string, { attempts: number; lastState: string | null; lastAt: string | null }>();
+  const recoveries = new Map<
+    string,
+    { attempts: number; lastState: string | null; lastAt: string | null; escalatedAt: string | null }
+  >();
   if (transactions.length > 0) {
     const { data: recoveryRows, error: rErr } = await admin
       .from("pos_collection_recoveries")
-      .select("transaction_id, attempts, last_state, updated_at")
+      .select("transaction_id, attempts, last_state, updated_at, escalated_at")
+      .eq("tenant_id", tenantId)
       .in("transaction_id", transactions.map((t) => String(t.id)));
     if (rErr) logServerError("exceptions/read.collectionRecoveries", rErr);
     for (const raw of (recoveryRows ?? []) as Array<Record<string, unknown>>) {
@@ -206,6 +235,7 @@ async function readUnresolvedCollections(
         attempts: Number(raw.attempts ?? 0),
         lastState: raw.last_state ? String(raw.last_state) : null,
         lastAt: raw.updated_at ? String(raw.updated_at) : null,
+        escalatedAt: raw.escalated_at ? String(raw.escalated_at) : null,
       });
     }
   }
@@ -222,10 +252,11 @@ async function readUnresolvedCollections(
         // `requested_at` is the moment the reader was asked. It is nullable on
         // older rows, where `created_at` is the same instant for this status.
         requestedAt: String(raw.requested_at ?? raw.created_at),
-        providerRequestId: paymentRequestIdFromMetadata(raw.metadata),
+        providerRequestId: providerRequestIds.get(String(raw.id)) ?? null,
         recoveryAttempts: recovery?.attempts ?? 0,
         lastRecoveryState: recovery?.lastState ?? null,
         lastRecoveryAt: recovery?.lastAt ?? null,
+        recoveryEscalatedAt: recovery?.escalatedAt ?? null,
       },
       now,
       orderHref(tenantSlug, raw.order_id ? String(raw.order_id) : null),
