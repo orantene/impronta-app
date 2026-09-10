@@ -99,3 +99,37 @@ test("no Stripe client → mock URL, and no key is invented", async () => {
   assert.equal(out.ok, true);
   assert.equal(out.ok && out.mock, true);
 });
+
+/**
+ * A POS collection holds a claim on the order's outstanding balance, and that
+ * claim is reaped on a timer. A session with no expiry lives about 24 hours,
+ * so it outlived the claim by hours: the reaper freed the balance, a second
+ * till collected it, and the first customer's page still worked. Both
+ * payments landed on one order.
+ */
+test("a caller-named expiry is sent to Stripe as unix seconds", async () => {
+  const { calls, stripe } = fakeStripe();
+  const expiresAt = "2026-09-09T18:31:00.000Z";
+  const out = await createCheckoutSessionForTransaction(input({ expiresAt }), { stripe });
+
+  assert.equal(out.ok, true);
+  assert.equal(calls[0].params.expires_at, Math.floor(Date.parse(expiresAt) / 1000));
+});
+
+test("no expiry named means the field is omitted, not sent null", async () => {
+  const { calls, stripe } = fakeStripe();
+  await createCheckoutSessionForTransaction(input(), { stripe });
+  assert.equal("expires_at" in calls[0].params, false);
+
+  const second = fakeStripe();
+  await createCheckoutSessionForTransaction(input({ expiresAt: null }), { stripe: second.stripe });
+  assert.equal("expires_at" in second.calls[0].params, false);
+});
+
+test("an unparseable expiry is dropped rather than failing a real payment", async () => {
+  const { calls, stripe } = fakeStripe();
+  const out = await createCheckoutSessionForTransaction(input({ expiresAt: "soon" }), { stripe });
+
+  assert.equal(out.ok, true, "a malformed optional field must not sink the charge");
+  assert.equal("expires_at" in calls[0].params, false);
+});

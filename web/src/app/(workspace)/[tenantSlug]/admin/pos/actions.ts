@@ -138,7 +138,9 @@ export async function posStartCollection(input: {
   displayName?: string;
   amountCents?: number;
   tenderedCents?: number;
-  idempotencyKey?: string;
+  /** REQUIRED. Names THIS allocation so a retry replays instead of collecting again. */
+  idempotencyKey: string;
+  expectedVersion?: number;
 }) {
   const g = await staff();
   if (!g.ok) return g;
@@ -150,7 +152,11 @@ export async function posStartCollection(input: {
     displayName: z.string().optional(),
     amountCents: z.number().int().nonnegative().optional(),
     tenderedCents: z.number().int().nonnegative().optional(),
-    idempotencyKey: z.string().min(8).max(80).optional(),
+    // No longer optional. An unnamed collection cannot be told apart from a new
+    // one, and the old fallback minted a key per call, so every retry took the
+    // money twice.
+    idempotencyKey: z.string().min(8).max(80),
+    expectedVersion: z.number().int().positive().optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
   const hdrs = await headers();
@@ -175,6 +181,7 @@ export async function posStartCollection(input: {
       amountCents: parsed.data.amountCents,
       tenderedCents: parsed.data.tenderedCents,
       idempotencyKey: parsed.data.idempotencyKey,
+      expectedVersion: parsed.data.expectedVersion,
     },
     { ensureCustomer: (c) => ensureCustomer(c, { admin: g.admin }), onOrderPaid: (ctx) => mintAdmissionsForPaidOrder(g.admin, ctx).then(() => undefined) },
   );

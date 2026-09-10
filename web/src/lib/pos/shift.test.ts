@@ -6,6 +6,7 @@ import { addLine, createDraftOrder } from "./draft";
 import { startCollection } from "./collection";
 import { closeShift, currentShift, openShift } from "./shift";
 import { settleAtDoor } from "@/lib/orders/settle-at-door";
+import { makeCollectionRpc } from "./__fixtures__/collection-reservations";
 
 type Row = Record<string, unknown>;
 
@@ -20,6 +21,7 @@ function makeStore() {
     capacity_allocations: [] as Row[],
     pos_shifts: [] as Row[],
     ticket_refund_intents: [] as Row[],
+    order_collection_reservations: [] as Row[],
   };
 }
 
@@ -96,6 +98,15 @@ function fakeAdmin(store: ReturnType<typeof makeStore>) {
   return { from };
 }
 
+/**
+ * The same store, plus the collection RPCs. `startCollection` refuses rather
+ * than collect without `pos_reserve_collection`; the draft commands keep their
+ * PostgREST fallback, so only the till needs them.
+ */
+function fakeTill(store: ReturnType<typeof makeStore>) {
+  return { from: fakeAdmin(store).from, rpc: makeCollectionRpc(store) };
+}
+
 test("one open shift per tenant; a second open is refused", async () => {
   const store = makeStore();
   const first = await openShift(fakeAdmin(store), {
@@ -166,7 +177,7 @@ test("cash still collects when no shift is open", async () => {
   assert.equal(none.ok, true);
   if (none.ok) assert.equal(none.shift, null);
   const r = await startCollection(
-    fakeAdmin(store),
+    fakeTill(store),
     {
       tenantId: "t1",
       orderId: created.orderId,
@@ -218,7 +229,7 @@ test("closing a shift totals opening plus cash allocations, not tendered", async
     line: { offeringId: "off-1", units: 1 },
   });
   const collected = await startCollection(
-    fakeAdmin(store),
+    fakeTill(store),
     {
       tenantId: "t1",
       orderId: created.orderId,

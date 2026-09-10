@@ -52,6 +52,7 @@ export function stripeCollectionAdapter(deps: StripeCollectionDeps = {}): Collec
           cancelUrl: input.cancelUrl,
           description: input.description,
           locale: input.locale,
+          expiresAt: input.expiresAt,
         },
         { stripe: deps.stripe },
       );
