@@ -32,8 +32,8 @@ test("every source read is tenant-scoped in the application layer", () => {
   const scoped = READ_SRC.match(/\.eq\("(?:tenant_id|source_tenant_id)", tenantId\)/g) ?? [];
   assert.equal(
     scoped.length,
-    5,
-    "one of the five sources lost its tenant filter — a service-role read without it returns every workspace",
+    6,
+    "one of the six sources lost its tenant filter — a service-role read without it returns every workspace",
   );
 });
 
@@ -125,4 +125,57 @@ test("an inspect row has no control at all, not a disabled one", () => {
 
 test("the page is reachable as a canonical route", () => {
   assert.match(ROUTES_SRC, /s\[1\] === "exceptions"/);
+});
+
+test("no resume writer reports a failed WRITE as a failure that changed nothing", () => {
+  // A SELECT that errored changed nothing and can say so. An UPDATE that
+  // errored may have failed on the way back from a row it already changed, and
+  // "Nothing was changed." is the sentence that sends an operator away.
+  const writeFailures = RESUME_SRC.match(/if \(uErr\) \{[\s\S]{0,400}?\n {2}\}/g) ?? [];
+  assert.ok(writeFailures.length >= 3, "the resume writers moved and this guard stopped measuring");
+  for (const branch of writeFailures) {
+    assert.match(
+      branch,
+      /CommandFailure\("unknown"/,
+      `a write failure claimed to know what it left behind:\n${branch}`,
+    );
+  }
+});
+
+test("the resume screen prefers the runner's own sentence over its own fallback", () => {
+  // Only the runner knows which part of a partial landed, so a message from it
+  // has to short-circuit the reason-code copy rather than sit under it.
+  const guard = ACTIONS_SRC.indexOf("if (result.message) return");
+  const fallback = ACTIONS_SRC.indexOf("Nothing was changed.");
+  assert.ok(guard > 0, "the action discards the runner's sentence");
+  assert.ok(
+    guard < fallback,
+    "the reassuring fallback is reachable before the runner's own account of what happened",
+  );
+  assert.equal(
+    (ACTIONS_SRC.match(/Nothing was changed\./g) ?? []).length,
+    1,
+    "the exceptions action says nothing changed in more than one branch",
+  );
+});
+
+test("an abandoned command claim is a source, and it is inspect-only", () => {
+  // Every other resumable source names ONE idempotent executor. A command
+  // claim names an arbitrary handler, so a generic button here would be a
+  // second executor for every command in the system at once.
+  assert.match(READ_SRC, /from\("command_idempotency"\)/);
+  const block = READ_SRC.slice(READ_SRC.indexOf("async function readStaleCommandClaims"));
+  assert.match(block.slice(0, 1200), /\.eq\("tenant_id", tenantId\)/);
+  assert.match(block.slice(0, 1200), /\.eq\("status", "in_flight"\)/);
+  // A `.lte` on a nullable column drops NULL rows silently, and a NULL lease
+  // is a pre-lease row: exactly the abandoned claims this source is for.
+  assert.match(block.slice(0, 1200), /lease_expires_at\.is\.null/);
+
+  const model = read("src/lib/exceptions/model.ts");
+  const classifier = model.slice(model.indexOf("export function classifyStaleCommandClaim"));
+  assert.match(classifier.slice(0, 1400), /kind: "inspect"/);
+  assert.ok(
+    !/kind: "resume"/.test(classifier.slice(0, 1400)),
+    "an abandoned claim was given a button that would re-run an unknown handler",
+  );
 });

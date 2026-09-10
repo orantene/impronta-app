@@ -22,6 +22,7 @@ import {
   classifyMintShortfall,
   classifyOutboxDead,
   classifyRefundIntent,
+  classifyStaleCommandClaim,
   classifyUnresolvedCollection,
   sortExceptions,
   summariseExceptions,
@@ -281,4 +282,32 @@ test("every row key is unique per source row, so a list can key on it", () => {
   );
   assert.notEqual(a.key, b.key);
   assert.match(a.key, /^mint_shortfall:/);
+});
+
+test("an abandoned command claim is critical and has no button", () => {
+  // The lease already IS the age threshold: a row only reaches this classifier
+  // after its owner has been silent for longer than one. And no button, because
+  // the handler behind an arbitrary command is not known to be safe to re-run
+  // from here; the retry path is the original caller pressing again, which
+  // takes the expired lease over through command_claim.
+  const row = classifyStaleCommandClaim(
+    {
+      id: "44444444-4444-4444-8444-444444444444",
+      command: "pos.startCollection",
+      attempts: 2,
+      createdAt: minutesAgo(9),
+      leaseExpiresAt: minutesAgo(7),
+    },
+    null,
+  );
+  assert.equal(row.severity, "critical");
+  assert.equal(row.owner, "operations");
+  assert.equal(row.nextAction.kind, "inspect");
+  assert.equal(row.attempts, 2);
+  assert.equal(row.lastAttemptAt, minutesAgo(7));
+  assert.match(row.detail, /pos\.startCollection/);
+  assert.ok(
+    !/Nothing was changed/.test(row.detail),
+    "an abandoned claim is the one row that cannot say what happened",
+  );
 });

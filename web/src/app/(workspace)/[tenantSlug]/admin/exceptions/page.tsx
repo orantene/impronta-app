@@ -2,13 +2,13 @@
  * The Exceptions inbox.
  *
  * WHY THIS IS A PAGE AND NOT A LOG. Everything on this screen was already
- * knowable — five tables, five queries, a psql prompt and someone who knows
+ * knowable — six tables, six queries, a psql prompt and someone who knows
  * which tables. That is the definition of a thing nobody looks at, and the
  * consequence is not abstract: a mint shortfall means a buyer is standing at a
  * door with a receipt and no ticket, and today the first person to notice is
  * the buyer.
  *
- * ONE QUEUE, SORTED BY HARM. The five sources are merged and ranked by whether
+ * ONE QUEUE, SORTED BY HARM. The six sources are merged and ranked by whether
  * they can still hurt someone rather than by which table they came from — see
  * `lib/exceptions/model.ts`, where the ranking lives and is tested.
  *

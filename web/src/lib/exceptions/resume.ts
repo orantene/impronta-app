@@ -29,12 +29,19 @@ import "server-only";
  * exactly ONE more attempt rather than resetting the counter: a reset would let
  * an operator loop a permanently broken effect forever, and the cap exists
  * because at some point the answer is a person, not another try.
+ *
+ * A FAILED READ AND A FAILED WRITE ARE NOT THE SAME FAILURE. Every branch here
+ * used to collapse into `reason: "failed"`, which the screen rendered as
+ * "Nothing was changed." That is true of a SELECT that errored and is a lie
+ * about an UPDATE that errored, because an UPDATE can fail on the way back
+ * from a row it already changed. So reads throw `CommandFailure("none", ...)`
+ * and writes throw `CommandFailure("unknown", ...)`, and the operator is told
+ * to go and look rather than reassured.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { logServerError } from "@/lib/server/safe-error";
 import { makeEnvelope } from "@/lib/commands/envelope";
-import { runCommand } from "@/lib/commands/run";
+import { CommandFailure, runCommand } from "@/lib/commands/run";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import type { ResumeVerb } from "./model";
 
@@ -49,9 +56,37 @@ const REFUND_MAX_ATTEMPTS = 12;
 /** Kept in step with `inquiry-engine-lifecycle.ts`. Same reasoning. */
 const ENGINE_MAX_RETRY_ATTEMPTS = 5;
 
+/**
+ * Why a resume did not happen. The last three come from the command runner
+ * rather than from the row, and they are separate values because they need
+ * three different sentences: `failed` is the only one that may tell an
+ * operator nothing changed.
+ */
+export type ResumeFailureReason =
+  | "not_found"
+  | "not_resumable"
+  /** Nothing was written. The handler asserted it. */
+  | "failed"
+  | "in_flight"
+  /** Some of it landed and we know which part. */
+  | "partial"
+  /** It may have landed. Nobody can say. */
+  | "uncertain"
+  /** Another runner took this claim over while ours was still working. */
+  | "fenced";
+
 export type ResumeResult =
   | { ok: true; outcome: "armed" | "done" | "already" }
-  | { ok: false; reason: "not_found" | "not_resumable" | "failed" | "in_flight" };
+  | {
+      ok: false;
+      reason: ResumeFailureReason;
+      /**
+       * The runner's own sentence, when the runner is the one that knows. The
+       * screen prefers it over anything it could compose from `reason` alone,
+       * because only the runner knows which part of a partial landed.
+       */
+      message?: string;
+    };
 
 export type ResumeInput = {
   tenantId: string;
@@ -81,11 +116,30 @@ export async function resumeException(
     perform(admin, input),
   );
 
-  if (outcome.status === "ok" || outcome.status === "replayed") return outcome.result;
-  if (outcome.status === "in_flight") return { ok: false, reason: "in_flight" };
-  // A fingerprint conflict means the same key was reused for a different row —
-  // a client bug, not something to guess at.
-  return { ok: false, reason: "failed" };
+  switch (outcome.status) {
+    case "ok":
+    case "replayed":
+      return outcome.result;
+    case "in_flight":
+      return { ok: false, reason: "in_flight" };
+    case "conflict":
+      // The same key was reused for a different row: a client bug, and nothing
+      // ran, so nothing changed.
+      return { ok: false, reason: "failed" };
+    case "fenced":
+      return { ok: false, reason: "fenced", message: outcome.error };
+    case "error":
+      return {
+        ok: false,
+        reason:
+          outcome.effects === "none"
+            ? "failed"
+            : outcome.effects === "partial"
+              ? "partial"
+              : "uncertain",
+        message: outcome.error,
+      };
+  }
 }
 
 function perform(admin: Admin, input: ResumeInput): Promise<ResumeResult> {
@@ -121,8 +175,7 @@ async function armRefundIntent(
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (error) {
-    logServerError("exceptions/armRefundIntent.read", error);
-    return { ok: false, reason: "failed" };
+    throw new CommandFailure("none", `could not read the refund intent: ${error.message}`);
   }
   if (!data) return { ok: false, reason: "not_found" };
   if (data.executed_at || data.claimed_at) return { ok: false, reason: "not_resumable" };
@@ -141,8 +194,8 @@ async function armRefundIntent(
     .eq("tenant_id", tenantId)
     .is("claimed_at", null);
   if (uErr) {
-    logServerError("exceptions/armRefundIntent.update", uErr);
-    return { ok: false, reason: "failed" };
+    // An UPDATE can fail on the way back from a row it already changed.
+    throw new CommandFailure("unknown", `the refund intent update did not confirm: ${uErr.message}`);
   }
   return { ok: true, outcome: "armed" };
 }
@@ -165,8 +218,7 @@ async function mintMissing(
     .eq("id", orderLineId)
     .maybeSingle();
   if (error) {
-    logServerError("exceptions/mintMissing.line", error);
-    return { ok: false, reason: "failed" };
+    throw new CommandFailure("none", `could not read the order line: ${error.message}`);
   }
   if (!line?.order_id) return { ok: false, reason: "not_found" };
 
@@ -177,8 +229,7 @@ async function mintMissing(
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (oErr) {
-    logServerError("exceptions/mintMissing.order", oErr);
-    return { ok: false, reason: "failed" };
+    throw new CommandFailure("none", `could not read the order: ${oErr.message}`);
   }
   // Tenant scope is enforced on the ORDER, because `order_lines` carries no
   // tenant column. A line whose order belongs to another workspace resolves to
@@ -193,8 +244,7 @@ async function mintMissing(
     .select("id, units, session_id, variant_id")
     .eq("order_id", order.id as string);
   if (lErr) {
-    logServerError("exceptions/mintMissing.lines", lErr);
-    return { ok: false, reason: "failed" };
+    throw new CommandFailure("none", `could not read the order lines: ${lErr.message}`);
   }
 
   try {
@@ -210,8 +260,13 @@ async function mintMissing(
     });
     return { ok: true, outcome: result.rowsInserted > 0 ? "done" : "already" };
   } catch (mintError) {
-    logServerError("exceptions/mintMissing.mint", mintError);
-    return { ok: false, reason: "failed" };
+    // The mint inserts per line and skips what exists. A throw part way
+    // through leaves some issued and some not, and we cannot see which.
+    throw new CommandFailure(
+      "unknown",
+      `minting stopped part way: ${mintError instanceof Error ? mintError.message : String(mintError)}`,
+      { cause: mintError },
+    );
   }
 }
 
@@ -227,8 +282,7 @@ async function armEngineEffect(
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (error) {
-    logServerError("exceptions/armEngineEffect.read", error);
-    return { ok: false, reason: "failed" };
+    throw new CommandFailure("none", `could not read the engine effect: ${error.message}`);
   }
   if (!data) return { ok: false, reason: "not_found" };
   if (data.resolved) return { ok: true, outcome: "already" };
@@ -247,8 +301,7 @@ async function armEngineEffect(
     .eq("tenant_id", tenantId)
     .eq("resolved", false);
   if (uErr) {
-    logServerError("exceptions/armEngineEffect.update", uErr);
-    return { ok: false, reason: "failed" };
+    throw new CommandFailure("unknown", `the engine effect update did not confirm: ${uErr.message}`);
   }
   return { ok: true, outcome: "armed" };
 }
@@ -265,8 +318,7 @@ async function requeueOutbox(
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (error) {
-    logServerError("exceptions/requeueOutbox.read", error);
-    return { ok: false, reason: "failed" };
+    throw new CommandFailure("none", `could not read the outbox message: ${error.message}`);
   }
   if (!data) return { ok: false, reason: "not_found" };
   if (data.status !== "dead") return { ok: true, outcome: "already" };
@@ -287,8 +339,7 @@ async function requeueOutbox(
     .eq("tenant_id", tenantId)
     .eq("status", "dead");
   if (uErr) {
-    logServerError("exceptions/requeueOutbox.update", uErr);
-    return { ok: false, reason: "failed" };
+    throw new CommandFailure("unknown", `the outbox requeue did not confirm: ${uErr.message}`);
   }
   return { ok: true, outcome: "armed" };
 }

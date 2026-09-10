@@ -1,9 +1,9 @@
 import "server-only";
 
 /**
- * read.ts — gather the five sources into one queue.
+ * read.ts — gather the six sources into one queue.
  *
- * FIVE READS, NOT ONE VIEW. A SQL view over all five was the obvious shape and
+ * SIX READS, NOT ONE VIEW. A SQL view over all six was the obvious shape and
  * is the wrong one: `admissions_mint_shortfall` is already a view over a join,
  * `booking_transactions` scopes on `source_tenant_id` rather than `tenant_id`,
  * and the severity rules are judgment that belongs in reviewable, testable
@@ -28,6 +28,7 @@ import {
   classifyMintShortfall,
   classifyOutboxDead,
   classifyRefundIntent,
+  classifyStaleCommandClaim,
   classifyUnresolvedCollection,
   sortExceptions,
   summariseExceptions,
@@ -226,9 +227,53 @@ async function readDeadOutbox(admin: Admin, tenantId: string): Promise<Exception
 }
 
 /**
+ * Idempotency claims whose owner stopped answering.
+ *
+ * A NULL lease is treated as expired, and that is not an oversight. Rows
+ * written by the pre-lease runner carry no liveness signal at all, so an
+ * in-flight one is either abandoned or belongs to a deploy that is already
+ * gone. Excluding them would hide exactly the crashes this source exists to
+ * surface, and `.lte` alone excludes NULL silently.
+ */
+async function readStaleCommandClaims(
+  admin: Admin,
+  tenantId: string,
+  now: number,
+): Promise<ExceptionRow[] | null> {
+  const cutoff = new Date(now).toISOString();
+  const { data, error } = await admin
+    .from("command_idempotency")
+    .select("id, command, attempt_count, created_at, lease_expires_at")
+    .eq("tenant_id", tenantId)
+    .eq("status", "in_flight")
+    .or(`lease_expires_at.is.null,lease_expires_at.lte.${cutoff}`)
+    .order("created_at", { ascending: true })
+    .limit(200);
+  if (error) {
+    logServerError("exceptions/read.staleCommandClaims", error);
+    return null;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((raw) =>
+    classifyStaleCommandClaim(
+      {
+        id: String(raw.id),
+        command: String(raw.command ?? "a command"),
+        attempts: Number(raw.attempt_count ?? 0),
+        createdAt: String(raw.created_at),
+        leaseExpiresAt: raw.lease_expires_at ? String(raw.lease_expires_at) : null,
+      },
+      // No href: a claim names a command, not a row on a screen. Sending an
+      // operator to a page that cannot show them the effect would be worse
+      // than sending them nowhere.
+      null,
+    ),
+  );
+}
+
+/**
  * Read every source concurrently and merge.
  *
- * `Promise.all` and not a sequence: five independent reads that each take a
+ * `Promise.all` and not a sequence: six independent reads that each take a
  * round trip turn a page load into half a second of nothing for no reason, and
  * none of them depends on another's answer.
  */
@@ -237,12 +282,13 @@ export async function loadExceptions(
   input: { tenantId: string; tenantSlug: string; now?: number },
 ): Promise<ExceptionsLoad> {
   const now = input.now ?? Date.now();
-  const [refunds, shortfall, effects, collections, dead] = await Promise.all([
+  const [refunds, shortfall, effects, collections, dead, claims] = await Promise.all([
     readRefundIntents(admin, input.tenantId, input.tenantSlug, now),
     readMintShortfall(admin, input.tenantId, input.tenantSlug),
     readEngineEffects(admin, input.tenantId, input.tenantSlug),
     readUnresolvedCollections(admin, input.tenantId, input.tenantSlug, now),
     readDeadOutbox(admin, input.tenantId),
+    readStaleCommandClaims(admin, input.tenantId, now),
   ]);
 
   const named: Array<[string, ExceptionRow[] | null]> = [
@@ -251,6 +297,7 @@ export async function loadExceptions(
     ["Inquiries", effects],
     ["Card payments", collections],
     ["Background jobs", dead],
+    ["Commands", claims],
   ];
 
   const rows: ExceptionRow[] = [];
