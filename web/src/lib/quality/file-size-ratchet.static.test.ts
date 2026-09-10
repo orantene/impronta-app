@@ -456,7 +456,10 @@ const BUDGETS: Record<string, number> = {
   // internal/messages-mobile-css.ts rather than growing this file past its
   // budget to hold the new rules. Net 2430 -> 2182; lowered so the win is
   // locked in instead of becoming headroom.
-  "src/components/admin/shell/admin-shell-client.tsx": 2182,
+  // 2026-09-10 iOS touch-scroll fix: +3 (two properties + a one-line pointer)
+  // on the surface-main mobile rule. The rationale lives in the commit, not
+  // here, precisely so this budget moves by the fix and not by commentary.
+  "src/components/admin/shell/admin-shell-client.tsx": 2185,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type
   // and every helper live in lib/payments/talent-payout-attention-types.ts;
