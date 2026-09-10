@@ -64,6 +64,24 @@ export type TenantIdentityPayload = {
    * route gate, and a column on the row already selected, so it costs nothing.
    */
   runsEvents: boolean;
+  /**
+   * Raw `agencies.settings.industry_preset` — which of the twenty industry
+   * presets this workspace picked at signup, or null when it has none.
+   *
+   * THE NAV'S SHAPE IS KEYED ON IT. `lib/workspace/nav-context.ts` folds the
+   * preset into three shapes (`cafe` / `solo` / `hybrid`) and the rail reads
+   * them for its labels: a cafe's catalog row says "Menu and catalog" and its
+   * People row says "Team"; a solo professional's catalog row says "Services".
+   * It travels on this payload for the same reason `takesReservations` does —
+   * it is a field on the `agencies` row this loader already selects, so it
+   * costs no query, and a layout decision may not be read in an effect where
+   * the first paint would have to guess.
+   *
+   * Passed through RAW. `resolveIndustryPreset` fails open to "custom", which
+   * turns nothing on, so an unknown or hand-edited value can never thin out or
+   * rename a live workspace's nav.
+   */
+  industryPreset: string | null;
   /** Brand logo URL — when set, replaces the "TULALA" wordmark in the
    *  identity bar. Stored in agency_branding.theme_json.logo_url for
    *  parity with the public storefront's branded chrome. */
@@ -195,6 +213,13 @@ export async function loadTenantIdentity(
     takesReservations:
       (data as { takes_reservations?: unknown }).takes_reservations === true,
     runsEvents: (data as { runs_events?: unknown }).runs_events === true,
+    // Same `settings` blob `networkRequestedAt` below reads, same shape: a
+    // non-string is null, and the nav's `derivePreset` treats null as "no
+    // preset" and falls through to the shape that relabels nothing.
+    industryPreset:
+      typeof data.settings?.industry_preset === "string"
+        ? data.settings.industry_preset
+        : null,
     logoUrl,
     accentColor,
     verifiedDomain,

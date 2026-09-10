@@ -20,9 +20,10 @@
  * Overview, a canonical page renders stacked under the SPA. This module is the
  * single description those four are meant to become projections of.
  *
- * THIS MODULE HAS NO CONSUMERS YET, ON PURPOSE. T2-A ships the registry alone
- * so `main` stays green; the sidebar, the mobile nav, routing and PAGE_META are
- * rewired against it in later tasks. Nothing here changes what renders today.
+ * All four are now projections of this module: the rail through
+ * `page-modules/workspace-nav-groups.ts`, the page list and metadata through
+ * `lib/workspace/page-ids.ts`, and the route resolver and canonical matchers
+ * through the same helpers. A destination is described HERE and nowhere else.
  *
  * PURITY
  * ──────
@@ -139,11 +140,27 @@ export type DestinationRequires = {
   readonly posEnabled?: boolean;
 };
 
-/** A tab inside a destination. `segment: ""` is the destination's own landing view. */
+/**
+ * A child link under a destination's rail row.
+ *
+ * EVERY SUB-VIEW NAMES A ROUTE THAT EXISTS TODAY, under the owner's LIVE route
+ * rather than its canonical segment: People's children sit at /admin/roster/*
+ * while People still renders there. `rail-visible-pages.static.test.ts` walks
+ * the app directory and fails on one that points at nothing, because a child
+ * drawn under the row an operator just opened must not be a 404.
+ */
 export type DestinationSubView = {
   readonly id: string;
   readonly label: string;
+  /** Segment under the owner's live route. `""` is the owner's landing view. */
   readonly segment: string;
+  /**
+   * The child hangs off ANOTHER destination's live route. Events → Orders is
+   * the case: the door and the ticket orders it checks in are one job.
+   */
+  readonly under?: DestinationId;
+  /** Query appended to the href, without the "?" (e.g. `compose=new`). */
+  readonly query?: string;
   readonly requires?: DestinationRequires;
 };
 
@@ -261,12 +278,9 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     shortLabel: "Bookings",
     built: true,
     mobilePriority: 4,
-    subViews: [
-      { id: "appointments", label: "Appointments", segment: "" },
-      { id: "sessions", label: "Sessions", segment: "sessions" },
-      { id: "series", label: "Series", segment: "series" },
-      { id: "waitlist", label: "Waitlist", segment: "waitlist" },
-    ],
+    // NO SUB-VIEWS. Appointments renders at /admin/sessions, and that directory
+    // holds exactly one page.tsx: Series and Waitlist are the surface this
+    // destination is heading for, not routes. They belong here the day they are.
   },
   reservations: {
     id: "reservations",
@@ -365,6 +379,18 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     label: "Events",
     built: true,
     requires: { tenantFlags: ["runsEvents"] },
+    // The five children the rail has drawn under Events since the Events nav
+    // shipped. Three of them are the events list under a query — composing a
+    // new event and the ticket-tier tab are states of that page, not routes —
+    // and Orders is a cross-link to its own destination, because the door and
+    // the ticket orders it checks in are one job.
+    subViews: [
+      { id: "all", label: "All events", segment: "" },
+      { id: "new", label: "Add new event", segment: "", query: "compose=new" },
+      { id: "tickets", label: "Tickets", segment: "", query: "tab=tickets" },
+      { id: "orders", label: "Orders", segment: "", under: "orders" },
+      { id: "door", label: "Live check-in", segment: "door" },
+    ],
   },
   spaces: {
     id: "spaces",
@@ -412,25 +438,36 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     shortLabel: "People",
     built: true,
     mobilePriority: 9,
+    // The four children the rail has drawn under the roster since WS-3, at the
+    // live route they still render on. The last three are TALENT-ONLY because
+    // the routes themselves are: /admin/roster/{applications,registration,rates}
+    // each call `assertRosterWorkspace`, which 404s a business workspace. The
+    // landing view is not gated, because People is every workspace's row — a
+    // restaurant has staff, and it is the same page under its cafe name, Team.
+    //
+    // `talent`, `bookable` and `access` are NOT here: /admin/roster/talent is
+    // the roster's [id] route, so those three were links into a lookup for a
+    // profile with the id "talent". They arrive with the People surface.
     subViews: [
       { id: "everyone", label: "Everyone", segment: "" },
-      {
-        id: "talent",
-        label: "Talent",
-        segment: "talent",
-        requires: { workspaceType: "talent" },
-      },
-      {
-        id: "bookable",
-        label: "Bookable",
-        segment: "bookable",
-        requires: { workspaceType: "talent" },
-      },
-      { id: "access", label: "Access", segment: "access" },
       {
         id: "applications",
         label: "Applications",
         segment: "applications",
+        requires: { workspaceType: "talent" },
+      },
+      {
+        id: "registration",
+        label: "Registration",
+        segment: "registration",
+        requires: { workspaceType: "talent" },
+      },
+      {
+        // Per-talent day rates — roster DATA, so it belongs beside the roster.
+        // The tenant-wide fallback stays in Settings, where it is a policy.
+        id: "rates",
+        label: "Rates",
+        segment: "rates",
         requires: { workspaceType: "talent" },
       },
     ],
@@ -649,6 +686,24 @@ export function destinationHref(
   const segment = liveRouteSegment(destination);
   if (segment === null) return null;
   return segment === "" ? adminBase : `${adminBase}/${segment}`;
+}
+
+/**
+ * A href for one of a destination's children, under the route that destination
+ * RENDERS AT today (`liveRouteSegment`), never its canonical segment. `null`
+ * when the owner has no route, which is the same `null` `destinationHref`
+ * returns and means the same thing: there is nowhere to send this click.
+ */
+export function subViewHref(
+  destination: Destination,
+  view: DestinationSubView,
+  adminBase: string,
+): string | null {
+  const owner = view.under !== undefined ? DESTINATIONS[view.under] : destination;
+  const base = destinationHref(owner, adminBase);
+  if (base === null) return null;
+  const path = view.segment === "" ? base : `${base}/${view.segment}`;
+  return view.query !== undefined ? `${path}?${view.query}` : path;
 }
 
 /** Does this raw segment open the point of sale (which owns the whole screen). */

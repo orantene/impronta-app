@@ -26,7 +26,9 @@
 
 import { resolveIndustryPreset } from "@/lib/words/presets";
 import { isKnownTenantRole, type TenantRoleKey } from "@/lib/access/roles";
-import type { WorkRole, WorkspacePreset } from "./destinations";
+import type { Plan } from "@/components/admin/shell/internal/state/types";
+import type { WorkspaceType } from "@/lib/saas/workspace-type";
+import type { WorkRole, WorkspaceNavContext, WorkspacePreset } from "./destinations";
 
 export type PresetInput = {
   /** Raw `agencies.settings.industry_preset`. Anything unparseable is tolerated. */
@@ -98,4 +100,81 @@ export function deriveHats(input: HatsInput): WorkHats {
  */
 export function canManageBilling(role: WorkRole): boolean {
   return role === "owner";
+}
+
+// ── The whole context, from the bridge the shell already has ─────────
+
+/**
+ * The tenant identity bridge, as far as the nav is concerned. The real object
+ * (`data-bridge.ts` → `tenantIdentity`) carries twelve more fields; this names
+ * only the one the nav reads, so the shape stays a subset of the live payload
+ * and a test can hand it a realistic row.
+ */
+export type NavTenantIdentity = {
+  /** Raw `agencies.settings.industry_preset`, straight off the bridge. */
+  readonly industryPreset?: unknown;
+};
+
+/** The session identity bridge, likewise narrowed to what the nav reads. */
+export type NavSessionIdentity = {
+  /** Raw `agency_memberships.role`. */
+  readonly role?: unknown;
+  /** Server-resolved `manage_billing`. Absent = ask the role ladder. */
+  readonly canManageBilling?: boolean;
+};
+
+export type WorkspaceNavContextInput = {
+  /** `null` in standalone prototype mode, where there is no tenant row. */
+  readonly tenantIdentity: NavTenantIdentity | null;
+  /** `null` in standalone prototype mode. */
+  readonly sessionIdentity: NavSessionIdentity | null;
+  readonly workspaceType: WorkspaceType;
+  readonly plan: Plan;
+  /**
+   * The shell's `state.visiblePages`. The tenant flags are already folded into
+   * it by the provider off the SAME bridge object, so reading them back out
+   * costs nothing and cannot disagree with the list the rail is filtered by.
+   */
+  readonly visiblePages: readonly string[];
+  /** People on the roster or team. Feeds the `solo` test — see `derivePreset`. */
+  readonly teamMemberCount: number;
+  /** Is the signed-in person bookable on this roster. */
+  readonly hasTalentProfile: boolean;
+  /** The shell's own role, used when there is no session bridge. */
+  readonly fallbackRole: unknown;
+};
+
+/**
+ * THE WHOLE NAV CONTEXT, DERIVED IN ONE PLACE.
+ *
+ * It takes the bridge objects rather than pre-chewed fields on purpose. The
+ * regression this closes was a caller that had the tenant row in its hand and
+ * passed `industryPreset: undefined` anyway, which resolved every workspace on
+ * the platform to `hybrid` and relabelled a cafe's Menu to "Catalog". A caller
+ * that hands over the bridge has nothing left to get wrong, and
+ * `workspace-nav-groups.test` drives the rail through this function from a
+ * bridge-shaped row, so the labels are proven from the data and not from the
+ * derivation.
+ */
+export function workspaceNavContext(input: WorkspaceNavContextInput): WorkspaceNavContext {
+  const hats = deriveHats({
+    membershipRole: input.sessionIdentity?.role ?? input.fallbackRole,
+    hasTalentProfile: input.hasTalentProfile,
+  });
+  return {
+    workspaceType: input.workspaceType,
+    plan: input.plan,
+    preset: derivePreset({
+      industryPreset: input.tenantIdentity?.industryPreset,
+      teamMemberCount: input.teamMemberCount,
+    }),
+    role: hats.role,
+    professional: hats.professional,
+    takesReservations: input.visiblePages.includes("reservations"),
+    runsEvents: input.visiblePages.includes("events"),
+    posEnabled: input.visiblePages.includes("pos"),
+    // The server-resolved capability when we have it; the role ladder's own
+    // answer otherwise. Never a guess from the plan tier.
+    canManageBilling: input.sessionIdentity?.canManageBilling ?? canManageBilling(hats.role),
+  };
 }

@@ -432,6 +432,9 @@ type Ctx = {
     /** Raw `agencies.workspace_type` ("talent" | "business"). Normalized by
      *  `normalizeWorkspaceType` before it is used for anything. */
     workspaceType?: string;
+    /** Raw `agencies.settings.industry_preset`. The rail's labels are keyed on
+     *  it — see `workspaceNavContext` in lib/workspace/nav-context.ts. */
+    industryPreset?: string | null;
     /** Brand logo URL — replaces the TULALA wordmark when present. */
     logoUrl?: string | null;
     /** Whitelabel accent hex — injected as `--tulala-accent` on the shell

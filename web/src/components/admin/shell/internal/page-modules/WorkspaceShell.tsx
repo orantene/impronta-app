@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { WorkspaceMediaPage } from "../media-page";
-import { useWebsiteSubnav } from "./website-nav";
+import { useWorkspaceNav } from "./workspace-nav";
+import type { WorkspaceNavItem } from "./workspace-nav-groups";
 import { useDashboardText } from "../dashboard-i18n";
 import { Avatar, Icon, useRovingTabindex } from "../primitives";
-import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, meetsPlan, meetsRole, PAGE_META, PLAN_META, useAdminShell } from "../state";
+import type { AdminShellIconName } from "../primitives";
+import { COLORS, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
 import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
 import { useCanonicalRouteChildren } from "../canonical-route-children";
@@ -94,67 +96,25 @@ export function WorkspaceShell() {
 }
 
 /**
- * Sidebar nav IA — Shopify-style grouped rail. Small uppercase group
- * labels, every destination carries an icon, live badges on Messages
- * (unread) + Roster (pending approvals/verifications), and Settings
- * pinned to the bottom of the rail like Shopify's admin.
+ * Sidebar nav IA — a light grouped rail, built entirely from the destination
+ * registry (`lib/workspace/destinations.ts`) via `useWorkspaceNav()`.
+ *
+ * WHAT WENT. SIDEBAR_GROUP_TEMPLATE, buildSidebarGroups, SIDEBAR_ICON,
+ * subItemsFor and the pageLabel helper: five structures that had to agree by
+ * hand with the fixtures' page list, the admin route resolver and the canonical
+ * matchers, and did not. Groups, order, labels (including the per-preset ones),
+ * icons, sub-views and plan/role gating are now one projection.
+ *
+ * WHAT STAYED. The tenant chip, the pinned Settings row, the skip link, the
+ * roving-focus nav and the `data-tulala-app-sidebar` test hook are untouched.
+ *
+ * WHAT WILL NOT COME BACK. A point-of-sale row. The POS replaces the whole
+ * admin chrome and is entered from the centred switch in the top bar; the
+ * registry drops its group from the rail so a row here cannot be re-added by
+ * accident.
  */
-// WP1 — the rail is a PROJECTION of state.visiblePages, not a hardcoded list.
-// A business workspace (workspace_type=business) has roster + pitches removed
-// from visiblePages upstream, so those rows never render for it (previously
-// the rail showed them and bounced the click). Media is additionally gated to
-// the agency plan at the rail (the in-page gate stays as the backstop).
-const SIDEBAR_GROUP_TEMPLATE: Array<{ label: string | null; pages: WorkspacePage[] }> = [
-  { label: null, pages: ["overview"] },
-  { label: "Operate", pages: ["messages", "calendar", "sales", "clients"] },
-  { label: "Sell", pages: ["menu", "sessions", "reservations", "events", "discounts"] },
-  { label: "People & Spaces", pages: ["roster", "tables"] },
-  { label: "Grow", pages: ["website", "media", "reviews"] },
-  { label: "Manage", pages: ["analytics", "preparation"] },
-];
-
-function buildSidebarGroups(
-  visiblePages: readonly WorkspacePage[],
-  plan: Parameters<typeof meetsPlan>[0],
-): Array<{ label: string | null; pages: WorkspacePage[] }> {
-  const visible = new Set(visiblePages);
-  const canMedia = meetsPlan(plan, "agency");
-  return SIDEBAR_GROUP_TEMPLATE
-    .map((group) => ({
-      label: group.label,
-      pages: group.pages.filter(
-        (page) => visible.has(page) && (page !== "media" || canMedia),
-      ),
-    }))
-    .filter((group) => group.pages.length > 0);
-}
-
-/** Complete icon coverage for the rail — PAGE_ICON only maps the canonical 6. */
-const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
-  overview: "home",
-  messages: "mail",
-  calendar: "calendar",
-  sessions: "layers",
-  menu: "layers",
-  roster: "team",
-  clients: "briefcase",
-  reservations: "calendar",
-  events: "map-pin", // a night at a venue; calendar and layers are taken by their own pages
-  pitches: "send",
-  reviews: "star",
-  analytics: "chart",
-  website: "globe",
-  media: "image",
-  settings: "settings",
-  sales: "credit",
-  pos: "credit",
-  discounts: "bolt",
-  tables: "layers",
-  preparation: "layers",
-};
-
 function SidebarNavButton({
-  page,
+  icon,
   active,
   badge,
   badgeTone = "amber",
@@ -163,7 +123,8 @@ function SidebarNavButton({
   label,
   description,
 }: {
-  page: WorkspacePage;
+  /** From the registry. There is no second icon table any more. */
+  icon: AdminShellIconName;
   active: boolean;
   badge?: number;
   badgeTone?: "amber" | "brand";
@@ -185,12 +146,7 @@ function SidebarNavButton({
           : "border-transparent bg-transparent font-medium text-admin-ink-muted hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink"
       }`}
     >
-      <Icon
-        name={SIDEBAR_ICON[page] ?? "circle"}
-        size={15}
-        stroke={1.6}
-        color="currentColor"
-      />
+      <Icon name={icon} size={15} stroke={1.6} color="currentColor" />
       <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
         {label}
       </span>
@@ -210,302 +166,94 @@ function SidebarNavButton({
 }
 
 /**
- * X2: SidebarShell — workspace-style vertical rail layout, redesigned to
- * the Shopify admin mental model: grey rail on the left with grouped,
- * icon-complete nav (white active pill), live badges, Website sub-links
- * when that section is active, and Settings pinned at the bottom. The
- * main column carries the same PageRouter content as the topbar shell.
+ * SidebarShell — the workspace's one chrome: a LIGHT tinted rail on the left
+ * with grouped, icon-complete nav (white active pill), live badges, sub-links
+ * under the active section, and Settings pinned at the bottom.
+ *
+ * Every list this used to own now comes from `useWorkspaceNav()`. What is left
+ * here is presentation: the tenant chip, the skip link, roving focus, and how a
+ * row and its children draw.
  */
 function WorkspaceSidebarShell() {
-  const {
-    state,
-    setPage,
-    openDrawer,
-    effectiveTenant,
-    totalUnread,
-    effectiveRoster,
-    verificationRequests,
-    overviewMetrics,
-    tenantSlug,
-    adminBasePath,
-  } = useAdminShell();
+  const { state, setPage, openDrawer, effectiveTenant } = useAdminShell();
   const copy = useDashboardText();
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
 
-  // Website sub-nav — single source of truth shared with the hover dropdown
-  // and the mobile pill strip (website-nav.ts). Gating (Redirects/Forms/
-  // Design) is computed inside the hook.
-  const websiteSubnav = useWebsiteSubnav();
+  // The rail, from the registry. Groups, order, labels, icons, gating and
+  // sub-views all come from here — see workspace-nav.ts.
+  const { groups, pinned } = useWorkspaceNav();
 
   // WS-12.6 — roving tabindex on sidebar nav: arrow keys move between pages
   const sidebarNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(sidebarNavRef, "button");
 
-  // Badge sources — mirrors WorkspaceTopbar so both layouts agree on counts.
-  const pendingVerifications = verificationRequests.filter(
-    (r) => r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action",
-  ).length;
-  const livePendingCount = effectiveRoster.filter((p) => p.state === "awaiting-approval").length;
-  const rosterPending =
-    (overviewMetrics !== null ? (overviewMetrics.pendingApprovals ?? 0) : livePendingCount) +
-    pendingVerifications;
-
-  // Nested sub-nav (Shopify pattern) — shown under the active section.
-  // Website sub-views + the Roster queues (Applications carries the pending
-  // count so the parent badge is actionable in one click).
-  // Host-aware: `/admin` on the tenant's own domain, `/{slug}/admin` on the
-  // shared app host. Resolved once in the provider — see `adminBasePath`.
-  const adminBase = adminBasePath;
-  const rosterBase = `${adminBase}/roster`;
-  const pendingApplications =
-    overviewMetrics !== null ? (overviewMetrics.pendingApprovals ?? 0) : livePendingCount;
-  const subItemsFor = (
-    p: WorkspacePage,
-  ): Array<{
-    id?: string;
-    label: string;
-    href: string;
-    exact?: boolean;
-    count?: number;
-    /** Opens in a new tab instead of routing (the visual editor is the storefront). */
-    external?: boolean;
-  }> | null => {
-    if (p === "website") {
-      // Single source of truth — see website-nav.ts. Order + gating are
-      // computed there; the sidebar just maps to its own render shape.
-      return websiteSubnav.map((item) => ({
-        id: item.id,
-        label: item.label,
-        href: item.href,
-        exact: item.id === "overview",
-        external: item.external,
-        count: item.count,
-      }));
+  const badgeTitleFor = (item: WorkspaceNavItem): string | undefined => {
+    if (!item.badge || item.badge.count <= 0) return undefined;
+    if (item.id === "messages") {
+      return copy.isSpanish ? `${item.badge.count} sin leer` : `${item.badge.count} unread`;
     }
-    if (p === "overview") {
-      // The Exceptions inbox hangs off Overview because it is the only rail
-      // entry every workspace has and the queue spans four of the others —
-      // refunds, tickets, inquiries and background jobs. Filing it under any
-      // one of those would hide it from the operators who own the rest, and a
-      // queue nobody opens is the state it exists to end.
-      return [
-        {
-          id: "overview-dashboard",
-          label: copy.isSpanish ? "Resumen" : "Dashboard",
-          href: adminBase,
-          exact: true,
-        },
-        {
-          id: "overview-exceptions",
-          label: copy.isSpanish ? "Excepciones" : "Exceptions",
-          href: `${adminBase}/exceptions`,
-        },
-      ];
-    }
-    if (p === "roster") {
-      return [
-        {
-          id: "roster-all",
-          label: copy.isSpanish ? "Todos" : "All",
-          href: rosterBase,
-          exact: true,
-        },
-        {
-          id: "roster-applications",
-          label: copy.isSpanish ? "Solicitudes" : "Applications",
-          href: `${rosterBase}/applications`,
-          count: pendingApplications,
-        },
-        {
-          id: "roster-registration",
-          label: copy.isSpanish ? "Registro" : "Registration",
-          href: `${rosterBase}/registration`,
-        },
-        {
-          // Per-talent day rates — roster DATA, so it belongs beside the
-          // roster. The tenant-wide fallback stays in Settings (a policy).
-          id: "roster-rates",
-          label: copy.isSpanish ? "Tarifas" : "Rates",
-          href: `${rosterBase}/rates`,
-        },
-      ];
-    }
-    if (p === "events") {
-      const eventsBase = `${adminBase}/events`;
-      return [
-        {
-          id: "events-all",
-          label: copy.isSpanish ? "Todos" : "All events",
-          href: eventsBase,
-          exact: true,
-        },
-        {
-          id: "events-new",
-          label: copy.isSpanish ? "Nuevo evento" : "Add new event",
-          href: `${eventsBase}?compose=new`,
-        },
-        {
-          // Ticket tiers live on each event. Land on the list with the
-          // Tickets tab selected for the current/first event.
-          id: "events-tickets",
-          label: copy.isSpanish ? "Entradas" : "Tickets",
-          href: `${eventsBase}?tab=tickets`,
-        },
-        {
-          id: "events-orders",
-          label: copy.isSpanish ? "Pedidos" : "Orders",
-          href: `${adminBase}/orders`,
-        },
-        {
-          id: "events-door",
-          label: copy.isSpanish ? "Puerta" : "Live check-in",
-          href: `${eventsBase}/door`,
-        },
-      ];
-    }
-    if (p === "pos") {
-      return [
-        {
-          id: "pos-new",
-          label: copy.isSpanish ? "Nueva venta" : "New Sale",
-          href: `${adminBase}/pos`,
-          exact: true,
-        },
-        {
-          id: "pos-catalog",
-          label: copy.isSpanish ? "Catálogo" : "Catalog",
-          href: `${adminBase}/menu`,
-        },
-        {
-          id: "pos-tables",
-          label: copy.isSpanish ? "Mesas y espacios" : "Tables & Spaces",
-          href: `${adminBase}/tables`,
-        },
-        {
-          id: "pos-prep",
-          label: copy.isSpanish ? "Preparación" : "Preparation",
-          href: `${adminBase}/preparation`,
-        },
-        {
-          id: "pos-discounts",
-          label: copy.isSpanish ? "Descuentos" : "Discounts",
-          href: `${adminBase}/discounts`,
-        },
-        {
-          id: "pos-sales",
-          label: copy.isSpanish ? "Ventas" : "Sales",
-          href: `${adminBase}/sales`,
-        },
-      ];
-    }
-    return null;
+    return copy.isSpanish
+      ? `${item.badge.count} pendientes de revisión`
+      : `${item.badge.count} awaiting review`;
   };
 
-  const pageLabel = (p: WorkspacePage) =>
-    p === "roster"
-      ? copy.t(ENTITY_TYPE_META[state.entityType].rosterLabel)
-      : copy.t(PAGE_META[p].label);
-  const pageDescription = (p: WorkspacePage) =>
-    PAGE_META[p].description ? copy.t(PAGE_META[p].description as string) : undefined;
-
-  const renderItem = (p: WorkspacePage) => {
-    const active =
-      state.page === p ||
-      (p === "settings" && state.page === "workspace") ||
-      (p === "messages" && state.page === "inbox") ||
-      (p === "website" && state.page === "site") ||
-      (p === "roster" && state.page === "talent") ||
-      (p === "events" &&
-        ((pathname ?? "").startsWith(`${adminBase}/orders`) ||
-          (pathname ?? "").startsWith(`${adminBase}/events/door`)));
-    const badge = p === "messages" ? totalUnread : p === "roster" ? rosterPending : 0;
-    const badgeTitle =
-      p === "messages"
-        ? copy.isSpanish
-          ? `${totalUnread} sin leer`
-          : `${totalUnread} unread`
-        : p === "roster"
-          ? copy.isSpanish
-            ? `${rosterPending} pendientes de revisión`
-            : `${rosterPending} awaiting review`
-          : undefined;
-    return (
-      <div key={p}>
-        <SidebarNavButton
-          page={p}
-          active={active}
-          badge={badge}
-          badgeTone={p === "messages" ? "brand" : "amber"}
-          badgeTitle={badgeTitle}
-          onSelect={() => setPage(p)}
-          label={pageLabel(p)}
-          description={pageDescription(p)}
-        />
-        {/* Sub-links — Shopify-style nested nav under the active section.
-            Sub-destinations are real Next routes, so navigate via router. */}
-        {active && subItemsFor(p) && (
-          <div className="mb-[3px] mt-[2px] flex flex-col gap-px pl-[25px]">
-            {(subItemsFor(p) ?? []).map((sub) => {
-              const [subPath, subQuery = ""] = sub.href.split("?");
-              const pathOk = sub.exact
-                ? pathname === subPath
-                : (pathname ?? "").startsWith(subPath);
-              let subActive = false;
-              if (!sub.external && pathOk) {
-                if (subQuery) {
-                  const wanted = new URLSearchParams(subQuery);
-                  subActive = [...wanted.entries()].every(
-                    ([k, v]) => searchParams.get(k) === v,
-                  );
-                } else if (sub.exact) {
-                  // Sibling links may add ?compose / ?tab — keep "All" quiet
-                  // when those are present so only one child looks current.
-                  subActive =
-                    searchParams.get("compose") == null &&
-                    searchParams.get("tab") == null;
-                } else {
-                  subActive = true;
-                }
+  const renderItem = (item: WorkspaceNavItem) => (
+    <div key={item.id}>
+      <SidebarNavButton
+        icon={item.icon}
+        active={item.active}
+        badge={item.badge?.count}
+        badgeTone={item.badge?.tone}
+        badgeTitle={badgeTitleFor(item)}
+        onSelect={() => setPage(item.page)}
+        label={copy.t(item.label)}
+        description={
+          PAGE_META[item.page].description
+            ? copy.t(PAGE_META[item.page].description as string)
+            : undefined
+        }
+      />
+      {/* Sub-links — nested nav under the active section. Sub-destinations are
+          real Next routes, so navigate via router. Hrefs are built from the
+          workspace base path (never the tenant slug — see the
+          admin-href-invariant guard). */}
+      {item.active && item.subItems.length > 0 && (
+        <div className="mb-[3px] mt-[2px] flex flex-col gap-px pl-[25px]">
+          {item.subItems.map((sub) => (
+            <button
+              key={sub.id}
+              type="button"
+              onClick={() =>
+                sub.external
+                  ? window.open(sub.href, "_blank", "noopener,noreferrer")
+                  : router.push(sub.href)
               }
-              return (
-                <button
-                  key={sub.id ?? sub.href}
-                  type="button"
-                  onClick={() =>
-                    sub.external
-                      ? window.open(sub.href, "_blank", "noopener,noreferrer")
-                      : router.push(sub.href)
-                  }
-                  aria-current={subActive ? "page" : undefined}
-                  className={`flex cursor-pointer items-center gap-[8px] border-y-0 border-r-0 border-l-2 border-solid bg-transparent px-[10px] py-[5px] text-left font-admin-body text-[12.5px] hover:text-admin-ink [transition:color_var(--transition-admin-micro),border-color_var(--transition-admin-micro)] ${
-                    subActive
-                      ? "border-l-admin-ink font-semibold text-admin-ink"
-                      : "border-l-admin-border font-medium text-admin-ink-muted"
-                  }`}
-                >
-                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                    {copy.t(sub.label)}
-                  </span>
-                  {sub.external && (
-                    <span aria-hidden className="text-[10px] leading-none opacity-70">
-                      ↗
-                    </span>
-                  )}
-                  {sub.count != null && sub.count > 0 && (
-                    <span className="inline-flex h-[15px] min-w-[16px] items-center justify-center rounded-full bg-admin-amber-soft px-[4px] text-[9.5px] font-bold leading-none text-admin-amber-deep">
-                      {sub.count > 99 ? "99+" : sub.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  };
+              aria-current={sub.active ? "page" : undefined}
+              className={`flex cursor-pointer items-center gap-[8px] border-y-0 border-r-0 border-l-2 border-solid bg-transparent px-[10px] py-[5px] text-left font-admin-body text-[12.5px] hover:text-admin-ink [transition:color_var(--transition-admin-micro),border-color_var(--transition-admin-micro)] ${
+                sub.active
+                  ? "border-l-admin-ink font-semibold text-admin-ink"
+                  : "border-l-admin-border font-medium text-admin-ink-muted"
+              }`}
+            >
+              <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                {copy.t(sub.label)}
+              </span>
+              {sub.external && (
+                <span aria-hidden className="text-[10px] leading-none opacity-70">
+                  ↗
+                </span>
+              )}
+              {sub.count != null && sub.count > 0 && (
+                <span className="inline-flex h-[15px] min-w-[16px] items-center justify-center rounded-full bg-admin-amber-soft px-[4px] text-[9.5px] font-bold leading-none text-admin-amber-deep">
+                  {sub.count > 99 ? "99+" : sub.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -550,8 +298,8 @@ function WorkspaceSidebarShell() {
             mode toggle, bell/help all live in the persistent identity
             bar above. Grouped Shopify-style. */}
         <nav ref={sidebarNavRef} aria-label="Workspace sections" className="flex flex-col gap-[2px]">
-          {buildSidebarGroups(state.visiblePages, state.plan).map((group, gi) => (
-            <div key={group.label ?? `group-${gi}`} className="flex flex-col gap-[2px]">
+          {groups.map((group) => (
+            <div key={group.id} className="flex flex-col gap-[2px]">
               {group.label && (
                 <div
                   aria-hidden
@@ -560,7 +308,7 @@ function WorkspaceSidebarShell() {
                   {copy.t(group.label)}
                 </div>
               )}
-              {group.pages.map(renderItem)}
+              {group.items.map(renderItem)}
             </div>
           ))}
         </nav>
@@ -572,8 +320,7 @@ function WorkspaceSidebarShell() {
             + FAB, the ⌘K palette, and the C shortcut — a fifth entry point
             would be duplication, not convenience. */}
         <div className="flex flex-col gap-[6px] border-t border-admin-border pt-[6px]">
-          {state.visiblePages.includes("pos") ? renderItem("pos") : null}
-          {renderItem("settings")}
+          {pinned.map(renderItem)}
         </div>
       </aside>
 
@@ -633,12 +380,14 @@ function PageRouter({ page }: { page: WorkspacePage }) {
       body = <CalendarPage />;
       break;
     case "menu":
+    case "catalog":   // registry id; renders at /admin/menu until the route moves
       body = <MenuPage />;
       break;
     // Sessions — the Schedule tab (series + occurrences + series editor).
     // SPA page-module in the menu shape; placeholder until the Sessions &
     // Classes Manager fills it from lib/sessions/* (see the slot contract).
     case "sessions":
+    case "appts":     // registry id; renders at /admin/sessions until the route moves
       body = <SessionsPage />;
       break;
     // Events & Ticketing — the Events tab (list + 7 per-event tabs). SPA
@@ -652,11 +401,13 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     // /admin/work route syncs to messages. The old WorkPage stub was deleted
     // in WP1, so the alias renders Messages directly.
     case "work":
+    case "projects":  // not built; the registry lands its URL on Messages
       body = <WorkspaceMessagesPage />;
       break;
     // WS-3.1 — canonical "roster" route (was "talent")
     case "roster":
     case "talent":     // legacy alias
+    case "people":     // registry id; renders at /admin/roster until the route moves
       body = <TalentPage />;
       break;
     case "clients":

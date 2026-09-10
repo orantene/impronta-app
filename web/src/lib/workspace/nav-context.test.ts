@@ -1,7 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { canManageBilling, deriveHats, derivePreset, deriveWorkRole } from "./nav-context";
+import {
+  canManageBilling,
+  deriveHats,
+  derivePreset,
+  deriveWorkRole,
+  workspaceNavContext,
+  type WorkspaceNavContextInput,
+} from "./nav-context";
 import { destinationLabel, DESTINATIONS } from "./destinations";
 
 // Real preset ids, not invented ones. `restaurant` sells a menu and books
@@ -92,4 +99,75 @@ test("the derived preset is what the labels read", () => {
 
   const hybrid = derivePreset({ industryPreset: "agency" });
   assert.equal(destinationLabel(DESTINATIONS.catalog, hybrid), "Catalog");
+});
+
+// ── workspaceNavContext — the whole context, from the bridge ─────────
+
+const BRIDGE: WorkspaceNavContextInput = {
+  tenantIdentity: { industryPreset: CAFE },
+  sessionIdentity: { role: "manager", canManageBilling: false },
+  workspaceType: "business",
+  plan: "studio",
+  visiblePages: ["overview", "reservations", "events", "pos"],
+  teamMemberCount: 12,
+  hasTalentProfile: false,
+  fallbackRole: "viewer",
+};
+
+test("the nav context is built from the bridge objects, whole", () => {
+  assert.deepEqual(workspaceNavContext(BRIDGE), {
+    workspaceType: "business",
+    plan: "studio",
+    preset: "cafe",
+    role: "manager",
+    professional: false,
+    takesReservations: true,
+    runsEvents: true,
+    posEnabled: true,
+    canManageBilling: false,
+  });
+});
+
+test("the preset is READ off the tenant row, not defaulted", () => {
+  // The defect: a caller holding the tenant row passed `undefined` anyway, and
+  // every workspace came out `hybrid`. Each of these is a different answer, so
+  // a context builder that ignored its input could not pass all three.
+  const at = (industryPreset: unknown, teamMemberCount: number) =>
+    workspaceNavContext({ ...BRIDGE, tenantIdentity: { industryPreset }, teamMemberCount }).preset;
+  assert.equal(at(CAFE, 12), "cafe");
+  assert.equal(at(APPOINTMENTS, 1), "solo");
+  assert.equal(at(APPOINTMENTS, 12), "hybrid");
+  assert.equal(at(null, 12), "hybrid");
+});
+
+test("a missing tenant bridge is standalone mode, not a crash", () => {
+  const standalone = workspaceNavContext({
+    ...BRIDGE,
+    tenantIdentity: null,
+    sessionIdentity: null,
+  });
+  assert.equal(standalone.preset, "hybrid", "no tenant row relabels nothing");
+  assert.equal(standalone.role, "assistant", "the shell's own role fell back closed");
+  assert.equal(standalone.canManageBilling, false, "billing is not granted by absence");
+});
+
+test("the server's billing answer wins, and the role ladder answers otherwise", () => {
+  const granted = workspaceNavContext({
+    ...BRIDGE,
+    sessionIdentity: { role: "assistant", canManageBilling: true },
+  });
+  assert.equal(granted.canManageBilling, true, "a server-resolved capability was overruled");
+
+  const owner = workspaceNavContext({ ...BRIDGE, sessionIdentity: { role: "owner" } });
+  assert.equal(owner.canManageBilling, true, "an owner with no server answer manages billing");
+
+  const manager = workspaceNavContext({ ...BRIDGE, sessionIdentity: { role: "manager" } });
+  assert.equal(manager.canManageBilling, false);
+});
+
+test("the tenant flags are read back off visiblePages, never guessed", () => {
+  const quiet = workspaceNavContext({ ...BRIDGE, visiblePages: ["overview", "messages"] });
+  assert.equal(quiet.takesReservations, false);
+  assert.equal(quiet.runsEvents, false);
+  assert.equal(quiet.posEnabled, false);
 });
