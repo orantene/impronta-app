@@ -1,100 +1,69 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+
+import { fakeReserveSetAdmin } from "../../../test/helpers/reserve-set-fake";
 import { reserveServicePhases } from "./service-phases";
 
 const COLOUR = { startsAt: "2026-09-08T15:00:00.000Z", endsAt: "2026-09-08T15:45:00.000Z" };
 const RINSE = { startsAt: "2026-09-08T16:15:00.000Z", endsAt: "2026-09-08T16:30:00.000Z" };
-
-function adminForTenant(tenantId = "t1") {
-  return {
-    rpc: async () => ({ data: null, error: null }),
-    from: (table: string) => {
-      let ids: string[] = [];
-      const api: Record<string, unknown> = {
-        select: () => api,
-        eq: () => api,
-        in: (_col: string, values: string[]) => {
-          ids = values;
-          return api;
-        },
-        then: (
-          resolve: (v: { data: unknown; error: null }) => unknown,
-          reject?: (e: unknown) => unknown,
-        ) =>
-          Promise.resolve({
-            data:
-              table === "capacity_pools"
-                ? ids.map((id) => ({ id, tenant_id: tenantId }))
-                : [],
-            error: null,
-          }).then(resolve, reject),
-      };
-      return api;
-    },
-  } as never;
-}
-
-const ADMIN = adminForTenant();
+const KEY = "appointment:appt-1:reserve";
 
 test("a colour service holds the chair and the wash station as one set", async () => {
-  const placed: string[] = [];
-  const pools: string[] = [];
-  const r = await reserveServicePhases(
-    ADMIN,
-    {
-      tenantId: "t1",
-      phases: [
-        {
-          key: "colour",
-          holds: [{ talentProfileId: "stylist-1", ...COLOUR }],
-          capacity: [{ poolId: "chair-1", units: 1, ...COLOUR }],
-        },
-        {
-          key: "rinse",
-          capacity: [{ poolId: "wash-1", units: 1, ...RINSE }],
-        },
-      ],
-    },
-    {
-      reserveCapacityBatch: async (reqs) => {
-        pools.push(...reqs.map((q) => q.poolId));
-        return { ok: true, allocationIds: reqs.map((_, i) => `a${i}`), expiresAt: null };
+  const { admin, calls } = fakeReserveSetAdmin();
+  const r = await reserveServicePhases(admin, {
+    tenantId: "t1",
+    operationKey: KEY,
+    phases: [
+      {
+        key: "colour",
+        holds: [{ talentProfileId: "stylist-1", ...COLOUR }],
+        capacity: [{ poolId: "chair-1", units: 1, ...COLOUR }],
       },
-      releaseCapacity: async () => ({ ok: true, released: 0, alreadyReleased: 0 }),
-      placeHold: async (_admin, input) => {
-        placed.push(input.talentProfileId);
-        return { ok: true, holdId: `h-${input.talentProfileId}`, expiresAt: null };
-      },
-      releaseHold: async () => ({ ok: true }),
-    },
-  );
+      { key: "rinse", capacity: [{ poolId: "wash-1", units: 1, ...RINSE }] },
+    ],
+  });
+
   assert.equal(r.ok, true);
-  assert.deepEqual(pools, ["chair-1", "wash-1"]);
-  assert.deepEqual(placed, ["stylist-1"]);
+  assert.equal(calls.length, 1, "phases are one command, or a competing booking takes the gap between them");
+  assert.equal(calls[0]!.args.p_operation_key, KEY);
+  assert.deepEqual(calls[0]!.args.p_capacity?.map((c) => c.pool_id), ["chair-1", "wash-1"]);
+  assert.deepEqual(calls[0]!.args.p_holds?.map((h) => h.talent_profile_id), ["stylist-1"]);
 });
 
-test("a taken wash station releases the chair already held for colour", async () => {
-  const released: string[] = [];
-  const r = await reserveServicePhases(
-    ADMIN,
-    {
-      tenantId: "t1",
-      phases: [
-        { key: "colour", capacity: [{ poolId: "chair-1", units: 1, ...COLOUR }] },
-        { key: "rinse", capacity: [{ poolId: "wash-1", units: 1, ...RINSE }] },
-      ],
-    },
-    {
-      reserveCapacityBatch: async () => ({ ok: false, reason: "sold_out", failedPoolId: "wash-1" }),
-      releaseCapacity: async (ids) => {
-        released.push(...ids);
-        return { ok: true, released: ids.length, alreadyReleased: 0 };
-      },
-      placeHold: async () => ({ ok: true, holdId: "no", expiresAt: null }),
-      releaseHold: async () => ({ ok: true }),
-    },
-  );
+test("a taken wash station refuses the whole appointment, naming the station", async () => {
+  const { admin, calls } = fakeReserveSetAdmin({
+    reply: () => ({
+      data: { ok: false, reason: "sold_out", failed_pool_id: "wash-1", failed_talent_id: null },
+      error: null,
+    }),
+  });
+  const r = await reserveServicePhases(admin, {
+    tenantId: "t1",
+    operationKey: KEY,
+    phases: [
+      { key: "colour", capacity: [{ poolId: "chair-1", units: 1, ...COLOUR }] },
+      { key: "rinse", capacity: [{ poolId: "wash-1", units: 1, ...RINSE }] },
+    ],
+  });
+
   assert.equal(r.ok, false);
-  if (!r.ok) assert.equal(r.failedPoolId, "wash-1");
-  assert.equal(released.length, 0, "capacity batch writes nothing when a later station is sold out");
+  if (r.ok) return;
+  assert.equal(r.reason, "sold_out");
+  assert.equal(r.failedPoolId, "wash-1");
+  assert.equal(calls.length, 1, "the chair is never held on its own, so there is nothing to unwind");
+});
+
+test("every phase of one appointment carries the same operation key", async () => {
+  const { admin, calls } = fakeReserveSetAdmin();
+  await reserveServicePhases(admin, {
+    tenantId: "t1",
+    operationKey: KEY,
+    phases: [
+      { key: "colour", holds: [{ talentProfileId: "stylist-1", ...COLOUR }] },
+      { key: "rinse", holds: [{ talentProfileId: "assistant-1", ...RINSE }] },
+    ],
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.args.p_holds?.length, 2);
+  assert.equal(calls[0]!.args.p_operation_key, KEY);
 });

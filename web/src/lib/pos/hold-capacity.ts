@@ -13,7 +13,6 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { ReserveRequest } from "@/lib/capacity/reserve";
 import {
   reserveResourceSet,
-  type ReserveResourceSetDeps,
   type ReserveResourceSetResult,
   type ResourceHoldRequest,
 } from "@/lib/resources/reserve-set";
@@ -46,7 +45,6 @@ function num(value: number | string | null | undefined): number {
 export async function holdDraftOrderCapacity(
   admin: Admin,
   input: { tenantId: string; orderId: string; actorUserId?: string | null },
-  deps: ReserveResourceSetDeps = {},
 ): Promise<HoldDraftCapacityResult> {
   if (!input.tenantId || !input.orderId) {
     return { ok: false, reason: "not_found", error: "That sale is gone." };
@@ -204,16 +202,15 @@ export async function holdDraftOrderCapacity(
     return { ok: true, allocationIds: [], holdIds: [], skipped: true };
   }
 
-  const reserved: ReserveResourceSetResult = await reserveResourceSet(
-    admin as never,
-    {
-      tenantId: input.tenantId,
-      actorUserId: input.actorUserId,
-      capacity,
-      holds,
-    },
-    deps,
-  );
+  // The draft is the command. A collection that retries after a lost answer
+  // replays the same key and gets the first hold back rather than a second one.
+  const reserved: ReserveResourceSetResult = await reserveResourceSet(admin as never, {
+    tenantId: input.tenantId,
+    operationKey: `pos-hold:${input.orderId}`,
+    actorUserId: input.actorUserId,
+    capacity,
+    holds,
+  });
   if (!reserved.ok) {
     if (reserved.reason === "sold_out" || reserved.reason === "ancestor_full") {
       return { ok: false, reason: "sold_out", error: "That is no longer free." };

@@ -11,7 +11,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ReserveRequest } from "@/lib/capacity/reserve";
 import {
   reserveResourceSet,
-  type ReserveResourceSetDeps,
   type ReserveResourceSetResult,
   type ResourceHoldRequest,
 } from "@/lib/resources/reserve-set";
@@ -26,23 +25,21 @@ export async function reserveServicePhases(
   admin: Pick<SupabaseClient, "rpc" | "from">,
   input: {
     tenantId: string;
+    /** Stable name for this appointment's reservation, so a retry is a replay. */
+    operationKey: string;
     actorUserId?: string | null;
     ttlSeconds?: number | null;
     phases: readonly ServicePhase[];
   },
-  deps?: ReserveResourceSetDeps,
 ): Promise<ReserveResourceSetResult> {
   const holds = input.phases.flatMap((p) => [...(p.holds ?? [])]);
   const capacity = input.phases.flatMap((p) => [...(p.capacity ?? [])]);
-  return reserveResourceSet(
-    admin,
-    {
-      tenantId: input.tenantId,
-      actorUserId: input.actorUserId,
-      ttlSeconds: input.ttlSeconds,
-      holds,
-      capacity,
-    },
-    deps,
-  );
+  return reserveResourceSet(admin, {
+    tenantId: input.tenantId,
+    operationKey: input.operationKey,
+    actorUserId: input.actorUserId,
+    ttlSeconds: input.ttlSeconds,
+    holds,
+    capacity,
+  });
 }

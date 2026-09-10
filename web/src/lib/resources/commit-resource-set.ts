@@ -9,7 +9,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   reserveResourceSet,
-  type ReserveResourceSetDeps,
   type ReserveResourceSetInput,
   type ReserveResourceSetResult,
 } from "@/lib/resources/reserve-set";
@@ -30,9 +29,8 @@ export type NamedResourceRefusal = {
 export async function commitResourceSet(
   admin: Pick<SupabaseClient, "rpc" | "from">,
   input: CommitResourceSetInput,
-  deps?: ReserveResourceSetDeps,
 ): Promise<ReserveResourceSetResult | NamedResourceRefusal> {
-  const result = await reserveResourceSet(admin, input, deps);
+  const result = await reserveResourceSet(admin, input);
   if (result.ok) return result;
 
   const unavailable =

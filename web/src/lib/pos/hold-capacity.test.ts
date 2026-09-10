@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+
+import { grantedReply, type ReserveSetRpcCall } from "../../../test/helpers/reserve-set-fake";
 import { holdDraftOrderCapacity } from "./hold-capacity";
 
 type Row = Record<string, unknown>;
@@ -15,7 +17,17 @@ function makeStore() {
   };
 }
 
-function fakeAdmin(store: ReturnType<typeof makeStore>) {
+/**
+ * `reserve_resource_set_v2` is the only writer POS can reach, so the fake
+ * records the command instead of the individual reservations: the TypeScript
+ * path that used to place holds itself was deleted for double-allocating on a
+ * lost answer.
+ */
+function fakeAdmin(
+  store: ReturnType<typeof makeStore>,
+  rpc?: (call: ReserveSetRpcCall) => { data: unknown; error: unknown },
+  calls: ReserveSetRpcCall[] = [],
+) {
   const tables: Record<string, Row[]> = store;
   const from = (table: string) => {
     let ids: string[] = [];
@@ -56,7 +68,14 @@ function fakeAdmin(store: ReturnType<typeof makeStore>) {
     };
     return api;
   };
-  return { from, rpc: async () => ({ data: null, error: null }) };
+  return {
+    from,
+    rpc: async (fn: string, args: ReserveSetRpcCall["args"]) => {
+      const call: ReserveSetRpcCall = { fn, args };
+      calls.push(call);
+      return rpc ? rpc(call) : { data: grantedReply(args), error: null };
+    },
+  };
 }
 
 function seedSale(store: ReturnType<typeof makeStore>, over: { poolId?: string | null; sessionId?: string | null } = {}) {
@@ -80,34 +99,29 @@ function seedSale(store: ReturnType<typeof makeStore>, over: { poolId?: string |
 test("a POS line with no pool does not reserve", async () => {
   const store = makeStore();
   seedSale(store);
-  let reserved = 0;
-  const r = await holdDraftOrderCapacity(fakeAdmin(store), { tenantId: "t1", orderId: "ord" }, {
-    reserveCapacityBatch: async () => {
-      reserved += 1;
-      return { ok: true, allocationIds: ["x"], expiresAt: null };
-    },
-  });
+  const calls: ReserveSetRpcCall[] = [];
+  const r = await holdDraftOrderCapacity(fakeAdmin(store, undefined, calls), { tenantId: "t1", orderId: "ord" });
   assert.equal(r.ok, true);
   if (!r.ok) return;
   assert.equal(r.skipped, true);
-  assert.equal(reserved, 0);
+  assert.equal(calls.length, 0);
 });
 
 test("a sold-out class place refuses before money and writes nothing", async () => {
   const store = makeStore();
   seedSale(store, { poolId: "pool-1" });
-  let reserved = 0;
-  const r = await holdDraftOrderCapacity(fakeAdmin(store), { tenantId: "t1", orderId: "ord" }, {
-    reserveCapacityBatch: async () => {
-      reserved += 1;
-      return { ok: false, reason: "sold_out", failedPoolId: "pool-1" };
-    },
-    releaseCapacity: async () => ({ ok: true, released: 0, alreadyReleased: 0 }),
-  });
+  const calls: ReserveSetRpcCall[] = [];
+  const r = await holdDraftOrderCapacity(
+    fakeAdmin(store, () => ({
+      data: { ok: false, reason: "sold_out", failed_pool_id: "pool-1", failed_talent_id: null },
+      error: null,
+    }), calls),
+    { tenantId: "t1", orderId: "ord" },
+  );
   assert.equal(r.ok, false);
   if (r.ok) return;
   assert.equal(r.reason, "sold_out");
-  assert.equal(reserved, 1);
+  assert.equal(calls.length, 1);
 });
 
 test("a later split does not hold a second time", async () => {
@@ -119,18 +133,13 @@ test("a later split does not hold a second time", async () => {
     order_line_id: "line-1",
     released_at: null,
   });
-  let reserved = 0;
-  const r = await holdDraftOrderCapacity(fakeAdmin(store), { tenantId: "t1", orderId: "ord" }, {
-    reserveCapacityBatch: async () => {
-      reserved += 1;
-      return { ok: true, allocationIds: ["x"], expiresAt: null };
-    },
-  });
+  const calls: ReserveSetRpcCall[] = [];
+  const r = await holdDraftOrderCapacity(fakeAdmin(store, undefined, calls), { tenantId: "t1", orderId: "ord" });
   assert.equal(r.ok, true);
   if (!r.ok) return;
   assert.equal(r.skipped, true);
   assert.deepEqual(r.allocationIds, ["a1"]);
-  assert.equal(reserved, 0);
+  assert.equal(calls.length, 0);
 });
 
 test("a class on another workspace's session writes nothing", async () => {
@@ -142,17 +151,12 @@ test("a class on another workspace's session writes nothing", async () => {
     starts_at: "2026-09-08T18:00:00.000Z",
     ends_at: "2026-09-08T19:00:00.000Z",
   });
-  let reserved = 0;
-  const r = await holdDraftOrderCapacity(fakeAdmin(store), { tenantId: "t1", orderId: "ord" }, {
-    reserveCapacityBatch: async () => {
-      reserved += 1;
-      return { ok: true, allocationIds: ["x"], expiresAt: null };
-    },
-  });
+  const calls: ReserveSetRpcCall[] = [];
+  const r = await holdDraftOrderCapacity(fakeAdmin(store, undefined, calls), { tenantId: "t1", orderId: "ord" });
   assert.equal(r.ok, false);
   if (r.ok) return;
   assert.equal(r.reason, "wrong_tenant");
-  assert.equal(reserved, 0);
+  assert.equal(calls.length, 0);
 });
 
 test("a walk-in holds the session tier pool, not the offering stock pool", async () => {
@@ -172,17 +176,14 @@ test("a walk-in holds the session tier pool, not the offering stock pool", async
     subject_id: "ses-1",
     pool_key: "default",
   });
-  const pools: string[] = [];
-  const r = await holdDraftOrderCapacity(fakeAdmin(store), { tenantId: "t1", orderId: "ord" }, {
-    reserveCapacityBatch: async (reqs) => {
-      pools.push(...reqs.map((req) => req.poolId));
-      return { ok: true, allocationIds: ["x"], expiresAt: null };
-    },
-  });
+  const calls: ReserveSetRpcCall[] = [];
+  const r = await holdDraftOrderCapacity(fakeAdmin(store, undefined, calls), { tenantId: "t1", orderId: "ord" });
   assert.equal(r.ok, true);
   if (!r.ok) return;
   assert.equal(r.skipped, false);
-  assert.deepEqual(pools, ["session-pool"]);
+  assert.equal(calls.length, 1);
+  assert.deepEqual((calls[0]!.args.p_capacity ?? []).map((c) => c.pool_id), ["session-pool"]);
+  assert.equal(calls[0]!.args.p_operation_key, "pos-hold:ord");
 });
 
 test("a class with no session tier pool does not fall back to offering stock", async () => {
@@ -195,15 +196,33 @@ test("a class with no session tier pool does not fall back to offering stock", a
     starts_at: "2026-09-08T18:00:00.000Z",
     ends_at: "2026-09-08T19:00:00.000Z",
   });
-  let reserved = 0;
-  const r = await holdDraftOrderCapacity(fakeAdmin(store), { tenantId: "t1", orderId: "ord" }, {
-    reserveCapacityBatch: async () => {
-      reserved += 1;
-      return { ok: true, allocationIds: ["x"], expiresAt: null };
-    },
-  });
+  const calls: ReserveSetRpcCall[] = [];
+  const r = await holdDraftOrderCapacity(fakeAdmin(store, undefined, calls), { tenantId: "t1", orderId: "ord" });
   assert.equal(r.ok, false);
   if (r.ok) return;
   assert.equal(r.reason, "unavailable");
-  assert.equal(reserved, 0);
+  assert.equal(calls.length, 0);
+});
+
+test("a retried collection replays the same key rather than holding twice", async () => {
+  const store = makeStore();
+  seedSale(store, { poolId: "pool-1" });
+  const calls: ReserveSetRpcCall[] = [];
+  const first = await holdDraftOrderCapacity(fakeAdmin(store, undefined, calls), { tenantId: "t1", orderId: "ord" });
+  const replay = await holdDraftOrderCapacity(
+    fakeAdmin(store, (call) => ({
+      data: { ...grantedReply(call.args), already: true },
+      error: null,
+    }), calls),
+    { tenantId: "t1", orderId: "ord" },
+  );
+  assert.equal(first.ok, true);
+  assert.equal(replay.ok, true);
+  if (!first.ok || !replay.ok) return;
+  assert.deepEqual(
+    calls.map((c) => c.args.p_operation_key),
+    ["pos-hold:ord", "pos-hold:ord"],
+    "the sale, not the attempt, names the command",
+  );
+  assert.deepEqual(replay.allocationIds, first.allocationIds);
 });

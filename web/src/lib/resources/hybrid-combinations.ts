@@ -18,7 +18,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   reserveResourceSet,
-  type ReserveResourceSetDeps,
   type ReserveResourceSetResult,
 } from "@/lib/resources/reserve-set";
 
@@ -45,6 +44,8 @@ export async function reserveSupervisedService(
   admin: Admin,
   input: {
     tenantId: string;
+    /** Stable name for this command, so a retry replays instead of reserving again. */
+    operationKey: string;
     actorUserId?: string | null;
     ttlSeconds?: number | null;
     studentId: string;
@@ -53,7 +54,6 @@ export async function reserveSupervisedService(
     startsAt: string;
     endsAt: string;
   },
-  deps?: ReserveResourceSetDeps,
 ): Promise<ReserveResourceSetResult> {
   if (!input.studentId || !input.supervisorId || !input.stationPoolId) {
     return {
@@ -68,6 +68,7 @@ export async function reserveSupervisedService(
     admin,
     {
       tenantId: input.tenantId,
+      operationKey: input.operationKey,
       actorUserId: input.actorUserId,
       ttlSeconds: input.ttlSeconds,
       holds: [
@@ -76,7 +77,6 @@ export async function reserveSupervisedService(
       ],
       capacity: [{ poolId: input.stationPoolId, units: 1, startsAt: input.startsAt, endsAt: input.endsAt }],
     },
-    deps,
   );
 }
 
@@ -84,6 +84,8 @@ export async function reserveTournamentWindow(
   admin: Admin,
   input: {
     tenantId: string;
+    /** Stable name for this command, so a retry replays instead of reserving again. */
+    operationKey: string;
     actorUserId?: string | null;
     ttlSeconds?: number | null;
     startsAt: string;
@@ -91,7 +93,6 @@ export async function reserveTournamentWindow(
     /** When omitted, every space pool for the tenant is reserved. Offerings (cafe) are not spaces. */
     courtPoolIds?: readonly string[];
   },
-  deps?: ReserveResourceSetDeps,
 ): Promise<ReserveResourceSetResult> {
   let courtPoolIds: readonly string[];
   if (input.courtPoolIds) {
@@ -122,6 +123,7 @@ export async function reserveTournamentWindow(
     admin,
     {
       tenantId: input.tenantId,
+      operationKey: input.operationKey,
       actorUserId: input.actorUserId,
       ttlSeconds: input.ttlSeconds,
       capacity: courtPoolIds.map((poolId) => ({
@@ -131,7 +133,6 @@ export async function reserveTournamentWindow(
         endsAt: input.endsAt,
       })),
     },
-    deps,
   );
 }
 
@@ -139,6 +140,8 @@ export async function reserveBreakoutRooms(
   admin: Admin,
   input: {
     tenantId: string;
+    /** Stable name for this command, so a retry replays instead of reserving again. */
+    operationKey: string;
     actorUserId?: string | null;
     ttlSeconds?: number | null;
     startsAt: string;
@@ -147,7 +150,6 @@ export async function reserveBreakoutRooms(
     attendeePoolId?: string;
     attendeeCount?: number;
   },
-  deps?: ReserveResourceSetDeps,
 ): Promise<ReserveResourceSetResult> {
   if (input.roomPoolIds.length === 0) {
     return {
@@ -186,11 +188,11 @@ export async function reserveBreakoutRooms(
     admin,
     {
       tenantId: input.tenantId,
+      operationKey: input.operationKey,
       actorUserId: input.actorUserId,
       ttlSeconds: input.ttlSeconds,
       capacity,
     },
-    deps,
   );
 }
 
@@ -198,6 +200,8 @@ export async function reserveLiveRecording(
   admin: Admin,
   input: {
     tenantId: string;
+    /** Stable name for this command, so a retry replays instead of reserving again. */
+    operationKey: string;
     actorUserId?: string | null;
     ttlSeconds?: number | null;
     startsAt: string;
@@ -207,7 +211,6 @@ export async function reserveLiveRecording(
     audiencePoolId: string;
     audienceSeats: number;
   },
-  deps?: ReserveResourceSetDeps,
 ): Promise<ReserveResourceSetResult> {
   if (!input.engineerId) {
     return {
@@ -232,6 +235,7 @@ export async function reserveLiveRecording(
     admin,
     {
       tenantId: input.tenantId,
+      operationKey: input.operationKey,
       actorUserId: input.actorUserId,
       ttlSeconds: input.ttlSeconds,
       holds: [{ talentProfileId: input.engineerId, startsAt: input.startsAt, endsAt: input.endsAt, title: "Engineer" }],
@@ -240,7 +244,6 @@ export async function reserveLiveRecording(
         { poolId: input.audiencePoolId, units: seats, startsAt: input.startsAt, endsAt: input.endsAt },
       ],
     },
-    deps,
   );
 }
 
@@ -256,13 +259,14 @@ export async function reserveExclusiveSpace(
   admin: Admin,
   input: {
     tenantId: string;
+    /** Stable name for this command, so a retry replays instead of reserving again. */
+    operationKey: string;
     actorUserId?: string | null;
     ttlSeconds?: number | null;
     spacePoolId: string;
     startsAt: string;
     endsAt: string;
   },
-  deps?: ReserveResourceSetDeps,
 ): Promise<ReserveResourceSetResult> {
   if (!input.spacePoolId) {
     return {
@@ -277,11 +281,11 @@ export async function reserveExclusiveSpace(
     admin,
     {
       tenantId: input.tenantId,
+      operationKey: input.operationKey,
       actorUserId: input.actorUserId,
       ttlSeconds: input.ttlSeconds,
       capacity: [{ poolId: input.spacePoolId, units: 1, startsAt: input.startsAt, endsAt: input.endsAt }],
     },
-    deps,
   );
 }
 
@@ -294,11 +298,12 @@ export async function reserveRetreatStay(
   admin: Admin,
   input: {
     tenantId: string;
+    /** Stable name for this command, so a retry replays instead of reserving again. */
+    operationKey: string;
     actorUserId?: string | null;
     ttlSeconds?: number | null;
     days: readonly RetreatDay[];
   },
-  deps?: ReserveResourceSetDeps,
 ): Promise<ReserveResourceSetResult> {
   if (input.days.length === 0) {
     return {
@@ -332,12 +337,12 @@ export async function reserveRetreatStay(
     admin,
     {
       tenantId: input.tenantId,
+      operationKey: input.operationKey,
       actorUserId: input.actorUserId,
       ttlSeconds: input.ttlSeconds,
       holds,
       capacity,
     },
-    deps,
   );
 }
 
@@ -349,6 +354,8 @@ export async function reserveRetreatAddOn(
   admin: Admin,
   input: {
     tenantId: string;
+    /** Stable name for this command, so a retry replays instead of reserving again. */
+    operationKey: string;
     actorUserId?: string | null;
     ttlSeconds?: number | null;
     startsAt: string;
@@ -357,7 +364,6 @@ export async function reserveRetreatAddOn(
     talentId?: string;
     units?: number;
   },
-  deps?: ReserveResourceSetDeps,
 ): Promise<ReserveResourceSetResult> {
   if (!input.poolId) {
     return {
@@ -372,6 +378,7 @@ export async function reserveRetreatAddOn(
     admin,
     {
       tenantId: input.tenantId,
+      operationKey: input.operationKey,
       actorUserId: input.actorUserId,
       ttlSeconds: input.ttlSeconds,
       holds: input.talentId
@@ -379,6 +386,5 @@ export async function reserveRetreatAddOn(
         : [],
       capacity: [{ poolId: input.poolId, units: input.units ?? 1, startsAt: input.startsAt, endsAt: input.endsAt }],
     },
-    deps,
   );
 }
