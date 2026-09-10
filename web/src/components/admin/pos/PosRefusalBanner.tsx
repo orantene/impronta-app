@@ -1,9 +1,11 @@
 "use client";
 
 /**
- * PosRefusalBanner — the five refusals the Counter must be able to show, in
- * plain words a cashier understands, because the engine really returns
- * these (task spec, "THE REFUSALS THE SCREEN MUST BE ABLE TO SHOW"):
+ * PosRefusalBanner — every refusal the Counter must be able to show, in plain
+ * words a cashier understands, because the engine really returns these. The
+ * whole list is `POS_REFUSAL_REASONS` in `pos-types.ts` and the engine-side
+ * mapping is `lib/pos/refusal-reason.ts`; the five below are the original
+ * money-path ones and the rest carry the same contract:
  *
  *   balanceChanged    — `lib/pos/collection.ts`'s `reason: "amount"` when an
  *                        allocation now exceeds what is outstanding: someone
@@ -16,6 +18,12 @@
  *   paymentUnknown    — M06, outcome unknown: a new payment attempt must not
  *                        be offered until this one resolves (money.md §4).
  *
+ * The other fourteen cover the rest of the engine's vocabulary: a taken class
+ * place (`sold_out`), a sale that is no longer open (`not_draft`), short cash,
+ * an empty sale, a refused item or code, a code that needs a named customer,
+ * a missing reader, a pickup time in the past, another workspace's sale, a
+ * capability refusal, a bad amount, and the two shift states.
+ *
  * One banner, one reason, one sentence — never a generic "something went
  * wrong". `role="alert"` so a cashier's screen reader announces it the
  * moment it appears.
@@ -25,12 +33,14 @@ import { cn } from "@/lib/utils";
 import { POS_REFUSAL_BANNER, POS_SECONDARY_ACTION } from "./pos-classes";
 import type { PosRefusalReason } from "./pos-types";
 
-export type PosRefusalCopy = {
-  readonly balanceChanged: string;
-  readonly saleReloading: string;
-  readonly needsCustomerName: string;
-  readonly paymentDeclined: string;
-  readonly paymentUnknown: string;
+/**
+ * One sentence per reason, plus the two action labels.
+ *
+ * `Record<PosRefusalReason, string>` rather than a hand-listed set of fields:
+ * a reason added to `POS_REFUSAL_REASONS` without its sentence is a compile
+ * error at `refusalCopy`, which is where the catalogue lookup lives.
+ */
+export type PosRefusalCopy = Readonly<Record<PosRefusalReason, string>> & {
   readonly retry: string;
   readonly reload: string;
 };
@@ -43,8 +53,20 @@ export type PosRefusalBannerProps = {
   readonly className?: string;
 };
 
+/**
+ * Which refusals offer a next action, and which deliberately do not.
+ *
+ * `paymentUnknown` is the one that matters: money.md forbids offering another
+ * attempt while an outcome is unresolved, so it is absent here on purpose and
+ * must stay absent. `capacityGone`, `balanceChanged` and `bookingChanged` all
+ * mean the sale on screen is stale, so they offer Reload rather than Try
+ * again: retrying the same charge against changed facts is the mistake.
+ */
 const ACTION_LABEL_KEY: Partial<Record<PosRefusalReason, keyof PosRefusalCopy>> = {
   saleReloading: "reload",
+  balanceChanged: "reload",
+  bookingChanged: "reload",
+  capacityGone: "reload",
   paymentDeclined: "retry",
 };
 

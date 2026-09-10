@@ -275,7 +275,15 @@ test("POS client does not close a shift on unmount or navigation", () => {
     join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/pos/pos-client.tsx"),
     "utf8",
   );
-  assert.doesNotMatch(src, /useEffect/);
+  // THE RULE: the till has no effects, so no lifecycle event can ever reach
+  // `closeShift`. A shift closed by a navigation is a cash-up nobody counted.
+  //
+  // Matched on the CALL, over comment-stripped source. The raw-substring form
+  // this replaces was satisfied by the counter's own header explaining why it
+  // runs no effects — a guard a comment can turn red is a guard a comment can
+  // also turn green, and the intent is unchanged either way.
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  assert.doesNotMatch(code, /useEffect\s*\(/);
   assert.match(src, /posCloseShift/);
   assert.match(src, /posOpenShift/);
   const page = readFileSync(

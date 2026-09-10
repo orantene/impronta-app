@@ -11,6 +11,10 @@ import {
   skipUnlessFixture,
   signInJourneysStaff,
   assertWorkspaceIdentity,
+  counterAddItem,
+  counterCollectCash,
+  counterNameBuyer,
+  expectCounterPaid,
 } from "./_harness";
 import {
   TABLE_1_SPACE_ID,
@@ -50,8 +54,7 @@ test("C07-CUS tab: guest reads open check then ended after close", async ({
   await expect(row.getByText(/tab\s*·\s*occupied/i)).toBeVisible({ timeout: 20_000 });
   await row.getByRole("button", { name: /^open check$/i }).click();
   await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
-  await page.getByTitle("House pizza").click();
-  await expect(page.locator("aside").getByText(/house pizza/i)).toBeVisible();
+  await counterAddItem(page, "House pizza");
 
   const opened = await latestOpenTable1Visit();
   expect(opened?.publicToken).toBeTruthy();
@@ -70,9 +73,9 @@ test("C07-CUS tab: guest reads open check then ended after close", async ({
   await guestPage.reload();
   await expect(guestPage.getByText(/house pizza/i)).toBeVisible();
 
-  await page.locator("aside").getByLabel(/^email$/i).fill(marker);
-  await page.getByTitle("Collect cash").click();
-  await expect(page.getByText(/payment:\s*paid/i)).toBeVisible({ timeout: 30_000 });
+  await counterNameBuyer(page, marker);
+  await counterCollectCash(page);
+  await expectCounterPaid(page);
   await page.goto("/admin/tables");
   await assertWorkspaceIdentity(page);
   await row.getByRole("button", { name: /^close visit$/i }).click();
@@ -120,9 +123,9 @@ test("C07-OP tab: Open tab → pizza cash at close and DB agree", async ({ page 
 
   await row.getByRole("button", { name: /^open check$/i }).click();
   await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
-  await expect(page.getByTitle("House pizza")).toBeVisible();
-  await page.getByTitle("House pizza").click();
-  await expect(page.locator("aside").getByText(/house pizza/i)).toBeVisible();
+  // Re-expressed for the wired counter (P3): the tab's check opens the same
+  // counter, and the item is added from the sell surface by its own name.
+  await counterAddItem(page, "House pizza");
 
   await page.goto("/admin/tables");
   await assertWorkspaceIdentity(page);
@@ -135,10 +138,10 @@ test("C07-OP tab: Open tab → pizza cash at close and DB agree", async ({ page 
 
   await row.getByRole("button", { name: /^open check$/i }).click();
   await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
-  await expect(page.locator("aside").getByText(/house pizza/i)).toBeVisible();
-  await page.locator("aside").getByLabel(/^email$/i).fill(marker);
-  await page.getByTitle("Collect cash").click();
-  await expect(page.getByText(/payment:\s*paid/i)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/house pizza/i).first()).toBeVisible();
+  await counterNameBuyer(page, marker);
+  await counterCollectCash(page);
+  await expectCounterPaid(page);
 
   await page.goto("/admin/tables");
   await assertWorkspaceIdentity(page);

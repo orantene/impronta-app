@@ -12025,36 +12025,19 @@
     },
     "pos": {
       "pageTitle": "Nueva venta",
-      "pageIntro": "Venta de mostrador sobre el pedido existente. El nombre solo se pide al cobrar.",
       "newSale": "Nueva venta",
-      "openSales": "Ventas abiertas",
       "guest": "Invitado",
-      "items": "Artículos",
-      "discount": "Descuento",
-      "deposit": "Ya pagado",
       "outstanding": "Pendiente",
-      "prep": "Preparación",
-      "payment": "Pago",
-      "next": "Abre una venta o elige una abierta.",
-      "collectCash": "Cobrar en efectivo",
-      "collectCard": "Cobrar con tarjeta",
-      "cancel": "Cancelar venta",
       "contactHint": "Se necesita correo o teléfono para cobrar.",
       "email": "Correo",
       "phone": "Teléfono",
-      "applyCode": "Aplicar código",
       "sendToPrep": "Enviar a preparación",
-      "catalog": "Catálogo",
       "prepDestination": "Destino de preparación",
       "prepPickup": "Recoger",
       "prepTable": "Mesa",
       "prepCounter": "Mostrador",
       "prepPromisedAt": "Ventana de recoger",
-      "emptyCatalog": "Aún no hay artículos publicados del espacio.",
-      "emptyOpen": "No hay ventas abiertas.",
       "amount": "Esta parte",
-      "tendered": "Entregado",
-      "change": "Cambio",
       "shiftTitle": "Turno",
       "shiftOpen": "Abrir turno",
       "shiftClose": "Cerrar turno",
@@ -12127,7 +12110,8 @@
           "cardUnavailable": "No hay un lector de tarjetas conectado en este dispositivo.",
           "linkUnavailable": "Este espacio de trabajo no tiene un proveedor de enlaces de pago configurado.",
           "passUnavailable": "Los créditos de pase no están habilitados para este espacio de trabajo.",
-          "methodUnavailableFallback": "Este método de pago no está disponible en este momento."
+          "methodUnavailableFallback": "Este método de pago no está disponible en este momento.",
+          "cardNotWired": "Hay un lector configurado, pero el mostrador aún no puede usarlo. Cobra en efectivo o envía un enlace de pago."
         },
         "paid": {
           "title": "Pagado",
@@ -12141,7 +12125,8 @@
           "title": "Ventas en espera",
           "empty": "No hay ventas en espera.",
           "resume": "Reanudar",
-          "heldSince": "En espera desde"
+          "heldSince": "En espera desde",
+          "saleLabel": "Venta"
         },
         "refusal": {
           "balanceChanged": "Alguien ya cobró parte de este saldo. El monto pendiente cambió.",
@@ -12150,7 +12135,58 @@
           "paymentDeclined": "El pago no se completó. No se cobró nada.",
           "paymentUnknown": "El pago podría haberse completado. Revisa antes de volver a intentar.",
           "retry": "Reintentar",
-          "reload": "Recargar"
+          "reload": "Recargar",
+          "capacityGone": "Ese horario se acaba de ocupar. No se cobró nada.",
+          "bookingChanged": "Esta reserva cambió desde que la abriste.",
+          "tenderShort": "El efectivo contado es menor que el monto a cobrar.",
+          "emptySale": "No hay nada en esta venta para cobrar.",
+          "itemRefused": "Ese artículo no puede ir en esta venta.",
+          "discountRefused": "Ese código no se puede aplicar a esta venta.",
+          "discountNeedsCustomer": "Un código de descuento necesita un cliente con nombre. Agrega uno primero.",
+          "readerUnavailable": "No hay un lector de tarjetas listo en este dispositivo.",
+          "pickupWindow": "Elige una hora de retiro que todavía esté por venir.",
+          "wrongWorkspace": "Esa venta pertenece a otro espacio de trabajo.",
+          "notAllowed": "No tienes permiso para hacer eso en el mostrador.",
+          "amountInvalid": "Ingresa un monto de cero o más.",
+          "shiftAlreadyOpen": "Ya hay un turno abierto aquí.",
+          "shiftAlreadyClosed": "Ese turno ya está cerrado."
+        },
+        "switch": {
+          "label": "Espacio de trabajo o punto de venta",
+          "workspace": "Espacio de trabajo",
+          "openMenu": "Elige un modo de punto de venta",
+          "makeDefault": "Hacer que sea el predeterminado aquí",
+          "defaultSaved": "Guardado en este dispositivo"
+        },
+        "mode": {
+          "counter": "Mostrador",
+          "floor": "Salón",
+          "door": "Puerta",
+          "classes": "Clases",
+          "projects": "Proyectos",
+          "notBuilt": "Este modo todavía no tiene una pantalla."
+        },
+        "gate": {
+          "title": "El punto de venta no está habilitado para ti",
+          "body": "Nadie le dio a esta cuenta un modo de punto de venta en este espacio de trabajo. Un propietario puede activar uno en la configuración.",
+          "back": "Volver al espacio de trabajo"
+        },
+        "receiptLink": "Enlace del recibo",
+        "copyReceipt": "Copiar el enlace del recibo",
+        "receiptCopied": "Enlace del recibo copiado",
+        "hold": "Dejar la venta en espera",
+        "startSale": "Empezar una venta nueva",
+        "cancelSale": "Cancelar la venta",
+        "collectTitle": "Cobrar",
+        "backToSale": "Volver a la venta",
+        "openShiftCash": "Efectivo en la caja para empezar",
+        "closeShiftCash": "Efectivo contado al cerrar",
+        "confirmOpenShift": "Abrir el turno",
+        "confirmCloseShift": "Cerrar el turno",
+        "category": {
+          "service": "Servicios",
+          "package": "Paquetes",
+          "product": "Productos"
         }
       }
     },

@@ -18,6 +18,7 @@ import { TulalaBrandLockup } from "@/components/brand/tulala-logo";
 import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./IdentityBar-2";
+import { PosModeSwitch } from "./PosModeSwitch";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
 import { WorkspacePulseChip } from "./WorkspacePulseChip";
 
@@ -327,6 +328,15 @@ export function TulalaIdentityBar() {
                 ⌘K
               </span>
             </button>
+            {/* The ONE door into the point of sale on desktop and tablet.
+                Never a sidebar row: the registry marks the POS `chrome:
+                "pos"` and `sidebarGroups()` drops that group, because the
+                counter replaces the admin chrome rather than sitting in it.
+                Renders nothing at all when the platform switch is off or
+                this person has no mode they may use, and hides below `md`
+                because the phone enters through the More sheet's Open POS
+                row instead. */}
+            <PosModeSwitch />
             <div className="flex-1" />
           </>
         ) : (

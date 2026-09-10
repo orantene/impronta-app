@@ -264,21 +264,31 @@ test("C06-OP walk-in cash: New sale → House pizza → collect → Sales and DB
   test.setTimeout(120_000);
   const marker = `c06-op-${Date.now()}@impronta.test`;
 
-  await signInJourneysStaff(page, "/admin/pos");
+  // Re-expressed for the wired counter (P3). The journey is unchanged — new
+  // sale, House pizza, name the buyer, take cash — but the prototype screen it
+  // used to drive is gone: `⊕ New sale` / `getByTitle` / a `payment: paid`
+  // status line were that screen's own affordances, not this journey's. The
+  // money assertions below are untouched.
+  await signInJourneysStaff(page, "/admin/pos?mode=counter");
   await assertWorkspaceIdentity(page);
-  await expect(page.getByTitle("House pizza")).toBeVisible();
+  await expect(page.getByRole("button", { name: "House pizza" }).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "⊕ New sale" }).click();
+  await page.getByRole("button", { name: /start a new sale/i }).click();
   await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
-  await expect(page.getByTitle("House pizza")).toBeEnabled();
 
-  await page.getByTitle("House pizza").click();
-  await expect(page.locator("aside").getByText(/house pizza/i)).toBeVisible();
-  await expect(page.getByText(/outstanding/i)).toBeVisible();
+  await page.getByRole("button", { name: "House pizza" }).first().click();
+  await expect(page.getByText(/add an item to start this sale/i)).toHaveCount(0, {
+    timeout: 20_000,
+  });
+  await expect(page.getByText(/outstanding|reste à payer|pendiente/i).first()).toBeVisible();
 
-  await page.locator("aside").getByLabel(/^email$/i).fill(marker);
-  await page.getByTitle("Collect cash").click();
-  await expect(page.getByText(/payment:\s*paid/i)).toBeVisible({ timeout: 30_000 });
+  // The buyer's email is what `startCollection` hands `ensureCustomer`, which
+  // is how this order gets a `customer_id` and how `latestPaidPosPizza` finds
+  // it below.
+  await page.getByLabel(/^email$/i).fill(marker);
+  await page.getByRole("button", { name: /^Charge · /i }).first().click();
+  await page.getByRole("button", { name: /confirm cash/i }).click();
+  await expect(page.getByRole("heading", { name: /^paid$/i })).toBeVisible({ timeout: 30_000 });
 
   await page.goto("/admin/sales");
   await assertWorkspaceIdentity(page);

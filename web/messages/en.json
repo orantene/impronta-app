@@ -12025,36 +12025,19 @@
     },
     "pos": {
       "pageTitle": "New sale",
-      "pageIntro": "Walk-in selling on the existing order. A name is required only when money is collected.",
       "newSale": "New sale",
-      "openSales": "Open sales",
       "guest": "Guest",
-      "items": "Items",
-      "discount": "Discount",
-      "deposit": "Already paid",
       "outstanding": "Outstanding",
-      "prep": "Preparation",
-      "payment": "Payment",
-      "next": "Open a sale or pick an open one.",
-      "collectCash": "Collect cash",
-      "collectCard": "Collect card",
-      "cancel": "Cancel sale",
       "contactHint": "Email or phone is required to collect.",
       "email": "Email",
       "phone": "Phone",
-      "applyCode": "Apply code",
       "sendToPrep": "Send to preparation",
-      "catalog": "Catalog",
       "prepDestination": "Prep destination",
       "prepPickup": "Pickup",
       "prepTable": "Table",
       "prepCounter": "Counter",
       "prepPromisedAt": "Pickup window",
-      "emptyCatalog": "No published workspace items yet.",
-      "emptyOpen": "No open sales.",
       "amount": "This allocation",
-      "tendered": "Tendered",
-      "change": "Change",
       "shiftTitle": "Shift",
       "shiftOpen": "Open shift",
       "shiftClose": "Close shift",
@@ -12127,7 +12110,8 @@
           "cardUnavailable": "No card reader is connected on this device.",
           "linkUnavailable": "This workspace has no payment link provider set up.",
           "passUnavailable": "Pass credits are not enabled for this workspace.",
-          "methodUnavailableFallback": "This payment method is not available right now."
+          "methodUnavailableFallback": "This payment method is not available right now.",
+          "cardNotWired": "A reader is configured, but the counter cannot drive it yet. Take cash or send a payment link."
         },
         "paid": {
           "title": "Paid",
@@ -12141,7 +12125,8 @@
           "title": "Held sales",
           "empty": "No sales on hold.",
           "resume": "Resume",
-          "heldSince": "Held since"
+          "heldSince": "Held since",
+          "saleLabel": "Sale"
         },
         "refusal": {
           "balanceChanged": "Someone already collected part of this balance. The amount owing has changed.",
@@ -12150,7 +12135,58 @@
           "paymentDeclined": "The payment did not go through. Nothing was charged.",
           "paymentUnknown": "The payment may have gone through. Check before trying again.",
           "retry": "Try again",
-          "reload": "Reload"
+          "reload": "Reload",
+          "capacityGone": "That time was just taken. Nothing was charged.",
+          "bookingChanged": "This booking changed since you opened it.",
+          "tenderShort": "The cash counted is less than the amount being collected.",
+          "emptySale": "There is nothing on this sale to charge for.",
+          "itemRefused": "That item cannot go on this sale.",
+          "discountRefused": "That code cannot be applied to this sale.",
+          "discountNeedsCustomer": "A discount code needs a named customer. Attach one first.",
+          "readerUnavailable": "No card reader is ready on this device.",
+          "pickupWindow": "Choose a pickup time that is still ahead.",
+          "wrongWorkspace": "That sale belongs to another workspace.",
+          "notAllowed": "You are not allowed to do that at the counter.",
+          "amountInvalid": "Enter an amount of zero or more.",
+          "shiftAlreadyOpen": "A shift is already open here.",
+          "shiftAlreadyClosed": "That shift is already closed."
+        },
+        "switch": {
+          "label": "Workspace or point of sale",
+          "workspace": "Workspace",
+          "openMenu": "Choose a point of sale mode",
+          "makeDefault": "Make this the default here",
+          "defaultSaved": "Saved on this device"
+        },
+        "mode": {
+          "counter": "Counter",
+          "floor": "Floor",
+          "door": "Door",
+          "classes": "Classes",
+          "projects": "Projects",
+          "notBuilt": "This mode does not have a screen yet."
+        },
+        "gate": {
+          "title": "The point of sale is not enabled for you",
+          "body": "Nobody has given this account a point of sale mode on this workspace. An owner can turn one on in workspace settings.",
+          "back": "Back to the workspace"
+        },
+        "receiptLink": "Receipt link",
+        "copyReceipt": "Copy receipt link",
+        "receiptCopied": "Receipt link copied",
+        "hold": "Hold sale",
+        "startSale": "Start a new sale",
+        "cancelSale": "Cancel sale",
+        "collectTitle": "Collect",
+        "backToSale": "Back to the sale",
+        "openShiftCash": "Cash in the drawer to start",
+        "closeShiftCash": "Cash counted at close",
+        "confirmOpenShift": "Open the shift",
+        "confirmCloseShift": "Close the shift",
+        "category": {
+          "service": "Services",
+          "package": "Packages",
+          "product": "Products"
         }
       }
     },

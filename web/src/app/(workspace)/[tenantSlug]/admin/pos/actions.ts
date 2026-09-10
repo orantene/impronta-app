@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
@@ -13,6 +14,14 @@ import { closeShift, currentShift, openShift } from "@/lib/pos/shift";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 
 const uuid = z.string().uuid();
+
+/** One customer the counter can attach, as the panel renders them. */
+export type PosCustomerHit = {
+  id: string;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+};
 
 type PosStaffCapability =
   | "booking.payment.request"
@@ -225,6 +234,60 @@ export async function posSubmitPrep(input: {
     destination: parsed.data.destination,
     promisedAt: parsed.data.promisedAt ?? null,
   });
+}
+
+/**
+ * Find an existing customer to name this sale's buyer.
+ *
+ * WHY THIS RETURNS CONTACT DETAILS AND NOT JUST AN ID. The engine names a
+ * buyer at collection time and nowhere else: `startCollection` calls
+ * `ensureCustomer` with an email or a phone and writes `orders.customer_id`
+ * itself. `ensureCustomer` is idempotent on `(tenant, email)` and
+ * `(tenant, phone)` — those are unique indexes — so handing back the found
+ * customer's own email is what makes the counter reuse THAT row instead of
+ * creating a second record for the same person, which is spec C10's rule
+ * ("attach failure → retry with the same id") expressed through the write
+ * path that actually exists.
+ *
+ * THE SEARCH TEXT IS SANITISED, not escaped. PostgREST's `or=` filter is a
+ * comma-and-parenthesis grammar, so a customer searching for "Smith, J (x)"
+ * would otherwise compose a filter rather than a term. Everything outside a
+ * conservative set is dropped; the worst case is a search that finds less,
+ * never one that reads more.
+ */
+export async function posSearchCustomers(query: string) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const cleaned = String(query ?? "")
+    .replace(/[^\p{L}\p{N}@._+\- ]/gu, " ")
+    .trim()
+    .slice(0, 60);
+  if (cleaned.length < 2) return { ok: true as const, rows: [] as PosCustomerHit[] };
+  const like = `%${cleaned}%`;
+  const { data, error } = await g.admin
+    .from("customers")
+    .select("id, display_name, email, phone_e164")
+    .eq("tenant_id", g.tenantId)
+    .or(`display_name.ilike.${like},email.ilike.${like},phone_e164.ilike.${like}`)
+    .limit(8);
+  if (error) {
+    logServerError("pos.searchCustomers", error);
+    return { ok: false as const, error: "unavailable" };
+  }
+  const rows: PosCustomerHit[] = (
+    (data ?? []) as Array<{
+      id: string;
+      display_name: string | null;
+      email: string | null;
+      phone_e164: string | null;
+    }>
+  ).map((row) => ({
+    id: row.id,
+    displayName: row.display_name?.trim() || row.email || row.phone_e164 || row.id.slice(0, 8),
+    email: row.email,
+    phone: row.phone_e164,
+  }));
+  return { ok: true as const, rows };
 }
 
 export async function posLoadOpen() {

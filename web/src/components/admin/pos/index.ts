@@ -53,4 +53,7 @@ export {
   heldSalesListCopy,
   shiftBarCopy,
   refusalCopy,
+  counterPageCopy,
+  posModeLabel,
+  type PosCounterPageCopy,
 } from "./pos-copy";

@@ -13,6 +13,7 @@ import { COLORS, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, PAGE_META, P
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
 import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
 import { useCanonicalRouteChildren } from "../canonical-route-children";
+import { resolveDestination } from "@/lib/workspace/destinations";
 import { CalendarPage } from "./CalendarPage";
 import { MenuPage } from "./MenuPage";
 import { ClientsPage } from "./ClientsPage";
@@ -179,6 +180,23 @@ function WorkspaceSidebarShell() {
   const copy = useDashboardText();
   const router = useRouter();
 
+  /**
+   * THE POINT OF SALE HAS NO SIDEBAR, and this is where that happens.
+   *
+   * `chrome: "pos"` on the destination registry says the surface replaces the
+   * admin chrome rather than sitting inside it, so the rail and the 1180px
+   * content clamp both come off and the route gets the whole width.
+   *
+   * DECIDED FROM SERVER DATA, NOT FROM THE PATH DURING RENDER. `state.page` is
+   * seeded by the admin layout from `x-impronta-original-pathname` (see
+   * `deriveInitialPage` there) and clamped by the same pure function on both
+   * sides, so the server and the first client render agree. Reading
+   * `usePathname()` here instead would be `null` during SSR — the shape of
+   * the bug that made the whole tenant tree die on hydration — and would
+   * paint the rail for one frame on every hard refresh of the counter.
+   */
+  const posChrome = resolveDestination(state.page)?.chrome === "pos";
+
   // The rail, from the registry. Groups, order, labels, icons, gating and
   // sub-views all come from here — see workspace-nav.ts.
   const { groups, pinned } = useWorkspaceNav();
@@ -254,6 +272,25 @@ function WorkspaceSidebarShell() {
       )}
     </div>
   );
+
+  if (posChrome) {
+    return (
+      <div
+        data-tulala-workspace-grid
+        data-tulala-pos-chrome
+        className="grid grid-cols-[1fr] bg-admin-surface min-h-[calc(100vh-56px-56px-50px)]"
+      >
+        <main
+          id="tulala-workspace-content"
+          tabIndex={-1}
+          data-tulala-surface-main
+          className="w-full outline-none"
+        >
+          <PageRouter page={state.page} />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div

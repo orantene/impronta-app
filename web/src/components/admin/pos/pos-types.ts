@@ -117,14 +117,47 @@ export type PosCollectionMethodState =
       readonly unavailableReason: string;
     };
 
-// ── Refusals — the five sentences the engine can hand back at the counter ──
+// ── Refusals — every sentence the engine can hand back at the counter ──
 
-export type PosRefusalReason =
-  | "balanceChanged"
-  | "saleReloading"
-  | "needsCustomerName"
-  | "paymentDeclined"
-  | "paymentUnknown";
+/**
+ * THE WHOLE VOCABULARY, AS A VALUE.
+ *
+ * It used to be a hand-written type union with a hand-written copy of that
+ * union in `PosRefusalBanner.render.test.tsx`. Two lists, and the test's was
+ * the one that decided how many reasons got proved: adding a reason to the
+ * type and forgetting the test's array left the new sentence unrendered by
+ * any check, in any language. The array is the source now and the type is
+ * derived from it, so the test iterating this array cannot go stale.
+ *
+ * Every entry is a DIFFERENT sentence a cashier can act on. `lib/pos/
+ * refusal-reason.ts` maps the engine's own reason strings onto these, and its
+ * maps are typed `Record<EngineReason, PosRefusalReason>` so a reason the
+ * engine gains and this list has not is a compile error rather than a blank
+ * banner in front of a customer.
+ */
+export const POS_REFUSAL_REASONS = [
+  "balanceChanged",
+  "saleReloading",
+  "needsCustomerName",
+  "paymentDeclined",
+  "paymentUnknown",
+  "capacityGone",
+  "bookingChanged",
+  "tenderShort",
+  "emptySale",
+  "itemRefused",
+  "discountRefused",
+  "discountNeedsCustomer",
+  "readerUnavailable",
+  "pickupWindow",
+  "wrongWorkspace",
+  "notAllowed",
+  "amountInvalid",
+  "shiftAlreadyOpen",
+  "shiftAlreadyClosed",
+] as const;
+
+export type PosRefusalReason = (typeof POS_REFUSAL_REASONS)[number];
 
 // ── Held sales ────────────────────────────────────────────────────────
 

@@ -12,6 +12,18 @@ import {
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
+/**
+ * Source with comments removed.
+ *
+ * The "no effects" assertion below used to run over the raw file, and the
+ * counter's own header now EXPLAINS why it runs no effects — so a plain
+ * substring match was satisfied by the explanation and failed the file for
+ * documenting the rule it obeys. A guard that a comment can turn red is a
+ * guard a comment can also turn green.
+ */
+const code = (p: string) =>
+  read(p).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
 test("layer 1 — the POS page exists and is capability-gated", () => {
   const page = read("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
   assert.match(page, /userHasCapability\(/);
@@ -74,7 +86,79 @@ test("shift cash-up lives on POS, not a new destination", () => {
   assert.match(client, /posSubmitPrep/);
   assert.match(client, /promisedAt/);
   assert.match(client, /prepDestination/);
-  assert.doesNotMatch(client, /useEffect/);
+  // NO EFFECTS on the counter. Everything it shows is a prop the server
+  // resolved or a value the operator just typed, so there is nothing to
+  // synchronise after mount — and a till that paints one thing on the server
+  // and another after hydration flickers a price at a customer. Matched on
+  // the CALL, over comment-stripped source, so the rule can be written down
+  // in the file without failing it.
+  assert.doesNotMatch(
+    code("src/app/(workspace)/[tenantSlug]/admin/pos/pos-client.tsx"),
+    /useEffect\s*\(/,
+  );
+});
+
+test("the collection key is DERIVED from the sale, never minted per call", () => {
+  const client = code("src/app/(workspace)/[tenantSlug]/admin/pos/pos-client.tsx");
+  // The defect: a fresh uuid per call made a cashier's second tap of Charge a
+  // SECOND claim on the balance, so the same customer paid twice.
+  assert.match(
+    client,
+    /idempotencyKey:\s*posCollectionKey\(/,
+    "the charge must name its attempt with the derived key",
+  );
+  assert.doesNotMatch(
+    client,
+    /idempotencyKey[\s\S]{0,120}(randomUUID|Math\.random|Date\.now)/,
+    "an operation key minted per call cannot be told apart from a new collection",
+  );
+  // And the version the operator is looking at goes with it, so a second till
+  // that changed the sale is refused as a conflict rather than collected on.
+  assert.match(client, /expectedVersion:\s*sale\.version/);
+});
+
+test("every refusal reaches the cashier as a sentence, never as a reason word", () => {
+  const client = code("src/app/(workspace)/[tenantSlug]/admin/pos/pos-client.tsx");
+  assert.match(client, /refusalFromResult\(/, "refusals must go through the sentence mapping");
+  assert.match(client, /<PosRefusalBanner/, "and be rendered by the banner");
+  // The screen this replaced did `setMsg(r.error)` and printed the engine's
+  // own word — a cashier read `not_draft` and `engine_error` off the till.
+  assert.doesNotMatch(
+    client,
+    /setRefusal\(\s*(result|r)\.(error|reason)\s*\)/,
+    "an engine reason word must never be put on screen directly",
+  );
+});
+
+test("the route validates its mode against the modes this person may use", () => {
+  const page = code("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
+  assert.match(page, /modesForPerson\(/, "the usable set comes from the mode vocabulary");
+  assert.match(
+    page,
+    /enabledPosModesFromSettings\(/,
+    "the workspace's own modes come from its settings, never a literal",
+  );
+  assert.match(page, /parsePosMode\(/, "the query string is parsed, not trusted");
+  assert.match(page, /redirect\(/, "an unusable mode redirects to the first allowed one");
+  // Someone with no modes gets a SCREEN, not a 404: they are signed in, on a
+  // workspace they belong to, at a real address.
+  const gate = page.slice(page.indexOf("usableModes.length === 0"));
+  assert.match(gate.slice(0, 600), /dashboard\.pos\.counter\.gate\.title/);
+  assert.doesNotMatch(gate.slice(0, 600), /notFound\(\)/);
+});
+
+test("no tender is offered as working without the provider behind it", () => {
+  const page = code("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
+  // Availability is read on the SERVER from the real environment. An
+  // optimistic `available: true` here is a cashier watching a customer "pay"
+  // into a mock.
+  assert.match(page, /isStripeConfigured\(\)/);
+  assert.match(page, /reportTerminalAvailability\(\)/);
+  assert.match(
+    page,
+    /id: "pass", available: false/,
+    "pass credits have no ledger table yet and must never look live",
+  );
 });
 
 test("walk-in class places pick a tenant-scoped session", () => {

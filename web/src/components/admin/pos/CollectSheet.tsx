@@ -68,6 +68,12 @@ export type CollectSheetProps = {
   readonly tenderedCents: number;
   readonly onKeypadPress: (key: string) => void;
   readonly onConfirmCash: () => void;
+  /**
+   * Start the payment-link collection. Optional: a caller with no provider
+   * behind the link tab passes nothing and the panel stays a statement of
+   * what the tab is, with no button that could look like it works.
+   */
+  readonly onConfirmLink?: () => void;
   readonly confirmLoading?: boolean;
   readonly copy: CollectSheetCopy;
   readonly className?: string;
@@ -82,6 +88,7 @@ export function CollectSheet({
   tenderedCents,
   onKeypadPress,
   onConfirmCash,
+  onConfirmLink,
   confirmLoading,
   copy,
   className,
@@ -139,7 +146,15 @@ export function CollectSheet({
       </div>
 
       {unavailableSentence !== null ? (
-        <p role="status" className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+        // `data-pos-method-status` so a browser test can name THIS sentence.
+        // `getByRole("status")` alone also matches the shell's toast host and
+        // the dev identity banner, and a strict-mode violation there reads as
+        // a missing sentence when the sentence is present and correct.
+        <p
+          role="status"
+          data-pos-method-status
+          className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground"
+        >
           {unavailableSentence}
         </p>
       ) : activeMethod === "cash" ? (
@@ -185,9 +200,21 @@ export function CollectSheet({
           {copy.cardWaiting}
         </p>
       ) : activeMethod === "link" ? (
-        <p className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-          {copy.linkReady}
-        </p>
+        <div className="flex flex-col gap-3">
+          <p className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+            {copy.linkReady}
+          </p>
+          {onConfirmLink && (
+            <button
+              type="button"
+              disabled={confirmLoading}
+              onClick={onConfirmLink}
+              className={cn(POS_PRIMARY_ACTION, "w-full")}
+            >
+              {copy.methodLink}
+            </button>
+          )}
+        </div>
       ) : activeMethod === "pass" ? (
         <p className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
           {copy.passReady}
