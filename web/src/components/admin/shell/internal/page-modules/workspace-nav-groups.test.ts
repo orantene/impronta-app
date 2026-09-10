@@ -237,15 +237,23 @@ test("a business workspace still gets People, with only its talent-only children
 
 // ── Sub-views ────────────────────────────────────────────────────────
 
-test("the roster queues hang off People at the route People renders on", () => {
-  // People's canonical segment is /admin/people; it RENDERS at /admin/roster,
-  // and its children have to be where the pages are. Gating them on "has this
-  // destination reached its canonical segment" is what silently deleted them.
+test("the People row opens the People surface, and its queues stay where the pages are", () => {
+  // THE DOOR, as the rail builds it. People renders at /admin/people, so the
+  // row and its landing child go there — they used to go to /admin/roster,
+  // which meant nothing in the app linked to the surface at all.
+  //
+  // The three talent-only queues did NOT move with it: they are still
+  // /admin/roster/{applications,registration,rates}, so they carry `adminPath`
+  // in the registry. A child has to be where the page is; gating them on "has
+  // this destination reached its canonical segment" is what once silently
+  // deleted them, and pointing them at the parent's new route would 404 them.
   const people = itemOf(railFor({ industryPreset: "agency" }), "people");
+  assert.equal(people?.href, "/admin/people", "the People row points away from its surface");
+  assert.equal(people?.page, "people", "setPage would open the wrong body");
   assert.deepEqual(
     people?.subItems.map((s) => [s.label, s.href]),
     [
-      ["Everyone", "/admin/roster"],
+      ["Everyone", "/admin/people"],
       ["Applications", "/admin/roster/applications"],
       ["Registration", "/admin/roster/registration"],
       ["Rates", "/admin/roster/rates"],

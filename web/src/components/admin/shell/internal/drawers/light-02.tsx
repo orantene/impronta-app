@@ -26,6 +26,7 @@ import {
   useAdminShell
 } from "./drawer-shared";
 import { useDashboardText } from "../dashboard-i18n";
+import { personNameOr } from "@/lib/people/display-name";
 
 // Phase 1d (remediation §4): 2 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -382,11 +383,17 @@ export function TeamDrawer() {
       >
         <div className="flex flex-col gap-2">
           {team.map((m) => {
+            // A member with no display_name arrives with an EMPTY name (the
+            // bridge reader keeps absence absent rather than substituting eight
+            // characters of their user id, which is what this row used to
+            // print). This is the screen, so this is where it is decided.
+            const memberName = personNameOr(m.name, tt("Unnamed person"));
             // Match team member by name to a payout receiver candidate
-            // so the member row can show their payout connection state.
-            const payoutCandidate = PAYOUT_RECEIVER_CANDIDATES.find(
-              (c) => c.displayName === m.name,
-            );
+            // so the member row can show their payout connection state. An
+            // unnamed member matches nothing, which is the honest answer.
+            const payoutCandidate = m.name
+              ? PAYOUT_RECEIVER_CANDIDATES.find((c) => c.displayName === m.name)
+              : undefined;
             const displayRole: Role = roleOverrides[m.id] ?? m.role;
             // Editable only on a live team, for admin+, and never the
             // owner row or your own row (owner = transfer-only; self =
@@ -398,8 +405,10 @@ export function TeamDrawer() {
                 key={m.id}
                 photoUrl={m.photoUrl}
                 initials={m.initials || initialsFromName(m.name)}
-                hashSeed={m.name}
-                primary={m.name}
+                // Seed the avatar tint on the id when there is no name, or
+                // every unnamed member would share one colour.
+                hashSeed={m.name || m.id}
+                primary={memberName}
                 secondary={m.email || undefined}
                 trailing={
                   <>
@@ -408,7 +417,7 @@ export function TeamDrawer() {
                       <select
                         value={displayRole}
                         disabled={savingRoleId === m.id}
-                        aria-label={tt("Role for {name}").replace("{name}", m.name)}
+                        aria-label={tt("Role for {name}").replace("{name}", memberName)}
                         onChange={(e) =>
                           handleRoleChange(
                             m.id,

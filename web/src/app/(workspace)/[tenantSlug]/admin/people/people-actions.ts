@@ -50,6 +50,8 @@ export type PeopleReasonKey =
   | "notOnRoster"
   | "personSetsTheirOwnBooking"
   | "cannotChangeYourOwnRole"
+  | "invitationSent"
+  | "noEmailOnFile"
   | "couldNotSave";
 
 export type PeopleActionResult =
@@ -242,13 +244,33 @@ export async function grantPersonAccess(
   return { ok: true };
 }
 
-/** Invite someone who is not here yet, by email. */
+/**
+ * Invite a person on this workspace's record to sign in, at the email that
+ * record carries.
+ *
+ * WHAT THIS DOES NOT DO, AND WHY THE CALLER MUST SAY SO. `inviteTeamMember`
+ * writes a `team_invite_tokens` row and NO membership: the membership is
+ * created later, by `/team-invite/[id]`, and only once the invited human signs
+ * in with that address. So this cannot grant anyone access, and reporting a
+ * plain "Saved" for it was the defect — the panel said the write had landed
+ * while the person's Access hat stayed off, with no way to tell "invited" from
+ * "never invited". The `invitationSent` note is the sentence the screen shows
+ * instead, and `people-invitations.ts` is what makes the resulting state
+ * readable on the record.
+ *
+ * The email is not free text from a box inside someone else's panel any more:
+ * the screen passes the address it is displaying, and an empty one is refused
+ * here as well as hidden there.
+ */
 export async function invitePersonAccess(
   email: string,
   role: string,
 ): Promise<PeopleActionResult> {
   if (!isGrantableRole(role)) {
     return { ok: false, reasonKey: "checkTheDetails" };
+  }
+  if (email.trim().length === 0) {
+    return { ok: false, reasonKey: "noEmailOnFile" };
   }
   const seats = await seatCheck();
   if (seats) return { ok: false, reasonKey: seats };
@@ -259,7 +281,8 @@ export async function invitePersonAccess(
     return { ok: false, reasonKey: mapReason(result.reason) };
   }
   await revalidatePeople();
-  return { ok: true };
+  // An invitation, said out loud as an invitation. Never "Saved".
+  return { ok: true, note: "invitationSent" };
 }
 
 /** Change what a person with the Access hat may do. */

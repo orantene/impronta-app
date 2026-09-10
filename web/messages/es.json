@@ -13082,7 +13082,9 @@
         "notOnRoster": "Esta persona no esta en tu lista en este espacio.",
         "personSetsTheirOwnBooking": "Tu parte esta activada. Esta persona inicia sesion por su cuenta, asi que todavia tiene que aceptar recibir reservas desde su propia cuenta. Hasta entonces no aparecera en Elegir profesional.",
         "cannotChangeYourOwnRole": "No puedes cambiar tu propio rol. Pideselo a otro propietario o administrador.",
-        "couldNotSave": "No se guardo. Intenta de nuevo y avisa al propietario del espacio si sigue pasando."
+        "couldNotSave": "No se guardo. Intenta de nuevo y avisa al propietario del espacio si sigue pasando.",
+        "invitationSent": "Invitacion enviada. Esta persona todavia no tiene acceso: lo obtiene cuando inicia sesion con esa direccion y acepta.",
+        "noEmailOnFile": "Este espacio no tiene ninguna direccion de correo para esta persona, asi que no hay a donde enviar la invitacion."
       },
       "role": {
         "owner": "Propietario",
@@ -13111,7 +13113,11 @@
         "nothingElseChanges": "Nada mas cambia. Quitar un rol nunca elimina a la persona.",
         "moneyNote": "Ser reservable no otorga permisos de dinero. Solo un rol en el acceso lo hace, y lo puedes ver aqui.",
         "holdsMoney": "Este rol puede cobrar en el mostrador.",
-        "noMoney": "Este rol no puede cobrar en el mostrador."
+        "noMoney": "Este rol no puede cobrar en el mostrador.",
+        "inviteWillGoTo": "La invitacion va a {email}, la direccion que figura en esta ficha.",
+        "inviteGrantsNothingYet": "Enviarla no otorga nada por si sola. Obtiene acceso cuando inicia sesion con esa direccion y acepta.",
+        "invitationWaitingOn": "Ya hay una invitacion enviada a {email}. Obtiene acceso cuando la acepte. Enviar otra cancela esta.",
+        "addEmailWhere": "Agrega una en el editor de perfil de arriba y vuelve para invitarla."
       },
       "add": {
         "title": "Agregar una persona",
@@ -13121,7 +13127,9 @@
         "accessWhat": "Deja que inicie sesion y trabaje aqui.",
         "doorRosterLabel": "Crear el perfil",
         "doorRosterNote": "Agrega a la persona con un perfil publico. Vuelve aqui para activar Reservable con un clic.",
-        "doorInviteNote": "Envia una invitacion para iniciar sesion. No se crea ningun perfil publico."
+        "doorInviteNote": "Envia una invitacion para iniciar sesion. No se crea ningun perfil publico.",
+        "doorRosterListLabel": "Abrir la lista completa",
+        "doorRosterListNote": "La cuadricula de la lista: ediciones masivas, orden, diseno de tarjeta y las colas de revision."
       },
       "explainer": {
         "title": "Que controla cada rol",

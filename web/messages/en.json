@@ -13082,7 +13082,9 @@
         "notOnRoster": "This person is not on your roster in this workspace.",
         "personSetsTheirOwnBooking": "Your half is on. This person signs in themselves, so they still have to agree to take bookings from their own account. Until they do, they will not appear in Pick a professional.",
         "cannotChangeYourOwnRole": "You cannot change your own role. Ask another owner or admin.",
-        "couldNotSave": "That did not save. Try again, and tell the workspace owner if it keeps happening."
+        "couldNotSave": "That did not save. Try again, and tell the workspace owner if it keeps happening.",
+        "invitationSent": "Invitation sent. This person has no access yet: they get it when they sign in with that address and accept.",
+        "noEmailOnFile": "This workspace has no email address for this person, so there is nowhere to send an invitation."
       },
       "role": {
         "owner": "Owner",
@@ -13111,7 +13113,11 @@
         "nothingElseChanges": "Nothing else changes. Taking a hat off never removes the person.",
         "moneyNote": "Being bookable grants no money permissions. Only a role on the Access hat does that, and you can see it here.",
         "holdsMoney": "This role can take money at the counter.",
-        "noMoney": "This role cannot take money at the counter."
+        "noMoney": "This role cannot take money at the counter.",
+        "inviteWillGoTo": "The invitation goes to {email}, the address on this record.",
+        "inviteGrantsNothingYet": "Sending it grants nothing on its own. They get access when they sign in with that address and accept.",
+        "invitationWaitingOn": "An invitation is already out to {email}. They get access when they accept it. Sending another one cancels this one.",
+        "addEmailWhere": "Add one in the profile editor above, then come back and invite them."
       },
       "add": {
         "title": "Add a person",
@@ -13121,7 +13127,9 @@
         "accessWhat": "Let them sign in and work here.",
         "doorRosterLabel": "Create the profile",
         "doorRosterNote": "Adds the person with a public profile. Come back here to turn Bookable on in one click.",
-        "doorInviteNote": "Sends a sign-in invitation. No public profile is created."
+        "doorInviteNote": "Sends a sign-in invitation. No public profile is created.",
+        "doorRosterListLabel": "Open the full roster",
+        "doorRosterListNote": "The roster grid: bulk edits, ordering, card design and the review queues."
       },
       "explainer": {
         "title": "What each hat controls",

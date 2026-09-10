@@ -58,7 +58,7 @@ function person(over: Partial<PersonRecord> = {}): PersonRecord {
     role: null,
     publicProfile: publicProfileHat({ hasRosterRow: true, rosterStatus: "active" }),
     bookable: bookableHat(BOOKABLE_ALL_ON),
-    access: accessHat({ hasMembership: false, membershipStatus: null, hasAccount: true }),
+    access: accessHat({ hasMembership: false, membershipStatus: null, hasAccount: true, hasPendingInvitation: false }),
     ...over,
   };
 }
@@ -167,7 +167,7 @@ test("only the bookable hat puts a person in Pick a professional", () => {
     talentProfileId: null,
     publicProfile: publicProfileHat({ hasRosterRow: false, rosterStatus: null }),
     bookable: bookableHat({ ...BOOKABLE_ALL_ON, hasRosterRow: false }),
-    access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true }),
+    access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true, hasPendingInvitation: false }),
     role: "admin",
   });
 
@@ -192,13 +192,13 @@ test("bookable never grants money permissions", () => {
   // the false above is the hat's doing and not a function that always says no.
   const manager = person({
     role: "manager",
-    access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true }),
+    access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true, hasPendingInvitation: false }),
   });
   assert.equal(holdsMoneyPermissions(manager), true);
 
   const viewer = person({
     role: "viewer",
-    access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true }),
+    access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true, hasPendingInvitation: false }),
   });
   assert.equal(holdsMoneyPermissions(viewer), false, "viewer is not a money role");
 });
@@ -206,7 +206,7 @@ test("bookable never grants money permissions", () => {
 test("a removed membership holds nothing, whatever role the row still says", () => {
   const removed = person({
     role: "admin",
-    access: accessHat({ hasMembership: true, membershipStatus: "removed", hasAccount: true }),
+    access: accessHat({ hasMembership: true, membershipStatus: "removed", hasAccount: true, hasPendingInvitation: false }),
   });
   assert.equal(removed.access.on, false);
   assert.deepEqual(removed.access.blockedBy, ["membershipRemoved"]);
@@ -215,7 +215,7 @@ test("a removed membership holds nothing, whatever role the row still says", () 
 
 test("an invitation is not access, and carries no money permissions", () => {
   for (const status of ["invited", "pending_acceptance"]) {
-    const hat = accessHat({ hasMembership: true, membershipStatus: status, hasAccount: true });
+    const hat = accessHat({ hasMembership: true, membershipStatus: status, hasAccount: true, hasPendingInvitation: false });
     assert.equal(hat.on, false, `${status} should not be signed-in access`);
     assert.deepEqual(hat.blockedBy, ["invitationPending"]);
     const invitee = person({ role: "admin", access: hat });
@@ -229,10 +229,43 @@ test("an invitation is not access, and carries no money permissions", () => {
   const accepted = accessHat({
     hasMembership: true,
     membershipStatus: "active",
-    hasAccount: true,
-  });
+    hasAccount: true, hasPendingInvitation: false });
   assert.equal(accepted.on, true);
   assert.equal(holdsMoneyPermissions(person({ role: "admin", access: accepted })), true);
+});
+
+test("a person with an invitation OUT is a different state from one nobody invited", () => {
+  // THE DEFECT THIS EXISTS FOR. "Invite by email" writes a team_invite_tokens
+  // row and NO membership, so a hat that only ever asked `hasMembership`
+  // answered "noMembership" both before the invitation and after it. The panel
+  // therefore reported no access and re-drew the same empty box for a person
+  // who had just been invited, and an operator could not tell the two apart.
+  const neverInvited = accessHat({
+    hasMembership: false,
+    membershipStatus: null,
+    hasAccount: false,
+    hasPendingInvitation: false,
+  });
+  assert.equal(neverInvited.on, false);
+  assert.deepEqual(neverInvited.blockedBy, ["noMembership"]);
+
+  const invited = accessHat({
+    hasMembership: false,
+    membershipStatus: null,
+    hasAccount: false,
+    hasPendingInvitation: true,
+  });
+  // STILL OFF. An invitation is not access, and this must never read as on.
+  assert.equal(invited.on, false, "an unaccepted invitation must never be access");
+  assert.deepEqual(invited.blockedBy, ["invitationPending"]);
+  assert.notDeepEqual(
+    invited.blockedBy,
+    neverInvited.blockedBy,
+    "the screen cannot tell an invited person from an uninvited one",
+  );
+
+  // And it carries no permissions, whatever role the token names.
+  assert.equal(holdsMoneyPermissions(person({ role: "admin", access: invited })), false);
 });
 
 test("every access role is a known role and only three carry money", () => {
@@ -240,7 +273,7 @@ test("every access role is a known role and only three carry money", () => {
     holdsMoneyPermissions(
       person({
         role: r,
-        access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true }),
+        access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true, hasPendingInvitation: false }),
       }),
     ),
   );
@@ -252,7 +285,7 @@ test("every access role is a known role and only three carry money", () => {
 test("removing one hat leaves the other two", () => {
   const all = person({
     role: "manager",
-    access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true }),
+    access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true, hasPendingInvitation: false }),
   });
   assert.deepEqual(hatsAfterRemoving(all, "bookable"), ["publicProfile", "access"]);
   assert.deepEqual(hatsAfterRemoving(all, "access"), ["publicProfile", "bookable"]);
@@ -280,6 +313,12 @@ const rosterSide: RosterSide = {
   avatarUrl: null,
   publicProfile: publicProfileHat({ hasRosterRow: true, rosterStatus: "active" }),
   bookable: bookableHat(BOOKABLE_ALL_ON),
+  access: accessHat({
+    hasMembership: false,
+    membershipStatus: null,
+    hasAccount: true,
+    hasPendingInvitation: false,
+  }),
 };
 
 const membershipSide: MembershipSide = {
@@ -288,8 +327,41 @@ const membershipSide: MembershipSide = {
   email: "dani@example.com",
   avatarUrl: null,
   role: "manager",
-  access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true }),
+  access: accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: true, hasPendingInvitation: false }),
 };
+
+test("a roster person carries their own access hat, not a constant", () => {
+  // `mergePeople` used to stamp every roster row with a hardcoded
+  // "noMembership", which threw away the pending-invitation state before any
+  // screen could read it. The roster side answers the question now.
+  const invitedOnRoster: RosterSide = {
+    ...rosterSide,
+    talentProfileId: "t9",
+    accountId: null,
+    email: "waiting@example.com",
+    access: accessHat({
+      hasMembership: false,
+      membershipStatus: null,
+      hasAccount: false,
+      hasPendingInvitation: true,
+    }),
+  };
+  const [merged] = mergePeople([invitedOnRoster], []);
+  assert.deepEqual(merged!.access.blockedBy, ["invitationPending"]);
+  assert.equal(merged!.email, "waiting@example.com", "the invite has nowhere to go without this");
+
+  // BREAK IT: the same roster row with no invitation out reads as never
+  // invited, so the line above is the input's doing and not a constant.
+  const [plain] = mergePeople([{ ...invitedOnRoster, access: rosterSide.access }], []);
+  assert.deepEqual(plain!.access.blockedBy, ["noMembership"]);
+
+  // And a real membership still wins over either: the merge must not let a
+  // stale token hide live access.
+  const [withMembership] = mergePeople([invitedOnRoster], [
+    { ...membershipSide, accountId: "u9" },
+  ]);
+  assert.equal(withMembership !== undefined, true);
+});
 
 test("one human with a roster row AND a membership is ONE record", () => {
   const merged = mergePeople([rosterSide], [membershipSide]);
@@ -390,10 +462,10 @@ test("every reason this model can produce is in the published reason list", () =
 
   record(publicProfileHat({ hasRosterRow: false, rosterStatus: null }).blockedBy);
   record(publicProfileHat({ hasRosterRow: true, rosterStatus: "removed" }).blockedBy);
-  record(accessHat({ hasMembership: false, membershipStatus: null, hasAccount: true }).blockedBy);
-  record(accessHat({ hasMembership: true, membershipStatus: "removed", hasAccount: true }).blockedBy);
-  record(accessHat({ hasMembership: true, membershipStatus: "invited", hasAccount: true }).blockedBy);
-  record(accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: false }).blockedBy);
+  record(accessHat({ hasMembership: false, membershipStatus: null, hasAccount: true, hasPendingInvitation: false }).blockedBy);
+  record(accessHat({ hasMembership: true, membershipStatus: "removed", hasAccount: true, hasPendingInvitation: false }).blockedBy);
+  record(accessHat({ hasMembership: true, membershipStatus: "invited", hasAccount: true, hasPendingInvitation: false }).blockedBy);
+  record(accessHat({ hasMembership: true, membershipStatus: "active", hasAccount: false, hasPendingInvitation: false }).blockedBy);
   for (const broken of [
     { workspaceAppointmentsEnabled: false },
     { personOptedIn: false },

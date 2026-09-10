@@ -19,6 +19,7 @@ import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { cn } from "@/lib/utils";
+import { personNameOr } from "@/lib/people/display-name";
 import { pickAProfessional, type PersonRecord } from "@/lib/people/hats";
 import { PersonHatsPanel } from "./PersonHatsPanel";
 import {
@@ -126,7 +127,7 @@ export function PeopleClient({
             >
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-medium text-foreground">
-                  {person.name || t("admin.people.unnamed")}
+                  {personNameOr(person.name, t("admin.people.unnamed"))}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
                   {t(`admin.people.role.${person.role ?? "none"}`)}
@@ -218,6 +219,14 @@ function AddPerson({ adminBasePath }: { adminBasePath: string }) {
       </a>
       <p className={PEOPLE_MUTED}>{t("admin.people.add.doorRosterNote")}</p>
       <p className={PEOPLE_MUTED}>{t("admin.people.add.doorInviteNote")}</p>
+      {/* THE ROSTER'S OWN DOOR. The People row in the rail used to open
+          /admin/roster; it opens this surface now, so the roster grid — bulk
+          edits, ordering, the card designer, the queues — would have had no
+          link anywhere in the app. This is it. */}
+      <a className={PEOPLE_SECONDARY_ACTION} href={`${adminBasePath}/roster`}>
+        {t("admin.people.add.doorRosterListLabel")}
+      </a>
+      <p className={PEOPLE_MUTED}>{t("admin.people.add.doorRosterListNote")}</p>
     </section>
   );
 }

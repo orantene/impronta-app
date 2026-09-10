@@ -186,10 +186,27 @@ export type AccessInputs = {
   readonly membershipStatus: string | null;
   /** The membership resolves to a real account that can sign in. */
   readonly hasAccount: boolean;
+  /**
+   * An unredeemed, unrevoked, unexpired `team_invite_tokens` row addressed to
+   * this person's email.
+   *
+   * REQUIRED, not optional, and that is the point. Inviting someone writes an
+   * invitation token and NO membership, so a screen that only ever asked
+   * `hasMembership` reported "no access" after a successful send and re-drew
+   * the same empty box — the operator had no way to tell a person who was
+   * never invited from one who was invited an hour ago. Every caller must
+   * answer this question; `false` is an answer, `undefined` was a gap.
+   */
+  readonly hasPendingInvitation: boolean;
 };
 
 export function accessHat(input: AccessInputs): HatState {
   if (!input.hasMembership) {
+    // Still off — an invitation is not access — but for a reason the operator
+    // can act on, and a different one from "this person was never invited".
+    if (input.hasPendingInvitation) {
+      return { on: false, blockedBy: ["invitationPending"], warnings: [] };
+    }
     return { on: false, blockedBy: ["noMembership"], warnings: [] };
   }
   if (input.membershipStatus === "removed") {
@@ -252,10 +269,19 @@ export type RosterSide = {
   readonly talentProfileId: string;
   readonly accountId: string | null;
   readonly name: string;
+  /** `talent_profiles.invitation_email` — the address this workspace has for
+   *  them, and the only address an invitation from their record may go to. */
   readonly email: string | null;
   readonly avatarUrl: string | null;
   readonly publicProfile: HatState;
   readonly bookable: HatState;
+  /**
+   * The Access hat as seen from the roster side, where there is no membership
+   * row to read. It is NOT a constant: a person with an unaccepted invitation
+   * is off for a different, actionable reason than a person nobody has ever
+   * invited, and the panel shows a different control for each.
+   */
+  readonly access: HatState;
 };
 
 export type MembershipSide = {
@@ -270,11 +296,6 @@ export type MembershipSide = {
 const HAT_OFF_NO_ROSTER: HatState = {
   on: false,
   blockedBy: ["noRosterRow"],
-  warnings: [],
-};
-const HAT_OFF_NO_MEMBERSHIP: HatState = {
-  on: false,
-  blockedBy: ["noMembership"],
   warnings: [],
 };
 
@@ -302,7 +323,7 @@ export function mergePeople(
       role: null,
       publicProfile: r.publicProfile,
       bookable: r.bookable,
-      access: HAT_OFF_NO_MEMBERSHIP,
+      access: r.access,
     });
   }
 

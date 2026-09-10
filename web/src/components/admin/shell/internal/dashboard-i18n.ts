@@ -696,6 +696,10 @@ const ES_TEXT: Record<string, string> = {
   "{count} person with workspace access": "{count} persona con acceso al espacio",
   "{count} people with workspace access": "{count} personas con acceso al espacio",
   "Role for {name}": "Rol de {name}",
+  // A member whose profile carries no display_name. The bridge reader returns
+  // an empty name rather than eight characters of their user id, so this is
+  // what the Team drawer prints in its place.
+  "Unnamed person": "Persona sin nombre",
   "Viewer": "Lector",
   "Editor": "Editor",
   "Manager": "Gerente",

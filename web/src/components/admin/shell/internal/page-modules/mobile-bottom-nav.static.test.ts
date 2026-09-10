@@ -47,12 +47,15 @@ import { join } from "node:path";
 import {
   DESTINATIONS,
   DESTINATION_LIST,
+  destinationHref,
+  liveRouteSegment,
   mobileTabs,
   sidebarGroups,
   isPosSegment,
   visibleDestinations,
   type WorkspaceNavContext,
 } from "@/lib/workspace/destinations";
+import { navWorkspacePages } from "@/lib/workspace/page-ids";
 import { canManageBilling, derivePreset, deriveWorkRole } from "@/lib/workspace/nav-context";
 import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 
@@ -304,6 +307,27 @@ test("each phone surface is a faithful projection of the registry — it invents
       [...expected].sort(),
       "the More sheet must show every visible non-chrome destination, and only those",
     );
+  }
+});
+
+test("the phone's People row opens the People surface, on every workspace type", () => {
+  // THE PHONE HALF OF THE DOOR. MobileBottomNav routes a More-sheet row with
+  // `toLegacyPage(d)` → `setPage(page)`, and falls back to `destinationHref(d)`
+  // only when the page is not a nav page. Both are computed here from the same
+  // registry the component reads, so this fails the moment People goes back to
+  // falling through to the roster SPA.
+  const navPages: readonly string[] = navWorkspacePages();
+  for (const c of [ctx({ workspaceType: "talent" }), ctx({ workspaceType: "business" })]) {
+    const sheet = sidebarGroups(c).flatMap((g) => g.destinations);
+    const people = sheet.find((d) => d.id === "people");
+    assert.ok(people, "People is missing from the More sheet");
+    // `toLegacyPage`, inlined: the component's own two lines.
+    const segment = liveRouteSegment(people!);
+    const legacy = segment === null ? null : segment === "" ? "overview" : segment;
+    assert.equal(legacy, "people", "the phone would open the roster body again");
+    assert.ok(navPages.includes(legacy!), "setPage cannot route a page that is not a nav page");
+    // And the href fallback, for the same row, lands in the same place.
+    assert.equal(destinationHref(people!, "/impronta/admin"), "/impronta/admin/people");
   }
 });
 

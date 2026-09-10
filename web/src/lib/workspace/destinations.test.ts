@@ -164,13 +164,12 @@ test("an unbuilt destination's URL falls back to a page that exists", () => {
 });
 
 test("a built destination renamed ahead of its route still points at the live one", () => {
-  // spaces/catalog/people/appts/issues carry their target name and render at
-  // their legacy route until the routing task moves them. Both facts are here
-  // so no consumer has to guess which is which.
+  // spaces/catalog/appts/issues carry their target name and render at their
+  // legacy route until the routing task moves them. Both facts are here so no
+  // consumer has to guess which is which.
   const renamed: ReadonlyArray<readonly [string, string]> = [
     ["spaces", "tables"],
     ["catalog", "menu"],
-    ["people", "roster"],
     ["appts", "sessions"],
     ["issues", "exceptions"],
   ];
@@ -179,6 +178,20 @@ test("a built destination renamed ahead of its route still points at the live on
     assert.equal(d?.built, true, `${id} must be built`);
     assert.equal(d && liveRouteSegment(d), route);
   }
+  // PEOPLE HAS COMPLETED THE MOVE, and this is where that is recorded. It was
+  // in the list above with the live route "roster", which is precisely why the
+  // rail, the mobile tab bar and `setPage` all sent an operator to the roster
+  // SPA while the People surface sat at /admin/people with nothing linking to
+  // it. A `fallbackSegment` coming back here is that defect coming back.
+  const people = resolveDestination("people");
+  assert.equal(people?.built, true);
+  assert.equal(people?.fallbackSegment, undefined, "People fell back to a legacy route again");
+  assert.equal(people && liveRouteSegment(people), "people");
+  assert.equal(people && destinationHref(people, "/impronta/admin"), "/impronta/admin/people");
+  // The legacy address still resolves to the same destination, so /admin/roster
+  // keeps lighting the People row.
+  assert.equal(resolveDestination("roster")?.id, "people");
+  assert.equal(resolveDestination("talent")?.id, "people");
 });
 
 /**

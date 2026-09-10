@@ -1202,7 +1202,9 @@
         "notOnRoster": "Cette personne n'est pas sur votre liste dans cet espace.",
         "personSetsTheirOwnBooking": "Votre moitie est activee. Cette personne se connecte elle-meme, elle doit donc encore accepter de recevoir des reservations depuis son propre compte. En attendant, elle n'apparaitra pas dans Choisir un professionnel.",
         "cannotChangeYourOwnRole": "Vous ne pouvez pas changer votre propre role. Demandez a un autre proprietaire ou administrateur.",
-        "couldNotSave": "L'enregistrement a echoue. Reessayez et prevenez le proprietaire de l'espace si cela continue."
+        "couldNotSave": "L'enregistrement a echoue. Reessayez et prevenez le proprietaire de l'espace si cela continue.",
+        "invitationSent": "Invitation envoyee. Cette personne n'a pas encore d'acces : elle l'obtient quand elle se connecte avec cette adresse et accepte.",
+        "noEmailOnFile": "Cet espace n'a aucune adresse courriel pour cette personne, il n'y a donc nulle part ou envoyer une invitation."
       },
       "role": {
         "owner": "Proprietaire",
@@ -1231,7 +1233,11 @@
         "nothingElseChanges": "Rien d'autre ne change. Retirer une casquette ne supprime jamais la personne.",
         "moneyNote": "Etre reservable n'accorde aucune permission sur l'argent. Seul un role sur l'acces le fait, et vous le voyez ici.",
         "holdsMoney": "Ce role peut encaisser au comptoir.",
-        "noMoney": "Ce role ne peut pas encaisser au comptoir."
+        "noMoney": "Ce role ne peut pas encaisser au comptoir.",
+        "inviteWillGoTo": "L'invitation part vers {email}, l'adresse inscrite sur cette fiche.",
+        "inviteGrantsNothingYet": "L'envoi n'accorde rien en soi. Elle obtient l'acces quand elle se connecte avec cette adresse et accepte.",
+        "invitationWaitingOn": "Une invitation est deja partie vers {email}. Elle obtient l'acces quand elle l'accepte. En envoyer une autre annule celle-ci.",
+        "addEmailWhere": "Ajoutez-en une dans l'editeur de profil ci-dessus, puis revenez l'inviter."
       },
       "add": {
         "title": "Ajouter une personne",
@@ -1241,7 +1247,9 @@
         "accessWhat": "Lui permettre de se connecter et de travailler ici.",
         "doorRosterLabel": "Creer le profil",
         "doorRosterNote": "Ajoute la personne avec un profil public. Revenez ici pour activer Reservable en un clic.",
-        "doorInviteNote": "Envoie une invitation de connexion. Aucun profil public n'est cree."
+        "doorInviteNote": "Envoie une invitation de connexion. Aucun profil public n'est cree.",
+        "doorRosterListLabel": "Ouvrir la liste complete",
+        "doorRosterListNote": "La grille de la liste : modifications en lot, ordre, design de carte et les files de revision."
       },
       "explainer": {
         "title": "Ce que controle chaque casquette",

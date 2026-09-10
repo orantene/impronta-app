@@ -73,16 +73,26 @@ export function liveWorkspacePage(destination: Destination): WorkspacePage | nul
  * Legacy ids that keep their OWN body and must not be folded into the
  * destination that claims them as an alias.
  *
- * `payouts` is the only one. The registry folds it into `payments`, whose live
- * route is `/admin/financials` — but `/admin/payouts` renders `<PayoutsPage/>`
- * in the SPA today (Stripe Connect onboarding + the base reservation fee), and
- * that route has no canonical matcher behind it. Collapsing it would hand the
- * page router a case it does not have and paint a blank screen. When Payments
+ * `payouts`: the registry folds it into `payments`, whose live route is
+ * `/admin/financials` — but `/admin/payouts` renders `<PayoutsPage/>` in the
+ * SPA today (Stripe Connect onboarding + the base reservation fee), and that
+ * route has no canonical matcher behind it. Collapsing it would hand the page
+ * router a case it does not have and paint a blank screen. When Payments
  * absorbs Payouts for real, delete this set and the `payouts` router case
  * together.
+ *
+ * `roster`: the same shape, and the reason People could move. People's live
+ * route is now `/admin/people` (a real server page), and `roster` is only an
+ * alias — but `/admin/roster` still renders `<RosterPage/>` in the SPA and has
+ * no canonical matcher. Without this entry, resolving the alias would open the
+ * People body on the roster's own URL and the roster list would have no address
+ * at all. The rail still LIGHTS People for `/admin/roster`, because that is
+ * `resolveDestination`'s job and it reads the alias — a different question from
+ * which body the SPA paints, which is this one.
  */
 const LEGACY_PAGES_WITH_THEIR_OWN_BODY: ReadonlySet<string> = new Set<string>([
   "payouts",
+  "roster",
 ]);
 
 /**

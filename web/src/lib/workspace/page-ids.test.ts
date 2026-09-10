@@ -50,11 +50,14 @@ test("a renamed-but-not-moved destination reports the page it renders as", () =>
   const cases: ReadonlyArray<readonly [string, WorkspacePage]> = [
     ["appts", "sessions"],
     ["catalog", "menu"],
-    ["people", "roster"],
     ["spaces", "tables"],
     ["issues", "exceptions"],
     ["overview", "overview"],
     ["messages", "messages"],
+    // People has MOVED: it renders at its own segment now, so the page id the
+    // shell holds is `people` and `setPage` pushes /admin/people. It answered
+    // "roster" while the surface had no door.
+    ["people", "people"],
   ];
   for (const [id, page] of cases) {
     const destination = DESTINATIONS[id as keyof typeof DESTINATIONS];
@@ -72,7 +75,10 @@ test("every legacy URL opens the page it always opened", () => {
   const cases: ReadonlyArray<readonly [string, WorkspacePage]> = [
     ["inbox", "messages"],
     ["work", "messages"],
-    ["talent", "roster"],
+    // `talent` is an alias of People and follows it wherever it renders. It
+    // answered "roster" until People got its own route; the DESTINATION it
+    // opens has never changed, and that is the invariant this line carries.
+    ["talent", "people"],
     ["site", "website"],
     ["billing", "settings"],
     ["workspace", "settings"],
@@ -89,12 +95,19 @@ test("every legacy URL opens the page it always opened", () => {
   }
 });
 
-test("payouts is the one legacy id that keeps its own body", () => {
-  // The registry folds it into `payments` (live route: financials). The SPA
-  // still has a `payouts` case and /admin/payouts has no canonical matcher, so
-  // folding it would render nothing at all.
+test("payouts and roster keep their own bodies, whatever claims them as an alias", () => {
+  // `payouts`: the registry folds it into `payments` (live route: financials).
+  // The SPA still has a `payouts` case and /admin/payouts has no canonical
+  // matcher, so folding it would render nothing at all.
   assert.equal(resolveWorkspacePageId("payouts"), "payouts");
   assert.equal(resolveWorkspacePageId("payments"), "financials");
+  // `roster`: the same shape, and what let People move. People renders at
+  // /admin/people; `roster` is now only its alias — but /admin/roster still
+  // paints <RosterPage/> in the SPA and has no canonical matcher. Resolving the
+  // alias here would open the People body on the roster's own URL and leave the
+  // roster grid with no address at all.
+  assert.equal(resolveWorkspacePageId("roster"), "roster");
+  assert.equal(resolveWorkspacePageId("people"), "people");
 });
 
 test("anything the registry does not describe lands on overview", () => {

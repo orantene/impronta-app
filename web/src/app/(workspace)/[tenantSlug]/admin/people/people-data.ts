@@ -38,6 +38,10 @@ import {
   type PersonRecord,
   type RosterSide,
 } from "@/lib/people/hats";
+import {
+  hasPendingInvitationFor,
+  loadPendingInvitationEmails,
+} from "./people-invitations";
 
 export type PeopleSurface = {
   readonly people: readonly PersonRecord[];
@@ -67,6 +71,7 @@ type RosterQueryRow = {
     last_name: string | null;
     user_id: string | null;
     profile_kind: string | null;
+    invitation_email: string | null;
     booking_terms: unknown;
     deleted_at: string | null;
   } | null;
@@ -106,7 +111,7 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
   // what the Team drawer uses, and it resolves the account email that
   // `public.profiles` does not carry. Writing a second query here is how the
   // same person ends up described two different ways.
-  const [rosterRes, members, agencyRes] = await Promise.all([
+  const [rosterRes, members, agencyRes, pendingInvitations] = await Promise.all([
     client
       .from("agency_talent_roster")
       .select(
@@ -114,12 +119,13 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
          direct_booking_enabled, external_booking_released,
          talent_profiles!talent_profile_id (
            id, display_name, first_name, last_name, user_id, profile_kind,
-           booking_terms, deleted_at
+           invitation_email, booking_terms, deleted_at
          )`,
       )
       .eq("tenant_id", tenantId),
     loadWorkspaceTeamMembers(tenantId),
     client.from("agencies").select("settings").eq("id", tenantId).maybeSingle(),
+    loadPendingInvitationEmails(client, tenantId),
   ]);
 
   // A failed read is not an empty workspace. Saying "no one works here" when
@@ -154,6 +160,10 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
 
   const roster: RosterSide[] = rosterRows.map((row) => {
     const p = row.talent_profiles!;
+    // The address this workspace holds for them, and the only one an
+    // invitation from their record may be sent to. It is the same column the
+    // roster editor writes and the roster bridge already reads as `email`.
+    const email = p.invitation_email?.trim() || null;
     // The CONTRACT half is a cross-workspace fact: an exclusive primary in
     // ANOTHER workspace refuses booking here. See lib/people/exclusivity.ts.
     const claim = exclusivity.get(p.id) ?? NOT_EXCLUSIVE;
@@ -178,10 +188,19 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
       talentProfileId: p.id,
       accountId: p.user_id,
       name: displayName(p),
-      email: null,
+      email,
       avatarUrl: null,
       publicProfile: publicProfileHat({ hasRosterRow: true, rosterStatus: row.status }),
       bookable: bookableHat(bookableInputs),
+      // No membership row on this side by definition — but an unaccepted
+      // invitation is a real, different state, and the panel shows a different
+      // control for it. A merged person's membership hat overwrites this.
+      access: accessHat({
+        hasMembership: false,
+        membershipStatus: null,
+        hasAccount: p.user_id != null,
+        hasPendingInvitation: hasPendingInvitationFor(email, pendingInvitations),
+      }),
     };
   });
 
@@ -196,6 +215,9 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
       membershipStatus: member.status,
       // A membership row IS the account: profile_id is the auth user id.
       hasAccount: true,
+      // A live membership outranks any token; the invite path marks the token
+      // redeemed as it creates the row, so this is only ever false here.
+      hasPendingInvitation: false,
     }),
   }));
 
