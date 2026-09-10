@@ -4,7 +4,12 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { isMoneyOwed, type OrderListRow } from "@/lib/orders/orders-list";
 import { loadWorkspaceOrders } from "./orders";
-import type { SalesChipKind, SalesKindFilter } from "@/lib/sales/activity-shape";
+import {
+  distinctChannels,
+  filterSalesRowsByChannel,
+  type SalesChipKind,
+  type SalesKindFilter,
+} from "@/lib/sales/activity-shape";
 
 export type SalesActivityKind = SalesChipKind;
 
@@ -20,10 +25,25 @@ export type SalesActivityRow = {
   createdAt: string;
   href: string;
   owed: boolean;
+  /**
+   * How the sale was made. Only `orders.source_channel` carries this — a
+   * booking/reservation/registration row has no channel column anywhere in
+   * `database.types.ts`, so it is `null` here rather than a guessed value.
+   */
+  sourceChannel: string | null;
 };
 
 export type SalesActivityLoad =
-  | { ok: true; rows: SalesActivityRow[] }
+  | {
+      ok: true;
+      rows: SalesActivityRow[];
+      /**
+       * Distinct channels present for the current KIND filter, before the
+       * channel filter narrows further — so selecting a channel never
+       * collapses the strip down to only the channel already selected.
+       */
+      channels: string[];
+    }
   | { ok: false };
 
 function orderHref(tenantSlug: string, orderId: string): string {
@@ -39,7 +59,11 @@ function mapOrder(tenantSlug: string, row: OrderListRow): SalesActivityRow {
     id: row.id,
     kind: "order",
     customerName: row.customerName,
-    title: row.sourceChannel,
+    // No separate title exists for an order row — the "Order" kind label
+    // carries this column. `sourceChannel` used to be smuggled in here
+    // instead, which hid the channel behind the same cell "Kind" reads and
+    // made "how it was sold" unfilterable.
+    title: null,
     status: row.status,
     totalCents: row.totalCents,
     collectedCents: row.collectedCents,
@@ -47,6 +71,7 @@ function mapOrder(tenantSlug: string, row: OrderListRow): SalesActivityRow {
     createdAt: row.createdAt,
     href: orderHref(tenantSlug, row.id),
     owed: isMoneyOwed(row),
+    sourceChannel: row.sourceChannel,
   };
 }
 
@@ -57,7 +82,7 @@ function mapOrder(tenantSlug: string, row: OrderListRow): SalesActivityRow {
 export async function loadWorkspaceSalesActivity(
   tenantId: string,
   tenantSlug: string,
-  opts: { kind?: SalesKindFilter } = {},
+  opts: { kind?: SalesKindFilter; channel?: string } = {},
 ): Promise<SalesActivityLoad> {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false };
@@ -140,6 +165,7 @@ export async function loadWorkspaceSalesActivity(
       createdAt: row.created_at,
       href: bookingHref(tenantSlug, row.id),
       owed: totalCents > 0 && row.payment_status !== "paid",
+      sourceChannel: null,
     });
   }
 
@@ -163,6 +189,7 @@ export async function loadWorkspaceSalesActivity(
       createdAt: row.created_at,
       href: `/${tenantSlug}/admin/tables`,
       owed: false,
+      sourceChannel: null,
     });
   }
 
@@ -184,6 +211,7 @@ export async function loadWorkspaceSalesActivity(
       createdAt: row.created_at,
       href: `/${tenantSlug}/admin/sessions`,
       owed: false,
+      sourceChannel: null,
     });
   }
 
@@ -191,6 +219,10 @@ export async function loadWorkspaceSalesActivity(
   let rows = [...orders, ...extras];
   const kind = opts.kind ?? "all";
   if (kind !== "all") rows = rows.filter((row) => row.kind === kind);
+  // Channels available for THIS kind filter, computed before the channel
+  // filter itself narrows the rows further.
+  const channels = distinctChannels(rows);
+  rows = filterSalesRowsByChannel(rows, opts.channel ?? "all");
   rows.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
-  return { ok: true, rows };
+  return { ok: true, rows, channels };
 }
