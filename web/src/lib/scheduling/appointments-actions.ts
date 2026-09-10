@@ -46,6 +46,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
+import { staffMayWriteHours } from "@/lib/scheduling/hours-edit-policy";
 import { rescheduleWithNames } from "@/lib/scheduling/reschedule-desk";
 import {
   describeRescheduleRefusal,
@@ -143,6 +144,17 @@ export async function loadAppointments(tenantId: string): Promise<AppointmentsRe
         .select(columns)
         .eq("tenant_id", tenantId)
         .is("starts_at", null)
+        // AN ORDER'S MONEY SHELL IS NOT AN APPOINTMENT. `booking_transactions`
+        // refuses a row without a booking, so every counter sale and every
+        // pizza bought on the menu writes an `agency_bookings` row with no
+        // time and no inquiry to anchor its payment (`booking-shell.ts`,
+        // `purchase.ts`). Read as appointments, sixty "POS sale" rows filled
+        // "No date agreed yet" and buried the one request that actually had
+        // no date yet. An undated booking belongs here when it came from a
+        // conversation (a request whose time is still being agreed) or was
+        // opened by hand with no order behind it; a shell that exists only
+        // because money moved is the Orders page's row, not this board's.
+        .or("order_id.is.null,source_inquiry_id.not.is.null")
         .order("created_at", { ascending: false })
         .limit(100),
     ]);
@@ -489,6 +501,14 @@ export type BookingHoursProposalRow = {
   timezone: string | null;
   source: string;
   proposedAt: string | null;
+  /**
+   * True when this person sets their own hours, so the workspace cannot
+   * accept for them. `hours-edit-policy` lets staff write hours only for a
+   * resource or an unclaimed person; a claimed talent decides in their own
+   * Calendar. The banner used to offer "Accept these hours" for everyone and
+   * refuse on the click, which is a button that lies until pressed.
+   */
+  selfManaged: boolean;
 };
 
 export type BookingHoursProposalsResult =
@@ -544,7 +564,10 @@ export async function loadBookingHoursProposals(
     const [{ data: hoursData, error: hoursErr }, { data: profileData, error: profileErr }] =
       await Promise.all([
         admin.from("talent_booking_hours").select("talent_profile_id").in("talent_profile_id", ids),
-        admin.from("talent_profiles").select("id, display_name, first_name").in("id", ids),
+        admin
+          .from("talent_profiles")
+          .select("id, display_name, first_name, user_id, profile_kind")
+          .in("id", ids),
       ]);
     if (hoursErr) {
       logServerError("scheduling.loadBookingHoursProposals/hours", hoursErr);
@@ -557,22 +580,37 @@ export async function loadBookingHoursProposals(
     const settled = new Set(
       ((hoursData ?? []) as Array<{ talent_profile_id: string }>).map((h) => h.talent_profile_id),
     );
-    const names = new Map(
+    const profiles = new Map(
       ((profileData ?? []) as Array<{
         id: string;
         display_name: string | null;
         first_name: string | null;
-      }>).map((p) => [p.id, p.display_name?.trim() || p.first_name?.trim() || ""]),
+        user_id: string | null;
+        profile_kind: string | null;
+      }>).map((p) => [
+        p.id,
+        {
+          name: p.display_name?.trim() || p.first_name?.trim() || "",
+          // A profile that could not be read is treated as self-managed:
+          // offering an accept the policy will refuse is the defect, and
+          // withholding one it would allow only costs a click elsewhere.
+          selfManaged: !staffMayWriteHours({
+            profileKind: p.profile_kind ?? "person",
+            userId: p.user_id,
+          }),
+        },
+      ]),
     );
 
     const proposals = rows
       .filter((r) => !settled.has(r.talent_profile_id))
       .map((r) => ({
         talentProfileId: r.talent_profile_id,
-        personName: names.get(r.talent_profile_id) || "Untitled",
+        personName: profiles.get(r.talent_profile_id)?.name || "Untitled",
         timezone: r.timezone?.trim() || null,
         source: r.source,
         proposedAt: r.proposed_at,
+        selfManaged: profiles.get(r.talent_profile_id)?.selfManaged ?? true,
       }));
 
     return { ok: true, proposals, defaultTimezone };

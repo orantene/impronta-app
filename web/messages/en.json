@@ -1403,7 +1403,10 @@
       "requestInstead": "Request this time instead",
       "pickTimeFirst": "Pick a time first, then confirm.",
       "notBookableOnline": "This service is not set up for online booking yet. Send a request instead.",
-      "confirmFailed": "We could not confirm that booking. Please try again."
+      "confirmFailed": "We could not confirm that booking. Please try again.",
+      "noHours": "Nobody has set booking hours for this service yet, so there is nothing to book online here. Send a request instead.",
+      "closed": "Closed on every day in the next two weeks. Try a later date, or send a request.",
+      "fullyBooked": "Every open time in the next two weeks is taken. Try again later, or send a request."
     },
     "instantBook": {
       "guestName": "Your name",
@@ -12608,6 +12611,11 @@
         "submitting": "Scheduling...",
         "created": "Scheduled, with seats for {count} tiers.",
         "loadFailed": "Could not load events."
+      },
+      "nights": {
+        "title": "Nights on their own",
+        "help": "Classes scheduled for a single date rather than on a repeating series. Each one has its own seats.",
+        "untitled": "Untitled night"
       }
     },
     "adminAppointments": {
@@ -12757,7 +12765,8 @@
         "source": {
           "publish_default": "written when an offering was published",
           "staff_suggestion": "suggested by a colleague"
-        }
+        },
+        "selfManaged": "This person sets their own hours. They will find these proposed hours on their own Calendar page and can accept them there; the public booking page says there are no hours until they do."
       },
       "state": {
         "draft": "Draft",

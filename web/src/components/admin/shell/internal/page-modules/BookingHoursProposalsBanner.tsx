@@ -114,6 +114,16 @@ export function BookingHoursProposalsBanner({
             {t(`${K}.source.${row.source === "staff_suggestion" ? "staff_suggestion" : "publish_default"}`)}
           </span>
 
+          {row.selfManaged ? (
+            // No button. A claimed person decides their own hours in their
+            // Calendar; the workspace can only say so, and where.
+            <p
+              data-testid="booking-hours-proposal-self-managed"
+              className="mt-[6px] text-[13px] leading-[1.5] text-admin-ink-muted"
+            >
+              {t(`${K}.selfManaged`)}
+            </p>
+          ) : (
           <div className="mt-[8px] flex flex-wrap items-end gap-[8px]">
             <span className="block">
               <label className="block text-[12.5px] text-admin-ink-muted">
@@ -138,6 +148,7 @@ export function BookingHoursProposalsBanner({
               {busyId === row.talentProfileId ? t(`${K}.accepting`) : t(`${K}.accept`)}
             </button>
           </div>
+          )}
 
           {message?.id === row.talentProfileId ? (
             <p

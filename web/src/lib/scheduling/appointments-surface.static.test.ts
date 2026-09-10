@@ -29,6 +29,8 @@ const PAGE_MODULES = join(
   "src/components/admin/shell/internal/page-modules",
 );
 const read = (file: string) => readFileSync(join(PAGE_MODULES, file), "utf8");
+/** A library module, for the one fact that lives in the loader rather than the screen. */
+const readLib = (file: string) => readFileSync(join(WEB_ROOT, "src/lib", file), "utf8");
 
 /** Source with its prose removed, so a comment cannot satisfy a code check. */
 function codeOnly(src: string): string {
@@ -194,11 +196,59 @@ test("the Sessions view offers the door to the queue on a class that is full", (
   // waitlist belongs. Without it the waitlist was a tab you had to already
   // know about.
   const src = codeOnly(read("SessionsPage.tsx"));
-  assert.match(src, /onOpenWaitlist\(o\.id\)/, "a full occurrence offers no way onto its queue");
+  assert.match(
+    src,
+    /onOpenWaitlist\(occurrence\.id\)/,
+    "a full occurrence offers no way onto its queue",
+  );
   assert.match(
     src,
     /seatsRemaining !== null/,
     "the full check treats an unread seat count as full",
+  );
+  // ONE row renderer, so the door cannot exist on one kind of night and not
+  // the other. It was written twice once, and the half without it was the
+  // standalone night — the exact class whose queue could then never be
+  // started. A second copy of the button is a second place for that to recur.
+  const doors = src.match(/data-testid="session-open-waitlist"/g) ?? [];
+  assert.equal(doors.length, 1, "the waitlist door is drawn in more than one place");
+  for (const list of [/s\.occurrences\.map/, /nights\.map/]) {
+    assert.match(src, list, `a list of occurrences is missing: ${list}`);
+  }
+  const rows = src.match(/<OccurrenceRow[\s\S]*?\/>/g) ?? [];
+  assert.equal(rows.length, 2, "series nights and one-off nights are not both drawn as rows");
+  for (const row of rows) {
+    assert.match(
+      row,
+      /onOpenWaitlist=\{onOpenWaitlist\}/,
+      "an occurrence row is drawn without the door to its queue",
+    );
+  }
+});
+
+test("a night that belongs to no series is still on the schedule", () => {
+  // `loadSchedule` returned `{ series: [] }` the moment a workspace had no
+  // `session_series` rows, and grouped every occurrence UNDER a series. A
+  // night created by "Schedule a night" on this very page has `series_id =
+  // NULL`, so the operator was told it was created and then shown "No series
+  // yet" over a class that exists, has seats and is on sale.
+  const loader = codeOnly(readLib("sessions/schedule-actions.ts"));
+  assert.ok(
+    !/rows\.length === 0\) return \{ ok: true, series: \[\] \}/.test(loader),
+    "the loader still short-circuits before it reads any session",
+  );
+  assert.match(loader, /nights: ScheduleNight\[\]/, "the loader returns no one-off nights");
+  assert.match(
+    loader,
+    /\.filter\(\(s\) => !s\.series_id\)/,
+    "nothing selects the sessions that no series claims",
+  );
+
+  const page = codeOnly(read("SessionsPage.tsx"));
+  assert.match(
+    page,
+    /series\.length === 0 && nights\.length === 0/,
+    "the empty state can still cover a schedule that has one-off nights in it",
   );
 });
 
@@ -311,4 +361,55 @@ test("accepting a place goes through the action that reserves the seat", () => {
     /holding === "seat" \? "accepted" : "offered"/,
     "the stale-screen guard must send the status the row was showing",
   );
+});
+
+test("an order's money shell is not filed under 'No date agreed yet'", () => {
+  // `booking_transactions` refuses a row with no booking, so every counter
+  // sale and every menu pizza writes an undated `agency_bookings` row with an
+  // order and no inquiry. Read as appointments, sixty "POS sale" rows buried
+  // the one request whose date really was still open. The undated read must
+  // keep the rows that came from a conversation or were opened by hand, and
+  // drop the ones that exist only because money moved.
+  const loader = codeOnly(readLib("scheduling/appointments-actions.ts"));
+  const undated = loader.indexOf('.is("starts_at", null)');
+  assert.ok(undated >= 0, "the board no longer reads the undated bookings at all");
+  const clause = loader.slice(undated, loader.indexOf(".limit(", undated));
+  assert.match(
+    clause,
+    /\.or\("order_id\.is\.null,source_inquiry_id\.not\.is\.null"\)/,
+    "the undated read still lists every order's money shell as an appointment",
+  );
+});
+
+test("a refresh that was overtaken does not paint over the one that overtook it", () => {
+  // Every write on the waitlist card refreshes the page, and a refresh reads
+  // the seats of every upcoming class, so two writes in a row are two reads
+  // in flight. Seen in a browser: "they took it" said "Beto has the place"
+  // while the row went back to "Offered", because the promote's slower read
+  // landed after the accept's. The page must number its refreshes and drop
+  // any answer that is not the latest one asked for.
+  const src = codeOnly(read("AppointmentsPage.tsx"));
+  const issued = src.indexOf("refreshTicket.current = ticket");
+  const awaited = src.indexOf("await Promise.all([");
+  const guard = src.indexOf("if (refreshTicket.current !== ticket) return;", awaited);
+  assert.ok(issued >= 0, "the refresh does not take a ticket");
+  assert.ok(issued < awaited && awaited < guard, "the ticket is not checked after the reads return");
+  const firstPaint = src.indexOf("setRows(", awaited);
+  assert.ok(guard < firstPaint, "state is painted before the ticket is checked");
+});
+
+test("the proposals banner offers no accept for a person who sets their own hours", () => {
+  // `hours-edit-policy` refuses a staff write for a claimed person. The banner
+  // offered "Accept these hours" to everyone and let the click discover the
+  // refusal. The loader now says who is self-managed, from the same policy
+  // function the refusal uses, and the banner says so instead of a button.
+  const loader = codeOnly(readLib("scheduling/appointments-actions.ts"));
+  assert.match(loader, /staffMayWriteHours\(\{/, "the loader does not consult the hours-edit policy");
+  assert.match(loader, /selfManaged:/, "the proposal row carries no self-managed flag");
+  const banner = codeOnly(read("BookingHoursProposalsBanner.tsx"));
+  const branch = banner.indexOf("row.selfManaged ?");
+  const sentence = banner.indexOf('data-testid="booking-hours-proposal-self-managed"', branch);
+  const button = banner.indexOf('data-testid="booking-hours-proposal-accept"', branch);
+  assert.ok(branch >= 0, "the banner does not branch on selfManaged");
+  assert.ok(sentence > branch && button > sentence, "the self-managed sentence must replace the button, not sit beside it");
 });

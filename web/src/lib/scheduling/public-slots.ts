@@ -20,17 +20,24 @@ export function clampPublicSlotDays(raw: unknown): number {
 
 const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-/** Parse ?from=YYYY-MM-DD or an ISO instant. Missing / garbage → now. */
+/**
+ * Parse ?from=YYYY-MM-DD or an ISO instant. Missing / garbage → now.
+ *
+ * NEVER EARLIER THAN NOW. The public picker sends today's date, which parses
+ * to midnight UTC, and `generateSlots` counts notice from `from` — so at
+ * 15:24Z the page offered 15:00Z, and a guest could confirm a manicure that
+ * had already started. A day that is today floors to this instant; a day
+ * that is still to come keeps its midnight; the past is not for sale.
+ */
 export function parsePublicSlotFrom(raw: string | null | undefined, now: Date = new Date()): Date {
   if (raw == null || raw.trim() === "") return now;
   const trimmed = raw.trim();
   const ymd = YMD_RE.exec(trimmed);
-  if (ymd) {
-    const utc = new Date(Date.UTC(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3])));
-    return Number.isNaN(utc.getTime()) ? now : utc;
-  }
-  const instant = new Date(trimmed);
-  return Number.isNaN(instant.getTime()) ? now : instant;
+  const parsed = ymd
+    ? new Date(Date.UTC(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3])))
+    : new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return now;
+  return parsed.getTime() < now.getTime() ? now : parsed;
 }
 
 /**

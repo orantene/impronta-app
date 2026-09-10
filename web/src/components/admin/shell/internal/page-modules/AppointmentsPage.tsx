@@ -30,7 +30,7 @@
  * classes only; inline styles are frozen under components/admin/shell.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { useAdminShell } from "../state";
@@ -86,6 +86,15 @@ export function AppointmentsPage() {
   const [defaultTimezone, setDefaultTimezone] = useState("UTC");
   const [timeZone, setTimeZone] = useState("UTC");
   const [error, setError] = useState<string | null>(null);
+  // THE LAST REFRESH ASKED FOR IS THE ONLY ONE ALLOWED TO PAINT. Every write on
+  // the waitlist card calls `refresh`, and a read here is not quick: the desk
+  // asks the engine for the seats of every upcoming class. So "offer the
+  // place" started a read, "they took it" started a second, and the FIRST
+  // came back last and painted the row back to "Offered" over a seat the
+  // database had already committed. Seen in a browser: the notice said "Beto
+  // has the place" under a row that still offered it. A stale answer is
+  // dropped by comparing its ticket to the latest one issued.
+  const refreshTicket = useRef(0);
 
   // A rail link changes the query without remounting the page module, so the
   // tab follows the URL rather than only seeding from it.
@@ -96,6 +105,8 @@ export function AppointmentsPage() {
 
   const refresh = useCallback(async () => {
     if (!tenantId) return;
+    const ticket = refreshTicket.current + 1;
+    refreshTicket.current = ticket;
     setError(null);
     // A REJECTED action must not leave the page loading for ever. Without this
     // catch the promise rejects, the state stays null, and the screen shows
@@ -107,6 +118,7 @@ export function AppointmentsPage() {
         loadSessionWaitlists(tenantId, focusSessionId),
         loadBookingHoursProposals(tenantId),
       ]);
+      if (refreshTicket.current !== ticket) return;
 
       if (board.ok) {
         setRows(board.rows);
@@ -139,6 +151,7 @@ export function AppointmentsPage() {
         setError((prev) => prev ?? pending.error);
       }
     } catch (err) {
+      if (refreshTicket.current !== ticket) return;
       setRows([]);
       setWaitlists([]);
       setUnreadableSessions(0);

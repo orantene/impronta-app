@@ -1,0 +1,15 @@
+Browser target: http://qa-journeys.localhost:3131
+  = `next build` (exit 0) + `next start -p 3131` of this worktree, env from .env.capacity-isolated.local,
+    VERCEL_ENV=preview so /api/dev/signin answers as on the preview host.
+  Host `qa-journeys.localhost` is registered in agency_domains (isolated db) for tenant
+  33333333-3333-4333-8333-333333333333 (qa-journeys), the same workspace staging-qa-journeys.tulala.digital serves.
+Database: Supabase branch qa-journeys, project ref fxlankepwnvelxjrahwk (read and written).
+Production pluhdapdnuiulvxmyspd: never written; npm run db:push never run.
+
+Why not https://staging-qa-journeys.tulala.digital:
+  answers 200 with the bypass header, but serves d51227f591a719bcc3925ff4d9bce389c1083123
+  (deployment dpl_CHXyaM8J6fe6tjWB2SetmuAzSy5F, READY, aliases staging-qa-*). The branch head
+  deca2efc86b3382baed31103f069e3de1b60c8a0 failed to build on Vercel three times
+  (dpl_GwGHktUW29MRvrFYPzfTbVkjqQ3a, dpl_2Vot2V7RvvFN8AKy6PCWykP2WpcK, dpl_3h1NdTujVMzdCvCzDCw15fiPN2SJ:
+  BUILD_EXCEEDED_MAXIMUM_TIME, ~46 min each, log ends at "Creating an optimized production build").
+  None of the fixes in this slice can be on that host until the branch builds there.

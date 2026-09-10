@@ -91,8 +91,31 @@ export type ScheduleSeries = {
   skipped: SkippedOccurrence[];
 };
 
+/**
+ * A night that belongs to no series — what "Schedule a night" on this very
+ * screen creates.
+ *
+ * THE DEFECT THIS TYPE CLOSES. `loadSchedule` read `session_series` and
+ * returned `{ series: [] }` the moment there were none, and every occurrence
+ * it did return was reached by grouping sessions UNDER a series. A one-off
+ * night has `series_id = NULL`, so a workspace could schedule a class through
+ * the form at the top of this page, get "the night was created", refresh, and
+ * read "No series yet" over a session that exists, has seats, and is on sale.
+ * Worse, the door to a full class's waitlist hangs off an occurrence row, so
+ * for a standalone night that queue could never be started at all.
+ *
+ * It is NOT modelled as a one-occurrence series. A series has a weekly
+ * recurrence, a horizon and a materialiser refusal; a night has none of those,
+ * and inventing them would put a recurrence on screen that nothing will ever
+ * repeat.
+ */
+export type ScheduleNight = ScheduleOccurrence & {
+  title: string | null;
+  venueName: string | null;
+};
+
 export type ScheduleResult =
-  | { ok: true; series: ScheduleSeries[] }
+  | { ok: true; series: ScheduleSeries[]; nights: ScheduleNight[] }
   | { ok: false; error: string };
 
 function timeToHhmm(value: unknown): string {
@@ -140,15 +163,18 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
       logServerError("sessions.loadSchedule.series", seriesError);
       return { ok: false, error: "Could not load the schedule." };
     }
+    // NO EARLY RETURN ON "no series". It used to be here, and it is the whole
+    // reason a night scheduled through the form on this page was invisible on
+    // it: the sessions read below never ran for a workspace whose classes are
+    // all one-offs.
     const rows = seriesRows ?? [];
-    if (rows.length === 0) return { ok: true, series: [] };
 
     const now = new Date();
     const horizonIso = new Date(now.getTime() + DEFAULT_HORIZON_DAYS * 86_400_000).toISOString();
 
     const { data: sessionRows, error: sessionError } = await admin
       .from("sessions")
-      .select("id, series_id, venue_id, starts_at, ends_at, status")
+      .select("id, series_id, venue_id, title, starts_at, ends_at, status")
       .eq("tenant_id", tenantId)
       .gte("starts_at", now.toISOString())
       .lte("starts_at", horizonIso)
@@ -183,8 +209,42 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
       }
     }
 
+    // Seats for EVERY session in the window, once, keyed by id. Built here
+    // rather than inside the series loop because a one-off night is in no
+    // series and would otherwise never have its seats read at all.
+    //
+    // Remaining seats come from the narrow public reader — one integer, never
+    // a row, so this surface cannot become a way to enumerate who holds what.
+    const occurrenceById = new Map<string, ScheduleOccurrence>();
+    for (const s of sessions) {
+      const pool = poolBySession.get(String(s.id));
+      let remaining: number | null = null;
+      if (pool) {
+        const { data: rem, error: remError } = await admin.rpc("capacity_remaining_public", {
+          p_pool_id: pool.id,
+          p_starts_at: String(s.starts_at),
+          p_ends_at: String(s.ends_at),
+        });
+        if (remError) logServerError("sessions.loadSchedule.remaining", remError);
+        else if (typeof rem === "number") remaining = rem;
+      }
+      occurrenceById.set(String(s.id), {
+        id: String(s.id),
+        startsAt: String(s.starts_at),
+        endsAt: String(s.ends_at),
+        status: String(s.status),
+        seatsTotal: pool ? pool.unitsTotal : null,
+        seatsRemaining: remaining,
+      });
+    }
+
     const venueIds = [
-      ...new Set(rows.map((r) => r.venue_id).filter((v): v is string => typeof v === "string")),
+      ...new Set(
+        [
+          ...rows.map((r) => r.venue_id),
+          ...sessions.map((s) => s.venue_id),
+        ].filter((v): v is string => typeof v === "string"),
+      ),
     ];
     const venueNames = new Map<string, string>();
     if (venueIds.length > 0) {
@@ -201,30 +261,9 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
       const seriesId = String(row.id);
       const mine = sessions.filter((s) => String(s.series_id ?? "") === seriesId);
 
-      // Remaining seats come from the narrow public reader — one integer, never
-      // a row, so this surface cannot become a way to enumerate who holds what.
-      const occurrences: ScheduleOccurrence[] = [];
-      for (const s of mine) {
-        const pool = poolBySession.get(String(s.id));
-        let remaining: number | null = null;
-        if (pool) {
-          const { data: rem, error: remError } = await admin.rpc("capacity_remaining_public", {
-            p_pool_id: pool.id,
-            p_starts_at: String(s.starts_at),
-            p_ends_at: String(s.ends_at),
-          });
-          if (remError) logServerError("sessions.loadSchedule.remaining", remError);
-          else if (typeof rem === "number") remaining = rem;
-        }
-        occurrences.push({
-          id: String(s.id),
-          startsAt: String(s.starts_at),
-          endsAt: String(s.ends_at),
-          status: String(s.status),
-          seatsTotal: pool ? pool.unitsTotal : null,
-          seatsRemaining: remaining,
-        });
-      }
+      const occurrences: ScheduleOccurrence[] = mine
+        .map((s) => occurrenceById.get(String(s.id)))
+        .filter((o): o is ScheduleOccurrence => o !== undefined);
 
       const series: SeriesInput = {
         id: seriesId,
@@ -291,7 +330,22 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
       });
     }
 
-    return { ok: true, series: out };
+    // The one-off nights. Every scheduled session in the window that no series
+    // claims — which is every night the form on this page has ever created.
+    const nights: ScheduleNight[] = sessions
+      .filter((s) => !s.series_id)
+      .map((s) => {
+        const occurrence = occurrenceById.get(String(s.id));
+        if (!occurrence) return null;
+        return {
+          ...occurrence,
+          title: typeof s.title === "string" && s.title.trim() ? s.title.trim() : null,
+          venueName: s.venue_id ? venueNames.get(String(s.venue_id)) ?? null : null,
+        };
+      })
+      .filter((n): n is ScheduleNight => n !== null);
+
+    return { ok: true, series: out, nights };
   } catch (error) {
     logServerError("sessions.loadSchedule", error);
     return { ok: false, error: "Could not load the schedule." };
@@ -438,11 +492,16 @@ export async function scheduleSession(
     let knownPoolKeys: string[] = [];
     let offeringId: string | null = null;
     let venueId: string | null = input.venueId ?? null;
+    // A night scheduled for an event is named by the event. The form has no
+    // title box, so without this every night it created read "Untitled night"
+    // on the very schedule that lists it, and an operator with three events
+    // could not tell which night was whose.
+    let eventTitle: string | null = null;
 
     if (input.eventId) {
       const { data: event, error: eventError } = await admin
         .from("events")
-        .select("id, offering_id, venue_id")
+        .select("id, offering_id, venue_id, title")
         .eq("id", input.eventId)
         .eq("tenant_id", input.tenantId)
         .maybeSingle();
@@ -456,6 +515,7 @@ export async function scheduleSession(
 
       offeringId = event.offering_id ? String(event.offering_id) : null;
       venueId = venueId ?? (event.venue_id ? String(event.venue_id) : null);
+      eventTitle = typeof event.title === "string" && event.title.trim() ? event.title.trim() : null;
 
       if (offeringId) {
         const { data: variants, error: variantError } = await admin
@@ -487,7 +547,7 @@ export async function scheduleSession(
         eventId: input.eventId ?? null,
         venueId,
         offeringId,
-        title: input.title?.trim() || null,
+        title: input.title?.trim() || eventTitle,
         startsAt: plan.startsAt,
         endsAt: plan.endsAt,
       },

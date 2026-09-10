@@ -8,6 +8,9 @@ import {
   releaseReservationHold,
 } from "@/lib/scheduling/reservation-hold";
 import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
+import { appointmentWindowFor } from "@/lib/scheduling/appointment-window";
+import { openPurchaseBooking } from "@/lib/orders/purchase-booking";
+import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import {
   resolvePurchasePolicy,
 } from "@/lib/orders/purchase-policy";
@@ -592,61 +595,33 @@ export async function createPurchase(
 
     // ── 8/9. The payment leg.
     //
-    // WHY A BOOKING EXISTS HERE AT ALL. `booking_transactions.booking_id` is
-    // NOT NULL, so a payment cannot exist without a booking — that is the
-    // structural reason both old engines create a booking for a taco, and it is
-    // not incidental. Making it nullable means reworking
-    // `idx_booking_transactions_booking_active` and `booking_payouts_unique_leg`,
-    // which are the indexes this track deliberately left alone.
-    //
-    // WHAT IS DIFFERENT FROM THE ENGINES: the booking is created with NO
-    // INQUIRY. `agency_bookings.source_inquiry_id` is nullable — only
-    // `tenant_id` is required — so a purchase gets its money anchor without
-    // being dragged through the inquiry state machine. That deletes the whole
-    // reason menu-order-engine force-writes `status: 'approved'` under the
-    // service role twice, re-reads `version` five times, and stamps
-    // `starts_at = ends_at = now()` as a calendar placeholder.
-    //
-    // The ORDER is the commercial record; the booking is the operations anchor
-    // the money spine still requires. When Finance makes `booking_id` nullable,
-    // this block is the one place to change.
+    // The booking row is the operations anchor the money spine requires, and
+    // the row the Appointments board reads. Whether one exists and what time
+    // it carries is decided in `purchase-booking.ts`; the money leg below only
+    // needs its id.
     let transactionId: string | null = null;
     let bookingId: string | null = null;
 
-    if (collectCents > 0) {
-      const { data: bookingRow, error: bookingErr } = await admin
-        .from("agency_bookings")
-        .insert({
-          // `tenant_id` is the ONLY NOT NULL column on agency_bookings, and
-          // omitting it is how the first live run failed with "Could not open
-          // the payment". The unit test's fake returned an id regardless, so
-          // this was invisible until the pipeline met a real database.
-          tenant_id: input.tenantId,
-          tenant_id_snapshot: input.tenantId,
-          // Set BEFORE insert on purpose: `bookings_write_order` fires AFTER
-          // INSERT and returns early when `order_id` is already present, so
-          // stamping it here is what stops the trigger writing a SECOND order
-          // for the order we just made.
-          order_id: createdOrderId,
-          source_inquiry_id: null,
-          title: priced.lines[0]?.label?.slice(0, 120) ?? "Order",
-          status: "confirmed",
-          contact_name: input.contact.displayName ?? null,
-          contact_email: input.contact.email ?? null,
-          contact_phone: input.contact.phone ?? null,
-          total_client_revenue: priced.subtotalCents / 100,
-          currency_code: "USD",
-        })
-        .select("id")
-        .single();
+    const appointmentWindow = appointmentWindowFor({
+      reservation: input.reservation ?? null,
+      holds: input.holds ?? null,
+    });
+    const anchor = await openPurchaseBooking(admin, {
+      tenantId: input.tenantId,
+      orderId: createdOrderId,
+      title: priced.lines[0]?.label ?? "Order",
+      collectCents,
+      window: appointmentWindow,
+      subtotalCents: priced.subtotalCents,
+      contact: input.contact,
+    });
+    if (!anchor.ok) {
+      await unwind("booking insert failed");
+      return { ok: false, reason: "engine_error", error: anchor.error };
+    }
+    bookingId = anchor.bookingId;
 
-      if (bookingErr || !bookingRow) {
-        logServerError("orders.createPurchase/booking", bookingErr);
-        await unwind("booking insert failed");
-        return { ok: false, reason: "engine_error", error: "Could not open the payment." };
-      }
-      bookingId = (bookingRow as { id: string }).id;
-
+    if (collectCents > 0 && bookingId) {
       const { data: txnRow, error: txnErr } = await admin
         .from("booking_transactions")
         .insert({
@@ -705,6 +680,28 @@ export async function createPurchase(
     if (!settlement.ok) {
       await unwind(settlement.note);
       return { ok: false, reason: settlement.reason };
+    }
+
+    // THE PERSON IS COMMITTED WHEN THE TIME IS AGREED. `settleOrHoldOrder`
+    // commits the capacity legs of a settled order; the talent holds this
+    // purchase placed were still carrying their fifteen-minute expiry, so a
+    // confirmed appointment held the chair and lost the person a quarter of
+    // an hour later. Two cases agree a time now: an order that owes nothing
+    // (settled), and one the buyer will pay AT the appointment (pay in
+    // person, pending with no deadline). A card checkout still in flight is
+    // neither; its holds keep their TTL until `completeOrderForTransaction`
+    // commits them, so an abandoned checkout frees the person. Refused, not
+    // logged, for the same reason capacity's commit refuses on this path:
+    // nothing has been charged yet, so refusing is honest and cheap.
+    if (settlement.settled || policy.payInPerson) {
+      const kept = await commitOrderTalentHolds(admin, {
+        tenantId: input.tenantId,
+        orderId: createdOrderId,
+      });
+      if (!kept.ok) {
+        await unwind(`talent holds could not be committed for a settled order: ${kept.error}`);
+        return { ok: false, reason: "engine_error", error: "Could not keep that time." };
+      }
     }
 
     const { error: statusErr } = await admin
