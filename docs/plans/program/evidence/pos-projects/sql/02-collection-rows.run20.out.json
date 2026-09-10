@@ -1,0 +1,13 @@
+[
+ {
+  "transaction_id": "e3cdab90-6b5f-4a83-8871-dcd462015280",
+  "order_id": "e1b50d38-f288-41d5-b3ab-d4cb4df3e0ce",
+  "status": "paid",
+  "gross_amount_cents": "30000",
+  "provider": "manual",
+  "paid_via": "cash",
+  "shift_id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+  "operation_key": null,
+  "created_at": "2026-09-10T21:57:20.809Z"
+ }
+]

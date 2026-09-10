@@ -111,6 +111,10 @@ type Collected = {
 
 const VIEWS: readonly ProjectsModeView[] = ["collect", "projects", "receipts"];
 
+function isProjectsModeView(id: string): id is ProjectsModeView {
+  return (VIEWS as readonly string[]).includes(id);
+}
+
 function shortId(id: string): string {
   return id.slice(0, 8);
 }
@@ -843,7 +847,7 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
         navLabel={mode.rail.label}
         activeDestination={view}
         onSelectDestination={(id) => {
-          const next = VIEWS.includes(id as ProjectsModeView) ? (id as ProjectsModeView) : "collect";
+          const next = isProjectsModeView(id) ? id : "collect";
           setView(next);
           setRefusal(null);
           setCollectOpen(false);

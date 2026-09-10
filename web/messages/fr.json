@@ -879,8 +879,8 @@
             "desc": "Listes et presence pour un cours ou une session."
           },
           "projects": {
-            "label": "Projets",
-            "desc": "Un tableau de projets et les factures."
+            "label": "Encaisser",
+            "desc": "Trouvez un client ou un projet, voyez ce qui est dû, encaissez le solde ou un acompte."
           }
         },
         "retry": "Réessayer",
@@ -1307,7 +1307,7 @@
           "floor": "Tables",
           "door": "Entrée",
           "classes": "Cours",
-          "projects": "Projets",
+          "projects": "Encaisser",
           "notBuilt": "Ce mode n'a pas encore d'écran."
         },
         "gate": {
@@ -1337,12 +1337,12 @@
       "counterOffBody": "Cet espace de travail a désactivé le comptoir dans les Réglages, sous Point de vente. Réactivez-le là-bas et cette caisse rouvrira.",
       "projects": {
         "rail": {
-          "label": "Projets",
+          "label": "Encaisser",
           "collect": "Encaisser",
           "projects": "Projets",
           "receipts": "Reçus"
         },
-        "title": "Projets",
+        "title": "Encaisser",
         "intro": "Trouvez le client ou le projet, voyez ce qui est dû et d'où vient le montant, puis encaissez-le.",
         "search": {
           "label": "Client ou projet",

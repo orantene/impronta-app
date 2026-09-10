@@ -352,6 +352,10 @@ export default async function PosPage({
           locale={locale}
           workspaceName={workspaceName}
           posPath={await currentAdminPath(tenantSlug)}
+        />
+      </>
+    );
+  }
 
   if (mode === "projects") {
     // The Projects mode: a sibling of the counter over the same engine. Its

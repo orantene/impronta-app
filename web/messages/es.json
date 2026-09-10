@@ -4795,8 +4795,8 @@
             "desc": "Listas y asistencia de una clase o sesión."
           },
           "projects": {
-            "label": "Proyectos",
-            "desc": "Un tablero de proyectos y facturas."
+            "label": "Cobrar",
+            "desc": "Busca un cliente o proyecto, mira lo que se debe y cobra el saldo o un anticipo."
           }
         },
         "retry": "Reintentar",
@@ -12364,7 +12364,7 @@
           "floor": "Mesas",
           "door": "Puerta",
           "classes": "Clases",
-          "projects": "Proyectos",
+          "projects": "Cobrar",
           "notBuilt": "Este modo todavía no tiene una pantalla."
         },
         "gate": {
@@ -12394,12 +12394,12 @@
       "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse.",
       "projects": {
         "rail": {
-          "label": "Proyectos",
+          "label": "Cobrar",
           "collect": "Cobrar",
           "projects": "Proyectos",
           "receipts": "Recibos"
         },
-        "title": "Proyectos",
+        "title": "Cobrar",
         "intro": "Busca el cliente o el proyecto, mira lo que se debe y de dónde sale la cifra, y cóbralo.",
         "search": {
           "label": "Cliente o proyecto",

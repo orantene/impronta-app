@@ -4795,8 +4795,8 @@
             "desc": "Rosters and attendance for a class or session."
           },
           "projects": {
-            "label": "Projects",
-            "desc": "A project board and invoices."
+            "label": "Collect",
+            "desc": "Find a client or project, see what is owed, collect a balance or a deposit."
           }
         },
         "retry": "Try again",
@@ -12364,7 +12364,7 @@
           "floor": "Tables",
           "door": "Door",
           "classes": "Classes",
-          "projects": "Projects",
+          "projects": "Collect",
           "notBuilt": "This mode does not have a screen yet."
         },
         "gate": {
@@ -12394,12 +12394,12 @@
       "counterOffBody": "This workspace has turned the counter off in Settings, under Point of sale. Switch it back on there and this register will open again.",
       "projects": {
         "rail": {
-          "label": "Projects",
+          "label": "Collect",
           "collect": "Collect",
           "projects": "Projects",
           "receipts": "Receipts"
         },
-        "title": "Projects",
+        "title": "Collect",
         "intro": "Find the client or project, see what is owed and where the figure comes from, and collect it.",
         "search": {
           "label": "Client or project",
