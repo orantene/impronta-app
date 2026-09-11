@@ -13391,7 +13391,8 @@
           "needsAccount": "Este servicio requiere una cuenta para reservar. Resérvalo desde el sitio web.",
           "needsContact": "Este servicio necesita el correo o el teléfono del cliente.",
           "notForSale": "Ese servicio no está a la venta en este momento.",
-          "couldNotBook": "No se pudo reservar. No se apartó nada."
+          "couldNotBook": "No se pudo reservar. No se apartó nada.",
+          "bookingNoPerson": "Esta reserva no nombra a ningun profesional, asi que no se pueden listar horarios libres; escribe una hora a mano y el motor decide."
         },
         "board": {
           "header": {
@@ -13456,7 +13457,10 @@
             "add": "Agregar {item} · +{amount}",
             "adding": "Agregando...",
             "added": "{item} agregado a la venta.",
-            "cancel": "Cancelar"
+            "cancel": "Cancelar",
+            "newEndTime": "Nueva hora de fin",
+            "endUnchanged": "{time} · sin cambios",
+            "timeNotReplannedShort": "Tiempo no replanificado"
           },
           "checkin": {
             "startsIn": "empieza en {minutes} min",
@@ -13504,7 +13508,8 @@
             "sellHint": "Se salta la lista de espera",
             "leaveEmpty": "Dejarla vacia",
             "later": "Luego",
-            "offerButton": "Ofrecer a {name}"
+            "offerButton": "Ofrecer a {name}",
+            "policyNote": "Este espacio no tiene regla de reembolso. Un lugar pagado que se libero conserva su pago hasta que se reembolse desde la venta."
           },
           "sheet": {
             "title": "Sin cita · reservar ahora",
@@ -13520,7 +13525,109 @@
             "payHint": "O cobralo ahora, justo despues de reservar",
             "bookNow": "Reservar con {name} · {time}",
             "close": "Cerrar",
-            "withPerson": "{name} · {minutes} min · {amount}"
+            "withPerson": "{name} · {minutes} min · {amount}",
+            "nowAt": "Ahora · {time}"
+          },
+          "move": {
+            "title": "Mover la reserva de {name}",
+            "subtitle": "La de las {time} se mantiene hasta confirmar la nueva hora",
+            "days": "Que dia",
+            "loading": "Leyendo los horarios libres...",
+            "withPerson": "{name} · libre",
+            "anotherTime": "Otra hora",
+            "anotherTimeHint": "En el reloj del local ({zone}); el motor rechaza una hora ocupada.",
+            "new": "Nueva",
+            "newNone": "Elige una hora",
+            "price": "Precio",
+            "priceUnchanged": "Sin cambios · {amount}",
+            "priceNone": "Esta reserva no tiene venta",
+            "deposit": "Pagado hasta ahora",
+            "depositStays": "{amount} se mantiene",
+            "depositNone": "Nada pagado todavia",
+            "policy": "Politica",
+            "policyOff": "Este espacio no tiene regla de cancelacion",
+            "oldSlot": "Hora anterior",
+            "oldSlotRule": "Se libera solo cuando la nueva queda asegurada",
+            "keep": "Mantener {time}",
+            "moveTo": "Mover a {time}",
+            "moveNone": "Moverla"
+          },
+          "booking": {
+            "title": "Nueva reserva",
+            "subtitleNew": "Desde el mostrador",
+            "subtitleNamed": "{name} · desde el mostrador",
+            "step": {
+              "service": "Servicio",
+              "people": "Personas y lugar",
+              "time": "Hora",
+              "details": "Datos",
+              "review": "Revisar"
+            },
+            "search": "Buscar servicios",
+            "noServices": "Todavia no hay ningun servicio con duracion y persona que se pueda reservar desde esta caja.",
+            "serviceLine": "{minutes} min · {name}",
+            "oneServiceNote": "Una reserva del mostrador lleva un servicio; un segundo servicio es una segunda reserva.",
+            "thisBooking": "Esta reserva",
+            "nothingYet": "Elige un servicio para empezar.",
+            "customerTime": "Tiempo del cliente",
+            "total": "Total",
+            "deposit": "Deposito",
+            "depositNone": "Ninguno en el mostrador · efectivo en la visita",
+            "continuePeople": "Continuar · personas y lugar",
+            "findTimes": "Buscar horarios",
+            "chooseTime": "Elegir {time}",
+            "chooseTimeNone": "Elige una hora",
+            "reviewBooking": "Revisar la reserva",
+            "confirm": "Confirmar reserva · efectivo en la visita",
+            "back": "Atras",
+            "professional": "Profesional",
+            "guaranteed": "Garantizado",
+            "professionalHint": "La persona del servicio; una reserva del mostrador no puede elegir otra.",
+            "where": "Donde",
+            "whereHint": "El local del espacio; las salas y sillas todavia no se asignan a una reserva.",
+            "needed": "Necesario",
+            "neededPeople": "Personas",
+            "neededPeopleValue": "{name} durante todo el servicio",
+            "neededRooms": "Salas",
+            "neededRoomsValue": "No se registra en este espacio",
+            "neededBuffers": "Margenes",
+            "neededBuffersValue": "Los deciden las horas de reserva de la persona",
+            "days": "Que dia",
+            "itinerary": "Itinerario",
+            "itineraryLine": "{start}–{end} · {name}",
+            "itineraryNone": "Elige una hora para ver el itinerario.",
+            "customer": "Cliente",
+            "whoIsItFor": "Para quien es",
+            "whoIsItForValue": "La persona indicada aqui",
+            "notes": "Notas",
+            "notesOff": "Todavia no se puede guardar una nota en una reserva del mostrador.",
+            "reminders": "Recordatorios y consentimiento",
+            "remindersOff": "Los recordatorios siguen la configuracion de notificaciones del espacio; aqui no se elige nada por reserva.",
+            "reviewLines": "Reserva",
+            "reviewWhen": "Cuando",
+            "reviewWith": "Con",
+            "reviewPay": "Pago",
+            "reviewPayValue": "Efectivo en la visita, o ahora en el mostrador",
+            "reviewNote": "Confirmar reserva el tiempo de {name}. No se cobra nada hasta que se cobre.",
+            "bookedTitle": "Reservado para {when}",
+            "bookedLine": "{name} · {venue} · {pay}",
+            "payDue": "{amount} en la visita",
+            "payNothing": "nada que cobrar",
+            "chipConfirmed": "Reserva: confirmada",
+            "chipPaid": "Pagado",
+            "chipUnpaid": "Saldo pendiente",
+            "lives": "Donde queda ahora",
+            "livesCalendar": "Calendario",
+            "livesCalendarValue": "La lista de hoy, a las {time}",
+            "livesSales": "Ventas",
+            "livesSalesValue": "Una venta con {amount} pendiente",
+            "livesSalesNone": "Sin venta: nada que cobrar",
+            "livesCustomer": "Cliente",
+            "livesCustomerValue": "{name}, por el contacto indicado",
+            "confirmationOff": "La caja no envia confirmacion; la reserva por la web envia la suya.",
+            "collectNow": "Cobrar {amount} ahora",
+            "done": "Listo · volver a Hoy",
+            "another": "Reservar otra"
           }
         }
       },
@@ -14698,7 +14805,9 @@
           }
         },
         "from": "desde el",
-        "waitlistDoor": "Lista de espera"
+        "waitlistDoor": "Lista de espera",
+        "templates": "Plantillas",
+        "templatesOff": "Todavia no existen plantillas de series; una serie no se puede crear desde el espacio de trabajo."
       }
     },
     "projects": {
@@ -15194,6 +15303,15 @@
       "open": "Abrir",
       "result": {
         "seatLostAfterPayment": "Este lugar se perdio despues de que la persona pago, asi que no se puede emitir ninguna entrada. Ahora se le debe un reembolso, y ya esta esperando en esta lista como su propia fila."
+      },
+      "sheet": {
+        "age": "Desde",
+        "attempts": "Intentos",
+        "owner": "Quién lo atiende",
+        "whatYouCanDo": "Qué puedes hacer",
+        "resumeDetail": "Vuelve a lanzar el proceso; el efecto llega hasta un minuto después y la fila conserva su resultado.",
+        "openDetail": "El registro al que pertenece esta incidencia.",
+        "backToList": "Volver a la lista"
       }
     },
     "workspaceShell": {
@@ -15248,7 +15366,9 @@
         "uncertainPayments": "{count} pago(s) inciertos",
         "exceptionsNone": "Nada incierto",
         "exceptionsPartial": "No se pudo leer: {sources}",
-        "unreadable": "No se pudo leer esto ahora"
+        "unreadable": "No se pudo leer esto ahora",
+        "collectedShort": "Cobrado",
+        "balancesShort": "Por cobrar"
       },
       "needsYou": {
         "title": "Te necesita ahora",
@@ -15264,7 +15384,8 @@
         "resolve": "Resolver",
         "lateTitle": "Con retraso · {who} · mesa de {size}",
         "lateDetail": "{minutes} min después de la hora y nadie ha llegado.",
-        "openBook": "Abrir el libro"
+        "openBook": "Abrir el libro",
+        "moreOnPhone": "{count} más en Incidencias"
       },
       "today": {
         "title": "Hoy",
@@ -15410,7 +15531,8 @@
         "import": "Importar",
         "createItem": "Crear artículo",
         "empty": "Aún no hay nada en el catálogo. Crea un artículo o importa un menú.",
-        "noMatch": "Ningún artículo coincide con estos filtros."
+        "noMatch": "Ningún artículo coincide con estos filtros.",
+        "phoneScope": "La edición completa (opciones, listas de precios, canales, políticas) está en escritorio. Aquí puedes cambiar disponibilidad, precio y lo esencial."
       },
       "segment": {
         "label": "Secciones del catálogo",
@@ -15508,7 +15630,8 @@
         "previewReason": "El mostrador aún no tiene vista previa de un artículo; publícalo y abre el Mostrador.",
         "saveDraft": "Guardar borrador",
         "publish": "Publicar",
-        "draftHint": "No se escribe nada hasta que guardes el borrador o publiques; recargar lo pierde."
+        "draftHint": "No se escribe nada hasta que guardes el borrador o publiques; recargar lo pierde.",
+        "save": "Guardar"
       },
       "tab": {
         "label": "Secciones del artículo",
@@ -16160,6 +16283,36 @@
         "payoutPending": "Destino fijado · pagos no activados",
         "payoutMissing": "Sin destino · efectivo y agenda gratis siguen funcionando",
         "websiteMissing": "Ninguna página publicada todavía"
+      }
+    },
+    "mobile": {
+      "close": "Cerrar",
+      "back": "Atrás",
+      "search": "Buscar en el workspace",
+      "ownerOnly": "solo propietario",
+      "myWorkNotBuilt": "Mi trabajo todavía no existe: no hay una página que muestre a una persona sus propios turnos y reservas.",
+      "role": {
+        "owner": "propietario",
+        "manager": "gerente",
+        "assistant": "equipo"
+      },
+      "switch": {
+        "title": "Cambiar de workspace o ubicación",
+        "rowHint": "cambiar de workspace o ubicación",
+        "workspaces": "Workspaces",
+        "locations": "Ubicaciones · {workspace}",
+        "plan": "Plan {plan}",
+        "current": "Actual",
+        "loading": "Leyendo tus workspaces",
+        "unavailable": "No se pudieron leer tus workspaces ahora mismo.",
+        "none": "No eres miembro de ningún otro workspace.",
+        "oneLocation": "Una ubicación. Todavía no existe una tabla de ubicaciones, así que este workspace es su propia ubicación.",
+        "note": "Cambiar de workspace cambia lo que muestran Hoy, Pedidos y el POS. Las ventas guardadas se quedan con su workspace."
+      },
+      "myWork": {
+        "title": "Mi trabajo",
+        "sentence": "Mi trabajo todavía no existe. No hay una página que muestre a una persona sus propios turnos, asignaciones y ganancias, así que aquí nada puede fingirlo.",
+        "detail": "Tus citas están en el Calendario y en Citas y clases; los proyectos en los que participas, en Proyectos. Las asignaciones por aceptar, los conflictos de agenda y tus ganancias vivirán aquí cuando exista un lector (D-POS-69)."
       }
     }
   },

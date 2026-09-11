@@ -873,3 +873,111 @@ Decided 2026-09-11 (engine-scheduling). `booking_policy_overrides` win over
 offering / workspace defaults for deposit, free-cancel hours and no-show
 fee. `role_limits` + `approval_requests` gate discounts and refunds above
 the role's cents cap. W56 can now be a real review dialog over these rows.
+## D-POS-76 — the phone's four tabs are the board's: Today · Calendar · Clients · Sales
+
+Decided 2026-09-11 (fid-mobile). The registry's `mobilePriority` ordered the
+bar Overview · Messages · Calendar · Appointments; the approved MW00 board
+(2026-09-09) draws Today · Calendar · Clients · Sales · More, and MW26 draws
+the professional's bar with the same shape. The priorities now follow the
+board (`destinations.ts`: overview 1, calendar 2, clients 3, sales 4, then
+messages, appts, orders, reservations, catalog, people), so a workspace that
+hides one of the four still fills the bar from the registry and never from a
+hand-written list. Both tests that pinned the old order were re-pointed at
+the board's (`destinations.test.ts`, `mobile-bottom-nav.static.test.ts`).
+The bar is still role-invariant: none of the four carries a role or billing
+clause. The More sheet draws every other visible destination as a chip under
+its group and does not repeat the four on the bar. Messages, the fourth
+tab of the professional's bar on MW26, waits on My work (D-POS-69).
+
+## D-POS-77 — the phone's Orders list opens the conversation; an order has no record page
+
+Decided 2026-09-11 (fid-mobile). MW18–MW20 draw an order's own screen (its
+lines with their stations and readiness, Total · Payment · Notify · If not
+collected, then Mark ready · Hand over). No route renders one order: the
+Orders desk is a list, readiness lives on the kitchen's tickets (K09, the
+Preparation destination) and a handoff is not recorded anywhere. The phone's
+Orders list (MW17) therefore draws each order as a row that opens its
+conversation when it has one, the same door the desktop table offers; Mark
+ready and Hand over are not drawn because there is nothing for them to write.
+The refund form stays on the desktop table.
+
+## D-POS-78 — My work on the phone is the screen with the sentence
+
+Decided 2026-09-11 (fid-mobile). `mywork` is `built: false` in the registry
+on purpose (no page shows one person their own shifts, assignments and
+earnings). The phone's More sheet keeps the chip and the chip opens a sheet
+that says so in three languages and points at where the person's work lives
+today (Calendar, Appointments & Classes, Projects). MW27–MW31 (a project or
+appointment assignment to accept, a field job, a schedule conflict, earnings)
+have no reader or writer and are not drawn beyond that sentence.
+
+## D-POS-79 — invitations redeem on the link; the accept, decline and state screens are not drawn
+
+Decided 2026-09-11 (fid-mobile). MW32–MW34 draw an invitation as a screen
+with Accept and Decline and three states (expired, wrong account, access
+removed). The engine's `/invite/[token]` redeems the invitation on GET and
+redirects; an expired or invalid token redirects to the home page with a
+query flag, and there is no pending-accept state to draw a decision over.
+Building the screens would add a state to the invite model, which is a
+product change, not a skin; recorded here as not wired. MW36 (a link that
+expired, a booking no longer available, no access, a session that ended) is
+the same shape: those states are answered by the routes that own them and
+were not restyled in this group.
+
+## D-POS-80 — the workspace switch sheet lists one location: the workspace itself
+
+Decided 2026-09-11 (fid-mobile). MW01 draws Workspaces and Locations. The
+sheet lists the person's memberships from `actionLoadUserWorkspaces` (the
+same reader as the desktop switcher drawer), the current one marked; the
+Locations card has one row, the workspace's own name, disabled with the
+reason, because there is no locations table (D-POS-18). The desktop drawer
+(`wave2.tsx`) is at its size budget, so the phone's sheet is its own
+component over the same reader rather than a rewrite of the drawer.
+## D-POS-81 — the Front desk reads as the boards: B05 fills the screen, A09 is a sheet of free times, the Book door is the five-step flow A01 to A06 over one service
+
+Decided 2026-09-11 (fid-polish2). Three structural changes on the Front desk
+(`?mode=classes`), all on the readers and writers that already existed:
+
+1. **B05 is the whole content area.** Opening a class from the Classes
+   segment hides the day list; the header names the class and "starts in N
+   min", a 46px strip under it carries the three chips, the roster and the
+   360px action column fill the rest. The rail's `Sessions` row from an open
+   check-in is the way back to the list (the board draws no other door). The
+   frame gets the counter's `Lock` (disabled, D-POS-15) and `Workspace` rows.
+2. **A09 is a sheet inside the appointment pane.** "Move it" opens
+   `MoveSheet`: day chips (the day shown and the next two), the free times
+   as cards read by `classesMoveSlots` → `loadMoveSlots`
+   (`lib/pos/classes/move.ts`), which finds the booking's person through the
+   order's first offering (an instant booking, the walk-in's kind) or else
+   the `talent_bookings` mirror behind the source inquiry, then runs the
+   walk-in's own `freeStartsForPerson` (the website's slot composition) for
+   the booking's own length. A booking with no person behind it says so and
+   still takes a hand-typed time ("Another time", on the venue's clock),
+   which the proven `rescheduleAppointment` decides; the refusal names who
+   is busy. Price and Paid so far are the sale's; Policy says no
+   cancellation rule is modelled; Old slot states the engine's rule.
+3. **The Book door is the A01 to A06 flow, full screen** (`BookingFlow`):
+   Service (radio cards, one per booking; the note says a second service is a
+   second booking), People & place (the service's person as the guaranteed
+   card, the venue as the place; rooms, chairs and buffers drawn as facts
+   with their reason), Time (five day chips, the free times as cards, the
+   itinerary is start–end), Details (customer, who it is for, notes and
+   reminders disabled with their sentence), Review (the line, when, with,
+   pay: cash at the visit or now), then Confirmed ("Booked for …", the
+   chips, WHERE THIS NOW LIVES from the write's own result: the day list,
+   the sale with its balance, the customer by the contact given; Collect
+   now / Done / Book another). The write is `bookWalkInAppointment`, the
+   Walk-in sheet's. Not wired, each said on the control: a multi-service
+   basket, chair or room choice, intake forms, notes on a booking from the
+   desk, per-booking reminders, a card deposit at booking, a confirmation
+   message from the till.
+
+Also settled here: BOOKED vs ADDED TODAY on B01 splits the sale's lines by
+the booking's own service (a line linked to the booking or carrying the
+appointment's title was booked; the rest was added at the desk), because a
+sale line records no "added at" instant; Services vs Retail by the till's
+own extras list (a product offering is retail). The B02 sheet's "New end
+time" says the end is not re-planned when a timed extra is picked
+(D-POS-19) and otherwise shows the booking's end unchanged. B06 carries the
+board's footnote as the true sentence: no refund rule is set; a paid place
+keeps its payment until refunded from the sale.

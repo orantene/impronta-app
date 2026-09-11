@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
-import { pinNextConversation as pinNextConversationP } from "../messages";
+import { pinNextConversation as pinNextConversationP } from "../messages/conversation-pending";
 import { SecondaryButton, StatusStrip } from "../primitives";
 import { COLORS, FONTS, RICH_INQUIRIES, TRANSITION, useAdminShell } from "../state";
 import { parseInquiryDays } from "./InboxPage";
@@ -22,6 +22,11 @@ export function CalendarPage() {
   const [displayYear, setDisplayYear] = useState(today.getFullYear());
   const [displayMonth, setDisplayMonth] = useState(today.getMonth());
   const [view, setView] = useState<"month" | "agenda" | "day">("month");
+  // MW13: the phone opens on the agenda, not a month grid too small to read.
+  // Set after mount so the first client render matches the server's.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth <= 720) setView("agenda");
+  }, []);
   const year = displayYear;
   const month = displayMonth;
   const daysInMonth = new Date(year, month + 1, 0).getDate();

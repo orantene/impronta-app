@@ -398,6 +398,8 @@ export default async function PosPage({
           venueName={venueName}
           operatorName={operatorName}
           posPath={classesPath}
+          workspacePath={classesPath.replace(/\/pos$/, "")}
+          modeLabel={posModeLabel(tr, mode)}
           locale={locale}
           currency="USD"
           nowIso={now.toISOString()}
@@ -408,6 +410,7 @@ export default async function PosPage({
             frame: { navLabel: classesRailNavLabel(tr), destinationLabels: classesRailCopy(tr) },
             classes: classesCopy(tr),
             counterRefusal: refusalCopy(tr),
+            chrome: chromeCopy(tr),
           }}
         />
       </>

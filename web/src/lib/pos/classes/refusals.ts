@@ -23,6 +23,7 @@ import type { PurchaseRefusalReason } from "@/lib/orders/purchase-types";
 import type { NoSlotsReason } from "@/lib/scheduling/public-slots";
 
 import type { CheckInRefusalReason } from "./checkin";
+import type { MoveSlotsResult } from "./move";
 import type { WalkInBookingRefusal, WalkInSlotsResult } from "./walkin";
 
 /** The leaves under `dashboard.pos.classes.refusal`. */
@@ -51,7 +52,8 @@ export type ClassesRefusalKey =
   | "needsAccount"
   | "needsContact"
   | "notForSale"
-  | "couldNotBook";
+  | "couldNotBook"
+  | "bookingNoPerson";
 
 export type ClassesRefusal = { readonly key: ClassesRefusalKey };
 
@@ -92,6 +94,18 @@ export const SLOTS_REFUSALS: Readonly<Record<SlotsReadRefusal, ClassesRefusalKey
   hours_unreadable: "hoursUnreadable",
   unavailable: "unavailable",
 };
+
+type MoveReadRefusal = Extract<MoveSlotsResult, { ok: false }>["reason"];
+
+/** The free times a booking could move to (A09) could not be read. */
+export const MOVE_SLOTS_REFUSALS: Readonly<Record<MoveReadRefusal, ClassesRefusalKey>> = {
+  not_found: "bookingNotFound",
+  no_person: "bookingNoPerson",
+  no_booking_hours: "noBookingHours",
+  hours_unreadable: "hoursUnreadable",
+  unavailable: "unavailable",
+};
+
 
 /** Why an otherwise readable day has no free time on it. */
 export const NO_SLOTS_REFUSALS: Readonly<Record<NoSlotsReason, ClassesRefusalKey>> = {
@@ -165,6 +179,9 @@ export function slotsRefusalKey(raw: unknown): ClassesRefusalKey {
 }
 export function noSlotsKey(raw: unknown): ClassesRefusalKey {
   return lookup(NO_SLOTS_REFUSALS, raw);
+}
+export function moveSlotsRefusalKey(raw: unknown): ClassesRefusalKey {
+  return lookup(MOVE_SLOTS_REFUSALS, raw);
 }
 export function walkInRefusalKey(raw: unknown): ClassesRefusalKey {
   return lookup(WALKIN_REFUSALS, raw);

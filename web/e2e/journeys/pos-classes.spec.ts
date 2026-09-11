@@ -319,10 +319,12 @@ test("a move onto a taken time is refused naming who is busy; a move onto a free
   // Move the first onto the second's time: the same person is busy.
   await railTo(page, /^today$/i, "[data-pos-classes-appointment], [data-pos-classes-detail]");
   const { detail } = await openAppointment(page, w.bookingId);
+  // "Move it" opens the move sheet (board A09) inside the pane: the free times
+  // as cards, and "Another time" typed by hand; the confirm reads "Move to …".
   await detail.getByRole("button", { name: /move it/i }).click();
   const input = detail.locator("[data-pos-classes-move-input]");
   await input.fill(venueLocalValue(new Date(second!.starts_at)));
-  await detail.getByRole("button", { name: /^move it$/i }).click();
+  await detail.getByRole("button", { name: /^move to /i }).click();
   const alert = page.locator("[data-pos-classes-notice=refused]");
   await expect(alert).toContainText(/is already booked at that time/i, { timeout: 45_000 });
   await expect(alert).toContainText(/QA Journeys Talent/);
@@ -347,7 +349,7 @@ test("a move onto a taken time is refused naming who is busy; a move onto a free
   const again = await openAppointment(page, w.bookingId);
   await again.detail.getByRole("button", { name: /move it/i }).click();
   await again.detail.locator("[data-pos-classes-move-input]").fill(venueLocalValue(target));
-  await again.detail.getByRole("button", { name: /^move it$/i }).click();
+  await again.detail.getByRole("button", { name: /^move to /i }).click();
   await expect(page.locator("[data-pos-classes-notice=done]")).toContainText(/moved to/i, { timeout: 45_000 });
   await page.screenshot({ path: testInfo.outputPath("moved.png"), fullPage: true });
   const moved = await bookingByContact(WALKIN);

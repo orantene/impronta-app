@@ -1,0 +1,246 @@
+TAP version 13
+# Subtest: every Classes mode sentence resolves in en
+ok 1 - every Classes mode sentence resolves in en
+  ---
+  duration_ms: 14.103
+  ...
+# Subtest: every Classes mode sentence resolves in es
+ok 2 - every Classes mode sentence resolves in es
+  ---
+  duration_ms: 1.312125
+  ...
+# Subtest: every Classes mode sentence resolves in fr
+ok 3 - every Classes mode sentence resolves in fr
+  ---
+  duration_ms: 1.010625
+  ...
+# Subtest: the rail labels cover exactly the mode's destinations
+ok 4 - the rail labels cover exactly the mode's destinations
+  ---
+  duration_ms: 0.271792
+  ...
+# [scheduling.waitlistDesk/remaining] boom 
+# Subtest: the venue day window is the venue's midnight to midnight, not UTC's
+ok 5 - the venue day window is the venue's midnight to midnight, not UTC's
+  ---
+  duration_ms: 14.49725
+  ...
+# Subtest: seats sum across a night's tiers; one unreadable tier poisons the sum; no pool is uncounted
+ok 6 - seats sum across a night's tiers; one unreadable tier poisons the sum; no pool is uncounted
+  ---
+  duration_ms: 0.497083
+  ...
+# Subtest: arrival order is by start then id, and the day offset is clamped
+ok 7 - arrival order is by start then id, and the day offset is clamped
+  ---
+  duration_ms: 0.166625
+  ...
+# Subtest: the day reader: today's rows only, money by the counter's rule, roster named through the order, tiers with a pool, accepted queue on the roster
+ok 8 - the day reader: today's rows only, money by the counter's rule, roster named through the order, tiers with a pool, accepted queue on the roster
+  ---
+  duration_ms: 1.931667
+  ...
+# Subtest: an unreadable seat count is said, never zero
+ok 9 - an unreadable seat count is said, never zero
+  ---
+  duration_ms: 1.583083
+  ...
+# Subtest: every refusal the mode can map has a sentence in en
+ok 10 - every refusal the mode can map has a sentence in en
+  ---
+  duration_ms: 1.285042
+  ...
+# Subtest: every refusal the mode can map has a sentence in es
+ok 11 - every refusal the mode can map has a sentence in es
+  ---
+  duration_ms: 10.323583
+  ...
+# Subtest: every refusal the mode can map has a sentence in fr
+ok 12 - every refusal the mode can map has a sentence in fr
+  ---
+  duration_ms: 0.174542
+  ...
+# Subtest: an unknown word never falls through to a wrong sentence; it becomes the cautious one
+ok 13 - an unknown word never falls through to a wrong sentence; it becomes the cautious one
+  ---
+  duration_ms: 0.1615
+  ...
+# Subtest: layer 1 — the POS page exists and is capability-gated
+ok 14 - layer 1 — the POS page exists and is capability-gated
+  ---
+  duration_ms: 1.156083
+  ...
+# Subtest: layer 2 — a canonical-route matcher claims /admin/pos
+ok 15 - layer 2 — a canonical-route matcher claims /admin/pos
+  ---
+  duration_ms: 0.153917
+  ...
+# Subtest: layer 3 — 'pos' is an allowed workspace segment
+ok 16 - layer 3 — 'pos' is an allowed workspace segment
+  ---
+  duration_ms: 0.459167
+  ...
+# Subtest: layer 4 — the destination registry routes New sale to the POS route
+ok 17 - layer 4 — the destination registry routes New sale to the POS route
+  ---
+  duration_ms: 0.192292
+  ...
+# Subtest: every return of the POS route tells the shell it is the point of sale
+ok 18 - every return of the POS route tells the shell it is the point of sale
+  ---
+  duration_ms: 0.330208
+  ...
+# Subtest: POS actions require workspace staff and booking.payment.request
+ok 19 - POS actions require workspace staff and booking.payment.request
+  ---
+  duration_ms: 0.485209
+  ...
+# Subtest: shift cash-up lives on POS, not a new destination
+ok 20 - shift cash-up lives on POS, not a new destination
+  ---
+  duration_ms: 1.778416
+  ...
+# Subtest: the collection key is DERIVED from the sale, never minted per call
+ok 21 - the collection key is DERIVED from the sale, never minted per call
+  ---
+  duration_ms: 0.333
+  ...
+# Subtest: every refusal reaches the cashier as a sentence, never as a reason word
+ok 22 - every refusal reaches the cashier as a sentence, never as a reason word
+  ---
+  duration_ms: 0.28
+  ...
+# Subtest: the route validates its mode against the modes this person may use
+ok 23 - the route validates its mode against the modes this person may use
+  ---
+  duration_ms: 0.217583
+  ...
+# Subtest: no tender is offered as working without the provider behind it
+ok 24 - no tender is offered as working without the provider behind it
+  ---
+  duration_ms: 0.176083
+  ...
+# Subtest: walk-in class places pick a tenant-scoped session
+ok 25 - walk-in class places pick a tenant-scoped session
+  ---
+  duration_ms: 0.509542
+  ...
+# Subtest: the reschedule sends the window the operator was looking at
+ok 26 - the reschedule sends the window the operator was looking at
+  ---
+  duration_ms: 1.986333
+  ...
+# Subtest: the new start is read in the venue's zone, never the browser's
+ok 27 - the new start is read in the venue's zone, never the browser's
+  ---
+  duration_ms: 0.283042
+  ...
+# Subtest: the promote sends the status the row is showing
+ok 28 - the promote sends the status the row is showing
+  ---
+  duration_ms: 6.0265
+  ...
+# Subtest: nothing on this surface decides 'today' in the browser
+ok 29 - nothing on this surface decides 'today' in the browser
+  ---
+  duration_ms: 2.061083
+  ...
+# Subtest: the proposals banner accepts through the shared action, not a second writer
+ok 30 - the proposals banner accepts through the shared action, not a second writer
+  ---
+  duration_ms: 1.149459
+  ...
+# Subtest: the banner says the public page has no hours until this is accepted
+ok 31 - the banner says the public page has no hours until this is accepted
+  ---
+  duration_ms: 12.001834
+  ...
+# Subtest: a full class with an empty queue is still a card, so somebody can be added
+ok 32 - a full class with an empty queue is still a card, so somebody can be added
+  ---
+  duration_ms: 0.328417
+  ...
+# Subtest: the seats line tells three states apart, and never reads unknown as full
+ok 33 - the seats line tells three states apart, and never reads unknown as full
+  ---
+  duration_ms: 0.338708
+  ...
+# Subtest: the Sessions view offers the door to the queue on a class that is full
+ok 34 - the Sessions view offers the door to the queue on a class that is full
+  ---
+  duration_ms: 0.400458
+  ...
+# Subtest: a night that belongs to no series is still on the schedule
+ok 35 - a night that belongs to no series is still on the schedule
+  ---
+  duration_ms: 0.889708
+  ...
+# Subtest: the empty state does not promise a door that is somewhere else
+ok 36 - the empty state does not promise a door that is somewhere else
+  ---
+  duration_ms: 7.525166
+  ...
+# Subtest: every row says the booking's own state, not only its next action
+ok 37 - every row says the booking's own state, not only its next action
+  ---
+  duration_ms: 0.246792
+  ...
+# Subtest: every booking state has an operator sentence in all three languages
+ok 38 - every booking state has an operator sentence in all three languages
+  ---
+  duration_ms: 12.587917
+  ...
+# Subtest: a successful reschedule renders its confirmation instead of closing silently
+ok 39 - a successful reschedule renders its confirmation instead of closing silently
+  ---
+  duration_ms: 0.282
+  ...
+# Subtest: accepting a place goes through the action that reserves the seat
+ok 40 - accepting a place goes through the action that reserves the seat
+  ---
+  duration_ms: 0.225208
+  ...
+# Subtest: an order's money shell is not filed under 'No date agreed yet'
+ok 41 - an order's money shell is not filed under 'No date agreed yet'
+  ---
+  duration_ms: 1.218291
+  ...
+# Subtest: a refresh that was overtaken does not paint over the one that overtook it
+ok 42 - a refresh that was overtaken does not paint over the one that overtook it
+  ---
+  duration_ms: 0.177083
+  ...
+# Subtest: the proposals banner offers no accept for a person who sets their own hours
+ok 43 - the proposals banner offers no accept for a person who sets their own hours
+  ---
+  duration_ms: 0.418583
+  ...
+# Subtest: the pill: cancelled, completed, full, needs seats, scheduled; unread seats are never full
+ok 44 - the pill: cancelled, completed, full, needs seats, scheduled; unread seats are never full
+  ---
+  duration_ms: 0.450416
+  ...
+# Subtest: a series' sessions and one-off nights are the same kind of row, filed on the venue's day
+ok 45 - a series' sessions and one-off nights are the same kind of row, filed on the venue's day
+  ---
+  duration_ms: 28.290916
+  ...
+# Subtest: the window: a week from the anchor, one day, or everything ahead; filters compose
+ok 46 - the window: a week from the anchor, one day, or everything ahead; filters compose
+  ---
+  duration_ms: 0.548792
+  ...
+# Subtest: a series row: generated through the last dated session; a refusal is needs attention; inactive is paused
+ok 47 - a series row: generated through the last dated session; a refusal is needs attention; inactive is paused
+  ---
+  duration_ms: 0.22125
+  ...
+1..47
+# tests 47
+# suites 0
+# pass 47
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1585.283666

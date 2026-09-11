@@ -75,7 +75,7 @@ export function AppointmentsList({ rows, adminBase, selectedId, onSelect, onMove
 
   return (
     <div className={`${CARD} overflow-hidden`} data-testid="appointments-table">
-      <div className={`${ROW_GRID} py-[8px] font-admin-body text-admin-11 font-semibold uppercase tracking-[0.05em] text-admin-ink-muted`}>
+      <div className={`${ROW_GRID} py-[8px] font-admin-body text-admin-11 font-semibold uppercase tracking-[0.05em] text-admin-ink-muted max-[720px]:hidden`}>
         <span>{t(`${K}.col.when`)}</span>
         <span>{t(`${K}.col.withWhom`)}</span>
         <span>{t(`${K}.col.service`)}</span>
@@ -142,7 +142,25 @@ function GroupRows({
             onClick={() => onSelect(row.id)}
           >
             <td className="p-0">
-              <div className={`${ROW_GRID} py-[9px]`}>
+              {/* MW13: the phone's row — time · client · service · professional over the second line, the state pill at the right. */}
+              <div className="hidden items-center gap-[10px] px-[14px] py-[12px] max-[720px]:flex">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14.5px] font-semibold text-admin-ink">
+                    {row.startsAt ? <span className="tabular-nums">{formatWhen(row.startsAt, row.timeZone)} · </span> : null}
+                    {row.customerName ?? t(`${K}.unknownCustomer`)}
+                    {row.title ? ` · ${row.title}` : ""}
+                  </span>
+                  <span className="mt-[2px] block truncate text-admin-12h text-admin-ink-muted">
+                    {row.servedBy.length > 0 ? row.servedBy.join(", ") : t(`${K}.unassigned`)}
+                    {" · "}
+                    {row.places.length > 0 ? row.places.join(", ") : t(`${K}.noPlace`)}
+                  </span>
+                </span>
+                <StatePill tone={STATE_TONE[state]} testId="appointment-state-phone" state={state}>
+                  {t(`${K}.state.${bookingStateKey(row.status)}`)}
+                </StatePill>
+              </div>
+              <div className={`${ROW_GRID} py-[9px] max-[720px]:hidden`}>
                 <span className="text-admin-ink">
                   {row.startsAt ? (
                     <span className="font-mono text-admin-ink-muted">{formatWhen(row.startsAt, row.timeZone)}</span>

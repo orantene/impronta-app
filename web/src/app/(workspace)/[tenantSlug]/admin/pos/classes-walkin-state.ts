@@ -59,15 +59,13 @@ export function useWalkIn(input: {
   const [outcome, setOutcome] = useState<WalkInOutcome | null>(null);
   const [sale, setSale] = useState<WalkInSale | null>(null);
 
-  const chooseService = (id: string) => {
-    setServiceId(id);
-    setSlotIso("");
-    if (!id) {
-      setSlots({ status: "idle" });
-      return;
-    }
+  // The day the free times were read for: the day shown, or the day the
+  // booking flow's chips picked (A03).
+  const [slotsDay, setSlotsDay] = useState(day.dayOffset);
+
+  const readSlots = (id: string, offset: number) => {
     setSlots({ status: "loading" });
-    void classesWalkInSlots({ offeringId: id, dayOffset: day.dayOffset }).then(
+    void classesWalkInSlots({ offeringId: id, dayOffset: offset }).then(
       (r) => {
         if (!r.ok) {
           setSlots({ status: "empty", sentence: c.refusal[r.reason === "not_allowed" || r.reason === "invalid" ? actionRefusalKey(r.reason) : slotsRefusalKey(r.reason)] });
@@ -81,6 +79,23 @@ export function useWalkIn(input: {
       },
       () => setSlots({ status: "empty", sentence: c.refusal.unavailable }),
     );
+  };
+
+  const chooseService = (id: string) => {
+    setServiceId(id);
+    setSlotIso("");
+    if (!id) {
+      setSlots({ status: "idle" });
+      return;
+    }
+    readSlots(id, slotsDay);
+  };
+
+  /** A03: another day's free times for the chosen service. */
+  const pickDay = (offset: number) => {
+    setSlotsDay(offset);
+    setSlotIso("");
+    if (serviceId) readSlots(serviceId, offset);
   };
 
   const chooseSession = (id: string) => {
@@ -164,6 +179,7 @@ export function useWalkIn(input: {
     setServiceId("");
     setSessionId("");
     setTierId("");
+    setSlotsDay(day.dayOffset);
     setName("");
     setEmail("");
     setPhone("");
@@ -188,6 +204,8 @@ export function useWalkIn(input: {
     setKind,
     serviceId,
     chooseService,
+    slotsDay,
+    pickDay,
     slots,
     slotIso,
     setSlotIso,

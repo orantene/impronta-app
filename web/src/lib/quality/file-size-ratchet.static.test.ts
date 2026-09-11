@@ -369,7 +369,7 @@ const BUDGETS: Record<string, number> = {
   // source selection, per-row + mark-all read-through to
   // @/lib/notifications/actions, and the deep-link dispatch.
   "src/components/admin/shell/internal/wave2.tsx": 4599,
-  "src/components/admin/shell/internal/workspace.tsx": 3559,
+  "src/components/admin/shell/internal/workspace.tsx": 3330,
   // 2026-08-10 branding-media: +18 Spanish entries for the Brand identity
   // favicon slot + Brand images manager (translations belong in this map).
   // +4: Spanish for the "some services here can't be published" notice the

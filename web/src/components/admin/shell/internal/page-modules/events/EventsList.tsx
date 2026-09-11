@@ -15,6 +15,7 @@
  * sentence.
  */
 
+import * as React from "react";
 import type { EventListRow } from "@/app/(workspace)/[tenantSlug]/admin/_events-actions";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -133,8 +134,34 @@ export function EventsList({ events, nav, nowIso, locale }: { events: EventListR
         {rows.map((e) => {
           const state = eventState(e);
           const dash = <span title={perNight} className="text-admin-ink-dim">—</span>;
+          const nightsLabel = e.runFinished
+            ? t("dashboard.events.list.runFinished")
+            : e.sessionCount === 0
+              ? t("dashboard.events.list.noNight")
+              : e.sessionCount === 1
+                ? t("dashboard.events.list.nightOne")
+                : interpolate(t("dashboard.events.list.nights"), { count: e.sessionCount });
           return (
-            <ListRow key={e.id} cols={COLS} testId={`events-row-${e.id}`}>
+            <React.Fragment key={e.id}>
+            {/* The phone's row (MW25 opens from here): the event and its next night, the state as a pill. */}
+            <button
+              type="button"
+              onClick={() => nav.go({ event: e.id })}
+              className="hidden w-full cursor-pointer items-center gap-[10px] border-t border-admin-border-soft px-[14px] py-[12px] text-left max-[720px]:flex"
+              data-testid={`events-open-phone-${e.id}`}
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-admin-body text-[14.5px] font-semibold text-admin-ink">
+                  {e.title}
+                  {e.nextSessionAt ? ` · ${whenLabel(e.nextSessionAt, e.timeZone, locale, "")}` : ""}
+                </span>
+                <span className="block truncate font-admin-body text-admin-12h text-admin-ink-muted">{nightsLabel}</span>
+              </span>
+              <StatePill tone={STATE_TONE[state]} state={state}>
+                {stateLabel[state]}
+              </StatePill>
+            </button>
+            <ListRow cols={COLS} testId={`events-row-${e.id}`} className="max-[720px]:hidden">
               <button type="button" onClick={() => nav.go({ event: e.id })} className="min-w-0 cursor-pointer text-left" data-testid={`events-open-${e.id}`}>
                 <span className="block truncate font-admin-body text-[13px] font-semibold text-admin-ink">
                   {e.title}
@@ -166,6 +193,7 @@ export function EventsList({ events, nav, nowIso, locale }: { events: EventListR
               </span>
               <RowMenuButton label={t("dashboard.events.list.rowMenu")} onClick={() => nav.go({ event: e.id })} />
             </ListRow>
+            </React.Fragment>
           );
         })}
       </div>

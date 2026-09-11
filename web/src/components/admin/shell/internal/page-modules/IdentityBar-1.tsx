@@ -20,6 +20,8 @@ import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./IdentityBar-2";
 import { CreateMenu } from "./CreateMenu";
 import { GLOBAL_SEARCH_OPEN_EVENT } from "./GlobalSearchOverlay";
+import { MobileChromeStyles } from "./MobileChromeStyles";
+import { MobileTopBar } from "./MobileTopBar";
 import { PosModeSwitch } from "./PosModeSwitch";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
 import { useWorkspaceNav } from "./workspace-nav";
@@ -233,7 +235,15 @@ export function TulalaIdentityBar() {
           account on the right. The brand lives at the head of the rail. On
           the talent and client surfaces (no rail) the bar keeps the brand and
           the acting-as switcher. */}
-      <div className="flex h-full w-full items-center gap-[14px]">
+      {/* MW00: below 720px the workspace surface draws the phone's bar
+          instead (MobileChromeStyles swaps the two). */}
+      {inWorkspace ? (
+        <div data-tulala-identity-mobile className="hidden h-full w-full">
+          <MobileChromeStyles />
+          <MobileTopBar />
+        </div>
+      ) : null}
+      <div data-tulala-identity-desktop className="flex h-full w-full items-center gap-[14px]">
         {inWorkspace ? (
           <>
             <div

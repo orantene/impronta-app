@@ -406,7 +406,7 @@ test("groups come out in rail order, empty ones dropped", () => {
 
 test("the mobile tabs are the top priorities, and never POS", () => {
   const tabs = mobileTabs(ctx(), 5).map((d) => d.id);
-  assert.deepEqual(tabs, ["overview", "messages", "calendar", "appts", "orders"]);
+  assert.deepEqual(tabs, ["overview", "calendar", "clients", "sales", "messages"]);
   assert.ok(!mobileTabs(ctx(), 20).some((d) => d.chrome === "pos"));
   const priorities = mobileTabs(ctx(), 20).map((d) => d.mobilePriority ?? 0);
   assert.deepEqual(priorities, [...priorities].sort((a, b) => a - b));

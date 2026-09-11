@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { WorkspaceMediaPage } from "../media-page";
 import { useWorkspaceNav } from "./workspace-nav";
 import type { WorkspaceNavItem } from "./workspace-nav-groups";
 import { useDashboardText } from "../dashboard-i18n";
@@ -11,28 +10,32 @@ import { Icon, useRovingTabindex } from "../primitives";
 import type { AdminShellIconName } from "../primitives";
 import { COLORS, FAB_PALETTE_CHANGED_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
-import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
+import { ShortcutHelpOverlay, useKeyboardLayer } from "../keyboard-layer";
 import { useCanonicalRouteChildren } from "../canonical-route-children";
 import { resolveDestination } from "@/lib/workspace/destinations";
 import { TulalaWordmark } from "@/components/brand/tulala-logo";
-import { CalendarPage } from "./CalendarPage";
-import { CatalogPage } from "./catalog/CatalogPage";
-import { ClientsPage } from "./ClientsPage";
 import { TulalaIdentityBar } from "./IdentityBar-1";
-import { WorkspaceMessagesPage } from "./InboxPage";
-import { OverviewBoard } from "./OverviewBoard";
 import { GLOBAL_SEARCH_OPEN_EVENT, GlobalSearchOverlay } from "./GlobalSearchOverlay";
 import { PosRailModeMenuProvider } from "./PosRailModeMenu";
-import { PayoutsPage } from "./PayoutsPage";
-import { PitchesPage } from "./PitchesPage-1";
-import { AppointmentsPage } from "./AppointmentsPage";
-import { EventsPage } from "./events/EventsPage";
-import { ReviewsPage } from "./ReviewsPage";
-import { AnalyticsPage } from "./AnalyticsPage";
-import { TalentPage } from "./TalentPage-1";
-import { WebsitePage } from "./WebsitePage-1";
-import { WorkspacePageView } from "./WorkspacePageView";
-import { MessagesShell } from "./pages-dynamic";
+// Every SPA page is a `next/dynamic` boundary (workspace-pages-lazy.tsx says
+// why): the shell's chunk carries the rail and the chrome, not the pages.
+import {
+  AnalyticsPage,
+  AppointmentsPage,
+  CalendarPage,
+  CatalogPage,
+  ClientsPage,
+  EventsPage,
+  OverviewBoard,
+  PayoutsPage,
+  PitchesPage,
+  ReviewsPage,
+  TalentPage,
+  WebsitePage,
+  WorkspaceMediaPage,
+  WorkspaceMessagesPage,
+  WorkspacePageView,
+} from "./workspace-pages-lazy";
 
 
 /**

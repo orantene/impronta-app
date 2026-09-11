@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 import { fill, formatClock, formatWhen } from "./classes-format";
 import { seatsSentence } from "./classes-today";
-import { POS_BTN_PRIMARY, POS_CARD, POS_FIELD, PosAction, PosPill, PosSegmented, PosSheet } from "./classes-ui";
+import { POS_BTN_PRIMARY, POS_CARD, POS_EYEBROW, POS_FIELD, POS_HINT, POS_LABEL, PosAction, PosPill, PosSegmented, PosSheet } from "./classes-ui";
 
 /**
  * One sentence, one outcome. `data-pos-classes-notice` names the kind so a
@@ -152,7 +152,7 @@ export function WaitlistPanel({
                 <span>{copy.waitlist.join.email}</span>
                 <input className={POS_FIELD} type="email" value={joinEmail} onChange={(e) => onJoinEmailChange(e.target.value)} />
               </label>
-              <button type="submit" disabled={busy} className={cn(POS_BTN_PRIMARY, "h-[52px] disabled:opacity-60")}>
+              <button type="submit" disabled={busy} className={cn(POS_BTN_PRIMARY, "disabled:opacity-60")}>
                 {busy ? copy.waitlist.join.submitting : copy.waitlist.join.submit}
               </button>
             </form>
@@ -269,11 +269,11 @@ export function WalkInSheet({
         {copy.walkin.startAgain}
       </PosAction>
       {outcome.stage === "booked" && outcome.outstandingCents > 0 ? (
-        <PosAction tone="primary" disabled={busy} className="h-[56px] text-[17px]" onClick={onCollect} testAttr={{ "data-pos-classes-collect": "collect" }}>
+        <PosAction tone="primary" size="lg" disabled={busy} onClick={onCollect} testAttr={{ "data-pos-classes-collect": "collect" }}>
           {busy ? copy.walkin.collecting : fill(copy.walkin.collect, { amount: formatOrderMoney(outcome.outstandingCents, outcome.currency) })}
         </PosAction>
       ) : (
-        <PosAction tone="primary" className="h-[56px] text-[17px]" onClick={onClose}>
+        <PosAction tone="primary" size="lg" onClick={onClose}>
           {b.close}
         </PosAction>
       )}
@@ -283,9 +283,9 @@ export function WalkInSheet({
       <PosAction onClick={onClose} disabled={busy}>
         {copy.board.extra.cancel}
       </PosAction>
-      <button type="submit" form="pos-classes-walkin" disabled={busy || !detailsReady || !targetReady} className={cn(POS_BTN_PRIMARY, "h-[56px] px-[22px] text-[17px] disabled:opacity-60")} data-pos-classes-book>
+      <PosAction type="submit" form="pos-classes-walkin" tone="primary" size="lg" disabled={busy || !detailsReady || !targetReady} testAttr={{ "data-pos-classes-book": "book" }}>
         {busy ? copy.walkin.booking : bookLabel}
-      </button>
+      </PosAction>
     </>
   );
 
@@ -326,10 +326,10 @@ export function WalkInSheet({
           />
 
           {kind === "appointment" ? (
-            <label className="flex flex-col gap-[6px] font-admin-body text-[14px] font-semibold text-admin-ink">
-              <span>{copy.walkin.service}</span>
+            <label className="flex flex-col gap-[6px]">
+              <span className={POS_LABEL}>{copy.walkin.service}</span>
               {services.length === 0 ? (
-                <span className="font-normal text-admin-ink-muted">{copy.walkin.noServices}</span>
+                <span className={POS_HINT}>{copy.walkin.noServices}</span>
               ) : (
                 <select className={POS_FIELD} value={serviceId} onChange={(e) => onServiceChange(e.target.value)} data-pos-classes-service>
                   <option value="">{copy.walkin.service}</option>
@@ -343,10 +343,10 @@ export function WalkInSheet({
             </label>
           ) : (
             <>
-              <label className="flex flex-col gap-[6px] font-admin-body text-[14px] font-semibold text-admin-ink">
-                <span>{copy.walkin.session}</span>
+              <label className="flex flex-col gap-[6px]">
+                <span className={POS_LABEL}>{copy.walkin.session}</span>
                 {sellable.length === 0 ? (
-                  <span className="font-normal text-admin-ink-muted">{copy.walkin.noSessions}</span>
+                  <span className={POS_HINT}>{copy.walkin.noSessions}</span>
                 ) : (
                   <select className={POS_FIELD} value={sessionId} onChange={(e) => onSessionChange(e.target.value)} data-pos-classes-session-pick>
                     <option value="">{copy.walkin.session}</option>
@@ -359,8 +359,8 @@ export function WalkInSheet({
                 )}
               </label>
               {session && session.tiers.length > 1 ? (
-                <label className="flex flex-col gap-[6px] font-admin-body text-[14px] font-semibold text-admin-ink">
-                  <span>{copy.walkin.tier}</span>
+                <label className="flex flex-col gap-[6px]">
+                  <span className={POS_LABEL}>{copy.walkin.tier}</span>
                   <select className={POS_FIELD} value={tierId} onChange={(e) => onTierChange(e.target.value)} data-pos-classes-tier>
                     <option value="">{copy.walkin.tier}</option>
                     {session.tiers.map((t) => (
@@ -374,24 +374,24 @@ export function WalkInSheet({
             </>
           )}
 
-          <div className="flex flex-col gap-[6px] font-admin-body">
-            <span className="text-[14px] font-semibold text-admin-ink">{b.customer}</span>
+          <div className="flex flex-col gap-[6px]">
+            <span className={POS_LABEL}>{b.customer}</span>
             <input className={POS_FIELD} placeholder={copy.walkin.name} aria-label={copy.walkin.name} value={name} onChange={(e) => onNameChange(e.target.value)} autoComplete="off" data-pos-classes-name />
             <div className="grid grid-cols-2 gap-[10px]">
               <input className={POS_FIELD} type="email" placeholder={copy.walkin.email} aria-label={copy.walkin.email} value={email} onChange={(e) => onEmailChange(e.target.value)} autoComplete="off" data-pos-classes-email />
               <input className={POS_FIELD} type="tel" placeholder={copy.walkin.phone} aria-label={copy.walkin.phone} value={phone} onChange={(e) => onPhoneChange(e.target.value)} autoComplete="off" />
             </div>
-            <span className="text-[13px] text-admin-ink-muted">{b.customerHint}</span>
+            <span className={POS_HINT}>{b.customerHint}</span>
           </div>
 
           {kind === "appointment" && service ? (
             <div className="flex flex-col gap-[8px]">
-              <span className="font-admin-body text-[12px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted">{b.nextFree}</span>
-              {service.amountCents > 0 && !service.allowPayInPerson ? <p className="m-0 font-admin-body text-[13px] text-admin-ink-muted">{copy.walkin.mustPayOnlineHint}</p> : null}
+              <span className={POS_EYEBROW}>{b.nextFree}</span>
+              {service.amountCents > 0 && !service.allowPayInPerson ? <p className={cn("m-0", POS_HINT)}>{copy.walkin.mustPayOnlineHint}</p> : null}
               {slots.status === "loading" ? <p className="m-0 font-admin-body text-[14px] text-admin-ink-muted">{copy.walkin.loadingTimes}</p> : null}
               {slots.status === "empty" ? <ClassesNotice kind="refused">{slots.sentence}</ClassesNotice> : null}
               {slots.status === "ready" ? (
-                <div className="flex flex-col gap-[8px]" data-pos-classes-slots>
+                <div className="flex flex-col gap-[10px]" data-pos-classes-slots>
                   {slots.starts.map((iso, index) => {
                     const on = slotIso === iso;
                     const ends = new Date(Date.parse(iso) + service.durationMinutes * 60_000).toISOString();
@@ -402,17 +402,17 @@ export function WalkInSheet({
                         aria-pressed={on}
                         data-pos-classes-slot={iso}
                         className={cn(
-                          "grid cursor-pointer grid-cols-[110px_1fr] items-center gap-[12px] rounded-[12px] border px-[14px] py-[12px] text-left font-admin-body",
+                          "flex cursor-pointer items-center gap-[12px] rounded-[14px] border-[1.5px] px-[16px] py-[14px] text-left font-admin-body",
                           on ? "border-admin-brand bg-admin-brand-soft" : "border-admin-border bg-admin-card hover:border-admin-border-strong",
                         )}
                         onClick={() => onSlotChange(iso)}
                       >
-                        <span className="font-mono text-[18px] font-semibold text-admin-ink">
-                          {index === 0 && intent === "walkin" ? `${formatClock(iso, timeZone, locale)}` : formatClock(iso, timeZone, locale)}
+                        <span className="w-[96px] shrink-0 text-[16px] font-bold tabular-nums leading-[1.2] text-admin-ink">
+                          {index === 0 && intent === "walkin" ? fill(b.nowAt, { time: formatClock(iso, timeZone, locale) }) : formatClock(iso, timeZone, locale)}
                         </span>
-                        <span className="min-w-0">
-                          <span className="block text-[15px] font-semibold text-admin-ink">{service.personName}</span>
-                          <span className="block text-[13px] text-admin-ink-muted">
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[16px] font-semibold leading-[1.2] text-admin-ink">{service.personName}</span>
+                          <span className="block text-[14px] leading-[1.2] text-admin-ink-muted">
                             {formatClock(iso, timeZone, locale)}–{formatClock(ends, timeZone, locale)}
                           </span>
                         </span>
@@ -424,12 +424,12 @@ export function WalkInSheet({
             </div>
           ) : null}
 
-          <label className="flex flex-col gap-[6px] font-admin-body text-[14px] font-semibold text-admin-ink">
-            <span>{b.pay}</span>
+          <label className="flex flex-col gap-[6px]">
+            <span className={POS_LABEL}>{b.pay}</span>
             <select className={POS_FIELD} value="cash" onChange={() => undefined} aria-label={b.pay}>
               <option value="cash">{price === null || price <= 0 ? b.payNothing : fill(b.payAtEnd, { amount: formatOrderMoney(price, currency) })}</option>
             </select>
-            <span className="font-normal text-[13px] text-admin-ink-muted">{b.payHint}</span>
+            <span className={POS_HINT}>{b.payHint}</span>
           </label>
         </form>
       )}

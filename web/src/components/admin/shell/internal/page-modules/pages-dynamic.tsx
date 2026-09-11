@@ -1,37 +1,51 @@
 "use client";
 
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 
 /**
- * clientOnly — React.lazy-based replacement for next/dynamic({ ssr: false }).
+ * pages-dynamic.tsx — the shell's two heaviest subtrees, loaded on demand.
  *
- * PROD INCIDENT (2026-07-23): next/dynamic with ssr:false inside this client
- * shell NEVER invoked its loader on hydration — the SSR bailout template sat
- * unresolved forever, so the Messages shell (talent: blank pane; workspace:
- * skeleton stuck) and the Client/Platform surfaces hung on every fresh build
- * and in production. Instrumentation showed modules evaluating and the shell
- * hydrating, but dynamic()'s loader never firing. React.lazy behind a
- * mounted gate resolves reliably and preserves the exact ssr:false
- * semantics: nothing on the server, load-on-mount on the client.
+ * HISTORY, BECAUSE IT MATTERS HERE. On 2026-07-23 (#874) every async edge
+ * into this graph — `next/dynamic({ ssr: false })` and `React.lazy` alike —
+ * was made STATIC after a production incident: under webpack those edges
+ * formed a cross-chunk cycle that deadlocked module resolution on fresh
+ * builds, and both messaging surfaces hung forever. The file kept its name
+ * and a `clientOnly` helper nobody called.
+ *
+ * WHY IT IS DYNAMIC AGAIN, AND HOW THIS DIFFERS. The build is Turbopack
+ * now, and `admin/pos/mode-clients.tsx` has been shipping five `next/dynamic`
+ * boundaries into this same client graph since the bundle budget went red
+ * the first time. Two things about THIS shape are different from the one
+ * that failed:
+ *   1. `ssr` stays ON. The server renders the messages shell / the talent
+ *      surface into the HTML and the client hydrates it once the chunk
+ *      arrives — nothing waits on a loader that never fires.
+ *   2. The edges point one way, and there is ONE of them. `MessagesShell`,
+ *      `TalentSurface` and the drawer switch import the eager shell (state,
+ *      primitives, i18n); the eager shell reaches them only through
+ *      `../shell-lazy-surfaces`, the single `import()` target (that file
+ *      says why one target and not three). The setter that pages call
+ *      before navigating into messages lives in
+ *      `messages/conversation-pending.ts`, a leaf, so no page module
+ *      imports the messages barrel any more.
+ *
+ * WHY. Every admin route shares one client graph, and the register on a
+ * tablet was downloading the talent surface and the messages machinery it
+ * can never render. `scripts/app-bundle-budget.mjs` measures exactly that
+ * union; these two boundaries are the largest cuts in it. The 2026-09-11
+ * commit that made them records what was measured and which journey was
+ * walked on the production build; CI's `perf:app-budget` is the gate.
  */
-export function clientOnly<P extends object>(
-  // The union absorbs TS's ComponentType<never> branch that `import()`
-  // namespace re-exports infer under moduleResolution: bundler.
-  load: () => Promise<{ default: React.ComponentType<P> } | { default: React.ComponentType<never> }>,
-  Fallback?: React.ComponentType,
-): React.ComponentType<P> {
-  const LazyInner = lazy(load as () => Promise<{ default: React.ComponentType<P> }>);
-  return function ClientOnly(props: P) {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
-    if (!mounted) return Fallback ? <Fallback /> : null;
-    return (
-      <Suspense fallback={Fallback ? <Fallback /> : null}>
-        <LazyInner {...props} />
-      </Suspense>
-    );
-  };
-}
+
+export const MessagesShell = dynamic(
+  () => import("../shell-lazy-surfaces").then((m) => ({ default: m.MessagesShell })),
+  { loading: MessagesShellSkeleton },
+);
+
+export const TalentSurface = dynamic(
+  () => import("../shell-lazy-surfaces").then((m) => ({ default: m.TalentSurface })),
+  { loading: () => null },
+);
 
 // ─── Messages shell skeleton ──────────────────────────────────────────────────
 // Shown while the dynamic MessagesShell bundle is being fetched/hydrated.
@@ -107,6 +121,3 @@ function MessagesShellSkeleton() {
     </div>
   );
 }
-
-export { TalentSurface } from "../talent";
-export { MessagesShell } from "../messages";
