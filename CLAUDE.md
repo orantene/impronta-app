@@ -7,11 +7,11 @@ This project deploys to **Vercel** (project `tulala`, team `oran-tenes-projects`
 - **The pointer advance is automatic — do not push it by hand as a matter of course.** `promote-production.yml` does it for you on green CI. If the workflow is down and you need to release a commit CI has already vetted, the manual fallback is a fast-forward, never a force: `git push origin origin/main:production`.
 - Push to any **other** branch → Vercel builds an SSO-gated **preview** (401).
 - `phase-1` is the **retired** former working branch. Do not develop on it; it is kept briefly as a transition alias and will be deleted. New work branches off `main` — see [`web/docs/development-workflow.md`](web/docs/development-workflow.md).
-- **Alias custom domains after a production deploy.** The production pointer does **not** reliably reassign `tulala.digital` + `app.tulala.digital`; the `vercel-post-deploy-alias.yml` Action re-aliases them. Manual fallback:
+- **Alias custom domains after a production deploy.** The production pointer does **not** reliably reassign `tulala.digital` + `app.tulala.digital`; the `vercel-post-deploy-alias.yml` Action re-aliases them. Manual fallback (guarded, since 2026-09-11):
   ```
-  vercel alias set <deploy-url> app.tulala.digital --scope oran-tenes-projects
-  vercel alias set <deploy-url> tulala.digital --scope oran-tenes-projects
+  cd web && npm run deploy:alias -- <deploy-url>
   ```
+  It refuses, naming both SHAs, when the build's commit is not covered by the last green `CI — structural quality gate` run on main. **Never bypass it with a raw `vercel alias set`**: on 2026-09-11 the `production` ref was fast-forwarded by hand onto a red commit and a raw alias put that build on the live domains.
 - **After any deploy, run the smoke test**: `cd web && npm run deploy:smoke`. Catches alias drift, missing CSP directives, broken image optimizer, dead Places key, Supabase region drift. Exit code 1 means at least one signal is wrong — investigate before walking away.
 
 ## Deploy commands cheat-sheet
