@@ -32,6 +32,9 @@ import { PaymentsProvidersCard } from "@/components/admin/settings/payments-prov
 import { RolesLimitsCard } from "@/components/admin/settings/roles-limits-card";
 import { BookingPoliciesCard } from "@/components/admin/settings/booking-policies-card";
 import { LocationsCard } from "@/components/admin/settings/locations-card";
+import { LayoutEditorCard } from "@/components/admin/settings/layout-editor-card";
+import { ServicePeriodsCard } from "@/components/admin/settings/service-periods-card";
+import { PrepStationsCard } from "@/components/admin/settings/prep-stations-card";
 import { Icon } from "../primitives";
 
 // ════════════════════════════════════════════════════════════════════════
@@ -126,6 +129,9 @@ type GroupId =
   | "commercial-terms"
   | "venue"
   | "locations"
+  | "layouts"
+  | "service-periods"
+  | "prep-stations"
   // Industry and words: the sixteen presets. Sits above appointments
   // because the preset supplies the nouns that screen then uses.
   | "industry"
@@ -147,7 +153,7 @@ type GroupId =
 
 /** Every group `?focus=` may open (the ids above, spelled once for the URL check). */
 const FOCUSABLE_GROUPS: readonly GroupId[] = [
-  "account", "plan", "workspace", "commercial-terms", "venue", "locations", "industry", "pos",
+  "account", "plan", "workspace", "commercial-terms", "venue", "locations", "layouts", "service-periods", "prep-stations", "industry", "pos",
   "appointments", "pricing-defaults", "domain", "branding", "team", "roles-limits", "roster-fields",
   "registration", "discover", "compliance", "payments", "integrations", "email", "advanced",
 ];
@@ -455,6 +461,46 @@ export function WorkspacePageView() {
         extraSearch: [
           { title: t("dashboard.adminWorkspace.locations.label"), desc: t("dashboard.adminWorkspace.locations.subtitle") },
           { title: t("dashboard.adminWorkspace.locations.zonesHeading"), desc: t("dashboard.adminWorkspace.locations.notWired.travel") },
+        ],
+      },
+      {
+        // W13 / R06 — floor plan versions. Activate never writes capacity.
+        id: "layouts",
+        label: t("dashboard.adminWorkspace.layouts.label"),
+        desc: t("dashboard.adminWorkspace.layouts.subtitle"),
+        visible: !!tenantSlug,
+        frame: "own",
+        rows: [],
+        extra: tenantSlug ? <LayoutEditorCard /> : null,
+        extraSearch: [
+          { title: t("dashboard.adminWorkspace.layouts.label"), desc: t("dashboard.adminWorkspace.layouts.subtitle") },
+          { title: t("dashboard.adminWorkspace.layouts.activate"), desc: t("dashboard.adminWorkspace.layouts.shareCapacity") },
+        ],
+      },
+      {
+        // W14 — service periods overlay today's windows when any row exists.
+        id: "service-periods",
+        label: t("dashboard.adminWorkspace.servicePeriods.label"),
+        desc: t("dashboard.adminWorkspace.servicePeriods.subtitle"),
+        visible: !!tenantSlug,
+        frame: "own",
+        rows: [],
+        extra: tenantSlug ? <ServicePeriodsCard /> : null,
+        extraSearch: [
+          { title: t("dashboard.adminWorkspace.servicePeriods.label"), desc: t("dashboard.adminWorkspace.servicePeriods.subtitle") },
+        ],
+      },
+      {
+        // W15 — prep stations. Course fire lives on the floor popover.
+        id: "prep-stations",
+        label: t("dashboard.adminWorkspace.prepStations.label"),
+        desc: t("dashboard.adminWorkspace.prepStations.subtitle"),
+        visible: !!tenantSlug,
+        frame: "own",
+        rows: [],
+        extra: tenantSlug ? <PrepStationsCard /> : null,
+        extraSearch: [
+          { title: t("dashboard.adminWorkspace.prepStations.label"), desc: t("dashboard.adminWorkspace.prepStations.subtitle") },
         ],
       },
       {

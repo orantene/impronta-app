@@ -59,6 +59,8 @@ export type FloorActions = {
   readonly resetTable: (spaceId: string) => Promise<FloorOutcome>;
   /** Absent on a surface with no kitchen send (the workspace's Live Floor). */
   readonly sendToKitchen?: (orderId: string) => Promise<FloorOutcome>;
+  /** T26: fire one course's lines on the open visit. */
+  readonly fireCourse?: (input: { visitId: string; courseSeq: number }) => Promise<FloorOutcome>;
   readonly takeWalkIn: (input: { holderName: string; partySize: number; holderPhone?: string }) => Promise<FloorOutcome>;
   readonly notifyWaitlist: (input: { id: string; expectedVersion?: number; holderPhone?: string | null; holderEmail?: string | null }) => Promise<FloorOutcome>;
   readonly seatWaitlist: (input: { id: string; spaceId: string; expectedVersion?: number }) => Promise<FloorOutcome>;
@@ -94,6 +96,8 @@ export type FloorBoardData = {
   readonly waitlistEnabled: boolean;
   /** Whether the venue's rules make it bookable at all (`reservationOfferingId` set). */
   readonly bookable: boolean;
+  /** Active layout canvas from W13; tiles use it when tables carry layoutRect. */
+  readonly layoutCanvas?: { w: number; h: number } | null;
 };
 
 export type FloorBoardProps = {

@@ -31,6 +31,7 @@ import { IssuesScreen, PosFrame, PosHeader, initialsOf, type IssuesCopy } from "
 import { interpolate } from "@/i18n/interpolate";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 
+import { prepFireCourse } from "@/lib/server-actions/venue-engine";
 import { tablesCloseVisit, tablesMoveVisit, tablesResetTable, tablesSeatParty } from "../tables/actions";
 import { posSubmitPrep } from "./actions";
 import { floorCreateReservation, floorLoadReserveTimes } from "./floor-actions";
@@ -62,6 +63,14 @@ const FLOOR_ACTIONS: FloorActions = {
   moveVisit: (input) => tablesMoveVisit(input),
   resetTable: (spaceId) => tablesResetTable(spaceId),
   sendToKitchen: async (orderId) => kitchenOutcome(await posSubmitPrep({ orderId, destination: "table" })),
+  fireCourse: async ({ visitId, courseSeq }) => {
+    const r = await prepFireCourse({
+      visitId,
+      courseSeq,
+      operationKey: `fire-${visitId}-${courseSeq}-${Date.now()}`,
+    });
+    return r.ok ? { ok: true } : { ok: false, reason: r.reason };
+  },
   takeWalkIn: (input) => floorJoinWaitlist(input),
   notifyWaitlist: (input) => floorNotifyWaitlist(input),
   seatWaitlist: (input) => floorSeatWaitlist(input),

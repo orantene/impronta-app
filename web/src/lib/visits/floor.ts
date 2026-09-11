@@ -120,6 +120,8 @@ export type FloorTable = {
    * `state`: a needs-reset table is still `free` or `held`, just not "ready".
    */
   needsResetSinceIso: string | null;
+  /** Active layout item, when W13 has placed this space. */
+  layoutRect?: { x: number; y: number; w: number; h: number; shape: string } | null;
 };
 
 type VisitJoinRow = {

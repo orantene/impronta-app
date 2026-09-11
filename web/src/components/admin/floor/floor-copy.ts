@@ -202,6 +202,9 @@ export type FloorBoardCopy = {
     /** `Collect {amount}` */
     readonly collect: string;
     readonly sendKitchen: string;
+    readonly fireStarters: string;
+    readonly fireMains: string;
+    readonly fireDessert: string;
     readonly moveOrJoin: string;
     readonly changeServer: string;
     readonly changeServerReason: string;
@@ -542,6 +545,9 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       addItems: t(`${K}.popover.addItems`),
       collect: t(`${K}.popover.collect`),
       sendKitchen: t("dashboard.pos.floor.sendKitchen"),
+      fireStarters: t("dashboard.pos.floor.fireStarters"),
+      fireMains: t("dashboard.pos.floor.fireMains"),
+      fireDessert: t("dashboard.pos.floor.fireDessert"),
       moveOrJoin: t(`${K}.popover.moveOrJoin`),
       changeServer: t(`${K}.popover.changeServer`),
       changeServerReason: t(`${K}.popover.changeServerReason`),

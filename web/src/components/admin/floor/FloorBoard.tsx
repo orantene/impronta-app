@@ -155,6 +155,13 @@ export function FloorBoard(props: FloorBoardProps) {
     });
   }
 
+  async function fireCourse(table: FloorTable, courseSeq: number) {
+    if (!table.visitId || !actions.fireCourse) return;
+    const visitId = table.visitId;
+    const fire = actions.fireCourse;
+    await run(() => fire({ visitId, courseSeq }));
+  }
+
   const close = useCallback(() => setOverlay({ kind: "none" }), []);
   const closeCard = useCallback(() => select(null, null), [select]);
 
@@ -256,6 +263,7 @@ export function FloorBoard(props: FloorBoardProps) {
             onPartyLeft={() => setOverlay({ kind: "departed", table: selected })}
             onReset={() => setOverlay({ kind: "reset", table: selected })}
             onSendKitchen={() => void sendToKitchen(selected)}
+            onFireCourse={actions.fireCourse ? (courseSeq) => void fireCourse(selected, courseSeq) : undefined}
           />
         )}
       </div>
