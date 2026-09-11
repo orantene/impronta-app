@@ -55,11 +55,20 @@ RETURNS UUID LANGUAGE SQL IMMUTABLE AS $$
   )::UUID;
 $$;
 
+-- 2026-09-10, met on production: this file was written against a column
+-- shape that no longer exists. `name_en` and `name_es` were folded into one
+-- `name_i18n` jsonb by 20260615211200, months before this file. It ran on the
+-- isolated QA branch only because that branch carried the old columns out of
+-- band; production refused it at plan time with 42703, so the eleven files
+-- before it applied and everything after it waited. Rewritten to the real
+-- shape. The three roles it seeds already exist on production, so the WHERE
+-- NOT EXISTS makes this a no-op there; what had to change is that the
+-- statement now parses.
 INSERT INTO public.taxonomy_terms
-  (id, kind, term_type, level, slug, name_en, name_es, sort_order, is_active, is_profile_badge, parent_id)
+  (id, kind, term_type, level, slug, name_i18n, sort_order, is_active, is_profile_badge, parent_id)
 SELECT public.taxv1_uuid('talent_type', v.slug),
        'talent_type', 'talent_type', 3,
-       v.slug, v.name_en, v.name_es, v.sort_order, TRUE, TRUE,
+       v.slug, jsonb_build_object('en', v.name_en, 'es', v.name_es), v.sort_order, TRUE, TRUE,
        public.taxv1_uuid('category_group', v.group_slug)
   FROM (VALUES
     -- Sort orders put each canonical role FIRST in its group: it is the answer
