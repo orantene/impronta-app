@@ -18,6 +18,7 @@ import { listBoard } from "@/lib/preparation/tickets";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantTimezone } from "@/lib/spaces/venues";
 import { listFloor } from "@/lib/visits/floor";
+import { partyWaitlistList } from "@/lib/venues/party-waitlist";
 import { issuesCopy } from "@/components/admin/pos/pos-copy";
 
 import type { FloorBoardData } from "@/components/admin/floor/floor-types";
@@ -38,11 +39,12 @@ export async function loadFloorBoardData(
   locale: string,
 ): Promise<{ ok: true; data: FloorBoardData } | { ok: false }> {
   const now = new Date();
-  const [floor, timeZone, board, book] = await Promise.all([
+  const [floor, timeZone, board, book, waitlist] = await Promise.all([
     listFloor(admin, tenantId),
     tenantTimezone(tenantId),
     listBoard(admin, tenantId),
     loadFloorBook(tenantId, now),
+    partyWaitlistList(admin, { tenantId }),
   ]);
   if (!floor.ok) return { ok: false };
 
@@ -85,6 +87,7 @@ export async function loadFloorBoardData(
       defaultTurnMinutes: book.defaultTurnMinutes,
       tables: floor.tables,
       book: book.entries,
+      partyWaitlist: waitlist.ok ? waitlist.rows : [],
       tickets,
       currencies,
       walkinsEnabled: book.walkinsEnabled,

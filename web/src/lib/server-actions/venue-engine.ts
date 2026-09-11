@@ -17,6 +17,7 @@ import {
 import {
   partyWaitlistJoin as joinPartyWaitlist,
   partyWaitlistLeave as leavePartyWaitlist,
+  partyWaitlistList as listPartyWaitlist,
   partyWaitlistNotify as notifyPartyWaitlist,
   partyWaitlistSeat as seatPartyWaitlist,
 } from "@/lib/venues/party-waitlist";
@@ -139,6 +140,12 @@ export async function zoneDelete(input: { id: string; expectedVersion?: number }
   const parsed = z.object({ id: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return deleteZone(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function partyWaitlistList() {
+  const g = await staff();
+  if (!g.ok) return g;
+  return listPartyWaitlist(g.admin, { tenantId: g.tenantId });
 }
 
 export async function partyWaitlistJoin(input: {

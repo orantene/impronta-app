@@ -10,7 +10,7 @@ import type { FloorTable } from "@/lib/visits/floor";
 
 import type { FloorBoardCopy } from "./floor-copy";
 import type { FloorBookEntry } from "./floor-model";
-import type { FloorActions, FloorBoardData, FloorOutcome } from "./floor-types";
+import type { FloorActions, FloorBoardData, FloorOutcome, FloorWaitlistEntry } from "./floor-types";
 import type { FloorOverlay } from "./FloorBoard";
 import { DepartedDialog, ResetDialog } from "./FloorDialogs";
 import { MoveSheet } from "./MoveSheet";
@@ -30,6 +30,7 @@ export type FloorDialogsHostProps = {
   readonly onSeat: (input: { spaceId: string; joinedSpaceId?: string; partySize: number; admissionId?: string }) => Promise<void>;
   readonly onOpenWalkIn: () => void;
   readonly onSeatEntry: (entry: FloorBookEntry) => void;
+  readonly onSeatWaitlist: (entry: FloorWaitlistEntry) => void;
   readonly onSelect: (spaceId: string | null) => void;
   readonly onNotice: (text: string) => void;
 };
@@ -63,7 +64,7 @@ export function FloorDialogsHost(props: FloorDialogsHostProps) {
     }
   }
 
-  async function addToWaitlist(input: { holderName: string; partySize: number }) {
+  async function addToWaitlist(input: { holderName: string; partySize: number; holderPhone?: string }) {
     const r = await run(() => actions.takeWalkIn(input));
     if (r.ok) {
       props.onClose();
@@ -71,16 +72,34 @@ export function FloorDialogsHost(props: FloorDialogsHostProps) {
     }
   }
 
+  async function offerWaitlist(entry: FloorWaitlistEntry) {
+    const r = await run(() =>
+      actions.notifyWaitlist({
+        id: entry.id,
+        expectedVersion: entry.version,
+        holderPhone: entry.holderPhone,
+        holderEmail: entry.holderEmail,
+      }),
+    );
+    if (r.ok) props.onNotice(copy.waiting.notifyNone);
+  }
+
+  async function removeWaitlist(entry: FloorWaitlistEntry) {
+    const r = await run(() => actions.leaveWaitlist({ id: entry.id, expectedVersion: entry.version }));
+    if (r.ok) props.onClose();
+  }
+
   switch (overlay.kind) {
     case "seat":
       return (
         <SeatPartySheet
-          key={`${overlay.table?.spaceId ?? ""}:${overlay.entry?.admissionId ?? ""}`}
+          key={`${overlay.table?.spaceId ?? ""}:${overlay.entry?.admissionId ?? overlay.waitlist?.id ?? ""}`}
           open
           data={data}
           copy={copy}
           table={overlay.table}
           entry={overlay.entry}
+          waitlist={overlay.waitlist ?? null}
           busy={busy}
           onClose={props.onClose}
           onSeat={(input) => void props.onSeat(input)}
@@ -99,7 +118,19 @@ export function FloorDialogsHost(props: FloorDialogsHostProps) {
         />
       );
     case "waiting":
-      return <WaitingSheet open data={data} copy={copy} busy={busy} onClose={props.onClose} onSeat={props.onSeatEntry} onAddParty={props.onOpenWalkIn} />;
+      return (
+        <WaitingSheet
+          open
+          data={data}
+          copy={copy}
+          busy={busy}
+          onClose={props.onClose}
+          onSeat={props.onSeatWaitlist}
+          onOffer={(entry) => void offerWaitlist(entry)}
+          onRemove={(entry) => void removeWaitlist(entry)}
+          onAddParty={props.onOpenWalkIn}
+        />
+      );
     case "move":
       return <MoveSheet key={overlay.table.spaceId} open data={data} copy={copy} table={overlay.table} busy={busy} onClose={props.onClose} onMove={(dest) => void move(overlay.table, dest)} />;
     case "departed":

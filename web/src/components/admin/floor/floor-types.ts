@@ -12,6 +12,21 @@ import type { FloorTable } from "@/lib/visits/floor";
 import type { FloorBoardCopy } from "./floor-copy";
 import type { FloorBookEntry, FloorTicket } from "./floor-model";
 
+export type FloorWaitlistEntry = {
+  readonly id: string;
+  readonly holderName: string;
+  readonly partySize: number;
+  readonly holderPhone: string | null;
+  readonly holderEmail: string | null;
+  readonly quotedMinutes: number | null;
+  readonly status: "waiting" | "notified";
+  readonly joinedAtIso: string;
+  readonly notifiedAtIso: string | null;
+  readonly notifyExpiresAtIso: string | null;
+  readonly position: number;
+  readonly version: number;
+};
+
 /** Every writer answers in this shape: a code, never a sentence. */
 export type FloorOutcome =
   | { ok: true; reservationWarning?: string; revision?: number; amended?: boolean; admissionId?: string }
@@ -44,7 +59,10 @@ export type FloorActions = {
   readonly resetTable: (spaceId: string) => Promise<FloorOutcome>;
   /** Absent on a surface with no kitchen send (the workspace's Live Floor). */
   readonly sendToKitchen?: (orderId: string) => Promise<FloorOutcome>;
-  readonly takeWalkIn: (input: { holderName: string; partySize: number }) => Promise<FloorOutcome>;
+  readonly takeWalkIn: (input: { holderName: string; partySize: number; holderPhone?: string }) => Promise<FloorOutcome>;
+  readonly notifyWaitlist: (input: { id: string; expectedVersion?: number; holderPhone?: string | null; holderEmail?: string | null }) => Promise<FloorOutcome>;
+  readonly seatWaitlist: (input: { id: string; spaceId: string; expectedVersion?: number }) => Promise<FloorOutcome>;
+  readonly leaveWaitlist: (input: { id: string; expectedVersion?: number }) => Promise<FloorOutcome>;
   /** The staff reservation (R01). Absent when the surface has no writer for it. */
   readonly loadReserveTimes?: (input: { onDate: string | null; partySize: number }) => Promise<FloorReserveTimes>;
   readonly createReservation?: (input: {
@@ -68,6 +86,7 @@ export type FloorBoardData = {
   readonly defaultTurnMinutes: number;
   readonly tables: readonly FloorTable[];
   readonly book: readonly FloorBookEntry[];
+  readonly partyWaitlist: readonly FloorWaitlistEntry[];
   readonly tickets: Readonly<Record<string, FloorTicket>>;
   /** Each open check's own currency, by order id; a check not listed reads as USD. */
   readonly currencies: Readonly<Record<string, string>>;

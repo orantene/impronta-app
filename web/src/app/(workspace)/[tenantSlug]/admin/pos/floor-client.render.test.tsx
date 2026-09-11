@@ -128,6 +128,7 @@ function data(locale: string, tables: FloorTable[] = PROBE_TABLES): FloorBoardDa
     walkinsEnabled: true,
     waitlistEnabled: false,
     bookable: true,
+    partyWaitlist: [],
   };
 }
 

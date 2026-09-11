@@ -55,7 +55,12 @@ export type FloorRefusalKey =
   | "no_offering_configured"
   | "no_contact"
   | "closed"
-  | "too_late_today";
+  | "too_late_today"
+  | "already_seated"
+  | "space_occupied"
+  | "expired"
+  | "conflict"
+  | "waitlist_no_channel";
 
 export type FloorBoardCopy = {
   readonly railLabel: string;
@@ -282,6 +287,8 @@ export type FloorBoardCopy = {
     readonly seatNow: string;
     readonly offerTable: string;
     readonly offerReason: string;
+    readonly offered: string;
+    readonly notifyNone: string;
     readonly remove: string;
     readonly removeReason: string;
     readonly close: string;
@@ -608,6 +615,8 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       seatNow: t(`${K}.waiting.seatNow`),
       offerTable: t(`${K}.waiting.offerTable`),
       offerReason: t(`${K}.waiting.offerReason`),
+      offered: t(`${K}.waiting.offered`),
+      notifyNone: t(`${K}.waiting.notifyNone`),
       remove: t(`${K}.waiting.remove`),
       removeReason: t(`${K}.waiting.removeReason`),
       close: t(`${K}.waiting.close`),
@@ -751,6 +760,11 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       no_contact: t(`${K}.refusal.noContact`),
       closed: t(`${K}.refusal.closed`),
       too_late_today: t(`${K}.refusal.tooLateToday`),
+      already_seated: t("dashboard.venue.engine.refusal.already_seated"),
+      space_occupied: t("dashboard.venue.engine.refusal.space_occupied"),
+      expired: t("dashboard.venue.engine.refusal.expired"),
+      conflict: t("dashboard.venue.engine.refusal.conflict"),
+      waitlist_no_channel: t(`${K}.waiting.notifyNone`),
     },
   };
 }

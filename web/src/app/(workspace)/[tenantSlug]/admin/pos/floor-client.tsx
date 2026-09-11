@@ -31,10 +31,10 @@ import { IssuesScreen, PosFrame, PosHeader, initialsOf, type IssuesCopy } from "
 import { interpolate } from "@/i18n/interpolate";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 
-import { reservationsTakeWalkIn } from "../reservations/actions";
 import { tablesCloseVisit, tablesMoveVisit, tablesResetTable, tablesSeatParty } from "../tables/actions";
 import { posSubmitPrep } from "./actions";
 import { floorCreateReservation, floorLoadReserveTimes } from "./floor-actions";
+import { floorJoinWaitlist, floorLeaveWaitlist, floorNotifyWaitlist, floorSeatWaitlist } from "./floor-waitlist";
 import type { FloorCopy } from "./floor-copy";
 import { kitchenOutcome } from "./floor-kitchen";
 
@@ -62,7 +62,10 @@ const FLOOR_ACTIONS: FloorActions = {
   moveVisit: (input) => tablesMoveVisit(input),
   resetTable: (spaceId) => tablesResetTable(spaceId),
   sendToKitchen: async (orderId) => kitchenOutcome(await posSubmitPrep({ orderId, destination: "table" })),
-  takeWalkIn: (input) => reservationsTakeWalkIn(input),
+  takeWalkIn: (input) => floorJoinWaitlist(input),
+  notifyWaitlist: (input) => floorNotifyWaitlist(input),
+  seatWaitlist: (input) => floorSeatWaitlist(input),
+  leaveWaitlist: (input) => floorLeaveWaitlist(input),
   loadReserveTimes: (input) => floorLoadReserveTimes(input),
   createReservation: (input) => floorCreateReservation(input),
 };
