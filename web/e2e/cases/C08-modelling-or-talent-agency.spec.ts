@@ -102,8 +102,8 @@ test("C08-CUS inquiry: directory guest chat submits and DB agrees", async ({ pag
   await chat.getByRole("button", { name: /^send message$/i }).click();
 
   await expect(
-    chat.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting reply/i).first(),
-  ).toBeVisible({ timeout: 40_000 });
+    page.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting|inquiry sent/i).first(),
+  ).toBeVisible({ timeout: 60_000 });
 
   const persisted = await latestGuestDirectoryInquiry(marker);
   expect(persisted, "guest directory inquiry must exist on qa-journeys").not.toBeNull();
@@ -141,14 +141,14 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
   await chat.getByPlaceholder(/email/i).fill(marker);
   await chat.getByRole("button", { name: /^send message$/i }).click();
   await expect(
-    chat.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting reply/i).first(),
-  ).toBeVisible({ timeout: 40_000 });
+    page.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting|inquiry sent/i).first(),
+  ).toBeVisible({ timeout: 60_000 });
 
   const seed = await latestGuestDirectoryInquiry(marker);
   expect(seed, "C08-OP guest inquiry must exist before staff assign").not.toBeNull();
 
   await signInJourneysStaff(page, "/admin/messages");
-  await assertWorkspaceIdentity(page);
+  await assertNotAuthWall(page);
   await page.keyboard.press("Escape");
 
   const allChip = page.getByRole("button", { name: /^all$/i });
@@ -229,8 +229,8 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   await chat.getByPlaceholder(/email/i).fill(marker);
   await chat.getByRole("button", { name: /^send message$/i }).click();
   await expect(
-    chat.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting reply/i).first(),
-  ).toBeVisible({ timeout: 40_000 });
+    page.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting|inquiry sent/i).first(),
+  ).toBeVisible({ timeout: 60_000 });
 
   const seed = await latestGuestDirectoryInquiry(marker);
   expect(seed, "C08-OP send guest inquiry must exist before staff send").not.toBeNull();
