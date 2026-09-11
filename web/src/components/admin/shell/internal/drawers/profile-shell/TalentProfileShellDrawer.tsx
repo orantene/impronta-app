@@ -3632,7 +3632,7 @@ export function TalentProfileShellDrawer() {
               open={activeSection === "location"}
               onToggle={() => setActiveSection(activeSection === "location" ? "" : "location")}
             >
-              {payload.talentId && bridgeTenantIdentity?.tenantId ? (
+              {payload.talentId && bridgeTenantIdentity?.tenantId && !isSelf /* slot panel is staff-only (requireWorkspaceStaffAction); self-edit takes the talent branch, roster or not */ ? (
                 <>
                   <ProfileShellSectionSaveHint locked={personalProfileLocked} />
                   <LocationSlotPanel
@@ -3930,7 +3930,7 @@ export function TalentProfileShellDrawer() {
                   {copy.t("Languages")}
                   <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">{copy.t("· Languages this talent can use with clients.")}</span>
                 </div>
-                {payload.talentId && bridgeTenantIdentity?.tenantId ? (
+                {payload.talentId && bridgeTenantIdentity?.tenantId && !isSelf /* staff-only, see Location */ ? (
                   <>
                     <ProfileShellSectionSaveHint locked={personalProfileLocked} />
                     <LanguageSlotPanel
