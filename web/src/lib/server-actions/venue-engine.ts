@@ -11,6 +11,12 @@ import {
   zoneDelete as deleteZone,
   zoneUpsert as upsertZone,
 } from "@/lib/venues/locations";
+import {
+  partyWaitlistJoin as joinPartyWaitlist,
+  partyWaitlistLeave as leavePartyWaitlist,
+  partyWaitlistNotify as notifyPartyWaitlist,
+  partyWaitlistSeat as seatPartyWaitlist,
+} from "@/lib/venues/party-waitlist";
 
 const uuid = z.string().uuid();
 const slug = z.string().trim().min(1).max(63);
@@ -104,4 +110,82 @@ export async function zoneDelete(input: { id: string; expectedVersion?: number }
   const parsed = z.object({ id: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return deleteZone(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function partyWaitlistJoin(input: {
+  locationId?: string | null;
+  zoneId?: string | null;
+  partySize: number;
+  holderName: string;
+  holderPhone?: string | null;
+  holderEmail?: string | null;
+  note?: string | null;
+  quotedMinutes?: number | null;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      locationId: uuid.nullable().optional(),
+      zoneId: uuid.nullable().optional(),
+      partySize: z.number().int().min(1).max(200),
+      holderName: z.string().trim().min(1).max(120),
+      holderPhone: z.string().trim().max(40).nullable().optional(),
+      holderEmail: z.string().email().nullable().optional(),
+      note: z.string().trim().max(400).nullable().optional(),
+      quotedMinutes: z.number().int().min(0).max(24 * 60).nullable().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return joinPartyWaitlist(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function partyWaitlistNotify(input: {
+  id: string;
+  ttlSeconds?: number;
+  expectedVersion?: number;
+  holderEmail?: string | null;
+  holderPhone?: string | null;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      id: uuid,
+      ttlSeconds: z.number().int().min(30).max(3600).optional(),
+      expectedVersion: z.number().int().optional(),
+      holderEmail: z.string().email().nullable().optional(),
+      holderPhone: z.string().trim().max(40).nullable().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return notifyPartyWaitlist(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function partyWaitlistSeat(input: {
+  id: string;
+  spaceId: string;
+  operationKey: string;
+  expectedVersion?: number;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      id: uuid,
+      spaceId: uuid,
+      operationKey: z.string().trim().min(8).max(80),
+      expectedVersion: z.number().int().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return seatPartyWaitlist(g.admin, { tenantId: g.tenantId, actorUserId: g.userId, ...parsed.data });
+}
+
+export async function partyWaitlistLeave(input: { id: string; expectedVersion?: number }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ id: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return leavePartyWaitlist(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }

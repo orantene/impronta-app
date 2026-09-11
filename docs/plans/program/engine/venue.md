@@ -80,3 +80,55 @@ Refuses `has_spaces` when any `spaces.zone_id` still points at the zone.
 | invalid | `dashboard.venue.engine.refusal.invalid` |
 | unavailable | `dashboard.venue.engine.refusal.unavailable` |
 | not_allowed | `dashboard.venue.engine.refusal.not_allowed` |
+
+---
+
+## 2. Party waitlist (restaurant)
+
+Unblocks: T08, POSWalkIn waitlist, MW17. Records D-POS-78. Does not touch
+`waitlist_offers` (D-POS-68).
+
+Notify never pretends a phone send happened: no guest SMS sender exists, so
+the RPC records `notified_at` and the action returns `channel: 'none'` unless
+an email was actually accepted.
+
+Seat claims the row under `FOR UPDATE`, then opens the visit through
+`openVisit` (same path as `tablesSeatParty`). Two concurrent seats of one
+entry yield one winner (`conflict` / `already_seated`).
+
+### `partyWaitlistJoin`
+
+Input: `{ locationId?, zoneId?, partySize, holderName, holderPhone?,
+holderEmail?, note?, quotedMinutes? }`
+
+Success: `{ ok: true, id, position, version }`
+
+### `partyWaitlistNotify`
+
+Input: `{ id, ttlSeconds?, expectedVersion?, holderEmail?, holderPhone? }`
+
+Success: `{ ok: true, id, version, channel: 'email'|'none' }`
+
+### `partyWaitlistSeat`
+
+Input: `{ id, spaceId, operationKey, expectedVersion? }`
+
+Success: `{ ok: true, id, visitId, version }`
+
+### `partyWaitlistLeave`
+
+Input: `{ id, expectedVersion? }`
+
+Success: `{ ok: true, id }`
+
+Reader: staff SELECT on `party_waitlist`. Reaper: `party_waitlist_reap` inside
+`api/cron/expire-orders`.
+
+| reason | sentence key |
+|---|---|
+| already_seated | `dashboard.venue.engine.refusal.already_seated` |
+| space_occupied | `dashboard.venue.engine.refusal.space_occupied` |
+| expired | `dashboard.venue.engine.refusal.expired` |
+| conflict | `dashboard.venue.engine.refusal.conflict` |
+| not_found | `dashboard.venue.engine.refusal.not_found` |
+| unavailable | `dashboard.venue.engine.refusal.unavailable` |

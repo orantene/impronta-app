@@ -889,3 +889,9 @@ Decided 2026-09-11 (engine-venue). `/t` is `CANONICAL_TALENT_PREFIX` (talent
 storefront). A second `/t/[code]` page would collide in the App Router.
 Signed admission codes stay `adm1.…` from `admission-token.ts`. The public
 ticket page is `/ticket/[code]`.
+
+## D-POS-78 — restaurant waitlist is party_waitlist, not waitlist_offers
+
+Decided 2026-09-11 (engine-venue). T08 is its own table. Notify records
+`notified_at` even when no phone sender exists and returns `channel: none`.
+Seat claims the row in SQL then opens the visit through `openVisit`.
