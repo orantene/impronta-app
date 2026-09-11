@@ -41,6 +41,11 @@ test.beforeEach(async ({ page }) => {
  * a leftover draft looks like a missing form. Open a fresh thread first.
  */
 async function openFreshDirectoryChat(page: Page) {
+  // The shared Vercel storageState also carries `impronta_guest` from an
+  // earlier inquiry. That guest already has a conversation, so the dock
+  // restores the draft ("Not sent") and asks to verify email instead of
+  // showing the name/email gate.
+  await page.context().clearCookies({ name: "impronta_guest" });
   await page.goto("/directory?inquiry=open");
   await assertNotAuthWall(page);
   const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
