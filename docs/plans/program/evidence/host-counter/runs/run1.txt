@@ -1,0 +1,45 @@
+
+Running 4 tests using 1 worker
+
+[1A[2K[1/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:231:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree
+[1A[2K  1) [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:231:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: [32m/\/admin\/pos\?mode=counter/[39m
+    Received string:  [31m"https://staging-qa-journeys.tulala.digital/admin"[39m
+    Timeout: 30000ms
+
+    Call log:
+    [2m  - Expect "toHaveURL" with timeout 30000ms[22m
+    [2m    34 × unexpected value "https://staging-qa-journeys.tulala.digital/admin"[22m
+
+
+      149 |   ).toBeVisible({ timeout: 30_000 });
+      150 |   await control.getByRole("button", { name: /^counter$/i }).click();
+    > 151 |   await expect(page).toHaveURL(
+          |                      ^
+      152 |     new RegExp(`${ADMIN_BASE.replace(/\//g, "\\/")}\\/pos\\?mode=counter`),
+      153 |     { timeout: 30_000 },
+      154 |   );
+        at enterCounterFromTopBar (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-host-a/web/e2e/cases/POS-counter-cash-sale.spec.ts:151:22)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-host-a/web/e2e/cases/POS-counter-cash-sale.spec.ts:239:3
+
+    Error Context: test-results/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K[2/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:461:5 › POS-OP counter refusal: a sale someone else already collected against
+[1A[2K[3/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:510:5 › POS-OP counter refusal: a sale changed underneath the operator
+[1A[2K[4/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:561:5 › POS-OP counter refusal: an item that needs the customer's name, sold without one
+[1A[2K  1 failed
+    [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:231:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree 
+  3 did not run
+EXIT=0

@@ -1,0 +1,42 @@
+
+Running 5 tests using 1 worker
+
+[1A[2K[1/5] [chromium] › e2e/journeys/pos-door.spec.ts:110:5 › Door mode is switched on in Settings, and the night exists through the interface
+[1A[2K[2/5] [chromium] › e2e/journeys/pos-door.spec.ts:225:5 › a drawer is open at the counter, so the door's cash has somewhere to go
+[1A[2K[3/5] [chromium] › e2e/journeys/pos-door.spec.ts:244:5 › box office: a ticket is sold for cash through the till and issued with its code
+[1A[2K  1) [chromium] › e2e/journeys/pos-door.spec.ts:244:5 › box office: a ticket is sold for cash through the till and issued with its code 
+
+    [31mTest timeout of 240000ms exceeded.[39m
+
+    Error: locator.innerText: Test timeout of 240000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('[data-door-sale="box"]').locator('[data-door-issued]').locator('[data-door-code]').first()[22m
+
+
+      269 |   const issued = panel.locator("[data-door-issued]");
+      270 |   await expect(issued).toBeVisible({ timeout: 45_000 });
+    > 271 |   const code = (await issued.locator("[data-door-code]").first().innerText()).trim();
+          |                                                                  ^
+      272 |   expect(code, "the issued ticket must carry a signed code").toMatch(/^adm1\./);
+      273 |   ticketCode = code;
+      274 |   const receiptHref = await panel.locator("[data-pos-receipt-link]").getAttribute("href");
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-host-a/web/e2e/journeys/pos-door.spec.ts:271:66
+
+    Error Context: test-results/journeys-pos-door-box-offi-26a35-ll-and-issued-with-its-code-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/journeys-pos-door-box-offi-26a35-ll-and-issued-with-its-code-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/journeys-pos-door-box-offi-26a35-ll-and-issued-with-its-code-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K[4/5] [chromium] › e2e/journeys/pos-door.spec.ts:315:5 › gate: the code admits once, is refused the second time, and nonsense is not a ticket
+[1A[2K[5/5] [chromium] › e2e/journeys/pos-door.spec.ts:360:5 › gate: a walk-up pays cash at the door and walks in
+[1A[2K  1 failed
+    [chromium] › e2e/journeys/pos-door.spec.ts:244:5 › box office: a ticket is sold for cash through the till and issued with its code 
+  2 did not run
+  2 passed (4.5m)
+EXIT=1

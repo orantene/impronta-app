@@ -1,0 +1,43 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/POS-floor-mode.spec.ts:71:5 › POS-FLOOR: seat, send to the kitchen, move, end, mark ready; and the join a refusal offers
+[1A[2K  1) [chromium] › e2e/cases/POS-floor-mode.spec.ts:71:5 › POS-FLOOR: seat, send to the kitchen, move, end, mark ready; and the join a refusal offers 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).not.[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: locator('li[data-floor-table="T5"]')
+    Expected pattern: not [32m/needs reset/i[39m
+    Received string: [31m"T5Free[7mNeeds reset[27mvacated 20:26"[39m
+    Timeout: 30000ms
+
+    Call log:
+    [2m  - Expect "not toContainText" with timeout 30000ms[22m
+    [2m  - waiting for locator('li[data-floor-table="T5"]')[22m
+    [2m    34 × locator resolved to <li data-floor-table="T5" data-floor-state="free">…</li>[22m
+    [2m       - unexpected value "T5FreeNeeds resetvacated 20:26"[22m
+
+
+      217 |   await tapTable(page, "T5");
+      218 |   await sheet(page, "T5").getByRole("button", { name: /mark ready/i }).click();
+    > 219 |   await expect(card(page, "T5")).not.toContainText(/needs reset/i, { timeout: 30_000 });
+          |                                      ^
+      220 |   await shot("12-t5-ready");
+      221 |   expect(await needsResetAt(FLOOR_T5), "mark ready clears the column").toBeNull();
+      222 |   // T4 was left needing a reset by the move; mark it ready too.
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-host-a/web/e2e/cases/POS-floor-mode.spec.ts:219:38
+
+    Error Context: test-results/cases-POS-floor-mode-POS-F-b3935-d-the-join-a-refusal-offers-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-POS-floor-mode-POS-F-b3935-d-the-join-a-refusal-offers-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-POS-floor-mode-POS-F-b3935-d-the-join-a-refusal-offers-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/POS-floor-mode.spec.ts:71:5 › POS-FLOOR: seat, send to the kitchen, move, end, mark ready; and the join a refusal offers 
+EXIT=1

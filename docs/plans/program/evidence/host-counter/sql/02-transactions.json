@@ -1,0 +1,68 @@
+[
+  {
+    "order_id": "b1fbf921-024e-4e55-84f1-0b2b73232d34",
+    "tx_id": "8602dcbb-9f98-4b96-a9d1-22e089462880",
+    "status": "paid",
+    "gross_amount_cents": "30000",
+    "provider": "manual",
+    "paid_via": "cash",
+    "tendered_cents": "30000",
+    "change_cents": "0",
+    "shift_id": "96a32a62-4b72-42a7-921d-eef4abf1883e"
+  },
+  {
+    "order_id": "831d8925-b06a-4b03-9ded-8d2710de2f4b",
+    "tx_id": "c18ae523-5c72-4705-b2a1-fad82fabf6af",
+    "status": "paid",
+    "gross_amount_cents": "1200",
+    "provider": "manual",
+    "paid_via": "cash",
+    "tendered_cents": "1200",
+    "change_cents": "0",
+    "shift_id": "96a32a62-4b72-42a7-921d-eef4abf1883e"
+  },
+  {
+    "order_id": "65ecf2e7-8b8a-4b13-b127-ca0b5633fc0b",
+    "tx_id": "22c9410c-1373-4f24-bbcc-bc1ec9d4e941",
+    "status": "paid",
+    "gross_amount_cents": "1800",
+    "provider": "manual",
+    "paid_via": "cash",
+    "tendered_cents": "1800",
+    "change_cents": "0",
+    "shift_id": "96a32a62-4b72-42a7-921d-eef4abf1883e"
+  },
+  {
+    "order_id": "16f1ce55-0a9c-42c9-9a16-62ee5b13b712",
+    "tx_id": "bb7966f2-cf4f-47ce-882a-59ca29965ec9",
+    "status": "paid",
+    "gross_amount_cents": "4250",
+    "provider": "manual",
+    "paid_via": "cash",
+    "tendered_cents": "5000",
+    "change_cents": "750",
+    "shift_id": "96a32a62-4b72-42a7-921d-eef4abf1883e"
+  },
+  {
+    "order_id": "9ce3d30c-4539-4ecd-bcce-aa30d17ef4f4",
+    "tx_id": "a4f0a45f-ea8f-4dd8-95fb-a7de824511af",
+    "status": "paid",
+    "gross_amount_cents": "1200",
+    "provider": "manual",
+    "paid_via": "cash",
+    "tendered_cents": "1200",
+    "change_cents": "0",
+    "shift_id": "5a6a554e-7164-4961-90af-a1325455cb78"
+  },
+  {
+    "order_id": "f428688e-4cae-49e3-a574-d7ba6a0ae1da",
+    "tx_id": "50f82d8f-8a0d-42b7-90f9-4b7247fe40ef",
+    "status": "paid",
+    "gross_amount_cents": "1800",
+    "provider": "manual",
+    "paid_via": "cash",
+    "tendered_cents": "1800",
+    "change_cents": "0",
+    "shift_id": "5a6a554e-7164-4961-90af-a1325455cb78"
+  }
+]

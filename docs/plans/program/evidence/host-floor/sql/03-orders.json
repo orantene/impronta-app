@@ -1,0 +1,50 @@
+[
+  {
+    "id": "11474f5b-6085-4c81-9a88-52087e6e1135",
+    "status": "draft",
+    "total_cents": "0",
+    "currency": "USD",
+    "visit_id": "2abc0cc0-466c-4f69-9640-8cd4458ff32c",
+    "updated_at": "2026-09-11T02:30:06.502Z"
+  },
+  {
+    "id": "cdbb34bd-7145-4d47-b374-bb106f63430b",
+    "status": "paid",
+    "total_cents": "1800",
+    "currency": "USD",
+    "visit_id": "9501d09b-f0ad-4cda-9dc8-c9ef2726890f",
+    "updated_at": "2026-09-11T02:29:53.151Z"
+  },
+  {
+    "id": "c97b1762-abc6-4c26-b6eb-80e08c7ee7b6",
+    "status": "paid",
+    "total_cents": "1800",
+    "currency": "USD",
+    "visit_id": "2ae70aa5-f26d-4783-8b5d-cbc18e79a83b",
+    "updated_at": "2026-09-11T02:26:52.056Z"
+  },
+  {
+    "id": "cbcd60ff-22e0-40c9-a496-2de4d70ec845",
+    "status": "draft",
+    "total_cents": "0",
+    "currency": "USD",
+    "visit_id": "8001d396-0bbb-494a-9951-2fa4f6934de6",
+    "updated_at": "2026-09-10T19:50:22.823Z"
+  },
+  {
+    "id": "13831392-2723-4224-b389-c59b9762321e",
+    "status": "paid",
+    "total_cents": "1800",
+    "currency": "USD",
+    "visit_id": "08d5551c-ac46-4135-97bb-2313b453234c",
+    "updated_at": "2026-09-10T19:49:42.699Z"
+  },
+  {
+    "id": "64f772d4-2a00-401b-8a31-27b18c941100",
+    "status": "draft",
+    "total_cents": "0",
+    "currency": "USD",
+    "visit_id": "580b909e-931d-4474-b93e-b67a2c2b7049",
+    "updated_at": "2026-09-10T19:47:23.885Z"
+  }
+]

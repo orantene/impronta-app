@@ -139,7 +139,17 @@ async function expectRefusalSentence(page: Page, sentence: RegExp): Promise<stri
   return text;
 }
 
-/** Enter the point of sale the way a person does: the top bar's own switch. */
+/**
+ * Enter the point of sale the way a person does: the top bar's own switch.
+ *
+ * When this workspace has more than one point-of-sale mode enabled, the
+ * switch's own component (`PosModeSwitch`) opens a menu on the first click
+ * instead of navigating directly — by design, so a person can choose which
+ * mode. The fixture workspace's settings are shared with every other proof
+ * on this database, so how many modes are on is never assumed: open the
+ * menu, and if it is showing, choose Counter from it; if the workspace has
+ * only Counter on, the same click already navigated and no menu appears.
+ */
 async function enterCounterFromTopBar(page: Page): Promise<void> {
   const control = page.getByRole("group", { name: /workspace or point of sale/i });
   await expect(
@@ -148,6 +158,10 @@ async function enterCounterFromTopBar(page: Page): Promise<void> {
       "it needs platform_settings.workspace_pos_enabled on this database",
   ).toBeVisible({ timeout: 30_000 });
   await control.getByRole("button", { name: /^counter$/i }).click();
+  const menu = page.getByRole("menu", { name: /choose a point of sale mode/i });
+  if (await menu.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await menu.getByRole("menuitem", { name: /^counter$/i }).click();
+  }
   await expect(page).toHaveURL(
     new RegExp(`${ADMIN_BASE.replace(/\//g, "\\/")}\\/pos\\?mode=counter`),
     { timeout: 30_000 },

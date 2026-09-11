@@ -1,0 +1,62 @@
+[
+  {
+    "id": "a842a8ad-671a-42ef-b421-3c0208f5f49f",
+    "status": "cancelled",
+    "total_cents": "20000",
+    "currency": "USD",
+    "source_channel": "offer",
+    "receipt_code": null,
+    "version": 1,
+    "updated_at": "2026-09-11T02:25:27.113Z"
+  },
+  {
+    "id": "b1fbf921-024e-4e55-84f1-0b2b73232d34",
+    "status": "pending_payment",
+    "total_cents": "80000",
+    "currency": "USD",
+    "source_channel": "offer",
+    "receipt_code": "f6hu6i9u2qf5fcjws7jw",
+    "version": 2,
+    "updated_at": "2026-09-11T02:25:22.351Z"
+  },
+  {
+    "id": "831d8925-b06a-4b03-9ded-8d2710de2f4b",
+    "status": "paid",
+    "total_cents": "1200",
+    "currency": "USD",
+    "source_channel": "pos",
+    "receipt_code": "u8fimswmryx5zr5bjph8",
+    "version": 4,
+    "updated_at": "2026-09-11T02:24:46.601Z"
+  },
+  {
+    "id": "e45da1a9-962f-4b22-b2d7-bbca1bb0983c",
+    "status": "draft",
+    "total_cents": "2450",
+    "currency": "USD",
+    "source_channel": "pos",
+    "receipt_code": "uvikmhmu72xx2upt4yw7",
+    "version": 3,
+    "updated_at": "2026-09-11T02:24:28.513Z"
+  },
+  {
+    "id": "65ecf2e7-8b8a-4b13-b127-ca0b5633fc0b",
+    "status": "paid",
+    "total_cents": "1800",
+    "currency": "USD",
+    "source_channel": "pos",
+    "receipt_code": "dhiyz4x42myxez2hb2hw",
+    "version": 4,
+    "updated_at": "2026-09-11T02:24:10.809Z"
+  },
+  {
+    "id": "16f1ce55-0a9c-42c9-9a16-62ee5b13b712",
+    "status": "paid",
+    "total_cents": "4250",
+    "currency": "USD",
+    "source_channel": "pos",
+    "receipt_code": "q7wxaiej7a8y9f8xs3x4",
+    "version": 6,
+    "updated_at": "2026-09-11T02:23:50.347Z"
+  }
+]
