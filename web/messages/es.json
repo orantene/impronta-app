@@ -12639,7 +12639,7 @@
           "heldUntil": "Reservado hasta {time}",
           "editLine": "Editar línea",
           "tax": "Impuesto",
-          "taxNone": "Ninguno",
+          "taxUnset": "Sin configurar",
           "chargeWord": "Cobrar",
           "chargeCash": "Efectivo {amount}",
           "send": "Enviar {count} artículos",
@@ -12773,7 +12773,9 @@
           "footer": "Las ventas guardadas y la caja se quedan como están. Los modos no activados en este espacio de trabajo se ocultan aquí y el servidor los rechaza.",
           "spacesMode": "Espacios y recursos",
           "fieldMode": "Servicios a domicilio",
-          "noScreen": "Aún sin pantalla"
+          "noScreen": "Aún sin pantalla",
+          "title": "Cambiar de modo",
+          "subtitle": "Solo los modos que este espacio tiene activados y que puedes usar."
         },
         "mode": {
           "counter": "Mostrador",

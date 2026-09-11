@@ -1,0 +1,60 @@
+  ...
+# Subtest: withOrphan is a no-op when there is no orphan
+ok 99 - withOrphan is a no-op when there is no orphan
+  ---
+  duration_ms: 0.097042
+  ...
+# Subtest: an exact match is found regardless of case or padding
+ok 100 - an exact match is found regardless of case or padding
+  ---
+  duration_ms: 0.114709
+  ...
+# Subtest: the picker never navigates, so the parent draft cannot be unmounted
+ok 101 - the picker never navigates, so the parent draft cannot be unmounted
+  ---
+  duration_ms: 0.39975
+  ...
+# Subtest: focus return comes from the Dialog primitive rather than a hand-rolled overlay
+ok 102 - focus return comes from the Dialog primitive rather than a hand-rolled overlay
+  ---
+  duration_ms: 0.063041
+  ...
+# Subtest: create and attach are separate calls
+ok 103 - create and attach are separate calls
+  ---
+  duration_ms: 0.056083
+  ...
+# Subtest: the idempotency key is handed to the create callback
+ok 104 - the idempotency key is handed to the create callback
+  ---
+  duration_ms: 0.046041
+  ...
+# Subtest: the key is minted on OPEN, not per attempt
+ok 105 - the key is minted on OPEN, not per attempt
+  ---
+  duration_ms: 0.054667
+  ...
+# Subtest: the minter is reached through a ref, so its identity cannot re-mint
+ok 106 - the minter is reached through a ref, so its identity cannot re-mint
+  ---
+  duration_ms: 0.046583
+  ...
+# Subtest: the search result carries the query it answered
+ok 107 - the search result carries the query it answered
+  ---
+  duration_ms: 0.049209
+  ...
+# Subtest: the create control is gated on capability, not on an error at press time
+ok 108 - the create control is gated on capability, not on an error at press time
+  ---
+  duration_ms: 0.064834
+  ...
+1..108
+# tests 108
+# suites 0
+# pass 108
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2141.273125

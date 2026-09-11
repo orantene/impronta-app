@@ -65,6 +65,12 @@ export type PosProductTile = {
   readonly badge?: PosTileBadge;
   /** A sold-out tile is drawn at 45% and cannot be tapped. */
   readonly soldOut?: boolean;
+  /**
+   * Price variants (`Options`): a tap opens a chooser and the chosen one is
+   * sold as the line's variant. Distinct from `variants`, which are the
+   * upcoming sessions of a class place (`Pick session`).
+   */
+  readonly options?: readonly PosVariantChip[];
   readonly variants?: readonly PosVariantChip[];
   /** Missing image is fine — the tile renders on name + price alone. */
   readonly imageUrl?: string | null;
@@ -94,6 +100,8 @@ export type PosBasketLine = {
   readonly offeringId?: string | null;
   /** The session a class place is held on, when the line has one. */
   readonly sessionId?: string | null;
+  /** The price variant sold on the line, when it has one. */
+  readonly variantId?: string | null;
   /** `Held until 10:13` — the hold's expiry as a wall-clock string, when known. */
   readonly heldUntil?: string | null;
 };

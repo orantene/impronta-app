@@ -58,7 +58,7 @@ import { useAdminShell } from "../state";
 const SEGMENT_BASE =
   "inline-flex h-[28px] cursor-pointer items-center justify-center gap-[7px] rounded-[8px] px-[12px] text-admin-12h font-semibold leading-none transition-colors";
 
-type MenuRow = {
+export type MenuRow = {
   readonly mode: PosMode;
   readonly label: string;
   /** on this menu · turned off at this workspace · not this person's rank */
@@ -68,15 +68,43 @@ type MenuRow = {
 /** Modes the approved switch (W00) names that have no screen yet. */
 const NOT_BUILT_MODES = ["spacesMode", "fieldMode"] as const;
 
-export function PosModeSwitch() {
+/** One row of the mode menu, as W00 and M33 both draw it. */
+export type PosModeMenuRow = MenuRow & {
+  readonly isCurrent: boolean;
+  /** The current mode is the one this device remembers as its default. */
+  readonly isRemembered: boolean;
+};
+
+export type PosModeMenuModel = {
+  readonly visible: boolean;
+  readonly active: "workspace" | "pos";
+  readonly currentMode: PosMode;
+  readonly currentLabel: string;
+  /** How many modes are usable: with one, the POS half is the door itself. */
+  readonly usableCount: number;
+  readonly rows: readonly PosModeMenuRow[];
+  readonly notBuilt: readonly (typeof NOT_BUILT_MODES)[number][];
+  readonly tenantName: string;
+  readonly savedDefault: boolean;
+  readonly openMode: (mode: PosMode) => void;
+  readonly makeDefault: () => void;
+  readonly goWorkspace: () => void;
+  /** Called by the owner when its menu closes, so `savedDefault` resets next time. */
+  readonly onMenuClosed: () => void;
+};
+
+/**
+ * The switch's model, shared with the POS rail's own `MODE` chip (M33): one
+ * reading of the platform switch, the person's rank, the workspace's modes
+ * and the device's remembered default, whichever chrome asks.
+ */
+export function usePosModeMenuModel(): PosModeMenuModel {
   const { state, t, workspacePosEnabled, workspacePosModes, adminBasePath, tenantSlug, effectiveTenant } =
     useAdminShell();
   const tenantName = effectiveTenant.name;
   const router = useRouter();
   const [remembered, setRemembered] = useState<PosMode | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [savedDefault, setSavedDefault] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
 
   // The registry decides what "on the point of sale" means, not a literal:
   // `state.page` is seeded from the SERVER's own pathname derivation (see the
@@ -95,7 +123,12 @@ export function PosModeSwitch() {
     onPos,
   });
 
-  const allowedKey = model.visible ? model.modes.join(",") : "";
+  // The pure model hides the whole control with `visible: false` and carries
+  // nothing else in that arm; every reading below needs a value, so the
+  // hidden arm reads as "counter, nothing usable" and the owner renders null.
+  const shown = model.visible ? model : null;
+  const currentMode: PosMode = shown?.currentMode ?? "counter";
+  const allowedKey = shown ? shown.modes.join(",") : "";
   useEffect(() => {
     if (!allowedKey) return;
     setRemembered(readDevicePosMode(allowedKey.split(",") as PosMode[], tenantSlug));
@@ -121,6 +154,72 @@ export function PosModeSwitch() {
     return () => window.removeEventListener("popstate", read);
   }, [onPos, state.page]);
 
+  const openMode = useCallback(
+    (mode: PosMode) => {
+      // Using a mode IS choosing it: the next shift on this tablet opens where
+      // the last one left off without anybody configuring anything.
+      writeDevicePosMode(mode, tenantSlug);
+      setRemembered(mode);
+      // Mode-to-mode moves keep `state.page` at "pos", so the address effect
+      // does not re-run; the chosen mode is the address from here on.
+      setUrlMode(mode);
+      setSavedDefault(false);
+      router.push(`${adminBasePath}/pos?mode=${mode}`);
+    },
+    [adminBasePath, router, tenantSlug],
+  );
+
+  // Plain functions: the React compiler memoises them itself, and a
+  // hand-written `useCallback` over `currentMode` (a value narrowed from the
+  // model's union) is one it refuses to preserve.
+  const makeDefault = () => {
+    writeDevicePosMode(currentMode, tenantSlug);
+    setRemembered(currentMode);
+    setSavedDefault(true);
+  };
+
+  const goWorkspace = () => {
+    router.push(adminBasePath);
+  };
+
+  const onMenuClosed = useCallback(() => setSavedDefault(false), []);
+
+  // Every mode the point of sale has, each with why it is or is not on this
+  // menu (W00 / M33): on, turned off at this workspace, or not this role.
+  const roleModes = modesForPerson({ role: state.role, workspaceEnabledModes: POS_MODES });
+  const usable: readonly PosMode[] = shown?.modes ?? [];
+  const rows: PosModeMenuRow[] = POS_MODES.map((mode) => ({
+    mode,
+    label: posModeLabel(t, mode),
+    state: usable.includes(mode) ? "open" : roleModes.includes(mode) ? "off" : "role",
+    isCurrent: mode === currentMode,
+    isRemembered: mode === currentMode && Boolean(shown?.currentIsRemembered),
+  }));
+
+  return {
+    visible: model.visible,
+    active: shown?.active ?? "workspace",
+    currentMode,
+    currentLabel: posModeLabel(t, currentMode),
+    usableCount: usable.length,
+    rows,
+    notBuilt: NOT_BUILT_MODES,
+    tenantName,
+    savedDefault,
+    openMode,
+    makeDefault,
+    goWorkspace,
+    onMenuClosed,
+  };
+}
+
+export function PosModeSwitch() {
+  const { t } = useAdminShell();
+  const model = usePosModeMenuModel();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const { tenantName, rows, openMode } = model;
+
   useEffect(() => {
     if (!menuOpen) return;
     const onDocumentDown = (event: MouseEvent) => {
@@ -137,37 +236,9 @@ export function PosModeSwitch() {
     };
   }, [menuOpen]);
 
-  const openMode = useCallback(
-    (mode: PosMode) => {
-      // Using a mode IS choosing it: the next shift on this tablet opens where
-      // the last one left off without anybody configuring anything.
-      writeDevicePosMode(mode, tenantSlug);
-      setRemembered(mode);
-      // Mode-to-mode moves keep `state.page` at "pos", so the address effect
-      // does not re-run; the chosen mode is the address from here on.
-      setUrlMode(mode);
-      setMenuOpen(false);
-      setSavedDefault(false);
-      router.push(`${adminBasePath}/pos?mode=${mode}`);
-    },
-    [adminBasePath, router, tenantSlug],
-  );
-
   if (!model.visible) return null;
 
-  const currentLabel = posModeLabel(t, model.currentMode);
-  // Every mode the point of sale has, each with why it is or is not on this
-  // menu (W00 / M33): on, turned off at this workspace, or not this role.
-  const roleModes = modesForPerson({ role: state.role, workspaceEnabledModes: POS_MODES });
-  const rows: MenuRow[] = POS_MODES.map((mode) => ({
-    mode,
-    label: posModeLabel(t, mode),
-    state: model.modes.includes(mode)
-      ? "open"
-      : roleModes.includes(mode)
-        ? "off"
-        : "role",
-  }));
+  const currentLabel = model.currentLabel;
   const posSegmentClass =
     model.active === "pos"
       ? "bg-admin-card text-admin-ink shadow-admin-rest"
@@ -186,7 +257,7 @@ export function PosModeSwitch() {
           onClick={() => {
             setMenuOpen(false);
             if (model.active === "workspace") return;
-            router.push(adminBasePath);
+            model.goWorkspace();
           }}
           className={`${SEGMENT_BASE} ${
             model.active === "workspace"
@@ -204,8 +275,11 @@ export function PosModeSwitch() {
           onClick={() => {
             // One mode and not yet on the point of sale: the half IS the door.
             // Otherwise the menu, which is where the modes are chosen.
-            if (model.active === "pos" || model.modes.length > 1) {
-              setMenuOpen((open) => !open);
+            if (model.active === "pos" || model.usableCount > 1) {
+              setMenuOpen((open) => {
+                if (open) model.onMenuClosed();
+                return !open;
+              });
               return;
             }
             openMode(model.currentMode);
@@ -231,7 +305,7 @@ export function PosModeSwitch() {
           </div>
           <div className="p-[6px]">
             {rows.map((row) => {
-              const isCurrent = row.mode === model.currentMode;
+              const isCurrent = row.isCurrent;
               if (row.state !== "open") {
                 return (
                   <div
@@ -257,14 +331,17 @@ export function PosModeSwitch() {
                   type="button"
                   role="menuitem"
                   aria-label={row.label}
-                  onClick={() => openMode(row.mode)}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    openMode(row.mode);
+                  }}
                   className={`flex w-full cursor-pointer items-center gap-[10px] rounded-[8px] px-[10px] py-[8px] text-left text-admin-13 hover:bg-admin-surface-alt ${
                     isCurrent ? "bg-admin-surface-alt font-semibold text-admin-ink" : "font-medium text-admin-ink"
                   }`}
                 >
                   <Icon name="credit" size={14} stroke={1.6} color="currentColor" />
                   <span className="min-w-0 flex-1">{row.label}</span>
-                  {isCurrent && model.currentIsRemembered && (
+                  {row.isRemembered && (
                     <span className="text-admin-11 font-medium text-admin-ink-dim">
                       {t("dashboard.pos.counter.switch.defaultHere")}
                     </span>
@@ -277,7 +354,7 @@ export function PosModeSwitch() {
             })}
             {/* Two modes the board names that have no screen yet. Drawn so
                 nobody looks for them; disabled with the reason. */}
-            {NOT_BUILT_MODES.map((key) => (
+            {model.notBuilt.map((key) => (
               <div
                 key={key}
                 role="menuitem"
@@ -294,14 +371,10 @@ export function PosModeSwitch() {
             <button
               type="button"
               role="menuitem"
-              onClick={() => {
-                writeDevicePosMode(model.currentMode, tenantSlug);
-                setRemembered(model.currentMode);
-                setSavedDefault(true);
-              }}
+              onClick={model.makeDefault}
               className="flex w-full cursor-pointer items-center rounded-[8px] px-[10px] py-[7px] text-left text-admin-12h font-medium text-admin-ink-muted hover:bg-admin-surface-alt"
             >
-              {savedDefault
+              {model.savedDefault
                 ? t("dashboard.pos.counter.switch.defaultSaved")
                 : t("dashboard.pos.counter.switch.makeDefault")}
             </button>

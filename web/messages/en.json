@@ -12639,7 +12639,7 @@
           "heldUntil": "Held until {time}",
           "editLine": "Edit line",
           "tax": "Tax",
-          "taxNone": "None",
+          "taxUnset": "Not set up",
           "chargeWord": "Charge",
           "chargeCash": "Cash {amount}",
           "send": "Send {count} items",
@@ -12773,7 +12773,9 @@
           "footer": "Saved sales and the drawer stay as they are. Modes not enabled at this workspace are hidden here and refused by the server.",
           "spacesMode": "Spaces & Resources",
           "fieldMode": "Field Services",
-          "noScreen": "No screen yet"
+          "noScreen": "No screen yet",
+          "title": "Switch mode",
+          "subtitle": "Only the modes this workspace has turned on and you may use."
         },
         "mode": {
           "counter": "Counter",

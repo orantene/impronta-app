@@ -1,0 +1,29 @@
+
+> web@0.1.0 typecheck
+> bash scripts/tsc-queue.sh
+
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(168,30): error TS2339: Property 'currentMode' does not exist on type 'PosSwitchModel'.
+  Property 'currentMode' does not exist on type '{ readonly visible: false; }'.
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(169,25): error TS2339: Property 'currentMode' does not exist on type 'PosSwitchModel'.
+  Property 'currentMode' does not exist on type '{ readonly visible: false; }'.
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(171,13): error TS2339: Property 'currentMode' does not exist on type 'PosSwitchModel'.
+  Property 'currentMode' does not exist on type '{ readonly visible: false; }'.
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(185,18): error TS2339: Property 'modes' does not exist on type 'PosSwitchModel'.
+  Property 'modes' does not exist on type '{ readonly visible: false; }'.
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(186,31): error TS2339: Property 'currentMode' does not exist on type 'PosSwitchModel'.
+  Property 'currentMode' does not exist on type '{ readonly visible: false; }'.
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(187,34): error TS2339: Property 'currentMode' does not exist on type 'PosSwitchModel'.
+  Property 'currentMode' does not exist on type '{ readonly visible: false; }'.
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(187,55): error TS2339: Property 'currentIsRemembered' does not exist on type 'PosSwitchModel'.
+  Property 'currentIsRemembered' does not exist on type '{ readonly visible: false; }'.
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(192,19): error TS2339: Property 'active' does not exist on type 'PosSwitchModel'.
+  Property 'active' does not exist on type '{ readonly visible: false; }'.
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(193,24): error TS2339: Property 'currentMode' does not exist on type 'PosSwitchModel'.
+  Property 'currentMode' does not exist on type '{ readonly visible: false; }'.
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(194,41): error TS2339: Property 'currentMode' does not exist on type 'PosSwitchModel'.
+  Property 'currentMode' does not exist on type '{ readonly visible: false; }'.
+src/components/admin/shell/internal/page-modules/PosModeSwitch.tsx(195,24): error TS2339: Property 'modes' does not exist on type 'PosSwitchModel'.
+  Property 'modes' does not exist on type '{ readonly visible: false; }'.
+TSC FAIL (exit 2)
+tsc-queue: read this run again with -> cat /tmp/tulala-tsc.0c037f03.last
+EXIT=2

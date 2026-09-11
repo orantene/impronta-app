@@ -57,7 +57,8 @@ export type BasketCopy = {
   readonly subtotal: string;
   readonly discount: string;
   readonly tax: string;
-  readonly taxNone: string;
+  /** The Tax row when no line has a configured tax category: `Not set up`. */
+  readonly taxUnset: string;
   readonly total: string;
   /** `Charge {amount}`; with no amount, plain `Charge`. */
   readonly charge: string;
@@ -80,6 +81,12 @@ export type BasketProps = {
   readonly currency: string;
   /** Already-resolved discount, in cents — 0 when none is applied. */
   readonly discountCents?: number;
+  /**
+   * `unset` when not one line carries a configured tax category
+   * (`lib/catalog/tax`): the row says so instead of showing a zero nobody
+   * decided. `taxed`: the engine's figure, even when it is zero.
+   */
+  readonly taxState?: "unset" | "taxed";
   readonly customerName: string | null;
   readonly onOpenCustomer: () => void;
   readonly onOpenBooking: () => void;
@@ -109,6 +116,7 @@ export function Basket({
   lines,
   currency,
   discountCents = 0,
+  taxState = "unset",
   customerName,
   onOpenCustomer,
   onOpenBooking,
@@ -285,7 +293,7 @@ export function Basket({
               <div className={POS_TOTAL_ROW}>
                 <dt className="text-admin-ink-muted">{copy.tax}</dt>
                 <dd className={cn("m-0 font-semibold text-admin-ink", POS_NUM)}>
-                  {totals.taxCents > 0 ? formatOrderMoney(totals.taxCents, currency) : copy.taxNone}
+                  {taxState === "taxed" ? formatOrderMoney(totals.taxCents, currency) : copy.taxUnset}
                 </dd>
               </div>
             </dl>
