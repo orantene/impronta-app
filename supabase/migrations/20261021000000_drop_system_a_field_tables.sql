@@ -52,21 +52,42 @@
 -- git history.
 -- ============================================================================
 
+-- REPLAY NOTE (defects-close, 2026-09-11, D-017). This file carries a version
+-- LATER than `20260615194711_drop_orphaned_archive_tables.sql`, the migration
+-- that purged the two `*_archived_20260611` snapshots after the soak, although
+-- chronologically it ran first. A from-zero replay therefore met the purge
+-- before the archive and either failed here (no System A tables to snapshot,
+-- as on the isolated branch) or left two unpoliced PII snapshots behind. Two
+-- guards make it replay clean: the archive is taken only when the source
+-- tables exist, and the purge is re-asserted at the end of this file so that
+-- version order agrees with what production actually holds (none of the four
+-- tables, verified read-only 2026-09-11). Production ran the original body in
+-- June; every statement below is a no-op there.
+
 BEGIN;
 
 -- ── 1. ARCHIVE (recovery net) — plain snapshot copies, data preserved ────────
 -- CREATE TABLE AS makes an independent heap copy (no FKs/triggers/indexes
--- carried over), exactly what we want for a cold rollback snapshot.
-CREATE TABLE public.field_definitions_archived_20260611 AS
-  SELECT * FROM public.field_definitions;
+-- carried over), exactly what we want for a cold rollback snapshot. Taken
+-- only when there is a System A table to snapshot.
+DO $$
+BEGIN
+  IF to_regclass('public.field_definitions') IS NOT NULL
+     AND to_regclass('public.field_values') IS NOT NULL THEN
+    CREATE TABLE IF NOT EXISTS public.field_definitions_archived_20260611 AS
+      SELECT * FROM public.field_definitions;
 
-CREATE TABLE public.field_values_archived_20260611 AS
-  SELECT * FROM public.field_values;
+    CREATE TABLE IF NOT EXISTS public.field_values_archived_20260611 AS
+      SELECT * FROM public.field_values;
 
-COMMENT ON TABLE public.field_definitions_archived_20260611 IS
-  'T3.3 recovery snapshot of dropped System A field_definitions (39 rows). Purge after soak.';
-COMMENT ON TABLE public.field_values_archived_20260611 IS
-  'T3.3 recovery snapshot of dropped System A field_values (1155 rows). Purge after soak.';
+    COMMENT ON TABLE public.field_definitions_archived_20260611 IS
+      'T3.3 recovery snapshot of dropped System A field_definitions (39 rows). Purge after soak.';
+    COMMENT ON TABLE public.field_values_archived_20260611 IS
+      'T3.3 recovery snapshot of dropped System A field_values (1155 rows). Purge after soak.';
+  ELSE
+    RAISE NOTICE 'T3.3: System A field tables absent; nothing to archive';
+  END IF;
+END $$;
 
 -- ── 2. REWRITE recompute_talent_height_gender() — System B ONLY ──────────────
 -- Drops the `field_values` (System A) coalesce leg for height. Gender already
@@ -179,7 +200,14 @@ DROP FUNCTION IF EXISTS public.reconcile_field_mirror_drift();
 --       field_definitions). Their triggers auto-drop with them; the shared
 --       trg_sync_talent_height_gender() function survives (still used by
 --       talent_profile_field_values). No CASCADE needed.
-DROP TABLE public.field_values;
-DROP TABLE public.field_definitions;
+DROP TABLE IF EXISTS public.field_values;
+DROP TABLE IF EXISTS public.field_definitions;
+
+-- ── 5. PURGE the recovery snapshots (re-asserting 20260615194711, which sorts
+--       before this file by version although it ran after it). The soak this
+--       net was taken for ended in June 2026; a database replayed from the
+--       repo has no soak and must not carry two PII snapshots with no RLS.
+DROP TABLE IF EXISTS public.field_definitions_archived_20260611 CASCADE;
+DROP TABLE IF EXISTS public.field_values_archived_20260611 CASCADE;
 
 COMMIT;

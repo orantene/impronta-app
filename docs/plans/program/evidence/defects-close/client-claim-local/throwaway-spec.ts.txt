@@ -1,0 +1,61 @@
+// THROWAWAY (defects-close, not committed): "I'm a client" through the real
+// interface lands profiles.account_status = active via complete_client_onboarding.
+import { test, expect, prepareJourneysPage, signInJourneysStaff, skipUnlessFixture } from "./_harness";
+import { isolatedService } from "./_isolated-db";
+
+skipUnlessFixture();
+
+test("defects-close: I'm a client completes onboarding through the RPC alone", async ({ page }, testInfo) => {
+  test.setTimeout(400_000);
+  await prepareJourneysPage(page);
+  const sb = isolatedService();
+  const email = `defects-close-${Date.now()}@impronta.test`;
+  const { data: created, error } = await sb.auth.admin.createUser({ email, email_confirm: true });
+  expect(error).toBeNull();
+  const uid = created.user!.id;
+  const before = await sb.from("profiles").select("account_status, onboarding_completed_at, app_role").eq("id", uid).maybeSingle();
+  testInfo.annotations.push({ type: "before", description: JSON.stringify(before.data) });
+  expect((before.data as { account_status?: string } | null)?.account_status).toBe("onboarding");
+
+  await signInJourneysStaff(page, "/onboarding/role", email);
+  await expect(page).toHaveURL(/\/onboarding\/role/, { timeout: 60_000 });
+  await page.screenshot({ path: testInfo.outputPath("01-role-picker.png"), fullPage: true });
+  const chooseClient = page.getByRole("button", { name: /i'm a client/i });
+  await expect(chooseClient).toBeVisible({ timeout: 60_000 });
+  await page.waitForLoadState("networkidle", { timeout: 120_000 }).catch(() => {});
+  // A form action on a dev server: the click before hydration is a plain
+  // POST that can be lost. Click, then wait for the row; click again if it
+  // has not moved.
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await chooseClient.click().catch(() => {});
+    const moved = await expect
+      .poll(async () => (await sb.from("profiles").select("account_status").eq("id", uid).maybeSingle()).data?.account_status, { timeout: 150_000 })
+      .toBe("active")
+      .then(() => true, () => false);
+    testInfo.annotations.push({ type: `click-${attempt}`, description: `row active: ${moved}; url ${page.url()}` });
+    if (moved) break;
+    if (/\/onboarding\/role/.test(page.url())) await page.reload({ waitUntil: "networkidle" }).catch(() => {});
+  }
+  await expect(page).not.toHaveURL(/\/onboarding\/role$/, { timeout: 60_000 });
+  await page.screenshot({ path: testInfo.outputPath("02-after-claim.png"), fullPage: true });
+  testInfo.annotations.push({ type: "landed", description: page.url() });
+
+  const after = await sb.from("profiles").select("account_status, onboarding_completed_at, app_role").eq("id", uid).maybeSingle();
+  testInfo.annotations.push({ type: "after", description: JSON.stringify(after.data) });
+  const row = after.data as { account_status?: string; onboarding_completed_at?: string | null; app_role?: string } | null;
+  expect(row?.account_status, "status through the RPC alone").toBe("active");
+  expect(row?.onboarding_completed_at).toBeTruthy();
+  expect(row?.app_role).toBe("client");
+  const cp = await sb.from("client_profiles").select("user_id").eq("user_id", uid);
+  expect(cp.data?.length).toBe(1);
+
+  // A second GET must not bounce back to the role picker.
+  await page.goto("/onboarding/role");
+  await page.waitForLoadState("domcontentloaded");
+  await page.screenshot({ path: testInfo.outputPath("03-revisit-role.png"), fullPage: true });
+  testInfo.annotations.push({ type: "revisit", description: page.url() });
+  await expect(page).not.toHaveURL(/\/onboarding\/role$/, { timeout: 60_000 });
+
+  // clean up the throwaway account (client_profiles cascades)
+  await sb.auth.admin.deleteUser(uid);
+});

@@ -1,0 +1,29 @@
+[
+ {
+  "id": "f348ed02-0a9b-437b-bd92-724c59eba1b7",
+  "email": "c08-cus-1788906603336@impronta.test",
+  "app_role": "client",
+  "account_status": "active",
+  "onboarding_completed_at": "2026-09-09T04:28:27.669Z",
+  "created_at": "2026-09-08T22:30:20.663Z",
+  "client_profile_rows": "1"
+ },
+ {
+  "id": "7a5c22ee-a561-4027-b648-b5633fcfe940",
+  "email": "c08-cus-1788907081765@impronta.test",
+  "app_role": "client",
+  "account_status": "active",
+  "onboarding_completed_at": "2026-09-09T04:28:27.669Z",
+  "created_at": "2026-09-08T22:38:08.165Z",
+  "client_profile_rows": "1"
+ },
+ {
+  "id": "02ea3033-e4dd-4e55-aca3-f3b3fd0f2e10",
+  "email": "c08-cus-1788943626587@impronta.test",
+  "app_role": "client",
+  "account_status": "onboarding",
+  "onboarding_completed_at": null,
+  "created_at": "2026-09-09T08:47:12.691Z",
+  "client_profile_rows": "1"
+ }
+]

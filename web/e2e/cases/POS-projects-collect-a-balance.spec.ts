@@ -272,30 +272,26 @@ async function projectWithBalance(page: Page, annotate: (type: string, descripti
       await expect(page).not.toHaveURL(/\/onboarding\/role/, { timeout: 30_000 });
       annotate("seed", `client ${contactEmail} claimed their account on this workspace`);
     }
-    // PLATFORM DEFECT, worked around and named: `complete_client_onboarding`
-    // sets `profiles.account_status = 'active'`, but the BEFORE UPDATE
-    // trigger `guard_profile_self_update` (20260408113000) reverts
-    // account_status and onboarding_completed_at whenever auth.uid() is the
-    // row's own id, and the RPC runs as the user. The relationship IS
-    // recorded, but the profile stays 'onboarding' and auth routing bounces
-    // every page to /onboarding/role forever. The status is corrected here
-    // with the service role (auth.uid() null, so the guard does not apply),
-    // which is the one write in this spec that no interface makes.
+    // "I'm a client" runs `complete_client_onboarding()` as the user. Until
+    // 20260911022138 the BEFORE UPDATE guard on profiles reverted the
+    // status the RPC set and this spec corrected it with the service role;
+    // the guard now honours the onboarding RPCs, so the row is READ here and
+    // asserted, never written: the interface is the only path.
     const { data: claimedUser } = await sb.auth.admin.listUsers({ perPage: 1000 });
     const claimedId = claimedUser?.users.find((u) => u.email === contactEmail)?.id ?? null;
     expect(claimedId, "the claimed account").toBeTruthy();
-    const { data: profileRow } = await sb.from("profiles").select("account_status").eq("id", claimedId!).maybeSingle();
-    if ((profileRow as { account_status?: string } | null)?.account_status !== "active") {
-      const { error: fixErr } = await sb
-        .from("profiles")
-        .update({ account_status: "active", onboarding_completed_at: new Date().toISOString() })
-        .eq("id", claimedId!);
-      expect(fixErr).toBeNull();
-      annotate(
-        "defect",
-        `profiles.account_status stayed 'onboarding' after "I'm a client" (guard_profile_self_update reverts complete_client_onboarding); set to active with the service role`,
-      );
-    }
+    const { data: profileRow } = await sb
+      .from("profiles")
+      .select("account_status, onboarding_completed_at")
+      .eq("id", claimedId!)
+      .maybeSingle();
+    const claimedProfile = profileRow as { account_status?: string; onboarding_completed_at?: string | null } | null;
+    expect(
+      claimedProfile?.account_status,
+      "\"I'm a client\" must leave profiles.account_status = 'active' through the RPC alone (20260911022138)",
+    ).toBe("active");
+    expect(claimedProfile?.onboarding_completed_at, "onboarding_completed_at must be stamped by the RPC").toBeTruthy();
+    annotate("proof", `profiles.account_status = active for ${contactEmail} through complete_client_onboarding, no service-role write`);
     await page.goto(messagesPath);
     await expect(page).toHaveURL(new RegExp(`(?:/${JOURNEYS_SLUG})?/client/messages`), { timeout: 40_000 });
     const offerTab = page.getByRole("tab", { name: /^offer$/i });
