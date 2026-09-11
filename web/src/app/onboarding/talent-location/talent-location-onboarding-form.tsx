@@ -1,6 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  COUNTRY_DIAL_CODES,
+  POPULAR_DIAL_ISOS,
+  flagEmojiForIso,
+} from "@/lib/data/country-dial-codes";
 import type { OnboardingActionState } from "@/app/onboarding/actions";
 import {
   clearFormPersistence,
@@ -106,16 +111,9 @@ export function TalentLocationOnboardingForm({
         <Field
           label="Phone number"
           required
-          hint="Used internally by the agency. Not shown publicly."
+          hint="Only people you accept a booking from can see it. Never shown on your page."
         >
-          <Input
-            id="phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            placeholder="+1 555 000 0000"
-            required
-          />
+          <PhoneField />
         </Field>
       </Section>
 
@@ -190,6 +188,69 @@ export function TalentLocationOnboardingForm({
 }
 
 /* ─────── Building blocks (match the talent-register modal aesthetic) ─────── */
+
+/**
+ * Country code + national number, posted as ONE `phone` value in E.164 shape
+ * ("+972 543979670"). The previous single free-text box stored whatever was
+ * typed; a number typed with its own "+972" then met a profile drawer that
+ * assumed "+1", which is how "+1 +972543979670" reached production
+ * (2026-09-10). The select defaults to Mexico (the largest signup market) and
+ * lists the popular countries first, the rest alphabetically.
+ */
+function PhoneField() {
+  const [dial, setDial] = useState("+52");
+  const [national, setNational] = useState("");
+  const popular = POPULAR_DIAL_ISOS
+    .map((iso) => COUNTRY_DIAL_CODES.find((c) => c.iso === iso))
+    .filter((c): c is (typeof COUNTRY_DIAL_CODES)[number] => Boolean(c));
+  const rest = COUNTRY_DIAL_CODES
+    .filter((c) => !POPULAR_DIAL_ISOS.includes(c.iso))
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
+  // A dial code can belong to several countries (+1, +7, +44…); the select
+  // is keyed by iso so each option stays unique, the posted value is the dial.
+  const [iso, setIso] = useState("MX");
+  const onIso = (nextIso: string) => {
+    setIso(nextIso);
+    const c = COUNTRY_DIAL_CODES.find((x) => x.iso === nextIso);
+    if (c) setDial(c.dial);
+  };
+  const digits = national.replace(/[^\d\s-]/g, "");
+  return (
+    <div className="flex gap-2">
+      <input type="hidden" name="phone" value={digits.trim() ? `${dial} ${digits.trim()}` : ""} />
+      <select
+        aria-label="Country code"
+        value={iso}
+        onChange={(e) => onIso(e.target.value)}
+        className={`${INPUT_CLASSES} w-[7.5rem] shrink-0 appearance-none pr-2`}
+        style={INPUT_STYLE}
+      >
+        {popular.map((c) => (
+          <option key={c.iso} value={c.iso}>
+            {flagEmojiForIso(c.iso)} {c.dial}
+          </option>
+        ))}
+        <option disabled>──────</option>
+        {rest.map((c) => (
+          <option key={c.iso} value={c.iso}>
+            {flagEmojiForIso(c.iso)} {c.dial} {c.name}
+          </option>
+        ))}
+      </select>
+      <Input
+        id="phone_national"
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel-national"
+        placeholder="55 1234 5678"
+        required
+        value={national}
+        onChange={(e) => setNational(e.target.value)}
+      />
+    </div>
+  );
+}
 
 function Section({
   eyebrow,

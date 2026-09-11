@@ -353,6 +353,8 @@ type Ctx = {
    * null = mock mode; `_talent.tsx` falls back to MY_TALENT_PROFILE.
    */
   bridgeTalentSelfProfile: BridgeTalentSelfProfile | null;
+  /** Real completeness from the layout bridge (see data-bridge.ts). */
+  bridgeTalentCompletion: { percent: number; missing: Array<{ key: string; label: string }> } | null;
   /** The talent's OWN page analytics (views + inquiry conversion) from the
    *  layout bridge. null = not entitled (Free) or not loaded; the surface then
    *  shows the upsell / an honest empty, never fabricated zeros. */
@@ -2118,6 +2120,7 @@ export function AdminShellProvider({
     [initialBridgeData?.talentInquiries],
   );
   const bridgeTalentSelfProfile = initialBridgeData?.talentSelfProfile ?? null;
+  const bridgeTalentCompletion = initialBridgeData?.talentCompletion ?? null;
   const bridgeTalentPageAnalytics = initialBridgeData?.talentPageAnalytics ?? null;
   const bridgeTalentPayoutSnapshot = initialBridgeData?.talentPayoutSnapshot ?? null;
   const bridgeTalentPayoutAttention = initialBridgeData?.talentPayoutAttention ?? null;
@@ -2281,6 +2284,7 @@ export function AdminShellProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTalentCompletion,
       bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
       bridgeTalentPayoutAttention,
@@ -2404,6 +2408,7 @@ export function AdminShellProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTalentCompletion,
       bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
       bridgeTalentPayoutAttention,

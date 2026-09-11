@@ -13,6 +13,7 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadTalentSurfaceNotifications } from "@/app/(workspace)/[tenantSlug]/_data-bridge/notifications";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
+import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
 import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
 import { getTalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
@@ -164,6 +165,7 @@ export default async function PlatformTalentLayout({
     userNotifications,
     talentPageAnalytics,
     workspaceUi,
+    talentDashboardLoad,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -208,6 +210,9 @@ export default async function PlatformTalentLayout({
     // in-shell fetch on this surface has stuck on "Loading" before.
     loadTalentPageAnalytics(session.user.id, talentSelfProfile.id),
     loadPlatformWorkspaceUi(),
+    // Real completeness for the Today card (same source as the guided wizard).
+    // Never fatal: a load failure leaves the card on its old estimate.
+    loadTalentDashboardData().catch(() => null),
   ]);
 
   // Platform currency policy: unless a super-admin has turned multi-currency
@@ -261,6 +266,16 @@ export default async function PlatformTalentLayout({
           : PLATFORM_TENANT_IDENTITY,
         sessionIdentity,
         talentSelfProfile,
+        talentCompletion:
+          talentDashboardLoad && talentDashboardLoad.ok
+            ? {
+                percent: talentDashboardLoad.data.completionScore,
+                missing: talentDashboardLoad.data.missingItems.map((m) => ({
+                  key: m.key,
+                  label: m.label,
+                })),
+              }
+            : null,
         talentPageAnalytics,
         talentPayoutSnapshot,
         talentPayoutAttention,
