@@ -49,6 +49,7 @@ export type PosSaleView = {
   subtotalCents: number;
   discountCents: number;
   taxCents: number;
+  tipCents: number;
   totalCents: number;
   depositPaidCents: number;
   outstandingCents: number;
@@ -63,6 +64,11 @@ export type PosSaleView = {
     units: number;
     unitCents: number;
     totalCents: number;
+    kind: "catalog" | "custom";
+    needsApproval: boolean;
+    operatorUserId: string | null;
+    bookingId: string | null;
+    bookingKind: "talent_booking" | "agency_booking" | "admission" | null;
   }>;
 };
 

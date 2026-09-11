@@ -67,6 +67,20 @@ export async function bookingShellForOrder(
     contact?: BookingShellContact;
   },
 ): Promise<BookingShellResult> {
+  const { data: linked, error: linkedErr } = await admin
+    .from("order_lines")
+    .select("booking_id, booking_kind")
+    .eq("order_id", input.orderId)
+    .eq("tenant_id", input.tenantId)
+    .eq("booking_kind", "agency_booking");
+  if (linkedErr) {
+    logServerError("orders.bookingShellForOrder/linked", linkedErr);
+    return { ok: false };
+  }
+  const linkedRows = Array.isArray(linked) ? linked : linked ? [linked] : [];
+  const linkedId = (linkedRows as Array<{ booking_id?: string | null }>).find((row) => row.booking_id)?.booking_id;
+  if (linkedId) return { ok: true, bookingId: linkedId };
+
   const find = async (): Promise<string | null | false> => {
     const { data, error } = await admin
       .from("agency_bookings")

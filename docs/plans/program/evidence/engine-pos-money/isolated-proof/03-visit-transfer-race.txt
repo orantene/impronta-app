@@ -1,0 +1,2 @@
+[visit-transfer-race] wins=2 a={"ok":true,"space_id":"33330011-0000-4000-8000-000000000001","visit_id":"daf59080-542d-4a79-b2a1-e5ad91fd6c30"} b={"ok":true,"space_id":"33330011-0000-4000-8000-000000000002","visit_id":"daf59080-542d-4a79-b2a1-e5ad91fd6c30"}
+EXIT_CODE=1

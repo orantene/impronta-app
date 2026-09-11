@@ -77,6 +77,8 @@ export const PLATFORM_RESERVED_SLUGS = [
   // tenant host. Same shadowing as "events": a CMS page slugged "r" could
   // never open. Mirrored in `…377_reserve_receipt_slug.sql`.
   "r",
+  // POS payment link `/pay/<code>`. Same shadowing as the receipt.
+  "pay",
   // Table occupancy guest view. `/q/<code>` redirects here while a visit is
   // open. Mirrored in `…00500_reserve_visit_slug.sql`.
   "visit",

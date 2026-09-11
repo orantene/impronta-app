@@ -102,17 +102,17 @@ test("negative units cannot refund a cart", () => {
 
 test("totalsAreWritable rejects what the database would reject", () => {
   assert.equal(
-    totalsAreWritable({ subtotalCents: 100, discountCents: 0, taxCents: 0, totalCents: 999 }),
+    totalsAreWritable({ subtotalCents: 100, discountCents: 0, taxCents: 0, tipCents: 0, totalCents: 999 }),
     false,
     "a total that is not derived must be caught before the write",
   );
   assert.equal(
-    totalsAreWritable({ subtotalCents: -1, discountCents: 0, taxCents: 0, totalCents: -1 }),
+    totalsAreWritable({ subtotalCents: -1, discountCents: 0, taxCents: 0, tipCents: 0, totalCents: -1 }),
     false,
     "a negative amount must be caught before the write",
   );
   assert.equal(
-    totalsAreWritable({ subtotalCents: 10.5, discountCents: 0, taxCents: 0, totalCents: 10.5 }),
+    totalsAreWritable({ subtotalCents: 10.5, discountCents: 0, taxCents: 0, tipCents: 0, totalCents: 10.5 }),
     false,
     "a fractional amount must be caught before the write",
   );
@@ -127,7 +127,7 @@ test("a large cart stays exact in integer cents", () => {
 });
 
 test("a deposit is integer cents, never over the total, never negative", () => {
-  const totals = { subtotalCents: 10_000, discountCents: 0, taxCents: 0, totalCents: 10_000 };
+  const totals = { subtotalCents: 10_000, discountCents: 0, taxCents: 0, tipCents: 0, totalCents: 10_000 };
   assert.equal(depositDueCents(totals, 25), 2_500);
   // Null is the common case and must not be a special case at the call site.
   assert.equal(depositDueCents(totals, null), 10_000);

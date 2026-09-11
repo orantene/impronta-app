@@ -34,6 +34,7 @@ import {
   type ReserveCollectionResult,
 } from "./collection-reservations";
 import type { PosBuyerContact, PosCollectionMethod } from "./commands";
+import { lockedCustomLineIds } from "./custom-line";
 
 type Admin = {
   // Tests inject a fake PostgREST builder. Same seam as expire-orders.
@@ -45,16 +46,7 @@ type Admin = {
 
 const COLLECTABLE = new Set(["draft", "pending_payment"]);
 
-/**
- * WHAT USED TO BE HERE, and why nothing replaces it.
- *
- * `collectedPaidCents` read every paid transaction on the order and subtracted
- * the sum from the total. Two tills ran that read at the same time, both saw
- * the whole balance free, and both collected it. There is no version of that
- * arithmetic that is safe outside the order's row lock, so it is gone rather
- * than fixed: `pos_reserve_collection` is now the only thing that computes what
- * is still owed, and it does so holding the lock.
- */
+/** Outstanding is only computed inside `pos_reserve_collection` — see collection-reservations.ts. */
 
 /**
  * Turn a reservation refusal into the refusal the till already understands.
@@ -158,7 +150,8 @@ export type StartCollectionResult =
         | "sold_out"
         | "terminal_unavailable"
         | "engine_error"
-        | "conflict";
+        | "conflict"
+        | "over_limit";
       error: string;
       /**
        * What is actually still owed, when the refusal is about the amount.
@@ -233,6 +226,11 @@ export async function startCollection(
   }
   if (!COLLECTABLE.has(row.status)) {
     return { ok: false, reason: "not_draft", error: "This sale is no longer open." };
+  }
+  const locked = await lockedCustomLineIds(admin, { tenantId: input.tenantId, orderId: row.id });
+  if (!locked.ok) return { ok: false, reason: "unavailable", error: "Could not load the sale." };
+  if (locked.lockedLineIds.length > 0) {
+    return { ok: false, reason: "over_limit", error: "A custom amount on this sale still needs a manager." };
   }
   if (!Number.isInteger(row.total_cents) || row.total_cents < 0) {
     return { ok: false, reason: "unavailable", error: "The total is not collectable." };
@@ -790,11 +788,7 @@ export async function recordVerifiedCollection(
   };
 }
 
-/**
- * Re-exported, not moved away. `finalizeOrCancel` lives in `./finalize` now
- * (see that file for why), and POS imports one module for the till's two
- * outcomes: money taken, or the sale closed with the places handed back.
- */
+/** Re-exported from `./finalize` so POS imports one module for take or cancel. */
 export { finalizeOrCancel, type FinalizeResult } from "./finalize";
 
 export { reportTerminalAvailability };

@@ -629,6 +629,13 @@ test("/events and /r resolve on the two host kinds that carry a tenant", () => {
   }
 });
 
+test("/pay resolves on the two host kinds that carry a tenant", () => {
+  for (const path of ["/pay/opaque-link", "/pay/code"]) {
+    assert.equal(isPathAllowedForHostKind("agency", path), true, `agency ${path}`);
+    assert.equal(isPathAllowedForHostKind("hub", path), true, `hub ${path}`);
+  }
+});
+
 test("/events and /r do NOT resolve on app or marketing", () => {
   assert.equal(isPathAllowedForHostKind("app", "/events/qa-night"), false);
   assert.equal(isPathAllowedForHostKind("marketing", "/events/qa-night"), false);
@@ -636,10 +643,19 @@ test("/events and /r do NOT resolve on app or marketing", () => {
   assert.equal(isPathAllowedForHostKind("marketing", "/r/opaque-receipt"), false);
 });
 
+test("/pay does NOT resolve on app or marketing", () => {
+  assert.equal(isPathAllowedForHostKind("app", "/pay/opaque-link"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/pay/opaque-link"), false);
+});
+
 test('a tenant cannot claim the slug "events" or "r"', () => {
   assert.equal(isPathAllowedForHostKind("app", "/events/admin"), false);
   assert.equal(resolvePathBasedTenantPublicPath("/events/qa-night"), null);
   assert.equal(resolvePathBasedTenantPublicPath("/r/opaque-receipt"), null);
+});
+
+test('a tenant cannot claim the slug "pay"', () => {
+  assert.equal(resolvePathBasedTenantPublicPath("/pay/opaque-link"), null);
 });
 
 test("/q resolves on the two host kinds that carry a tenant", () => {
