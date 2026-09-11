@@ -26,12 +26,12 @@ export const BUTTON_SMALL =
 
 export function PageHeading({ title, intro, actions, testId }: { title: string; intro: string; actions?: ReactNode; testId?: string }) {
   return (
-    <header className="flex items-center justify-between gap-[12px]" data-testid={testId}>
+    <header className="flex items-center justify-between gap-[12px] max-[720px]:flex-wrap" data-testid={testId}>
       <div className="min-w-0">
         <h1 className="m-0 font-admin-body text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{title}</h1>
-        <p className="m-0 mt-[4px] font-admin-body text-admin-13 text-admin-ink-muted">{intro}</p>
+        <p className="m-0 mt-[4px] font-admin-body text-admin-13 text-admin-ink-muted max-[720px]:hidden">{intro}</p>
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-[8px]">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 items-center gap-[8px] max-[720px]:w-full max-[720px]:flex-wrap">{actions}</div> : null}
     </header>
   );
 }
@@ -45,7 +45,10 @@ export function SegmentLinks({
   items: ReadonlyArray<{ id: string; label: string; href: string; active: boolean; reason?: string | null }>;
 }) {
   return (
-    <nav aria-label={label} className="inline-flex shrink-0 gap-[2px] rounded-[9px] bg-admin-surface-alt p-[3px]">
+    <nav
+      aria-label={label}
+      className="inline-flex shrink-0 gap-[2px] rounded-[9px] bg-admin-surface-alt p-[3px] max-[720px]:flex max-[720px]:w-full max-[720px]:gap-[6px] max-[720px]:overflow-x-auto max-[720px]:rounded-none max-[720px]:bg-transparent max-[720px]:p-0 max-[720px]:[scrollbar-width:none]"
+    >
       {items.map((s) =>
         s.reason ? (
           <span
@@ -53,7 +56,7 @@ export function SegmentLinks({
             title={s.reason}
             aria-disabled
             data-not-wired="true"
-            className="cursor-not-allowed rounded-[7px] px-[10px] py-[5px] font-admin-body text-[12px] font-semibold text-admin-ink-dim"
+            className="cursor-not-allowed rounded-[7px] px-[10px] py-[5px] font-admin-body text-[12px] font-semibold text-admin-ink-dim max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:border-admin-border max-[720px]:bg-admin-card max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:text-[13px] max-[720px]:opacity-50"
           >
             {s.label}
           </span>
@@ -62,8 +65,10 @@ export function SegmentLinks({
             key={s.id}
             href={s.href}
             aria-current={s.active ? "page" : undefined}
-            className={`rounded-[7px] px-[10px] py-[5px] font-admin-body text-[12px] font-semibold no-underline ${
-              s.active ? "bg-admin-card text-admin-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : "text-admin-ink-muted hover:text-admin-ink"
+            className={`rounded-[7px] px-[10px] py-[5px] font-admin-body text-[12px] font-semibold no-underline max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:text-[13px] max-[720px]:shadow-none ${
+              s.active
+                ? "bg-admin-card text-admin-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)] max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white"
+                : "text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card"
             }`}
           >
             {s.label}
@@ -116,7 +121,7 @@ export function SectionHead({ title, intro }: { title: string; intro?: string })
 /** The uppercase head of a list card. `cols` is a `grid-cols-[...]` class. */
 export function ListHead({ cols, children }: { cols: string; children: ReactNode }) {
   return (
-    <div className={`grid gap-[12px] px-[18px] py-[10px] font-admin-body text-[11px] font-semibold uppercase tracking-[0.05em] text-admin-ink-muted ${cols}`}>
+    <div className={`grid gap-[12px] px-[18px] py-[10px] font-admin-body text-[11px] font-semibold uppercase tracking-[0.05em] text-admin-ink-muted max-[720px]:hidden ${cols}`}>
       {children}
     </div>
   );
@@ -272,7 +277,7 @@ export function TabStrip({
   tabs: ReadonlyArray<{ id: string; label: string; href: string; active: boolean }>;
 }) {
   return (
-    <nav aria-label={label} className="flex gap-[2px] border-b border-admin-border">
+    <nav aria-label={label} className="flex gap-[2px] border-b border-admin-border max-[720px]:gap-[6px] max-[720px]:overflow-x-auto max-[720px]:border-b-0 max-[720px]:[scrollbar-width:none]">
       {tabs.map((tab) => (
         <Link
           key={tab.id}
@@ -280,8 +285,10 @@ export function TabStrip({
           replace
           scroll={false}
           aria-current={tab.active ? "page" : undefined}
-          className={`-mb-px border-b-2 px-[12px] py-[10px] font-admin-body text-admin-13 no-underline ${
-            tab.active ? "border-admin-brand font-semibold text-admin-ink" : "border-transparent font-medium text-admin-ink-muted hover:text-admin-ink"
+          className={`-mb-px border-b-2 px-[12px] py-[10px] font-admin-body text-admin-13 no-underline max-[720px]:mb-0 max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:font-semibold ${
+            tab.active
+              ? "border-admin-brand font-semibold text-admin-ink max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white"
+              : "border-transparent font-medium text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card"
           }`}
         >
           {tab.label}

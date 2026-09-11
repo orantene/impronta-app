@@ -65,8 +65,8 @@ import {
   TextArea,
   FieldRow,
 } from "./primitives";
-import { pinNextConversation } from "./messages";
-import { MOCK_CONVERSATIONS } from "./talent";
+import { pinNextConversation } from "./messages/conversation-pending";
+import { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
 
 // ════════════════════════════════════════════════════════════════════
 // #9 — InboxSnippetsDrawer

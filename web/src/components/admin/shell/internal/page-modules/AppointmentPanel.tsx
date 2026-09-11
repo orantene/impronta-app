@@ -136,7 +136,7 @@ export function AppointmentPanel({
         </div>
       </div>
 
-      <div className={`${CARD} px-[14px] py-[6px]`}>
+      <div className={`${CARD} px-[14px] py-[12px]`}>
         <FactRow label={t(`${K}.col.when`)}>{row.startsAt ? formatWhen(row.startsAt, row.timeZone) : t(`${K}.noTime`)}</FactRow>
         <FactRow label={t(`${K}.col.servedBy`)}>{row.servedBy.length > 0 ? row.servedBy.join(", ") : t(`${K}.unassigned`)}</FactRow>
         <FactRow label={t(`${K}.col.place`)}>{row.places.length > 0 ? row.places.join(", ") : t(`${K}.noPlace`)}</FactRow>
@@ -148,18 +148,18 @@ export function AppointmentPanel({
       <div className="grid grid-cols-2 gap-[8px]">
         <ActionButton
           reason={canMove ? null : t(`${K}.reschedule.refusal.notReschedulable`)}
-          className="text-admin-12h"
+          size="sm"
           onClick={() => onMoveOpen(!moveOpen)}
         >
           {t(`${K}.action.reschedule`)}
         </ActionButton>
-        <a href={`${adminBase}/bookings/${row.id}`} className="inline-flex h-[34px] items-center justify-center rounded-[9px] border border-admin-border bg-admin-card px-[14px] text-admin-12h font-semibold text-admin-ink hover:border-admin-border-strong">
+        <a href={`${adminBase}/bookings/${row.id}`} className="inline-flex h-[34px] items-center justify-center rounded-[9px] border border-admin-border bg-admin-card px-[14px] font-admin-body text-admin-12h font-semibold leading-[1.2] text-admin-ink hover:border-admin-border-strong">
           {t(`${K}.action.open`)}
         </a>
-        <ActionButton reason={t(`${K}.board.panel.addServiceOff`)} className="text-admin-12h">
+        <ActionButton reason={t(`${K}.board.panel.addServiceOff`)} size="sm">
           {t(`${K}.board.panel.addService`)}
         </ActionButton>
-        <ActionButton reason={t(`${K}.board.panel.cancelAppointmentOff`)} tone="danger" className="text-admin-12h">
+        <ActionButton reason={t(`${K}.board.panel.cancelAppointmentOff`)} tone="danger" size="sm">
           {t(`${K}.board.panel.cancelAppointment`)}
         </ActionButton>
       </div>

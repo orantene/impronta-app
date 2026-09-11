@@ -5,7 +5,7 @@ import { DemoBadge as FixtureBadge } from "@/components/demo-badge";
 import { isFixtureInquiryId } from "@/lib/fixtures/is-fixture-id";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
-import { pinNextConversation as pinNextConversationP } from "../messages";
+import { pinNextConversation as pinNextConversationP } from "../messages/conversation-pending";
 import { Avatar, Bullet, ClientTrustChip, EmptyState, FloatingFab, GhostButton, Icon, SwipeableRow, useKeyboardListNav } from "../primitives";
 import { COLORS, FONTS, INQUIRY_STAGE_LABEL_KEYS, INQUIRY_STAGE_META, RADIUS, RICH_INQUIRIES, useAdminShell } from "../state";
 import type { RichInquiry } from "../state";

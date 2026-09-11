@@ -40,8 +40,10 @@ describe("WorkspacePageView smoke", () => {
 
   it("renders the Settings page chrome inside AdminShellProvider", () => {
     const { container } = testRenderWithShell(<WorkspacePageView />);
-    // PageHeader title — "Settings" is hard-coded at WorkspacePageView.tsx:196.
-    expect(screen.getByText("Settings")).toBeInTheDocument();
+    // The board's settings frame (W20, 2026-09-11) carries no in-pane title:
+    // "Settings" is the shell breadcrumb's word. The frame itself is the chrome.
+    expect(container.querySelector("[data-tulala-settings-frame]")).not.toBeNull();
+    expect(screen.getByPlaceholderText(/search settings/i)).toBeInTheDocument();
     // Flat left nav — the tabs-plus-accordions layout was replaced by one
     // group per row, marked with `data-tulala-settings-nav`. Scope the
     // query so we don't collide with content-pane headings of the same name.

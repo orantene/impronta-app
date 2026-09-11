@@ -190,7 +190,7 @@ export function SessionPanel({
         </div>
       </div>
 
-      <div className={`${CARD} px-[14px] py-[6px]`}>
+      <div className={`${CARD} px-[14px] py-[12px]`}>
         <FactRow label={t(`${K}.places`)}>{placesLine}</FactRow>
         <FactRow label={t(`${K}.equipment`)} muted>
           {t(`${K}.equipmentOff`)}
@@ -257,12 +257,12 @@ export function SessionPanel({
       />
 
       <div className="grid grid-cols-2 gap-[8px]">
-        <ActionButton reason={t(`${K}.substituteOff`)} className="text-admin-12h">
+        <ActionButton reason={t(`${K}.substituteOff`)} size="sm">
           {t(`${K}.substitute`)}
         </ActionButton>
         <ActionButton
           reason={capacityReason}
-          className="text-admin-12h"
+          size="sm"
           testId="session-change-capacity"
           onClick={() => {
             setCapacityOpen((v) => !v);
@@ -271,10 +271,10 @@ export function SessionPanel({
         >
           {t(`${K}.changeCapacity`)}
         </ActionButton>
-        <ActionButton reason={t(`${K}.moveOff`)} className="text-admin-12h">
+        <ActionButton reason={t(`${K}.moveOff`)} size="sm">
           {t(`${K}.moveParticipant`)}
         </ActionButton>
-        <ActionButton reason={t(`${K}.cancelOff`)} tone="danger" className="text-admin-12h">
+        <ActionButton reason={t(`${K}.cancelOff`)} tone="danger" size="sm">
           {t(`${K}.cancelSession`)}
         </ActionButton>
       </div>

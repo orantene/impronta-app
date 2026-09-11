@@ -674,7 +674,7 @@
   },
   "src/components/admin/shell/internal/page-modules/MobileBottomNav.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 13
+      "count": 9
     }
   },
   "src/components/admin/shell/internal/page-modules/PageStatusChip.tsx": {
@@ -1208,7 +1208,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 239
+      "count": 225
     }
   },
   "src/components/builder-lab/catalog-row-table.tsx": {
@@ -1873,6 +1873,11 @@
   "src/lib/site-admin/tokens/registry.ts": {
     "max-lines": {
       "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/keyboard-layer.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 14
     }
   }
 }
