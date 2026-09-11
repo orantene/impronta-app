@@ -4,7 +4,7 @@ import { logServerError } from "@/lib/server/safe-error";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (table: string) => any;
+  from?: (table: string) => any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rpc?: (fn: string, args: Record<string, unknown>) => any;
 };
@@ -15,6 +15,7 @@ export async function roleLimitCents(
   admin: Admin,
   input: { tenantId: string; role: string; action: "discount" | "refund" },
 ): Promise<{ ok: true; limitCents: number | null } | { ok: false; reason: "unavailable" }> {
+  if (typeof admin.from !== "function") return { ok: false, reason: "unavailable" };
   const { data, error } = await admin
     .from("role_limits")
     .select("limit_cents")

@@ -4,7 +4,7 @@ import { logServerError } from "@/lib/server/safe-error";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (table: string) => any;
+  from?: (table: string) => any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rpc?: (fn: string, args: Record<string, unknown>) => any;
 };
@@ -114,6 +114,7 @@ export async function setDeliverableAmount(
   input: { tenantId: string; deliverableId: string; amountCents: number },
 ): Promise<{ ok: true } | { ok: false; reason: ProjectOpsReason }> {
   if (!Number.isInteger(input.amountCents) || input.amountCents < 0) return { ok: false, reason: "invalid" };
+  if (typeof admin.from !== "function") return { ok: false, reason: "unavailable" };
   const { error } = await admin
     .from("booking_deliverables")
     .update({ amount_cents: input.amountCents })
@@ -132,6 +133,7 @@ export async function attachDeliverableFile(
 ): Promise<{ ok: true } | { ok: false; reason: ProjectOpsReason }> {
   const path = input.filePath.trim();
   if (!path || path.includes("..") || path.startsWith("http")) return { ok: false, reason: "invalid" };
+  if (typeof admin.from !== "function") return { ok: false, reason: "unavailable" };
   const { error } = await admin
     .from("booking_deliverables")
     .update({ file_path: path })
