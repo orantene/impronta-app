@@ -30,6 +30,51 @@
 -- sentinel it catches. A failed assertion propagates and fails the file.
 BEGIN;
 
+-- D-110 (found applying this file to production on 2026-09-11): production
+-- never ran 20260408113000 / 20260408150000 although its ledger records them.
+-- There `profiles.app_role` is still NOT NULL DEFAULT 'client', which the
+-- proof block below (a profile with no role yet) trips on, and the guard and
+-- ensure_profile_for_current_user() do not exist at all. The code's contract
+-- since April is "no role until the person chooses one", so the column is
+-- brought to that shape here, idempotently; a database that already has it
+-- is untouched.
+ALTER TABLE public.profiles
+  ALTER COLUMN app_role DROP DEFAULT,
+  ALTER COLUMN app_role DROP NOT NULL;
+
+-- Same D-110: ensure_profile_for_current_user() below calls this, and it was
+-- never created on production. Verbatim from 20260408150000; a database that
+-- has it gets the same body back.
+CREATE OR REPLACE FUNCTION public.bootstrap_profile_from_auth_email(p_user_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  user_email TEXT;
+BEGIN
+  SELECT lower(email)
+  INTO user_email
+  FROM auth.users
+  WHERE id = p_user_id;
+
+  IF user_email IS NULL THEN
+    RETURN;
+  END IF;
+
+  IF user_email = 'orantene@gmail.com' THEN
+    UPDATE public.profiles
+    SET
+      app_role = 'super_admin'::public.app_role,
+      account_status = 'active'::public.account_status,
+      onboarding_completed_at = COALESCE(onboarding_completed_at, now()),
+      updated_at = now()
+    WHERE id = p_user_id;
+  END IF;
+END;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- 1. The flag helpers. EXECUTE is revoked from every client role: the only
 --    way to raise the flag is from inside a SECURITY DEFINER function owned
