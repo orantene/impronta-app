@@ -1,0 +1,47 @@
+[
+  {
+    "id": "dc295ae8-b310-4898-a62c-034ff16d30f2",
+    "status": "draft",
+    "total_cents": "3600",
+    "source_channel": "pos",
+    "source_page": "pos",
+    "receipt_code": "vki6dd7p82211qtumib1",
+    "created_at": "2026-09-11T03:05:34.253Z"
+  },
+  {
+    "id": "510a5295-d5bc-467b-99b3-a672ba7d3576",
+    "status": "paid",
+    "total_cents": "2000",
+    "source_channel": "pos",
+    "source_page": "door",
+    "receipt_code": "mjyv6782kxsxe1az28cy",
+    "created_at": "2026-09-11T03:03:39.489Z"
+  },
+  {
+    "id": "58e91bd9-6ad9-46a5-82b8-bb9f2ca5bbcf",
+    "status": "paid",
+    "total_cents": "2000",
+    "source_channel": "pos",
+    "source_page": "door",
+    "receipt_code": "knj1w1hnpg488gidtqdu",
+    "created_at": "2026-09-11T03:03:16.630Z"
+  },
+  {
+    "id": "948e302d-f234-4e76-b96b-56629ce86fcd",
+    "status": "draft",
+    "total_cents": "1800",
+    "source_channel": "pos",
+    "source_page": "pos",
+    "receipt_code": "gj4fncg3g1ksyse5y73a",
+    "created_at": "2026-09-11T02:59:30.073Z"
+  },
+  {
+    "id": "f52cc410-ecb5-41b3-a39b-aa52a34b8ad9",
+    "status": "paid",
+    "total_cents": "1800",
+    "source_channel": "pos",
+    "source_page": "pos",
+    "receipt_code": "3c5gir2274tqwh378n3c",
+    "created_at": "2026-09-11T02:57:22.387Z"
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "e9453988-df4a-4edb-9776-8cb50f9e4af9",
+    "holder_name": "Door walk-up 1789095751664",
+    "status": "valid",
+    "admitted_count": 1,
+    "token_version": 1,
+    "created_at": "2026-09-11T03:03:42.331Z"
+  },
+  {
+    "id": "76c4a901-37a2-4318-b8df-595560c59d62",
+    "holder_name": "Door holder 1789095751664",
+    "status": "valid",
+    "admitted_count": 1,
+    "token_version": 1,
+    "created_at": "2026-09-11T03:03:19.040Z"
+  },
+  {
+    "id": "cf160738-4b42-408d-b069-ca23ac61d8ea",
+    "holder_name": "Door holder 1789093891227",
+    "status": "valid",
+    "admitted_count": 0,
+    "token_version": 1,
+    "created_at": "2026-09-11T02:32:10.492Z"
+  },
+  {
+    "id": "483b4469-3cb9-4150-8206-2c062a7d40ef",
+    "holder_name": "C12 guest",
+    "status": "valid",
+    "admitted_count": 0,
+    "token_version": 1,
+    "created_at": "2026-09-11T02:32:00.065Z"
+  },
+  {
+    "id": "c4e37e19-e957-4f7d-81e9-3e1ec6034682",
+    "holder_name": "C12 guest",
+    "status": "valid",
+    "admitted_count": 0,
+    "token_version": 1,
+    "created_at": "2026-09-11T02:30:19.451Z"
+  }
+]

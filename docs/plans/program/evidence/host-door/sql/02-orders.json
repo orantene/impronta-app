@@ -1,0 +1,11 @@
+[
+  {
+    "id": "9b990a52-65a3-4371-b630-81b60a07c8ca",
+    "status": "paid",
+    "total_cents": "2000",
+    "currency": "USD",
+    "source_channel": "pos",
+    "source_page": "door",
+    "receipt_code": "serimur9gdxkics96wnr"
+  }
+]

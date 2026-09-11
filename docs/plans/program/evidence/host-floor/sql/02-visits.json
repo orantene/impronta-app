@@ -1,0 +1,90 @@
+[
+  {
+    "id": "2abc0cc0-466c-4f69-9640-8cd4458ff32c",
+    "space_id": "33330011-0000-4000-8000-000000000011",
+    "joined_space_id": "33330011-0000-4000-8000-000000000012",
+    "status": "closed",
+    "party_size": 4,
+    "service_kind": "table",
+    "opened_at": "2026-09-11T02:30:06.423Z",
+    "closed_at": "2026-09-11T02:30:11.485Z",
+    "version": 2
+  },
+  {
+    "id": "9501d09b-f0ad-4cda-9dc8-c9ef2726890f",
+    "space_id": "33330011-0000-4000-8000-000000000015",
+    "joined_space_id": null,
+    "status": "closed",
+    "party_size": 2,
+    "service_kind": "table",
+    "opened_at": "2026-09-11T02:29:35.439Z",
+    "closed_at": "2026-09-11T02:29:56.070Z",
+    "version": 3
+  },
+  {
+    "id": "2ae70aa5-f26d-4783-8b5d-cbc18e79a83b",
+    "space_id": "33330011-0000-4000-8000-000000000015",
+    "joined_space_id": null,
+    "status": "closed",
+    "party_size": 2,
+    "service_kind": "table",
+    "opened_at": "2026-09-11T02:26:34.765Z",
+    "closed_at": "2026-09-11T02:26:55.392Z",
+    "version": 3
+  },
+  {
+    "id": "8001d396-0bbb-494a-9951-2fa4f6934de6",
+    "space_id": "33330011-0000-4000-8000-000000000011",
+    "joined_space_id": "33330011-0000-4000-8000-000000000012",
+    "status": "closed",
+    "party_size": 4,
+    "service_kind": "table",
+    "opened_at": "2026-09-10T19:50:22.615Z",
+    "closed_at": "2026-09-10T19:50:27.379Z",
+    "version": 2
+  },
+  {
+    "id": "08d5551c-ac46-4135-97bb-2313b453234c",
+    "space_id": "33330011-0000-4000-8000-000000000015",
+    "joined_space_id": null,
+    "status": "closed",
+    "party_size": 2,
+    "service_kind": "table",
+    "opened_at": "2026-09-10T19:48:52.854Z",
+    "closed_at": "2026-09-10T19:49:54.615Z",
+    "version": 3
+  },
+  {
+    "id": "580b909e-931d-4474-b93e-b67a2c2b7049",
+    "space_id": "33330011-0000-4000-8000-000000000013",
+    "joined_space_id": null,
+    "status": "closed",
+    "party_size": 2,
+    "service_kind": "table",
+    "opened_at": "2026-09-10T19:47:23.667Z",
+    "closed_at": "2026-09-10T19:47:52.216Z",
+    "version": 1
+  },
+  {
+    "id": "f4e7ba9f-615e-4af6-957e-cda1edb5bb10",
+    "space_id": "33330011-0000-4000-8000-000000000015",
+    "joined_space_id": null,
+    "status": "closed",
+    "party_size": 2,
+    "service_kind": "table",
+    "opened_at": "2026-09-10T19:44:49.316Z",
+    "closed_at": "2026-09-10T19:45:46.878Z",
+    "version": 3
+  },
+  {
+    "id": "24eed080-1757-41d7-a902-50750af8a96c",
+    "space_id": "33330011-0000-4000-8000-000000000011",
+    "joined_space_id": "33330011-0000-4000-8000-000000000012",
+    "status": "closed",
+    "party_size": 4,
+    "service_kind": "table",
+    "opened_at": "2026-09-10T16:43:42.065Z",
+    "closed_at": "2026-09-10T16:43:44.988Z",
+    "version": 2
+  }
+]
