@@ -66,6 +66,7 @@ test("nested canonical routes work on both shapes", () => {
     "/admin/pos",
     "/admin/tables",
     "/admin/preparation",
+    "/admin/setup",
   ]) {
     assert.equal(pathIsCanonical(p), true, `branded: ${p}`);
     assert.equal(pathIsCanonical(`/impronta${p}`), true, `slug: ${p}`);

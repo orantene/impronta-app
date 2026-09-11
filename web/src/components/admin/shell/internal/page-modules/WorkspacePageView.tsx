@@ -2,18 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { Affordance, AutoSaveIndicator, Card, CompactLockedCard, MoreWithSection, PlanChip, ReadOnlyChip, useViewport } from "../primitives";
-import { COLORS, FONTS, RADIUS, TRANSITION, meetsPlan, meetsRole, useAdminShell } from "../state";
+import { Affordance, CompactLockedCard, MoreWithSection, PlanChip, ReadOnlyChip, useViewport } from "../primitives";
+import { meetsPlan, meetsRole, useAdminShell } from "../state";
 import { AutoAckSettingsRow, LockedPill } from "./BillingPage";
 import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
 import { SupportReplaySettingsRow } from "@/components/admin/account/SupportReplaySettingsRow";
-import { CommercialTermsSettingsCard } from "@/components/admin/account/CommercialTermsSettingsCard";
 import { PricingDefaultsSettingsCard } from "@/components/admin/account/PricingDefaultsSettingsCard";
-import { PageHeader } from "./pages-shared";
 import {
   SETTINGS_SECTION_EVENT,
   consumePendingSettingsSection,
@@ -22,7 +20,6 @@ import {
 import { RegistrationSection } from "./RegistrationSection";
 import { DiscoverExposureSection } from "./DiscoverExposureSection";
 import { IntegrationsSection } from "./IntegrationsSection";
-import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 import { WorkspaceTypeCard } from "@/components/admin/settings/workspace-type-card";
 import { RunsEventsCard } from "@/components/admin/settings/runs-events-card";
 import { AppointmentsSettingsCard } from "@/components/appointments/AppointmentsSettingsCard";
@@ -33,6 +30,9 @@ import { StaffResourcesCard } from "@/components/appointments/StaffResourcesCard
 import { PosModesSettingsCard } from "@/components/admin/settings/pos-modes-card";
 import { PaymentsProvidersCard } from "@/components/admin/settings/payments-providers-card";
 import { RolesLimitsCard } from "@/components/admin/settings/roles-limits-card";
+import { BookingPoliciesCard } from "@/components/admin/settings/booking-policies-card";
+import { LocationsCard } from "@/components/admin/settings/locations-card";
+import { Icon } from "../primitives";
 
 // ════════════════════════════════════════════════════════════════════════
 // 2026-07-24 flat redesign — replaces the old tabs + 13-accordion wall with
@@ -52,38 +52,39 @@ import { RolesLimitsCard } from "@/components/admin/settings/roles-limits-card";
 //     are removed entirely — see drawers.tsx / drawer-ids.ts.
 // ════════════════════════════════════════════════════════════════════════
 
-/** Settings list row — white card with flex-row layout + hover lift.
+// 2026-09-11 fidelity (boards W20, W21, W23, W24 and the settings frame they
+// share): the nav is the boards' 200px column of plain labels (active = white
+// with an inset hairline), the content pane carries the 22px title and the
+// group's own actions, and a group whose card draws its own header (POS,
+// Payments & providers, Locations, Booking policies) says so with `frame:
+// "own"`. The fake "Saved just now" indicator is gone: every card that saves
+// says Saving · Saved HH:MM · Save failed on its own (W58).
+
+/** Settings list row — white card with flex-row layout.
  *  Interactive rows: pass `onClick`; the whole surface becomes the tap target.
  *  Non-interactive rows (inner button only): omit `onClick`. */
 function SettingsRow({
   children,
   onClick,
-  opacity,
-  borderColor,
+  dim,
+  danger,
 }: {
   children: ReactNode;
   onClick?: () => void;
-  opacity?: number;
-  borderColor?: string;
+  dim?: boolean;
+  danger?: boolean;
 }) {
-  return (
-    <Card
-      interactive={!!onClick}
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "14px 16px",
-        marginBottom: 8,
-        fontFamily: FONTS.body,
-        ...(opacity !== undefined && { opacity }),
-        ...(borderColor ? { borderColor } : {}),
-      }}
-    >
-      {children}
-    </Card>
-  );
+  const base = `mb-[8px] flex items-center justify-between gap-[12px] rounded-[14px] border bg-admin-card px-[16px] py-[14px] font-admin-body ${
+    danger ? "border-admin-critical" : "border-admin-border"
+  } ${dim ? "opacity-60" : ""}`;
+  if (onClick) {
+    return (
+      <div role="button" tabIndex={0} onClick={onClick} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }} className={`${base} cursor-pointer transition-colors hover:border-admin-border-strong`}>
+        {children}
+      </div>
+    );
+  }
+  return <div className={base}>{children}</div>;
 }
 
 /** Declarative row descriptor — covers the vast majority of settings rows
@@ -96,20 +97,19 @@ type SimpleSettingRow = {
   title: string;
   desc: string;
   onClick?: () => void;
-  opacity?: number;
-  borderColor?: string;
-  titleColor?: string;
+  dim?: boolean;
+  danger?: boolean;
   right?: ReactNode;
   custom?: ReactNode;
 };
 
 function renderSimpleRow(row: SimpleSettingRow) {
   return (
-    <SettingsRow key={row.key} onClick={row.onClick} opacity={row.opacity} borderColor={row.borderColor}>
+    <SettingsRow key={row.key} onClick={row.onClick} dim={row.dim} danger={row.danger}>
       {row.custom ?? (
         <>
           <div>
-            <div style={{ "--row-title": row.titleColor ?? COLORS.ink } as CSSProperties} className="text-[13px] font-semibold text-[var(--row-title)]">{row.title}</div>
+            <div className={`text-[13px] font-semibold ${row.danger ? "text-admin-red" : "text-admin-ink"}`}>{row.title}</div>
             <div className="text-[12px] mt-0.5 text-admin-ink-muted">{row.desc}</div>
           </div>
           {row.right}
@@ -125,6 +125,7 @@ type GroupId =
   | "workspace"
   | "commercial-terms"
   | "venue"
+  | "locations"
   // Industry and words: the sixteen presets. Sits above appointments
   // because the preset supplies the nouns that screen then uses.
   | "industry"
@@ -144,6 +145,13 @@ type GroupId =
   | "email"
   | "advanced";
 
+/** Every group `?focus=` may open (the ids above, spelled once for the URL check). */
+const FOCUSABLE_GROUPS: readonly GroupId[] = [
+  "account", "plan", "workspace", "commercial-terms", "venue", "locations", "industry", "pos",
+  "appointments", "pricing-defaults", "domain", "branding", "team", "roles-limits", "roster-fields",
+  "registration", "discover", "compliance", "payments", "integrations", "email", "advanced",
+];
+
 type Group = {
   id: GroupId;
   label: string;
@@ -151,15 +159,19 @@ type Group = {
   visible: boolean;
   /** Small chip shown next to the label in the nav (plan tier only). */
   navBadge?: ReactNode;
+  /** The nav's accessible name when the board's label is an abbreviation ("POS" reads as "Point of sale"). */
+  navAria?: string;
   rows: SimpleSettingRow[];
   /** Bespoke content that isn't a simple row (cards, forms, sub-sections). */
   extra?: ReactNode;
   extraSearch?: { title: string; desc: string }[];
   /** Where `extra` renders relative to `rows`. Default "after". */
   extraPosition?: "before" | "after";
+  /** "own": the group's card draws the boards' header itself; the pane draws none. */
+  frame?: "own";
 };
 
-/** One flat nav item — icon tile, label, description, active state. */
+/** One flat nav item — the boards' plain label; active = white with an inset hairline. */
 function NavItem({
   group,
   active,
@@ -174,36 +186,15 @@ function NavItem({
       type="button"
       onClick={onClick}
       aria-current={active ? "true" : undefined}
-      // Geometry/typography live in classes; only token-derived values stay in
-      // the style attribute, as CSS custom properties.
-      //
-      // The hover wash is a real `hover:` class now, not the previous
-      // onMouseEnter/onMouseLeave pair that wrote `style.background`. Those
-      // handlers only worked because the base background was ALSO inline and
-      // React overwrote the mutation on every render. With the base moved to a
-      // class, the imperatively-set inline value outlives the state change and
-      // wins forever — a hovered item that then became active kept the faint
-      // hover tint (0.03) instead of the active tint (0.055). Verified in the
-      // browser before this rewrite. CSS hover has no such ordering problem,
-      // and the style attribute here sets no background, so nothing shadows it.
-      style={{
-        "--r": RADIUS.md,
-        "--ff": FONTS.body,
-        "--t": `background ${TRANSITION.micro}`,
-      } as CSSProperties}
-      className={`flex items-center gap-2.5 w-full py-[9px] px-2.5 rounded-[var(--r)] border-none cursor-pointer text-left font-[var(--ff)] transition-[var(--t)] ${
-        active ? "bg-[rgba(11,11,13,0.055)]" : "bg-transparent hover:bg-[rgba(11,11,13,0.03)]"
+      aria-label={group.navAria}
+      className={`flex w-full cursor-pointer items-center gap-[8px] rounded-[8px] border-0 px-[10px] py-[7px] text-left font-admin-body text-admin-13 transition-colors ${
+        active
+          ? "bg-admin-card font-semibold text-admin-ink shadow-[inset_0_0_0_1px_var(--color-admin-border)]"
+          : "bg-transparent font-medium text-admin-ink-muted hover:bg-admin-surface-alt hover:text-admin-ink"
       }`}
     >
-      <SettingsSectionIcon sectionId={group.id} size={26} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className={`text-[13px] tracking-[-0.05px] text-admin-ink ${active ? "font-bold" : "font-semibold"}`}>
-            {group.label}
-          </span>
-          {group.navBadge}
-        </div>
-      </div>
+      <span className="min-w-0 flex-1 truncate">{group.label}</span>
+      {group.navBadge}
     </button>
   );
 }
@@ -233,13 +224,6 @@ export function WorkspacePageView() {
   const planLabel = t(`dashboard.adminWorkspace.planName${state.plan.charAt(0).toUpperCase()}${state.plan.slice(1)}`);
   const planTheme = t(`dashboard.adminWorkspace.planTheme${state.plan.charAt(0).toUpperCase()}${state.plan.slice(1)}`);
 
-  // Auto-save indicator — simulates a settings save 1.2s after mount.
-  const [savedAt, setSavedAt] = useState<Date | null>(null);
-  useEffect(() => {
-    const timer = setTimeout(() => setSavedAt(new Date()), 1200);
-    return () => clearTimeout(timer);
-  }, []);
-
   // Deep-link: another surface (e.g. the top-bar plan badge) can ask Settings
   // to open a specific group. Switch to it, clear any search, then scroll the
   // content pane into view.
@@ -259,13 +243,14 @@ export function WorkspacePageView() {
     if (pending) {
       applySettingsTarget(pending);
     } else {
-      // Deep-link from a full navigation (notification "Review request" link or
-      // the legacy /admin/roster/registration redirect): ?focus=registration
-      // opens the Registration group and scrolls to it.
+      // Deep-link from a full navigation (notification "Review request" link,
+      // the legacy /admin/roster/registration redirect, the first-run setup
+      // page's "Set up" doors): ?focus=<group> opens that group. An unknown
+      // value is ignored rather than opening a blank pane.
       try {
         const focus = new URLSearchParams(window.location.search).get("focus");
-        if (focus === "registration") {
-          applySettingsTarget({ section: "registration" });
+        if (focus && FOCUSABLE_GROUPS.some((g) => g === focus)) {
+          applySettingsTarget({ section: focus });
         }
       } catch {
         /* no-op */
@@ -338,7 +323,7 @@ export function WorkspacePageView() {
                 key: "plan-readonly",
                 title: t("dashboard.adminWorkspace.ownersOnlyBilling"),
                 desc: "",
-                opacity: 0.6,
+                dim: true,
                 custom: (
                   <>
                     <span className="text-[13px] text-admin-ink-muted">{t("dashboard.adminWorkspace.ownersOnlyBilling")}</span>
@@ -437,15 +422,6 @@ export function WorkspacePageView() {
         ],
       },
       {
-        id: "commercial-terms",
-        label: t("dashboard.adminWorkspace.bookingTermsLabel"),
-        desc: t("dashboard.adminWorkspace.bookingTermsDesc"),
-        visible: !!tenantSlug,
-        rows: [],
-        extra: tenantSlug ? <CommercialTermsSettingsCard tenantSlug={tenantSlug} /> : null,
-        extraSearch: [{ title: t("dashboard.adminWorkspace.bookingTermsLabel"), desc: t("dashboard.adminWorkspace.bookingTermsDesc") }],
-      },
-      {
         // Venue sits ABOVE appointments deliberately: the appointments group
         // asks about hours and notice periods, and every one of those answers
         // is meaningless until the workspace has said what time it is.
@@ -467,6 +443,21 @@ export function WorkspacePageView() {
         ],
       },
       {
+        // W23 — the one location every workspace has, and the zones it does
+        // not have yet. Sits right after the venue it reads.
+        id: "locations",
+        label: t("dashboard.adminWorkspace.locations.label"),
+        desc: t("dashboard.adminWorkspace.locations.subtitle"),
+        visible: !!tenantSlug,
+        frame: "own",
+        rows: [],
+        extra: tenantSlug ? <LocationsCard workspaceName={effectiveTenant.name} onEditLocation={() => applySettingsTarget({ section: "venue" })} /> : null,
+        extraSearch: [
+          { title: t("dashboard.adminWorkspace.locations.label"), desc: t("dashboard.adminWorkspace.locations.subtitle") },
+          { title: t("dashboard.adminWorkspace.locations.zonesHeading"), desc: t("dashboard.adminWorkspace.locations.notWired.zones") },
+        ],
+      },
+      {
         // Industry and words — the control for the sixteen presets. It sits
         // ABOVE appointments because the preset supplies the nouns that screen
         // then uses, including the terminology it reads.
@@ -484,49 +475,52 @@ export function WorkspacePageView() {
         ],
       },
       {
+        // W20 — the point of sale at this location. The card draws the board's
+        // header itself (title, the one location, the save state).
         id: "pos",
-        label: t("Point of sale"),
-        desc: t("Catalog, floor, preparation, shifts, receipts and discounts — the same pages as the POS rail."),
+        label: t("dashboard.adminWorkspace.posModes.navLabel"),
+        navAria: t("dashboard.adminWorkspace.posModes.navAria"),
+        desc: t("dashboard.adminWorkspace.posModes.headerSubtitle"),
         visible: !!tenantSlug,
+        frame: "own",
         rows: [],
         extra: tenantSlug ? (
-          <div className="flex flex-col gap-2 py-2">
-            <PosModesSettingsCard canEdit={isOwner} platformEnabled={workspacePosEnabled} />
-            {(
-              [
-                // The two register links are the counter mode itself. With the
-                // counter switched off, `/admin/pos` refuses in a sentence, so
-                // offering the link would be a door onto a closed room. The
-                // back-office pages below it (catalog, tables, preparation,
-                // discounts, sales) are not the register and stay reachable.
-                ...(workspacePosModes.includes("counter")
-                  ? [{ href: `${adminBasePath}/pos`, label: t("New Sale") }]
-                  : []),
-                { href: `${adminBasePath}/menu`, label: t("Catalog") },
-                { href: `${adminBasePath}/tables`, label: t("Tables & Spaces") },
-                { href: `${adminBasePath}/preparation`, label: t("Preparation") },
-                { href: `${adminBasePath}/discounts`, label: t("Discounts") },
-                { href: `${adminBasePath}/sales`, label: t("Sales") },
-                ...(workspacePosModes.includes("counter")
-                  ? [{ href: `${adminBasePath}/pos`, label: t("Shifts and tender") }]
-                  : []),
-              ] as const
-            ).map((link) => (
-              <button
-                key={link.href + link.label}
-                type="button"
-                onClick={() => router.push(link.href)}
-                className="min-h-11 w-full rounded-[10px] border border-solid border-admin-border bg-white px-3 py-2 text-left text-[14px] text-admin-ink"
-              >
-                {link.label}
-              </button>
-            ))}
-          </div>
+          <PosModesSettingsCard canEdit={isOwner} platformEnabled={workspacePosEnabled} workspaceName={effectiveTenant.name} />
         ) : null,
         extraSearch: [
-          { title: t("Point of sale"), desc: t("Catalog, floor, preparation, shifts, receipts and discounts — the same pages as the POS rail.") },
-          { title: t("Shifts and tender"), desc: t("Open and close the cash drawer on POS. Navigating away does not close the shift.") },
+          { title: t("dashboard.adminWorkspace.posModes.navLabel"), desc: t("dashboard.adminWorkspace.posModes.headerSubtitle") },
           { title: t("dashboard.adminWorkspace.posModes.title"), desc: t("dashboard.adminWorkspace.posModes.desc") },
+          { title: t("dashboard.adminWorkspace.posModes.devicesHeading"), desc: t("dashboard.adminWorkspace.posModes.devicesGap") },
+        ],
+      },
+      {
+        // W21 — which payment providers are ready to take money, never a
+        // control for one that is not (see the card's own header for why).
+        id: "payments",
+        label: t("dashboard.adminWorkspace.paymentsProviders.label"),
+        desc: t("dashboard.adminWorkspace.paymentsProviders.headerSubtitle"),
+        visible: isAdmin,
+        frame: "own",
+        rows: [],
+        extra: <PaymentsProvidersCard workspaceName={effectiveTenant.name} />,
+        extraSearch: [
+          { title: t("dashboard.adminWorkspace.paymentsProviders.label"), desc: t("dashboard.adminWorkspace.paymentsProviders.headerSubtitle") },
+        ],
+      },
+      {
+        // W24 — deposits, cancellation, holds and intake, over the
+        // workspace's commercial terms.
+        id: "commercial-terms",
+        label: t("dashboard.adminWorkspace.bookingPolicies.title"),
+        desc: t("dashboard.adminWorkspace.bookingPolicies.subtitle"),
+        visible: !!tenantSlug,
+        frame: "own",
+        rows: [],
+        extra: tenantSlug ? <BookingPoliciesCard tenantSlug={tenantSlug} reservationsSettingsHref={`${adminBasePath}/settings/reservations`} /> : null,
+        extraSearch: [
+          { title: t("dashboard.adminWorkspace.bookingPolicies.title"), desc: t("dashboard.adminWorkspace.bookingPolicies.subtitle") },
+          { title: t("dashboard.adminWorkspace.bookingPolicies.defaultDeposit"), desc: t("dashboard.adminWorkspace.bookingPolicies.defaultDepositHint") },
+          { title: t("dashboard.adminWorkspace.bookingPolicies.holds.title"), desc: t("dashboard.adminWorkspace.bookingPolicies.holds.expiryValue") },
         ],
       },
       {
@@ -593,7 +587,7 @@ export function WorkspacePageView() {
                 key: "custom-domain-locked",
                 title: t("dashboard.adminWorkspace.customDomain"),
                 desc: t("dashboard.adminWorkspace.requiresStudio"),
-                opacity: 0.55,
+                dim: true,
                 onClick: () => openUpgrade({ feature: t("dashboard.adminWorkspace.customDomain"), why: t("dashboard.adminWorkspace.domainDesc"), requiredPlan: "studio" }),
                 right: <LockedPill plan="studio" />,
               },
@@ -617,7 +611,7 @@ export function WorkspacePageView() {
                 key: "brand-identity-locked",
                 title: t("dashboard.adminWorkspace.brandIdentity"),
                 desc: t("dashboard.adminWorkspace.requiresAgency"),
-                opacity: 0.55,
+                dim: true,
                 onClick: () => openUpgrade({ feature: t("dashboard.adminWorkspace.brandingLabel"), why: t("dashboard.adminWorkspace.brandingUpgradeWhy"), requiredPlan: "agency", unlocks: [t("dashboard.adminWorkspace.brandingUnlock1"), t("dashboard.adminWorkspace.brandingUnlock2"), t("dashboard.adminWorkspace.brandingUnlock3")] }),
                 right: <LockedPill plan="agency" />,
               },
@@ -633,7 +627,7 @@ export function WorkspacePageView() {
                 key: "logo-watermark-locked",
                 title: t("dashboard.adminWorkspace.logoWatermark"),
                 desc: t("dashboard.adminWorkspace.requiresStudio"),
-                opacity: 0.55,
+                dim: true,
                 onClick: () => openUpgrade({
                   feature: t("dashboard.adminWorkspace.logoWatermark"),
                   why: t("dashboard.adminWorkspace.watermarkUpgradeWhy"),
@@ -654,7 +648,7 @@ export function WorkspacePageView() {
                 key: "media-gallery-locked",
                 title: t("dashboard.adminWorkspace.mediaGallery"),
                 desc: t("dashboard.adminWorkspace.requiresAgency"),
-                opacity: 0.55,
+                dim: true,
                 onClick: () => openUpgrade({
                   feature: t("dashboard.adminWorkspace.brandedMediaGallery"),
                   why: t("dashboard.adminWorkspace.mediaGalleryUpgradeWhy"),
@@ -692,7 +686,7 @@ export function WorkspacePageView() {
                 key: "team-members-locked",
                 title: t("dashboard.adminWorkspace.teamMembers"),
                 desc: t("dashboard.adminWorkspace.requiresAgency"),
-                opacity: 0.55,
+                dim: true,
                 onClick: () => openUpgrade({ feature: t("dashboard.adminWorkspace.teamRolesFeature"), why: t("dashboard.adminWorkspace.teamUpgradeWhy"), requiredPlan: "agency", unlocks: [t("dashboard.adminWorkspace.teamUnlock1"), t("dashboard.adminWorkspace.teamUnlock2")] }),
                 right: <LockedPill plan="agency" />,
               },
@@ -758,10 +752,7 @@ export function WorkspacePageView() {
                     <div className="text-[12px] mt-0.5 text-admin-ink-muted">{t("dashboard.adminWorkspace.trustVerificationMeta")}</div>
                   </div>
                   {pendingTrustCount > 0 && (
-                    <span
-                      style={{ "--pill-bg": COLORS.indigo } as CSSProperties}
-                      className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 py-0 rounded-full bg-[var(--pill-bg)] text-white text-[10.5px] font-bold leading-none"
-                    >{pendingTrustCount}</span>
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 py-0 rounded-full bg-admin-indigo text-white text-[10.5px] font-bold leading-none">{pendingTrustCount}</span>
                   )}
                 </div>
                 <Affordance label={pendingTrustCount > 0 ? t("dashboard.adminWorkspace.affordanceReview") : t("dashboard.adminWorkspace.affordanceOpen")} />
@@ -807,10 +798,7 @@ export function WorkspacePageView() {
                     </div>
                   </div>
                   {pendingTalent.length > 0 && (
-                    <span
-                      style={{ "--pill-bg": COLORS.amber } as CSSProperties}
-                      className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 py-0 rounded-full bg-[var(--pill-bg)] text-white text-[10.5px] font-bold"
-                    >{pendingTalent.length}</span>
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 py-0 rounded-full bg-admin-amber text-white text-[10.5px] font-bold">{pendingTalent.length}</span>
                   )}
                 </div>
                 <Affordance label={pendingTalent.length === 0 ? t("dashboard.adminWorkspace.affordanceOpenQueue") : t("dashboard.adminWorkspace.affordanceReview")} />
@@ -906,20 +894,6 @@ export function WorkspacePageView() {
             onClick: () => openDrawer("audit-log"),
             right: <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />,
           },
-        ],
-      },
-      {
-        // W21 (money.md §2) — honestly which payment providers are ready to
-        // take money, never a control for one that is not (see the card's
-        // own header for why this is read-only).
-        id: "payments",
-        label: t("dashboard.adminWorkspace.paymentsProviders.label"),
-        desc: t("dashboard.adminWorkspace.paymentsProviders.desc"),
-        visible: isAdmin,
-        rows: [],
-        extra: <PaymentsProvidersCard />,
-        extraSearch: [
-          { title: t("dashboard.adminWorkspace.paymentsProviders.label"), desc: t("dashboard.adminWorkspace.paymentsProviders.desc") },
         ],
       },
       {
@@ -1042,8 +1016,7 @@ export function WorkspacePageView() {
                 key: "danger-zone",
                 title: t("dashboard.adminWorkspace.deleteTransferWorkspace"),
                 desc: t("dashboard.adminWorkspace.deleteTransferWorkspaceDesc"),
-                titleColor: "#DC2626",
-                borderColor: "#FCA5A5",
+                danger: true,
                 onClick: () => openDrawer("danger-zone"),
                 right: <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />,
               }]
@@ -1055,7 +1028,7 @@ export function WorkspacePageView() {
   }, [
     t, state.plan, state.role, state.workspaceType, workspacePosModes, planLabel, planTheme, isOwner, isAdmin, isFree, effectiveTenant.name, tenantSlug, adminBasePath, router,
     bridgeTalentSelfProfile, effectiveTeamMembers, pendingTrustCount, disputedClaimsCount,
-    pendingTalent.length, openDrawer, openUpgrade, setPage,
+    pendingTalent.length, openDrawer, openUpgrade, setPage, applySettingsTarget, workspacePosEnabled,
   ]);
 
   const visibleGroups = useMemo(() => groups.filter((g) => g.visible), [groups]);
@@ -1077,35 +1050,65 @@ export function WorkspacePageView() {
   const activeGroupData = visibleGroups.find((g) => g.id === activeGroup) ?? visibleGroups[0];
 
   const searchInput = (
-    <div className="relative mb-2.5">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-        <circle cx="11" cy="11" r="7" stroke={COLORS.inkMuted} strokeWidth="1.8" />
-        <path d="m20 20-3.5-3.5" stroke={COLORS.inkMuted} strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
+    <label className="relative mb-[10px] block">
+      <span aria-hidden className="pointer-events-none absolute left-[10px] top-1/2 -translate-y-1/2 text-admin-ink-muted">
+        <Icon name="search" size={14} stroke={1.75} />
+      </span>
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t("dashboard.adminWorkspace.searchPlaceholder")}
-        style={{
-          "--r": RADIUS.md,
-          "--bc": COLORS.border,
-          "--ff": FONTS.body,
-          "--fg": COLORS.ink,
-        } as CSSProperties}
-        className="w-full pt-[9px] pr-3 pb-[9px] pl-8 rounded-[var(--r)] border border-solid border-[var(--bc)] bg-white font-[var(--ff)] text-[13px] text-[var(--fg)] outline-none"
+        aria-label={t("dashboard.adminWorkspace.searchPlaceholder")}
+        className="h-[34px] w-full rounded-[9px] border border-admin-border bg-admin-card pl-[30px] pr-[10px] font-admin-body text-admin-13 text-admin-ink outline-none placeholder:text-admin-ink-dim focus:border-admin-border-strong"
       />
-    </div>
+    </label>
+  );
+
+  const pane = trimmedQuery ? (
+    matches.length === 0 ? (
+      <div className="px-[4px] py-[24px] font-admin-body text-admin-13 text-admin-ink-muted">
+        {t("dashboard.adminWorkspace.noSearchResults")}
+      </div>
+    ) : (
+      <div>
+        {matches.map((hit, i) => (
+          <SettingsRow
+            key={`${hit.groupId}-${i}`}
+            onClick={hit.onClick ?? (() => { setActiveGroup(hit.groupId); setQuery(""); })}
+          >
+            <div>
+              <div className="mb-[3px] text-admin-10h font-semibold uppercase tracking-[0.3px] text-admin-ink-muted">
+                {hit.groupLabel}
+              </div>
+              <div className="text-[13px] font-semibold text-admin-ink">{hit.title}</div>
+              {hit.desc && <div className="text-[12px] mt-0.5 text-admin-ink-muted">{hit.desc}</div>}
+            </div>
+            <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
+          </SettingsRow>
+        ))}
+      </div>
+    )
+  ) : (
+    activeGroupData && (
+      <div data-settings-section={activeGroupData.id} className="flex flex-col gap-[14px]">
+        {activeGroupData.frame !== "own" ? (
+          <div>
+            <h2 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{activeGroupData.label}</h2>
+            <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted">{activeGroupData.desc}</p>
+          </div>
+        ) : null}
+        <div>
+          {activeGroupData.extraPosition === "before" && activeGroupData.extra}
+          {activeGroupData.rows.map(renderSimpleRow)}
+          {activeGroupData.extraPosition !== "before" && activeGroupData.extra}
+        </div>
+      </div>
+    )
   );
 
   return (
     <>
-      <PageHeader
-        title={t("dashboard.adminWorkspace.title")}
-        subtitle={t("dashboard.adminWorkspace.subtitle")}
-        actions={<AutoSaveIndicator savedAt={savedAt} />}
-      />
-
       {tenantSlug && (
         <CreateMyTalentProfileDialog
           open={createTalentDialogOpenSettings}
@@ -1114,31 +1117,30 @@ export function WorkspacePageView() {
         />
       )}
 
-      <div className="flex gap-6 items-start max-w-[980px]">
-        {/* Left nav — flat list, one click per group. Collapses to a native
-            <select> on phone (reuses useViewport, the same hook DrawerShell
-            and the bottom-nav already use for responsive breakpoints). */}
-        <div className={`shrink-0 top-4 ${isPhone ? "w-full static" : "w-60 sticky"}`}>
+      {/* The boards' settings frame: a 200px column of plain labels with a
+          hairline on its right, then the pane. Bled to the main's edges on
+          desktop so the column runs the height of the page; on phone the
+          column collapses to a native <select> (useViewport, the same hook
+          DrawerShell and the bottom nav use). */}
+      <div
+        data-tulala-settings-frame
+        className={`font-admin-body ${isPhone ? "flex flex-col gap-[12px]" : "-mx-[28px] -mt-[24px] flex min-h-[calc(100vh-56px)] items-stretch"}`}
+      >
+        <div className={isPhone ? "w-full" : "w-[200px] shrink-0 border-r border-admin-border px-[10px] py-[16px]"}>
           {searchInput}
           {isPhone ? (
             <select
               value={activeGroup}
               onChange={(e) => { setActiveGroup(e.target.value as GroupId); setQuery(""); }}
               aria-label={t("dashboard.adminWorkspace.jumpToSection")}
-              style={{
-                "--r": RADIUS.md,
-                "--bc": COLORS.border,
-                "--ff": FONTS.body,
-                "--fg": COLORS.ink,
-              } as CSSProperties}
-              className="w-full py-2.5 px-3 rounded-[var(--r)] border border-solid border-[var(--bc)] bg-white font-[var(--ff)] text-[13.5px] font-semibold text-[var(--fg)]"
+              className="h-[36px] w-full rounded-[9px] border border-admin-border bg-admin-card px-[10px] font-admin-body text-admin-13h font-semibold text-admin-ink"
             >
               {visibleGroups.map((g) => (
                 <option key={g.id} value={g.id}>{g.label}</option>
               ))}
             </select>
           ) : (
-            <div data-tulala-settings-nav className="flex flex-col gap-0.5">
+            <div data-tulala-settings-nav className="sticky top-[16px] flex flex-col gap-[2px]">
               {visibleGroups.map((g) => (
                 <NavItem key={g.id} group={g} active={!trimmedQuery && activeGroup === g.id} onClick={() => { setActiveGroup(g.id); setQuery(""); }} />
               ))}
@@ -1146,47 +1148,8 @@ export function WorkspacePageView() {
           )}
         </div>
 
-        {/* Content pane */}
-        <div className="flex-1 min-w-0">
-          {trimmedQuery ? (
-            matches.length === 0 ? (
-              <div style={{ "--ff": FONTS.body } as CSSProperties} className="font-[var(--ff)] py-6 px-1 text-[13px] text-admin-ink-muted">
-                {t("dashboard.adminWorkspace.noSearchResults")}
-              </div>
-            ) : (
-              <div>
-                {matches.map((hit, i) => (
-                  <SettingsRow
-                    key={`${hit.groupId}-${i}`}
-                    onClick={hit.onClick ?? (() => { setActiveGroup(hit.groupId); setQuery(""); })}
-                  >
-                    <div>
-                      <div className="text-[10.5px] font-semibold uppercase tracking-[0.3px] mb-[3px] text-admin-ink-muted">
-                        {hit.groupLabel}
-                      </div>
-                      <div className="text-[13px] font-semibold text-admin-ink">{hit.title}</div>
-                      {hit.desc && <div className="text-[12px] mt-0.5 text-admin-ink-muted">{hit.desc}</div>}
-                    </div>
-                    <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
-                  </SettingsRow>
-                ))}
-              </div>
-            )
-          ) : (
-            activeGroupData && (
-              <div data-settings-section={activeGroupData.id}>
-                <div className="mb-3">
-                  <div style={{ "--ff": FONTS.display } as CSSProperties} className="font-[var(--ff)] text-[17px] font-bold tracking-[-0.2px] text-admin-ink">
-                    {activeGroupData.label}
-                  </div>
-                  <div className="text-[12.5px] mt-0.5 text-admin-ink-muted">{activeGroupData.desc}</div>
-                </div>
-                {activeGroupData.extraPosition === "before" && activeGroupData.extra}
-                {activeGroupData.rows.map(renderSimpleRow)}
-                {activeGroupData.extraPosition !== "before" && activeGroupData.extra}
-              </div>
-            )
-          )}
+        <div className={`min-w-0 flex-1 ${isPhone ? "" : "px-[28px] py-[20px]"}`}>
+          {pane}
 
           {/* Legacy — keep MoreWithSection for free plan upsell below the main layout */}
           {state.plan === "free" && (

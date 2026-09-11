@@ -1,89 +1,102 @@
 "use client";
 
 /**
- * PosModesSettingsCard — the ONLY UI that writes `agencies.settings.pos
- * .locations.default.modes` (W20, money.md §2).
+ * PosModesSettingsCard — Settings › POS as the W20 board draws it: the
+ * header "POS · <location>" with the one location and the save state, the
+ * modes at this location beside the devices & drawers, then Tips, Receipts
+ * and Offline.
  *
- * Sibling in shape to `RunsEventsCard`: loads its own value with
- * `getPosModes()` rather than trusting shell state (the shell's
- * `workspacePosModes` is a layout-bridge snapshot that can be a request
- * behind), toggles save immediately, and gates writes to the owner —
- * `setPosModes` requires `manage_billing`, same bar as the workspace-type and
- * events switches this card sits beside.
+ * THE ONLY UI THAT WRITES `agencies.settings.pos.locations.default.modes`
+ * (money.md §2). Loads its own value with `getPosModes()` rather than
+ * trusting shell state (the shell's `workspacePosModes` is a layout-bridge
+ * snapshot that can be a request behind); a toggle saves immediately and the
+ * header's chip says Saving · Saved HH:MM · Save failed (W58): on failure the
+ * switch stays where the person put it and Retry sends the same change once.
+ * Writes are gated to the owner: `setPosModes` requires `manage_billing`.
  *
- * TURNING THE LAST MODE OFF IS A REAL, PERSISTED STATE. The counter is the
- * only mode with screens, so it is the only switch that moves, and the empty
- * list it writes used to be coerced straight back to `["counter"]` by
- * `enabledPosModesFromSettings` — the card said "Saved", drew the switch off,
- * and the refresh it triggered repainted the rest of the page from the
- * coerced value, so one screen disagreed with itself and no reachable change
- * could ever persist. The reader now keeps `[]`, this card says in plain
- * words what an empty list costs (`allOffHint`), and the point of sale is
- * genuinely unavailable until a mode goes back on.
+ * TURNING THE LAST MODE OFF IS A REAL, PERSISTED STATE, said in words
+ * (`allOffHint`). A MODE WITH NO SCREEN IS NEVER OFFERED AS A TOGGLE THAT
+ * WORKS: an unbuilt mode's switch is disabled with its reason. EVERY REFUSAL
+ * IS A CODE THE CARD TRANSLATES (`PosModesRefusal`), so a Spanish or French
+ * operator reads it in their own language, and a load that never resolves
+ * has its own sentence and a retry (W59), never "Loading…" for ever.
  *
- * A MODE WITH NO SCREEN IS NEVER OFFERED AS A TOGGLE THAT WORKS. A mode
- * whose `built` flag is off renders with a "not built yet" caption and
- * a disabled control instead of a switch that would silently do nothing —
- * the server action refuses the write anyway, but a control a person can
- * press that then fails is exactly the thing this settings surface exists to
- * avoid, so the disabled state is the FIRST line of defense, not the second.
+ * WHAT IS DRAWN BUT NOT WIRED, each disabled with its one-sentence reason
+ * (D-POS-58): a second location, Field Services, Pair a device, and every
+ * Tips / Receipts / Offline field. The boxes show the honest current
+ * behaviour (receipts name the workspace; the till is online only) so the
+ * screen never claims a setting the engine does not read.
  *
- * EVERY REFUSAL IS A CODE THE CARD TRANSLATES. `setPosModes` answers with a
- * `PosModesRefusal` id, never English prose, so a Spanish or French operator
- * reads the reason in their own language. A load that never resolves at all
- * (a dropped connection, a deploy mid-request) is its own state with its own
- * sentence and a way out, rather than a card stuck on "Loading…" forever.
- *
- * DEVICES ARE A NAMED GAP, NOT A FABRICATED LIST. money.md §3 confirms no
- * device-registry table exists anywhere in the schema. Rather than invent a
- * device picker with nothing behind it, this card states the gap in plain
- * words: every device on this workspace shares the settings above.
- *
- * THE PLATFORM SWITCH OUTRANKS EVERYTHING HERE. `platform_settings
- * .workspace_pos_enabled` (surfaced via the shell bridge as `platformEnabled`)
- * is the kill switch HQ owns; this card's own toggles only decide which
- * BUILT modes a workspace exposes once the platform allows the point of
- * sale at all. With the platform switch off, no per-mode toggle here could
- * ever do anything — `setPosModes` still writes, but nothing reads
- * `workspacePosModes` while `workspacePosEnabled` is false (`PosModeSwitch`,
- * `MobileBottomNav`) — so this renders a plain sentence instead of a bank of
- * switches that look live and are not.
+ * THE PLATFORM SWITCH OUTRANKS EVERYTHING HERE. With
+ * `platform_settings.workspace_pos_enabled` off nothing reads the modes
+ * (`PosModeSwitch`, `MobileBottomNav`), so this renders one plain sentence
+ * instead of a bank of switches that look live and are not.
  */
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { getPosModes, setPosModes } from "@/lib/server-actions/pos-modes";
+import { getPosLocationFacts, type PosLocationFacts } from "@/lib/server-actions/pos-location-facts";
 import { CLIENT_LOAD_REFUSAL, type ClientLoadRefusal, type PosModesRefusal } from "@/lib/settings/refusals";
 import { POS_MODES, POS_MODE_META, type PosMode } from "@/lib/pos/modes";
+import { formatOrderMoney } from "@/lib/orders/money-format";
 import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
+import {
+  ActionButton,
+  CouldNotLoad,
+  DeviceRow,
+  LoadingLines,
+  Note,
+  SaveStateChip,
+  Segmented,
+  SelectField,
+  SettingsCard,
+  SettingsHeader,
+  StatePill,
+  Switch,
+  SwitchRow,
+  type SaveState,
+} from "./settings-ui";
 
 const K = "dashboard.adminWorkspace.posModes";
 
 /** A server refusal, or the one failure that never reaches the server at all. */
 type CardRefusal = PosModesRefusal | ClientLoadRefusal;
 
+/** The one location every workspace has today (`lib/pos/modes.ts`: "default"). */
+const LOCATION_ID = "default";
+
+function clock(iso: string | null, timeZone: string): string {
+  if (!iso) return "";
+  try {
+    return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(new Date(iso));
+  } catch {
+    return "";
+  }
+}
+
 export function PosModesSettingsCard({
   canEdit,
   platformEnabled,
+  workspaceName,
 }: {
   canEdit: boolean;
   /** `platform_settings.workspace_pos_enabled` off the shell bridge — the platform kill switch. */
   platformEnabled: boolean;
+  workspaceName: string;
 }) {
   const t = useT();
   const queueRouterRefresh = useQueuedRouterRefresh();
-  const [busy, startTransition] = useTransition();
 
   // `null` = not loaded yet or unreadable; never rendered as "everything off".
   const [current, setCurrent] = useState<PosMode[] | null>(null);
   const [loadRefusal, setLoadRefusal] = useState<CardRefusal | null>(null);
-  const [refusal, setRefusal] = useState<CardRefusal | null>(null);
-  const [saved, setSaved] = useState(false);
-
-  // Bumping this re-runs the load effect, so a retry goes through the SAME
-  // cancellation path as the first attempt rather than starting a second,
-  // uncancellable request that outlives the card.
+  const [save, setSave] = useState<SaveState>({ kind: "idle" });
+  // The change a failed save was carrying, so Retry sends the SAME change once.
+  const [pending, setPending] = useState<PosMode[] | null>(null);
+  const [facts, setFacts] = useState<PosLocationFacts | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
@@ -95,119 +108,220 @@ export function PosModesSettingsCard({
         if (res.ok) setCurrent(res.modes);
         else setLoadRefusal(res.reason);
       })
-      // Without this the promise rejects unhandled and the card sits on
-      // "Loading…" for the rest of the session with nothing to press.
       .catch(() => {
         if (!cancelled) setLoadRefusal(CLIENT_LOAD_REFUSAL);
+      });
+    void getPosLocationFacts()
+      .then((res) => {
+        if (!cancelled && res.ok) setFacts(res.facts);
+      })
+      .catch(() => {
+        /* the facts card says what it could not read */
       });
     return () => {
       cancelled = true;
     };
   }, [reloadToken]);
 
-  function toggle(mode: PosMode) {
-    if (!canEdit || busy || current === null) return;
-    const meta = POS_MODE_META[mode];
-    const isOn = current.includes(mode);
-    // Never send a request that turns ON an unbuilt mode — the server would
-    // refuse it too, but the toggle should already read as unusable.
-    if (!meta.built && !isOn) return;
-    const next = isOn ? current.filter((m) => m !== mode) : [...current, mode];
-    setRefusal(null);
-    setSaved(false);
-    startTransition(async () => {
+  const commit = useCallback(
+    async (next: PosMode[]) => {
+      setSave({ kind: "saving" });
+      setPending(next);
       try {
         const res = await setPosModes({ modes: next });
         if (res.ok) {
           setCurrent(res.modes);
-          setSaved(true);
+          setPending(null);
+          setSave({ kind: "saved", at: new Date() });
           queueRouterRefresh();
           return;
         }
-        setRefusal(res.reason);
+        setSave({ kind: "failed", message: t(`${K}.errors.${res.reason}`) });
       } catch {
-        setRefusal(CLIENT_LOAD_REFUSAL);
+        setSave({ kind: "failed", message: t(`${K}.errors.${CLIENT_LOAD_REFUSAL}`) });
       }
-    });
+    },
+    [queueRouterRefresh, t],
+  );
+
+  function toggle(mode: PosMode) {
+    if (!canEdit || save.kind === "saving" || current === null) return;
+    const meta = POS_MODE_META[mode];
+    const base = pending ?? current;
+    const isOn = base.includes(mode);
+    if (!meta.built && !isOn) return;
+    const next = isOn ? base.filter((m) => m !== mode) : [...base, mode];
+    // The switch moves at once; the chip says whether the server agreed.
+    setCurrent(next);
+    void commit(next);
   }
+
+  const timeZone = facts?.timezone ?? "UTC";
+  const location = facts?.venueName?.trim() || workspaceName;
+  const notWiredReason = (key: string) => t(`${K}.notWired.${key}`);
+
+  const header = (
+    <SettingsHeader
+      testId="pos-settings-header"
+      title={interpolate(t(`${K}.headerTitle`), { location })}
+      subtitle={t(`${K}.headerSubtitle`)}
+      actions={
+        <>
+          <SaveStateChip
+            testId="pos-save-state"
+            state={save}
+            timeZone={timeZone}
+            labels={{ saving: t(`${K}.saving`), saved: t(`${K}.saved`), failed: t(`${K}.saveFailed`), retry: t(`${K}.retry`) }}
+            onRetry={pending ? () => void commit(pending) : undefined}
+          />
+          <Segmented
+            label={t(`${K}.locationsLabel`)}
+            value={LOCATION_ID}
+            onChange={() => undefined}
+            options={[
+              { id: LOCATION_ID, label: location },
+              { id: "second", label: t(`${K}.secondLocation`), reason: notWiredReason("secondLocation") },
+            ]}
+          />
+        </>
+      }
+    />
+  );
 
   if (!platformEnabled) {
     return (
-      <div data-testid="pos-modes-card" className="mb-2 rounded-admin-lg border border-admin-border-soft bg-admin-card p-4">
-        <div className="text-[13px] font-semibold text-admin-ink">{t(`${K}.title`)}</div>
-        <div className="mt-0.5 text-[12px] text-admin-ink-muted">{t(`${K}.desc`)}</div>
-        <div data-testid="pos-modes-platform-off" className="mt-2 text-[11.5px] leading-relaxed text-admin-ink-muted">
-          {t(`${K}.platformOffHint`)}
-        </div>
+      <div data-testid="pos-modes-card" className="flex flex-col gap-[14px]">
+        {header}
+        <SettingsCard title={t(`${K}.title`)}>
+          <div data-testid="pos-modes-platform-off" className="text-admin-12h leading-relaxed text-admin-ink-muted">
+            {t(`${K}.platformOffHint`)}
+          </div>
+        </SettingsCard>
       </div>
     );
   }
 
+  const shown = current;
+  const drawerDetail = (() => {
+    if (!facts) return t(`${K}.devices.drawerLoading`);
+    if (facts.drawer === "unreadable") return t(`${K}.devices.drawerUnreadable`);
+    if (facts.drawer === null) return t(`${K}.devices.drawerClosed`);
+    return interpolate(t(`${K}.devices.drawerOpen`), {
+      float: formatOrderMoney(facts.drawer.floatCents, "USD"),
+      time: clock(facts.drawer.openedAt, timeZone),
+    });
+  })();
+  const readerDetail = facts
+    ? t(`dashboard.adminWorkspace.paymentsProviders.reasons.${facts.reader.reason}`)
+    : t(`${K}.devices.drawerLoading`);
+
   return (
-    <div data-testid="pos-modes-card" className="mb-2 rounded-admin-lg border border-admin-border-soft bg-admin-card p-4">
-      <div className="text-[13px] font-semibold text-admin-ink">{t(`${K}.title`)}</div>
-      <div className="mt-0.5 text-[12px] text-admin-ink-muted">{t(`${K}.desc`)}</div>
+    <div data-testid="pos-modes-card" className="flex flex-col gap-[14px]">
+      {header}
 
-      {loadRefusal ? (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] text-admin-critical">{t(`${K}.errors.${loadRefusal}`)}</span>
-          <button
-            type="button"
-            onClick={() => setReloadToken((n) => n + 1)}
-            className="min-h-8 rounded-admin-md border border-admin-border bg-admin-surface px-2.5 text-[11px] font-semibold text-admin-ink"
-          >
-            {t(`${K}.retry`)}
-          </button>
-        </div>
-      ) : current === null ? (
-        <div className="mt-2 text-[11px] text-admin-ink-muted">{t(`${K}.loading`)}</div>
-      ) : (
-        <div role="group" aria-label={t(`${K}.title`)} className="mt-3 flex flex-col gap-2">
-          {POS_MODES.map((mode) => {
-            const meta = POS_MODE_META[mode];
-            const on = current.includes(mode);
-            const disabled = !canEdit || busy || (!meta.built && !on);
-            return (
-              <button
-                key={mode}
-                type="button"
-                role="switch"
-                aria-checked={on}
-                disabled={disabled}
-                onClick={() => toggle(mode)}
-                className={`flex items-center justify-between gap-3 rounded-admin-md border p-3 text-left transition-colors ${
-                  on ? "border-admin-accent bg-admin-accent-soft" : "border-admin-border bg-admin-surface"
-                } ${!disabled ? "cursor-pointer hover:border-admin-border-strong" : "cursor-default opacity-70"}`}
+      <div className="grid grid-cols-1 gap-[16px] lg:grid-cols-[1.1fr_1fr]">
+        <SettingsCard title={t(`${K}.title`)} testId="pos-modes-list">
+          {loadRefusal ? (
+            <CouldNotLoad
+              testId="pos-modes-load-failed"
+              message={t(`${K}.errors.${loadRefusal}`)}
+              retryLabel={t(`${K}.retry`)}
+              onRetry={() => setReloadToken((n) => n + 1)}
+            />
+          ) : shown === null ? (
+            <LoadingLines label={t(`${K}.loadingLabel`)} />
+          ) : (
+            <div role="group" aria-label={t(`${K}.title`)} className="flex flex-col">
+              {POS_MODES.map((mode) => {
+                const meta = POS_MODE_META[mode];
+                const on = shown.includes(mode);
+                const label = t(`${K}.modes.${mode}.label`);
+                const disabled = !canEdit || save.kind === "saving" || (!meta.built && !on);
+                return (
+                  <SwitchRow
+                    key={mode}
+                    testId={`pos-mode-row-${mode}`}
+                    right={
+                      meta.built ? (
+                        on ? (
+                          <StatePill tone="green" state="ready">{t(`${K}.pillReady`)}</StatePill>
+                        ) : (
+                          <StatePill tone="slate" state="off">{t(`${K}.offLabel`)}</StatePill>
+                        )
+                      ) : (
+                        <StatePill tone="slate" state="not-built">{t(`${K}.notBuiltBadge`)}</StatePill>
+                      )
+                    }
+                  >
+                    <Switch
+                      on={on}
+                      disabled={disabled}
+                      label={label}
+                      onToggle={() => toggle(mode)}
+                      reason={!meta.built && !on ? t(`${K}.notBuiltHint`) : !canEdit ? t(`${K}.ownerOnly`) : undefined}
+                    />
+                    <div className="min-w-0 text-admin-13 font-medium leading-[20px] text-admin-ink" title={meta.built ? t(`${K}.modes.${mode}.desc`) : t(`${K}.notBuiltHint`)}>
+                      {label}
+                    </div>
+                  </SwitchRow>
+                );
+              })}
+              <SwitchRow
+                testId="pos-mode-row-field"
+                right={<StatePill tone="slate" state="no-zones">{t(`${K}.fieldServicesPill`)}</StatePill>}
               >
-                <div className="min-w-0">
-                  <div className="text-[13px] font-semibold text-admin-ink">{t(`${K}.modes.${mode}.label`)}</div>
-                  <div className="mt-0.5 text-[12px] text-admin-ink-muted">
-                    {meta.built ? t(`${K}.modes.${mode}.desc`) : t(`${K}.notBuiltHint`)}
-                  </div>
+                <Switch on={false} label={t(`${K}.fieldServicesLabel`)} reason={notWiredReason("fieldServices")} />
+                <div className="min-w-0 text-admin-13 font-medium leading-[20px] text-admin-ink" title={notWiredReason("fieldServices")}>
+                  {t(`${K}.fieldServicesLabel`)}
                 </div>
-                <span className="shrink-0 text-[11px] font-semibold text-admin-ink-muted">
-                  {meta.built ? (on ? t(`${K}.onLabel`) : t(`${K}.offLabel`)) : t(`${K}.notBuiltBadge`)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+              </SwitchRow>
+            </div>
+          )}
+          {shown !== null && shown.length === 0 ? (
+            <div data-testid="pos-modes-all-off" className="text-admin-12h leading-relaxed text-admin-ink-muted">
+              {t(`${K}.allOffHint`)}
+            </div>
+          ) : null}
+          <Note>{t(`${K}.modesNote`)}</Note>
+          {!canEdit ? <Note>{t(`${K}.ownerOnly`)}</Note> : null}
+        </SettingsCard>
 
-      {current !== null && current.length === 0 && (
-        <div data-testid="pos-modes-all-off" className="mt-2 text-[11.5px] leading-relaxed text-admin-ink-muted">
-          {t(`${K}.allOffHint`)}
-        </div>
-      )}
+        <SettingsCard title={t(`${K}.devicesHeading`)} testId="pos-devices-card">
+          <div className="flex flex-col">
+            <DeviceRow name={t(`${K}.devices.everyDevice`)} detail={t(`${K}.devices.everyDeviceDetail`)} tone="dim" />
+            <DeviceRow
+              name={t(`${K}.devices.drawerName`)}
+              detail={drawerDetail}
+              tone={facts && facts.drawer !== "unreadable" && facts.drawer !== null ? "green" : "dim"}
+            />
+            <DeviceRow name={t(`${K}.devices.readerName`)} detail={readerDetail} tone={facts?.reader.configured ? "green" : "coral"} />
+          </div>
+          <div>
+            <ActionButton reason={notWiredReason("pairDevice")} className="h-[30px] px-[12px] text-[12px]" testId="pos-pair-device">
+              + {t(`${K}.devices.pair`)}
+            </ActionButton>
+          </div>
+          <Note>{t(`${K}.devicesGap`)}</Note>
+        </SettingsCard>
+      </div>
 
-      {busy && <div className="mt-2 text-[11px] text-admin-ink-muted">{t(`${K}.saving`)}</div>}
-      {saved && !busy && <div className="mt-2 text-[11px] text-admin-success">{t(`${K}.saved`)}</div>}
-      {refusal && !busy && <div className="mt-2 text-[11px] text-admin-critical">{t(`${K}.errors.${refusal}`)}</div>}
-      {!canEdit && <div className="mt-2 text-[11px] text-admin-ink-muted">{t(`${K}.ownerOnly`)}</div>}
-
-      <div className="mt-4 border-t border-admin-border-soft pt-3">
-        <div className="text-[12px] font-semibold text-admin-ink">{t(`${K}.devicesHeading`)}</div>
-        <div className="mt-0.5 text-[11.5px] leading-relaxed text-admin-ink-muted">{t(`${K}.devicesGap`)}</div>
+      <div className="grid grid-cols-1 gap-[16px] lg:grid-cols-3">
+        <SettingsCard title={t(`${K}.tips.title`)} testId="pos-tips-card">
+          {(["prompt", "base", "rounding", "allocation"] as const).map((f) => (
+            <SelectField key={f} label={t(`${K}.tips.${f}`)} value={t(`${K}.tips.${f}Value`)} reason={notWiredReason("tips")} />
+          ))}
+        </SettingsCard>
+        <SettingsCard title={t(`${K}.receipts.title`)} testId="pos-receipts-card">
+          <SelectField label={t(`${K}.receipts.identity`)} value={workspaceName} reason={notWiredReason("receiptIdentity")} />
+          <SelectField label={t(`${K}.receipts.language`)} value={t(`${K}.receipts.languageValue`)} reason={notWiredReason("receiptLanguage")} />
+          <SelectField label={t(`${K}.receipts.default`)} value={t(`${K}.receipts.defaultValue`)} reason={notWiredReason("receiptDefault")} />
+          <SelectField label={t(`${K}.receipts.fiscal`)} value={t(`${K}.receipts.fiscalValue`)} reason={notWiredReason("fiscal")} />
+        </SettingsCard>
+        <SettingsCard title={t(`${K}.offline.title`)} testId="pos-offline-card">
+          {(["policy", "allowed", "never", "unsynced"] as const).map((f) => (
+            <SelectField key={f} label={t(`${K}.offline.${f}`)} value={t(`${K}.offline.${f}Value`)} reason={notWiredReason("offline")} />
+          ))}
+        </SettingsCard>
       </div>
     </div>
   );

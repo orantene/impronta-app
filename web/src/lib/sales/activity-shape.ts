@@ -224,3 +224,56 @@ export function salesSourceHref(input: {
   if (input.sourcePath.startsWith("/")) return input.sourcePath;
   return `/${input.tenantSlug}/admin/${input.sourcePath}`;
 }
+
+// ── The one state pill (Sales board) ─────────────────────────────────────
+
+export type SalesStateTone = "green" | "coral" | "slate" | "indigo";
+
+/**
+ * The board draws payment and fulfilment as ONE pill per row ("Paid cash ·
+ * Handed off", "Unpaid · In service"). The engine records a status per kind
+ * and whether money is still owed; this maps that pair onto a tone and a
+ * copy key, and an unrecognised status still renders (as its raw value)
+ * rather than disappearing — same rule as `salesChannelLabel`.
+ */
+export function salesStatePill(input: { status: string; owed: boolean; treatAsFree: boolean }): {
+  tone: SalesStateTone;
+  /** A `dashboard.sales.state.*` key, or null when the raw status must be shown. */
+  key: string | null;
+} {
+  const s = input.status.toLowerCase();
+  if (input.treatAsFree && (s === "confirmed" || s === "valid" || s === "paid" || s === "fulfilled")) {
+    return { tone: "green", key: "free" };
+  }
+  if (s === "paid") return { tone: "green", key: "paid" };
+  if (s === "fulfilled") return { tone: "green", key: "fulfilled" };
+  if (s === "pending_payment" || s === "unpaid") return { tone: "coral", key: input.owed ? "unpaid" : "pendingPayment" };
+  if (s === "partially_refunded") return { tone: "coral", key: "partiallyRefunded" };
+  if (s === "refunded") return { tone: "slate", key: "refunded" };
+  if (s === "cancelled" || s === "canceled") return { tone: "slate", key: "cancelled" };
+  if (s === "draft") return { tone: "slate", key: "draft" };
+  if (s === "quoted") return { tone: "indigo", key: "quoted" };
+  if (s === "confirmed") return { tone: "green", key: input.owed ? "confirmedOwed" : "confirmed" };
+  if (s === "open") return { tone: "indigo", key: "open" };
+  if (s === "closed") return { tone: "slate", key: "closed" };
+  if (s === "valid") return { tone: "green", key: "valid" };
+  if (s === "void" || s === "voided") return { tone: "slate", key: "void" };
+  if (s === "deposit_paid" || s === "partially_paid") return { tone: "slate", key: "depositPaid" };
+  return { tone: "slate", key: null };
+}
+
+/** The board's type pill colour per kind. */
+export const SALES_KIND_TONE: Record<SalesChipKind, "brand" | "royal" | "indigo" | "slate" | "ink" | "coral"> = {
+  appointment: "brand",
+  booking: "brand",
+  registration: "royal",
+  admission: "indigo",
+  reservation: "slate",
+  order: "ink",
+  project: "coral",
+};
+
+/** REF as the boards print it: the first 8 characters of the id, upper-cased. */
+export function salesRef(id: string): string {
+  return id.slice(0, 8).toUpperCase();
+}

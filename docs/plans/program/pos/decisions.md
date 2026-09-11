@@ -731,3 +731,55 @@ not kept), station routing and dispatch rules (W15 has no stations table;
 every ticket is `station = kitchen`), courses and firing, per-line cancel,
 `avg` prep time. The board is drawn inside the workspace shell because the
 destination lives there; a full-screen station mode is a later door.
+
+## D-POS-65 — Settings › POS, Payments & providers, Locations and Booking policies: what is drawn and what is disabled
+
+Decided 2026-09-11 (fid-money). The four settings boards are drawn over the
+readers and writers that exist: `getPosModes` / `setPosModes` (the modes at
+the one location), `getPosLocationFacts` (the default venue, its clock, the
+open `pos_shifts` drawer, the platform's Stripe Terminal reader),
+`getPaymentProviderStatus`, `loadTenantCommercialTerms` /
+`updateTenantCommercialTerms` and `getBookingPolicyFacts` (the hold TTLs and
+the waitlist offer window read from the modules that enforce them). Every
+control the engine has no reader or writer for is drawn DISABLED with a
+one-sentence reason in en/es/fr, never as a control that silently does
+nothing: a second location and Field Services (no locations table, no service
+zones); Pair a device (no device registry); every Tips, Receipts and Offline
+field (tips, per-receipt language, text/email delivery, CFDI and an offline
+mode are not modelled; the boxes show what the till actually does); Save and
+Connect account on Payments & providers (providers are platform env, there is
+no place to store a Mercado Pago account); Add location, Add zone, the zone
+matrix, the surcharge and the professionals-per-zone control; Preview impact,
+Publish, Manage forms, intake forms and per-role overrides on Booking
+policies (no policy versions, no intake forms, capacity rules refuse everyone
+alike). The method table is the engine's own facts (cash needs an open shift;
+the reader row follows `stripe_terminal`; a payment link has no table; a
+recorded bank transfer is not a tender `settleAtDoor` knows; credit is an
+entitlement; two methods on one sale is `collection.split`). The Booking
+policies table has no Rentals row (nothing sells a rental) and its
+Reservations · tables row points at Reservations › Settings rather than
+duplicating it. The nav label is the board's "POS" with the accessible name
+"Point of sale" so the existing journeys keep their door.
+
+## D-POS-66 — Sales, Payments and the first-run setup page: filters, imports and exports without a reader are disabled
+
+Decided 2026-09-11 (fid-money). Sales (WS008) draws TYPE · REF · CUSTOMER ·
+WHAT · WHEN · PAYMENT · FULFILMENT · AMOUNT · DUE over
+`loadWorkspaceSalesActivity`; payment and fulfilment are ONE pill from the
+row's status (`salesStatePill`), DUE is total minus collected, WHEN is on the
+workspace's clock. The period, payment and seller filters and Export (scoped)
+are disabled with their sentence (nothing filters by period, payment state or
+seller); New sale opens the counter when that mode is on and says why not
+otherwise. Payments (W25) is five tiles and six tabs over `loadPaymentsBoard`
+(takings, owed, refunds, `pos_shifts`, the Issues queue's `refund_intent` and
+`unresolved_collection` rows, `agencies.stripe_*`); Import terminal report
+and Export are disabled (no table holds a terminal row), Next payout says the
+schedule and amount are Stripe's and are not read, Reconciliation says
+nothing has been imported and points unresolved collections at the Attempts
+tab. The first-run page (W55, `/admin/setup`) is the Overview's setup reader
+(`loadSetupItems`, now eight facts including "Who performs" and "Booking
+policy") with a door per unfinished item, and "Blocked right now" is the
+Issues queue's two most consequential rows. W56 (Approval review) is not
+built: the engine has no per-action limit and no approval request to review,
+so there is nothing to draw the dialog over; recorded here rather than as a
+dialog that would approve nothing.

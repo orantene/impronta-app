@@ -19,6 +19,7 @@
 
 import { useState } from "react";
 import type { CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -65,6 +66,7 @@ const CARD = "rounded-[14px] border border-admin-border bg-admin-card";
 export function OverviewBoard() {
   const snapshot = useOverviewSnapshot();
   const t = useT();
+  const router = useRouter();
   const copy = useDashboardText();
   const {
     state,
@@ -275,7 +277,7 @@ export function OverviewBoard() {
 
         <div className="flex min-h-0 flex-col gap-[16px]">
           <TodayPanel snapshot={snapshot} />
-          <SetupReadiness snapshot={snapshot} onFinish={() => setPage("settings")} />
+          <SetupReadiness snapshot={snapshot} onFinish={() => router.push(`${adminBasePath}/setup`)} />
         </div>
       </div>
     </div>

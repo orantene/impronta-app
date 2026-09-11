@@ -120,9 +120,20 @@ async function counterNextSale(page: Page, previousOrderId: string | null): Prom
       .not.toBeNull();
     return current();
   }
+  // The counter resumes a draft a previous run walked away from (the Counter
+  // boards: a sale is never lost on reload). That sale is not this run's, so
+  // it is parked the way a cashier parks one, Hold sale, and the surface is
+  // empty again. Nothing is discarded.
+  const empty = page.locator("[data-pos-empty]");
+  const hold = page.locator("[data-pos-hold]");
+  await expect(empty.or(hold).first()).toBeVisible({ timeout: 30_000 });
+  if ((await empty.count()) === 0) {
+    await hold.click();
+    await page.locator("[data-pos-hold-confirm]").click();
+  }
   // The board's empty counter (`POSEmptySale`) has no start button: the first
   // tap on a tile opens the sale, so there is no order id yet.
-  await expect(page.locator("[data-pos-empty]")).toBeVisible({ timeout: 30_000 });
+  await expect(empty).toBeVisible({ timeout: 30_000 });
   return null;
 }
 
@@ -153,6 +164,41 @@ async function counterAddPizza(page: Page, orderId: string | null, previousOrder
     timeout: 30_000,
   });
   return id;
+}
+
+/**
+ * The counter's rail calls the drawer "Cash" (the Counter boards POSCashOpen /
+ * POSCashMovements / POSCashClose); the screen is the same shift engine. The
+ * rail is client state, so a click that lands before hydration is a click on
+ * nothing: it is repeated until the Cash screen (its opening form or its
+ * Close drawer & count) is the one shown.
+ */
+async function openCashScreen(page: Page): Promise<void> {
+  const shown = page.locator("#pos-shift-opening").or(page.locator("[data-pos-close-and-count]")).first();
+  for (let attempt = 0; attempt < 5 && !(await shown.isVisible()); attempt += 1) {
+    await counterRail(page, /^(cash|caja|caisse)$/i);
+    await page.waitForTimeout(1_500);
+  }
+  await expect(shown, "the Cash screen must be the one shown").toBeVisible({ timeout: 30_000 });
+}
+
+/**
+ * Close the open drawer the way a cashier does on the Cash screen: Close
+ * drawer & count, the counted figure, the confirmation, Close drawer. Resolves
+ * once the engine has shown its own count result (`POSCashClose`).
+ */
+async function closeDrawerThroughTheScreen(page: Page, countedCents: number): Promise<void> {
+  const closeAndCount = page.locator("[data-pos-close-and-count]");
+  await expect(closeAndCount, "an open drawer offers Close drawer & count").toBeVisible({ timeout: 30_000 });
+  await closeAndCount.click();
+  const countedField = page.locator("#pos-shift-counted");
+  await expect(countedField).toBeVisible({ timeout: 20_000 });
+  await countedField.fill((countedCents / 100).toFixed(2));
+  await page.locator("[data-pos-confirm-count]").check();
+  await page.locator("[data-pos-close-shift]").click();
+  await expect(page.locator("[data-pos-cash-closed]"), "closing the drawer must show the count result").toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 /** A `Figure`'s value: the `<dd>` that follows the `<dt>` carrying this label. */
@@ -190,14 +236,19 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   expect(unfilteredCount, "an empty Sales list cannot prove a filter").toBeGreaterThan(0);
   await shot("01-sales-unfiltered");
 
-  // The columns a manager reads. Without "Sold via" the channel filter below
-  // would be narrowing on something the screen never shows.
+  // The columns a manager reads (the Sales board's). "Sold via" is the WHAT
+  // cell's channel span (`data-sales-channel`); without it the channel filter
+  // below would be narrowing on something the screen never shows.
   await expect(page.locator("thead th")).toHaveText([
-    "Kind",
-    "Sold via",
+    "Type",
+    "Ref",
     "Customer",
-    "Total",
-    "Status",
+    "What",
+    "When",
+    "Payment · fulfilment",
+    "Amount",
+    "Due",
+    "Open",
   ]);
 
   // BY KIND. Orders are the only kind that carries a channel, so this is also
@@ -223,9 +274,13 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   const posOnly = await rows().count();
   expect(posOnly).toBeGreaterThan(0);
   expect(posOnly).toBeLessThanOrEqual(orderOnly);
-  for (const cell of await rows().locator("td:nth-child(2)").allInnerTexts()) {
+  for (const cell of await rows().locator("[data-sales-channel]").allInnerTexts()) {
     expect(cell.trim(), "every row left was sold at the counter").toBe("Counter");
   }
+  expect(
+    await rows().locator("[data-sales-channel]").count(),
+    "every row left carries the channel it was sold on",
+  ).toBe(posOnly);
   await shot("03-sales-kind-order-channel-pos");
 
   // AND BACK. Both reset chips, and the list is the one we started on.
@@ -257,12 +312,13 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   //     cancelled sale and a draft sale. Nothing here is inserted by hand.
   // ────────────────────────────────────────────────────────────────────
   await openCounterAt(page, "");
-  await counterRail(page, /^shifts$/i);
+  await openCashScreen(page);
 
   // A drawer another session left open. Wait for it to close on its own, then
-  // close it the way a manager would: count it and press Close. The closing
-  // figure is the float, which is what an untouched drawer holds; if cash was
-  // taken on it the variance says so on that session's own card.
+  // close it the way a cashier would: Close drawer & count, count it, confirm
+  // the count, Close drawer. The closing figure is the float, which is what an
+  // untouched drawer holds; if cash was taken on it the variance says so on
+  // that session's own row.
   const leftover = await openShiftId();
   if (leftover) {
     const deadline = Date.now() + ABANDONED_DRAWER_AFTER_MS;
@@ -271,23 +327,22 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
     }
     if ((await openShiftId()) !== null) {
       const stale = (await drawerSession((await openShiftId())!))!;
-      await page.reload();
-      await counterRail(page, /^shifts$/i);
-      await page.getByLabel("Cash counted at close").fill((stale.openingCashCents / 100).toFixed(2));
-      await page.getByRole("button", { name: "Close the shift" }).click();
+      await openCashScreen(page);
+      await closeDrawerThroughTheScreen(page, stale.openingCashCents);
       await expect.poll(async () => await openShiftId(), { timeout: 30_000 }).toBeNull();
       await shot("05a-abandoned-drawer-closed");
       testInfo.annotations.push({
-        type: "abandoned drawer closed through the Shifts screen",
+        type: "abandoned drawer closed through the Cash screen",
         description: `${stale.id} opened with ${money(stale.openingCashCents, "USD")}`,
       });
-      await page.reload();
-      await counterRail(page, /^shifts$/i);
+      await page.getByRole("button", { name: /open a new drawer/i }).click();
     }
   }
 
-  await page.getByLabel("Cash in the drawer to start").fill("50");
-  await page.getByRole("button", { name: "Open the shift" }).click();
+  const openingField = page.locator("#pos-shift-opening");
+  await expect(openingField, "the opening form is the door to a drawer").toBeVisible({ timeout: 30_000 });
+  await openingField.fill("50");
+  await page.locator("[data-pos-open-shift]").click();
   await expect.poll(async () => await openShiftId(), { timeout: 30_000 }).not.toBeNull();
   const shiftId = (await openShiftId())!;
   await shot("05-counter-shift-open");
@@ -353,9 +408,8 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   // so the variance on screen is arithmetic rather than a zero that would look
   // the same whether it was computed or hardcoded.
   const countedCents = expectedCents - 50;
-  await counterRail(page, /^shifts$/i);
-  await page.getByLabel("Cash counted at close").fill((countedCents / 100).toFixed(2));
-  await page.getByRole("button", { name: "Close the shift" }).click();
+  await openCashScreen(page);
+  await closeDrawerThroughTheScreen(page, countedCents);
   await expect.poll(async () => (await drawerSession(shiftId))?.status, { timeout: 30_000 }).toBe("closed");
   const drawer = (await drawerSession(shiftId))!;
   expect(drawer.openingCashCents).toBe(5000);
@@ -408,7 +462,7 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
     type: "still owed",
     description: `${money(owedUsd, "USD")} over ${owedSet.length} owed order(s) of ${everyOrder.length} in the workspace`,
   });
-  const owedSection = page.locator("section", { hasText: "Still owed" }).first();
+  const owedSection = page.getByTestId("payments-owed");
   await expect(owedSection).toContainText(money(owedUsd, "USD"));
 
   // The three sales just made are in the workspace, and only the rule tells
@@ -437,14 +491,15 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
     "Still owed must not be total-minus-collected over drafts and cancellations",
   ).not.toContainText(money(naiveUsd, "USD"));
 
-  // REFUNDS.
+  // REFUNDS — their own tab on the Payments board.
+  await page.goto("/admin/payments?tab=refunds");
   const { data: refundRows, error: refundErr } = await sb
     .from("booking_transactions")
     .select("id, gross_amount_cents, currency")
     .eq("source_tenant_id", JOURNEYS_TENANT_ID)
     .eq("status", "refunded");
   expect(refundErr).toBeNull();
-  const refundsSection = page.locator("section", { hasText: "Refunds" }).first();
+  const refundsSection = page.getByTestId("payments-refunds");
   if ((refundRows ?? []).length === 0) {
     await expect(refundsSection).toContainText("No refunds yet.");
   } else {
@@ -459,16 +514,18 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   // THE DRAWER: what was counted against what was expected, on THIS session's
   // card. Other sessions' cards are on the same page, so the card is found by
   // its own expected and counted figures together.
-  const drawerSectionEl = page.locator("section", { hasText: "Cash drawer sessions" }).first();
+  await page.goto("/admin/payments?tab=drawers");
+  const drawerSectionEl = page.getByTestId("payments-drawers");
   const drawerCard = drawerSectionEl
-    .locator("div.rounded-xl", { hasText: money(drawer.expectedCashCents!, "USD") })
-    .filter({ hasText: money(drawer.closingCashCents!, "USD") })
+    .locator("[data-drawer-row]", { has: page.locator("[data-drawer-expected]", { hasText: money(drawer.expectedCashCents!, "USD") }) })
+    .filter({ has: page.locator("[data-drawer-counted]", { hasText: money(drawer.closingCashCents!, "USD") }) })
     .first();
-  await expect(drawerCard, "the closed drawer has its own card").toBeVisible();
+  await expect(drawerCard, "the closed drawer has its own row").toBeVisible();
+  await expect(drawerCard).toHaveAttribute("data-drawer-status", "closed");
   await expect(drawerCard).toContainText("Closed");
-  await expect(drawerCard).toContainText(money(drawer.openingCashCents, "USD"));
+  await expect(drawerCard.locator("[data-drawer-opening]")).toContainText(money(drawer.openingCashCents, "USD"));
   await expect(
-    drawerCard,
+    drawerCard.locator("[data-drawer-variance]"),
     "a variance is the count minus the expectation, not a zero",
   ).toContainText(money(drawer.closingCashCents! - drawer.expectedCashCents!, "USD"));
   await shot("08-payments");
@@ -478,10 +535,10 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   await page.goto("/admin/sales?kind=order&channel=pos");
   const saleRow = page.locator("tbody tr", { hasText: paidOrderId.slice(0, 8) });
   await expect(saleRow, "the counter sale is on the Sales list under its channel").toHaveCount(1);
-  await expect(saleRow.locator("td").nth(1)).toHaveText("Counter");
-  await expect(saleRow.locator("td").nth(3)).toContainText(money(paidOrder.totalCents, "USD"));
-  await expect(saleRow.locator("td").nth(3), "a paid sale is not marked still owed").not.toContainText("still owed");
-  await expect(saleRow.locator("td").nth(4)).toHaveText("paid");
+  await expect(saleRow.locator("[data-sales-channel]")).toHaveText("Counter");
+  await expect(saleRow.locator("[data-sales-amount]")).toContainText(money(paidOrder.totalCents, "USD"));
+  await expect(saleRow.locator("[data-sales-due]"), "a paid sale is not marked still owed").toHaveAttribute("data-sales-due", "none");
+  await expect(saleRow.locator("[data-state]")).toHaveAttribute("data-state", "paid");
   await shot("08b-sales-row-of-the-cash-sale");
 
   // ────────────────────────────────────────────────────────────────────

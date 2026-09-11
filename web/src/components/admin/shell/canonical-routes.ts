@@ -77,6 +77,10 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   (s) => s[0] === "admin" && s[1] === "policy",
   // /<tenant>/admin/discover-performance — A9 Discover analytics dashboard.
   (s) => s[0] === "admin" && s[1] === "discover-performance",
+  // /<tenant>/admin/setup — the first-run checklist (W55) the Overview's
+  // "Finish setup" opens. A real server page; "setup" is not a WorkspacePage
+  // id, so without this matcher it would render stacked under the SPA.
+  (s) => s[0] === "admin" && s[1] === "setup",
   // /<tenant>/admin/activity-log — Workspace Activity Log (unified per-tenant
   // audit trail: who changed what, when, from where).
   (s) => s[0] === "admin" && s[1] === "activity-log",
