@@ -7,7 +7,7 @@ the capacity-isolated env is present. Unit tests live next to the libs.
 |---|---|---|---|
 | Locations & zones | `20261231223000_venue_locations.sql` | `web/src/lib/venues/locations.test.ts`, `engine-refusals.static.test.ts` | embedded DO $proof$ |
 | Party waitlist | `20261231224000_party_waitlist.sql` | `web/src/lib/venues/party-waitlist.test.ts` | `web/scripts/verify-party-waitlist-race.mjs` |
-| Layouts / periods / stations | pending | pending | embedded DO $proof$ |
+| Layouts / periods / stations | `20261231225000_layouts_periods_stations.sql` | `web/src/lib/venues/layouts.test.ts`, `web/src/lib/reservations/periods.test.ts` | embedded DO $proof$ |
 | Guest QR + pay share | pending | pending | `web/scripts/verify-guest-share-race.mjs` |
 | Events seats / holds / exchange | pending | pending | `web/scripts/verify-seat-hold-race.mjs` |
 | Ticket self-service | pending | pending | n/a |

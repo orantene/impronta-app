@@ -895,3 +895,9 @@ ticket page is `/ticket/[code]`.
 Decided 2026-09-11 (engine-venue). T08 is its own table. Notify records
 `notified_at` even when no phone sender exists and returns `channel: none`.
 Seat claims the row in SQL then opens the visit through `openVisit`.
+
+## D-POS-79 — layouts share capacity; service_periods overlay windows
+
+Decided 2026-09-11 (engine-venue). `layout_activate` never writes a capacity
+pool. `service_periods` replace `venue_service_windows` for a venue only when
+at least one period exists; otherwise the current reader is unchanged.

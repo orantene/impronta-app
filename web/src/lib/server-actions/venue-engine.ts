@@ -17,6 +17,8 @@ import {
   partyWaitlistNotify as notifyPartyWaitlist,
   partyWaitlistSeat as seatPartyWaitlist,
 } from "@/lib/venues/party-waitlist";
+import { layoutActivate as activateLayout, prepStationDelete as deletePrepStation, servicePeriodUpsert as upsertServicePeriod } from "@/lib/venues/layouts";
+import { prepFireCourse as fireCourse } from "@/lib/venues/prep-fire";
 
 const uuid = z.string().uuid();
 const slug = z.string().trim().min(1).max(63);
@@ -188,4 +190,64 @@ export async function partyWaitlistLeave(input: { id: string; expectedVersion?: 
   const parsed = z.object({ id: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return leavePartyWaitlist(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function layoutActivate(input: { layoutId: string; expectedVersion?: number }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ layoutId: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return activateLayout(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function servicePeriodUpsert(input: {
+  id?: string;
+  locationId: string;
+  name: string;
+  weekdayMask: number;
+  startsLocal: string;
+  endsLocal: string;
+  turnMinutes: number;
+  rules?: Record<string, unknown>;
+  expectedVersion?: number;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      id: uuid.optional(),
+      locationId: uuid,
+      name: z.string().trim().min(1).max(80),
+      weekdayMask: z.number().int().min(1).max(127),
+      startsLocal: z.string().regex(/^\d{2}:\d{2}/),
+      endsLocal: z.string().regex(/^\d{2}:\d{2}/),
+      turnMinutes: z.number().int().min(15).max(480),
+      rules: z.record(z.string(), z.unknown()).optional(),
+      expectedVersion: z.number().int().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return upsertServicePeriod(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function prepStationDelete(input: { id: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ id: uuid }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return deletePrepStation(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function prepFireCourse(input: { visitId: string; courseSeq: number; operationKey: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      visitId: uuid,
+      courseSeq: z.number().int().min(1).max(20),
+      operationKey: z.string().trim().min(8).max(80),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return fireCourse(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }

@@ -24,6 +24,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseServiceRules } from "./rules";
+import { periodsToWindows, type ServicePeriodRow } from "./periods";
 import { commitCapacity, releaseCapacity, reserveCapacity } from "@/lib/capacity/reserve";
 import { intOrNull, minutesToTime, rowToException, rowToWindow } from "./rows";
 import type { PartyBand } from "./availability";
@@ -124,11 +125,30 @@ export async function loadVenueServiceConfig(
       });
     }
 
+    let windows = (windowsRes.data ?? [])
+      .map(rowToWindow)
+      .filter((w): w is ServiceWindow => w !== null);
+    const locRes = await sb
+      .from("venue_locations")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("venue_id", venueId);
+    const locationIds = (locRes.data ?? []).map((r) => r.id as string);
+    if (!locRes.error && locationIds.length > 0) {
+      const periodRes = await sb
+        .from("service_periods")
+        .select("id, location_id, name, weekday_mask, starts_local, ends_local, turn_minutes")
+        .eq("tenant_id", tenantId)
+        .in("location_id", locationIds);
+      if (!periodRes.error) {
+        const mapped = periodsToWindows((periodRes.data ?? []) as ServicePeriodRow[], venueId);
+        if (mapped.length > 0) windows = mapped;
+      }
+    }
+
     return {
       rules: parseServiceRules(rulesRes.data, venueId),
-      windows: (windowsRes.data ?? [])
-        .map(rowToWindow)
-        .filter((w): w is ServiceWindow => w !== null),
+      windows,
       exceptions,
       bands,
     };

@@ -132,3 +132,45 @@ Reader: staff SELECT on `party_waitlist`. Reaper: `party_waitlist_reap` inside
 | conflict | `dashboard.venue.engine.refusal.conflict` |
 | not_found | `dashboard.venue.engine.refusal.not_found` |
 | unavailable | `dashboard.venue.engine.refusal.unavailable` |
+
+---
+
+## 3. Layouts, service periods, prep stations
+
+Unblocks: W13, W14, W15, R06, T26. Records D-POS-79.
+
+Activating a layout never writes capacity pools. When `service_periods`
+exist for a venue's locations they replace `venue_service_windows` in
+`loadVenueServiceConfig`; otherwise today's windows stay.
+
+### `layoutActivate`
+
+Input: `{ layoutId, expectedVersion? }`
+
+Success: `{ ok: true, id, version }`
+
+### `servicePeriodUpsert`
+
+Input: `{ id?, locationId, name, weekdayMask, startsLocal, endsLocal,
+turnMinutes, rules?, expectedVersion? }`
+
+Success: `{ ok: true, id, version }`
+
+### `prepStationDelete`
+
+Input: `{ id }`
+
+Success: `{ ok: true, id }`
+
+### `prepFireCourse`
+
+Input: `{ visitId, courseSeq, operationKey }`
+
+Success: `{ ok: true, submitted }`
+
+| reason | sentence key |
+|---|---|
+| overlap | `dashboard.venue.engine.refusal.overlap` |
+| two_active | `dashboard.venue.engine.refusal.two_active` |
+| station_in_use | `dashboard.venue.engine.refusal.station_in_use` |
+| conflict | `dashboard.venue.engine.refusal.conflict` |
