@@ -18,7 +18,7 @@
  *   1. Collect every `targetDrawer: "<literal>"` in `src/**`.
  *   2. Run each through `resolveNotificationDrawerTarget` (aliases + page
  *      targets included).
- *   3. Assert a drawer result has a real `case "<id>":` in `drawers.tsx`, and
+ *   3. Assert a drawer result has a real `case "<id>":` in `drawer-switch.tsx`, and
  *      that a page result carries a path.
  *
  * Dynamic (non-literal) `targetDrawer:` expressions are skipped by the scan —
@@ -52,7 +52,10 @@ import {
 } from "@/components/admin/shell/internal/notification-drawer-targets";
 
 const SRC = path.resolve(process.cwd(), "src");
-const DRAWERS = path.join(SRC, "components/admin/shell/internal/drawers.tsx");
+// `DrawerSwitch` lives in drawer-switch.tsx (drawers.tsx keeps only DrawerRoot,
+// which reaches the switch through `next/dynamic` so the 118 bodies are not
+// in every admin route's first-paint chunk).
+const DRAWERS = path.join(SRC, "components/admin/shell/internal/drawer-switch.tsx");
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {

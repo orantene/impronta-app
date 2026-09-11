@@ -12,7 +12,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { pinNextConversation } from "@/components/admin/shell/internal/messages";
+import { pinNextConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
 
 export function PinThenRedirect({
   conversationId,
