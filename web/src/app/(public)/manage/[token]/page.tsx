@@ -7,6 +7,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { verifyBookingManageToken } from "@/lib/bookings/manage-token";
 import { readPolicyOverride } from "@/lib/bookings/policy-overrides";
+import { requestNowMs } from "@/lib/projects/request-clock";
 import { bookingOfferingId } from "@/lib/scheduling/cancel-booking";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { formatOrderMoney } from "@/lib/orders/money-format";
@@ -105,7 +106,11 @@ export default async function ManageBookingPage({ params }: Params) {
 
   let paidCents = 0;
   if (booking.order_id) {
-    const { data: txns } = await admin.from("booking_transactions").select("gross_amount_cents, status").eq("order_id", booking.order_id);
+    const { data: txns, error: txnErr } = await admin.from("booking_transactions").select("gross_amount_cents, status").eq("order_id", booking.order_id);
+    if (txnErr) {
+      logServerError("manage.loadPaid", txnErr);
+      return <Refused title={t("public.manageBooking.title")} sentence={engine.unavailable} name={name} />;
+    }
     for (const x of (txns ?? []) as Array<{ gross_amount_cents: number; status: string }>) {
       if (x.status === "paid") paidCents += Number(x.gross_amount_cents) || 0;
     }
@@ -117,7 +122,7 @@ export default async function ManageBookingPage({ params }: Params) {
     const override = await readPolicyOverride(admin, { tenantId: hostTenantId, offeringId });
     if (override.ok) cancelFreeHours = override.row?.cancelFreeHours ?? null;
   }
-  const window = resolveCancellationWindow({ cancellationHours: cancelFreeHours, startsAt: booking.starts_at, eventDate: null, nowMs: Date.now() });
+  const window = resolveCancellationWindow({ cancellationHours: cancelFreeHours, startsAt: booking.starts_at, eventDate: null, nowMs: requestNowMs() });
   const currency = (booking.currency_code ?? "USD").toUpperCase();
   const zone = booking.timezone ?? "UTC";
   const when = (iso: string | null, opts: Intl.DateTimeFormatOptions) =>

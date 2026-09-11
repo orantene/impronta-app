@@ -9,6 +9,7 @@ import { cancelHybridComponents } from "@/lib/orders/hybrid-package";
 import { isRefundEffect, refundReasonForEffect } from "@/lib/orders/refund-effects";
 import { refundDeskOutcome, type RefundDeskOutcome } from "@/lib/orders/refund-desk-copy";
 import { packageRefundShare } from "@/lib/catalog/packages";
+import { logServerError } from "@/lib/server/safe-error";
 
 /**
  * EVERY ANSWER FROM THIS FILE IS A CODE, NEVER A SENTENCE.
@@ -56,10 +57,13 @@ async function packageShares(
   if (error || !comps || comps.length === 0) return out;
   const rows = comps as Array<{ offering_id: string; component_offering_id: string; qty: number }>;
   const componentIds = [...new Set(rows.map((r) => r.component_offering_id))];
-  const { data: offerings } = await admin
+  const { data: offerings, error: offeringsErr } = await admin
     .from("talent_offerings")
     .select("id, title, amount_cents")
     .in("id", componentIds);
+  // A failed name read leaves the share unlabelled by id, never unlisted:
+  // the split is still the engine's and the cashier still sees the cents.
+  if (offeringsErr) logServerError("orders.refund.packageShares", offeringsErr);
   const byId = new Map(
     ((offerings ?? []) as Array<{ id: string; title: string | null; amount_cents: number | null }>).map((o) => [o.id, o]),
   );

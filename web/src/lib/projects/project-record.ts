@@ -126,9 +126,8 @@ export type ProjectMilestone = {
   readonly revision: number;
   readonly revisionLimit: number;
   readonly dueAt: string | null;
-  /** `booking_deliverables.amount_cents`; 0 until someone sets it (W47). */
+  /** `amount_cents`, 0 until set; `file_path`, an object path never a URL (W47). */
   readonly amountCents: number;
-  /** Object path on the inquiry-files bucket, never a URL (W47). */
   readonly filePath: string | null;
 };
 
@@ -413,11 +412,8 @@ const ARCHIVABLE_STATUSES: readonly ProjectStatus[] = ["completed", "cancelled"]
 
 /**
  * Which closures are possible right now, each with its reason when not.
- *
- * Archive takes a completed or cancelled project to `archived`
- * (`projectArchiveAction`); Reopen takes an archived one back to
- * `confirmed` (`projectReopenAction`). Both mirror the engine's own gates so
- * the sheet says why before the click, and the engine says it again after.
+ * Archive: completed or cancelled to `archived`; Reopen: archived back to
+ * `confirmed` (Package 2). Mirrors the engine's gates, never widens them.
  */
 export function closeOptions(project: ProjectRecord): readonly CloseOptionVerdict[] {
   const closed = CLOSED_STATUSES.includes(project.status);

@@ -18,6 +18,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { requesterNames } from "@/lib/approvals/requester-names";
 
 export type RoleLimitAction = "discount" | "refund";
 export type RoleLimitRole = "viewer" | "editor" | "manager" | "admin" | "owner";
@@ -63,7 +65,7 @@ function isAction(x: string): x is RoleLimitAction {
 export async function loadRoleLimitsAction(): Promise<{ ok: true; limits: RoleLimitRow[] } | Fail> {
   const g = await guard(false);
   if (!g.ok) return g;
-  const { data, error } = await g.admin.from("role_limits").select("role, action, limit_cents").eq("tenant_id", g.tenantId);
+  const { data, error } = await tenantScopedQuery(g.admin, "role_limits", g.tenantId).select("role, action, limit_cents");
   if (error) {
     logServerError("settings.loadRoleLimits", error);
     return { ok: false, reason: "unavailable" };
@@ -91,12 +93,11 @@ export async function writeRoleLimitAction(input: {
     .safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
   const { role, action, limitCents } = parsed.data;
+  const scoped = tenantScopedQuery(g.admin, "role_limits", g.tenantId);
   const query =
     limitCents === null
-      ? g.admin.from("role_limits").delete().eq("tenant_id", g.tenantId).eq("role", role).eq("action", action)
-      : g.admin
-          .from("role_limits")
-          .upsert({ tenant_id: g.tenantId, role, action, limit_cents: limitCents }, { onConflict: "tenant_id, role, action" });
+      ? scoped.delete().eq("role", role).eq("action", action)
+      : scoped.upsert({ role, action, limit_cents: limitCents }, { onConflict: "tenant_id, role, action" });
   const { error } = await query;
   if (error) {
     logServerError("settings.writeRoleLimit", error);
@@ -108,10 +109,8 @@ export async function writeRoleLimitAction(input: {
 export async function loadApprovalRequestsAction(): Promise<{ ok: true; requests: ApprovalRequestRow[] } | Fail> {
   const g = await guard(false);
   if (!g.ok) return g;
-  const { data, error } = await g.admin
-    .from("approval_requests")
+  const { data, error } = await tenantScopedQuery(g.admin, "approval_requests", g.tenantId)
     .select("id, kind, subject_id, requested_by, reason, created_at, decision, decided_at")
-    .eq("tenant_id", g.tenantId)
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) {
@@ -128,14 +127,7 @@ export async function loadApprovalRequestsAction(): Promise<{ ok: true; requests
     decision: "approved" | "denied" | null;
     decided_at: string | null;
   }>;
-  const requesterIds = [...new Set(rows.map((r) => r.requested_by))];
-  const names = new Map<string, string>();
-  if (requesterIds.length > 0) {
-    const { data: profiles } = await g.admin.from("profiles").select("id, display_name").in("id", requesterIds);
-    for (const p of (profiles ?? []) as Array<{ id: string; display_name: string | null }>) {
-      if (p.display_name) names.set(p.id, p.display_name);
-    }
-  }
+  const names = await requesterNames(g.admin, [...new Set(rows.map((r) => r.requested_by))]);
   const requests: ApprovalRequestRow[] = [];
   for (const r of rows) {
     if (!isAction(r.kind)) continue;

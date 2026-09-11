@@ -61,4 +61,24 @@ and the guest preview (D-POS-53) · the Appointments page's five controls
    browser `Z`, and a string compare disagrees at the boundary. The screen's
    `phaseState` compares instants; the engine's reader was not changed.
 
+## Playwright (one spec at a time, `--workers=1`, on the local dev server behind the proxy)
+
+- `POS-projects-collect-a-balance.spec.ts`: **1 passed (2.6m), exit 0**
+  (`runs/pw-POS-projects-collect-a-balance.txt`). Covers the project record
+  and its milestones through the POS Projects destination.
+- `SELL-catalog-events-spaces-discounts.spec.ts`: **exit 1, three runs**,
+  every time in step 3 (Spaces, `/admin/spaces` to `/admin/tables`), the
+  step this group did not touch: run 1 the cold compile of `/admin/tables`
+  (52s) past the 120s test budget; run 2 its first compile (60s) past the
+  5s identity assertion; run 3 the warm redirect (6.2s + 7.7s at load
+  average 6) past the same 5s assertion. Step 1, the Catalog page this pass
+  changed (Price phases card, Package composition), passed on every run;
+  step 2 (Events) too. The same timing finding is recorded by fid-catalog
+  (`../fidelity-catalog/runs/pw-SELL-full-run3-spaces-step-timeout.txt`).
+  Not re-run a fourth time into what stopped the last three.
+- `MONEY-manager-reads-the-money.spec.ts` and `POS-platform-switch.spec.ts`:
+  not run; a grep of both specs finds none of the selectors or copy this
+  pass changed (the refund form's `data-orders-refund-outcome`, the
+  payments tabs and the platform switch are untouched).
+
 ## Gates (private lane, real exit codes) — see `gates.txt`

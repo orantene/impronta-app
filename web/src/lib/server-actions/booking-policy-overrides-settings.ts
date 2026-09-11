@@ -12,6 +12,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 export type PolicyOverrideItem = {
   offeringId: string;
@@ -31,17 +32,14 @@ export async function loadPolicyOverridesAction(): Promise<
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
   const [offerings, overrides] = await Promise.all([
-    admin
-      .from("talent_offerings")
+    tenantScopedQuery(admin, "talent_offerings", staff.tenantId)
       .select("id, title, kind, currency")
-      .eq("tenant_id", staff.tenantId)
       .eq("owner_kind", "workspace")
       .neq("kind", "product")
       .order("title", { ascending: true }),
-    admin
-      .from("booking_policy_overrides")
-      .select("offering_id, deposit_bps, cancel_free_hours, no_show_fee_cents")
-      .eq("tenant_id", staff.tenantId),
+    tenantScopedQuery(admin, "booking_policy_overrides", staff.tenantId).select(
+      "offering_id, deposit_bps, cancel_free_hours, no_show_fee_cents",
+    ),
   ]);
   if (offerings.error || overrides.error) {
     logServerError("settings.loadPolicyOverrides", offerings.error ?? overrides.error);

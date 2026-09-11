@@ -13,6 +13,7 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 const uuid = z.string().uuid();
 
@@ -47,10 +48,8 @@ export async function loadOfferingComponentsAction(
   const g = await guard();
   if (!g.ok) return g;
   if (!uuid.safeParse(offeringId).success) return { ok: false, reason: "invalid" };
-  const { data, error } = await g.admin
-    .from("offering_components")
+  const { data, error } = await tenantScopedQuery(g.admin, "offering_components", g.tenantId)
     .select("component_offering_id, qty, required")
-    .eq("tenant_id", g.tenantId)
     .eq("offering_id", offeringId);
   if (error) {
     logServerError("catalog.loadOfferingComponents", error);
@@ -69,10 +68,8 @@ export async function loadOfferingPricePhasesAction(
   const g = await guard();
   if (!g.ok) return g;
   if (!uuid.safeParse(offeringId).success) return { ok: false, reason: "invalid" };
-  const { data, error } = await g.admin
-    .from("offering_price_phases")
+  const { data, error } = await tenantScopedQuery(g.admin, "offering_price_phases", g.tenantId)
     .select("id, label, starts_at, ends_at, price_cents, variant_id")
-    .eq("tenant_id", g.tenantId)
     .eq("offering_id", offeringId)
     .order("starts_at", { ascending: true });
   if (error) {
