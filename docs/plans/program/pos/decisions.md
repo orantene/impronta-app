@@ -923,3 +923,47 @@ Decided 2026-09-11 (engine-venue). `pos_outbox_apply` replays
 `cash_collect` through `pos_reserve_collection`. A command that names a
 provider, a card method, or a checkout session is `not_replayable`. The
 client must not queue those while offline (D-POS-11).
+
+## D-POS-83 — POS Messages reads the inquiry store, never a second conversation model
+
+Decided 2026-09-11 (pos-messages). The POS inbox, the workspace Messages
+page and the customer `/c/<token>` thread all read `inquiries` +
+`inquiry_messages`. New columns and satellite tables are additive.
+Conversation state, opportunity state and record chips stay three families.
+
+## D-POS-84 — web chat cannot be opened by staff
+
+Decided 2026-09-11 (pos-messages). MS21: staff start WhatsApp, SMS, email or
+counter. `messagingStartConversation` refuses `web_chat`. The customer opens
+web chat from a public surface they already have.
+
+## D-POS-85 — WhatsApp and SMS never pretend a send landed
+
+Decided 2026-09-11 (pos-messages). Adapters exist behind one interface.
+Without `WHATSAPP_*` / `TWILIO_*` they return `channel_unavailable` and write
+no `sent` delivery row as success.
+
+## D-POS-86 — a payment request reuses the package-1 reservation and link
+
+Decided 2026-09-11 (pos-messages). `messagingRequestPayment` calls
+`createPaymentLink` with a stable `operation_key`. A retry returns the same
+code. A lost provider answer is `payment_unknown`, never a second request.
+The checkout snapshot is written before the link is minted.
+
+## D-POS-87 — `/c/<token>` is a signed thread token, not the inquiry id
+
+Decided 2026-09-11 (pos-messages). HMAC over `{inquiryId, tenantId, iat}`
+using `GUEST_COOKIE_SECRET`, purpose `pos-thread`. The existing
+`/c/[inquiryId]` guest-cookie path stays. The integrator dispatches.
+
+## D-POS-88 — tablet portrait and phone reuse the same components
+
+Decided 2026-09-11 (pos-messages). MM01–MM06 are `MessagesClient` with
+`compact` at 390x844. No second store and no parallel screen tree.
+
+## D-POS-89 — customer cards live at `/c/t/<token>` until `/c` can dispatch
+
+Decided 2026-09-11 (pos-messages). Next 16 rejects two `/c/[*]` routes.
+The guest UUID path stays at `/c/[inquiryId]`. POS customer cards use
+`/c/t/<token>` via `publicThreadPath`. `/c/*` is already on the surface
+allow-list. The integrator can later fold the token into `/c/:param`.
