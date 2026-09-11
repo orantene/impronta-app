@@ -14,22 +14,60 @@ was not run.
 `["floor","counter","door","classes","projects"]`.
 `platform_settings.workspace_pos_enabled = true`.
 
-This file is updated as the sequential Playwright run finishes.
+**Runner.** Cursor Cloud Agent (not the Mac in the prompt). No
+`SUPABASE_SERVICE_ROLE_KEY` and no `VERCEL_AUTOMATION_BYPASS_SECRET` on
+this VM. Vercel access used a one-time share JWT in Playwright
+`storageState` (`/tmp/cases-run/storage.json`). Owner JWTs via
+`/api/dev/signin`. Release helpers no-op without service role.
 
-## Counts
+60/60 specs ran. Failures were rerun once. Selector patches were rerun
+for C06, POS-floor, VENUE-table-service, and C08.
+
+## Spec-level counts
 
 | Class | Count |
 |---|---|
-| passed | (in progress) |
-| failed-app | |
-| failed-fixture | |
-| failed-spec | |
-| blocked-external | |
+| passed | 51 |
+| failed-app | 1 spec (C12; role C12-DIFF is D-112. C08-CUS accept is D-113 inside the C08 spec) |
+| failed-fixture | 7 (C01, C02, C07, C09, pos-scanner, POS-projects, VENUE-table-service) |
+| failed-spec | 1 (C08 — inquiry passed; OP/TAL chrome and CUS accept did not) |
+| blocked-external | 0 |
+
+C08 is one failed spec with mixed roles (inquiry passed; assign/send/TAL/accept did not). C12 is one failed spec with CUS+OP passed.
 
 ## D-ids filed this run
 
-(none yet)
+| ID | Case | One sentence |
+|---|---|---|
+| D-112 | C12-DIFF | After “At the door”, `[data-ticket-picker=held]` never appeared (rerun once). |
+| D-113 | C08-CUS accept | Claimed client (`/…/client/messages?inquiry=…`) lands on **No client account here**. |
+
+## Specs edited this run
+
+- `C06-restaurant.spec.ts` — Sales row accepts `Unpaid · Awaiting payment` as well as `still owed`.
+- `POS-floor-mode.spec.ts` — Settings uses `assertNotAuthWall` (no h1 after fidelity).
+- `VENUE-table-service.spec.ts` — dismiss `[data-pos-overlay]` Close after waitlist.
+- `C08-modelling-or-talent-agency.spec.ts` — fresh inquiry + clear `impronta_guest`; receipt regex allows `Sent · awaiting reply`; Messages identity does not require a visible h1.
+- `_isolated-db.ts` / `_floor-db.ts` / `_venue-db.ts` — release helpers return when service role is unset.
+
+## Fixture drift confirmed on qa-journeys
+
+- `/book` picker caps at 24 by `sort_order`. 42 published offerings have `sort_order=0` (Prove class, POS class, …). Gel manicure=10, Massage=20, Couples massage=30 are off the page.
+- Morning class and Last place offerings are **absent** (C09-OP / C09-DIFF).
+- No service-role key: owner JWT cannot read `visits` / `capacity_allocations`, cannot INSERT `links` / `orders`.
+- Table-group pool / waitlist: 7 parties already waiting; walk-in add refused “The room is full for that turn.”
 
 ## Rows left on the fixture workspace
 
-(accepted; listed after the run)
+Accepted. Tenant A orders with `created_at >= 2026-09-11T18:40Z` after the C06 rerun:
+
+| source_channel | status | n |
+|---|---|---|
+| menu | pending_payment | 5 |
+| pos | draft | 10 |
+| pos | pending_payment | 1 |
+| pos | paid | 12 |
+| pos | cancelled | 3 |
+| reservation | paid | 5 |
+| ticket_picker | paid | 4 |
+| ticket_picker | cancelled | 2 |

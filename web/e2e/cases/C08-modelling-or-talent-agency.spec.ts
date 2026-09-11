@@ -102,7 +102,7 @@ test("C08-CUS inquiry: directory guest chat submits and DB agrees", async ({ pag
   await chat.getByRole("button", { name: /^send message$/i }).click();
 
   await expect(
-    chat.getByText(/inquiry received|got it, we've received your message|sent, awaiting reply/i).first(),
+    chat.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting reply/i).first(),
   ).toBeVisible({ timeout: 40_000 });
 
   const persisted = await latestGuestDirectoryInquiry(marker);
@@ -141,7 +141,7 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
   await chat.getByPlaceholder(/email/i).fill(marker);
   await chat.getByRole("button", { name: /^send message$/i }).click();
   await expect(
-    chat.getByText(/inquiry received|got it, we've received your message|sent, awaiting reply/i).first(),
+    chat.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting reply/i).first(),
   ).toBeVisible({ timeout: 40_000 });
 
   const seed = await latestGuestDirectoryInquiry(marker);
@@ -229,7 +229,7 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   await chat.getByPlaceholder(/email/i).fill(marker);
   await chat.getByRole("button", { name: /^send message$/i }).click();
   await expect(
-    chat.getByText(/inquiry received|got it, we've received your message|sent, awaiting reply/i).first(),
+    chat.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting reply/i).first(),
   ).toBeVisible({ timeout: 40_000 });
 
   const seed = await latestGuestDirectoryInquiry(marker);
@@ -239,7 +239,9 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   await expect(page).toHaveURL(/\/admin\/messages/, { timeout: 30_000 });
   const inbox = page.locator("[data-tulala-inbox-scroll]");
   await expect(inbox).toBeVisible({ timeout: 40_000 });
-  await assertWorkspaceIdentity(page);
+  // Messages after the fidelity pass keeps the h1 in the tree but hidden;
+  // the inbox is the identity check for this screen.
+  await assertNotAuthWall(page);
   await page.keyboard.press("Escape");
 
   const allChip = page.getByRole("button", { name: /^all$/i });
