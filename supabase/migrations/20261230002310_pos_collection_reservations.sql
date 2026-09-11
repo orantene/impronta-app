@@ -754,17 +754,19 @@ BEGIN
 
   INSERT INTO public.booking_transactions (
     booking_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
     currency, provider, provider_reference, status
   ) VALUES (
-    v_shell_inquiry, v_tenant, 5000, 5000, 'USD', 'manual', 't1-03-proof:c', 'draft'
+    v_shell_inquiry, v_tenant, 5000, 5000, 0, 0, 'USD', 'manual', 't1-03-proof:c', 'draft'
   ) RETURNING id INTO v_txn_c;
 
   BEGIN
     INSERT INTO public.booking_transactions (
       booking_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+      platform_fee_basis_points, platform_fee_cents,
       currency, provider, provider_reference, status
-    ) VALUES (
-      v_shell_inquiry, v_tenant, 5000, 5000, 'USD', 'manual', 't1-03-proof:d', 'draft'
+  ) VALUES (
+      v_shell_inquiry, v_tenant, 5000, 5000, 0, 0, 'USD', 'manual', 't1-03-proof:d', 'draft'
     );
   EXCEPTION
     WHEN unique_violation THEN
@@ -857,9 +859,10 @@ BEGIN
   -- here is the ORDER's arithmetic, and it does not read the provider.
   INSERT INTO public.booking_transactions (
     booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
     currency, provider, provider_reference, status
   ) VALUES (
-    v_race_shell, v_race_order, v_tenant, 5000, 5000, 'USD', 'manual', 't1-03-proof:till-a', 'draft'
+    v_race_shell, v_race_order, v_tenant, 5000, 5000, 0, 0, 'USD', 'manual', 't1-03-proof:till-a', 'draft'
   ) RETURNING id INTO v_race_card;
   UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_race_card;
 
@@ -879,9 +882,10 @@ BEGIN
 
   INSERT INTO public.booking_transactions (
     booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
     currency, provider, provider_reference, status
   ) VALUES (
-    v_race_shell, v_race_order, v_tenant, 5000, 5000, 'USD', 'manual', 't1-03-proof:till-b', 'draft'
+    v_race_shell, v_race_order, v_tenant, 5000, 5000, 0, 0, 'USD', 'manual', 't1-03-proof:till-b', 'draft'
   ) RETURNING id INTO v_race_cash;
   UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_race_cash;
   UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_race_cash;
@@ -927,9 +931,10 @@ BEGIN
   END IF;
   INSERT INTO public.booking_transactions (
     booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
     currency, provider, provider_reference, status
   ) VALUES (
-    v_split_shell, v_split_order, v_tenant, 2000, 2000, 'USD', 'manual', 't1-03-proof:split-1', 'draft'
+    v_split_shell, v_split_order, v_tenant, 2000, 2000, 0, 0, 'USD', 'manual', 't1-03-proof:split-1', 'draft'
   ) RETURNING id INTO v_split_txn;
   UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_split_txn;
   UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_split_txn;
@@ -945,9 +950,10 @@ BEGIN
   END IF;
   INSERT INTO public.booking_transactions (
     booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
     currency, provider, provider_reference, status
   ) VALUES (
-    v_split_shell, v_split_order, v_tenant, 3000, 3000, 'USD', 'manual', 't1-03-proof:split-2', 'draft'
+    v_split_shell, v_split_order, v_tenant, 3000, 3000, 0, 0, 'USD', 'manual', 't1-03-proof:split-2', 'draft'
   ) RETURNING id INTO v_split_txn;
   UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_split_txn;
   UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_split_txn;
@@ -963,9 +969,10 @@ BEGIN
   v_race_refused := false;
   INSERT INTO public.booking_transactions (
     booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
     currency, provider, provider_reference, status
   ) VALUES (
-    v_split_shell, v_split_order, v_tenant, 1, 1, 'USD', 'manual', 't1-03-proof:split-over', 'draft'
+    v_split_shell, v_split_order, v_tenant, 1, 1, 0, 0, 'USD', 'manual', 't1-03-proof:split-over', 'draft'
   ) RETURNING id INTO v_split_txn;
   UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_split_txn;
   BEGIN
