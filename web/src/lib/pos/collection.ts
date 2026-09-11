@@ -34,6 +34,7 @@ import {
   type ReserveCollectionResult,
 } from "./collection-reservations";
 import type { PosBuyerContact, PosCollectionMethod } from "./commands";
+import { lockedCustomLineIds } from "./custom-line";
 
 type Admin = {
   // Tests inject a fake PostgREST builder. Same seam as expire-orders.
@@ -158,7 +159,8 @@ export type StartCollectionResult =
         | "sold_out"
         | "terminal_unavailable"
         | "engine_error"
-        | "conflict";
+        | "conflict"
+        | "over_limit";
       error: string;
       /**
        * What is actually still owed, when the refusal is about the amount.
@@ -233,6 +235,11 @@ export async function startCollection(
   }
   if (!COLLECTABLE.has(row.status)) {
     return { ok: false, reason: "not_draft", error: "This sale is no longer open." };
+  }
+  const locked = await lockedCustomLineIds(admin, { tenantId: input.tenantId, orderId: row.id });
+  if (!locked.ok) return { ok: false, reason: "unavailable", error: "Could not load the sale." };
+  if (locked.lockedLineIds.length > 0) {
+    return { ok: false, reason: "over_limit", error: "A custom amount on this sale still needs a manager." };
   }
   if (!Number.isInteger(row.total_cents) || row.total_cents < 0) {
     return { ok: false, reason: "unavailable", error: "The total is not collectable." };

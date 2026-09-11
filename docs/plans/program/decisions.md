@@ -20,6 +20,8 @@ A multi-order visit record arrives only if a case proves one visit needs several
 
 **L52 column clarification (2026-09-08):** occupancy is `orders.visit_id`. `orders.space_id` remains `spaces.id`. Stuffing visit UUIDs into `space_id` would collide with the physical table identity that column was reserved for.
 
+**L52 split-check clarification (2026-09-11, D-POS-58):** a visit may now own more than one `orders` row. Split check is the case L52 deferred. Occupancy stays on `visits`; the commercial record stays `orders`. Unique index `orders_one_per_visit` is dropped. This is not a parallel check entity.
+
 ## L53 — POS command contract
 
 POS does not call `createPurchase` per button press.

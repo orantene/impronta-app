@@ -15,6 +15,12 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { closeVisit, moveVisitToSpace, openVisit, resetTable } from "@/lib/visits/commands";
 import { markReservationSeated, type SeatReservationReason } from "@/lib/visits/seat-reservation";
+import {
+  visitChangeServer as changeVisitServer,
+  visitMergeChecks as mergeVisitChecks,
+  visitSplitCheck as splitVisitCheck,
+  visitTransfer as transferVisit,
+} from "@/lib/visits/check-ops";
 
 const uuid = z.string().uuid();
 
@@ -127,4 +133,60 @@ export async function tablesResetTable(spaceId: string) {
   if (!uuid.safeParse(spaceId).success) return { ok: false as const, reason: "invalid" as const };
   const r = await resetTable(g.admin, { tenantId: g.tenantId, spaceId });
   return r.ok ? { ok: true as const } : { ok: false as const, reason: r.reason };
+}
+
+export async function visitTransfer(input: {
+  visitId: string;
+  toSpaceId: string;
+  operationKey: string;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({
+    visitId: uuid,
+    toSpaceId: uuid,
+    operationKey: z.string().min(8).max(80),
+  }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return transferVisit(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function visitSplitCheck(input: {
+  visitId: string;
+  lineIds: string[];
+  operationKey: string;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({
+    visitId: uuid,
+    lineIds: z.array(uuid).min(1),
+    operationKey: z.string().min(8).max(80),
+  }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return splitVisitCheck(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function visitMergeChecks(input: {
+  fromVisitId: string;
+  intoVisitId: string;
+  operationKey: string;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({
+    fromVisitId: uuid,
+    intoVisitId: uuid,
+    operationKey: z.string().min(8).max(80),
+  }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return mergeVisitChecks(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function visitChangeServer(input: { visitId: string; userId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ visitId: uuid, userId: uuid }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return changeVisitServer(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }

@@ -3,7 +3,7 @@
  *
  * F3. Every amount on an order is INTEGER CENTS and every total is derived,
  * never stored independently: `orders_total_is_derived` in the database asserts
- * `total_cents = subtotal_cents - discount_cents + tax_cents`, so a writer that
+ * `total_cents = subtotal_cents - discount_cents + tax_cents + tip_cents`, so a writer that
  * computes these differently does not get a wrong row, it gets a rejected one.
  * This module is the single place that arithmetic happens on my side.
  *
@@ -48,6 +48,8 @@ export type CartTotals = {
   readonly subtotalCents: number;
   readonly discountCents: number;
   readonly taxCents: number;
+  /** Outside subtotal and tax, inside total. Default 0. */
+  readonly tipCents: number;
   readonly totalCents: number;
 };
 
@@ -55,6 +57,7 @@ export const EMPTY_TOTALS: CartTotals = {
   subtotalCents: 0,
   discountCents: 0,
   taxCents: 0,
+  tipCents: 0,
   totalCents: 0,
 };
 
@@ -88,6 +91,7 @@ export function lineTotalCents(line: CartLineInput): number {
 export function cartTotals(
   lines: readonly CartLineInput[],
   discountCents = 0,
+  tipCents = 0,
 ): CartTotals {
   let subtotal = 0;
   let tax = 0;
@@ -103,11 +107,14 @@ export function cartTotals(
     ? Math.min(Math.max(0, Math.trunc(discountCents)), subtotal)
     : 0;
 
+  const tip = Number.isFinite(tipCents) ? Math.max(0, Math.trunc(tipCents)) : 0;
+
   return {
     subtotalCents: subtotal,
     discountCents: discount,
     taxCents: tax,
-    totalCents: subtotal - discount + tax,
+    tipCents: tip,
+    totalCents: subtotal - discount + tax + tip,
   };
 }
 
@@ -119,16 +126,18 @@ export function cartTotals(
  * decode. Mirrors `orders_amounts_nonneg` and `orders_total_is_derived`.
  */
 export function totalsAreWritable(totals: CartTotals): boolean {
+  const tip = totals.tipCents ?? 0;
   const values = [
     totals.subtotalCents,
     totals.discountCents,
     totals.taxCents,
+    tip,
     totals.totalCents,
   ];
   if (!values.every((v) => Number.isInteger(v) && v >= 0)) return false;
   return (
     totals.totalCents ===
-    totals.subtotalCents - totals.discountCents + totals.taxCents
+    totals.subtotalCents - totals.discountCents + totals.taxCents + tip
   );
 }
 

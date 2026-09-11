@@ -77,6 +77,10 @@ function fakeAdmin(store: ReturnType<typeof makeStore>) {
         eqs.push([k, { __in: vals }]);
         return api;
       },
+      not: (k: string, op: string, v: unknown) => {
+        if (op === "is" && v === null) eqs.push([k, { __neq: null }]);
+        return api;
+      },
       order: () => api,
       limit: () => api,
       maybeSingle: async () => {

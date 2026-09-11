@@ -14,6 +14,20 @@ import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { addLine, createDraftOrder, listOpenPosSales, loadPosSale, removeLine, repriceAndValidate, updateLine } from "@/lib/pos/draft";
 import { finalizeOrCancel, startCollection, submitToPreparation } from "@/lib/pos/collection";
 import { closeShift, currentShift, openShift } from "@/lib/pos/shift";
+import { addCustomLine } from "@/lib/pos/custom-line";
+import { approveCustomAmount, setCustomAmountLimit, setStaffPin } from "@/lib/pos/approval";
+export {
+  posLockTill,
+  posUnlockTill,
+  posSwitchOperator,
+  posLinkBooking,
+  posSetTip,
+  createPaymentLink,
+  posRecordShiftMovement,
+  waitlistOfferPlace,
+  waitlistAcceptOffer,
+  waitlistDeclineOffer,
+} from "@/lib/server-actions/pos-engine";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
 import { scanTarget } from "@/lib/pos/scan-code";
@@ -326,12 +340,100 @@ export async function posOpenShift(openingCashCents: number) {
   });
 }
 
-export async function posCloseShift(input: { closingCashCents: number; expectedVersion?: number }) {
+export async function posAddCustomLine(input: {
+  orderId: string;
+  label: string;
+  amountCents: number;
+  expectedVersion?: number;
+  idempotencyKey: string;
+}) {
+  const g = await staff();
+  if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
+  const parsed = z.object({
+    orderId: uuid,
+    label: z.string().trim().min(1).max(120),
+    amountCents: z.number().int().nonnegative(),
+    expectedVersion: z.number().int().positive().optional(),
+    idempotencyKey: z.string().min(8).max(80),
+  }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  const r = await addCustomLine(g.admin, {
+    tenantId: g.tenantId,
+    orderId: parsed.data.orderId,
+    label: parsed.data.label,
+    amountCents: parsed.data.amountCents,
+    expectedVersion: parsed.data.expectedVersion,
+    operatorUserId: g.userId,
+  });
+  return r.ok ? r : { ok: false as const, reason: r.reason };
+}
+
+export async function posSetStaffPin(input: { userId: string; pin: string }) {
+  const g = await staff();
+  if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
+  const parsed = z.object({ userId: uuid, pin: z.string().regex(/^[0-9]{4,6}$/) }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return setStaffPin(g.admin, {
+    tenantId: g.tenantId,
+    actorUserId: g.userId,
+    userId: parsed.data.userId,
+    pin: parsed.data.pin,
+  });
+}
+
+export async function posSetCustomAmountLimit(limitCents: number) {
+  const g = await staff();
+  if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
+  const parsed = z.number().int().nonnegative().safeParse(limitCents);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return setCustomAmountLimit(g.admin, {
+    tenantId: g.tenantId,
+    actorUserId: g.userId,
+    limitCents: parsed.data,
+  });
+}
+
+export async function posApproveCustomAmount(input: {
+  orderId: string;
+  lineId: string;
+  pin: string;
+  operationKey: string;
+  method?: "pin" | "session";
+}) {
+  const g = await staff();
+  if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
+  const parsed = z.object({
+    orderId: uuid,
+    lineId: uuid,
+    pin: z.string().regex(/^[0-9]{4,6}$/),
+    operationKey: z.string().min(8).max(80),
+    method: z.enum(["pin", "session"]).optional(),
+  }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return approveCustomAmount(g.admin, {
+    tenantId: g.tenantId,
+    orderId: parsed.data.orderId,
+    lineId: parsed.data.lineId,
+    pin: parsed.data.pin,
+    operationKey: parsed.data.operationKey,
+    approverUserId: g.userId,
+    method: parsed.data.method,
+  });
+}
+
+export async function posCloseShift(input: {
+  closingCashCents: number;
+  expectedVersion?: number;
+  closeNote?: string;
+  handedOverTo?: string;
+}) {
   const g = await staff("booking.payment.mark_received");
   if (!g.ok) return g;
   const parsed = z.object({
     closingCashCents: z.number().int().nonnegative(),
     expectedVersion: z.number().int().positive().optional(),
+    closeNote: z.string().trim().max(500).optional(),
+    handedOverTo: uuid.optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
   return closeShift(g.admin, {
@@ -339,6 +441,8 @@ export async function posCloseShift(input: { closingCashCents: number; expectedV
     actorUserId: g.userId,
     closingCashCents: parsed.data.closingCashCents,
     expectedVersion: parsed.data.expectedVersion,
+    closeNote: parsed.data.closeNote,
+    handedOverTo: parsed.data.handedOverTo,
   });
 }
 

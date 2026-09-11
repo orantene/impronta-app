@@ -46,6 +46,7 @@ export type OrderRow = {
   discount_cents: number | string;
   tax_cents: number | string;
   total_cents: number | string;
+  tip_cents?: number | string;
   promo_code_id?: string | null;
 };
 
@@ -59,13 +60,17 @@ export type LineRow = {
   units: number | string;
   unit_cents: number | string;
   total_cents: number | string;
+  kind?: string | null;
+  operator_user_id?: string | null;
+  booking_id?: string | null;
+  booking_kind?: string | null;
 };
 
 export const ORDER_COLUMNS =
-  "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents";
+  "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents, tip_cents";
 
 export const LINE_COLUMNS =
-  "id, offering_id, variant_id, addon_ids, session_id, label, units, unit_cents, total_cents";
+  "id, offering_id, variant_id, addon_ids, session_id, label, units, unit_cents, total_cents, kind, operator_user_id, booking_id, booking_kind";
 
 /**
  * A stored line, as `cartTotals` wants it.

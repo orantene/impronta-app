@@ -394,6 +394,12 @@ export const CANONICAL_EVENTS_PREFIX = "/events" as const;
 export const CANONICAL_RECEIPT_PREFIX = "/r" as const;
 
 /**
+ * POS payment link (`/pay/<code>`). Agency and hub only, same as `/r/<code>`.
+ * Possession of the code is the credential.
+ */
+export const CANONICAL_PAY_PREFIX = "/pay" as const;
+
+/**
  * Marketing-only public pages. These render the public SaaS marketing site
  * (sold product, not tenant storefront). They never read tenant data and
  * never require auth. Keep this list scoped; everything else 404s on the

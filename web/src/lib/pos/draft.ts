@@ -13,6 +13,7 @@ import { cartTotals, lineTotalCents, totalsAreWritable } from "@/lib/cart/totals
 import { addonCentsOnLine, priceAddons } from "./addons";
 import { LINE_COLUMNS, num, totalsInput, type Admin, type LineRow, type OrderRow } from "./sale-rows";
 import { posGuestSessionId, type PosLineInput } from "./commands";
+import { lockedCustomLineIds } from "./custom-line";
 
 export type CreateDraftOrderInput = {
   tenantId: string;
@@ -78,7 +79,7 @@ async function loadDraft(
   const { data: order, error } = await admin
     .from("orders")
     .select(
-      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents, promo_code_id",
+      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents, tip_cents, promo_code_id",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -104,10 +105,10 @@ async function loadDraft(
 
 async function writeTotals(
   admin: Admin,
-  input: { tenantId: string; orderId: string; discountCents: number; version: number; promoCodeId?: string | null },
+  input: { tenantId: string; orderId: string; discountCents: number; version: number; promoCodeId?: string | null; tipCents?: number },
   lines: readonly { unitCents: number; units: number; addonCents?: number }[],
 ): Promise<{ ok: true; version: number } | { ok: false; reason: "conflict" | "unavailable"; error: string }> {
-  const totals = cartTotals(lines, input.discountCents);
+  const totals = cartTotals(lines, input.discountCents, input.tipCents ?? 0);
   if (!totalsAreWritable(totals)) return { ok: false, reason: "unavailable", error: "CART_TOTALS_NOT_WRITABLE" };
 
   if (typeof admin.rpc === "function") {
@@ -372,6 +373,7 @@ export async function addLine(
       orderId: input.orderId,
       discountCents: num(loaded.order.discount_cents),
       version: expectedVersion,
+      tipCents: num(loaded.order.tip_cents),
     },
     nextLines,
   );
@@ -434,6 +436,7 @@ export async function updateLine(
       orderId: input.orderId,
       discountCents: num(loaded.order.discount_cents),
       version: expectedVersion,
+      tipCents: num(loaded.order.tip_cents),
     },
     nextLines,
   );
@@ -477,6 +480,7 @@ export async function removeLine(
       orderId: input.orderId,
       discountCents: num(loaded.order.discount_cents),
       version: input.expectedVersion ?? loadedVersion,
+      tipCents: num(loaded.order.tip_cents),
     },
     nextLines,
   );
@@ -488,7 +492,7 @@ export type RepriceResult =
   | { ok: true; orderId: string; discountCents: number }
   | {
       ok: false;
-      reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid" | "promo_needs_customer" | "promo_refused" | "conflict";
+      reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid" | "promo_needs_customer" | "promo_refused" | "conflict" | "over_limit";
       error: string;
     };
 
@@ -509,6 +513,12 @@ export async function repriceAndValidate(
   const loadedVersion = Number(loaded.order.version) || 1;
   if (input.expectedVersion != null && input.expectedVersion !== loadedVersion) {
     return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
+  }
+
+  const locked = await lockedCustomLineIds(admin, { tenantId: input.tenantId, orderId: input.orderId });
+  if (!locked.ok) return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
+  if (locked.lockedLineIds.length > 0) {
+    return { ok: false, reason: "over_limit", error: "A custom amount on this sale still needs a manager." };
   }
 
   for (const line of loaded.lines) {
@@ -601,6 +611,7 @@ export async function repriceAndValidate(
       discountCents,
       version: input.expectedVersion ?? loadedVersion,
       promoCodeId,
+      tipCents: num(loaded.order.tip_cents),
     },
     nextLines,
   );

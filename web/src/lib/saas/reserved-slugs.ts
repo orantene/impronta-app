@@ -43,6 +43,7 @@ export const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   // have cost a worse path than "/r", permanently, on printed tickets.
   "events",
   "r",
+  "pay",
   // Static
   "sitemap.xml", "robots.txt",
   // Prototypes + internals

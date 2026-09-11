@@ -44,6 +44,8 @@ const SALE_SOURCES = [
   "src/lib/pos/collection.ts",
   "src/lib/pos/collection-reservations.ts",
   "src/lib/pos/draft.ts",
+  "src/lib/pos/custom-line.ts",
+  "src/lib/pos/approval.ts",
 ] as const;
 
 const SHIFT_SOURCES = ["src/lib/pos/shift.ts"] as const;

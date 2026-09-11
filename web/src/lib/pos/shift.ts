@@ -11,6 +11,7 @@ import "server-only";
  */
 
 import { logServerError } from "@/lib/server/safe-error";
+import { expectedCashFromRows, listShiftMovements, type ShiftMovementRow } from "./shift-movements";
 
 type Admin = {
   // Tests inject a fake PostgREST builder. Same seam as POS collection.
@@ -55,6 +56,9 @@ export type PosShiftRow = {
   closingCashCents: number | null;
   expectedCashCents: number | null;
   varianceCents: number | null;
+  closeNote: string | null;
+  handedOverTo: string | null;
+  movements: ShiftMovementRow[];
 };
 
 type ShiftDbRow = {
@@ -69,9 +73,11 @@ type ShiftDbRow = {
   opening_cash_cents: number | string;
   closing_cash_cents: number | string | null;
   expected_cash_cents: number | string | null;
+  close_note?: string | null;
+  handed_over_to?: string | null;
 };
 
-function mapShift(row: ShiftDbRow, extras?: { varianceCents?: number | null }): PosShiftRow {
+function mapShift(row: ShiftDbRow, extras?: { varianceCents?: number | null; movements?: ShiftMovementRow[] }): PosShiftRow {
   const closing = row.closing_cash_cents == null ? null : num(row.closing_cash_cents);
   const expected = row.expected_cash_cents == null ? null : num(row.expected_cash_cents);
   const variance =
@@ -93,6 +99,9 @@ function mapShift(row: ShiftDbRow, extras?: { varianceCents?: number | null }): 
     closingCashCents: closing,
     expectedCashCents: expected,
     varianceCents: variance,
+    closeNote: row.close_note ?? null,
+    handedOverTo: row.handed_over_to ?? null,
+    movements: extras?.movements ?? [],
   };
 }
 
@@ -107,7 +116,7 @@ export async function currentShift(
   const { data, error } = await admin
     .from("pos_shifts")
     .select(
-      "id, tenant_id, status, version, opened_by, closed_by, opened_at, closed_at, opening_cash_cents, closing_cash_cents, expected_cash_cents",
+      "id, tenant_id, status, version, opened_by, closed_by, opened_at, closed_at, opening_cash_cents, closing_cash_cents, expected_cash_cents, close_note, handed_over_to",
     )
     .eq("tenant_id", input.tenantId)
     .eq("status", "open")
@@ -117,7 +126,9 @@ export async function currentShift(
     return { ok: false, reason: "unavailable", error: "Could not read the shift." };
   }
   if (!data) return { ok: true, shift: null };
-  return { ok: true, shift: mapShift(data as ShiftDbRow) };
+  const row = data as ShiftDbRow;
+  const listed = await listShiftMovements(admin, { tenantId: input.tenantId, shiftId: row.id });
+  return { ok: true, shift: mapShift(row, { movements: listed.ok ? listed.movements : [] }) };
 }
 
 export type OpenShiftResult =
@@ -196,7 +207,16 @@ async function expectedCashForShift(
     if (meta.paid_via !== "cash") continue;
     allocated += num(row.gross_amount_cents);
   }
-  return { ok: true, expectedCents: input.openingCashCents + allocated };
+  const listed = await listShiftMovements(admin, { tenantId: input.tenantId, shiftId: input.shiftId });
+  if (!listed.ok) return { ok: false };
+  return {
+    ok: true,
+    expectedCents: expectedCashFromRows({
+      openingCashCents: input.openingCashCents,
+      cashSalesCents: allocated,
+      movements: listed.movements,
+    }),
+  };
 }
 
 export async function closeShift(
@@ -206,6 +226,8 @@ export async function closeShift(
     actorUserId: string;
     closingCashCents: number;
     expectedVersion?: number;
+    closeNote?: string;
+    handedOverTo?: string;
   },
 ): Promise<CloseShiftResult> {
   if (!Number.isInteger(input.closingCashCents) || input.closingCashCents < 0) {
@@ -214,7 +236,7 @@ export async function closeShift(
   const { data: open, error } = await admin
     .from("pos_shifts")
     .select(
-      "id, tenant_id, status, version, opened_by, closed_by, opened_at, closed_at, opening_cash_cents, closing_cash_cents, expected_cash_cents",
+      "id, tenant_id, status, version, opened_by, closed_by, opened_at, closed_at, opening_cash_cents, closing_cash_cents, expected_cash_cents, close_note, handed_over_to",
     )
     .eq("tenant_id", input.tenantId)
     .eq("status", "open")
@@ -250,6 +272,8 @@ export async function closeShift(
       closed_by: input.actorUserId,
       closing_cash_cents: input.closingCashCents,
       expected_cash_cents: expected.expectedCents,
+      close_note: input.closeNote?.trim() || null,
+      handed_over_to: input.handedOverTo ?? null,
       version: row.version + 1,
       updated_at: now,
     })
@@ -270,6 +294,8 @@ export async function closeShift(
         closed_by: input.actorUserId,
         closing_cash_cents: input.closingCashCents,
         expected_cash_cents: expected.expectedCents,
+        close_note: input.closeNote?.trim() || null,
+        handed_over_to: input.handedOverTo ?? null,
         version: row.version + 1,
       },
       { varianceCents: input.closingCashCents - expected.expectedCents },

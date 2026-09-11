@@ -13,6 +13,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadActiveTicketForOrder } from "@/lib/preparation/tickets";
 import { LINE_COLUMNS, ORDER_COLUMNS, num, type Admin, type LineRow, type OrderRow } from "./sale-rows";
 import type { PosSaleView } from "./commands";
+import { readCustomAmountLimitCents } from "./approval-settings";
 
 export async function loadPosSale(
   admin: Admin,
@@ -78,6 +79,11 @@ export async function loadPosSale(
       ? "amended"
       : ticket.status;
 
+  const limit = await readCustomAmountLimitCents(admin, input.tenantId);
+  const limitCents = limit.ok ? limit.limitCents : 0;
+  const { data: approvals } = await admin.from("pos_approvals").select("line_id").eq("order_id", input.orderId);
+  const approved = new Set(((approvals ?? []) as Array<{ line_id: string }>).map((a) => a.line_id));
+
   return {
     ok: true,
     sale: {
@@ -94,21 +100,34 @@ export async function loadPosSale(
       subtotalCents: num(row.subtotal_cents),
       discountCents: num(row.discount_cents),
       taxCents: num(row.tax_cents),
+      tipCents: num(row.tip_cents),
       totalCents,
       depositPaidCents,
       outstandingCents,
       prepState,
       paymentState,
-      lines: ((lineRows ?? []) as LineRow[]).map((l) => ({
-        id: l.id,
-        offeringId: l.offering_id,
-        variantId: l.variant_id,
-        sessionId: l.session_id,
-        label: l.label,
-        units: num(l.units),
-        unitCents: num(l.unit_cents),
-        totalCents: num(l.total_cents),
-      })),
+      lines: ((lineRows ?? []) as LineRow[]).map((l) => {
+        const kind = l.kind === "custom" ? "custom" : "catalog";
+        const bookingKind =
+          l.booking_kind === "talent_booking" || l.booking_kind === "agency_booking" || l.booking_kind === "admission"
+            ? l.booking_kind
+            : null;
+        return {
+          id: l.id,
+          offeringId: l.offering_id,
+          variantId: l.variant_id,
+          sessionId: l.session_id,
+          label: l.label,
+          units: num(l.units),
+          unitCents: num(l.unit_cents),
+          totalCents: num(l.total_cents),
+          kind,
+          needsApproval: kind === "custom" && num(l.unit_cents) > limitCents && !approved.has(l.id),
+          operatorUserId: l.operator_user_id ?? null,
+          bookingId: l.booking_id ?? null,
+          bookingKind,
+        };
+      }),
     },
   };
 }
