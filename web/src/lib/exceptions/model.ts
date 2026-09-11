@@ -267,7 +267,9 @@ export function classifyRefundIntent(
     detail:
       facts.reason === "event_cancelled"
         ? "The event was cancelled and this buyer has not been refunded yet."
-        : "This buyer lost their seat after paying and has not been refunded yet.",
+        : facts.reason === "session_cancelled"
+          ? "The session was cancelled and this buyer has not been refunded yet."
+          : "This buyer lost their seat after paying and has not been refunded yet.",
     nextAction: {
       kind: "resume",
       verb: "run_refund_intent",

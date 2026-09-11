@@ -1,0 +1,5 @@
+price phase created: {"id":"70249525-4192-46e2-9817-792a1cf4538d","label":"T5 early-bird","price_cents":"5500"}
+order line stamped with phase: {"id":"918b3bc6-7977-4da0-ab3b-652d454a0355","price_phase_id":"70249525-4192-46e2-9817-792a1cf4538d","unit_cents":"5500"}
+guarded reprice attempt (should affect 0 rows because phase is already stamped): 0
+line after guarded reprice attempt (unchanged): {"id":"918b3bc6-7977-4da0-ab3b-652d454a0355","price_phase_id":"70249525-4192-46e2-9817-792a1cf4538d","unit_cents":"5500"}
+cleaned up price-phase fixture

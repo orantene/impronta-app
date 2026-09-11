@@ -1,0 +1,41 @@
+Command:
+  JOURNEYS_ISOLATED=1 \
+  SESSION_MOVE_RACE_ADMISSION_A=9406e8d6-9ed7-42a4-847c-d78bfaf96255 \
+  SESSION_MOVE_RACE_ADMISSION_B=5932bdec-7b4a-4031-91ef-635405f8928d \
+  SESSION_MOVE_RACE_TO_SESSION=f643fac4-2404-4cf3-b111-6c2ddcd1d6e8 \
+  node --env-file=web/.env.capacity-isolated.local web/scripts/verify-session-move-race.mjs
+
+Output:
+[session-move-race] wins=1 a={"ok":false,"reason":"sold_out"} b={"ok":true,"admission_id":"5932bdec-7b4a-4031-91ef-635405f8928d","allocation_id":"0cec9aad-ccfb-45b2-840d-f3b185ad48da"}
+Exit code: 0
+
+Ground truth read after the race (select on admissions + capacity_allocations):
+admissions: [
+  { id: '9406e8d6-9ed7-42a4-847c-d78bfaf96255', session_id: <src>, allocation_id: '4a5d29bb-1d34-491d-a002-4967d17c468d' (unchanged, original), status: 'valid' },
+  { id: '5932bdec-7b4a-4031-91ef-635405f8928d', session_id: <tgt>, allocation_id: '0cec9aad-ccfb-45b2-840d-f3b185ad48da' (new), status: 'valid' }
+]
+target pool allocations: [ { id: '0cec9aad-ccfb-45b2-840d-f3b185ad48da', pool_id: <tgt pool, units_total=1>, state: 'hold', units: 1 } ]
+
+Exactly one hold exists on the 1-seat target pool. Admission A never moved
+(kept its original allocation on the source session); admission B holds the
+new allocation on the target. No oversell, no double-write. No RPC fix was
+needed — session_move_participant's existing FOR UPDATE row lock on the
+admission plus its call into reserve_resource_set_v2 -> reserve_capacity_batch
+(which locks the pool row via _capacity_reserve_locked) already serialises
+the race correctly.
+
+Fixture build (through the engine's own RPCs):
+  - two sessions inserted directly (no create-session RPC exists in this
+    schema; sessions are app-layer inserts, seat pools are the engine's job)
+  - public.set_session_seats(session_id, available, tenant_id) -> created a
+    5-seat pool on the source session and a 1-seat pool on the target session
+  - public.reserve_resource_set_v2(...) -> reserved 1 unit each for two
+    admissions on the SOURCE session's pool, then those allocations were
+    marked 'committed' (mirrors a paid seat)
+  - two rows inserted into public.admissions, session_id = source session,
+    allocation_id = each reservation's allocation id, status 'valid'
+
+Fixture teardown: admissions, capacity_allocations (both pools), capacity_pools
+(both), sessions (both) all deleted by id after ground truth was read. Final
+sweep query confirmed 0 rows remaining under tenant 33333333-3333-4333-8333-333333333333
+matching any fixture marker (see object-verification.txt sweep note).
