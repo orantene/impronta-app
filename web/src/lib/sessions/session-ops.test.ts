@@ -57,7 +57,7 @@ test("cancel succeeds and surfaces paid_seats_need_refund without failing", asyn
 });
 
 test("session ops SQL never refunds inline", () => {
-  const sql = readFileSync(join(process.cwd(), "..", "supabase", "migrations", "20261231211000_session_ops.sql"), "utf8");
+  const sql = readFileSync(join(process.cwd(), "..", "supabase", "migrations", "20261231217000_session_ops.sql"), "utf8");
   assert.match(sql, /session_cancelled/);
   assert.match(sql, /ticket_refund_intents/);
   assert.doesNotMatch(sql, /executeBookingRefund|stripe/i);

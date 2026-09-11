@@ -58,7 +58,7 @@ test("archive is a status transition and a bad file path is invalid", async () =
 });
 
 test("project ops SQL stamps amount_cents and file_path", () => {
-  const sql = readFileSync(join(process.cwd(), "..", "supabase", "migrations", "20261231213000_project_ops.sql"), "utf8");
+  const sql = readFileSync(join(process.cwd(), "..", "supabase", "migrations", "20261231219000_project_ops.sql"), "utf8");
   assert.match(sql, /project_replace_talent/);
   assert.match(sql, /amendment_discard/);
   assert.match(sql, /amount_cents/);

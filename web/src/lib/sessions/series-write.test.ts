@@ -154,7 +154,7 @@ test("generate refuses when another scheduled session occupies the room", async 
 
 test("series editor migration adds instructor columns", () => {
   const sql = readFileSync(
-    join(process.cwd(), "..", "supabase", "migrations", "20261231210000_session_series_editor.sql"),
+    join(process.cwd(), "..", "supabase", "migrations", "20261231216000_session_series_editor.sql"),
     "utf8",
   );
   assert.match(sql, /instructor_user_id/);

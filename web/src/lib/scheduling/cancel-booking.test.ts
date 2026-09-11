@@ -59,7 +59,7 @@ test("a short operation key is invalid and a missing booking is not_found", asyn
 
 test("cancel_booking_set releases allocations through order_lines", () => {
   const sql = readFileSync(
-    join(process.cwd(), "..", "supabase", "migrations", "20261231212000_cancel_booking_set.sql"),
+    join(process.cwd(), "..", "supabase", "migrations", "20261231218000_cancel_booking_set.sql"),
     "utf8",
   );
   assert.match(sql, /CREATE OR REPLACE FUNCTION public.cancel_booking_set/);

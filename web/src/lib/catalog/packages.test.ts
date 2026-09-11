@@ -42,7 +42,7 @@ test("a package cannot include itself or the same component twice", async () => 
 
 test("offering_components live in the packages migration", () => {
   const sql = readFileSync(
-    join(process.cwd(), "..", "supabase", "migrations", "20261231214000_offering_packages_phases.sql"),
+    join(process.cwd(), "..", "supabase", "migrations", "20261231220000_offering_packages_phases.sql"),
     "utf8",
   );
   assert.match(sql, /CREATE TABLE IF NOT EXISTS public.offering_components/);

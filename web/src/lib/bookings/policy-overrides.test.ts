@@ -21,7 +21,7 @@ test("an out-of-range override is invalid", async () => {
 
 test("policy and approval tables live in the same migration", () => {
   const sql = readFileSync(
-    join(process.cwd(), "..", "supabase", "migrations", "20261231215000_booking_policy_approvals.sql"),
+    join(process.cwd(), "..", "supabase", "migrations", "20261231221000_booking_policy_approvals.sql"),
     "utf8",
   );
   assert.match(sql, /booking_policy_overrides/);
