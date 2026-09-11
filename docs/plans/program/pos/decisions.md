@@ -873,3 +873,19 @@ Decided 2026-09-11 (engine-scheduling). `booking_policy_overrides` win over
 offering / workspace defaults for deposit, free-cancel hours and no-show
 fee. `role_limits` + `approval_requests` gate discounts and refunds above
 the role's cents cap. W56 can now be a real review dialog over these rows.
+
+## D-POS-76 — tenant places are venue_locations, not public.locations
+
+Decided 2026-09-11 (engine-venue). `public.locations` is the city gazetteer
+(country + city_slug). Spaces S2 already forbade reusing that name. Package 3
+stores POS/workspace places in `venue_locations` and `venue_location_zones`.
+Settings stay at `agencies.settings.pos.locations.<slug>.modes`. Every
+existing agency is seeded with slug `default` so today's chip and modes path
+do not change.
+
+## D-POS-77 — ticket self-service is /ticket/[code], not /t/[code]
+
+Decided 2026-09-11 (engine-venue). `/t` is `CANONICAL_TALENT_PREFIX` (talent
+storefront). A second `/t/[code]` page would collide in the App Router.
+Signed admission codes stay `adm1.…` from `admission-token.ts`. The public
+ticket page is `/ticket/[code]`.

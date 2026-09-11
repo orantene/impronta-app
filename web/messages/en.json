@@ -12533,6 +12533,43 @@
         "today": "Today a sale carries one code; price lists, manual discounts and member prices are not applied."
       }
     },
+    "venue": {
+      "engine": {
+        "refusal": {
+          "duplicate_slug": "That location slug is already in use.",
+          "last_location": "A workspace needs at least one location.",
+          "has_spaces": "That zone still has tables on it.",
+          "already_seated": "That party is already seated.",
+          "space_occupied": "That table already has a party.",
+          "expired": "That waitlist place has expired.",
+          "overlap": "Those service periods overlap.",
+          "two_active": "This location already has an active layout.",
+          "station_in_use": "That station still has tickets or items.",
+          "visit_closed": "This table visit has ended.",
+          "item_unavailable": "That item is not available.",
+          "already_paid": "That share is already paid.",
+          "exceeds_outstanding": "That is more than what is still owed.",
+          "not_submitted": "The kitchen has not received that line yet.",
+          "seat_taken": "That seat is already taken.",
+          "hold_expired": "The hold on that seat has expired.",
+          "same_session": "That ticket is already for this night.",
+          "price_up_needs_payment": "The new night costs more. Pay the difference first.",
+          "needs_approval": "A manager has to approve this first.",
+          "channel_unavailable": "That delivery channel is not available.",
+          "superseded": "This ticket code was replaced.",
+          "too_many_attempts": "Too many tries. Wait and try again.",
+          "unknown_device": "This device is not registered.",
+          "not_replayable": "That command cannot be saved offline.",
+          "stale_app": "This app version is too old.",
+          "conflict": "This just changed. Reload and try again.",
+          "not_found": "That record is gone.",
+          "wrong_tenant": "That record is not in this workspace.",
+          "invalid": "That cannot be saved.",
+          "unavailable": "This could not be completed. Try again.",
+          "not_allowed": "You cannot do this here."
+        }
+      }
+    },
     "scheduling": {
       "engine": {
         "refusal": {

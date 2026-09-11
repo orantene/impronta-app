@@ -12533,6 +12533,43 @@
         "today": "Hoy una venta lleva un código; las listas de precios, los descuentos manuales y los precios de miembro no se aplican."
       }
     },
+    "venue": {
+      "engine": {
+        "refusal": {
+          "duplicate_slug": "Ese identificador de ubicacion ya esta en uso.",
+          "last_location": "Un espacio necesita al menos una ubicacion.",
+          "has_spaces": "Esa zona todavia tiene mesas.",
+          "already_seated": "Ese grupo ya esta sentado.",
+          "space_occupied": "Esa mesa ya tiene un grupo.",
+          "expired": "Ese lugar en la lista de espera expiro.",
+          "overlap": "Esos periodos de servicio se solapan.",
+          "two_active": "Esta ubicacion ya tiene un plano activo.",
+          "station_in_use": "Esa estacion todavia tiene tickets o articulos.",
+          "visit_closed": "Esta visita de mesa ya termino.",
+          "item_unavailable": "Ese articulo no esta disponible.",
+          "already_paid": "Esa parte ya esta pagada.",
+          "exceeds_outstanding": "Eso es mas de lo que todavia se debe.",
+          "not_submitted": "La cocina aun no recibio esa linea.",
+          "seat_taken": "Ese asiento ya esta tomado.",
+          "hold_expired": "La reserva de ese asiento expiro.",
+          "same_session": "Ese boleto ya es para esta noche.",
+          "price_up_needs_payment": "La nueva noche cuesta mas. Paga la diferencia primero.",
+          "needs_approval": "Un gerente tiene que aprobar esto primero.",
+          "channel_unavailable": "Ese canal de entrega no esta disponible.",
+          "superseded": "Este codigo de boleto fue reemplazado.",
+          "too_many_attempts": "Demasiados intentos. Espera e intentalo de nuevo.",
+          "unknown_device": "Este dispositivo no esta registrado.",
+          "not_replayable": "Ese comando no se puede guardar sin conexion.",
+          "stale_app": "Esta version de la app es demasiado vieja.",
+          "conflict": "Esto acaba de cambiar. Recarga e intentalo de nuevo.",
+          "not_found": "Ese registro ya no esta.",
+          "wrong_tenant": "Ese registro no esta en este espacio.",
+          "invalid": "Eso no se puede guardar.",
+          "unavailable": "Esto no se pudo completar. Intentalo de nuevo.",
+          "not_allowed": "No puedes hacer esto aqui."
+        }
+      }
+    },
     "scheduling": {
       "engine": {
         "refusal": {
