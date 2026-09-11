@@ -49,9 +49,9 @@ storefront's unlayered `h1` rule beat every utility on the 19px header.
 | POSCashShort | matched | Coral `Still short $X`, `Take $X · rest by card` (disabled, D-POS-24) and `Confirm cash` disabled. |
 | POSCashDone | partially | `Drawer open`, the change figure, `Received … recorded as cash`, the note, `Done · receipt`. `Open drawer` disabled (D-POS-25). `live-after-done.png` is the paid screen it leads to. |
 | POSCashOpen | partially | Drawer / Responsible (disabled, one per workspace), `Starting cash · counted` with keypad, `Open drawer · start with $X` (live: `openShift`), `ONCE IT'S OPEN` tiles disabled. No `YESTERDAY` card: there is no reader for the last closed shift. |
-| POSCashClose | **matched** (re-verified 2026-09-11, wire-pos-money) | Denomination steppers feeding `Counted`, the right card with `Started with` and the shift's own movement sums (`Drop to safe −$300.00` beside the float), `Should be in the drawer` (blind until the close, as before), `Handed over to {name} · recorded with this count` when the movements screen chose one, `What happened` (live: `closeShift`'s `closeNote`), `I confirm this count`, `Back · Close drawer` (`closeShift` with `handedOverTo` and the note, D-POS-73). |
+| POSCashClose | **wired, frame owed** (2026-09-11, wire-pos-money) | Denomination steppers feeding `Counted`, the right card with `Started with` and the shift's own movement sums (`Drop to safe −$300.00` beside the float), `Should be in the drawer` (blind until the close, as before), `Handed over to {name} · recorded with this count` when the movements screen chose one, `What happened` (live: `closeShift`'s `closeNote`), `I confirm this count`, `Back · Close drawer` (`closeShift` with `handedOverTo` and the note, D-POS-73). |
 | POSCashShort | see above | |
-| POSCashMovements | **matched** (re-verified 2026-09-11, wire-pos-money) | `Add cash · Take cash out · Drop to safe` open the movement dialog (amount keypad, reason; `posRecordShiftMovement`); the list is the shift's `pos_shift_movements` rows with time · kind · reason · signed amount; `Open drawer (no sale)` stays disabled (no drawer device, D-POS-28). `HAND THE DRAWER TO SOMEONE`: `New responsible` from the workspace's people, `We counted it together`, `Hand over to {name}` (carried into the close, D-POS-73), `Close drawer & count`. Differs: the board's list mixes cash sales into the movements; the engine's list is movements only, and cash sales are the close card's own figure. |
+| POSCashMovements | **wired, frame owed** (2026-09-11, wire-pos-money) | `Add cash · Take cash out · Drop to safe` open the movement dialog (amount keypad, reason; `posRecordShiftMovement`); the list is the shift's `pos_shift_movements` rows with time · kind · reason · signed amount; `Open drawer (no sale)` stays disabled (no drawer device, D-POS-28). `HAND THE DRAWER TO SOMEONE`: `New responsible` from the workspace's people, `We counted it together`, `Hand over to {name}` (carried into the close, D-POS-73), `Close drawer & count`. Differs: the board's list mixes cash sales into the movements; the engine's list is movements only, and cash sales are the close card's own figure. |
 | POSReceipts | partially | Search, `Today · Yesterday · This week`, rows with time · #code · customer · summary · amount from `listPaidPosSales`; a row opens `/r/<code>`. `Cash · Card · Refunds` disabled (D-POS-27). |
 | POSIssues | not wired | Frame with disabled filters and one sentence (D-POS-28). |
 | POSIssueDetail | not wired | No rows exist to open; `live.png` is the Issues screen. |
@@ -74,6 +74,8 @@ reader, test print, open drawer. Decisions D-POS-15 to D-POS-31 in
 
 ## Package 1 wiring (2026-09-11, wire-pos-money)
 
+Frames owed (rows marked "frame owed"): the machine crashed mid-capture and the coordinator's load rule forbade a dev server afterwards; those verdicts rest on the code, the unit lanes and the flows already driven live before the crash (the counter's custom amount, approval, tip, booking link, payment link and lock; the display's tip; B03). They are owed a fresh `live.png` on the next run.
+
 Engine package 1 (`docs/plans/program/engine/pos-money.md`) turned these
 controls on, screens only, over its actions: custom amount + manager
 approval (`admin/pos/actions.ts`), lock / switch operator, link a booking,
@@ -84,8 +86,9 @@ never re-exported through `actions.ts`). Every refusal a person meets is a
 basket's `Tip` row and sheet (`posSetTip`, `TipSheet.live.png`), the collect
 screen's `Payment link` tab (`createPaymentLink`, `POSCollect-link-tab.live.png`,
 `POSCollect-link-sent.live.png`), the cashier chip's `Switch operator`
-(`POSSwitchOperator.live.png`), the movement dialog
-(`CashMovementDialog.live.png`). The register PIN is set on People › Access
+(frame owed), the movement dialog (frame owed); the People PIN block and
+the Settings limit are `PeopleRegisterPin.live.png` and
+`SettingsCustomAmountLimit.live.png`. The register PIN is set on People › Access
 (`admin/people/PersonRegisterPin.tsx`) and the custom-amount limit under
 Settings › Roles & limits (`components/admin/settings/custom-amount-limit.tsx`),
 D-POS-74. Decisions D-POS-69 to D-POS-77.

@@ -166,3 +166,17 @@ were removed: they are the evidence.
 | `node scripts/check-server-actions.mjs` / `check-ui-messages.mjs` / `check-untracked-imports.mjs` | 0 / 0 / 0 |
 | `npx playwright test e2e/cases/pos-customer-display.spec.ts …` runs 1, 2, 3 / run 4 | 1, 1, 1 / **0** |
 | `npx playwright test e2e/cases/pos-scanner.spec.ts …` runs 1, 2, 3, 4 / run 5 | 1, 1, 1, 1 / **0** |
+
+## Package 1 (2026-09-11, wire-pos-money): D02 / D03 tips are live
+
+D-POS-11 is closed by D-POS-75. The review screen's right half is the tip
+chooser (`CustomerDisplayTip`: 10% · 15% · 20% of the services with the
+figure under each, `Other`, `No tip`); `Other` is the custom-amount screen
+with the keypad and `Total would be`. The tap is `posSetTip`
+(`orders.tip_cents`, never a line); the sale's own figure comes back on the
+next poll, the counter on the same device re-reads through the
+`saleChanged` storage beacon, and `pos-customer-display.spec.ts` asserts
+`tip_cents` and the line count. Frames: `screenshots/package1/CDReview.*`,
+`CDCustomTip.*`, `CDReview-tip-added.live.png` (1194x834, the boards'
+viewport; the display's own layout is the earlier one-column card with the
+chooser beside it, not the boards' split panes).

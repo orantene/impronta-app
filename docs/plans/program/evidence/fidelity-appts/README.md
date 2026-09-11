@@ -66,12 +66,14 @@ only). Nothing was written to production.
 
 ## Package 1 wiring (2026-09-11, wire-pos-money)
 
+Frames owed (rows marked "frame owed"): the machine crashed mid-capture and the coordinator's load rule forbade a dev server afterwards; those verdicts rest on the code, the unit lanes and the flows already driven live before the crash (the counter's custom amount, approval, tip, booking link, payment link and lock; the display's tip; B03). They are owed a fresh `live.png` on the next run.
+
 The Front desk's queue now offers a place with the engine's hold
 (`waitlistOfferPlace`: a `waitlist_offers` row and a live capacity
 allocation for the offer window), takes it with `waitlistAcceptOffer` and
 gives it back with `Decline` (`waitlistDeclineOffer`), D-POS-76; the day
-reader carries the live offer id per entry. `ClassesWaitlistOffer.live.png`
-is the Waitlist screen with an offer standing (Decline beside They took it).
+reader carries the live offer id per entry. A frame of the Waitlist screen
+with an offer standing (Decline beside They took it) is owed.
 Every refusal is `dashboard.pos.engine.refusal.*` (`no_place` when the night
 is full). The classes journey (`e2e/journeys/pos-classes.spec.ts`) asserts
 the `waitlist_offers` row and its allocation, not only the entry's state.
