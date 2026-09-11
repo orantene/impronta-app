@@ -53,6 +53,12 @@ export function fakeAdmin(store: ReturnType<typeof makeStore>) {
           if (v && typeof v === "object" && v !== null && "__in" in v) {
             return (v as { __in: unknown[] }).__in.includes(row[k]);
           }
+          if (v && typeof v === "object" && v !== null && "__lte" in v) {
+            return String(row[k] ?? "") <= String((v as { __lte: unknown }).__lte);
+          }
+          if (v && typeof v === "object" && v !== null && "__gte" in v) {
+            return String(row[k] ?? "") >= String((v as { __gte: unknown }).__gte);
+          }
           return row[k] === v;
         }),
       );
@@ -102,6 +108,14 @@ export function fakeAdmin(store: ReturnType<typeof makeStore>) {
       },
       in: (k: string, vals: unknown[]) => {
         eqs.push([k, { __in: vals }]);
+        return api;
+      },
+      lte: (k: string, v: unknown) => {
+        eqs.push([k, { __lte: v }]);
+        return api;
+      },
+      gte: (k: string, v: unknown) => {
+        eqs.push([k, { __gte: v }]);
         return api;
       },
       not: (k: string, op: string, v: unknown) => {

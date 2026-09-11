@@ -12178,6 +12178,36 @@
         "today": "Hoy una venta lleva un código; las listas de precios, los descuentos manuales y los precios de miembro no se aplican."
       }
     },
+    "scheduling": {
+      "engine": {
+        "refusal": {
+          "overlapping_room": "Esa sala ya esta reservada a esa hora.",
+          "no_instructor": "Esta serie necesita un instructor.",
+          "past": "Esa fecha ya paso.",
+          "sold_out": "No queda lugar en esa sesion.",
+          "already_cancelled": "Esa sesion ya esta cancelada.",
+          "paid_seats_need_refund": "Los asientos pagados necesitan un reembolso. Esta en cola, aun no se hizo.",
+          "not_cancellable": "Esta reserva no se puede cancelar.",
+          "policy_keeps": "La ventana de cancelacion ya paso, asi que el pago se queda.",
+          "token_invalid": "Este enlace ya no es valido.",
+          "talent_unavailable": "Esa persona no esta libre entonces.",
+          "already_started": "Esta reserva ya comenzo.",
+          "not_draft": "Esta enmienda ya no es un borrador.",
+          "not_archivable": "Este proyecto no se puede archivar.",
+          "not_reopenable": "Este proyecto no se puede reabrir.",
+          "cycle": "Un paquete no puede incluirse a si mismo.",
+          "overlap": "Esos elementos se solapan.",
+          "over_limit": "Esto supera el limite de este rol.",
+          "already_decided": "Esta solicitud ya fue decidida.",
+          "not_manager": "Solo un gerente puede hacer esto.",
+          "conflict": "Esto acaba de cambiar. Recarga e intentalo de nuevo.",
+          "not_found": "Ese registro ya no esta.",
+          "wrong_tenant": "Ese registro no esta en este espacio.",
+          "invalid": "Eso no se puede guardar.",
+          "unavailable": "Esto no se pudo completar. Intentalo de nuevo."
+        }
+      }
+    },
     "pos": {
       "pageTitle": "Nueva venta",
       "engine": {

@@ -12178,6 +12178,36 @@
         "today": "Today a sale carries one code; price lists, manual discounts and member prices are not applied."
       }
     },
+    "scheduling": {
+      "engine": {
+        "refusal": {
+          "overlapping_room": "That room is already booked for this time.",
+          "no_instructor": "This series needs an instructor.",
+          "past": "That date is already in the past.",
+          "sold_out": "There is no place left in that session.",
+          "already_cancelled": "That session is already cancelled.",
+          "paid_seats_need_refund": "Paid seats need a refund. It is queued, not taken yet.",
+          "not_cancellable": "This booking cannot be cancelled.",
+          "policy_keeps": "The cancellation window has passed, so the payment stays.",
+          "token_invalid": "This link is not valid anymore.",
+          "talent_unavailable": "That person is not free then.",
+          "already_started": "This booking has already started.",
+          "not_draft": "This amendment is no longer a draft.",
+          "not_archivable": "This project cannot be archived.",
+          "not_reopenable": "This project cannot be reopened.",
+          "cycle": "A package cannot include itself.",
+          "overlap": "Those items overlap.",
+          "over_limit": "This is over the limit for this role.",
+          "already_decided": "This request was already decided.",
+          "not_manager": "Only a manager can do this.",
+          "conflict": "This just changed. Reload and try again.",
+          "not_found": "That record is gone.",
+          "wrong_tenant": "That record is not in this workspace.",
+          "invalid": "That cannot be saved.",
+          "unavailable": "This could not be completed. Try again."
+        }
+      }
+    },
     "pos": {
       "pageTitle": "New sale",
       "engine": {

@@ -1204,6 +1204,36 @@
         "willUpdate": "{n} à mettre à jour"
       }
     },
+    "scheduling": {
+      "engine": {
+        "refusal": {
+          "overlapping_room": "Cette salle est deja reservee a cette heure.",
+          "no_instructor": "Cette serie a besoin d'un instructeur.",
+          "past": "Cette date est deja passee.",
+          "sold_out": "Il ne reste plus de place dans cette seance.",
+          "already_cancelled": "Cette seance est deja annulee.",
+          "paid_seats_need_refund": "Les places payees doivent etre remboursees. C'est en file, pas encore fait.",
+          "not_cancellable": "Cette reservation ne peut pas etre annulee.",
+          "policy_keeps": "Le delai d'annulation est passe, le paiement reste.",
+          "token_invalid": "Ce lien n'est plus valable.",
+          "talent_unavailable": "Cette personne n'est pas libre a ce moment-la.",
+          "already_started": "Cette reservation a deja commence.",
+          "not_draft": "Cet avenant n'est plus un brouillon.",
+          "not_archivable": "Ce projet ne peut pas etre archive.",
+          "not_reopenable": "Ce projet ne peut pas etre rouvert.",
+          "cycle": "Un forfait ne peut pas se contenir lui-meme.",
+          "overlap": "Ces elements se chevauchent.",
+          "over_limit": "Cela depasse la limite de ce role.",
+          "already_decided": "Cette demande a deja ete decidee.",
+          "not_manager": "Seul un responsable peut faire cela.",
+          "conflict": "Cela vient de changer. Rechargez et reessayez.",
+          "not_found": "Cet enregistrement n'existe plus.",
+          "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
+          "invalid": "Cela ne peut pas etre enregistre.",
+          "unavailable": "Impossible de terminer. Reessayez."
+        }
+      }
+    },
     "pos": {
       "pageTitle": "Nouvelle vente",
       "engine": {
