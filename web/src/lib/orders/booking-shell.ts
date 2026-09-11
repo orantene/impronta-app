@@ -72,15 +72,13 @@ export async function bookingShellForOrder(
     .select("booking_id, booking_kind")
     .eq("order_id", input.orderId)
     .eq("tenant_id", input.tenantId)
-    .eq("booking_kind", "agency_booking")
-    .not("booking_id", "is", null)
-    .limit(1)
-    .maybeSingle();
+    .eq("booking_kind", "agency_booking");
   if (linkedErr) {
     logServerError("orders.bookingShellForOrder/linked", linkedErr);
     return { ok: false };
   }
-  const linkedId = (linked as { booking_id?: string } | null)?.booking_id;
+  const linkedRows = Array.isArray(linked) ? linked : linked ? [linked] : [];
+  const linkedId = (linkedRows as Array<{ booking_id?: string | null }>).find((row) => row.booking_id)?.booking_id;
   if (linkedId) return { ok: true, bookingId: linkedId };
 
   const find = async (): Promise<string | null | false> => {

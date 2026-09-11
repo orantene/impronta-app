@@ -48,7 +48,6 @@ export default async function PayByCodePage({
       mode: "payment",
       success_url: successUrl,
       cancel_url: cancelUrl,
-      expires_at: Math.max(Math.floor(Date.now() / 1000) + 1800, Math.floor(Date.parse(loaded.expiresAt) / 1000)),
       line_items: [
         {
           quantity: 1,

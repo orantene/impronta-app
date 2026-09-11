@@ -9,6 +9,11 @@ en / es / fr. Actions return `{ ok: false, reason }` and never English prose.
 
 `unavailable` is transport failure and never a second write path.
 
+Custom-amount and shift-close actions live in `admin/pos/actions.ts`. Lock,
+tip, payment-link, and waitlist actions live in
+`web/src/lib/server-actions/pos-engine.ts`. Do not re-export that file from
+`actions.ts`: Next.js then drops every POS action and the admin boot fails.
+
 ---
 
 ## Shared reader

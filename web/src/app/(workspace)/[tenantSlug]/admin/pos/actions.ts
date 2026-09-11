@@ -16,21 +16,11 @@ import { finalizeOrCancel, startCollection, submitToPreparation } from "@/lib/po
 import { closeShift, currentShift, openShift } from "@/lib/pos/shift";
 import { addCustomLine } from "@/lib/pos/custom-line";
 import { approveCustomAmount, setCustomAmountLimit, setStaffPin } from "@/lib/pos/approval";
-export {
-  posLockTill,
-  posUnlockTill,
-  posSwitchOperator,
-  posLinkBooking,
-  posSetTip,
-  createPaymentLink,
-  posRecordShiftMovement,
-  waitlistOfferPlace,
-  waitlistAcceptOffer,
-  waitlistDeclineOffer,
-} from "@/lib/server-actions/pos-engine";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
 import { scanTarget } from "@/lib/pos/scan-code";
+
+/** Lock, tip, payment-link, and waitlist actions: `@/lib/server-actions/pos-engine`. */
 
 const uuid = z.string().uuid();
 
