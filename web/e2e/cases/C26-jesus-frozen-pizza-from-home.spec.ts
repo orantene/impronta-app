@@ -70,17 +70,26 @@ test("C26-OP pickup: New sale → House pizza → cash → prep handoff and DB a
 
   await signInJourneysStaff(page, "/admin/preparation");
   await assertWorkspaceIdentity(page);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/preparation/i);
+  // The station board (T26): `Kitchen`, tabs Queued · Preparing · Ready.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^kitchen/i);
   await expect(page.getByText(/could not load the board/i)).toHaveCount(0);
 
-  const ticket = page.locator("li").filter({ hasText: /house pizza/i }).filter({ hasText: /pickup/i });
-  await expect(ticket.first()).toBeVisible({ timeout: 20_000 });
-  await ticket.first().getByRole("button", { name: /mark ready/i }).click();
-  await expect(ticket.first().getByRole("button", { name: /confirm handoff/i })).toBeVisible({
+  // The board lists tickets oldest first and other journeys leave pickup
+  // tickets on it; the one this pass just sent is the NEWEST of its kind.
+  const ticket = page.locator("li[data-prep-ticket]").filter({ hasText: /house pizza/i }).filter({ hasText: /pickup/i });
+  await page.getByRole("tab", { name: /^queued/i }).click();
+  await expect(ticket.last()).toBeVisible({ timeout: 20_000 });
+  // A queued pickup starts, then is marked ready, then handed off: one step per tab.
+  await ticket.last().getByRole("button", { name: /^start$/i }).click();
+  await page.getByRole("tab", { name: /^preparing/i }).click();
+  await expect(ticket.last().getByRole("button", { name: /mark ready/i })).toBeVisible({ timeout: 20_000 });
+  await ticket.last().getByRole("button", { name: /mark ready/i }).click();
+  await page.getByRole("tab", { name: /^ready/i }).click();
+  await expect(ticket.last().getByRole("button", { name: /confirm handoff/i })).toBeVisible({
     timeout: 20_000,
   });
-  await ticket.first().getByRole("button", { name: /confirm handoff/i }).click();
-  await expect(ticket.first().getByRole("button", { name: /confirm handoff/i })).toHaveCount(0, {
+  await ticket.last().getByRole("button", { name: /confirm handoff/i }).click();
+  await expect(ticket.last().getByRole("button", { name: /confirm handoff/i })).toHaveCount(0, {
     timeout: 20_000,
   });
 

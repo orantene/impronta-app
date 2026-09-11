@@ -82,7 +82,13 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
   floor: {
     id: "floor",
     label: "Tables",
-    destinations: ["tables", "seating"],
+    // The board's rail (`POSLiveFloor`): Floor · Orders · Prep · Receipts ·
+    // Issues. `tables` IS the floor (the map, the timeline, the list);
+    // `orders` the open checks on it; `prep` opens the Preparation
+    // destination (the station board is its own screen, T26); `receipts`
+    // and `issues` have no reader on this mode yet and render one sentence
+    // each (D-POS-28, D-POS-48).
+    destinations: ["tables", "orders", "prep", "receipts", "issues"],
     built: true,
   },
   door: {

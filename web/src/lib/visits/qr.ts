@@ -56,6 +56,10 @@ export type GuestVisitLoad =
       ok: true;
       visitId: string;
       spaceId: string;
+      /** The code printed on the table ("T2"), else its name; the guest page greets by it. */
+      tableCode: string | null;
+      openedAtIso: string | null;
+      partySize: number | null;
       lines: Array<{ id: string; label: string; units: number; totalCents: number }>;
       totalCents: number;
       currency: string;
@@ -71,7 +75,7 @@ export async function loadOpenVisitByToken(
 
   const { data: visit, error } = await admin
     .from("visits")
-    .select("id, tenant_id, space_id, public_token, status")
+    .select("id, tenant_id, space_id, public_token, status, opened_at, party_size")
     .eq("tenant_id", input.tenantId)
     .eq("public_token", token)
     .maybeSingle();
@@ -86,9 +90,29 @@ export async function loadOpenVisitByToken(
     space_id: string;
     public_token: string;
     status: string;
+    opened_at: string | null;
+    party_size: number | string | null;
   };
   if (row.tenant_id !== input.tenantId) return { ok: false, reason: "not_found" };
   if (row.status !== "open") return { ok: false, reason: "ended" };
+  const partySize = row.party_size == null ? null : Number(row.party_size) || null;
+
+  // The table's printed code, so the page can say "Welcome to table T2". A
+  // failed read leaves it null and the page greets without a code; never a
+  // reason to hide the check.
+  let tableCode: string | null = null;
+  const { data: space, error: spaceError } = await admin
+    .from("spaces")
+    .select("code, name")
+    .eq("id", row.space_id)
+    .eq("tenant_id", input.tenantId)
+    .maybeSingle();
+  if (spaceError) logServerError("visits.qr.guest.space", spaceError);
+  else {
+    const sp = space as { code: string | null; name: string | null } | null;
+    tableCode = sp?.code ?? sp?.name ?? null;
+  }
+  const base = { visitId: row.id, spaceId: row.space_id, tableCode, openedAtIso: row.opened_at, partySize };
 
   const { data: order, error: orderError } = await admin
     .from("orders")
@@ -102,14 +126,7 @@ export async function loadOpenVisitByToken(
   }
   const orderRow = order as { id: string; currency: string; total_cents: number | string } | null;
   if (!orderRow) {
-    return {
-      ok: true,
-      visitId: row.id,
-      spaceId: row.space_id,
-      lines: [],
-      totalCents: 0,
-      currency: "USD",
-    };
+    return { ok: true, ...base, lines: [], totalCents: 0, currency: "USD" };
   }
   const { data: lineRows, error: linesError } = await admin
     .from("order_lines")
@@ -122,8 +139,7 @@ export async function loadOpenVisitByToken(
   }
   return {
     ok: true,
-    visitId: row.id,
-    spaceId: row.space_id,
+    ...base,
     currency: orderRow.currency,
     totalCents: Number(orderRow.total_cents) || 0,
     lines: ((lineRows ?? []) as Array<{ id: string; label: string; units: number | string; total_cents: number | string }>).map(

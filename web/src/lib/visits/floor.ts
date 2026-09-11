@@ -70,11 +70,23 @@ export type FloorTable = {
   name: string;
   code: string | null;
   kind: string;
+  /** The room or area this space sits in (`spaces.parent_id`), for grouping the map. */
+  parentId: string | null;
+  /** That parent's own name, or null when the space hangs off the venue directly. */
+  parentName: string | null;
+  /**
+   * `spaces.status = 'out_of_service'`: the table is on the floor but cannot
+   * be seated (T01 "Blocked"). Never folded into `state`: a blocked table can
+   * still carry the open visit that was on it when it was blocked.
+   */
+  blocked: boolean;
   minSpendCents: number;
   partyMin: number;
   partyMax: number;
   visitId: string | null;
   visitVersion: number | null;
+  /** `visits.opened_at`, ISO, when occupied; the timeline draws the block from it. */
+  openedAtIso: string | null;
   publicToken: string | null;
   orderId: string | null;
   orderTotalCents: number;
@@ -254,11 +266,11 @@ export async function listFloor(
   const { data: spaces, error } = await admin
     .from("spaces")
     .select(
-      "id, name, code, kind, min_spend_cents, party_min, party_max, turn_minutes, needs_reset_at, status, sort_order",
+      "id, name, code, kind, parent_id, min_spend_cents, party_min, party_max, turn_minutes, needs_reset_at, status, sort_order",
     )
     .eq("tenant_id", tenantId)
     .in("kind", ["table", "booth", "cabana"])
-    .eq("status", "active")
+    .in("status", ["active", "out_of_service"])
     .order("sort_order", { ascending: true });
   if (error) {
     logServerError("visits.floor.spaces", error);
@@ -325,12 +337,35 @@ export async function listFloor(
   const rules = await loadRulesBestEffort(tenantId);
   const held = await loadHeldByAdmissions(tenantId, occupiedSpaceIds, rules);
 
+  // The rooms and areas the tables hang off, so the map can group them the
+  // way the floor plan does ("Booths", "Main hall"). A read failure leaves
+  // every table ungrouped, which is a poorer map and not a wrong one.
+  const parentIds = [
+    ...new Set(
+      ((spaces ?? []) as Array<{ parent_id: string | null }>)
+        .map((s) => s.parent_id)
+        .filter((id): id is string => typeof id === "string"),
+    ),
+  ];
+  const parentNames = new Map<string, string>();
+  if (parentIds.length > 0) {
+    const { data: parents, error: parentError } = await admin
+      .from("spaces")
+      .select("id, name")
+      .eq("tenant_id", tenantId)
+      .in("id", parentIds);
+    if (parentError) logServerError("visits.floor.parents", parentError);
+    for (const p of (parents ?? []) as Array<{ id: string; name: string }>) parentNames.set(p.id, p.name);
+  }
+
   const now = Date.now();
   const tables: FloorTable[] = ((spaces ?? []) as Array<{
     id: string;
     name: string;
     code: string | null;
     kind: string;
+    parent_id: string | null;
+    status: string;
     min_spend_cents: number | string | null;
     party_min: number | string | null;
     party_max: number | string | null;
@@ -382,11 +417,15 @@ export async function listFloor(
       name: space.name,
       code: space.code,
       kind: space.kind,
+      parentId: space.parent_id,
+      parentName: space.parent_id ? (parentNames.get(space.parent_id) ?? null) : null,
+      blocked: space.status === "out_of_service",
       minSpendCents: minSpend,
       partyMin,
       partyMax,
       visitId: visit?.id ?? null,
       visitVersion: visit?.version ?? null,
+      openedAtIso: visit?.opened_at ?? null,
       publicToken: visit?.public_token ?? null,
       orderId: order?.id ?? null,
       orderTotalCents: orderTotal,

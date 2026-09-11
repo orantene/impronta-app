@@ -461,6 +461,12 @@ export default async function PosPage({
   // (`floor-screen.tsx`); this route only decides that `?mode=floor` means
   // that screen and hands it the identity the counter would have had.
   if (mode === "floor") {
+    // The header's cashier chip is the same fact the counter reads: the
+    // signed-in person and whether a drawer is open.
+    const [floorCashier, floorShift] = await Promise.all([
+      loadCashierName(admin),
+      currentShift(admin, { tenantId: scope.tenantId }),
+    ]);
     return (
       <>
         <PageRouteSyncer page="pos" />
@@ -470,6 +476,8 @@ export default async function PosPage({
           locale={locale}
           workspaceName={workspaceName}
           posPath={await currentAdminPath(tenantSlug)}
+          cashierName={floorCashier}
+          drawerOpen={Boolean(floorShift.ok && floorShift.shift)}
         />
       </>
     );

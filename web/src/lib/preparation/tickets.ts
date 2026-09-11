@@ -41,7 +41,20 @@ export type PrepTicketView = {
    * host with two open table checks on one evening.
    */
   tableCode: string | null;
+  /** The visit's party, when the ticket goes to a table ("6 guests" on the card). */
+  partySize: number | null;
+  /** When this revision was sent: the station's timer counts from here. */
+  submittedAt: string | null;
+  acknowledgedAt: string | null;
+  readyAt: string | null;
   snapshotLines: Array<{ id: string; label: string; units: number }>;
+  /**
+   * The lines this revision ADDED against the one before it (every line on
+   * a first send; on an amendment, the lines that were not on the previous
+   * snapshot or whose units grew). The station's "New" pill is drawn from
+   * this, so a cook sees what changed instead of re-reading the card.
+   */
+  addedLineIds: string[];
 };
 
 /**
@@ -54,12 +67,13 @@ export type PrepTicketView = {
 async function tableCodesForVisits(
   admin: Admin,
   visitIds: readonly string[],
+  partySizes?: Map<string, number>,
 ): Promise<Map<string, string>> {
   const codes = new Map<string, string>();
   if (visitIds.length === 0) return codes;
   const { data: visits, error: visitError } = await admin
     .from("visits")
-    .select("id, space_id, joined_space_id")
+    .select("id, space_id, joined_space_id, party_size")
     .in("id", visitIds);
   if (visitError) {
     logServerError("prep.board.visits", visitError);
@@ -69,7 +83,14 @@ async function tableCodesForVisits(
     id: string;
     space_id: string | null;
     joined_space_id: string | null;
+    party_size: number | string | null;
   }>;
+  if (partySizes) {
+    for (const v of visitRows) {
+      const n = Number(v.party_size);
+      if (Number.isFinite(n) && n > 0) partySizes.set(v.id, n);
+    }
+  }
   const spaceIds = Array.from(
     new Set(
       visitRows
@@ -107,6 +128,13 @@ function snapLines(rows: LineSnap[]): Array<{ id: string; label: string; units: 
 }
 
 type SnapshotLines = PrepTicketView["snapshotLines"];
+
+/** PURE. Which of `current` are new against `previous` (absent, or more units). */
+export function addedLines(current: SnapshotLines, previous: SnapshotLines | null): string[] {
+  if (!previous) return current.map((l) => l.id);
+  const before = new Map(previous.map((l) => [l.id, l.units]));
+  return current.filter((l) => !before.has(l.id) || (before.get(l.id) ?? 0) < l.units).map((l) => l.id);
+}
 
 async function loadSnapshotLines(
   admin: Admin,
@@ -376,7 +404,7 @@ export async function loadActiveTicketForOrder(
 ): Promise<{ ok: true; ticket: PrepTicketView | null } | { ok: false; reason: "unavailable" }> {
   const { data, error } = await admin
     .from("preparation_tickets")
-    .select("id, order_id, visit_id, station, destination, status, revision, promised_at, handed_off_at")
+    .select("id, order_id, visit_id, station, destination, status, revision, promised_at, handed_off_at, submitted_at, acknowledged_at, ready_at")
     .eq("order_id", input.orderId)
     .eq("tenant_id", input.tenantId)
     .neq("status", "cancelled")
@@ -396,10 +424,15 @@ export async function loadActiveTicketForOrder(
     revision: number;
     promised_at: string | null;
     handed_off_at: string | null;
+    submitted_at: string | null;
+    acknowledged_at: string | null;
+    ready_at: string | null;
   };
   const snap = await loadSnapshotLines(admin, row.id, row.revision);
   if (!snap.ok) return { ok: false, reason: "unavailable" };
-  const codes = await tableCodesForVisits(admin, row.visit_id ? [row.visit_id] : []);
+  const previous = row.revision > 1 ? await loadSnapshotLines(admin, row.id, row.revision - 1) : null;
+  const parties = new Map<string, number>();
+  const codes = await tableCodesForVisits(admin, row.visit_id ? [row.visit_id] : [], parties);
   return {
     ok: true,
     ticket: {
@@ -413,7 +446,12 @@ export async function loadActiveTicketForOrder(
       promisedAt: row.promised_at,
       handedOffAt: row.handed_off_at,
       tableCode: row.visit_id ? (codes.get(row.visit_id) ?? null) : null,
+      partySize: row.visit_id ? (parties.get(row.visit_id) ?? null) : null,
+      submittedAt: row.submitted_at,
+      acknowledgedAt: row.acknowledged_at,
+      readyAt: row.ready_at,
       snapshotLines: snap.lines,
+      addedLineIds: addedLines(snap.lines, previous?.ok ? previous.lines : null),
     },
   };
 }
@@ -424,7 +462,7 @@ export async function listBoard(
 ): Promise<{ ok: true; tickets: PrepTicketView[] } | { ok: false; reason: "unavailable" }> {
   const { data, error } = await admin
     .from("preparation_tickets")
-    .select("id, order_id, visit_id, station, destination, status, revision, promised_at, handed_off_at")
+    .select("id, order_id, visit_id, station, destination, status, revision, promised_at, handed_off_at, submitted_at, acknowledged_at, ready_at")
     .eq("tenant_id", tenantId)
     .neq("status", "cancelled")
     .order("submitted_at", { ascending: true });
@@ -434,9 +472,11 @@ export async function listBoard(
   }
   const tickets: PrepTicketView[] = [];
   const rows = (data ?? []) as Array<{ visit_id: string | null }>;
+  const parties = new Map<string, number>();
   const codes = await tableCodesForVisits(
     admin,
     rows.map((r) => r.visit_id).filter((id): id is string => typeof id === "string"),
+    parties,
   );
   for (const row of (data ?? []) as Array<{
     id: string;
@@ -448,9 +488,16 @@ export async function listBoard(
     revision: number;
     promised_at: string | null;
     handed_off_at: string | null;
+    submitted_at: string | null;
+    acknowledged_at: string | null;
+    ready_at: string | null;
   }>) {
     const snap = await loadSnapshotLines(admin, row.id, row.revision);
     if (!snap.ok) return { ok: false, reason: "unavailable" };
+    // An amendment's previous snapshot, so the card can mark what changed.
+    // A revision that cannot be read marks every line new, which is the
+    // honest fallback: the cook re-reads the card, never misses a line.
+    const previous = row.revision > 1 ? await loadSnapshotLines(admin, row.id, row.revision - 1) : null;
     tickets.push({
       id: row.id,
       orderId: row.order_id,
@@ -462,7 +509,12 @@ export async function listBoard(
       promisedAt: row.promised_at,
       handedOffAt: row.handed_off_at,
       tableCode: row.visit_id ? (codes.get(row.visit_id) ?? null) : null,
+      partySize: row.visit_id ? (parties.get(row.visit_id) ?? null) : null,
+      submittedAt: row.submitted_at,
+      acknowledgedAt: row.acknowledged_at,
+      readyAt: row.ready_at,
       snapshotLines: snap.lines,
+      addedLineIds: addedLines(snap.lines, previous?.ok ? previous.lines : null),
     });
   }
   return { ok: true, tickets };
