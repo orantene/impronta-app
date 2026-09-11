@@ -180,26 +180,35 @@ async function enterCounterFromTopBar(page: Page): Promise<void> {
  * A shift is workspace-wide and outlives a test, so the previous run's drawer
  * is usually still open when this one starts. Using it would make "open a
  * shift" a step nobody performed. So: if a shift is open, close it the way a
- * cashier does (count the drawer, Close the shift), then open a fresh one
- * with its own float. Both halves go through the shift screen; nothing is
- * written around the interface. The engine's `already_open` refusal is what
- * would fire if this tried to open a second one instead.
+ * cashier does (`Close drawer & count`, count the drawer, confirm the count,
+ * `Close drawer`), then open a fresh one with its own float. Both halves go
+ * through the Cash screen (`POSCashMovements`, `POSCashClose`, `POSCashOpen`);
+ * nothing is written around the interface. The engine's `already_open`
+ * refusal is what would fire if this tried to open a second one instead.
  */
 async function openFreshShift(page: Page): Promise<void> {
-  await counterRail(page).getByRole("button", { name: /^(shifts|turnos|quarts)$/i }).click();
+  await counterRail(page).getByRole("button", { name: /^(cash|caja|caisse)$/i }).click();
   const openingField = page.locator("#pos-shift-opening");
-  const countedField = page.locator("#pos-shift-counted");
-  await expect(openingField.or(countedField).first()).toBeVisible({ timeout: 20_000 });
-  if (await countedField.count()) {
+  const closeAndCount = page.locator("[data-pos-close-and-count]");
+  await expect(openingField.or(closeAndCount).first()).toBeVisible({ timeout: 20_000 });
+  if (await closeAndCount.count()) {
+    await closeAndCount.click();
+    const countedField = page.locator("#pos-shift-counted");
+    await expect(countedField).toBeVisible({ timeout: 20_000 });
     await countedField.fill("100.00");
-    await page.getByRole("button", { name: /close the shift/i }).click();
-    await expect(openingField, "closing the shift must hand back the opening form").toBeVisible({
+    await page.locator("[data-pos-confirm-count]").check();
+    await page.locator("[data-pos-close-shift]").click();
+    // The close hands back the engine's own result first (expected, counted,
+    // the difference), then the door to a new drawer.
+    await expect(page.locator("[data-pos-cash-closed]"), "closing the drawer must show the count result").toBeVisible({
       timeout: 30_000,
     });
+    await page.getByRole("button", { name: /open a new drawer/i }).click();
+    await expect(openingField, "the result must hand back the opening form").toBeVisible({ timeout: 30_000 });
   }
   await openingField.fill("100.00");
-  await page.getByRole("button", { name: /open the shift/i }).click();
-  await expect(countedField, "the shift must actually open").toBeVisible({ timeout: 30_000 });
+  await page.locator("[data-pos-open-shift]").click();
+  await expect(closeAndCount, "the drawer must actually open").toBeVisible({ timeout: 30_000 });
 }
 
 /** Back to the sell surface. */
@@ -207,32 +216,85 @@ async function openSellSurface(page: Page): Promise<void> {
   await counterRail(page).getByRole("button", { name: /^(sell|vender|vendre)$/i }).click();
 }
 
-/** Add one unit of a catalog item by its own name. */
+/**
+ * Add one unit of a catalog item by its own name.
+ *
+ * The tile is server-rendered before React has attached its handler, and a
+ * tap on a tile the dev server is still shipping the chunk for is a tap on
+ * nothing (a fresh second tab under load takes seconds). So the tap waits
+ * for the tile to be live first; the assertion that follows is unchanged.
+ */
 async function addItem(page: Page, title: string): Promise<void> {
   const tile = page.getByRole("button", { name: title }).first();
   await expect(tile, `${title} must be on the sell surface`).toBeVisible({ timeout: 20_000 });
+  await page.waitForFunction(
+    () => {
+      const first = document.querySelector("[data-pos-tile]");
+      return Boolean(first && Object.keys(first).some((key) => key.startsWith("__react")));
+    },
+    undefined,
+    { timeout: 60_000 },
+  );
   await tile.click();
 }
 
-/** The Charge button, whose label carries the running total. */
+/** The Charge button, whose label carries the running total (`Charge $24.50`). */
 function chargeButton(page: Page) {
-  return page.getByRole("button", { name: /^Charge · /i }).first();
+  return page.locator("[data-pos-charge]").first();
 }
 
-/** Open the collect sheet and take cash, tendering exactly what is due. */
+/**
+ * Open the collect screen and take cash, tendering exactly what is due.
+ *
+ * The collect screen opens with the amount due pre-filled, so the one action
+ * reads `Cash received` (exact). When the cash confirms, the drawer dialog
+ * (`POSCashDone`) comes first and `Done · receipt` moves to the paid screen.
+ */
 async function collectCash(page: Page): Promise<void> {
-  await chargeButton(page).click();
-  await expect(page.getByRole("tab", { name: /^cash$/i })).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: /confirm cash/i }).click();
+  await openCollect(page);
+  await page.locator("[data-pos-confirm-cash]").click();
 }
 
-/** A fresh, empty sale. Resolves once the URL carries its order id. */
-async function startSale(page: Page): Promise<string> {
-  await page.getByRole("button", { name: /start a new sale/i }).click();
+/**
+ * Charge, until the collect screen is up. A till that another tab just
+ * wrote to can be mid-refresh when the tap lands (the dev server's own
+ * reload on a recompiled chunk does the same), and a tap on a button React
+ * has not re-attached yet is a tap on nothing. The assertion is unchanged:
+ * the cash tab must appear; only the tap is repeated while it does not.
+ */
+async function openCollect(page: Page): Promise<void> {
+  const cashTab = page.getByRole("tab", { name: /^cash$/i });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await chargeButton(page).click();
+    if (await cashTab.isVisible({ timeout: 10_000 }).catch(() => false)) return;
+  }
+  await expect(cashTab).toBeVisible({ timeout: 20_000 });
+}
+
+/** From the drawer dialog to the paid screen. Resolves once `Paid` is up. */
+async function finishCash(page: Page): Promise<void> {
+  await expect(page.locator("[data-pos-dialog='cash-done']")).toBeVisible({ timeout: 40_000 });
+  await page.locator("[data-pos-cash-done]").click();
+  await expect(page.getByRole("heading", { name: /^paid$/i })).toBeVisible({ timeout: 40_000 });
+}
+
+/**
+ * A fresh sale, as the board starts one (`POSEmptySale`): there is no
+ * "start" button; the basket's empty state says to tap a product, and the
+ * first tap opens the sale AND adds the item. So this only asserts the empty
+ * state and returns once the first `addItem` has carried the order id into
+ * the address.
+ */
+async function expectEmptySale(page: Page): Promise<void> {
+  await expect(page.locator("[data-pos-empty]")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-pos-empty]")).toHaveText(/nothing in this sale yet/i);
+}
+
+/** The order id the address carries once a sale is open. */
+async function openOrderId(page: Page): Promise<string> {
   await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
-  await expect(page.getByText(/add an item to start this sale/i)).toBeVisible();
   const orderId = new URL(page.url()).searchParams.get("order");
-  expect(orderId, "a new sale must carry its order id in the address").toBeTruthy();
+  expect(orderId, "an open sale must carry its order id in the address").toBeTruthy();
   return orderId!;
 }
 
@@ -260,25 +322,29 @@ test("POS-OP counter: shift open, two items, cash collected, receipt resolved, m
   await openSellSurface(page);
 
   // C02 — a fresh, empty sale.
-  const orderId = await startSale(page);
+  await expectEmptySale(page);
 
-  // C03 — two DIFFERENT items, so the total is a sum and not one price.
+  // C03 — two DIFFERENT items, so the total is a sum and not one price. The
+  // first tap opens the sale and puts the pizza on it.
   await addItem(page, PIZZA.title);
-  await expect(page.getByText(/add an item to start this sale/i)).toHaveCount(0, {
-    timeout: 20_000,
-  });
+  const orderId = await openOrderId(page);
+  await expect(page.locator("[data-pos-empty]")).toHaveCount(0, { timeout: 20_000 });
 
-  // A second unit of the first line through the basket's own control, which is
-  // the affordance a cashier actually uses when someone asks for one more.
+  // A second unit of the first line through the line editor (`POSLineEdit`):
+  // tap the line, `+`, `Save changes` — the affordance a cashier actually
+  // uses when someone asks for one more.
   //
   // Asserted with a RETRYING expectation on the Charge button's own label
-  // rather than a one-shot `innerText()`. The increment is a server command
+  // rather than a one-shot `innerText()`. The save is a server command
   // followed by a refresh, so reading the text once races the round trip and
   // reports the old total as a product defect.
   await expect(chargeButton(page)).toHaveText(new RegExp(money(PIZZA.cents).replace("$", "\\$")), {
     timeout: 20_000,
   });
-  await page.getByRole("button", { name: /increase quantity/i }).first().click();
+  await page.locator("[data-pos-line]").first().click();
+  await expect(page.locator("[data-pos-sheet='line-edit']")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: /increase quantity/i }).click();
+  await page.locator("[data-pos-line-save]").click();
   await expect(chargeButton(page), "two units of an $18 pizza is $36").toHaveText(
     /\$36\.00/,
     { timeout: 20_000 },
@@ -292,14 +358,15 @@ test("POS-OP counter: shift open, two items, cash collected, receipt resolved, m
     timeout: 20_000,
   });
 
-  // C03 → the collect sheet (money.md M01). Cash is the first tab.
+  // C03 → the collect screen (money.md M01, `POSCashTender`). Cash is the
+  // first method tile and the one selected.
   await chargeButton(page).click();
   await expect(page.getByRole("tab", { name: /^cash$/i })).toBeVisible();
-  await expect(page.getByText(/amount due/i)).toBeVisible();
+  await expect(page.locator("[data-pos-amount-due]")).toHaveText(money(SALE_TOTAL_CENTS));
 
   // Card and Pass must say plainly that they are not available rather than
   // looking like they work. This is the honesty half of the acceptance.
-  await page.getByRole("tab", { name: /^pass credit$/i }).click();
+  await page.getByRole("tab", { name: /^pass or credit$/i }).click();
   await expect(page.locator("[data-pos-method-status]")).toContainText(
     /not enabled|no.*ledger|pass credits/i,
   );
@@ -313,16 +380,21 @@ test("POS-OP counter: shift open, two items, cash collected, receipt resolved, m
   for (const digit of ["5", "0", "0", "0"]) {
     await page.getByRole("button", { name: digit, exact: true }).first().click();
   }
-  await expect(page.getByText(money(TENDERED_CENTS)).first()).toBeVisible();
+  await expect(page.locator("[data-pos-tendered]")).toHaveText(money(TENDERED_CENTS));
+  // The one action names the change to hand back before the money is taken.
+  await expect(page.locator("[data-pos-confirm-cash]")).toContainText(money(CHANGE_CENTS));
 
-  await page.getByRole("button", { name: /confirm cash/i }).click();
+  await page.locator("[data-pos-confirm-cash]").click();
 
-  // M13 — the paid screen, with the change a cashier has to hand back.
+  // M03 — the drawer dialog (`POSCashDone`) with the change, then M13 — the
+  // paid screen, with the same change a cashier has to hand back.
+  await expect(page.locator("[data-pos-dialog='cash-done']")).toBeVisible({ timeout: 40_000 });
+  await expect(page.locator("[data-pos-change-due]"), "change from $50.00 on $42.50").toHaveText(
+    money(CHANGE_CENTS),
+  );
+  await page.locator("[data-pos-cash-done]").click();
   await expect(page.getByRole("heading", { name: /^paid$/i })).toBeVisible({ timeout: 40_000 });
-  await expect(
-    page.getByText(money(CHANGE_CENTS)).first(),
-    "change from $50.00 on $42.50",
-  ).toBeVisible();
+  await expect(page.getByText(money(CHANGE_CENTS)).first()).toBeVisible();
 
   // The receipt, from its public code. Present, absolute, and it resolves.
   const receiptLink = page.locator("[data-pos-receipt-link]");
@@ -480,8 +552,9 @@ test("POS-OP counter refusal: a sale someone else already collected against", as
   await signInJourneysStaff(page, ADMIN_BASE);
   await enterCounterFromTopBar(page);
   await openSellSurface(page);
-  const orderId = await startSale(page);
+  await expectEmptySale(page);
   await addItem(page, PIZZA.title);
+  const orderId = await openOrderId(page);
   await expect(chargeButton(page)).toHaveText(/\$18\.00/, { timeout: 20_000 });
 
   // A second till holding the SAME sale, opened before either one charges.
@@ -492,7 +565,7 @@ test("POS-OP counter refusal: a sale someone else already collected against", as
 
   // The second till gets there first and takes the money.
   await collectCash(second);
-  await expect(second.getByRole("heading", { name: /^paid$/i })).toBeVisible({ timeout: 40_000 });
+  await finishCash(second);
 
   // The first till, which knows nothing about that, tries to charge it too.
   await collectCash(page);
@@ -529,8 +602,9 @@ test("POS-OP counter refusal: a sale changed underneath the operator", async ({
   await signInJourneysStaff(page, ADMIN_BASE);
   await enterCounterFromTopBar(page);
   await openSellSurface(page);
-  const orderId = await startSale(page);
+  await expectEmptySale(page);
   await addItem(page, PIZZA.title);
+  const orderId = await openOrderId(page);
   await expect(chargeButton(page)).toHaveText(/\$18\.00/, { timeout: 20_000 });
 
   // A second till adds a line to the same sale. The order's version moves.
@@ -580,8 +654,9 @@ test("POS-OP counter refusal: an item that needs the customer's name, sold witho
   await signInJourneysStaff(page, ADMIN_BASE);
   await enterCounterFromTopBar(page);
   await openSellSurface(page);
-  const orderId = await startSale(page);
+  await expectEmptySale(page);
   await addItem(page, TICKET.title);
+  const orderId = await openOrderId(page);
   await expect(chargeButton(page)).toHaveText(/\$12\.00/, { timeout: 20_000 });
 
   // Cash, no name typed anywhere: the ordinary anonymous walk-in, which this
@@ -604,11 +679,17 @@ test("POS-OP counter refusal: an item that needs the customer's name, sold witho
 
   // NOT A DEAD END. The sentence says what is missing, and doing that thing
   // sells the ticket — which is the difference between a refusal and a wall.
+  // Naming the buyer is the customer sheet (`POSCustomer` → `New customer`,
+  // `POSCustomerCreate`): name and email, `Save & add to sale`.
   const buyer = `qa-counter-${Date.now()}@impronta.test`;
-  await page.getByRole("button", { name: /back to the sale/i }).click();
+  await page.locator("[data-pos-collect-back]").click();
+  await page.locator("[data-pos-open-customer]").click();
+  await page.locator("[data-pos-customer-new]").click();
+  await page.locator("#pos-buyer-name").fill("QA Counter Buyer");
   await page.locator("#pos-buyer-email").fill(buyer);
+  await page.locator("[data-pos-customer-save]").click();
   await collectCash(page);
-  await expect(page.getByRole("heading", { name: /^paid$/i })).toBeVisible({ timeout: 40_000 });
+  await finishCash(page);
   await page.screenshot({ path: testInfo.outputPath("needs-name-recovered.png"), fullPage: true });
 
   const { data: orderRow } = await sb

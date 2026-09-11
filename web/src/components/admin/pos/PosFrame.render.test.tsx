@@ -26,7 +26,10 @@ test("the rail's rows come from POS_MODE_META, not a list of its own", () => {
   // Exactly POS_MODE_META.counter.destinations, in that order, and nothing
   // this component invented on its own — this is the direct test that the
   // rail is a PROJECTION of the mode metadata, not a second list.
-  const buttonLabels = [...markup.matchAll(/<button[^>]*>([^<]*)<\/button>/g)].map((m) => m[1]);
+  // Each row is icon + label; the label is the row's last <span> before the
+  // optional count badge, and the rail's own extras (Lock, Workspace) are
+  // absent here because this render passes none.
+  const buttonLabels = [...markup.matchAll(/<button[^>]*>(?:<svg[\s\S]*?<\/svg>)?<span>([^<]*)<\/span>/g)].map((m) => m[1]);
   assert.deepEqual(
     buttonLabels,
     POS_MODE_META.counter.destinations.map((id) => copy[id]),

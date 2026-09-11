@@ -200,44 +200,68 @@ export async function openCounter(page: Page, orderId?: string): Promise<void> {
   await assertWorkspaceIdentity(page);
 }
 
-/** C02 — a fresh, empty sale. Resolves once the URL carries its order id. */
+/**
+ * C02 — a fresh, empty sale (`POSEmptySale`). There is no "start" button on
+ * the board: the basket's empty state says to tap a product, and the first
+ * tap opens the sale AND adds the item (`counterAddItem` waits for the order
+ * id to reach the address). So this asserts the empty state only.
+ */
 export async function counterStartSale(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /start a new sale/i }).click();
-  await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
+  await expect(page.locator("[data-pos-empty]")).toBeVisible({ timeout: 30_000 });
 }
 
-/** Add one unit of a catalog item by its own name. */
+/** Add one unit of a catalog item by its own name. Opens the sale if none is. */
 export async function counterAddItem(page: Page, title: string): Promise<void> {
   const tile = page.getByRole("button", { name: title }).first();
   await expect(tile).toBeVisible({ timeout: 20_000 });
+  // A tap before React has attached the tile's handler is a tap on nothing.
+  await page.waitForFunction(
+    () => {
+      const first = document.querySelector("[data-pos-tile]");
+      return Boolean(first && Object.keys(first).some((key) => key.startsWith("__react")));
+    },
+    undefined,
+    { timeout: 60_000 },
+  );
+  const before = await page.locator("[data-pos-line]").count();
   await tile.click();
-  await expect(page.getByText(/add an item to start this sale/i)).toHaveCount(0, {
-    timeout: 20_000,
-  });
+  await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
+  await expect(page.locator("[data-pos-line]")).toHaveCount(before + 1, { timeout: 30_000 });
 }
 
 /**
- * Name the buyer.
+ * Name the buyer, through the customer sheet (`POSCustomer` → `New
+ * customer`, `POSCustomerCreate`): name and email, `Save & add to sale`.
  *
- * `startCollection` hands this to `ensureCustomer`, which is what writes
+ * `startCollection` hands the email to `ensureCustomer`, which is what writes
  * `orders.customer_id` — so this is how a case's marker email reaches the row
- * its DB assertion looks the order up by.
+ * its DB assertion looks the order up by. The name is the email's own local
+ * part: the form requires one, and inventing a person for a marker address
+ * would be a second thing to clean up.
  */
 export async function counterNameBuyer(page: Page, email: string): Promise<void> {
-  await page.getByLabel(/^e-?mail$/i).first().fill(email);
+  await page.locator("[data-pos-open-customer]").click();
+  await page.locator("[data-pos-customer-new]").click();
+  await page.locator("#pos-buyer-name").fill(email.split("@")[0] ?? email);
+  await page.locator("#pos-buyer-email").fill(email);
+  await page.locator("[data-pos-customer-save]").click();
+  await expect(page.locator("[data-pos-sheet='customer-create']")).toHaveCount(0, { timeout: 20_000 });
 }
 
 /**
- * Charge, then confirm cash. Two taps because the counter has two screens:
- * Charge opens the collect sheet (money.md M01), Confirm cash takes it.
- *
- * Tendering exactly the amount due is the default, so no keypad entry is
- * needed for the ordinary case.
+ * Charge, then confirm cash, then through the drawer dialog. Three taps
+ * because the counter has three screens: Charge opens the collect screen
+ * (money.md M01, `POSCashTender`), `Cash received` takes the money and opens
+ * the drawer dialog (M03, `POSCashDone`), `Done · receipt` reaches the paid
+ * screen. Tendering exactly the amount due is the default, so no keypad entry
+ * is needed for the ordinary case.
  */
 export async function counterCollectCash(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /^Charge · /i }).first().click();
+  await page.locator("[data-pos-charge]").first().click();
   await expect(page.getByRole("tab", { name: /^cash$/i })).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: /confirm cash/i }).click();
+  await page.locator("[data-pos-confirm-cash]").click();
+  await expect(page.locator("[data-pos-dialog='cash-done']")).toBeVisible({ timeout: 40_000 });
+  await page.locator("[data-pos-cash-done]").click();
 }
 
 /** The paid screen (M13). The one honest proof a collection landed. */

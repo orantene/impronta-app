@@ -11,6 +11,11 @@ import {
   skipUnlessFixture,
   signInJourneysStaff,
   assertWorkspaceIdentity,
+  counterStartSale,
+  counterAddItem,
+  counterNameBuyer,
+  counterCollectCash,
+  expectCounterPaid,
 } from "./_harness";
 import {
   latestMenuPizza,
@@ -273,22 +278,18 @@ test("C06-OP walk-in cash: New sale → House pizza → collect → Sales and DB
   await assertWorkspaceIdentity(page);
   await expect(page.getByRole("button", { name: "House pizza" }).first()).toBeVisible();
 
-  await page.getByRole("button", { name: /start a new sale/i }).click();
-  await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
-
-  await page.getByRole("button", { name: "House pizza" }).first().click();
-  await expect(page.getByText(/add an item to start this sale/i)).toHaveCount(0, {
-    timeout: 20_000,
-  });
-  await expect(page.getByText(/outstanding|reste à payer|pendiente/i).first()).toBeVisible();
+  // The board's counter (`POSEmptySale`): no start button; the first tap on a
+  // tile opens the sale and puts the pizza on it.
+  await counterStartSale(page);
+  await counterAddItem(page, "House pizza");
+  await expect(page.locator("[data-pos-total]")).toHaveText(/\$18\.00/, { timeout: 20_000 });
 
   // The buyer's email is what `startCollection` hands `ensureCustomer`, which
   // is how this order gets a `customer_id` and how `latestPaidPosPizza` finds
-  // it below.
-  await page.getByLabel(/^email$/i).fill(marker);
-  await page.getByRole("button", { name: /^Charge · /i }).first().click();
-  await page.getByRole("button", { name: /confirm cash/i }).click();
-  await expect(page.getByRole("heading", { name: /^paid$/i })).toBeVisible({ timeout: 30_000 });
+  // it below. Named through the customer sheet.
+  await counterNameBuyer(page, marker);
+  await counterCollectCash(page);
+  await expectCounterPaid(page);
 
   await page.goto("/admin/sales");
   await assertWorkspaceIdentity(page);

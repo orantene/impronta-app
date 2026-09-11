@@ -8,20 +8,34 @@ import { notFound, redirect } from "next/navigation";
 // themselves, inside their own chunks (`mode-clients.tsx`).
 import {
   basketCopy,
+  cashDoneCopy,
+  cashDrawerCopy,
+  chromeCopy,
   collectMethodUnavailableCopy,
   collectSheetCopy,
+  connectionCopy,
   counterPageCopy,
-  customerPanelCopy,
+  customAmountCopy,
+  customerSheetCopy,
+  deviceRowsCopy,
+  devicesCopy,
+  discountSheetCopy,
   heldSalesListCopy,
+  holdExpiredCopy,
+  holdSaleCopy,
+  issuesCopy,
+  lineEditCopy,
+  linkBookingCopy,
   paidScreenCopy,
   posModeLabel,
   railCopy,
   railNavLabel,
+  receiptsCopy,
   refusalCopy,
+  scanScreenCopy,
   sellSurfaceCopy,
-  shiftBarCopy,
 } from "@/components/admin/pos/pos-copy";
-import type { PosBasketLine, PosCollectionMethodState } from "@/components/admin/pos";
+import type { PosBasketLine, PosCollectionMethodState, PosReceiptRow } from "@/components/admin/pos";
 import { customerDisplayLinkCopy, scanCopy } from "@/components/admin/pos/customer-display-copy";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -31,6 +45,7 @@ import { minorUnitDivisor } from "@/lib/orders/money-format";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import { addonCentsOnLine } from "@/lib/pos/addons";
 import { listOpenPosSales, loadPosSale } from "@/lib/pos/draft";
+import { listPaidPosSales } from "@/lib/pos/sale-read";
 import {
   POS_MODE_META,
   enabledPosModesFromSettings,
@@ -46,6 +61,7 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { classesCopy, classesRailCopy, classesRailNavLabel } from "@/components/admin/pos/classes-copy";
 import { clampDayOffset, loadClassesDay } from "@/lib/pos/classes/day";
 import { loadWalkInServices } from "@/lib/pos/classes/walkin";
@@ -96,6 +112,29 @@ async function currentAdminPath(tenantSlug: string): Promise<string> {
   const fallback = `/${tenantSlug}/admin/pos`;
   const raw = hdrs.get("x-impronta-original-pathname") ?? fallback;
   return raw.split("?")[0] || fallback;
+}
+
+/**
+ * The signed-in person, as the cashier chip names them: the profile's own
+ * display name, else the account's email up to the `@`, else nothing. Read
+ * with the service role by the user's own id (the session says who they
+ * are; the profile row is not RLS-readable through the anon client here).
+ */
+async function loadCashierName(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return "";
+  const auth = await supabase.auth.getUser();
+  if (auth.error) logServerError("pos.page.cashier.auth", auth.error);
+  const user = auth.data.user;
+  if (!user) return "";
+  const profile = await admin
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .maybeSingle<{ display_name: string | null }>();
+  if (profile.error) logServerError("pos.page.cashier", profile.error);
+  const name = profile.data?.display_name?.trim();
+  return name || user.email?.split("@")[0] || "";
 }
 
 /**
@@ -446,8 +485,12 @@ export default async function PosPage({
 
   // ── The counter's data ───────────────────────────────────────────────
   const orderId = typeof q.order === "string" ? q.order : null;
-  const now = new Date().toISOString();
-  const [open, saleLoad, catalog, shiftLoad, upcoming] = await Promise.all([
+  const requestedAt = new Date();
+  const now = requestedAt.toISOString();
+  // Receipts (`POSReceipts`) show today, yesterday and this week: seven days
+  // back is the widest window the screen offers.
+  const weekAgo = new Date(requestedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const [open, saleLoad, catalog, shiftLoad, upcoming, paidLoad, cashierName] = await Promise.all([
     listOpenPosSales(admin, scope.tenantId),
     orderId && /^[0-9a-f-]{36}$/i.test(orderId)
       ? loadPosSale(admin, { tenantId: scope.tenantId, orderId })
@@ -468,6 +511,8 @@ export default async function PosPage({
       .gte("starts_at", now)
       .order("starts_at", { ascending: true })
       .limit(80),
+    listPaidPosSales(admin, { tenantId: scope.tenantId, sinceIso: weekAgo }),
+    loadCashierName(admin),
   ]);
   if (catalog.error) logServerError("pos.page.catalog", catalog.error);
   if (upcoming.error) logServerError("pos.page.sessions", upcoming.error);
@@ -539,6 +584,11 @@ export default async function PosPage({
       units: line.units,
       totalCents: line.totalCents,
     }),
+    offeringId: line.offeringId,
+    sessionId: line.sessionId,
+    sessionLabel: line.sessionId
+      ? (sessionsByOffering.get(line.offeringId ?? "") ?? []).find((s) => s.id === line.sessionId)?.title ?? null
+      : null,
   }));
 
   const currency = sale?.currency ?? "USD";
@@ -546,6 +596,31 @@ export default async function PosPage({
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
   const proto = hdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
   const adminPath = await currentAdminPath(tenantSlug);
+  const receiptOrigin = host ? `${proto}://${host}` : "";
+
+  // The receipts rows, bucketed on the reader's own clock into today /
+  // yesterday / this week. Each row links to the same `/r/<code>` page the
+  // customer holds.
+  const startOfToday = new Date(requestedAt);
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+  const clock = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
+  const receipts: PosReceiptRow[] = (paidLoad.ok ? paidLoad.rows : []).map((row) => {
+    const when = row.paidAt ? new Date(row.paidAt) : null;
+    const dayKey =
+      when && when.getTime() >= startOfToday.getTime() ? "today" : when && when.getTime() >= startOfYesterday.getTime() ? "yesterday" : "week";
+    return {
+      orderId: row.id,
+      code: row.receiptCode,
+      time: when && !Number.isNaN(when.getTime()) ? clock.format(when) : "",
+      dayKey,
+      customer: row.customerName,
+      summary: row.lineLabels.join(", "),
+      totalCents: row.totalCents,
+      currency: row.currency,
+      href: row.receiptCode && receiptOrigin ? `${receiptOrigin}/r/${row.receiptCode}` : null,
+    };
+  });
 
   return (
     <>
@@ -575,9 +650,11 @@ export default async function PosPage({
         mode={mode}
         tenantId={scope.tenantId}
         workspaceName={workspaceName}
+        cashierName={cashierName}
+        locale={locale}
         posPath={adminPath}
         workspacePath={adminPath.replace(/\/pos$/, "")}
-        receiptOrigin={host ? `${proto}://${host}` : ""}
+        receiptOrigin={receiptOrigin}
         receiptCode={receiptCode}
         sale={
           sale
@@ -591,15 +668,18 @@ export default async function PosPage({
                 outstandingCents: sale.outstandingCents,
                 paymentState: sale.paymentState,
                 prepState: sale.prepState,
+                spaceId: sale.spaceId,
               }
             : null
         }
         basketLines={basketLines}
         openSales={open.ok ? open.rows : []}
+        receipts={receipts}
         catalog={items}
         currency={currency}
         minorUnitDivisor={minorUnitDivisor(currency)}
         methods={collectionMethods(tr)}
+        readerConfigured={reportTerminalAvailability().available}
         shift={
           shiftLoad.ok && shiftLoad.shift
             ? {
@@ -612,38 +692,38 @@ export default async function PosPage({
         }
         copy={{
           frame: frameCopy,
+          chrome: chromeCopy(tr),
+          modeLabel: posModeLabel(tr, mode),
           sell: sellSurfaceCopy(tr),
           basket: basketCopy(tr),
-          customer: customerPanelCopy(tr),
+          line: lineEditCopy(tr),
+          customer: customerSheetCopy(tr),
+          discount: discountSheetCopy(tr),
+          custom: customAmountCopy(tr),
+          hold: holdSaleCopy(tr),
+          expired: holdExpiredCopy(tr),
+          booking: linkBookingCopy(tr),
           collect: collectSheetCopy(tr),
+          cashDone: cashDoneCopy(tr),
           paid: paidScreenCopy(tr),
           held: heldSalesListCopy(tr),
-          shiftBar: shiftBarCopy(tr),
+          drawer: cashDrawerCopy(tr),
+          receipts: receiptsCopy(tr),
+          issues: issuesCopy(tr),
+          devices: devicesCopy(tr),
+          deviceRows: deviceRowsCopy(tr),
+          connection: connectionCopy(tr),
+          scanScreen: scanScreenCopy(tr),
           refusal: refusalCopy(tr),
           page: counterPageCopy(tr),
           scan: scanCopy(tr),
           displayLink: customerDisplayLinkCopy(tr),
           heldSaleLabel: tr("dashboard.pos.counter.held.saleLabel"),
+          customAmountTitle: tr("dashboard.pos.counter.custom.title"),
           categories: {
             service: tr("dashboard.pos.counter.category.service"),
             package: tr("dashboard.pos.counter.category.package"),
             product: tr("dashboard.pos.counter.category.product"),
-          },
-          legacy: {
-            contactHint: tr("dashboard.pos.contactHint"),
-            email: tr("dashboard.pos.email"),
-            phone: tr("dashboard.pos.phone"),
-            guest: tr("dashboard.pos.guest"),
-            outstanding: tr("dashboard.pos.outstanding"),
-            sendToPrep: tr("dashboard.pos.sendToPrep"),
-            prepDestination: tr("dashboard.pos.prepDestination"),
-            prepPickup: tr("dashboard.pos.prepPickup"),
-            prepTable: tr("dashboard.pos.prepTable"),
-            prepCounter: tr("dashboard.pos.prepCounter"),
-            prepPromisedAt: tr("dashboard.pos.prepPromisedAt"),
-            pageTitle: tr("dashboard.pos.pageTitle"),
-            newSale: tr("dashboard.pos.newSale"),
-            amount: tr("dashboard.pos.amount"),
           },
         }}
       />

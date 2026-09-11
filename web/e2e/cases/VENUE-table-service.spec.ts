@@ -128,12 +128,13 @@ async function openCheckFromFloor(page: Page, code: string): Promise<string> {
 
 /** Send what is on the check to the kitchen as a TABLE ticket. */
 async function sendToKitchen(page: Page) {
-  await page.getByLabel(/prep destination/i).selectOption("table");
-  const send = page.getByRole("button", { name: /send to preparation/i });
+  // A check opened from the floor carries its table, so `Here` sends a TABLE
+  // ticket (the counter's `Send N items`); there is no destination select.
+  const send = page.locator("[data-pos-send]");
   await send.click();
-  // The counter gives no other sign the ticket went: the control greys while
-  // the action runs and comes back when it has answered.
-  await expect(send).toBeEnabled({ timeout: 30_000 });
+  // The counter's sign the ticket went: once the engine has answered the
+  // action reads `Send again` (a second send is an amendment).
+  await expect(send).toHaveText(/send again|enviar de nuevo|renvoyer/i, { timeout: 30_000 });
 }
 
 test("VENUE-OP: walk-in booked, seated, fed, amended, collected and the table handed back", async ({
@@ -230,7 +231,7 @@ test("VENUE-OP: walk-in booked, seated, fed, amended, collected and the table ha
   const pizza = page.getByRole("button", { name: "House pizza" }).first();
   await expect(pizza).toBeVisible({ timeout: 30_000 });
   await pizza.click();
-  const charge = page.getByRole("button", { name: /^Charge · /i }).first();
+  const charge = page.locator("[data-pos-charge]").first();
   await expect(charge).toHaveText(/\$18\.00/, { timeout: 30_000 });
 
   // ── To the kitchen ─────────────────────────────────────────────────
@@ -274,7 +275,7 @@ test("VENUE-OP: walk-in booked, seated, fed, amended, collected and the table ha
   const reopened = await openCheckFromFloor(page, "T4");
   expect(reopened, "the floor must re-open the SAME check").toBe(orderId);
   await page.getByRole("button", { name: "House pizza" }).first().click();
-  await expect(page.getByRole("button", { name: /^Charge · /i }).first()).toHaveText(/\$36\.00/, {
+  await expect(page.locator("[data-pos-charge]").first()).toHaveText(/\$36\.00/, {
     timeout: 30_000,
   });
   await sendToKitchen(page);
@@ -302,9 +303,11 @@ test("VENUE-OP: walk-in booked, seated, fed, amended, collected and the table ha
 
   // ── Collect, then hand the table back ──────────────────────────────
   await openCheckFromFloor(page, "T4");
-  await page.getByRole("button", { name: /^Charge · /i }).first().click();
+  await page.locator("[data-pos-charge]").first().click();
   await expect(page.getByRole("tab", { name: /^cash$/i })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: /confirm cash/i }).click();
+  await page.locator("[data-pos-confirm-cash]").click();
+  await expect(page.locator("[data-pos-dialog='cash-done']")).toBeVisible({ timeout: 40_000 });
+  await page.locator("[data-pos-cash-done]").click();
   await expect(page.getByRole("heading", { name: /^paid$/i })).toBeVisible({ timeout: 40_000 });
   await page.screenshot({ path: testInfo.outputPath("check-paid.png"), fullPage: true });
   await leaveCounter(page);

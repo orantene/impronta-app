@@ -99,3 +99,146 @@ device follows the workspace's newest open draft. A sale the display has just
 finished with is never re-adopted. When a registers table exists, the beacon
 becomes a row keyed by register and the read gains a `registerId`; the state
 machine does not change.
+
+## D-POS-15 — the counter's location chip is the workspace's own name until a locations table exists
+
+Decided 2026-09-11 by the `fid-counter` build. `POSCounter` draws a location
+chip (`Centro`) with a chevron. There is no locations table and no
+per-register row, so the chip shows the workspace's display name and opens
+nothing; the cashier · drawer chip beside it names the signed-in person and
+whether a drawer (`pos_shifts`) is open. Its menu is the two device screens.
+
+## D-POS-16 — a line's options, notes and server have no line-level writer; the editor draws them disabled
+
+Decided 2026-09-11 by the `fid-counter` build. `POSLineEdit` shows Options,
+two notes, Served by and Line discount. `updateLine` changes units only, and
+`order_lines` carries no note or server column, so those fields render
+disabled with one sentence each; quantity, `Duplicate` (a second `addLine` of
+the same offering and session) and `Remove line` are live.
+
+## D-POS-17 — the price on a line is read-only at the counter
+
+Decided 2026-09-11 by the `fid-counter` build. A line is priced from the
+catalog (`repriceAndValidate` re-reads `talent_offerings.amount_cents`), so
+`Price each` is drawn locked with "Changing the price needs a manager". A
+manager-PIN model (D-POS-20) is what would unlock it.
+
+## D-POS-18 — a new customer is named on the sale and attached at collection; language and consent are not recorded from the counter
+
+Decided 2026-09-11 by the `fid-counter` build. `POSCustomerCreate` collects
+name, phone and email. The counter does not insert a `customers` row: the
+buyer rides on the sale and `startCollection` attaches them through
+`ensureCustomer`, idempotent on (tenant, email) and (tenant, phone), which is
+also why the duplicate warning on the form is a search on the typed phone or
+email. `Language` and `Send them offers` have no writer on this path and are
+drawn disabled with a sentence.
+
+## D-POS-19 — discounts at the counter are codes; manual percentages and comps are not writable yet
+
+Decided 2026-09-11 by the `fid-counter` build. `POSDiscount` offers `Enter a
+code · Manual discount · Comp an item`. Only the code reaches the engine
+(`repriceAndValidate` with `promoCode`); the sale has no column for a manual
+figure or a comped line, so those two tabs draw their controls disabled with
+one sentence each and the eligible-lines list is read-only (which lines a
+code covers is the engine's decision at apply time).
+
+## D-POS-20 — custom amounts and manager approval are drawn, not wired
+
+Decided 2026-09-11 by the `fid-counter` build. `addLine` takes an offering
+id, so a free-text amount cannot become a line; there is no manager PIN
+table. `POSCustomAmount` opens from the last tile and `Continue · ask a
+manager` opens `POSManagerApproval` exactly as the boards draw them; `Approve`
+is disabled with the sentence. The typed description and figure stay on
+screen so the refusal is met with the work intact.
+
+## D-POS-21 — a held sale has no name; it is found by time and total
+
+Decided 2026-09-11 by the `fid-counter` build. `POSHoldSale`'s `Name it`
+field has no column on the draft order, so it renders disabled with the
+sentence. Hold is the draft staying open in Orders (the row never expires on
+its own); `Discard sale` is `cancelSale`.
+
+## D-POS-22 — an expired class place offers remove or re-pick; re-hold has no command
+
+Decided 2026-09-11 by the `fid-counter` build. The engine's `sold_out` refusal
+(`capacityGone`) on a sale that carries a session line opens
+`POSHoldExpired` instead of the banner. `Remove it from this sale` is
+`removeLine`; `Pick another session` removes the line and returns the cashier
+to the tile's chooser; `Hold it again` has no re-hold command and is drawn
+disabled with the sentence.
+
+## D-POS-23 — linking a counter sale to a booking is not wired
+
+Decided 2026-09-11 by the `fid-counter` build. There is no reader for a
+customer's open bookings on the counter path and no command that attaches a
+sale to one. `POSLinkBooking` opens with the board's frame, one sentence, and
+`Keep separate` as the only live action; both forest actions are disabled.
+
+## D-POS-24 — bank transfer and two-method collection are drawn disabled on the collect screen
+
+Decided 2026-09-11 by the `fid-counter` build. `startCollection` takes
+`cash | online_card`; there is no transfer record and no split allocation at
+the counter (M09/M10 are another group's boards). The two tiles say so.
+`Take {amount} · rest by card` on the short state is disabled for the same
+reason.
+
+## D-POS-25 — the cash drawer has no device driver
+
+Decided 2026-09-11 by the `fid-counter` build. `POSCashDone`'s `Open drawer`
+and `POSDevices`'s drawer row are disabled with "No cash drawer is connected
+to this device." The money is recorded before the dialog opens; the change is
+given by hand.
+
+## D-POS-26 — the Cash screen records the float and the close count only; movements, hand-over and a close note are not stored
+
+Decided 2026-09-11 by the `fid-counter` build. `pos_shifts` has an opening
+float, a closing count, an expected figure and a variance (money.md §3: no
+movements or denominations table). `POSCashOpen` → `openShift`,
+`POSCashClose` → `closeShift` (blind count: expected cash is shown only in
+the result the engine returns). Add cash / Take cash out / Drop to safe /
+Open (no sale), the hand-over card and `What happened` are drawn disabled
+with one sentence each; the movements list says why it is empty. A choice of
+drawer or responsible is one per workspace and the signed-in person.
+
+## D-POS-27 — receipts list the workspace's paid counter sales; the method filter is not available
+
+Decided 2026-09-11 by the `fid-counter` build. `listPaidPosSales`
+(`lib/pos/sale-read.ts`) reads paid `orders` with `source_channel = pos` for
+the last seven days with the buyer's name and line labels; a row opens the
+same `/r/<code>` page the customer holds. `Cash · Card · Refunds` need the
+money row's method and are disabled with a sentence; `Today · Yesterday ·
+This week` and the search are live.
+
+## D-POS-28 — the counter has no issues; the Issues screen says so
+
+Decided 2026-09-11 by the `fid-counter` build. There is no issues table and
+no reader for one (the design's Issues is the workspace's own inbox). The
+rail row exists so the board's rail is complete; the screen draws the board's
+filters disabled and one sentence. No count is drawn because nothing is
+counted. `POSIssueDetail` has no data to render.
+
+## D-POS-29 — every device status is a fact the counter read; nothing is queued offline
+
+Decided 2026-09-11 by the `fid-counter` build. `POSDevices` reports the card
+reader from `reportTerminalAvailability`, the scanner from the keyboard-wedge
+listener, the customer display as a second window, and the two printers and
+the drawer as not set up. `POSConnection` reads `navigator.onLine`; the
+`Offline · cash only` chip appears from the same fact. Because D-POS-5 chose
+online + cash-only degraded mode and nothing is queued on the device, the
+offline counter disables Charge and says "nothing can be saved until it
+returns" rather than the board's "Saved on this iPad · will sync".
+
+## D-POS-30 — the scan screen looks up anything a code can be; narrowing is not available
+
+Decided 2026-09-11 by the `fid-counter` build. `POSScan`'s `Products only ·
+Tickets only · Passes only` have no effect on the resolver (D-POS-13: a code
+is an offering id or a link code), so they are disabled with a sentence and
+`Anything` is the live state. `Look up` resolves the typed code exactly as a
+wedge scan does.
+
+## D-POS-31 — the Lock and Favorites controls are drawn disabled until their data exists
+
+Decided 2026-09-11 by the `fid-counter` build. There is no register PIN, so
+`Lock` on the rail is disabled with "Register PINs are not set up yet" and
+`POSLock` cannot be reached. There is no favourites flag on offerings, so the
+`Favorites` chip is disabled with its sentence and `All` is the default.

@@ -77,10 +77,12 @@ test("POS-CD customer display: idle, review, confirm, paid, receipt sent, cleare
   await display.screenshot({ path: testInfo.outputPath("cd-01-idle.png"), fullPage: true });
 
   // The cashier starts a sale and adds one item in the OTHER window.
+  // The first tap on a tile opens the sale and puts the pizza on it
+  // (`POSEmptySale`); the order id reaches the address with it.
   await counterStartSale(page);
+  await counterAddItem(page, PIZZA.title);
   const orderId = new URL(page.url()).searchParams.get("order");
   expect(orderId, "the counter must carry its order id").toBeTruthy();
-  await counterAddItem(page, PIZZA.title);
 
   // D02 — the display follows: the line, the figure to pay, tips not offered.
   await expect(screen(display, "review"), "the display must pick up the sale within a few polls").toBeVisible({

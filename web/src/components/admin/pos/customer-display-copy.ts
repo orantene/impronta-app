@@ -120,21 +120,23 @@ export function customerDisplayLinkCopy(t: Translator): { label: string; hint: s
 
 export type ScanCopy = {
   readonly ready: string;
-  readonly readyHint: string;
   readonly added: string;
+  readonly addedDetail: string;
   readonly noMatch: string;
   readonly unavailable: string;
   readonly dismiss: string;
+  readonly undo: string;
 };
 
 /** The scanner's chip and toasts on the Sell screen (C23, C24). */
 export function scanCopy(t: Translator): ScanCopy {
   return {
     ready: t("dashboard.pos.counter.scan.ready"),
-    readyHint: t("dashboard.pos.counter.scan.readyHint"),
     added: t("dashboard.pos.counter.scan.added"),
+    addedDetail: t("dashboard.pos.counter.scan.addedDetail"),
     noMatch: t("dashboard.pos.counter.scan.noMatch"),
     unavailable: t("dashboard.pos.counter.scan.unavailable"),
     dismiss: t("dashboard.pos.counter.scan.dismiss"),
+    undo: t("dashboard.pos.counter.scan.undo"),
   };
 }

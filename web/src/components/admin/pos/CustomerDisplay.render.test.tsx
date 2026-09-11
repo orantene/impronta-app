@@ -150,17 +150,24 @@ test("every primary action on the display is at least 56px tall (h-14): this run
   }
 });
 
-test("the scanner chip and both toasts render in all three languages", () => {
+test("the scan toast renders both outcomes in all three languages, and Undo only when it can", () => {
+  // The `Scanner ready` chip moved to the sell surface's own search bar
+  // (`SellSurface`, `data-pos-scanner-ready`); this component is the toast.
   for (const locale of LOCALES) {
     const copy = scanCopy(createTranslator(locale));
-    const ready = renderToStaticMarkup(<ScanStatus toast={null} onDismiss={() => {}} copy={copy} />);
-    assert.match(ready, /data-pos-scanner-ready/);
-    assert.ok(markupIncludesText(ready, copy.ready), locale);
-    assert.doesNotMatch(ready, /data-pos-scan-toast/);
+    const idle = renderToStaticMarkup(<ScanStatus toast={null} onDismiss={() => {}} copy={copy} />);
+    assert.doesNotMatch(idle, /data-pos-scan-toast/);
     const added = renderToStaticMarkup(
-      <ScanStatus toast={{ kind: "added", sentence: "Added House pizza" }} onDismiss={() => {}} copy={copy} />,
+      <ScanStatus toast={{ kind: "added", sentence: "Added · House pizza", onUndo: () => {} }} onDismiss={() => {}} copy={copy} />,
     );
     assert.match(added, /role="status"[^>]*data-pos-scan-toast="added"/);
     assert.ok(markupIncludesText(added, copy.dismiss), locale);
+    assert.ok(markupIncludesText(added, copy.undo), locale);
+    assert.match(added, /data-pos-scan-undo/);
+    const missed = renderToStaticMarkup(
+      <ScanStatus toast={{ kind: "no_match", sentence: "Nothing matches x" }} onDismiss={() => {}} copy={copy} />,
+    );
+    assert.match(missed, /data-pos-scan-toast="no_match"/);
+    assert.doesNotMatch(missed, /data-pos-scan-undo/, "a miss has nothing to undo");
   }
 });

@@ -73,7 +73,10 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
   counter: {
     id: "counter",
     label: "Counter",
-    destinations: ["sell", "orders", "shifts"],
+    // The board's rail (`POSCounter`): Sell · Orders · Receipts · Cash ·
+    // Issues. `shifts` IS the drawer ("Cash" on the rail); `issues` has no
+    // reader yet and renders its own sentence (D-POS-28).
+    destinations: ["sell", "orders", "receipts", "shifts", "issues"],
     built: true,
   },
   floor: {
