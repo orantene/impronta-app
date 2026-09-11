@@ -36,6 +36,8 @@
     "migrate:apply:one": "node --env-file=.env.vercel.local scripts/apply-migration.mjs",
     "deploy:promote": "node scripts/promote-and-alias.mjs",
     "deploy:check": "node scripts/promote-and-alias.mjs --check",
+    "deploy:alias": "node scripts/promote-and-alias.mjs --alias-only",
+    "test:alias-guard": "node --test scripts/lib/alias-guard.test.mjs",
     "deploy:smoke": "node scripts/post-deploy-smoke-test.mjs",
     "stripe:status": "node scripts/stripe-target.mjs status",
     "stripe:sandbox": "node scripts/stripe-target.mjs sandbox",

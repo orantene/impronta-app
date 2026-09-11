@@ -14,6 +14,7 @@
 //   Vercel auth (`vercel login`) — uses the team scope baked in below.
 
 import { execSync, spawnSync } from "node:child_process";
+import { checkDeploymentVetted } from "./lib/alias-guard.mjs";
 
 const SCOPE = "oran-tenes-projects";
 const PROJECT = "tulala";
@@ -23,7 +24,26 @@ const PROD_DOMAINS = ["tulala.digital", "app.tulala.digital"];
 
 const args = process.argv.slice(2);
 const checkOnly = args.includes("--check");
+// `--alias-only <url>`: point the custom domains at an EXISTING production
+// build without promoting anything. This replaces the raw `vercel alias set`
+// fallback in CLAUDE.md so the manual path runs the same guard as this script.
+const aliasOnly = args.includes("--alias-only");
 const explicitPreview = args.find((a) => a.startsWith("https://"));
+
+/**
+ * Refuse to alias a build of a commit the main structural gate never passed.
+ * 2026-09-11: production was fast-forwarded by hand onto a red commit and the
+ * alias fallback pointed the live domains at it. See scripts/lib/alias-guard.mjs.
+ */
+async function guardOrExit(deploymentUrl) {
+  const v = await checkDeploymentVetted(deploymentUrl, { teamId: SCOPE });
+  if (v.ok) {
+    console.log(`Alias guard: ${String(v.deploymentSha).slice(0, 9)} is covered by green main gate ${String(v.lastGreenSha).slice(0, 9)}.`);
+    return;
+  }
+  console.error(`\nALIAS GUARD REFUSED: ${v.reason}`);
+  process.exit(2);
+}
 
 function run(cmd, opts = {}) {
   if (process.env.DEBUG) console.error(`$ ${cmd}`);
@@ -233,6 +253,23 @@ if (checkOnly) {
   process.exit(0);
 }
 
+// ── Alias-only: re-point the domains at an existing build, guarded ────────
+if (aliasOnly) {
+  if (!explicitPreview) {
+    console.error("Usage: npm run deploy:alias -- https://tulala-xxx.vercel.app");
+    process.exit(1);
+  }
+  await guardOrExit(explicitPreview);
+  let ok = true;
+  for (const domain of PROD_DOMAINS) {
+    if (!aliasSet(explicitPreview, domain)) ok = false;
+  }
+  if (!ok) process.exit(1);
+  console.log("\n✓ Domains now on", explicitPreview);
+  console.log("Next: run `npm run deploy:smoke` to verify the live site.");
+  process.exit(0);
+}
+
 // ── Pick which preview to promote ─────────────────────────────────────────
 let target = explicitPreview;
 if (!target) {
@@ -252,7 +289,8 @@ const newProdUrl = promote(target);
 // ── Wait for the new build to be READY ────────────────────────────────────
 waitForReady(newProdUrl);
 
-// ── Re-alias both custom domains (the part Vercel's UI misses) ────────────
+// ── Guard, then re-alias both custom domains (the part Vercel's UI misses) ─
+await guardOrExit(newProdUrl);
 console.log("\nRe-aliasing custom domains:");
 let allOk = true;
 for (const domain of PROD_DOMAINS) {
