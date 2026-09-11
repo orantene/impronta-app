@@ -73,6 +73,11 @@ export function planRefund(input: {
   discountCents: number;
   /** Paid transactions, oldest first. */
   transactions: readonly PaidTransaction[];
+  /**
+   * Tip on the order. Refunded only when every remaining line cent is
+   * refunded (a whole-order refund). A partial refund leaves the tip.
+   */
+  tipCents?: number;
 }): RefundPlan {
   const byId = new Map(input.lines.map((l) => [l.id, l]));
   const targets: RefundableLine[] = [];
@@ -129,6 +134,24 @@ export function planRefund(input: {
     );
     return l.refundedCents + (refundedAfter.get(l.id) ?? 0) >= net;
   });
+
+  const tipCents = Math.max(0, Math.trunc(input.tipCents ?? 0));
+  if (isFullRefund && tipCents > 0) {
+    let tipLeft = tipCents;
+    for (const txn of input.transactions) {
+      if (tipLeft <= 0) break;
+      const already = steps.find((s) => s.transactionId === txn.id)?.amountCents ?? 0;
+      const available = Math.max(0, txn.grossAmountCents - txn.refundedCents - already);
+      if (available <= 0) continue;
+      const take = Math.min(available, tipLeft);
+      const existing = steps.find((s) => s.transactionId === txn.id);
+      if (existing) existing.amountCents += take;
+      else steps.push({ transactionId: txn.id, amountCents: take });
+      tipLeft -= take;
+    }
+    if (tipLeft > 0) return { ok: false, reason: "exceeds_captured" };
+    return { ok: true, steps, lines: perLine, totalCents: totalCents + tipCents, isFullRefund };
+  }
 
   return { ok: true, steps, lines: perLine, totalCents, isFullRefund };
 }

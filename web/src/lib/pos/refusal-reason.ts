@@ -52,7 +52,10 @@ export type PosSaleRefusalReason =
   | ReserveCollectionRefusal
   | Refused<CreateDraftOrderResult>["reason"]
   | Refused<MutateLineResult>["reason"]
-  | Refused<RepriceResult>["reason"];
+  | Refused<RepriceResult>["reason"]
+  | "pin_invalid"
+  | "not_manager"
+  | "already_approved";
 
 /** Every reason either shift command can hand back. */
 export type PosShiftRefusalReason =
@@ -109,6 +112,10 @@ export const SALE_REFUSALS: Readonly<Record<PosSaleRefusalReason, PosRefusalReas
   not_open: "bookingChanged",
   already_collected: "bookingChanged",
   exceeds_outstanding: "balanceChanged",
+  over_limit: "notAllowed",
+  pin_invalid: "notAllowed",
+  not_manager: "notAllowed",
+  already_approved: "itemRefused",
 };
 
 export const SHIFT_REFUSALS: Readonly<Record<PosShiftRefusalReason, PosRefusalReason>> = {

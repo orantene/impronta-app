@@ -38,7 +38,7 @@ test("basket totals: a discount reduces the total but never below zero", () => {
 
 test("basket totals: an empty basket totals to zero everywhere", () => {
   const totals = basketTotals([]);
-  assert.deepEqual(totals, { subtotalCents: 0, discountCents: 0, taxCents: 0, totalCents: 0 });
+  assert.deepEqual(totals, { subtotalCents: 0, discountCents: 0, taxCents: 0, tipCents: 0, totalCents: 0 });
 });
 
 test("change due: exact tender gives zero change", () => {

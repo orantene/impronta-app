@@ -32,6 +32,8 @@ export function makeStore() {
     sessions: [] as Row[],
     capacity_allocations: [] as Row[],
     order_collection_reservations: [] as Row[],
+    agencies: [] as Row[],
+    pos_approvals: [] as Row[],
   };
 }
 
@@ -100,6 +102,10 @@ export function fakeAdmin(store: ReturnType<typeof makeStore>) {
       },
       in: (k: string, vals: unknown[]) => {
         eqs.push([k, { __in: vals }]);
+        return api;
+      },
+      not: (k: string, op: string, v: unknown) => {
+        if (op === "is" && v === null) eqs.push([k, { __neq: null }]);
         return api;
       },
       order: () => api,

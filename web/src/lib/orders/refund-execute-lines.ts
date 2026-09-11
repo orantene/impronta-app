@@ -108,14 +108,14 @@ export async function refundOrderLines(
   try {
     const { data: orderRow, error: orderErr } = await admin
       .from("orders")
-      .select("id, discount_cents, status")
+      .select("id, discount_cents, status, tip_cents")
       .eq("id", input.orderId)
       .maybeSingle();
     if (orderErr || !orderRow) {
       logServerError("orders.refundLines/order", orderErr);
       return { ok: false, reason: "order_not_found", movedCents: 0 };
     }
-    const order = orderRow as { id: string; discount_cents: number; status: string };
+    const order = orderRow as { id: string; discount_cents: number; status: string; tip_cents?: number };
 
     const { data: lineRows, error: lineErr } = await admin
       .from("order_lines")
@@ -199,6 +199,7 @@ export async function refundOrderLines(
       scope,
       discountCents: Number(order.discount_cents ?? 0),
       transactions,
+      tipCents: Number(order.tip_cents ?? 0),
     });
     if (!plan.ok) return { ok: false, reason: plan.reason, movedCents: 0 };
 

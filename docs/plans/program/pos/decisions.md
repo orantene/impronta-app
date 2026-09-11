@@ -664,3 +664,20 @@ tier's price at the door, names optional at the till, no comps, whoever is
 signed in). `Save` is disabled with the sentence. The Readiness strip is
 derived from rows that exist: published, ticket types, nights scheduled,
 pools on this night.
+
+## D-POS-58 — a visit may own more than one order (split check)
+
+Decided 2026-09-11 (engine-pos-money). L52 deferred a multi-order visit until
+a case proved one visit needs several orders. Split check is that case:
+`visit_split_check` moves unpaid lines onto a new draft order with the same
+`visit_id`. Occupancy stays on `visits`. The commercial record stays `orders`.
+There is no parallel check entity. Unique index `orders_one_per_visit` is
+dropped. Recorded also as an L52 clarification in
+`docs/plans/program/decisions.md`.
+
+## D-POS-59 — waitlist_offers is the class/session hold, not restaurant T08
+
+Decided 2026-09-11 (engine-pos-money). `waitlist_offers` holds a seat for a
+`session_waitlist_entries` row via `reserve_resource_set_v2`. It has no party
+or venue columns. Restaurant T08 party waitlist stays blocked until that
+table exists.

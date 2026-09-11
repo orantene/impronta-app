@@ -27,7 +27,7 @@ import { logServerError } from "@/lib/server/safe-error";
 
 export type ReservationState = "reserved" | "settled" | "released";
 
-export type ReservationMethod = "cash" | "online_card" | "terminal";
+export type ReservationMethod = "cash" | "online_card" | "terminal" | "link";
 
 /** Where the card path leaves the reservation id for the webhook to find. */
 export const RESERVATION_METADATA_KEY = "collection_reservation_id";
