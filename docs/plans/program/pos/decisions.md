@@ -901,3 +901,10 @@ Seat claims the row in SQL then opens the visit through `openVisit`.
 Decided 2026-09-11 (engine-venue). `layout_activate` never writes a capacity
 pool. `service_periods` replace `venue_service_windows` for a venue only when
 at least one period exists; otherwise the current reader is unchanged.
+
+## D-POS-80 — guest QR drafts are source_channel guest_qr
+
+Decided 2026-09-11 (engine-venue). Table QR ordering writes a draft on the
+open visit with `source_channel=guest_qr` and pays a share through the
+existing payment-link reserve. The landing page at `/visit/[token]` is not
+replaced.

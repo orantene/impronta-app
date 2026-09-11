@@ -1,9 +1,12 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { getPublicHostContext } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
+import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
   locationSetDefault as setDefaultLocation,
   locationUpsert as upsertLocation,
@@ -19,6 +22,15 @@ import {
 } from "@/lib/venues/party-waitlist";
 import { layoutActivate as activateLayout, prepStationDelete as deletePrepStation, servicePeriodUpsert as upsertServicePeriod } from "@/lib/venues/layouts";
 import { prepFireCourse as fireCourse } from "@/lib/venues/prep-fire";
+import {
+  guestVisitAddLine as addGuestLine,
+  guestVisitBill as readGuestBill,
+  guestVisitMenu as readGuestMenu,
+  guestVisitPayShare as payGuestShare,
+  guestVisitSubmit as submitGuestVisit,
+  guestVisitSubstituteAccept as acceptGuestSubstitute,
+  posLineOfferSubstitute as offerLineSubstitute,
+} from "@/lib/visits/guest-order";
 
 const uuid = z.string().uuid();
 const slug = z.string().trim().min(1).max(63);
@@ -250,4 +262,113 @@ export async function prepFireCourse(input: { visitId: string; courseSeq: number
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return fireCourse(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+async function guestVisit(token: string) {
+  const host = await getPublicHostContext();
+  if ((host.kind !== "agency" && host.kind !== "hub") || !host.tenantId) {
+    return { ok: false as const, reason: "unavailable" as const };
+  }
+  if (!tryConsumeRateLimit(`guest-visit:${host.tenantId}:${token}`, 60, 60_000)) {
+    return { ok: false as const, reason: "too_many_attempts" as const };
+  }
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false as const, reason: "unavailable" as const };
+  return { ok: true as const, tenantId: host.tenantId, admin };
+}
+
+export async function guestVisitMenu(input: { token: string }) {
+  const g = await guestVisit(input.token);
+  if (!g.ok) return g;
+  return readGuestMenu(g.admin, { tenantId: g.tenantId, token: input.token });
+}
+
+export async function guestVisitAddLine(input: {
+  token: string;
+  offeringId: string;
+  variantId?: string | null;
+  qty: number;
+  note?: string | null;
+}) {
+  const g = await guestVisit(input.token);
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      token: z.string().trim().min(8),
+      offeringId: uuid,
+      variantId: uuid.nullable().optional(),
+      qty: z.number().int().min(1).max(50),
+      note: z.string().trim().max(200).nullable().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return addGuestLine(g.admin, { tenantId: g.tenantId, actorUserId: "", ...parsed.data });
+}
+
+export async function guestVisitSubmit(input: { token: string }) {
+  const g = await guestVisit(input.token);
+  if (!g.ok) return g;
+  return submitGuestVisit(g.admin, { tenantId: g.tenantId, token: input.token });
+}
+
+export async function posLineOfferSubstitute(input: { lineId: string; substituteOfferingId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ lineId: uuid, substituteOfferingId: uuid }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return offerLineSubstitute(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function guestVisitSubstituteAccept(input: {
+  token: string;
+  lineId: string;
+  substituteOfferingId: string;
+}) {
+  const g = await guestVisit(input.token);
+  if (!g.ok) return g;
+  const parsed = z.object({ token: z.string().min(8), lineId: uuid, substituteOfferingId: uuid }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return acceptGuestSubstitute(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function guestVisitPayShare(input: {
+  token: string;
+  amountCents?: number;
+  lineIds?: string[];
+  operationKey: string;
+}) {
+  const g = await guestVisit(input.token);
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      token: z.string().min(8),
+      amountCents: z.number().int().positive().optional(),
+      lineIds: z.array(uuid).optional(),
+      operationKey: z.string().trim().min(8).max(80),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  const hdrs = await headers();
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
+  const proto = hdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
+  const { data: visit } = await g.admin
+    .from("visits")
+    .select("opened_by")
+    .eq("public_token", parsed.data.token)
+    .eq("tenant_id", g.tenantId)
+    .maybeSingle();
+  const actorUserId = String((visit as { opened_by?: string } | null)?.opened_by ?? "");
+  if (!actorUserId) return { ok: false as const, reason: "unavailable" as const };
+  return payGuestShare(g.admin, {
+    tenantId: g.tenantId,
+    actorUserId,
+    publicOrigin: host ? `${proto}://${host}` : "",
+    ...parsed.data,
+  });
+}
+
+export async function guestVisitBill(input: { token: string }) {
+  const g = await guestVisit(input.token);
+  if (!g.ok) return g;
+  return readGuestBill(g.admin, { tenantId: g.tenantId, token: input.token });
 }

@@ -174,3 +174,30 @@ Success: `{ ok: true, submitted }`
 | two_active | `dashboard.venue.engine.refusal.two_active` |
 | station_in_use | `dashboard.venue.engine.refusal.station_in_use` |
 | conflict | `dashboard.venue.engine.refusal.conflict` |
+
+---
+
+## 4. Guest QR ordering and pay-my-share
+
+Unblocks: Q02–Q07. Records D-POS-80.
+
+Guest identity is the visit `public_token` plus the existing guest cookie.
+Actions are token-scoped and rate-limited. Drafts use `source_channel=guest_qr`.
+Pay-my-share reserves through `pos_reserve_collection` and mints a Package 1
+payment link. Two guests paying the last share: one wins, the other sees
+`already_paid` / `exceeds_outstanding`.
+
+Public pages (existing `/visit/[token]` landing is unchanged):
+`/visit/[token]/menu`, `/visit/[token]/share`.
+
+### `guestVisitMenu` / `guestVisitAddLine` / `guestVisitSubmit`
+### `posLineOfferSubstitute` / `guestVisitSubstituteAccept`
+### `guestVisitPayShare` / `guestVisitBill`
+
+| reason | sentence key |
+|---|---|
+| visit_closed | `dashboard.venue.engine.refusal.visit_closed` |
+| item_unavailable | `dashboard.venue.engine.refusal.item_unavailable` |
+| already_paid | `dashboard.venue.engine.refusal.already_paid` |
+| exceeds_outstanding | `dashboard.venue.engine.refusal.exceeds_outstanding` |
+| not_submitted | `dashboard.venue.engine.refusal.not_submitted` |
