@@ -143,13 +143,15 @@ export function GlobalSearchOverlay({ open, onClose }: { open: boolean; onClose:
       role="dialog"
       aria-modal="true"
       aria-label={t(`${K}.label`)}
-      className="fixed inset-0 z-[120] flex items-start justify-center bg-admin-ink/45 px-[16px] pt-[72px] font-admin-body"
+      className="fixed inset-0 z-[120] flex items-start justify-center bg-admin-ink/45 px-[16px] pt-[72px] font-admin-body max-[720px]:bg-admin-surface max-[720px]:px-0 max-[720px]:pt-0"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[min(560px,calc(100vh-120px))] w-full max-w-[760px] flex-col overflow-hidden rounded-[14px] border border-admin-border-soft bg-admin-card shadow-admin-hover">
-        <div className="flex items-center gap-[10px] border-b border-admin-border-soft px-[16px] py-[12px]">
+      {/* MW05: on the phone the search is the whole screen — the 48px field
+          under the top bar, the groups as cards with their counts, no pane. */}
+      <div className="flex max-h-[min(560px,calc(100vh-120px))] w-full max-w-[760px] flex-col overflow-hidden rounded-[14px] border border-admin-border-soft bg-admin-card shadow-admin-hover max-[720px]:h-full max-[720px]:max-h-none max-[720px]:max-w-none max-[720px]:rounded-none max-[720px]:border-0 max-[720px]:bg-transparent max-[720px]:shadow-none">
+        <div className="flex items-center gap-[10px] border-b border-admin-border-soft px-[16px] py-[12px] max-[720px]:mx-[14px] max-[720px]:mt-[14px] max-[720px]:h-[48px] max-[720px]:rounded-[12px] max-[720px]:border-[1.5px] max-[720px]:border-admin-brand max-[720px]:bg-admin-card max-[720px]:px-[12px] max-[720px]:py-0">
           <Icon name="search" size={16} stroke={1.75} color="var(--color-admin-ink-dim)" />
           <input
             ref={inputRef}
@@ -161,12 +163,20 @@ export function GlobalSearchOverlay({ open, onClose }: { open: boolean; onClose:
             aria-label={t(`${K}.label`)}
             className="min-w-0 flex-1 appearance-none border-0 bg-transparent text-[15px] text-admin-ink shadow-none outline-none focus:border-0 focus:shadow-none focus:outline-none focus:ring-0 focus-visible:outline-none placeholder:text-admin-ink-dim"
           />
-          <span className="whitespace-nowrap text-admin-11h text-admin-ink-dim">
+          <span className="whitespace-nowrap text-admin-11h text-admin-ink-dim max-[720px]:hidden">
             {effectiveTenant.name} · {t(`${K}.allTypes`)} · ⌘K
           </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={copy.t("Close")}
+            className="hidden h-[32px] w-[32px] cursor-pointer items-center justify-center rounded-[8px] border-0 bg-transparent text-admin-ink-muted max-[720px]:inline-flex"
+          >
+            <Icon name="x" size={16} stroke={1.75} color="currentColor" />
+          </button>
         </div>
-        <div className="grid min-h-0 flex-1 grid-cols-[1fr_1fr]">
-          <div role="listbox" aria-label={t(`${K}.results`)} className="min-h-0 overflow-y-auto border-r border-admin-border-soft py-[6px]">
+        <div className="grid min-h-0 flex-1 grid-cols-[1fr_1fr] max-[720px]:grid-cols-1">
+          <div role="listbox" aria-label={t(`${K}.results`)} className="min-h-0 overflow-y-auto border-r border-admin-border-soft py-[6px] max-[720px]:flex max-[720px]:flex-col max-[720px]:gap-[12px] max-[720px]:border-r-0 max-[720px]:px-[14px] max-[720px]:py-[14px]">
             {trimmed.length < MIN_QUERY ? (
               <p className="m-0 px-[18px] py-[18px] text-admin-13 text-admin-ink-muted">{t(`${K}.typeToSearch`)}</p>
             ) : failed ? (
@@ -178,10 +188,12 @@ export function GlobalSearchOverlay({ open, onClose }: { open: boolean; onClose:
                 const rows = ordered.filter((r) => r.kind === kind);
                 if (rows.length === 0) return null;
                 return (
-                  <div key={kind}>
-                    <div className="px-[18px] pb-[2px] pt-[10px] text-admin-10h font-bold uppercase tracking-[0.08em] text-admin-ink-dim">
+                  <div key={kind} className="max-[720px]:flex max-[720px]:flex-col max-[720px]:gap-[6px]">
+                    <div className="px-[18px] pb-[2px] pt-[10px] text-admin-10h font-bold uppercase tracking-[0.08em] text-admin-ink-dim max-[720px]:p-0 max-[720px]:text-[11px] max-[720px]:text-admin-ink-muted">
                       {copy.t(DESTINATIONS[KIND_DESTINATION[kind]].label)}
+                      <span className="hidden max-[720px]:inline"> · {rows.length}</span>
                     </div>
+                    <div className="max-[720px]:overflow-hidden max-[720px]:rounded-[14px] max-[720px]:border max-[720px]:border-admin-border max-[720px]:bg-admin-card">
                     {rows.map((row) => {
                       const index = ordered.indexOf(row);
                       const active = index === cursor;
@@ -193,26 +205,32 @@ export function GlobalSearchOverlay({ open, onClose }: { open: boolean; onClose:
                           aria-selected={active}
                           onMouseEnter={() => setCursor(index)}
                           onClick={() => window.location.assign(localHref(row.href))}
-                          className={`block w-full cursor-pointer px-[18px] py-[7px] text-left ${active ? "bg-admin-surface-alt" : "hover:bg-admin-surface"}`}
+                          className={`block w-full cursor-pointer px-[18px] py-[7px] text-left max-[720px]:flex max-[720px]:items-center max-[720px]:gap-[10px] max-[720px]:border-t max-[720px]:border-admin-border-soft max-[720px]:px-[14px] max-[720px]:py-[12px] max-[720px]:first:border-t-0 ${active ? "bg-admin-surface-alt max-[720px]:bg-admin-card" : "hover:bg-admin-surface"}`}
                         >
-                          <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-admin-13 font-semibold text-admin-ink">
+                          <span className="min-w-0 max-[720px]:flex-1">
+                          <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-admin-13 font-semibold text-admin-ink max-[720px]:text-[14.5px]">
                             {row.title}
                           </span>
                           {row.snippet && (
-                            <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] text-admin-ink-muted">
+                            <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] text-admin-ink-muted max-[720px]:text-admin-12h">
                               {row.snippet}
                             </span>
                           )}
+                          </span>
+                          <span aria-hidden className="hidden text-admin-ink-dim max-[720px]:inline-flex">
+                            <Icon name="chevron-right" size={16} stroke={1.75} color="currentColor" />
+                          </span>
                         </button>
                       );
                     })}
+                    </div>
                   </div>
                 );
               })
             )}
             {busy && <p className="m-0 px-[18px] py-[8px] text-admin-11h text-admin-ink-dim">{t(`${K}.searching`)}</p>}
           </div>
-          <div className="min-h-0 overflow-y-auto px-[18px] py-[14px]">
+          <div className="min-h-0 overflow-y-auto px-[18px] py-[14px] max-[720px]:hidden">
             {selected ? (
               <>
                 <div className="text-admin-10h font-bold uppercase tracking-[0.08em] text-admin-ink-dim">

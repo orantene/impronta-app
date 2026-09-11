@@ -1,0 +1,60 @@
+  ...
+# Subtest: first paint never depends on what the device remembers
+ok 581 - first paint never depends on what the device remembers
+  ---
+  duration_ms: 0.080459
+  ...
+# Subtest: a remembered mode the person may no longer use is ignored, not honoured
+ok 582 - a remembered mode the person may no longer use is ignored, not honoured
+  ---
+  duration_ms: 0.051958
+  ...
+# Subtest: which half reads as selected comes from the surface, not from storage
+ok 583 - which half reads as selected comes from the surface, not from storage
+  ---
+  duration_ms: 0.062875
+  ...
+# Subtest: two workspaces on one device do not share a remembered mode
+ok 584 - two workspaces on one device do not share a remembered mode
+  ---
+  duration_ms: 0.1865
+  ...
+# Subtest: the device memory round-trips, and refuses a mode that is not allowed
+ok 585 - the device memory round-trips, and refuses a mode that is not allowed
+  ---
+  duration_ms: 0.175
+  ...
+# Subtest: storage that throws on every call is survivable
+ok 586 - storage that throws on every call is survivable
+  ---
+  duration_ms: 0.175208
+  ...
+# Subtest: no storage at all (a server render) is survivable
+ok 587 - no storage at all (a server render) is survivable
+  ---
+  duration_ms: 0.061125
+  ...
+# Subtest: on the point of sale, the mode in the address wins over what the device remembered
+ok 588 - on the point of sale, the mode in the address wins over what the device remembered
+  ---
+  duration_ms: 0.051833
+  ...
+# Subtest: off the point of sale, the address is ignored and the remembered mode is offered
+ok 589 - off the point of sale, the address is ignored and the remembered mode is offered
+  ---
+  duration_ms: 0.046458
+  ...
+# Subtest: an address naming a mode this person may not use falls back to the remembered one
+ok 590 - an address naming a mode this person may not use falls back to the remembered one
+  ---
+  duration_ms: 0.098875
+  ...
+1..590
+# tests 609
+# suites 7
+# pass 609
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 73245.666125

@@ -43,6 +43,7 @@ import { isKnownTenantRole } from "@/lib/access";
 import { userHasCapability } from "@/lib/access";
 import { minorUnitDivisor } from "@/lib/orders/money-format";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
+import { orderTax } from "@/lib/catalog/tax";
 import { addonCentsOnLine } from "@/lib/pos/addons";
 import { listOpenPosSales, loadPosSale } from "@/lib/pos/draft";
 import { listPaidPosSales } from "@/lib/pos/sale-read";
@@ -73,7 +74,8 @@ import { resolveTenantTimezone } from "@/lib/spaces/venues";
 
 import { PageRouteSyncer } from "../_page-route-syncer";
 
-import { formatClock, type PosCatalogItem } from "./counter-model";
+import { loadCounterCatalog, loadCounterLineFacts } from "./counter-catalog";
+import { formatClock } from "./counter-model";
 import { doorCopy } from "./door-copy";
 import { receiptRows } from "./receipt-rows";
 import { FloorScreen } from "./floor-screen";
@@ -401,6 +403,8 @@ export default async function PosPage({
           venueName={venueName}
           operatorName={operatorName}
           posPath={classesPath}
+          workspacePath={classesPath.replace(/\/pos$/, "")}
+          modeLabel={posModeLabel(tr, mode)}
           locale={locale}
           currency="USD"
           nowIso={now.toISOString()}
@@ -413,6 +417,7 @@ export default async function PosPage({
             counterRefusal: refusalCopy(tr),
             engineRefusal: engineRefusalCopy(tr),
             paymentLink: paymentLinkCopy(tr),
+            chrome: chromeCopy(tr),
           }}
           linkProvider={isStripeConfigured() ? "stripe" : "mock"}
         />
@@ -553,27 +558,15 @@ export default async function PosPage({
   // Receipts (`POSReceipts`) show today, yesterday and this week: seven days
   // back is the widest window the screen offers.
   const weekAgo = new Date(requestedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const [open, saleLoad, catalog, shiftLoad, upcoming, paidLoad, cashierName, staffLoad, limitLoad] = await Promise.all([
+  const [open, saleLoad, catalog, shiftLoad, paidLoad, cashierName, staffLoad, limitLoad] = await Promise.all([
     listOpenPosSales(admin, scope.tenantId),
     orderId && /^[0-9a-f-]{36}$/i.test(orderId)
       ? loadPosSale(admin, { tenantId: scope.tenantId, orderId })
       : Promise.resolve(null),
-    admin
-      .from("talent_offerings")
-      .select("id, title, amount_cents, kind, owner_kind, status")
-      .eq("tenant_id", scope.tenantId)
-      .eq("owner_kind", "workspace")
-      .eq("status", "published")
-      .order("sort_order", { ascending: true }),
+    // Tiles, their price variants (`Options`) and their stock (`N left`,
+    // `Sold out`), plus the upcoming sessions (`Pick session`): counter-catalog.ts.
+    loadCounterCatalog(admin, { tenantId: scope.tenantId, nowIso: now }),
     currentShift(admin, { tenantId: scope.tenantId }),
-    admin
-      .from("sessions")
-      .select("id, offering_id, title, starts_at")
-      .eq("tenant_id", scope.tenantId)
-      .eq("status", "scheduled")
-      .gte("starts_at", now)
-      .order("starts_at", { ascending: true })
-      .limit(80),
     listPaidPosSales(admin, { tenantId: scope.tenantId, sinceIso: weekAgo }),
     loadCashierName(admin),
     // The people a till can name (`POSLock`, the approver row, the hand-over)
@@ -581,8 +574,6 @@ export default async function PosPage({
     listPosStaff(admin, scope.tenantId),
     readCustomAmountLimitCents(admin, scope.tenantId),
   ]);
-  if (catalog.error) logServerError("pos.page.catalog", catalog.error);
-  if (upcoming.error) logServerError("pos.page.sessions", upcoming.error);
 
   const sale = saleLoad && saleLoad.ok ? saleLoad.sale : null;
 
@@ -592,79 +583,76 @@ export default async function PosPage({
   // screen's benefit is how a column gets added to a writer's select and
   // forgotten in a reader's — the defect `sale-rows.ts` was extracted during.
   // One extra tenant-scoped read here costs less than that risk.
+  // `updated_at` rides along: it is the last accepted write on the sale, the
+  // `Saved 09:58` line under the basket's actions until this screen writes.
   // The sale's payment links (`POSPaymentLink` on the collect screen) and
   // the titles of the bookings its lines pay for (`Linked · …` pills).
   const linked = sale ? await loadCounterLinks(admin, scope.tenantId, sale) : { paymentLinks: [], bookingTitles: new Map<string, string>() };
   const { paymentLinks, bookingTitles } = linked;
 
   let receiptCode: string | null = null;
+  let savedAtIso: string | null = null;
   if (sale) {
     const receipt = await admin
       .from("orders")
-      .select("receipt_code")
+      .select("receipt_code, updated_at")
       .eq("id", sale.orderId)
       .eq("tenant_id", scope.tenantId)
       .maybeSingle();
     if (receipt.error) logServerError("pos.page.receiptCode", receipt.error);
-    const code = (receipt.data as { receipt_code?: string | null } | null)?.receipt_code;
-    receiptCode = typeof code === "string" && code ? code : null;
+    const row = receipt.data as { receipt_code?: string | null; updated_at?: string | null } | null;
+    receiptCode = typeof row?.receipt_code === "string" && row.receipt_code ? row.receipt_code : null;
+    savedAtIso = typeof row?.updated_at === "string" && row.updated_at ? row.updated_at : null;
   }
 
-  const sessionsByOffering = new Map<string, Array<{ id: string; title: string; startsAt: string }>>();
-  for (const row of (upcoming.data ?? []) as Array<{
-    id: string;
-    offering_id: string | null;
-    title: string | null;
-    starts_at: string;
-  }>) {
-    if (!row.offering_id) continue;
-    const list = sessionsByOffering.get(row.offering_id) ?? [];
-    if (list.length >= 8) continue;
-    list.push({
-      id: row.id,
-      title: row.title?.trim() || row.starts_at,
-      startsAt: row.starts_at,
-    });
-    sessionsByOffering.set(row.offering_id, list);
-  }
+  const { items, sessionsByOffering } = catalog;
 
-  const items: PosCatalogItem[] = ((catalog.data ?? []) as Array<{
-    id: string;
-    title: string | null;
-    amount_cents: number | null;
-    kind: string | null;
-  }>).map((row) => ({
-    id: row.id,
-    title: row.title ?? row.id.slice(0, 8),
-    amountCents: row.amount_cents ?? 0,
-    kind: row.kind ?? "service",
-    sessions: sessionsByOffering.get(row.id) ?? [],
-  }));
+  // The variant labels and live holds behind the sale's lines (counter-catalog.ts).
+  const lineFacts = await loadCounterLineFacts(admin, {
+    tenantId: scope.tenantId,
+    lineIds: (sale?.lines ?? []).map((line) => line.id),
+    variantIds: (sale?.lines ?? []).flatMap((line) => (line.variantId ? [line.variantId] : [])),
+    nowIso: now,
+  });
 
   // The basket, built HERE and not in the browser: `addonCentsOnLine` is the
   // one function that recovers a line's extras from its stored total, and it
   // lives in a `server-only` module because the same file prices those extras
   // against the catalog. A second copy of that subtraction in the client is a
   // receipt that can disagree with the charge.
-  const basketLines: PosBasketLine[] = (sale?.lines ?? []).map((line) => ({
-    id: line.id,
-    label: line.label,
-    units: line.units,
-    unitCents: line.unitCents,
-    addonCents: addonCentsOnLine({
-      unitCents: line.unitCents,
+  const basketLines: PosBasketLine[] = (sale?.lines ?? []).map((line) => {
+    const heldUntil = lineFacts.heldUntilByLine.get(line.id);
+    return {
+      id: line.id,
+      label: line.label,
       units: line.units,
-      totalCents: line.totalCents,
-    }),
-    offeringId: line.offeringId,
-    sessionId: line.sessionId,
-    sessionLabel: line.sessionId
-      ? (sessionsByOffering.get(line.offeringId ?? "") ?? []).find((s) => s.id === line.sessionId)?.title ?? null
-      : null,
-    kind: line.kind,
-    needsApproval: line.needsApproval,
-    bookingLabel: line.bookingId ? (bookingTitles.get(line.bookingId) ?? null) : null,
-  }));
+      unitCents: line.unitCents,
+      addonCents: addonCentsOnLine({
+        unitCents: line.unitCents,
+        units: line.units,
+        totalCents: line.totalCents,
+      }),
+      offeringId: line.offeringId,
+      sessionId: line.sessionId,
+      variantId: line.variantId,
+      variantLabel: line.variantId ? lineFacts.variantLabels.get(line.variantId) ?? null : null,
+      sessionLabel: line.sessionId
+        ? (sessionsByOffering.get(line.offeringId ?? "") ?? []).find((s) => s.id === line.sessionId)?.title ?? null
+        : null,
+      heldUntil: heldUntil ? formatClock(heldUntil, locale) : null,
+      kind: line.kind,
+      needsApproval: line.needsApproval,
+      bookingLabel: line.bookingId ? (bookingTitles.get(line.bookingId) ?? null) : null,
+    };
+  });
+
+  // THE TAX ROW READS THE TAX OUTCOME, NOT A NUMBER. `orderTax` answers
+  // `unset` when not one line carries a configured category, and today no
+  // line can: `talent_offerings` has no tax category column yet, so every
+  // line is `category: null` and the row says the tax is not set up rather
+  // than showing a zero nobody decided. The day a category reaches the
+  // offering, this is the one place that changes.
+  const tax = orderTax((sale?.lines ?? []).map((line) => ({ lineTotalCents: line.totalCents, category: null })));
 
   const currency = sale?.currency ?? "USD";
   const hdrs = await headers();
@@ -730,6 +718,8 @@ export default async function PosPage({
             : null
         }
         basketLines={basketLines}
+        taxState={tax.kind}
+        savedAt={savedAtIso ? formatClock(savedAtIso, locale) : null}
         openSales={open.ok ? open.rows : []}
         receipts={receipts}
         catalog={items}

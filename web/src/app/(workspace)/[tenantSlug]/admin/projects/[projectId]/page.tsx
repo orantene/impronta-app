@@ -39,10 +39,12 @@ import {
   type ProjectRecord,
 } from "@/lib/projects/project-record";
 import {
+  BTN_MOBILE,
   BTN_PRIMARY,
   BTN_SECONDARY,
   KpiCard,
   MetaLine,
+  MobileActions,
   Notice,
   PageShell,
   Pill,
@@ -51,6 +53,7 @@ import {
   dayLabel,
   shortId,
 } from "../_shared";
+import { MobileDetailHeaderSyncer } from "@/components/admin/shell/internal/page-modules/mobile-header-store";
 import { ACTION_KEY, STATUS_KEY } from "../_keys";
 import { RecordSide } from "./record-side";
 import { ActivityTab, MoneyTab, OverviewTab, ScopeTab, VisibilityTab } from "./record-tabs";
@@ -140,12 +143,24 @@ export default async function ProjectRecordPage({
   const milestoneById = (id: string | undefined) => project.milestones.find((m) => m.id === id) ?? null;
   const actionMilestone = milestoneById(action.milestoneId);
 
+  const primaryHrefs = {
+    collect: `${base}/pos?mode=projects&view=collect&project=${project.id}`,
+    milestones: tabHref("milestones"),
+    conversation: project.inquiryId ? `/${tenantSlug}/admin/messages/${project.inquiryId}` : null,
+  };
+
   const main = (
     <>
+      {/* MW10: the phone's back header reads "Client · Project" over the id. */}
+      <MobileDetailHeaderSyncer
+        title={project.clientName ? `${project.clientName} · ${project.title || shortId(project.id)}` : project.title || shortId(project.id)}
+        subtitle={`${tr("dashboard.projects.pageTitle")} ${shortId(project.id)}`}
+        backHref={`${base}/projects`}
+      />
       <header className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="m-0 text-[24px]! font-semibold leading-tight tracking-[-0.02em] text-admin-ink">
+            <h1 className="m-0 text-[24px]! font-semibold leading-tight tracking-[-0.02em] text-admin-ink max-[720px]:text-[20px]!">
               {project.title || shortId(project.id)}
             </h1>
             <Pill tone={statusTone(project)}>{tr(STATUS_KEY[project.status])}</Pill>
@@ -202,19 +217,17 @@ export default async function ProjectRecordPage({
               sheet: closeSheetCopy(tr),
             }}
           />
-          <PrimaryAction
-            project={project}
-            actionId={action.id}
-            milestoneTitle={actionMilestone?.title ?? null}
-            dueCents={money.dueCents}
-            currency={money.currency}
-            hrefs={{
-              collect: `${base}/pos?mode=projects&view=collect&project=${project.id}`,
-              milestones: tabHref("milestones"),
-              conversation: project.inquiryId ? `/${tenantSlug}/admin/messages/${project.inquiryId}` : null,
-            }}
-            tr={tr}
-          />
+          <span className="max-[720px]:hidden">
+            <PrimaryAction
+              project={project}
+              actionId={action.id}
+              milestoneTitle={actionMilestone?.title ?? null}
+              dueCents={money.dueCents}
+              currency={money.currency}
+              hrefs={primaryHrefs}
+              tr={tr}
+            />
+          </span>
         </div>
       </header>
 
@@ -283,7 +296,7 @@ export default async function ProjectRecordPage({
       {money.mixedCurrency ? <Notice tone="warn">{tr("dashboard.projects.money.mixedCurrency")}</Notice> : null}
 
       {awaiting.length > 0 ? (
-        <div className="flex items-center gap-3.5 rounded-[12px] border border-admin-brand bg-admin-brand-soft px-4 py-3.5" data-project-banner="approval">
+        <div className="flex items-center gap-3.5 rounded-[12px] border border-admin-brand bg-admin-brand-soft px-4 py-3.5 max-[720px]:flex-wrap max-[720px]:gap-2.5 max-[720px]:px-3.5 max-[720px]:py-3" data-project-banner="approval">
           <span aria-hidden className="text-admin-brand">
             !
           </span>
@@ -337,6 +350,21 @@ export default async function ProjectRecordPage({
       {tab === "money" ? <MoneyTab project={project} tenantSlug={tenantSlug} tr={tr} /> : null}
       {tab === "activity" ? <ActivityTab project={project} activity={activity} locale={locale} tr={tr} /> : null}
       {tab === "visibility" ? <VisibilityTab tr={tr} /> : null}
+      {/* MW10/MW11: the phone's one decisive action rides the fixed bar. */}
+      {action.id !== "nothing" && action.id !== "close_project" ? (
+        <MobileActions>
+          <PrimaryAction
+            project={project}
+            actionId={action.id}
+            milestoneTitle={actionMilestone?.title ?? null}
+            dueCents={money.dueCents}
+            currency={money.currency}
+            hrefs={primaryHrefs}
+            tr={tr}
+            className={BTN_MOBILE}
+          />
+        </MobileActions>
+      ) : null}
     </>
   );
 
@@ -368,6 +396,7 @@ function PrimaryAction({
   currency,
   hrefs,
   tr,
+  className,
 }: {
   project: ProjectRecord;
   actionId: ReturnType<typeof nextProjectAction>["id"];
@@ -376,19 +405,22 @@ function PrimaryAction({
   currency: string;
   hrefs: { collect: string; milestones: string; conversation: string | null };
   tr: Tr;
+  /** The phone's 50px shape when the action rides the fixed bar. */
+  className?: string;
 }) {
   const label = tr(ACTION_KEY[actionId]);
+  const cls = className ? `${BTN_PRIMARY} ${className}` : BTN_PRIMARY;
   if (actionId === "nothing" || actionId === "close_project") return null;
   if (actionId === "collect_balance") {
     return (
-      <Link href={hrefs.collect} className={BTN_PRIMARY} data-project-primary="collect">
+      <Link href={hrefs.collect} className={cls} data-project-primary="collect">
         {label} · {formatOrderMoney(dueCents, currency)}
       </Link>
     );
   }
   if (actionId === "review_milestone" || actionId === "chase_milestone") {
     return (
-      <Link href={hrefs.milestones} className={BTN_PRIMARY} data-project-primary={actionId}>
+      <Link href={hrefs.milestones} className={cls} data-project-primary={actionId}>
         {milestoneTitle ? `${label} · ${milestoneTitle}` : label}
       </Link>
     );
@@ -397,13 +429,13 @@ function PrimaryAction({
   // the conversation's offer composer and lineup.
   if (hrefs.conversation && project.inquiryId) {
     return (
-      <Link href={hrefs.conversation} className={BTN_PRIMARY} data-project-primary={actionId}>
+      <Link href={hrefs.conversation} className={cls} data-project-primary={actionId}>
         {label}
       </Link>
     );
   }
   return (
-    <button type="button" disabled title={tr("dashboard.projects.scope.noInquiry")} className={BTN_PRIMARY}>
+    <button type="button" disabled title={tr("dashboard.projects.scope.noInquiry")} className={cls}>
       {label}
     </button>
   );

@@ -1,0 +1,7 @@
+Command (from web/):
+  node --env-file=.env.capacity-isolated.local scripts/check-migration-version-collisions.mjs --remote
+
+Output:
+[migration-collisions] remote ledger read: 814 recorded migrations
+[migration-collisions] OK — 820 local migrations, local + remote checks clean
+Exit code: 0

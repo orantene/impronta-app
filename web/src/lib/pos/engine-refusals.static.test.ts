@@ -54,6 +54,8 @@ test("every engine refusal code has en es fr sentences and no em dash", () => {
   const es = load("es");
   const fr = load("fr");
   for (const code of CODES) {
+    const key = `dashboard.pos.engine.refusal.${code}`;
+    assert.equal(typeof key, "string");
     const path = ["dashboard", "pos", "engine", "refusal", code];
     const enS = at(en, path);
     const esS = at(es, path);

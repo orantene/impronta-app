@@ -24,6 +24,22 @@ export type PosCatalogSession = {
   readonly startsAt: string;
 };
 
+/** One price variant of an offering (`talent_offering_variants`): `Oat milk`, `Large`. */
+export type PosCatalogOption = {
+  readonly id: string;
+  readonly label: string;
+  /** The variant's own price; `null` means the offering's base price applies. */
+  readonly amountCents: number | null;
+};
+
+/**
+ * What the stock mirror says about an offering. `counted` only when the
+ * offering has a capacity pool behind it: `inventory_qty` with no pool is a
+ * stale mirror from before the stock migration and means UNLIMITED (the same
+ * rule the storefront's menu block applies).
+ */
+export type PosCatalogStock = { readonly kind: "unlimited" } | { readonly kind: "counted"; readonly available: number };
+
 export type PosCatalogItem = {
   readonly id: string;
   readonly title: string;
@@ -31,7 +47,32 @@ export type PosCatalogItem = {
   /** `talent_offerings.kind` — service | package | product. */
   readonly kind: string;
   readonly sessions: readonly PosCatalogSession[];
+  readonly options?: readonly PosCatalogOption[];
+  readonly stock?: PosCatalogStock;
 };
+
+/**
+ * Below this many units the tile says `N left` (`POSCounter`: `3 left`); a
+ * well-stocked item says nothing, because a badge on every tile is no badge.
+ */
+export const LOW_STOCK_UNITS = 5;
+
+/**
+ * The tile's badge, from the facts the page read, in the order a cashier
+ * needs them: an item that cannot be sold (`Sold out`) beats one that needs a
+ * choice (`Options`, `Pick session`), which beats a warning (`N left`).
+ */
+export function tileBadge(item: Pick<PosCatalogItem, "sessions" | "options" | "stock">): PosProductTile["badge"] {
+  if (item.stock?.kind === "counted" && item.stock.available <= 0) return { kind: "soldOut" };
+  // `Options` is a CHOICE: one variant is the offering's only price and is
+  // sold as before, with no chooser to tap through.
+  if (item.options && item.options.length > 1) return { kind: "options" };
+  // `Pick session` only when there is a choice to make (C19): one upcoming
+  // session sells directly, like a plain product.
+  if (item.sessions.length > 1) return { kind: "pickSession" };
+  if (item.stock?.kind === "counted" && item.stock.available <= LOW_STOCK_UNITS) return { kind: "left", count: item.stock.available };
+  return undefined;
+}
 
 export type PosShiftView = {
   readonly id: string;
@@ -121,9 +162,19 @@ export function toProductTiles(
       amountCents: item.amountCents,
       currency,
       categoryId: item.kind,
-      // `Pick session` only when there is a choice to make (C19): one
-      // upcoming session sells directly, like a plain product.
-      badge: item.sessions.length > 1 ? { kind: "pickSession" } : undefined,
+      badge: tileBadge(item),
+      soldOut: item.stock?.kind === "counted" && item.stock.available <= 0,
+      // Price variants (`Options`): the chooser lists them and the chosen one
+      // rides the line as `variant_id`, priced by the engine (`draft.ts`).
+      options:
+        item.options && item.options.length > 1
+          ? item.options.map((option) => ({
+              id: option.id,
+              label: option.label,
+              deltaCents: option.amountCents === null ? 0 : option.amountCents - item.amountCents,
+              selected: false,
+            }))
+          : undefined,
       variants:
         item.sessions.length > 0
           ? item.sessions.map((session) => ({

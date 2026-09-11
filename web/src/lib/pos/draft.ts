@@ -14,6 +14,7 @@ import { addonCentsOnLine, priceAddons } from "./addons";
 import { LINE_COLUMNS, num, totalsInput, type Admin, type LineRow, type OrderRow } from "./sale-rows";
 import { posGuestSessionId, type PosLineInput } from "./commands";
 import { lockedCustomLineIds } from "./custom-line";
+import { livePhasePrice } from "@/lib/catalog/price-phases";
 
 export type CreateDraftOrderInput = {
   tenantId: string;
@@ -523,6 +524,14 @@ export async function repriceAndValidate(
 
   for (const line of loaded.lines) {
     if (!line.offering_id) continue;
+    // A stamped phase is the price that sold. Later phases do not rewrite it.
+    if (line.price_phase_id) continue;
+    const phase = await livePhasePrice(admin, {
+      tenantId: input.tenantId,
+      offeringId: line.offering_id,
+      variantId: line.variant_id,
+    });
+    if (!phase.ok) return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
     const { data: offering, error } = await admin
       .from("talent_offerings")
       .select("id, amount_cents, title")
@@ -533,8 +542,8 @@ export async function repriceAndValidate(
       logServerError("pos.reprice.offering", error);
       return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
     }
-    if (!offering) continue;
-    let unitCents = Math.max(0, Math.trunc(num((offering as { amount_cents: number | null }).amount_cents)));
+    if (!offering && phase.priceCents == null) continue;
+    let unitCents = Math.max(0, Math.trunc(num((offering as { amount_cents: number | null } | null)?.amount_cents)));
     if (line.variant_id) {
       const { data: variant, error: variantError } = await admin
         .from("talent_offering_variants")
@@ -548,6 +557,7 @@ export async function repriceAndValidate(
       const amount = (variant as { amount_cents?: number | null } | null)?.amount_cents;
       if (amount != null) unitCents = Math.max(0, Math.trunc(num(amount)));
     }
+    if (phase.priceCents != null) unitCents = phase.priceCents;
     // Extras are repriced from the catalog like everything else here. This is
     // the one command whose job is to answer "what does this cost NOW", and an
     // add-on left at its stored price would be the only stale number on a
@@ -566,7 +576,11 @@ export async function repriceAndValidate(
     const totalCents = lineTotalCents({ unitCents, units, addonCents: addons.priced.addonCents });
     const { error: uErr } = await admin
       .from("order_lines")
-      .update({ unit_cents: unitCents, total_cents: totalCents })
+      .update({
+        unit_cents: unitCents,
+        total_cents: totalCents,
+        ...(phase.phaseId ? { price_phase_id: phase.phaseId } : {}),
+      })
       .eq("id", line.id);
     if (uErr) {
       logServerError("pos.reprice.line", uErr);
@@ -574,6 +588,7 @@ export async function repriceAndValidate(
     }
     line.unit_cents = unitCents;
     line.total_cents = totalCents;
+    if (phase.phaseId) line.price_phase_id = phase.phaseId;
   }
 
   let discountCents = 0;

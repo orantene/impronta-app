@@ -36,7 +36,7 @@ import {
   type CatalogView,
   type ListFilters,
 } from "./catalog-model";
-import { CARD, ListHead, ListRow, PageHeading, RowMenuButton, SegmentLinks } from "./catalog-ui";
+import { CARD, ListHead, ListRow, Note, PageHeading, RowMenuButton, SegmentLinks } from "./catalog-ui";
 
 const COLS = "grid-cols-[1.5fr_110px_1.3fr_90px_140px_110px_140px_30px]";
 
@@ -93,9 +93,10 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
 
       <MenuImportPanel tenantId={editor.workspaceTenantId} open={importOpen} onClose={() => setImportOpen(false)} />
 
-      <div className="flex flex-wrap items-center gap-[8px]">
+      <div className="flex flex-wrap items-center gap-[8px] max-[720px]:flex-col max-[720px]:items-stretch">
         <SegmentLinks label={t("dashboard.catalog.segment.label")} items={segments} />
         <span className="flex-1" />
+        <div className="hidden max-[720px]:contents">
         <FilterChip
           label={t("dashboard.catalog.filter.type")}
           value={packagesView ? "package" : filters.type}
@@ -131,6 +132,11 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
           on={filters.incompleteOnly}
           onChange={(on) => setFilters((f) => ({ ...f, incompleteOnly: on }))}
         />
+        </div>
+      </div>
+      {/* MW21: full editing lives on the desktop; the phone changes availability, price and essentials. */}
+      <div className="hidden max-[720px]:block">
+        <Note>{t("dashboard.catalog.list.phoneScope")}</Note>
       </div>
 
       {editor.error ? (
@@ -227,7 +233,26 @@ function CatalogRow({
           : t("dashboard.catalog.availability.stockLeft").replace("{n}", String(avail.left));
 
   return (
-    <ListRow cols={COLS} testId="catalog-row" className="relative">
+    <>
+    {/* MW21: the phone's row — the item, then type · price · availability · channels, the status as a pill. */}
+    <Link
+      href={nav.href({ item: o.id })}
+      className="hidden items-center gap-[10px] border-t border-admin-border-soft px-[14px] py-[12px] no-underline max-[720px]:flex"
+      data-testid="catalog-row-phone"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-admin-body text-[14.5px] font-semibold text-admin-ink">{o.title || t("dashboard.catalog.untitled")}</span>
+        <span className="mt-[2px] block truncate font-admin-body text-admin-12h text-admin-ink-muted">
+          {t(TYPE_KEY[type])} · {offeringPriceLabel(o, locale)} · {availability}
+          {channels.includes("pos") ? ` · ${t("dashboard.catalog.channel.posCounter")}` : ""}
+          {channels.includes("website") ? ` · ${t("dashboard.catalog.channel.website")}` : ""}
+        </span>
+      </span>
+      <StatePill tone={STATUS_TONE[status]} state={status}>
+        {t(STATUS_KEY[status])}
+      </StatePill>
+    </Link>
+    <ListRow cols={COLS} testId="catalog-row" className="relative max-[720px]:hidden">
       <Link href={nav.href({ item: o.id })} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
         {o.title || t("dashboard.catalog.untitled")}
       </Link>
@@ -281,6 +306,7 @@ function CatalogRow({
         ) : null}
       </span>
     </ListRow>
+    </>
   );
 }
 

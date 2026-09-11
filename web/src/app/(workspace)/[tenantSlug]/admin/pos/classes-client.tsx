@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import {
   PosFrame,
   PosRefusalBanner,
+  type PosChromeCopy,
   type PosRefusalCopy,
   type PosRefusalReason,
 } from "@/components/admin/pos";
@@ -44,20 +45,18 @@ import {
   type ClassesRefusalKey,
 } from "@/lib/pos/classes/refusals";
 import { refusalFromResult } from "@/lib/pos/refusal-reason";
-import { parseLocalDateTime } from "@/lib/scheduling/appointments-board";
-import {
-  joinSessionWaitlist,
-  rescheduleAppointment,
-} from "@/lib/scheduling/appointments-actions";
-import { fillRefusalSentence } from "@/lib/scheduling/reschedule-refusal";
-import { zonedLocalToUtc } from "@/lib/scheduling/tz";
+import { joinSessionWaitlist } from "@/lib/scheduling/appointments-actions";
 
 import type { PaymentLinkCopy } from "@/components/admin/pos/PaymentLinkPanel";
 
 import { posAddLine, posLoadSale, posStartCollection } from "./actions";
 import { classesCheckIn, classesMarkAttendance } from "./classes-actions";
-import { SessionCheckIn } from "./classes-checkin";
-import { fill, formatWhen, venueLocalInputValue } from "./classes-format";
+import { BookingFlow } from "./classes-booking";
+import { CheckinStrip, SessionCheckIn } from "./classes-checkin";
+import { ClassesHeader } from "./classes-header";
+import { fill, formatClock, formatWhen } from "./classes-format";
+import { MoveSheet } from "./classes-move";
+import { useMove } from "./classes-move-state";
 import { AppointmentLinkSheet, ClassesNotice, WaitlistPanel, WalkInSheet, type WalkInService } from "./classes-panels";
 import {
   AddExtraSheet,
@@ -67,7 +66,6 @@ import {
   type TodaySegment,
   type TodayTab,
 } from "./classes-today";
-import { PosAction } from "./classes-ui";
 import { useClassesWaitlist } from "./classes-waitlist";
 import { useWalkIn } from "./classes-walkin-state";
 import { posCollectionKey } from "./counter-model";
@@ -81,6 +79,10 @@ export type ClassesClientProps = {
   venueName: string | null;
   operatorName: string;
   posPath: string;
+  /** The door back out of the till (the rail's Workspace row). */
+  workspacePath: string;
+  /** The MODE chip's label ("Front desk"), translated. */
+  modeLabel: string;
   locale: string;
   currency: string;
   /** The server's clock at render, ISO; "starts in N min" reads it, never the browser's. */
@@ -98,6 +100,8 @@ export type ClassesClientProps = {
     /** `dashboard.pos.engine.refusal.*`, for the queue's offers (D-POS-68). */
     engineRefusal: Readonly<Record<string, string>>;
     paymentLink: PaymentLinkCopy;
+    /** The till's chrome words (Mode, Lock, Workspace), the Counter's own. */
+    chrome: PosChromeCopy;
   };
   /** What `/pay/<code>` does on this workspace (`PaymentLinkPanel`). */
   linkProvider: "stripe" | "mock";
@@ -130,8 +134,6 @@ export function ClassesClient(props: ClassesClientProps) {
     null,
   );
   const [sale, setSale] = useState<SaleDetail>({ status: "idle" });
-  const [moving, setMoving] = useState<string | null>(null);
-  const [moveValue, setMoveValue] = useState("");
   const [extraFor, setExtraFor] = useState<string | null>(null);
   const [linkFor, setLinkFor] = useState<string | null>(null);
 
@@ -176,6 +178,18 @@ export function ClassesClient(props: ClassesClientProps) {
     [refuse, router],
   );
 
+  /* ── Move (A09) ────────────────────────────────────────────────────── */
+
+  const move = useMove({
+    tenantId: props.tenantId,
+    day,
+    locale: props.locale,
+    copy: c,
+    run,
+    refuse,
+    setNotice,
+  });
+
   /* ── Today ─────────────────────────────────────────────────────────── */
 
   /** The sale behind an appointment, read when the operator opens it. */
@@ -196,7 +210,7 @@ export function ClassesClient(props: ClassesClientProps) {
 
   const select = (row: ClassesAppointment) => {
     setSelectedId(row.id);
-    setMoving(null);
+    move.close();
     setNotice(null);
     readSale(row);
   };
@@ -220,60 +234,6 @@ export function ClassesClient(props: ClassesClientProps) {
         return true;
       },
     );
-
-  const submitMove = (row: ClassesAppointment) => {
-    const parsed = parseLocalDateTime(moveValue);
-    if (!parsed) {
-      setNotice({ kind: "refused", sentence: c.reschedule.needStart });
-      return;
-    }
-    // The control hands back a wall clock with no zone. It means the VENUE's
-    // clock, so the venue's zone is what turns it into an instant.
-    const instant = zonedLocalToUtc(
-      parsed.ymd,
-      parsed.minutesOfDay,
-      day.timeZone,
-    );
-    if (!instant) {
-      setNotice({ kind: "refused", sentence: c.reschedule.nonexistentTime });
-      return;
-    }
-    void run(
-      () =>
-        rescheduleAppointment({
-          tenantId: props.tenantId,
-          bookingId: row.id,
-          newStartsAt: instant.toISOString(),
-          newEndsAt: null,
-          // The window the operator was looking at, so a stale screen is
-          // refused rather than overwriting a colleague's move.
-          expectedStartsAt: row.startsAt,
-          expectedEndsAt: row.endsAt,
-        }),
-      (r) => {
-        if (!r.ok) {
-          setNotice({
-            kind: "refused",
-            sentence: fillRefusalSentence(
-              c.reschedule.refusal[r.refusal.key],
-              r.refusal.params,
-            ),
-          });
-          return false;
-        }
-        setMoving(null);
-        setNotice({
-          kind: "done",
-          sentence: r.already
-            ? c.reschedule.already
-            : fill(c.reschedule.moved, {
-                when: formatWhen(r.startsAt, day.timeZone, props.locale),
-              }),
-        });
-        return true;
-      },
-    );
-  };
 
   /**
    * THE CHARGE, the Counter's. Key derived from the sale, version carried,
@@ -470,36 +430,41 @@ export function ClassesClient(props: ClassesClientProps) {
     classes: day.sessions.length,
   });
 
+  // B05 fills the content area: the list steps aside while a class is open
+  // for check-in, and the rail's Sessions row brings it back.
+  const checkinOpen = segment === "classes" && selectedSession !== null;
+  const minutes = selectedSession ? Math.round((Date.parse(selectedSession.startsAt) - Date.parse(props.nowIso)) / 60_000) : 0;
   const twoPane = (
     <div className="relative flex min-h-0 flex-1">
-      <TodayList
-        rows={day.appointments}
-        sessions={day.sessions}
-        tab={tab}
-        segment={segment}
-        selectedId={selectedId}
-        selectedSessionId={selectedSessionId}
-        timeZone={day.timeZone}
-        locale={props.locale}
-        copy={c}
-        onTab={setTab}
-        onSegment={(next) =>
-          setDestination(next === "classes" ? "sessions" : "today")
-        }
-        onSelect={select}
-        onSelectSession={(session) => {
-          setSelectedSessionId(session.id);
-          setNotice(null);
-        }}
-        onWalkIn={() => openWalkIn("walkin")}
-        onBook={() => openWalkIn("book")}
-      />
+      {checkinOpen ? null : (
+        <TodayList
+          rows={day.appointments}
+          sessions={day.sessions}
+          tab={tab}
+          segment={segment}
+          selectedId={selectedId}
+          selectedSessionId={selectedSessionId}
+          timeZone={day.timeZone}
+          locale={props.locale}
+          copy={c}
+          onTab={setTab}
+          onSegment={(next) =>
+            setDestination(next === "classes" ? "sessions" : "today")
+          }
+          onSelect={select}
+          onSelectSession={(session) => {
+            setSelectedSessionId(session.id);
+            setNotice(null);
+          }}
+          onWalkIn={() => openWalkIn("walkin")}
+          onBook={() => openWalkIn("book")}
+        />
+      )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {segment === "classes" ? (
           selectedSession ? (
             <SessionCheckIn
               session={selectedSession}
-              nowIso={props.nowIso}
               timeZone={day.timeZone}
               locale={props.locale}
               copy={c}
@@ -521,32 +486,47 @@ export function ClassesClient(props: ClassesClientProps) {
           <AppointmentDetail
             row={selected}
             sale={sale}
+            extras={props.extras}
             timeZone={day.timeZone}
             locale={props.locale}
             copy={c}
             busy={busy}
-            moving={moving === selected.id}
-            moveValue={moveValue}
-            onMoveValueChange={setMoveValue}
             onCheckIn={checkIn}
-            onOpenMove={(row) => {
-              setMoving(row.id);
-              setMoveValue(venueLocalInputValue(row.startsAt, day.timeZone));
-              setNotice(null);
-            }}
-            onSubmitMove={submitMove}
-            onCancelMove={() => setMoving(null)}
+            onOpenMove={move.open}
             onCollect={collectRow}
             onAddExtra={() => setExtraFor(selected.id)}
             onSendLink={(row) => setLinkFor(row.id)}
-          />
+          >
+            {move.bookingId === selected.id ? (
+              <MoveSheet
+                row={selected}
+                sale={sale.status === "ready" ? sale.sale : null}
+                dayYmd={day.ymd}
+                viewedOffset={day.dayOffset}
+                dayOffset={move.dayOffset}
+                slots={move.slots}
+                slotIso={move.slotIso}
+                manual={move.manual}
+                chosenIso={move.chosenIso}
+                timeZone={day.timeZone}
+                locale={props.locale}
+                copy={c}
+                busy={busy}
+                onDay={move.pickDay}
+                onSlot={move.pickSlot}
+                onManual={move.typeManual}
+                onKeep={move.close}
+                onMove={() => move.submit(selected)}
+              />
+            ) : null}
+          </AppointmentDetail>
         ) : (
           <p className="m-0 p-[20px] font-admin-body text-[15px] text-admin-ink-muted">
             {b.list.pickOne}
           </p>
         )}
       </div>
-      {destination === "walkin" ? (
+      {destination === "walkin" && walkIn.intent === "walkin" ? (
         <WalkInSheet
           intent={walkIn.intent}
           kind={walkIn.kind}
@@ -603,6 +583,8 @@ export function ClassesClient(props: ClassesClientProps) {
           extras={props.extras}
           copy={c}
           currency={props.currency}
+          timeZone={day.timeZone}
+          locale={props.locale}
           busy={busy}
           onAdd={(extra) => addExtra(selected, extra)}
           onClose={() => setExtraFor(null)}
@@ -611,8 +593,26 @@ export function ClassesClient(props: ClassesClientProps) {
     </div>
   );
 
+  // The header is the screen's: the day and its counts on Today, the class
+  // and "starts in N min" while a check-in is open (B05).
+  const startsLine = minutes >= 0 ? fill(b.checkin.startsIn, { minutes }) : fill(b.checkin.startedAgo, { minutes: -minutes });
+  // A01 to A06: the Book door is its own screen, not a sheet over the list.
+  const bookingOpen = destination === "walkin" && walkIn.intent === "book";
+  const headerTitle = bookingOpen
+    ? b.booking.title
+    : checkinOpen && selectedSession
+      ? `${selectedSession.title} · ${formatClock(selectedSession.startsAt, day.timeZone, props.locale)}`
+      : c.title;
+  const headerSubtitle = bookingOpen
+    ? walkIn.name.trim()
+      ? fill(b.booking.subtitleNamed, { name: walkIn.name.trim() })
+      : b.booking.subtitleNew
+    : checkinOpen
+      ? `${props.venueName ?? props.workspaceName} · ${startsLine}`
+      : null;
+
   return (
-    <div className="flex h-[calc(100vh-56px)] min-h-[560px] w-full flex-col overflow-hidden">
+    <div className="flex h-[calc(100vh-var(--proto-cbar,50px))] min-h-[560px] w-full flex-col overflow-hidden">
       <PosFrame
         mode="classes"
         navLabel={copy.frame.navLabel}
@@ -624,89 +624,33 @@ export function ClassesClient(props: ClassesClientProps) {
             openWalkIn("walkin");
             return;
           }
+          // The Sessions row from an open check-in is the way back to the list.
+          if (next === "sessions" && destination === "sessions" && selectedSessionId) setSelectedSessionId(null);
           setDestination(next);
           setNotice(null);
         }}
         destinationLabels={copy.frame.destinationLabels}
+        modeLabel={props.modeLabel}
+        modeEyebrow={copy.chrome.modeEyebrow}
+        lock={{ label: copy.chrome.lock, disabledReason: copy.chrome.lockUnavailable }}
+        workspace={{ label: copy.chrome.workspace, href: props.workspacePath }}
         className="flex-1 rounded-none border-0"
       >
         <div className="flex h-full min-h-0 flex-col">
-          <header className="flex flex-wrap items-center justify-between gap-[12px] border-b border-admin-border px-[20px] py-[12px]">
-            <div className="min-w-0">
-              <h1 className="m-0 font-admin-body text-[22px] font-semibold leading-[1.15] text-admin-ink">
-                {c.title}
-              </h1>
-              <p
-                className="m-0 flex items-center gap-[8px] font-admin-body text-[14px] text-admin-ink-muted"
-                data-pos-classes-day={day.ymd}
-                data-pos-classes-zone={day.timeZone}
-              >
-                <button
-                  type="button"
-                  aria-label={c.day.prev}
-                  className="cursor-pointer rounded-[6px] px-[4px] text-admin-ink-dim hover:text-admin-ink"
-                  onClick={() => router.push(dayHref(day.dayOffset - 1))}
-                >
-                  ‹
-                </button>
-                <span>{summary}</span>
-                <button
-                  type="button"
-                  aria-label={c.day.next}
-                  className="cursor-pointer rounded-[6px] px-[4px] text-admin-ink-dim hover:text-admin-ink"
-                  onClick={() => router.push(dayHref(day.dayOffset + 1))}
-                >
-                  ›
-                </button>
-                {day.dayOffset !== 0 ? (
-                  <button
-                    type="button"
-                    className="cursor-pointer text-[13px] font-semibold text-admin-brand underline underline-offset-2"
-                    onClick={() => router.push(dayHref(0))}
-                  >
-                    {c.day.backToToday}
-                  </button>
-                ) : null}
-                <span className="text-admin-ink-dim">· {day.timeZone}</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-[8px]">
-              <span
-                className="inline-flex h-[44px] items-center gap-[8px] rounded-[12px] border border-admin-border bg-admin-card px-[14px] font-admin-body text-[15px] font-semibold text-admin-ink"
-                title={b.header.location}
-              >
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-admin-ink-muted"
-                >
-                  <path d="M12 21s7-6.5 7-11.5a7 7 0 0 0-14 0C5 14.5 12 21 12 21z" />
-                  <circle cx="12" cy="9.5" r="2.5" />
-                </svg>
-                {props.venueName ?? props.workspaceName}
-              </span>
-              <span
-                className="inline-flex h-[44px] items-center gap-[8px] rounded-[12px] border border-admin-border bg-admin-card px-[10px] pr-[14px] font-admin-body text-[15px] font-semibold text-admin-ink"
-                title={b.header.operator}
-              >
-                <span className="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-admin-indigo-soft text-[11px] font-bold text-admin-indigo">
-                  {initialsOf(props.operatorName)}
-                </span>
-                {props.operatorName}
-              </span>
-              <PosAction className="h-[44px]" onClick={() => router.refresh()}>
-                {c.day.reload}
-              </PosAction>
-            </div>
-          </header>
+          <ClassesHeader
+            title={headerTitle}
+            subtitle={headerSubtitle}
+            summary={summary}
+            day={day}
+            copy={c}
+            locationName={props.venueName ?? props.workspaceName}
+            operatorName={props.operatorName}
+            onDay={(offset) => router.push(dayHref(offset))}
+            onReload={() => router.refresh()}
+          />
+          {checkinOpen && selectedSession ? <CheckinStrip session={selectedSession} copy={c} /> : null}
           {notice ? (
-            <div className="px-[20px] pt-[12px]">
+            <div className="px-[22px] pt-[12px]">
               {notice.kind === "counter" ? (
                 <PosRefusalBanner
                   reason={notice.reason}
@@ -723,7 +667,36 @@ export function ClassesClient(props: ClassesClientProps) {
               )}
             </div>
           ) : null}
-          {destination === "waitlist" ? (
+          {bookingOpen ? (
+            <BookingFlow
+              day={day}
+              venueName={props.venueName ?? props.workspaceName}
+              services={props.services}
+              serviceId={walkIn.serviceId}
+              onService={walkIn.chooseService}
+              slotsDay={walkIn.slotsDay}
+              onDay={walkIn.pickDay}
+              slots={walkIn.slots}
+              slotIso={walkIn.slotIso}
+              onSlot={walkIn.setSlotIso}
+              name={walkIn.name}
+              email={walkIn.email}
+              phone={walkIn.phone}
+              onName={walkIn.setName}
+              onEmail={walkIn.setEmail}
+              onPhone={walkIn.setPhone}
+              outcome={walkIn.outcome}
+              timeZone={day.timeZone}
+              locale={props.locale}
+              currency={props.currency}
+              copy={c}
+              busy={busy}
+              onBook={walkIn.book}
+              onCollect={walkIn.collect}
+              onStartAgain={walkIn.startAgain}
+              onClose={closeWalkIn}
+            />
+          ) : destination === "waitlist" ? (
             <WaitlistPanel
               sessions={day.sessions}
               timeZone={day.timeZone}
@@ -747,13 +720,5 @@ export function ClassesClient(props: ClassesClientProps) {
         </div>
       </PosFrame>
     </div>
-  );
-}
-
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/u).filter(Boolean);
-  return (
-    `${parts[0]?.[0] ?? ""}${parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : ""}`.toUpperCase() ||
-    "·"
   );
 }

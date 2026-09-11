@@ -21,7 +21,8 @@
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronDown, Mail, Phone } from "lucide-react";
+import * as React from "react";
+import { CalendarPlus, ChevronDown, Mail, Phone } from "lucide-react";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requestNowMs } from "@/lib/projects/request-clock";
 import { userHasCapability } from "@/lib/access";
@@ -45,6 +46,7 @@ import {
   type ClientRecord,
 } from "@/lib/customers/client-record";
 import {
+  BTN_MOBILE,
   BTN_SECONDARY,
   Card,
   Eyebrow,
@@ -52,6 +54,8 @@ import {
   KeyValue,
   KpiCard,
   ListRow,
+  MobileActions,
+  MobileListRow,
   Notice,
   PageShell,
   Pill,
@@ -62,6 +66,7 @@ import {
   orderStatusLabel,
   shortId,
 } from "../../projects/_shared";
+import { MobileDetailHeaderSyncer } from "@/components/admin/shell/internal/page-modules/mobile-header-store";
 import { STATUS_KEY } from "../../projects/_keys";
 import type { ProjectStatus } from "@/lib/projects/project-record";
 import { ClientCollect } from "./collect-sheet";
@@ -83,6 +88,10 @@ const TAB_KEY: Record<Tab, string> = {
   projects: "dashboard.clientRecord.tabProjects",
   details: "dashboard.clientRecord.tabDetails",
 };
+
+/** MW06's 40px icon buttons. */
+const MOBILE_ICON =
+  "inline-flex h-10 flex-1 items-center justify-center rounded-[10px] border border-admin-border bg-admin-card text-admin-ink no-underline disabled:cursor-not-allowed disabled:opacity-50";
 
 const BOOKING_TONE: Record<string, "indigo" | "green" | "red" | "slate"> = {
   in_progress: "indigo",
@@ -136,8 +145,9 @@ export default async function ClientRecordPage({ params, searchParams }: { param
   const tabHref = (t: Tab) => (t === "overview" ? `${base}/clients/${record.customerId}` : `${base}/clients/${record.customerId}?tab=${t}`);
   const tz = record.timeZone;
 
-  const collect = verdict.ok ? (
+  const collect = (mobile: boolean) => verdict.ok ? (
     <ClientCollect
+      className={mobile ? BTN_MOBILE : undefined}
       records={unpaidPurchases(record).map((p) => ({
         orderId: p.orderId,
         title: interpolate(tr("dashboard.clientRecord.recordTitle"), {
@@ -192,7 +202,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
       type="button"
       disabled
       title={verdict.reason === "mixed_currency" ? tr("dashboard.clientRecord.collectMixedCurrency") : tr("dashboard.clientRecord.collectNothingOwed")}
-      className={BTN_SECONDARY}
+      className={mobile ? `${BTN_SECONDARY} ${BTN_MOBILE}` : BTN_SECONDARY}
     >
       {tr("dashboard.clientRecord.collect")}
     </button>
@@ -200,11 +210,13 @@ export default async function ClientRecordPage({ params, searchParams }: { param
 
   const main = (
     <>
-      <header className="flex items-center gap-4">
+      {/* MW06: the phone's back header reads the name over "Client". */}
+      <MobileDetailHeaderSyncer title={name} subtitle={tr("dashboard.clientRecord.person")} backHref={`${base}/clients`} />
+      <header className="flex items-center gap-4 max-[720px]:gap-3">
         <Initials name={name} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="m-0 text-[24px]! font-semibold leading-tight tracking-[-0.02em] text-admin-ink">{name}</h1>
+            <h1 className="m-0 text-[24px]! font-semibold leading-tight tracking-[-0.02em] text-admin-ink max-[720px]:text-[20px]!">{name}</h1>
             <Pill tone="slate">{tr("dashboard.clientRecord.person")}</Pill>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] text-admin-ink-muted">
@@ -224,7 +236,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
             {record.locale ? <span>{record.locale}</span> : null}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 max-[720px]:hidden">
           {/* No customer editor exists on this record (D-POS-41). */}
           <button type="button" disabled title={tr("dashboard.clientRecord.editUnavailable")} className={BTN_SECONDARY}>
             {tr("dashboard.clientRecord.edit")}
@@ -233,11 +245,37 @@ export default async function ClientRecordPage({ params, searchParams }: { param
             {tr("dashboard.clientRecord.newBooking")}
             <ChevronDown aria-hidden size={12} strokeWidth={1.75} className="text-admin-ink-dim" />
           </Link>
-          {collect}
+          {collect(false)}
         </div>
       </header>
 
-      <dl className="m-0 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* MW06: the phone's three 40px buttons — call, email, new booking —
+          each a real door or disabled with the reason. */}
+      <div className="hidden gap-2 max-[720px]:flex">
+        {record.phoneE164 ? (
+          <a href={`tel:${record.phoneE164}`} aria-label={tr("dashboard.clientRecord.phone")} className={MOBILE_ICON}>
+            <Phone aria-hidden size={16} strokeWidth={1.75} />
+          </a>
+        ) : (
+          <button type="button" disabled title={tr("dashboard.clientRecord.noContact")} aria-label={tr("dashboard.clientRecord.phone")} className={MOBILE_ICON}>
+            <Phone aria-hidden size={16} strokeWidth={1.75} />
+          </button>
+        )}
+        {record.email ? (
+          <a href={`mailto:${record.email}`} aria-label={tr("dashboard.clientRecord.email")} className={MOBILE_ICON}>
+            <Mail aria-hidden size={16} strokeWidth={1.75} />
+          </a>
+        ) : (
+          <button type="button" disabled title={tr("dashboard.clientRecord.noContact")} aria-label={tr("dashboard.clientRecord.email")} className={MOBILE_ICON}>
+            <Mail aria-hidden size={16} strokeWidth={1.75} />
+          </button>
+        )}
+        <Link href={`${base}/calendar`} aria-label={tr("dashboard.clientRecord.newBooking")} className={MOBILE_ICON}>
+          <CalendarPlus aria-hidden size={16} strokeWidth={1.75} />
+        </Link>
+      </div>
+
+      <dl className="m-0 grid grid-cols-2 gap-3 sm:grid-cols-3 max-[720px]:gap-2">
         <KpiCard
           label={tr("dashboard.clientRecord.kpiDueNow")}
           value={verdict.ok ? formatOrderMoney(verdict.owedCents, verdict.currency) : balances.length > 0 ? formatOrderMoney(0, balances[0]!.currency) : "—"}
@@ -259,6 +297,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
           testId="next"
         />
         <KpiCard
+          desktopOnly
           label={tr("dashboard.clientRecord.kpiActiveProjects")}
           value={active.length === 0 ? tr("dashboard.clientRecord.kpiNone") : String(active.length)}
           note={
@@ -312,6 +351,8 @@ export default async function ClientRecordPage({ params, searchParams }: { param
       ) : null}
       {tab === "projects" ? <ProjectsList record={record} locale={locale} tenantSlug={tenantSlug} tr={tr} /> : null}
       {tab === "details" ? <DetailsTab record={record} locale={locale} tr={tr} /> : null}
+      {/* MW06/MW07: Collect rides the phone's fixed bar and opens the sheet. */}
+      <MobileActions>{collect(true)}</MobileActions>
     </>
   );
 
@@ -354,7 +395,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
     </>
   );
 
-  return <RecordShell main={main} side={side} />;
+  return <RecordShell main={main} side={side} sideOnMobile={tab === "details"} />;
 }
 
 function OverviewTab({ record, locale, nowMs, tr }: { record: ClientRecord; locale: string; nowMs: number; tr: Tr }) {
@@ -380,7 +421,13 @@ function BookingsList({ record, locale, nowMs, tr, all }: { record: ClientRecord
           <p className="m-0 px-4 py-3 text-[13px] text-admin-ink-muted">{tr("dashboard.clientRecord.bookingsNone")}</p>
         ) : (
           rows.map((b) => (
-            <ListRow key={b.bookingId} cols="grid-cols-[130px_1.4fr_1.4fr_110px]" className="border-t">
+            <React.Fragment key={b.bookingId}>
+            <MobileListRow
+              title={`${dayLabel(b.startsAt, b.timeZone, locale, none, { weekday: true, time: true })} · ${b.title || shortId(b.bookingId)}`}
+              detail={b.timeZone !== record.timeZone ? b.timeZone : undefined}
+              trailing={<Pill tone={BOOKING_TONE[b.status] ?? "slate"}>{tr(STATUS_KEY[bookingStatus(b.status)])}</Pill>}
+            />
+            <ListRow cols="grid-cols-[130px_1.4fr_1.4fr_110px]" className="border-t max-[720px]:hidden">
               <b>{dayLabel(b.startsAt, b.timeZone, locale, none, { weekday: true, time: true })}</b>
               <span>{b.title || shortId(b.bookingId)}</span>
               <span className="text-admin-ink-muted">{b.timeZone !== record.timeZone ? b.timeZone : ""}</span>
@@ -388,6 +435,7 @@ function BookingsList({ record, locale, nowMs, tr, all }: { record: ClientRecord
                 <Pill tone={BOOKING_TONE[b.status] ?? "slate"}>{tr(STATUS_KEY[bookingStatus(b.status)])}</Pill>
               </span>
             </ListRow>
+            </React.Fragment>
           ))
         )}
       </Card>
@@ -416,7 +464,12 @@ function ActivityList({ record, locale, tr, limit }: { record: ClientRecord; loc
           rows.map((p) => {
             const owed = purchaseOwedCents(p);
             return (
-              <ListRow key={p.orderId} cols="grid-cols-[110px_1fr_auto]" className="border-t">
+              <React.Fragment key={p.orderId}>
+              <MobileListRow
+                title={`${interpolate(tr("dashboard.clientRecord.recordShort"), { id: shortId(p.orderId) })} · ${interpolate(tr("dashboard.clientRecord.lines"), { count: p.lineCount })}`}
+                detail={`${dayLabel(p.createdAt, record.timeZone, locale, none, { weekday: true })} · ${formatOrderMoney(p.totalCents, p.currency)} · ${orderStatusLabel(p.status, tr)}${owed > 0 ? ` · ${formatOrderMoney(owed, p.currency)} ${tr("dashboard.clientRecord.owedSuffix")}` : ""}`}
+              />
+              <ListRow cols="grid-cols-[110px_1fr_auto]" className="border-t max-[720px]:hidden">
                 <span className="text-admin-ink-muted">{dayLabel(p.createdAt, record.timeZone, locale, none, { weekday: true })}</span>
                 <span>
                   {interpolate(tr("dashboard.clientRecord.recordShort"), { id: shortId(p.orderId) })}
@@ -428,6 +481,7 @@ function ActivityList({ record, locale, tr, limit }: { record: ClientRecord; loc
                   {owed > 0 ? ` · ${formatOrderMoney(owed, p.currency)} ${tr("dashboard.clientRecord.owedSuffix")}` : ""}
                 </span>
               </ListRow>
+              </React.Fragment>
             );
           })
         )}

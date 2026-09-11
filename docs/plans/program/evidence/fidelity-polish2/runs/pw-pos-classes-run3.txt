@@ -1,0 +1,43 @@
+
+Running 6 tests using 1 worker
+
+[1A[2K[1/6] [chromium] › e2e/journeys/pos-classes.spec.ts:176:5 › the owner switches Front desk on in Settings and enters it from the top bar switch
+[1A[2K[2/6] [chromium] › e2e/journeys/pos-classes.spec.ts:219:5 › a walk-in is booked onto a free time and pays cash at the till
+[1A[2K[3/6] [chromium] › e2e/journeys/pos-classes.spec.ts:272:5 › the customer is checked in; a stale desk is refused in words
+[1A[2K[4/6] [chromium] › e2e/journeys/pos-classes.spec.ts:302:5 › a move onto a taken time is refused naming who is busy; a move onto a free time moves person and booking together
+[1A[2K[5/6] [chromium] › e2e/journeys/pos-classes.spec.ts:364:5 › a class night for today is created through the interface, a walk-in takes a seat for cash, and attendance is marked
+[1A[2K  1) [chromium] › e2e/journeys/pos-classes.spec.ts:364:5 › a class night for today is created through the interface, a walk-in takes a seat for cash, and attendance is marked 
+
+    [31mTest timeout of 300000ms exceeded.[39m
+
+    Error: locator.fill: Test timeout of 300000ms exceeded.
+    Call log:
+    [2m  - waiting for getByLabel('Title')[22m
+
+
+      365 |   test.setTimeout(300_000);
+      366 |   await signInJourneysStaff(page, `${ADMIN_PREFIX}/admin/events`);
+    > 367 |   await page.getByLabel("Title").fill(NIGHT_TITLE);
+          |                                  ^
+      368 |   await page.getByRole("button", { name: /create draft/i }).click();
+      369 |   await expect(page.getByRole("button", { name: NIGHT_TITLE })).toBeVisible({ timeout: 30_000 });
+      370 |   await page.getByLabel("Tier name").fill("Seat");
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-polish2/web/e2e/journeys/pos-classes.spec.ts:367:34
+
+    Error Context: ../../fid-polish2-pw-out/journeys-pos-classes-a-cla-b8a68-sh-and-attendance-is-marked-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../fid-polish2-pw-out/journeys-pos-classes-a-cla-b8a68-sh-and-attendance-is-marked-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../fid-polish2-pw-out/journeys-pos-classes-a-cla-b8a68-sh-and-attendance-is-marked-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K[6/6] [chromium] › e2e/journeys/pos-classes.spec.ts:469:5 › the night fills, somebody joins its list, a place that does not exist is refused, a seat is opened, the place is offered and taken
+[1A[2K  1 failed
+    [chromium] › e2e/journeys/pos-classes.spec.ts:364:5 › a class night for today is created through the interface, a walk-in takes a seat for cash, and attendance is marked 
+  1 did not run
+  4 passed (7.8m)
+PW EXIT 1

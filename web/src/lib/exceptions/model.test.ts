@@ -103,6 +103,12 @@ test("an event-cancelled refund says so rather than talking about a lost seat", 
   assert.match(row.detail, /cancelled/i);
 });
 
+test("a session-cancelled refund names the session, not a lost seat", () => {
+  const row = classifyRefundIntent(refund({ reason: "session_cancelled" }), NOW, null);
+  assert.ok(row);
+  assert.match(row.detail, /session was cancelled/i);
+});
+
 test("a mint shortfall is always critical, regardless of age", () => {
   const fresh = classifyMintShortfall(
     {

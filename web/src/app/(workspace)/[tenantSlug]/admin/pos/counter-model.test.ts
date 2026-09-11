@@ -14,6 +14,7 @@ import {
   parseCashBox,
   posCollectionKey,
   tenderAfterKey,
+  tileBadge,
   toCategoryTabs,
   toHeldSales,
   toProductTiles,
@@ -206,4 +207,48 @@ test("no shift is null, not a zeroed shift", () => {
     toShiftSummary({ id: "s1", version: 2, openingCashCents: 5000, openedAt: null, movements: [] }),
     { id: "s1", openingCashCents: 5000, openedAt: "", movements: [] },
   );
+});
+
+test("a tile's badge is the fact the page read, in the order a cashier needs it", () => {
+  const none = { sessions: [], options: undefined, stock: undefined };
+  assert.equal(tileBadge(none), undefined);
+  // A quantity with no pool behind it is a stale mirror: unlimited, no badge.
+  assert.equal(tileBadge({ ...none, stock: { kind: "unlimited" } }), undefined);
+  // Plenty in stock says nothing; a few left says how many; none says so.
+  assert.equal(tileBadge({ ...none, stock: { kind: "counted", available: 40 } }), undefined);
+  assert.deepEqual(tileBadge({ ...none, stock: { kind: "counted", available: 3 } }), { kind: "left", count: 3 });
+  assert.deepEqual(tileBadge({ ...none, stock: { kind: "counted", available: 0 } }), { kind: "soldOut" });
+  // Price variants: `Options`, and the chooser lists them with their delta.
+  const options = [
+    { id: "v-oat", label: "Oat milk", amountCents: 700 },
+    { id: "v-base", label: "Regular", amountCents: null },
+  ];
+  assert.deepEqual(tileBadge({ ...none, options }), { kind: "options" });
+  // One variant is not a choice: no badge, no chooser, the tile sells as before.
+  assert.equal(tileBadge({ ...none, options: options.slice(0, 1) }), undefined);
+  assert.equal(
+    toProductTiles([{ id: "s", title: "Seat", amountCents: 0, kind: "package", sessions: [], options: options.slice(0, 1) }], "USD")[0]!.options,
+    undefined,
+  );
+  const [latte] = toProductTiles([{ id: "l", title: "Latte", amountCents: 650, kind: "product", sessions: [], options }], "USD");
+  assert.deepEqual(
+    latte!.options?.map((o) => ({ id: o.id, deltaCents: o.deltaCents })),
+    [
+      { id: "v-oat", deltaCents: 50 },
+      { id: "v-base", deltaCents: 0 },
+    ],
+  );
+  // Sold out beats every other badge: an item that cannot be sold needs no choice.
+  assert.deepEqual(tileBadge({ ...none, options, stock: { kind: "counted", available: 0 } }), { kind: "soldOut" });
+  const [gone] = toProductTiles(
+    [{ id: "g", title: "Cinnamon roll", amountCents: 600, kind: "product", sessions: [], stock: { kind: "counted", available: 0 } }],
+    "USD",
+  );
+  assert.equal(gone!.soldOut, true);
+  // A class with a choice of sessions still says so when stock is fine.
+  const sessions = [
+    { id: "s1", title: "Mon", startsAt: "2026-09-14T09:00:00Z" },
+    { id: "s2", title: "Tue", startsAt: "2026-09-15T09:00:00Z" },
+  ];
+  assert.deepEqual(tileBadge({ ...none, sessions, stock: { kind: "counted", available: 2 } }), { kind: "pickSession" });
 });

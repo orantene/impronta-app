@@ -104,33 +104,23 @@ export type WalkInSlotsResult =
   | { ok: false; reason: "not_found" | "no_booking_hours" | "hours_unreadable" | "unavailable" };
 
 /**
- * Free starts for one service on the day being viewed, from now on.
+ * Free starts for ONE PERSON on the day being viewed, from now on: the
+ * composition `/api/public/booking/slots` serves the website, over the same
+ * window shape. The walk-in (a service's person) and the move (a booking's
+ * person, `move.ts`) both read through here, so neither can offer a time the
+ * website would refuse.
  *
- * `from` is never before now: a walk-in cannot be booked into a time that has
- * passed, and `public-slots.ts` records why the public page floors it too.
+ * `from` is never before now: nothing is booked into a time that has passed,
+ * and `public-slots.ts` records why the public page floors it too.
  */
-export async function loadWalkInSlots(
+export async function freeStartsForPerson(
   admin: SupabaseClient,
-  input: { tenantId: string; offeringId: string; now: Date; timeZone: string; dayOffset: number },
+  input: { talentProfileId: string; durationMinutes: number | null; now: Date; timeZone: string; dayOffset: number },
 ): Promise<WalkInSlotsResult> {
-  const offering = await admin
-    .from("talent_offerings")
-    .select("id, talent_profile_id, duration_minutes, status")
-    .eq("id", input.offeringId)
-    .eq("tenant_id", input.tenantId)
-    .maybeSingle();
-  if (offering.error) {
-    logServerError("pos.classes.walkin/offering", offering.error);
-    return { ok: false, reason: "unavailable" };
-  }
-  const row = offering.data;
-  if (!row || row.status !== "published" || typeof row.talent_profile_id !== "string") {
-    return { ok: false, reason: "not_found" };
-  }
   const hoursRow = await admin
     .from("talent_booking_hours")
     .select("timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days")
-    .eq("talent_profile_id", row.talent_profile_id)
+    .eq("talent_profile_id", input.talentProfileId)
     .maybeSingle();
   if (hoursRow.error) {
     logServerError("pos.classes.walkin/hours", hoursRow.error);
@@ -149,7 +139,7 @@ export async function loadWalkInSlots(
 
   const busy = await loadBusyIntervals({
     admin,
-    talentProfileId: row.talent_profile_id,
+    talentProfileId: input.talentProfileId,
     from,
     to: windowEnd,
     now: input.now,
@@ -157,7 +147,7 @@ export async function loadWalkInSlots(
   const { starts, reason } = computePublicSlots({
     hours,
     durationMinutes:
-      typeof row.duration_minutes === "number" && row.duration_minutes > 0 ? row.duration_minutes : hours.slotMinutes,
+      typeof input.durationMinutes === "number" && input.durationMinutes > 0 ? input.durationMinutes : hours.slotMinutes,
     from,
     // Two civil days, then narrowed to the venue day below: the generator
     // walks UTC days, and a venue evening west of Greenwich is tomorrow in
@@ -168,6 +158,34 @@ export async function loadWalkInSlots(
   // The day the operator is looking at, on the venue's calendar, and no other.
   const onDay = starts.filter((iso) => utcToZonedYmd(new Date(iso), input.timeZone) === dayYmd);
   return { ok: true, starts: onDay, timeZone: hours.timezone, reason: onDay.length === 0 ? (reason ?? "closed_in_window") : null };
+}
+
+/** Free starts for one service on the day being viewed: the service's person, the service's length. */
+export async function loadWalkInSlots(
+  admin: SupabaseClient,
+  input: { tenantId: string; offeringId: string; now: Date; timeZone: string; dayOffset: number },
+): Promise<WalkInSlotsResult> {
+  const offering = await admin
+    .from("talent_offerings")
+    .select("id, talent_profile_id, duration_minutes, status")
+    .eq("id", input.offeringId)
+    .eq("tenant_id", input.tenantId)
+    .maybeSingle();
+  if (offering.error) {
+    logServerError("pos.classes.walkin/offering", offering.error);
+    return { ok: false, reason: "unavailable" };
+  }
+  const row = offering.data;
+  if (!row || row.status !== "published" || typeof row.talent_profile_id !== "string") {
+    return { ok: false, reason: "not_found" };
+  }
+  return freeStartsForPerson(admin, {
+    talentProfileId: row.talent_profile_id,
+    durationMinutes: typeof row.duration_minutes === "number" ? row.duration_minutes : null,
+    now: input.now,
+    timeZone: input.timeZone,
+    dayOffset: input.dayOffset,
+  });
 }
 
 export type WalkInBookingRefusal =

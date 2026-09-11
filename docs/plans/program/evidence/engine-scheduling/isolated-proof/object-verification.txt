@@ -1,0 +1,63 @@
+TABLE offering_components EXISTS
+TABLE offering_price_phases EXISTS
+TABLE booking_policy_overrides EXISTS
+TABLE role_limits EXISTS
+TABLE approval_requests EXISTS
+COLUMN session_series.instructor_user_id EXISTS
+COLUMN sessions.instructor_user_id EXISTS
+COLUMN booking_deliverables.amount_cents EXISTS
+COLUMN booking_deliverables.file_path EXISTS
+COLUMN order_lines.price_phase_id EXISTS
+FUNCTION public.session_venue_overlaps(uuid,uuid,timestamptz,timestamptz,uuid,uuid) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+FUNCTION public.session_set_instructor(uuid,uuid,uuid,text) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+FUNCTION public.session_move_participant(uuid,uuid,uuid,text) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+FUNCTION public.session_cancel(uuid,uuid,text,text,text) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+FUNCTION public.cancel_booking_set(uuid,uuid,text,text,text) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+FUNCTION public.project_replace_talent(uuid,uuid,uuid,uuid,text) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+FUNCTION public.amendment_discard(uuid,uuid,integer,integer) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+FUNCTION public.project_archive(uuid,uuid,text) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+FUNCTION public.project_reopen(uuid,uuid,text) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+FUNCTION public.request_approval(uuid,text,uuid,uuid,text,text) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+FUNCTION public.decide_approval(uuid,uuid,uuid,text,text) EXISTS
+  PRIV anon false
+  PRIV authenticated false
+  PRIV service_role true
+file:///private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-engine2/web/scripts/_tmp-verify-objects.mjs:54
+require = null;
+        ^
+
+ReferenceError: require is not defined in ES module scope, you can use import instead
+    at file:///private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-engine2/web/scripts/_tmp-verify-objects.mjs:54:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+Node.js v20.20.2

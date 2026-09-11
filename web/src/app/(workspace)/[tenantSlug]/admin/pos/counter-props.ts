@@ -120,6 +120,10 @@ export type PosClientProps = {
   receiptCode: string | null;
   sale: PosSaleSummary | null;
   basketLines: PosBasketLine[];
+  /** The sale's tax outcome (`lib/catalog/tax`): `unset` says so on the Tax row. */
+  taxState: "unset" | "taxed";
+  /** The sale's last accepted write, as a clock string, for `Saved hh:mm`. */
+  savedAt: string | null;
   openSales: Array<{ id: string; totalCents: number; createdAt: string | null }>;
   receipts: PosReceiptRow[];
   catalog: PosCatalogItem[];

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { WorkspaceMediaPage } from "../media-page";
 import { useWorkspaceNav } from "./workspace-nav";
 import type { WorkspaceNavItem } from "./workspace-nav-groups";
 import { useDashboardText } from "../dashboard-i18n";
@@ -11,27 +10,32 @@ import { Icon, useRovingTabindex } from "../primitives";
 import type { AdminShellIconName } from "../primitives";
 import { COLORS, FAB_PALETTE_CHANGED_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
-import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
+import { ShortcutHelpOverlay, useKeyboardLayer } from "../keyboard-layer";
 import { useCanonicalRouteChildren } from "../canonical-route-children";
 import { resolveDestination } from "@/lib/workspace/destinations";
 import { TulalaWordmark } from "@/components/brand/tulala-logo";
-import { CalendarPage } from "./CalendarPage";
-import { CatalogPage } from "./catalog/CatalogPage";
-import { ClientsPage } from "./ClientsPage";
 import { TulalaIdentityBar } from "./IdentityBar-1";
-import { WorkspaceMessagesPage } from "./InboxPage";
-import { OverviewBoard } from "./OverviewBoard";
 import { GLOBAL_SEARCH_OPEN_EVENT, GlobalSearchOverlay } from "./GlobalSearchOverlay";
-import { PayoutsPage } from "./PayoutsPage";
-import { PitchesPage } from "./PitchesPage-1";
-import { AppointmentsPage } from "./AppointmentsPage";
-import { EventsPage } from "./events/EventsPage";
-import { ReviewsPage } from "./ReviewsPage";
-import { AnalyticsPage } from "./AnalyticsPage";
-import { TalentPage } from "./TalentPage-1";
-import { WebsitePage } from "./WebsitePage-1";
-import { WorkspacePageView } from "./WorkspacePageView";
-import { MessagesShell } from "./pages-dynamic";
+import { PosRailModeMenuProvider } from "./PosRailModeMenu";
+// Every SPA page is a `next/dynamic` boundary (workspace-pages-lazy.tsx says
+// why): the shell's chunk carries the rail and the chrome, not the pages.
+import {
+  AnalyticsPage,
+  AppointmentsPage,
+  CalendarPage,
+  CatalogPage,
+  ClientsPage,
+  EventsPage,
+  OverviewBoard,
+  PayoutsPage,
+  PitchesPage,
+  ReviewsPage,
+  TalentPage,
+  WebsitePage,
+  WorkspaceMediaPage,
+  WorkspaceMessagesPage,
+  WorkspacePageView,
+} from "./workspace-pages-lazy";
 
 
 /**
@@ -293,20 +297,27 @@ function WorkspaceSidebarShell() {
   );
 
   if (posChrome) {
+    // NO TOP BAR EITHER. The POS boards (`POSCounter`, `M33_ModeSwitch`) draw
+    // the till full-bleed: its own 96px rail, its own 64px header, nothing of
+    // the workspace above it. The two things the workspace bar offered inside
+    // the till are both on the POS rail already: the `MODE` chip opens the
+    // mode menu (`PosRailModeMenuProvider`, the same model as the bar's own
+    // switch) and the `Workspace` door at the foot of the rail leaves.
     return (
       <div
         data-tulala-workspace-grid
         data-tulala-pos-chrome
-        className="grid grid-cols-[1fr] bg-admin-surface min-h-[calc(100vh-56px-56px-50px)]"
+        className="grid grid-cols-[1fr] bg-admin-surface min-h-[calc(100vh-var(--proto-cbar,50px))]"
       >
-        <TulalaIdentityBar />
         <main
           id="tulala-workspace-content"
           tabIndex={-1}
           data-tulala-surface-main
           className="w-full outline-none"
         >
-          <PageRouter page={state.page} />
+          <PosRailModeMenuProvider>
+            <PageRouter page={state.page} />
+          </PosRailModeMenuProvider>
         </main>
       </div>
     );
@@ -355,10 +366,10 @@ function WorkspaceSidebarShell() {
               {effectiveTenant.name.slice(0, 2).toUpperCase()}
             </span>
             <div className="flex-1 min-w-0">
-              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-admin-12h font-semibold text-admin-ink">
+              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-admin-12h font-semibold leading-[1.2] text-admin-ink">
                 {effectiveTenant.name}
               </div>
-              <div className="text-admin-11 text-admin-ink-muted">
+              <div className="text-admin-11 leading-[1.2] text-admin-ink-muted">
                 {copy.isSpanish ? `Plan ${copy.t(planLabel)}` : `${planLabel} plan`}
               </div>
             </div>
@@ -377,7 +388,7 @@ function WorkspaceSidebarShell() {
                 {group.label && (
                   <div
                     aria-hidden
-                    className="px-[10px] pb-[3px] pt-[7px] text-admin-9h font-bold uppercase tracking-[0.14em] text-admin-ink-dim"
+                    className="px-[10px] pb-[3px] pt-[7px] text-admin-9h font-bold uppercase leading-[1.2] tracking-[0.14em] text-admin-ink-dim"
                   >
                     {copy.t(group.label)}
                   </div>
@@ -409,7 +420,7 @@ function WorkspaceSidebarShell() {
           id="tulala-workspace-content"
           tabIndex={-1}
           data-tulala-surface-main
-          className="mx-auto w-full max-w-[1180px] px-[28px] pb-[60px] pt-[24px] outline-none"
+          className="mx-auto w-full max-w-[1200px] px-[28px] pb-[60px] pt-[24px] outline-none"
         >
           <PageRouter page={state.page} />
         </main>

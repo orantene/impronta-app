@@ -71,7 +71,7 @@ Frames owed (rows marked "frame owed"): the machine crashed mid-capture and the 
 The Front desk's queue now offers a place with the engine's hold
 (`waitlistOfferPlace`: a `waitlist_offers` row and a live capacity
 allocation for the offer window), takes it with `waitlistAcceptOffer` and
-gives it back with `Decline` (`waitlistDeclineOffer`), D-POS-76; the day
+gives it back with `Decline` (`waitlistDeclineOffer`), D-POS-89; the day
 reader carries the live offer id per entry. A frame of the Waitlist screen
 with an offer standing (Decline beside They took it) is owed.
 Every refusal is `dashboard.pos.engine.refusal.*` (`no_place` when the night

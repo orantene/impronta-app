@@ -316,7 +316,7 @@ export function DoorClient(props: DoorClientProps) {
     );
 
   return (
-    <div className="relative flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] min-h-[560px] w-full flex-col overflow-hidden" data-door-zone={zone}>
+    <div className="relative flex h-[calc(100vh-var(--proto-cbar,50px))] min-h-[560px] w-full flex-col overflow-hidden" data-door-zone={zone}>
       <PosFrame
         mode="door"
         navLabel={copy.frameNavLabel}

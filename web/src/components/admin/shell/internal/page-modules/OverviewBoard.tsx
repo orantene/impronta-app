@@ -48,6 +48,14 @@ const TONE_DOT: Record<NeedsYouRow["tone"], string> = {
   info: "bg-admin-indigo",
 };
 
+/** On the phone the destination chip takes the row's tone (MW02: Checking · Tonight · 2 d). */
+const ROW_PILL_TONE: Record<NeedsYouRow["tone"], string> = {
+  critical: "max-[720px]:bg-admin-critical-soft max-[720px]:text-admin-red",
+  high: "max-[720px]:bg-admin-coral-soft max-[720px]:text-admin-coral-deep",
+  normal: "max-[720px]:bg-admin-amber-soft max-[720px]:text-admin-amber",
+  info: "max-[720px]:bg-admin-indigo-soft max-[720px]:text-admin-indigo",
+};
+
 const BADGE_TONE: Record<TodayBadge["tone"], string> = {
   green: "bg-admin-success-soft text-admin-green",
   indigo: "bg-admin-indigo-soft text-admin-indigo",
@@ -56,12 +64,22 @@ const BADGE_TONE: Record<TodayBadge["tone"], string> = {
   critical: "bg-admin-critical-soft text-admin-red",
 };
 
-const BUTTON =
-  "inline-flex h-[34px] cursor-pointer items-center justify-center gap-[6px] whitespace-nowrap rounded-[9px] border px-[14px] font-admin-body text-admin-13 font-semibold [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)]";
-const BUTTON_PRIMARY = `${BUTTON} border-admin-brand bg-admin-brand text-white hover:bg-admin-brand-deep`;
-const BUTTON_SECONDARY = `${BUTTON} border-admin-border bg-admin-card text-admin-ink hover:border-admin-border-strong`;
-const BUTTON_ROW = `${BUTTON_SECONDARY} h-[30px] px-[10px] text-[12px]`;
+// Size and colour are separate strings on purpose: the row action is the
+// secondary button at 30px/12px, and Tailwind does not let a later class win
+// over an earlier `h-[34px]` in the same string (the row buttons rendered at
+// 34px for exactly that reason).
+const BUTTON_BASE =
+  "inline-flex cursor-pointer items-center justify-center gap-[6px] whitespace-nowrap rounded-[9px] border font-admin-body font-semibold [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)]";
+const BUTTON_SIZE = "h-[34px] px-[14px] text-admin-13";
+const BUTTON_SIZE_ROW = "h-[30px] px-[10px] text-[12px]";
+const TONE_PRIMARY = "border-admin-brand bg-admin-brand text-white hover:bg-admin-brand-deep";
+const TONE_SECONDARY = "border-admin-border bg-admin-card text-admin-ink hover:border-admin-border-strong";
+const BUTTON_PRIMARY = `${BUTTON_BASE} ${BUTTON_SIZE} ${TONE_PRIMARY}`;
+const BUTTON_SECONDARY = `${BUTTON_BASE} ${BUTTON_SIZE} ${TONE_SECONDARY}`;
+const BUTTON_ROW = `${BUTTON_BASE} ${BUTTON_SIZE_ROW} ${TONE_SECONDARY}`;
 const CARD = "rounded-[14px] border border-admin-border bg-admin-card";
+/** MW02 draws the queue's first rows; the rest wait behind one line. */
+const MOBILE_QUEUE_ROWS = 5;
 
 export function OverviewBoard() {
   const snapshot = useOverviewSnapshot();
@@ -114,16 +132,24 @@ export function OverviewBoard() {
     : `${dateLabel} · ${t(`${K}.loading`)}`;
 
   return (
-    <div data-tulala-overview-board className="flex flex-col gap-[20px] font-admin-body">
-      {/* Greeting + actions */}
+    // The board is one screen (Main: `overflow:hidden` on the page column):
+    // the height is the viewport under the top bar, the queue scrolls inside
+    // its own card, and the readiness bar stays where the board draws it.
+    // `leading-[1.2]`: the boards set no line-height (the browser's
+    // `normal`); the admin body's 1.65 made every row and card taller.
+    <div
+      data-tulala-overview-board
+      className="-mb-[36px] flex h-[calc(100vh-var(--proto-cbar,50px)-56px-48px)] min-h-[560px] flex-col gap-[20px] font-admin-body leading-[1.2] max-[720px]:h-auto max-[720px]:min-h-0 max-[720px]:gap-[12px] max-[720px]:mb-0"
+    >
+      {/* Greeting + actions. MW02: the phone keeps the greeting and the subline; Open POS lives in the More sheet and the calendar is a tab. */}
       <div className="flex items-center justify-between gap-[16px]">
-        <div>
+        <div className="min-w-0">
           <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">
             {greeting}
           </h1>
-          <div className="mt-[4px] text-admin-13 text-admin-ink-muted">{subline}</div>
+          <div className="mt-[4px] text-admin-13 leading-[1.25] text-admin-ink-muted max-[720px]:text-admin-12h">{subline}</div>
         </div>
-        <div className="flex items-center gap-[8px]">
+        <div className="flex items-center gap-[8px] max-[720px]:hidden">
           {posModes.length > 0 ? (
             <a href={`${adminBasePath}/pos?mode=${posModes[0]}`} className={`${BUTTON_PRIMARY} no-underline`}>
               <Icon name="credit" size={15} stroke={1.75} color="currentColor" />
@@ -157,10 +183,11 @@ export function OverviewBoard() {
         </div>
       </div>
 
-      {/* Five numbers */}
-      <div className="grid grid-cols-5 gap-[12px]">
+      {/* Five numbers; three on the phone (MW02: Collected · Due · Arrivals). */}
+      <div className="grid shrink-0 grid-cols-5 gap-[12px] max-[720px]:grid-cols-3 max-[720px]:gap-[8px]">
         <Kpi
           label={t(`${K}.kpi.collectedToday`)}
+          shortLabel={t(`${K}.kpi.collectedShort`)}
           value={snapshot ? (money?.ok ? fmt(money.collectedTodayCents) : null) : undefined}
           sub={
             money?.ok
@@ -173,6 +200,7 @@ export function OverviewBoard() {
         />
         <Kpi
           label={t(`${K}.kpi.balancesDue`)}
+          shortLabel={t(`${K}.kpi.balancesShort`)}
           value={snapshot ? (money?.ok ? fmt(money.owedCents) : null) : undefined}
           sub={
             money?.ok
@@ -213,8 +241,10 @@ export function OverviewBoard() {
           unreadable={snapshot ? !snapshot.orders.ok : false}
           unreadableText={t(`${K}.kpi.unreadable`)}
           onClick={() => setPage("orders")}
+          desktopOnly
         />
         <Kpi
+          desktopOnly
           label={t(`${K}.kpi.exceptions`)}
           value={snapshot ? String(snapshot.exceptions.total) : undefined}
           sub={
@@ -233,10 +263,14 @@ export function OverviewBoard() {
         />
       </div>
 
-      {/* Queue + Today */}
-      <div className="grid min-h-0 flex-1 grid-cols-[1.35fr_1fr] gap-[16px]">
-        <section className={`${CARD} flex flex-col overflow-hidden`} aria-labelledby="tulala-needs-you">
-          <div className="flex items-center justify-between gap-[10px] px-[18px] pb-[6px] pt-[16px]">
+      {/* Queue + Today; one column on the phone, each card under its eyebrow (MW02). */}
+      <div className="grid min-h-0 flex-1 grid-cols-[1.35fr_1fr] gap-[16px] max-[720px]:grid-cols-1 max-[720px]:gap-[12px]">
+        <div className="flex min-h-0 flex-col max-[720px]:gap-[12px]">
+        <div aria-hidden className="hidden text-[11px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted max-[720px]:block">
+          {t(`${K}.needsYou.title`)}
+        </div>
+        <section className={`${CARD} flex min-h-0 flex-col overflow-hidden`} aria-labelledby="tulala-needs-you">
+          <div className="flex shrink-0 items-center justify-between gap-[10px] px-[18px] pb-[6px] pt-[16px] max-[720px]:hidden">
             <h2 id="tulala-needs-you" className="m-0 text-[14px]! font-semibold text-admin-ink">
               {t(`${K}.needsYou.title`)}
             </h2>
@@ -249,35 +283,56 @@ export function OverviewBoard() {
               {t(`${K}.needsYou.empty`)}
             </div>
           ) : (
-            <ul className="m-0 flex list-none flex-col p-0">
-              {snapshot.needsYou.map((row) => (
-                <li key={row.key} className="flex items-center gap-[14px] border-t border-admin-border-soft px-[18px] py-[12px]">
-                  <span aria-hidden className={`h-[8px] w-[8px] shrink-0 rounded-full ${TONE_DOT[row.tone]}`} />
+            <ul className="m-0 flex min-h-0 list-none flex-col overflow-y-auto p-0">
+              {snapshot.needsYou.map((row, index) => (
+                <li key={row.key} className={`flex shrink-0 items-center gap-[14px] border-t border-admin-border-soft px-[18px] py-[12px] max-[720px]:gap-[10px] max-[720px]:px-[14px] max-[720px]:first:border-t-0 ${index >= MOBILE_QUEUE_ROWS ? "max-[720px]:hidden" : ""}`}>
+                  <span aria-hidden className={`h-[8px] w-[8px] shrink-0 rounded-full max-[720px]:hidden ${TONE_DOT[row.tone]}`} />
                   <div className="min-w-0 flex-1">
-                    <div className="text-admin-13 font-semibold text-admin-ink">{render(t, row.title)}</div>
-                    <div className="mt-[2px] text-[12px] text-admin-ink-muted">{render(t, row.detail)}</div>
+                    <div className="text-admin-13 font-semibold text-admin-ink max-[720px]:text-[14.5px] max-[720px]:leading-[1.3]">{render(t, row.title)}</div>
+                    <div className="mt-[2px] text-[12px] text-admin-ink-muted max-[720px]:text-admin-12h">{render(t, row.detail)}</div>
+                    {/* The phone's row carries its action as a line, not a button. */}
+                    {row.action.href ? (
+                      <a href={row.action.href} className="mt-[4px] hidden text-admin-12h font-semibold text-admin-brand no-underline max-[720px]:inline-block">
+                        {render(t, row.action.label)} ›
+                      </a>
+                    ) : (
+                      <span className="mt-[4px] hidden text-admin-12h text-admin-ink-dim max-[720px]:inline-block" title={t(`${K}.needsYou.inspectOnly`)}>
+                        {render(t, row.action.label)}
+                      </span>
+                    )}
                   </div>
-                  <span className="inline-flex items-center whitespace-nowrap rounded-full bg-admin-surface-alt px-[8px] py-[2px] text-admin-11 font-semibold text-admin-ink">
+                  <span className={`inline-flex items-center whitespace-nowrap rounded-full bg-admin-surface-alt px-[8px] py-[2px] text-admin-11 font-semibold text-admin-ink ${ROW_PILL_TONE[row.tone]}`}>
                     {copy.t(DESTINATIONS[row.destination].label)}
                   </span>
                   {row.action.href ? (
-                    <a href={row.action.href} className={`${BUTTON_ROW} no-underline`}>
+                    <a href={row.action.href} className={`${BUTTON_ROW} no-underline max-[720px]:hidden`}>
                       {render(t, row.action.label)}
                     </a>
                   ) : (
-                    <button type="button" disabled title={t(`${K}.needsYou.inspectOnly`)} className={`${BUTTON_ROW} cursor-not-allowed opacity-60`}>
+                    <button type="button" disabled title={t(`${K}.needsYou.inspectOnly`)} className={`${BUTTON_ROW} cursor-not-allowed opacity-60 max-[720px]:hidden`}>
                       {render(t, row.action.label)}
                     </button>
                   )}
                 </li>
               ))}
+              {/* The phone shows the first rows and says how many more wait in Issues. */}
+              {snapshot.needsYou.length > MOBILE_QUEUE_ROWS ? (
+                <li className="hidden border-t border-admin-border-soft px-[14px] py-[12px] max-[720px]:block">
+                  <button type="button" onClick={() => setPage("issues")} className="cursor-pointer border-0 bg-transparent p-0 text-admin-13 font-semibold text-admin-brand">
+                    {interpolate(t(`${K}.needsYou.moreOnPhone`), { count: snapshot.needsYou.length - MOBILE_QUEUE_ROWS })} ›
+                  </button>
+                </li>
+              ) : null}
             </ul>
           )}
         </section>
+        </div>
 
-        <div className="flex min-h-0 flex-col gap-[16px]">
+        <div className="flex min-h-0 flex-col gap-[16px] overflow-y-auto max-[720px]:gap-[12px]">
           <TodayPanel snapshot={snapshot} />
-          <SetupReadiness snapshot={snapshot} onFinish={() => router.push(`${adminBasePath}/setup`)} />
+          <div className="contents max-[720px]:hidden">
+            <SetupReadiness snapshot={snapshot} onFinish={() => router.push(`${adminBasePath}/setup`)} />
+          </div>
         </div>
       </div>
     </div>
@@ -297,7 +352,13 @@ function Kpi({
   unreadable,
   unreadableText,
   onClick,
+  desktopOnly,
+  shortLabel,
 }: {
+  /** Not one of the phone's three numbers (MW02). */
+  desktopOnly?: boolean;
+  /** The phone's word for the same number (MW02: Collected · Due). */
+  shortLabel?: string;
   label: string;
   /** `undefined` = loading; `null` = the reader failed. */
   value: string | null | undefined;
@@ -313,17 +374,26 @@ function Kpi({
     <button
       type="button"
       onClick={onClick}
-      className={`${CARD} cursor-pointer px-[16px] py-[14px] text-left hover:border-admin-border-strong [transition:border-color_var(--transition-admin-micro)]`}
+      className={`${CARD} min-w-0 cursor-pointer px-[16px] py-[14px] text-left hover:border-admin-border-strong [transition:border-color_var(--transition-admin-micro)] max-[720px]:rounded-[12px] max-[720px]:px-[12px] max-[720px]:py-[12px] ${desktopOnly ? "max-[720px]:hidden" : ""}`}
     >
-      <div className="text-admin-11h font-semibold uppercase tracking-[0.06em] text-admin-ink-muted">{label}</div>
+      <div className="overflow-hidden text-ellipsis whitespace-nowrap text-admin-11h font-semibold uppercase tracking-[0.06em] text-admin-ink-muted max-[720px]:text-admin-10h">
+        {shortLabel ? (
+          <>
+            <span className="max-[720px]:hidden">{label}</span>
+            <span className="hidden max-[720px]:inline">{shortLabel}</span>
+          </>
+        ) : (
+          label
+        )}
+      </div>
       {value === undefined ? (
         <div aria-hidden className="mt-[8px] h-[24px] w-[72px] animate-pulse rounded-[6px] bg-admin-surface-alt" />
       ) : (
-        <div className="mt-[6px] text-[24px] font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink tabular-nums">
+        <div className={`mt-[6px] overflow-hidden text-ellipsis whitespace-nowrap text-[24px] font-semibold leading-[1.15] tracking-[-0.02em] tabular-nums max-[720px]:mt-[2px] max-[720px]:text-[20px] ${subTone === "coral" ? "max-[720px]:text-admin-coral-deep" : "text-admin-ink"}`}>
           {value ?? "—"}
         </div>
       )}
-      <div className={`mt-[3px] text-[12px] ${unreadable ? "text-admin-red" : subClass}`}>
+      <div className={`mt-[3px] text-[12px] ${unreadable ? "text-admin-red" : `${subClass} max-[720px]:hidden`}`}>
         {unreadable ? unreadableText : (sub ?? " ")}
       </div>
     </button>
@@ -356,8 +426,8 @@ function TodayPanel({ snapshot }: { snapshot: OverviewSnapshot | null }) {
   const rows: readonly TodayRow[] = snapshot && tab ? snapshot.today[tab] : [];
   return (
     <section className={CARD} aria-labelledby="tulala-today">
-      <div className="flex items-center justify-between gap-[10px] px-[18px] pb-[10px] pt-[16px]">
-        <h2 id="tulala-today" className="m-0 text-[14px]! font-semibold text-admin-ink">
+      <div className="flex items-center justify-between gap-[10px] px-[18px] pb-[10px] pt-[16px] max-[720px]:px-[14px] max-[720px]:pt-[12px]">
+        <h2 id="tulala-today" className="m-0 text-[14px]! font-semibold text-admin-ink max-[720px]:text-[11px]! max-[720px]:font-bold max-[720px]:uppercase max-[720px]:tracking-[0.08em] max-[720px]:text-admin-ink-muted">
           {t(`${K}.today.title`)}
         </h2>
         <div role="tablist" aria-label={t(`${K}.today.title`)} className="inline-flex gap-[2px] rounded-[9px] bg-admin-surface-alt p-[3px]">
@@ -396,10 +466,11 @@ function TodayPanel({ snapshot }: { snapshot: OverviewSnapshot | null }) {
       ) : (
         <ul className="m-0 flex list-none flex-col p-0">
           {rows.slice(0, 5).map((row) => (
-            <li key={row.id} className="flex items-center gap-[12px] border-t border-admin-border-soft px-[18px] py-[10px]">
-              <span className="w-[40px] shrink-0 font-mono text-[12px] text-admin-ink-muted tabular-nums">{row.time}</span>
+            <li key={row.id} className="flex items-center gap-[12px] border-t border-admin-border-soft px-[18px] py-[10px] max-[720px]:gap-[10px] max-[720px]:px-[14px] max-[720px]:py-[12px]">
+              <span className="w-[40px] shrink-0 font-mono text-[12px] text-admin-ink-muted tabular-nums max-[720px]:hidden">{row.time}</span>
               <div className="min-w-0 flex-1">
-                <div className="overflow-hidden text-ellipsis whitespace-nowrap text-admin-13 font-semibold text-admin-ink">
+                <div className="overflow-hidden text-ellipsis whitespace-nowrap text-admin-13 font-semibold text-admin-ink max-[720px]:text-[14.5px]">
+                  <span className="hidden tabular-nums max-[720px]:inline">{row.time} · </span>
                   {row.href ? (
                     <a href={row.href} className="text-admin-ink no-underline hover:underline">
                       {row.title}
@@ -461,7 +532,7 @@ function SetupReadiness({ snapshot, onFinish }: { snapshot: OverviewSnapshot | n
             : interpolate(t(`${K}.setup.missing`), { items: missing.join(" · ") })}
         </div>
       </div>
-      <button type="button" onClick={onFinish} className={`${BUTTON_SECONDARY} h-[30px] text-[12px]`}>
+      <button type="button" onClick={onFinish} className={`${BUTTON_BASE} h-[30px] px-[14px] text-[12px] ${TONE_SECONDARY}`}>
         {t(`${K}.setup.finish`)}
       </button>
     </section>

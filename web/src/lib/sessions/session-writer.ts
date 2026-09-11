@@ -51,6 +51,7 @@ export type SessionRowInput = {
   offeringId?: string | null;
   eventId?: string | null;
   title?: string | null;
+  instructorUserId?: string | null;
 };
 
 /**
@@ -110,6 +111,7 @@ export async function createSessionWithPools(
       offering_id: session.offeringId ?? null,
       event_id: session.eventId ?? null,
       title: session.title ?? null,
+      instructor_user_id: session.instructorUserId ?? null,
       starts_at: session.startsAt,
       ends_at: session.endsAt,
       status: "scheduled",

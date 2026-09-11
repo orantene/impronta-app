@@ -3,8 +3,8 @@
  * cashier's sale from idle to paid to a receipt, on a second window.
  *
  * WHAT THIS PROVES. The display is opened the way a person opens it: the
- * "Customer display" link on the counter's own rail, which opens a new
- * window. That window shows the workspace's welcome while nothing is open
+ * "Customer display" link under the counter's cashier chip (with Devices and
+ * Connection, the other device doors), which opens a new window. That window shows the workspace's welcome while nothing is open
  * (D01); the moment the cashier starts a sale and adds an item it shows the
  * lines and the figure to pay (D02), read from the same order row the
  * counter charges; the customer's "Looks right" reaches the confirm screen
@@ -65,10 +65,12 @@ test("POS-CD customer display: idle, review, confirm, paid, receipt sent, cleare
 
   await openCounter(page);
 
-  // The door: the counter's own rail carries the link, and it opens a new
+  // The door: the cashier chip's menu carries the link (the rail is the
+  // board's five destinations, Lock and Workspace), and it opens a new
   // window so a second screen can show it.
+  await page.locator("[data-pos-cashier]").click();
   const link = page.locator("[data-pos-frame-link='display']");
-  await expect(link, "the counter's rail must offer the customer display").toBeVisible({ timeout: 30_000 });
+  await expect(link, "the cashier menu must offer the customer display").toBeVisible({ timeout: 30_000 });
   await expect(link).toHaveAttribute("target", "_blank");
   const [display] = await Promise.all([page.context().waitForEvent("page"), link.click()]);
   await display.waitForLoadState("domcontentloaded");

@@ -169,7 +169,7 @@ were removed: they are the evidence.
 
 ## Package 1 (2026-09-11, wire-pos-money): D02 / D03 tips are live
 
-D-POS-11 is closed by D-POS-75. The review screen's right half is the tip
+D-POS-11 is closed by D-POS-88. The review screen's right half is the tip
 chooser (`CustomerDisplayTip`: 10% · 15% · 20% of the services with the
 figure under each, `Other`, `No tip`); `Other` is the custom-amount screen
 with the keypad and `Total would be`. The tap is `posSetTip`

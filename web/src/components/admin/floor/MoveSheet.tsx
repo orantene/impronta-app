@@ -11,7 +11,7 @@
  * a second table to an ALREADY SEATED party has no writer (`visit_transfer`
  * moves a visit between spaces and cannot set `joined_space_id`; a join is
  * decided at seating time, T05), so that card stays disabled over its
- * sentence (D-POS-69).
+ * sentence (D-POS-82).
  */
 
 import { ArrowRight, Layers, ShoppingBag } from "lucide-react";

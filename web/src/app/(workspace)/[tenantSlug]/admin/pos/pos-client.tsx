@@ -50,7 +50,6 @@ import {
   ScannerListener,
   SellSurface,
   initialsOf,
-  receiptsSubtitle,
   type PosCollectionMethodId,
   type PosRefusalReason,
   type ScanToast,
@@ -66,6 +65,7 @@ import { useCounterDisplayBeacon } from "./counter-display-beacon";
 import { useCounterCustomer } from "./counter-customer";
 import { CounterDrawer } from "./counter-drawer";
 import { useCounterEngine } from "./counter-engine";
+import { COUNTER_DESTINATIONS, counterHeader, isDestination, type CounterDestination as Destination } from "./counter-header";
 import { useCounterLock } from "./counter-lock";
 import {
   CUSTOM_AMOUNT_ID,
@@ -93,12 +93,6 @@ import {
   posUpdateLine,
 } from "./actions";
 
-const DESTINATIONS = ["sell", "orders", "receipts", "shifts", "issues", "devices", "connection", "scan"] as const;
-type Destination = (typeof DESTINATIONS)[number];
-function isDestination(value: string): value is Destination {
-  return (DESTINATIONS as readonly string[]).includes(value);
-}
-
 type PaidSale = { amountCents: number; tenderedCents: number; changeCents: number; receiptCode: string | null };
 
 export function PosClient(props: PosClientProps) {
@@ -115,7 +109,9 @@ export function PosClient(props: PosClientProps) {
   // effectful: it clears itself the moment `props.sale.version` changes.
   const [writtenVersion, setWrittenVersion] = useState<number | null>(null);
   const [refusal, setRefusal] = useState<PosRefusalReason | null>(null);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  // Starts as the sale's last accepted write (the row's `updated_at`), then
+  // the clock of each write this screen makes.
+  const [savedAt, setSavedAt] = useState<string | null>(props.savedAt);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState(ALL_CATEGORIES_ID);
@@ -227,7 +223,7 @@ export function PosClient(props: PosClientProps) {
   );
   const settling = writtenVersion !== null && sale !== null && sale.version === writtenVersion;
   // The customer display's own write (a tip) on this device: hold the next
-  // command until the re-read has delivered that version (D-POS-75).
+  // command until the re-read has delivered that version (D-POS-88).
   const beacon = useCounterDisplayBeacon({ tenantId: props.tenantId, orderId: sale?.orderId ?? null, version: sale?.version ?? null });
   const working = busy || settling || beacon.stale;
 
@@ -263,8 +259,30 @@ export function PosClient(props: PosClientProps) {
    * first item and opened a second sale on the next tap.
    */
   const addItem = useCallback(
-    async (productId: string) => {
+    async (productId: string, variantId: string | null = null) => {
       const item = props.catalog.find((row) => row.id === productId);
+      const sessionId = chosenSessionId(item, sessionByProduct);
+      // A SECOND TAP ON THE SAME THING IS ONE MORE UNIT, NOT A SECOND LINE
+      // (`POSCounter`: `2 · Latte · $90 each`). The same offering, the same
+      // variant, the same session, on a line that has not gone to
+      // preparation: the quantity goes up through the line's own writer.
+      // Anything else is a new line, which is what a second tap means when
+      // the first was sent to the kitchen.
+      const twin = sale
+        ? props.basketLines.find(
+            (line) =>
+              !line.locked &&
+              line.offeringId === productId &&
+              (line.variantId ?? null) === variantId &&
+              (line.sessionId ?? null) === sessionId,
+          )
+        : undefined;
+      if (sale && twin) {
+        const bumped = await run("sale", () =>
+          posUpdateLine({ orderId: sale.orderId, lineId: twin.id, units: twin.units + 1, expectedVersion: sale.version }),
+        );
+        return bumped.ok ? sale.orderId : null;
+      }
       const opening = !sale;
       const target = sale
         ? { orderId: sale.orderId, expectedVersion: sale.version }
@@ -272,13 +290,13 @@ export function PosClient(props: PosClientProps) {
       if (!target) return null;
       const added = await run(
         "sale",
-        () => posAddLine({ ...target, offeringId: productId, units: 1, sessionId: chosenSessionId(item, sessionByProduct) }),
+        () => posAddLine({ ...target, offeringId: productId, units: 1, sessionId, variantId }),
         !opening,
       );
       if (opening && added.ok) router.push(saleHref(target.orderId));
       return added.ok ? target.orderId : null;
     },
-    [props.catalog, router, run, sale, saleHref, sessionByProduct, startSale],
+    [props.basketLines, props.catalog, router, run, sale, saleHref, sessionByProduct, startSale],
   );
 
   /**
@@ -441,6 +459,10 @@ export function PosClient(props: PosClientProps) {
             void addItem(productId);
           }}
           onSelectVariant={(productId, variantId) => setSessionByProduct((current) => ({ ...current, [productId]: variantId }))}
+          onSelectOption={(productId, optionId) => {
+            if (working) return;
+            void addItem(productId, optionId);
+          }}
           onOpenScan={() => setDestination("scan")}
           copy={copy.sell}
         />
@@ -454,6 +476,7 @@ export function PosClient(props: PosClientProps) {
           tipCents={sale?.tipCents ?? 0}
           onOpenTip={sale && sale.paymentState === "unpaid" ? engine.openTip : undefined}
           onApproveLine={engine.openApproval}
+          taxState={props.taxState}
           customerName={customer.attached?.displayName ?? null}
           onOpenCustomer={customer.open}
           onOpenBooking={engine.openBooking}
@@ -587,30 +610,16 @@ export function PosClient(props: PosClientProps) {
       window.open(sale ? `${props.posPath}/display?order=${encodeURIComponent(sale.orderId)}` : `${props.posPath}/display`, "_blank", "noopener,noreferrer"),
   });
 
-  const headerFor = (): { title: string; subtitle: string } => {
-    switch (destination) {
-      case "receipts":
-        return { title: copy.receipts.title, subtitle: receiptsSubtitle(copy.receipts, props.receipts.filter((r) => receiptsDay === "week" || r.dayKey === receiptsDay), receiptsDay, props.currency) };
-      case "shifts":
-        return { title: copy.chrome.drawerTitle, subtitle: props.shift ? `${copy.chrome.drawerOpen} · ${formatClock(props.shift.openedAt, props.locale)} · ${props.cashierName}` : `${props.workspaceName} · ${copy.chrome.drawerNone}` };
-      case "issues":
-        return { title: copy.issues.title, subtitle: copy.issues.subtitle };
-      case "devices":
-        return { title: copy.devices.title, subtitle: interpolate(copy.devices.subtitle, { location: props.workspaceName }) };
-      case "connection":
-        return { title: copy.connection.title, subtitle: interpolate(copy.connection.subtitle, { location: props.workspaceName }) };
-      case "scan":
-        return { title: copy.scanScreen.title, subtitle: copy.scanScreen.ready };
-      case "orders":
-        return { title: copy.frame.destinationLabels.orders ?? "", subtitle: interpolate(copy.basket.heldSales, { count: held.length }) };
-      default:
-        return {
-          title: collectOpen && sale ? `${copy.page.collectTitle} · ${customer.attached?.displayName ?? reference}` : copy.modeLabel,
-          subtitle: reference ? interpolate(copy.chrome.saleSubtitle, { number: reference, cashier: props.cashierName }) : interpolate(copy.chrome.newSaleSubtitle, { cashier: props.cashierName }),
-        };
-    }
-  };
-  const header = headerFor();
+  const header = counterHeader({
+    destination,
+    props,
+    receiptsDay,
+    heldCount: held.length,
+    collectOpen,
+    collectName: customer.attached?.displayName ?? null,
+    reference,
+  });
+  const displayHref = sale ? `${props.posPath}/display?order=${encodeURIComponent(sale.orderId)}` : `${props.posPath}/display`;
 
   const body =
     destination === "orders" ? (
@@ -649,7 +658,7 @@ export function PosClient(props: PosClientProps) {
     ) : paidScreen || (collectOpen ? collectScreen : sellScreen);
 
   return (
-    <div className="relative flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] min-h-[560px] w-full flex-col overflow-hidden">
+    <div className="relative flex h-[calc(100vh-var(--proto-cbar,50px))] min-h-[560px] w-full flex-col overflow-hidden">
       <ScannerListener onScan={(code) => void scan(code)} enabled={(destination === "sell" || destination === "scan") && !paid && !collectOpen && sheet === null} />
       <PosFrame
         mode={props.mode}
@@ -664,7 +673,6 @@ export function PosClient(props: PosClientProps) {
         modeEyebrow={copy.chrome.modeEyebrow}
         lock={{ label: copy.chrome.lock, onLock: till.lock }}
         workspace={{ label: copy.chrome.workspace, href: props.workspacePath }}
-        links={[{ id: "display", label: copy.displayLink.label, href: sale ? `${props.posPath}/display?order=${encodeURIComponent(sale.orderId)}` : `${props.posPath}/display`, hint: copy.displayLink.hint }]}
         className="flex-1"
       >
         <PosHeader
@@ -678,14 +686,20 @@ export function PosClient(props: PosClientProps) {
             { id: "switch", label: copy.chrome.switchOperator, onSelect: till.openSwitch },
             { id: "devices", label: copy.chrome.devices, onSelect: () => setDestination("devices") },
             { id: "connection", label: copy.chrome.connection, onSelect: () => setDestination("connection") },
+            // The customer display opens as a second window (`POSDevices`:
+            // "display as a window"). It sits under the cashier chip with the
+            // other device doors, not on the rail: the board's rail is the
+            // five destinations, Lock and Workspace, nothing else.
+            { id: "display", label: copy.displayLink.label, href: displayHref },
           ]}
           portraitMenu={{
             label: copy.modeLabel,
             menuLabel: copy.frame.navLabel,
             items: [
-              ...DESTINATIONS.filter((id) => id in copy.frame.destinationLabels).map((id) => ({ id, label: copy.frame.destinationLabels[id] ?? id, onSelect: () => setDestination(id) })),
+              ...COUNTER_DESTINATIONS.filter((id) => id in copy.frame.destinationLabels).map((id) => ({ id, label: copy.frame.destinationLabels[id] ?? id, onSelect: () => setDestination(id) })),
               { id: "devices", label: copy.chrome.devices, onSelect: () => setDestination("devices") },
               { id: "connection", label: copy.chrome.connection, onSelect: () => setDestination("connection") },
+              { id: "display", label: copy.displayLink.label, onSelect: () => window.open(displayHref, "_blank", "noopener,noreferrer") },
               { id: "workspace", label: copy.chrome.workspace, onSelect: () => router.push(props.workspacePath) },
             ],
           }}

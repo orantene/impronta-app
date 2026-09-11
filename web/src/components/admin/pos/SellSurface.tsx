@@ -52,6 +52,8 @@ export type SellSurfaceCopy = {
   readonly emptyCatalog: string;
   /** The session chooser's title (C19). */
   readonly chooseVariant: string;
+  /** The `Options` chooser's subtitle: `Choose one`. */
+  readonly chooseOption: string;
   readonly closeLabel: string;
   /** The scan door beside the search: `Scanner ready · open the scan screen`. */
   readonly scanLabel: string;
@@ -72,6 +74,8 @@ export type SellSurfaceProps = {
   readonly onSearchChange: (value: string) => void;
   readonly onSelectProduct: (productId: string) => void;
   readonly onSelectVariant: (productId: string, variantId: string) => void;
+  /** A price variant chosen from the `Options` chooser: sell THAT one. */
+  readonly onSelectOption?: (productId: string, optionId: string) => void;
   /** Opens the scan screen (`POSScan`). */
   readonly onOpenScan: () => void;
   /** Number of columns; the portrait board draws 3. */
@@ -104,6 +108,7 @@ export function SellSurface({
   onSearchChange,
   onSelectProduct,
   onSelectVariant,
+  onSelectOption,
   onOpenScan,
   columns = 4,
   copy,
@@ -118,9 +123,10 @@ export function SellSurface({
         : products.filter((p) => p.categoryId === activeCategoryId);
   const choosing = chooser ? products.find((p) => p.id === chooser) ?? null : null;
 
+  const hasOptions = (product: PosProductTile) => Boolean(onSelectOption && product.options && product.options.length > 0);
   const tap = (product: PosProductTile) => {
     if (product.soldOut) return;
-    if (product.variants && product.variants.length > 1) {
+    if (hasOptions(product) || (product.variants && product.variants.length > 1)) {
       setChooser(product.id);
       return;
     }
@@ -208,7 +214,8 @@ export function SellSurface({
         <div
           className={cn(
             "grid min-h-0 flex-1 auto-rows-[112px] content-start gap-3 overflow-y-auto px-5 pb-5 pt-1.5",
-            columns === 3 ? "grid-cols-3" : "grid-cols-4 max-[900px]:grid-cols-3",
+            // POSHandheld: a phone takes two tiles across.
+            columns === 3 ? "grid-cols-3 max-[520px]:grid-cols-2" : "grid-cols-4 max-[900px]:grid-cols-3 max-[520px]:grid-cols-2",
           )}
         >
           {visible.map((product) => {
@@ -243,11 +250,36 @@ export function SellSurface({
         open={choosing !== null}
         name="session-chooser"
         title={choosing?.title ?? ""}
-        subtitle={copy.chooseVariant}
+        subtitle={choosing && hasOptions(choosing) ? copy.chooseOption : copy.chooseVariant}
         closeLabel={copy.closeLabel}
         onClose={() => setChooser(null)}
       >
-        {choosing && (
+        {choosing && hasOptions(choosing) && (
+          <div role="group" aria-label={copy.chooseOption} className="flex flex-col gap-2">
+            {choosing.options?.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                data-pos-option={option.id}
+                disabled={option.disabled}
+                onClick={() => {
+                  setChooser(null);
+                  onSelectOption?.(choosing.id, option.id);
+                }}
+                className="flex h-14 items-center justify-between rounded-[12px] border-[1.5px] border-admin-border bg-admin-card px-4 text-left text-[15px] font-semibold text-admin-ink transition-colors hover:bg-admin-surface-alt disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span>{option.label}</span>
+                {option.deltaCents !== 0 && (
+                  <span className={cn("text-admin-ink-muted", POS_NUM)}>
+                    {option.deltaCents > 0 ? "+" : ""}
+                    {formatOrderMoney(option.deltaCents, choosing.currency)}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        {choosing && !hasOptions(choosing) && (
           <div role="group" aria-label={copy.chooseVariant} className="flex flex-col gap-2">
             {choosing.variants?.map((variant) => (
               <button

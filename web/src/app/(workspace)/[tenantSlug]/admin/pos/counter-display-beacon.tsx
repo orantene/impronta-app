@@ -12,7 +12,7 @@
  * `saleChanged` beacon. The counter re-reads, and until the re-read has
  * delivered a sale version at least as new as the one the beacon named, the
  * screen reports `stale`: the till holds its next command rather than
- * sending the version it was looking at into a `conflict` (D-POS-75).
+ * sending the version it was looking at into a `conflict` (D-POS-88).
  */
 
 import { useEffect, useState } from "react";

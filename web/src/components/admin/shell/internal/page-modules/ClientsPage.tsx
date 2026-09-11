@@ -226,7 +226,7 @@ export function ClientsPage() {
           overflow: "hidden",
         }}
       >
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1.2fr) 80px 100px 60px", gap: 14, padding: "9px 18px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }} className="bg-admin-surface-alt text-admin-ink-muted">
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1.2fr) 80px 100px 60px", gap: 14, padding: "9px 18px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }} className="bg-admin-surface-alt text-admin-ink-muted max-[720px]:hidden!">
           <span>{t("dashboard.adminClients.colClient")}</span>
           <span>{t("dashboard.adminClients.colBookings")}</span>
           <span>{t("dashboard.adminClients.colStatus")}</span>
@@ -268,6 +268,8 @@ export function ClientsPage() {
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            // MW05/MW06: the phone's row is the name, its status and a chevron.
+            className="max-[720px]:grid-cols-[minmax(0,1fr)_auto_auto]! max-[720px]:gap-[10px]! max-[720px]:px-[14px]! max-[720px]:py-[12px]!"
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
               {/* Client type carries no photo/logo URL, so photoUrl is left
@@ -280,13 +282,13 @@ export function ClientsPage() {
                 <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{client.contact}</div>
               </div>
             </div>
-            <div className="text-admin-ink-muted text-xs">
+            <div className="text-admin-ink-muted text-xs max-[720px]:hidden">
               {interpolate(t("dashboard.adminClients.bookingsYtdCount"), { count: client.bookingsYTD })}
             </div>
             <div>
               <StatusBadge tone={client.status === "active" ? "green" : "dim"} label={t(client.status === "active" ? "dashboard.adminClients.active" : "dashboard.adminClients.dormant")} />
             </div>
-            <div>
+            <div className="max-[720px]:hidden">
               {client.trust ? (
                 <ClientTrustChip level={client.trust} compact />
               ) : (

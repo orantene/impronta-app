@@ -68,6 +68,7 @@ export function ClientCollect({
   counterHref,
   copy,
   link,
+  className,
 }: {
   records: CollectRecordView[];
   /** `/<slug>/admin/pos?mode=counter`; the order id is appended here. */
@@ -84,6 +85,8 @@ export function ClientCollect({
     locale: string;
     none: string;
   };
+  /** The phone's 50px shape when the button rides the fixed bar (MW06). */
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -98,7 +101,7 @@ export function ClientCollect({
 
   return (
     <>
-      <button type="button" className={BTN_PRIMARY} onClick={() => setOpen(true)} data-client-collect-open>
+      <button type="button" className={className ? `${BTN_PRIMARY} ${className}` : BTN_PRIMARY} onClick={() => setOpen(true)} data-client-collect-open>
         {copy.open} {formatOrderMoney(totalCents, currency)}
       </button>
       {sent && (
@@ -149,7 +152,7 @@ export function ClientCollect({
           {records.map((r) => {
             const on = picked.includes(r.orderId);
             return (
-              <ListRow key={r.orderId} cols="grid-cols-[1.1fr_1.6fr_auto]" className="border-t">
+              <ListRow key={r.orderId} cols="grid-cols-[1.1fr_1.6fr_auto] max-[720px]:grid-cols-[minmax(0,1fr)_auto]" className="border-t">
                 <label className="flex cursor-pointer items-center gap-2">
                   <input type="checkbox" className="sr-only" checked={on} onChange={() => toggle(r.orderId)} />
                   <span
@@ -163,7 +166,7 @@ export function ClientCollect({
                   </span>
                   <b className={on ? "text-admin-ink" : "text-admin-ink-muted"}>{r.title}</b>
                 </label>
-                <span className="text-admin-ink-muted">{r.detail}</span>
+                <span className="text-admin-ink-muted max-[720px]:order-3 max-[720px]:col-span-2 max-[720px]:text-[12.5px]">{r.detail}</span>
                 <span className="text-[15px] font-semibold tracking-[-0.02em] tabular-nums">{formatOrderMoney(r.owedCents, r.currency)}</span>
               </ListRow>
             );

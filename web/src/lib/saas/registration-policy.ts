@@ -172,7 +172,7 @@ export async function ensurePlatformHubRoster(
 
   const { data: existing, error: existingError } = await admin
     .from("agency_talent_roster")
-    .select("id, status")
+    .select("id, status, agency_visibility")
     .eq("tenant_id", hub.tenantId)
     .eq("talent_profile_id", talentProfileId)
     .neq("status", "removed")
@@ -183,10 +183,15 @@ export async function ensurePlatformHubRoster(
   }
 
   if (existing) {
-    if (existing.status !== "active") {
+    const needsPromote = existing.status !== "active";
+    const needsVisible = existing.agency_visibility === "roster_only";
+    if (needsPromote || needsVisible) {
       const { error } = await admin
         .from("agency_talent_roster")
-        .update({ status: "active" })
+        .update({
+          ...(needsPromote ? { status: "active" } : {}),
+          ...(needsVisible ? { agency_visibility: "site_visible" } : {}),
+        })
         .eq("id", existing.id);
       if (error) {
         logServerError("platform-hub-roster.promote", error);
@@ -201,7 +206,12 @@ export async function ensurePlatformHubRoster(
     talent_profile_id: talentProfileId,
     source_type: "freelancer_claimed",
     status: "active",
-    agency_visibility: "roster_only",
+    // site_visible, not roster_only: the anon read policy on talent_profiles
+    // requires an active roster row with site_visible/featured visibility, so
+    // roster_only made the talent's own public page a 404 the moment they
+    // finished onboarding (live 2026-09-10, TAL-92149/92150). The talent's own
+    // is_publicly_hidden switch stays their control over the page.
+    agency_visibility: "site_visible",
     hub_visibility_status: "not_submitted",
     is_primary: false,
     added_by: userId,

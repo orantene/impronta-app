@@ -17,8 +17,15 @@ import type { ReactNode } from "react";
 
 import { Icon } from "../primitives";
 
-export const BUTTON =
-  "inline-flex h-[34px] items-center justify-center gap-[6px] whitespace-nowrap rounded-[9px] border px-[14px] font-admin-body text-admin-13 font-semibold [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)]";
+/**
+ * The board's button: 34px, radius 9, 13px semibold, `line-height: normal`
+ * (the admin body's 1.65 made every label a few px taller than drawn). The
+ * size is its own string so a caller's `text-admin-12h` wins over it
+ * (`ActionButton size="sm"`), which a size baked into the base never let it.
+ */
+export const BUTTON_SHAPE =
+  "inline-flex h-[34px] items-center justify-center gap-[6px] whitespace-nowrap rounded-[9px] border px-[14px] font-admin-body font-semibold leading-[1.2] [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)]";
+export const BUTTON = `${BUTTON_SHAPE} text-admin-13`;
 export const BUTTON_PRIMARY = `${BUTTON} cursor-pointer border-admin-brand bg-admin-brand text-white hover:bg-admin-brand-deep`;
 export const BUTTON_SECONDARY = `${BUTTON} cursor-pointer border-admin-border bg-admin-card text-admin-ink hover:border-admin-border-strong`;
 export const BUTTON_OFF = `${BUTTON} cursor-not-allowed border-admin-border bg-admin-card text-admin-ink opacity-50`;
@@ -39,6 +46,7 @@ export function ActionButton({
   disabled = false,
   className = "",
   testId,
+  size = "md",
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -47,14 +55,19 @@ export function ActionButton({
   disabled?: boolean;
   className?: string;
   testId?: string;
+  /** "sm" is the panel's 12.5px button (W39's four scope actions). */
+  size?: "md" | "sm";
 }) {
   const off = Boolean(reason) || disabled;
-  const base = reason
-    ? BUTTON_OFF
+  const shape = reason
+    ? `${BUTTON_SHAPE} cursor-not-allowed border-admin-border bg-admin-card opacity-50`
     : tone === "primary"
-      ? BUTTON_PRIMARY
-      : BUTTON_SECONDARY;
-  const danger = tone === "danger" && !reason ? " text-admin-red" : "";
+      ? `${BUTTON_SHAPE} cursor-pointer border-admin-brand bg-admin-brand text-white hover:bg-admin-brand-deep`
+      : `${BUTTON_SHAPE} cursor-pointer border-admin-border bg-admin-card hover:border-admin-border-strong`;
+  const base = `${shape} ${size === "sm" ? "text-admin-12h" : "text-admin-13"}`;
+  // The board draws "Cancel session…" in red whether or not it is wired; a
+  // disabled one is the same red at half opacity.
+  const danger = tone === "danger" ? " text-admin-red" : tone === "primary" ? "" : " text-admin-ink";
   return (
     <button
       type="button"
@@ -81,12 +94,25 @@ const PILL_TONE: Record<PillTone, string> = {
   critical: "bg-admin-critical-soft text-admin-red",
 };
 
-export function StatePill({ tone, children, testId, state }: { tone: PillTone; children: ReactNode; testId?: string; state?: string }) {
+export function StatePill({
+  tone,
+  children,
+  testId,
+  state,
+  className = "",
+}: {
+  tone: PillTone;
+  children: ReactNode;
+  testId?: string;
+  state?: string;
+  /** As a grid cell the board's pill stretches to the column; pass nothing to keep it inline. */
+  className?: string;
+}) {
   return (
     <span
       data-testid={testId}
       data-state={state}
-      className={`inline-flex items-center gap-[5px] whitespace-nowrap rounded-full px-[8px] py-[2px] text-admin-11 font-semibold ${PILL_TONE[tone]}`}
+      className={`inline-flex items-center gap-[5px] whitespace-nowrap rounded-full px-[8px] py-[2px] font-admin-body text-admin-11 font-semibold leading-[1.2] ${PILL_TONE[tone]} ${className}`}
     >
       {children}
     </span>
@@ -117,7 +143,7 @@ export function Segmented<T extends string>({
             aria-pressed={active}
             disabled={off}
             title={o.reason ?? undefined}
-            className={`rounded-[7px] px-[10px] py-[5px] font-admin-body text-[12px] font-semibold ${
+            className={`rounded-[7px] px-[10px] py-[5px] font-admin-body text-[12px] font-semibold leading-[1.2] ${
               active
                 ? "bg-admin-card text-admin-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                 : off
@@ -152,10 +178,10 @@ export function FilterChip({
   return (
     <label
       title={reason ?? undefined}
-      className={`relative inline-flex flex-wrap items-center gap-x-[4px] rounded-full border border-admin-border bg-admin-card py-[5px] pl-[10px] pr-[24px] font-admin-body text-[12px] leading-[1.25] text-admin-ink ${off ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+      className={`relative inline-flex flex-wrap items-center gap-x-[4px] rounded-full border border-admin-border bg-admin-card py-[5px] pl-[10px] pr-[26px] font-admin-body text-[12px] leading-[1.2] text-admin-ink ${off ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
     >
-      <span className="text-admin-ink-muted">{label}:</span>
-      <span className="font-medium">{options.find((o) => o.id === value)?.label ?? value}</span>
+      <span>{label}:</span>
+      <span>{options.find((o) => o.id === value)?.label ?? value}</span>
       <span aria-hidden className="pointer-events-none absolute right-[9px] top-1/2 -translate-y-1/2 text-admin-ink-dim">
         <Icon name="chevron-down" size={12} stroke={1.75} />
       </span>
@@ -182,7 +208,7 @@ export function ToggleChip({ label, on, onChange }: { label: string; on: boolean
     <button
       type="button"
       aria-pressed={on}
-      className={`inline-flex shrink-0 cursor-pointer items-center gap-[6px] rounded-full border py-[5px] pl-[10px] pr-[9px] font-admin-body text-[12px] leading-[1.25] ${
+      className={`inline-flex shrink-0 cursor-pointer items-center gap-[6px] rounded-full border py-[5px] pl-[10px] pr-[9px] font-admin-body text-[12px] leading-[1.2] ${
         on ? "border-admin-ink bg-admin-ink text-white" : "border-admin-border bg-admin-card text-admin-ink"
       }`}
       onClick={() => onChange(!on)}
@@ -195,7 +221,7 @@ export function ToggleChip({ label, on, onChange }: { label: string; on: boolean
 
 export function FactRow({ label, children, muted = false }: { label: string; children: ReactNode; muted?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between gap-[12px] border-b border-admin-border-soft py-[6px] font-admin-body text-admin-13 last:border-b-0">
+    <div className="flex items-baseline justify-between gap-[12px] border-b border-admin-border-soft py-[6px] font-admin-body text-admin-13 leading-[1.2] last:border-b-0">
       <span className="shrink-0 text-admin-ink-muted">{label}</span>
       <span className={`text-right font-medium tabular-nums ${muted ? "text-admin-ink-dim" : "text-admin-ink"}`}>{children}</span>
     </div>
@@ -204,14 +230,14 @@ export function FactRow({ label, children, muted = false }: { label: string; chi
 
 export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="font-admin-body text-admin-11 font-bold uppercase tracking-[0.08em] text-admin-ink-muted">{children}</div>
+    <div className="font-admin-body text-admin-11 font-bold uppercase leading-[1.2] tracking-[0.08em] text-admin-ink-muted">{children}</div>
   );
 }
 
 /** The "Used in · N" footer line the boards draw under a table. */
 export function UsedIn({ count, label, parts }: { count: number; label: string; parts: ReadonlyArray<{ where: string; what: string }> }) {
   return (
-    <div className="flex flex-wrap items-center gap-[8px] font-admin-body text-[11.5px] text-admin-ink-muted">
+    <div className="flex flex-wrap items-center gap-[8px] font-admin-body text-[11.5px] leading-[1.2] text-admin-ink-muted">
       <span className="inline-flex items-center gap-[6px] rounded-full border border-admin-border bg-admin-card px-[10px] py-[3px] font-semibold text-admin-ink">
         <Icon name="external" size={12} stroke={1.75} color="var(--color-admin-brand)" />
         {label} · {count}

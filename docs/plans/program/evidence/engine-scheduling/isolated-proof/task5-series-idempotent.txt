@@ -1,0 +1,11 @@
+series id dd7bb415-7f98-4730-a644-c2692a8fb752
+pass 1 occ 2027-01-04T18:00:00-06:00 inserted: 1 [{"id":"ff08975a-3dd9-45bb-9f47-19e8c321de2e"}]
+pass 1 occ 2027-01-06T18:00:00-06:00 inserted: 1 [{"id":"6e27dd66-6d0f-4bf8-9cfc-dba22013bda3"}]
+pass 1 occ 2027-01-08T18:00:00-06:00 inserted: 1 [{"id":"da1d8644-58f3-4a2e-ba9c-56a9c60768bf"}]
+pass 1 total session count for series: 3
+pass 2 occ 2027-01-04T18:00:00-06:00 inserted: 0 []
+pass 2 occ 2027-01-06T18:00:00-06:00 inserted: 0 []
+pass 2 occ 2027-01-08T18:00:00-06:00 inserted: 0 []
+pass 2 total session count for series: 3
+IDEMPOTENT: true first= 3 second= 3
+cleaned up series fixture

@@ -175,7 +175,7 @@ export function SessionsTable({
   return (
     <div className="flex flex-col gap-[12px]">
       {/* Toolbar */}
-      <div className="flex flex-nowrap items-center gap-[6px]">
+      <div className="flex flex-nowrap items-center gap-[8px]">
         <Segmented<SessionsView>
           label={t(`${K}.viewLabel`)}
           value={view}
@@ -192,7 +192,7 @@ export function SessionsTable({
         <button type="button" aria-label={t(`${K}.later`)} className={`${BUTTON_SECONDARY} h-[30px] w-[32px] shrink-0 px-0`} onClick={() => shift(step)}>
           <span className="inline-block"><Icon name="chevron-right" size={14} stroke={1.75} /></span>
         </button>
-        <span className="min-w-[96px] font-admin-body text-admin-13 font-semibold leading-[1.2] text-admin-ink">{rangeLabel(view, anchorYmd, locale, t(`${K}.from`))}</span>
+        <span className="min-w-[90px] font-admin-body text-admin-13 font-semibold leading-[1.2] text-admin-ink">{rangeLabel(view, anchorYmd, locale, t(`${K}.from`))}</span>
         <span className="flex-1" />
         <FilterChip
           label={t(`${K}.filter.location`)}
@@ -220,7 +220,7 @@ export function SessionsTable({
 
       {/* The refusals: what the sweep would not create, and why. */}
       {refusedSeries.length > 0 || collisions.length > 0 ? (
-        <div className="rounded-[12px] border border-admin-coral/30 bg-admin-coral-soft px-[16px] py-[12px] font-admin-body text-admin-13 text-admin-ink" data-testid="sessions-refusals">
+        <div className="rounded-[12px] border border-admin-coral/30 bg-admin-coral-soft px-[16px] py-[12px] font-admin-body text-admin-13 leading-[1.35] text-admin-ink" data-testid="sessions-refusals">
           <div className="font-semibold">{t("dashboard.adminSessions.refusals.title")}</div>
           <p className="m-0 mt-[4px] text-admin-ink-muted">{t("dashboard.adminSessions.refusals.help")}</p>
           {refusedSeries.map((s) => (
@@ -329,11 +329,10 @@ function DayGroup({
                 <span className="truncate text-admin-ink-muted">{row.room ?? "—"}</span>
                 <span className="text-admin-ink-muted">—</span>
                 <span className="text-admin-ink">{seatsCell(row)}</span>
-                <span>
-                  <StatePill tone={STATE_TONE[row.state]} state={row.state}>
-                    {stateLabel(row.state)}
-                  </StatePill>
-                </span>
+                {/* A grid cell, so the pill stretches to the column as the board draws it. */}
+                <StatePill tone={STATE_TONE[row.state]} state={row.state} className="justify-start">
+                  {stateLabel(row.state)}
+                </StatePill>
                 <button
                   type="button"
                   aria-label={menuLabel}

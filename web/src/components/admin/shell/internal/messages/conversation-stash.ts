@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { setInquiryPinned, setInquiryManuallyUnread, setInquiryArchived } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { getInquiryFlagsUserId, getInquiryFlagsTenantSlug } from "../inquiry-flags-tenant-slug";
 import { MOCK_OFFER_FOR_CONV, RICH_OFFER_ALIAS } from "./shared/machinery-10";
-import { TalentBookingTab } from "./shared/machinery-2";
-import { ClientProjectViewTab } from "./shared/machinery-3";
 import type { LineupRow, Offer, TimelineEvent } from "./shared/machinery-9";
 
 
@@ -11,19 +9,12 @@ import type { LineupRow, Offer, TimelineEvent } from "./shared/machinery-9";
 // ROUTER — picks the right shell per pov
 // ════════════════════════════════════════════════════════════════════
 
-/**
- * Pending conversation id, set by callers (e.g. the Today bookings row)
- * just before they navigate to the messages page. The shell consumes it
- * on mount and clears it. Module-level so it survives the lazy-import
- * boundary; one-shot so a refresh doesn't keep re-pinning the same row.
- */
-export let __pendingActiveConversationId: string | null = null;
-export function pinNextConversation(id: string) { __pendingActiveConversationId = id; }
-export function consumePendingConversation(): string | null {
-  const v = __pendingActiveConversationId;
-  __pendingActiveConversationId = null;
-  return v;
-}
+// The pending conversation id lives in `./conversation-pending` — a leaf with
+// no imports — so the pages that set it before navigating (Inbox, Calendar,
+// the notification rows) do not pull the messages machinery into their own
+// chunk. Re-exported here so every existing reader keeps its path.
+import { pinNextConversation, consumePendingConversation } from "./conversation-pending";
+export { pinNextConversation, consumePendingConversation };
 
 // ── Local row-override store ──
 // Submit-rate / Withdraw flows write into this module-level map keyed

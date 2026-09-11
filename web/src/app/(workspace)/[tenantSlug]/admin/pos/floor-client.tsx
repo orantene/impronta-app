@@ -135,7 +135,7 @@ export function FloorClient(props: FloorClientProps) {
     );
 
   return (
-    <div className="flex min-h-[calc(100vh-56px)] w-full flex-col" data-tulala-pos-chrome>
+    <div className="flex min-h-[calc(100vh-var(--proto-cbar,50px))] w-full flex-col" data-tulala-pos-chrome>
       <PosFrame
         mode="floor"
         navLabel={copy.board.railLabel}

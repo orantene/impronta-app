@@ -815,7 +815,189 @@ Decided 2026-09-11 (engine-pos-money). `waitlist_offers` holds a seat for a
 or venue columns. Restaurant T08 party waitlist stays blocked until that
 table exists.
 
-## D-POS-69 — a seated party does not take a second table; joins stay a seating-time decision
+## D-POS-69 — the till is full-bleed: no workspace top bar inside the point of sale; the rail's MODE chip is the mode switch (M33), the Tax row reads the tax outcome, tile badges are stock and variant facts
+
+Decided 2026-09-11 (fid-polish1). `POSCounter` and `M33_ModeSwitch` draw the
+point of sale with nothing of the workspace above it: a 96px rail, a 64px
+header, the sell surface and the basket fill the viewport. The shell's POS
+chrome branch therefore mounts no `TulalaIdentityBar`; the two things that
+bar offered inside the till are on the rail. The `MODE · Counter` chip opens
+the M33 menu (`PosRailModeMenu`, handed to `PosFrame` through
+`PosModeMenuContext`), rendering the SAME model as the top bar's W00 switch
+(`usePosModeMenuModel`: usable, turned off at this workspace, not your role,
+no screen yet, remembered default); the `Workspace` door at the rail's foot
+leaves. The board's per-mode live hints under each row ("14 today · 2
+balances due") are not drawn: they need every mode's reader on every till
+render. The customer display door moved from the rail (the board's rail is
+five destinations, Lock and Workspace) to the cashier chip's menu beside
+Devices and Connection, as a real `target="_blank"` link.
+
+Tile badges come from facts the engine keeps: `Options` when the offering has
+MORE THAN ONE `talent_offering_variants` row (one variant is not a choice and
+sells as before), and a tap opens the chooser whose pick rides the line as
+`variant_id` (`posAddLine` accepts it; `addLine` prices it); `N left` when
+the offering's capacity pool mirror (`inventory_qty` WITH `capacity_pool_id`)
+is at or under 5 units; `Sold out` at 0 (the tile cannot be tapped);
+`Pick session` unchanged. A second tap on the same offering, variant and
+session on an unsent line adds a unit to that line (`posUpdateLine`), so the
+basket reads `2 · Latte · $90 each` as the board draws it, instead of a
+second identical line. `Held until hh:mm` is the earliest live hold on the
+line (`capacity_allocations`, state `hold`, not lapsed). The basket's Tax row
+reads `orderTax` (`lib/catalog/tax`): `unset` says "Not set up" because no
+line can carry a tax category yet (`talent_offerings` has no such column),
+never a zero nobody decided; the `Saved hh:mm` line starts from the sale
+row's `updated_at`. Favorites stays disabled (D-POS-31): nothing records one.
+
+## D-POS-70 — a session's instructor is a user id on the row
+
+Decided 2026-09-11 (engine-scheduling). Boards W39/W40 filter and substitute
+by instructor. `sessions` had no instructor column. Additive
+`session_series.instructor_user_id` and `sessions.instructor_user_id`
+(nullable FK to auth users via uuid, no FK to a people table that does not
+exist). Room stays `venue_id`. Overlapping room means overlapping scheduled
+windows at the same venue. Numbered 70 because fidelity already used 60–69.
+
+## D-POS-71 — Generate sessions is one explicit materialiser pass
+
+Decided 2026-09-11 (engine-scheduling). `generateSessionsForSeries` calls
+`decideMaterialisation` + `createSessionWithPools` once through `untilDate`.
+The nightly cron is unchanged. Nothing is a second materialiser.
+
+## D-POS-72 — cancelling a session never refunds inside the command
+
+Decided 2026-09-11 (engine-scheduling). `session_cancel` voids admissions and
+writes `ticket_refund_intents` with reason `session_cancelled`. The existing
+cron pays. Same rule as `cancel_event_cascade`.
+
+## D-POS-73 — customer manage is a signed token, not a new guest cookie
+
+Decided 2026-09-11 (engine-scheduling). HMAC over `{bookingId, tenantId,
+action, exp}` using `GUEST_COOKIE_SECRET`. The public page is the UI
+session's. This package ships sign/verify only.
+
+## D-POS-74 — a package is an offering with component rows
+
+Decided 2026-09-11 (engine-scheduling). `offering_components` is the
+composition. A price phase is stamped on the line the first time it is
+priced and is never rewritten by a later phase. Passes, memberships and
+gift cards stay out (D-POS-54).
+
+## D-POS-75 — offering policy overrides and role limits are rows
+
+Decided 2026-09-11 (engine-scheduling). `booking_policy_overrides` win over
+offering / workspace defaults for deposit, free-cancel hours and no-show
+fee. `role_limits` + `approval_requests` gate discounts and refunds above
+the role's cents cap. W56 can now be a real review dialog over these rows.
+## D-POS-76 — the phone's four tabs are the board's: Today · Calendar · Clients · Sales
+
+Decided 2026-09-11 (fid-mobile). The registry's `mobilePriority` ordered the
+bar Overview · Messages · Calendar · Appointments; the approved MW00 board
+(2026-09-09) draws Today · Calendar · Clients · Sales · More, and MW26 draws
+the professional's bar with the same shape. The priorities now follow the
+board (`destinations.ts`: overview 1, calendar 2, clients 3, sales 4, then
+messages, appts, orders, reservations, catalog, people), so a workspace that
+hides one of the four still fills the bar from the registry and never from a
+hand-written list. Both tests that pinned the old order were re-pointed at
+the board's (`destinations.test.ts`, `mobile-bottom-nav.static.test.ts`).
+The bar is still role-invariant: none of the four carries a role or billing
+clause. The More sheet draws every other visible destination as a chip under
+its group and does not repeat the four on the bar. Messages, the fourth
+tab of the professional's bar on MW26, waits on My work (D-POS-69).
+
+## D-POS-77 — the phone's Orders list opens the conversation; an order has no record page
+
+Decided 2026-09-11 (fid-mobile). MW18–MW20 draw an order's own screen (its
+lines with their stations and readiness, Total · Payment · Notify · If not
+collected, then Mark ready · Hand over). No route renders one order: the
+Orders desk is a list, readiness lives on the kitchen's tickets (K09, the
+Preparation destination) and a handoff is not recorded anywhere. The phone's
+Orders list (MW17) therefore draws each order as a row that opens its
+conversation when it has one, the same door the desktop table offers; Mark
+ready and Hand over are not drawn because there is nothing for them to write.
+The refund form stays on the desktop table.
+
+## D-POS-78 — My work on the phone is the screen with the sentence
+
+Decided 2026-09-11 (fid-mobile). `mywork` is `built: false` in the registry
+on purpose (no page shows one person their own shifts, assignments and
+earnings). The phone's More sheet keeps the chip and the chip opens a sheet
+that says so in three languages and points at where the person's work lives
+today (Calendar, Appointments & Classes, Projects). MW27–MW31 (a project or
+appointment assignment to accept, a field job, a schedule conflict, earnings)
+have no reader or writer and are not drawn beyond that sentence.
+
+## D-POS-79 — invitations redeem on the link; the accept, decline and state screens are not drawn
+
+Decided 2026-09-11 (fid-mobile). MW32–MW34 draw an invitation as a screen
+with Accept and Decline and three states (expired, wrong account, access
+removed). The engine's `/invite/[token]` redeems the invitation on GET and
+redirects; an expired or invalid token redirects to the home page with a
+query flag, and there is no pending-accept state to draw a decision over.
+Building the screens would add a state to the invite model, which is a
+product change, not a skin; recorded here as not wired. MW36 (a link that
+expired, a booking no longer available, no access, a session that ended) is
+the same shape: those states are answered by the routes that own them and
+were not restyled in this group.
+
+## D-POS-80 — the workspace switch sheet lists one location: the workspace itself
+
+Decided 2026-09-11 (fid-mobile). MW01 draws Workspaces and Locations. The
+sheet lists the person's memberships from `actionLoadUserWorkspaces` (the
+same reader as the desktop switcher drawer), the current one marked; the
+Locations card has one row, the workspace's own name, disabled with the
+reason, because there is no locations table (D-POS-18). The desktop drawer
+(`wave2.tsx`) is at its size budget, so the phone's sheet is its own
+component over the same reader rather than a rewrite of the drawer.
+## D-POS-81 — the Front desk reads as the boards: B05 fills the screen, A09 is a sheet of free times, the Book door is the five-step flow A01 to A06 over one service
+
+Decided 2026-09-11 (fid-polish2). Three structural changes on the Front desk
+(`?mode=classes`), all on the readers and writers that already existed:
+
+1. **B05 is the whole content area.** Opening a class from the Classes
+   segment hides the day list; the header names the class and "starts in N
+   min", a 46px strip under it carries the three chips, the roster and the
+   360px action column fill the rest. The rail's `Sessions` row from an open
+   check-in is the way back to the list (the board draws no other door). The
+   frame gets the counter's `Lock` (disabled, D-POS-15) and `Workspace` rows.
+2. **A09 is a sheet inside the appointment pane.** "Move it" opens
+   `MoveSheet`: day chips (the day shown and the next two), the free times
+   as cards read by `classesMoveSlots` → `loadMoveSlots`
+   (`lib/pos/classes/move.ts`), which finds the booking's person through the
+   order's first offering (an instant booking, the walk-in's kind) or else
+   the `talent_bookings` mirror behind the source inquiry, then runs the
+   walk-in's own `freeStartsForPerson` (the website's slot composition) for
+   the booking's own length. A booking with no person behind it says so and
+   still takes a hand-typed time ("Another time", on the venue's clock),
+   which the proven `rescheduleAppointment` decides; the refusal names who
+   is busy. Price and Paid so far are the sale's; Policy says no
+   cancellation rule is modelled; Old slot states the engine's rule.
+3. **The Book door is the A01 to A06 flow, full screen** (`BookingFlow`):
+   Service (radio cards, one per booking; the note says a second service is a
+   second booking), People & place (the service's person as the guaranteed
+   card, the venue as the place; rooms, chairs and buffers drawn as facts
+   with their reason), Time (five day chips, the free times as cards, the
+   itinerary is start–end), Details (customer, who it is for, notes and
+   reminders disabled with their sentence), Review (the line, when, with,
+   pay: cash at the visit or now), then Confirmed ("Booked for …", the
+   chips, WHERE THIS NOW LIVES from the write's own result: the day list,
+   the sale with its balance, the customer by the contact given; Collect
+   now / Done / Book another). The write is `bookWalkInAppointment`, the
+   Walk-in sheet's. Not wired, each said on the control: a multi-service
+   basket, chair or room choice, intake forms, notes on a booking from the
+   desk, per-booking reminders, a card deposit at booking, a confirmation
+   message from the till.
+
+Also settled here: BOOKED vs ADDED TODAY on B01 splits the sale's lines by
+the booking's own service (a line linked to the booking or carrying the
+appointment's title was booked; the rest was added at the desk), because a
+sale line records no "added at" instant; Services vs Retail by the till's
+own extras list (a product offering is retail). The B02 sheet's "New end
+time" says the end is not re-planned when a timed extra is picked
+(D-POS-19) and otherwise shows the booking's end unchanged. B06 carries the
+board's footnote as the true sentence: no refund rule is set; a paid place
+keeps its payment until refunded from the sale.
+
+## D-POS-82 — a seated party does not take a second table; joins stay a seating-time decision
 
 Decided 2026-09-11 (wire-pos-money). The engine's `visit_transfer` moves a
 visit from one space to another and refuses an occupied destination; it
@@ -829,7 +1011,7 @@ mark after a transfer is written by the tables action wrapper
 (`visitTransfer` in `admin/tables/actions.ts`), the same rule
 `moveVisitToSpace` kept.
 
-## D-POS-70 — the person on the lock screen and the approver on the PIN dialog are named by the screen; the PIN is the proof
+## D-POS-83 — the person on the lock screen and the approver on the PIN dialog are named by the screen; the PIN is the proof
 
 Decided 2026-09-11 (wire-pos-money). `pos_unlock_till`, `pos_switch_operator`
 and `pos_approve_custom_amount` verify the PIN against the hash of the user
@@ -843,7 +1025,7 @@ and points at People when nobody does; the approval dialog lists only
 managers who hold one. A PIN is 4 to 6 digits, so the pad submits on the
 sixth digit or on `Unlock` from the fourth.
 
-## D-POS-71 — a payment link is minted whether or not a card provider is set up, and the panel says which page it opens
+## D-POS-84 — a payment link is minted whether or not a card provider is set up, and the panel says which page it opens
 
 Decided 2026-09-11 (wire-pos-money). `createPaymentLink` reserves the amount
 on the sale and mints `/pay/<code>`; with Stripe keys the page is Checkout,
@@ -858,7 +1040,7 @@ Projects mode's Links destination (`POSPaymentLink`, `listWorkspacePaymentLinks`
 D-POS-27's link half and D-POS-42 are closed; bank transfer and two methods
 stay as D-POS-27 says.
 
-## D-POS-72 — M26 "Collect another way" stays not wired
+## D-POS-85 — M26 "Collect another way" stays not wired
 
 Decided 2026-09-11 (wire-pos-money). No RPC records an authorised alternate
 collection on an unresolved card attempt (both records, the provider-only
@@ -868,7 +1050,7 @@ manager-PIN verification the engine gained is bound to a custom line
 PIN pad that approves nothing would be a control that silently does nothing,
 so it is not drawn.
 
-## D-POS-73 — the hand-over is recorded with the close; movements are their own rows
+## D-POS-86 — the hand-over is recorded with the close; movements are their own rows
 
 Decided 2026-09-11 (wire-pos-money). `pos_shift_movements` holds paid in,
 paid out, drops and float adds (`posRecordShiftMovement`); the Cash screen's
@@ -879,7 +1061,7 @@ so the card's choice is carried into the close and recorded there, and the
 card says so. `Open drawer (no sale)` stays disabled: no drawer device
 (D-POS-28). D-POS-29 is closed.
 
-## D-POS-74 — register PINs live on People › Access; the custom-amount limit on Settings › Roles & limits
+## D-POS-87 — register PINs live on People › Access; the custom-amount limit on Settings › Roles & limits
 
 Decided 2026-09-11 (wire-pos-money). `posSetStaffPin` is the Access hat's
 `Register PIN` block (W29), and the Access table's PIN column reads Set /
@@ -888,7 +1070,7 @@ read). `posSetCustomAmountLimit` is the `Custom amounts at the counter`
 block under Roles & limits (W22); at 0 every custom amount needs a manager.
 D-POS-23 and D-POS-34 are closed.
 
-## D-POS-75 — the display's tip reaches the counter on the same device through storage, not polling
+## D-POS-88 — the display's tip reaches the counter on the same device through storage, not polling
 
 Decided 2026-09-11 (wire-pos-money). The customer display writes
 `orders.tip_cents` through `posSetTip` (D02 / D03; D-POS-11 closed) and the
@@ -900,7 +1082,7 @@ A display on another device is not covered; the counter's reload on the
 conflict banner is the fallback. Tips are never a line: the basket's `Tip`
 row and the display's row both read the order's column.
 
-## D-POS-76 — the Front desk queue offers a place with the engine's hold
+## D-POS-89 — the Front desk queue offers a place with the engine's hold
 
 Decided 2026-09-11 (wire-pos-money). `Offer the place` on the Front desk
 (B06 and the Waitlist screen) is `waitlistOfferPlace`: a `waitlist_offers` row
@@ -911,7 +1093,7 @@ an offer. `They took it` is `waitlistAcceptOffer` (commits the hold);
 live offer id per entry. Restaurant T08 (a party waitlist with a table hold)
 stays as D-POS-68 says.
 
-## D-POS-77 — a check is split by items; a visit's checks are listed on its card
+## D-POS-90 — a check is split by items; a visit's checks are listed on its card
 
 Decided 2026-09-11 (wire-pos-money). T18's `By items` is the engine's
 `visit_split_check`: the ticked lines of check A move to a new draft order on
