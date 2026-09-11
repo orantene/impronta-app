@@ -1,0 +1,28 @@
+{
+  "order": {
+    "id": "998e3e5d-8f1b-4eba-a907-41b6e0f5aeee",
+    "status": "paid",
+    "total_cents": 0,
+    "source_channel": "ticket_picker",
+    "receipt_code": "hgzy7kxkzbdvrjdq3trp",
+    "created_at": "2026-09-11T02:31:59.476477+00:00"
+  },
+  "admissions": [
+    {
+      "id": "483b4469-3cb9-4150-8206-2c062a7d40ef",
+      "status": "valid",
+      "session_id": "33330013-0000-4000-8000-000000000002",
+      "holder_name": "C12 guest",
+      "holder_email": "c12-cus-1789093916124@impronta.test",
+      "allocation_id": "d8da73e4-15de-4420-a892-48fd69adefae"
+    }
+  ],
+  "allocations": [
+    {
+      "id": "d8da73e4-15de-4420-a892-48fd69adefae",
+      "pool_id": "33330020-0000-4000-8000-000000000004",
+      "state": "committed",
+      "units": 1
+    }
+  ]
+}
