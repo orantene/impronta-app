@@ -15,10 +15,11 @@
  * never a hand-built string. Token classes only; every primary action is at
  * least 56px tall (`h-14`).
  *
- * WHAT IS NOT OFFERED SAYS SO. Tips (D02, D03) need a line kind the engine
- * does not have, and text receipts need a sender that does not exist; both
- * render as a sentence rather than as a control that would do nothing.
- * D-POS-11 and D-POS-12 in `docs/plans/program/pos/decisions.md`.
+ * TIPS ARE OFFERED (D02, D03) through `CustomerDisplayTip`: the sale's
+ * `tip_cents` is the engine's own column (`posSetTip`), and the review's
+ * right half is the tip chooser while the sale is open. Text receipts still
+ * need a sender that does not exist and render as a sentence rather than a
+ * control that would do nothing (D-POS-12).
  */
 
 import type { ReactNode } from "react";
@@ -29,6 +30,7 @@ import type { DisplayState } from "@/lib/pos/display-model";
 import { cn } from "@/lib/utils";
 
 import type { CustomerDisplayCopy } from "./customer-display-copy";
+import { CustomerDisplayCustomTip, CustomerDisplayTip, type CustomerDisplayTipCopy } from "./CustomerDisplayTip";
 import { POS_INPUT, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "./pos-classes";
 
 /**
@@ -54,6 +56,8 @@ export type CustomerDisplaySale = {
   readonly lines: readonly CustomerDisplayLine[];
   readonly subtotalCents: number;
   readonly discountCents: number;
+  /** `orders.tip_cents`, part of `totalCents`. */
+  readonly tipCents: number;
   readonly totalCents: number;
   readonly depositPaidCents: number;
   readonly outstandingCents: number;
@@ -73,11 +77,28 @@ export type CustomerDisplayReceiptOutcome =
   | { kind: "skipped"; email: string }
   | { kind: "refused"; sentence: string };
 
+/** The tip states on the review screen (D02 / D03), owned by the display client. */
+export type CustomerDisplayTipState = {
+  readonly step: "choose" | "custom";
+  readonly customCents: number;
+  readonly saving: boolean;
+  readonly refusal: string | null;
+  readonly onPick: (cents: number) => void;
+  readonly onOther: () => void;
+  readonly onChange: () => void;
+  readonly onKey: (key: string) => void;
+  readonly onBack: () => void;
+  readonly onConfirm: () => void;
+  readonly copy: CustomerDisplayTipCopy;
+};
+
 export type CustomerDisplayProps = {
   readonly screen: CustomerDisplayScreen;
   readonly workspaceName: string;
   readonly sale: CustomerDisplaySale | null;
   readonly copy: CustomerDisplayCopy;
+  /** Absent only where a tip cannot be taken (the sale is past collection). */
+  readonly tip?: CustomerDisplayTipState;
   /** Set while the poll cannot reach the server; rendered as one line. */
   readonly connectionLost: boolean;
   /** D02 → D04. */
@@ -151,10 +172,33 @@ export function CustomerDisplay(props: CustomerDisplayProps) {
     );
   }
 
-  if (screen === "review") {
+  if (screen === "review" && props.tip?.step === "custom") {
+    const tip = props.tip;
     return (
       <Shell workspaceName={workspaceName} screen="review" className={props.className}>
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
+        <CustomerDisplayCustomTip
+          currency={currency}
+          baseCents={sale.subtotalCents - sale.discountCents}
+          totalBeforeTipCents={sale.outstandingCents - sale.tipCents}
+          customCents={tip.customCents}
+          saving={tip.saving}
+          refusal={tip.refusal}
+          onKey={tip.onKey}
+          onBack={tip.onBack}
+          onConfirm={tip.onConfirm}
+          copy={tip.copy}
+        />
+        {lostLine}
+      </Shell>
+    );
+  }
+
+  if (screen === "review") {
+    const tip = props.tip;
+    return (
+      <Shell workspaceName={workspaceName} screen="review" className={props.className}>
+        <div className={cn("mx-auto grid w-full gap-10", tip ? "max-w-5xl grid-cols-2 items-center max-[900px]:grid-cols-1" : "max-w-2xl grid-cols-1")}>
+        <div className="flex w-full flex-col gap-8">
           <h1 className="m-0 text-3xl font-semibold tracking-tight">
             {name ? interpolate(copy.reviewHeadingNamed, { name }) : copy.reviewHeadingAnon}
           </h1>
@@ -182,6 +226,12 @@ export function CustomerDisplay(props: CustomerDisplayProps) {
                 <dd className="m-0 tabular-nums">{money(-sale.depositPaidCents)}</dd>
               </div>
             )}
+            {sale.tipCents > 0 && (
+              <div className="flex justify-between text-admin-ink-muted" data-pos-display-tip-row>
+                <dt>{copy.tipRow}</dt>
+                <dd className="m-0 tabular-nums">{money(sale.tipCents)}</dd>
+              </div>
+            )}
             <div className="flex items-baseline justify-between text-3xl font-semibold">
               <dt>{copy.toPay}</dt>
               <dd className="m-0 tabular-nums" data-pos-display-to-pay>
@@ -189,14 +239,31 @@ export function CustomerDisplay(props: CustomerDisplayProps) {
               </dd>
             </div>
           </dl>
-          <p className="m-0 text-base text-admin-ink-muted" data-pos-display-tip>
-            {copy.tipNotOffered}
-          </p>
+          {!tip && (
+            <p className="m-0 text-base text-admin-ink-muted" data-pos-display-tip="off">
+              {copy.tipNotOffered}
+            </p>
+          )}
           <button type="button" className={PRIMARY} onClick={props.onLooksRight}>
             {copy.looksRight}
           </button>
           <p className="m-0 text-center text-base text-admin-ink-muted">{copy.reviewNote}</p>
           {lostLine}
+        </div>
+        {tip && (
+          <CustomerDisplayTip
+            currency={currency}
+            baseCents={sale.subtotalCents - sale.discountCents}
+            totalBeforeTipCents={sale.outstandingCents - sale.tipCents}
+            tipCents={sale.tipCents}
+            saving={tip.saving}
+            refusal={tip.refusal}
+            onPick={tip.onPick}
+            onOther={tip.onOther}
+            onChange={tip.onChange}
+            copy={tip.copy}
+          />
+        )}
         </div>
       </Shell>
     );

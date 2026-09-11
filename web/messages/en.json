@@ -4904,6 +4904,16 @@
           "crossBusinessValue": "Busy/free only is the design; nothing is shared yet",
           "audit": "Audit",
           "auditValue": "Membership and hat changes are logged; refunds and comps are not per person"
+        },
+        "customAmount": {
+          "heading": "Custom amounts at the counter",
+          "loading": "Reading the limit…",
+          "everyAmount": "Every custom amount needs a manager's PIN before it can be charged. Set a limit to let smaller ones through.",
+          "current": "A custom amount above {amount} needs a manager's PIN before it can be charged.",
+          "label": "Limit",
+          "save": "Save limit",
+          "saving": "Saving…",
+          "saved": "Limit saved."
         }
       },
       "locations": {
@@ -12562,7 +12572,9 @@
           "no_place": "There is no place left to offer.",
           "already_accepted": "That offer was already taken.",
           "amount": "That cash amount is not valid.",
-          "already_closed": "That shift is already closed."
+          "already_closed": "That shift is already closed.",
+          "not_allowed": "You do not have permission to do this.",
+          "no_customer": "Attach a customer to this sale first."
         }
       },
       "newSale": "New sale",
@@ -12648,7 +12660,10 @@
           "saved": "Saved {time}",
           "savedOffline": "No connection · nothing can be saved until it returns",
           "basketCount": "Basket · {count} items",
-          "sendAgain": "Send again · {count} items"
+          "sendAgain": "Send again · {count} items",
+          "tip": "Tip",
+          "needsApproval": "Needs approval",
+          "linked": "Linked · {booking}"
         },
         "customer": {
           "title": "Customer",
@@ -12837,7 +12852,8 @@
           "saleSubtitle": "Sale {number} · {cashier}",
           "newSaleSubtitle": "New sale · {cashier}",
           "close": "Close",
-          "drawerTitle": "Cash drawer"
+          "drawerTitle": "Cash drawer",
+          "switchOperator": "Switch operator"
         },
         "cancel": "Cancel",
         "back": "Back",
@@ -12887,14 +12903,18 @@
           "reportAs": "Report as",
           "reportAsUnavailable": "Reporting categories are not set up yet.",
           "amount": "Amount",
-          "limitNote": "A custom amount needs a manager's approval on the next step",
+          "limitNote": "Over your {limit} limit · a manager will approve on the next step",
           "continueAsk": "Continue · ask a manager",
           "approvalTitle": "Manager approval",
-          "approvalSubtitle": "Custom amount {amount} · {cashier}",
+          "approvalSubtitle": "Custom amount {amount} · {cashier} · over {limit} limit",
           "item": "Item",
-          "pinWrong": "That PIN isn't right",
           "approve": "Approve",
-          "approveUnavailable": "Manager PINs and custom amounts are not set up yet, so this cannot be approved here."
+          "withinLimit": "Within your {limit} limit · no approval needed",
+          "addToSale": "Add to sale",
+          "whoApproves": "Who approves",
+          "noManagers": "No manager has a register PIN yet. Set one in Settings › People.",
+          "pinPrompt": "Manager PIN",
+          "approving": "Approving…"
         },
         "holdSale": {
           "title": "Hold this sale?",
@@ -12920,14 +12940,22 @@
           "title": "Link a booking",
           "subtitle": "{customer} · choose what this payment is for",
           "noCustomer": "Attach a customer first to see their bookings",
-          "unavailable": "Linking a counter sale to a booking is not wired yet; this sale stays separate.",
           "showPaid": "Show paid bookings",
           "afterLinking": "After linking",
           "bookingBalance": "Booking balance",
           "thisSale": "This sale",
           "keepSeparate": "Keep separate",
           "linkOnly": "Link only",
-          "linkAndPay": "Link & pay"
+          "linkAndPay": "Link & pay {amount}",
+          "noCustomerAction": "Attach a customer",
+          "unreadable": "Their bookings could not be read. Try again.",
+          "loading": "Reading their bookings…",
+          "none": "This customer has no booking to link.",
+          "balanceLine": "Balance {amount} due at visit · this sale's {count} items become extras on the booking",
+          "ticketLine": "Nothing to collect · {count} guests",
+          "paidLine": "Paid in full",
+          "alreadyLinked": "This sale is already linked to {booking}.",
+          "linking": "Linking…"
         },
         "cashDone": {
           "title": "Drawer open",
@@ -12958,15 +12986,13 @@
           "openNoSale": "Open drawer (no sale)",
           "openNoSaleHint": "no sale · logged",
           "onceOpenNote": "Available after you open the drawer. You don't need a drawer to look up bookings or send payment links.",
-          "movementsUnavailable": "Cash movements are not recorded yet; only the opening float and the closing count are.",
           "movements": "Movements",
-          "movementsEmpty": "Cash sales land in this drawer automatically. Movements are not recorded yet, so this list stays empty.",
+          "movementsEmpty": "Cash sales land in this drawer automatically. Cash added, taken out or dropped to the safe appears here.",
           "handOver": "Hand the drawer to someone",
           "newResponsible": "New responsible",
           "countedTogether": "We counted it together",
-          "handOverNote": "The session stays open; movements from now on are theirs.",
-          "handOverAction": "Hand over",
-          "handOverUnavailable": "Handing a drawer to another person is not recorded yet; close it and let them open their own.",
+          "handOverNote": "The hand-over is recorded when the drawer is closed and counted; the next drawer opens in their name.",
+          "handOverAction": "Hand over to {name}",
           "closeAndCount": "Close drawer & count",
           "countEyebrow": "Count what's in the drawer",
           "coins": "Type the counted total, or use the steppers and add coins by typing.",
@@ -12975,7 +13001,6 @@
           "shouldBe": "Should be in the drawer",
           "blindNote": "Blind count is on: expected cash appears only after you close",
           "whatHappened": "What happened",
-          "whatHappenedUnavailable": "A note on the close is not stored yet.",
           "confirmCount": "I confirm this count",
           "closeDrawer": "Close drawer",
           "closedTitle": "Drawer closed",
@@ -12983,7 +13008,17 @@
           "shortBy": "Short by",
           "overBy": "Over by",
           "balanced": "Balanced",
-          "openAnother": "Open a new drawer"
+          "openAnother": "Open a new drawer",
+          "openNoSaleUnavailable": "No cash drawer is connected to this device.",
+          "movementKind": {
+            "paid_in": "Paid in",
+            "paid_out": "Taken out",
+            "drop": "Drop to safe",
+            "float_add": "Cash added"
+          },
+          "newResponsibleNone": "Choose a person",
+          "handOverChosen": "Handed over to {name} · recorded with this count",
+          "whatHappenedHint": "e.g. change given from my own money at 09:12"
         },
         "receipts": {
           "subtitle": "{day} · {count} sales · {total}",
@@ -13065,6 +13100,65 @@
           "readerNote": "Card payments need the internet to get an answer from the bank; the counter cannot drive a reader yet either way.",
           "nothingQueued": "Nothing is kept on this device while offline. A sale needs the connection to be saved.",
           "syncNow": "Sync now"
+        },
+        "lock": {
+          "title": "Who's on the register?",
+          "switchTitle": "Switch operator",
+          "drawerStays": "The drawer stays {name}'s until it's handed over",
+          "drawerNone": "No drawer is open on this register",
+          "noPins": "Nobody has a register PIN yet, so this till cannot be unlocked here.",
+          "noPinsAction": "Set PINs in People",
+          "pinPrompt": "PIN",
+          "unlocking": "Checking the PIN…",
+          "unlock": "Unlock",
+          "switchAction": "Switch"
+        },
+        "tip": {
+          "title": "Add a tip?",
+          "subtitle": "On {amount} · rounded to the nearest cent",
+          "other": "Other",
+          "otherHint": "amount",
+          "noTip": "No tip",
+          "totalWouldBe": "Total would be {amount}",
+          "add": "Add {amount} tip",
+          "remove": "Remove the tip"
+        },
+        "paymentLink": {
+          "create": "Send a link for {amount}",
+          "creating": "Creating the link…",
+          "providerStripe": "The link opens a card payment page. The amount is reserved on this sale until the link is paid or lapses.",
+          "providerMock": "No card provider is set up: the link opens a test page that marks it paid when opened. The amount is reserved on this sale until then.",
+          "linkTitle": "Payment link",
+          "copyLink": "Copy link",
+          "copied": "Copied",
+          "whatsapp": "Send by WhatsApp",
+          "whatsappText": "Pay {amount} to {workspace}: {url}",
+          "expires": "Expires {when}",
+          "statusOpen": "Sent · not paid",
+          "statusPaid": "Paid",
+          "statusExpired": "Expired",
+          "statusCancelled": "Cancelled",
+          "nothingOwed": "Nothing is owed on this sale.",
+          "resendNote": "Sending the same link again never creates a second charge. A link collects nothing until it is paid.",
+          "links": "Links on this sale"
+        },
+        "movement": {
+          "title": {
+            "paid_in": "Cash paid in",
+            "paid_out": "Take cash out",
+            "drop": "Drop to safe",
+            "float_add": "Add cash"
+          },
+          "subtitle": {
+            "paid_in": "Money that came in outside a sale",
+            "paid_out": "Petty cash · keep the receipt",
+            "drop": "Moved from the drawer to the safe",
+            "float_add": "More change for the drawer"
+          },
+          "reason": "Reason",
+          "reasonHint": "e.g. milk run, witness Dani",
+          "confirm": "Record {amount}",
+          "recording": "Recording…"
         }
       },
       "counterOffTitle": "The counter is switched off",
@@ -13178,7 +13272,6 @@
           "projectsSubtitle": "Inquiry → offer → agreement → project",
           "linksTitle": "Payment links",
           "linksSubtitle": "Sent from this workspace",
-          "linksUnavailable": "No table records a sent payment link yet, so there is nothing to list or resend here.",
           "linksNote": "Resending reuses the same link and never creates a second charge. Sending a link collects nothing until the client pays.",
           "segmentDueNow": "Due now",
           "segmentLater": "Later",
@@ -13255,7 +13348,18 @@
           "amendmentSend": "Send v{n}",
           "amendmentDiscard": "Discard proposal",
           "amendmentUnavailable": "An amendment is sent or withdrawn from the conversation's offer composer, not from the till.",
-          "amendmentSentOn": "Sent {date}"
+          "amendmentSentOn": "Sent {date}",
+          "linksEmpty": "No payment link has been sent from this workspace yet. A link is sent from a sale's Collect screen or a client's record.",
+          "linkOpen": "Opened · not paid",
+          "linkPaid": "Paid",
+          "linkExpired": "Expired",
+          "linkCancelled": "Cancelled",
+          "linkSent": "sent {when}",
+          "linkExpires": "expires {when}",
+          "linkSale": "Sale {id}",
+          "linkResend": "Resend",
+          "linkReceipt": "View receipt",
+          "linkNew": "Send new link"
         }
       },
       "classes": {
@@ -13332,7 +13436,9 @@
         },
         "waitlist": {
           "heading": "Waiting for a place",
-          "empty": "No session on this day is full, and nobody is waiting."
+          "empty": "No session on this day is full, and nobody is waiting.",
+          "decline": "Decline",
+          "declined": "{name}'s offer was withdrawn and the place is free again."
         },
         "refusal": {
           "notAllowed": "You do not have access to this till.",
@@ -13400,7 +13506,7 @@
             "whoDidWhat": "Who did what",
             "whoDidWhatOff": "A sale line is not attributed to a person yet, so earnings per person cannot be shown here.",
             "sendLink": "Send payment link",
-            "sendLinkOff": "Payment links are sent from the Counter mode; the front desk takes cash only for now.",
+            "sendLinkOff": "This appointment has nothing left to collect, so there is no link to send.",
             "rebook": "Rebook",
             "rebookOff": "Rebooking from a finished appointment is not wired yet; use Book with the same service.",
             "serviceDone": "Service done",
@@ -13409,7 +13515,12 @@
             "addOff": "This appointment has no sale to add to.",
             "lineDone": "Done",
             "lineAdded": "Added",
-            "lineProduct": "Product"
+            "lineProduct": "Product",
+            "linkedFrom": "Linked from sale {reference} · payment only",
+            "fromSale": "From sale {reference}",
+            "linkedPayment": "Linked payment",
+            "linkedSale": "Sale {reference} (linked)",
+            "linkedChip": "Sale {reference} linked for payment"
           },
           "extra": {
             "title": "Add to {name}'s appointment",
@@ -13909,7 +14020,7 @@
             "collect": "Collect {amount}",
             "moveOrJoin": "Move or join tables",
             "changeServer": "Change server",
-            "changeServerReason": "A visit does not record its server yet, so there is nobody to hand it to.",
+            "changeServerReason": "Changing the server is not available on this screen.",
             "extendTime": "Extend time",
             "extendTimeReason": "The turn time comes from the venue's rules; it cannot be extended per table yet.",
             "partyLeft": "Party left",
@@ -13917,7 +14028,10 @@
             "block": "Block table",
             "blockReason": "Blocking a table is done under Spaces, not from the till.",
             "split": "Split the check",
-            "splitReason": "Splitting a check by items or shares is not built yet."
+            "splitReason": "Splitting a check needs the check's lines, which this screen does not read.",
+            "checks": "{n} checks · {amount}",
+            "openCheck": "Open check {letter} · {amount}",
+            "servedBy": "Served by {name}"
           },
           "seat": {
             "title": "Seat {name} · {n}",
@@ -13988,11 +14102,11 @@
             "joinTitle": "Join tables for this party",
             "joinBody": "Adds a free neighbouring table for a bigger group.",
             "joinCta": "Choose a table to join",
-            "joinReason": "A join is decided when the party is seated; a seated party cannot take a second table yet.",
+            "joinReason": "A join is decided when the party is seated (T05); the engine's transfer moves a party between tables and cannot add a second table to a seated one.",
             "mergeTitle": "Merge with another table's check",
             "mergeBody": "Combines two unpaid checks into one.",
             "mergeCta": "Choose a check",
-            "mergeReason": "Merging two checks is not built yet.",
+            "mergeReason": "Merging two checks is not available on this screen.",
             "cancel": "Cancel"
           },
           "move": {
@@ -14081,6 +14195,56 @@
             "noContact": "An email or a phone is needed so the guest can be reached.",
             "closed": "The venue is closed that day.",
             "tooLateToday": "Too late to book for tonight."
+          },
+          "merge": {
+            "crumb": "{code} › Merge",
+            "title": "Merge another check into {code}",
+            "subtitle": "One bill for two tables",
+            "none": "No other table has an open check to merge.",
+            "row": "{code} · {party} · {amount}",
+            "rowHint": "Its items move onto this check; its own check closes",
+            "responsible": "Responsible for the check",
+            "responsibleValue": "{party} ({code})",
+            "thisCheck": "{code} check",
+            "otherCheck": "+ {code} check",
+            "oneCheck": "One check",
+            "payments": "Deposits / payments",
+            "paymentsValue": "A check with a payment on it is refused",
+            "confirm": "Merge · one check for {party} · {amount}",
+            "done": "{code}'s check is now on {into}."
+          },
+          "server": {
+            "title": "Change server · {code}",
+            "subtitle": "{party} · currently {name}",
+            "nobody": "nobody",
+            "tables": "{n} tables",
+            "current": "current",
+            "none": "Nobody in this workspace has a name to hand the table to yet.",
+            "fromNow": "From now on",
+            "fromNowValue": "{name} serves {code}",
+            "tips": "Tips",
+            "tipsValue": "Stay on the sale · not split by server",
+            "drawer": "Drawer",
+            "drawerValue": "Unchanged · this is not a cash handover",
+            "confirm": "Give {code} to {name}",
+            "done": "{code} is now {name}'s."
+          },
+          "split": {
+            "title": "Checks · {code} · {party}",
+            "subtitle": "{amount} in items · tick items, then move them",
+            "loading": "Reading the check…",
+            "unreadable": "This check could not be read.",
+            "empty": "Nothing on this check yet.",
+            "check": "Check {letter}",
+            "unpaid": "Unpaid",
+            "items": "Items",
+            "remaining": "Remaining",
+            "selected": "{n} items selected · {amount}",
+            "moveToNew": "Move selected to a new check",
+            "moving": "Moving…",
+            "note": "Items are ticked on check A. By seat, evenly and by amounts are not modelled; each check is collected on the counter.",
+            "collect": "Collect check {letter} · {amount}",
+            "done": "{n} items moved to a new check."
           }
         }
       },
@@ -14132,7 +14296,23 @@
         "refusalSendFailed": "The email could not be sent. Ask the team for a printed receipt.",
         "refusalUnavailable": "The receipt could not be sent right now. Ask the team for a printed receipt.",
         "readUnavailable": "This display lost its connection to the counter. It will keep trying.",
-        "notAllowed": "This account cannot open the customer display."
+        "notAllowed": "This account cannot open the customer display.",
+        "tipRow": "Tip",
+        "tip": {
+          "heading": "Add a tip?",
+          "base": "On {amount} · rounded to the nearest cent",
+          "other": "Other",
+          "otherHint": "amount",
+          "noTip": "No tip",
+          "note": "Nothing is charged until you confirm on the next screen",
+          "added": "Tip added · {amount}",
+          "change": "Change the tip",
+          "saving": "Saving your tip…",
+          "customHeading": "Tip",
+          "customBase": "Any amount · on {amount}",
+          "totalWouldBe": "Total would be {amount}",
+          "add": "Add {amount} tip"
+        }
       }
     },
     "tables": {
@@ -15128,7 +15308,8 @@
       "tabPurchases": "Purchases & balances",
       "tabProjects": "Projects",
       "tabDetails": "Details",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "linkSent": "Payment link sent · expires {when} · you will be notified when paid"
     },
     "issues": {
       "eyebrow": "Issues",
@@ -17097,7 +17278,6 @@
           "notTracked": "–",
           "notTrackedWhy": "Not tracked yet: {what}",
           "locationsWhy": "a person is not tied to a location; every location books everyone",
-          "pinWhy": "the point of sale has no PIN",
           "drawerWhy": "a drawer is not assigned to a person",
           "busyFreeWhy": "busy time from other businesses is not shared yet",
           "posPermissionsWhy": "per-person point-of-sale permissions are not stored; the role decides",
@@ -17112,7 +17292,9 @@
           "invited": "Invited",
           "suspended": "Suspended",
           "removed": "Removed",
-          "noContact": "No email on file"
+          "noContact": "No email on file",
+          "pinSet": "Set",
+          "pinNone": "None"
         },
         "empty": {
           "everyone": "Nobody is here yet. Add the first person and pick which hats they wear.",
@@ -17469,6 +17651,17 @@
           "phaseRuleValue": "Whole appointment blocks the person",
           "phaseRuleOff": "Service phases are not modelled (D-POS-2); the whole duration blocks the person."
         }
+      },
+      "pin": {
+        "title": "Register PIN",
+        "set": "A PIN is set. Typing a new one replaces it; nobody can read it back.",
+        "none": "No PIN yet. With one, this person can unlock a till and, as a manager, approve a custom amount.",
+        "label": "New PIN",
+        "placeholder": "4 to 6 digits",
+        "save": "Set PIN",
+        "replace": "Replace PIN",
+        "saving": "Saving…",
+        "saved": "PIN saved. Only the hash is stored."
       }
     }
   },

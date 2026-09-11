@@ -25,7 +25,7 @@
  */
 
 import { ChevronLeft, CreditCard, FileText, Gift, Layers, Link2, Wallet, type LucideProps } from "lucide-react";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
@@ -94,6 +94,8 @@ export type CollectSheetProps = {
    * what the tab is, with no button that could look like it works.
    */
   readonly onConfirmLink?: () => void;
+  /** The payment-link tab's own panel (`PaymentLinkPanel`), when the sale can mint one. */
+  readonly linkPanel?: ReactNode;
   readonly confirmLoading?: boolean;
   /** The rows above `To collect` (`Subtotal`, `Discount`). Optional. */
   readonly summary?: readonly CollectSummaryRow[];
@@ -134,6 +136,7 @@ export function CollectSheet({
   onTender,
   onConfirmCash,
   onConfirmLink,
+  linkPanel,
   confirmLoading,
   summary,
   onBack,
@@ -312,6 +315,8 @@ export function CollectSheet({
           </div>
         ) : activeMethod === "card" ? (
           <p className="m-0 rounded-[14px] border-[1.5px] border-admin-border bg-admin-card p-4 text-[15px] text-admin-ink-muted">{copy.cardWaiting}</p>
+        ) : activeMethod === "link" && linkPanel ? (
+          linkPanel
         ) : activeMethod === "link" ? (
           <div className="flex flex-col gap-3">
             <p className="m-0 rounded-[14px] border-[1.5px] border-admin-border bg-admin-card p-4 text-[15px] text-admin-ink-muted">{copy.linkReady}</p>

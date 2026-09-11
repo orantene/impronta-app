@@ -30,6 +30,8 @@ import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { loadClientRecord } from "@/lib/projects/projects-reader";
+import { engineRefusalCopy, paymentLinkCopy } from "@/components/admin/pos/pos-copy-engine";
+import { isStripeConfigured } from "@/lib/stripe/client";
 import {
   activeProjects,
   bookingsByStart,
@@ -147,6 +149,15 @@ export default async function ClientRecordPage({ params, searchParams }: { param
         currency: p.currency,
       }))}
       counterHref={`${base}/pos?mode=counter`}
+      link={{
+        workspaceName: tenantSlug,
+        provider: isStripeConfigured() ? "stripe" : "mock",
+        copy: paymentLinkCopy(tr),
+        engineRefusal: engineRefusalCopy(tr),
+        timeZone: tz,
+        locale,
+        none,
+      }}
       copy={{
         open: tr("dashboard.clientRecord.collect"),
         title: interpolate(tr("dashboard.clientRecord.collectTitle"), { name }),
@@ -169,7 +180,8 @@ export default async function ClientRecordPage({ params, searchParams }: { param
         note: tr("dashboard.clientRecord.collectNote"),
         cancel: tr("dashboard.clientRecord.cancel"),
         sendLink: tr("dashboard.projects.money.sendLink"),
-        sendLinkUnavailable: tr("dashboard.projects.money.linkUnavailable"),
+        sendLinkUnavailable: tr("dashboard.clientRecord.oneAtATime"),
+        linkSent: tr("dashboard.clientRecord.linkSent"),
         continueTo: tr("dashboard.clientRecord.continueToPayment"),
         oneAtATime: tr("dashboard.clientRecord.oneAtATime"),
         nothingSelected: tr("dashboard.clientRecord.nothingSelected"),

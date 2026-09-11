@@ -10,6 +10,7 @@
  */
 
 import { z } from "zod";
+import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
@@ -150,7 +151,19 @@ export async function visitTransfer(input: {
     expectedVersion: z.number().int().nonnegative(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
-  return transferVisit(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  // The table just vacated reads "Needs reset", never a stale "Free"
+  // (v3.1-corrections.md p.45, the same rule `moveVisitToSpace` kept).
+  // `visit_transfer` moves the visit and its checks; the origin's reset mark
+  // is the floor's own fact, written best-effort after the move lands.
+  const before = await g.admin.from("visits").select("space_id").eq("id", parsed.data.visitId).eq("tenant_id", g.tenantId).maybeSingle();
+  if (before.error) logServerError("tables.visitTransfer.origin", before.error);
+  const originSpaceId = (before.data as { space_id?: string } | null)?.space_id ?? null;
+  const r = await transferVisit(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  if (r.ok && originSpaceId && originSpaceId !== parsed.data.toSpaceId) {
+    const reset = await g.admin.from("spaces").update({ needs_reset_at: new Date().toISOString() }).eq("id", originSpaceId).eq("tenant_id", g.tenantId);
+    if (reset.error) logServerError("tables.visitTransfer.needsReset", reset.error);
+  }
+  return r;
 }
 
 export async function visitSplitCheck(input: {

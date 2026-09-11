@@ -13,6 +13,7 @@ import type {
   PosCategoryTab,
   PosHeldSale,
   PosProductTile,
+  PosShiftMovement,
   PosShiftSummary,
 } from "@/components/admin/pos";
 
@@ -37,6 +38,8 @@ export type PosShiftView = {
   readonly version: number;
   readonly openingCashCents: number;
   readonly openedAt: string | null;
+  /** `pos_shift_movements` on this shift (`POSCashMovements`). */
+  readonly movements: readonly PosShiftMovement[];
 };
 
 /**
@@ -221,6 +224,7 @@ export function toShiftSummary(shift: PosShiftView | null): PosShiftSummary | nu
     id: shift.id,
     openingCashCents: shift.openingCashCents,
     openedAt: shift.openedAt ?? "",
+    movements: shift.movements,
   };
 }
 

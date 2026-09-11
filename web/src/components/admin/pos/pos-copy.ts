@@ -64,6 +64,7 @@ export type PosChromeCopy = {
   readonly newSaleSubtitle: string;
   readonly closeLabel: string;
   readonly drawerTitle: string;
+  readonly switchOperator: string;
 };
 
 export function chromeCopy(t: Translator): PosChromeCopy {
@@ -83,6 +84,7 @@ export function chromeCopy(t: Translator): PosChromeCopy {
     newSaleSubtitle: t(`${K}.chrome.newSaleSubtitle`),
     closeLabel: t(`${K}.chrome.close`),
     drawerTitle: t(`${K}.chrome.drawerTitle`),
+    switchOperator: t(`${K}.chrome.switchOperator`),
   };
 }
 
@@ -125,7 +127,10 @@ export function basketCopy(t: Translator): BasketCopy {
     discount: t(`${K}.basket.discount`),
     tax: t(`${K}.basket.tax`),
     taxNone: t(`${K}.basket.taxNone`),
+    tip: t(`${K}.basket.tip`),
     total: t(`${K}.basket.total`),
+    needsApproval: t(`${K}.basket.needsApproval`),
+    linked: t(`${K}.basket.linked`),
     charge: t(`${K}.basket.charge`),
     chargeCash: t(`${K}.basket.chargeCash`),
     chargeLoading: t(`${K}.basket.chargeLoading`),
@@ -246,16 +251,20 @@ export function customAmountCopy(t: Translator): CustomAmountCopy {
     reportAsUnavailable: t(`${K}.custom.reportAsUnavailable`),
     amount: t(`${K}.custom.amount`),
     limitNote: t(`${K}.custom.limitNote`),
+    withinLimit: t(`${K}.custom.withinLimit`),
     cancel: t(`${K}.cancel`),
     continueAsk: t(`${K}.custom.continueAsk`),
+    addToSale: t(`${K}.custom.addToSale`),
     back: t(`${K}.collect.keypadBack`),
     closeLabel: t(`${K}.chrome.close`),
     approvalTitle: t(`${K}.custom.approvalTitle`),
     approvalSubtitle: t(`${K}.custom.approvalSubtitle`),
     item: t(`${K}.custom.item`),
-    pinWrong: t(`${K}.custom.pinWrong`),
+    whoApproves: t(`${K}.custom.whoApproves`),
+    noManagers: t(`${K}.custom.noManagers`),
+    pinPrompt: t(`${K}.custom.pinPrompt`),
     approve: t(`${K}.custom.approve`),
-    approveUnavailable: t(`${K}.custom.approveUnavailable`),
+    approving: t(`${K}.custom.approving`),
   };
 }
 
@@ -295,8 +304,15 @@ export function linkBookingCopy(t: Translator): LinkBookingCopy {
     title: t(`${K}.booking.title`),
     subtitle: t(`${K}.booking.subtitle`),
     noCustomer: t(`${K}.booking.noCustomer`),
-    unavailable: t(`${K}.booking.unavailable`),
+    noCustomerAction: t(`${K}.booking.noCustomerAction`),
+    unreadable: t(`${K}.booking.unreadable`),
+    loading: t(`${K}.booking.loading`),
+    none: t(`${K}.booking.none`),
     showPaid: t(`${K}.booking.showPaid`),
+    balanceLine: t(`${K}.booking.balanceLine`),
+    ticketLine: t(`${K}.booking.ticketLine`),
+    paidLine: t(`${K}.booking.paidLine`),
+    alreadyLinked: t(`${K}.booking.alreadyLinked`),
     afterLinking: t(`${K}.booking.afterLinking`),
     bookingBalance: t(`${K}.booking.bookingBalance`),
     thisSale: t(`${K}.booking.thisSale`),
@@ -304,6 +320,7 @@ export function linkBookingCopy(t: Translator): LinkBookingCopy {
     keepSeparate: t(`${K}.booking.keepSeparate`),
     linkOnly: t(`${K}.booking.linkOnly`),
     linkAndPay: t(`${K}.booking.linkAndPay`),
+    linking: t(`${K}.booking.linking`),
     closeLabel: t(`${K}.chrome.close`),
   };
 }
@@ -405,15 +422,22 @@ export function cashDrawerCopy(t: Translator): CashDrawerCopy {
     openNoSale: t(`${K}.drawer.openNoSale`),
     openNoSaleHint: t(`${K}.drawer.openNoSaleHint`),
     onceOpenNote: t(`${K}.drawer.onceOpenNote`),
-    movementsUnavailable: t(`${K}.drawer.movementsUnavailable`),
+    openNoSaleUnavailable: t(`${K}.drawer.openNoSaleUnavailable`),
     movements: t(`${K}.drawer.movements`),
     movementsEmpty: t(`${K}.drawer.movementsEmpty`),
+    movementKind: {
+      paid_in: t(`${K}.drawer.movementKind.paid_in`),
+      paid_out: t(`${K}.drawer.movementKind.paid_out`),
+      drop: t(`${K}.drawer.movementKind.drop`),
+      float_add: t(`${K}.drawer.movementKind.float_add`),
+    },
     handOver: t(`${K}.drawer.handOver`),
     newResponsible: t(`${K}.drawer.newResponsible`),
+    newResponsibleNone: t(`${K}.drawer.newResponsibleNone`),
     countedTogether: t(`${K}.drawer.countedTogether`),
     handOverNote: t(`${K}.drawer.handOverNote`),
     handOverAction: t(`${K}.drawer.handOverAction`),
-    handOverUnavailable: t(`${K}.drawer.handOverUnavailable`),
+    handOverChosen: t(`${K}.drawer.handOverChosen`),
     closeAndCount: t(`${K}.drawer.closeAndCount`),
     countEyebrow: t(`${K}.drawer.countEyebrow`),
     coins: t(`${K}.drawer.coins`),
@@ -422,7 +446,7 @@ export function cashDrawerCopy(t: Translator): CashDrawerCopy {
     shouldBe: t(`${K}.drawer.shouldBe`),
     blindNote: t(`${K}.drawer.blindNote`),
     whatHappened: t(`${K}.drawer.whatHappened`),
-    whatHappenedUnavailable: t(`${K}.drawer.whatHappenedUnavailable`),
+    whatHappenedHint: t(`${K}.drawer.whatHappenedHint`),
     confirmCount: t(`${K}.drawer.confirmCount`),
     back: t(`${K}.back`),
     closeDrawer: t(`${K}.drawer.closeDrawer`),

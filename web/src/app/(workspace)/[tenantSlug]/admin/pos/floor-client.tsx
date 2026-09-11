@@ -32,8 +32,8 @@ import { interpolate } from "@/i18n/interpolate";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 
 import { reservationsTakeWalkIn } from "../reservations/actions";
-import { tablesCloseVisit, tablesMoveVisit, tablesResetTable, tablesSeatParty } from "../tables/actions";
-import { posSubmitPrep } from "./actions";
+import { tablesCloseVisit, tablesResetTable, tablesSeatParty, visitChangeServer, visitMergeChecks, visitSplitCheck, visitTransfer } from "../tables/actions";
+import { posLoadSale, posSubmitPrep } from "./actions";
 import { floorCreateReservation, floorLoadReserveTimes } from "./floor-actions";
 import type { FloorCopy } from "./floor-copy";
 import { kitchenOutcome } from "./floor-kitchen";
@@ -55,10 +55,24 @@ export type FloorClientProps = {
 type Destination = "tables" | "orders" | "receipts" | "issues";
 type View = "floor" | "timeline" | "list";
 
+/**
+ * The engine's table operations (`docs/plans/program/engine/pos-money.md`
+ * §6), each answering a code the board says as a sentence. The move carries
+ * the version the floor read, so two hosts moving the same party get one
+ * move and one `conflict`.
+ */
 const FLOOR_ACTIONS: FloorActions = {
   seatParty: (input) => tablesSeatParty(input),
   closeVisit: (input) => tablesCloseVisit(input),
-  moveVisit: (input) => tablesMoveVisit(input),
+  moveVisit: (input) => visitTransfer({ visitId: input.visitId, toSpaceId: input.spaceId, operationKey: input.operationKey, expectedVersion: input.expectedVersion }),
+  mergeChecks: (input) => visitMergeChecks(input),
+  changeServer: (input) => visitChangeServer(input),
+  splitCheck: (input) => visitSplitCheck(input),
+  loadCheckLines: async (orderId) => {
+    const r = await posLoadSale(orderId);
+    if (!r.ok) return { ok: false, reason: "reason" in r && typeof r.reason === "string" ? r.reason : "unavailable" };
+    return { ok: true, currency: r.sale.currency, version: r.sale.version, lines: r.sale.lines.map((l) => ({ id: l.id, label: l.label, units: l.units, totalCents: l.totalCents })) };
+  },
   resetTable: (spaceId) => tablesResetTable(spaceId),
   sendToKitchen: async (orderId) => kitchenOutcome(await posSubmitPrep({ orderId, destination: "table" })),
   takeWalkIn: (input) => reservationsTakeWalkIn(input),

@@ -36,6 +36,7 @@ import { roleGrantsCapability, type TenantRoleKey } from "@/lib/access/roles";
 import type { CapabilityKey } from "@/lib/access/capabilities";
 import { modesForPerson, POS_MODE_META, type PosMode } from "@/lib/pos/modes";
 import { groupMembersByRole, SETTINGS_ROLE_ORDER, type RoleMember } from "@/lib/settings/role-members";
+import { CustomAmountLimit } from "./custom-amount-limit";
 
 export type RolesLimitsMember = RoleMember;
 
@@ -210,6 +211,7 @@ export function RolesLimitsCard({
         <div className="text-[12px] font-semibold text-admin-ink">{t(`${K}.limitsHeading`)}</div>
         <div className="mt-[2px] text-[11.5px] leading-relaxed text-admin-ink-muted">{t(`${K}.limitsGap`)}</div>
       </div>
+      <CustomAmountLimit />
     </div>
   );
 }

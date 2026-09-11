@@ -16,6 +16,8 @@ import { finalizeOrCancel, startCollection, submitToPreparation } from "@/lib/po
 import { closeShift, currentShift, openShift } from "@/lib/pos/shift";
 import { addCustomLine } from "@/lib/pos/custom-line";
 import { approveCustomAmount, setCustomAmountLimit, setStaffPin } from "@/lib/pos/approval";
+import { listBookingCandidates } from "@/lib/pos/booking-candidates";
+import { readCustomAmountLimitCents } from "@/lib/pos/approval-settings";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
 import { scanTarget } from "@/lib/pos/scan-code";
@@ -371,6 +373,13 @@ export async function posSetStaffPin(input: { userId: string; pin: string }) {
   });
 }
 
+/** Settings › Roles & limits: the limit as it stands. */
+export async function posReadCustomAmountLimit() {
+  const g = await staff();
+  if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? ("not_allowed" as const) : ("unavailable" as const) };
+  return readCustomAmountLimitCents(g.admin, g.tenantId);
+}
+
 export async function posSetCustomAmountLimit(limitCents: number) {
   const g = await staff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
@@ -383,12 +392,20 @@ export async function posSetCustomAmountLimit(limitCents: number) {
   });
 }
 
+/**
+ * `approverUserId` is the manager picked on the approval dialog
+ * (`POSManagerApproval`: a cashier's till, a manager's PIN); it defaults to
+ * the signed-in account. The PIN is the proof and the SQL checks that THAT
+ * person is a manager, so naming somebody else buys nothing without their
+ * PIN.
+ */
 export async function posApproveCustomAmount(input: {
   orderId: string;
   lineId: string;
   pin: string;
   operationKey: string;
   method?: "pin" | "session";
+  approverUserId?: string;
 }) {
   const g = await staff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
@@ -398,6 +415,7 @@ export async function posApproveCustomAmount(input: {
     pin: z.string().regex(/^[0-9]{4,6}$/),
     operationKey: z.string().min(8).max(80),
     method: z.enum(["pin", "session"]).optional(),
+    approverUserId: uuid.optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return approveCustomAmount(g.admin, {
@@ -406,9 +424,18 @@ export async function posApproveCustomAmount(input: {
     lineId: parsed.data.lineId,
     pin: parsed.data.pin,
     operationKey: parsed.data.operationKey,
-    approverUserId: g.userId,
+    approverUserId: parsed.data.approverUserId ?? g.userId,
     method: parsed.data.method,
   });
+}
+
+/** `POSLinkBooking`: what this sale's customer could be paying for. */
+export async function posBookingCandidates(input: { orderId: string; customerId?: string | null }) {
+  const g = await staff();
+  if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? ("not_allowed" as const) : ("unavailable" as const) };
+  const parsed = z.object({ orderId: uuid, customerId: uuid.nullable().optional() }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return listBookingCandidates(g.admin, { tenantId: g.tenantId, orderId: parsed.data.orderId, customerId: parsed.data.customerId ?? null });
 }
 
 export async function posCloseShift(input: {
@@ -468,6 +495,8 @@ export type PosDisplaySale = {
   lines: PosDisplayLine[];
   subtotalCents: number;
   discountCents: number;
+  /** `orders.tip_cents`, the customer's own choice on D02 / D03. */
+  tipCents: number;
   totalCents: number;
   depositPaidCents: number;
   outstandingCents: number;
@@ -558,6 +587,7 @@ export async function posDisplayRead(input: { orderId: string | null }): Promise
       lines: sale.lines.map((line) => ({ label: line.label, units: line.units, totalCents: line.totalCents })),
       subtotalCents: sale.subtotalCents,
       discountCents: sale.discountCents,
+      tipCents: sale.tipCents,
       totalCents: sale.totalCents,
       depositPaidCents: sale.depositPaidCents,
       outstandingCents: sale.outstandingCents,

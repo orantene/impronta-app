@@ -4904,6 +4904,16 @@
           "crossBusinessValue": "Solo ocupado/libre es el diseño; todavía no se comparte nada",
           "audit": "Auditoría",
           "auditValue": "Los cambios de membresía y de sombrero se registran; reembolsos e invitaciones no son por persona"
+        },
+        "customAmount": {
+          "heading": "Importes libres en el mostrador",
+          "loading": "Leyendo el límite…",
+          "everyAmount": "Todo importe libre necesita el PIN de un gerente antes de cobrarse. Fija un límite para dejar pasar los pequeños.",
+          "current": "Un importe libre superior a {amount} necesita el PIN de un gerente antes de cobrarse.",
+          "label": "Límite",
+          "save": "Guardar límite",
+          "saving": "Guardando…",
+          "saved": "Límite guardado."
         }
       },
       "locations": {
@@ -12562,7 +12572,9 @@
           "no_place": "No queda un lugar para ofrecer.",
           "already_accepted": "Esa oferta ya se tomo.",
           "amount": "Ese monto en efectivo no es valido.",
-          "already_closed": "Ese turno ya esta cerrado."
+          "already_closed": "Ese turno ya esta cerrado.",
+          "not_allowed": "No tienes permiso para hacer esto.",
+          "no_customer": "Primero asigna un cliente a esta venta."
         }
       },
       "newSale": "Nueva venta",
@@ -12648,7 +12660,10 @@
           "saved": "Guardado {time}",
           "savedOffline": "Sin conexión · no se puede guardar nada hasta que vuelva",
           "basketCount": "Cesta · {count} artículos",
-          "sendAgain": "Enviar de nuevo · {count} artículos"
+          "sendAgain": "Enviar de nuevo · {count} artículos",
+          "tip": "Propina",
+          "needsApproval": "Necesita aprobación",
+          "linked": "Vinculado · {booking}"
         },
         "customer": {
           "title": "Cliente",
@@ -12837,7 +12852,8 @@
           "saleSubtitle": "Venta {number} · {cashier}",
           "newSaleSubtitle": "Nueva venta · {cashier}",
           "close": "Cerrar",
-          "drawerTitle": "Caja"
+          "drawerTitle": "Caja",
+          "switchOperator": "Cambiar de operador"
         },
         "cancel": "Cancelar",
         "back": "Atrás",
@@ -12887,14 +12903,18 @@
           "reportAs": "Reportar como",
           "reportAsUnavailable": "Las categorías de reporte aún no están configuradas.",
           "amount": "Importe",
-          "limitNote": "Un importe personalizado necesita la aprobación de un encargado en el siguiente paso",
+          "limitNote": "Supera tu límite de {limit} · un gerente lo aprobará en el siguiente paso",
           "continueAsk": "Continuar · pedir a un encargado",
           "approvalTitle": "Aprobación del encargado",
-          "approvalSubtitle": "Importe personalizado {amount} · {cashier}",
+          "approvalSubtitle": "Importe libre {amount} · {cashier} · supera el límite de {limit}",
           "item": "Artículo",
-          "pinWrong": "Ese PIN no es correcto",
           "approve": "Aprobar",
-          "approveUnavailable": "Los PIN de encargado y los importes personalizados aún no están configurados, así que no se puede aprobar aquí."
+          "withinLimit": "Dentro de tu límite de {limit} · no necesita aprobación",
+          "addToSale": "Agregar a la venta",
+          "whoApproves": "Quién aprueba",
+          "noManagers": "Ningún gerente tiene PIN de caja todavía. Configúralo en Ajustes › Personas.",
+          "pinPrompt": "PIN del gerente",
+          "approving": "Aprobando…"
         },
         "holdSale": {
           "title": "¿Dejar esta venta en espera?",
@@ -12920,14 +12940,22 @@
           "title": "Vincular una reserva",
           "subtitle": "{customer} · elige a qué corresponde este pago",
           "noCustomer": "Añade primero un cliente para ver sus reservas",
-          "unavailable": "Vincular una venta de mostrador a una reserva aún no está conectado; esta venta queda aparte.",
           "showPaid": "Mostrar reservas pagadas",
           "afterLinking": "Después de vincular",
           "bookingBalance": "Saldo de la reserva",
           "thisSale": "Esta venta",
           "keepSeparate": "Mantener aparte",
           "linkOnly": "Solo vincular",
-          "linkAndPay": "Vincular y pagar"
+          "linkAndPay": "Vincular y cobrar {amount}",
+          "noCustomerAction": "Asignar un cliente",
+          "unreadable": "No se pudieron leer sus reservas. Inténtalo de nuevo.",
+          "loading": "Leyendo sus reservas…",
+          "none": "Este cliente no tiene ninguna reserva para vincular.",
+          "balanceLine": "Saldo de {amount} a pagar en la visita · los {count} artículos de esta venta pasan a ser extras de la reserva",
+          "ticketLine": "Nada que cobrar · {count} invitados",
+          "paidLine": "Pagado por completo",
+          "alreadyLinked": "Esta venta ya está vinculada a {booking}.",
+          "linking": "Vinculando…"
         },
         "cashDone": {
           "title": "Caja abierta",
@@ -12958,15 +12986,13 @@
           "openNoSale": "Abrir caja (sin venta)",
           "openNoSaleHint": "sin venta · registrado",
           "onceOpenNote": "Disponible cuando abras la caja. No necesitas una caja para consultar reservas o enviar enlaces de pago.",
-          "movementsUnavailable": "Los movimientos de efectivo aún no se registran; solo el fondo inicial y el recuento de cierre.",
           "movements": "Movimientos",
-          "movementsEmpty": "Las ventas en efectivo entran en esta caja automáticamente. Los movimientos aún no se registran, así que esta lista queda vacía.",
+          "movementsEmpty": "Las ventas en efectivo entran en este cajón automáticamente. El efectivo agregado, retirado o llevado a la caja fuerte aparece aquí.",
           "handOver": "Entregar la caja a alguien",
           "newResponsible": "Nuevo responsable",
           "countedTogether": "Lo contamos juntos",
-          "handOverNote": "La sesión sigue abierta; los movimientos a partir de ahora son suyos.",
-          "handOverAction": "Entregar",
-          "handOverUnavailable": "La entrega de la caja a otra persona aún no se registra; ciérrala y que abra la suya.",
+          "handOverNote": "La entrega se registra al cerrar y contar el cajón; el siguiente cajón se abre a su nombre.",
+          "handOverAction": "Entregar a {name}",
           "closeAndCount": "Cerrar caja y contar",
           "countEyebrow": "Cuenta lo que hay en la caja",
           "coins": "Escribe el total contado, o usa los botones y añade las monedas escribiendo.",
@@ -12975,7 +13001,6 @@
           "shouldBe": "Debería haber en la caja",
           "blindNote": "Recuento a ciegas: el efectivo esperado aparece solo al cerrar",
           "whatHappened": "Qué pasó",
-          "whatHappenedUnavailable": "Una nota en el cierre aún no se guarda.",
           "confirmCount": "Confirmo este recuento",
           "closeDrawer": "Cerrar caja",
           "closedTitle": "Caja cerrada",
@@ -12983,7 +13008,17 @@
           "shortBy": "Falta",
           "overBy": "Sobra",
           "balanced": "Cuadra",
-          "openAnother": "Abrir una nueva caja"
+          "openAnother": "Abrir una nueva caja",
+          "openNoSaleUnavailable": "No hay ningún cajón de efectivo conectado a este dispositivo.",
+          "movementKind": {
+            "paid_in": "Ingresado",
+            "paid_out": "Retirado",
+            "drop": "A la caja fuerte",
+            "float_add": "Efectivo agregado"
+          },
+          "newResponsibleNone": "Elige a una persona",
+          "handOverChosen": "Entregado a {name} · se registra con este conteo",
+          "whatHappenedHint": "p. ej. di cambio de mi propio dinero a las 09:12"
         },
         "receipts": {
           "subtitle": "{day} · {count} ventas · {total}",
@@ -13065,6 +13100,65 @@
           "readerNote": "Los pagos con tarjeta necesitan internet para obtener respuesta del banco; el mostrador aún no puede usar un lector en ningún caso.",
           "nothingQueued": "No se guarda nada en este dispositivo sin conexión. Una venta necesita conexión para guardarse.",
           "syncNow": "Sincronizar ahora"
+        },
+        "lock": {
+          "title": "¿Quién está en la caja?",
+          "switchTitle": "Cambiar de operador",
+          "drawerStays": "El cajón sigue siendo de {name} hasta que lo entregue",
+          "drawerNone": "No hay ningún cajón abierto en esta caja",
+          "noPins": "Nadie tiene PIN de caja todavía, así que esta caja no se puede desbloquear aquí.",
+          "noPinsAction": "Configurar PIN en Personas",
+          "pinPrompt": "PIN",
+          "unlocking": "Comprobando el PIN…",
+          "unlock": "Desbloquear",
+          "switchAction": "Cambiar"
+        },
+        "tip": {
+          "title": "¿Agregar propina?",
+          "subtitle": "Sobre {amount} · redondeado al centavo",
+          "other": "Otro",
+          "otherHint": "importe",
+          "noTip": "Sin propina",
+          "totalWouldBe": "El total sería {amount}",
+          "add": "Agregar {amount} de propina",
+          "remove": "Quitar la propina"
+        },
+        "paymentLink": {
+          "create": "Enviar un enlace por {amount}",
+          "creating": "Creando el enlace…",
+          "providerStripe": "El enlace abre una página de pago con tarjeta. El importe queda reservado en esta venta hasta que el enlace se pague o caduque.",
+          "providerMock": "No hay proveedor de tarjetas configurado: el enlace abre una página de prueba que lo marca como pagado al abrirse. El importe queda reservado en esta venta hasta entonces.",
+          "linkTitle": "Enlace de pago",
+          "copyLink": "Copiar enlace",
+          "copied": "Copiado",
+          "whatsapp": "Enviar por WhatsApp",
+          "whatsappText": "Paga {amount} a {workspace}: {url}",
+          "expires": "Caduca {when}",
+          "statusOpen": "Enviado · sin pagar",
+          "statusPaid": "Pagado",
+          "statusExpired": "Caducado",
+          "statusCancelled": "Cancelado",
+          "nothingOwed": "No se debe nada en esta venta.",
+          "resendNote": "Reenviar el mismo enlace nunca crea un segundo cobro. Un enlace no cobra nada hasta que se paga.",
+          "links": "Enlaces de esta venta"
+        },
+        "movement": {
+          "title": {
+            "paid_in": "Efectivo ingresado",
+            "paid_out": "Sacar efectivo",
+            "drop": "Llevar a la caja fuerte",
+            "float_add": "Agregar efectivo"
+          },
+          "subtitle": {
+            "paid_in": "Dinero que entró fuera de una venta",
+            "paid_out": "Caja chica · guarda el recibo",
+            "drop": "Pasado del cajón a la caja fuerte",
+            "float_add": "Más cambio para el cajón"
+          },
+          "reason": "Motivo",
+          "reasonHint": "p. ej. compra de leche, testigo Dani",
+          "confirm": "Registrar {amount}",
+          "recording": "Registrando…"
         }
       },
       "counterOffTitle": "El mostrador está desactivado",
@@ -13178,7 +13272,6 @@
           "projectsSubtitle": "Consulta → oferta → acuerdo → proyecto",
           "linksTitle": "Enlaces de pago",
           "linksSubtitle": "Enviados desde este espacio",
-          "linksUnavailable": "Todavía ninguna tabla registra un enlace de pago enviado, así que no hay nada que listar ni reenviar aquí.",
           "linksNote": "Reenviar reutiliza el mismo enlace y nunca crea un segundo cobro. Enviar un enlace no cobra nada hasta que el cliente paga.",
           "segmentDueNow": "Vence ahora",
           "segmentLater": "Más tarde",
@@ -13255,7 +13348,18 @@
           "amendmentSend": "Enviar v{n}",
           "amendmentDiscard": "Descartar propuesta",
           "amendmentUnavailable": "Una enmienda se envía o se retira desde el editor de ofertas de la conversación, no desde la caja.",
-          "amendmentSentOn": "Enviada el {date}"
+          "amendmentSentOn": "Enviada el {date}",
+          "linksEmpty": "Todavía no se ha enviado ningún enlace de pago desde este espacio. Un enlace se envía desde la pantalla Cobrar de una venta o desde la ficha de un cliente.",
+          "linkOpen": "Abierto · sin pagar",
+          "linkPaid": "Pagado",
+          "linkExpired": "Caducado",
+          "linkCancelled": "Cancelado",
+          "linkSent": "enviado {when}",
+          "linkExpires": "caduca {when}",
+          "linkSale": "Venta {id}",
+          "linkResend": "Reenviar",
+          "linkReceipt": "Ver recibo",
+          "linkNew": "Enviar enlace nuevo"
         }
       },
       "classes": {
@@ -13332,7 +13436,9 @@
         },
         "waitlist": {
           "heading": "Esperando un lugar",
-          "empty": "Ninguna sesión de este día está llena y nadie está esperando."
+          "empty": "Ninguna sesión de este día está llena y nadie está esperando.",
+          "decline": "Rechazar",
+          "declined": "Se retiró la oferta de {name} y el lugar vuelve a estar libre."
         },
         "refusal": {
           "notAllowed": "No tienes acceso a esta caja.",
@@ -13400,7 +13506,7 @@
             "whoDidWhat": "Quien hizo que",
             "whoDidWhatOff": "Una linea de venta todavia no se atribuye a una persona, asi que aqui no se pueden mostrar ingresos por persona.",
             "sendLink": "Enviar enlace de pago",
-            "sendLinkOff": "Los enlaces de pago se envian desde el modo Caja; la recepcion solo cobra en efectivo por ahora.",
+            "sendLinkOff": "A esta cita no le queda nada por cobrar, así que no hay enlace que enviar.",
             "rebook": "Volver a reservar",
             "rebookOff": "Volver a reservar desde una cita terminada todavia no esta conectado; usa Reservar con el mismo servicio.",
             "serviceDone": "Servicio hecho",
@@ -13409,7 +13515,12 @@
             "addOff": "Esta cita no tiene una venta a la que agregar.",
             "lineDone": "Hecho",
             "lineAdded": "Agregado",
-            "lineProduct": "Producto"
+            "lineProduct": "Producto",
+            "linkedFrom": "Vinculado desde la venta {reference} · solo pago",
+            "fromSale": "De la venta {reference}",
+            "linkedPayment": "Pago vinculado",
+            "linkedSale": "Venta {reference} (vinculada)",
+            "linkedChip": "Venta {reference} vinculada para el pago"
           },
           "extra": {
             "title": "Agregar a la cita de {name}",
@@ -13909,7 +14020,7 @@
             "collect": "Cobrar {amount}",
             "moveOrJoin": "Mover o unir mesas",
             "changeServer": "Cambiar mesero",
-            "changeServerReason": "Una visita aún no registra su mesero, así que no hay a quién pasarla.",
+            "changeServerReason": "Cambiar de mesero no está disponible en esta pantalla.",
             "extendTime": "Extender tiempo",
             "extendTimeReason": "El tiempo de turno viene de las reglas del local; aún no se extiende por mesa.",
             "partyLeft": "El grupo se fue",
@@ -13917,7 +14028,10 @@
             "block": "Bloquear mesa",
             "blockReason": "Bloquear una mesa se hace en Espacios, no desde la caja.",
             "split": "Dividir la cuenta",
-            "splitReason": "Dividir una cuenta por artículos o partes aún no está construido."
+            "splitReason": "Dividir una cuenta necesita sus líneas, que esta pantalla no lee.",
+            "checks": "{n} cuentas · {amount}",
+            "openCheck": "Abrir cuenta {letter} · {amount}",
+            "servedBy": "Atiende {name}"
           },
           "seat": {
             "title": "Sentar a {name} · {n}",
@@ -13988,11 +14102,11 @@
             "joinTitle": "Unir mesas para este grupo",
             "joinBody": "Añade una mesa vecina libre para un grupo mayor.",
             "joinCta": "Elegir mesa para unir",
-            "joinReason": "La unión se decide al sentar al grupo; un grupo ya sentado aún no puede tomar una segunda mesa.",
+            "joinReason": "La unión se decide al sentar al grupo (T05); el traslado del motor mueve un grupo entre mesas y no puede añadir una segunda mesa a uno ya sentado.",
             "mergeTitle": "Fusionar con la cuenta de otra mesa",
             "mergeBody": "Combina dos cuentas pendientes en una.",
             "mergeCta": "Elegir cuenta",
-            "mergeReason": "Fusionar dos cuentas aún no está construido.",
+            "mergeReason": "Unir dos cuentas no está disponible en esta pantalla.",
             "cancel": "Cancelar"
           },
           "move": {
@@ -14081,6 +14195,56 @@
             "noContact": "Hace falta un correo o un teléfono para localizar al cliente.",
             "closed": "El local cierra ese día.",
             "tooLateToday": "Es tarde para reservar esta noche."
+          },
+          "merge": {
+            "crumb": "{code} › Unir",
+            "title": "Unir otra cuenta a {code}",
+            "subtitle": "Una sola cuenta para dos mesas",
+            "none": "Ninguna otra mesa tiene una cuenta abierta para unir.",
+            "row": "{code} · {party} · {amount}",
+            "rowHint": "Sus artículos pasan a esta cuenta; su propia cuenta se cierra",
+            "responsible": "Responsable de la cuenta",
+            "responsibleValue": "{party} ({code})",
+            "thisCheck": "Cuenta de {code}",
+            "otherCheck": "+ cuenta de {code}",
+            "oneCheck": "Una sola cuenta",
+            "payments": "Depósitos / pagos",
+            "paymentsValue": "Una cuenta con un pago se rechaza",
+            "confirm": "Unir · una cuenta para {party} · {amount}",
+            "done": "La cuenta de {code} ahora está en {into}."
+          },
+          "server": {
+            "title": "Cambiar de mesero · {code}",
+            "subtitle": "{party} · ahora {name}",
+            "nobody": "nadie",
+            "tables": "{n} mesas",
+            "current": "actual",
+            "none": "Nadie en este espacio tiene nombre todavía para recibir la mesa.",
+            "fromNow": "A partir de ahora",
+            "fromNowValue": "{name} atiende {code}",
+            "tips": "Propinas",
+            "tipsValue": "Quedan en la venta · no se reparten por mesero",
+            "drawer": "Cajón",
+            "drawerValue": "Sin cambios · no es una entrega de efectivo",
+            "confirm": "Dar {code} a {name}",
+            "done": "{code} ahora es de {name}."
+          },
+          "split": {
+            "title": "Cuentas · {code} · {party}",
+            "subtitle": "{amount} en artículos · marca artículos y muévelos",
+            "loading": "Leyendo la cuenta…",
+            "unreadable": "No se pudo leer esta cuenta.",
+            "empty": "Todavía no hay nada en esta cuenta.",
+            "check": "Cuenta {letter}",
+            "unpaid": "Sin pagar",
+            "items": "Artículos",
+            "remaining": "Pendiente",
+            "selected": "{n} artículos seleccionados · {amount}",
+            "moveToNew": "Mover lo seleccionado a una cuenta nueva",
+            "moving": "Moviendo…",
+            "note": "Los artículos se marcan en la cuenta A. Por asiento, en partes iguales y por importes no están modelados; cada cuenta se cobra en el mostrador.",
+            "collect": "Cobrar cuenta {letter} · {amount}",
+            "done": "{n} artículos pasaron a una cuenta nueva."
           }
         }
       },
@@ -14132,7 +14296,23 @@
         "refusalSendFailed": "No se pudo enviar el correo. Pide al equipo un recibo impreso.",
         "refusalUnavailable": "No se pudo enviar el recibo en este momento. Pide al equipo un recibo impreso.",
         "readUnavailable": "Esta pantalla perdió la conexión con el mostrador. Seguirá intentando.",
-        "notAllowed": "Esta cuenta no puede abrir la pantalla del cliente."
+        "notAllowed": "Esta cuenta no puede abrir la pantalla del cliente.",
+        "tipRow": "Propina",
+        "tip": {
+          "heading": "¿Quieres dejar propina?",
+          "base": "Sobre {amount} · redondeado al centavo",
+          "other": "Otro",
+          "otherHint": "importe",
+          "noTip": "Sin propina",
+          "note": "No se cobra nada hasta que confirmes en la siguiente pantalla",
+          "added": "Propina agregada · {amount}",
+          "change": "Cambiar la propina",
+          "saving": "Guardando tu propina…",
+          "customHeading": "Propina",
+          "customBase": "Cualquier importe · sobre {amount}",
+          "totalWouldBe": "El total sería {amount}",
+          "add": "Agregar {amount} de propina"
+        }
       }
     },
     "tables": {
@@ -15128,7 +15308,8 @@
       "tabPurchases": "Compras y saldos",
       "tabProjects": "Proyectos",
       "tabDetails": "Detalles",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "linkSent": "Enlace de pago enviado · caduca {when} · te avisaremos cuando se pague"
     },
     "issues": {
       "eyebrow": "Incidencias",
@@ -17097,7 +17278,6 @@
           "notTracked": "–",
           "notTrackedWhy": "Todavía no se registra: {what}",
           "locationsWhy": "una persona no está ligada a una ubicación; cada ubicación reserva a todos",
-          "pinWhy": "el punto de venta no tiene PIN",
           "drawerWhy": "la caja no se asigna a una persona",
           "busyFreeWhy": "el tiempo ocupado de otros negocios todavía no se comparte",
           "posPermissionsWhy": "los permisos del punto de venta por persona no se guardan; decide el rol",
@@ -17112,7 +17292,9 @@
           "invited": "Invitado",
           "suspended": "Suspendido",
           "removed": "Retirado",
-          "noContact": "Sin correo registrado"
+          "noContact": "Sin correo registrado",
+          "pinSet": "Configurado",
+          "pinNone": "Sin PIN"
         },
         "empty": {
           "everyone": "Todavía no hay nadie. Añade a la primera persona y elige qué sombreros lleva.",
@@ -17469,6 +17651,17 @@
           "phaseRuleValue": "Toda la cita bloquea a la persona",
           "phaseRuleOff": "Las fases del servicio no están modeladas (D-POS-2); toda la duración bloquea a la persona."
         }
+      },
+      "pin": {
+        "title": "PIN de caja",
+        "set": "Hay un PIN configurado. Escribir uno nuevo lo reemplaza; nadie puede leerlo.",
+        "none": "Sin PIN todavía. Con uno, esta persona puede desbloquear una caja y, si es gerente, aprobar un importe libre.",
+        "label": "Nuevo PIN",
+        "placeholder": "4 a 6 dígitos",
+        "save": "Configurar PIN",
+        "replace": "Reemplazar PIN",
+        "saving": "Guardando…",
+        "saved": "PIN guardado. Solo se almacena el hash."
       }
     }
   },

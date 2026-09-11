@@ -221,6 +221,7 @@ export function AppointmentDetail({
   onCancelMove,
   onCollect,
   onAddExtra,
+  onSendLink,
 }: {
   row: ClassesAppointment;
   sale: SaleDetail;
@@ -237,6 +238,8 @@ export function AppointmentDetail({
   onCancelMove: () => void;
   onCollect: (row: ClassesAppointment) => void;
   onAddExtra: () => void;
+  /** B01's `Send payment link`; absent where the surface cannot mint one. */
+  onSendLink?: (row: ClassesAppointment) => void;
 }) {
   const b = copy.board;
   const arrived = row.state === "in_progress";
@@ -246,6 +249,9 @@ export function AppointmentDetail({
   const services = ready ? ready.lines.filter((l) => l.sessionId === null).reduce((n, l) => n + l.totalCents, 0) : null;
   const paid = ready ? ready.depositPaidCents : null;
   const when = `${formatClock(row.startsAt, timeZone, locale)}${row.endsAt ? `–${formatClock(row.endsAt, timeZone, locale)}` : ""}`;
+  // B03: sales linked to this booking for payment (`order_lines.booking_id`).
+  const linkedOwed = row.linkedSales.reduce((n, sale) => n + sale.outstandingCents, 0);
+  const balanceDue = row.outstandingCents + linkedOwed;
 
   return (
     <div data-pos-classes-detail={row.id} className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto p-[16px]">
@@ -262,6 +268,9 @@ export function AppointmentDetail({
           </div>
         </div>
         <div className="flex flex-wrap gap-[6px]">
+          {row.linkedSales.length > 0 ? (
+            <PosPill tone="slate">{fill(b.detail.linkedChip, { reference: row.linkedSales.map((s) => s.reference).join(", ") })}</PosPill>
+          ) : null}
           {arrived ? <PosPill tone="royal">{b.detail.checkedIn}</PosPill> : null}
           {row.state === "completed" ? <PosPill tone="green">{b.detail.serviceDone}</PosPill> : null}
           {row.orderId && row.outstandingCents <= 0 ? <PosPill tone="slate">{b.detail.paidChip}</PosPill> : null}
@@ -292,6 +301,26 @@ export function AppointmentDetail({
               ))}
             </ul>
           )}
+          {row.linkedSales.map((linked) => (
+            <div key={linked.orderId} data-pos-classes-linked-sale={linked.orderId}>
+              <div className="bg-admin-surface px-[16px] py-[8px] font-admin-body text-[12px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted">
+                {fill(b.detail.linkedFrom, { reference: linked.reference })}
+              </div>
+              <ul className="m-0 list-none divide-y divide-admin-border-soft p-0">
+                {linked.lines.map((line) => (
+                  <li key={line.id} className="grid grid-cols-[36px_minmax(0,1fr)_auto_auto] items-center gap-[10px] px-[14px] py-[10px] font-admin-body">
+                    <span className="flex h-[36px] w-[36px] items-center justify-center rounded-[10px] bg-admin-surface-alt text-[15px] font-semibold text-admin-ink">{line.units}</span>
+                    <span className="min-w-0">
+                      <span className="block text-[16px] font-semibold leading-[1.2] text-admin-ink [overflow-wrap:anywhere]">{line.label}</span>
+                      <span className="block text-[13px] text-admin-ink-muted">{fill(b.detail.fromSale, { reference: linked.reference })}</span>
+                    </span>
+                    <PosPill tone="indigo">{b.detail.linkedPayment}</PosPill>
+                    <span className="text-[17px] font-semibold tabular-nums text-admin-ink">{formatOrderMoney(line.totalCents, linked.currency)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
           <div className="mt-auto flex flex-wrap gap-[10px] border-t border-admin-border-soft px-[16px] py-[12px]">
             <PosAction tone="outline" reason={row.orderId ? null : b.detail.addOff} onClick={onAddExtra} testAttr={{ "data-pos-classes-add-extra": "open" }}>
               + {b.detail.addService}
@@ -307,11 +336,16 @@ export function AppointmentDetail({
         <div className="flex flex-col gap-[14px]">
           <div className={cn(POS_CARD, "px-[16px] py-[6px]")}>
             <PosFact label={b.detail.services}>{services === null ? "…" : formatOrderMoney(services, ready?.currency ?? row.currency)}</PosFact>
+            {row.linkedSales.map((linked) => (
+              <PosFact key={linked.orderId} label={fill(b.detail.linkedSale, { reference: linked.reference })}>
+                {formatOrderMoney(linked.outstandingCents, linked.currency)}
+              </PosFact>
+            ))}
             <PosFact label={b.detail.depositPaid}>{paid === null ? "…" : `−${formatOrderMoney(paid, ready?.currency ?? row.currency)}`}</PosFact>
             <div className="flex items-baseline justify-between gap-[12px] py-[10px] font-admin-body">
               <span className="text-[17px] font-bold text-admin-ink">{b.detail.balanceDue}</span>
-              <span className="text-[30px] font-bold tabular-nums text-admin-ink">
-                {row.orderId ? formatOrderMoney(row.outstandingCents, row.currency) : "—"}
+              <span className="text-[30px] font-bold tabular-nums text-admin-ink" data-pos-classes-balance-due>
+                {row.orderId || row.linkedSales.length > 0 ? formatOrderMoney(balanceDue, row.currency) : "—"}
               </span>
             </div>
           </div>
@@ -332,7 +366,12 @@ export function AppointmentDetail({
               </PosAction>
             ) : null}
             <div className="grid grid-cols-2 gap-[10px]">
-              <PosAction reason={b.detail.sendLinkOff} className="px-[8px] text-[13px]">
+              <PosAction
+                reason={onSendLink && row.orderId && row.collectable && row.outstandingCents > 0 ? null : b.detail.sendLinkOff}
+                className="px-[8px] text-[13px]"
+                onClick={onSendLink ? () => onSendLink(row) : undefined}
+                testAttr={{ "data-pos-classes-send-link": row.id }}
+              >
                 {b.detail.sendLink}
               </PosAction>
               {canMove && !moving ? (

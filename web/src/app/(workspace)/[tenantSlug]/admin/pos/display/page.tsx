@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { customerDisplayCopy } from "@/components/admin/pos/customer-display-copy";
+import { customerDisplayCopy, customerDisplayTipCopy } from "@/components/admin/pos/customer-display-copy";
+import { engineRefusalCopy } from "@/components/admin/pos/pos-copy-engine";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { userHasCapability } from "@/lib/access";
@@ -78,6 +79,8 @@ export default async function PosDisplayPage({ params, searchParams }: { params:
         workspaceName={workspaceName}
         initialOrderId={order}
         copy={customerDisplayCopy(tr)}
+        tipCopy={customerDisplayTipCopy(tr)}
+        engineRefusal={engineRefusalCopy(tr)}
       />
     </>
   );

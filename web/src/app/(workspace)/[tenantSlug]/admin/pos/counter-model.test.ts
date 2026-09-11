@@ -203,7 +203,7 @@ test("no shift is null, not a zeroed shift", () => {
   // "counted and empty" rather than "nobody opened one".
   assert.equal(toShiftSummary(null), null);
   assert.deepEqual(
-    toShiftSummary({ id: "s1", version: 2, openingCashCents: 5000, openedAt: null }),
-    { id: "s1", openingCashCents: 5000, openedAt: "" },
+    toShiftSummary({ id: "s1", version: 2, openingCashCents: 5000, openedAt: null, movements: [] }),
+    { id: "s1", openingCashCents: 5000, openedAt: "", movements: [] },
   );
 });

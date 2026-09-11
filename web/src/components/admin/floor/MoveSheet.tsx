@@ -4,12 +4,14 @@
  * MoveSheet — T12 "Move / join / merge chooser" (`POSTableChange`) and T13
  * "Move the party" (`POSMoveParty`) in one sheet with two steps.
  *
- * The move is wired: `actions.moveVisit` carries the check and the kitchen
- * tickets with the party (the engine's own rule) and leaves the old table
- * needing a reset. Joining a second table to an ALREADY SEATED party and
- * merging two checks have no writer in the engine (a join is decided at
- * seating time, T05; there is no check-merge command), so those two cards
- * are drawn disabled over their one sentence.
+ * The move is wired: `actions.moveVisit` (the engine's `visit_transfer`,
+ * with the version the floor read) carries the checks and the kitchen
+ * tickets with the party and leaves the old table needing a reset. The
+ * merge card opens T16 (`MergeChecksSheet`, `visit_merge_checks`). Joining
+ * a second table to an ALREADY SEATED party has no writer (`visit_transfer`
+ * moves a visit between spaces and cannot set `joined_space_id`; a join is
+ * decided at seating time, T05), so that card stays disabled over its
+ * sentence (D-POS-69).
  */
 
 import { ArrowRight, Layers, ShoppingBag } from "lucide-react";
@@ -35,6 +37,8 @@ export type MoveSheetProps = {
   readonly busy: boolean;
   readonly onClose: () => void;
   readonly onMove: (destination: FloorTable) => void;
+  /** Opens the merge sheet (T16); absent on a surface with no merge writer. */
+  readonly onMerge?: () => void;
 };
 
 type Step = "choose" | "move";
@@ -67,7 +71,7 @@ export function MoveSheet(props: MoveSheetProps) {
       {[
         { id: "move", icon: ArrowRight, title: copy.change.moveTitle, body: interpolate(copy.change.moveBody, { code }), cta: copy.change.moveCta, onSelect: () => setStep("move"), reason: null },
         { id: "join", icon: Layers, title: copy.change.joinTitle, body: copy.change.joinBody, cta: copy.change.joinCta, onSelect: undefined, reason: copy.change.joinReason },
-        { id: "merge", icon: ShoppingBag, title: copy.change.mergeTitle, body: copy.change.mergeBody, cta: copy.change.mergeCta, onSelect: undefined, reason: copy.change.mergeReason },
+        { id: "merge", icon: ShoppingBag, title: copy.change.mergeTitle, body: copy.change.mergeBody, cta: copy.change.mergeCta, onSelect: props.onMerge, reason: props.onMerge ? null : copy.change.mergeReason },
       ].map((card) => {
         const Icon = card.icon;
         return (

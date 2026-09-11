@@ -39,7 +39,7 @@ only). Nothing was written to production.
 | A10_Cancel | **not wired** | `A10_Cancel.live.png` | Cancel appointment is disabled with the reason on the panel; no cancel writer on this surface (the booking's own page owns its lifecycle). |
 | POSAppointments (B01) | **matched** | `POSAppointments.live.png` | Header: Front desk (the mode's own label, D-POS-15), "Thu 10 Sep · N appointments · N classes", the location pill (the workspace's venue) and the signed-in operator; left list with Today / Due N / Done N and Appts \| Classes, rows TIME · name · service · state pill with the balance; right pane: name · time range, chips, BOOKED lines from the appointment's sale (`posLoadSale`), Add service / Product / Use a pass (disabled: no passes), totals card (Services, Paid so far, Balance due), WHO DID WHAT (disabled: a line is not attributed to a person), Check in, Collect $x (the Counter's cash charge), Send payment link (disabled: Counter mode), Move it. "+ Walk-in" and "Book" open the sheet. Differs: no "Deposit paid" chip (the till knows paid-so-far, not the deposit's date); the rail is the counter group's frame. |
 | POSAddExtra (B02) | **partial** | `POSAddExtra.live.png` | The sheet lists the workspace's published catalog with price and minutes, New balance and Who; "Add X · +$y" writes the line on the appointment's own sale through `posAddLine` with the sale's version. Not wired: the time recheck ("Ends 13:35 · next client 14:00", "Dani is busy · Ana can do it") needs a calendar re-plan writer that does not exist; the sheet says the end time is not re-planned (D-POS-19). |
-| POSAfterLink (B03) | **not wired** | `POSAfterLink.live.png` (B01's detail with lines) | Linking a separate sale to an appointment for payment only is the Counter's link-a-sale flow, not built here. |
+| POSAfterLink (B03) | **matched** (2026-09-11, wire-pos-money) | `POSAfterLink.live.png` | `Laura Méndez · 17:15–18:00` / `Gel manicure`, the `Sale #EECA linked for payment` chip, BOOKED (the appointment's own sale), then `LINKED FROM SALE #EECA · PAYMENT ONLY` with the counter sale's lines (`Linked payment` pill, `From sale #EECA`), the right card with `Sale #EECA (linked) $6.50` and `Balance due` = the appointment's balance plus the linked sale's. The link is made at the counter (`POSLinkBooking`, `posLinkBooking`) and read back through `order_lines.booking_id` (`readLinkedSales` in `lib/pos/classes/day.ts`). `Send payment link` is live on the appointment's own sale (`createPaymentLink`; `POSAppointment-link.live.png`). Differs: `Collect` collects the appointment's own sale; the linked sale is collected on the counter, so the board's one combined `Collect $1,740` is two collections here. |
 | POSWalkInBooking (B04) | **matched** | `POSWalkInBooking.live.png` | Walk-in · book now: Service, Customer (name, email, phone), NEXT FREE (the free times from `computePublicSlots` with the person and the window), Pay (cash at the end or now), "Book {name} · {time}". A seat in a session is the same sheet's second kind. |
 | POSClassCheckin (B05) | **matched** | `POSClassCheckin.live.png` | Title · time, "starts in N min" (server clock), the three chips, Find a name, All / Not here / Problems, the numbered roster with Here / Booked / Can't attend and Check in (the `check_in` RPC) / Undo (disabled) / Fix (disabled), facts (Places, Here, Waitlist, Positions not tracked), Scan a pass (disabled), Sell drop-in (or "· class is full"), Add to waitlist, Substitute instructor (disabled), the problem notice, Close check-in (disabled: no no-show state). Differs: no seat position column (nothing to show per row). |
 | POSClassReleasedPlace (B06) | **matched** | `POSClassReleasedPlace.live.png` | When a selected session has a free place and somebody waiting, the dialog offers the place to the next in line (the proven `promoteFromWaitlist`, a 30-minute hold), to sell it as a drop-in (the walk-in seat), or to leave it. Differs: no refund-policy footnote (no cancellation rule is modelled). |
@@ -63,6 +63,18 @@ only). Nothing was written to production.
   (`/admin/appts?view=...`) as they do on the live route (`/admin/sessions`),
   and the shell's breadcrumb reads "Page › Child" when a child is lit
   (`workspace-nav-groups.ts`, `IdentityBar-1.tsx`).
+
+## Package 1 wiring (2026-09-11, wire-pos-money)
+
+The Front desk's queue now offers a place with the engine's hold
+(`waitlistOfferPlace`: a `waitlist_offers` row and a live capacity
+allocation for the offer window), takes it with `waitlistAcceptOffer` and
+gives it back with `Decline` (`waitlistDeclineOffer`), D-POS-76; the day
+reader carries the live offer id per entry. `ClassesWaitlistOffer.live.png`
+is the Waitlist screen with an offer standing (Decline beside They took it).
+Every refusal is `dashboard.pos.engine.refusal.*` (`no_place` when the night
+is full). The classes journey (`e2e/journeys/pos-classes.spec.ts`) asserts
+the `waitlist_offers` row and its allocation, not only the entry's state.
 
 ## Not wired (each drawn disabled with a one-sentence reason in en/es/fr)
 

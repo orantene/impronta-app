@@ -13,12 +13,24 @@
  */
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-import { writeDisplayBeacon } from "./display-beacon";
+import { saleChangedBeaconKey, writeDisplayBeacon } from "./display-beacon";
 
 export function CounterDisplayBeacon({ tenantId, orderId }: { tenantId: string; orderId: string | null }) {
+  const router = useRouter();
   useEffect(() => {
     writeDisplayBeacon(tenantId, orderId);
   }, [tenantId, orderId]);
+  // The display's write (a tip) on the same device: re-read the sale so the
+  // version this counter carries into its next command is the current one.
+  useEffect(() => {
+    const key = saleChangedBeaconKey(tenantId);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === key && event.newValue && orderId && event.newValue.startsWith(`${orderId}:`)) router.refresh();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [tenantId, orderId, router]);
   return null;
 }

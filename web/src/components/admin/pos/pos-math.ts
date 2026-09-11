@@ -27,8 +27,9 @@ function toCartLine(line: PosBasketLine): CartLineInput {
 export function basketTotals(
   lines: readonly PosBasketLine[],
   discountCents = 0,
+  tipCents = 0,
 ): PosBasketTotals {
-  const totals: CartTotals = cartTotals(lines.map(toCartLine), discountCents);
+  const totals: CartTotals = cartTotals(lines.map(toCartLine), discountCents, tipCents);
   return totals;
 }
 

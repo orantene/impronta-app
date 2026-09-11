@@ -214,9 +214,11 @@ test("POS-FLOOR: seat, send to the kitchen, move, end, mark ready; and the join 
   await sheet(page, "T4").locator('[data-floor-action="move-or-join"]').click();
   const chooser = page.locator('[data-pos-sheet="table-change"]');
   await expect(chooser).toBeVisible();
-  // Joining a seated party and merging checks have no writer: drawn disabled over a sentence.
+  // Joining a seated party has no writer (a join is decided at seating, D-POS-69):
+  // drawn disabled over its sentence. Merging checks is the engine's
+  // `visit_merge_checks` (T16) and is live from the chooser.
   await expect(chooser.locator('[data-floor-change="join"] button')).toBeDisabled();
-  await expect(chooser.locator('[data-floor-change="merge"] button')).toBeDisabled();
+  await expect(chooser.locator('[data-floor-change="merge"] button')).toBeEnabled();
   await chooser.locator('[data-floor-change="move"] button').click();
   const mover = page.locator('[data-pos-sheet="move-party"]');
   await expect(mover).toBeVisible();

@@ -46,6 +46,9 @@ import { reportTerminalAvailability } from "@/lib/payments/terminal-availability
 import { addonCentsOnLine } from "@/lib/pos/addons";
 import { listOpenPosSales, loadPosSale } from "@/lib/pos/draft";
 import { listPaidPosSales } from "@/lib/pos/sale-read";
+import { listPosStaff } from "@/lib/pos/staff";
+import { readCustomAmountLimitCents } from "@/lib/pos/approval-settings";
+import { cashMovementCopy, engineRefusalCopy, lockScreenCopy, paymentLinkCopy, tipSheetCopy } from "@/components/admin/pos/pos-copy-engine";
 import {
   POS_MODE_META,
   enabledPosModesFromSettings,
@@ -70,10 +73,11 @@ import { resolveTenantTimezone } from "@/lib/spaces/venues";
 
 import { PageRouteSyncer } from "../_page-route-syncer";
 
-import type { PosCatalogItem } from "./counter-model";
+import { formatClock, type PosCatalogItem } from "./counter-model";
 import { doorCopy } from "./door-copy";
 import { receiptRows } from "./receipt-rows";
 import { FloorScreen } from "./floor-screen";
+import { loadCounterLinks } from "./counter-reads";
 // The three client modes this route mounts directly, each behind
 // `next/dynamic` so the register's initial bundle carries only the mode
 // asked for (`mode-clients.tsx` says why). The floor and projects modes are
@@ -169,9 +173,10 @@ function collectionMethods(tr: (key: string) => string): PosCollectionMethodStat
   const terminal = reportTerminalAvailability();
   return [
     { id: "cash", available: true },
-    isStripeConfigured()
-      ? { id: "link", available: true }
-      : { id: "link", available: false, unavailableReason: unavailable.link },
+    // A payment link is minted by `createPaymentLink` whether or not Stripe
+    // has keys: without them `/pay/<code>` is a test page, and the tab's
+    // panel says so (`PaymentLinkPanel`, `providerMock`).
+    { id: "link", available: true },
     terminal.available
       ? {
           id: "card",
@@ -406,7 +411,10 @@ export default async function PosPage({
             frame: { navLabel: classesRailNavLabel(tr), destinationLabels: classesRailCopy(tr) },
             classes: classesCopy(tr),
             counterRefusal: refusalCopy(tr),
+            engineRefusal: engineRefusalCopy(tr),
+            paymentLink: paymentLinkCopy(tr),
           }}
+          linkProvider={isStripeConfigured() ? "stripe" : "mock"}
         />
       </>
     );
@@ -531,6 +539,7 @@ export default async function PosPage({
           cashierName={projectsCashier}
           drawerOpen={Boolean(projectsShift.ok && projectsShift.shift)}
           tr={tr}
+          locale={locale}
           search={{ project: q.project, view: q.view }}
         />
       </>
@@ -544,7 +553,7 @@ export default async function PosPage({
   // Receipts (`POSReceipts`) show today, yesterday and this week: seven days
   // back is the widest window the screen offers.
   const weekAgo = new Date(requestedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const [open, saleLoad, catalog, shiftLoad, upcoming, paidLoad, cashierName] = await Promise.all([
+  const [open, saleLoad, catalog, shiftLoad, upcoming, paidLoad, cashierName, staffLoad, limitLoad] = await Promise.all([
     listOpenPosSales(admin, scope.tenantId),
     orderId && /^[0-9a-f-]{36}$/i.test(orderId)
       ? loadPosSale(admin, { tenantId: scope.tenantId, orderId })
@@ -567,6 +576,10 @@ export default async function PosPage({
       .limit(80),
     listPaidPosSales(admin, { tenantId: scope.tenantId, sinceIso: weekAgo }),
     loadCashierName(admin),
+    // The people a till can name (`POSLock`, the approver row, the hand-over)
+    // and the custom-amount limit a manager set; both read once per load.
+    listPosStaff(admin, scope.tenantId),
+    readCustomAmountLimitCents(admin, scope.tenantId),
   ]);
   if (catalog.error) logServerError("pos.page.catalog", catalog.error);
   if (upcoming.error) logServerError("pos.page.sessions", upcoming.error);
@@ -579,6 +592,11 @@ export default async function PosPage({
   // screen's benefit is how a column gets added to a writer's select and
   // forgotten in a reader's — the defect `sale-rows.ts` was extracted during.
   // One extra tenant-scoped read here costs less than that risk.
+  // The sale's payment links (`POSPaymentLink` on the collect screen) and
+  // the titles of the bookings its lines pay for (`Linked · …` pills).
+  const linked = sale ? await loadCounterLinks(admin, scope.tenantId, sale) : { paymentLinks: [], bookingTitles: new Map<string, string>() };
+  const { paymentLinks, bookingTitles } = linked;
+
   let receiptCode: string | null = null;
   if (sale) {
     const receipt = await admin
@@ -643,6 +661,9 @@ export default async function PosPage({
     sessionLabel: line.sessionId
       ? (sessionsByOffering.get(line.offeringId ?? "") ?? []).find((s) => s.id === line.sessionId)?.title ?? null
       : null,
+    kind: line.kind,
+    needsApproval: line.needsApproval,
+    bookingLabel: line.bookingId ? (bookingTitles.get(line.bookingId) ?? null) : null,
   }));
 
   const currency = sale?.currency ?? "USD";
@@ -699,6 +720,7 @@ export default async function PosPage({
                 currency: sale.currency,
                 customerId: sale.customerId,
                 discountCents: sale.discountCents,
+                tipCents: sale.tipCents,
                 totalCents: sale.totalCents,
                 outstandingCents: sale.outstandingCents,
                 paymentState: sale.paymentState,
@@ -722,9 +744,14 @@ export default async function PosPage({
                 version: shiftLoad.shift.version,
                 openingCashCents: shiftLoad.shift.openingCashCents,
                 openedAt: shiftLoad.shift.openedAt,
+                movements: shiftLoad.shift.movements.map((m) => ({ id: m.id, kind: m.kind, amountCents: m.amountCents, reason: m.reason, createdAt: m.createdAt })),
               }
             : null
         }
+        people={staffLoad.ok ? staffLoad.staff : []}
+        customAmountLimitCents={limitLoad.ok ? limitLoad.limitCents : 0}
+        paymentLinks={paymentLinks.map((l) => ({ code: l.code, url: `${receiptOrigin}${l.url}`, amountCents: l.amountCents, status: l.status, expiresAt: formatClock(l.expiresAt, locale) }))}
+        linkProvider={isStripeConfigured() ? "stripe" : "mock"}
         copy={{
           frame: frameCopy,
           chrome: chromeCopy(tr),
@@ -750,6 +777,11 @@ export default async function PosPage({
           connection: connectionCopy(tr),
           scanScreen: scanScreenCopy(tr),
           refusal: refusalCopy(tr),
+          engineRefusal: engineRefusalCopy(tr),
+          lock: lockScreenCopy(tr),
+          tip: tipSheetCopy(tr),
+          paymentLink: paymentLinkCopy(tr),
+          movement: cashMovementCopy(tr),
           page: counterPageCopy(tr),
           scan: scanCopy(tr),
           displayLink: customerDisplayLinkCopy(tr),

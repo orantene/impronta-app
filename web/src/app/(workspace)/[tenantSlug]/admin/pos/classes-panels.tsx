@@ -21,10 +21,14 @@
  * says exactly that, in one select whose only option is the truth.
  */
 
+import { useState } from "react";
+
 import type { ClassesCopy } from "@/components/admin/pos/classes-copy";
 import { formatOrderMoney } from "@/lib/orders/money-format";
-import type { ClassesSession } from "@/lib/pos/classes/day";
-import type { WaitlistEntry } from "@/lib/scheduling/session-waitlist";
+import type { ClassesAppointment, ClassesSession, ClassesWaitlistEntry } from "@/lib/pos/classes/day";
+import { PaymentLinkPanel, type PaymentLinkCopy, type PaymentLinkRow } from "@/components/admin/pos/PaymentLinkPanel";
+import { createPaymentLink } from "@/lib/server-actions/pos-engine";
+
 import { cn } from "@/lib/utils";
 
 import { fill, formatClock, formatWhen } from "./classes-format";
@@ -68,6 +72,7 @@ export function WaitlistPanel({
   onSubmitJoin,
   onPromote,
   onAccept,
+  onDecline,
 }: {
   sessions: readonly ClassesSession[];
   timeZone: string;
@@ -81,8 +86,9 @@ export function WaitlistPanel({
   onJoinEmailChange: (v: string) => void;
   onOpenJoin: (session: ClassesSession) => void;
   onSubmitJoin: (session: ClassesSession) => void;
-  onPromote: (session: ClassesSession, entry: WaitlistEntry) => void;
-  onAccept: (session: ClassesSession, entry: WaitlistEntry) => void;
+  onPromote: (session: ClassesSession, entry: ClassesWaitlistEntry) => void;
+  onAccept: (session: ClassesSession, entry: ClassesWaitlistEntry) => void;
+  onDecline: (session: ClassesSession, entry: ClassesWaitlistEntry) => void;
 }) {
   const listed = sessions.filter((s) => s.waitlist.length > 0 || (s.seats.kind === "counted" && s.seats.remaining <= 0));
   if (listed.length === 0) {
@@ -127,9 +133,14 @@ export function WaitlistPanel({
                     </PosAction>
                   ) : null}
                   {entry.state === "offered" ? (
-                    <PosAction tone="primary" disabled={busy} className="min-w-[10rem]" onClick={() => onAccept(session, entry)}>
-                      {busy ? copy.waitlist.accepting : copy.waitlist.accept}
-                    </PosAction>
+                    <span className="flex flex-wrap gap-[8px]">
+                      <PosAction tone="primary" disabled={busy} className="min-w-[10rem]" onClick={() => onAccept(session, entry)}>
+                        {busy ? copy.waitlist.accepting : copy.waitlist.accept}
+                      </PosAction>
+                      <PosAction disabled={busy} onClick={() => onDecline(session, entry)} testAttr={{ "data-pos-classes-decline": entry.id }}>
+                        {copy.waitlist.decline}
+                      </PosAction>
+                    </span>
                   ) : null}
                 </li>
               ))}
@@ -433,6 +444,64 @@ export function WalkInSheet({
           </label>
         </form>
       )}
+    </PosSheet>
+  );
+}
+
+/* ── Payment link (B01's `Send payment link`) ─────────────────────────── */
+
+/**
+ * The appointment's own sale, as a link the customer pays from their phone:
+ * `createPaymentLink` reserves what is owed and mints `/pay/<code>`; the
+ * panel shows, copies and sends it. Same panel as the counter's collect tab.
+ */
+export function AppointmentLinkSheet({
+  row,
+  workspaceName,
+  provider,
+  timeZone,
+  locale,
+  engineRefusal,
+  copy,
+  closeLabel,
+  onClose,
+}: {
+  row: ClassesAppointment;
+  workspaceName: string;
+  provider: "stripe" | "mock";
+  timeZone: string;
+  locale: string;
+  engineRefusal: Readonly<Record<string, string>>;
+  copy: PaymentLinkCopy;
+  closeLabel: string;
+  onClose: () => void;
+}) {
+  const [created, setCreated] = useState<PaymentLinkRow | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const mint = () => {
+    if (!row.orderId || busy) return;
+    const orderId = row.orderId;
+    const amountCents = row.outstandingCents;
+    setBusy(true);
+    setRefusal(null);
+    void createPaymentLink({ orderId, amountCents, idempotencyKey: `paylink:${orderId}:${row.orderVersion ?? 0}:${amountCents}` })
+      .then((r) => {
+        if (r.ok) setCreated({ code: r.code, url: r.url, amountCents: r.amountCents, status: "open", expiresAt: formatWhen(r.expiresAt, timeZone, locale) });
+        else setRefusal(engineRefusal[r.reason] ?? engineRefusal.unavailable ?? "");
+      })
+      .finally(() => setBusy(false));
+  };
+  return (
+    <PosSheet title={copy.linkTitle} subtitle={`${row.customerName ?? ""} · ${row.title}`} onClose={onClose} closeLabel={closeLabel} footer={<PosAction onClick={onClose}>{closeLabel}</PosAction>} attrs={{ "data-pos-classes-link-sheet": row.id }}>
+      <div className="flex flex-col gap-[12px] p-[16px]">
+        <PaymentLinkPanel amountCents={row.outstandingCents} currency={row.currency} workspaceName={workspaceName} provider={provider} links={[]} created={created} busy={busy} onCreate={mint} copy={copy} />
+        {refusal ? (
+          <p role="alert" className="m-0 font-admin-body text-[14px] text-admin-red" data-pos-classes-link-refusal>
+            {refusal}
+          </p>
+        ) : null}
+      </div>
     </PosSheet>
   );
 }

@@ -25,8 +25,8 @@
 import { useState } from "react";
 
 import type { ClassesCopy } from "@/components/admin/pos/classes-copy";
-import type { ClassesRosterEntry, ClassesSession } from "@/lib/pos/classes/day";
-import { DEFAULT_WAITLIST_OFFER_MINUTES, type WaitlistEntry } from "@/lib/scheduling/session-waitlist";
+import type { ClassesRosterEntry, ClassesSession, ClassesWaitlistEntry } from "@/lib/pos/classes/day";
+import { DEFAULT_WAITLIST_OFFER_MINUTES } from "@/lib/scheduling/session-waitlist";
 import { cn } from "@/lib/utils";
 
 import { fill, formatClock } from "./classes-format";
@@ -64,7 +64,7 @@ export function SessionCheckIn({
   onMark: (admissionId: string) => void;
   onBookSeat: (session: ClassesSession) => void;
   onOpenQueue: (session: ClassesSession) => void;
-  onOfferPlace: (session: ClassesSession, entry: WaitlistEntry) => void;
+  onOfferPlace: (session: ClassesSession, entry: ClassesWaitlistEntry) => void;
 }) {
   const b = copy.board.checkin;
   const [query, setQuery] = useState("");

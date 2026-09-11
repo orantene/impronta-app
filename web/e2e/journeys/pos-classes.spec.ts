@@ -497,12 +497,15 @@ test("the night fills, somebody joins its list, a place that does not exist is r
   await expect(page.locator("[data-pos-classes-session-pick] option", { hasText: n.title })).toHaveCount(0, { timeout: 45_000 });
   await page.screenshot({ path: testInfo.outputPath("walkin-full-night-not-offered.png"), fullPage: true });
 
-  // Offering a place while the night is full: refused, in words.
+  // Offering a place while the night is full: refused, in words. The offer
+  // is the engine's hold (`waitlist_offer_place`, D-POS-68): with no seat to
+  // reserve it answers `no_place`, said as the engine's own sentence.
   await railTo(page, /^waitlist$/i, "[data-pos-classes-queue]");
   const entry = queue.locator("[data-pos-classes-entry]").filter({ hasText: WAITER });
   await entry.getByRole("button", { name: /offer the place/i }).click();
   const alert = page.locator("[data-pos-classes-notice=refused]");
-  await expect(alert).toContainText(/no free place right now/i, { timeout: 45_000 });
+  await expect(alert).toContainText(/no place left to offer/i, { timeout: 45_000 });
+  await expect(alert).not.toContainText(/\b(no_place|unavailable|not_found)\b/);
   await page.screenshot({ path: testInfo.outputPath("promote-refused-full.png"), fullPage: true });
 
   // Open a seat on the night (the Events page), then offer and take it.
@@ -525,6 +528,13 @@ test("the night fills, somebody joins its list, a place that does not exist is r
   await entry2.getByRole("button", { name: /offer the place/i }).click();
   await expect(page.locator("[data-pos-classes-notice=done]")).toContainText(/offered to/i, { timeout: 45_000 });
   await expect(entry2).toHaveAttribute("data-pos-classes-entry-state", "offered", { timeout: 45_000 });
+  // The offer HOLDS the seat (`waitlist_offers` + a live capacity allocation),
+  // and the row offers Decline beside They took it while it stands.
+  const { data: offers } = await db.from("waitlist_offers").select("id, accepted_at, declined_at, allocation_id, waitlist_entry_id").eq("tenant_id", JOURNEYS_TENANT_ID);
+  const live = (offers ?? []).find((o) => o.accepted_at === null && o.declined_at === null);
+  expect(live, "the offer must be a waitlist_offers row that is still open").toBeTruthy();
+  expect(live!.allocation_id, "and it holds a seat through a capacity allocation").not.toBeNull();
+  await expect(entry2.locator("[data-pos-classes-decline]")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("promoted.png"), fullPage: true });
   await entry2.getByRole("button", { name: /they took it/i }).click();
   await expect(entry2).toHaveAttribute("data-pos-classes-entry-state", "accepted", { timeout: 45_000 });

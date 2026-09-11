@@ -42,6 +42,8 @@ names, which is how the old "Client work" confusion started.
 
 ## D-POS-11 — the customer display offers no tip until the engine has a tip line
 
+**Closed 2026-09-11 (wire-pos-money): D-POS-75.**
+
 Decided 2026-09-11 by the `cd-scan` build under the owner's standing authority.
 Design boards D02 and D03 offer 10% / 15% / 20% / custom / no tip on the
 customer display. The order engine has no tip or gratuity concept anywhere:
@@ -181,6 +183,8 @@ code covers is the engine's decision at apply time).
 
 ## D-POS-23 — custom amounts and manager approval are drawn, not wired
 
+**Closed 2026-09-11 (wire-pos-money): D-POS-70, D-POS-74.**
+
 Decided 2026-09-11 by the `fid-counter` build. `addLine` takes an offering
 id, so a free-text amount cannot become a line; there is no manager PIN
 table. `POSCustomAmount` opens from the last tile and `Continue · ask a
@@ -206,12 +210,16 @@ disabled with the sentence.
 
 ## D-POS-26 — linking a counter sale to a booking is not wired
 
+**Closed 2026-09-11 (wire-pos-money): `POSLinkBooking` is `posBookingCandidates` + `posLinkBooking`; B03 reads the linked sale's lines.**
+
 Decided 2026-09-11 by the `fid-counter` build. There is no reader for a
 customer's open bookings on the counter path and no command that attaches a
 sale to one. `POSLinkBooking` opens with the board's frame, one sentence, and
 `Keep separate` as the only live action; both forest actions are disabled.
 
 ## D-POS-27 — bank transfer and two-method collection are drawn disabled on the collect screen
+
+**Link half closed 2026-09-11 (wire-pos-money): D-POS-71. Bank transfer and two methods stand.**
 
 Decided 2026-09-11 by the `fid-counter` build. `startCollection` takes
 `cash | online_card`; there is no transfer record and no split allocation at
@@ -227,6 +235,8 @@ to this device." The money is recorded before the dialog opens; the change is
 given by hand.
 
 ## D-POS-29 — the Cash screen records the float and the close count only; movements, hand-over and a close note are not stored
+
+**Closed 2026-09-11 (wire-pos-money): D-POS-73.**
 
 Decided 2026-09-11 by the `fid-counter` build. `pos_shifts` has an opening
 float, a closing count, an expected figure and a variance (money.md §3: no
@@ -274,6 +284,8 @@ is an offering id or a link code), so they are disabled with a sentence and
 wedge scan does.
 
 ## D-POS-34 — the Lock and Favorites controls are drawn disabled until their data exists
+
+**Lock half closed 2026-09-11 (wire-pos-money): D-POS-70. Favorites stands.**
 
 Decided 2026-09-11 by the `fid-counter` build. There is no register PIN, so
 `Lock` on the rail is disabled with "Register PINs are not set up yet" and
@@ -412,6 +424,8 @@ shows the CRM pair's tags and notes when present, else that none are on
 file. `New ▾` opens the calendar, where a booking is made.
 
 ## D-POS-42 — the Collect mode's rail draws Links and Issues over one sentence each
+
+**Links half closed 2026-09-11 (wire-pos-money): D-POS-71. Issues stands (D-POS-31).**
 
 Decided 2026-09-11 (fid-projects). The boards' rail is `Collect · Projects
 · Links · Receipts · Issues`. `POS_MODE_META.projects.destinations` now
@@ -800,3 +814,110 @@ Decided 2026-09-11 (engine-pos-money). `waitlist_offers` holds a seat for a
 `session_waitlist_entries` row via `reserve_resource_set_v2`. It has no party
 or venue columns. Restaurant T08 party waitlist stays blocked until that
 table exists.
+
+## D-POS-69 — a seated party does not take a second table; joins stay a seating-time decision
+
+Decided 2026-09-11 (wire-pos-money). The engine's `visit_transfer` moves a
+visit from one space to another and refuses an occupied destination; it
+cannot set `joined_space_id`, and no RPC does. T15's "Join tables for this
+party" on an already seated table therefore stays disabled over its sentence
+(`dashboard.pos.floor.board.change.joinReason`); a join is offered on the seat
+sheet (T05, the proven `joinedSpaceId`). Merge (T16), change server (T17),
+split (T18) and the move (T13, now `visit_transfer` with the version the
+floor read) are live from the same chooser. The origin table's "Needs reset"
+mark after a transfer is written by the tables action wrapper
+(`visitTransfer` in `admin/tables/actions.ts`), the same rule
+`moveVisitToSpace` kept.
+
+## D-POS-70 — the person on the lock screen and the approver on the PIN dialog are named by the screen; the PIN is the proof
+
+Decided 2026-09-11 (wire-pos-money). `pos_unlock_till`, `pos_switch_operator`
+and `pos_approve_custom_amount` verify the PIN against the hash of the user
+they are given and (for approval) check that user is a manager. The action
+wrappers (`posUnlockTill`, `posSwitchOperator`, `posApproveCustomAmount`)
+gain an optional `userId` / `approverUserId` that defaults to the signed-in
+account, so a cashier's till can be unlocked by whoever is on the register
+and a custom amount approved by whichever manager types their PIN. Nothing
+is granted without the PIN. The lock screen lists only people who hold a PIN
+and points at People when nobody does; the approval dialog lists only
+managers who hold one. A PIN is 4 to 6 digits, so the pad submits on the
+sixth digit or on `Unlock` from the fourth.
+
+## D-POS-71 — a payment link is minted whether or not a card provider is set up, and the panel says which page it opens
+
+Decided 2026-09-11 (wire-pos-money). `createPaymentLink` reserves the amount
+on the sale and mints `/pay/<code>`; with Stripe keys the page is Checkout,
+without them it is the engine's test page that marks the link paid when
+opened. The collect screen's `Payment link` tab (counter, projects), the
+client record's `Send payment link` (W44 → MW08) and the appointment's
+`Send payment link` (B01) all use one panel (`PaymentLinkPanel`) that shows
+the URL, copies it, hands it to WhatsApp, and names the provider in a
+sentence. The counter's earlier hosted-Checkout button on that tab is
+replaced; a sale's links are listed on the tab, the workspace's on the
+Projects mode's Links destination (`POSPaymentLink`, `listWorkspacePaymentLinks`).
+D-POS-27's link half and D-POS-42 are closed; bank transfer and two methods
+stay as D-POS-27 says.
+
+## D-POS-72 — M26 "Collect another way" stays not wired
+
+Decided 2026-09-11 (wire-pos-money). No RPC records an authorised alternate
+collection on an unresolved card attempt (both records, the provider-only
+refund, the Issues fallback that the board and D-POS-7 describe). The
+manager-PIN verification the engine gained is bound to a custom line
+(`pos_approve_custom_amount`), not to a collection. Drawing the sheet over a
+PIN pad that approves nothing would be a control that silently does nothing,
+so it is not drawn.
+
+## D-POS-73 — the hand-over is recorded with the close; movements are their own rows
+
+Decided 2026-09-11 (wire-pos-money). `pos_shift_movements` holds paid in,
+paid out, drops and float adds (`posRecordShiftMovement`); the Cash screen's
+tiles and list are those rows and the close card lists their sums beside the
+float while the count stays blind. The board's "Hand the drawer to someone"
+has no writer of its own: `closeShift` gains `handedOverTo` and `closeNote`,
+so the card's choice is carried into the close and recorded there, and the
+card says so. `Open drawer (no sale)` stays disabled: no drawer device
+(D-POS-28). D-POS-29 is closed.
+
+## D-POS-74 — register PINs live on People › Access; the custom-amount limit on Settings › Roles & limits
+
+Decided 2026-09-11 (wire-pos-money). `posSetStaffPin` is the Access hat's
+`Register PIN` block (W29), and the Access table's PIN column reads Set /
+None from `agencies.settings.people.pins` (only the hash is ever stored or
+read). `posSetCustomAmountLimit` is the `Custom amounts at the counter`
+block under Roles & limits (W22); at 0 every custom amount needs a manager.
+D-POS-23 and D-POS-34 are closed.
+
+## D-POS-75 — the display's tip reaches the counter on the same device through storage, not polling
+
+Decided 2026-09-11 (wire-pos-money). The customer display writes
+`orders.tip_cents` through `posSetTip` (D02 / D03; D-POS-11 closed) and the
+counter carries the sale's version into its next command. So that a tip
+taken on the display does not meet `conflict` at the till, the display writes
+a `tulala.pos.saleChanged.<tenant>` beacon beside the existing display
+beacon and the counter's beacon component re-reads on the `storage` event.
+A display on another device is not covered; the counter's reload on the
+conflict banner is the fallback. Tips are never a line: the basket's `Tip`
+row and the display's row both read the order's column.
+
+## D-POS-76 — the Front desk queue offers a place with the engine's hold
+
+Decided 2026-09-11 (wire-pos-money). `Offer the place` on the Front desk
+(B06 and the Waitlist screen) is `waitlistOfferPlace`: a `waitlist_offers` row
+with a live capacity allocation for the offer window
+(`DEFAULT_WAITLIST_OFFER_MINUTES`), so a walk-in cannot take the seat under
+an offer. `They took it` is `waitlistAcceptOffer` (commits the hold);
+`Decline` is `waitlistDeclineOffer` (releases it). The day reader carries the
+live offer id per entry. Restaurant T08 (a party waitlist with a table hold)
+stays as D-POS-68 says.
+
+## D-POS-77 — a check is split by items; a visit's checks are listed on its card
+
+Decided 2026-09-11 (wire-pos-money). T18's `By items` is the engine's
+`visit_split_check`: the ticked lines of check A move to a new draft order on
+the same visit (D-POS-67). `By seat`, `Evenly` and `Amounts` are not
+modelled and are not drawn as live tabs; the sheet says so. The floor read
+now lists every open check of a visit (`checks`, `orderIds`) and sums them;
+the card shows `N checks · total` and a door per check, each collected on
+the counter on its own. The merge (T16) moves the other table's lines onto
+this check and cancels its order; the other party stays seated with no check.

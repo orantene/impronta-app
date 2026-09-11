@@ -183,7 +183,7 @@ export function BookableTable({ people, selectedKey, onOpen }: TableProps) {
   );
 }
 
-export function AccessTable({ people, selectedKey, onOpen }: TableProps) {
+export function AccessTable({ people, selectedKey, onOpen, registerPinUserIds = [] }: TableProps & { registerPinUserIds?: readonly string[] }) {
   const t = useT();
   return (
     <div className="flex flex-col gap-[16px]">
@@ -213,8 +213,12 @@ export function AccessTable({ people, selectedKey, onOpen }: TableProps) {
                 <td className={TD}>
                   <OtherHats person={p} except={["access"]} />
                 </td>
-                <td className={TD}>
-                  <NotTracked why={t(`${B}.cell.pinWhy`)} />
+                <td className={TD} data-people-pin={p.accountId && registerPinUserIds.includes(p.accountId) ? "set" : "none"}>
+                  {p.accountId && registerPinUserIds.includes(p.accountId) ? (
+                    <StatePill tone="green">{t(`${B}.cell.pinSet`)}</StatePill>
+                  ) : (
+                    <span className="text-admin-ink-dim">{t(`${B}.cell.pinNone`)}</span>
+                  )}
                 </td>
                 <td className={TD}>
                   <NotTracked why={t(`${B}.cell.drawerWhy`)} />

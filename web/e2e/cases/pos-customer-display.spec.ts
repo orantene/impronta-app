@@ -16,8 +16,9 @@
  *
  * NOTHING IS INJECTED. The display is driven by what the counter does in the
  * other tab and by taps on the display itself; every assertion about money
- * is against the order and money rows the run wrote. Tips are asserted as
- * NOT offered (a sentence), because the engine has no tip line (D-POS-11).
+ * is against the order and money rows the run wrote. The tip the customer
+ * taps on D02 is asserted as `orders.tip_cents` and never as a line
+ * (Package 1 closes D-POS-11).
  *
  * NOT PROVEN HERE: the declined screen (D06) needs a card attempt that
  * fails, and this environment has no card reader and no Stripe keys; the
@@ -42,6 +43,8 @@ import { isolatedService, JOURNEYS_TENANT_ID } from "./_isolated-db";
 skipUnlessFixture();
 
 const PIZZA = { title: "House pizza", cents: 1800 } as const;
+/** 10% of the pizza, the tile the customer taps on D02. */
+const TIP = { cents: 180 } as const;
 
 function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -84,32 +87,44 @@ test("POS-CD customer display: idle, review, confirm, paid, receipt sent, cleare
   const orderId = new URL(page.url()).searchParams.get("order");
   expect(orderId, "the counter must carry its order id").toBeTruthy();
 
-  // D02 — the display follows: the line, the figure to pay, tips not offered.
+  // D02 — the display follows: the line, the figure to pay, and the tip
+  // chooser (10 / 15 / 20 percent of the services, Other, No tip).
   await expect(screen(display, "review"), "the display must pick up the sale within a few polls").toBeVisible({
     timeout: 30_000,
   });
   await expect(display.locator("[data-pos-display-lines]")).toContainText(PIZZA.title);
   await expect(display.locator("[data-pos-display-to-pay]")).toHaveText(money(PIZZA.cents));
-  await expect(display.locator("[data-pos-display-tip]")).toContainText(/tips cannot be added/i);
-  await expect(display.getByText(/10%|15%|20%/)).toHaveCount(0);
+  await expect(display.locator('[data-pos-display-tip="choose"]')).toBeVisible();
+  await expect(display.locator('[data-pos-display-tip-percent="10"]')).toContainText(money(TIP.cents));
   await display.screenshot({ path: testInfo.outputPath("cd-02-review.png"), fullPage: true });
+
+  // The customer picks 10%: the tip is the ORDER'S OWN column (`tip_cents`,
+  // `posSetTip`), never a line, and the figure to pay moves by exactly it.
+  await display.locator('[data-pos-display-tip-percent="10"]').click();
+  await expect(display.locator('[data-pos-display-tip="added"]')).toBeVisible({ timeout: 30_000 });
+  await expect(display.locator("[data-pos-display-tip-row]")).toContainText(money(TIP.cents));
+  await expect(display.locator("[data-pos-display-to-pay]")).toHaveText(money(PIZZA.cents + TIP.cents));
+  await display.screenshot({ path: testInfo.outputPath("cd-02-tip-added.png"), fullPage: true });
 
   // The figure is the order row's own, not something the screen summed.
   const admin = isolatedService();
   const draft = await admin
     .from("orders")
-    .select("total_cents, status, tenant_id")
+    .select("total_cents, tip_cents, status, tenant_id")
     .eq("id", orderId!)
     .maybeSingle();
   expect(draft.error).toBeNull();
   expect(draft.data?.tenant_id).toBe(JOURNEYS_TENANT_ID);
-  expect(Number(draft.data?.total_cents)).toBe(PIZZA.cents);
+  expect(Number(draft.data?.tip_cents), "the tip is orders.tip_cents").toBe(TIP.cents);
+  expect(Number(draft.data?.total_cents), "total = subtotal - discount + tax + tip").toBe(PIZZA.cents + TIP.cents);
   expect(draft.data?.status).toBe("draft");
+  const lineCount = await admin.from("order_lines").select("id", { count: "exact", head: true }).eq("order_id", orderId!);
+  expect(lineCount.count, "a tip is never a line").toBe(1);
 
   // D04 — the customer says it looks right, sees the one figure, and can go back.
   await display.getByRole("button", { name: /looks right/i }).click();
   await expect(screen(display, "confirm")).toBeVisible();
-  await expect(screen(display, "confirm")).toContainText(money(PIZZA.cents));
+  await expect(screen(display, "confirm")).toContainText(money(PIZZA.cents + TIP.cents));
   await display.screenshot({ path: testInfo.outputPath("cd-04-confirm.png"), fullPage: true });
   await display.getByRole("button", { name: /^back$/i }).click();
   await expect(screen(display, "review")).toBeVisible();
@@ -118,7 +133,7 @@ test("POS-CD customer display: idle, review, confirm, paid, receipt sent, cleare
   await counterCollectCash(page);
   await expectCounterPaid(page);
   await expect(screen(display, "paid"), "a paid order must reach the display").toBeVisible({ timeout: 30_000 });
-  await expect(display.locator("[data-pos-display-paid]")).toContainText(money(PIZZA.cents));
+  await expect(display.locator("[data-pos-display-paid]")).toContainText(money(PIZZA.cents + TIP.cents));
   await expect(display.locator("[data-pos-display-paid]")).toContainText(/cash/i);
   // Text receipts are not offered, and the screen says so rather than hiding it.
   await expect(display.locator("[data-pos-display-text-not-offered]")).toBeVisible();

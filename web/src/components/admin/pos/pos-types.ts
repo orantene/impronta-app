@@ -96,12 +96,19 @@ export type PosBasketLine = {
   readonly sessionId?: string | null;
   /** `Held until 10:13` — the hold's expiry as a wall-clock string, when known. */
   readonly heldUntil?: string | null;
+  /** `catalog` (priced from an offering) or `custom` (a typed amount, `POSCustomAmount`). */
+  readonly kind?: "catalog" | "custom";
+  /** A custom amount over the workspace's limit, waiting for a manager's PIN (`POSManagerApproval`). */
+  readonly needsApproval?: boolean;
+  /** The booking this line pays for, when the sale was linked (`POSLinkBooking`): its title. */
+  readonly bookingLabel?: string | null;
 };
 
 export type PosBasketTotals = {
   readonly subtotalCents: number;
   readonly discountCents: number;
   readonly taxCents: number;
+  readonly tipCents: number;
   readonly totalCents: number;
 };
 
@@ -195,10 +202,29 @@ export type PosHeldSale = {
 
 // ── Shift ─────────────────────────────────────────────────────────────
 
+export type PosShiftMovement = {
+  readonly id: string;
+  readonly kind: "paid_in" | "paid_out" | "drop" | "float_add";
+  readonly amountCents: number;
+  readonly reason: string;
+  readonly createdAt: string;
+};
+
 export type PosShiftSummary = {
   readonly id: string;
   readonly openingCashCents: number;
   readonly countedCashCents?: number | null;
   readonly expectedCashCents?: number | null;
   readonly openedAt: string;
+  /** Paid in / out, drops and float adds recorded on this shift (`POSCashMovements`). */
+  readonly movements?: readonly PosShiftMovement[];
+};
+
+/** One person the till can name: the lock screen, the approver row, the hand-over. */
+export type PosPerson = {
+  readonly userId: string;
+  readonly name: string;
+  readonly role: string;
+  readonly manager: boolean;
+  readonly hasPin: boolean;
 };

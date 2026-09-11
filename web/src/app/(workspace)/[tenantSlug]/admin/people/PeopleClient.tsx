@@ -49,6 +49,7 @@ export function PeopleClient({
   people,
   loadFailed,
   workspaceAllowsDirectBooking,
+  registerPinUserIds,
   initialView,
   workspaceType,
 }: {
@@ -56,6 +57,8 @@ export function PeopleClient({
   loadFailed: boolean;
   /** See `PeopleSurface.workspaceAllowsDirectBooking`. */
   workspaceAllowsDirectBooking: boolean;
+  /** The accounts holding a register PIN, for the Access hat's PIN block. */
+  registerPinUserIds: readonly string[];
   initialView: PeopleView;
   workspaceType: WorkspaceType;
 }) {
@@ -152,7 +155,7 @@ export function PeopleClient({
           {tab === "everyone" ? <EveryoneTable people={listed} selectedKey={selectedKey} onOpen={open} /> : null}
           {tab === "talent" ? <PeopleTalentView talent={listed} selectedKey={selectedKey} onOpen={open} /> : null}
           {tab === "bookable" ? <BookableTable people={listed} selectedKey={selectedKey} onOpen={open} /> : null}
-          {tab === "access" ? <AccessTable people={listed} selectedKey={selectedKey} onOpen={open} /> : null}
+          {tab === "access" ? <AccessTable people={listed} selectedKey={selectedKey} onOpen={open} registerPinUserIds={registerPinUserIds} /> : null}
         </>
       ) : view === "add" ? (
         <PeopleAddPerson
@@ -175,6 +178,7 @@ export function PeopleClient({
           key={selected.key}
           person={selected}
           workspaceAllowsDirectBooking={workspaceAllowsDirectBooking}
+          registerPinUserIds={registerPinUserIds}
           onClose={() => setSelectedKey(null)}
         />
       ) : null}
