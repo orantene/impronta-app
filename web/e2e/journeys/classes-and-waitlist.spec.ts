@@ -173,8 +173,9 @@ test("an operator creates a class night through the interface, and it is on the 
   // a series and a one-off night belongs to none.
   const row = scheduleRow(page);
   await expect(row).toHaveCount(1, { timeout: 30_000 });
-  await expect(row).toContainText("2 of 2 left");
-  await expect(row).toContainText("On sale");
+  // The board's seats cell: booked / places. Nothing sold yet, two places.
+  await expect(row).toContainText("0 / 2");
+  await expect(row).toContainText("Scheduled");
   await page.screenshot({ path: testInfo.outputPath("night-scheduled.png"), fullPage: true });
 
   const { data: session, error: sessionErr } = await db
@@ -242,7 +243,9 @@ test("two guests fill the night on the public page, and the schedule says so", a
   await signInJourneysStaff(page, `${ADMIN_PREFIX}/admin/appts?view=sessions`);
   const row = scheduleRow(page);
   await expect(row).toHaveCount(1, { timeout: 30_000 });
-  await expect(row).toContainText("0 of 2 left");
+  // Both places sold: booked equals places, and the row says Full.
+  await expect(row).toContainText("2 / 2");
+  await expect(row).toContainText("Full");
   await expect(row.getByTestId("session-open-waitlist")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("schedule-full.png"), fullPage: true });
 });

@@ -45,7 +45,7 @@ function codeOnly(src: string): string {
 }
 
 test("the reschedule sends the window the operator was looking at", () => {
-  const src = codeOnly(read("AppointmentsList.tsx"));
+  const src = codeOnly(read("AppointmentPanel.tsx"));
   assert.match(
     src,
     /expectedStartsAt:\s*row\.startsAt/,
@@ -63,7 +63,7 @@ test("the new start is read in the venue's zone, never the browser's", () => {
   // BROWSER's zone. An operator in Madrid moving a Tulum booking would store a
   // time three hours from where anybody expects it, with nothing on screen to
   // show for it.
-  const src = codeOnly(read("AppointmentsList.tsx"));
+  const src = codeOnly(read("AppointmentPanel.tsx"));
   assert.match(src, /parseLocalDateTime\(/, "the local value is not decomposed before conversion");
   assert.match(
     src,
@@ -94,7 +94,7 @@ test("nothing on this surface decides 'today' in the browser", () => {
   // The buckets are stamped on the server and travel with the row. A client
   // that recomputed them would render one answer on the server and another on
   // hydration, and every server-side check would still pass.
-  for (const file of ["AppointmentsList.tsx", "AppointmentsPage.tsx"]) {
+  for (const file of ["AppointmentsList.tsx", "AppointmentsPage.tsx", "AppointmentPanel.tsx", "SessionsTable.tsx"]) {
     const src = codeOnly(read(file));
     assert.ok(
       !/new Date\(\)/.test(src),
@@ -195,35 +195,30 @@ test("the Sessions view offers the door to the queue on a class that is full", (
   // Where an operator FINDS OUT a class is full is where the way onto its
   // waitlist belongs. Without it the waitlist was a tab you had to already
   // know about.
-  const src = codeOnly(read("SessionsPage.tsx"));
+  const table = codeOnly(read("SessionsTable.tsx"));
   assert.match(
-    src,
-    /onOpenWaitlist\(occurrence\.id\)/,
-    "a full occurrence offers no way onto its queue",
+    table,
+    /onOpenWaitlist\(row\.id\)/,
+    "a full session row offers no way onto its queue",
   );
+  const model = codeOnly(read("appointments-classes-model.ts"));
   assert.match(
-    src,
-    /seatsRemaining !== null/,
+    model,
+    /seatsRemaining !== null && occurrence\.seatsRemaining <= 0/,
     "the full check treats an unread seat count as full",
   );
   // ONE row renderer, so the door cannot exist on one kind of night and not
   // the other. It was written twice once, and the half without it was the
   // standalone night — the exact class whose queue could then never be
   // started. A second copy of the button is a second place for that to recur.
-  const doors = src.match(/data-testid="session-open-waitlist"/g) ?? [];
+  const doors = table.match(/data-testid="session-open-waitlist"/g) ?? [];
   assert.equal(doors.length, 1, "the waitlist door is drawn in more than one place");
-  for (const list of [/s\.occurrences\.map/, /nights\.map/]) {
-    assert.match(src, list, `a list of occurrences is missing: ${list}`);
+  // Series nights and one-off nights become rows through the SAME builder.
+  for (const list of [/for \(const s of input\.series\)/, /for \(const n of input\.nights\)/]) {
+    assert.match(model, list, `a list of occurrences is missing: ${list}`);
   }
-  const rows = src.match(/<OccurrenceRow[\s\S]*?\/>/g) ?? [];
-  assert.equal(rows.length, 2, "series nights and one-off nights are not both drawn as rows");
-  for (const row of rows) {
-    assert.match(
-      row,
-      /onOpenWaitlist=\{onOpenWaitlist\}/,
-      "an occurrence row is drawn without the door to its queue",
-    );
-  }
+  const pushes = model.match(/\bpush\((o|n), \{/g) ?? [];
+  assert.equal(pushes.length, 2, "series nights and one-off nights are not both drawn as rows");
 });
 
 test("a night that belongs to no series is still on the schedule", () => {
@@ -244,12 +239,16 @@ test("a night that belongs to no series is still on the schedule", () => {
     "nothing selects the sessions that no series claims",
   );
 
-  const page = codeOnly(read("SessionsPage.tsx"));
+  // The table's empty state is decided from the rows, and the rows include
+  // the one-off nights, so a schedule of nights alone is never "empty".
+  const table = codeOnly(read("SessionsTable.tsx"));
   assert.match(
-    page,
-    /series\.length === 0 && nights\.length === 0/,
-    "the empty state can still cover a schedule that has one-off nights in it",
+    table,
+    /rows\.length === 0 \? t\("dashboard\.adminSessions\.empty\.body"\)/,
+    "the empty state is not decided from the rows the nights are part of",
   );
+  const model = codeOnly(read("appointments-classes-model.ts"));
+  assert.match(model, /for \(const n of input\.nights\)/, "the one-off nights are not turned into rows");
 });
 
 test("the empty state does not promise a door that is somewhere else", () => {
@@ -314,7 +313,7 @@ test("every booking state has an operator sentence in all three languages", () =
 /* ── D-107: a move that worked says so, and says WHICH answer it was ───────── */
 
 test("a successful reschedule renders its confirmation instead of closing silently", () => {
-  const src = codeOnly(read("AppointmentsList.tsx"));
+  const src = codeOnly(read("AppointmentPanel.tsx"));
   assert.match(
     src,
     /t\(`\$\{K\}\.reschedule\.already`\)/,

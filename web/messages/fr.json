@@ -1812,7 +1812,7 @@
           "roster": "Liste",
           "rosterEmpty": "Personne n'a encore de place dans cette séance.",
           "unnamed": "Ce billet n'a pas de nom",
-          "mark": "Marquer présent",
+          "mark": "Enregistrer",
           "marking": "Enregistrement...",
           "here": "Présent",
           "partOfParty": "{admitted} sur {party} entrés",
@@ -1877,6 +1877,136 @@
           "needsContact": "Cette prestation nécessite l'e-mail ou le téléphone du client.",
           "notForSale": "Cette prestation n'est pas en vente pour le moment.",
           "couldNotBook": "Impossible de réserver. Rien n'a été retenu."
+        },
+        "board": {
+          "header": {
+            "summary": "{date} · {appointments} rendez-vous · {classes} cours",
+            "location": "Lieu",
+            "operator": "Connecte"
+          },
+          "list": {
+            "tabToday": "Aujourd'hui",
+            "tabDue": "A encaisser",
+            "tabDone": "Terminees",
+            "segAppts": "RDV",
+            "segClasses": "Cours",
+            "emptyDue": "Rien a encaisser sur les rendez-vous du jour.",
+            "emptyDone": "Rien n'est encore termine aujourd'hui.",
+            "walkIn": "Sans rendez-vous",
+            "book": "Reserver",
+            "pickOne": "Choisissez un rendez-vous a gauche pour le voir ici.",
+            "pickSession": "Choisissez un cours a gauche pour ouvrir son enregistrement.",
+            "classChip": "Cours",
+            "full": "Complet",
+            "here": "{here} presents"
+          },
+          "detail": {
+            "booked": "Reserve",
+            "addedToday": "Ajoute aujourd'hui",
+            "linesLoading": "Lecture de la vente...",
+            "linesUnreadable": "Impossible de lire cette vente pour le moment. Rechargez et reessayez.",
+            "noLines": "Aucune vente n'est encore rattachee a ce rendez-vous.",
+            "addService": "Ajouter un service",
+            "product": "Produit",
+            "usePass": "Utiliser un pass",
+            "usePassOff": "Les pass et abonnements ne sont pas encore modelises, il n'y a donc rien a utiliser ici.",
+            "services": "Services",
+            "retail": "Produits",
+            "depositPaid": "Deja paye",
+            "balanceDue": "Reste a payer",
+            "whoDidWhat": "Qui a fait quoi",
+            "whoDidWhatOff": "Une ligne de vente n'est pas encore attribuee a une personne, les gains par personne ne peuvent donc pas s'afficher ici.",
+            "sendLink": "Envoyer un lien de paiement",
+            "sendLinkOff": "Les liens de paiement s'envoient depuis le mode Caisse ; l'accueil n'encaisse qu'en especes pour l'instant.",
+            "rebook": "Reprendre rendez-vous",
+            "rebookOff": "Reprendre rendez-vous depuis un rendez-vous termine n'est pas encore cable ; utilisez Reserver avec le meme service.",
+            "serviceDone": "Service termine",
+            "checkedIn": "Enregistre",
+            "paidChip": "Payee",
+            "addOff": "Ce rendez-vous n'a pas de vente a completer.",
+            "lineDone": "Fait",
+            "lineAdded": "Ajoute",
+            "lineProduct": "Produit"
+          },
+          "extra": {
+            "title": "Ajouter au rendez-vous de {name}",
+            "subtitle": "Le prix est verifie avant tout ajout",
+            "search": "Rechercher services, extras, produits",
+            "noMatch": "Rien dans le catalogue ne correspond.",
+            "minutes": "+{n} min",
+            "noTime": "Aucun temps necessaire",
+            "timeNotReplanned": "L'heure de fin du rendez-vous n'est pas replanifiee quand un service avec duree est ajoute ; verifiez le client suivant a la main.",
+            "newBalance": "Nouveau solde",
+            "who": "Qui",
+            "add": "Ajouter {item} · +{amount}",
+            "adding": "Ajout...",
+            "added": "{item} ajoute a la vente.",
+            "cancel": "Annuler"
+          },
+          "checkin": {
+            "startsIn": "commence dans {minutes} min",
+            "startedAgo": "a commence il y a {minutes} min",
+            "fullChip": "Complet · {booked} sur {total} reservees",
+            "bookedChip": "{booked} sur {total} reservees",
+            "hereChip": "{here} presents · {notYet} pas encore",
+            "waitlistChip": "{count} sur liste d'attente",
+            "search": "Chercher un nom",
+            "tabAll": "Tous {count}",
+            "tabNotHere": "Absents {count}",
+            "tabProblems": "Problemes {count}",
+            "hereState": "Present",
+            "bookedState": "Reserve",
+            "cantAttend": "Ne peut pas encore entrer",
+            "check": "Enregistrer",
+            "undo": "Annuler",
+            "undoOff": "Annuler un enregistrement n'est pas encore cable ; le billet reste admis.",
+            "fix": "Corriger",
+            "fixOff": "Un billet non valide se corrige par un remboursement et une nouvelle vente ; rien ici ne peut le reparer sur place.",
+            "places": "Places",
+            "here": "Presents",
+            "waitlist": "Liste d'attente",
+            "positions": "Positions",
+            "positionsOff": "non suivies",
+            "scanPass": "Scanner un pass",
+            "scanPassOff": "Les pass ne sont pas encore modelises ; un billet s'enregistre par son nom.",
+            "sellDropIn": "Vendre a la seance",
+            "sellDropInFull": "Vendre a la seance · cours complet",
+            "sellDropInOff": "Cette seance n'a pas d'offre sous laquelle vendre une place.",
+            "addToWaitlist": "Ajouter a la liste d'attente",
+            "substitute": "Remplacer l'intervenant",
+            "substituteOff": "Aucun intervenant n'est encore enregistre sur une seance, il n'y a donc personne a remplacer.",
+            "closeCheckin": "Fermer l'enregistrement · marquer {count} absences",
+            "closeCheckinOff": "Les absences ne sont pas encore un etat enregistre par le moteur ; un billet jamais enregistre reste simplement non admis.",
+            "nobody": "Personne n'a encore de place sur cette seance.",
+            "notValidNotice": "Le billet de {name} est {status}. Remboursez-le ou vendez-en un nouveau avant de laisser entrer."
+          },
+          "opened": {
+            "title": "Une place s'est liberee",
+            "subtitle": "{free} libre(s) · {waiting} en attente",
+            "offerTo": "La proposer a {name} (liste n°{n})",
+            "offerHint": "Il ou elle a {minutes} min pour accepter",
+            "sellDropIn": "La vendre a la seance a l'accueil",
+            "sellHint": "Passe devant la liste d'attente",
+            "leaveEmpty": "La laisser vide",
+            "later": "Plus tard",
+            "offerButton": "Proposer a {name}"
+          },
+          "sheet": {
+            "title": "Sans rendez-vous · reserver maintenant",
+            "subtitle": "Qui est disponible maintenant pour ce service",
+            "bookTitle": "Nouvelle reservation",
+            "bookSubtitle": "Le service, puis un creneau libre, puis pour qui",
+            "customer": "Client",
+            "customerHint": "Ajoutez un e-mail ou un telephone pour un recu",
+            "nextFree": "Prochain creneau",
+            "pay": "Paiement",
+            "payAtEnd": "A la fin · {amount} en especes",
+            "payNothing": "Rien a encaisser",
+            "payHint": "Ou encaissez maintenant, juste apres la reservation",
+            "bookNow": "Reserver {name} · {time}",
+            "close": "Fermer",
+            "withPerson": "{name} · {minutes} min · {amount}"
+          }
         }
       },
       "door": {
@@ -2064,14 +2194,14 @@
       }
     },
     "adminAppointments": {
-      "title": "Rendez-vous",
-      "subtitle": "Aujourd'hui et la suite, les cours qui les portent, et qui attend une place.",
+      "title": "Rendez-vous et cours",
       "noTenant": "Aucun espace de travail selectionne.",
       "loading": "Chargement des rendez-vous...",
       "tabs": {
         "list": "Rendez-vous",
-        "sessions": "Seances et series",
-        "waitlist": "Liste d'attente"
+        "sessions": "Seances",
+        "waitlist": "Liste d'attente",
+        "series": "Series"
       },
       "bucket": {
         "undated": "Pas encore de date",
@@ -2085,7 +2215,7 @@
         "servedBy": "Assure par",
         "place": "Salle ou ressource",
         "state": "Etat",
-        "action": "Suite"
+        "service": "Service"
       },
       "unknownCustomer": "Aucun contact sur cette reservation",
       "unassigned": "Personne d'assigne pour l'instant",
@@ -2097,9 +2227,7 @@
       },
       "action": {
         "reschedule": "Le deplacer",
-        "open": "Ouvrir la reservation",
-        "cancelled": "Annule. Rien a faire ici.",
-        "completed": "Termine. Rien a faire ici."
+        "open": "Ouvrir la reservation"
       },
       "reschedule": {
         "heading": "Deplacer cette reservation",
@@ -2222,6 +2350,168 @@
         "cancelled": "Annulee",
         "archived": "Archivee",
         "unknown": "Etat non reconnu"
+      },
+      "board": {
+        "subtitle": {
+          "list": "Aujourd'hui et ce qui vient, avec la personne qui assure et la salle",
+          "sessions": "Seances datees de chaque serie et chaque soiree isolee, a l'heure du lieu",
+          "series": "Une serie est un cours avec une cadence ; le balayage nocturne cree les seances datees que la caisse vend et enregistre",
+          "waitlist": "Qui attend une place dans un cours complet, dans l'ordre d'inscription"
+        },
+        "generate": "Generer les seances",
+        "generateOff": "Les seances sont generees par le balayage nocturne pour les 90 prochains jours ; rien ici ne peut encore le lancer a la main.",
+        "newSeries": "Nouvelle serie",
+        "newSeriesOff": "Une serie ne peut pas encore etre creee depuis l'espace de travail ; une soiree isolee, oui, sous les seances.",
+        "viewLabel": "Vue des seances",
+        "view": {
+          "week": "Semaine",
+          "day": "Jour",
+          "list": "Liste"
+        },
+        "earlier": "Precedent",
+        "later": "Suivant",
+        "filter": {
+          "location": "Lieu",
+          "room": "Salle",
+          "instructor": "Intervenant",
+          "attention": "A traiter",
+          "any": "tous",
+          "noRooms": "Aucune seance de cette periode n'indique encore de lieu.",
+          "roomOff": "Les salles ne sont pas encore enregistrees sur une seance ; une seance porte un lieu, que le filtre Lieu lit.",
+          "instructorOff": "Aucun intervenant n'est encore enregistre sur une seance, il n'y a donc rien a filtrer."
+        },
+        "col": {
+          "time": "Heure",
+          "session": "Seance",
+          "room": "Salle",
+          "instructor": "Intervenant",
+          "seats": "Reservees / places",
+          "state": "Etat"
+        },
+        "sessionOf": "{title} · seance {n} sur {of}",
+        "waitingOne": "{count} en attente",
+        "waitingOther": "{count} en attente",
+        "state": {
+          "scheduled": "Programmee",
+          "full": "Complete",
+          "cancelled": "Annulee",
+          "completed": "Terminee",
+          "needsSeats": "Sans places",
+          "unknown": "Etat inconnu"
+        },
+        "rowMenu": "Ouvrir cette seance",
+        "emptyWindow": "Rien dans cette periode. Deplacez les dates ou passez en Liste pour tout voir.",
+        "usedIn": "Utilise dans",
+        "usedPos": "Caisse",
+        "usedPosOn": "Mode Accueil (actif)",
+        "usedPosOff": "Mode Accueil (desactive dans les reglages)",
+        "usedWeb": "Web",
+        "usedWebWhat": "Bloc de choix de seance, pages publiques d'evenements",
+        "panel": {
+          "seriesLine": "Serie : {series} · seance {n} sur {of}",
+          "oneOff": "Soiree isolee, sans serie",
+          "places": "Places",
+          "booked": "reservees {count}",
+          "waiting": "en attente {count}",
+          "equipment": "Equipement",
+          "equipmentOff": "Non suivi sur cet espace de travail",
+          "enrolmentCloses": "Fin des inscriptions",
+          "enrolmentRule": "En ligne jusqu'au debut · les offres de liste d'attente sont tenues {minutes} min",
+          "cancellationRule": "Regle d'annulation",
+          "cancellationOff": "Aucune definie sur cet espace de travail",
+          "attendance": "Presence",
+          "attendanceRule": "L'enregistrement marque le billet comme admis",
+          "participants": "Participants",
+          "participantsLoading": "Lecture des billets...",
+          "participantsUnreadable": "Impossible de lire les participants pour le moment.",
+          "unnamedTicket": "Billet sans nom",
+          "ticketBooked": "Billet · reserve",
+          "ticketHere": "Billet · present",
+          "ticketParty": "Billet · groupe de {count}",
+          "ticketNotValid": "Billet · {status}",
+          "fromWaitlist": "De la liste d'attente · place tenue",
+          "nobodyYet": "Personne n'a encore de place.",
+          "more": "+{count} de plus",
+          "changeScope": "Portee du changement",
+          "scope": {
+            "this": "Cette seance",
+            "future": "Seances a venir",
+            "series": "Toute la serie"
+          },
+          "scopeOff": "Les changements sur toute une serie ne sont pas encore cables : le plan d'edition existe, mais rien ne l'applique.",
+          "substitute": "Remplacer l'intervenant",
+          "substituteOff": "Aucun intervenant n'est encore enregistre sur une seance, il n'y a donc personne a remplacer.",
+          "changeCapacity": "Changer les places",
+          "capacityOffState": "Cette seance n'est plus en vente, ses places ne peuvent donc pas changer.",
+          "capacityOffNoPool": "Aucune place n'a jamais ete definie pour cette seance ; programmez-la avec des places d'abord.",
+          "capacityOffTiers": "Cette soiree a des places par categorie ; changez-les sur la soiree de l'evenement.",
+          "capacityLabel": "Places sur cette seance",
+          "capacityHint": "Un nombre inferieur a ce qui est deja vendu est refuse par le moteur, et le refus indique le minimum.",
+          "capacityNeedNumber": "Les places doivent etre un nombre entier, 0 ou plus.",
+          "capacitySave": "Enregistrer les places",
+          "capacitySaving": "Enregistrement...",
+          "capacitySaved": "Places fixees a {count}.",
+          "capacityClose": "Fermer",
+          "capacityUnavailable": "Impossible de changer les places. Reessayez.",
+          "moveParticipant": "Deplacer un participant",
+          "moveOff": "Deplacer un billet vers une autre seance n'est pas encore cable ; remboursez-le et vendez-en un nouveau.",
+          "cancelSession": "Annuler la seance...",
+          "cancelOff": "Annuler une seance depuis ici n'est pas encore cable.",
+          "openPos": "Ouvrir l'enregistrement sur la caisse",
+          "openPosOff": "Activez le mode Accueil dans Reglages › Point de vente pour enregistrer les arrivees.",
+          "clock": "Heure du lieu",
+          "actions": "Actions",
+          "addService": "Ajouter un service",
+          "addServiceOff": "Ajouter un service a une reservation est le travail de l'Accueil et n'est pas encore construit ici.",
+          "cancelAppointment": "Annuler le rendez-vous...",
+          "cancelAppointmentOff": "Annuler depuis cette liste n'est pas encore cable ; ouvrez la reservation pour l'annuler."
+        },
+        "series": {
+          "col": {
+            "series": "Serie",
+            "cadence": "Cadence",
+            "room": "Salle",
+            "instructor": "Intervenant",
+            "capacity": "Places",
+            "generated": "Generee jusqu'au",
+            "state": "Etat"
+          },
+          "sessionsOne": "{count} seance",
+          "sessionsOther": "{count} seances",
+          "skipped": "{count} sautees",
+          "state": {
+            "published": "Publiee",
+            "paused": "En pause",
+            "needsAttention": "A traiter"
+          },
+          "showSessions": "Voir les seances de cette serie",
+          "holds": {
+            "title": "Ce que contient une serie",
+            "definition": "Definition",
+            "definitionValue": "Titre, lieu et places par seance",
+            "cadence": "Cadence",
+            "cadenceValue": "Jours, heure locale, duree, date de debut et de fin",
+            "capacity": "Places",
+            "capacityValue": "Places par seance, sous forme de reserve de capacite chaque soir",
+            "people": "Personnes",
+            "peopleValue": "Pas encore d'intervenant ; le lieu tient lieu de salle",
+            "windows": "Fenetres",
+            "windowsValue": "Vendue en ligne jusqu'au debut ; les offres de liste d'attente sont tenues 30 min",
+            "generate": "Generer",
+            "generateValue": "Balayage nocturne, 90 jours a l'avance ; les collisions sont refusees et affichees ici"
+          },
+          "kinds": {
+            "title": "Cours ou a la seance",
+            "course": "Cours (cohorte)",
+            "courseValue": "Un achat, une liste, des soirs fixes (pas encore modelise : chaque seance se vend seule)",
+            "dropIn": "Serie a la seance",
+            "dropInValue": "Chaque seance se vend seule ; une soiree isolee fonctionne pareil",
+            "three": "Trois seances ne font pas un cours",
+            "threeValue": "Trois billets sur trois soirs sont trois achats, jamais un seul"
+          }
+        },
+        "from": "a partir du",
+        "waitlistDoor": "Liste d'attente"
       }
     },
     "projects": {
@@ -2691,9 +2981,54 @@
     },
     "adminSessions": {
       "nights": {
-        "title": "Séances ponctuelles",
-        "help": "Des cours programmés pour une seule date, sans série récurrente. Chacune a ses propres places.",
         "untitled": "Séance sans titre"
+      },
+      "loading": "Chargement du programme...",
+      "minutes": "{n} min",
+      "noOccurrences": "Aucune seance dans les 90 prochains jours.",
+      "noPool": "aucune place definie",
+      "empty": {
+        "body": "Une serie est un cours, un spectacle ou un depart recurrent. Ses seances sont creees chaque nuit pour les 90 prochains jours, chacune avec ses places."
+      },
+      "weekday": {
+        "mon": "Lun",
+        "tue": "Mar",
+        "wed": "Mer",
+        "thu": "Jeu",
+        "fri": "Ven",
+        "sat": "Sam",
+        "sun": "Dim"
+      },
+      "refusals": {
+        "title": "Non creees, et pourquoi",
+        "help": "Le balayage nocturne les a refusees. Rien n'est casse, mais rien n'apparaitra tant que chacune n'est pas resolue.",
+        "anotherSession": "une autre seance",
+        "collision": "la seance du {when} n'a pas ete creee : un changement d'heure l'a placee au meme instant que {other} dans ce lieu. Deplacez l'une des deux.",
+        "reason": {
+          "timezone_unconfirmed": "aucun fuseau horaire n'a ete confirme pour cette serie, donc aucune seance n'est creee. Confirmez le fuseau du lieu.",
+          "timezone_unknown": "le fuseau horaire de cette serie n'est pas une zone IANA valide.",
+          "series_inactive": "cette serie est desactivee.",
+          "invalid_local_time": "l'heure de cette serie ne peut pas etre lue.",
+          "no_weekdays": "aucun jour n'est selectionne, cette serie ne peut donc jamais produire de seance.",
+          "invalid_duration": "la duree de cette serie n'est pas utilisable.",
+          "invalid_seats": "le nombre de places de cette serie n'est pas utilisable.",
+          "invalid_window": "la fenetre de programmation n'est pas utilisable."
+        }
+      },
+      "schedule": {
+        "heading": "Programmer une soiree",
+        "event": "Evenement",
+        "noEvent": "Sans evenement (cours independant)",
+        "starts": "Debut",
+        "ends": "Fin",
+        "seats": "Places pour cette soiree",
+        "seatsHint": "Les places appartiennent a la soiree, pas a la categorie. La meme categorie peut faire 6 tables ce soir et 4 demain.",
+        "noTiers": "Cet evenement n'a pas encore de categories de billets. Ajoutez-en avant de programmer une soiree.",
+        "defaultTier": "General",
+        "submit": "Programmer cette soiree",
+        "submitting": "Programmation...",
+        "created": "Programmee, avec des places pour {count} categories.",
+        "loadFailed": "Impossible de charger les evenements."
       }
     },
     "orders": {

@@ -61,6 +61,7 @@ import {
   placeNamesByOrder,
   servingNamesByInquiry,
 } from "@/lib/scheduling/appointments-lookups";
+import { utcToZonedYmd } from "@/lib/scheduling/tz";
 import {
   acceptWaitlistOffer,
   cancelWaitlistSeat,
@@ -86,7 +87,17 @@ const LOOKBACK_DAYS = 7;
 const GENERIC_LOAD_ERROR = "Could not load the appointments.";
 
 export type AppointmentsResult =
-  | { ok: true; rows: AppointmentRow[]; timeZone: string }
+  | {
+      ok: true;
+      rows: AppointmentRow[];
+      timeZone: string;
+      /**
+       * The workspace's today, YYYY-MM-DD in `timeZone`, decided HERE with the
+       * same clock the buckets were decided by. The Sessions view anchors its
+       * week on it, so nothing on the screen reads the browser's clock.
+       */
+      todayYmd: string;
+    }
   | { ok: false; error: string };
 
 type Scope = { tenantId: string; tenantSlug: string; userId: string };
@@ -184,7 +195,8 @@ export async function loadAppointments(tenantId: string): Promise<AppointmentsRe
       ...((dated.data ?? []) as BookingRow[]),
       ...((undated.data ?? []) as BookingRow[]),
     ];
-    if (bookings.length === 0) return { ok: true, rows: [], timeZone: tenantZone };
+    const todayYmd = utcToZonedYmd(now, tenantZone) ?? now.toISOString().slice(0, 10);
+    if (bookings.length === 0) return { ok: true, rows: [], timeZone: tenantZone, todayYmd };
 
     const servedBy = await servingNamesByInquiry(
       admin,
@@ -218,7 +230,7 @@ export async function loadAppointments(tenantId: string): Promise<AppointmentsRe
       };
     });
 
-    return { ok: true, rows, timeZone: tenantZone };
+    return { ok: true, rows, timeZone: tenantZone, todayYmd };
   } catch (err) {
     logServerError("scheduling.loadAppointments", err);
     return { ok: false, error: GENERIC_LOAD_ERROR };

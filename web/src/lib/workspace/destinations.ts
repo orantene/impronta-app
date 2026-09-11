@@ -198,9 +198,11 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     // TABS, not routes: /admin/sessions still holds one page.tsx, so the three
     // views hang off the live route under a `view` query, the shape Events'
     // Tickets child already has. See AppointmentsPage.
+    // The board's four rows (W39): Appointments · Sessions · Series · Waitlist.
     subViews: [
       { id: "list", label: "Appointments", segment: "" },
-      { id: "sessions", label: "Sessions and series", segment: "", query: "view=sessions" },
+      { id: "sessions", label: "Sessions", segment: "", query: "view=sessions" },
+      { id: "series", label: "Series", segment: "", query: "view=series" },
       { id: "waitlist", label: "Waitlist", segment: "", query: "view=waitlist" },
     ],
   },

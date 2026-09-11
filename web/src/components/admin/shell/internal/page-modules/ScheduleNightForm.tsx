@@ -122,18 +122,18 @@ export function ScheduleNightForm({ tenantId, onScheduled }: Props) {
   const noTiers = selected !== null && selected.tiers.length === 0;
 
   return (
-    <div className="mb-6 rounded-admin border border-admin-line p-4">
-      <h3 className="mb-3 text-admin-ink">
+    <div className="rounded-[14px] border border-admin-border bg-admin-card p-[16px] font-admin-body">
+      <h3 className="m-0 mb-[10px] text-[14px]! font-semibold text-admin-ink">
         {t("dashboard.adminSessions.schedule.heading")}
       </h3>
 
-      <div className="mb-3 grid gap-3 sm:grid-cols-3">
+      <div className="mb-[10px] grid gap-[10px] sm:grid-cols-3">
         <label className="block">
-          <span className="mb-1 block text-admin-ink-muted">
+          <span className="mb-[4px] block text-[12px] text-admin-ink-muted">
             {t("dashboard.adminSessions.schedule.event")}
           </span>
           <select
-            className="w-full rounded-admin border border-admin-line bg-transparent p-2 text-admin-ink"
+            className="h-[34px] w-full rounded-[9px] border border-admin-border bg-admin-card px-[10px] text-admin-13 text-admin-ink"
             value={eventId}
             onChange={(e) => {
               setEventId(e.target.value);
@@ -150,24 +150,24 @@ export function ScheduleNightForm({ tenantId, onScheduled }: Props) {
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-admin-ink-muted">
+          <span className="mb-[4px] block text-[12px] text-admin-ink-muted">
             {t("dashboard.adminSessions.schedule.starts")}
           </span>
           <input
             type="datetime-local"
-            className="w-full rounded-admin border border-admin-line bg-transparent p-2 text-admin-ink"
+            className="h-[34px] w-full rounded-[9px] border border-admin-border bg-admin-card px-[10px] text-admin-13 text-admin-ink"
             value={startsAt}
             onChange={(e) => setStartsAt(e.target.value)}
           />
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-admin-ink-muted">
+          <span className="mb-[4px] block text-[12px] text-admin-ink-muted">
             {t("dashboard.adminSessions.schedule.ends")}
           </span>
           <input
             type="datetime-local"
-            className="w-full rounded-admin border border-admin-line bg-transparent p-2 text-admin-ink"
+            className="h-[34px] w-full rounded-[9px] border border-admin-border bg-admin-card px-[10px] text-admin-13 text-admin-ink"
             value={endsAt}
             onChange={(e) => setEndsAt(e.target.value)}
           />
@@ -175,24 +175,24 @@ export function ScheduleNightForm({ tenantId, onScheduled }: Props) {
       </div>
 
       {noTiers ? (
-        <p className="mb-3 text-admin-ink-muted">
+        <p className="m-0 mb-[10px] text-[12px] text-admin-ink-muted">
           {t("dashboard.adminSessions.schedule.noTiers")}
         </p>
       ) : (
         <>
-          <span className="mb-1 block text-admin-ink-muted">
+          <span className="mb-[4px] block text-[12px] text-admin-ink-muted">
             {t("dashboard.adminSessions.schedule.seats")}
           </span>
-          <div className="mb-2 grid gap-3 sm:grid-cols-3">
+          <div className="mb-[6px] grid gap-[10px] sm:grid-cols-3">
             {tiers.map((tier) => (
               <label key={tier.poolKey} className="block">
-                <span className="mb-1 block text-admin-ink-muted">{tier.label}</span>
+                <span className="mb-[4px] block text-[12px] text-admin-ink-muted">{tier.label}</span>
                 <input
                   type="number"
                   min={1}
                   step={1}
                   inputMode="numeric"
-                  className="w-full rounded-admin border border-admin-line bg-transparent p-2 text-admin-ink"
+                  className="h-[34px] w-full rounded-[9px] border border-admin-border bg-admin-card px-[10px] text-admin-13 text-admin-ink"
                   value={seats[tier.poolKey] ?? ""}
                   onChange={(e) =>
                     setSeats((prev) => ({ ...prev, [tier.poolKey]: e.target.value }))
@@ -201,7 +201,7 @@ export function ScheduleNightForm({ tenantId, onScheduled }: Props) {
               </label>
             ))}
           </div>
-          <p className="mb-3 text-admin-ink-muted">
+          <p className="m-0 mb-[10px] text-[12px] text-admin-ink-muted">
             {t("dashboard.adminSessions.schedule.seatsHint")}
           </p>
         </>
@@ -209,7 +209,7 @@ export function ScheduleNightForm({ tenantId, onScheduled }: Props) {
 
       <button
         type="button"
-        className="rounded-admin border border-admin-line px-3 py-2 text-admin-ink disabled:opacity-60"
+        className="inline-flex h-[34px] cursor-pointer items-center rounded-[9px] border border-admin-border bg-admin-card px-[14px] text-admin-13 font-semibold text-admin-ink hover:border-admin-border-strong disabled:cursor-not-allowed disabled:opacity-60"
         disabled={busy || noTiers}
         onClick={() => void submit()}
       >
@@ -219,7 +219,7 @@ export function ScheduleNightForm({ tenantId, onScheduled }: Props) {
       </button>
 
       {message ? (
-        <p className={failed ? "mt-3 text-admin-danger" : "mt-3 text-admin-ink"}>{message}</p>
+        <p className={failed ? "m-0 mt-[10px] text-admin-13 text-admin-red" : "m-0 mt-[10px] text-admin-13 text-admin-ink"}>{message}</p>
       ) : null}
     </div>
   );

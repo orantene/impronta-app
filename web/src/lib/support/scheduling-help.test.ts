@@ -28,7 +28,7 @@ const LIVE_SURFACES: Array<{ key: string; ask: string; page: string }> = [
   {
     key: "sessions",
     ask: "how do i set up a weekly class",
-    page: join("src", "components", "admin", "shell", "internal", "page-modules", "SessionsPage.tsx"),
+    page: join("src", "components", "admin", "shell", "internal", "page-modules", "SessionsTable.tsx"),
   },
   {
     key: "reservations",

@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+// The Sessions tab of Appointments & Classes (board W39) is where the
+// materialiser's refusals are shown, above the table of dated sessions.
 const src = readFileSync(
-  join(process.cwd(), "src/components/admin/shell/internal/page-modules/SessionsPage.tsx"),
+  join(process.cwd(), "src/components/admin/shell/internal/page-modules/SessionsTable.tsx"),
   "utf8",
 );
 

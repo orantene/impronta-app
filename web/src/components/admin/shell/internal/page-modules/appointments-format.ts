@@ -1,7 +1,7 @@
 /**
  * appointments-format.ts — the two formatters the Appointments surface shares.
  *
- * SPLIT OUT SO THEY ARE NOT COPIED. `SessionsPage` already had `formatWhen`,
+ * SPLIT OUT SO THEY ARE NOT COPIED. the old Schedule view already had `formatWhen`,
  * and the list, the waitlist and the reschedule form each want the same thing.
  * Three copies of a date formatter is three chances for one of them to drop
  * the timezone argument, which is the exact bug the comment below exists for.

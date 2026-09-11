@@ -23,11 +23,12 @@ import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
   ...LINKS_ES_TEXT,
-  // The three Appointments sub-views (P3). They are tabs of one route, but the
+  // The four Appointments sub-views (W39). They are tabs of one route, but the
   // rail draws them as rows, so each needs its own literal. "Appointments" is
   // both the destination label and its landing child, and already has a row in
   // the inline table.
-  "Sessions and series": "Sesiones y series",
+  "Sessions": "Sesiones",
+  "Series": "Series",
   "Waitlist": "Lista de espera",
   // The approved navigation (W36, 2026-09-09): three destinations and two
   // group headings carry the board's own words, and two rows became children.

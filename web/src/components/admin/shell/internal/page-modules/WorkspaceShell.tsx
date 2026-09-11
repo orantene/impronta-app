@@ -493,11 +493,11 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     case "catalog":   // registry id; renders at /admin/menu until the route moves
       body = <MenuPage />;
       break;
-    // Appointments — the registry's `appts` destination, still rendering at
-    // /admin/sessions until the route moves. Three views under one route: the
-    // appointments board, the Schedule surface (series, occurrences and the
-    // materialiser's refusals, which is what `SessionsPage` has always been),
-    // and the waitlist. `?view=` selects one; see AppointmentsPage.
+    // Appointments & Classes — the registry's `appts` destination, still
+    // rendering at /admin/sessions until the route moves. Four views under one
+    // route (boards W39, W40): the appointments, the dated sessions with the
+    // materialiser's refusals, the series, and the waitlist. `?view=` selects
+    // one; see AppointmentsPage.
     case "sessions":
     case "appts":     // registry id; renders at /admin/sessions until the route moves
       body = <AppointmentsPage />;
