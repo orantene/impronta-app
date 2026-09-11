@@ -700,7 +700,11 @@ function TicketSalePanel(props: {
             confirmLoading={props.busy}
             copy={{
               ...copy.collect,
+              // The door's own verb on the one cash action, whatever the
+              // tender (exact, or with change to give).
               confirmCash: props.admitNow ? copy.door.sell.collectGate : copy.door.sell.collectBox,
+              confirmCashExact: props.admitNow ? copy.door.sell.collectGate : copy.door.sell.collectBox,
+              confirmCashChange: props.admitNow ? copy.door.sell.collectGate : copy.door.sell.collectBox,
             }}
           />
           <button type="button" disabled={props.busy} className={POS_SECONDARY_ACTION} onClick={() => void cancelSale()}>

@@ -1004,10 +1004,18 @@ html[data-public-font-preset="editorial"] {
  * storefront's DARK values inside the back office: white headings and black
  * cards on the light surface, seen live on People, Projects, Tables and
  * Preparation on 2026-09-11. Every page written with text-foreground /
- * bg-card now reads the admin palette. The point of sale keeps the dark
- * body values on purpose (its chrome is dark by design), hence the :not().
+ * bg-card now reads the admin palette.
+ *
+ * The point of sale is bound to the SAME palette (second block): the
+ * approved boards (`POSCounter` and its family) are a light surface with
+ * admin ink, and on a tenant host the neutral values had left the counter
+ * in muddy grey. The counter's own screens use admin-* utilities directly;
+ * this block is for the sibling modes and the shared pieces still written
+ * with the semantic names. It also caps the storefront's unlayered
+ * `h1 { font-size: var(--token-typography-h1-size) }` inside the POS chrome,
+ * which otherwise beats every Tailwind utility on the counter's 19px header.
  */
-.tulala-shell [data-tulala-workspace-grid]:not([data-tulala-pos-chrome]) {
+.tulala-shell [data-tulala-workspace-grid] {
   --background: var(--color-admin-surface);
   --foreground: var(--color-admin-ink);
   --card: var(--color-admin-card);
@@ -1026,6 +1034,15 @@ html[data-public-font-preset="editorial"] {
   --accent-solid: var(--color-admin-brand);
   --accent-foreground: var(--color-admin-ink);
   --ring: var(--color-admin-brand);
+}
+
+.tulala-shell [data-tulala-pos-chrome] h1 {
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+.tulala-shell [data-tulala-pos-chrome] h2 {
+  font-size: 20px;
+  letter-spacing: -0.01em;
 }
 
 /* Subtle motion only — never start from opacity:0 + fill-mode:both (can leave content invisible). */

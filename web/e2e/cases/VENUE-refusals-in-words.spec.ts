@@ -202,21 +202,19 @@ test("VENUE-WORDS kitchen: a ticket another station already took is refused in a
     // again, which is the point, so the previous pass's ticket is spent.
     await page.context().addCookies([{ name: "locale", value: "en", url: origin }]);
     await page.goto("/admin/pos?mode=counter");
-    await page.getByRole("button", { name: /start a new sale/i }).click();
+    // The board's counter has no start button: the first tap opens the sale.
+    await expect(page.locator("[data-pos-empty]")).toBeVisible({ timeout: 40_000 });
+    await page.getByRole("button", { name: "House pizza" }).first().click();
     await expect(page).toHaveURL(/order=/, { timeout: 40_000 });
     const orderId = new URL(page.url()).searchParams.get("order");
     expect(orderId).toBeTruthy();
-    await page.getByRole("button", { name: "House pizza" }).first().click();
-    await expect(page.getByRole("button", { name: /^Charge · /i }).first()).toHaveText(
-      /\$18\.00/,
-      { timeout: 30_000 },
-    );
-    const send = page.getByRole("button", { name: /send to preparation/i });
+    await expect(page.locator("[data-pos-charge]").first()).toHaveText(/\$18\.00/, { timeout: 30_000 });
+    const send = page.locator("[data-pos-send]");
     await send.click();
-    // The counter gives no other sign the ticket went: the control greys
-    // while the action runs and comes back when it has answered. Leaving
+    // The counter's sign the ticket went: once the engine has answered the
+    // action reads `Send again` (a second send is an amendment). Leaving
     // before that showed a board rendered before the ticket existed.
-    await expect(send).toBeEnabled({ timeout: 30_000 });
+    await expect(send).toHaveText(/send again|enviar de nuevo|renvoyer/i, { timeout: 30_000 });
 
     // Station one, in the language under test.
     await page.context().addCookies([{ name: "locale", value: locale, url: origin }]);

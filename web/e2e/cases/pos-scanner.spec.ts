@@ -91,15 +91,24 @@ test("POS-2.8 scanner: ready chip, link code adds the item, offering id adds aga
     await expect(chip).toContainText(/scanner ready/i);
     await page.screenshot({ path: testInfo.outputPath("scan-01-ready.png"), fullPage: false });
 
+    // The wedge listener is a client hook: keys typed before React has
+    // hydrated the counter go nowhere, and a dev server under load can take
+    // seconds to ship the chunk. Wait for the counter to be live (its search
+    // box answers to typing only once it is), then scan.
+    await page.waitForFunction(() => {
+      const tile = document.querySelector("[data-pos-tile]");
+      return Boolean(tile && Object.keys(tile).some((key) => key.startsWith("__react")));
+    }, undefined, { timeout: 60_000 });
+
     // C24 — a link code, with no sale open: the scan opens one and adds the item.
     await scan(page, code);
     const toast = page.locator("[data-pos-scan-toast]");
     await expect(toast, "a scan must answer with a toast").toBeVisible({ timeout: 60_000 });
     await expect(toast).toHaveAttribute("data-pos-scan-toast", "added");
-    await expect(toast).toContainText(new RegExp(`Added ${PIZZA.title}`, "i"));
+    await expect(toast).toContainText(new RegExp(`Added · ${PIZZA.title}`, "i"));
     await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
     const orderId = new URL(page.url()).searchParams.get("order")!;
-    await expect(page.getByRole("button", { name: /^Charge · /i })).toContainText("$18.00", { timeout: 30_000 });
+    await expect(page.locator("[data-pos-charge]")).toContainText("$18.00", { timeout: 30_000 });
     await page.screenshot({ path: testInfo.outputPath("scan-02-added-link-code.png"), fullPage: false });
 
     const afterFirst = await admin
@@ -118,7 +127,7 @@ test("POS-2.8 scanner: ready chip, link code adds the item, offering id adds aga
     await scan(page, pizzaId!);
     await expect(toast).toBeVisible({ timeout: 30_000 });
     await expect(toast).toHaveAttribute("data-pos-scan-toast", "added");
-    await expect(page.getByRole("button", { name: /^Charge · /i })).toContainText("$36.00", { timeout: 30_000 });
+    await expect(page.locator("[data-pos-charge]")).toContainText("$36.00", { timeout: 30_000 });
 
     const afterSecond = await admin.from("orders").select("total_cents, status").eq("id", orderId).maybeSingle();
     expect(Number(afterSecond.data?.total_cents)).toBe(PIZZA.cents * 2);
@@ -153,7 +162,9 @@ test("POS-2.8 scanner: ready chip, link code adds the item, offering id adds aga
     // A person typing the same code at human speed is not a scan. Dismiss is
     // the one tap a cashier has on the toast; it is used when the toast is
     // still up (it clears itself after a few seconds otherwise).
-    if (await toast.isVisible()) await toast.locator("button").click();
+    // The toast carries `Undo` beside Dismiss now (`POSScanProduct`); Dismiss
+    // is the one that leaves the sale as it is.
+    if (await toast.isVisible()) await toast.getByRole("button", { name: /dismiss|descartar|ignorer/i }).click();
     await expect(toast).toHaveCount(0, { timeout: 15_000 });
     await blurFocus(page);
     await page.keyboard.type(code, { delay: 150 });

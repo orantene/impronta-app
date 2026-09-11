@@ -451,11 +451,11 @@ test("POS PROJECTS: find a project, see what is owed with its rows, collect a de
   await page.getByRole("button", { name: /^a deposit$/i }).click();
   await page.getByLabel(/deposit amount/i).fill(String(depositCents / 100));
   await expect(
-    page.locator("[data-pos-projects-collect]").getByText("Amount due").locator("xpath=following-sibling::span[1]"),
+    page.locator("[data-pos-projects-collect]").locator("[data-pos-amount-due]"),
     "the sheet's amount is the deposit, not the balance",
   ).toHaveText(money(depositCents, currency));
   await shot("04-collect-a-deposit");
-  await page.getByRole("button", { name: /confirm cash/i }).click();
+  await page.locator("[data-pos-confirm-cash]").click();
   const collectedPanel = page.locator("[data-pos-projects-collected]");
   await expect(collectedPanel, "the money lands and the screen says so").toBeVisible({ timeout: 60_000 });
   await expect(page.locator("[data-pos-projects-collected-amount]")).toHaveText(money(depositCents, currency));

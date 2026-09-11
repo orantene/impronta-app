@@ -41,7 +41,7 @@ import { POS_INPUT, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "./pos-class
  * display reads black on off-white wherever it is opened.
  */
 const PRIMARY = cn(POS_PRIMARY_ACTION, "w-full bg-admin-ink text-admin-surface");
-const SECONDARY = cn(POS_SECONDARY_ACTION, "w-full border-admin-border bg-admin-surface text-admin-ink");
+const SECONDARY = cn(POS_SECONDARY_ACTION, "h-14 w-full border-admin-border bg-admin-surface text-admin-ink");
 
 export type CustomerDisplayLine = {
   readonly label: string;

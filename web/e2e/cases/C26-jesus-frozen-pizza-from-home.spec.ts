@@ -61,9 +61,12 @@ test("C26-OP pickup: New sale → House pizza → cash → prep handoff and DB a
   await counterCollectCash(page);
   await expectCounterPaid(page);
 
-  await page.getByLabel(/prep destination/i).selectOption("pickup");
-  await page.getByLabel(/pickup window/i).fill(promised);
-  await page.getByRole("button", { name: /send to preparation/i }).click();
+  // The paid screen keeps the send controls (`Here | To go`, `Ready at`,
+  // `Send 1 item`): a pickup is paid at the counter and only then sent.
+  await page.getByRole("button", { name: /^(to go|para llevar|à emporter)$/i }).click();
+  await page.locator("#pos-pickup-at").fill(promised);
+  await page.locator("[data-pos-send]").click();
+  await expect(page.locator("[data-pos-send]")).toHaveText(/send again|enviar de nuevo|renvoyer/i, { timeout: 30_000 });
 
   await signInJourneysStaff(page, "/admin/preparation");
   await assertWorkspaceIdentity(page);

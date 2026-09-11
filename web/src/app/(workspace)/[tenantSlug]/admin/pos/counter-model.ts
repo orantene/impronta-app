@@ -118,6 +118,9 @@ export function toProductTiles(
       amountCents: item.amountCents,
       currency,
       categoryId: item.kind,
+      // `Pick session` only when there is a choice to make (C19): one
+      // upcoming session sells directly, like a plain product.
+      badge: item.sessions.length > 1 ? { kind: "pickSession" } : undefined,
       variants:
         item.sessions.length > 0
           ? item.sessions.map((session) => ({
@@ -129,6 +132,30 @@ export function toProductTiles(
           : undefined,
     };
   });
+}
+
+/**
+ * The `Custom amount` tile's id (`POSCounter`, last tile). Not an offering:
+ * tapping it opens the custom-amount sheet (`CustomAmount.tsx`), which says
+ * in a sentence that the engine cannot price a line off the catalog yet.
+ */
+export const CUSTOM_AMOUNT_ID = "__custom_amount__";
+
+export function customAmountTile(currency: string, title: string): PosProductTile {
+  return { id: CUSTOM_AMOUNT_ID, title, amountCents: null, currency, categoryId: "__custom__", badge: { kind: "approval" } };
+}
+
+/** `09:58` in the reader's own locale; "" for a missing or unparseable instant. */
+export function formatClock(iso: string | null | undefined, locale: string): string {
+  if (!iso) return "";
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) return "";
+  return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(when);
+}
+
+/** `#1188`-style short reference for a sale: the first 4 hex of its id, upper-cased. */
+export function saleReference(orderId: string): string {
+  return `#${orderId.replace(/-/g, "").slice(0, 4).toUpperCase()}`;
 }
 
 /**
@@ -175,6 +202,7 @@ export function toHeldSales(
   currency: string,
   currentOrderId: string | null,
   labelFor: (orderId: string) => string,
+  clock: (iso: string | null) => string = (iso) => iso ?? "",
 ): PosHeldSale[] {
   return openSales
     .filter((row) => row.id !== currentOrderId)
@@ -183,7 +211,7 @@ export function toHeldSales(
       label: labelFor(row.id),
       totalCents: row.totalCents,
       currency,
-      heldAt: row.createdAt ?? "",
+      heldAt: clock(row.createdAt),
     }));
 }
 

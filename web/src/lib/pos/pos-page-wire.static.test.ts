@@ -116,8 +116,12 @@ test("shift cash-up lives on POS, not a new destination", () => {
   const page = read("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
   assert.match(page, /currentShift/);
   const client = read("src/app/(workspace)/[tenantSlug]/admin/pos/pos-client.tsx");
-  assert.match(client, /posOpenShift/);
-  assert.match(client, /posCloseShift/);
+  // The drawer's two commands are wired in the Cash screen's own file
+  // (`counter-drawer.tsx`), which the client mounts as the `shifts` target.
+  assert.match(client, /<CounterDrawer\b/);
+  const drawer = read("src/app/(workspace)/[tenantSlug]/admin/pos/counter-drawer.tsx");
+  assert.match(drawer, /posOpenShift/);
+  assert.match(drawer, /posCloseShift/);
   assert.match(client, /amountCents/);
   assert.match(client, /posSubmitPrep/);
   assert.match(client, /promisedAt/);

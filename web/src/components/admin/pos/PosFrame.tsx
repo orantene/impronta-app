@@ -1,20 +1,47 @@
 "use client";
 
 /**
- * PosFrame — the point of sale shell: a rail down one side plus a content
- * slot. Pure presentation; the rail's rows come from `POS_MODE_META[mode]
- * .destinations` (`lib/pos/modes.ts`), never a list this file keeps of its
- * own, so a mode gaining or losing a screen changes the rail by itself.
+ * PosFrame — the point of sale shell as the board draws it (`POSCounter`):
+ * a 96px icon rail down the left plus a content slot. The rail's rows come
+ * from `POS_MODE_META[mode].destinations` (`lib/pos/modes.ts`), never a list
+ * this file keeps of its own, so a mode gaining or losing a screen changes
+ * the rail by itself.
  *
- * The rail here is the POS's OWN internal rail — "sell", "orders", "shifts"
- * for `counter` mode — not the workspace sidebar (`lib/workspace/
- * destinations.ts`), which never shows a `pos` row at all: the point of sale
- * replaces the whole admin chrome (see that module's `DestinationChrome`).
- * The switch that enters the POS lives in the top bar and is out of scope
- * here (owned by another task).
+ * Top of the rail: the `MODE · Counter` chip (the mode this frame is in).
+ * Then one 82x64 row per destination — icon over label, a count badge in the
+ * corner when the caller has one (`counts`). Bottom: `Lock` (only when the
+ * caller gives it something to do) and the `Workspace` door back out.
+ *
+ * This is the POS's OWN internal rail, not the workspace sidebar
+ * (`lib/workspace/destinations.ts`), which never shows a `pos` row at all:
+ * the point of sale replaces the whole admin chrome. The switch that enters
+ * the POS lives in the top bar and is out of scope here.
  */
 
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
+import {
+  AlertTriangle,
+  Calendar,
+  CalendarClock,
+  ChevronDown,
+  ChevronLeft,
+  ClipboardList,
+  Clock,
+  CreditCard,
+  FileText,
+  FolderOpen,
+  LayoutGrid,
+  Link2,
+  Lock,
+  Monitor,
+  ShoppingBag,
+  Ticket,
+  UserCheck,
+  Users,
+  Wallet,
+  type LucideProps,
+} from "lucide-react";
+
 import { POS_MODE_META, type PosMode } from "@/lib/pos/modes";
 import { cn } from "@/lib/utils";
 
@@ -23,24 +50,30 @@ export type PosFrameProps = {
   /**
    * The rail's own name, translated — this labels the `<nav>` region itself,
    * never looked up from `destinationLabels` (that map is keyed by
-   * destination id, e.g. "sell"/"orders"/"shifts", and a mode id such as
-   * "counter" is never one of those keys, so a lookup there can never hit).
-   * Callers build this with `railNavLabel` (`pos-copy.ts`), which reads it
-   * from the message catalogue in the request's own language rather than
-   * falling back to `POS_MODE_META[mode].label`, which is English only.
+   * destination id, and a mode id such as "counter" is never one of those
+   * keys). Callers build this with `railNavLabel` (`pos-copy.ts`).
    */
   readonly navLabel: string;
   readonly activeDestination: string;
   readonly onSelectDestination: (destinationId: string) => void;
   /** English fallback per destination id; pass a translated map to localize. */
   readonly destinationLabels: Readonly<Record<string, string>>;
+  /** A count badge per destination id (`orders: 5`); zero and missing draw nothing. */
+  readonly counts?: Readonly<Record<string, number>>;
+  /** The `MODE` chip's label, translated ("Counter"). Falls back to the meta's English. */
+  readonly modeLabel?: string;
+  /** The chip's eyebrow, translated ("Mode"). */
+  readonly modeEyebrow?: string;
+  /** The `Lock` row. Absent: no row. `disabledReason`: rendered disabled, with the sentence. */
+  readonly lock?: { readonly label: string; readonly onLock?: () => void; readonly disabledReason?: string };
+  /** The `Workspace` door at the bottom: a real link out of the till. */
+  readonly workspace?: { readonly label: string; readonly href: string };
   readonly children: ReactNode;
   readonly className?: string;
   /**
    * Doors OUT of this window, drawn under the destinations: today the
-   * counter's "Customer display", which opens in a new window so a second
-   * screen or tablet can show it. Not destinations (they change no state
-   * here), so not part of `POS_MODE_META` and never `aria-current`.
+   * counter's "Customer display", which opens in a new window. Not
+   * destinations (they change no state here), so never `aria-current`.
    */
   readonly links?: readonly PosFrameLink[];
 };
@@ -53,12 +86,44 @@ export type PosFrameLink = {
   readonly hint?: string;
 };
 
+/**
+ * One icon per destination id across every mode. A destination with no entry
+ * here draws the generic grid so a new screen is never a blank square.
+ */
+const DESTINATION_ICONS: Readonly<Record<string, ComponentType<LucideProps>>> = {
+  sell: CreditCard,
+  orders: ShoppingBag,
+  receipts: FileText,
+  shifts: Wallet,
+  issues: AlertTriangle,
+  tables: LayoutGrid,
+  seating: Users,
+  checkin: UserCheck,
+  tickets: Ticket,
+  today: Calendar,
+  sessions: Clock,
+  walkin: CalendarClock,
+  waitlist: ClipboardList,
+  collect: Wallet,
+  projects: FolderOpen,
+  display: Monitor,
+  links: Link2,
+};
+
+const ROW =
+  "relative flex h-16 w-[82px] flex-col items-center justify-center gap-[5px] rounded-[14px] text-[11.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand";
+
 export function PosFrame({
   mode,
   navLabel,
   activeDestination,
   onSelectDestination,
   destinationLabels,
+  counts,
+  modeLabel,
+  modeEyebrow,
+  lock,
+  workspace,
   children,
   className,
   links,
@@ -67,13 +132,25 @@ export function PosFrame({
   const destinations = meta.destinations;
 
   return (
-    <div className={cn("flex h-full min-h-[560px] w-full overflow-hidden rounded-2xl border border-border bg-background", className)}>
+    <div className={cn("flex h-full min-h-[560px] w-full overflow-hidden bg-admin-surface", className)}>
       <nav
         aria-label={navLabel}
-        className="flex w-[200px] shrink-0 flex-col gap-1 border-r border-border bg-card p-3"
+        className="flex w-24 shrink-0 flex-col items-center gap-1 border-r border-admin-border bg-admin-card px-0 pb-2.5 pt-3 max-[900px]:hidden"
       >
+        <div
+          data-pos-mode-chip
+          className="mb-1.5 flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 rounded-[14px] border-[1.5px] border-admin-brand/20 bg-admin-brand-soft text-admin-brand"
+        >
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] opacity-75">{modeEyebrow ?? "Mode"}</span>
+          <span className="flex items-center gap-1 text-center text-[12px] font-bold leading-[1.1]">
+            {modeLabel ?? meta.label}
+            <ChevronDown aria-hidden size={12} strokeWidth={1.75} className="shrink-0" />
+          </span>
+        </div>
         {destinations.map((destinationId) => {
           const active = destinationId === activeDestination;
+          const Icon = DESTINATION_ICONS[destinationId] ?? LayoutGrid;
+          const count = counts?.[destinationId] ?? 0;
           return (
             <button
               key={destinationId}
@@ -81,35 +158,81 @@ export function PosFrame({
               aria-current={active ? "page" : undefined}
               onClick={() => onSelectDestination(destinationId)}
               className={cn(
-                "flex h-12 items-center rounded-lg px-3 text-left text-sm font-medium transition-colors",
+                ROW,
                 active
-                  ? "bg-foreground text-background"
-                  : "text-foreground hover:bg-accent",
+                  ? "bg-admin-surface-alt font-bold text-admin-ink shadow-[inset_0_0_0_1.5px_var(--color-admin-border-strong)]"
+                  : "font-semibold text-admin-ink-muted hover:bg-admin-surface-alt",
               )}
             >
-              {destinationLabels[destinationId] ?? destinationId}
+              <Icon aria-hidden size={22} strokeWidth={1.75} className="shrink-0" />
+              <span>{destinationLabels[destinationId] ?? destinationId}</span>
+              {count > 0 && (
+                <span
+                  data-pos-rail-count={destinationId}
+                  className={cn(
+                    "absolute right-[9px] top-[7px] inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[5px] text-[10.5px] font-bold text-admin-card",
+                    destinationId === "issues" ? "bg-admin-red" : "bg-admin-coral",
+                  )}
+                >
+                  {count > 99 ? "99+" : count}
+                </span>
+              )}
             </button>
           );
         })}
         {links && links.length > 0 && (
-          <div className="mt-auto flex flex-col gap-1 border-t border-border pt-3">
-            {links.map((link) => (
-              <a
-                key={link.id}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={link.hint}
-                data-pos-frame-link={link.id}
-                className="flex h-12 items-center justify-between gap-2 rounded-lg px-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent"
-              >
-                <span className="truncate">{link.label}</span>
-                <span aria-hidden className="text-xs opacity-70">
-                  ↗
-                </span>
-              </a>
-            ))}
+          <div className="flex flex-col gap-1">
+            {links.map((link) => {
+              const Icon = DESTINATION_ICONS[link.id] ?? LayoutGrid;
+              return (
+                <a
+                  key={link.id}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={link.hint}
+                  data-pos-frame-link={link.id}
+                  className={cn(ROW, "font-semibold text-admin-ink-muted hover:bg-admin-surface-alt")}
+                >
+                  <Icon aria-hidden size={22} strokeWidth={1.75} className="shrink-0" />
+                  <span className="max-w-[76px] truncate">{link.label}</span>
+                </a>
+              );
+            })}
           </div>
+        )}
+        <div className="flex-1" />
+        {lock && (
+          <button
+            type="button"
+            data-pos-lock
+            disabled={!lock.onLock}
+            title={lock.disabledReason}
+            aria-describedby={lock.disabledReason ? "pos-lock-reason" : undefined}
+            onClick={lock.onLock}
+            className={cn(
+              ROW,
+              "h-14 border-[1.5px] border-admin-border font-semibold text-admin-ink-muted hover:bg-admin-surface-alt disabled:cursor-not-allowed disabled:opacity-50",
+            )}
+          >
+            <Lock aria-hidden size={20} strokeWidth={1.75} className="shrink-0" />
+            <span>{lock.label}</span>
+            {lock.disabledReason && (
+              <span id="pos-lock-reason" className="sr-only">
+                {lock.disabledReason}
+              </span>
+            )}
+          </button>
+        )}
+        {workspace && (
+          <a
+            href={workspace.href}
+            data-pos-workspace-door
+            className={cn(ROW, "h-14 font-semibold text-admin-ink-muted hover:bg-admin-surface-alt")}
+          >
+            <ChevronLeft aria-hidden size={20} strokeWidth={1.75} className="shrink-0" />
+            <span>{workspace.label}</span>
+          </a>
         )}
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>

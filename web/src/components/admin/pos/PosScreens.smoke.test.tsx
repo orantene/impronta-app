@@ -13,18 +13,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { createTranslator } from "@/i18n/messages";
 import { SellSurface, ALL_CATEGORIES_ID } from "./SellSurface";
-import { CustomerPanel } from "./CustomerPanel";
+import { CustomerSheet } from "./CustomerSheet";
 import { PaidScreen } from "./PaidScreen";
 import { HeldSalesList } from "./HeldSalesList";
-import { ShiftBar } from "./ShiftBar";
+import { CashDrawerScreen } from "./CashDrawerScreen";
 import {
-  customerPanelCopy,
+  cashDrawerCopy,
+  customerSheetCopy,
   heldSalesListCopy,
   paidScreenCopy,
   sellSurfaceCopy,
-  shiftBarCopy,
 } from "./pos-copy";
 import type { PosCategoryTab, PosHeldSale, PosProductTile } from "./pos-types";
+import { markupIncludesText } from "./test-html-helpers";
 
 const LOCALES = ["en", "es", "fr"] as const;
 const noop = () => {};
@@ -67,13 +68,16 @@ test("SellSurface renders products, favourites and category tabs in all three la
         onSearchChange={noop}
         onSelectProduct={noop}
         onSelectVariant={noop}
+        onOpenScan={noop}
         copy={copy}
       />,
     );
     assert.ok(markup.includes("Latte"));
     assert.ok(markup.includes("Bagel"));
     assert.ok(markup.includes(copy.favourites));
-    assert.ok(markup.includes(copy.chooseVariant), "variant chip group's aria-label missing");
+    assert.ok(markup.includes(copy.favouritesUnavailable), "the disabled Favorites chip must carry its sentence");
+    assert.ok(markupIncludesText(markup, copy.scanLabel), "the scan door beside the search is missing");
+    assert.match(markup, /data-pos-scanner-ready/);
     assertNoRawKeys(markup);
   }
 });
@@ -91,48 +95,102 @@ test("SellSurface shows the empty-catalog sentence when there is nothing to sell
       onSearchChange={noop}
       onSelectProduct={noop}
       onSelectVariant={noop}
+      onOpenScan={noop}
       copy={copy}
     />,
   );
   assert.ok(markup.includes(copy.emptyCatalog));
 });
 
-test("CustomerPanel defaults to walk-in when no customer is attached", () => {
+test("SellSurface draws every badge kind the board shows, and a sold-out tile cannot be tapped", () => {
+  const t = createTranslator("en");
+  const copy = sellSurfaceCopy(t);
+  const tiles: PosProductTile[] = [
+    { id: "a", title: "Croissant", amountCents: 5500, currency: "USD", categoryId: "food", badge: { kind: "left", count: 3 } },
+    { id: "b", title: "Cinnamon roll", amountCents: 6000, currency: "USD", categoryId: "food", badge: { kind: "soldOut" }, soldOut: true },
+    { id: "c", title: "Pilates drop-in", amountCents: 25000, currency: "USD", categoryId: "classes", badge: { kind: "pickSession" } },
+    { id: "d", title: "Custom amount", amountCents: null, currency: "USD", categoryId: "x", badge: { kind: "approval" } },
+  ];
+  const markup = renderToStaticMarkup(
+    <SellSurface
+      products={tiles}
+      categories={[]}
+      activeCategoryId={ALL_CATEGORIES_ID}
+      onSelectCategory={noop}
+      searchValue=""
+      onSearchChange={noop}
+      onSelectProduct={noop}
+      onSelectVariant={noop}
+      onOpenScan={noop}
+      copy={copy}
+    />,
+  );
+  assert.ok(markup.includes("3 left"));
+  assert.ok(markup.includes(copy.badgeSoldOut));
+  assert.ok(markup.includes(copy.badgePickSession));
+  assert.ok(markup.includes(copy.badgeApproval));
+  assert.match(markup, /data-pos-tile="b"[^>]*disabled=""/, "a sold-out tile must be disabled");
+  assert.ok(markup.includes("—"), "a tile with no price draws a dash");
+});
+
+const SHEET_BASE = {
+  open: true,
+  onViewChange: noop,
+  onClose: noop,
+  query: "",
+  onQueryChange: noop,
+  hits: [],
+  onPick: noop,
+  onWalkIn: noop,
+  draft: { name: "", phone: "", email: "" },
+  onDraftChange: noop,
+  duplicate: null,
+  onUseDuplicate: noop,
+  onDismissDuplicate: noop,
+  onSaveDraft: noop,
+  failed: null,
+  onRetryAttach: noop,
+} as const;
+
+test("CustomerSheet offers walk-in and a new customer from the search view, in all three languages", () => {
   for (const locale of LOCALES) {
     const t = createTranslator(locale);
-    const copy = customerPanelCopy(t);
-    const markup = renderToStaticMarkup(
-      <CustomerPanel
-        customer={null}
-        searchValue=""
-        onSearchChange={noop}
-        onSelectResult={noop}
-        onCreateNew={noop}
-        copy={copy}
-      />,
-    );
+    const copy = customerSheetCopy(t);
+    const markup = renderToStaticMarkup(<CustomerSheet {...SHEET_BASE} view="search" copy={copy} />);
     assert.ok(markup.includes(copy.walkIn));
+    assert.ok(markup.includes(copy.create));
+    assert.match(markup, /data-pos-sheet="customer"/);
     assertNoRawKeys(markup);
   }
 });
 
-test("CustomerPanel shows the retry action once C10's attach failure has happened", () => {
+test("CustomerSheet's failed view names the saved person and offers the one retry (C10)", () => {
   const t = createTranslator("en");
-  const copy = customerPanelCopy(t);
+  const copy = customerSheetCopy(t);
   const markup = renderToStaticMarkup(
-    <CustomerPanel
-      customer={{ id: "c1", displayName: "Ana Torres" }}
-      searchValue=""
-      onSearchChange={noop}
-      onSelectResult={noop}
-      onCreateNew={noop}
-      attachFailed
-      onRetryAttach={noop}
+    <CustomerSheet {...SHEET_BASE} view="failed" failed={{ id: "c1", displayName: "Ana Torres", phone: "+52 55 1234" }} copy={copy} />,
+  );
+  assert.ok(markup.includes("Ana Torres"));
+  assert.ok(markup.includes(copy.savedPill));
+  assert.match(markup, /data-pos-customer-retry/);
+});
+
+test("CustomerSheet's create view carries the duplicate warning as an alert when a hit matches", () => {
+  const t = createTranslator("en");
+  const copy = customerSheetCopy(t);
+  const markup = renderToStaticMarkup(
+    <CustomerSheet
+      {...SHEET_BASE}
+      view="create"
+      draft={{ name: "Laura", phone: "+52 55 1234 5678", email: "" }}
+      duplicate={{ id: "c9", displayName: "Laura Méndez", phone: "+52 55 1234 5678" }}
       copy={copy}
     />,
   );
-  assert.ok(markup.includes("Ana Torres"));
-  assert.ok(markup.includes(copy.attachRetry));
+  assert.match(markup, /role="alert"[^>]*data-pos-customer-duplicate/);
+  assert.ok(markup.includes("Laura Méndez"));
+  assert.ok(markupIncludesText(markup, copy.differentPerson));
+  assert.match(markup, /id="pos-buyer-email"/);
 });
 
 test("PaidScreen shows amount, change and the Next customer action", () => {
@@ -170,22 +228,41 @@ test("HeldSalesList renders held sales, and its own empty state", () => {
   assert.ok(empty.includes(copy.empty));
 });
 
-test("ShiftBar shows the no-shift state when nothing is open, and totals once one is", () => {
-  const t = createTranslator("en");
-  const copy = shiftBarCopy(t);
-  const none = renderToStaticMarkup(
-    <ShiftBar shift={null} currency="USD" onOpenShift={noop} onCloseShift={noop} copy={copy} />,
-  );
-  assert.ok(none.includes(copy.shiftNone));
+const DRAWER_BASE = {
+  onViewChange: noop,
+  currency: "USD",
+  cashierName: "Ana",
+  openingCash: "",
+  onOpeningCashChange: noop,
+  onOpeningKey: noop,
+  openingCents: null,
+  onOpenShift: noop,
+  denominations: [100, 50, 20],
+  counts: {},
+  onCountChange: noop,
+  countedCash: "",
+  onCountedCashChange: noop,
+  countedCents: null,
+  confirmed: false,
+  onConfirmedChange: noop,
+  onCloseShift: noop,
+  result: null,
+} as const;
 
-  const open = renderToStaticMarkup(
-    <ShiftBar
-      shift={{ id: "s1", openingCashCents: 10000, openedAt: "2026-09-09T08:00:00Z" }}
-      currency="USD"
-      onOpenShift={noop}
-      onCloseShift={noop}
-      copy={copy}
-    />,
-  );
-  assert.ok(open.includes(copy.shiftOpening));
+test("CashDrawerScreen: the open form with no shift, movements once one is open, the count on close", () => {
+  const t = createTranslator("en");
+  const copy = cashDrawerCopy(t);
+  const none = renderToStaticMarkup(<CashDrawerScreen {...DRAWER_BASE} view="open" shift={null} copy={copy} />);
+  assert.match(none, /id="pos-shift-opening"/);
+  assert.ok(none.includes(copy.movementsUnavailable), "the movement tiles must say why they are off");
+
+  const shift = { id: "s1", openingCashCents: 10000, openedAt: "2026-09-09T08:00:00Z" };
+  const open = renderToStaticMarkup(<CashDrawerScreen {...DRAWER_BASE} view="movements" shift={shift} copy={copy} />);
+  assert.match(open, /data-pos-close-and-count/);
+  assert.ok(open.includes(copy.handOverUnavailable));
+
+  const close = renderToStaticMarkup(<CashDrawerScreen {...DRAWER_BASE} view="close" shift={shift} copy={copy} />);
+  assert.match(close, /id="pos-shift-counted"/);
+  assert.ok(close.includes(copy.blindNote), "a blind count says expected cash comes after the close");
+  assert.match(close, /data-pos-close-shift[^>]*disabled=""/, "Close drawer waits for the confirmation");
 });

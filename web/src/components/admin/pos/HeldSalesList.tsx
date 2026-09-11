@@ -9,7 +9,7 @@
 
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { cn } from "@/lib/utils";
-import { POS_SURFACE } from "./pos-classes";
+import { POS_NUM, POS_SECONDARY_ACTION, POS_SURFACE } from "./pos-classes";
 import type { PosHeldSale } from "./pos-types";
 
 export type HeldSalesListCopy = {
@@ -28,37 +28,27 @@ export type HeldSalesListProps = {
 
 export function HeldSalesList({ sales, onResume, copy, className }: HeldSalesListProps) {
   return (
-    <div className={cn(POS_SURFACE, "flex flex-col gap-3 p-4", className)}>
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        {copy.title}
-      </h2>
+    <div data-pos-held className={cn("flex flex-col gap-3", className)}>
       {sales.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{copy.empty}</p>
+        <p role="status" className={cn(POS_SURFACE, "m-0 px-5 py-6 text-center text-[15px] text-admin-ink-muted")}>
+          {copy.empty}
+        </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className={cn(POS_SURFACE, "m-0 list-none overflow-hidden p-0")}>
           {sales.map((sale) => (
             <li
               key={sale.orderId}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3"
+              data-pos-held-sale={sale.orderId}
+              className="flex min-h-[64px] items-center gap-4 border-b border-admin-border-soft px-4 py-3 last:border-b-0"
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{sale.label}</p>
-                <p className="text-xs text-muted-foreground">
-                  {copy.heldSince} {sale.heldAt}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="text-sm font-medium text-foreground">
-                  {formatOrderMoney(sale.totalCents, sale.currency)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onResume(sale.orderId)}
-                  className="flex h-11 items-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-accent"
-                >
-                  {copy.resume}
-                </button>
-              </div>
+              <span className={cn("w-[82px] font-mono text-[15px] text-admin-ink-muted", POS_NUM)}>{sale.heldAt}</span>
+              <span className="min-w-0 flex-1 truncate text-[16px] font-semibold text-admin-ink">{sale.label}</span>
+              <span className={cn("font-mono text-[15px] font-bold text-admin-ink", POS_NUM)}>
+                {formatOrderMoney(sale.totalCents, sale.currency)}
+              </span>
+              <button type="button" onClick={() => onResume(sale.orderId)} className={cn(POS_SECONDARY_ACTION, "h-11 px-4 text-[14px]")}>
+                {copy.resume}
+              </button>
             </li>
           ))}
         </ul>
