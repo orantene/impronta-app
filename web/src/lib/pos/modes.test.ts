@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  enabledPosModesAtLocation,
   enabledPosModesFromSettings,
   modesForPerson,
   parsePosMode,
@@ -109,4 +110,17 @@ test("a stored `client` or `work` still means the projects mode (D-POS-10), once
   // stored value and is refused, so the id has one spelling in every address.
   assert.equal(parsePosMode("client"), undefined);
   assert.equal(parsePosMode("work"), undefined);
+});
+
+test("enabledPosModesAtLocation reads a slug and falls back to default", () => {
+  const settings = {
+    pos: {
+      locations: {
+        default: { modes: ["counter"] },
+        centro: { modes: ["counter", "floor"] },
+      },
+    },
+  };
+  assert.deepEqual(enabledPosModesAtLocation(settings, "centro"), ["counter", "floor"]);
+  assert.deepEqual(enabledPosModesAtLocation(settings, "missing"), ["counter"]);
 });

@@ -369,6 +369,12 @@ export const CANONICAL_LINK_PREFIX = "/q" as const;
 export const CANONICAL_VISIT_PREFIX = "/visit" as const;
 
 /**
+ * Ticket self-service (Package 3, D-POS-77). Agency and hub only: the signed
+ * admission code is tenant-scoped. `/t` is already the talent storefront.
+ */
+export const CANONICAL_TICKET_PREFIX = "/ticket" as const;
+
+/**
  * Events & Ticketing E4 — the public event pages (`/events`, `/events/<slug>`).
  * Agency and hub only, for the same reason `/q` is: an event slug means nothing
  * without a tenant to look it up under, and `casarizo.com/events/noche-de-salsa`

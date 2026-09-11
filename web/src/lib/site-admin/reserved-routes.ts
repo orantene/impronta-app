@@ -85,6 +85,9 @@ export const PLATFORM_RESERVED_SLUGS = [
   // Table occupancy guest view. `/q/<code>` redirects here while a visit is
   // open. Mirrored in `…00500_reserve_visit_slug.sql`.
   "visit",
+  // Ticket self-service. `/ticket/<signed-code>` resolves on agency and hub.
+  // Mirrored in `20261231229000_reserve_ticket_slug.sql`.
+  "ticket",
   "sitemap.xml",
   "robots.txt",
   "_next",

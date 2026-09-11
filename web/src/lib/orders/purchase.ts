@@ -27,6 +27,7 @@ import { reserveResourceSet } from "@/lib/resources/reserve-set";
 import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
 import { ageGateStamp, loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
 import { settleOrHoldOrder } from "@/lib/orders/purchase-settlement";
+import { expandEventSeriesLines } from "@/lib/venues/event-series";
 import type {
   PurchaseInput,
   PurchaseLineInput,
@@ -140,6 +141,10 @@ export async function createPurchase(
   try {
     // ── 1. Load the catalog. Policy AND price come from these rows, never
     //       from the request.
+    const series = await expandEventSeriesLines(admin, { tenantId: input.tenantId, lines: input.lines });
+    if (!series.ok) return { ok: false, reason: series.reason };
+    input = { ...input, lines: series.lines };
+
     const offeringIds = [...new Set(input.lines.map((l) => l.offeringId))];
     if (offeringIds.length === 0) {
       return { ok: false, reason: "empty_order" };

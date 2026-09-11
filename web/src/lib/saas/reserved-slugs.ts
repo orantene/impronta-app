@@ -35,6 +35,9 @@ export const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   // Occupancy guest view (/visit/<token>); reserved so a tenant slug cannot
   // shadow tonight's table QR redirect.
   "visit",
+  // Ticket self-service (/ticket/<signed-code>); reserved so a tenant slug
+  // cannot shadow a transferred QR (D-POS-77).
+  "ticket",
   // Events & Ticketing (/events, /events/<slug>) and the public receipt
   // (/r/<code>). Reserved so a tenant whose slug happens to be "events" or "r"
   // cannot shadow the engine for every other tenant. `hasPrefix` is

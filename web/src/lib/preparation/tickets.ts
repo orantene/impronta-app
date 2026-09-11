@@ -171,6 +171,7 @@ export async function submitOrderToPreparation(
     destination?: PrepDestination;
     station?: string;
     promisedAt?: string | null;
+    courseSeq?: number;
   },
 ): Promise<SubmitPrepResult> {
   const { data: order, error } = await admin
@@ -188,11 +189,15 @@ export async function submitOrderToPreparation(
     return { ok: false, reason: "wrong_tenant", error: "Sale not found." };
   }
 
-  const { data: lineRows, error: linesError } = await admin
+  let linesQuery = admin
     .from("order_lines")
-    .select("id, label, units")
+    .select("id, label, units, course_seq")
     .eq("order_id", input.orderId)
     .order("sort_order", { ascending: true });
+  if (typeof input.courseSeq === "number") {
+    linesQuery = linesQuery.eq("course_seq", input.courseSeq);
+  }
+  const { data: lineRows, error: linesError } = await linesQuery;
   if (linesError) {
     logServerError("prep.submit.lines", linesError);
     return { ok: false, reason: "unavailable", error: "Could not send to preparation." };

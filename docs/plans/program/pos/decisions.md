@@ -888,7 +888,101 @@ Decided 2026-09-11 (engine-scheduling). `booking_policy_overrides` win over
 offering / workspace defaults for deposit, free-cancel hours and no-show
 fee. `role_limits` + `approval_requests` gate discounts and refunds above
 the role's cents cap. W56 can now be a real review dialog over these rows.
-## D-POS-76 — the phone's four tabs are the board's: Today · Calendar · Clients · Sales
+
+## D-POS-76 — tenant places are venue_locations, not public.locations
+
+Decided 2026-09-11 (engine-venue). `public.locations` is the city gazetteer
+(country + city_slug). Spaces S2 already forbade reusing that name. Package 3
+stores POS/workspace places in `venue_locations` and `venue_location_zones`.
+Settings stay at `agencies.settings.pos.locations.<slug>.modes`. Every
+existing agency is seeded with slug `default` so today's chip and modes path
+do not change.
+
+## D-POS-77 — ticket self-service is /ticket/[code], not /t/[code]
+
+Decided 2026-09-11 (engine-venue). `/t` is `CANONICAL_TALENT_PREFIX` (talent
+storefront). A second `/t/[code]` page would collide in the App Router.
+Signed admission codes stay `adm1.…` from `admission-token.ts`. The public
+ticket page is `/ticket/[code]`.
+
+## D-POS-78 — restaurant waitlist is party_waitlist, not waitlist_offers
+
+Decided 2026-09-11 (engine-venue). T08 is its own table. Notify records
+`notified_at` even when no phone sender exists and returns `channel: none`.
+Seat claims the row in SQL then opens the visit through `openVisit`.
+
+## D-POS-79 — layouts share capacity; service_periods overlay windows
+
+Decided 2026-09-11 (engine-venue). `layout_activate` never writes a capacity
+pool. `service_periods` replace `venue_service_windows` for a venue only when
+at least one period exists; otherwise the current reader is unchanged.
+
+## D-POS-80 — guest QR drafts are source_channel guest_qr
+
+Decided 2026-09-11 (engine-venue). Table QR ordering writes a draft on the
+open visit with `source_channel=guest_qr` and pays a share through the
+existing payment-link reserve. The landing page at `/visit/[token]` is not
+replaced.
+
+## D-POS-81 — event_series is not session_series
+
+Decided 2026-09-11 (engine-venue). Multi-day events are `event_series` +
+`sessions.event_series_id`. Class materialisation stays on
+`session_series`. Seat holds lock `admission_holds` under a unique live
+row and reserve space pools through `reserve_resource_set_v2`. Comp
+reads Package 2 `role_limits` / `approval_requests`.
+
+## D-POS-82 — offline outbox is cash-only
+
+Decided 2026-09-11 (engine-venue). `pos_outbox_apply` replays
+`cash_collect` through `pos_reserve_collection`. A command that names a
+provider, a card method, or a checkout session is `not_replayable`. The
+client must not queue those while offline (D-POS-11).
+
+## D-POS-83 — POS Messages reads the inquiry store, never a second conversation model
+
+Decided 2026-09-11 (pos-messages). The POS inbox, the workspace Messages
+page and the customer `/c/<token>` thread all read `inquiries` +
+`inquiry_messages`. New columns and satellite tables are additive.
+Conversation state, opportunity state and record chips stay three families.
+
+## D-POS-84 — web chat cannot be opened by staff
+
+Decided 2026-09-11 (pos-messages). MS21: staff start WhatsApp, SMS, email or
+counter. `messagingStartConversation` refuses `web_chat`. The customer opens
+web chat from a public surface they already have.
+
+## D-POS-85 — WhatsApp and SMS never pretend a send landed
+
+Decided 2026-09-11 (pos-messages). Adapters exist behind one interface.
+Without `WHATSAPP_*` / `TWILIO_*` they return `channel_unavailable` and write
+no `sent` delivery row as success.
+
+## D-POS-86 — a payment request reuses the package-1 reservation and link
+
+Decided 2026-09-11 (pos-messages). `messagingRequestPayment` calls
+`createPaymentLink` with a stable `operation_key`. A retry returns the same
+code. A lost provider answer is `payment_unknown`, never a second request.
+The checkout snapshot is written before the link is minted.
+
+## D-POS-87 — `/c/<token>` is a signed thread token, not the inquiry id
+
+Decided 2026-09-11 (pos-messages). HMAC over `{inquiryId, tenantId, iat}`
+using `GUEST_COOKIE_SECRET`, purpose `pos-thread`. The existing
+`/c/[inquiryId]` guest-cookie path stays. The integrator dispatches.
+
+## D-POS-88 — tablet portrait and phone reuse the same components
+
+Decided 2026-09-11 (pos-messages). MM01–MM06 are `MessagesClient` with
+`compact` at 390x844. No second store and no parallel screen tree.
+
+## D-POS-89 — customer cards live at `/c/t/<token>` until `/c` can dispatch
+
+Decided 2026-09-11 (pos-messages). Next 16 rejects two `/c/[*]` routes.
+The guest UUID path stays at `/c/[inquiryId]`. POS customer cards use
+`/c/t/<token>` via `publicThreadPath`. `/c/*` is already on the surface
+allow-list. The integrator can later fold the token into `/c/:param`.
+## D-POS-90 — the phone's four tabs are the board's: Today · Calendar · Clients · Sales
 
 Decided 2026-09-11 (fid-mobile). The registry's `mobilePriority` ordered the
 bar Overview · Messages · Calendar · Appointments; the approved MW00 board
@@ -904,7 +998,7 @@ clause. The More sheet draws every other visible destination as a chip under
 its group and does not repeat the four on the bar. Messages, the fourth
 tab of the professional's bar on MW26, waits on My work (D-POS-69).
 
-## D-POS-77 — the phone's Orders list opens the conversation; an order has no record page
+## D-POS-91 — the phone's Orders list opens the conversation; an order has no record page
 
 Decided 2026-09-11 (fid-mobile). MW18–MW20 draw an order's own screen (its
 lines with their stations and readiness, Total · Payment · Notify · If not
@@ -916,7 +1010,7 @@ conversation when it has one, the same door the desktop table offers; Mark
 ready and Hand over are not drawn because there is nothing for them to write.
 The refund form stays on the desktop table.
 
-## D-POS-78 — My work on the phone is the screen with the sentence
+## D-POS-92 — My work on the phone is the screen with the sentence
 
 Decided 2026-09-11 (fid-mobile). `mywork` is `built: false` in the registry
 on purpose (no page shows one person their own shifts, assignments and
@@ -926,7 +1020,7 @@ today (Calendar, Appointments & Classes, Projects). MW27–MW31 (a project or
 appointment assignment to accept, a field job, a schedule conflict, earnings)
 have no reader or writer and are not drawn beyond that sentence.
 
-## D-POS-79 — invitations redeem on the link; the accept, decline and state screens are not drawn
+## D-POS-93 — invitations redeem on the link; the accept, decline and state screens are not drawn
 
 Decided 2026-09-11 (fid-mobile). MW32–MW34 draw an invitation as a screen
 with Accept and Decline and three states (expired, wrong account, access
@@ -939,7 +1033,7 @@ expired, a booking no longer available, no access, a session that ended) is
 the same shape: those states are answered by the routes that own them and
 were not restyled in this group.
 
-## D-POS-80 — the workspace switch sheet lists one location: the workspace itself
+## D-POS-94 — the workspace switch sheet lists one location: the workspace itself
 
 Decided 2026-09-11 (fid-mobile). MW01 draws Workspaces and Locations. The
 sheet lists the person's memberships from `actionLoadUserWorkspaces` (the
@@ -948,7 +1042,7 @@ Locations card has one row, the workspace's own name, disabled with the
 reason, because there is no locations table (D-POS-18). The desktop drawer
 (`wave2.tsx`) is at its size budget, so the phone's sheet is its own
 component over the same reader rather than a rewrite of the drawer.
-## D-POS-81 — the Front desk reads as the boards: B05 fills the screen, A09 is a sheet of free times, the Book door is the five-step flow A01 to A06 over one service
+## D-POS-95 — the Front desk reads as the boards: B05 fills the screen, A09 is a sheet of free times, the Book door is the five-step flow A01 to A06 over one service
 
 Decided 2026-09-11 (fid-polish2). Three structural changes on the Front desk
 (`?mode=classes`), all on the readers and writers that already existed:
