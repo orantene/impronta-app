@@ -25,10 +25,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CustomerDisplay, type CustomerDisplayReceiptOutcome, type CustomerDisplayScreen } from "@/components/admin/pos/CustomerDisplay";
 import type { CustomerDisplayCopy } from "@/components/admin/pos/customer-display-copy";
+import type { CustomerDisplayTipCopy } from "@/components/admin/pos/CustomerDisplayTip";
 import { displayStateFor, nextFollowedOrder } from "@/lib/pos/display-model";
+import { posSetTip } from "@/lib/server-actions/pos-engine";
 
 import { posDisplayEmailReceipt, posDisplayRead, type PosDisplaySale } from "./actions";
-import { readDisplayBeacon } from "./display-beacon";
+import { keypadNext } from "./counter-model";
+import { readDisplayBeacon, writeSaleChangedBeacon } from "./display-beacon";
 
 export const DISPLAY_POLL_MS = 2_000;
 /** D07: "This screen clears in a moment" — how long the thank-you stays without a tap. */
@@ -41,6 +44,9 @@ export type DisplayClientProps = {
   workspaceName: string;
   initialOrderId: string | null;
   copy: CustomerDisplayCopy;
+  tipCopy: CustomerDisplayTipCopy;
+  /** `dashboard.pos.engine.refusal.*`, for a tip the engine refuses. */
+  engineRefusal: Readonly<Record<string, string>>;
 };
 
 type LocalStep = "confirm" | "contact" | "sent" | null;
@@ -55,6 +61,11 @@ export function DisplayClient(props: DisplayClientProps) {
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [receiptOutcome, setReceiptOutcome] = useState<CustomerDisplayReceiptOutcome | null>(null);
+  // D02 / D03: the tip step the customer is on, and the figure they are typing.
+  const [tipStep, setTipStep] = useState<"choose" | "custom">("choose");
+  const [customTip, setCustomTip] = useState(0);
+  const [tipSaving, setTipSaving] = useState(false);
+  const [tipRefusal, setTipRefusal] = useState<string | null>(null);
 
   // Refs mirror the state the tick needs, so the interval never reads a
   // stale closure and never has to be re-created on every change.
@@ -74,6 +85,9 @@ export function DisplayClient(props: DisplayClientProps) {
     setEmail("");
     setReceiptOutcome(null);
     setDeclinedSeenAtVersion(null);
+    setTipStep("choose");
+    setCustomTip(0);
+    setTipRefusal(null);
   }, []);
 
   const tick = useCallback(async () => {
@@ -189,6 +203,39 @@ export function DisplayClient(props: DisplayClientProps) {
     }
   }, [email, props.copy, sale, sending]);
 
+  /**
+   * THE TIP IS THE CUSTOMER'S WRITE. `posSetTip` carries the version this
+   * screen read and an operation key derived from it, so a second tap on the
+   * same tile is the same write; the sale's own `tipCents` comes back on the
+   * next poll and the chooser turns into `Tip added`.
+   */
+  const setTip = useCallback(
+    async (tipCents: number) => {
+      if (!sale || tipSaving) return;
+      setTipSaving(true);
+      setTipRefusal(null);
+      try {
+        const r = await posSetTip({
+          orderId: sale.orderId,
+          tipCents,
+          operationKey: `tip:${sale.orderId}:${sale.version}:${tipCents}`,
+          expectedVersion: sale.version,
+        });
+        if (r.ok) {
+          setSale({ ...sale, tipCents: r.tipCents, totalCents: r.totalCents, outstandingCents: Math.max(0, r.totalCents - sale.depositPaidCents), version: r.version });
+          setTipStep("choose");
+          setCustomTip(0);
+          writeSaleChangedBeacon(props.tenantId, sale.orderId, r.version);
+        } else {
+          setTipRefusal(props.engineRefusal[r.reason] ?? props.engineRefusal.unavailable ?? "");
+        }
+      } finally {
+        setTipSaving(false);
+      }
+    },
+    [props.engineRefusal, props.tenantId, sale, tipSaving],
+  );
+
   const paidVia: "cash" | "card" | null =
     sale?.latestTransaction?.paidVia === "cash"
       ? "cash"
@@ -211,6 +258,7 @@ export function DisplayClient(props: DisplayClientProps) {
                 lines: sale.lines,
                 subtotalCents: sale.subtotalCents,
                 discountCents: sale.discountCents,
+                tipCents: sale.tipCents,
                 totalCents: sale.totalCents,
                 depositPaidCents: sale.depositPaidCents,
                 outstandingCents: sale.outstandingCents,
@@ -220,6 +268,27 @@ export function DisplayClient(props: DisplayClientProps) {
             : null
         }
         copy={props.copy}
+        tip={
+          sale && sale.paymentState === "unpaid"
+            ? {
+                step: tipStep,
+                customCents: customTip,
+                saving: tipSaving,
+                refusal: tipRefusal,
+                onPick: (cents) => void setTip(cents),
+                onOther: () => {
+                  setCustomTip(0);
+                  setTipRefusal(null);
+                  setTipStep("custom");
+                },
+                onChange: () => void setTip(0),
+                onKey: (key) => setCustomTip((c) => (key === "00" ? keypadNext(keypadNext(c, "0"), "0") : keypadNext(c, key))),
+                onBack: () => setTipStep("choose"),
+                onConfirm: () => void setTip(customTip),
+                copy: props.tipCopy,
+              }
+            : undefined
+        }
         connectionLost={lost}
         onLooksRight={() => setStep("confirm")}
         onBack={() => setStep(null)}

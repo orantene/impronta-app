@@ -1,0 +1,1 @@
+Results show the matching snippet; opening lands on the message; Back returns to the list, then to the thread at the same position.

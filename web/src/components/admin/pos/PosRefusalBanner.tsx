@@ -96,3 +96,22 @@ export function PosRefusalBanner({ reason, copy, onRetry, className }: PosRefusa
     </div>
   );
 }
+
+/**
+ * The same banner for a Package 1 engine refusal: the code is the reason
+ * word (`dashboard.pos.engine.refusal.*`) and the sentence arrives already
+ * looked up, so a code this screen has never heard of still reads as the
+ * catalogue's `unavailable` sentence and never as the word itself.
+ */
+export function PosEngineRefusalBanner({ code, sentence, onReload, reloadLabel, className }: { readonly code: string; readonly sentence: string; readonly onReload?: () => void; readonly reloadLabel?: string; readonly className?: string }) {
+  return (
+    <div role="alert" data-pos-refusal={code} className={cn(POS_REFUSAL_BANNER, className)}>
+      <p className="flex-1">{sentence}</p>
+      {code === "conflict" && onReload && reloadLabel && (
+        <button type="button" onClick={onReload} className={cn(POS_SECONDARY_ACTION, "h-9 shrink-0 px-3 text-xs")}>
+          {reloadLabel}
+        </button>
+      )}
+    </div>
+  );
+}

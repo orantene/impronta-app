@@ -5,17 +5,17 @@
  *
  * `POSCustomAmount`: `What is it?`, `Reason` and `Report as`, the amount
  * box with its keypad, the `Over your limit · a manager will approve` note,
- * and `Cancel · Continue · ask a manager`.
+ * and `Cancel · Continue · ask a manager` (or `Add to sale` under the limit).
  *
- * `POSManagerApproval`: the item / amount / reason card, four PIN dots, the
- * `That PIN isn't right · 2 tries left` alert, a PIN pad, `Cancel · Approve`.
+ * `POSManagerApproval`: the item / amount / reason card, the managers who
+ * can approve (one tile each, from the people with a register PIN), the PIN
+ * dots, the `That PIN isn't right` alert, a PIN pad, `Cancel · Approve`.
  *
- * NEITHER IS WIRED TO THE ENGINE YET. A sale line is priced from a
- * catalog offering (`addLine` takes an `offeringId`) and there is no
- * manager-PIN table, so `Continue` opens the approval dialog exactly as the
- * board draws it and `Approve` is disabled with its sentence (D-POS-20). The
- * amount and description the cashier typed are kept so the sentence is met
- * with the work still on screen, not lost.
+ * WIRED. `Continue` writes the line through `posAddCustomLine`; a line
+ * over `agencies.settings.pos.approval.custom_amount_limit_cents` comes
+ * back `needsApproval` and stays locked on the sale until
+ * `posApproveCustomAmount` verifies a manager's PIN. Both callbacks belong to
+ * the page; this file keeps only the dots and the typed figures.
  */
 
 import { Lock, X } from "lucide-react";
@@ -25,6 +25,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import { cn } from "@/lib/utils";
 import { PosDialog, PosSheet } from "./PosSheet";
 import { PosKeypad } from "./PosKeypad";
+import { initialsOf } from "./CustomerSheet";
 import {
   POS_INPUT,
   POS_LABEL,
@@ -34,6 +35,7 @@ import {
   POS_SECONDARY_ACTION,
   POS_TOTAL_ROW,
 } from "./pos-classes";
+import type { PosPerson } from "./pos-types";
 
 export type CustomAmountCopy = {
   readonly title: string;
@@ -44,18 +46,24 @@ export type CustomAmountCopy = {
   readonly reportAs: string;
   readonly reportAsUnavailable: string;
   readonly amount: string;
+  /** `Over your {limit} limit · a manager will approve on the next step` */
   readonly limitNote: string;
+  /** Under the limit: `Within your {limit} limit · no approval needed` */
+  readonly withinLimit: string;
   readonly cancel: string;
   readonly continueAsk: string;
+  readonly addToSale: string;
   readonly back: string;
   readonly closeLabel: string;
   readonly approvalTitle: string;
-  /** `Custom amount {amount} · {cashier}` */
+  /** `Custom amount {amount} · {cashier} · over {limit} limit` */
   readonly approvalSubtitle: string;
   readonly item: string;
-  readonly pinWrong: string;
+  readonly whoApproves: string;
+  readonly noManagers: string;
+  readonly pinPrompt: string;
   readonly approve: string;
-  readonly approveUnavailable: string;
+  readonly approving: string;
 };
 
 export type CustomAmountSheetProps = {
@@ -66,6 +74,9 @@ export type CustomAmountSheetProps = {
   readonly onDescriptionChange: (value: string) => void;
   readonly amountCents: number;
   readonly onKey: (key: string) => void;
+  /** The workspace's approval limit; 0 means every custom amount needs a manager. */
+  readonly limitCents: number;
+  readonly busy: boolean;
   readonly onContinue: () => void;
   readonly copy: CustomAmountCopy;
 };
@@ -73,6 +84,8 @@ export type CustomAmountSheetProps = {
 export function CustomAmountSheet(props: CustomAmountSheetProps) {
   const { copy } = props;
   const ready = props.description.trim().length > 0 && props.amountCents > 0;
+  const overLimit = props.amountCents > props.limitCents;
+  const limit = formatOrderMoney(props.limitCents, props.currency);
   return (
     <PosSheet
       open={props.open}
@@ -87,8 +100,8 @@ export function CustomAmountSheet(props: CustomAmountSheetProps) {
         </button>
       }
       footerEnd={
-        <button type="button" data-pos-custom-continue disabled={!ready} onClick={props.onContinue} className={POS_PRIMARY_ACTION}>
-          {copy.continueAsk}
+        <button type="button" data-pos-custom-continue disabled={!ready || props.busy} onClick={props.onContinue} className={POS_PRIMARY_ACTION}>
+          {overLimit ? copy.continueAsk : copy.addToSale}
         </button>
       }
     >
@@ -125,9 +138,9 @@ export function CustomAmountSheet(props: CustomAmountSheetProps) {
           </span>
         </div>
         <PosKeypad onKey={props.onKey} backLabel={copy.back} />
-        <p className={POS_NOTE}>
+        <p className={POS_NOTE} data-pos-custom-limit={overLimit ? "over" : "within"}>
           <Lock aria-hidden size={16} strokeWidth={1.75} className="mt-0.5 shrink-0" />
-          <span>{copy.limitNote}</span>
+          <span>{interpolate(overLimit ? copy.limitNote : copy.withinLimit, { limit })}</span>
         </p>
       </div>
     </PosSheet>
@@ -140,21 +153,32 @@ export type ManagerApprovalDialogProps = {
   readonly currency: string;
   readonly description: string;
   readonly amountCents: number;
+  readonly limitCents: number;
   readonly cashier: string;
+  /** The people who can approve: managers holding a register PIN. */
+  readonly approvers: readonly PosPerson[];
+  readonly approverId: string | null;
+  readonly onApproverChange: (userId: string) => void;
   readonly pinLength: number;
   readonly onKey: (key: string) => void;
+  /** The last refusal, as a sentence, or null. */
+  readonly status: string | null;
+  readonly busy: boolean;
+  readonly onApprove: () => void;
   readonly copy: CustomAmountCopy;
 };
 
 export function ManagerApprovalDialog(props: ManagerApprovalDialogProps) {
   const { copy } = props;
   const amount = formatOrderMoney(props.amountCents, props.currency);
+  const limit = formatOrderMoney(props.limitCents, props.currency);
+  const canApprove = props.pinLength >= 4 && props.approverId !== null && !props.busy;
   return (
     <PosDialog
       open={props.open}
       name="manager-approval"
       title={copy.approvalTitle}
-      subtitle={interpolate(copy.approvalSubtitle, { amount, cashier: props.cashier })}
+      subtitle={interpolate(copy.approvalSubtitle, { amount, cashier: props.cashier, limit })}
       closeLabel={copy.closeLabel}
       onClose={props.onClose}
       footerStart={
@@ -163,9 +187,8 @@ export function ManagerApprovalDialog(props: ManagerApprovalDialogProps) {
         </button>
       }
       footerEnd={
-        <button type="button" data-pos-approve disabled title={copy.approveUnavailable} className={POS_PRIMARY_ACTION}>
-          {copy.approve}
-          <span className="sr-only">{copy.approveUnavailable}</span>
+        <button type="button" data-pos-approve disabled={!canApprove} onClick={props.onApprove} className={POS_PRIMARY_ACTION}>
+          {props.busy ? copy.approving : copy.approve}
         </button>
       }
     >
@@ -183,15 +206,55 @@ export function ManagerApprovalDialog(props: ManagerApprovalDialogProps) {
           <dd className="m-0 font-semibold text-admin-ink">{copy.reasonDefault}</dd>
         </div>
       </dl>
-      <div className="my-4 flex items-center justify-center gap-3" aria-hidden>
-        {[0, 1, 2, 3].map((i) => (
-          <span key={i} className={cn("h-3.5 w-3.5 rounded-full", i < props.pinLength ? "bg-admin-brand" : "bg-admin-surface-alt ring-1 ring-admin-border")} />
+      <p className={cn(POS_LABEL, "mt-4")}>{copy.whoApproves}</p>
+      {props.approvers.length === 0 ? (
+        <p role="status" data-pos-approval-no-managers className="m-0 rounded-[12px] bg-admin-surface-alt px-4 py-3 text-[14px] text-admin-ink-muted">
+          {copy.noManagers}
+        </p>
+      ) : (
+        <div role="radiogroup" aria-label={copy.whoApproves} className="grid grid-cols-3 gap-2.5">
+          {props.approvers.map((person) => {
+            const active = person.userId === props.approverId;
+            return (
+              <button
+                key={person.userId}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                data-pos-approver={person.userId}
+                onClick={() => props.onApproverChange(person.userId)}
+                className={cn(
+                  "flex min-h-[72px] flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] px-2 py-2 text-center transition-colors",
+                  active ? "border-admin-brand bg-admin-brand-soft" : "border-admin-border bg-admin-card hover:bg-admin-surface-alt",
+                )}
+              >
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-admin-surface-alt text-[12px] font-bold text-admin-ink">
+                  {initialsOf(person.name)}
+                </span>
+                <span className="text-[14px] font-semibold text-admin-ink">{person.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="my-4 flex items-center justify-center gap-3" aria-label={copy.pinPrompt}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            aria-hidden
+            className={cn(
+              "h-3.5 w-3.5 rounded-full",
+              i < props.pinLength ? "bg-admin-brand" : i < 4 ? "bg-admin-surface-alt ring-1 ring-admin-border" : "hidden",
+            )}
+          />
         ))}
       </div>
-      <p role="status" data-pos-approval-status className="m-0 mb-4 flex items-start gap-2.5 rounded-[12px] bg-admin-critical-soft px-4 py-3 text-[14px] text-admin-red">
-        <X aria-hidden size={16} strokeWidth={2} className="mt-0.5 shrink-0" />
-        <span>{copy.approveUnavailable}</span>
-      </p>
+      {props.status && (
+        <p role="alert" data-pos-approval-status className="m-0 mb-4 flex items-start gap-2.5 rounded-[12px] bg-admin-critical-soft px-4 py-3 text-[14px] text-admin-red">
+          <X aria-hidden size={16} strokeWidth={2} className="mt-0.5 shrink-0" />
+          <span>{props.status}</span>
+        </p>
+      )}
       <PosKeypad onKey={props.onKey} corner="blank" backLabel={copy.back} />
     </PosDialog>
   );

@@ -19,13 +19,15 @@ import type { FloorBoardCopy } from "@/components/admin/floor/floor-copy";
 import type { FloorActions, FloorBoardData } from "@/components/admin/floor/floor-types";
 
 import { floorCreateReservation, floorLoadReserveTimes } from "../pos/floor-actions";
-import { tablesCloseVisit, tablesMoveVisit, tablesResetTable, tablesSeatParty } from "../tables/actions";
+import { tablesCloseVisit, tablesResetTable, tablesSeatParty, visitChangeServer, visitMergeChecks, visitTransfer } from "../tables/actions";
 import { reservationsTakeWalkIn } from "./actions";
 
 const ACTIONS: FloorActions = {
   seatParty: (input) => tablesSeatParty(input),
   closeVisit: (input) => tablesCloseVisit(input),
-  moveVisit: (input) => tablesMoveVisit(input),
+  moveVisit: (input) => visitTransfer({ visitId: input.visitId, toSpaceId: input.spaceId, operationKey: input.operationKey, expectedVersion: input.expectedVersion }),
+  mergeChecks: (input) => visitMergeChecks(input),
+  changeServer: (input) => visitChangeServer(input),
   resetTable: (spaceId) => tablesResetTable(spaceId),
   takeWalkIn: (input) => reservationsTakeWalkIn(input),
   loadReserveTimes: (input) => floorLoadReserveTimes(input),

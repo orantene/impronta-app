@@ -12,15 +12,20 @@
  * ONE RECORD AT A TIME (D-POS-40). Which unpaid records a single payment
  * applies to is not recorded anywhere in this database, so two ticked
  * records disable the button with the reason instead of inventing an
- * allocation. `Send payment link` has no sender (D-POS-27) and says so.
+ * allocation. `Send payment link` mints `/pay/<code>` for the one ticked
+ * record (`createPaymentLink`, the counter's own panel) and the record then
+ * carries the MW08 line: sent, expires, you will be told when it is paid.
  */
 
 import { useState } from "react";
 import { Check } from "lucide-react";
 
+import type { PaymentLinkCopy, PaymentLinkRow } from "@/components/admin/pos/PaymentLinkPanel";
+import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { cn } from "@/lib/utils";
-import { BTN_PRIMARY, BTN_SECONDARY, Eyebrow, KeyValue, ListRow } from "../../projects/_shared";
+import { ProjectsLinkPanel } from "../../pos/_projects/projects-link-panel";
+import { BTN_PRIMARY, BTN_SECONDARY, Eyebrow, KeyValue, ListRow, dayLabel } from "../../projects/_shared";
 import { RecordSheet } from "../../projects/_sheet";
 
 export type CollectRecordView = {
@@ -49,7 +54,10 @@ export type CollectSheetCopy = {
   note: string;
   cancel: string;
   sendLink: string;
+  /** Why the link cannot be sent right now (nothing ticked, or two records). */
   sendLinkUnavailable: string;
+  /** MW08: `Payment link sent · expires {when} · you will be notified when paid` */
+  linkSent: string;
   continueTo: string;
   oneAtATime: string;
   nothingSelected: string;
@@ -59,16 +67,30 @@ export function ClientCollect({
   records,
   counterHref,
   copy,
+  link,
   className,
 }: {
   records: CollectRecordView[];
   /** `/<slug>/admin/pos?mode=counter`; the order id is appended here. */
   counterHref: string;
   copy: CollectSheetCopy;
+  /** The payment-link panel's facts and copy. */
+  link: {
+    workspaceName: string;
+    provider: "stripe" | "mock";
+    copy: PaymentLinkCopy;
+    engineRefusal: Readonly<Record<string, string>>;
+    /** The record's own zone and the reader's locale, for the expiry line. */
+    timeZone: string;
+    locale: string;
+    none: string;
+  };
   /** The phone's 50px shape when the button rides the fixed bar (MW06). */
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [sent, setSent] = useState<PaymentLinkRow | null>(null);
   const [picked, setPicked] = useState<string[]>(records[0] ? [records[0].orderId] : []);
   const chosen = records.filter((r) => picked.includes(r.orderId));
   const currency = chosen[0]?.currency ?? records[0]?.currency ?? "USD";
@@ -82,6 +104,12 @@ export function ClientCollect({
       <button type="button" className={className ? `${BTN_PRIMARY} ${className}` : BTN_PRIMARY} onClick={() => setOpen(true)} data-client-collect-open>
         {copy.open} {formatOrderMoney(totalCents, currency)}
       </button>
+      {sent && (
+        <p role="status" data-client-link-sent className="m-0 flex items-start gap-2 rounded-[10px] bg-admin-success-soft px-3 py-2.5 text-[13px] font-semibold text-admin-success">
+          <Check aria-hidden size={16} strokeWidth={2.5} className="mt-0.5 shrink-0" />
+          <span>{interpolate(copy.linkSent, { when: sent.expiresAt })}</span>
+        </p>
+      )}
       <RecordSheet
         open={open}
         name="collect"
@@ -96,7 +124,15 @@ export function ClientCollect({
         }
         footerEnd={
           <>
-            <button type="button" disabled title={copy.sendLinkUnavailable} className={BTN_SECONDARY}>
+            <button
+              type="button"
+              disabled={!one}
+              title={one ? undefined : copy.sendLinkUnavailable}
+              aria-pressed={linkOpen}
+              className={BTN_SECONDARY}
+              data-client-send-link
+              onClick={() => setLinkOpen((v) => !v)}
+            >
               {copy.sendLink}
             </button>
             {one ? (
@@ -149,6 +185,24 @@ export function ClientCollect({
         <p className="m-0 rounded-[10px] bg-admin-surface-alt px-3 py-2.5 text-[12.5px] text-admin-ink-muted">
           {chosen.length > 1 ? copy.oneAtATime : copy.note}
         </p>
+        {linkOpen && one && (
+          <>
+            <Eyebrow>{copy.sendLink}</Eyebrow>
+            <ProjectsLinkPanel
+              orderId={one.orderId}
+              orderVersion={0}
+              amountCents={one.owedCents}
+              currency={one.currency}
+              workspaceName={link.workspaceName}
+              provider={link.provider}
+              links={sent ? [sent] : []}
+              copy={link.copy}
+              engineRefusal={link.engineRefusal}
+              formatWhen={(iso) => dayLabel(iso, link.timeZone, link.locale, link.none, { time: true })}
+              onWritten={setSent}
+            />
+          </>
+        )}
       </RecordSheet>
     </>
   );

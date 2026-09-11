@@ -50,7 +50,6 @@ import {
   ScannerListener,
   SellSurface,
   initialsOf,
-  receiptsSubtitle,
   type PosCollectionMethodId,
   type PosRefusalReason,
   type ScanToast,
@@ -62,9 +61,12 @@ import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { refusalFromResult } from "@/lib/pos/refusal-reason";
 
-import { CounterDisplayBeacon } from "./counter-display-beacon";
+import { useCounterDisplayBeacon } from "./counter-display-beacon";
 import { useCounterCustomer } from "./counter-customer";
 import { CounterDrawer } from "./counter-drawer";
+import { useCounterEngine } from "./counter-engine";
+import { COUNTER_DESTINATIONS, counterHeader, isDestination, type CounterDestination as Destination } from "./counter-header";
+import { useCounterLock } from "./counter-lock";
 import {
   CUSTOM_AMOUNT_ID,
   chosenSessionId,
@@ -90,12 +92,6 @@ import {
   posSubmitPrep,
   posUpdateLine,
 } from "./actions";
-
-const DESTINATIONS = ["sell", "orders", "receipts", "shifts", "issues", "devices", "connection", "scan"] as const;
-type Destination = (typeof DESTINATIONS)[number];
-function isDestination(value: string): value is Destination {
-  return (DESTINATIONS as readonly string[]).includes(value);
-}
 
 type PaidSale = { amountCents: number; tenderedCents: number; changeCents: number; receiptCode: string | null };
 
@@ -142,6 +138,39 @@ export function PosClient(props: PosClientProps) {
   const dismissScanToast = useCallback(() => setScanToast(null), []);
 
   const customer = useCounterCustomer(copy.customer);
+  const till = useCounterLock({
+    people: props.people,
+    signedInName: props.cashierName,
+    drawerOwnerName: props.shift ? props.cashierName : null,
+    peopleHref: `${props.workspacePath}/people`,
+    copy: { ...copy.lock, refusal: copy.engineRefusal },
+  });
+  const engine = useCounterEngine({
+    sale,
+    lines: props.basketLines,
+    currency: props.currency,
+    locale: props.locale,
+    people: props.people,
+    limitCents: props.customAmountLimitCents,
+    cashierName: till.operatorName,
+    workspaceName: props.workspaceName,
+    customerName: customer.attached?.displayName ?? null,
+    customerId: customer.attached?.id ?? sale?.customerId ?? null,
+    paymentLinks: props.paymentLinks,
+    linkProvider: props.linkProvider,
+    copy: { custom: copy.custom, booking: copy.booking, tip: copy.tip, paymentLink: copy.paymentLink, refusal: copy.engineRefusal, reload: copy.refusal.reload },
+    onWritten: () => {
+      setSavedAt(formatClock(new Date().toISOString(), props.locale));
+      router.refresh();
+    },
+    onOpenCustomer: customer.open,
+    onCollect: () => {
+      setTenderedCents(sale?.outstandingCents ?? 0);
+      setTenderTouched(false);
+      setMethod("cash");
+      setCollectOpen(true);
+    },
+  });
 
   const saleHref = useCallback(
     (orderId: string | null) =>
@@ -193,7 +222,10 @@ export function PosClient(props: PosClientProps) {
     [props.basketLines, props.locale, router, sale],
   );
   const settling = writtenVersion !== null && sale !== null && sale.version === writtenVersion;
-  const working = busy || settling;
+  // The customer display's own write (a tip) on this device: hold the next
+  // command until the re-read has delivered that version (D-POS-88).
+  const beacon = useCounterDisplayBeacon({ tenantId: props.tenantId, orderId: sale?.orderId ?? null, version: sale?.version ?? null });
+  const working = busy || settling || beacon.stale;
 
   const resetForNewSale = useCallback(() => {
     setPaid(null);
@@ -417,7 +449,10 @@ export function PosClient(props: PosClientProps) {
           onSearchChange={setSearch}
           onSelectProduct={(productId) => {
             if (productId === CUSTOM_AMOUNT_ID) {
-              setSheet({ kind: "custom" });
+              // The sheet opens at once; with no sale open, one is started
+              // underneath it and the write lands on it (`POSEmptySale`).
+              engine.openCustom();
+              if (!sale) void startSale();
               return;
             }
             if (working) return;
@@ -438,10 +473,13 @@ export function PosClient(props: PosClientProps) {
           lines={props.basketLines}
           currency={props.currency}
           discountCents={sale?.discountCents ?? 0}
+          tipCents={sale?.tipCents ?? 0}
+          onOpenTip={sale && sale.paymentState === "unpaid" ? engine.openTip : undefined}
+          onApproveLine={engine.openApproval}
           taxState={props.taxState}
           customerName={customer.attached?.displayName ?? null}
           onOpenCustomer={customer.open}
-          onOpenBooking={() => setSheet({ kind: "booking" })}
+          onOpenBooking={engine.openBooking}
           service={service}
           onServiceChange={setService}
           onEditLine={(lineId) => setSheet({ kind: "line", lineId })}
@@ -461,7 +499,7 @@ export function PosClient(props: PosClientProps) {
           sentBefore={sentBefore}
           heldCount={held.length}
           onOpenHeld={() => setDestination("orders")}
-          chargeLoading={busy}
+          chargeLoading={working}
           offline={!online}
           savedAt={savedAt}
           hasSale={Boolean(sale)}
@@ -489,13 +527,14 @@ export function PosClient(props: PosClientProps) {
         setTenderTouched(true);
       }}
       onConfirmCash={() => void collect("cash")}
-      onConfirmLink={() => void collect("online_card")}
+      linkPanel={engine.paymentLinkPanel}
       confirmLoading={working}
       onBack={() => setCollectOpen(false)}
       backLabel={copy.page.backToSale}
       summary={[
-        { label: copy.basket.subtotal, amountCents: sale.totalCents + sale.discountCents },
+        { label: copy.basket.subtotal, amountCents: sale.totalCents + sale.discountCents - sale.tipCents },
         ...(sale.discountCents > 0 ? [{ label: copy.basket.discount, amountCents: sale.discountCents, negative: true }] : []),
+        ...(sale.tipCents > 0 ? [{ label: copy.basket.tip, amountCents: sale.tipCents }] : []),
       ]}
       copy={copy.collect}
     />
@@ -571,30 +610,15 @@ export function PosClient(props: PosClientProps) {
       window.open(sale ? `${props.posPath}/display?order=${encodeURIComponent(sale.orderId)}` : `${props.posPath}/display`, "_blank", "noopener,noreferrer"),
   });
 
-  const headerFor = (): { title: string; subtitle: string } => {
-    switch (destination) {
-      case "receipts":
-        return { title: copy.receipts.title, subtitle: receiptsSubtitle(copy.receipts, props.receipts.filter((r) => receiptsDay === "week" || r.dayKey === receiptsDay), receiptsDay, props.currency) };
-      case "shifts":
-        return { title: copy.chrome.drawerTitle, subtitle: props.shift ? `${copy.chrome.drawerOpen} · ${formatClock(props.shift.openedAt, props.locale)} · ${props.cashierName}` : `${props.workspaceName} · ${copy.chrome.drawerNone}` };
-      case "issues":
-        return { title: copy.issues.title, subtitle: copy.issues.subtitle };
-      case "devices":
-        return { title: copy.devices.title, subtitle: interpolate(copy.devices.subtitle, { location: props.workspaceName }) };
-      case "connection":
-        return { title: copy.connection.title, subtitle: interpolate(copy.connection.subtitle, { location: props.workspaceName }) };
-      case "scan":
-        return { title: copy.scanScreen.title, subtitle: copy.scanScreen.ready };
-      case "orders":
-        return { title: copy.frame.destinationLabels.orders ?? "", subtitle: interpolate(copy.basket.heldSales, { count: held.length }) };
-      default:
-        return {
-          title: collectOpen && sale ? `${copy.page.collectTitle} · ${customer.attached?.displayName ?? reference}` : copy.modeLabel,
-          subtitle: reference ? interpolate(copy.chrome.saleSubtitle, { number: reference, cashier: props.cashierName }) : interpolate(copy.chrome.newSaleSubtitle, { cashier: props.cashierName }),
-        };
-    }
-  };
-  const header = headerFor();
+  const header = counterHeader({
+    destination,
+    props,
+    receiptsDay,
+    heldCount: held.length,
+    collectOpen,
+    collectName: customer.attached?.displayName ?? null,
+    reference,
+  });
   const displayHref = sale ? `${props.posPath}/display?order=${encodeURIComponent(sale.orderId)}` : `${props.posPath}/display`;
 
   const body =
@@ -605,7 +629,21 @@ export function PosClient(props: PosClientProps) {
     ) : destination === "receipts" ? (
       <ReceiptsScreen rows={props.receipts} day={receiptsDay} onDayChange={setReceiptsDay} query={receiptsQuery} onQueryChange={setReceiptsQuery} copy={copy.receipts} />
     ) : destination === "shifts" ? (
-      <CounterDrawer shift={props.shift} currency={props.currency} minorUnitDivisor={props.minorUnitDivisor} cashierName={props.cashierName} busy={busy} run={run} onRefuse={setRefusal} copy={copy.drawer} />
+      <CounterDrawer
+        shift={props.shift}
+        currency={props.currency}
+        minorUnitDivisor={props.minorUnitDivisor}
+        locale={props.locale}
+        cashierName={props.cashierName}
+        people={props.people}
+        busy={busy}
+        run={run}
+        onRefuse={setRefusal}
+        onRefresh={() => router.refresh()}
+        copy={copy.drawer}
+        movementCopy={copy.movement}
+        engineRefusal={copy.engineRefusal}
+      />
     ) : destination === "issues" ? (
       <IssuesScreen copy={copy.issues} />
     ) : destination === "devices" ? (
@@ -621,7 +659,6 @@ export function PosClient(props: PosClientProps) {
 
   return (
     <div className="relative flex h-[calc(100vh-var(--proto-cbar,50px))] min-h-[560px] w-full flex-col overflow-hidden">
-      <CounterDisplayBeacon tenantId={props.tenantId} orderId={sale?.orderId ?? null} />
       <ScannerListener onScan={(code) => void scan(code)} enabled={(destination === "sell" || destination === "scan") && !paid && !collectOpen && sheet === null} />
       <PosFrame
         mode={props.mode}
@@ -634,7 +671,7 @@ export function PosClient(props: PosClientProps) {
         counts={{ orders: held.length }}
         modeLabel={copy.modeLabel}
         modeEyebrow={copy.chrome.modeEyebrow}
-        lock={{ label: copy.chrome.lock, disabledReason: copy.chrome.lockUnavailable }}
+        lock={{ label: copy.chrome.lock, onLock: till.lock }}
         workspace={{ label: copy.chrome.workspace, href: props.workspacePath }}
         className="flex-1"
       >
@@ -643,9 +680,10 @@ export function PosClient(props: PosClientProps) {
           subtitle={header.subtitle}
           alert={!online ? { label: copy.chrome.offlineChip, onSelect: () => setDestination("connection") } : props.readerConfigured ? { label: copy.chrome.readerOffChip, onSelect: () => setDestination("devices") } : null}
           location={props.workspaceName}
-          cashier={{ initials: initialsOf(props.cashierName), label: `${props.cashierName} · ${props.shift ? copy.chrome.drawerOpen : copy.chrome.drawerNone}` }}
+          cashier={{ initials: initialsOf(till.operatorName), label: `${till.operatorName} · ${props.shift ? copy.chrome.drawerOpen : copy.chrome.drawerNone}` }}
           cashierMenuLabel={copy.chrome.cashierMenu}
           cashierMenu={[
+            { id: "switch", label: copy.chrome.switchOperator, onSelect: till.openSwitch },
             { id: "devices", label: copy.chrome.devices, onSelect: () => setDestination("devices") },
             { id: "connection", label: copy.chrome.connection, onSelect: () => setDestination("connection") },
             // The customer display opens as a second window (`POSDevices`:
@@ -658,7 +696,7 @@ export function PosClient(props: PosClientProps) {
             label: copy.modeLabel,
             menuLabel: copy.frame.navLabel,
             items: [
-              ...DESTINATIONS.filter((id) => id in copy.frame.destinationLabels).map((id) => ({ id, label: copy.frame.destinationLabels[id] ?? id, onSelect: () => setDestination(id) })),
+              ...COUNTER_DESTINATIONS.filter((id) => id in copy.frame.destinationLabels).map((id) => ({ id, label: copy.frame.destinationLabels[id] ?? id, onSelect: () => setDestination(id) })),
               { id: "devices", label: copy.chrome.devices, onSelect: () => setDestination("devices") },
               { id: "connection", label: copy.chrome.connection, onSelect: () => setDestination("connection") },
               { id: "display", label: copy.displayLink.label, onSelect: () => window.open(displayHref, "_blank", "noopener,noreferrer") },
@@ -678,9 +716,12 @@ export function PosClient(props: PosClientProps) {
             />
           </div>
         )}
+        {engine.banner && <div className="px-6 pt-4">{engine.banner}</div>}
         <div className="relative flex min-h-0 flex-1 flex-col">
           {body}
           {customer.sheet}
+          {engine.sheets}
+          {till.overlay}
           <CounterSheets
             open={sheet}
             onChange={setSheet}
@@ -689,8 +730,6 @@ export function PosClient(props: PosClientProps) {
             saleReference={reference ?? ""}
             totalCents={sale?.totalCents ?? 0}
             discountCents={sale?.discountCents ?? 0}
-            customerName={customer.attached?.displayName ?? null}
-            cashierName={props.cashierName}
             busy={working}
             discountRefused={discountRefused}
             onSaveLine={(lineId, units) => {
@@ -739,7 +778,7 @@ export function PosClient(props: PosClientProps) {
               if (!sale) return;
               void run("sale", () => posRemoveLine({ orderId: sale.orderId, lineId, expectedVersion: sale.version }));
             }}
-            copy={{ line: copy.line, discount: copy.discount, custom: copy.custom, hold: copy.hold, expired: copy.expired, booking: copy.booking }}
+            copy={{ line: copy.line, discount: copy.discount, hold: copy.hold, expired: copy.expired }}
           />
           {paid && (
             <CashDoneDialog

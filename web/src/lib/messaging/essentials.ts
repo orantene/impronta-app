@@ -15,7 +15,7 @@ export async function loadMessagingEssentials(
 ): Promise<{ ok: true; essentials: Essentials } | { ok: false; reason: "unavailable" | "not_found" | "wrong_tenant" }> {
   const { data: inquiry, error } = await admin
     .from("inquiries")
-    .select("id, tenant_id, contact_name, contact_email, contact_phone")
+    .select("id, tenant_id, contact_name, contact_email, contact_phone, message, source_page")
     .eq("id", input.inquiryId)
     .maybeSingle();
   if (error) return { ok: false, reason: "unavailable" };
@@ -25,6 +25,8 @@ export async function loadMessagingEssentials(
     contact_name: string;
     contact_email: string | null;
     contact_phone: string | null;
+    message: string | null;
+    source_page: string | null;
   };
   if (row.tenant_id !== input.tenantId) return { ok: false, reason: "wrong_tenant" };
 
@@ -53,6 +55,8 @@ export async function loadMessagingEssentials(
         phone: row.contact_phone,
         identityLevel: ident?.level ?? "none",
         identityMethod: ident?.method ?? null,
+        request: row.message,
+        source: row.source_page,
       },
       linked: ((links ?? []) as { record_kind: RecordChip["kind"]; record_id: string }[]).map((link) => ({
         kind: link.record_kind,

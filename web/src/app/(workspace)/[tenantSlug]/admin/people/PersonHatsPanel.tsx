@@ -57,6 +57,7 @@ import {
   type PeopleReasonKey,
 } from "./people-actions";
 import { PersonBookableHat } from "./PersonBookableHat";
+import { PersonRegisterPin } from "./PersonRegisterPin";
 
 const K = "admin.people";
 const S = "admin.people.sheet";
@@ -81,11 +82,14 @@ type Feedback =
 export function PersonHatsPanel({
   person,
   workspaceAllowsDirectBooking,
+  registerPinUserIds = [],
   onClose,
 }: {
   person: PersonRecord;
   /** See `PeopleSurface.workspaceAllowsDirectBooking`. */
   workspaceAllowsDirectBooking: boolean;
+  /** The accounts that hold a register PIN (`agencies.settings.people.pins`). */
+  registerPinUserIds?: readonly string[];
   onClose: () => void;
 }) {
   const t = useT();
@@ -282,6 +286,8 @@ export function PersonHatsPanel({
                 </button>
               </div>
             ) : null}
+
+            {person.access.on && person.accountId ? <PersonRegisterPin accountId={person.accountId} hasPin={registerPinUserIds.includes(person.accountId)} /> : null}
 
             {!person.access.on && person.accountId && person.talentProfileId ? (
               <button type="button" className={PEOPLE_SECONDARY_ACTION} disabled={pending} onClick={() => run(() => grantPersonAccess(person.talentProfileId!, "viewer"))}>

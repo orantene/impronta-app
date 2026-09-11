@@ -406,6 +406,14 @@ export const CANONICAL_RECEIPT_PREFIX = "/r" as const;
 export const CANONICAL_PAY_PREFIX = "/pay" as const;
 
 /**
+ * Customer self-manage (`/manage/<token>`, A07 / R04 / R05). Agency and hub
+ * only, same as `/r/<code>`. The signed token is the credential
+ * (`lib/bookings/manage-token.ts`): it names the booking, the tenant and the
+ * one action it allows, and it expires.
+ */
+export const CANONICAL_MANAGE_PREFIX = "/manage" as const;
+
+/**
  * Marketing-only public pages. These render the public SaaS marketing site
  * (sold product, not tenant storefront). They never read tenant data and
  * never require auth. Keep this list scoped; everything else 404s on the

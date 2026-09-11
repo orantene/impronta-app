@@ -43,7 +43,9 @@ import {
   shortId,
   type PillTone,
 } from "../_shared";
+import { schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
 import { MILESTONE_STATUS_KEY, milestoneTone } from "./milestone-keys";
+import { AmendmentActions } from "./amendment-actions";
 
 type Tr = (key: string) => string;
 
@@ -113,10 +115,12 @@ export function OverviewTab({
                   ? interpolate(tr("dashboard.projects.dueOn"), { date: dayLabel(m.dueAt, project.timeZone, locale, noDate) })
                   : tr("dashboard.projects.milestones.noDue")}
               </span>
-              {/* No amount is recorded on a milestone (ProjectAmount): an
-                  em-dash, never a zero. */}
-              <span className="text-[15px] font-semibold tracking-[-0.02em] tabular-nums text-admin-ink-dim" title={tr("dashboard.projects.milestoneAmountUnknown")}>
-                —
+              {/* Zero means "not set yet" on a milestone: the dash, never $0. */}
+              <span
+                className={`text-[15px] font-semibold tracking-[-0.02em] tabular-nums ${m.amountCents === 0 ? "text-admin-ink-dim" : "text-admin-ink"}`}
+                title={m.amountCents === 0 ? tr("dashboard.projects.milestoneAmountUnknown") : undefined}
+              >
+                {m.amountCents === 0 ? "—" : formatOrderMoney(m.amountCents, project.currency)}
               </span>
               <span>
                 <MilestonePill milestone={m} nowMs={nowMs} tr={tr} />
@@ -241,17 +245,25 @@ export function ActivityTab({
 }) {
   return (
     <>
-      <SectionTitle
-        aside={
-          // No files table hangs off a booking (D-POS-37).
-          <button type="button" disabled title={tr("dashboard.projects.filesUnavailable")} className={`${BTN_SECONDARY} ${BTN_ROW}`}>
-            {tr("dashboard.projects.filesUpload")}
-          </button>
-        }
-      >
-        {tr("dashboard.projects.files")}
-      </SectionTitle>
-      <Notice>{tr("dashboard.projects.filesUnavailable")}</Notice>
+      <SectionTitle>{tr("dashboard.projects.files")}</SectionTitle>
+      {/* A file is attached to the milestone it belongs to (W47); this list
+          is every milestone that carries one. */}
+      <Card>
+        {project.milestones.filter((m) => m.filePath).length === 0 ? (
+          <p className="m-0 px-4 py-3 text-[13px] text-admin-ink-muted">{tr("dashboard.projects.filesNone")}</p>
+        ) : (
+          project.milestones
+            .filter((m) => m.filePath)
+            .map((m) => (
+              <ListRow key={m.id} cols="grid-cols-[1.3fr_1.6fr]" className="border-t first:border-t-0">
+                <b>{m.title}</b>
+                <span className="truncate text-admin-ink-muted" title={m.filePath ?? undefined}>
+                  {(m.filePath ?? "").slice((m.filePath ?? "").lastIndexOf("/") + 1).replace(/^[0-9a-f-]{36}-/i, "")}
+                </span>
+              </ListRow>
+            ))
+        )}
+      </Card>
       <SectionTitle>{tr("dashboard.projects.activityAll")}</SectionTitle>
       <ActivityCard project={project} activity={activity} locale={locale} tr={tr} />
     </>
@@ -398,16 +410,31 @@ export function ScopeTab({
               })}
               {proposed.notes ? ` ${proposed.notes}` : ""}
             </p>
-            <div className="flex items-center gap-2">
-              <button type="button" disabled title={tr("dashboard.projects.bannerRequestUnavailable")} className={`${BTN_SECONDARY} ${BTN_ROW}`}>
-                {tr("dashboard.projects.scope.remind")}
-              </button>
-              {conversation ? (
-                <Link href={conversation} className={`${BTN_SECONDARY} ${BTN_ROW}`}>
-                  {tr("dashboard.projects.scope.withdrawOnConversation")}
-                </Link>
-              ) : null}
-            </div>
+            {proposed.status === "draft" ? (
+              <AmendmentActions
+                inquiryId={project.inquiryId}
+                offerId={proposed.id}
+                expectedVersion={proposed.version}
+                inquiryExpectedVersion={project.inquiryVersion}
+                copy={{
+                  send: interpolate(tr("dashboard.projects.scope.sendVersion"), { n: proposed.version }),
+                  discard: tr("dashboard.projects.scope.discardProposal"),
+                  noLock: tr("dashboard.projects.scope.refusalNoLock"),
+                  engine: schedulingEngineSentences(tr),
+                }}
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <button type="button" disabled title={tr("dashboard.projects.bannerRequestUnavailable")} className={`${BTN_SECONDARY} ${BTN_ROW}`}>
+                  {tr("dashboard.projects.scope.remind")}
+                </button>
+                {conversation ? (
+                  <Link href={conversation} className={`${BTN_SECONDARY} ${BTN_ROW}`}>
+                    {tr("dashboard.projects.scope.withdrawOnConversation")}
+                  </Link>
+                ) : null}
+              </div>
+            )}
           </div>
         </Card>
       ) : null}

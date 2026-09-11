@@ -18,7 +18,7 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
-import { approveDeliverable, requestRevision } from "@/lib/bookings/deliverables";
+import { approveDeliverable, createDeliverable, requestRevision } from "@/lib/bookings/deliverables";
 
 const uuid = z.string().uuid();
 
@@ -56,5 +56,35 @@ export async function requestProjectDeliverableRevision(
   if (!g.ok) return g;
   if (!uuid.safeParse(deliverableId).success) return { ok: false, reason: "invalid" };
   const result = await requestRevision(g.admin, { tenantId: g.tenantId, deliverableId });
+  return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+}
+
+/**
+ * W47 `Add milestone`: one `booking_deliverables` row in `draft` through the
+ * engine's own `createDeliverable`. The amount and the file are set on the
+ * row afterwards (Package 2's writers); the title and the due date are the
+ * two things a milestone is born with.
+ */
+export async function addProjectMilestone(input: {
+  bookingId: string;
+  title: string;
+  dueAt: string | null;
+}): Promise<MilestoneDecisionResult> {
+  const g = await guard();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      bookingId: uuid,
+      title: z.string().trim().min(1).max(200),
+      dueAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, reason: "invalid" };
+  const result = await createDeliverable(g.admin, {
+    tenantId: g.tenantId,
+    bookingId: parsed.data.bookingId,
+    title: parsed.data.title,
+    dueAt: parsed.data.dueAt ? `${parsed.data.dueAt}T12:00:00Z` : null,
+  });
   return result.ok ? { ok: true } : { ok: false, reason: result.reason };
 }

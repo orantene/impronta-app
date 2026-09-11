@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
-import { lockTill, switchOperator, unlockTill } from "@/lib/pos/device-session";
+import { lockTill, readDeviceSession, switchOperator, unlockTill } from "@/lib/pos/device-session";
 import { linkBooking } from "@/lib/pos/link-booking";
 import { setTip } from "@/lib/pos/tip";
 import { createPaymentLink as mintPaymentLink } from "@/lib/payments/links";
@@ -36,36 +36,53 @@ export async function posLockTill(input: { deviceKey: string }) {
   return lockTill(g.admin, { tenantId: g.tenantId, deviceKey: parsed.data.deviceKey });
 }
 
-export async function posUnlockTill(input: { deviceKey: string; pin: string }) {
+/**
+ * `userId` is the person picked on the lock screen (`POSLock`: "Who's on the
+ * register?"); it defaults to the signed-in account. The PIN is the proof:
+ * `pos_unlock_till` verifies it against THAT person's hash, so naming
+ * somebody else without their PIN is refused as `pin_invalid`.
+ */
+export async function posUnlockTill(input: { deviceKey: string; pin: string; userId?: string }) {
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
     deviceKey: z.string().trim().min(8).max(80),
     pin: z.string().regex(/^[0-9]{4,6}$/),
+    userId: uuid.optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return unlockTill(g.admin, {
     tenantId: g.tenantId,
     deviceKey: parsed.data.deviceKey,
-    userId: g.userId,
+    userId: parsed.data.userId ?? g.userId,
     pin: parsed.data.pin,
   });
 }
 
-export async function posSwitchOperator(input: { deviceKey: string; pin: string }) {
+export async function posSwitchOperator(input: { deviceKey: string; pin: string; userId?: string }) {
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
     deviceKey: z.string().trim().min(8).max(80),
     pin: z.string().regex(/^[0-9]{4,6}$/),
+    userId: uuid.optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return switchOperator(g.admin, {
     tenantId: g.tenantId,
     deviceKey: parsed.data.deviceKey,
-    userId: g.userId,
+    userId: parsed.data.userId ?? g.userId,
     pin: parsed.data.pin,
   });
+}
+
+/** The contract's reader: this device's session, or `no_session`. */
+export async function posCurrentDeviceSession(input: { deviceKey: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ deviceKey: z.string().trim().min(8).max(80) }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return readDeviceSession(g.admin, { tenantId: g.tenantId, deviceKey: parsed.data.deviceKey });
 }
 
 export async function posLinkBooking(input: {

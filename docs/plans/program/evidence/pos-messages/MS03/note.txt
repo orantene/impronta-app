@@ -1,0 +1,1 @@
+Three states, three actions. A failed load keeps typed drafts on the device.

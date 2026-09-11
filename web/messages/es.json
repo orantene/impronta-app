@@ -1466,12 +1466,67 @@
       "soldOutError": "{item} esta agotado.",
       "submit": "Enviar pedido"
     },
+    "manageBooking": {
+      "title": "Tu reserva",
+      "noDate": "Fecha por confirmar",
+      "nothingPaid": "Nada todavía",
+      "deadlinePassed": "El plazo de cancelación gratuita ya pasó",
+      "deadlineUntil": "{when}",
+      "deadlineNone": "No aplica ningún plazo de cancelación",
+      "statusConfirmed": "Confirmada",
+      "statusClosed": "Cerrada",
+      "paid": "Pagado",
+      "atVisit": "En la visita",
+      "atVisitValue": "El resto se paga en la visita",
+      "freeUntil": "Cancelación gratuita hasta",
+      "reschedule": "Cambiar la hora",
+      "cancel": "Cancelar",
+      "addToCalendar": "Añadir al calendario",
+      "onlyCancels": "Este enlace puede cancelar la reserva; pide otro enlace para moverla.",
+      "onlyReschedules": "Este enlace puede mover la reserva; pide otro enlace para cancelarla.",
+      "closedSentence": "Esta reserva está cerrada.",
+      "note": "Al cambiar la hora se comprueban primero la persona y la sala; tu reserva se mantiene hasta que se confirme la nueva hora.",
+      "cancelTitle": "¿Cancelar esta reserva?",
+      "cancelPolicy": "Política",
+      "cancelRefund": "{amount} vuelve por donde se pagó, en cuanto el banco lo confirme.",
+      "cancelNoRefund": "El pago se mantiene; el plazo de cancelación gratuita ya pasó.",
+      "reason": "Motivo",
+      "reasonPlaceholder": "Opcional",
+      "keep": "Mantener la reserva",
+      "cancelConfirm": "Cancelar reserva{amount}",
+      "cancelled": "Tu reserva está cancelada.",
+      "cancelledRefund": "Tu reserva está cancelada. {amount} vuelve por donde se pagó.",
+      "rescheduleTitle": "Elige una nueva hora",
+      "newTime": "Nueva hora",
+      "rescheduleConfirm": "Confirmar la nueva hora",
+      "rescheduled": "Tu reserva se movió a la nueva hora.",
+      "cancelNothingPaid": "No se pagó nada, así que no hay nada que devolver."
+    },
     "thread": {
       "title": "Tu conversacion",
       "continue": "Continuar en este telefono",
       "pay": "Pagar de forma segura",
       "empty": "Aun no hay mensajes.",
-      "codeSent": "Si el SMS esta disponible, se envio un codigo."
+      "codeSent": "Si el SMS esta disponible, se envio un codigo.",
+      "choose": "Elegir",
+      "configure": "Configurar",
+      "keepSlot": "Se guarda la hora de recoger mientras este enlace sea valido. No se cobra hasta que pagues.",
+      "waitlist": "Esta sesion esta llena. Entrate a la lista de espera.",
+      "dateMismatch": "Esa fecha no esta. Abajo hay otra fecha.",
+      "accept": "Aceptar",
+      "changes": "Pedir cambios",
+      "decline": "Rechazar",
+      "processing": "El pago sigue abierto para verificar. No se tomo nada extra.",
+      "declined": "No se tomo nada. El horario se guarda un rato mas.",
+      "expired": "Esta pagina de pago esta cerrada. Pide un enlace nuevo al negocio.",
+      "cancelled": "Este pago se cancelo. No se tomo nada.",
+      "unknown": "El estado del pago es desconocido. No pagues de nuevo. El negocio lo confirma.",
+      "paid": "Pagado",
+      "receipt": "Ver recibo",
+      "backToThread": "Volver a la conversacion",
+      "smsPlain": "El mismo pedido y la misma pagina segura, en texto. Este canal no muestra tarjetas.",
+      "talentView": "Ves al cliente, el servicio y las notas de silla. No la conversacion ni otros precios.",
+      "payBy": "Paga a esta hora para guardar el horario."
     }
   },
   "dashboard": {
@@ -4911,6 +4966,44 @@
           "crossBusinessValue": "Solo ocupado/libre es el diseño; todavía no se comparte nada",
           "audit": "Auditoría",
           "auditValue": "Los cambios de membresía y de sombrero se registran; reembolsos e invitaciones no son por persona"
+        },
+        "customAmount": {
+          "heading": "Importes libres en el mostrador",
+          "loading": "Leyendo el límite…",
+          "everyAmount": "Todo importe libre necesita el PIN de un gerente antes de cobrarse. Fija un límite para dejar pasar los pequeños.",
+          "current": "Un importe libre superior a {amount} necesita el PIN de un gerente antes de cobrarse.",
+          "label": "Límite",
+          "save": "Guardar límite",
+          "saving": "Guardando…",
+          "saved": "Límite guardado."
+        },
+        "saveReason": "Cada celda se guarda al cambiar; no queda nada que pulsar.",
+        "limits": {
+          "intro": "Por encima del límite, la caja pide la aprobación de un gerente. Una celda vacía es sin límite.",
+          "discount": "Descuento manual",
+          "refund": "Reembolso",
+          "colAction": "Límite por acción",
+          "noLimit": "Sin límite",
+          "readOnly": "Solo un propietario o administrador puede fijar un límite.",
+          "loading": "Leyendo límites…",
+          "loadFailed": "No se pudieron leer los límites.",
+          "saving": "Guardando…",
+          "saved": "Guardado {time}",
+          "saveFailed": "No se guardó",
+          "retry": "Reintentar"
+        },
+        "inbox": {
+          "heading": "Solicitudes de aprobación",
+          "intro": "Lo que alguien pidió por encima de su límite. Aprobar deja pasar esa única acción; el rol no cambia.",
+          "none": "No hay nada pendiente de aprobación.",
+          "title": "{kind} · {ref}",
+          "by": "{who} · {when}",
+          "kindDiscount": "Descuento solicitado",
+          "kindRefund": "Reembolso solicitado",
+          "approve": "Aprobar",
+          "deny": "Rechazar",
+          "approved": "Aprobado",
+          "denied": "Rechazado"
         }
       },
       "locations": {
@@ -5045,7 +5138,20 @@
           "never": "Nunca se salta",
           "neverValue": "Exclusividad física · aforo",
           "preview": "Vista previa del impacto",
-          "previewValue": "Todavía no disponible"
+          "previewValue": "Todavía no disponible",
+          "intro": "Por artículo, sobre los valores por defecto de arriba. Una celda vacía mantiene el valor por defecto.",
+          "col": {
+            "item": "Artículo",
+            "deposit": "Depósito %",
+            "freeCancel": "Cancelación gratis (horas)",
+            "noShow": "Cargo por no presentarse"
+          },
+          "placeholder": "Por defecto",
+          "rowDefault": "Valor del espacio de trabajo",
+          "rowSet": "Condiciones propias · no presentarse {fee}",
+          "none": "Todavía no hay artículos reservables; crea primero un servicio, una clase o un paquete en el catálogo.",
+          "note": "El depósito y el reembolso por cancelación leen primero estas filas, luego el artículo y luego el valor del espacio de trabajo.",
+          "loadFailed": "No se pudieron leer las excepciones."
         },
         "notWired": {
           "previewImpact": "Una vista previa del impacto necesita versiones de política, que todavía no se guardan.",
@@ -12300,7 +12406,8 @@
         "providerRefused": "El proveedor de pagos rechazó el reembolso. No se reembolsó nada y no se cobró nada. Inténtalo otra vez o revisa el pago en el proveedor.",
         "partialFailure": "Una parte de este reembolso salió y otra no. No lo intentes otra vez: los reembolsos que salieron son reales. Alguien tiene que terminar el resto a mano.",
         "unavailable": "No se pudo registrar el reembolso. No se reembolsó nada. Inténtalo de nuevo en un momento."
-      }
+      },
+      "refundComponentShare": "Reparto por componente"
     },
     "sales": {
       "pageTitle": "Ventas",
@@ -12540,43 +12647,6 @@
         "today": "Hoy una venta lleva un código; las listas de precios, los descuentos manuales y los precios de miembro no se aplican."
       }
     },
-    "venue": {
-      "engine": {
-        "refusal": {
-          "duplicate_slug": "Ese identificador de ubicacion ya esta en uso.",
-          "last_location": "Un espacio necesita al menos una ubicacion.",
-          "has_spaces": "Esa zona todavia tiene mesas.",
-          "already_seated": "Ese grupo ya esta sentado.",
-          "space_occupied": "Esa mesa ya tiene un grupo.",
-          "expired": "Ese lugar en la lista de espera expiro.",
-          "overlap": "Esos periodos de servicio se solapan.",
-          "two_active": "Esta ubicacion ya tiene un plano activo.",
-          "station_in_use": "Esa estacion todavia tiene tickets o articulos.",
-          "visit_closed": "Esta visita de mesa ya termino.",
-          "item_unavailable": "Ese articulo no esta disponible.",
-          "already_paid": "Esa parte ya esta pagada.",
-          "exceeds_outstanding": "Eso es mas de lo que todavia se debe.",
-          "not_submitted": "La cocina aun no recibio esa linea.",
-          "seat_taken": "Ese asiento ya esta tomado.",
-          "hold_expired": "La reserva de ese asiento expiro.",
-          "same_session": "Ese boleto ya es para esta noche.",
-          "price_up_needs_payment": "La nueva noche cuesta mas. Paga la diferencia primero.",
-          "needs_approval": "Un gerente tiene que aprobar esto primero.",
-          "channel_unavailable": "Ese canal de entrega no esta disponible.",
-          "superseded": "Este codigo de boleto fue reemplazado.",
-          "too_many_attempts": "Demasiados intentos. Espera e intentalo de nuevo.",
-          "unknown_device": "Este dispositivo no esta registrado.",
-          "not_replayable": "Ese comando no se puede guardar sin conexion.",
-          "stale_app": "Esta version de la app es demasiado vieja.",
-          "conflict": "Esto acaba de cambiar. Recarga e intentalo de nuevo.",
-          "not_found": "Ese registro ya no esta.",
-          "wrong_tenant": "Ese registro no esta en este espacio.",
-          "invalid": "Eso no se puede guardar.",
-          "unavailable": "Esto no se pudo completar. Intentalo de nuevo.",
-          "not_allowed": "No puedes hacer esto aqui."
-        }
-      }
-    },
     "scheduling": {
       "engine": {
         "refusal": {
@@ -12603,7 +12673,10 @@
           "not_found": "Ese registro ya no esta.",
           "wrong_tenant": "Ese registro no esta en este espacio.",
           "invalid": "Eso no se puede guardar.",
-          "unavailable": "Esto no se pudo completar. Intentalo de nuevo."
+          "unavailable": "Esto no se pudo completar. Intentalo de nuevo.",
+          "not_allowed": "No tienes permiso para hacer esto aquí.",
+          "not_reschedulable": "Esta reserva no se puede mover.",
+          "slot_taken": "Ese horario ya no está libre."
         }
       }
     },
@@ -12636,83 +12709,9 @@
           "no_place": "No queda un lugar para ofrecer.",
           "already_accepted": "Esa oferta ya se tomo.",
           "amount": "Ese monto en efectivo no es valido.",
-          "already_closed": "Ese turno ya esta cerrado."
-        }
-      },
-      "messages": {
-        "title": "Mensajes",
-        "inbox": "Bandeja",
-        "thread": "Conversacion",
-        "search": "Buscar mensajes",
-        "reply": "Responder",
-        "note": "Nota interna",
-        "assign": "Asignar responsable",
-        "resolve": "Resolver",
-        "reopen": "Reabrir",
-        "handOver": "Pasar",
-        "sendOptions": "Enviar opciones",
-        "addToDraft": "Agregar al borrador",
-        "requestPayment": "Pedir pago",
-        "collectHere": "Cobrar aqui",
-        "closeLost": "Cerrar como perdida",
-        "remind": "Recordar",
-        "newConversation": "Nueva conversacion",
-        "tabCustomer": "Cliente",
-        "tabLinked": "Ligados",
-        "tabNotes": "Notas",
-        "empty": "Aun no hay conversaciones.",
-        "noResults": "Ninguna conversacion coincide.",
-        "failedLoad": "No se pudieron cargar las conversaciones.",
-        "toastIncoming": "Llego un mensaje nuevo.",
-        "backToSale": "Volver a la venta",
-        "deposit": "Anticipo",
-        "full": "Monto completo",
-        "none": "Sin pago ahora",
-        "webChatOnlyCustomer": "El chat web solo lo puede abrir el cliente.",
-        "whatsappNeedsTemplate": "WhatsApp necesita primero una plantilla aprobada.",
-        "draftKept": "Tu texto sigue aqui.",
-        "filter": {
-          "all": "Todas",
-          "unread": "Sin leer",
-          "unassigned": "Sin asignar",
-          "mine": "Mias",
-          "needsReply": "Necesitan respuesta",
-          "awaitingCustomer": "Esperando al cliente",
-          "resolved": "Resueltas"
-        },
-        "state": {
-          "needsReply": "Necesita respuesta",
-          "awaitingCustomer": "Esperando al cliente",
-          "resolved": "Resuelta",
-          "gathering": "Juntando detalles",
-          "offerSent": "Oferta enviada",
-          "awaitingAcceptance": "Esperando aceptacion",
-          "acceptedAwaitingDeposit": "Aceptada, falta el anticipo",
-          "won": "Ganada",
-          "lost": "Perdida"
-        },
-        "refusal": {
-          "conflict": "Esta conversacion acaba de cambiar. Recarga e intentalo de nuevo.",
-          "not_found": "Esa conversacion ya no esta.",
-          "wrong_tenant": "Ese registro no es de este espacio.",
-          "invalid": "Eso no se puede guardar.",
-          "unavailable": "No se pudo completar. Intentalo de nuevo.",
-          "channel_unavailable": "Ese canal no esta disponible.",
-          "template_required": "WhatsApp necesita primero una plantilla aprobada.",
-          "rate_limited": "Espera un momento e intentalo de nuevo.",
-          "checkout_locked": "El pago esta bloqueado a la canasta que se envio.",
-          "already_resolved": "Esta conversacion ya esta resuelta.",
-          "no_owner": "Esta conversacion aun no tiene responsable.",
-          "identity_unconfirmed": "La identidad del cliente no esta confirmada.",
-          "already_linked": "Ese registro ya esta ligado.",
-          "version_stale": "Otra persona guardo primero. Compara las tres versiones.",
-          "payment_unknown": "El estado del pago es desconocido. No lo pidas de nuevo.",
-          "already_paid": "Esto ya esta pagado.",
-          "hold_ended": "La reserva de este horario ya termino.",
-          "basket_changed": "La canasta cambio despues de iniciar el pago.",
-          "not_allowed": "No puedes hacer eso desde aqui.",
-          "expired": "Este enlace u oferta ya vencio.",
-          "already": "Eso ya esta hecho."
+          "already_closed": "Ese turno ya esta cerrado.",
+          "not_allowed": "No tienes permiso para hacer esto.",
+          "no_customer": "Primero asigna un cliente a esta venta."
         }
       },
       "newSale": "Nueva venta",
@@ -12798,7 +12797,10 @@
           "saved": "Guardado {time}",
           "savedOffline": "Sin conexión · no se puede guardar nada hasta que vuelva",
           "basketCount": "Cesta · {count} artículos",
-          "sendAgain": "Enviar de nuevo · {count} artículos"
+          "sendAgain": "Enviar de nuevo · {count} artículos",
+          "tip": "Propina",
+          "needsApproval": "Necesita aprobación",
+          "linked": "Vinculado · {booking}"
         },
         "customer": {
           "title": "Cliente",
@@ -12989,7 +12991,8 @@
           "saleSubtitle": "Venta {number} · {cashier}",
           "newSaleSubtitle": "Nueva venta · {cashier}",
           "close": "Cerrar",
-          "drawerTitle": "Caja"
+          "drawerTitle": "Caja",
+          "switchOperator": "Cambiar de operador"
         },
         "cancel": "Cancelar",
         "back": "Atrás",
@@ -13044,8 +13047,14 @@
           "approvalTitle": "Aprobación del encargado",
           "approvalSubtitle": "Importe personalizado {amount} · {cashier}",
           "item": "Artículo",
-          "pinWrong": "Ese PIN no es correcto",
           "approve": "Aprobar",
+          "withinLimit": "Dentro de tu límite de {limit} · no necesita aprobación",
+          "addToSale": "Agregar a la venta",
+          "whoApproves": "Quién aprueba",
+          "noManagers": "Ningún gerente tiene PIN de caja todavía. Configúralo en Ajustes › Personas.",
+          "pinPrompt": "PIN del gerente",
+          "approving": "Aprobando…",
+          "pinWrong": "Ese PIN no es correcto",
           "approveUnavailable": "Los PIN de encargado y los importes personalizados aún no están configurados, así que no se puede aprobar aquí."
         },
         "holdSale": {
@@ -13072,14 +13081,23 @@
           "title": "Vincular una reserva",
           "subtitle": "{customer} · elige a qué corresponde este pago",
           "noCustomer": "Añade primero un cliente para ver sus reservas",
-          "unavailable": "Vincular una venta de mostrador a una reserva aún no está conectado; esta venta queda aparte.",
           "showPaid": "Mostrar reservas pagadas",
           "afterLinking": "Después de vincular",
           "bookingBalance": "Saldo de la reserva",
           "thisSale": "Esta venta",
           "keepSeparate": "Mantener aparte",
           "linkOnly": "Solo vincular",
-          "linkAndPay": "Vincular y pagar"
+          "linkAndPay": "Vincular y pagar",
+          "noCustomerAction": "Asignar un cliente",
+          "unreadable": "No se pudieron leer sus reservas. Inténtalo de nuevo.",
+          "loading": "Leyendo sus reservas…",
+          "none": "Este cliente no tiene ninguna reserva para vincular.",
+          "balanceLine": "Saldo de {amount} a pagar en la visita · los {count} artículos de esta venta pasan a ser extras de la reserva",
+          "ticketLine": "Nada que cobrar · {count} invitados",
+          "paidLine": "Pagado por completo",
+          "alreadyLinked": "Esta venta ya está vinculada a {booking}.",
+          "linking": "Vinculando…",
+          "unavailable": "Vincular una venta de mostrador a una reserva aún no está conectado; esta venta queda aparte."
         },
         "cashDone": {
           "title": "Caja abierta",
@@ -13110,7 +13128,6 @@
           "openNoSale": "Abrir caja (sin venta)",
           "openNoSaleHint": "sin venta · registrado",
           "onceOpenNote": "Disponible cuando abras la caja. No necesitas una caja para consultar reservas o enviar enlaces de pago.",
-          "movementsUnavailable": "Los movimientos de efectivo aún no se registran; solo el fondo inicial y el recuento de cierre.",
           "movements": "Movimientos",
           "movementsEmpty": "Las ventas en efectivo entran en esta caja automáticamente. Los movimientos aún no se registran, así que esta lista queda vacía.",
           "handOver": "Entregar la caja a alguien",
@@ -13118,7 +13135,6 @@
           "countedTogether": "Lo contamos juntos",
           "handOverNote": "La sesión sigue abierta; los movimientos a partir de ahora son suyos.",
           "handOverAction": "Entregar",
-          "handOverUnavailable": "La entrega de la caja a otra persona aún no se registra; ciérrala y que abra la suya.",
           "closeAndCount": "Cerrar caja y contar",
           "countEyebrow": "Cuenta lo que hay en la caja",
           "coins": "Escribe el total contado, o usa los botones y añade las monedas escribiendo.",
@@ -13127,7 +13143,6 @@
           "shouldBe": "Debería haber en la caja",
           "blindNote": "Recuento a ciegas: el efectivo esperado aparece solo al cerrar",
           "whatHappened": "Qué pasó",
-          "whatHappenedUnavailable": "Una nota en el cierre aún no se guarda.",
           "confirmCount": "Confirmo este recuento",
           "closeDrawer": "Cerrar caja",
           "closedTitle": "Caja cerrada",
@@ -13135,7 +13150,20 @@
           "shortBy": "Falta",
           "overBy": "Sobra",
           "balanced": "Cuadra",
-          "openAnother": "Abrir una nueva caja"
+          "openAnother": "Abrir una nueva caja",
+          "openNoSaleUnavailable": "No hay ningún cajón de efectivo conectado a este dispositivo.",
+          "movementKind": {
+            "paid_in": "Ingresado",
+            "paid_out": "Retirado",
+            "drop": "A la caja fuerte",
+            "float_add": "Efectivo agregado"
+          },
+          "newResponsibleNone": "Elige a una persona",
+          "handOverChosen": "Entregado a {name} · se registra con este conteo",
+          "whatHappenedHint": "p. ej. di cambio de mi propio dinero a las 09:12",
+          "movementsUnavailable": "Los movimientos de efectivo aún no se registran; solo el fondo inicial y el recuento de cierre.",
+          "handOverUnavailable": "La entrega de la caja a otra persona aún no se registra; ciérrala y que abra la suya.",
+          "whatHappenedUnavailable": "Una nota en el cierre aún no se guarda."
         },
         "receipts": {
           "subtitle": "{day} · {count} ventas · {total}",
@@ -13217,6 +13245,65 @@
           "readerNote": "Los pagos con tarjeta necesitan internet para obtener respuesta del banco; el mostrador aún no puede usar un lector en ningún caso.",
           "nothingQueued": "No se guarda nada en este dispositivo sin conexión. Una venta necesita conexión para guardarse.",
           "syncNow": "Sincronizar ahora"
+        },
+        "lock": {
+          "title": "¿Quién está en la caja?",
+          "switchTitle": "Cambiar de operador",
+          "drawerStays": "El cajón sigue siendo de {name} hasta que lo entregue",
+          "drawerNone": "No hay ningún cajón abierto en esta caja",
+          "noPins": "Nadie tiene PIN de caja todavía, así que esta caja no se puede desbloquear aquí.",
+          "noPinsAction": "Configurar PIN en Personas",
+          "pinPrompt": "PIN",
+          "unlocking": "Comprobando el PIN…",
+          "unlock": "Desbloquear",
+          "switchAction": "Cambiar"
+        },
+        "tip": {
+          "title": "¿Agregar propina?",
+          "subtitle": "Sobre {amount} · redondeado al centavo",
+          "other": "Otro",
+          "otherHint": "importe",
+          "noTip": "Sin propina",
+          "totalWouldBe": "El total sería {amount}",
+          "add": "Agregar {amount} de propina",
+          "remove": "Quitar la propina"
+        },
+        "paymentLink": {
+          "create": "Enviar un enlace por {amount}",
+          "creating": "Creando el enlace…",
+          "providerStripe": "El enlace abre una página de pago con tarjeta. El importe queda reservado en esta venta hasta que el enlace se pague o caduque.",
+          "providerMock": "No hay proveedor de tarjetas configurado: el enlace abre una página de prueba que lo marca como pagado al abrirse. El importe queda reservado en esta venta hasta entonces.",
+          "linkTitle": "Enlace de pago",
+          "copyLink": "Copiar enlace",
+          "copied": "Copiado",
+          "whatsapp": "Enviar por WhatsApp",
+          "whatsappText": "Paga {amount} a {workspace}: {url}",
+          "expires": "Caduca {when}",
+          "statusOpen": "Enviado · sin pagar",
+          "statusPaid": "Pagado",
+          "statusExpired": "Caducado",
+          "statusCancelled": "Cancelado",
+          "nothingOwed": "No se debe nada en esta venta.",
+          "resendNote": "Reenviar el mismo enlace nunca crea un segundo cobro. Un enlace no cobra nada hasta que se paga.",
+          "links": "Enlaces de esta venta"
+        },
+        "movement": {
+          "title": {
+            "paid_in": "Efectivo ingresado",
+            "paid_out": "Sacar efectivo",
+            "drop": "Llevar a la caja fuerte",
+            "float_add": "Agregar efectivo"
+          },
+          "subtitle": {
+            "paid_in": "Dinero que entró fuera de una venta",
+            "paid_out": "Caja chica · guarda el recibo",
+            "drop": "Pasado del cajón a la caja fuerte",
+            "float_add": "Más cambio para el cajón"
+          },
+          "reason": "Motivo",
+          "reasonHint": "p. ej. compra de leche, testigo Dani",
+          "confirm": "Registrar {amount}",
+          "recording": "Registrando…"
         }
       },
       "counterOffTitle": "El mostrador está desactivado",
@@ -13330,7 +13417,6 @@
           "projectsSubtitle": "Consulta → oferta → acuerdo → proyecto",
           "linksTitle": "Enlaces de pago",
           "linksSubtitle": "Enviados desde este espacio",
-          "linksUnavailable": "Todavía ninguna tabla registra un enlace de pago enviado, así que no hay nada que listar ni reenviar aquí.",
           "linksNote": "Reenviar reutiliza el mismo enlace y nunca crea un segundo cobro. Enviar un enlace no cobra nada hasta que el cliente paga.",
           "segmentDueNow": "Vence ahora",
           "segmentLater": "Más tarde",
@@ -13407,7 +13493,19 @@
           "amendmentSend": "Enviar v{n}",
           "amendmentDiscard": "Descartar propuesta",
           "amendmentUnavailable": "Una enmienda se envía o se retira desde el editor de ofertas de la conversación, no desde la caja.",
-          "amendmentSentOn": "Enviada el {date}"
+          "amendmentSentOn": "Enviada el {date}",
+          "linksEmpty": "Todavía no se ha enviado ningún enlace de pago desde este espacio. Un enlace se envía desde la pantalla Cobrar de una venta o desde la ficha de un cliente.",
+          "linkOpen": "Abierto · sin pagar",
+          "linkPaid": "Pagado",
+          "linkExpired": "Caducado",
+          "linkCancelled": "Cancelado",
+          "linkSent": "enviado {when}",
+          "linkExpires": "caduca {when}",
+          "linkSale": "Venta {id}",
+          "linkResend": "Reenviar",
+          "linkReceipt": "Ver recibo",
+          "linkNew": "Enviar enlace nuevo",
+          "linksUnavailable": "Todavía ninguna tabla registra un enlace de pago enviado, así que no hay nada que listar ni reenviar aquí."
         }
       },
       "classes": {
@@ -13484,7 +13582,9 @@
         },
         "waitlist": {
           "heading": "Esperando un lugar",
-          "empty": "Ninguna sesión de este día está llena y nadie está esperando."
+          "empty": "Ninguna sesión de este día está llena y nadie está esperando.",
+          "decline": "Rechazar",
+          "declined": "Se retiró la oferta de {name} y el lugar vuelve a estar libre."
         },
         "refusal": {
           "notAllowed": "No tienes acceso a esta caja.",
@@ -13562,7 +13662,12 @@
             "addOff": "Esta cita no tiene una venta a la que agregar.",
             "lineDone": "Hecho",
             "lineAdded": "Agregado",
-            "lineProduct": "Producto"
+            "lineProduct": "Producto",
+            "linkedFrom": "Vinculado desde la venta {reference} · solo pago",
+            "fromSale": "De la venta {reference}",
+            "linkedPayment": "Pago vinculado",
+            "linkedSale": "Venta {reference} (vinculada)",
+            "linkedChip": "Venta {reference} vinculada para el pago"
           },
           "extra": {
             "title": "Agregar a la cita de {name}",
@@ -14176,7 +14281,10 @@
             "block": "Bloquear mesa",
             "blockReason": "Bloquear una mesa se hace en Espacios, no desde la caja.",
             "split": "Dividir la cuenta",
-            "splitReason": "Dividir una cuenta por artículos o partes aún no está construido."
+            "splitReason": "Dividir una cuenta por artículos o partes aún no está construido.",
+            "checks": "{n} cuentas · {amount}",
+            "openCheck": "Abrir cuenta {letter} · {amount}",
+            "servedBy": "Atiende {name}"
           },
           "seat": {
             "title": "Sentar a {name} · {n}",
@@ -14340,6 +14448,56 @@
             "noContact": "Hace falta un correo o un teléfono para localizar al cliente.",
             "closed": "El local cierra ese día.",
             "tooLateToday": "Es tarde para reservar esta noche."
+          },
+          "merge": {
+            "crumb": "{code} › Unir",
+            "title": "Unir otra cuenta a {code}",
+            "subtitle": "Una sola cuenta para dos mesas",
+            "none": "Ninguna otra mesa tiene una cuenta abierta para unir.",
+            "row": "{code} · {party} · {amount}",
+            "rowHint": "Sus artículos pasan a esta cuenta; su propia cuenta se cierra",
+            "responsible": "Responsable de la cuenta",
+            "responsibleValue": "{party} ({code})",
+            "thisCheck": "Cuenta de {code}",
+            "otherCheck": "+ cuenta de {code}",
+            "oneCheck": "Una sola cuenta",
+            "payments": "Depósitos / pagos",
+            "paymentsValue": "Una cuenta con un pago se rechaza",
+            "confirm": "Unir · una cuenta para {party} · {amount}",
+            "done": "La cuenta de {code} ahora está en {into}."
+          },
+          "server": {
+            "title": "Cambiar de mesero · {code}",
+            "subtitle": "{party} · ahora {name}",
+            "nobody": "nadie",
+            "tables": "{n} mesas",
+            "current": "actual",
+            "none": "Nadie en este espacio tiene nombre todavía para recibir la mesa.",
+            "fromNow": "A partir de ahora",
+            "fromNowValue": "{name} atiende {code}",
+            "tips": "Propinas",
+            "tipsValue": "Quedan en la venta · no se reparten por mesero",
+            "drawer": "Cajón",
+            "drawerValue": "Sin cambios · no es una entrega de efectivo",
+            "confirm": "Dar {code} a {name}",
+            "done": "{code} ahora es de {name}."
+          },
+          "split": {
+            "title": "Cuentas · {code} · {party}",
+            "subtitle": "{amount} en artículos · marca artículos y muévelos",
+            "loading": "Leyendo la cuenta…",
+            "unreadable": "No se pudo leer esta cuenta.",
+            "empty": "Todavía no hay nada en esta cuenta.",
+            "check": "Cuenta {letter}",
+            "unpaid": "Sin pagar",
+            "items": "Artículos",
+            "remaining": "Pendiente",
+            "selected": "{n} artículos seleccionados · {amount}",
+            "moveToNew": "Mover lo seleccionado a una cuenta nueva",
+            "moving": "Moviendo…",
+            "note": "Los artículos se marcan en la cuenta A. Por asiento, en partes iguales y por importes no están modelados; cada cuenta se cobra en el mostrador.",
+            "collect": "Cobrar cuenta {letter} · {amount}",
+            "done": "{n} artículos pasaron a una cuenta nueva."
           }
         }
       },
@@ -14391,7 +14549,169 @@
         "refusalSendFailed": "No se pudo enviar el correo. Pide al equipo un recibo impreso.",
         "refusalUnavailable": "No se pudo enviar el recibo en este momento. Pide al equipo un recibo impreso.",
         "readUnavailable": "Esta pantalla perdió la conexión con el mostrador. Seguirá intentando.",
-        "notAllowed": "Esta cuenta no puede abrir la pantalla del cliente."
+        "notAllowed": "Esta cuenta no puede abrir la pantalla del cliente.",
+        "tipRow": "Propina",
+        "tip": {
+          "heading": "¿Quieres dejar propina?",
+          "base": "Sobre {amount} · redondeado al centavo",
+          "other": "Otro",
+          "otherHint": "importe",
+          "noTip": "Sin propina",
+          "note": "No se cobra nada hasta que confirmes en la siguiente pantalla",
+          "added": "Propina agregada · {amount}",
+          "change": "Cambiar la propina",
+          "saving": "Guardando tu propina…",
+          "customHeading": "Propina",
+          "customBase": "Cualquier importe · sobre {amount}",
+          "totalWouldBe": "El total sería {amount}",
+          "add": "Agregar {amount} de propina"
+        }
+      },
+      "messages": {
+        "title": "Mensajes",
+        "inbox": "Bandeja",
+        "thread": "Conversacion",
+        "search": "Buscar mensajes",
+        "reply": "Responder",
+        "note": "Nota interna",
+        "assign": "Asignar responsable",
+        "resolve": "Resolver",
+        "reopen": "Reabrir",
+        "handOver": "Pasar",
+        "sendOptions": "Enviar opciones",
+        "addToDraft": "Agregar al borrador",
+        "requestPayment": "Pedir pago",
+        "collectHere": "Cobrar aqui",
+        "closeLost": "Cerrar como perdida",
+        "remind": "Recordar",
+        "newConversation": "Nueva conversacion",
+        "tabCustomer": "Cliente",
+        "tabLinked": "Ligados",
+        "tabNotes": "Notas",
+        "empty": "Aun no hay conversaciones.",
+        "noResults": "Ninguna conversacion coincide.",
+        "failedLoad": "No se pudieron cargar las conversaciones.",
+        "toastIncoming": "Llego un mensaje nuevo.",
+        "backToSale": "Volver a la venta",
+        "deposit": "Anticipo",
+        "full": "Monto completo",
+        "none": "Sin pago ahora",
+        "webChatOnlyCustomer": "El chat web solo lo puede abrir el cliente.",
+        "whatsappNeedsTemplate": "WhatsApp necesita primero una plantilla aprobada.",
+        "draftKept": "Tu texto sigue aqui.",
+        "filter": {
+          "all": "Todas",
+          "unread": "Sin leer",
+          "unassigned": "Sin asignar",
+          "mine": "Mias",
+          "needsReply": "Necesitan respuesta",
+          "awaitingCustomer": "Esperando al cliente",
+          "resolved": "Resueltas"
+        },
+        "state": {
+          "needsReply": "Necesita respuesta",
+          "awaitingCustomer": "Esperando al cliente",
+          "resolved": "Resuelta",
+          "gathering": "Juntando detalles",
+          "offerSent": "Oferta enviada",
+          "awaitingAcceptance": "Esperando aceptacion",
+          "acceptedAwaitingDeposit": "Aceptada, falta el anticipo",
+          "won": "Ganada",
+          "lost": "Perdida"
+        },
+        "refusal": {
+          "conflict": "Esta conversacion acaba de cambiar. Recarga e intentalo de nuevo.",
+          "not_found": "Esa conversacion ya no esta.",
+          "wrong_tenant": "Ese registro no es de este espacio.",
+          "invalid": "Eso no se puede guardar.",
+          "unavailable": "No se pudo completar. Intentalo de nuevo.",
+          "channel_unavailable": "Ese canal no esta disponible.",
+          "template_required": "WhatsApp necesita primero una plantilla aprobada.",
+          "rate_limited": "Espera un momento e intentalo de nuevo.",
+          "checkout_locked": "El pago esta bloqueado a la canasta que se envio.",
+          "already_resolved": "Esta conversacion ya esta resuelta.",
+          "no_owner": "Esta conversacion aun no tiene responsable.",
+          "identity_unconfirmed": "La identidad del cliente no esta confirmada.",
+          "already_linked": "Ese registro ya esta ligado.",
+          "version_stale": "Otra persona guardo primero. Compara las tres versiones.",
+          "payment_unknown": "El estado del pago es desconocido. No lo pidas de nuevo.",
+          "already_paid": "Esto ya esta pagado.",
+          "hold_ended": "La reserva de este horario ya termino.",
+          "basket_changed": "La canasta cambio despues de iniciar el pago.",
+          "not_allowed": "No puedes hacer eso desde aqui.",
+          "expired": "Este enlace u oferta ya vencio.",
+          "already": "Eso ya esta hecho."
+        },
+        "ui": {
+          "visitor": "Visitante",
+          "unassigned": "Sin asignar",
+          "actions": "Acciones",
+          "createOrLink": "Crear o ligar un registro",
+          "attachFile": "Adjuntar un archivo",
+          "scheduleReminder": "Programar un recordatorio",
+          "ask": "Preguntar",
+          "matchExisting": "Buscar existente",
+          "noProfile": "Sin perfil",
+          "saveSuggested": "Guardalos solo si confirmas que son suyos.",
+          "guestOrder": "Un pedido de invitado necesita un nombre y como avisar que esta listo. No hace falta ficha de cliente.",
+          "nameNotGiven": "Sin dato",
+          "webChatOnly": "solo chat web",
+          "nothingLinked": "Aun no hay nada ligado.",
+          "shareBookingLink": "Comparte tu enlace de reserva",
+          "clearSearch": "Borrar busqueda",
+          "tryAgain": "Reintentar",
+          "emptyBody": "Los clientes te escriben desde el sitio, la reserva, el QR de mesa y tu perfil publico.",
+          "noResultsBody": "La busqueda cubre nombres, asuntos, texto y numeros de pedido o reserva.",
+          "failedBody": "Se corto la conexion. Los textos que escribiste siguen en este aparato.",
+          "composerCustomer": "Cliente",
+          "composerNote": "Nota interna",
+          "replyPlaceholder": "Responder…",
+          "notePlaceholder": "Nota solo para tu equipo",
+          "customerReceives": "El cliente recibe esto",
+          "openCount": "abiertas",
+          "source": "Origen",
+          "request": "Pedido",
+          "history": "Historial",
+          "owedNow": "Lo que se debe ahora",
+          "letComplete": "Dejar que termine el pago abierto",
+          "cancelPayment": "Cancelar la pagina de pago y enviar la canasta nueva",
+          "recoverKitchen": "Reintentar el ticket de cocina",
+          "recoverOrder": "Recuperar el pedido desde el checkout guardado",
+          "retrySameTicket": "El mismo id de ticket en cada reintento, para no cobrar dos veces.",
+          "assignToMe": "Asignarme",
+          "cancel": "Cancelar",
+          "sendForCustomer": "Enviar para que el cliente elija",
+          "previewCard": "La vista previa es la tarjeta del cliente: precios, sin costos ni notas.",
+          "ownerHint": "El responsable responde y da seguimiento. Quien atiende se elige en la reserva.",
+          "relinkImpact": "Religar mueve la conversacion. Un pedido pagado conserva pago y cliente.",
+          "confirmSuggestions": "Lo que sale del chat es una sugerencia hasta que lo confirmes.",
+          "later": "Despues",
+          "open": "Abrir",
+          "details": "Detalles",
+          "searchHint": "Los resultados muestran el fragmento. Al abrir caes en el mensaje.",
+          "reminderOne": "Un mensaje programado por registro. Una respuesta lo cancela.",
+          "nudgeReply": "Necesita respuesta",
+          "collectLink": "Enlace de pago",
+          "collectTap": "Tap to Pay",
+          "collectCash": "Efectivo",
+          "collectPickup": "Pagar al recoger",
+          "paidRemaining": "Pagado y restante",
+          "nextReply": "Responder",
+          "nextAssign": "Asignar",
+          "nextCollect": "Cobrar",
+          "nextFollow": "Seguimiento",
+          "revise": "Revisar",
+          "withdraw": "Retirar"
+        },
+        "disabled": {
+          "attach": "Adjuntar archivos aun no esta conectado en este paquete (D-POS-83).",
+          "tapToPay": "Tap to Pay necesita el salto al proveedor del telefono, que no esta montado aqui (D-POS-84).",
+          "webChat": "El chat web solo lo puede abrir el cliente (D-POS-77).",
+          "rail": "El riel del POS es una costura del integrador. Esta pantalla no puede poner el contador (D-POS-85).",
+          "today": "La pestana Hoy del espacio es una costura del integrador (D-POS-86).",
+          "change": "El cambio post-compra usa el escritor de politicas del paquete 2, que no esta montado aqui (D-POS-87).",
+          "whatsapp": "WhatsApp y SMS siguen no disponibles hasta que existan esas claves (D-POS-78)."
+        }
       }
     },
     "tables": {
@@ -15005,7 +15325,10 @@
         "proposedBody": "{from} pasa a {to}. El trabajo sigue según v{n} hasta que el cliente acepte; si rechaza, v{n} se mantiene tal cual.",
         "remind": "Recordar al cliente",
         "withdrawOnConversation": "Retirar desde la conversación",
-        "priorKept": "v{n} (enviada el {date}, {amount}) se conserva sin cambios para el registro."
+        "priorKept": "v{n} (enviada el {date}, {amount}) se conserva sin cambios para el registro.",
+        "sendVersion": "Enviar v{n}",
+        "discardProposal": "Descartar propuesta",
+        "refusalNoLock": "No se pudo leer la conversación. Recarga e inténtalo de nuevo."
       },
       "milestones": {
         "title": "Hitos y entregas",
@@ -15033,12 +15356,18 @@
         "refusalInvalid": "Esa solicitud no indico una entrega sobre la que pudieramos actuar.",
         "sumTitle": "Hitos y entregables",
         "add": "Añadir hito",
-        "addUnavailable": "Un hito se escribe en la reserva a la que pertenece; todavía no hay editor aquí.",
         "onDelivery": "A la entrega · {date}",
         "requestChanges": "Pedir cambios",
         "approveClient": "Aprobar (cliente)",
         "edit": "Editar",
-        "overdue": "Atrasado"
+        "overdue": "Atrasado",
+        "addTitle": "Hito",
+        "addDue": "Vence",
+        "addSave": "Guardar",
+        "replaceFile": "Reemplazar archivo",
+        "uploadNoInquiry": "Este proyecto no tiene conversación donde guardar un archivo.",
+        "uploadFailed": "No se pudo subir el archivo. Inténtalo de nuevo.",
+        "uploading": "Subiendo…"
       },
       "team": {
         "title": "Equipo",
@@ -15066,7 +15395,10 @@
         "impactOutgoingValue": "Se conserva en la línea para el registro · nada ganado",
         "impactClient": "Cliente",
         "impactClientValue": "No se avisa desde aquí · no requiere aprobación",
-        "replaceConfirm": "Sustituir e invitar"
+        "replaceConfirm": "Sustituir e invitar",
+        "replaceNoProfile": "Esta persona se escribió en la oferta y no tiene perfil que sustituir.",
+        "replacementPick": "Elige a una persona",
+        "replacementNone": "Todavía no hay nadie más en el equipo."
       },
       "money": {
         "quotedNotAgreed": "No se ha aceptado ninguna version, asi que todavia no hay precio acordado.",
@@ -15125,12 +15457,15 @@
         "reasonAlreadyClosed": "Este proyecto ya está cerrado",
         "reasonNotConfirmed": "No disponible · solo un proyecto confirmado o en curso puede completarse",
         "reasonNotClosed": "Solo para proyectos cerrados",
-        "reasonNoWriter": "Todavía no disponible · nada registra este estado",
         "back": "Volver",
         "confirmComplete": "Completar proyecto",
         "confirmCancel": "Cancelar proyecto…",
         "refused": "No se cerró.",
-        "done": "Hecho · todos los proyectos"
+        "done": "Hecho · todos los proyectos",
+        "reasonNotArchived": "Solo un proyecto archivado se puede reabrir",
+        "reasonAlreadyArchived": "Este proyecto ya está archivado",
+        "confirmArchive": "Archivar proyecto",
+        "confirmReopen": "Reabrir proyecto"
       },
       "visibility": {
         "title": "Quien ve que",
@@ -15262,7 +15597,6 @@
       "activityUnavailable": "No pudimos leer la actividad ahora mismo.",
       "files": "Archivos",
       "filesUpload": "Subir",
-      "filesUnavailable": "Todavía no hay un almacén de archivos por proyecto; los archivos se comparten en la conversación.",
       "activity": {
         "created_manual": "Proyecto creado a mano",
         "duplicated": "Proyecto duplicado",
@@ -15289,7 +15623,8 @@
       "sideDates": "Fechas",
       "dateStarts": "Empieza",
       "dateEnds": "Termina",
-      "dateMilestoneDue": "{title} vence"
+      "dateMilestoneDue": "{title} vence",
+      "filesNone": "Todavía no hay ningún archivo adjunto a un hito."
     },
     "clientRecord": {
       "title": "Cliente",
@@ -15389,7 +15724,8 @@
       "tabPurchases": "Compras y saldos",
       "tabProjects": "Proyectos",
       "tabDetails": "Detalles",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "linkSent": "Enlace de pago enviado · caduca {when} · te avisaremos cuando se pague"
     },
     "issues": {
       "eyebrow": "Incidencias",
@@ -16031,6 +16367,54 @@
           "concurrent": "Uso simultáneo",
           "reporting": "Informes"
         }
+      },
+      "package": {
+        "title": "Composición",
+        "intro": "Lo que incluye este paquete. Cada componente es un artículo de este catálogo; el reembolso de un paquete se reparte según estas partes.",
+        "col": {
+          "component": "Componente",
+          "included": "Incluido",
+          "qty": "Cant.",
+          "listPrice": "Precio de lista",
+          "alloc": "Valor asignado"
+        },
+        "pick": "Elige un artículo",
+        "required": "Obligatorio",
+        "optional": "Opcional",
+        "remove": "Quitar componente",
+        "none": "Todavía sin componentes.",
+        "add": "Añadir componente",
+        "addHint": "Guarda la composición cuando cada fila tenga un artículo.",
+        "emptyCatalog": "Crea otro artículo primero; un paquete se compone de artículos.",
+        "save": "Guardar composición",
+        "saved": "Composición guardada.",
+        "allocationNote": "La asignación es proporcional al precio de lista de cada componente; el resto del redondeo va a la última fila, así las partes siempre suman el precio del paquete.",
+        "dependenciesReason": "Las dependencias entre componentes, los importes manuales y la vista previa del cliente todavía no se registran; un componente obligatorio no disponible rechaza todo el paquete en caja."
+      },
+      "phases": {
+        "title": "Fases de precio",
+        "intro": "Precios con fecha, como una preventa. La fase vigente fija el precio de una venta la primera vez; una fase posterior nunca cambia una línea ya valorada.",
+        "col": {
+          "phase": "Fase",
+          "from": "Desde",
+          "until": "Hasta",
+          "price": "Precio",
+          "state": "Estado"
+        },
+        "open": "Abierta",
+        "none": "Todavía sin fases; aplica el precio base.",
+        "state": {
+          "live": "Vigente",
+          "upcoming": "Próxima",
+          "ended": "Terminada"
+        },
+        "remove": "Quitar",
+        "removeReason": "Una fase todavía no se puede editar ni quitar; añade la siguiente fase con su fecha de inicio.",
+        "add": "Añadir fase",
+        "save": "Guardar fase",
+        "cancel": "Cancelar",
+        "saved": "Fase guardada.",
+        "stampNote": "Una venta conserva la fase con la que se valoró. Cambiar una fase después de vender nunca revaloriza esa venta."
       }
     },
     "events": {
@@ -16433,6 +16817,43 @@
         "title": "Mi trabajo",
         "sentence": "Mi trabajo todavía no existe. No hay una página que muestre a una persona sus propios turnos, asignaciones y ganancias, así que aquí nada puede fingirlo.",
         "detail": "Tus citas están en el Calendario y en Citas y clases; los proyectos en los que participas, en Proyectos. Las asignaciones por aceptar, los conflictos de agenda y tus ganancias vivirán aquí cuando exista un lector (D-POS-69)."
+      }
+    },
+    "venue": {
+      "engine": {
+        "refusal": {
+          "duplicate_slug": "Ese identificador de ubicacion ya esta en uso.",
+          "last_location": "Un espacio necesita al menos una ubicacion.",
+          "has_spaces": "Esa zona todavia tiene mesas.",
+          "already_seated": "Ese grupo ya esta sentado.",
+          "space_occupied": "Esa mesa ya tiene un grupo.",
+          "expired": "Ese lugar en la lista de espera expiro.",
+          "overlap": "Esos periodos de servicio se solapan.",
+          "two_active": "Esta ubicacion ya tiene un plano activo.",
+          "station_in_use": "Esa estacion todavia tiene tickets o articulos.",
+          "visit_closed": "Esta visita de mesa ya termino.",
+          "item_unavailable": "Ese articulo no esta disponible.",
+          "already_paid": "Esa parte ya esta pagada.",
+          "exceeds_outstanding": "Eso es mas de lo que todavia se debe.",
+          "not_submitted": "La cocina aun no recibio esa linea.",
+          "seat_taken": "Ese asiento ya esta tomado.",
+          "hold_expired": "La reserva de ese asiento expiro.",
+          "same_session": "Ese boleto ya es para esta noche.",
+          "price_up_needs_payment": "La nueva noche cuesta mas. Paga la diferencia primero.",
+          "needs_approval": "Un gerente tiene que aprobar esto primero.",
+          "channel_unavailable": "Ese canal de entrega no esta disponible.",
+          "superseded": "Este codigo de boleto fue reemplazado.",
+          "too_many_attempts": "Demasiados intentos. Espera e intentalo de nuevo.",
+          "unknown_device": "Este dispositivo no esta registrado.",
+          "not_replayable": "Ese comando no se puede guardar sin conexion.",
+          "stale_app": "Esta version de la app es demasiado vieja.",
+          "conflict": "Esto acaba de cambiar. Recarga e intentalo de nuevo.",
+          "not_found": "Ese registro ya no esta.",
+          "wrong_tenant": "Ese registro no esta en este espacio.",
+          "invalid": "Eso no se puede guardar.",
+          "unavailable": "Esto no se pudo completar. Intentalo de nuevo.",
+          "not_allowed": "No puedes hacer esto aqui."
+        }
       }
     }
   },
@@ -17402,7 +17823,6 @@
           "notTracked": "–",
           "notTrackedWhy": "Todavía no se registra: {what}",
           "locationsWhy": "una persona no está ligada a una ubicación; cada ubicación reserva a todos",
-          "pinWhy": "el punto de venta no tiene PIN",
           "drawerWhy": "la caja no se asigna a una persona",
           "busyFreeWhy": "el tiempo ocupado de otros negocios todavía no se comparte",
           "posPermissionsWhy": "los permisos del punto de venta por persona no se guardan; decide el rol",
@@ -17417,7 +17837,10 @@
           "invited": "Invitado",
           "suspended": "Suspendido",
           "removed": "Retirado",
-          "noContact": "Sin correo registrado"
+          "noContact": "Sin correo registrado",
+          "pinSet": "Configurado",
+          "pinNone": "Sin PIN",
+          "pinWhy": "el punto de venta no tiene PIN"
         },
         "empty": {
           "everyone": "Todavía no hay nadie. Añade a la primera persona y elige qué sombreros lleva.",
@@ -17774,6 +18197,17 @@
           "phaseRuleValue": "Toda la cita bloquea a la persona",
           "phaseRuleOff": "Las fases del servicio no están modeladas (D-POS-2); toda la duración bloquea a la persona."
         }
+      },
+      "pin": {
+        "title": "PIN de caja",
+        "set": "Hay un PIN configurado. Escribir uno nuevo lo reemplaza; nadie puede leerlo.",
+        "none": "Sin PIN todavía. Con uno, esta persona puede desbloquear una caja y, si es gerente, aprobar un importe libre.",
+        "label": "Nuevo PIN",
+        "placeholder": "4 a 6 dígitos",
+        "save": "Configurar PIN",
+        "replace": "Reemplazar PIN",
+        "saving": "Guardando…",
+        "saved": "PIN guardado. Solo se almacena el hash."
       }
     }
   },

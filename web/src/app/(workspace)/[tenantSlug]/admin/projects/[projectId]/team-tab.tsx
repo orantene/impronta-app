@@ -10,6 +10,8 @@ import Link from "next/link";
 import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { ProjectRecord } from "@/lib/projects/project-record";
+import type { ReplacementCandidatesLoad } from "@/lib/projects/projects-reader";
+import { schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
 import { BTN_ROW, BTN_SECONDARY, Card, Notice, SectionTitle, dayLabel } from "../_shared";
 import { TeamRows } from "./team-replace";
 
@@ -17,12 +19,14 @@ type Tr = (key: string) => string;
 
 export function TeamTab({
   project,
+  candidates,
   locale,
   visibilityHref,
   conversationHref,
   tr,
 }: {
   project: ProjectRecord;
+  candidates: ReplacementCandidatesLoad;
   locale: string;
   visibilityHref: string;
   conversationHref: string | null;
@@ -55,8 +59,11 @@ export function TeamTab({
           </div>
         ) : (
           <TeamRows
+            bookingId={project.id}
+            candidates={candidates.ok ? candidates.candidates.map((c) => ({ talentProfileId: c.talentProfileId, name: c.name })) : []}
             rows={project.assignments.map((a) => ({
               id: a.id,
+              talentProfileId: a.talentProfileId,
               name: a.name || tr("dashboard.projects.team.unnamed"),
               roleLine: `${a.roleLabel ?? tr("dashboard.projects.team.colRole")} · ${when} · ${a.units} ${a.pricingUnit}`,
               feeLine: interpolate(tr("dashboard.projects.team.feeLine"), {
@@ -67,11 +74,13 @@ export function TeamTab({
             }))}
             copy={{
               replace: tr("dashboard.projects.team.replace"),
+              replaceNoProfile: tr("dashboard.projects.team.replaceNoProfile"),
               sheetTitle: tr("dashboard.projects.team.replaceTitle"),
               sheetSubtitle: tr("dashboard.projects.team.replaceSubtitle"),
               closeLabel: tr("dashboard.projects.close.closeSheet"),
               replacement: tr("dashboard.projects.team.replacement"),
-              replacementUnavailable: tr("dashboard.projects.team.replacementUnavailable"),
+              replacementPick: tr("dashboard.projects.team.replacementPick"),
+              replacementNone: candidates.ok ? tr("dashboard.projects.team.replacementNone") : tr("dashboard.projects.team.replacementUnavailable"),
               impact: tr("dashboard.projects.team.impact"),
               schedule: tr("dashboard.projects.team.impactSchedule"),
               scheduleValue: when,
@@ -85,6 +94,7 @@ export function TeamTab({
               note: tr("dashboard.projects.team.replaceNote"),
               cancel: tr("dashboard.projects.close.back"),
               confirm: tr("dashboard.projects.team.replaceConfirm"),
+              engine: schedulingEngineSentences(tr),
             }}
           />
         )}

@@ -101,6 +101,27 @@ export type ClassesAppointment = {
   readonly currency: string;
   /** Can this order still be collected at the till (draft or pending)? */
   readonly collectable: boolean;
+  /**
+   * B03 `POSAfterLink`: counter sales linked to this booking for payment
+   * (`order_lines.booking_id`), other than the booking's own order. Their
+   * lines are the "LINKED FROM SALE · PAYMENT ONLY" section and what they
+   * still owe is added to the balance the till collects.
+   */
+  readonly linkedSales: readonly ClassesLinkedSale[];
+};
+
+export type ClassesLinkedSale = {
+  readonly orderId: string;
+  readonly reference: string;
+  readonly currency: string;
+  readonly outstandingCents: number;
+  readonly lines: readonly { readonly id: string; readonly label: string; readonly units: number; readonly totalCents: number }[];
+};
+
+/** A queue entry plus the live engine offer holding its seat, when one is out. */
+export type ClassesWaitlistEntry = WaitlistEntry & {
+  /** `waitlist_offers.id` of the open offer (accepted / declined / expired read null). */
+  readonly offerId: string | null;
 };
 
 export type ClassesTier = {
@@ -138,7 +159,7 @@ export type ClassesSession = {
   readonly seats: WaitlistSeats;
   readonly tiers: readonly ClassesTier[];
   readonly roster: readonly ClassesRosterEntry[];
-  readonly waitlist: readonly WaitlistEntry[];
+  readonly waitlist: readonly ClassesWaitlistEntry[];
   readonly nextInLineId: string | null;
 };
 
@@ -317,6 +338,74 @@ export async function readAdmissionsRoster(
   return { ok: true, bySession };
 }
 
+/**
+ * B03: the counter sales linked to each booking for payment. A line on a
+ * sale other than the booking's own order that names the booking
+ * (`booking_kind = agency_booking`) is a "linked payment" line; the sale it
+ * sits on is listed once with what it still owes.
+ */
+async function readLinkedSales(
+  admin: Admin,
+  tenantId: string,
+  bookings: readonly { id: string; orderId: string | null }[],
+): Promise<{ ok: true; byBooking: Map<string, ClassesLinkedSale[]> } | { ok: false }> {
+  const byBooking = new Map<string, ClassesLinkedSale[]>();
+  if (bookings.length === 0) return { ok: true, byBooking };
+  const linesRead = await admin
+    .from("order_lines")
+    .select("id, order_id, booking_id, label, units, total_cents")
+    .eq("tenant_id", tenantId)
+    .eq("booking_kind", "agency_booking")
+    .in("booking_id", bookings.map((b) => b.id));
+  if (linesRead.error) {
+    logServerError("pos.classes.day/linkedLines", linesRead.error);
+    return { ok: false };
+  }
+  const ownOrder = new Map(bookings.map((b) => [b.id, b.orderId]));
+  type LineRow = { id: string; order_id: string; booking_id: string; label: string | null; units: number | string | null; total_cents: number | string | null };
+  const lines = ((linesRead.data ?? []) as LineRow[]).filter((l) => ownOrder.get(String(l.booking_id)) !== String(l.order_id));
+  if (lines.length === 0) return { ok: true, byBooking };
+  const orderIds = [...new Set(lines.map((l) => String(l.order_id)))];
+  const [ordersRead, paidRead] = await Promise.all([
+    admin.from("orders").select("id, currency, total_cents, status").eq("tenant_id", tenantId).in("id", orderIds),
+    admin.from("booking_transactions").select("order_id, gross_amount_cents, status").in("order_id", orderIds),
+  ]);
+  if (ordersRead.error || paidRead.error) {
+    logServerError("pos.classes.day/linkedOrders", ordersRead.error ?? paidRead.error);
+    return { ok: false };
+  }
+  const paid = new Map<string, number>();
+  for (const t of paidRead.data ?? []) {
+    if (t.status !== "paid" || typeof t.order_id !== "string") continue;
+    paid.set(t.order_id, (paid.get(t.order_id) ?? 0) + num(t.gross_amount_cents));
+  }
+  const orders = new Map((ordersRead.data ?? []).map((o) => [String(o.id), o]));
+  type Draft = { orderId: string; reference: string; currency: string; outstandingCents: number; lines: Array<ClassesLinkedSale["lines"][number]> };
+  const drafts = new Map<string, Map<string, Draft>>();
+  for (const l of lines) {
+    const bookingId = String(l.booking_id);
+    const orderId = String(l.order_id);
+    const perBooking = drafts.get(bookingId) ?? new Map<string, Draft>();
+    let sale = perBooking.get(orderId);
+    if (!sale) {
+      const o = orders.get(orderId);
+      const total = num(o?.total_cents);
+      sale = {
+        orderId,
+        reference: `#${orderId.replace(/-/g, "").slice(0, 4).toUpperCase()}`,
+        currency: text(o?.currency) ?? "USD",
+        outstandingCents: o?.status === "paid" || o?.status === "fulfilled" ? 0 : Math.max(0, total - (paid.get(orderId) ?? 0)),
+        lines: [],
+      };
+      perBooking.set(orderId, sale);
+    }
+    sale.lines.push({ id: String(l.id), label: text(l.label) ?? "", units: num(l.units), totalCents: num(l.total_cents) });
+    drafts.set(bookingId, perBooking);
+  }
+  for (const [bookingId, perBooking] of drafts) byBooking.set(bookingId, [...perBooking.values()]);
+  return { ok: true, byBooking };
+}
+
 export async function loadClassesDay(
   admin: Admin,
   input: { tenantId: string; timeZone: string; now: Date; dayOffset: number },
@@ -388,12 +477,16 @@ export async function loadClassesDay(
     }
   }
 
+  const linkedByBooking = await readLinkedSales(admin, input.tenantId, bookingRows.map((b) => ({ id: String(b.id), orderId: b.order_id ?? null })));
+  if (!linkedByBooking.ok) return { ok: false, error: LOAD_ERROR };
+
   const appointments: ClassesAppointment[] = bookingRows
     .filter((b): b is typeof b & { starts_at: string } => typeof b.starts_at === "string")
     .map((b) => {
       const order = b.order_id ? ordersById.get(b.order_id) : undefined;
       const outstanding = order ? Math.max(0, order.totalCents - (paidByOrder.get(b.order_id ?? "") ?? 0)) : 0;
       return {
+        linkedSales: linkedByBooking.byBooking.get(String(b.id)) ?? [],
         id: String(b.id),
         title: text(b.title) ?? "Untitled booking",
         state: appointmentState(typeof b.status === "string" ? b.status : null),
@@ -445,6 +538,29 @@ export async function loadClassesDay(
     return { ok: false, error: LOAD_ERROR };
   }
 
+  // The engine's live offers (`waitlist_offers`, D-POS-68): the id the till
+  // needs to accept or decline the hold it placed. Filtered here rather than
+  // in the query so a decided or lapsed offer never reads as live.
+  const liveOfferByEntry = new Map<string, string>();
+  const entryIds = (waitlistRead.data ?? []).map((w) => String(w.id));
+  if (entryIds.length > 0) {
+    const offersRead = await admin
+      .from("waitlist_offers")
+      .select("id, waitlist_entry_id, accepted_at, declined_at, expires_at")
+      .eq("tenant_id", input.tenantId)
+      .in("waitlist_entry_id", entryIds);
+    if (offersRead.error) {
+      logServerError("pos.classes.day/offers", offersRead.error);
+      return { ok: false, error: LOAD_ERROR };
+    }
+    const nowMs = input.now.getTime();
+    for (const o of (offersRead.data ?? []) as Array<{ id: string; waitlist_entry_id: string; accepted_at: string | null; declined_at: string | null; expires_at: string }>) {
+      if (o.accepted_at || o.declined_at) continue;
+      if (Date.parse(o.expires_at) <= nowMs) continue;
+      liveOfferByEntry.set(String(o.waitlist_entry_id), String(o.id));
+    }
+  }
+
   const poolsBySession = new Map<string, Array<{ id: string; unitsTotal: number; poolKey: string }>>();
   for (const p of poolsRead.data ?? []) {
     const list = poolsBySession.get(String(p.subject_id)) ?? [];
@@ -481,7 +597,7 @@ export async function loadClassesDay(
       );
     }
     const mine = (waitlistRead.data ?? []).filter((w) => w.session_id === id);
-    const ordered = orderWaitlist(
+    const ordered: ClassesWaitlistEntry[] = orderWaitlist(
       mine.map((w) => ({
         id: String(w.id),
         session_id: String(w.session_id),
@@ -494,7 +610,7 @@ export async function loadClassesDay(
         offer_expires_at: text(w.offer_expires_at),
       })),
       input.now,
-    );
+    ).map((entry) => ({ ...entry, offerId: liveOfferByEntry.get(entry.id) ?? null }));
     const roster: ClassesRosterEntry[] = [...(rosterRead.bySession.get(id) ?? [])];
     for (const w of ordered) {
       if (w.status !== "accepted") continue;

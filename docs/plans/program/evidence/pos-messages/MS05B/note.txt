@@ -1,0 +1,1 @@
+Re-linking shows the impact first: the conversation moves, the paid order keeps its payment and changes buyer, nothing from this chat stays on the wrong person, and the change is audited with a reason.

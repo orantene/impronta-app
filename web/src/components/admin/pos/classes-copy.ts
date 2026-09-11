@@ -141,6 +141,9 @@ export type ClassesCopy = {
     readonly accept: string;
     readonly accepting: string;
     readonly accepted: string;
+    readonly decline: string;
+    /** `{name}'s offer was withdrawn; the place goes to the next in line.` */
+    readonly declined: string;
     readonly offerUntil: string;
     readonly state: Readonly<Record<"waiting" | "offered" | "expired" | "accepted" | "withdrawn", string>>;
     readonly join: {
@@ -211,6 +214,15 @@ export type ClassesCopy = {
       readonly lineDone: string;
       readonly lineAdded: string;
       readonly lineProduct: string;
+      /** B03: `Linked from sale {reference} · payment only` */
+      readonly linkedFrom: string;
+      /** `From sale {reference}` */
+      readonly fromSale: string;
+      readonly linkedPayment: string;
+      /** `Sale {reference} (linked)` */
+      readonly linkedSale: string;
+      /** `sale {reference} linked for payment` */
+      readonly linkedChip: string;
     };
     readonly extra: {
       /** "Add to {name}'s appointment" */
@@ -431,6 +443,8 @@ export function classesCopy(t: Translator): ClassesCopy {
       promoted: t("dashboard.adminAppointments.waitlist.promoted"),
       alreadyOffered: t("dashboard.adminAppointments.waitlist.alreadyOffered"),
       accept: t("dashboard.adminAppointments.waitlist.accept"),
+      decline: t("dashboard.pos.classes.waitlist.decline"),
+      declined: t("dashboard.pos.classes.waitlist.declined"),
       accepting: t("dashboard.adminAppointments.waitlist.accepting"),
       accepted: t("dashboard.adminAppointments.waitlist.accepted"),
       offerUntil: t("dashboard.adminAppointments.waitlist.offerUntil"),
@@ -560,6 +574,11 @@ export function classesCopy(t: Translator): ClassesCopy {
         lineDone: t("dashboard.pos.classes.board.detail.lineDone"),
         lineAdded: t("dashboard.pos.classes.board.detail.lineAdded"),
         lineProduct: t("dashboard.pos.classes.board.detail.lineProduct"),
+        linkedFrom: t("dashboard.pos.classes.board.detail.linkedFrom"),
+        fromSale: t("dashboard.pos.classes.board.detail.fromSale"),
+        linkedPayment: t("dashboard.pos.classes.board.detail.linkedPayment"),
+        linkedSale: t("dashboard.pos.classes.board.detail.linkedSale"),
+        linkedChip: t("dashboard.pos.classes.board.detail.linkedChip"),
       },
       extra: {
         title: t("dashboard.pos.classes.board.extra.title"),

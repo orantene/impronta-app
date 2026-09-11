@@ -132,8 +132,22 @@ export type ProjectsBoardCopy = {
   readonly receiptsSubtitle: string;
   readonly linksTitle: string;
   readonly linksSubtitle: string;
-  readonly linksUnavailable: string;
+  readonly linksEmpty: string;
   readonly linksNote: string;
+  readonly linkOpen: string;
+  readonly linkPaid: string;
+  readonly linkExpired: string;
+  readonly linkCancelled: string;
+  /** `sent {when}` */
+  readonly linkSent: string;
+  /** `expires {when}` */
+  readonly linkExpires: string;
+  /** `Sale {id}` */
+  readonly linkSale: string;
+  readonly linkResend: string;
+  readonly linkCopied: string;
+  readonly linkReceipt: string;
+  readonly linkNew: string;
   readonly segmentDueNow: string;
   readonly segmentLater: string;
   readonly segmentNeedsApproval: string;
@@ -389,8 +403,19 @@ export function projectsModeCopy(t: Translator): ProjectsModeCopy {
       receiptsSubtitle: t("dashboard.pos.projects.receipts.intro"),
       linksTitle: t("dashboard.pos.projects.board.linksTitle"),
       linksSubtitle: t("dashboard.pos.projects.board.linksSubtitle"),
-      linksUnavailable: t("dashboard.pos.projects.board.linksUnavailable"),
+      linksEmpty: t("dashboard.pos.projects.board.linksEmpty"),
       linksNote: t("dashboard.pos.projects.board.linksNote"),
+      linkOpen: t("dashboard.pos.projects.board.linkOpen"),
+      linkPaid: t("dashboard.pos.projects.board.linkPaid"),
+      linkExpired: t("dashboard.pos.projects.board.linkExpired"),
+      linkCancelled: t("dashboard.pos.projects.board.linkCancelled"),
+      linkSent: t("dashboard.pos.projects.board.linkSent"),
+      linkExpires: t("dashboard.pos.projects.board.linkExpires"),
+      linkSale: t("dashboard.pos.projects.board.linkSale"),
+      linkResend: t("dashboard.pos.projects.board.linkResend"),
+      linkCopied: t("dashboard.pos.counter.paymentLink.copied"),
+      linkReceipt: t("dashboard.pos.projects.board.linkReceipt"),
+      linkNew: t("dashboard.pos.projects.board.linkNew"),
       segmentDueNow: t("dashboard.pos.projects.board.segmentDueNow"),
       segmentLater: t("dashboard.pos.projects.board.segmentLater"),
       segmentNeedsApproval: t("dashboard.pos.projects.board.segmentNeedsApproval"),

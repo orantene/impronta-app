@@ -11,6 +11,7 @@
  */
 
 import { validateOffering, type OfferingKind, type TalentOffering } from "@/lib/talent/offerings-types";
+import { SCHEDULING_ENGINE_REFUSALS, SCHEDULING_ENGINE_REFUSAL_CODES } from "@/lib/scheduling/engine-refusals";
 
 /** The type a row is listed as. `custom` is a service priced by quote. */
 export type CatalogItemType = OfferingKind | "custom";
@@ -178,3 +179,53 @@ export const CREATE_TYPE_CARDS: readonly CreateTypeCard[] = [
   { id: "pass", seed: null, destination: null },
   { id: "gift", seed: null, destination: null },
 ];
+
+// ── Package 2: packages and price phases ─────────────────────────────
+
+/** The sentence key for an engine reason; an unknown reason reads as `unavailable`. */
+export function engineRefusalKey(reason: string): string {
+  return (SCHEDULING_ENGINE_REFUSAL_CODES as readonly string[]).includes(reason)
+    ? `dashboard.scheduling.engine.refusal.${reason}`
+    : SCHEDULING_ENGINE_REFUSALS.unavailable;
+}
+
+/**
+ * Proportional value of each component: qty x list price over the sum,
+ * the remainder on the last row so the parts sum to the package exactly.
+ * Same weights as `packageRefundShare` (`lib/catalog/packages.ts`), so the
+ * editor shows what a refund would split. Null when nothing can be weighed.
+ */
+export function packageAllocation(
+  packageCents: number | null,
+  rows: ReadonlyArray<{ qty: number; unitCents: number | null }>,
+): Array<number | null> {
+  const weights = rows.map((r) => Math.max(0, r.qty) * Math.max(0, r.unitCents ?? 0));
+  const sum = weights.reduce((n, w) => n + w, 0);
+  if (packageCents == null || sum <= 0) return rows.map(() => null);
+  let allocated = 0;
+  return weights.map((w, i) => {
+    const cents = i === weights.length - 1 ? packageCents - allocated : Math.floor((packageCents * w) / sum);
+    allocated += cents;
+    return cents;
+  });
+}
+
+export type PhaseState = "live" | "upcoming" | "ended";
+
+export const PHASE_STATE_KEY: Record<PhaseState, string> = {
+  live: "dashboard.catalog.phases.state.live",
+  upcoming: "dashboard.catalog.phases.state.upcoming",
+  ended: "dashboard.catalog.phases.state.ended",
+};
+
+/**
+ * Mirrors `livePhasePrice`: started and not yet ended is live. Compared as
+ * instants, not strings: Postgres returns `+00:00` and the browser `Z`, and
+ * a string compare of the two disagrees at the boundary.
+ */
+export function phaseState(p: { startsAt: string; endsAt: string | null }, nowIso: string): PhaseState {
+  const now = Date.parse(nowIso);
+  if (Date.parse(p.startsAt) > now) return "upcoming";
+  if (p.endsAt && Date.parse(p.endsAt) <= now) return "ended";
+  return "live";
+}

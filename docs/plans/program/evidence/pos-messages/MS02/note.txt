@@ -1,0 +1,1 @@
+Row = name or “Visitor”, subject, last message, time, unread, owner, record chips, one next action. The panel shows what the next action needs; history and explanations live behind disclosures.

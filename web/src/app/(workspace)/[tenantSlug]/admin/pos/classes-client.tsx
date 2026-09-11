@@ -45,12 +45,9 @@ import {
   type ClassesRefusalKey,
 } from "@/lib/pos/classes/refusals";
 import { refusalFromResult } from "@/lib/pos/refusal-reason";
-import {
-  acceptWaitlistPlace,
-  joinSessionWaitlist,
-  promoteFromWaitlist,
-} from "@/lib/scheduling/appointments-actions";
-import type { WaitlistEntry } from "@/lib/scheduling/session-waitlist";
+import { joinSessionWaitlist } from "@/lib/scheduling/appointments-actions";
+
+import type { PaymentLinkCopy } from "@/components/admin/pos/PaymentLinkPanel";
 
 import { posAddLine, posLoadSale, posStartCollection } from "./actions";
 import { classesCheckIn, classesMarkAttendance } from "./classes-actions";
@@ -60,7 +57,7 @@ import { ClassesHeader } from "./classes-header";
 import { fill, formatClock, formatWhen } from "./classes-format";
 import { MoveSheet } from "./classes-move";
 import { useMove } from "./classes-move-state";
-import { ClassesNotice, WaitlistPanel, WalkInSheet, type WalkInService } from "./classes-panels";
+import { AppointmentLinkSheet, ClassesNotice, WaitlistPanel, WalkInSheet, type WalkInService } from "./classes-panels";
 import {
   AddExtraSheet,
   AppointmentDetail,
@@ -69,6 +66,7 @@ import {
   type TodaySegment,
   type TodayTab,
 } from "./classes-today";
+import { useClassesWaitlist } from "./classes-waitlist";
 import { useWalkIn } from "./classes-walkin-state";
 import { posCollectionKey } from "./counter-model";
 
@@ -99,9 +97,14 @@ export type ClassesClientProps = {
     };
     classes: ClassesCopy;
     counterRefusal: PosRefusalCopy;
+    /** `dashboard.pos.engine.refusal.*`, for the queue's offers (D-POS-68). */
+    engineRefusal: Readonly<Record<string, string>>;
+    paymentLink: PaymentLinkCopy;
     /** The till's chrome words (Mode, Lock, Workspace), the Counter's own. */
     chrome: PosChromeCopy;
   };
+  /** What `/pay/<code>` does on this workspace (`PaymentLinkPanel`). */
+  linkProvider: "stripe" | "mock";
 };
 
 type Notice =
@@ -132,6 +135,7 @@ export function ClassesClient(props: ClassesClientProps) {
   );
   const [sale, setSale] = useState<SaleDetail>({ status: "idle" });
   const [extraFor, setExtraFor] = useState<string | null>(null);
+  const [linkFor, setLinkFor] = useState<string | null>(null);
 
   // Waitlist
   const [joinFor, setJoinFor] = useState<string | null>(null);
@@ -342,60 +346,15 @@ export function ClassesClient(props: ClassesClientProps) {
 
   /* ── Waitlist ──────────────────────────────────────────────────────── */
 
-  const promote = (session: ClassesSession, entry: WaitlistEntry) =>
-    void run(
-      () =>
-        promoteFromWaitlist({
-          tenantId: props.tenantId,
-          entryId: entry.id,
-          expectedStatus: entry.status,
-        }),
-      (r) => {
-        if (!r.ok) {
-          setNotice({
-            kind: "refused",
-            sentence: c.waitlist.promoteRefusal[r.refusalKey],
-          });
-          return false;
-        }
-        setNotice({
-          kind: "done",
-          sentence: r.already
-            ? fill(c.waitlist.alreadyOffered, { name: entry.customerName })
-            : fill(c.waitlist.promoted, {
-                name: entry.customerName,
-                when: r.offerExpiresAt
-                  ? formatWhen(r.offerExpiresAt, day.timeZone, props.locale)
-                  : "",
-              }),
-        });
-        return true;
-      },
-    );
-
-  const accept = (session: ClassesSession, entry: WaitlistEntry) =>
-    void run(
-      () =>
-        acceptWaitlistPlace({
-          tenantId: props.tenantId,
-          entryId: entry.id,
-          expectedStatus: entry.status,
-        }),
-      (r) => {
-        if (!r.ok) {
-          setNotice({
-            kind: "refused",
-            sentence: c.waitlist.acceptRefusal[r.refusalKey],
-          });
-          return false;
-        }
-        setNotice({
-          kind: "done",
-          sentence: fill(c.waitlist.accepted, { name: entry.customerName }),
-        });
-        return true;
-      },
-    );
+  const queue = useClassesWaitlist({
+    copy: c,
+    engineRefusal: copy.engineRefusal,
+    formatWhen: (iso) => formatWhen(iso, day.timeZone, props.locale),
+    run,
+    setNotice,
+  });
+  const promote = queue.offer;
+  const accept = queue.accept;
 
   const join = (session: ClassesSession) =>
     void run(
@@ -536,6 +495,7 @@ export function ClassesClient(props: ClassesClientProps) {
             onOpenMove={move.open}
             onCollect={collectRow}
             onAddExtra={() => setExtraFor(selected.id)}
+            onSendLink={(row) => setLinkFor(row.id)}
           >
             {move.bookingId === selected.id ? (
               <MoveSheet
@@ -601,6 +561,19 @@ export function ClassesClient(props: ClassesClientProps) {
           onCollect={walkIn.collect}
           onStartAgain={walkIn.startAgain}
           onClose={closeWalkIn}
+        />
+      ) : null}
+      {linkFor && selected && selected.id === linkFor ? (
+        <AppointmentLinkSheet
+          row={selected}
+          workspaceName={props.workspaceName}
+          provider={props.linkProvider}
+          timeZone={day.timeZone}
+          locale={props.locale}
+          engineRefusal={copy.engineRefusal}
+          copy={copy.paymentLink}
+          closeLabel={c.board.sheet.close}
+          onClose={() => setLinkFor(null)}
         />
       ) : null}
       {extraFor && selected && selected.id === extraFor ? (
@@ -739,6 +712,7 @@ export function ClassesClient(props: ClassesClientProps) {
               onSubmitJoin={join}
               onPromote={promote}
               onAccept={accept}
+              onDecline={queue.decline}
             />
           ) : (
             twoPane

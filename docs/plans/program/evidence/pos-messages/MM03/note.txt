@@ -1,0 +1,1 @@
+MW07’s Collect sheet reused: payment link (primary), Tap to Pay via the provider app hand-off, cash, pay at pickup under the policy. Marks nothing paid by sending a link.

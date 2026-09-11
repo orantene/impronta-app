@@ -40,3 +40,21 @@ export function readDisplayBeacon(tenantId: string): string | null {
     return null;
   }
 }
+
+/**
+ * The other direction: the display tells the counter on the same device
+ * that it wrote to the sale (the tip on D02 / D03), so the counter re-reads
+ * before its next write instead of meeting a `conflict` on a version it
+ * never saw change. Same storage, same `storage` event.
+ */
+export function saleChangedBeaconKey(tenantId: string): string {
+  return `tulala.pos.saleChanged.${tenantId}`;
+}
+
+export function writeSaleChangedBeacon(tenantId: string, orderId: string, version: number): void {
+  try {
+    window.localStorage.setItem(saleChangedBeaconKey(tenantId), `${orderId}:${version}:${Date.now()}`);
+  } catch {
+    // A counter that does not hear this re-reads on its own next refresh.
+  }
+}

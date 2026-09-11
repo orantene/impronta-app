@@ -112,6 +112,11 @@ Add to an existing lane or a new `test:messaging` wired into `ci`:
 `loadMessagingInbox(…).unreadCount` is the rail badge for `messages`.
 Pass it as `counts.messages` on `PosFrame`.
 
+### 11. Board preview (dev only)
+
+`/c/t/preview?board=MS02` renders fixture boards when `NODE_ENV !== "production"`.
+Production 404s that token. Evidence `live.png` files from this path are labelled mock/fixture.
+
 ## Gates (this package, 2026-09-11)
 
 Real exit codes on `cursor/pos-messages-444f`:
@@ -129,4 +134,6 @@ Real exit codes on `cursor/pos-messages-444f`:
 | test:inquiry-workspace | 0 |
 | messaging unit (`src/lib/messaging/*.test.ts`) | 0 (13/13; not wired into `package.json`) |
 
-Isolated apply, race scripts, and Playwright need the isolated env + seam 2. Not run here.
+Isolated apply, race scripts, and Playwright need the isolated env + seam 2.
+MSG-P1/P2/P5/P6/P7/P8/P11/P12 on this runner: skipped 8 / 8 (no `JOURNEYS_FIXTURE_READY`).
+`/c/t/preview` cannot be reached here: no Supabase env, host gate 404s.

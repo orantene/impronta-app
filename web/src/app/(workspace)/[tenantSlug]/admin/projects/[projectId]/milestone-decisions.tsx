@@ -27,6 +27,7 @@ import {
   requestProjectDeliverableRevision,
   type MilestoneDecisionResult,
 } from "./actions";
+import { MilestoneAmount, MilestoneFile, type MilestoneMoneyFileCopy } from "./milestone-money-file";
 
 export type MilestoneView = {
   id: string;
@@ -40,6 +41,8 @@ export type MilestoneView = {
   statusLabel: string;
   statusTone: PillTone;
   revisionsLabel: string;
+  amountCents: number;
+  filePath: string | null;
 };
 
 export type MilestoneRefusalCopy = {
@@ -55,10 +58,8 @@ export type MilestoneCopy = MilestoneRefusalCopy & {
   caption: string;
   approve: string;
   requestRevision: string;
-  edit: string;
-  editUnavailable: string;
   passthrough: string;
-  amountUnknown: string;
+  moneyFile: MilestoneMoneyFileCopy;
 };
 
 function sentenceFor(result: Extract<MilestoneDecisionResult, { ok: false }>, copy: MilestoneRefusalCopy): string {
@@ -78,7 +79,17 @@ function sentenceFor(result: Extract<MilestoneDecisionResult, { ok: false }>, co
 
 const COLS = "grid-cols-[1.3fr_1.2fr_80px_190px_1.4fr]";
 
-export function MilestoneDecisions({ milestones, copy }: { milestones: MilestoneView[]; copy: MilestoneCopy }) {
+export function MilestoneDecisions({
+  milestones,
+  currency,
+  inquiryId,
+  copy,
+}: {
+  milestones: MilestoneView[];
+  currency: string;
+  inquiryId: string | null;
+  copy: MilestoneCopy;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ id: string; text: string } | null>(null);
@@ -106,6 +117,8 @@ export function MilestoneDecisions({ milestones, copy }: { milestones: Milestone
           revision: m.revision,
           revisionLimit: m.revisionLimit,
           dueAt: null,
+          amountCents: m.amountCents,
+          filePath: m.filePath,
         });
         const decidable = m.status === "submitted";
         const note = message?.id === m.id ? message.text : null;
@@ -123,10 +136,13 @@ export function MilestoneDecisions({ milestones, copy }: { milestones: Milestone
                 ) : null}
               </span>
               <span className="text-admin-ink-muted">{m.whenLabel}</span>
-              {/* No amount is recorded on a milestone: an em-dash, never a zero. */}
-              <span className="text-[15px] font-semibold tracking-[-0.02em] tabular-nums text-admin-ink-dim" title={copy.amountUnknown}>
-                —
-              </span>
+              <MilestoneAmount
+                deliverableId={m.id}
+                amountCents={m.amountCents}
+                currency={currency}
+                editable={m.status !== "approved" && m.status !== "cancelled"}
+                copy={copy.moneyFile}
+              />
               <span>
                 <Pill tone={m.statusTone}>{m.statusLabel}</Pill>
               </span>
@@ -158,12 +174,9 @@ export function MilestoneDecisions({ milestones, copy }: { milestones: Milestone
                       </span>
                     ) : null}
                   </>
-                ) : m.status === "approved" || m.status === "cancelled" ? null : (
-                  // A milestone's title and date are written on the booking
-                  // it belongs to; there is no editor here (D-POS-37).
-                  <button type="button" disabled title={copy.editUnavailable} className={cn(BTN_SECONDARY, BTN_ROW)}>
-                    {copy.edit}
-                  </button>
+                ) : null}
+                {m.status === "cancelled" ? null : (
+                  <MilestoneFile deliverableId={m.id} inquiryId={inquiryId} filePath={m.filePath} copy={copy.moneyFile} />
                 )}
               </span>
             </ListRow>

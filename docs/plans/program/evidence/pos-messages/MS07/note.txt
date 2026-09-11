@@ -1,0 +1,1 @@
+One picker with tabs per family; two exits: send for the customer to choose, or add to the draft. The preview is exactly the customer card: thumbnails, prices in MXN, no cost, margin or notes.
