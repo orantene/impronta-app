@@ -73,7 +73,10 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
   counter: {
     id: "counter",
     label: "Counter",
-    destinations: ["sell", "orders", "shifts"],
+    // The board's rail (`POSCounter`): Sell · Orders · Receipts · Cash ·
+    // Issues. `shifts` IS the drawer ("Cash" on the rail); `issues` has no
+    // reader yet and renders its own sentence (D-POS-28).
+    destinations: ["sell", "orders", "receipts", "shifts", "issues"],
     built: true,
   },
   floor: {
@@ -85,7 +88,12 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
   door: {
     id: "door",
     label: "Door",
-    destinations: ["checkin", "tickets"],
+    // The board's rail (`POSGateReady`): Sell tickets · Gate · Lookup ·
+    // Receipts · Issues. `tickets` is the box office (E01 to E07), `checkin`
+    // the gate (G01 to G08), `lookup` the ticket finder (E09, E10, E15);
+    // Receipts lists the door's own paid sales and Issues is the workspace's
+    // inbox, drawn over its one sentence (D-POS-28).
+    destinations: ["tickets", "checkin", "lookup", "receipts", "issues"],
     built: true,
   },
   classes: {
@@ -100,11 +108,13 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
     // balance on commissioned work (D-POS-10). The id stays `projects`, which
     // is also the workspace destination the same work lives under.
     label: "Collect",
-    // The design's rail is Due · Projects · Links · Receipts · Issues
-    // (`docs/plans/program/pos/modes.md`). `collect` IS Due (the landing
-    // action is "Collect a balance", D-POS-10); Links has no table yet and
-    // Issues is the workspace's own inbox, so neither is a row here.
-    destinations: ["collect", "projects", "receipts"],
+    // The design's rail is Collect · Projects · Links · Receipts · Issues
+    // (`docs/plans/program/pos/modes.md`, boards O07 / POSOffice /
+    // POSPaymentLink). `collect` IS Due (the landing action is "Collect a
+    // balance", D-POS-10). Links has no table yet and Issues is the
+    // workspace's own inbox: both rows are drawn, each over its one
+    // sentence (D-POS-28, D-POS-42), never over a blank.
+    destinations: ["collect", "projects", "links", "receipts", "issues"],
     built: true,
   },
 };

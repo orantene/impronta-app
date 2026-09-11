@@ -406,6 +406,7 @@ test("POS PROJECTS: find a project, see what is owed with its rows, collect a de
   await expect(rail.getByRole("button", { name: /^collect$/i })).toHaveAttribute("aria-current", "page");
   await expect(rail.getByRole("button", { name: /^projects$/i })).toBeVisible();
   await expect(rail.getByRole("button", { name: /^receipts$/i })).toBeVisible();
+  await expect(rail.getByRole("button", { name: /^links$/i })).toBeVisible();
   await shot("01-projects-mode-landing");
 
   // ────────────────────────────────────────────────────────────────────
@@ -426,7 +427,8 @@ test("POS PROJECTS: find a project, see what is owed with its rows, collect a de
     money(dueBefore, currency),
   );
   await shot("02-find-by-client-name");
-  await row.getByRole("button", { name: /^open$/i }).click();
+  // The row itself is the tap target (O07): no separate Open button.
+  await row.click();
 
   // ────────────────────────────────────────────────────────────────────
   // 3 — WHAT IS OWED, and the rows it comes from.
@@ -451,11 +453,11 @@ test("POS PROJECTS: find a project, see what is owed with its rows, collect a de
   await page.getByRole("button", { name: /^a deposit$/i }).click();
   await page.getByLabel(/deposit amount/i).fill(String(depositCents / 100));
   await expect(
-    page.locator("[data-pos-projects-collect]").getByText("Amount due").locator("xpath=following-sibling::span[1]"),
+    page.locator("[data-pos-projects-collect]").locator("[data-pos-amount-due]"),
     "the sheet's amount is the deposit, not the balance",
   ).toHaveText(money(depositCents, currency));
   await shot("04-collect-a-deposit");
-  await page.getByRole("button", { name: /confirm cash/i }).click();
+  await page.locator("[data-pos-confirm-cash]").click();
   const collectedPanel = page.locator("[data-pos-projects-collected]");
   await expect(collectedPanel, "the money lands and the screen says so").toBeVisible({ timeout: 60_000 });
   await expect(page.locator("[data-pos-projects-collected-amount]")).toHaveText(money(depositCents, currency));
@@ -575,7 +577,7 @@ test("POS PROJECTS: find a project, see what is owed with its rows, collect a de
   await rail.getByRole("button", { name: /^projects$/i }).click();
   await expect(page.locator("[data-pos-projects-list]")).toBeVisible({ timeout: 30_000 });
   await shot("10-projects-board");
-  await page.locator(`[data-pos-project-row="${projectId}"]`).getByRole("button", { name: /^open$/i }).click();
+  await page.locator(`[data-pos-project-row="${projectId}"]`).click();
   await expect(page.locator("[data-pos-projects-milestones]")).toBeVisible({ timeout: 30_000 });
   await expect(page.locator("[data-pos-projects-next-action]")).toHaveText("Collect the balance");
   await shot("11-project-milestones");

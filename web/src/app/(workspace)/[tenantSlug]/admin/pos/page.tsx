@@ -8,20 +8,35 @@ import { notFound, redirect } from "next/navigation";
 // themselves, inside their own chunks (`mode-clients.tsx`).
 import {
   basketCopy,
+  cashDoneCopy,
+  cashDrawerCopy,
+  chromeCopy,
   collectMethodUnavailableCopy,
   collectSheetCopy,
+  connectionCopy,
   counterPageCopy,
-  customerPanelCopy,
+  customAmountCopy,
+  customerSheetCopy,
+  deviceRowsCopy,
+  devicesCopy,
+  discountSheetCopy,
   heldSalesListCopy,
+  holdExpiredCopy,
+  holdSaleCopy,
+  issuesCopy,
+  lineEditCopy,
+  linkBookingCopy,
   paidScreenCopy,
   posModeLabel,
   railCopy,
   railNavLabel,
+  receiptsCopy,
   refusalCopy,
+  scanScreenCopy,
   sellSurfaceCopy,
-  shiftBarCopy,
 } from "@/components/admin/pos/pos-copy";
-import type { PosBasketLine, PosCollectionMethodState } from "@/components/admin/pos";
+import type { PosBasketLine, PosCollectionMethodState, PosReceiptRow } from "@/components/admin/pos";
+import { customerDisplayLinkCopy, scanCopy } from "@/components/admin/pos/customer-display-copy";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { isKnownTenantRole } from "@/lib/access";
@@ -30,6 +45,7 @@ import { minorUnitDivisor } from "@/lib/orders/money-format";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import { addonCentsOnLine } from "@/lib/pos/addons";
 import { listOpenPosSales, loadPosSale } from "@/lib/pos/draft";
+import { listPaidPosSales } from "@/lib/pos/sale-read";
 import {
   POS_MODE_META,
   enabledPosModesFromSettings,
@@ -45,8 +61,10 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { classesCopy, classesRailCopy, classesRailNavLabel } from "@/components/admin/pos/classes-copy";
 import { clampDayOffset, loadClassesDay } from "@/lib/pos/classes/day";
+import { loadClassesExtras } from "@/lib/pos/classes/extras";
 import { loadWalkInServices } from "@/lib/pos/classes/walkin";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 
@@ -54,6 +72,7 @@ import { PageRouteSyncer } from "../_page-route-syncer";
 
 import type { PosCatalogItem } from "./counter-model";
 import { doorCopy } from "./door-copy";
+import { receiptRows } from "./receipt-rows";
 import { FloorScreen } from "./floor-screen";
 // The three client modes this route mounts directly, each behind
 // `next/dynamic` so the register's initial bundle carries only the mode
@@ -95,6 +114,29 @@ async function currentAdminPath(tenantSlug: string): Promise<string> {
   const fallback = `/${tenantSlug}/admin/pos`;
   const raw = hdrs.get("x-impronta-original-pathname") ?? fallback;
   return raw.split("?")[0] || fallback;
+}
+
+/**
+ * The signed-in person, as the cashier chip names them: the profile's own
+ * display name, else the account's email up to the `@`, else nothing. Read
+ * with the service role by the user's own id (the session says who they
+ * are; the profile row is not RLS-readable through the anon client here).
+ */
+async function loadCashierName(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return "";
+  const auth = await supabase.auth.getUser();
+  if (auth.error) logServerError("pos.page.cashier.auth", auth.error);
+  const user = auth.data.user;
+  if (!user) return "";
+  const profile = await admin
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .maybeSingle<{ display_name: string | null }>();
+  if (profile.error) logServerError("pos.page.cashier", profile.error);
+  const name = profile.data?.display_name?.trim();
+  return name || user.email?.split("@")[0] || "";
 }
 
 /**
@@ -313,9 +355,13 @@ export default async function PosPage({
     // clamped, not trusted.
     const { timezone } = await resolveTenantTimezone(scope.tenantId);
     const dayOffset = clampDayOffset(q.day);
-    const [dayLoad, servicesLoad] = await Promise.all([
-      loadClassesDay(admin, { tenantId: scope.tenantId, timeZone: timezone, now: new Date(), dayOffset }),
+    const now = new Date();
+    const [dayLoad, servicesLoad, extrasLoad, venueRead] = await Promise.all([
+      loadClassesDay(admin, { tenantId: scope.tenantId, timeZone: timezone, now, dayOffset }),
       loadWalkInServices(admin, scope.tenantId),
+      loadClassesExtras(admin, scope.tenantId),
+      // The location pill (B01): the workspace's venue, when it names one.
+      admin.from("venues").select("name").eq("tenant_id", scope.tenantId).order("created_at", { ascending: true }).limit(1).maybeSingle(),
     ]);
     const classesPath = await currentAdminPath(tenantSlug);
     if (!dayLoad.ok) {
@@ -332,17 +378,30 @@ export default async function PosPage({
       );
     }
     if (!servicesLoad.ok) logServerError("pos.page.classes.services", new Error(servicesLoad.error));
+    if (!extrasLoad.ok) logServerError("pos.page.classes.extras", new Error(extrasLoad.error));
+    if (venueRead.error) logServerError("pos.page.classes.venue", venueRead.error);
+    const venueName = typeof venueRead.data?.name === "string" && venueRead.data.name.trim() ? venueRead.data.name.trim() : null;
+    // The operator pill (B01): the signed-in person, by their own name.
+    const sessionClient = await createSupabaseServerClient();
+    const signedIn = sessionClient ? (await sessionClient.auth.getUser()).data.user : null;
+    const metadataName = (signedIn?.user_metadata as { full_name?: unknown } | null)?.full_name;
+    const operatorName =
+      (typeof metadataName === "string" && metadataName.trim()) || signedIn?.email?.split("@")[0] || "";
     return (
       <>
         <PageRouteSyncer page="pos" />
         <ClassesClient
           tenantId={scope.tenantId}
           workspaceName={workspaceName}
+          venueName={venueName}
+          operatorName={operatorName}
           posPath={classesPath}
           locale={locale}
           currency="USD"
+          nowIso={now.toISOString()}
           day={dayLoad.day}
           services={servicesLoad.ok ? servicesLoad.services : []}
+          extras={extrasLoad.ok ? extrasLoad.extras : []}
           copy={{
             frame: { navLabel: classesRailNavLabel(tr), destinationLabels: classesRailCopy(tr) },
             classes: classesCopy(tr),
@@ -361,24 +420,39 @@ export default async function PosPage({
   // so the shift's expected cash, the Payments page and the door's guest list
   // read the same rows. See `door-actions.ts` for why it is not `sellAtDoor`.
   if (mode === "door") {
-    const tonight = await loadDoorTonight(admin, scope.tenantId);
+    const doorPath = await currentAdminPath(tenantSlug);
+    const doorRequestedAt = new Date();
+    const doorWeekAgo = new Date(doorRequestedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const [tonight, doorCashier, doorShift, doorPaid] = await Promise.all([
+      loadDoorTonight(admin, scope.tenantId),
+      loadCashierName(admin),
+      currentShift(admin, { tenantId: scope.tenantId }),
+      // The door's Receipts rail: the door's own paid sales through the till.
+      listPaidPosSales(admin, { tenantId: scope.tenantId, sinceIso: doorWeekAgo, sourcePage: "door" }),
+    ]);
     const doorHdrs = await headers();
     const doorHost = doorHdrs.get("x-forwarded-host") ?? doorHdrs.get("host") ?? "";
     const doorProto = doorHdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
+    const doorOrigin = doorHost ? `${doorProto}://${doorHost}` : "";
     const cashOnly = tr("dashboard.pos.door.sell.cashOnly");
+    const doorReceipts = receiptRows(doorPaid.ok ? doorPaid.rows : [], doorRequestedAt, locale, doorOrigin);
     return (
       <>
         <PageRouteSyncer page="pos" />
         <DoorClient
           tenantId={scope.tenantId}
           workspaceName={workspaceName}
-          receiptOrigin={doorHost ? `${doorProto}://${doorHost}` : ""}
+          cashierName={doorCashier}
+          drawerOpen={doorShift.ok ? doorShift.shift !== null : false}
+          workspacePath={doorPath.replace(/\/pos$/, "")}
+          receiptOrigin={doorOrigin}
           locale={locale}
           zone={tonight.ok ? tonight.zone : "UTC"}
           nowIso={tonight.ok ? tonight.nowIso : new Date().toISOString()}
           sessions={tonight.ok ? tonight.sessions : []}
           tonightFailed={!tonight.ok}
           currency="USD"
+          receipts={doorReceipts}
           methods={[
             { id: "cash", available: true },
             { id: "card", available: false, unavailableReason: cashOnly },
@@ -389,6 +463,10 @@ export default async function PosPage({
             door: doorCopy(tr),
             collect: collectSheetCopy(tr),
             refusal: refusalCopy(tr),
+            chrome: chromeCopy(tr),
+            receipts: receiptsCopy(tr),
+            issues: issuesCopy(tr),
+            modeLabel: posModeLabel(tr, "door"),
             frameNavLabel: tr("dashboard.pos.door.rail.label"),
           }}
         />
@@ -426,6 +504,12 @@ export default async function PosPage({
     const projectsHost = projectsHdrs.get("x-forwarded-host") ?? projectsHdrs.get("host") ?? "";
     const projectsProto = projectsHdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
     const projectsPath = await currentAdminPath(tenantSlug);
+    // The header's cashier chip and the footer's `Drawer open` are the same
+    // facts the counter reads: the signed-in person and the open shift.
+    const [projectsCashier, projectsShift] = await Promise.all([
+      loadCashierName(admin),
+      currentShift(admin, { tenantId: scope.tenantId }),
+    ]);
     return (
       <>
         <PageRouteSyncer page="pos" />
@@ -436,6 +520,8 @@ export default async function PosPage({
           workspacePath={projectsPath.replace(/\/pos$/, "")}
           receiptOrigin={projectsHost ? `${projectsProto}://${projectsHost}` : ""}
           methods={collectionMethods(tr)}
+          cashierName={projectsCashier}
+          drawerOpen={Boolean(projectsShift.ok && projectsShift.shift)}
           tr={tr}
           search={{ project: q.project, view: q.view }}
         />
@@ -445,8 +531,12 @@ export default async function PosPage({
 
   // ── The counter's data ───────────────────────────────────────────────
   const orderId = typeof q.order === "string" ? q.order : null;
-  const now = new Date().toISOString();
-  const [open, saleLoad, catalog, shiftLoad, upcoming] = await Promise.all([
+  const requestedAt = new Date();
+  const now = requestedAt.toISOString();
+  // Receipts (`POSReceipts`) show today, yesterday and this week: seven days
+  // back is the widest window the screen offers.
+  const weekAgo = new Date(requestedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const [open, saleLoad, catalog, shiftLoad, upcoming, paidLoad, cashierName] = await Promise.all([
     listOpenPosSales(admin, scope.tenantId),
     orderId && /^[0-9a-f-]{36}$/i.test(orderId)
       ? loadPosSale(admin, { tenantId: scope.tenantId, orderId })
@@ -467,6 +557,8 @@ export default async function PosPage({
       .gte("starts_at", now)
       .order("starts_at", { ascending: true })
       .limit(80),
+    listPaidPosSales(admin, { tenantId: scope.tenantId, sinceIso: weekAgo }),
+    loadCashierName(admin),
   ]);
   if (catalog.error) logServerError("pos.page.catalog", catalog.error);
   if (upcoming.error) logServerError("pos.page.sessions", upcoming.error);
@@ -538,6 +630,11 @@ export default async function PosPage({
       units: line.units,
       totalCents: line.totalCents,
     }),
+    offeringId: line.offeringId,
+    sessionId: line.sessionId,
+    sessionLabel: line.sessionId
+      ? (sessionsByOffering.get(line.offeringId ?? "") ?? []).find((s) => s.id === line.sessionId)?.title ?? null
+      : null,
   }));
 
   const currency = sale?.currency ?? "USD";
@@ -545,6 +642,12 @@ export default async function PosPage({
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
   const proto = hdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
   const adminPath = await currentAdminPath(tenantSlug);
+  const receiptOrigin = host ? `${proto}://${host}` : "";
+
+  // The receipts rows, bucketed on the reader's own clock into today /
+  // yesterday / this week. Each row links to the same `/r/<code>` page the
+  // customer holds.
+  const receipts: PosReceiptRow[] = receiptRows(paidLoad.ok ? paidLoad.rows : [], requestedAt, locale, receiptOrigin);
 
   return (
     <>
@@ -572,10 +675,13 @@ export default async function PosPage({
       <PageRouteSyncer page="pos" />
       <PosClient
         mode={mode}
+        tenantId={scope.tenantId}
         workspaceName={workspaceName}
+        cashierName={cashierName}
+        locale={locale}
         posPath={adminPath}
         workspacePath={adminPath.replace(/\/pos$/, "")}
-        receiptOrigin={host ? `${proto}://${host}` : ""}
+        receiptOrigin={receiptOrigin}
         receiptCode={receiptCode}
         sale={
           sale
@@ -589,15 +695,18 @@ export default async function PosPage({
                 outstandingCents: sale.outstandingCents,
                 paymentState: sale.paymentState,
                 prepState: sale.prepState,
+                spaceId: sale.spaceId,
               }
             : null
         }
         basketLines={basketLines}
         openSales={open.ok ? open.rows : []}
+        receipts={receipts}
         catalog={items}
         currency={currency}
         minorUnitDivisor={minorUnitDivisor(currency)}
         methods={collectionMethods(tr)}
+        readerConfigured={reportTerminalAvailability().available}
         shift={
           shiftLoad.ok && shiftLoad.shift
             ? {
@@ -610,36 +719,38 @@ export default async function PosPage({
         }
         copy={{
           frame: frameCopy,
+          chrome: chromeCopy(tr),
+          modeLabel: posModeLabel(tr, mode),
           sell: sellSurfaceCopy(tr),
           basket: basketCopy(tr),
-          customer: customerPanelCopy(tr),
+          line: lineEditCopy(tr),
+          customer: customerSheetCopy(tr),
+          discount: discountSheetCopy(tr),
+          custom: customAmountCopy(tr),
+          hold: holdSaleCopy(tr),
+          expired: holdExpiredCopy(tr),
+          booking: linkBookingCopy(tr),
           collect: collectSheetCopy(tr),
+          cashDone: cashDoneCopy(tr),
           paid: paidScreenCopy(tr),
           held: heldSalesListCopy(tr),
-          shiftBar: shiftBarCopy(tr),
+          drawer: cashDrawerCopy(tr),
+          receipts: receiptsCopy(tr),
+          issues: issuesCopy(tr),
+          devices: devicesCopy(tr),
+          deviceRows: deviceRowsCopy(tr),
+          connection: connectionCopy(tr),
+          scanScreen: scanScreenCopy(tr),
           refusal: refusalCopy(tr),
           page: counterPageCopy(tr),
+          scan: scanCopy(tr),
+          displayLink: customerDisplayLinkCopy(tr),
           heldSaleLabel: tr("dashboard.pos.counter.held.saleLabel"),
+          customAmountTitle: tr("dashboard.pos.counter.custom.title"),
           categories: {
             service: tr("dashboard.pos.counter.category.service"),
             package: tr("dashboard.pos.counter.category.package"),
             product: tr("dashboard.pos.counter.category.product"),
-          },
-          legacy: {
-            contactHint: tr("dashboard.pos.contactHint"),
-            email: tr("dashboard.pos.email"),
-            phone: tr("dashboard.pos.phone"),
-            guest: tr("dashboard.pos.guest"),
-            outstanding: tr("dashboard.pos.outstanding"),
-            sendToPrep: tr("dashboard.pos.sendToPrep"),
-            prepDestination: tr("dashboard.pos.prepDestination"),
-            prepPickup: tr("dashboard.pos.prepPickup"),
-            prepTable: tr("dashboard.pos.prepTable"),
-            prepCounter: tr("dashboard.pos.prepCounter"),
-            prepPromisedAt: tr("dashboard.pos.prepPromisedAt"),
-            pageTitle: tr("dashboard.pos.pageTitle"),
-            newSale: tr("dashboard.pos.newSale"),
-            amount: tr("dashboard.pos.amount"),
           },
         }}
       />

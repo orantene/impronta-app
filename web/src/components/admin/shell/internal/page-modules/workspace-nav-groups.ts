@@ -193,10 +193,30 @@ function subItemsFor(
           ];
         });
   const siblingKeys = siblingQueryKeys(raw);
+  const pathname = aliasNormalisedPath(destination, input);
   return raw.map((sub) => ({
     ...sub,
-    active: subItemActive(sub, input.pathname, input.search, siblingKeys),
+    active: subItemActive(sub, pathname, input.search, siblingKeys),
   }));
+}
+
+/**
+ * The current path with an ALIAS of this destination rewritten to its live
+ * route, so a child lights up on `/admin/appts?view=sessions` exactly as it
+ * does on `/admin/sessions?view=sessions`. The hrefs the rail builds always
+ * use the live route; the address bar may carry any alias the registry
+ * accepts (the canonical `appts`, the typed `appointments`), and comparing
+ * the raw path to the built href made every child go dark on those.
+ */
+function aliasNormalisedPath(destination: Destination, input: WorkspaceNavInput): string | null {
+  const { pathname, adminBase } = input;
+  if (pathname === null || !pathname.startsWith(adminBase)) return pathname;
+  const rest = pathname.slice(adminBase.length).replace(/^\//, "");
+  const [first = "", ...tail] = rest.split("/");
+  if (first === "" || resolveDestination(first)?.id !== destination.id) return pathname;
+  const live = destinationHref(destination, adminBase);
+  if (live === null) return pathname;
+  return tail.length > 0 ? `${live}/${tail.join("/")}` : live;
 }
 
 function navItem(
@@ -209,6 +229,9 @@ function navItem(
   // Projects, Payments, People and Issues were each in this state and each got
   // a row the day its slice built it.
   if (!destination.built) return null;
+  // A child of another row (Preparation under Orders, Discounts under Catalog)
+  // is drawn by its parent's sub-view, never as a row of its own.
+  if (destination.parent !== undefined) return null;
   const href = destinationHref(destination, input.adminBase);
   const page = liveWorkspacePage(destination);
   if (href === null || page === null) return null;
@@ -236,7 +259,10 @@ export function workspaceNavGroups(input: WorkspaceNavInput): WorkspaceNavResult
   // Active state from the registry's own segment/alias resolution: `/admin/menu`
   // lights Catalog, `/admin/roster` lights People, `/admin/exceptions` lights
   // Issues. No hand-written list of "which page also means this row".
-  const activeId = resolveDestination(input.activePage)?.id ?? null;
+  const active = resolveDestination(input.activePage);
+  // A child page lights the row it hangs under: /admin/preparation is Orders'
+  // kitchen view, so Orders is the row that reads as current.
+  const activeId = active === null ? null : (active.parent ?? active.id);
   const groups: WorkspaceNavGroup[] = [];
   const pinned: WorkspaceNavItem[] = [];
   for (const group of sidebarGroups(input.context)) {

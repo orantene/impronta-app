@@ -8,7 +8,7 @@
  */
 
 export type SearchResult = {
-  kind: "inquiry" | "booking" | "message" | "talent";
+  kind: "inquiry" | "booking" | "message" | "talent" | "client" | "sale" | "catalog";
   id: string;
   title: string;
   snippet: string;

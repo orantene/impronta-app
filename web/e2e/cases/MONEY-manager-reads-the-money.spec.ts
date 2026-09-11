@@ -37,6 +37,7 @@ import {
   signInJourneysStaff,
   skipUnlessFixture,
   assertWorkspaceIdentity,
+  counterNameBuyer,
 } from "./_harness";
 import { isolatedService, JOURNEYS_TENANT_ID } from "./_isolated-db";
 import {
@@ -105,44 +106,53 @@ async function counterRail(page: Page, name: RegExp): Promise<void> {
  * door is "Next customer" (which starts a sale directly); on an empty Sell
  * surface it is "Start a new sale". Resolves once the URL carries a NEW order.
  */
-async function counterNextSale(page: Page, previousOrderId: string | null): Promise<string> {
+async function counterNextSale(page: Page, previousOrderId: string | null): Promise<string | null> {
   await counterRail(page, /^sell$/i);
   const next = page.getByRole("button", { name: "Next customer" });
   if ((await next.count()) > 0) {
     await next.click();
-  } else {
-    await page.getByRole("button", { name: "Start a new sale" }).click();
+    const current = () => {
+      const id = new URL(page.url()).searchParams.get("order");
+      return id && id !== previousOrderId ? id : null;
+    };
+    await expect
+      .poll(current, { message: "a new sale carries a new order id in its address", timeout: 30_000 })
+      .not.toBeNull();
+    return current();
   }
-  const current = () => {
-    const id = new URL(page.url()).searchParams.get("order");
-    return id && id !== previousOrderId ? id : null;
-  };
-  await expect
-    .poll(current, { message: "a new sale carries a new order id in its address", timeout: 30_000 })
-    .not.toBeNull();
-  return current()!;
+  // The board's empty counter (`POSEmptySale`) has no start button: the first
+  // tap on a tile opens the sale, so there is no order id yet.
+  await expect(page.locator("[data-pos-empty]")).toBeVisible({ timeout: 30_000 });
+  return null;
 }
 
 /**
- * Tap one House pizza into the sale.
+ * Tap one House pizza into the sale, opening the sale if none is, and return
+ * the order id the address then carries.
  *
  * The row is awaited FIRST, so a slow add (observed at 10 s on the shared
  * fixture) is told apart from a basket that never repaints: if the line is in
  * `order_lines` and the basket still says it is empty, the failure names the
  * screen and not the write.
  */
-async function counterAddPizza(page: Page, orderId: string): Promise<void> {
+async function counterAddPizza(page: Page, orderId: string | null, previousOrderId: string | null): Promise<string> {
   await page.getByRole("button", { name: "House pizza" }).first().click();
+  const current = () => {
+    const id = new URL(page.url()).searchParams.get("order");
+    return id && id !== previousOrderId ? id : null;
+  };
+  await expect.poll(current, { message: "the sale must carry its order id in the address", timeout: 30_000 }).not.toBeNull();
+  const id = orderId ?? current()!;
   await expect
-    .poll(async () => (await orderById(orderId))?.totalCents ?? 0, {
+    .poll(async () => (await orderById(id))?.totalCents ?? 0, {
       message: "the tap must write a priced line on the sale",
       timeout: 45_000,
     })
     .toBeGreaterThan(0);
-  await expect(
-    page.getByText("Add an item to start this sale."),
-    "the basket must show the line the tap wrote",
-  ).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.locator("[data-pos-line]").first(), "the basket must show the line the tap wrote").toBeVisible({
+    timeout: 30_000,
+  });
+  return id;
 }
 
 /** A `Figure`'s value: the `<dd>` that follows the `<dt>` carrying this label. */
@@ -284,17 +294,18 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
 
   // A cash sale, with the buyer named, so it lands on a client record.
   const buyer = `money-${Date.now()}@impronta.test`;
-  const paidOrderId = await counterNextSale(page, null);
-  await counterAddPizza(page, paidOrderId);
-  await page.getByLabel(/^e-?mail$/i).first().fill(buyer);
-  await page.getByRole("button", { name: /^Charge · /i }).first().click();
+  const paidOrderId = await counterAddPizza(page, await counterNextSale(page, null), null);
+  await counterNameBuyer(page, buyer);
+  await page.locator("[data-pos-charge]").first().click();
   await expect(page.getByRole("tab", { name: /^cash$/i })).toBeVisible({ timeout: 20_000 });
   // Card is not a working tender here and the counter says so rather than
   // looking like it works. This is why the takings table has no card row.
   await page.getByRole("tab", { name: /^card$/i }).click();
   await expect(page.locator("[data-pos-method-status]")).toContainText(/reader|card/i);
   await page.getByRole("tab", { name: /^cash$/i }).click();
-  await page.getByRole("button", { name: /confirm cash/i }).click();
+  await page.locator("[data-pos-confirm-cash]").click();
+  await expect(page.locator("[data-pos-dialog='cash-done']")).toBeVisible({ timeout: 40_000 });
+  await page.locator("[data-pos-cash-done]").click();
   await expect(page.getByRole("heading", { name: /^paid$/i })).toBeVisible({ timeout: 40_000 });
   await shot("06-counter-cash-paid");
 
@@ -305,9 +316,10 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   const cashTakingCents = paidOrder.totalCents;
 
   // A CANCELLED sale, with a real total behind it.
-  const cancelledOrderId = await counterNextSale(page, paidOrderId);
-  await counterAddPizza(page, cancelledOrderId);
-  await page.getByRole("button", { name: "Cancel sale" }).click();
+  const cancelledOrderId = await counterAddPizza(page, await counterNextSale(page, paidOrderId), paidOrderId);
+  // `Discard sale` lives in the hold dialog (`POSHoldSale`).
+  await page.locator("[data-pos-hold]").click();
+  await page.locator("[data-pos-discard]").click();
   await expect
     .poll(async () => (await orderById(cancelledOrderId))?.status, { timeout: 30_000 })
     .toBe("cancelled");
@@ -318,8 +330,7 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   ).toBeGreaterThan(0);
 
   // A DRAFT sale: opened, an item added, walked away from.
-  const draftOrderId = await counterNextSale(page, cancelledOrderId);
-  await counterAddPizza(page, draftOrderId);
+  const draftOrderId = await counterAddPizza(page, await counterNextSale(page, cancelledOrderId), cancelledOrderId);
   await expect
     .poll(async () => (await orderById(draftOrderId))?.totalCents, { timeout: 30_000 })
     .toBeGreaterThan(0);
@@ -485,7 +496,9 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   const customerId = (customerRow as { id: string } | null)?.id;
   expect(customerId, "the cash sale must have created a customer to look up").toBeTruthy();
 
-  await page.goto(`/admin/clients/${customerId}`);
+  // W41: the purchases table is the record's fourth tab; the header, the
+  // Due-now card and its sentence are on every tab.
+  await page.goto(`/admin/clients/${customerId}?tab=purchases`);
   await expect(page.getByText(buyer)).toBeVisible({ timeout: 30_000 });
   const purchaseRow = page.locator("tbody tr", { hasText: paidOrderId.slice(0, 8) });
   await expect(purchaseRow, "the sale they paid for is on their record").toHaveCount(1);
@@ -553,7 +566,7 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 30_000 });
   const dueBefore = attached.reduce((sum, o) => sum + owedCents(o), 0);
   await expect(
-    figureValue(page, "Still owed by the client"),
+    figureValue(page, "Due now"),
     "the project's Due is the orders desk's answer over the orders attached to it",
   ).toHaveText(money(dueBefore, currency));
   if (dueBefore > 0) {
@@ -573,7 +586,9 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   if (projectOrder) {
     expect(dueBefore, "a converted offer owes money until somebody collects it").toBeGreaterThan(0);
     await openCounterAt(page, `&order=${projectOrder.id}`);
-    await page.getByRole("button", { name: "Cancel sale" }).click();
+    // `Discard sale` lives in the hold dialog (`POSHoldSale`).
+    await page.locator("[data-pos-hold]").click();
+    await page.locator("[data-pos-discard]").click();
     await expect
       .poll(async () => (await orderById(projectOrder.id))?.status, { timeout: 30_000 })
       .toBe("cancelled");
@@ -606,7 +621,7 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   await expect(page.locator("body")).toContainText(money(naiveProject, currency));
   // ... and Due is zero, so that total was never inside it.
   await expect(
-    figureValue(page, "Still owed by the client"),
+    figureValue(page, "Due now"),
     "a cancelled order contributes nothing to what is owed",
   ).toHaveText(money(0, currency));
   await expect(

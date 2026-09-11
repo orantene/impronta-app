@@ -380,6 +380,56 @@ export function closeReadiness(project: ProjectRecord): CloseReadiness {
   return { closable: blockers.length === 0, blockers };
 }
 
+// ── Closing: the four choices on the close sheet (W50) ───────────────
+
+export type CloseOption = "complete" | "cancel" | "archive" | "reopen";
+
+export type CloseOptionRefusal =
+  | "milestones_open"
+  | "money_owed"
+  | "already_closed"
+  | "not_confirmed"
+  | "not_closed"
+  | "no_writer";
+
+export type CloseOptionVerdict =
+  | { readonly option: CloseOption; readonly ok: true }
+  | { readonly option: CloseOption; readonly ok: false; readonly reason: CloseOptionRefusal };
+
+/** The states `closeBookingAction` accepts. Mirrored, never widened. */
+const COMPLETABLE_STATUSES: readonly ProjectStatus[] = ["confirmed", "in_progress"];
+/** The states `cancelBookingAction` accepts. */
+const CANCELLABLE_STATUSES: readonly ProjectStatus[] = ["draft", "tentative", "confirmed", "in_progress"];
+
+/**
+ * Which closures are possible right now, each with its reason when not.
+ *
+ * Archive and Reopen have no writer in the engine (`agency_bookings.status`
+ * is moved only by close and cancel), so they are refused as `no_writer`
+ * rather than drawn as buttons that would have to invent one.
+ */
+export function closeOptions(project: ProjectRecord): readonly CloseOptionVerdict[] {
+  const closed = CLOSED_STATUSES.includes(project.status);
+  const readiness = closeReadiness(project);
+  const complete: CloseOptionVerdict = closed
+    ? { option: "complete", ok: false, reason: "already_closed" }
+    : readiness.blockers.some((b) => b.kind === "milestone")
+      ? { option: "complete", ok: false, reason: "milestones_open" }
+      : readiness.blockers.some((b) => b.kind === "money")
+        ? { option: "complete", ok: false, reason: "money_owed" }
+        : COMPLETABLE_STATUSES.includes(project.status)
+          ? { option: "complete", ok: true }
+          : { option: "complete", ok: false, reason: "not_confirmed" };
+  const cancel: CloseOptionVerdict = CANCELLABLE_STATUSES.includes(project.status)
+    ? { option: "cancel", ok: true }
+    : { option: "cancel", ok: false, reason: "already_closed" };
+  const archive: CloseOptionVerdict = { option: "archive", ok: false, reason: "no_writer" };
+  const reopen: CloseOptionVerdict = closed
+    ? { option: "reopen", ok: false, reason: "no_writer" }
+    : { option: "reopen", ok: false, reason: "not_closed" };
+  return [complete, cancel, archive, reopen];
+}
+
 // ── The one next action ──────────────────────────────────────────────
 
 export type ProjectActionId =
@@ -505,7 +555,32 @@ export function visibilityRows(): readonly VisibilityRow[] {
 
 // ── The list ─────────────────────────────────────────────────────────
 
-export type ProjectListFilter = "all" | "open" | "awaiting_approval" | "owed" | "closed";
+export type ProjectListFilter =
+  | "all"
+  | "open"
+  | "awaiting_approval"
+  | "owed"
+  | "closed"
+  | "needs_action"
+  | "overdue"
+  | "drafts";
+
+/**
+ * The one line the list prints under STATUS (W45). A project's own status is
+ * the fallback; what the client or the calendar is doing outranks it, because
+ * "In progress" says nothing when a milestone is a day late.
+ */
+export type ProjectListBadge =
+  | { readonly kind: "awaiting_approval" }
+  | { readonly kind: "overdue"; readonly days: number }
+  | { readonly kind: "offer_sent"; readonly version: number }
+  | { readonly kind: "status"; readonly status: ProjectStatus };
+
+export type ProjectDeadline = {
+  readonly title: string;
+  /** ISO instant, read in the project's zone. */
+  readonly at: string;
+};
 
 export type ProjectListRow = {
   readonly id: string;
@@ -520,11 +595,82 @@ export type ProjectListRow = {
   readonly awaitingApprovalCount: number;
   readonly assignmentCount: number;
   readonly action: ProjectActionId;
+  readonly badge: ProjectListBadge;
+  readonly nextDeadline: ProjectDeadline | null;
+  /** Agreed minus collected, or null when nothing is agreed (open-ended). */
+  readonly remainingCents: number | null;
+  readonly overdueDays: number | null;
+  readonly hasAcceptedAgreement: boolean;
 };
 
 const CLOSED_STATUSES: readonly ProjectStatus[] = ["completed", "cancelled", "archived"];
 
-export function projectListRow(project: ProjectRecord): ProjectListRow {
+/** The milestones still open, ordered by due date; undated ones last. */
+export function openMilestonesByDue(project: ProjectRecord): ProjectMilestone[] {
+  return project.milestones
+    .filter((m) => m.status !== "approved" && m.status !== "cancelled")
+    .slice()
+    .sort((a, b) => {
+      if (a.dueAt === b.dueAt) return 0;
+      if (a.dueAt === null) return 1;
+      if (b.dueAt === null) return -1;
+      return a.dueAt < b.dueAt ? -1 : 1;
+    });
+}
+
+/**
+ * The next date on this project: the earliest open milestone with a date,
+ * else the job's own start. Null when neither is recorded.
+ */
+export function nextDeadline(project: ProjectRecord): ProjectDeadline | null {
+  const dated = openMilestonesByDue(project).find((m) => m.dueAt !== null);
+  if (dated && dated.dueAt) return { title: dated.title, at: dated.dueAt };
+  if (project.startsAt) return { title: project.title, at: project.startsAt };
+  return null;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How many whole days the most overdue open milestone is late at `nowMs`, or
+ * null when nothing is late. The clock is an ARGUMENT, never read here.
+ */
+export function overdueDays(project: ProjectRecord, nowMs: number): number | null {
+  if (CLOSED_STATUSES.includes(project.status)) return null;
+  let worst: number | null = null;
+  for (const m of openMilestonesByDue(project)) {
+    if (!m.dueAt) continue;
+    const due = new Date(m.dueAt).getTime();
+    if (Number.isNaN(due) || due >= nowMs) continue;
+    const days = Math.floor((nowMs - due) / DAY_MS);
+    if (worst === null || days > worst) worst = days;
+  }
+  return worst;
+}
+
+/** Agreed minus collected. Null when no version is accepted: the work is open-ended. */
+export function remainingCents(money: ProjectMoney): number | null {
+  if (!money.quoted.known) return null;
+  return Math.max(0, money.quoted.cents - money.collectedCents);
+}
+
+export function projectListBadge(project: ProjectRecord, nowMs: number | null): ProjectListBadge {
+  if (!CLOSED_STATUSES.includes(project.status)) {
+    if (milestonesAwaitingApproval(project).length > 0) return { kind: "awaiting_approval" };
+    const late = nowMs === null ? null : overdueDays(project, nowMs);
+    if (late !== null) return { kind: "overdue", days: late };
+    const live = liveAgreement(project);
+    if (live && live.status === "sent") return { kind: "offer_sent", version: live.version };
+  }
+  return { kind: "status", status: project.status };
+}
+
+/**
+ * One row of the list. `nowMs` is the clock the caller read ONCE for the
+ * whole page; without it nothing is judged overdue, which is the honest
+ * answer for a caller that has no clock.
+ */
+export function projectListRow(project: ProjectRecord, nowMs: number | null = null): ProjectListRow {
   const money = projectMoney(project);
   return {
     id: project.id,
@@ -539,6 +685,11 @@ export function projectListRow(project: ProjectRecord): ProjectListRow {
     awaitingApprovalCount: milestonesAwaitingApproval(project).length,
     assignmentCount: project.assignments.length,
     action: nextProjectAction(project).id,
+    badge: projectListBadge(project, nowMs),
+    nextDeadline: nextDeadline(project),
+    remainingCents: remainingCents(money),
+    overdueDays: nowMs === null ? null : overdueDays(project, nowMs),
+    hasAcceptedAgreement: acceptedAgreement(project) !== null,
   };
 }
 
@@ -590,6 +741,19 @@ export function filterProjectRows(
       return rows.filter((r) => r.dueCents > 0);
     case "closed":
       return rows.filter((r) => CLOSED_STATUSES.includes(r.status));
+    case "needs_action":
+      // Something a person here has to do: not "waiting on the client" and
+      // not "nothing".
+      return rows.filter(
+        (r) =>
+          !CLOSED_STATUSES.includes(r.status) && r.action !== "nothing" && r.action !== "await_client",
+      );
+    case "overdue":
+      return rows.filter((r) => r.overdueDays !== null);
+    case "drafts":
+      // No version accepted yet: the terms are still being written or are
+      // out with the client.
+      return rows.filter((r) => !CLOSED_STATUSES.includes(r.status) && !r.hasAcceptedAgreement);
     default:
       return [...rows];
   }
@@ -609,7 +773,14 @@ export function isOrderShellBooking(row: {
   order_id: string | null;
   source_inquiry_id: string | null;
   calendar_lane: string | null;
+  title?: string | null;
 }): boolean {
   if (row.calendar_lane === "order") return true;
-  return row.order_id !== null && row.source_inquiry_id === null;
+  if (row.order_id !== null && row.source_inquiry_id === null) return true;
+  // AN ORPHANED SHELL. `bookingShellForOrder` writes its rows with the
+  // title "POS sale"; when the order behind one is later deleted (test
+  // clean-up, a voided draft) the FK leaves `order_id` null and the shell
+  // would pass the rule above as a project with no client and no date.
+  // The writer's own title is the only trace it leaves, so it is the rule.
+  return row.order_id === null && row.source_inquiry_id === null && row.title === "POS sale";
 }

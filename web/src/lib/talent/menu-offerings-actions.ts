@@ -13,6 +13,12 @@ import { logServerError } from "@/lib/server/safe-error";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 import { setOfferingStock } from "@/lib/capacity";
 import {
+  loadOfferingChildren,
+  replaceOfferingChildren,
+  type OfferingChildrenInput,
+  type OfferingChildrenSaved,
+} from "@/lib/talent/offerings-children";
+import {
   blankOffering,
   offeringToRowPatch,
   rowToOffering,
@@ -83,7 +89,10 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
         .eq("tenant_id", tenantId)
         .eq("owner_kind", "workspace")
         .neq("status", "archived")
-        .order("sort_order", { ascending: true }),
+        // Ties on sort_order (every seeded row is 0) would otherwise come back
+        // in whatever order the last update left them.
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true }),
       admin
         .from("events")
         .select("offering_id")
@@ -106,7 +115,15 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
         .filter((id): id is string => typeof id === "string" && id.length > 0),
     );
     const rows = ((data ?? []) as TalentOfferingRow[]).filter((r) => !eventOfferingIds.has(r.id));
-    const items = rows.map((r) => rowToOffering(r, "en", []));
+    // The Catalog's Options tab edits the same child rows the talent editor
+    // does (variants = pick one, add-ons = stack any), so the load carries them.
+    const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
+    const items = rows.map((r) => {
+      const item = rowToOffering(r, "en", []);
+      item.variants = children.variants.get(r.id) ?? [];
+      item.addOns = children.addOns.get(r.id) ?? [];
+      return item;
+    });
     return { ok: true, items, defaultCurrency: auth.defaultCurrency };
   } catch (err) {
     logServerError("menu.offerings.load", err);
@@ -222,6 +239,42 @@ export async function reorderWorkspaceMenuItems(
   }
   revalidatePath("/");
   return { ok: true };
+}
+
+/**
+ * Replace a workspace item's OPTIONS (variants) and EXTRAS (add-ons): the
+ * same writer the talent editor uses (`replaceOfferingChildren`), behind the
+ * workspace's own guard. The tenant + owner_kind check is the only thing
+ * keeping staff off a talent-owned row that carries their tenant id.
+ */
+export async function setWorkspaceMenuItemOptions(
+  tenantId: string,
+  offeringId: string,
+  input: OfferingChildrenInput,
+): Promise<OfferingChildrenSaved> {
+  try {
+    const auth = await authorizeForWorkspace(tenantId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+    const { data: own, error: ownErr } = await offeringsTable(admin)
+      .select("id")
+      .eq("id", offeringId)
+      .eq("tenant_id", tenantId)
+      .eq("owner_kind", "workspace")
+      .maybeSingle();
+    if (ownErr || !own) return { ok: false, error: "Menu item not found." };
+    if (await isEventOfferingId(admin, tenantId, offeringId)) {
+      return { ok: false, error: "This item belongs to an event. Edit it under Events." };
+    }
+    const saved = await replaceOfferingChildren(admin, offeringId, input, "menu.offerings");
+    if (!saved.ok) return saved;
+    revalidatePath("/");
+    return saved;
+  } catch (err) {
+    logServerError("menu.offerings.setOptions", err);
+    return { ok: false, error: "Unexpected error." };
+  }
 }
 
 /** Helper for tests / blank drafts. */

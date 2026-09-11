@@ -42,14 +42,29 @@ export type PosVariantChip = {
   readonly disabled?: boolean;
 };
 
+/**
+ * The small pill beside a tile's price (`POSCounter`): `Options`, `3 left`,
+ * `Sold out`, `Pick session`, `Approval`. Every kind is a fact the caller
+ * read, never a guess made here: `left` carries the count that was read.
+ */
+export type PosTileBadge =
+  | { readonly kind: "options" }
+  | { readonly kind: "left"; readonly count: number }
+  | { readonly kind: "soldOut" }
+  | { readonly kind: "pickSession" }
+  | { readonly kind: "approval" };
+
 export type PosProductTile = {
   readonly id: string;
   readonly title: string;
-  /** Base price in integer cents. */
-  readonly amountCents: number;
+  /** Base price in integer cents. `null` draws a dash (the custom-amount tile). */
+  readonly amountCents: number | null;
   readonly currency: string;
   readonly categoryId: string;
   readonly favourite?: boolean;
+  readonly badge?: PosTileBadge;
+  /** A sold-out tile is drawn at 45% and cannot be tapped. */
+  readonly soldOut?: boolean;
   readonly variants?: readonly PosVariantChip[];
   /** Missing image is fine — the tile renders on name + price alone. */
   readonly imageUrl?: string | null;
@@ -75,6 +90,12 @@ export type PosBasketLine = {
   readonly notes?: string | null;
   /** A line already sent to preparation cannot have its quantity changed. */
   readonly locked?: boolean;
+  /** The catalog offering behind the line, when it has one (`Duplicate` re-adds it). */
+  readonly offeringId?: string | null;
+  /** The session a class place is held on, when the line has one. */
+  readonly sessionId?: string | null;
+  /** `Held until 10:13` — the hold's expiry as a wall-clock string, when known. */
+  readonly heldUntil?: string | null;
 };
 
 export type PosBasketTotals = {
@@ -155,6 +176,9 @@ export const POS_REFUSAL_REASONS = [
   "amountInvalid",
   "shiftAlreadyOpen",
   "shiftAlreadyClosed",
+  "scanNoMatch",
+  "receiptNotPaid",
+  "receiptNotSent",
 ] as const;
 
 export type PosRefusalReason = (typeof POS_REFUSAL_REASONS)[number];

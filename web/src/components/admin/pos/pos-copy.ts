@@ -1,192 +1,628 @@
 /**
- * pos-copy.ts — builds each component's `copy` prop from a translator.
+ * pos-copy.ts — every string the counter's screens render, read from the
+ * message catalogue (`messages/{en,es,fr}.json`) through one translator.
  *
- * Every component in this directory takes copy as props rather than
- * resolving it itself (no data fetching, per the task's own rule), so
- * something has to turn a `t()` function into those prop bags. This is
- * that something — a future page wiring these components calls it once per
- * render with the request's own translator; these component tests call it
- * directly with `createTranslator("en" | "es" | "fr")` to prove every
- * component renders in all three shipped languages.
- *
- * Keys are literal strings on purpose (never built with a template or a
- * variable): `message-key-usage.static.test.ts` can only see a call site
- * shaped like `t("dashboard.pos.counter.rail.sell")`, and a key it cannot
- * resolve is invisible to that guard rather than checked by it.
+ * Each builder below returns the `*Copy` shape one component declares, so a
+ * component gaining a string is a type error here until the key exists, and
+ * a key that no builder reads fails `message-key-usage.static.test.ts`.
+ * Nothing in this file is a sentence of its own.
  */
 
 import type { PosMode } from "@/lib/pos/modes";
 
 import type { Translator } from "./translator";
 import type { BasketCopy } from "./Basket";
+import type { CashDoneCopy } from "./CashDoneDialog";
+import type { CashDrawerCopy } from "./CashDrawerScreen";
 import type { CollectSheetCopy } from "./CollectSheet";
-import type { CustomerPanelCopy } from "./CustomerPanel";
+import type { CustomAmountCopy } from "./CustomAmount";
+import type { CustomerSheetCopy } from "./CustomerSheet";
+import type { ConnectionCopy, DevicesCopy } from "./DeviceScreens";
+import type { DiscountSheetCopy } from "./DiscountSheet";
 import type { HeldSalesListCopy } from "./HeldSalesList";
+import type { HoldExpiredCopy, HoldSaleCopy } from "./HoldDialogs";
+import type { IssuesCopy } from "./IssuesScreen";
+import type { LineEditCopy } from "./LineEditSheet";
+import type { LinkBookingCopy } from "./LinkBookingSheet";
 import type { PaidScreenCopy } from "./PaidScreen";
 import type { PosRefusalCopy } from "./PosRefusalBanner";
+import type { ReceiptsCopy } from "./ReceiptsScreen";
+import type { ScanScreenCopy } from "./ScanScreen";
 import type { SellSurfaceCopy } from "./SellSurface";
-import type { ShiftBarCopy } from "./ShiftBar";
+
+const K = "dashboard.pos.counter";
 
 export function railCopy(t: Translator): Readonly<Record<string, string>> {
   return {
-    sell: t("dashboard.pos.counter.rail.sell"),
-    orders: t("dashboard.pos.counter.rail.orders"),
-    shifts: t("dashboard.pos.counter.rail.shifts"),
+    sell: t(`${K}.rail.sell`),
+    orders: t(`${K}.rail.orders`),
+    receipts: t(`${K}.rail.receipts`),
+    shifts: t(`${K}.rail.shifts`),
+    issues: t(`${K}.rail.issues`),
   };
 }
 
-/**
- * The rail's own `aria-label` (the nav region's name, not a destination
- * label — `PosFrame`'s `destinationLabels` map is keyed by destination id,
- * never by the mode itself). A separate lookup so `railCopy`'s map keeps
- * meaning only "destination id → label"; folding a `"counter"` entry into
- * it would work by luck of not colliding with `sell`/`orders`/`shifts`
- * today, not by the map's own contract.
- */
 export function railNavLabel(t: Translator): string {
-  return t("dashboard.pos.counter.rail.label");
+  return t(`${K}.rail.label`);
+}
+
+export type PosChromeCopy = {
+  readonly modeEyebrow: string;
+  readonly lock: string;
+  readonly lockUnavailable: string;
+  readonly workspace: string;
+  readonly cashierMenu: string;
+  readonly devices: string;
+  readonly connection: string;
+  readonly drawerOpen: string;
+  readonly drawerNone: string;
+  readonly offlineChip: string;
+  readonly readerOffChip: string;
+  /** `Sale {number} · {cashier}` */
+  readonly saleSubtitle: string;
+  /** `New sale · {cashier}` */
+  readonly newSaleSubtitle: string;
+  readonly closeLabel: string;
+  readonly drawerTitle: string;
+};
+
+export function chromeCopy(t: Translator): PosChromeCopy {
+  return {
+    modeEyebrow: t(`${K}.chrome.modeEyebrow`),
+    lock: t(`${K}.chrome.lock`),
+    lockUnavailable: t(`${K}.chrome.lockUnavailable`),
+    workspace: t(`${K}.chrome.workspace`),
+    cashierMenu: t(`${K}.chrome.cashierMenu`),
+    devices: t(`${K}.chrome.devices`),
+    connection: t(`${K}.chrome.connection`),
+    drawerOpen: t(`${K}.chrome.drawerOpen`),
+    drawerNone: t(`${K}.chrome.drawerNone`),
+    offlineChip: t(`${K}.chrome.offlineChip`),
+    readerOffChip: t(`${K}.chrome.readerOffChip`),
+    saleSubtitle: t(`${K}.chrome.saleSubtitle`),
+    newSaleSubtitle: t(`${K}.chrome.newSaleSubtitle`),
+    closeLabel: t(`${K}.chrome.close`),
+    drawerTitle: t(`${K}.chrome.drawerTitle`),
+  };
 }
 
 export function sellSurfaceCopy(t: Translator): SellSurfaceCopy {
   return {
-    searchPlaceholder: t("dashboard.pos.counter.sell.searchPlaceholder"),
-    searchLabel: t("dashboard.pos.counter.sell.searchLabel"),
-    favourites: t("dashboard.pos.counter.sell.favourites"),
-    allCategories: t("dashboard.pos.counter.sell.allCategories"),
-    add: t("dashboard.pos.counter.sell.add"),
-    empty: t("dashboard.pos.counter.sell.empty"),
-    emptyCatalog: t("dashboard.pos.counter.sell.emptyCatalog"),
-    chooseVariant: t("dashboard.pos.counter.variant.chooseLabel"),
+    searchPlaceholder: t(`${K}.sell.searchPlaceholder`),
+    searchLabel: t(`${K}.sell.searchLabel`),
+    favourites: t(`${K}.sell.favourites`),
+    favouritesUnavailable: t(`${K}.sell.favouritesUnavailable`),
+    allCategories: t(`${K}.sell.allCategories`),
+    add: t(`${K}.sell.add`),
+    empty: t(`${K}.sell.empty`),
+    emptyCatalog: t(`${K}.sell.emptyCatalog`),
+    chooseVariant: t(`${K}.variant.chooseLabel`),
+    closeLabel: t(`${K}.chrome.close`),
+    scanLabel: t(`${K}.scan.ready`),
+    badgeOptions: t(`${K}.sell.badgeOptions`),
+    badgeLeft: t(`${K}.sell.badgeLeft`),
+    badgeSoldOut: t(`${K}.sell.badgeSoldOut`),
+    badgePickSession: t(`${K}.sell.badgePickSession`),
+    badgeApproval: t(`${K}.sell.badgeApproval`),
   };
 }
 
 export function basketCopy(t: Translator): BasketCopy {
   return {
-    title: t("dashboard.pos.counter.basket.title"),
-    empty: t("dashboard.pos.counter.basket.empty"),
-    decrease: t("dashboard.pos.counter.basket.decrease"),
-    increase: t("dashboard.pos.counter.basket.increase"),
-    remove: t("dashboard.pos.counter.basket.remove"),
-    discountLabel: t("dashboard.pos.counter.basket.discountLabel"),
-    discountPlaceholder: t("dashboard.pos.counter.basket.discountPlaceholder"),
-    applyDiscount: t("dashboard.pos.counter.basket.applyDiscount"),
-    discountNotCombinable: t("dashboard.pos.counter.basket.discountNotCombinable"),
-    subtotal: t("dashboard.pos.counter.basket.subtotal"),
-    discount: t("dashboard.pos.counter.basket.discount"),
-    total: t("dashboard.pos.counter.basket.total"),
-    charge: t("dashboard.pos.counter.basket.charge"),
-    chargeEmptyHint: t("dashboard.pos.counter.basket.chargeEmptyHint"),
-    chargeLoading: t("dashboard.pos.counter.basket.chargeLoading"),
+    title: t(`${K}.basket.title`),
+    customer: t(`${K}.basket.customer`),
+    booking: t(`${K}.basket.booking`),
+    here: t(`${K}.basket.here`),
+    toGo: t(`${K}.basket.toGo`),
+    emptyTitle: t(`${K}.basket.emptyTitle`),
+    empty: t(`${K}.basket.empty`),
+    heldSales: t(`${K}.basket.heldSales`),
+    basketCount: t(`${K}.basket.basketCount`),
+    each: t(`${K}.basket.each`),
+    heldUntil: t(`${K}.basket.heldUntil`),
+    editLine: t(`${K}.basket.editLine`),
+    subtotal: t(`${K}.basket.subtotal`),
+    discount: t(`${K}.basket.discount`),
+    tax: t(`${K}.basket.tax`),
+    taxNone: t(`${K}.basket.taxNone`),
+    total: t(`${K}.basket.total`),
+    charge: t(`${K}.basket.charge`),
+    chargeCash: t(`${K}.basket.chargeCash`),
+    chargeLoading: t(`${K}.basket.chargeLoading`),
+    hold: t(`${K}.hold`),
+    send: t(`${K}.basket.send`),
+    sendOne: t(`${K}.basket.sendOne`),
+    sendAgain: t(`${K}.basket.sendAgain`),
+    cardOffline: t(`${K}.basket.cardOffline`),
+    saved: t(`${K}.basket.saved`),
+    savedOffline: t(`${K}.basket.savedOffline`),
   };
 }
 
-export function customerPanelCopy(t: Translator): CustomerPanelCopy {
+export function lineEditCopy(t: Translator): LineEditCopy {
   return {
-    title: t("dashboard.pos.counter.customer.title"),
-    walkIn: t("dashboard.pos.counter.customer.walkIn"),
-    search: t("dashboard.pos.counter.customer.search"),
-    searchPlaceholder: t("dashboard.pos.counter.customer.searchPlaceholder"),
-    create: t("dashboard.pos.counter.customer.create"),
-    attach: t("dashboard.pos.counter.customer.attach"),
-    attachRetry: t("dashboard.pos.counter.customer.attachRetry"),
-    none: t("dashboard.pos.counter.customer.none"),
+    title: t(`${K}.line.title`),
+    notSent: t(`${K}.line.notSent`),
+    sent: t(`${K}.line.sent`),
+    each: t(`${K}.basket.each`),
+    quantity: t(`${K}.line.quantity`),
+    decrease: t(`${K}.basket.decrease`),
+    increase: t(`${K}.basket.increase`),
+    options: t(`${K}.line.options`),
+    optionsUnavailable: t(`${K}.line.optionsUnavailable`),
+    noteBar: t(`${K}.line.noteBar`),
+    noteReceipt: t(`${K}.line.noteReceipt`),
+    notesUnavailable: t(`${K}.line.notesUnavailable`),
+    servedBy: t(`${K}.line.servedBy`),
+    servedByUnavailable: t(`${K}.line.servedByUnavailable`),
+    priceEach: t(`${K}.line.priceEach`),
+    listPrice: t(`${K}.line.listPrice`),
+    priceLocked: t(`${K}.line.priceLocked`),
+    lineTotal: t(`${K}.line.lineTotal`),
+    lineDiscount: t(`${K}.line.lineDiscount`),
+    lineDiscountUnavailable: t(`${K}.line.lineDiscountUnavailable`),
+    duplicate: t(`${K}.line.duplicate`),
+    remove: t(`${K}.basket.remove`),
+    cancel: t(`${K}.cancel`),
+    unsaved: t(`${K}.line.unsaved`),
+    save: t(`${K}.line.save`),
+    closeLabel: t(`${K}.chrome.close`),
+  };
+}
+
+export function customerSheetCopy(t: Translator): CustomerSheetCopy {
+  return {
+    title: t(`${K}.customer.title`),
+    subtitle: t(`${K}.customer.subtitle`),
+    searchLabel: t(`${K}.customer.search`),
+    searchPlaceholder: t(`${K}.customer.searchPlaceholder`),
+    none: t(`${K}.customer.none`),
+    createFromQuery: t(`${K}.customer.createFromQuery`),
+    create: t(`${K}.customer.create`),
+    walkIn: t(`${K}.customer.walkIn`),
+    cashierNote: t(`${K}.customer.cashierNote`),
+    crumb: t(`${K}.customer.crumb`),
+    createTitle: t(`${K}.customer.createTitle`),
+    createSubtitle: t(`${K}.customer.createSubtitle`),
+    name: t(`${K}.customer.name`),
+    phone: t("dashboard.pos.phone"),
+    email: t("dashboard.pos.email"),
+    emailOptional: t(`${K}.customer.emailOptional`),
+    contactHint: t(`${K}.customer.contactHint`),
+    language: t(`${K}.customer.language`),
+    languageUnavailable: t(`${K}.customer.languageUnavailable`),
+    offers: t(`${K}.customer.offers`),
+    offersUnavailable: t(`${K}.customer.offersUnavailable`),
+    duplicate: t(`${K}.customer.duplicate`),
+    useExisting: t(`${K}.customer.useExisting`),
+    differentPerson: t(`${K}.customer.differentPerson`),
+    cancel: t(`${K}.cancel`),
+    saveAndAdd: t(`${K}.customer.saveAndAdd`),
+    failedTitle: t(`${K}.customer.failedTitle`),
+    failedSubtitle: t(`${K}.customer.failedSubtitle`),
+    savedPill: t(`${K}.customer.savedPill`),
+    failedNote: t(`${K}.customer.failedNote`),
+    continueWithout: t(`${K}.customer.continueWithout`),
+    addToSale: t(`${K}.customer.addToSale`),
+    closeLabel: t(`${K}.chrome.close`),
+  };
+}
+
+export function discountSheetCopy(t: Translator): DiscountSheetCopy {
+  return {
+    title: t(`${K}.basket.discount`),
+    subtitle: t(`${K}.discount.subtitle`),
+    tabCode: t(`${K}.discount.tabCode`),
+    tabManual: t(`${K}.discount.tabManual`),
+    tabComp: t(`${K}.discount.tabComp`),
+    codeLabel: t(`${K}.basket.discountLabel`),
+    codePlaceholder: t(`${K}.basket.discountPlaceholder`),
+    amount: t(`${K}.discount.amount`),
+    reason: t(`${K}.discount.reason`),
+    manualUnavailable: t(`${K}.discount.manualUnavailable`),
+    compUnavailable: t(`${K}.discount.compUnavailable`),
+    eligible: t(`${K}.discount.eligible`),
+    eligibleNote: t(`${K}.discount.eligibleNote`),
+    before: t(`${K}.discount.before`),
+    discount: t(`${K}.basket.discount`),
+    after: t(`${K}.discount.after`),
+    notCombinable: t(`${K}.basket.discountNotCombinable`),
+    refused: t(`${K}.refusal.discountRefused`),
+    cancel: t(`${K}.cancel`),
+    apply: t(`${K}.basket.applyDiscount`),
+    remove: t(`${K}.discount.remove`),
+    closeLabel: t(`${K}.chrome.close`),
+  };
+}
+
+export function customAmountCopy(t: Translator): CustomAmountCopy {
+  return {
+    title: t(`${K}.custom.title`),
+    subtitle: t(`${K}.custom.subtitle`),
+    what: t(`${K}.custom.what`),
+    reason: t(`${K}.discount.reason`),
+    reasonDefault: t(`${K}.custom.reasonDefault`),
+    reportAs: t(`${K}.custom.reportAs`),
+    reportAsUnavailable: t(`${K}.custom.reportAsUnavailable`),
+    amount: t(`${K}.custom.amount`),
+    limitNote: t(`${K}.custom.limitNote`),
+    cancel: t(`${K}.cancel`),
+    continueAsk: t(`${K}.custom.continueAsk`),
+    back: t(`${K}.collect.keypadBack`),
+    closeLabel: t(`${K}.chrome.close`),
+    approvalTitle: t(`${K}.custom.approvalTitle`),
+    approvalSubtitle: t(`${K}.custom.approvalSubtitle`),
+    item: t(`${K}.custom.item`),
+    pinWrong: t(`${K}.custom.pinWrong`),
+    approve: t(`${K}.custom.approve`),
+    approveUnavailable: t(`${K}.custom.approveUnavailable`),
+  };
+}
+
+export function holdSaleCopy(t: Translator): HoldSaleCopy {
+  return {
+    title: t(`${K}.holdSale.title`),
+    subtitle: t(`${K}.holdSale.subtitle`),
+    nameIt: t(`${K}.holdSale.nameIt`),
+    nameHint: t(`${K}.holdSale.nameHint`),
+    nameUnavailable: t(`${K}.holdSale.nameUnavailable`),
+    heldNote: t(`${K}.holdSale.heldNote`),
+    back: t(`${K}.back`),
+    discard: t(`${K}.holdSale.discard`),
+    hold: t(`${K}.hold`),
+    closeLabel: t(`${K}.chrome.close`),
+  };
+}
+
+export function holdExpiredCopy(t: Translator): HoldExpiredCopy {
+  return {
+    title: t(`${K}.holdExpired.title`),
+    subtitle: t(`${K}.holdExpired.subtitle`),
+    holdAgain: t(`${K}.holdExpired.holdAgain`),
+    holdAgainUnavailable: t(`${K}.holdExpired.holdAgainUnavailable`),
+    remove: t(`${K}.holdExpired.remove`),
+    removeHint: t(`${K}.holdExpired.removeHint`),
+    pickAnother: t(`${K}.holdExpired.pickAnother`),
+    later: t(`${K}.holdExpired.later`),
+    confirmRemove: t(`${K}.holdExpired.confirmRemove`),
+    confirmPick: t(`${K}.holdExpired.pickAnother`),
+    closeLabel: t(`${K}.chrome.close`),
+  };
+}
+
+export function linkBookingCopy(t: Translator): LinkBookingCopy {
+  return {
+    title: t(`${K}.booking.title`),
+    subtitle: t(`${K}.booking.subtitle`),
+    noCustomer: t(`${K}.booking.noCustomer`),
+    unavailable: t(`${K}.booking.unavailable`),
+    showPaid: t(`${K}.booking.showPaid`),
+    afterLinking: t(`${K}.booking.afterLinking`),
+    bookingBalance: t(`${K}.booking.bookingBalance`),
+    thisSale: t(`${K}.booking.thisSale`),
+    charge: t(`${K}.basket.chargeWord`),
+    keepSeparate: t(`${K}.booking.keepSeparate`),
+    linkOnly: t(`${K}.booking.linkOnly`),
+    linkAndPay: t(`${K}.booking.linkAndPay`),
+    closeLabel: t(`${K}.chrome.close`),
   };
 }
 
 export function collectSheetCopy(t: Translator): CollectSheetCopy {
   return {
-    title: t("dashboard.pos.counter.collect.title"),
-    methodCash: t("dashboard.pos.counter.collect.methodCash"),
-    methodCard: t("dashboard.pos.counter.collect.methodCard"),
-    methodLink: t("dashboard.pos.counter.collect.methodLink"),
-    methodPass: t("dashboard.pos.counter.collect.methodPass"),
-    amountDue: t("dashboard.pos.counter.collect.amountDue"),
-    tendered: t("dashboard.pos.counter.collect.tendered"),
-    change: t("dashboard.pos.counter.collect.change"),
-    confirmCash: t("dashboard.pos.counter.collect.confirmCash"),
-    keypadClear: t("dashboard.pos.counter.collect.keypadClear"),
-    cardWaiting: t("dashboard.pos.counter.collect.cardWaiting"),
-    linkReady: t("dashboard.pos.counter.collect.linkReady"),
-    passReady: t("dashboard.pos.counter.collect.passReady"),
-    methodUnavailableFallback: t("dashboard.pos.counter.collect.methodUnavailableFallback"),
+    title: t(`${K}.collect.title`),
+    methodCash: t(`${K}.collect.methodCash`),
+    methodCard: t(`${K}.collect.methodCard`),
+    methodLink: t(`${K}.collect.methodLink`),
+    methodPass: t(`${K}.collect.methodPass`),
+    methodTransfer: t(`${K}.collect.methodTransfer`),
+    methodTransferUnavailable: t(`${K}.collect.methodTransferUnavailable`),
+    methodSplit: t(`${K}.collect.methodSplit`),
+    methodSplitUnavailable: t(`${K}.collect.methodSplitUnavailable`),
+    cashHint: t(`${K}.collect.cashHint`),
+    cardHint: t(`${K}.collect.cardHint`),
+    linkHint: t(`${K}.collect.linkHint`),
+    passHint: t(`${K}.collect.passHint`),
+    how: t(`${K}.collect.how`),
+    amountDue: t(`${K}.collect.amountDue`),
+    exact: t(`${K}.collect.exact`),
+    tendered: t(`${K}.collect.tendered`),
+    change: t(`${K}.collect.change`),
+    short: t(`${K}.collect.short`),
+    confirmCash: t(`${K}.collect.confirmCash`),
+    confirmCashChange: t(`${K}.collect.confirmCashChange`),
+    confirmCashExact: t(`${K}.collect.confirmCashExact`),
+    takePartial: t(`${K}.collect.takePartial`),
+    takePartialUnavailable: t(`${K}.collect.takePartialUnavailable`),
+    keypadClear: t(`${K}.collect.keypadClear`),
+    back: t(`${K}.collect.keypadBack`),
+    cardWaiting: t(`${K}.collect.cardWaiting`),
+    linkReady: t(`${K}.collect.linkReady`),
+    passReady: t(`${K}.collect.passReady`),
+    methodUnavailableFallback: t(`${K}.collect.methodUnavailableFallback`),
   };
 }
 
 export function collectMethodUnavailableCopy(t: Translator) {
   return {
-    card: t("dashboard.pos.counter.collect.cardUnavailable"),
-    link: t("dashboard.pos.counter.collect.linkUnavailable"),
-    pass: t("dashboard.pos.counter.collect.passUnavailable"),
+    card: t(`${K}.collect.cardUnavailable`),
+    link: t(`${K}.collect.linkUnavailable`),
+    pass: t(`${K}.collect.passUnavailable`),
+  };
+}
+
+export function cashDoneCopy(t: Translator): CashDoneCopy {
+  return {
+    title: t(`${K}.cashDone.title`),
+    subtitle: t(`${K}.cashDone.subtitle`),
+    subtitleExact: t(`${K}.cashDone.subtitleExact`),
+    received: t(`${K}.cashDone.received`),
+    drawerNote: t(`${K}.cashDone.drawerNote`),
+    openDrawer: t(`${K}.cashDone.openDrawer`),
+    openDrawerUnavailable: t(`${K}.cashDone.openDrawerUnavailable`),
+    done: t(`${K}.cashDone.done`),
+    closeLabel: t(`${K}.chrome.close`),
   };
 }
 
 export function paidScreenCopy(t: Translator): PaidScreenCopy {
   return {
-    title: t("dashboard.pos.counter.paid.title"),
-    amount: t("dashboard.pos.counter.paid.amount"),
-    change: t("dashboard.pos.counter.paid.change"),
-    printReceipt: t("dashboard.pos.counter.paid.printReceipt"),
-    emailReceipt: t("dashboard.pos.counter.paid.emailReceipt"),
-    nextCustomer: t("dashboard.pos.counter.paid.nextCustomer"),
+    title: t(`${K}.paid.title`),
+    amount: t(`${K}.paid.amount`),
+    change: t(`${K}.paid.change`),
+    printReceipt: t(`${K}.paid.printReceipt`),
+    emailReceipt: t(`${K}.paid.emailReceipt`),
+    nextCustomer: t(`${K}.paid.nextCustomer`),
   };
 }
 
 export function heldSalesListCopy(t: Translator): HeldSalesListCopy {
   return {
-    title: t("dashboard.pos.counter.held.title"),
-    empty: t("dashboard.pos.counter.held.empty"),
-    resume: t("dashboard.pos.counter.held.resume"),
-    heldSince: t("dashboard.pos.counter.held.heldSince"),
+    title: t(`${K}.held.title`),
+    empty: t(`${K}.held.empty`),
+    resume: t(`${K}.held.resume`),
+    heldSince: t(`${K}.held.heldSince`),
   };
 }
 
-export function shiftBarCopy(t: Translator): ShiftBarCopy {
-  return {
-    shiftTitle: t("dashboard.pos.shiftTitle"),
-    shiftOpen: t("dashboard.pos.shiftOpen"),
-    shiftClose: t("dashboard.pos.shiftClose"),
-    shiftOpening: t("dashboard.pos.shiftOpening"),
-    shiftCounted: t("dashboard.pos.shiftCounted"),
-    shiftExpected: t("dashboard.pos.shiftExpected"),
-    shiftVariance: t("dashboard.pos.shiftVariance"),
-    shiftNone: t("dashboard.pos.shiftNone"),
-    shiftOpenHint: t("dashboard.pos.shiftOpenHint"),
+export function cashDrawerCopy(t: Translator): CashDrawerCopy {
+    return {
+    openEyebrow: t(`${K}.drawer.openEyebrow`),
+    drawer: t(`${K}.drawer.drawer`),
+    drawerDefault: t(`${K}.drawer.drawerDefault`),
+    drawerUnavailable: t(`${K}.drawer.drawerUnavailable`),
+    responsible: t(`${K}.drawer.responsible`),
+    responsibleYou: t(`${K}.drawer.responsibleYou`),
+    startingCash: t(`${K}.drawer.startingCash`),
+    openDrawer: t(`${K}.drawer.openDrawer`),
+    onceOpen: t(`${K}.drawer.onceOpen`),
+    addCash: t(`${K}.drawer.addCash`),
+    addCashHint: t(`${K}.drawer.addCashHint`),
+    takeOut: t(`${K}.drawer.takeOut`),
+    takeOutHint: t(`${K}.drawer.takeOutHint`),
+    dropSafe: t(`${K}.drawer.dropSafe`),
+    dropSafeHint: t(`${K}.drawer.dropSafeHint`),
+    openNoSale: t(`${K}.drawer.openNoSale`),
+    openNoSaleHint: t(`${K}.drawer.openNoSaleHint`),
+    onceOpenNote: t(`${K}.drawer.onceOpenNote`),
+    movementsUnavailable: t(`${K}.drawer.movementsUnavailable`),
+    movements: t(`${K}.drawer.movements`),
+    movementsEmpty: t(`${K}.drawer.movementsEmpty`),
+    handOver: t(`${K}.drawer.handOver`),
+    newResponsible: t(`${K}.drawer.newResponsible`),
+    countedTogether: t(`${K}.drawer.countedTogether`),
+    handOverNote: t(`${K}.drawer.handOverNote`),
+    handOverAction: t(`${K}.drawer.handOverAction`),
+    handOverUnavailable: t(`${K}.drawer.handOverUnavailable`),
+    closeAndCount: t(`${K}.drawer.closeAndCount`),
+    countEyebrow: t(`${K}.drawer.countEyebrow`),
+    coins: t(`${K}.drawer.coins`),
+    counted: t(`${K}.drawer.counted`),
+    startedWith: t(`${K}.drawer.startedWith`),
+    shouldBe: t(`${K}.drawer.shouldBe`),
+    blindNote: t(`${K}.drawer.blindNote`),
+    whatHappened: t(`${K}.drawer.whatHappened`),
+    whatHappenedUnavailable: t(`${K}.drawer.whatHappenedUnavailable`),
+    confirmCount: t(`${K}.drawer.confirmCount`),
+    back: t(`${K}.back`),
+    closeDrawer: t(`${K}.drawer.closeDrawer`),
+    closedTitle: t(`${K}.drawer.closedTitle`),
+    expected: t(`${K}.drawer.expected`),
+    shortBy: t(`${K}.drawer.shortBy`),
+    overBy: t(`${K}.drawer.overBy`),
+    balanced: t(`${K}.drawer.balanced`),
+    openAnother: t(`${K}.drawer.openAnother`),
+    keypadBack: t(`${K}.collect.keypadBack`),
+  };
+}
+
+export function receiptsCopy(t: Translator): ReceiptsCopy {
+    return {
+    title: t(`${K}.rail.receipts`),
+    subtitle: t(`${K}.receipts.subtitle`),
+    searchPlaceholder: t(`${K}.receipts.searchPlaceholder`),
+    searchLabel: t(`${K}.receipts.searchLabel`),
+    today: t(`${K}.receipts.today`),
+    yesterday: t(`${K}.receipts.yesterday`),
+    week: t(`${K}.receipts.week`),
+    all: t(`${K}.receipts.all`),
+    cash: t(`${K}.collect.methodCash`),
+    card: t(`${K}.collect.methodCard`),
+    refunds: t(`${K}.receipts.refunds`),
+    methodUnavailable: t(`${K}.receipts.methodUnavailable`),
+    walkIn: t(`${K}.customer.walkInShort`),
+    empty: t(`${K}.receipts.empty`),
+    noCode: t(`${K}.receipts.noCode`),
+    open: t(`${K}.receipts.open`),
+  };
+}
+
+export function issuesCopy(t: Translator): IssuesCopy {
+    return {
+    title: t(`${K}.rail.issues`),
+    subtitle: t(`${K}.issues.subtitle`),
+    open: t(`${K}.issues.open`),
+    mine: t(`${K}.issues.mine`),
+    doneToday: t(`${K}.issues.doneToday`),
+    all: t(`${K}.receipts.all`),
+    payments: t(`${K}.issues.payments`),
+    kitchen: t(`${K}.issues.kitchen`),
+    devices: t(`${K}.chrome.devices`),
+    orders: t(`${K}.rail.orders`),
+    unavailable: t(`${K}.issues.unavailable`),
+  };
+}
+
+export function devicesCopy(t: Translator): DevicesCopy {
+    return {
+    title: t(`${K}.chrome.devices`),
+    subtitle: t(`${K}.devices.subtitle`),
+    ready: t(`${K}.devices.ready`),
+    off: t(`${K}.devices.off`),
+    notSetUp: t(`${K}.devices.notSetUp`),
+    closed: t(`${K}.devices.closed`),
+    whileOff: t(`${K}.devices.whileOff`),
+    cash: t(`${K}.collect.methodCash`),
+    links: t(`${K}.devices.links`),
+    cardAtCounter: t(`${K}.devices.cardAtCounter`),
+    refundsToCard: t(`${K}.devices.refundsToCard`),
+    yes: t(`${K}.devices.yes`),
+    no: t(`${K}.devices.no`),
+    noUntil: t(`${K}.devices.noUntil`),
+    internet: t(`${K}.devices.internet`),
+    connection: t(`${K}.chrome.connection`),
+    ok: t(`${K}.devices.ok`),
+    offline: t(`${K}.devices.offline`),
+    waitingToSync: t(`${K}.devices.waitingToSync`),
+    nothing: t(`${K}.devices.nothing`),
+    internetNote: t(`${K}.devices.internetNote`),
+  };
+}
+
+export type DeviceRowsCopy = {
+  readonly reader: string;
+  readonly readerDetail: string;
+  readonly readerNotSetUp: string;
+  readonly reconnect: string;
+  readonly readerUnavailable: string;
+  readonly receiptPrinter: string;
+  readonly kitchenPrinter: string;
+  readonly printerNotSetUp: string;
+  readonly testPrint: string;
+  readonly scanner: string;
+  readonly scannerDetail: string;
+  readonly testScan: string;
+  readonly display: string;
+  readonly displayDetail: string;
+  readonly displayNone: string;
+  readonly showTest: string;
+  readonly drawer: string;
+  readonly drawerDetail: string;
+  readonly openLogged: string;
+  readonly drawerUnavailable: string;
+};
+
+export function deviceRowsCopy(t: Translator): DeviceRowsCopy {
+    return {
+    reader: t(`${K}.devices.reader`),
+    readerDetail: t(`${K}.devices.readerDetail`),
+    readerNotSetUp: t(`${K}.devices.readerNotSetUp`),
+    reconnect: t(`${K}.devices.reconnect`),
+    readerUnavailable: t(`${K}.devices.readerUnavailable`),
+    receiptPrinter: t(`${K}.devices.receiptPrinter`),
+    kitchenPrinter: t(`${K}.devices.kitchenPrinter`),
+    printerNotSetUp: t(`${K}.devices.printerNotSetUp`),
+    testPrint: t(`${K}.devices.testPrint`),
+    scanner: t(`${K}.devices.scanner`),
+    scannerDetail: t(`${K}.devices.scannerDetail`),
+    testScan: t(`${K}.devices.testScan`),
+    display: t(`${K}.devices.display`),
+    displayDetail: t(`${K}.devices.displayDetail`),
+    displayNone: t(`${K}.devices.displayNone`),
+    showTest: t(`${K}.devices.showTest`),
+    drawer: t(`${K}.drawer.drawer`),
+    drawerDetail: t(`${K}.devices.drawerDetail`),
+    openLogged: t(`${K}.devices.openLogged`),
+    drawerUnavailable: t(`${K}.devices.drawerUnavailable`),
+  };
+}
+
+export function connectionCopy(t: Translator): ConnectionCopy {
+    return {
+    title: t(`${K}.chrome.connection`),
+    subtitle: t(`${K}.connection.subtitle`),
+    offlineTitle: t(`${K}.connection.offlineTitle`),
+    offlineDetail: t(`${K}.connection.offlineDetail`),
+    onlineTitle: t(`${K}.connection.onlineTitle`),
+    onlineDetail: t(`${K}.connection.onlineDetail`),
+    tryAgain: t(`${K}.refusal.retry`),
+    youCan: t(`${K}.connection.youCan`),
+    sellCash: t(`${K}.connection.sellCash`),
+    catalog: t(`${K}.connection.catalog`),
+    holdResume: t(`${K}.connection.holdResume`),
+    takeCard: t(`${K}.connection.takeCard`),
+    lastPlaces: t(`${K}.connection.lastPlaces`),
+    refund: t(`${K}.connection.refund`),
+    yes: t(`${K}.devices.yes`),
+    no: t(`${K}.devices.no`),
+    noNeedsConnection: t(`${K}.connection.noNeedsConnection`),
+    cardReader: t(`${K}.devices.reader`),
+    readerConnected: t(`${K}.connection.readerConnected`),
+    readerOff: t(`${K}.devices.off`),
+    readerNote: t(`${K}.connection.readerNote`),
+    waitingToSync: t(`${K}.devices.waitingToSync`),
+    nothingQueued: t(`${K}.connection.nothingQueued`),
+    syncNow: t(`${K}.connection.syncNow`),
+  };
+}
+
+export function scanScreenCopy(t: Translator): ScanScreenCopy {
+    return {
+    title: t(`${K}.scan.title`),
+    ready: t(`${K}.scan.readyLine`),
+    heading: t(`${K}.scan.heading`),
+    hint: t(`${K}.scan.hint`),
+    anything: t(`${K}.scan.anything`),
+    productsOnly: t(`${K}.scan.productsOnly`),
+    ticketsOnly: t(`${K}.scan.ticketsOnly`),
+    passesOnly: t(`${K}.scan.passesOnly`),
+    filterUnavailable: t(`${K}.scan.filterUnavailable`),
+    typeInstead: t(`${K}.scan.typeInstead`),
+    placeholder: t(`${K}.scan.placeholder`),
+    lookUp: t(`${K}.scan.lookUp`),
+    keypadBack: t(`${K}.collect.keypadBack`),
   };
 }
 
 export function refusalCopy(t: Translator): PosRefusalCopy {
-  return {
-    balanceChanged: t("dashboard.pos.counter.refusal.balanceChanged"),
-    saleReloading: t("dashboard.pos.counter.refusal.saleReloading"),
-    needsCustomerName: t("dashboard.pos.counter.refusal.needsCustomerName"),
-    paymentDeclined: t("dashboard.pos.counter.refusal.paymentDeclined"),
-    paymentUnknown: t("dashboard.pos.counter.refusal.paymentUnknown"),
-    capacityGone: t("dashboard.pos.counter.refusal.capacityGone"),
-    bookingChanged: t("dashboard.pos.counter.refusal.bookingChanged"),
-    tenderShort: t("dashboard.pos.counter.refusal.tenderShort"),
-    emptySale: t("dashboard.pos.counter.refusal.emptySale"),
-    itemRefused: t("dashboard.pos.counter.refusal.itemRefused"),
-    discountRefused: t("dashboard.pos.counter.refusal.discountRefused"),
-    discountNeedsCustomer: t("dashboard.pos.counter.refusal.discountNeedsCustomer"),
-    readerUnavailable: t("dashboard.pos.counter.refusal.readerUnavailable"),
-    pickupWindow: t("dashboard.pos.counter.refusal.pickupWindow"),
-    wrongWorkspace: t("dashboard.pos.counter.refusal.wrongWorkspace"),
-    notAllowed: t("dashboard.pos.counter.refusal.notAllowed"),
-    amountInvalid: t("dashboard.pos.counter.refusal.amountInvalid"),
-    shiftAlreadyOpen: t("dashboard.pos.counter.refusal.shiftAlreadyOpen"),
-    shiftAlreadyClosed: t("dashboard.pos.counter.refusal.shiftAlreadyClosed"),
-    retry: t("dashboard.pos.counter.refusal.retry"),
-    reload: t("dashboard.pos.counter.refusal.reload"),
+    return {
+    balanceChanged: t(`${K}.refusal.balanceChanged`),
+    saleReloading: t(`${K}.refusal.saleReloading`),
+    needsCustomerName: t(`${K}.refusal.needsCustomerName`),
+    paymentDeclined: t(`${K}.refusal.paymentDeclined`),
+    paymentUnknown: t(`${K}.refusal.paymentUnknown`),
+    capacityGone: t(`${K}.refusal.capacityGone`),
+    bookingChanged: t(`${K}.refusal.bookingChanged`),
+    tenderShort: t(`${K}.refusal.tenderShort`),
+    emptySale: t(`${K}.refusal.emptySale`),
+    itemRefused: t(`${K}.refusal.itemRefused`),
+    discountRefused: t(`${K}.refusal.discountRefused`),
+    discountNeedsCustomer: t(`${K}.refusal.discountNeedsCustomer`),
+    readerUnavailable: t(`${K}.refusal.readerUnavailable`),
+    pickupWindow: t(`${K}.refusal.pickupWindow`),
+    wrongWorkspace: t(`${K}.refusal.wrongWorkspace`),
+    notAllowed: t(`${K}.refusal.notAllowed`),
+    amountInvalid: t(`${K}.refusal.amountInvalid`),
+    shiftAlreadyOpen: t(`${K}.refusal.shiftAlreadyOpen`),
+    shiftAlreadyClosed: t(`${K}.refusal.shiftAlreadyClosed`),
+    scanNoMatch: t(`${K}.refusal.scanNoMatch`),
+    receiptNotPaid: t(`${K}.refusal.receiptNotPaid`),
+    receiptNotSent: t(`${K}.refusal.receiptNotSent`),
+    retry: t(`${K}.refusal.retry`),
+    reload: t(`${K}.refusal.reload`),
   };
 }
 
-/**
- * The counter page's own labels — the ones that belong to the WIRING rather
- * than to any one presentational component: the hold/cancel/next actions, the
- * receipt link, and the two shift prompts. Kept beside the component copy
- * builders so a page has exactly one place to look, and written as literal
- * keys for the same reason as every builder above.
- */
 export type PosCounterPageCopy = {
   readonly receiptLink: string;
   readonly copyReceipt: string;
@@ -196,49 +632,34 @@ export type PosCounterPageCopy = {
   readonly cancelSale: string;
   readonly collectTitle: string;
   readonly backToSale: string;
-  readonly openShiftCash: string;
-  readonly closeShiftCash: string;
-  readonly confirmOpenShift: string;
-  readonly confirmCloseShift: string;
+  readonly pickupReadyAt: string;
 };
 
 export function counterPageCopy(t: Translator): PosCounterPageCopy {
   return {
-    receiptLink: t("dashboard.pos.counter.receiptLink"),
-    copyReceipt: t("dashboard.pos.counter.copyReceipt"),
-    receiptCopied: t("dashboard.pos.counter.receiptCopied"),
-    hold: t("dashboard.pos.counter.hold"),
-    startSale: t("dashboard.pos.counter.startSale"),
-    cancelSale: t("dashboard.pos.counter.cancelSale"),
-    collectTitle: t("dashboard.pos.counter.collectTitle"),
-    backToSale: t("dashboard.pos.counter.backToSale"),
-    openShiftCash: t("dashboard.pos.counter.openShiftCash"),
-    closeShiftCash: t("dashboard.pos.counter.closeShiftCash"),
-    confirmOpenShift: t("dashboard.pos.counter.confirmOpenShift"),
-    confirmCloseShift: t("dashboard.pos.counter.confirmCloseShift"),
+    receiptLink: t(`${K}.receiptLink`),
+    copyReceipt: t(`${K}.copyReceipt`),
+    receiptCopied: t(`${K}.receiptCopied`),
+    hold: t(`${K}.hold`),
+    startSale: t(`${K}.startSale`),
+    cancelSale: t(`${K}.cancelSale`),
+    collectTitle: t(`${K}.collectTitle`),
+    backToSale: t(`${K}.backToSale`),
+    pickupReadyAt: t(`${K}.pickupReadyAt`),
   };
 }
 
-/**
- * A POS mode's own label, in the request's language.
- *
- * `POS_MODE_META[mode].label` is English only and says so in its own type
- * comment, so a screen that shows a mode name to a cashier reads it from the
- * catalogue instead. The switch statement (rather than a template key) is
- * what keeps every key literal and therefore visible to
- * `message-key-usage.static.test.ts`.
- */
 export function posModeLabel(t: Translator, mode: PosMode): string {
   switch (mode) {
     case "counter":
-      return t("dashboard.pos.counter.mode.counter");
+      return t(`${K}.mode.counter`);
     case "floor":
-      return t("dashboard.pos.counter.mode.floor");
+      return t(`${K}.mode.floor`);
     case "door":
-      return t("dashboard.pos.counter.mode.door");
+      return t(`${K}.mode.door`);
     case "classes":
-      return t("dashboard.pos.counter.mode.classes");
+      return t(`${K}.mode.classes`);
     case "projects":
-      return t("dashboard.pos.counter.mode.projects");
+      return t(`${K}.mode.projects`);
   }
 }

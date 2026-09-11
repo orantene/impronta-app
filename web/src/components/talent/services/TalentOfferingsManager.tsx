@@ -18,29 +18,14 @@
  * — photos can be attached by staff/seed today.
  */
 
-import { useEffect, useState, useTransition } from "react";
-import {
-  loadTalentOfferingsForEditor,
-  upsertTalentOffering,
-  deleteTalentOffering,
-  reorderTalentOfferings,
-  importLegacyToOfferings,
-  setOfferingImages,
-} from "@/lib/talent/offerings-actions";
-import {
-  loadWorkspaceMenuForEditor,
-  upsertWorkspaceMenuItem,
-  deleteWorkspaceMenuItem,
-  reorderWorkspaceMenuItems,
-  setMenuItemStockAction,
-} from "@/lib/talent/menu-offerings-actions";
-import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
+import { useState } from "react";
+import { setOfferingImages } from "@/lib/talent/offerings-actions";
+import { setMenuItemStockAction } from "@/lib/talent/menu-offerings-actions";
+import { useOfferingsEditor } from "./use-offerings-editor";
 import { actionUploadAndAssignMedia } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import {
-  blankOffering,
   offeringPriceLabel,
-  validateOffering,
   IDENTITY_REASONS,
   IDENTITY_REASON_LABELS,
   type IdentityReason,
@@ -827,206 +812,53 @@ export function TalentOfferingsManager(
     "owner" in props && props.owner
       ? props.owner
       : { kind: "talent", talentProfileId: (props as { talentId: string }).talentId };
-  const isWorkspace = owner.kind === "workspace";
-  const talentId = owner.kind === "talent" ? owner.talentProfileId : "";
-  const workspaceTenantId = owner.kind === "workspace" ? owner.tenantId : "";
-
-  const [items, setItems] = useState<TalentOffering[]>([]);
-  const [defaultCurrency, setDefaultCurrency] = useState("USD");
-  const [legacyImportable, setLegacyImportable] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [savedOk, setSavedOk] = useState(false);
+  // Every load, save, delete, reorder and duplicate is the shared editor
+  // hook's; this component only draws the talent's Services tab over it.
+  const editor = useOfferingsEditor(owner);
+  const {
+    isWorkspace,
+    talentId,
+    workspaceTenantId,
+    items,
+    defaultCurrency,
+    legacyImportable,
+    loading,
+    saving,
+    error,
+    savedOk,
+    draft,
+    perf,
+    setError,
+    setDraft,
+    patchItem,
+    removeItem,
+    move,
+    duplicate,
+    importLegacy,
+    syncImages,
+    syncOptions,
+  } = editor;
   /** One-open accordion: the id currently expanded. */
   const [openId, setOpenId] = useState<string | null>(null);
-  /** The new-item draft being composed (not yet persisted). */
-  const [draft, setDraft] = useState<TalentOffering | null>(null);
-  /** Per-offering quoted/booked stats (source_service_id analytics). */
-  const [perf, setPerf] = useState<Record<string, ServicePerformanceStat>>({});
-  const [, startTransition] = useTransition();
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = isWorkspace
-      ? loadWorkspaceMenuForEditor(workspaceTenantId)
-      : loadTalentOfferingsForEditor(talentId);
-    load
-      .then((res) => {
-        if (cancelled) return;
-        if (res.ok) {
-          setItems(res.items);
-          setDefaultCurrency(res.defaultCurrency);
-          setLegacyImportable("legacyImportable" in res ? !!res.legacyImportable : false);
-        } else {
-          setError(res.error);
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isWorkspace, talentId, workspaceTenantId]);
-
-  useEffect(() => {
-    if (isWorkspace) return;
-    let cancelled = false;
-    loadTalentServicePerformance(talentId)
-      .then((res) => {
-        if (!cancelled && res.ok) setPerf(res.stats);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [isWorkspace, talentId]);
-
-  function flashSaved() {
-    setSavedOk(true);
-    setTimeout(() => setSavedOk(false), 1800);
-  }
-
-  async function upsertOne(next: TalentOffering) {
-    if (isWorkspace) return upsertWorkspaceMenuItem(workspaceTenantId, next);
-    return upsertTalentOffering(talentId, next);
-  }
-  async function deleteOne(id: string) {
-    if (isWorkspace) return deleteWorkspaceMenuItem(workspaceTenantId, id);
-    return deleteTalentOffering(talentId, id);
-  }
-  async function reorderAll(ids: string[]) {
-    if (isWorkspace) return reorderWorkspaceMenuItems(workspaceTenantId, ids);
-    return reorderTalentOfferings(talentId, ids);
-  }
-
-  /** Persist one item (existing id) with optimistic replace + rollback. */
-  function persistItem(next: TalentOffering) {
-    const previous = items;
-    setItems(items.map((it) => (it.id === next.id ? next : it)));
-    setSaving(true);
-    setError(null);
-    startTransition(async () => {
-      const res = await upsertOne(next);
-      setSaving(false);
-      if (res.ok) {
-        setItems((cur) => cur.map((it) => (it.id === res.item.id ? res.item : it)));
-        flashSaved();
-      } else {
-        setItems(previous);
-        setError(res.error);
-      }
-    });
-  }
-
-  const patchItem = (id: string, patch: Partial<TalentOffering>) => {
-    const target = items.find((it) => it.id === id);
-    if (target) persistItem({ ...target, ...patch });
-  };
-
-  /** Save the composed new draft (insert). */
   function saveDraft() {
-    if (!draft) return;
-    const errors = validateOffering(draft);
-    if (errors.length > 0) {
-      setError(errors[0]);
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    startTransition(async () => {
-      const res = await upsertOne(draft);
-      setSaving(false);
-      if (res.ok) {
-        setItems((cur) => [...cur, res.item]);
+    void editor.saveDraft().then((saved) => {
+      if (saved) {
         setDraft(null);
         setOpenId(null);
-        flashSaved();
-      } else {
-        setError(res.error);
       }
-    });
-  }
-
-  function removeItem(id: string) {
-    const previous = items;
-    setItems(items.filter((it) => it.id !== id));
-    setSaving(true);
-    startTransition(async () => {
-      const res = await deleteOne(id);
-      setSaving(false);
-      if (!res.ok) {
-        setItems(previous);
-        setError(res.error ?? "Failed to delete.");
-      } else {
-        flashSaved();
-      }
-    });
-  }
-
-  function move(id: string, dir: -1 | 1) {
-    const idx = items.findIndex((it) => it.id === id);
-    const swap = idx + dir;
-    if (idx < 0 || swap < 0 || swap >= items.length) return;
-    const next = [...items];
-    [next[idx], next[swap]] = [next[swap], next[idx]];
-    const reindexed = next.map((it, i) => ({ ...it, sortOrder: i }));
-    setItems(reindexed);
-    setSaving(true);
-    startTransition(async () => {
-      const res = await reorderAll(reindexed.map((it) => it.id));
-      setSaving(false);
-      if (!res.ok) setError(res.error ?? "Failed to reorder.");
-      else flashSaved();
-    });
-  }
-
-  function duplicate(it: TalentOffering) {
-    setSaving(true);
-    startTransition(async () => {
-      const res = await upsertOne({
-        ...it,
-        id: "",
-        title: `${it.title} (copy)`,
-        status: "draft",
-        sortOrder: items.length,
-        imageUrls: [],
-      });
-      setSaving(false);
-      if (res.ok) {
-        setItems((cur) => [...cur, res.item]);
-        flashSaved();
-      } else setError(res.error);
     });
   }
 
   function startAdd(starter?: (typeof STARTERS)[number]) {
-    const b = blankOffering(owner, defaultCurrency, items.length);
+    const seed: Partial<TalentOffering> = {};
     if (starter) {
-      b.title = starter.title === "Custom quote" ? "" : starter.title;
-      b.priceType = starter.priceType === "custom" ? "flat_package" : starter.priceType;
-      Object.assign(b, applyPriceMode(b, starter.mode));
+      seed.title = starter.title === "Custom quote" ? "" : starter.title;
+      seed.priceType = starter.priceType === "custom" ? "flat_package" : starter.priceType;
     }
-    setDraft(b);
+    const b = editor.startAdd(seed);
+    if (starter) setDraft({ ...b, ...applyPriceMode(b, starter.mode) });
     setOpenId(null);
-    setError(null);
-  }
-
-  function importLegacy() {
-    if (isWorkspace) return;
-    setSaving(true);
-    setError(null);
-    startTransition(async () => {
-      const res = await importLegacyToOfferings(talentId);
-      setSaving(false);
-      if (res.ok) {
-        setItems(res.items);
-        setLegacyImportable(false);
-        flashSaved();
-      } else setError(res.error);
-    });
   }
 
   if (loading) return null;
@@ -1198,16 +1030,8 @@ export function TalentOfferingsManager(
                       defaultCurrency={defaultCurrency}
                       talentId={talentId}
                       onPatch={(p) => patchItem(it.id, p)}
-                      onImages={(id, assets) =>
-                        setItems((cur) =>
-                          cur.map((x) =>
-                            x.id === id ? { ...x, imageAssets: assets, imageUrls: assets.map((a) => a.url) } : x,
-                          ),
-                        )
-                      }
-                      onOptionsSynced={(id, variants, addOns) =>
-                        setItems((cur) => cur.map((x) => (x.id === id ? { ...x, variants, addOns } : x)))
-                      }
+                      onImages={syncImages}
+                      onOptionsSynced={syncOptions}
                     />
                     <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", borderTop: `1px dashed ${C.borderSoft}`, paddingTop: 12 }}>
                       <button type="button" disabled={saving} onClick={() => patchItem(it.id, { status: live ? "draft" : "published" })} style={{ ...pillStyle(false) }}>

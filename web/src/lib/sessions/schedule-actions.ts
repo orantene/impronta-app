@@ -67,6 +67,15 @@ export type ScheduleOccurrence = {
   /** null when the session has no pool — which is itself worth showing. */
   seatsTotal: number | null;
   seatsRemaining: number | null;
+  /**
+   * The pool the seats live in, so a capacity change can name it. Null when
+   * the session has no pool; `poolCount` says whether ONE number describes the
+   * session (one pool) or the seats are per tier (several), which is the
+   * event's night editor's business rather than this page's.
+   */
+  poolKey: string | null;
+  poolCount: number;
+  venueName: string | null;
 };
 
 export type ScheduleSeries = {
@@ -189,11 +198,11 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
     // fact rather than an assumption — a session whose pool creation failed is
     // unsellable and looks identical to one that is fine.
     const sessionIds = sessions.map((s) => String(s.id));
-    const poolBySession = new Map<string, { id: string; unitsTotal: number }>();
+    const poolsBySession = new Map<string, Array<{ id: string; unitsTotal: number; poolKey: string }>>();
     if (sessionIds.length > 0) {
       const { data: poolRows, error: poolError } = await admin
         .from("capacity_pools")
-        .select("id, subject_id, units_total")
+        .select("id, subject_id, units_total, pool_key")
         .eq("tenant_id", tenantId)
         .eq("subject_kind", "session_tier")
         .in("subject_id", sessionIds);
@@ -202,10 +211,14 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
         return { ok: false, error: "Could not load the schedule." };
       }
       for (const p of poolRows ?? []) {
-        poolBySession.set(String(p.subject_id), {
+        const key = String(p.subject_id);
+        const list = poolsBySession.get(key) ?? [];
+        list.push({
           id: String(p.id),
           unitsTotal: Number(p.units_total),
+          poolKey: typeof p.pool_key === "string" ? p.pool_key : "default",
         });
+        poolsBySession.set(key, list);
       }
     }
 
@@ -215,26 +228,33 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
     //
     // Remaining seats come from the narrow public reader — one integer, never
     // a row, so this surface cannot become a way to enumerate who holds what.
+    // A night with several tiers is several pools; the row shows their sum,
+    // and names no single pool (a capacity change is per tier there).
     const occurrenceById = new Map<string, ScheduleOccurrence>();
     for (const s of sessions) {
-      const pool = poolBySession.get(String(s.id));
+      const pools = poolsBySession.get(String(s.id)) ?? [];
       let remaining: number | null = null;
-      if (pool) {
+      let total: number | null = null;
+      for (const pool of pools) {
+        total = (total ?? 0) + pool.unitsTotal;
         const { data: rem, error: remError } = await admin.rpc("capacity_remaining_public", {
           p_pool_id: pool.id,
           p_starts_at: String(s.starts_at),
           p_ends_at: String(s.ends_at),
         });
         if (remError) logServerError("sessions.loadSchedule.remaining", remError);
-        else if (typeof rem === "number") remaining = rem;
+        else if (typeof rem === "number") remaining = (remaining ?? 0) + rem;
       }
       occurrenceById.set(String(s.id), {
         id: String(s.id),
         startsAt: String(s.starts_at),
         endsAt: String(s.ends_at),
         status: String(s.status),
-        seatsTotal: pool ? pool.unitsTotal : null,
+        seatsTotal: total,
         seatsRemaining: remaining,
+        poolKey: pools.length === 1 ? (pools[0]?.poolKey ?? null) : null,
+        poolCount: pools.length,
+        venueName: null,
       });
     }
 
@@ -254,6 +274,10 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
         .in("id", venueIds);
       if (venueError) logServerError("sessions.loadSchedule.venues", venueError);
       for (const v of venueRows ?? []) venueNames.set(String(v.id), String(v.name));
+    }
+    for (const s of sessions) {
+      const occurrence = occurrenceById.get(String(s.id));
+      if (occurrence && s.venue_id) occurrence.venueName = venueNames.get(String(s.venue_id)) ?? null;
     }
 
     const out: ScheduleSeries[] = [];
@@ -282,7 +306,7 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
       const existing: ExistingOccurrence[] = mine.map((s) => ({
         id: String(s.id),
         startsAt: String(s.starts_at),
-        hasPool: poolBySession.has(String(s.id)),
+        hasPool: poolsBySession.has(String(s.id)),
       }));
 
       const venueOccupancy = row.venue_id

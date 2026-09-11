@@ -282,10 +282,18 @@ test("POS client does not close a shift on unmount or navigation", () => {
   // this replaces was satisfied by the counter's own header explaining why it
   // runs no effects — a guard a comment can turn red is a guard a comment can
   // also turn green, and the intent is unchanged either way.
-  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-  assert.doesNotMatch(code, /useEffect\s*\(/);
-  assert.match(src, /posCloseShift/);
-  assert.match(src, /posOpenShift/);
+  // The counter's drawer sheet (open / close shift) was split out of the
+  // client into counter-drawer.tsx by the fidelity pass; the rule covers both.
+  const drawer = readFileSync(
+    join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/pos/counter-drawer.tsx"),
+    "utf8",
+  );
+  for (const file of [src, drawer]) {
+    const code = file.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    assert.doesNotMatch(code, /useEffect\s*\(/);
+  }
+  assert.match(drawer, /posCloseShift/);
+  assert.match(drawer, /posOpenShift/);
   const page = readFileSync(
     join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx"),
     "utf8",

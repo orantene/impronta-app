@@ -7,7 +7,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import { CollectSheet } from "./CollectSheet";
 import { collectMethodUnavailableCopy, collectSheetCopy } from "./pos-copy";
 import type { PosCollectionMethodState } from "./pos-types";
-import { markupIncludesText } from "./test-html-helpers";
+import { htmlEscapeText, markupIncludesText } from "./test-html-helpers";
 
 const LOCALES = ["en", "es", "fr"] as const;
 
@@ -196,7 +196,8 @@ test("cash tab shows tendered and change due, formatted with the shared money he
 });
 
 function confirmButtonTag(markup: string, label: string): string {
-  const match = markup.match(new RegExp(`<button type="button"[^>]*>${label}</button>`));
+  const escaped = htmlEscapeText(label).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = markup.match(new RegExp(`<button type="button"[^>]*>${escaped}</button>`));
   assert.ok(match, `confirm cash button ("${label}") not found in markup`);
   return match![0];
 }
@@ -219,11 +220,17 @@ test("confirm cash is disabled while tender is short of the amount due, and enab
       />,
     );
 
+  // Short: the board's `Confirm cash` stays, disabled, beside the `Still short` bar.
   const short = confirmButtonTag(render(500), copy.confirmCash);
   assert.match(short, /\bdisabled=""/);
 
-  const enough = confirmButtonTag(render(1000), copy.confirmCash);
+  // Enough: the one action becomes `Cash received` (exact) and is live.
+  const enough = confirmButtonTag(render(1000), copy.confirmCashExact);
   assert.doesNotMatch(enough, /\bdisabled=""/);
+
+  // Over: the action names the change to hand back, as the board does.
+  const over = confirmButtonTag(render(1500), copy.confirmCashChange.replace("{amount}", formatOrderMoney(500, "USD")));
+  assert.doesNotMatch(over, /\bdisabled=""/);
 });
 
 test("an unavailable method whose reason is blank still tells the cashier something", () => {

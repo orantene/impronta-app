@@ -1,0 +1,116 @@
+
+> web@0.1.0 test:phase1-i18n
+> bash scripts/gate-queue.sh test 2 -- NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/translation/phase1-invariants.test.ts src/i18n/plan-name-keys.static.test.ts src/i18n/message-key-usage.static.test.ts src/i18n/message-catalog-duplicate-keys.static.test.ts
+
+TAP version 13
+# Subtest: findDuplicateKeys sees what JSON.parse cannot
+ok 1 - findDuplicateKeys sees what JSON.parse cannot
+  ---
+  duration_ms: 0.911166
+  ...
+# Subtest: findDuplicateKeys is not fooled by values, arrays or escapes
+ok 2 - findDuplicateKeys is not fooled by values, arrays or escapes
+  ---
+  duration_ms: 0.111833
+  ...
+# Subtest: every messages/*.json catalog defines each key exactly once
+ok 3 - every messages/*.json catalog defines each key exactly once
+  ---
+  duration_ms: 47.722583
+  ...
+# [i18n-key-usage] 12201 static t() call site(s) checked against 14252 catalog keys; 87 runtime-composed key family(ies) resolved from templates; 317 t() call(s) across 154 file(s) take a key this guard CANNOT resolve and are therefore unchecked.
+# Subtest: every t("literal.key") call site resolves to copy in en.json
+ok 4 - every t("literal.key") call site resolves to copy in en.json
+  ---
+  duration_ms: 4.691625
+  ...
+# Subtest: no NEW catalog key is dead
+ok 5 - no NEW catalog key is dead
+  ---
+  duration_ms: 10.715542
+  ...
+# Subtest: the runtime-composed allow-list stays a decision, not a dumping ground
+ok 6 - the runtime-composed allow-list stays a decision, not a dumping ground
+  ---
+  duration_ms: 0.358167
+  ...
+# Subtest: the guard reports what it cannot statically see
+ok 7 - the guard reports what it cannot statically see
+  ---
+  duration_ms: 0.610584
+  ...
+# Subtest: the extractor's own edge cases behave
+ok 8 - the extractor's own edge cases behave
+  ---
+  duration_ms: 0.225625
+  ...
+# Subtest: every workspace plan has a plan-name message in every locale
+ok 9 - every workspace plan has a plan-name message in every locale
+  ---
+  duration_ms: 13.77275
+  ...
+# Subtest: the key this test builds is the key the pages build
+ok 10 - the key this test builds is the key the pages build
+  ---
+  duration_ms: 0.285667
+  ...
+# Subtest: a plan-name message never leaks the message key itself
+ok 11 - a plan-name message never leaks the message key itself
+  ---
+  duration_ms: 7.182875
+  ...
+# Subtest: public bio: non-empty ES always shown on /es (incl. stale semantics)
+ok 12 - public bio: non-empty ES always shown on /es (incl. stale semantics)
+  ---
+  duration_ms: 0.398375
+  ...
+# Subtest: public bio: empty ES falls back to EN on es locale
+ok 13 - public bio: empty ES falls back to EN on es locale
+  ---
+  duration_ms: 0.062291
+  ...
+# Subtest: public bio: en locale uses English source
+ok 14 - public bio: en locale uses English source
+  ---
+  duration_ms: 0.048166
+  ...
+# Subtest: public bio: en locale falls back to Spanish when English empty
+ok 15 - public bio: en locale falls back to Spanish when English empty
+  ---
+  duration_ms: 0.095333
+  ...
+# Subtest: stale: already stale → no new status from EN-change helper
+ok 16 - stale: already stale → no new status from EN-change helper
+  ---
+  duration_ms: 0.061792
+  ...
+# Subtest: stale: published ES + non-stale status → stale on EN edit
+ok 17 - stale: published ES + non-stale status → stale on EN edit
+  ---
+  duration_ms: 0.038917
+  ...
+# Subtest: stale: no published ES → no stale transition
+ok 18 - stale: no published ES → no stale transition
+  ---
+  duration_ms: 0.035833
+  ...
+# Subtest: buildBioEnEditExtras: identical EN text does not bump bio_en_updated_at
+ok 19 - buildBioEnEditExtras: identical EN text does not bump bio_en_updated_at
+  ---
+  duration_ms: 0.102
+  ...
+# Subtest: buildBioEnEditExtras: EN text change + published ES → stale + audit
+ok 20 - buildBioEnEditExtras: EN text change + published ES → stale + audit
+  ---
+  duration_ms: 0.103125
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2032.188792
+EXIT=0

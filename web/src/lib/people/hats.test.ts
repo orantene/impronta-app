@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  EMPTY_FACTS,
   ACCESS_ROLES,
   HAT_BLOCK_REASONS,
   accessHat,
@@ -59,6 +60,7 @@ function person(over: Partial<PersonRecord> = {}): PersonRecord {
     publicProfile: publicProfileHat({ hasRosterRow: true, rosterStatus: "active" }),
     bookable: bookableHat(BOOKABLE_ALL_ON),
     access: accessHat({ hasMembership: false, membershipStatus: null, hasAccount: true, hasPendingInvitation: false }),
+    facts: EMPTY_FACTS,
     ...over,
   };
 }

@@ -66,6 +66,61 @@ async function pickOption(page: Page, selector: string, fragment: string) {
   await select.selectOption(value!);
 }
 
+/**
+ * The Today screen is two panes (board B01): the list row
+ * `[data-pos-classes-appointment]` selects, and the detail pane
+ * `[data-pos-classes-detail]` carries the actions. Same for a class: the
+ * row `[data-pos-classes-session]` and the check-in pane
+ * `[data-pos-classes-checkin]` (board B05).
+ */
+async function openAppointment(page: Page, bookingId: string) {
+  const row = page.locator(`[data-pos-classes-appointment="${bookingId}"]`);
+  await expect(row).toBeVisible({ timeout: 45_000 });
+  const detail = page.locator(`[data-pos-classes-detail="${bookingId}"]`);
+  // The list is server-rendered; a click that lands before hydration is a
+  // click on nothing (the same lesson the settings nav records above), so it
+  // is repeated until the pane is the one shown.
+  for (let attempt = 0; attempt < 8 && !(await detail.isVisible()); attempt += 1) {
+    await row.click();
+    await page.waitForTimeout(1_500);
+  }
+  await expect(detail).toBeVisible({ timeout: 45_000 });
+  return { row, detail };
+}
+
+async function openSession(page: Page, sessionId: string) {
+  const card = page.locator(`[data-pos-classes-session="${sessionId}"]`);
+  await expect(card).toBeVisible({ timeout: 45_000 });
+  const checkin = page.locator(`[data-pos-classes-checkin="${sessionId}"]`);
+  for (let attempt = 0; attempt < 8 && !(await checkin.isVisible()); attempt += 1) {
+    await card.click();
+    await page.waitForTimeout(1_500);
+  }
+  await expect(checkin).toBeVisible({ timeout: 45_000 });
+  return { card, checkin };
+}
+
+/**
+ * A rail row, clicked until its screen is the one shown. The rail is
+ * server-rendered and a click that lands before hydration is lost (the
+ * lesson the settings nav records above); what each row must produce is
+ * given, so the click is repeated until it did.
+ */
+async function railTo(page: Page, name: RegExp, shown: string) {
+  const target = page.locator(shown);
+  // The Walk-in sheet sits OVER the Today screen, so "the row is visible" is
+  // not enough to know the sheet has gone: both must hold.
+  const sheet = page.locator("[data-pos-classes-walkin-sheet]");
+  const wantsSheet = shown.includes("walkin-sheet");
+  const arrived = async () => (await target.first().isVisible()) && (wantsSheet || !(await sheet.isVisible()));
+  for (let attempt = 0; attempt < 8 && !(await arrived()); attempt += 1) {
+    await rail(page, name).click();
+    await page.waitForTimeout(1_500);
+  }
+  await expect(target.first()).toBeVisible({ timeout: 45_000 });
+  if (!wantsSheet) await expect(sheet).toHaveCount(0, { timeout: 45_000 });
+}
+
 function rail(page: Page, name: RegExp) {
   return page.getByRole("navigation", { name: /front desk/i }).getByRole("button", { name });
 }
@@ -167,7 +222,7 @@ test("a walk-in is booked onto a free time and pays cash at the till", async ({ 
   let count = 0;
   for (DAY = 0; DAY < 7; DAY += 1) {
     await openClasses(page, `&day=${DAY}`);
-    await rail(page, /^walk-in$/i).click();
+    await railTo(page, /^walk-in$/i, "[data-pos-classes-walkin-sheet]");
     await pickOption(page, "[data-pos-classes-service]", "Gel manicure");
     await expect(page.locator("[data-pos-classes-slots], [data-pos-classes-notice=refused]").first()).toBeVisible({ timeout: 45_000 });
     count = await slots.count();
@@ -206,7 +261,7 @@ test("a walk-in is booked onto a free time and pays cash at the till", async ({ 
   walkIn = { bookingId: booking!.id, orderId: booking!.order_id!, startsAt: booking!.starts_at };
 
   // The day lists it, in arrival order, paid.
-  await rail(page, /^today$/i).click();
+  await railTo(page, /^today$/i, "[data-pos-classes-appointment], [data-pos-classes-detail]");
   const row = page.locator(`[data-pos-classes-appointment="${booking!.id}"]`);
   await expect(row).toBeVisible({ timeout: 45_000 });
   await expect(row).toContainText(WALKIN);
@@ -220,24 +275,22 @@ test("the customer is checked in; a stale desk is refused in words", async ({ pa
   const w = walkIn!;
   // Desk 1 opens the day first and will act second.
   await openClasses(page, `&day=${DAY}`);
-  const stale = page.locator(`[data-pos-classes-appointment="${w.bookingId}"]`);
-  await expect(stale).toBeVisible({ timeout: 45_000 });
+  const stale = await openAppointment(page, w.bookingId);
 
   // Desk 2 checks the customer in.
   const desk2 = await context.newPage();
   await prepareJourneysPage(desk2);
   await desk2.goto(`${ADMIN_PREFIX}/admin/pos?mode=classes&day=${DAY}`);
-  const fresh = desk2.locator(`[data-pos-classes-appointment="${w.bookingId}"]`);
-  await expect(fresh).toBeVisible({ timeout: 45_000 });
-  await fresh.getByRole("button", { name: /check in/i }).click();
+  const fresh = await openAppointment(desk2, w.bookingId);
+  await fresh.detail.getByRole("button", { name: /^check in$/i }).click();
   await expect(desk2.locator("[data-pos-classes-notice=done]")).toContainText(/arrived/i, { timeout: 45_000 });
-  await expect(fresh.locator("[data-pos-classes-state]")).toHaveAttribute("data-pos-classes-state", "in_progress", { timeout: 45_000 });
+  await expect(fresh.row.locator("[data-pos-classes-state]")).toHaveAttribute("data-pos-classes-state", "in_progress", { timeout: 45_000 });
   await desk2.screenshot({ path: testInfo.outputPath("checked-in.png"), fullPage: true });
   const checked = await bookingByContact(WALKIN);
   expect(checked?.status).toBe("in_progress");
 
   // Desk 1, still showing Confirmed, taps Check in: refused, nothing changes.
-  await stale.getByRole("button", { name: /check in/i }).click();
+  await stale.detail.getByRole("button", { name: /^check in$/i }).click();
   const alert = page.locator("[data-pos-classes-notice=refused]");
   await expect(alert).toContainText(/changed since you opened it/i, { timeout: 45_000 });
   await expect(alert).not.toContainText(/changed_since_opened|not_found|unavailable/);
@@ -251,7 +304,7 @@ test("a move onto a taken time is refused naming who is busy; a move onto a free
   const w = walkIn!;
   // A second walk-in on the same person takes another free time on the day.
   await openClasses(page, `&day=${DAY}`);
-  await rail(page, /^walk-in$/i).click();
+  await railTo(page, /^walk-in$/i, "[data-pos-classes-walkin-sheet]");
   await pickOption(page, "[data-pos-classes-service]", "Gel manicure");
   const slots = page.locator("[data-pos-classes-slots] button");
   await expect(slots.first()).toBeVisible({ timeout: 45_000 });
@@ -264,13 +317,12 @@ test("a move onto a taken time is refused naming who is busy; a move onto a free
   walkInTwo = { bookingId: second!.id, startsAt: second!.starts_at };
 
   // Move the first onto the second's time: the same person is busy.
-  await rail(page, /^today$/i).click();
-  const row = page.locator(`[data-pos-classes-appointment="${w.bookingId}"]`);
-  await expect(row).toBeVisible({ timeout: 45_000 });
-  await row.getByRole("button", { name: /move it/i }).click();
-  const input = row.locator("[data-pos-classes-move-input]");
+  await railTo(page, /^today$/i, "[data-pos-classes-appointment], [data-pos-classes-detail]");
+  const { detail } = await openAppointment(page, w.bookingId);
+  await detail.getByRole("button", { name: /move it/i }).click();
+  const input = detail.locator("[data-pos-classes-move-input]");
   await input.fill(venueLocalValue(new Date(second!.starts_at)));
-  await row.getByRole("button", { name: /^move it$/i }).click();
+  await detail.getByRole("button", { name: /^move it$/i }).click();
   const alert = page.locator("[data-pos-classes-notice=refused]");
   await expect(alert).toContainText(/is already booked at that time/i, { timeout: 45_000 });
   await expect(alert).toContainText(/QA Journeys Talent/);
@@ -283,7 +335,7 @@ test("a move onto a taken time is refused naming who is busy; a move onto a free
   // reader the walk-in uses), never guessed: an earlier run of this story may
   // have moved its walk-in onto the guess, and the engine would rightly refuse.
   await openClasses(page, `&day=${DAY + 1}`);
-  await rail(page, /^walk-in$/i).click();
+  await railTo(page, /^walk-in$/i, "[data-pos-classes-walkin-sheet]");
   await pickOption(page, "[data-pos-classes-service]", "Gel manicure");
   const nextDay = page.locator("[data-pos-classes-slots] button");
   await expect(nextDay.first()).toBeVisible({ timeout: 45_000 });
@@ -291,11 +343,11 @@ test("a move onto a taken time is refused naming who is busy; a move onto a free
   expect(targetIso, "no free time on the next day").toBeTruthy();
   const target = new Date(targetIso!);
   await openClasses(page, `&day=${DAY}`);
-  await rail(page, /^today$/i).click();
-  await expect(row).toBeVisible({ timeout: 45_000 });
-  await row.getByRole("button", { name: /move it/i }).click();
-  await row.locator("[data-pos-classes-move-input]").fill(venueLocalValue(target));
-  await row.getByRole("button", { name: /^move it$/i }).click();
+  await railTo(page, /^today$/i, "[data-pos-classes-appointment], [data-pos-classes-detail]");
+  const again = await openAppointment(page, w.bookingId);
+  await again.detail.getByRole("button", { name: /move it/i }).click();
+  await again.detail.locator("[data-pos-classes-move-input]").fill(venueLocalValue(target));
+  await again.detail.getByRole("button", { name: /^move it$/i }).click();
   await expect(page.locator("[data-pos-classes-notice=done]")).toContainText(/moved to/i, { timeout: 45_000 });
   await page.screenshot({ path: testInfo.outputPath("moved.png"), fullPage: true });
   const moved = await bookingByContact(WALKIN);
@@ -304,7 +356,7 @@ test("a move onto a taken time is refused naming who is busy; a move onto a free
   expect(money.holds.length).toBeGreaterThanOrEqual(1);
   expect(Date.parse(money.holds[0]!.starts_at)).toBe(target.getTime());
   // And it left the day's list.
-  await expect(row).toHaveCount(0, { timeout: 45_000 });
+  await expect(again.row).toHaveCount(0, { timeout: 45_000 });
 });
 
 test("a class night for today is created through the interface, a walk-in takes a seat for cash, and attendance is marked", async ({ page }, testInfo) => {
@@ -362,14 +414,13 @@ test("a class night for today is created through the interface, a walk-in takes 
 
   // Sessions from the till: the night, 0 of 2 taken.
   await openClasses(page);
-  await rail(page, /^sessions$/i).click();
-  const card = page.locator(`[data-pos-classes-session="${night.sessionId}"]`);
-  await expect(card).toBeVisible({ timeout: 45_000 });
+  await railTo(page, /^sessions$/i, "[data-pos-classes-session]");
+  const { card, checkin } = await openSession(page, night.sessionId);
   await expect(card.locator("[data-pos-classes-seats]")).toContainText("0 of 2");
   await page.screenshot({ path: testInfo.outputPath("sessions-empty-roster.png"), fullPage: true });
 
-  // Book a walk-in seat from the card, pay $5 cash.
-  await card.getByRole("button", { name: /book a walk-in seat/i }).click();
+  // Sell a drop-in seat from the check-in pane, pay $5 cash.
+  await checkin.getByRole("button", { name: /^sell drop-in$/i }).click();
   await expect(page.locator("[data-pos-classes-session-pick]")).toHaveValue(night.sessionId, { timeout: 30_000 });
   await page.locator("[data-pos-classes-name]").fill(SEAT_ONE);
   await page.locator("[data-pos-classes-email]").fill(`${SEAT_ONE}@impronta.test`);
@@ -400,13 +451,14 @@ test("a class night for today is created through the interface, a walk-in takes 
   expect(money.paid[0]?.gross_amount_cents).toBe(500);
 
   // The roster names the walk-in through the order's customer; attendance is marked.
-  await rail(page, /^sessions$/i).click();
+  await railTo(page, /^sessions$/i, "[data-pos-classes-session]");
   await expect(card.locator("[data-pos-classes-seats]")).toContainText("1 of 2", { timeout: 45_000 });
-  const rosterRow = card.locator(`[data-pos-classes-roster="${admission.id}"]`);
+  const reopened = await openSession(page, night.sessionId);
+  const rosterRow = reopened.checkin.locator(`[data-pos-classes-roster="${admission.id}"]`);
   await expect(rosterRow).toContainText(SEAT_ONE);
-  await rosterRow.getByRole("button", { name: /mark present/i }).click();
+  await rosterRow.getByRole("button", { name: /^check in$/i }).click();
   await expect(rosterRow).toHaveAttribute("data-pos-classes-admitted", "1", { timeout: 45_000 });
-  await expect(rosterRow).toContainText(/present/i);
+  await expect(rosterRow).toContainText(/here/i);
   await page.screenshot({ path: testInfo.outputPath("attendance-marked.png"), fullPage: true });
   const { data: marked } = await db.from("admissions").select("admitted_count, seated_at").eq("id", admission.id).maybeSingle();
   expect((marked as { admitted_count: number } | null)?.admitted_count).toBe(1);
@@ -416,7 +468,7 @@ test("the night fills, somebody joins its list, a place that does not exist is r
   test.setTimeout(360_000);
   const n = night!;
   await openClasses(page);
-  await rail(page, /^walk-in$/i).click();
+  await railTo(page, /^walk-in$/i, "[data-pos-classes-walkin-sheet]");
   await page.getByRole("button", { name: /a seat in a session/i }).click();
   await page.locator("[data-pos-classes-session-pick]").selectOption(n.sessionId);
   await page.locator("[data-pos-classes-name]").fill(SEAT_TWO);
@@ -426,10 +478,10 @@ test("the night fills, somebody joins its list, a place that does not exist is r
   await expect(page.locator("[data-pos-classes-notice=done]")).toContainText(/paid/i, { timeout: 45_000 });
 
   // Full, from the Sessions card; the door to the queue.
-  await rail(page, /^sessions$/i).click();
-  const card = page.locator(`[data-pos-classes-session="${n.sessionId}"]`);
+  await railTo(page, /^sessions$/i, "[data-pos-classes-session]");
+  const { card, checkin } = await openSession(page, n.sessionId);
   await expect(card.locator("[data-pos-classes-seats]")).toContainText(/2 of 2.*full/i, { timeout: 45_000 });
-  await card.getByRole("button", { name: /put somebody on the list/i }).click();
+  await checkin.getByRole("button", { name: /add to waitlist/i }).click();
   const queue = page.locator(`[data-pos-classes-queue="${n.sessionId}"]`);
   await expect(queue).toBeVisible({ timeout: 45_000 });
   await queue.locator("[data-pos-classes-join-name]").fill(WAITER);
@@ -438,7 +490,7 @@ test("the night fills, somebody joins its list, a place that does not exist is r
   await page.screenshot({ path: testInfo.outputPath("waitlist-joined.png"), fullPage: true });
 
   // A THIRD walk-in seat is refused by the engine at the money step.
-  await rail(page, /^walk-in$/i).click();
+  await railTo(page, /^walk-in$/i, "[data-pos-classes-walkin-sheet]");
   await page.getByRole("button", { name: /a seat in a session/i }).click();
   // The full night is not offered for a seat at all (a select with no such
   // option, or no select when nothing on the day has seats to sell).
@@ -446,7 +498,7 @@ test("the night fills, somebody joins its list, a place that does not exist is r
   await page.screenshot({ path: testInfo.outputPath("walkin-full-night-not-offered.png"), fullPage: true });
 
   // Offering a place while the night is full: refused, in words.
-  await rail(page, /^waitlist$/i).click();
+  await railTo(page, /^waitlist$/i, "[data-pos-classes-queue]");
   const entry = queue.locator("[data-pos-classes-entry]").filter({ hasText: WAITER });
   await entry.getByRole("button", { name: /offer the place/i }).click();
   const alert = page.locator("[data-pos-classes-notice=refused]");
@@ -468,7 +520,7 @@ test("the night fills, somebody joins its list, a place that does not exist is r
   }, { timeout: 30_000 }).toBe(3);
 
   await openClasses(page);
-  await rail(page, /^waitlist$/i).click();
+  await railTo(page, /^waitlist$/i, "[data-pos-classes-queue]");
   const entry2 = page.locator(`[data-pos-classes-queue="${n.sessionId}"] [data-pos-classes-entry]`).filter({ hasText: WAITER });
   await entry2.getByRole("button", { name: /offer the place/i }).click();
   await expect(page.locator("[data-pos-classes-notice=done]")).toContainText(/offered to/i, { timeout: 45_000 });
@@ -488,12 +540,12 @@ test("the night fills, somebody joins its list, a place that does not exist is r
   expect((alloc as { state: string } | null)?.state).toBe("committed");
 
   // On the roster, from the list; the night is full again (3 of 3).
-  await rail(page, /^sessions$/i).click();
-  const cardAgain = page.locator(`[data-pos-classes-session="${n.sessionId}"]`);
-  await expect(cardAgain.locator("[data-pos-classes-seats]")).toContainText(/3 of 3/, { timeout: 45_000 });
-  await expect(cardAgain.locator('[data-pos-classes-roster="waitlist_place"]')).toContainText(WAITER);
+  await railTo(page, /^sessions$/i, "[data-pos-classes-session]");
+  const again = await openSession(page, n.sessionId);
+  await expect(again.card.locator("[data-pos-classes-seats]")).toContainText(/3 of 3/, { timeout: 45_000 });
+  await expect(again.checkin.locator('[data-pos-classes-roster="waitlist_place"]')).toContainText(WAITER);
   // The second seat was sold on a name alone (no email, no phone): the roster
   // still carries that name, on the ticket itself.
-  await expect(cardAgain).toContainText(SEAT_TWO);
+  await expect(again.checkin).toContainText(SEAT_TWO);
   await page.screenshot({ path: testInfo.outputPath("roster-with-waitlist-place.png"), fullPage: true });
 });

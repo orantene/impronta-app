@@ -145,7 +145,7 @@ test("POS-FLOOR: seat, send to the kitchen, move, end, mark ready; and the join 
   await sheet(page, "T4").getByRole("button", { name: /open check/i }).click();
   await expect(page).toHaveURL(new RegExp(`mode=counter&order=${order!.id}`), { timeout: 30_000 });
   await counterAddItem(page, "House pizza");
-  await expect(page.getByRole("button", { name: /^Charge · \$18\.00/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-pos-charge]").first()).toHaveText(/\$18\.00/, { timeout: 30_000 });
   await shot("06-counter-check-t4");
 
   // ── Back on the floor: send to the kitchen ─────────────────────────────

@@ -66,17 +66,24 @@ function num(value: number | string | null | undefined): number {
 export type TakingsLoad = { ok: true; rows: TakingsSourceRow[] } | { ok: false };
 
 /** Every PAID transaction for this tenant — the money that actually landed. */
-export async function loadTenantTakings(tenantId: string, opts: { limit?: number } = {}): Promise<TakingsLoad> {
+export async function loadTenantTakings(
+  tenantId: string,
+  opts: {
+    limit?: number;
+    /** ISO instant; only money that landed at or after it (the Overview's "today"). */
+    since?: string;
+  } = {},
+): Promise<TakingsLoad> {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false };
   const limit = Math.min(Math.max(opts.limit ?? 1000, 1), 2000);
-  const { data, error } = await admin
+  let query = admin
     .from("booking_transactions")
     .select(`gross_amount_cents, currency, provider, ${PAYMENT_METHOD_COLUMN}`)
     .eq("source_tenant_id", tenantId)
-    .eq("status", PAID)
-    .order("paid_at", { ascending: false })
-    .limit(limit);
+    .eq("status", PAID);
+  if (opts.since) query = query.gte("paid_at", opts.since);
+  const { data, error } = await query.order("paid_at", { ascending: false }).limit(limit);
   if (error) {
     logServerError("dataBridge.paymentsActivity/takings", error);
     return { ok: false };

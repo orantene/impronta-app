@@ -101,13 +101,13 @@ export function BookingHoursProposalsBanner({
   return (
     <div
       data-testid="booking-hours-proposals-banner"
-      className="mb-[20px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[20px]"
+      className="rounded-[12px] border border-admin-coral/30 bg-admin-coral-soft px-[16px] py-[12px] font-admin-body"
     >
-      <div className="text-[15px] font-semibold text-admin-ink">{t(`${K}.title`)}</div>
-      <p className="mt-[6px] text-[13px] leading-[1.5] text-admin-ink-muted">{t(`${K}.help`)}</p>
+      <div className="text-[13px] font-semibold text-admin-ink">{t(`${K}.title`)}</div>
+      <p className="m-0 mt-[2px] text-[12.5px] leading-[1.45] text-admin-ink-muted">{t(`${K}.help`)}</p>
 
       {proposals.map((row) => (
-        <div key={row.talentProfileId} className="mt-[14px] text-[13.5px] text-admin-ink">
+        <div key={row.talentProfileId} className="mt-[8px] text-[12.5px] text-admin-ink">
           <span className="font-semibold">{row.personName}</span>
           <span className="text-admin-ink-muted">
             {" · "}
@@ -119,7 +119,7 @@ export function BookingHoursProposalsBanner({
             // Calendar; the workspace can only say so, and where.
             <p
               data-testid="booking-hours-proposal-self-managed"
-              className="mt-[6px] text-[13px] leading-[1.5] text-admin-ink-muted"
+              className="m-0 mt-[2px] text-[12px] leading-[1.45] text-admin-ink-muted"
             >
               {t(`${K}.selfManaged`)}
             </p>

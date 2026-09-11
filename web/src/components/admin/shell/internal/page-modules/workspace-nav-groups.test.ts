@@ -151,10 +151,10 @@ test("an unbuilt destination is not a row, even though its URL resolves", () => 
 // went from "Menu" to "Catalog". They start at a bridge payload and end at a
 // drawn label; nothing in them names a preset shape by hand.
 
-test("a cafe tenant's rail says Menu and catalog, and Team", () => {
+test("a cafe tenant's rail says Menu & catalog, and Team", () => {
   // `restaurant` sells a menu and books nobody — the cafe shape.
   const cafe = railFor({ industryPreset: "restaurant" });
-  assert.equal(labelOf(cafe, "catalog"), "Menu and catalog");
+  assert.equal(labelOf(cafe, "catalog"), "Menu & catalog");
   assert.equal(labelOf(cafe, "people"), "Team");
 });
 
@@ -225,18 +225,28 @@ test("a business workspace still gets People, with only its talent-only children
   const people = itemOf(biz, "people");
   assert.ok(people, "a business workspace has no People row at all");
   assert.equal(people.label, "Team", "a cafe-shaped business calls its people Team");
+  // The three hat tabs (W27) are states of the People page and open on any
+  // workspace; only the roster queues are talent-only.
   assert.deepEqual(
     people.subItems.map((s) => s.id),
-    ["people-everyone"],
+    ["people-everyone", "people-talent", "people-bookable", "people-access"],
     "a business workspace was offered a roster queue its routes 404",
   );
   assert.ok(!flat(biz).some((i) => i.id === "pitches"), "Pitches is still hidden");
 
-  // The same rail on a talent workspace keeps all four.
+  // The same rail on a talent workspace keeps all seven.
   const talent = railFor({ industryPreset: "restaurant" });
   assert.deepEqual(
     itemOf(talent, "people")?.subItems.map((s) => s.id),
-    ["people-everyone", "people-applications", "people-registration", "people-rates"],
+    [
+      "people-everyone",
+      "people-talent",
+      "people-bookable",
+      "people-access",
+      "people-applications",
+      "people-registration",
+      "people-rates",
+    ],
   );
 });
 
@@ -259,6 +269,11 @@ test("the People row opens the People surface, and its queues stay where the pag
     people?.subItems.map((s) => [s.label, s.href]),
     [
       ["Everyone", "/admin/people"],
+      // The boards' three tabs (W27): states of the one People page, under
+      // the `view` query the page reads, the shape Appointments' children have.
+      ["Talent", "/admin/people?view=talent"],
+      ["Bookable", "/admin/people?view=bookable"],
+      ["Access", "/admin/people?view=access"],
       ["Applications", "/admin/roster/applications"],
       ["Registration", "/admin/roster/registration"],
       ["Rates", "/admin/roster/rates"],
@@ -330,8 +345,8 @@ test("every Appointments child stays on the one route it has, as a query", () =>
   // THE CLAIM IS UNCHANGED, ONLY ITS SUBJECT MOVED. This used to assert that
   // Appointments drew no children at all, because /admin/sessions held one
   // page.tsx and a link to a Series or Waitlist path would have been a link to
-  // a 404. The three views now exist, and they are TABS of that one page rather
-  // than three routes, so the thing that must stay true is not "no children" —
+  // a 404. The four views now exist, and they are TABS of that one page rather
+  // than four routes, so the thing that must stay true is not "no children" —
   // it is that no child adds a path segment nothing can serve. That is what is
   // checked here, against the hrefs the rail actually builds.
   const appts = itemOf(railFor({ industryPreset: "agency" }), "appts");
@@ -339,7 +354,8 @@ test("every Appointments child stays on the one route it has, as a query", () =>
     appts?.subItems.map((s) => [s.label, s.href]),
     [
       ["Appointments", "/admin/sessions"],
-      ["Sessions and series", "/admin/sessions?view=sessions"],
+      ["Sessions", "/admin/sessions?view=sessions"],
+      ["Series", "/admin/sessions?view=series"],
       ["Waitlist", "/admin/sessions?view=waitlist"],
     ],
   );
@@ -369,6 +385,19 @@ test("only one Appointments child looks current at a time", () => {
     onWaitlist?.subItems.filter((s) => s.active).map((s) => s.id),
     ["appts-waitlist"],
     "the landing view stayed lit while a sibling query was on",
+  );
+
+  // The address bar may carry the canonical segment (`/admin/appts`, which
+  // the journeys type) while the rail links the live route (`/admin/sessions`).
+  // A child must light up on either, or the rail goes dark on the URL the
+  // registry itself calls canonical.
+  const onAlias = itemOf(railFor({ industryPreset: "agency" }, {
+    activePage: "sessions", pathname: "/admin/appts", search: "view=series",
+  }), "appts");
+  assert.deepEqual(
+    onAlias?.subItems.filter((s) => s.active).map((s) => s.id),
+    ["appts-series"],
+    "a child went dark on the destination's canonical alias path",
   );
 });
 

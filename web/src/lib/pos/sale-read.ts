@@ -137,3 +137,78 @@ export async function listOpenPosSales(
     })),
   };
 }
+
+/**
+ * The counter's receipts (`POSReceipts`): the workspace's paid POS sales
+ * since `sinceIso`, newest first, with the buyer's name and the line labels
+ * so the row can say `2 latte, croissant` without a second read per row.
+ *
+ * `updated_at` is when the sale was last written, which for a paid order is
+ * the moment it was paid (the collection is the last write on the row).
+ * The money row's method is NOT read here — that is a join on
+ * `booking_transactions` the receipts screen says it cannot filter by yet.
+ */
+export async function listPaidPosSales(
+  admin: Admin,
+  input: { tenantId: string; sinceIso: string; limit?: number; sourcePage?: string },
+): Promise<
+  | {
+      ok: true;
+      rows: Array<{
+        id: string;
+        totalCents: number;
+        currency: string;
+        paidAt: string | null;
+        receiptCode: string | null;
+        customerName: string | null;
+        lineLabels: string[];
+      }>;
+    }
+  | { ok: false; reason: "unavailable" }
+> {
+  type Row = {
+    id: string;
+    total_cents: number | string;
+    currency: string | null;
+    updated_at: string | null;
+    receipt_code: string | null;
+    customers: { display_name: string | null } | { display_name: string | null }[] | null;
+    order_lines: Array<{ label: string | null; units: number | string }> | null;
+  };
+  let query = admin
+    .from("orders")
+    .select("id, total_cents, currency, updated_at, receipt_code, customers(display_name), order_lines(label, units)")
+    .eq("tenant_id", input.tenantId)
+    .eq("status", "paid")
+    .eq("source_channel", "pos");
+  // The door's Receipts rail shows the door's own sales (`source_page`
+  // "door"); the counter's shows every sale through the till.
+  if (input.sourcePage) query = query.eq("source_page", input.sourcePage);
+  const { data, error } = await query
+    .gte("updated_at", input.sinceIso)
+    .order("updated_at", { ascending: false })
+    .limit(input.limit ?? 200);
+  if (error) {
+    logServerError("pos.listPaid", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  return {
+    ok: true,
+    // The service-role client is untyped, so the row shape is stated on the
+    // callback rather than asserted over the whole result.
+    rows: (data ?? []).map((r: Row) => {
+      const customer = Array.isArray(r.customers) ? r.customers[0] : r.customers;
+      return {
+        id: r.id,
+        totalCents: num(r.total_cents),
+        currency: r.currency ?? "USD",
+        paidAt: r.updated_at,
+        receiptCode: r.receipt_code,
+        customerName: customer?.display_name?.trim() || null,
+        lineLabels: (r.order_lines ?? []).map((line) =>
+          num(line.units) > 1 ? `${num(line.units)} ${line.label ?? ""}`.trim() : (line.label ?? "").trim(),
+        ),
+      };
+    }),
+  };
+}

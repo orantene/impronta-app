@@ -35,7 +35,7 @@ import {
   type DoorOutcome,
 } from "@/lib/sessions/door";
 import { doorCounts, doorTakings, type DoorCounts, type DoorPaidVia, type DoorTakings } from "@/lib/events/summary";
-import { commitCapacity, releaseCapacity, reserveCapacityBatch } from "@/lib/capacity";
+import { capacityRemaining, commitCapacity, releaseCapacity, reserveCapacityBatch } from "@/lib/capacity";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
 import { z } from "zod";
 
@@ -53,6 +53,13 @@ export type DoorRow = {
   /** Door money — both set or both null (`admissions_door_money_paired`). */
   doorAmountCents: number | null;
   doorPaidVia: DoorPaidVia | null;
+  /** The buyer's email on the row, for the lookup by email (E09). */
+  holderEmail: string | null;
+  /** The order the ticket was minted off, or null for a walk-up sold at the events door. */
+  orderId: string | null;
+  orderLineId: string | null;
+  /** The tier's label as the order line carried it, or null for a walk-up. */
+  tierLabel: string | null;
 };
 
 export type DoorSession = {
@@ -109,7 +116,7 @@ export async function loadDoor(sessionId: string): Promise<LoadDoorResult> {
     const { data: admissionRows, error: admErr } = await supabase
       .from("admissions")
       .select(
-        "id, holder_name, party_size, admitted_count, status, seated_at, no_show_at, line_seq, order_line_id, door_amount_cents, door_paid_via",
+        "id, holder_name, holder_email, party_size, admitted_count, status, seated_at, no_show_at, line_seq, order_line_id, door_amount_cents, door_paid_via",
       )
       .eq("session_id", sessionId)
       .eq("tenant_id", tenantId)
@@ -118,6 +125,24 @@ export async function loadDoor(sessionId: string): Promise<LoadDoorResult> {
     if (admErr) {
       logServerError("door.load/admissions", admErr);
       return { ok: false, error: "Could not load the door list." };
+    }
+
+    // The order behind each ticket (E09 groups the list by order and G08
+    // names the tier), read through the lines the mint hung the rows on.
+    const lineIds = [
+      ...new Set((admissionRows ?? []).map((a) => a.order_line_id as string | null).filter((id): id is string => Boolean(id))),
+    ];
+    const lineById = new Map<string, { orderId: string; label: string | null }>();
+    if (lineIds.length > 0) {
+      const { data: lines, error: linesErr } = await supabase
+        .from("order_lines")
+        .select("id, order_id, label")
+        .eq("tenant_id", tenantId)
+        .in("id", lineIds);
+      if (linesErr) logServerError("door.load/lines", linesErr);
+      for (const l of (lines ?? []) as Array<{ id: string; order_id: string; label: string | null }>) {
+        lineById.set(l.id, { orderId: l.order_id, label: l.label });
+      }
     }
 
     const rows: DoorRow[] = (admissionRows ?? []).map((a) => ({
@@ -132,6 +157,10 @@ export async function loadDoor(sessionId: string): Promise<LoadDoorResult> {
       walkUp: a.order_line_id === null,
       doorAmountCents: (a.door_amount_cents as number | null) ?? null,
       doorPaidVia: (a.door_paid_via as DoorPaidVia | null) ?? null,
+      holderEmail: (a.holder_email as string | null) ?? null,
+      orderId: a.order_line_id ? (lineById.get(a.order_line_id as string)?.orderId ?? null) : null,
+      orderLineId: (a.order_line_id as string | null) ?? null,
+      tierLabel: a.order_line_id ? (lineById.get(a.order_line_id as string)?.label ?? null) : null,
     }));
 
     return {
@@ -280,6 +309,12 @@ export type DoorTier = {
   admitsPerUnit: number;
   /** False when the session has no pool for this tier: unsellable, and said so. */
   hasPool: boolean;
+  /**
+   * Units left on this session's pool, from `capacity_remaining_public`, the
+   * one authority (G06 prints "4 left"). Null when there is no pool or the
+   * engine could not answer; the screen says so rather than printing 0.
+   */
+  remaining: number | null;
 };
 
 /**
@@ -335,6 +370,7 @@ export async function loadDoorTiers(
         .eq("subject_kind", "session_tier")
         .eq("subject_id", sessionId),
     ]);
+    const admin = createServiceRoleClient();
     if (vErr) {
       logServerError("door.tiers/variants", vErr);
       return { ok: false, error: "Could not load ticket tiers." };
@@ -343,16 +379,22 @@ export async function loadDoorTiers(
       logServerError("door.tiers/pools", pErr);
       return { ok: false, error: "Could not load capacity." };
     }
-    const poolKeys = new Set((pools ?? []).map((p) => p.pool_key as string));
-    const tiers: DoorTier[] = (variants ?? [])
-      .filter((v) => typeof v.pool_key === "string" && v.pool_key)
-      .map((v) => ({
-        variantId: v.id as string,
-        label: v.label as string,
-        amountCents: (v.amount_cents as number | null) ?? 0,
-        admitsPerUnit: (v.admits_per_unit as number | null) ?? 1,
-        hasPool: poolKeys.has(v.pool_key as string),
-      }));
+    const poolByKey = new Map((pools ?? []).map((p) => [p.pool_key as string, p.id as string]));
+    const tiers: DoorTier[] = await Promise.all(
+      (variants ?? [])
+        .filter((v) => typeof v.pool_key === "string" && v.pool_key)
+        .map(async (v) => {
+          const poolId = poolByKey.get(v.pool_key as string) ?? null;
+          return {
+            variantId: v.id as string,
+            label: v.label as string,
+            amountCents: (v.amount_cents as number | null) ?? 0,
+            admitsPerUnit: (v.admits_per_unit as number | null) ?? 1,
+            hasPool: poolId !== null,
+            remaining: poolId && admin ? await capacityRemaining(poolId, {}, admin) : null,
+          };
+        }),
+    );
     return { ok: true, tiers };
   } catch (err) {
     logServerError("door.tiers", err);

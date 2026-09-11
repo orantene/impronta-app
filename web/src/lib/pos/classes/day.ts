@@ -229,6 +229,94 @@ export function sumSeats(perPool: readonly WaitlistSeats[]): WaitlistSeats {
   return { kind: "counted", total, remaining };
 }
 
+export type AdmissionRosterEntry = Extract<ClassesRosterEntry, { kind: "admission" }>;
+
+/**
+ * The tickets on a set of sessions, named.
+ *
+ * ONE READER FOR THE TILL AND THE BACK OFFICE. The Front desk's Sessions
+ * screen and the workspace's Sessions page both show who holds a place on a
+ * session; a second copy of this read would be a second rule for what a
+ * ticket's name is.
+ *
+ * NAMES FOR TICKETS SOLD AT THE COUNTER. A counter sale mints its admissions
+ * with no holder name (the name lives on the order's customer), so the roster
+ * reads it back through the order line rather than printing a blank beside a
+ * real seat.
+ */
+export async function readAdmissionsRoster(
+  admin: Admin,
+  tenantId: string,
+  sessionIds: readonly string[],
+): Promise<{ ok: true; bySession: Map<string, AdmissionRosterEntry[]> } | { ok: false }> {
+  const bySession = new Map<string, AdmissionRosterEntry[]>();
+  if (sessionIds.length === 0) return { ok: true, bySession };
+  const admissionsRead = await admin
+    .from("admissions")
+    .select("id, session_id, holder_name, party_size, admitted_count, status, order_line_id, created_at")
+    .eq("tenant_id", tenantId)
+    .in("session_id", [...sessionIds])
+    .order("created_at", { ascending: true });
+  if (admissionsRead.error) {
+    logServerError("pos.classes.day/admissions", admissionsRead.error);
+    return { ok: false };
+  }
+
+  const unnamedLineIds = (admissionsRead.data ?? [])
+    .filter((a) => !text(a.holder_name) && typeof a.order_line_id === "string")
+    .map((a) => String(a.order_line_id));
+  const nameByLine = new Map<string, string>();
+  if (unnamedLineIds.length > 0) {
+    const linesRead = await admin.from("order_lines").select("id, order_id").in("id", unnamedLineIds);
+    if (linesRead.error) {
+      logServerError("pos.classes.day/lines", linesRead.error);
+      return { ok: false };
+    }
+    const lineOrderIds = [...new Set((linesRead.data ?? []).map((l) => String(l.order_id)))];
+    if (lineOrderIds.length > 0) {
+      const orderCustomers = await admin.from("orders").select("id, customer_id").eq("tenant_id", tenantId).in("id", lineOrderIds);
+      if (orderCustomers.error) {
+        logServerError("pos.classes.day/orderCustomers", orderCustomers.error);
+        return { ok: false };
+      }
+      const customerIds = [...new Set((orderCustomers.data ?? []).map((o) => o.customer_id).filter((id): id is string => typeof id === "string"))];
+      const customerName = new Map<string, string>();
+      if (customerIds.length > 0) {
+        const customers = await admin.from("customers").select("id, display_name, email").eq("tenant_id", tenantId).in("id", customerIds);
+        if (customers.error) {
+          logServerError("pos.classes.day/customers", customers.error);
+          return { ok: false };
+        }
+        for (const c of customers.data ?? []) {
+          const name = text(c.display_name) ?? text(c.email);
+          if (name) customerName.set(String(c.id), name);
+        }
+      }
+      const customerByOrder = new Map((orderCustomers.data ?? []).map((o) => [String(o.id), typeof o.customer_id === "string" ? o.customer_id : null]));
+      for (const l of linesRead.data ?? []) {
+        const cid = customerByOrder.get(String(l.order_id));
+        const name = cid ? customerName.get(cid) : undefined;
+        if (name) nameByLine.set(String(l.id), name);
+      }
+    }
+  }
+
+  for (const a of admissionsRead.data ?? []) {
+    const sessionId = String(a.session_id);
+    const list = bySession.get(sessionId) ?? [];
+    list.push({
+      kind: "admission",
+      admissionId: String(a.id),
+      name: text(a.holder_name) ?? (typeof a.order_line_id === "string" ? nameByLine.get(a.order_line_id) ?? null : null),
+      partySize: num(a.party_size),
+      admittedCount: num(a.admitted_count),
+      status: text(a.status) ?? "",
+    });
+    bySession.set(sessionId, list);
+  }
+  return { ok: true, bySession };
+}
+
 export async function loadClassesDay(
   admin: Admin,
   input: { tenantId: string; timeZone: string; now: Date; dayOffset: number },
@@ -328,9 +416,9 @@ export async function loadClassesDay(
   // ── Seats, tiers, roster, queue for the day's sessions.
   const sessionIds = sessionRows.map((s) => String(s.id));
   const offeringIds = [...new Set(sessionRows.map((s) => s.offering_id).filter((id): id is string => typeof id === "string" && id.length > 0))];
-  const [poolsRead, admissionsRead, waitlistRead, variantsRead, offeringsRead] = await Promise.all([
+  const [poolsRead, rosterRead, waitlistRead, variantsRead, offeringsRead] = await Promise.all([
     admin.from("capacity_pools").select("id, subject_id, units_total, pool_key").eq("tenant_id", input.tenantId).eq("subject_kind", "session_tier").in("subject_id", sessionIds),
-    admin.from("admissions").select("id, session_id, holder_name, party_size, admitted_count, status, order_line_id, created_at").eq("tenant_id", input.tenantId).in("session_id", sessionIds).order("created_at", { ascending: true }),
+    readAdmissionsRoster(admin, input.tenantId, sessionIds),
     admin.from("session_waitlist_entries").select("id, session_id, customer_name, customer_email, party_size, status, joined_at, offered_at, offer_expires_at").eq("tenant_id", input.tenantId).in("session_id", sessionIds).order("joined_at", { ascending: true }),
     offeringIds.length > 0
       ? admin.from("talent_offering_variants").select("id, offering_id, label, amount_cents, pool_key, is_hidden").in("offering_id", offeringIds)
@@ -343,10 +431,7 @@ export async function loadClassesDay(
     logServerError("pos.classes.day/pools", poolsRead.error);
     return { ok: false, error: LOAD_ERROR };
   }
-  if (admissionsRead.error) {
-    logServerError("pos.classes.day/admissions", admissionsRead.error);
-    return { ok: false, error: LOAD_ERROR };
-  }
+  if (!rosterRead.ok) return { ok: false, error: LOAD_ERROR };
   if (waitlistRead.error) {
     logServerError("pos.classes.day/waitlist", waitlistRead.error);
     return { ok: false, error: LOAD_ERROR };
@@ -358,49 +443,6 @@ export async function loadClassesDay(
   if (offeringsRead.error) {
     logServerError("pos.classes.day/offerings", offeringsRead.error);
     return { ok: false, error: LOAD_ERROR };
-  }
-
-  // NAMES FOR TICKETS SOLD AT THE COUNTER. A counter sale mints its
-  // admissions with no holder name (the name lives on the order's customer),
-  // so the roster reads it back through the order line rather than printing
-  // a blank beside a real seat.
-  const unnamedLineIds = (admissionsRead.data ?? [])
-    .filter((a) => !text(a.holder_name) && typeof a.order_line_id === "string")
-    .map((a) => String(a.order_line_id));
-  const nameByLine = new Map<string, string>();
-  if (unnamedLineIds.length > 0) {
-    const linesRead = await admin.from("order_lines").select("id, order_id").in("id", unnamedLineIds);
-    if (linesRead.error) {
-      logServerError("pos.classes.day/lines", linesRead.error);
-      return { ok: false, error: LOAD_ERROR };
-    }
-    const lineOrderIds = [...new Set((linesRead.data ?? []).map((l) => String(l.order_id)))];
-    if (lineOrderIds.length > 0) {
-      const orderCustomers = await admin.from("orders").select("id, customer_id").eq("tenant_id", input.tenantId).in("id", lineOrderIds);
-      if (orderCustomers.error) {
-        logServerError("pos.classes.day/orderCustomers", orderCustomers.error);
-        return { ok: false, error: LOAD_ERROR };
-      }
-      const customerIds = [...new Set((orderCustomers.data ?? []).map((o) => o.customer_id).filter((id): id is string => typeof id === "string"))];
-      const customerName = new Map<string, string>();
-      if (customerIds.length > 0) {
-        const customers = await admin.from("customers").select("id, display_name, email").eq("tenant_id", input.tenantId).in("id", customerIds);
-        if (customers.error) {
-          logServerError("pos.classes.day/customers", customers.error);
-          return { ok: false, error: LOAD_ERROR };
-        }
-        for (const c of customers.data ?? []) {
-          const name = text(c.display_name) ?? text(c.email);
-          if (name) customerName.set(String(c.id), name);
-        }
-      }
-      const customerByOrder = new Map((orderCustomers.data ?? []).map((o) => [String(o.id), typeof o.customer_id === "string" ? o.customer_id : null]));
-      for (const l of linesRead.data ?? []) {
-        const cid = customerByOrder.get(String(l.order_id));
-        const name = cid ? customerName.get(cid) : undefined;
-        if (name) nameByLine.set(String(l.id), name);
-      }
-    }
   }
 
   const poolsBySession = new Map<string, Array<{ id: string; unitsTotal: number; poolKey: string }>>();
@@ -453,18 +495,7 @@ export async function loadClassesDay(
       })),
       input.now,
     );
-    const roster: ClassesRosterEntry[] = [];
-    for (const a of admissionsRead.data ?? []) {
-      if (a.session_id !== id) continue;
-      roster.push({
-        kind: "admission",
-        admissionId: String(a.id),
-        name: text(a.holder_name) ?? (typeof a.order_line_id === "string" ? nameByLine.get(a.order_line_id) ?? null : null),
-        partySize: num(a.party_size),
-        admittedCount: num(a.admitted_count),
-        status: text(a.status) ?? "",
-      });
-    }
+    const roster: ClassesRosterEntry[] = [...(rosterRead.bySession.get(id) ?? [])];
     for (const w of ordered) {
       if (w.status !== "accepted") continue;
       roster.push({ kind: "waitlist_place", entryId: w.id, name: w.customerName, partySize: w.partySize });

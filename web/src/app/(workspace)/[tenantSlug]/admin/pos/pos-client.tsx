@@ -12,9 +12,9 @@
  *
  * REFUSALS ARE DATA, NOT EXCEPTIONS. The engine never throws; it returns
  * `{ ok: false, reason }`. `refusalFromResult` maps that word onto one of the
- * counter's sentences and `PosRefusalBanner` renders it. The screen this
- * replaced printed the raw `reason` — a cashier at a till read `not_draft`
- * and `engine_error` off the screen, in every language.
+ * counter's sentences and `PosRefusalBanner` renders it; a lapsed class
+ * place (`capacityGone`) opens the hold-expired dialog instead, because that
+ * refusal has choices, not a retry.
  *
  * THE CHARGE IS IDEMPOTENT BY CONSTRUCTION. `posCollectionKey` derives the
  * operation key from the sale, its version, the tender and the amount, so two
@@ -24,9 +24,8 @@
  * NO EFFECTS. Everything this screen shows is either a prop the server
  * resolved or a value the operator just typed — there is nothing to
  * synchronise after mount, so there is no `useEffect` here and
- * `pos-page-wire.static.test.ts` keeps it that way. A counter that paints one
- * thing on the server and another after hydration is a counter that flickers
- * a price at a customer.
+ * `pos-page-wire.static.test.ts` keeps it that way. (`useOnline` is a
+ * `useSyncExternalStore` over the browser's own connectivity events.)
  */
 
 import { useCallback, useState } from "react";
@@ -35,158 +34,95 @@ import { useRouter } from "next/navigation";
 import {
   ALL_CATEGORIES_ID,
   Basket,
+  CashDoneDialog,
   CollectSheet,
-  CustomerPanel,
+  ConnectionScreen,
+  DevicesScreen,
   HeldSalesList,
+  IssuesScreen,
   PaidScreen,
   PosFrame,
+  PosHeader,
   PosRefusalBanner,
+  ReceiptsScreen,
+  ScanScreen,
+  ScanStatus,
+  ScannerListener,
   SellSurface,
-  ShiftBar,
-  type BasketCopy,
-  type CollectSheetCopy,
-  type CustomerPanelCopy,
-  type HeldSalesListCopy,
-  type PaidScreenCopy,
-  type PosAttachedCustomer,
-  type PosBasketLine,
+  initialsOf,
+  receiptsSubtitle,
   type PosCollectionMethodId,
-  type PosCollectionMethodState,
-  type PosRefusalCopy,
   type PosRefusalReason,
-  type SellSurfaceCopy,
-  type ShiftBarCopy,
+  type ScanToast,
 } from "@/components/admin/pos";
-import { POS_PRIMARY_ACTION, POS_SECONDARY_ACTION, POS_SURFACE } from "@/components/admin/pos/pos-classes";
-import type { PosCounterPageCopy } from "@/components/admin/pos/pos-copy";
+import { POS_SECONDARY_ACTION, POS_SEGMENT, POS_SEGMENT_ACTIVE, POS_SEGMENT_IDLE, POS_SEGMENT_TRACK, POS_SURFACE } from "@/components/admin/pos/pos-classes";
+import { cn } from "@/lib/utils";
+import { useOnline } from "@/components/admin/pos/use-online";
+import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
-import type { PosMode } from "@/lib/pos/modes";
 import { refusalFromResult } from "@/lib/pos/refusal-reason";
 
+import { CounterDisplayBeacon } from "./counter-display-beacon";
+import { useCounterCustomer } from "./counter-customer";
+import { CounterDrawer } from "./counter-drawer";
 import {
-  CounterContactFields,
-  CounterPrepPanel,
-  CounterShiftScreen,
-} from "./counter-panels";
-import {
+  CUSTOM_AMOUNT_ID,
   chosenSessionId,
+  customAmountTile,
+  formatClock,
   posCollectionKey,
+  saleReference,
   tenderAfterKey,
   toCategoryTabs,
   toHeldSales,
   toProductTiles,
-  toShiftSummary,
-  type PosCatalogItem,
-  type PosShiftView,
 } from "./counter-model";
+import { deviceRows, type PosClientProps } from "./counter-props";
+import { CounterSheets, type CounterSheet } from "./counter-sheets";
 import {
   posAddLine,
   posCancelSale,
-  posCloseShift,
   posCreateDraft,
-  posOpenShift,
   posRemoveLine,
   posReprice,
-  posSearchCustomers,
+  posResolveScanCode,
   posStartCollection,
   posSubmitPrep,
   posUpdateLine,
-  type PosCustomerHit,
 } from "./actions";
 
-/** The sale, narrowed to what the counter renders. */
-export type PosSaleSummary = {
-  orderId: string;
-  version: number;
-  currency: string;
-  customerId: string | null;
-  discountCents: number;
-  totalCents: number;
-  outstandingCents: number;
-  paymentState: "unpaid" | "pending" | "paid" | "cancelled";
-  prepState: string;
-};
+const DESTINATIONS = ["sell", "orders", "receipts", "shifts", "issues", "devices", "connection", "scan"] as const;
+type Destination = (typeof DESTINATIONS)[number];
+function isDestination(value: string): value is Destination {
+  return (DESTINATIONS as readonly string[]).includes(value);
+}
 
-export type PosClientCopy = {
-  frame: { navLabel: string; destinationLabels: Readonly<Record<string, string>> };
-  sell: SellSurfaceCopy;
-  basket: BasketCopy;
-  customer: CustomerPanelCopy;
-  collect: CollectSheetCopy;
-  paid: PaidScreenCopy;
-  held: HeldSalesListCopy;
-  shiftBar: ShiftBarCopy;
-  refusal: PosRefusalCopy;
-  page: PosCounterPageCopy;
-  heldSaleLabel: string;
-  categories: Readonly<Record<string, string>>;
-  legacy: {
-    contactHint: string;
-    email: string;
-    phone: string;
-    guest: string;
-    outstanding: string;
-    sendToPrep: string;
-    prepDestination: string;
-    prepPickup: string;
-    prepTable: string;
-    prepCounter: string;
-    prepPromisedAt: string;
-    pageTitle: string;
-    newSale: string;
-    amount: string;
-  };
-};
-
-export type PosClientProps = {
-  mode: PosMode;
-  /** This workspace's own name. See the page's comment on why it is read. */
-  workspaceName: string;
-  /** This request's own `/…/admin/pos` path, so links keep the host shape. */
-  posPath: string;
-  workspacePath: string;
-  receiptOrigin: string;
-  receiptCode: string | null;
-  sale: PosSaleSummary | null;
-  basketLines: PosBasketLine[];
-  openSales: Array<{ id: string; totalCents: number; createdAt: string | null }>;
-  catalog: PosCatalogItem[];
-  currency: string;
-  minorUnitDivisor: number;
-  methods: PosCollectionMethodState[];
-  shift: PosShiftView | null;
-  copy: PosClientCopy;
-};
-
-type Destination = "sell" | "orders" | "shifts";
-
-type PaidSale = {
-  amountCents: number;
-  changeCents: number;
-  receiptCode: string | null;
-};
+type PaidSale = { amountCents: number; tenderedCents: number; changeCents: number; receiptCode: string | null };
 
 export function PosClient(props: PosClientProps) {
   const router = useRouter();
   const { copy, sale } = props;
+  const online = useOnline();
 
   const [destination, setDestination] = useState<Destination>("sell");
   const [busy, setBusy] = useState(false);
+  // The sale version the last accepted write was made against. Until the
+  // refresh delivers a newer one, the screen is still looking at a version
+  // the engine has already moved past, and a second tap would be refused as
+  // a conflict (`saleReloading`) for no fault of the cashier's. Derived, not
+  // effectful: it clears itself the moment `props.sale.version` changes.
+  const [writtenVersion, setWrittenVersion] = useState<number | null>(null);
   const [refusal, setRefusal] = useState<PosRefusalReason | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState(ALL_CATEGORIES_ID);
   const [sessionByProduct, setSessionByProduct] = useState<Record<string, string>>({});
+  const [service, setService] = useState<"here" | "toGo">("here");
+  const [pickupAtLocal, setPickupAtLocal] = useState("");
 
-  const [discountCode, setDiscountCode] = useState("");
-  const [discountRefused, setDiscountRefused] = useState(false);
-
-  const [customerQuery, setCustomerQuery] = useState("");
-  const [customerHits, setCustomerHits] = useState<PosCustomerHit[]>([]);
-  const [attached, setAttached] = useState<PosAttachedCustomer | null>(null);
-  const [attachFailed, setAttachFailed] = useState(false);
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [sheet, setSheet] = useState<CounterSheet | null>(null);
+  const [discountRefused, setDiscountRefused] = useState<null | "notCombinable" | "refused">(null);
 
   const [collectOpen, setCollectOpen] = useState(false);
   const [method, setMethod] = useState<PosCollectionMethodId>("cash");
@@ -194,13 +130,16 @@ export function PosClient(props: PosClientProps) {
   // Has the operator pressed a key since the sheet opened — see `tenderAfterKey`.
   const [tenderTouched, setTenderTouched] = useState(false);
   const [paid, setPaid] = useState<PaidSale | null>(null);
+  const [cashDone, setCashDone] = useState(false);
   const [receiptCopied, setReceiptCopied] = useState(false);
 
-  const [openingCash, setOpeningCash] = useState("");
-  const [countedCash, setCountedCash] = useState("");
+  const [receiptsDay, setReceiptsDay] = useState<"today" | "yesterday" | "week">("today");
+  const [receiptsQuery, setReceiptsQuery] = useState("");
+  const [scanCode, setScanCode] = useState("");
+  const [scanToast, setScanToast] = useState<ScanToast | null>(null);
+  const dismissScanToast = useCallback(() => setScanToast(null), []);
 
-  const [prepDestination, setPrepDestination] = useState<"table" | "pickup" | "counter">("counter");
-  const [promisedAtLocal, setPromisedAtLocal] = useState("");
+  const customer = useCounterCustomer(copy.customer);
 
   const saleHref = useCallback(
     (orderId: string | null) =>
@@ -221,36 +160,88 @@ export function PosClient(props: PosClientProps) {
     async <T extends { ok: boolean; reason?: unknown; error?: unknown }>(
       kind: "sale" | "shift",
       fn: () => Promise<T>,
+      // `false` for a command whose caller navigates next (opening a sale):
+      // a refresh of the OLD address racing that push painted the sale-less
+      // page over a sale that was already open, and the next tap opened a
+      // second one.
+      refresh = true,
     ): Promise<T> => {
       setBusy(true);
       setRefusal(null);
       try {
         const result = await fn();
         const refused = refusalFromResult(result, kind);
-        setRefusal(refused);
-        if (!refused) router.refresh();
+        if (refused === "capacityGone") {
+          const lapsed = props.basketLines.find((line) => line.sessionId);
+          if (lapsed) setSheet({ kind: "expired", lineId: lapsed.id });
+          else setRefusal(refused);
+        } else {
+          setRefusal(refused);
+        }
+        if (!refused) {
+          setSavedAt(formatClock(new Date().toISOString(), props.locale));
+          if (kind === "sale" && sale) setWrittenVersion(sale.version);
+          if (refresh) router.refresh();
+        }
         return result;
       } finally {
         setBusy(false);
       }
     },
-    [router],
+    [props.basketLines, props.locale, router, sale],
+  );
+  const settling = writtenVersion !== null && sale !== null && sale.version === writtenVersion;
+  const working = busy || settling;
+
+  const resetForNewSale = useCallback(() => {
+    setPaid(null);
+    setCashDone(false);
+    setCollectOpen(false);
+    setTenderedCents(0);
+    setDiscountRefused(null);
+    setSheet(null);
+    customer.reset();
+  }, [customer]);
+
+  /** Open a draft. `navigate` pushes to it at once; a caller adding a first line pushes after the line lands. */
+  const startSale = useCallback(
+    async (navigate = true): Promise<{ orderId: string; version: number } | null> => {
+      const result = await run("sale", () => posCreateDraft(), false);
+      if (result.ok && "orderId" in result && typeof result.orderId === "string") {
+        resetForNewSale();
+        if (navigate) router.push(saleHref(result.orderId));
+        return { orderId: result.orderId, version: 1 };
+      }
+      return null;
+    },
+    [resetForNewSale, router, run, saleHref],
   );
 
-  const startSale = useCallback(async () => {
-    const result = await run("sale", () => posCreateDraft());
-    if (result.ok && "orderId" in result && typeof result.orderId === "string") {
-      setPaid(null);
-      setCollectOpen(false);
-      setTenderedCents(0);
-      setAttached(null);
-      setEmail("");
-      setPhone("");
-      setDiscountCode("");
-      setDiscountRefused(false);
-      router.push(saleHref(result.orderId));
-    }
-  }, [router, run, saleHref]);
+  /**
+   * A tap on a tile. With no sale open, the tap opens one AND adds the item
+   * (`POSEmptySale`: the basket says "tap a product" and means it). The
+   * first line is written BEFORE the address changes, so the sale the push
+   * renders already carries it; a refresh racing that push is what lost the
+   * first item and opened a second sale on the next tap.
+   */
+  const addItem = useCallback(
+    async (productId: string) => {
+      const item = props.catalog.find((row) => row.id === productId);
+      const opening = !sale;
+      const target = sale
+        ? { orderId: sale.orderId, expectedVersion: sale.version }
+        : await startSale(false).then((s) => (s ? { orderId: s.orderId, expectedVersion: s.version } : null));
+      if (!target) return null;
+      const added = await run(
+        "sale",
+        () => posAddLine({ ...target, offeringId: productId, units: 1, sessionId: chosenSessionId(item, sessionByProduct) }),
+        !opening,
+      );
+      if (opening && added.ok) router.push(saleHref(target.orderId));
+      return added.ok ? target.orderId : null;
+    },
+    [props.catalog, router, run, sale, saleHref, sessionByProduct, startSale],
+  );
 
   /**
    * THE CHARGE.
@@ -265,21 +256,17 @@ export function PosClient(props: PosClientProps) {
     async (tender: "cash" | "online_card") => {
       if (!sale) return;
       const amountCents = sale.outstandingCents;
+      const tendered = tender === "cash" ? Math.max(tenderedCents, amountCents) : undefined;
       const result = await run("sale", () =>
         posStartCollection({
           orderId: sale.orderId,
           method: tender,
-          email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
-          displayName: attached?.displayName,
+          email: customer.email.trim() || undefined,
+          phone: customer.phone.trim() || undefined,
+          displayName: customer.displayName,
           amountCents: amountCents > 0 ? amountCents : undefined,
-          tenderedCents: tender === "cash" ? Math.max(tenderedCents, amountCents) : undefined,
-          idempotencyKey: posCollectionKey({
-            orderId: sale.orderId,
-            version: sale.version,
-            method: tender,
-            amountCents,
-          }),
+          tenderedCents: tendered,
+          idempotencyKey: posCollectionKey({ orderId: sale.orderId, version: sale.version, method: tender, amountCents }),
           expectedVersion: sale.version,
         }),
       );
@@ -291,258 +278,207 @@ export function PosClient(props: PosClientProps) {
       if ("changeCents" in result) {
         setPaid({
           amountCents: Number(result.amountCents ?? amountCents),
+          tenderedCents: tendered ?? amountCents,
           changeCents: Number(result.changeCents ?? 0),
           receiptCode: props.receiptCode,
         });
+        setCashDone(true);
         setCollectOpen(false);
         setTenderedCents(0);
       }
     },
-    [attached, email, phone, props.receiptCode, run, sale, tenderedCents],
+    [customer.displayName, customer.email, customer.phone, props.receiptCode, run, sale, tenderedCents],
   );
 
-  const receiptHref =
-    paid?.receiptCode && props.receiptOrigin
-      ? `${props.receiptOrigin}/r/${paid.receiptCode}`
-      : null;
+  /**
+   * A SCAN IS A TAP ON A TILE. The code is looked up (`posResolveScanCode`:
+   * an offering id, or a link code whose row names one), and the item goes
+   * into the basket through `posAddLine`, the same write a tile uses. With no
+   * sale open, a scan opens one first. The outcome is one sentence in the
+   * toast; `Undo` removes the line the scan just added.
+   */
+  const scan = useCallback(
+    async (code: string) => {
+      const resolved = await posResolveScanCode(code);
+      if (!resolved.ok) {
+        setScanToast(
+          resolved.reason === "no_match"
+            ? { kind: "no_match", sentence: interpolate(copy.scan.noMatch, { code }) }
+            : { kind: "unavailable", sentence: copy.scan.unavailable },
+        );
+        return;
+      }
+      const before = new Set(props.basketLines.map((line) => line.id));
+      const orderId = await addItem(resolved.offeringId);
+      if (!orderId) return;
+      const priced = props.catalog.find((row) => row.id === resolved.offeringId);
+      setScanToast({
+        kind: "added",
+        sentence: `${interpolate(copy.scan.added, { name: resolved.title })}${priced ? ` · ${formatOrderMoney(priced.amountCents, props.currency)}` : ""}`,
+        detail: copy.scan.addedDetail,
+        onUndo: () => {
+          const added = props.basketLines.find((line) => !before.has(line.id));
+          setScanToast(null);
+          if (!sale || !added) return;
+          void run("sale", () => posRemoveLine({ orderId: sale.orderId, lineId: added.id, expectedVersion: sale.version }));
+        },
+      });
+      setDestination("sell");
+      setScanCode("");
+    },
+    [addItem, copy.scan, props.basketLines, props.catalog, props.currency, run, sale],
+  );
 
-  const products = toProductTiles(props.catalog, props.currency, sessionByProduct);
+  const receiptHref = paid?.receiptCode && props.receiptOrigin ? `${props.receiptOrigin}/r/${paid.receiptCode}` : null;
+
+  const products = [...toProductTiles(props.catalog, props.currency, sessionByProduct), customAmountTile(props.currency, copy.customAmountTitle)];
   const categories = toCategoryTabs(props.catalog, copy.categories);
-  const visibleProducts = products.filter((product) => {
-    const needle = search.trim().toLowerCase();
-    return needle === "" || product.title.toLowerCase().includes(needle);
-  });
+  const needle = search.trim().toLowerCase();
+  const visibleProducts = needle === "" ? products : products.filter((p) => p.title.toLowerCase().includes(needle));
   const held = toHeldSales(
     props.openSales,
     props.currency,
     sale?.orderId ?? null,
-    (orderId) => `${copy.heldSaleLabel} ${orderId.slice(0, 8)}`,
+    (orderId) => `${copy.heldSaleLabel} ${saleReference(orderId)}`,
+    (iso) => formatClock(iso, props.locale),
   );
   const amountDueCents = sale?.outstandingCents ?? 0;
+  const reference = sale ? saleReference(sale.orderId) : null;
+  const readerReady = false; // The counter cannot drive a reader yet (`collectionMethods` in page.tsx).
 
-  const sellSurface = (
-    <SellSurface
-      products={visibleProducts}
-      categories={categories}
-      activeCategoryId={category}
-      onSelectCategory={setCategory}
-      searchValue={search}
-      onSearchChange={setSearch}
-      onSelectProduct={(productId) => {
-        if (!sale) {
-          void startSale();
-          return;
+  /**
+   * `Send N items`: the sale to preparation. `To go` is a pickup with the
+   * promised time the row below asks for; `Here` is a table ticket when the
+   * check was opened from the floor (the sale carries a space), else a
+   * counter ticket. A second send on a sale already sent is an amendment,
+   * which the engine records as a new revision on the same ticket.
+   */
+  const sendPrep =
+    sale && props.basketLines.length > 0
+      ? () => {
+          const when = service === "toGo" ? new Date(pickupAtLocal) : null;
+          const ahead = when !== null && !Number.isNaN(when.getTime()) && when.getTime() > Date.now();
+          const prepDestination = service === "toGo" ? "pickup" : sale.spaceId ? "table" : "counter";
+          void run("sale", async () =>
+            service === "toGo" && !ahead
+              ? { ok: false as const, error: "pickup_window" }
+              : posSubmitPrep({ orderId: sale.orderId, destination: prepDestination, promisedAt: ahead && when ? when.toISOString() : null }),
+          );
         }
-        const item = props.catalog.find((row) => row.id === productId);
-        const sessionId = chosenSessionId(item, sessionByProduct);
-        void run("sale", () =>
-          posAddLine({
-            orderId: sale.orderId,
-            offeringId: productId,
-            units: 1,
-            sessionId,
-            expectedVersion: sale.version,
-          }),
-        );
-      }}
-      onSelectVariant={(productId, variantId) =>
-        setSessionByProduct((current) => ({ ...current, [productId]: variantId }))
-      }
-      copy={copy.sell}
-    />
-  );
+      : null;
+  const sentBefore = Boolean(sale && sale.prepState !== "not_submitted");
 
-  const customerPanel = (
-    <CustomerPanel
-      customer={attached}
-      searchValue={customerQuery}
-      onSearchChange={(value) => {
-        setCustomerQuery(value);
-        void posSearchCustomers(value).then((result) => {
-          setCustomerHits(result.ok && "rows" in result ? result.rows : []);
-        });
-      }}
-      searchResults={customerHits}
-      onSelectResult={(customerId) => {
-        const hit = customerHits.find((row) => row.id === customerId);
-        if (!hit) {
-          // The row vanished between render and tap. C10's rule: never invent
-          // a second customer for the same person, so this does nothing but
-          // say the attach did not take.
-          setAttachFailed(true);
-          return;
-        }
-        // Attaching means naming the buyer with THIS customer's own contact
-        // details. `ensureCustomer` is idempotent on (tenant, email) and
-        // (tenant, phone), so the collection resolves back to this same row
-        // rather than inserting a duplicate.
-        setAttached({
-          id: hit.id,
-          displayName: hit.displayName,
-          email: hit.email,
-          phone: hit.phone,
-        });
-        setEmail(hit.email ?? "");
-        setPhone(hit.phone ?? "");
-        setAttachFailed(false);
-      }}
-      onCreateNew={() => {
-        // A walk-in becomes a named customer the moment money is collected:
-        // `startCollection` calls `ensureCustomer` with whatever is typed
-        // below and writes `orders.customer_id` itself. So "create" here
-        // clears the picked record and hands the cashier the two fields the
-        // engine actually reads.
-        setAttached(null);
-        setAttachFailed(false);
-        setCustomerHits([]);
-        setCustomerQuery("");
-      }}
-      attachFailed={attachFailed}
-      onRetryAttach={() => setAttachFailed(false)}
-      copy={copy.customer}
-    />
-  );
-
-  const contactFields = (
-    <CounterContactFields
-      copy={copy.legacy}
-      email={email}
-      phone={phone}
-      onEmailChange={setEmail}
-      onPhoneChange={setPhone}
-    />
-  );
-
-  const prepPanel = sale ? (
-    <CounterPrepPanel
-      copy={copy.legacy}
-      busy={busy}
-      destination={prepDestination}
-      onDestinationChange={setPrepDestination}
-      promisedAtLocal={promisedAtLocal}
-      onPromisedAtChange={setPromisedAtLocal}
-      onSubmit={(promisedAt) =>
-        void run("sale", async () =>
-          promisedAt === null && prepDestination === "pickup"
-            ? { ok: false as const, error: "pickup_window" }
-            : posSubmitPrep({
-                orderId: sale.orderId,
-                destination: prepDestination,
-                promisedAt,
-              }),
-        )
-      }
-    />
-  ) : null;
-
-  const basketColumn = collectOpen && sale ? (
-    <div className="flex flex-col gap-3">
-      <CollectSheet
-        amountDueCents={amountDueCents}
-        currency={props.currency}
-        methods={props.methods}
-        activeMethod={method}
-        onSelectMethod={setMethod}
-        tenderedCents={tenderedCents}
-        onKeypadPress={(key) => {
-          setTenderedCents((current) => tenderAfterKey(current, tenderTouched, key));
-          setTenderTouched(true);
-        }}
-        onConfirmCash={() => void collect("cash")}
-        onConfirmLink={() => void collect("online_card")}
-        confirmLoading={busy}
-        copy={copy.collect}
+  const prepRow = service === "toGo" && sale && props.basketLines.length > 0 && (
+    <label className="flex items-center gap-3 border-t border-admin-border bg-admin-card px-4 py-2 text-[13px] text-admin-ink-muted">
+      {copy.page.pickupReadyAt}
+      <input
+        id="pos-pickup-at"
+        type="datetime-local"
+        value={pickupAtLocal}
+        onChange={(event) => setPickupAtLocal(event.target.value)}
+        className="h-10 flex-1 rounded-[10px] border-[1.5px] border-admin-border bg-admin-card px-3 text-[14px] text-admin-ink"
       />
-      <button
-        type="button"
-        className={`${POS_SECONDARY_ACTION} h-11 w-full`}
-        onClick={() => setCollectOpen(false)}
-      >
-        {copy.page.backToSale}
-      </button>
+    </label>
+  );
+
+  const sellScreen = (
+    <div className="relative flex min-h-0 flex-1 max-[900px]:flex-col">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <SellSurface
+          products={visibleProducts}
+          categories={categories}
+          activeCategoryId={category}
+          onSelectCategory={setCategory}
+          searchValue={search}
+          onSearchChange={setSearch}
+          onSelectProduct={(productId) => {
+            if (productId === CUSTOM_AMOUNT_ID) {
+              setSheet({ kind: "custom" });
+              return;
+            }
+            if (working) return;
+            void addItem(productId);
+          }}
+          onSelectVariant={(productId, variantId) => setSessionByProduct((current) => ({ ...current, [productId]: variantId }))}
+          onOpenScan={() => setDestination("scan")}
+          copy={copy.sell}
+        />
+        <ScanStatus toast={scanToast} onDismiss={dismissScanToast} copy={copy.scan} />
+      </div>
+      <div className="flex min-h-0 flex-col max-[900px]:max-h-[50%]">
+        <Basket
+          lines={props.basketLines}
+          currency={props.currency}
+          discountCents={sale?.discountCents ?? 0}
+          customerName={customer.attached?.displayName ?? null}
+          onOpenCustomer={customer.open}
+          onOpenBooking={() => setSheet({ kind: "booking" })}
+          service={service}
+          onServiceChange={setService}
+          onEditLine={(lineId) => setSheet({ kind: "line", lineId })}
+          onOpenDiscount={() => {
+            setDiscountRefused(null);
+            setSheet({ kind: "discount" });
+          }}
+          onCharge={() => {
+            if (working) return;
+            setTenderedCents(amountDueCents);
+            setTenderTouched(false);
+            setMethod("cash");
+            setCollectOpen(true);
+          }}
+          onHold={() => setSheet({ kind: "hold" })}
+          onSend={sendPrep}
+          sentBefore={sentBefore}
+          heldCount={held.length}
+          onOpenHeld={() => setDestination("orders")}
+          chargeLoading={busy}
+          offline={!online}
+          savedAt={savedAt}
+          hasSale={Boolean(sale)}
+          copy={copy.basket}
+        />
+        {prepRow}
+      </div>
     </div>
-  ) : (
-    <Basket
-      lines={props.basketLines}
+  );
+
+  const collectScreen = sale && (
+    <CollectSheet
+      amountDueCents={amountDueCents}
       currency={props.currency}
-      discountCents={sale?.discountCents ?? 0}
-      discountCode={discountCode}
-      onDiscountCodeChange={(value) => {
-        setDiscountCode(value);
-        setDiscountRefused(false);
+      methods={props.methods}
+      activeMethod={method}
+      onSelectMethod={setMethod}
+      tenderedCents={tenderedCents}
+      onKeypadPress={(key) => {
+        setTenderedCents((current) => (key === "00" ? tenderAfterKey(tenderAfterKey(current, tenderTouched, "0"), true, "0") : tenderAfterKey(current, tenderTouched, key)));
+        setTenderTouched(true);
       }}
-      onApplyDiscount={() => {
-        if (!sale) return;
-        void run("sale", async () => {
-          const result = await posReprice({
-            orderId: sale.orderId,
-            promoCode: discountCode.trim(),
-            expectedVersion: sale.version,
-          });
-          setDiscountRefused(!result.ok);
-          return result;
-        });
+      onTender={(cents) => {
+        setTenderedCents(cents);
+        setTenderTouched(true);
       }}
-      discountApplying={busy}
-      discountNotCombinable={discountRefused}
-      onIncrement={(lineId) => {
-        const line = props.basketLines.find((row) => row.id === lineId);
-        if (!sale || !line) return;
-        void run("sale", () =>
-          posUpdateLine({
-            orderId: sale.orderId,
-            lineId,
-            units: line.units + 1,
-            expectedVersion: sale.version,
-          }),
-        );
-      }}
-      onDecrement={(lineId) => {
-        const line = props.basketLines.find((row) => row.id === lineId);
-        if (!sale || !line) return;
-        // One unit left means removing the line, not asking the engine for a
-        // quantity of zero — which it refuses as `invalid`, correctly.
-        void run("sale", () =>
-          line.units <= 1
-            ? posRemoveLine({ orderId: sale.orderId, lineId, expectedVersion: sale.version })
-            : posUpdateLine({
-                orderId: sale.orderId,
-                lineId,
-                units: line.units - 1,
-                expectedVersion: sale.version,
-              }),
-        );
-      }}
-      onRemove={(lineId) => {
-        if (!sale) return;
-        void run("sale", () =>
-          posRemoveLine({ orderId: sale.orderId, lineId, expectedVersion: sale.version }),
-        );
-      }}
-      onCharge={() => {
-        // Pre-filled with the amount due so exact cash is one tap; the first
-        // keypad press starts a fresh figure (`tenderAfterKey`).
-        setTenderedCents(amountDueCents);
-        setTenderTouched(false);
-        setCollectOpen(true);
-      }}
-      chargeLoading={busy}
-      copy={copy.basket}
+      onConfirmCash={() => void collect("cash")}
+      onConfirmLink={() => void collect("online_card")}
+      confirmLoading={working}
+      onBack={() => setCollectOpen(false)}
+      backLabel={copy.page.backToSale}
+      summary={[
+        { label: copy.basket.subtotal, amountCents: sale.totalCents + sale.discountCents },
+        ...(sale.discountCents > 0 ? [{ label: copy.basket.discount, amountCents: sale.discountCents, negative: true }] : []),
+      ]}
+      copy={copy.collect}
     />
   );
 
   /**
-   * The paid screen, and what has to stay reachable underneath it.
-   *
-   * TAKING THE MONEY IS NOT THE END OF THE SALE. A pickup order is paid at
-   * the counter and only THEN sent to the kitchen, so hiding the preparation
-   * panel behind the success state strands the ticket: the operator has the
-   * customer's money, a promised pickup time, and no way to tell anyone to
-   * cook it. It cost a whole journey run to find, and it is the reason the
-   * prep panel is rendered here as well as beside the basket.
+   * The paid screen. TAKING THE MONEY IS NOT THE END OF THE SALE: a pickup
+   * order is paid at the counter and only THEN sent, so `Send N items` stays
+   * reachable here as well as beside the basket.
    */
-  const paidScreen = paid ? (
-    <div className="flex flex-col items-center gap-4 p-4">
+  const paidScreen = paid && !cashDone && (
+    <div className="flex flex-1 flex-col items-center gap-4 overflow-y-auto p-6">
       <PaidScreen
         amountCents={paid.amountCents}
         changeCents={paid.changeCents}
@@ -552,29 +488,20 @@ export function PosClient(props: PosClientProps) {
         }}
         onEmailReceipt={() => {
           if (!receiptHref) return;
-          const to = attached?.email ?? email.trim();
-          window.location.href = `mailto:${encodeURIComponent(to)}?body=${encodeURIComponent(receiptHref)}`;
+          window.location.href = `mailto:${encodeURIComponent(customer.email.trim())}?body=${encodeURIComponent(receiptHref)}`;
         }}
         onNextCustomer={() => void startSale()}
         copy={copy.paid}
       />
       {receiptHref && (
-        <div className={`${POS_SURFACE} flex w-full max-w-md flex-col gap-2 p-4`}>
-          <p className="m-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {copy.page.receiptLink}
-          </p>
-          <a
-            href={receiptHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-pos-receipt-link
-            className="break-all text-sm text-foreground underline"
-          >
+        <div className={`${POS_SURFACE} flex w-full max-w-[520px] flex-col gap-2 p-4`}>
+          <p className="m-0 text-[12px] font-bold uppercase tracking-[0.06em] text-admin-ink-muted">{copy.page.receiptLink}</p>
+          <a href={receiptHref} target="_blank" rel="noopener noreferrer" data-pos-receipt-link className="break-all text-[14px] text-admin-ink underline">
             {receiptHref}
           </a>
           <button
             type="button"
-            className={`${POS_SECONDARY_ACTION} h-11`}
+            className={POS_SECONDARY_ACTION}
             onClick={() => {
               void navigator.clipboard?.writeText(receiptHref).then(
                 () => setReceiptCopied(true),
@@ -586,121 +513,126 @@ export function PosClient(props: PosClientProps) {
           </button>
         </div>
       )}
-      {prepPanel && <div className="w-full max-w-md">{prepPanel}</div>}
-    </div>
-  ) : null;
-
-  const sellScreen = paidScreen ?? (
-    <div className="grid min-h-0 flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
-      <div className={`${POS_SURFACE} min-h-0 overflow-hidden`}>{sellSurface}</div>
-      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
-        <div className="flex gap-2">
-          <button type="button" disabled={busy} className={`${POS_PRIMARY_ACTION} flex-1`} onClick={() => void startSale()}>
-            {copy.page.startSale}
-          </button>
-          {sale && (
-            <button
-              type="button"
-              disabled={busy}
-              className={`${POS_SECONDARY_ACTION} flex-1`}
-              onClick={() => router.push(saleHref(null))}
-            >
-              {copy.page.hold}
+      {sendPrep && (
+        <div className={`${POS_SURFACE} flex w-full max-w-[520px] flex-col gap-3 p-4`}>
+          <div className={POS_SEGMENT_TRACK} role="group" aria-label={`${copy.basket.here} / ${copy.basket.toGo}`}>
+            <button type="button" aria-pressed={service === "here"} onClick={() => setService("here")} className={cn(POS_SEGMENT, service === "here" ? POS_SEGMENT_ACTIVE : POS_SEGMENT_IDLE)}>
+              {copy.basket.here}
             </button>
-          )}
-        </div>
-        <div className={POS_SURFACE}>{basketColumn}</div>
-        {customerPanel}
-        {contactFields}
-        {prepPanel}
-        {sale && (
-          <button
-            type="button"
-            disabled={busy}
-            className={`${POS_SECONDARY_ACTION} h-11`}
-            onClick={() =>
-              void run("sale", async () => {
-                const result = await posCancelSale(sale.orderId, sale.version);
-                if (result.ok) router.push(saleHref(null));
-                return result;
-              })
-            }
-          >
-            {copy.page.cancelSale}
+            <button type="button" aria-pressed={service === "toGo"} onClick={() => setService("toGo")} className={cn(POS_SEGMENT, service === "toGo" ? POS_SEGMENT_ACTIVE : POS_SEGMENT_IDLE)}>
+              {copy.basket.toGo}
+            </button>
+          </div>
+          {prepRow}
+          <button type="button" data-pos-send disabled={busy} onClick={sendPrep} className={POS_SECONDARY_ACTION}>
+            {sentBefore
+              ? interpolate(copy.basket.sendAgain, { count: props.basketLines.length })
+              : props.basketLines.length === 1
+                ? copy.basket.sendOne
+                : interpolate(copy.basket.send, { count: props.basketLines.length })}
           </button>
-        )}
+        </div>
+      )}
+    </div>
+  );
+
+  const devices = deviceRows(props, copy.deviceRows, {
+    openScan: () => setDestination("scan"),
+    openDisplay: () =>
+      window.open(sale ? `${props.posPath}/display?order=${encodeURIComponent(sale.orderId)}` : `${props.posPath}/display`, "_blank", "noopener,noreferrer"),
+  });
+
+  const headerFor = (): { title: string; subtitle: string } => {
+    switch (destination) {
+      case "receipts":
+        return { title: copy.receipts.title, subtitle: receiptsSubtitle(copy.receipts, props.receipts.filter((r) => receiptsDay === "week" || r.dayKey === receiptsDay), receiptsDay, props.currency) };
+      case "shifts":
+        return { title: copy.chrome.drawerTitle, subtitle: props.shift ? `${copy.chrome.drawerOpen} · ${formatClock(props.shift.openedAt, props.locale)} · ${props.cashierName}` : `${props.workspaceName} · ${copy.chrome.drawerNone}` };
+      case "issues":
+        return { title: copy.issues.title, subtitle: copy.issues.subtitle };
+      case "devices":
+        return { title: copy.devices.title, subtitle: interpolate(copy.devices.subtitle, { location: props.workspaceName }) };
+      case "connection":
+        return { title: copy.connection.title, subtitle: interpolate(copy.connection.subtitle, { location: props.workspaceName }) };
+      case "scan":
+        return { title: copy.scanScreen.title, subtitle: copy.scanScreen.ready };
+      case "orders":
+        return { title: copy.frame.destinationLabels.orders ?? "", subtitle: interpolate(copy.basket.heldSales, { count: held.length }) };
+      default:
+        return {
+          title: collectOpen && sale ? `${copy.page.collectTitle} · ${customer.attached?.displayName ?? reference}` : copy.modeLabel,
+          subtitle: reference ? interpolate(copy.chrome.saleSubtitle, { number: reference, cashier: props.cashierName }) : interpolate(copy.chrome.newSaleSubtitle, { cashier: props.cashierName }),
+        };
+    }
+  };
+  const header = headerFor();
+
+  const body =
+    destination === "orders" ? (
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-5">
+        <HeldSalesList sales={held} onResume={(orderId) => { setDestination("sell"); router.push(saleHref(orderId)); }} copy={copy.held} />
       </div>
-    </div>
-  );
-
-  const ordersScreen = (
-    <div className="flex flex-col gap-4 p-4">
-      <HeldSalesList sales={held} onResume={(orderId) => router.push(saleHref(orderId))} copy={copy.held} />
-    </div>
-  );
-
-  const shiftsScreen = (
-    <CounterShiftScreen
-      shift={props.shift}
-      currency={props.currency}
-      minorUnitDivisor={props.minorUnitDivisor}
-      busy={busy}
-      copy={{ bar: copy.shiftBar, page: copy.page }}
-      openingCash={openingCash}
-      onOpeningCashChange={setOpeningCash}
-      countedCash={countedCash}
-      onCountedCashChange={setCountedCash}
-      onRefuse={setRefusal}
-      onOpenShift={(openingCashCents) => void run("shift", () => posOpenShift(openingCashCents))}
-      onCloseShift={(closingCashCents) =>
-        void run("shift", () =>
-          posCloseShift({ closingCashCents, expectedVersion: props.shift?.version }),
-        )
-      }
-    />
-  );
+    ) : destination === "receipts" ? (
+      <ReceiptsScreen rows={props.receipts} day={receiptsDay} onDayChange={setReceiptsDay} query={receiptsQuery} onQueryChange={setReceiptsQuery} copy={copy.receipts} />
+    ) : destination === "shifts" ? (
+      <CounterDrawer shift={props.shift} currency={props.currency} minorUnitDivisor={props.minorUnitDivisor} cashierName={props.cashierName} busy={busy} run={run} onRefuse={setRefusal} copy={copy.drawer} />
+    ) : destination === "issues" ? (
+      <IssuesScreen copy={copy.issues} />
+    ) : destination === "devices" ? (
+      <DevicesScreen devices={devices} online={online} linksAvailable={props.methods.some((m) => m.id === "link" && m.available)} copy={copy.devices} />
+    ) : destination === "connection" ? (
+      <ConnectionScreen online={online} readerReady={readerReady} onTryAgain={() => router.refresh()} copy={copy.connection} />
+    ) : destination === "scan" ? (
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <ScanScreen code={scanCode} onCodeChange={setScanCode} onLookUp={() => void scan(scanCode.trim())} busy={busy} copy={copy.scanScreen} />
+        <ScanStatus toast={scanToast} onDismiss={dismissScanToast} copy={copy.scan} />
+      </div>
+    ) : paidScreen || (collectOpen ? collectScreen : sellScreen);
 
   return (
-    <div className="flex min-h-[calc(100vh-56px)] w-full flex-col">
-      <ShiftBar
-        shift={toShiftSummary(props.shift)}
-        currency={props.currency}
-        onOpenShift={() => setDestination("shifts")}
-        onCloseShift={() => setDestination("shifts")}
-        copy={copy.shiftBar}
-      />
+    <div className="relative flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] min-h-[560px] w-full flex-col overflow-hidden">
+      <CounterDisplayBeacon tenantId={props.tenantId} orderId={sale?.orderId ?? null} />
+      <ScannerListener onScan={(code) => void scan(code)} enabled={(destination === "sell" || destination === "scan") && !paid && !collectOpen && sheet === null} />
       <PosFrame
         mode={props.mode}
         navLabel={copy.frame.navLabel}
-        activeDestination={destination}
-        onSelectDestination={(id) => setDestination(id as Destination)}
+        activeDestination={destination === "scan" ? "sell" : destination}
+        onSelectDestination={(id) => {
+          if (isDestination(id)) setDestination(id);
+        }}
         destinationLabels={copy.frame.destinationLabels}
-        className="flex-1 rounded-none border-0"
+        counts={{ orders: held.length }}
+        modeLabel={copy.modeLabel}
+        modeEyebrow={copy.chrome.modeEyebrow}
+        lock={{ label: copy.chrome.lock, disabledReason: copy.chrome.lockUnavailable }}
+        workspace={{ label: copy.chrome.workspace, href: props.workspacePath }}
+        links={[{ id: "display", label: copy.displayLink.label, href: sale ? `${props.posPath}/display?order=${encodeURIComponent(sale.orderId)}` : `${props.posPath}/display`, hint: copy.displayLink.hint }]}
+        className="flex-1"
       >
-        {/*
-          A real <header>, and it names the WORKSPACE.
-          The counter replaces the admin chrome, so the sidebar's tenant chip
-          is gone; this is the only place left that says which business's till
-          this is. A cashier who works two of them must never have to guess.
-        */}
-        <header className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
-          <div className="min-w-0">
-            <p className="m-0 truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {props.workspaceName}
-            </p>
-            <h1 className="m-0 text-base font-semibold text-foreground">{copy.legacy.pageTitle}</h1>
-          </div>
-          {sale && (
-            <p className="m-0 text-sm text-muted-foreground">
-              {attached?.displayName ?? copy.legacy.guest} · {copy.legacy.outstanding}{" "}
-              <span className="font-semibold text-foreground">
-                {formatOrderMoney(sale.outstandingCents, props.currency)}
-              </span>
-            </p>
-          )}
-        </header>
+        <PosHeader
+          title={header.title}
+          subtitle={header.subtitle}
+          alert={!online ? { label: copy.chrome.offlineChip, onSelect: () => setDestination("connection") } : props.readerConfigured ? { label: copy.chrome.readerOffChip, onSelect: () => setDestination("devices") } : null}
+          location={props.workspaceName}
+          cashier={{ initials: initialsOf(props.cashierName), label: `${props.cashierName} · ${props.shift ? copy.chrome.drawerOpen : copy.chrome.drawerNone}` }}
+          cashierMenuLabel={copy.chrome.cashierMenu}
+          cashierMenu={[
+            { id: "devices", label: copy.chrome.devices, onSelect: () => setDestination("devices") },
+            { id: "connection", label: copy.chrome.connection, onSelect: () => setDestination("connection") },
+          ]}
+          portraitMenu={{
+            label: copy.modeLabel,
+            menuLabel: copy.frame.navLabel,
+            items: [
+              ...DESTINATIONS.filter((id) => id in copy.frame.destinationLabels).map((id) => ({ id, label: copy.frame.destinationLabels[id] ?? id, onSelect: () => setDestination(id) })),
+              { id: "devices", label: copy.chrome.devices, onSelect: () => setDestination("devices") },
+              { id: "connection", label: copy.chrome.connection, onSelect: () => setDestination("connection") },
+              { id: "workspace", label: copy.chrome.workspace, onSelect: () => router.push(props.workspacePath) },
+            ],
+          }}
+        />
         {refusal && (
-          <div className="px-4 pt-4">
+          <div className="px-6 pt-4">
             <PosRefusalBanner
               reason={refusal}
               copy={copy.refusal}
@@ -711,11 +643,81 @@ export function PosClient(props: PosClientProps) {
             />
           </div>
         )}
-        {destination === "orders"
-          ? ordersScreen
-          : destination === "shifts"
-            ? shiftsScreen
-            : sellScreen}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          {body}
+          {customer.sheet}
+          <CounterSheets
+            open={sheet}
+            onChange={setSheet}
+            lines={props.basketLines}
+            currency={props.currency}
+            saleReference={reference ?? ""}
+            totalCents={sale?.totalCents ?? 0}
+            discountCents={sale?.discountCents ?? 0}
+            customerName={customer.attached?.displayName ?? null}
+            cashierName={props.cashierName}
+            busy={working}
+            discountRefused={discountRefused}
+            onSaveLine={(lineId, units) => {
+              if (!sale) return;
+              void run("sale", () => posUpdateLine({ orderId: sale.orderId, lineId, units, expectedVersion: sale.version }));
+            }}
+            onDuplicateLine={(lineId) => {
+              const line = props.basketLines.find((row) => row.id === lineId);
+              if (!sale || !line || !line.offeringId) return;
+              const offeringId = line.offeringId;
+              void run("sale", () => posAddLine({ orderId: sale.orderId, offeringId, units: line.units, sessionId: line.sessionId ?? null, expectedVersion: sale.version }));
+            }}
+            onRemoveLine={(lineId) => {
+              if (!sale) return;
+              void run("sale", () => posRemoveLine({ orderId: sale.orderId, lineId, expectedVersion: sale.version }));
+            }}
+            onApplyCode={(code) => {
+              if (!sale) return;
+              void run("sale", async () => {
+                const result = await posReprice({ orderId: sale.orderId, promoCode: code, expectedVersion: sale.version });
+                setDiscountRefused(result.ok ? null : "reason" in result && result.reason === "promo_refused" ? "notCombinable" : "refused");
+                return result;
+              });
+            }}
+            onRemoveCode={() => {
+              if (!sale) return;
+              void run("sale", () => posReprice({ orderId: sale.orderId, expectedVersion: sale.version }));
+            }}
+            onDiscard={() => {
+              if (!sale) return;
+              void run("sale", async () => {
+                const result = await posCancelSale(sale.orderId, sale.version);
+                if (result.ok) {
+                  resetForNewSale();
+                  router.push(saleHref(null));
+                }
+                return result;
+              });
+            }}
+            onHold={() => {
+              // A hold is the draft staying open in Orders; nothing is written.
+              resetForNewSale();
+              router.push(saleHref(null));
+            }}
+            onPickAnotherSession={(lineId) => {
+              if (!sale) return;
+              void run("sale", () => posRemoveLine({ orderId: sale.orderId, lineId, expectedVersion: sale.version }));
+            }}
+            copy={{ line: copy.line, discount: copy.discount, custom: copy.custom, hold: copy.hold, expired: copy.expired, booking: copy.booking }}
+          />
+          {paid && (
+            <CashDoneDialog
+              open={cashDone}
+              amountCents={paid.amountCents}
+              tenderedCents={paid.tenderedCents}
+              changeCents={paid.changeCents}
+              currency={props.currency}
+              onDone={() => setCashDone(false)}
+              copy={copy.cashDone}
+            />
+          )}
+        </div>
       </PosFrame>
     </div>
   );

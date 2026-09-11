@@ -19,7 +19,7 @@
  *
  * Serial, because each test is the next scene of the same night.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type TestInfo } from "@playwright/test";
 
 import { prepareJourneysPage, signInJourneysStaff } from "../cases/_harness";
 import { isolatedService, JOURNEYS_TENANT_ID } from "../cases/_isolated-db";
@@ -72,8 +72,14 @@ async function enterDoorFromTopBar(page: Page): Promise<void> {
   // With more than one mode the POS half opens a menu of modes.
   const posHalf = control.getByRole("button").nth(1);
   await posHalf.click();
+  // The menu is client state that opens a beat after the click; give it the
+  // beat rather than reading "not open yet" as "no menu".
   const menu = page.getByRole("menu");
-  if (await menu.isVisible().catch(() => false)) {
+  const opened = await menu
+    .waitFor({ state: "visible", timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (opened) {
     await menu.getByRole("menuitem", { name: /^(door|puerta|porte)$/i }).click();
   }
   await expect(page).toHaveURL(/\/admin\/pos\?mode=door/, { timeout: 30_000 });
@@ -95,11 +101,40 @@ async function verdict(page: Page): Promise<{ key: string; text: string }> {
   return { key, text };
 }
 
+/** A keyboard-wedge scanner types the code and presses Enter into the one field under the hero. */
 async function typeCode(page: Page, code: string): Promise<void> {
   const field = page.locator("#door-scan");
   await expect(field).toBeVisible({ timeout: 30_000 });
   await field.fill(code);
-  await page.getByRole("button", { name: /^(admit|admitir|admettre)$/i }).first().click();
+  await field.press("Enter");
+}
+
+/** The box office (E01 to E06): pick the event and the date, one ticket of the tier, the buyer, cash. Returns the signed code. */
+async function sellAtBoxOffice(page: Page, n: Night, holder: string, email: string, testInfo: TestInfo, shotPrefix: string): Promise<string> {
+  await doorRail(page).getByRole("button", { name: /^(sell tickets|vender entradas|vendre des billets)$/i }).click();
+  await page.locator(`[data-door-event="${n.eventId}"]`).first().click();
+  await page.locator(`[data-door-session="${n.sessionId}"]`).first().click();
+  await page.locator("[data-door-continue-date]").click();
+  const tile = page.locator(`[data-door-tier="${n.variantId}"]`);
+  await expect(tile).toBeVisible({ timeout: 30_000 });
+  await tile.click();
+  await expect(page.locator("[data-door-total]")).toHaveText("$20.00", { timeout: 30_000 });
+  await page.screenshot({ path: testInfo.outputPath(`${shotPrefix}-basket.png`), fullPage: true });
+  await page.locator("[data-door-continue]").click();
+  await page.locator("[data-door-holder-name]").fill(holder);
+  await page.locator("[data-door-email]").fill(email);
+  await page.locator("[data-door-review]").click();
+  await expect(page.getByRole("tab", { name: /^(cash|efectivo|espèces)$/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-pos-amount-due]")).toContainText("$20.00");
+  await page.getByRole("button", { name: /cash received|efectivo recibido|espèces reçues/i }).click();
+  const issued = page.locator('[data-door-issued="issued"]');
+  await expect(issued).toBeVisible({ timeout: 45_000 });
+  const code = (await issued.locator("[data-door-code]").first().innerText()).trim();
+  expect(code, "the issued ticket must carry a signed code").toMatch(/^adm1\./);
+  const receiptHref = await issued.locator("[data-pos-receipt-link]").getAttribute("href");
+  expect(receiptHref, "the sale must have a receipt").toMatch(/\/r\/[A-Za-z0-9]{16,}/);
+  await page.screenshot({ path: testInfo.outputPath(`${shotPrefix}-issued.png`), fullPage: true });
+  return code;
 }
 
 async function waitForVerdict(page: Page, key: string): Promise<string> {
@@ -148,18 +183,23 @@ test("Door mode is switched on in Settings, and the night exists through the int
     ?.settings?.pos?.locations?.default?.modes;
   expect(modes, "the settings card must persist door").toContain("door");
 
-  // ── The event, one priced tier, published. Events page.
+  // ── The event, one priced tier, published. Events page (W16 → CreateEvent → EventDetail).
   await page.goto(`${ADMIN_BASE}/events`);
-  await page.getByLabel("Title").fill(TITLE);
-  await page.getByRole("button", { name: /create draft/i }).click();
-  await expect(page.getByRole("button", { name: TITLE })).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("events-create").click();
+  await page.getByLabel(/^(event name|nombre del evento|nom de l'événement)$/i).fill(TITLE);
+  await page.getByTestId("events-save-draft").click();
+  await expect(page.getByTestId("events-detail")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tulala-h1]")).toHaveText(TITLE);
+  await page.getByTestId("events-add-tier").click();
   await page.getByLabel("Tier name").fill(TIER);
   await page.getByLabel("Price").fill(TIER_PRICE);
-  await page.getByRole("button", { name: /^add$/i }).click();
-  await expect(page.getByText(TIER).first()).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Details" }).click();
-  await page.getByRole("button", { name: /^publish$/i }).click();
+  await page.getByTestId("events-tier-add").click();
+  await expect(page.locator("[data-testid^=events-tier-]").filter({ hasText: TIER }).first()).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("events-tab-overview").click();
+  await page.getByTestId("events-publish").click();
   await expect(page.getByText(/\(live\)/)).toBeVisible({ timeout: 30_000 });
+  // Published with a tier and no night yet: the state says so rather than "on sale".
+  await expect(page.getByTestId("events-status-pill")).toHaveAttribute("data-state", "noNight");
 
   const { data: event, error: eventErr } = await db
     .from("events")
@@ -227,18 +267,26 @@ test("a drawer is open at the counter, so the door's cash has somewhere to go", 
   await signInJourneysStaff(page, `${ADMIN_BASE}/pos?mode=counter`);
   const rail = page.getByRole("navigation", { name: /^(counter|mostrador|comptoir)$/i });
   await expect(rail).toBeVisible({ timeout: 30_000 });
-  await rail.getByRole("button", { name: /^(shifts|turnos|quarts)$/i }).click();
+  // The Cash screen (`POSCashDrawer`) is either the opening form or the open
+  // drawer with its `Close drawer & count` button. The rail is client state;
+  // a click that lands before hydration is a click on nothing, so it is
+  // repeated until the screen is the one shown (same as the settings nav).
   const openingField = page.locator("#pos-shift-opening");
-  const countedField = page.locator("#pos-shift-counted");
-  await expect(openingField.or(countedField).first()).toBeVisible({ timeout: 20_000 });
-  if (await countedField.count()) {
+  const closeAndCount = page.locator("[data-pos-close-and-count]");
+  const cashScreen = openingField.or(closeAndCount).first();
+  for (let attempt = 0; attempt < 5 && !(await cashScreen.isVisible()); attempt += 1) {
+    await rail.getByRole("button", { name: /^(cash|caja|caisse)$/i }).click();
+    await page.waitForTimeout(1_500);
+  }
+  await expect(cashScreen).toBeVisible({ timeout: 20_000 });
+  if (await closeAndCount.count()) {
     // A drawer is already open (another journey's, or the last run's). Use it:
     // the transaction rows below are asserted against whichever shift is open.
     return;
   }
   await openingField.fill("100.00");
-  await page.getByRole("button", { name: /open the shift/i }).click();
-  await expect(countedField, "the shift must actually open").toBeVisible({ timeout: 30_000 });
+  await page.locator("[data-pos-open-shift]").click();
+  await expect(closeAndCount, "the shift must actually open").toBeVisible({ timeout: 30_000 });
 });
 
 test("box office: a ticket is sold for cash through the till and issued with its code", async ({
@@ -253,27 +301,7 @@ test("box office: a ticket is sold for cash through the till and issued with its
   await page.screenshot({ path: testInfo.outputPath("02-door-gate-sessions.png"), fullPage: true });
   await expect(page.locator("[data-door-zone]")).toHaveAttribute("data-door-zone", VENUE_ZONE);
 
-  await doorRail(page).getByRole("button", { name: /^(box office|taquilla|billetterie)$/i }).click();
-  await page.locator(`[data-door-session="${n.sessionId}"]`).first().click();
-  const panel = page.locator('[data-door-sale="box"]');
-  await expect(panel).toBeVisible({ timeout: 30_000 });
-  await panel.locator("[data-door-tier]").selectOption(n.variantId);
-  await panel.locator("[data-door-holder-name]").fill(HOLDER);
-  await panel.locator("[data-door-email]").fill(`door-holder-${stamp}@impronta.test`);
-  await panel.getByRole("button", { name: /open the sale|abrir la venta|ouvrir la vente/i }).click();
-  await expect(page.getByRole("tab", { name: /^(cash|efectivo|espèces)$/i })).toBeVisible({ timeout: 30_000 });
-  await expect(panel).toContainText("$20.00");
-  await page.screenshot({ path: testInfo.outputPath("03-box-office-sale-open.png"), fullPage: true });
-  await panel.getByRole("button", { name: /take cash|cobrar en efectivo|encaisser en espèces/i }).click();
-
-  const issued = panel.locator("[data-door-issued]");
-  await expect(issued).toBeVisible({ timeout: 45_000 });
-  const code = (await issued.locator("[data-door-code]").first().innerText()).trim();
-  expect(code, "the issued ticket must carry a signed code").toMatch(/^adm1\./);
-  ticketCode = code;
-  const receiptHref = await panel.locator("[data-pos-receipt-link]").getAttribute("href");
-  expect(receiptHref, "the sale must have a receipt").toMatch(/\/r\/[A-Za-z0-9]{16,}/);
-  await page.screenshot({ path: testInfo.outputPath("04-box-office-issued.png"), fullPage: true });
+  ticketCode = await sellAtBoxOffice(page, n, HOLDER, `door-holder-${stamp}@impronta.test`, testInfo, "03-box-office");
 
   // The rows the box office wrote.
   const db = isolatedService();
@@ -324,22 +352,29 @@ test("gate: the code admits once, is refused the second time, and nonsense is no
   await enterDoorFromTopBar(page);
   await page.locator(`[data-door-session="${n.sessionId}"]`).first().click();
   await expect(page.locator("#door-scan")).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator("[data-door-counts]")).toContainText(/\b1 expected\b/);
+  // The header's figure (G01): nobody in yet, one expected.
+  await expect(page.locator("[data-door-counts]")).toContainText(/\b0 of 1 in\b/);
+  // The lookup column (G08's left half) lists the holder by name.
+  await page.locator("[data-door-lookup-toggle]").click();
   await expect(page.locator("[data-door-list]")).toContainText(HOLDER);
+  await page.screenshot({ path: testInfo.outputPath("04-gate-lookup.png"), fullPage: true });
 
   await typeCode(page, ticketCode!);
   const first = await waitForVerdict(page, "admitted");
-  expect(first).toMatch(/^In\./);
-  await expect(page.locator("[data-door-counts]")).toContainText(/\b1 in\b/);
+  expect(first).toMatch(/^Admitted/);
+  expect(first).toMatch(/In\. Welcome\./);
+  await expect(page.locator("[data-door-counts]")).toContainText(/\b1 of 1 in\b/);
   await page.screenshot({ path: testInfo.outputPath("05-gate-admitted.png"), fullPage: true });
 
   await typeCode(page, ticketCode!);
   const second = await waitForVerdict(page, "alreadyIn");
+  expect(second).toMatch(/^Already used/);
   expect(second).toMatch(/already admitted/i);
   await page.screenshot({ path: testInfo.outputPath("06-gate-already-admitted.png"), fullPage: true });
 
   await typeCode(page, `not-a-ticket-${stamp}`);
   const third = await waitForVerdict(page, "forged");
+  expect(third).toMatch(/^Not a ticket/);
   expect(third).toMatch(/not a valid ticket/i);
   await page.screenshot({ path: testInfo.outputPath("07-gate-forged.png"), fullPage: true });
 
@@ -357,26 +392,20 @@ test("gate: the code admits once, is refused the second time, and nonsense is no
   expect(a.seated_at).not.toBeNull();
 });
 
-test("gate: a walk-up pays cash at the door and walks in", async ({ page }, testInfo) => {
-  test.setTimeout(240_000);
+test("a walk-up pays cash at the box office and walks in at the gate", async ({ page }, testInfo) => {
+  test.setTimeout(300_000);
   expect(night, "the night was not created").not.toBeNull();
   const n = night!;
 
   await signInJourneysStaff(page, ADMIN_BASE);
   await enterDoorFromTopBar(page);
-  await page.locator(`[data-door-session="${n.sessionId}"]`).first().click();
-  const panel = page.locator('[data-door-sale="gate"]');
-  await expect(panel).toBeVisible({ timeout: 30_000 });
-  await panel.locator("[data-door-tier]").selectOption(n.variantId);
-  await panel.locator("[data-door-holder-name]").fill(WALKUP);
-  await panel.locator("[data-door-email]").fill(`door-walkup-${stamp}@impronta.test`);
-  await panel.getByRole("button", { name: /open the sale|abrir la venta|ouvrir la vente/i }).click();
-  await expect(page.getByRole("tab", { name: /^(cash|efectivo|espèces)$/i })).toBeVisible({ timeout: 30_000 });
-  await panel.getByRole("button", { name: /take cash and admit|cobrar en efectivo y admitir|encaisser en espèces et admettre/i }).click();
-  await expect(panel.locator("[data-door-issued]")).toBeVisible({ timeout: 45_000 });
+  // The box office sells the walk-up's ticket (G06); the gate admits it (G02).
+  const walkUpCode = await sellAtBoxOffice(page, n, WALKUP, `door-walkup-${stamp}@impronta.test`, testInfo, "08-walkup");
+  await doorRail(page).getByRole("button", { name: /^(gate|acceso|contrôle)$/i }).click();
+  await expect(page.locator("#door-scan")).toBeVisible({ timeout: 30_000 });
+  await typeCode(page, walkUpCode);
   await waitForVerdict(page, "admitted");
-  await expect(page.locator("[data-door-counts]")).toContainText(/\b2 in\b/);
-  await expect(page.locator("[data-door-counts]")).toContainText(/\b2 expected\b/);
+  await expect(page.locator("[data-door-counts]")).toContainText(/\b2 of 2 in\b/);
   await page.screenshot({ path: testInfo.outputPath("08-gate-walkup-admitted.png"), fullPage: true });
 
   // ── The rows: two paid orders, two paid cash transactions, two admissions

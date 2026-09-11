@@ -37,9 +37,28 @@
  * all yet" — that is `mywork`, a real state, not a missing value.
  */
 
-import type { AdminShellIconName } from "@/components/admin/shell/internal/primitives/icons";
 import type { Plan } from "@/components/admin/shell/internal/state/types";
-import type { WorkspaceType } from "@/lib/saas/workspace-type";
+import type {
+  Destination,
+  DestinationRequires,
+  DestinationSubView,
+  WorkspaceNavContext,
+  WorkspacePreset,
+} from "./destination-types";
+
+// The type vocabulary lives next door; every consumer keeps importing it from
+// here, so nothing outside this folder knows the file was split.
+export type {
+  Destination,
+  DestinationChrome,
+  DestinationRender,
+  DestinationRequires,
+  DestinationSubView,
+  TenantFlag,
+  WorkRole,
+  WorkspaceNavContext,
+  WorkspacePreset,
+} from "./destination-types";
 
 // ── The vocabulary ───────────────────────────────────────────────────
 
@@ -70,83 +89,12 @@ export const SIDEBAR_GROUP_ORDER: readonly DestinationGroup[] = DESTINATION_GROU
 export const DESTINATION_GROUP_LABELS: Readonly<Record<DestinationGroup, string | null>> = {
   home: null,
   operate: "Operate",
-  sell: "Sell",
-  relationships: "People",
+  sell: "Sell & manage",
+  relationships: "Relationships",
   money: "Money",
   grow: "Grow",
   settings: null,
   pos: null,
-};
-
-/** How the destination renders: a PageRouter case, or a real Next.js route. */
-export type DestinationRender = "spa" | "canonical";
-
-/** A destination that replaces the admin chrome entirely rather than sitting in it. */
-export type DestinationChrome = "pos";
-
-/**
- * The shape of a workspace, derived in `nav-context.ts` from the tenant's
- * industry preset and team size. Not a stored column.
- */
-export type WorkspacePreset = "cafe" | "solo" | "hybrid";
-
-/**
- * The hat the signed-in person wears. Three rungs off the membership role
- * ladder; `professional` is a fourth, orthogonal hat carried separately on the
- * context because a person can be an owner AND bookable.
- */
-export type WorkRole = "owner" | "manager" | "assistant";
-
-/** Booleans that already ride the tenant identity bridge. Never a fresh fetch. */
-export type TenantFlag = "takesReservations" | "runsEvents";
-
-/**
- * Everything that can hide a destination. Every clause is AND-ed; an absent
- * clause is not a constraint. Visibility is a NAV decision only — hiding a link
- * and refusing a route are different things, and this registry does the first.
- */
-export type DestinationRequires = {
-  /** Only this workspace type sees it (`talent` gates the roster-shaped surfaces). */
-  readonly workspaceType?: WorkspaceType;
-  /** Every flag listed must be true on the context. */
-  readonly tenantFlags?: readonly TenantFlag[];
-  /** Minimum plan on the `free < website < studio < agency < network` ladder. */
-  readonly minPlan?: Plan;
-  /** Any-of against the work role. */
-  readonly roles?: readonly WorkRole[];
-  /** The person must be bookable on this roster (the professional hat). */
-  readonly professional?: boolean;
-  /** The person must be able to manage billing. */
-  readonly billing?: boolean;
-  /** The workspace must have the point of sale switched on. */
-  readonly posEnabled?: boolean;
-};
-
-/**
- * A child link under a destination's rail row.
- *
- * EVERY SUB-VIEW NAMES A ROUTE THAT EXISTS TODAY. `rail-visible-pages.static
- * .test.ts` walks the app directory, through `subViewHref` itself, and fails on
- * one that points at nothing: a child drawn under the row an operator just
- * opened must not be a 404.
- */
-export type DestinationSubView = {
-  readonly id: string;
-  readonly label: string;
-  /** Segment under the owner's live route. `""` is the owner's landing view. */
-  readonly segment: string;
-  /**
-   * The child hangs off ANOTHER destination's live route. Events → Orders is
-   * the case: the door and the ticket orders it checks in are one job.
-   */
-  readonly under?: DestinationId;
-  /** The child's own path under the admin base, for a child that lives under
-   *  no destination's route. Wins over `under`. People needs it: the surface
-   *  moved to /admin/people, its three queues stayed under /admin/roster. */
-  readonly adminPath?: string;
-  /** Query appended to the href, without the "?" (e.g. `compose=new`). */
-  readonly query?: string;
-  readonly requires?: DestinationRequires;
 };
 
 export const DESTINATION_IDS = [
@@ -179,35 +127,18 @@ export const DESTINATION_IDS = [
 
 export type DestinationId = (typeof DESTINATION_IDS)[number];
 
-export type Destination = {
-  readonly id: DestinationId;
-  readonly group: DestinationGroup;
-  /** Canonical URL segment. `""` is the admin root (Overview). */
-  readonly segment: string;
-  /** Legacy segments that still resolve here. Every live URL keeps working. */
-  readonly aliases: readonly string[];
-  readonly render: DestinationRender;
-  /** Set when the destination takes over the screen instead of sitting in the shell. */
-  readonly chrome?: DestinationChrome;
-  readonly icon: AdminShellIconName;
-  /** English label. The preset overrides below win when one applies. */
-  readonly label: string;
-  readonly presetLabels?: Partial<Record<WorkspacePreset, string>>;
-  /** Shorter label for a mobile tab, where the rail label does not fit. */
-  readonly shortLabel?: string;
-  /** Does the surface exist at all today. */
-  readonly built: boolean;
-  /** The route that actually renders. See the SEGMENT vs LIVE ROUTE note above. */
-  readonly fallbackSegment?: string;
-  readonly requires?: DestinationRequires;
-  /** Lower sorts earlier in the mobile tab bar. Absent = never a mobile tab. */
-  readonly mobilePriority?: number;
-  readonly subViews?: readonly DestinationSubView[];
-  /** Pinned to the foot of the rail rather than flowing with its group. */
-  readonly pinned?: boolean;
-};
 
 // ── The destinations ─────────────────────────────────────────────────
+//
+// ROLES, from the approved registry (W36, 2026-09-09; W38 for what staff see):
+// the rows an assistant-rank person (the ladder's editor and viewer, which is
+// where a cashier, a host and a front-desk assistant land — see
+// `nav-context.ts`) can reach are Overview, Messages, Calendar, Appointments,
+// Reservations, Orders, Clients and Sales. Everything else is owner · manager
+// and is ABSENT for staff, not disabled; setup lives in Settings, which the
+// rail replaces with "Setup is owner-only · ask the owner" for them. The
+// ladder cannot tell a cashier from a host, so an assistant sees the union of
+// the three staff rails the board draws (D-POS-13).
 
 export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
   overview: {
@@ -259,16 +190,19 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     fallbackSegment: "sessions",
     render: "spa",
     icon: "layers",
-    label: "Appointments",
+    label: "Appointments & Classes",
+    presetLabels: { solo: "Appointments" },
     shortLabel: "Bookings",
     built: true,
     mobilePriority: 4,
     // TABS, not routes: /admin/sessions still holds one page.tsx, so the three
     // views hang off the live route under a `view` query, the shape Events'
     // Tickets child already has. See AppointmentsPage.
+    // The board's four rows (W39): Appointments · Sessions · Series · Waitlist.
     subViews: [
       { id: "list", label: "Appointments", segment: "" },
-      { id: "sessions", label: "Sessions and series", segment: "", query: "view=sessions" },
+      { id: "sessions", label: "Sessions", segment: "", query: "view=sessions" },
+      { id: "series", label: "Series", segment: "", query: "view=series" },
       { id: "waitlist", label: "Waitlist", segment: "", query: "view=waitlist" },
     ],
   },
@@ -296,6 +230,12 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     shortLabel: "Orders",
     built: true,
     mobilePriority: 5,
+    // Preparation is the kitchen's view of the same orders (W36: "Acceptance,
+    // preparation, pickup/delivery, handoff, returns"), so it hangs here.
+    subViews: [
+      { id: "all", label: "All orders", segment: "" },
+      { id: "preparation", label: "Preparation", segment: "", under: "preparation" },
+    ],
   },
   projects: {
     id: "projects",
@@ -309,6 +249,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     label: "Projects",
     shortLabel: "Projects",
     built: true,
+    requires: { roles: ["owner", "manager"] },
   },
   mywork: {
     id: "mywork",
@@ -334,6 +275,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "alert",
     label: "Issues",
     built: true,
+    requires: { roles: ["owner", "manager"] },
   },
   preparation: {
     id: "preparation",
@@ -344,6 +286,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "layers",
     label: "Preparation",
     built: true,
+    parent: "orders",
   },
   catalog: {
     id: "catalog",
@@ -354,10 +297,22 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     render: "spa",
     icon: "layers",
     label: "Catalog",
-    presetLabels: { cafe: "Menu and catalog", solo: "Services" },
+    presetLabels: { cafe: "Menu & catalog", solo: "Services" },
     shortLabel: "Catalog",
     built: true,
     mobilePriority: 7,
+    requires: { roles: ["owner", "manager"] },
+    // Discounts are the catalog's promotions (W36: "price lists, promotions,
+    // passes & plans"), a child of this row rather than a row of their own.
+    // W01's segments: the items, the structure the Counter and the menu
+    // page draw them in (W07), the promotions (W08, its own route) and the
+    // passes (W09, drawn disabled until the product decision).
+    subViews: [
+      { id: "items", label: "Items", segment: "" },
+      { id: "structure", label: "Menu structure", segment: "", query: "view=structure" },
+      { id: "discounts", label: "Discounts", segment: "", under: "discounts" },
+      { id: "passes", label: "Passes & cards", segment: "", query: "view=passes" },
+    ],
   },
   events: {
     id: "events",
@@ -366,9 +321,9 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     aliases: [],
     render: "spa",
     icon: "map-pin",
-    label: "Events",
+    label: "Events & Tickets",
     built: true,
-    requires: { tenantFlags: ["runsEvents"] },
+    requires: { tenantFlags: ["runsEvents"], roles: ["owner", "manager"] },
     // The five children the rail has drawn under Events since the Events nav
     // shipped. Three of them are the events list under a query — composing a
     // new event and the ticket-tier tab are states of that page, not routes —
@@ -390,8 +345,9 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     fallbackSegment: "tables",
     render: "canonical",
     icon: "layers",
-    label: "Spaces",
+    label: "Spaces & Resources",
     built: true,
+    requires: { roles: ["owner", "manager"] },
   },
   discounts: {
     id: "discounts",
@@ -402,6 +358,8 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "bolt",
     label: "Discounts",
     built: true,
+    requires: { roles: ["owner", "manager"] },
+    parent: "catalog",
   },
   clients: {
     id: "clients",
@@ -432,6 +390,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     shortLabel: "People",
     built: true,
     mobilePriority: 9,
+    requires: { roles: ["owner", "manager"] },
     // The four children the rail has drawn under the roster since WS-3. The
     // last three are TALENT-ONLY because the routes are: each of
     // /admin/roster/{applications,registration,rates} calls
@@ -441,8 +400,15 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     // surface. `talent`, `bookable` and `access` are NOT here: /admin/roster/
     // talent is the roster's [id] route, so those three were links into a
     // lookup for a profile with the id "talent" — they arrive with People.
+    // The board's five rows (W27): Everyone · Talent · Bookable · Access ·
+    // Applications. The middle three are TABS of the one People page under a
+    // `view` query, the shape Appointments' children have; they are not
+    // routes, so the same person is never listed twice.
     subViews: [
       { id: "everyone", label: "Everyone", segment: "" },
+      { id: "talent", label: "Talent", segment: "", query: "view=talent" },
+      { id: "bookable", label: "Bookable", segment: "", query: "view=bookable" },
+      { id: "access", label: "Access", segment: "", query: "view=access" },
       {
         id: "applications",
         label: "Applications",
@@ -477,7 +443,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "send",
     label: "Pitches",
     built: true,
-    requires: { workspaceType: "talent" },
+    requires: { workspaceType: "talent", roles: ["owner", "manager"] },
   },
   reviews: {
     id: "reviews",
@@ -488,6 +454,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "star",
     label: "Reviews",
     built: true,
+    requires: { roles: ["owner", "manager"] },
   },
   sales: {
     id: "sales",
@@ -525,6 +492,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "chart",
     label: "Analytics",
     built: true,
+    requires: { roles: ["owner", "manager"] },
   },
   website: {
     id: "website",
@@ -535,6 +503,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "globe",
     label: "Website",
     built: true,
+    requires: { roles: ["owner", "manager"] },
   },
   media: {
     id: "media",
@@ -545,7 +514,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "image",
     label: "Media",
     built: true,
-    requires: { minPlan: "agency" },
+    requires: { minPlan: "agency", roles: ["owner", "manager"] },
   },
   settings: {
     id: "settings",
@@ -556,6 +525,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "settings",
     label: "Settings",
     built: true,
+    requires: { roles: ["owner", "manager"] },
     pinned: true,
   },
   pos: {
@@ -581,23 +551,6 @@ export const DESTINATION_LIST: readonly Destination[] = DESTINATION_IDS.map(
 
 // ── The context a destination is judged against ──────────────────────
 
-/**
- * Everything visibility needs, all of it already on the client: the tenant
- * identity bridge carries the workspace type and the two flags, the shell state
- * carries the plan, and `nav-context.ts` derives the preset and the hats.
- */
-export type WorkspaceNavContext = {
-  readonly workspaceType: WorkspaceType;
-  readonly plan: Plan;
-  readonly preset: WorkspacePreset;
-  readonly role: WorkRole;
-  /** The person is bookable on this roster (has a talent profile here). */
-  readonly professional: boolean;
-  readonly takesReservations: boolean;
-  readonly runsEvents: boolean;
-  readonly posEnabled: boolean;
-  readonly canManageBilling: boolean;
-};
 
 /**
  * Plan ladder. MIRRORS `PLAN_META[].rank` in the shell fixtures, which cannot be

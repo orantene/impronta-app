@@ -220,3 +220,97 @@ export function matchesGuest(
     row.id.toLowerCase().startsWith(q)
   );
 }
+
+// ── The board's states (G01 to G08, E09) ────────────────────────────────
+
+/**
+ * The second button under a verdict (G02 to G05, G07). `wired` is false when
+ * the engine has no writer for it: the button is drawn disabled with its
+ * sentence, never as a control that does nothing (D-POS-54).
+ */
+export type GateSecondaryAction = "redeemMeal" | "letInAnyway" | "exchangeDate" | "lookUpOrder";
+
+export function gateSecondaryAction(key: DoorVerdictKey): { action: GateSecondaryAction; wired: boolean } | null {
+  switch (key) {
+    case "admitted":
+    case "admittedParty":
+    case "admittedWasNoShow":
+      return { action: "redeemMeal", wired: false };
+    case "alreadyIn":
+      return { action: "letInAnyway", wired: false };
+    case "wrongNight":
+    case "wrongNightDated":
+      return { action: "exchangeDate", wired: false };
+    case "refunded":
+    case "cancelled":
+    case "superseded":
+      return { action: "lookUpOrder", wired: true };
+    default:
+      return null;
+  }
+}
+
+/** "#AB12" for an order, "#AB12-2" for its second ticket: the counter's own short reference. */
+export function orderRef(orderId: string): string {
+  return `#${orderId.replace(/-/g, "").slice(0, 4).toUpperCase()}`;
+}
+
+export function ticketRef(orderId: string | null, lineSeq: number | null, admissionId: string): string {
+  if (!orderId) return `#${admissionId.replace(/-/g, "").slice(0, 4).toUpperCase()}`;
+  // `line_seq` is minted 0-based; people count tickets from one.
+  return lineSeq === null ? orderRef(orderId) : `${orderRef(orderId)}-${lineSeq + 1}`;
+}
+
+export type LookupRow = {
+  readonly id: string;
+  readonly holderName: string | null;
+  readonly holderEmail?: string | null;
+  readonly orderId: string | null;
+  readonly lineSeq: number | null;
+  readonly partySize: number;
+  readonly admittedCount: number;
+  readonly status: "valid" | "void" | "refunded";
+  readonly seatedAt: string | null;
+};
+
+export type LookupGroup<T extends LookupRow> = {
+  /** The order id, or the admission id for a walk-up sold without an order. */
+  readonly key: string;
+  readonly orderId: string | null;
+  readonly ref: string;
+  /** The first named holder on the order, or null when every ticket is unnamed. */
+  readonly holderName: string | null;
+  readonly rows: T[];
+  readonly admitted: number;
+};
+
+/**
+ * E09 groups tonight's list by ORDER: one result per order, its tickets on
+ * the right. A walk-up sold at the events door has no order and is its own
+ * group. Order of groups: the reader's (by holder name).
+ */
+export function groupByOrder<T extends LookupRow>(rows: readonly T[]): LookupGroup<T>[] {
+  const groups = new Map<string, LookupGroup<T>>();
+  for (const row of rows) {
+    const key = row.orderId ?? row.id;
+    let g = groups.get(key);
+    if (!g) {
+      g = { key, orderId: row.orderId, ref: row.orderId ? orderRef(row.orderId) : ticketRef(null, null, row.id), holderName: null, rows: [], admitted: 0 };
+      groups.set(key, g);
+    }
+    g.rows.push(row);
+  }
+  return [...groups.values()].map((g) => ({
+    ...g,
+    holderName: g.rows.find((r) => r.holderName)?.holderName ?? null,
+    admitted: g.rows.reduce((sum, r) => sum + (r.admittedCount > 0 ? 1 : 0), 0),
+  }));
+}
+
+/** A lookup query against a whole order: any ticket's name or email, or the order's reference. */
+export function groupMatches<T extends LookupRow>(group: LookupGroup<T>, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (group.ref.toLowerCase().includes(q) || group.ref.slice(1).toLowerCase().includes(q)) return true;
+  return group.rows.some((r) => matchesGuest(r, q));
+}

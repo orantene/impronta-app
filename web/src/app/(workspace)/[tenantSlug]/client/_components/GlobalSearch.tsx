@@ -41,7 +41,9 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 // Section headers reuse the already-translated client nav vocabulary so search
 // groups read exactly like the sidebar entries they point at.
-const KIND_LABEL_KEY: Record<SearchResult["kind"], string> = {
+// The three workspace-only kinds (client, sale, catalog) never reach the
+// client surface: the server action returns them for admins alone.
+const KIND_LABEL_KEY: Partial<Record<SearchResult["kind"], string>> = {
   inquiry: "dashboard.clientNav.inquiries",
   booking: "dashboard.clientNav.bookings",
   message: "dashboard.clientNav.messages",
@@ -298,7 +300,7 @@ export function GlobalSearch({ placeholder }: { placeholder?: string }) {
                     color: C.inkDim,
                   }}
                 >
-                  {t(KIND_LABEL_KEY[section.kind])}
+                  {t(KIND_LABEL_KEY[section.kind] ?? "dashboard.roleTalent")}
                 </div>
                 {section.items.map((r) => {
                   runningIndex += 1;

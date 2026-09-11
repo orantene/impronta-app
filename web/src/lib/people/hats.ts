@@ -229,6 +229,62 @@ export function accessHat(input: AccessInputs): HatState {
 
 // ── The person record ─────────────────────────────────────────────────
 
+/**
+ * What the boards draw beside the hats (W27 cards, W29/W30 tables, W28): the
+ * roster's own card facts, the person's own offerings and hours summary, the
+ * membership status. Every field is a READER'S fact, never derived here; a
+ * missing fact is `null`, and the screen says so instead of guessing.
+ */
+export type PersonOffering = {
+  readonly id: string;
+  readonly title: string;
+  readonly priceDisplay: string;
+  /** `talent_offerings.visibility`: public / agency / private. */
+  readonly visibility: string;
+  /** `talent_offerings.booking_mode`: request / instant. */
+  readonly bookingMode: string;
+  /** `talent_offerings.status`: draft / published (archived rows are not read). */
+  readonly status: string;
+};
+
+export type PersonHoursSummary = {
+  readonly timezone: string;
+  /** Weekday indexes (0 = Sunday) that carry at least one window. */
+  readonly openDays: readonly number[];
+  readonly bufferBeforeMin: number;
+  readonly minNoticeMin: number;
+};
+
+export type PersonFacts = {
+  /** `talent_profiles.profile_code`, e.g. TAL-00047. */
+  readonly profileCode: string | null;
+  /** The roster card's workflow state. */
+  readonly profileState: "draft" | "invited" | "published" | "awaiting-approval" | "claimed" | null;
+  readonly city: string | null;
+  /** Parent category then the secondary type labels, in display order. */
+  readonly types: readonly string[];
+  /** `agency_talent_roster.agency_visibility` is site_visible or featured. */
+  readonly siteVisible: boolean;
+  readonly offerings: readonly PersonOffering[];
+  readonly hours: PersonHoursSummary | null;
+  /** `agency_memberships.status` when a membership row exists. */
+  readonly membershipStatus: string | null;
+  /** True when this record is the signed-in operator. */
+  readonly isYou: boolean;
+};
+
+export const EMPTY_FACTS: PersonFacts = {
+  profileCode: null,
+  profileState: null,
+  city: null,
+  types: [],
+  siteVisible: false,
+  offerings: [],
+  hours: null,
+  membershipStatus: null,
+  isYou: false,
+};
+
 export type PersonRecord = {
   /** Stable key for this human inside this workspace. See `personKey`. */
   readonly key: string;
@@ -243,6 +299,7 @@ export type PersonRecord = {
   readonly publicProfile: HatState;
   readonly bookable: HatState;
   readonly access: HatState;
+  readonly facts: PersonFacts;
 };
 
 /**
@@ -282,6 +339,8 @@ export type RosterSide = {
    * invited, and the panel shows a different control for each.
    */
   readonly access: HatState;
+  /** The roster card's facts. Optional: the model tests build bare sides. */
+  readonly facts?: Partial<PersonFacts>;
 };
 
 export type MembershipSide = {
@@ -291,6 +350,7 @@ export type MembershipSide = {
   readonly avatarUrl: string | null;
   readonly role: AccessRole | null;
   readonly access: HatState;
+  readonly facts?: Partial<PersonFacts>;
 };
 
 const HAT_OFF_NO_ROSTER: HatState = {
@@ -324,6 +384,7 @@ export function mergePeople(
       publicProfile: r.publicProfile,
       bookable: r.bookable,
       access: r.access,
+      facts: { ...EMPTY_FACTS, ...r.facts },
     });
   }
 
@@ -340,6 +401,8 @@ export function mergePeople(
         avatarUrl: existing.avatarUrl ?? m.avatarUrl,
         role: m.role,
         access: m.access,
+        // The roster's card facts stay; the membership adds only its own.
+        facts: { ...existing.facts, ...m.facts },
       });
       continue;
     }
@@ -354,6 +417,7 @@ export function mergePeople(
       publicProfile: HAT_OFF_NO_ROSTER,
       bookable: HAT_OFF_NO_ROSTER,
       access: m.access,
+      facts: { ...EMPTY_FACTS, ...m.facts },
     });
   }
 

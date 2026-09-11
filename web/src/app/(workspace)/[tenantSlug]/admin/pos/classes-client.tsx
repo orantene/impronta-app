@@ -1,45 +1,46 @@
 "use client";
 
 /**
- * ClassesClient — the Appointments & Classes mode, wired.
- *
- * The front desk's view of one venue day from the till: the appointments in
- * arrival order with a check-in, the sessions with seats taken against
- * capacity and a roster to mark attendance, a walk-in onto a free slot or
- * seat with the money taken through the Counter's own charge, the queue for
- * a full session with a promote, and a move that runs the proven
- * all-or-nothing reschedule.
+ * ClassesClient — the Appointments & Classes mode ("Front desk"), wired, as
+ * boards B01 to B06 draw it: the day's list on the left with the selected
+ * appointment or class on the right, the Walk-in sheet, the Add-extra
+ * sheet, the class check-in, the "A place opened up" dialog, the waitlist.
  *
  * SAME DISCIPLINE AS THE COUNTER (`pos-client.tsx`). Every pixel is a prop the
  * server resolved or a value the operator just typed; every write goes
  * through a server action and comes back as data; every refusal becomes a
  * sentence from the catalogue before it reaches the screen. No `useEffect`:
  * the day is read on the server and re-read with `router.refresh()` after
- * each write, so what is on screen is what is in the rows. The one fetch an
- * operator triggers by hand, the free times for a chosen service, runs in the
- * change handler that chose it.
+ * each write. The two fetches an operator triggers by hand, the free times
+ * for a chosen service and the sale behind a selected appointment, run in
+ * the handler that chose it.
  *
  * THE MONEY IS THE COUNTER'S. `posStartCollection` with `posCollectionKey`
- * (derived, never minted per tap) and the sale's `expectedVersion`: a cash
- * payment taken here is exactly one taken at the register, on the same
- * shift, with the same idempotency, refused with the same sentences.
+ * (derived, never minted per tap) and the sale's `expectedVersion`; an extra
+ * added at the chair is the Counter's `posAddLine` on the same sale.
  */
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { PosFrame, PosRefusalBanner, type PosRefusalCopy, type PosRefusalReason } from "@/components/admin/pos";
+import {
+  PosFrame,
+  PosRefusalBanner,
+  type PosRefusalCopy,
+  type PosRefusalReason,
+} from "@/components/admin/pos";
 import type { ClassesCopy } from "@/components/admin/pos/classes-copy";
-import { POS_SECONDARY_ACTION } from "@/components/admin/pos/pos-classes";
 import { formatOrderMoney } from "@/lib/orders/money-format";
-import type { ClassesAppointment, ClassesDay, ClassesSession } from "@/lib/pos/classes/day";
+import type {
+  ClassesAppointment,
+  ClassesDay,
+  ClassesSession,
+} from "@/lib/pos/classes/day";
+import type { ClassesExtra } from "@/lib/pos/classes/extras";
 import {
   actionRefusalKey,
   attendanceRefusalKey,
   checkInRefusalKey,
-  noSlotsKey,
-  slotsRefusalKey,
-  walkInRefusalKey,
   type ClassesRefusalKey,
 } from "@/lib/pos/classes/refusals";
 import { refusalFromResult } from "@/lib/pos/refusal-reason";
@@ -54,28 +55,21 @@ import { fillRefusalSentence } from "@/lib/scheduling/reschedule-refusal";
 import type { WaitlistEntry } from "@/lib/scheduling/session-waitlist";
 import { zonedLocalToUtc } from "@/lib/scheduling/tz";
 
-import { posStartCollection } from "./actions";
+import { posAddLine, posLoadSale, posStartCollection } from "./actions";
+import { classesCheckIn, classesMarkAttendance } from "./classes-actions";
+import { SessionCheckIn } from "./classes-checkin";
+import { fill, formatWhen, venueLocalInputValue } from "./classes-format";
+import { ClassesNotice, WaitlistPanel, WalkInSheet, type WalkInService } from "./classes-panels";
 import {
-  classesBookWalkIn,
-  classesCheckIn,
-  classesHoldSeat,
-  classesMarkAttendance,
-  classesNameSeatHolders,
-  classesWalkInSlots,
-  type ClassesWalkInResult,
-} from "./classes-actions";
-import { fill, formatDay, formatWhen, venueLocalInputValue } from "./classes-format";
-import {
-  ClassesNotice,
-  SessionsPanel,
-  TodayPanel,
-  WaitlistPanel,
-  WalkInPanel,
-  type WalkInKind,
-  type WalkInOutcome,
-  type WalkInService,
-  type WalkInSlots,
-} from "./classes-panels";
+  AddExtraSheet,
+  AppointmentDetail,
+  TodayList,
+  type SaleDetail,
+  type TodaySegment,
+  type TodayTab,
+} from "./classes-today";
+import { PosAction } from "./classes-ui";
+import { useWalkIn } from "./classes-walkin-state";
 import { posCollectionKey } from "./counter-model";
 
 type Destination = "today" | "sessions" | "walkin" | "waitlist";
@@ -83,13 +77,22 @@ type Destination = "today" | "sessions" | "walkin" | "waitlist";
 export type ClassesClientProps = {
   tenantId: string;
   workspaceName: string;
+  /** The venue the day is read on, when the workspace names one. */
+  venueName: string | null;
+  operatorName: string;
   posPath: string;
   locale: string;
   currency: string;
+  /** The server's clock at render, ISO; "starts in N min" reads it, never the browser's. */
+  nowIso: string;
   day: ClassesDay;
   services: readonly WalkInService[];
+  extras: readonly ClassesExtra[];
   copy: {
-    frame: { navLabel: string; destinationLabels: Readonly<Record<string, string>> };
+    frame: {
+      navLabel: string;
+      destinationLabels: Readonly<Record<string, string>>;
+    };
     classes: ClassesCopy;
     counterRefusal: PosRefusalCopy;
   };
@@ -101,7 +104,9 @@ type Notice =
   | { kind: "counter"; reason: PosRefusalReason };
 
 function parseDestination(raw: string): Destination {
-  return raw === "sessions" || raw === "walkin" || raw === "waitlist" ? raw : "today";
+  return raw === "sessions" || raw === "walkin" || raw === "waitlist"
+    ? raw
+    : "today";
 }
 
 export function ClassesClient(props: ClassesClientProps) {
@@ -114,38 +119,41 @@ export function ClassesClient(props: ClassesClientProps) {
   const [notice, setNotice] = useState<Notice | null>(null);
 
   // Today
+  const [tab, setTab] = useState<TodayTab>("today");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
+    null,
+  );
+  const [sale, setSale] = useState<SaleDetail>({ status: "idle" });
   const [moving, setMoving] = useState<string | null>(null);
   const [moveValue, setMoveValue] = useState("");
+  const [extraFor, setExtraFor] = useState<string | null>(null);
 
   // Waitlist
   const [joinFor, setJoinFor] = useState<string | null>(null);
   const [joinName, setJoinName] = useState("");
   const [joinEmail, setJoinEmail] = useState("");
 
-  // Walk-in
-  const [kind, setKind] = useState<WalkInKind>("appointment");
-  const [serviceId, setServiceId] = useState("");
-  const [slots, setSlots] = useState<WalkInSlots>({ status: "idle" });
-  const [slotIso, setSlotIso] = useState("");
-  const [sessionId, setSessionId] = useState("");
-  const [tierId, setTierId] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [attemptKey, setAttemptKey] = useState(() => `walkin-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
-  const [outcome, setOutcome] = useState<WalkInOutcome | null>(null);
-  const [sale, setSale] = useState<{ orderId: string; version: number; outstandingCents: number; currency: string } | null>(null);
-
-  const dayHref = (offset: number) => `${props.posPath}?mode=classes&day=${offset}`;
+  const dayHref = (offset: number) =>
+    `${props.posPath}?mode=classes&day=${offset}`;
+  const segment: TodaySegment =
+    destination === "sessions" ? "classes" : "appts";
+  const selected = day.appointments.find((r) => r.id === selectedId) ?? null;
+  const selectedSession =
+    day.sessions.find((s) => s.id === selectedSessionId) ?? null;
 
   const refuse = useCallback(
-    (key: ClassesRefusalKey) => setNotice({ kind: "refused", sentence: c.refusal[key] }),
+    (key: ClassesRefusalKey) =>
+      setNotice({ kind: "refused", sentence: c.refusal[key] }),
     [c.refusal],
   );
 
   /** Run one command; on success re-read the day so the screen is the rows. */
   const run = useCallback(
-    async <T,>(fn: () => Promise<T>, after: (result: T) => boolean): Promise<T | null> => {
+    async <T,>(
+      fn: () => Promise<T>,
+      after: (result: T) => boolean,
+    ): Promise<T | null> => {
       setBusy(true);
       setNotice(null);
       try {
@@ -164,15 +172,45 @@ export function ClassesClient(props: ClassesClientProps) {
 
   /* ── Today ─────────────────────────────────────────────────────────── */
 
+  /** The sale behind an appointment, read when the operator opens it. */
+  const readSale = (row: ClassesAppointment) => {
+    if (!row.orderId) {
+      setSale({ status: "idle" });
+      return;
+    }
+    setSale({ status: "loading" });
+    void posLoadSale(row.orderId).then(
+      (r) =>
+        setSale(
+          r.ok ? { status: "ready", sale: r.sale } : { status: "unreadable" },
+        ),
+      () => setSale({ status: "unreadable" }),
+    );
+  };
+
+  const select = (row: ClassesAppointment) => {
+    setSelectedId(row.id);
+    setMoving(null);
+    setNotice(null);
+    readSale(row);
+  };
+
   const checkIn = (row: ClassesAppointment) =>
     void run(
       () => classesCheckIn({ bookingId: row.id, expectedState: row.state }),
       (r) => {
         if (!r.ok) {
-          refuse(r.reason === "not_allowed" || r.reason === "invalid" ? actionRefusalKey(r.reason) : checkInRefusalKey(r.reason));
+          refuse(
+            r.reason === "not_allowed" || r.reason === "invalid"
+              ? actionRefusalKey(r.reason)
+              : checkInRefusalKey(r.reason),
+          );
           return false;
         }
-        setNotice({ kind: "done", sentence: `${row.customerName ?? c.today.nobody}: ${c.today.arrived}` });
+        setNotice({
+          kind: "done",
+          sentence: `${row.customerName ?? c.today.nobody}: ${c.today.arrived}`,
+        });
         return true;
       },
     );
@@ -185,7 +223,11 @@ export function ClassesClient(props: ClassesClientProps) {
     }
     // The control hands back a wall clock with no zone. It means the VENUE's
     // clock, so the venue's zone is what turns it into an instant.
-    const instant = zonedLocalToUtc(parsed.ymd, parsed.minutesOfDay, day.timeZone);
+    const instant = zonedLocalToUtc(
+      parsed.ymd,
+      parsed.minutesOfDay,
+      day.timeZone,
+    );
     if (!instant) {
       setNotice({ kind: "refused", sentence: c.reschedule.nonexistentTime });
       return;
@@ -206,7 +248,10 @@ export function ClassesClient(props: ClassesClientProps) {
         if (!r.ok) {
           setNotice({
             kind: "refused",
-            sentence: fillRefusalSentence(c.reschedule.refusal[r.refusal.key], r.refusal.params),
+            sentence: fillRefusalSentence(
+              c.reschedule.refusal[r.refusal.key],
+              r.refusal.params,
+            ),
           });
           return false;
         }
@@ -215,7 +260,9 @@ export function ClassesClient(props: ClassesClientProps) {
           kind: "done",
           sentence: r.already
             ? c.reschedule.already
-            : fill(c.reschedule.moved, { when: formatWhen(r.startsAt, day.timeZone, props.locale) }),
+            : fill(c.reschedule.moved, {
+                when: formatWhen(r.startsAt, day.timeZone, props.locale),
+              }),
         });
         return true;
       },
@@ -229,8 +276,7 @@ export function ClassesClient(props: ClassesClientProps) {
   const collectCash = (
     target: { orderId: string; version: number; outstandingCents: number },
     // The walk-in form's own contact rides with the walk-in's collection and
-    // with nothing else: a booking made elsewhere already names its customer,
-    // and whatever is left in the form belongs to somebody else.
+    // with nothing else: a booking made elsewhere already names its customer.
     contact?: { name: string; email: string; phone: string },
   ) =>
     run(
@@ -241,7 +287,8 @@ export function ClassesClient(props: ClassesClientProps) {
           email: contact?.email.trim() || undefined,
           phone: contact?.phone.trim() || undefined,
           displayName: contact?.name.trim() || undefined,
-          amountCents: target.outstandingCents > 0 ? target.outstandingCents : undefined,
+          amountCents:
+            target.outstandingCents > 0 ? target.outstandingCents : undefined,
           tenderedCents: target.outstandingCents,
           idempotencyKey: posCollectionKey({
             orderId: target.orderId,
@@ -263,11 +310,53 @@ export function ClassesClient(props: ClassesClientProps) {
 
   const collectRow = (row: ClassesAppointment) => {
     if (!row.orderId || row.orderVersion === null) return;
-    void collectCash({ orderId: row.orderId, version: row.orderVersion, outstandingCents: row.outstandingCents }).then((r) => {
+    void collectCash({
+      orderId: row.orderId,
+      version: row.orderVersion,
+      outstandingCents: row.outstandingCents,
+    }).then((r) => {
       if (r && r.ok) {
-        setNotice({ kind: "done", sentence: fill(c.walkin.collected, { amount: formatOrderMoney(row.outstandingCents, row.currency) }) });
+        setNotice({
+          kind: "done",
+          sentence: fill(c.walkin.collected, {
+            amount: formatOrderMoney(row.outstandingCents, row.currency),
+          }),
+        });
+        readSale(row);
       }
     });
+  };
+
+  /** B02: one more line on the appointment's own sale, the sale's version carried. */
+  const addExtra = (row: ClassesAppointment, extra: ClassesExtra) => {
+    if (!row.orderId) return;
+    const version =
+      sale.status === "ready"
+        ? sale.sale.version
+        : (row.orderVersion ?? undefined);
+    void run(
+      () =>
+        posAddLine({
+          orderId: row.orderId ?? "",
+          offeringId: extra.offeringId,
+          units: 1,
+          expectedVersion: version,
+        }),
+      (r) => {
+        const refused = refusalFromResult(r, "sale");
+        if (refused) {
+          setNotice({ kind: "counter", reason: refused });
+          return false;
+        }
+        setExtraFor(null);
+        setNotice({
+          kind: "done",
+          sentence: fill(c.board.extra.added, { item: extra.title }),
+        });
+        readSale(row);
+        return true;
+      },
+    );
   };
 
   /* ── Sessions ──────────────────────────────────────────────────────── */
@@ -277,7 +366,11 @@ export function ClassesClient(props: ClassesClientProps) {
       () => classesMarkAttendance({ admissionId }),
       (r) => {
         if (!r.ok) {
-          refuse(r.reason === "not_allowed" ? actionRefusalKey(r.reason) : attendanceRefusalKey(r.reason));
+          refuse(
+            r.reason === "not_allowed"
+              ? actionRefusalKey(r.reason)
+              : attendanceRefusalKey(r.reason),
+          );
           return false;
         }
         setNotice({ kind: "done", sentence: c.sessions.here });
@@ -289,10 +382,18 @@ export function ClassesClient(props: ClassesClientProps) {
 
   const promote = (session: ClassesSession, entry: WaitlistEntry) =>
     void run(
-      () => promoteFromWaitlist({ tenantId: props.tenantId, entryId: entry.id, expectedStatus: entry.status }),
+      () =>
+        promoteFromWaitlist({
+          tenantId: props.tenantId,
+          entryId: entry.id,
+          expectedStatus: entry.status,
+        }),
       (r) => {
         if (!r.ok) {
-          setNotice({ kind: "refused", sentence: c.waitlist.promoteRefusal[r.refusalKey] });
+          setNotice({
+            kind: "refused",
+            sentence: c.waitlist.promoteRefusal[r.refusalKey],
+          });
           return false;
         }
         setNotice({
@@ -301,7 +402,9 @@ export function ClassesClient(props: ClassesClientProps) {
             ? fill(c.waitlist.alreadyOffered, { name: entry.customerName })
             : fill(c.waitlist.promoted, {
                 name: entry.customerName,
-                when: r.offerExpiresAt ? formatWhen(r.offerExpiresAt, day.timeZone, props.locale) : "",
+                when: r.offerExpiresAt
+                  ? formatWhen(r.offerExpiresAt, day.timeZone, props.locale)
+                  : "",
               }),
         });
         return true;
@@ -310,13 +413,24 @@ export function ClassesClient(props: ClassesClientProps) {
 
   const accept = (session: ClassesSession, entry: WaitlistEntry) =>
     void run(
-      () => acceptWaitlistPlace({ tenantId: props.tenantId, entryId: entry.id, expectedStatus: entry.status }),
+      () =>
+        acceptWaitlistPlace({
+          tenantId: props.tenantId,
+          entryId: entry.id,
+          expectedStatus: entry.status,
+        }),
       (r) => {
         if (!r.ok) {
-          setNotice({ kind: "refused", sentence: c.waitlist.acceptRefusal[r.refusalKey] });
+          setNotice({
+            kind: "refused",
+            sentence: c.waitlist.acceptRefusal[r.refusalKey],
+          });
           return false;
         }
-        setNotice({ kind: "done", sentence: fill(c.waitlist.accepted, { name: entry.customerName }) });
+        setNotice({
+          kind: "done",
+          sentence: fill(c.waitlist.accepted, { name: entry.customerName }),
+        });
         return true;
       },
     );
@@ -334,11 +448,16 @@ export function ClassesClient(props: ClassesClientProps) {
         if (!r.ok) {
           setNotice({
             kind: "refused",
-            sentence: fill(c.waitlist.joinRefusal[r.refusalKey], { left: r.seatsRemaining ?? 0 }),
+            sentence: fill(c.waitlist.joinRefusal[r.refusalKey], {
+              left: r.seatsRemaining ?? 0,
+            }),
           });
           return false;
         }
-        setNotice({ kind: "done", sentence: fill(c.waitlist.join.joined, { name: joinName.trim() }) });
+        setNotice({
+          kind: "done",
+          sentence: fill(c.waitlist.join.joined, { name: joinName.trim() }),
+        });
         setJoinFor(null);
         setJoinName("");
         setJoinEmail("");
@@ -348,283 +467,317 @@ export function ClassesClient(props: ClassesClientProps) {
 
   /* ── Walk-in ───────────────────────────────────────────────────────── */
 
-  const chooseService = (id: string) => {
-    setServiceId(id);
-    setSlotIso("");
-    if (!id) {
-      setSlots({ status: "idle" });
-      return;
-    }
-    setSlots({ status: "loading" });
-    void classesWalkInSlots({ offeringId: id, dayOffset: day.dayOffset }).then(
-      (r) => {
-        if (!r.ok) {
-          setSlots({ status: "empty", sentence: c.refusal[r.reason === "not_allowed" || r.reason === "invalid" ? actionRefusalKey(r.reason) : slotsRefusalKey(r.reason)] });
-          return;
-        }
-        if (r.starts.length === 0) {
-          setSlots({ status: "empty", sentence: c.refusal[r.emptyReason ? noSlotsKey(r.emptyReason) : "closedToday"] });
-          return;
-        }
-        setSlots({ status: "ready", starts: r.starts });
-      },
-      () => setSlots({ status: "empty", sentence: c.refusal.unavailable }),
-    );
-  };
+  const walkIn = useWalkIn({
+    day,
+    services: props.services,
+    locale: props.locale,
+    copy: c,
+    run,
+    refuse,
+    setNotice,
+    collectCash,
+    refreshDay: () => router.refresh(),
+  });
 
-  const afterWalkIn = (r: ClassesWalkInResult, sentence: string): boolean => {
-    if (!r.ok) {
-      if (r.reason === "not_allowed" || r.reason === "unavailable") {
-        refuse(actionRefusalKey(r.reason));
-      } else if (kind === "seat") {
-        // The seat path runs the Counter's draft commands; its words are the
-        // Counter's and so are its sentences.
-        const counter = refusalFromResult({ ok: false, reason: r.reason }, "sale");
-        if (counter) setNotice({ kind: "counter", reason: counter });
-        else refuse("couldNotBook");
-      } else {
-        refuse(walkInRefusalKey(r.reason));
-      }
-      return false;
-    }
-    setSale({ orderId: r.orderId, version: r.version, outstandingCents: r.outstandingCents, currency: r.currency });
-    setOutcome({ stage: "booked", sentence, outstandingCents: r.outstandingCents, currency: r.currency });
-    return true;
-  };
-
-  const book = () => {
-    if (kind === "appointment") {
-      const service = props.services.find((s) => s.offeringId === serviceId);
-      if (!service || !slotIso) return;
-      void run(
-        () => classesBookWalkIn({ offeringId: serviceId, startsAt: slotIso, name, email, phone, attemptKey }),
-        (r) => afterWalkIn(r, fill(c.walkin.booked, { when: formatWhen(slotIso, day.timeZone, props.locale) })),
-      );
-      return;
-    }
-    const session = day.sessions.find((s) => s.id === sessionId);
-    if (!session || !session.offeringId) return;
-    const tier = session.tiers.length === 1 ? session.tiers[0] : session.tiers.find((t) => t.variantId === tierId);
-    if (session.tiers.length > 1 && !tier) return;
-    void run(
-      () => classesHoldSeat({ sessionId: session.id, offeringId: session.offeringId ?? "", variantId: tier?.variantId ?? null }),
-      (r) => afterWalkIn(r, fill(c.walkin.seatBooked, { session: session.title })),
-    );
-  };
-
-  const collectWalkIn = () => {
-    if (!sale) return;
-    void collectCash(sale, { name, email, phone }).then(async (r) => {
-      if (r && r.ok) {
-        // A seat's ticket carries the name the operator typed, so the roster
-        // can call it (the Counter names a buyer only by email or phone).
-        if (kind === "seat" && name.trim()) {
-          try {
-            await classesNameSeatHolders({ orderId: sale.orderId, name });
-          } catch {
-            // The seat is sold and paid; a missing name is not a refusal.
-          }
-          router.refresh();
-        }
-        setOutcome({ stage: "collected", sentence: fill(c.walkin.collected, { amount: formatOrderMoney(sale.outstandingCents, sale.currency) }) });
-      }
-    });
-  };
-
-  /**
-   * A FINISHED WALK-IN IS FINISHED. Once its money is collected (or there was
-   * none to collect) the form is cleared the moment the operator leaves the
-   * screen, so coming back through the rail, or from a session's "Book a
-   * walk-in seat", opens a fresh form and not last customer's receipt. A
-   * walk-in that is booked but NOT yet collected is kept: the collect button
-   * is the one thing that must not vanish under a stray tap on the rail.
-   */
-  const settled = outcome !== null && (outcome.stage === "collected" || outcome.outstandingCents <= 0);
-
-  const startAgain = () => {
-    setOutcome(null);
-    setSale(null);
-    setSlotIso("");
-    setSlots({ status: "idle" });
-    setServiceId("");
-    setSessionId("");
-    setTierId("");
-    setName("");
-    setEmail("");
-    setPhone("");
+  const openWalkIn = (next: "walkin" | "book", seat?: ClassesSession) => {
+    walkIn.prepare(next, seat);
     setNotice(null);
-    setAttemptKey(`walkin-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+    setDestination("walkin");
+  };
+
+  const closeWalkIn = () => {
+    if (walkIn.settled) walkIn.startAgain();
+    setDestination(walkIn.kind === "seat" && selectedSessionId ? "sessions" : "today");
   };
 
   /* ── Screens ───────────────────────────────────────────────────────── */
 
-  const dayLabel =
-    day.dayOffset === 0 ? c.day.today : day.dayOffset === 1 ? c.day.tomorrow : day.dayOffset === -1 ? c.day.yesterday : formatDay(day.ymd, props.locale);
+  const b = c.board;
+  // "Tue 8 Sep", the board's order, whatever the locale's default order is.
+  const dayParts = new Intl.DateTimeFormat(props.locale, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).formatToParts(new Date(`${day.ymd}T12:00:00.000Z`));
+  const dayPart = (type: string) =>
+    dayParts.find((x) => x.type === type)?.value ?? "";
+  const dayLabel = `${dayPart("weekday")} ${dayPart("day")} ${dayPart("month").replace(/\.$/, "")}`;
+  const summary = fill(b.header.summary, {
+    date: dayLabel,
+    appointments: day.appointments.length,
+    classes: day.sessions.length,
+  });
 
-  const screen =
-    destination === "today" ? (
-      <TodayPanel
+  const twoPane = (
+    <div className="relative flex min-h-0 flex-1">
+      <TodayList
         rows={day.appointments}
+        sessions={day.sessions}
+        tab={tab}
+        segment={segment}
+        selectedId={selectedId}
+        selectedSessionId={selectedSessionId}
         timeZone={day.timeZone}
         locale={props.locale}
         copy={c}
-        busy={busy}
-        moving={moving}
-        moveValue={moveValue}
-        onMoveValueChange={setMoveValue}
-        onCheckIn={checkIn}
-        onOpenMove={(row) => {
-          setMoving(row.id);
-          setMoveValue(venueLocalInputValue(row.startsAt, day.timeZone));
+        onTab={setTab}
+        onSegment={(next) =>
+          setDestination(next === "classes" ? "sessions" : "today")
+        }
+        onSelect={select}
+        onSelectSession={(session) => {
+          setSelectedSessionId(session.id);
           setNotice(null);
         }}
-        onSubmitMove={submitMove}
-        onCancelMove={() => setMoving(null)}
-        onCollect={collectRow}
+        onWalkIn={() => openWalkIn("walkin")}
+        onBook={() => openWalkIn("book")}
       />
-    ) : destination === "sessions" ? (
-      <SessionsPanel
-        sessions={day.sessions}
-        timeZone={day.timeZone}
-        locale={props.locale}
-        copy={c}
-        busy={busy}
-        onMark={mark}
-        onBookSeat={(session) => {
-          if (settled) startAgain();
-          setKind("seat");
-          setSessionId(session.id);
-          setTierId(session.tiers.length === 1 ? (session.tiers[0]?.variantId ?? "") : "");
-          setDestination("walkin");
-        }}
-        onOpenQueue={(session) => {
-          setJoinFor(session.id);
-          setDestination("waitlist");
-        }}
-      />
-    ) : destination === "waitlist" ? (
-      <WaitlistPanel
-        sessions={day.sessions}
-        timeZone={day.timeZone}
-        locale={props.locale}
-        copy={c}
-        busy={busy}
-        joinFor={joinFor}
-        joinName={joinName}
-        joinEmail={joinEmail}
-        onJoinNameChange={setJoinName}
-        onJoinEmailChange={setJoinEmail}
-        onOpenJoin={(session) => setJoinFor(session.id)}
-        onSubmitJoin={join}
-        onPromote={promote}
-        onAccept={accept}
-      />
-    ) : (
-      <WalkInPanel
-        kind={kind}
-        onKindChange={(next) => {
-          setKind(next);
-          setNotice(null);
-        }}
-        services={props.services}
-        sessions={day.sessions}
-        serviceId={serviceId}
-        onServiceChange={chooseService}
-        slots={slots}
-        slotIso={slotIso}
-        onSlotChange={setSlotIso}
-        sessionId={sessionId}
-        onSessionChange={(id) => {
-          setSessionId(id);
-          const s = day.sessions.find((row) => row.id === id);
-          setTierId(s && s.tiers.length === 1 ? (s.tiers[0]?.variantId ?? "") : "");
-        }}
-        tierId={tierId}
-        onTierChange={setTierId}
-        name={name}
-        email={email}
-        phone={phone}
-        onNameChange={setName}
-        onEmailChange={setEmail}
-        onPhoneChange={setPhone}
-        timeZone={day.timeZone}
-        locale={props.locale}
-        currency={props.currency}
-        copy={c}
-        busy={busy}
-        outcome={outcome}
-        onBook={book}
-        onCollect={collectWalkIn}
-        onStartAgain={startAgain}
-      />
-    );
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {segment === "classes" ? (
+          selectedSession ? (
+            <SessionCheckIn
+              session={selectedSession}
+              nowIso={props.nowIso}
+              timeZone={day.timeZone}
+              locale={props.locale}
+              copy={c}
+              busy={busy}
+              onMark={mark}
+              onBookSeat={(session) => openWalkIn("walkin", session)}
+              onOpenQueue={(session) => {
+                setJoinFor(session.id);
+                setDestination("waitlist");
+              }}
+              onOfferPlace={promote}
+            />
+          ) : (
+            <p className="m-0 p-[20px] font-admin-body text-[15px] text-admin-ink-muted">
+              {b.list.pickSession}
+            </p>
+          )
+        ) : selected ? (
+          <AppointmentDetail
+            row={selected}
+            sale={sale}
+            timeZone={day.timeZone}
+            locale={props.locale}
+            copy={c}
+            busy={busy}
+            moving={moving === selected.id}
+            moveValue={moveValue}
+            onMoveValueChange={setMoveValue}
+            onCheckIn={checkIn}
+            onOpenMove={(row) => {
+              setMoving(row.id);
+              setMoveValue(venueLocalInputValue(row.startsAt, day.timeZone));
+              setNotice(null);
+            }}
+            onSubmitMove={submitMove}
+            onCancelMove={() => setMoving(null)}
+            onCollect={collectRow}
+            onAddExtra={() => setExtraFor(selected.id)}
+          />
+        ) : (
+          <p className="m-0 p-[20px] font-admin-body text-[15px] text-admin-ink-muted">
+            {b.list.pickOne}
+          </p>
+        )}
+      </div>
+      {destination === "walkin" ? (
+        <WalkInSheet
+          intent={walkIn.intent}
+          kind={walkIn.kind}
+          onKindChange={(next) => {
+            walkIn.setKind(next);
+            setNotice(null);
+          }}
+          services={props.services}
+          sessions={day.sessions}
+          serviceId={walkIn.serviceId}
+          onServiceChange={walkIn.chooseService}
+          slots={walkIn.slots}
+          slotIso={walkIn.slotIso}
+          onSlotChange={walkIn.setSlotIso}
+          sessionId={walkIn.sessionId}
+          onSessionChange={walkIn.chooseSession}
+          tierId={walkIn.tierId}
+          onTierChange={walkIn.setTierId}
+          name={walkIn.name}
+          email={walkIn.email}
+          phone={walkIn.phone}
+          onNameChange={walkIn.setName}
+          onEmailChange={walkIn.setEmail}
+          onPhoneChange={walkIn.setPhone}
+          timeZone={day.timeZone}
+          locale={props.locale}
+          currency={props.currency}
+          copy={c}
+          busy={busy}
+          outcome={walkIn.outcome}
+          onBook={walkIn.book}
+          onCollect={walkIn.collect}
+          onStartAgain={walkIn.startAgain}
+          onClose={closeWalkIn}
+        />
+      ) : null}
+      {extraFor && selected && selected.id === extraFor ? (
+        <AddExtraSheet
+          row={selected}
+          sale={sale.status === "ready" ? sale.sale : null}
+          extras={props.extras}
+          copy={c}
+          currency={props.currency}
+          busy={busy}
+          onAdd={(extra) => addExtra(selected, extra)}
+          onClose={() => setExtraFor(null)}
+        />
+      ) : null}
+    </div>
+  );
 
   return (
-    <div className="flex min-h-[calc(100vh-56px)] w-full flex-col">
+    <div className="flex h-[calc(100vh-56px)] min-h-[560px] w-full flex-col overflow-hidden">
       <PosFrame
         mode="classes"
         navLabel={copy.frame.navLabel}
         activeDestination={destination}
         onSelectDestination={(id) => {
-          if (settled) startAgain();
-          setDestination(parseDestination(id));
+          if (walkIn.settled) walkIn.startAgain();
+          const next = parseDestination(id);
+          if (next === "walkin") {
+            openWalkIn("walkin");
+            return;
+          }
+          setDestination(next);
           setNotice(null);
         }}
         destinationLabels={copy.frame.destinationLabels}
         className="flex-1 rounded-none border-0"
       >
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-4 py-3">
-          <div className="min-w-0">
-            <p className="m-0 truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">{props.workspaceName}</p>
-            <h1 className="m-0 text-base font-semibold text-foreground">{c.title}</h1>
-            <p className="m-0 text-sm text-muted-foreground" data-pos-classes-day={day.ymd} data-pos-classes-zone={day.timeZone}>
-              {dayLabel} · {fill(c.day.clock, { date: formatDay(day.ymd, props.locale), zone: day.timeZone })}
-            </p>
-          </div>
-          <nav className="flex gap-2" aria-label={c.title}>
-            <button type="button" className={`${POS_SECONDARY_ACTION} h-11 min-w-0 px-4`} onClick={() => router.push(dayHref(day.dayOffset - 1))}>
-              {c.day.prev}
-            </button>
-            {day.dayOffset !== 0 && (
-              <button type="button" className={`${POS_SECONDARY_ACTION} h-11 min-w-0 px-4`} onClick={() => router.push(dayHref(0))}>
-                {c.day.backToToday}
-              </button>
-            )}
-            <button type="button" className={`${POS_SECONDARY_ACTION} h-11 min-w-0 px-4`} onClick={() => router.push(dayHref(day.dayOffset + 1))}>
-              {c.day.next}
-            </button>
-            <button type="button" className={`${POS_SECONDARY_ACTION} h-11 min-w-0 px-4`} onClick={() => router.refresh()}>
-              {c.day.reload}
-            </button>
-          </nav>
-        </header>
-        {notice && (
-          <div className="px-4 pt-4">
-            {notice.kind === "counter" ? (
-              <PosRefusalBanner
-                reason={notice.reason}
-                copy={copy.counterRefusal}
-                onRetry={() => {
-                  setNotice(null);
-                  router.refresh();
-                }}
-              />
-            ) : (
-              <ClassesNotice kind={notice.kind}>{notice.sentence}</ClassesNotice>
-            )}
-          </div>
-        )}
-        <h2 className="m-0 px-4 pt-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          {destination === "today"
-            ? c.today.heading
-            : destination === "sessions"
-              ? c.sessions.heading
-              : destination === "waitlist"
-                ? c.waitlist.heading
-                : c.walkin.heading}
-        </h2>
-        {screen}
+        <div className="flex h-full min-h-0 flex-col">
+          <header className="flex flex-wrap items-center justify-between gap-[12px] border-b border-admin-border px-[20px] py-[12px]">
+            <div className="min-w-0">
+              <h1 className="m-0 font-admin-body text-[22px] font-semibold leading-[1.15] text-admin-ink">
+                {c.title}
+              </h1>
+              <p
+                className="m-0 flex items-center gap-[8px] font-admin-body text-[14px] text-admin-ink-muted"
+                data-pos-classes-day={day.ymd}
+                data-pos-classes-zone={day.timeZone}
+              >
+                <button
+                  type="button"
+                  aria-label={c.day.prev}
+                  className="cursor-pointer rounded-[6px] px-[4px] text-admin-ink-dim hover:text-admin-ink"
+                  onClick={() => router.push(dayHref(day.dayOffset - 1))}
+                >
+                  ‹
+                </button>
+                <span>{summary}</span>
+                <button
+                  type="button"
+                  aria-label={c.day.next}
+                  className="cursor-pointer rounded-[6px] px-[4px] text-admin-ink-dim hover:text-admin-ink"
+                  onClick={() => router.push(dayHref(day.dayOffset + 1))}
+                >
+                  ›
+                </button>
+                {day.dayOffset !== 0 ? (
+                  <button
+                    type="button"
+                    className="cursor-pointer text-[13px] font-semibold text-admin-brand underline underline-offset-2"
+                    onClick={() => router.push(dayHref(0))}
+                  >
+                    {c.day.backToToday}
+                  </button>
+                ) : null}
+                <span className="text-admin-ink-dim">· {day.timeZone}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-[8px]">
+              <span
+                className="inline-flex h-[44px] items-center gap-[8px] rounded-[12px] border border-admin-border bg-admin-card px-[14px] font-admin-body text-[15px] font-semibold text-admin-ink"
+                title={b.header.location}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-admin-ink-muted"
+                >
+                  <path d="M12 21s7-6.5 7-11.5a7 7 0 0 0-14 0C5 14.5 12 21 12 21z" />
+                  <circle cx="12" cy="9.5" r="2.5" />
+                </svg>
+                {props.venueName ?? props.workspaceName}
+              </span>
+              <span
+                className="inline-flex h-[44px] items-center gap-[8px] rounded-[12px] border border-admin-border bg-admin-card px-[10px] pr-[14px] font-admin-body text-[15px] font-semibold text-admin-ink"
+                title={b.header.operator}
+              >
+                <span className="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-admin-indigo-soft text-[11px] font-bold text-admin-indigo">
+                  {initialsOf(props.operatorName)}
+                </span>
+                {props.operatorName}
+              </span>
+              <PosAction className="h-[44px]" onClick={() => router.refresh()}>
+                {c.day.reload}
+              </PosAction>
+            </div>
+          </header>
+          {notice ? (
+            <div className="px-[20px] pt-[12px]">
+              {notice.kind === "counter" ? (
+                <PosRefusalBanner
+                  reason={notice.reason}
+                  copy={copy.counterRefusal}
+                  onRetry={() => {
+                    setNotice(null);
+                    router.refresh();
+                  }}
+                />
+              ) : (
+                <ClassesNotice kind={notice.kind}>
+                  {notice.sentence}
+                </ClassesNotice>
+              )}
+            </div>
+          ) : null}
+          {destination === "waitlist" ? (
+            <WaitlistPanel
+              sessions={day.sessions}
+              timeZone={day.timeZone}
+              locale={props.locale}
+              copy={c}
+              busy={busy}
+              joinFor={joinFor}
+              joinName={joinName}
+              joinEmail={joinEmail}
+              onJoinNameChange={setJoinName}
+              onJoinEmailChange={setJoinEmail}
+              onOpenJoin={(session) => setJoinFor(session.id)}
+              onSubmitJoin={join}
+              onPromote={promote}
+              onAccept={accept}
+            />
+          ) : (
+            twoPane
+          )}
+        </div>
       </PosFrame>
     </div>
+  );
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/u).filter(Boolean);
+  return (
+    `${parts[0]?.[0] ?? ""}${parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : ""}`.toUpperCase() ||
+    "·"
   );
 }

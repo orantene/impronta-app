@@ -27,11 +27,17 @@ const KIND_LABEL: Record<SearchResult["kind"], string> = {
   booking: "Bookings",
   message: "Messages",
   talent: "Talent",
+  client: "Clients",
+  sale: "Sales",
+  catalog: "Catalog",
 };
 
 const KIND_ORDER: SearchResult["kind"][] = [
+  "client",
   "inquiry",
+  "sale",
   "booking",
+  "catalog",
   "message",
   "talent",
 ];
