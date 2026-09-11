@@ -85,7 +85,7 @@ test("prepStationUpsert maps invalid", async () => {
 
 test("layout upsert SQL never activates and never writes capacity", () => {
   const sql = readFileSync(
-    join(process.cwd(), "..", "supabase", "migrations", "20261231231000_layout_prep_upsert.sql"),
+    join(process.cwd(), "..", "supabase", "migrations", "20261231233000_layout_prep_upsert.sql"),
     "utf8",
   );
   assert.match(sql, /CREATE OR REPLACE FUNCTION public\.layout_upsert/);
