@@ -56,11 +56,19 @@ const BADGE_TONE: Record<TodayBadge["tone"], string> = {
   critical: "bg-admin-critical-soft text-admin-red",
 };
 
-const BUTTON =
-  "inline-flex h-[34px] cursor-pointer items-center justify-center gap-[6px] whitespace-nowrap rounded-[9px] border px-[14px] font-admin-body text-admin-13 font-semibold [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)]";
-const BUTTON_PRIMARY = `${BUTTON} border-admin-brand bg-admin-brand text-white hover:bg-admin-brand-deep`;
-const BUTTON_SECONDARY = `${BUTTON} border-admin-border bg-admin-card text-admin-ink hover:border-admin-border-strong`;
-const BUTTON_ROW = `${BUTTON_SECONDARY} h-[30px] px-[10px] text-[12px]`;
+// Size and colour are separate strings on purpose: the row action is the
+// secondary button at 30px/12px, and Tailwind does not let a later class win
+// over an earlier `h-[34px]` in the same string (the row buttons rendered at
+// 34px for exactly that reason).
+const BUTTON_BASE =
+  "inline-flex cursor-pointer items-center justify-center gap-[6px] whitespace-nowrap rounded-[9px] border font-admin-body font-semibold [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)]";
+const BUTTON_SIZE = "h-[34px] px-[14px] text-admin-13";
+const BUTTON_SIZE_ROW = "h-[30px] px-[10px] text-[12px]";
+const TONE_PRIMARY = "border-admin-brand bg-admin-brand text-white hover:bg-admin-brand-deep";
+const TONE_SECONDARY = "border-admin-border bg-admin-card text-admin-ink hover:border-admin-border-strong";
+const BUTTON_PRIMARY = `${BUTTON_BASE} ${BUTTON_SIZE} ${TONE_PRIMARY}`;
+const BUTTON_SECONDARY = `${BUTTON_BASE} ${BUTTON_SIZE} ${TONE_SECONDARY}`;
+const BUTTON_ROW = `${BUTTON_BASE} ${BUTTON_SIZE_ROW} ${TONE_SECONDARY}`;
 const CARD = "rounded-[14px] border border-admin-border bg-admin-card";
 
 export function OverviewBoard() {
@@ -114,14 +122,22 @@ export function OverviewBoard() {
     : `${dateLabel} · ${t(`${K}.loading`)}`;
 
   return (
-    <div data-tulala-overview-board className="flex flex-col gap-[20px] font-admin-body">
+    // The board is one screen (Main: `overflow:hidden` on the page column):
+    // the height is the viewport under the top bar, the queue scrolls inside
+    // its own card, and the readiness bar stays where the board draws it.
+    // `leading-[1.2]`: the boards set no line-height (the browser's
+    // `normal`); the admin body's 1.65 made every row and card taller.
+    <div
+      data-tulala-overview-board
+      className="-mb-[36px] flex h-[calc(100vh-var(--proto-cbar,50px)-56px-48px)] min-h-[560px] flex-col gap-[20px] font-admin-body leading-[1.2]"
+    >
       {/* Greeting + actions */}
       <div className="flex items-center justify-between gap-[16px]">
         <div>
           <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">
             {greeting}
           </h1>
-          <div className="mt-[4px] text-admin-13 text-admin-ink-muted">{subline}</div>
+          <div className="mt-[4px] text-admin-13 leading-[1.25] text-admin-ink-muted">{subline}</div>
         </div>
         <div className="flex items-center gap-[8px]">
           {posModes.length > 0 ? (
@@ -158,7 +174,7 @@ export function OverviewBoard() {
       </div>
 
       {/* Five numbers */}
-      <div className="grid grid-cols-5 gap-[12px]">
+      <div className="grid shrink-0 grid-cols-5 gap-[12px]">
         <Kpi
           label={t(`${K}.kpi.collectedToday`)}
           value={snapshot ? (money?.ok ? fmt(money.collectedTodayCents) : null) : undefined}
@@ -235,8 +251,8 @@ export function OverviewBoard() {
 
       {/* Queue + Today */}
       <div className="grid min-h-0 flex-1 grid-cols-[1.35fr_1fr] gap-[16px]">
-        <section className={`${CARD} flex flex-col overflow-hidden`} aria-labelledby="tulala-needs-you">
-          <div className="flex items-center justify-between gap-[10px] px-[18px] pb-[6px] pt-[16px]">
+        <section className={`${CARD} flex min-h-0 flex-col overflow-hidden`} aria-labelledby="tulala-needs-you">
+          <div className="flex shrink-0 items-center justify-between gap-[10px] px-[18px] pb-[6px] pt-[16px]">
             <h2 id="tulala-needs-you" className="m-0 text-[14px]! font-semibold text-admin-ink">
               {t(`${K}.needsYou.title`)}
             </h2>
@@ -249,9 +265,9 @@ export function OverviewBoard() {
               {t(`${K}.needsYou.empty`)}
             </div>
           ) : (
-            <ul className="m-0 flex list-none flex-col p-0">
+            <ul className="m-0 flex min-h-0 list-none flex-col overflow-y-auto p-0">
               {snapshot.needsYou.map((row) => (
-                <li key={row.key} className="flex items-center gap-[14px] border-t border-admin-border-soft px-[18px] py-[12px]">
+                <li key={row.key} className="flex shrink-0 items-center gap-[14px] border-t border-admin-border-soft px-[18px] py-[12px]">
                   <span aria-hidden className={`h-[8px] w-[8px] shrink-0 rounded-full ${TONE_DOT[row.tone]}`} />
                   <div className="min-w-0 flex-1">
                     <div className="text-admin-13 font-semibold text-admin-ink">{render(t, row.title)}</div>
@@ -275,7 +291,7 @@ export function OverviewBoard() {
           )}
         </section>
 
-        <div className="flex min-h-0 flex-col gap-[16px]">
+        <div className="flex min-h-0 flex-col gap-[16px] overflow-y-auto">
           <TodayPanel snapshot={snapshot} />
           <SetupReadiness snapshot={snapshot} onFinish={() => router.push(`${adminBasePath}/setup`)} />
         </div>
@@ -461,7 +477,7 @@ function SetupReadiness({ snapshot, onFinish }: { snapshot: OverviewSnapshot | n
             : interpolate(t(`${K}.setup.missing`), { items: missing.join(" · ") })}
         </div>
       </div>
-      <button type="button" onClick={onFinish} className={`${BUTTON_SECONDARY} h-[30px] text-[12px]`}>
+      <button type="button" onClick={onFinish} className={`${BUTTON_BASE} h-[30px] px-[14px] text-[12px] ${TONE_SECONDARY}`}>
         {t(`${K}.setup.finish`)}
       </button>
     </section>

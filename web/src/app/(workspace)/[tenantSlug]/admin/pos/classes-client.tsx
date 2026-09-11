@@ -637,7 +637,7 @@ export function ClassesClient(props: ClassesClientProps) {
   );
 
   return (
-    <div className="flex h-[calc(100vh-56px)] min-h-[560px] w-full flex-col overflow-hidden">
+    <div className="flex h-[calc(100vh-var(--proto-cbar,50px))] min-h-[560px] w-full flex-col overflow-hidden">
       <PosFrame
         mode="classes"
         navLabel={copy.frame.navLabel}

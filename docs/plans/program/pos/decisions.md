@@ -783,3 +783,36 @@ Issues queue's two most consequential rows. W56 (Approval review) is not
 built: the engine has no per-action limit and no approval request to review,
 so there is nothing to draw the dialog over; recorded here rather than as a
 dialog that would approve nothing.
+
+## D-POS-67 — the till is full-bleed: no workspace top bar inside the point of sale; the rail's MODE chip is the mode switch (M33), the Tax row reads the tax outcome, tile badges are stock and variant facts
+
+Decided 2026-09-11 (fid-polish1). `POSCounter` and `M33_ModeSwitch` draw the
+point of sale with nothing of the workspace above it: a 96px rail, a 64px
+header, the sell surface and the basket fill the viewport. The shell's POS
+chrome branch therefore mounts no `TulalaIdentityBar`; the two things that
+bar offered inside the till are on the rail. The `MODE · Counter` chip opens
+the M33 menu (`PosRailModeMenu`, handed to `PosFrame` through
+`PosModeMenuContext`), rendering the SAME model as the top bar's W00 switch
+(`usePosModeMenuModel`: usable, turned off at this workspace, not your role,
+no screen yet, remembered default); the `Workspace` door at the rail's foot
+leaves. The board's per-mode live hints under each row ("14 today · 2
+balances due") are not drawn: they need every mode's reader on every till
+render. The customer display door moved from the rail (the board's rail is
+five destinations, Lock and Workspace) to the cashier chip's menu beside
+Devices and Connection, as a real `target="_blank"` link.
+
+Tile badges come from facts the engine keeps: `Options` when the offering has
+MORE THAN ONE `talent_offering_variants` row (one variant is not a choice and
+sells as before), and a tap opens the chooser whose pick rides the line as
+`variant_id` (`posAddLine` accepts it; `addLine` prices it); `N left` when
+the offering's capacity pool mirror (`inventory_qty` WITH `capacity_pool_id`)
+is at or under 5 units; `Sold out` at 0 (the tile cannot be tapped);
+`Pick session` unchanged. A second tap on the same offering, variant and
+session on an unsent line adds a unit to that line (`posUpdateLine`), so the
+basket reads `2 · Latte · $90 each` as the board draws it, instead of a
+second identical line. `Held until hh:mm` is the earliest live hold on the
+line (`capacity_allocations`, state `hold`, not lapsed). The basket's Tax row
+reads `orderTax` (`lib/catalog/tax`): `unset` says "Not set up" because no
+line can carry a tax category yet (`talent_offerings` has no such column),
+never a zero nobody decided; the `Saved hh:mm` line starts from the sale
+row's `updated_at`. Favorites stays disabled (D-POS-31): nothing records one.

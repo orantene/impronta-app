@@ -20,7 +20,13 @@ import { cn } from "@/lib/utils";
 export type PosHeaderMenuItem = {
   readonly id: string;
   readonly label: string;
-  readonly onSelect: () => void;
+  readonly onSelect?: () => void;
+  /**
+   * A door OUT of this window (the customer display opens as a second
+   * window): rendered as a real link with `target="_blank"` so the browser,
+   * not a script, opens it and a right-click offers "open in new window".
+   */
+  readonly href?: string;
 };
 
 export type PosHeaderProps = {
@@ -103,7 +109,7 @@ export function PosHeader({
                     role="menuitem"
                     onClick={() => {
                       setModeOpen(false);
-                      item.onSelect();
+                      item.onSelect?.();
                     }}
                     className="flex h-11 w-full items-center rounded-[9px] px-3 text-left text-[14px] font-semibold text-admin-ink hover:bg-admin-surface-alt"
                   >
@@ -172,17 +178,31 @@ export function PosHeader({
           >
             {cashierMenu!.map((item) => (
               <li key={item.id} role="none">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpen(false);
-                    item.onSelect();
-                  }}
-                  className="flex h-11 w-full items-center rounded-[9px] px-3 text-left text-[14px] font-semibold text-admin-ink hover:bg-admin-surface-alt"
-                >
-                  {item.label}
-                </button>
+                {item.href ? (
+                  <a
+                    role="menuitem"
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-pos-frame-link={item.id}
+                    onClick={() => setOpen(false)}
+                    className="flex h-11 w-full items-center rounded-[9px] px-3 text-left text-[14px] font-semibold text-admin-ink no-underline hover:bg-admin-surface-alt"
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setOpen(false);
+                      item.onSelect?.();
+                    }}
+                    className="flex h-11 w-full items-center rounded-[9px] px-3 text-left text-[14px] font-semibold text-admin-ink hover:bg-admin-surface-alt"
+                  >
+                    {item.label}
+                  </button>
+                )}
               </li>
             ))}
           </ul>

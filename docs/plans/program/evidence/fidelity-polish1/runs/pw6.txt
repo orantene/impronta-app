@@ -1,0 +1,45 @@
+
+Running 1 test using 1 worker
+
+[1/1] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:309:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree
+  1) [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:309:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree 
+
+    Test timeout of 180000ms exceeded.
+
+    Error: two units of an $18 pizza is $36
+
+    expect(locator).toHaveText(expected) failed
+
+    Locator: locator('[data-pos-charge]').first()
+    Expected pattern: /\$36\.00/
+    Received string:  "Charging"
+
+    Call log:
+      - two units of an $18 pizza is $36 with timeout 20000ms
+      - waiting for locator('[data-pos-charge]').first()
+        7 × locator resolved to <button disabled type="button" data-pos-charge="true" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] border-[1.5px] border-admin-brand bg-admin-brand px-6 text-[17px] font-semibold text-admin-card transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand focus-visible:ring-offset-2 focus-visible:ring-offset-admin-surface disabled:cursor-not-allowed disabled:opacity-40 h-[60px] w-full">Charging</button>
+          - unexpected value "Charging"
+
+
+      348 |   await page.getByRole("button", { name: /increase quantity/i }).click();
+      349 |   await page.locator("[data-pos-line-save]").click();
+    > 350 |   await expect(chargeButton(page), "two units of an $18 pizza is $36").toHaveText(
+          |                                                                        ^
+      351 |     /\$36\.00/,
+      352 |     { timeout: 20_000 },
+      353 |   );
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-polish1/web/e2e/cases/POS-counter-cash-sale.spec.ts:350:72
+
+    Error Context: test-results/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  1 failed
+    [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:309:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree 

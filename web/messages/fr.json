@@ -1555,7 +1555,7 @@
           "heldUntil": "Réservé jusqu'à {time}",
           "editLine": "Modifier la ligne",
           "tax": "Taxe",
-          "taxNone": "Aucune",
+          "taxUnset": "Non configurée",
           "chargeWord": "Encaisser",
           "chargeCash": "Espèces {amount}",
           "send": "Envoyer {count} articles",
@@ -1689,7 +1689,9 @@
           "footer": "Les ventes enregistrées et la caisse restent en l'état. Les modes non activés dans cet espace de travail sont masqués ici et refusés par le serveur.",
           "spacesMode": "Espaces et ressources",
           "fieldMode": "Services à domicile",
-          "noScreen": "Pas encore d'écran"
+          "noScreen": "Pas encore d'écran",
+          "title": "Changer de mode",
+          "subtitle": "Seuls les modes activés par cet espace et que vous pouvez utiliser."
         },
         "mode": {
           "counter": "Comptoir",

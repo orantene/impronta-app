@@ -202,10 +202,14 @@ test("no tender is offered as working without the provider behind it", () => {
 });
 
 test("walk-in class places pick a tenant-scoped session", () => {
+  // The catalog reads (tiles, variants, stock, sessions) live in
+  // counter-catalog.ts; the page hands it the scope's tenant.
   const page = read("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
-  assert.match(page, /from\("sessions"\)/);
-  assert.match(page, /from\("sessions"\)[\s\S]{0,280}eq\("tenant_id", scope.tenantId\)/);
-  assert.match(page, /eq\("status", "scheduled"\)/);
+  assert.match(page, /loadCounterCatalog\(admin, \{ tenantId: scope\.tenantId/);
+  const catalog = read("src/app/(workspace)/[tenantSlug]/admin/pos/counter-catalog.ts");
+  assert.match(catalog, /from\("sessions"\)/);
+  assert.match(catalog, /from\("sessions"\)[\s\S]{0,280}eq\("tenant_id", input.tenantId\)/);
+  assert.match(catalog, /eq\("status", "scheduled"\)/);
   const client = read("src/app/(workspace)/[tenantSlug]/admin/pos/pos-client.tsx");
   assert.match(client, /sessionId/);
   assert.match(client, /posAddLine/);
