@@ -14,16 +14,14 @@
 ```
 Error: expect(locator).toBeVisible() failed
 
-Locator:  getByRole('heading', { level: 1 })
+Locator: getByRole('button', { name: /add line item/i })
 Expected: visible
-Received: hidden
-Timeout:  5000ms
+Timeout: 20000ms
+Error: element(s) not found
 
 Call log:
-  - Expect "toBeVisible" with timeout 5000ms
-  - waiting for getByRole('heading', { level: 1 })
-    9 × locator resolved to <h1 class="text-admin-ink">…</h1>
-      - unexpected value "hidden"
+  - Expect "toBeVisible" with timeout 20000ms
+  - waiting for getByRole('button', { name: /add line item/i })
 
 ```
 
@@ -141,7 +139,7 @@ Call log:
                 - img [ref=e193]
                 - text: Create
                 - img [ref=e196]
-              - button "Notifications · 38 unread" [ref=e199] [cursor=pointer]:
+              - button "Notifications · 47 unread" [ref=e199] [cursor=pointer]:
                 - img [ref=e200]
                 - generic [ref=e203]: 9+
               - generic [ref=e204]: Agency
@@ -154,7 +152,7 @@ Call log:
                   - generic [ref=e216]:
                     - heading "Inbox" [level=3] [ref=e217]
                     - generic [ref=e218]:
-                      - generic [ref=e219]: 28 threads
+                      - generic [ref=e219]: 44 threads
                       - button "Select" [ref=e220] [cursor=pointer]:
                         - img [ref=e221]
                         - text: Select
@@ -164,783 +162,1061 @@ Call log:
                     - generic [ref=e233]: ⌘K
                   - generic [ref=e234]:
                     - button "All" [ref=e235] [cursor=pointer]
-                    - button "Needs me (28)" [ref=e236] [cursor=pointer]
-                    - button "Triage (24)" [ref=e237] [cursor=pointer]:
+                    - button "Needs me (37)" [ref=e236] [cursor=pointer]
+                    - button "Triage (33)" [ref=e237] [cursor=pointer]:
                       - img [ref=e239]
-                      - text: Triage (24)
-                    - button "Unread (59)" [ref=e241] [cursor=pointer]
-                    - button "Coordinating 35" [ref=e242] [cursor=pointer]:
+                      - text: Triage (33)
+                    - button "Unread (47)" [ref=e241] [cursor=pointer]
+                    - button "Coordinating 44" [ref=e242] [cursor=pointer]:
                       - img [ref=e244]
                       - text: Coordinating
-                      - generic [ref=e246]: "35"
+                      - generic [ref=e246]: "44"
                     - button "Inquiry" [ref=e247] [cursor=pointer]
                     - button "Offer pending" [ref=e248] [cursor=pointer]
                     - button "Approved" [ref=e249] [cursor=pointer]
                     - button "Booked" [ref=e250] [cursor=pointer]
                     - button "Past" [ref=e251] [cursor=pointer]
                 - generic [ref=e252]:
-                  - generic [ref=e253]: Today
-                  - button "Cora Cuevas NEW now Cora Cuevas Inviting talent to the shortlist 2 1 Coord QA" [ref=e255] [cursor=pointer]:
+                  - generic [ref=e253]: This week
+                  - button "Cora Cuevas NEW 2d Cora Cuevas → Add talent · shortlist empty 1 1 Coord QA" [ref=e255] [cursor=pointer]:
                     - img [ref=e258]
                     - generic [ref=e261]:
                       - generic [ref=e262]:
                         - generic "Cora Cuevas" [ref=e263]
                         - generic [ref=e264]: NEW
-                        - generic [ref=e265]: now
+                        - generic [ref=e265]: 2d
                       - generic [ref=e267]: Cora Cuevas
                       - generic [ref=e268]:
-                        - generic [ref=e269]: Inviting talent to the shortlist
-                        - generic [ref=e270]: "2"
-                      - generic [ref=e271]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e273]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e282]':
-                          - generic [ref=e283]: Coord
-                          - img [ref=e285]
+                        - generic [ref=e270]: → Add talent · shortlist empty
+                        - generic [ref=e271]: "1"
+                      - generic [ref=e272]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e274]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e283]':
+                          - generic [ref=e284]: Coord
+                          - img [ref=e286]
                           - text: QA
-                  - button "Cora Cuevas NEW now Cora Cuevas Inviting talent to the shortlist 2 1 Coord QA" [ref=e289] [cursor=pointer]:
-                    - img [ref=e292]
-                    - generic [ref=e295]:
-                      - generic [ref=e296]:
-                        - generic "Cora Cuevas" [ref=e297]
-                        - generic [ref=e298]: NEW
-                        - generic [ref=e299]: now
-                      - generic [ref=e301]: Cora Cuevas
-                      - generic [ref=e302]:
-                        - generic [ref=e303]: Inviting talent to the shortlist
-                        - generic [ref=e304]: "2"
-                      - generic [ref=e305]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e307]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e316]':
-                          - generic [ref=e317]: Coord
-                          - img [ref=e319]
+                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 1 Coord QA" [ref=e290] [cursor=pointer]:
+                    - img [ref=e293]
+                    - generic [ref=e296]:
+                      - generic [ref=e297]:
+                        - generic "Cora Cuevas" [ref=e298]
+                        - generic [ref=e299]: NEW
+                        - generic [ref=e300]: 2d
+                      - generic [ref=e301]:
+                        - generic [ref=e302]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e303]: 0/1
+                      - generic [ref=e304]:
+                        - generic [ref=e306]: → Nudge talent · 1 not responded
+                        - generic [ref=e307]: "1"
+                      - generic [ref=e308]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e310]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e319]':
+                          - generic [ref=e320]: Coord
+                          - img [ref=e322]
                           - text: QA
-                  - button "Cora Cuevas NEW now Cora Cuevas Inviting talent to the shortlist 7 1 Coord QA" [ref=e323] [cursor=pointer]:
-                    - img [ref=e326]
-                    - generic [ref=e329]:
-                      - generic [ref=e330]:
-                        - generic "Cora Cuevas" [ref=e331]
-                        - generic [ref=e332]: NEW
-                        - generic [ref=e333]: now
-                      - generic [ref=e335]: Cora Cuevas
-                      - generic [ref=e336]:
-                        - generic [ref=e337]: Inviting talent to the shortlist
-                        - generic [ref=e338]: "7"
-                      - generic [ref=e339]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e341]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e350]':
-                          - generic [ref=e351]: Coord
-                          - img [ref=e353]
+                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 1 Coord QA" [ref=e326] [cursor=pointer]:
+                    - img [ref=e329]
+                    - generic [ref=e332]:
+                      - generic [ref=e333]:
+                        - generic "Cora Cuevas" [ref=e334]
+                        - generic [ref=e335]: NEW
+                        - generic [ref=e336]: 2d
+                      - generic [ref=e337]:
+                        - generic [ref=e338]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e339]: 0/1
+                      - generic [ref=e340]:
+                        - generic [ref=e342]: → Nudge talent · 1 not responded
+                        - generic [ref=e343]: "1"
+                      - generic [ref=e344]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e346]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e355]':
+                          - generic [ref=e356]: Coord
+                          - img [ref=e358]
                           - text: QA
-                  - generic [ref=e356]: This week
-                  - button "Cora Cuevas NEW 2d Cora Cuevas Inviting talent to the shortlist 1 1 Coord QA" [ref=e358] [cursor=pointer]:
-                    - img [ref=e361]
-                    - generic [ref=e364]:
-                      - generic [ref=e365]:
-                        - generic "Cora Cuevas" [ref=e366]
-                        - generic [ref=e367]: NEW
-                        - generic [ref=e368]: 2d
-                      - generic [ref=e370]: Cora Cuevas
-                      - generic [ref=e371]:
-                        - generic [ref=e372]: Inviting talent to the shortlist
-                        - generic [ref=e373]: "1"
-                      - generic [ref=e374]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e376]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e385]':
-                          - generic [ref=e386]: Coord
-                          - img [ref=e388]
+                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 1 Coord QA" [ref=e362] [cursor=pointer]:
+                    - img [ref=e365]
+                    - generic [ref=e368]:
+                      - generic [ref=e369]:
+                        - generic "Cora Cuevas" [ref=e370]
+                        - generic [ref=e371]: NEW
+                        - generic [ref=e372]: 2d
+                      - generic [ref=e373]:
+                        - generic [ref=e374]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e375]: 0/1
+                      - generic [ref=e376]:
+                        - generic [ref=e378]: → Nudge talent · 1 not responded
+                        - generic [ref=e379]: "1"
+                      - generic [ref=e380]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e382]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e391]':
+                          - generic [ref=e392]: Coord
+                          - img [ref=e394]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted Coordinating · 0/1 confirmed 1 1 Coord QA" [ref=e392] [cursor=pointer]:
-                    - img [ref=e395]
-                    - generic [ref=e398]:
-                      - generic [ref=e399]:
-                        - generic "Cora Cuevas" [ref=e400]
-                        - generic [ref=e401]: NEW
-                        - generic [ref=e402]: 2d
-                      - generic [ref=e403]:
-                        - generic [ref=e404]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e405]: 0/1
-                      - generic [ref=e406]:
-                        - generic [ref=e407]: Coordinating · 0/1 confirmed
-                        - generic [ref=e408]: "1"
+                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 1 Coord QA" [ref=e398] [cursor=pointer]:
+                    - img [ref=e401]
+                    - generic [ref=e404]:
+                      - generic [ref=e405]:
+                        - generic "Cora Cuevas" [ref=e406]
+                        - generic [ref=e407]: NEW
+                        - generic [ref=e408]: 2d
                       - generic [ref=e409]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e411]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e420]':
-                          - generic [ref=e421]: Coord
-                          - img [ref=e423]
+                        - generic [ref=e410]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e411]: 0/1
+                      - generic [ref=e412]:
+                        - generic [ref=e414]: → Nudge talent · 1 not responded
+                        - generic [ref=e415]: "1"
+                      - generic [ref=e416]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e418]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e427]':
+                          - generic [ref=e428]: Coord
+                          - img [ref=e430]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted Coordinating · 0/1 confirmed 1 1 Coord QA" [ref=e427] [cursor=pointer]:
-                    - img [ref=e430]
-                    - generic [ref=e433]:
-                      - generic [ref=e434]:
-                        - generic "Cora Cuevas" [ref=e435]
-                        - generic [ref=e436]: NEW
-                        - generic [ref=e437]: 2d
-                      - generic [ref=e438]:
-                        - generic [ref=e439]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e440]: 0/1
+                  - button "Cora Cuevas NEW 2d Cora Cuevas → Add talent · shortlist empty 1 1 Coord QA" [ref=e434] [cursor=pointer]:
+                    - img [ref=e437]
+                    - generic [ref=e440]:
                       - generic [ref=e441]:
-                        - generic [ref=e442]: Coordinating · 0/1 confirmed
-                        - generic [ref=e443]: "1"
-                      - generic [ref=e444]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e446]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e455]':
-                          - generic [ref=e456]: Coord
-                          - img [ref=e458]
+                        - generic "Cora Cuevas" [ref=e442]
+                        - generic [ref=e443]: NEW
+                        - generic [ref=e444]: 2d
+                      - generic [ref=e446]: Cora Cuevas
+                      - generic [ref=e447]:
+                        - generic [ref=e449]: → Add talent · shortlist empty
+                        - generic [ref=e450]: "1"
+                      - generic [ref=e451]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e453]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e462]':
+                          - generic [ref=e463]: Coord
+                          - img [ref=e465]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted Coordinating · 0/1 confirmed 1 1 Coord QA" [ref=e462] [cursor=pointer]:
-                    - img [ref=e465]
-                    - generic [ref=e468]:
-                      - generic [ref=e469]:
-                        - generic "Cora Cuevas" [ref=e470]
-                        - generic [ref=e471]: NEW
-                        - generic [ref=e472]: 2d
-                      - generic [ref=e473]:
-                        - generic [ref=e474]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e475]: 0/1
+                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 1 Coord QA" [ref=e469] [cursor=pointer]:
+                    - img [ref=e472]
+                    - generic [ref=e475]:
                       - generic [ref=e476]:
-                        - generic [ref=e477]: Coordinating · 0/1 confirmed
-                        - generic [ref=e478]: "1"
-                      - generic [ref=e479]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e481]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e490]':
-                          - generic [ref=e491]: Coord
-                          - img [ref=e493]
+                        - generic "Cora Cuevas" [ref=e477]
+                        - generic [ref=e478]: NEW
+                        - generic [ref=e479]: 2d
+                      - generic [ref=e480]:
+                        - generic [ref=e481]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e482]: 0/1
+                      - generic [ref=e483]:
+                        - generic [ref=e485]: → Nudge talent · 1 not responded
+                        - generic [ref=e486]: "1"
+                      - generic [ref=e487]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e489]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e498]':
+                          - generic [ref=e499]: Coord
+                          - img [ref=e501]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted Coordinating · 0/1 confirmed 1 1 Coord QA" [ref=e497] [cursor=pointer]:
-                    - img [ref=e500]
-                    - generic [ref=e503]:
-                      - generic [ref=e504]:
-                        - generic "Cora Cuevas" [ref=e505]
-                        - generic [ref=e506]: NEW
-                        - generic [ref=e507]: 2d
-                      - generic [ref=e508]:
-                        - generic [ref=e509]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e510]: 0/1
-                      - generic [ref=e511]:
-                        - generic [ref=e512]: Coordinating · 0/1 confirmed
-                        - generic [ref=e513]: "1"
-                      - generic [ref=e514]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e516]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e525]':
-                          - generic [ref=e526]: Coord
-                          - img [ref=e528]
+                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 1 Coord QA" [ref=e505] [cursor=pointer]:
+                    - img [ref=e508]
+                    - generic [ref=e511]:
+                      - generic [ref=e512]:
+                        - generic "Cora Cuevas" [ref=e513]
+                        - generic [ref=e514]: NEW
+                        - generic [ref=e515]: 2d
+                      - generic [ref=e516]:
+                        - generic [ref=e517]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e518]: 0/1
+                      - generic [ref=e519]:
+                        - generic [ref=e521]: → Nudge talent · 1 not responded
+                        - generic [ref=e522]: "1"
+                      - generic [ref=e523]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e525]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e534]':
+                          - generic [ref=e535]: Coord
+                          - img [ref=e537]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas Inviting talent to the shortlist 1 1 Coord QA" [ref=e532] [cursor=pointer]:
-                    - img [ref=e535]
-                    - generic [ref=e538]:
-                      - generic [ref=e539]:
-                        - generic "Cora Cuevas" [ref=e540]
-                        - generic [ref=e541]: NEW
-                        - generic [ref=e542]: 2d
-                      - generic [ref=e544]: Cora Cuevas
-                      - generic [ref=e545]:
-                        - generic [ref=e546]: Inviting talent to the shortlist
-                        - generic [ref=e547]: "1"
+                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted → Add talent · 0/1 accepted 1 1 Coord QA" [ref=e541] [cursor=pointer]:
+                    - img [ref=e544]
+                    - generic [ref=e547]:
                       - generic [ref=e548]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e550]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e559]':
-                          - generic [ref=e560]: Coord
-                          - img [ref=e562]
+                        - generic "Cora Cuevas" [ref=e549]
+                        - generic [ref=e550]: NEW
+                        - generic [ref=e551]: 2d
+                      - generic [ref=e552]:
+                        - generic [ref=e553]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e554]: 0/1
+                      - generic [ref=e555]:
+                        - generic [ref=e557]: → Add talent · 0/1 accepted
+                        - generic [ref=e558]: "1"
+                      - generic [ref=e559]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e561]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e570]':
+                          - generic [ref=e571]: Coord
+                          - img [ref=e573]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted Coordinating · 0/1 confirmed 1 1 Coord QA" [ref=e566] [cursor=pointer]:
-                    - img [ref=e569]
-                    - generic [ref=e572]:
-                      - generic [ref=e573]:
-                        - generic "Cora Cuevas" [ref=e574]
-                        - generic [ref=e575]: NEW
-                        - generic [ref=e576]: 2d
-                      - generic [ref=e577]:
-                        - generic [ref=e578]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e579]: 0/1
-                      - generic [ref=e580]:
-                        - generic [ref=e581]: Coordinating · 0/1 confirmed
-                        - generic [ref=e582]: "1"
-                      - generic [ref=e583]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e585]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e594]':
-                          - generic [ref=e595]: Coord
-                          - img [ref=e597]
+                  - button "Cora Cuevas NEW 2d Cora Cuevas → Add talent · shortlist empty 1 1 Coord QA" [ref=e577] [cursor=pointer]:
+                    - img [ref=e580]
+                    - generic [ref=e583]:
+                      - generic [ref=e584]:
+                        - generic "Cora Cuevas" [ref=e585]
+                        - generic [ref=e586]: NEW
+                        - generic [ref=e587]: 2d
+                      - generic [ref=e589]: Cora Cuevas
+                      - generic [ref=e590]:
+                        - generic [ref=e592]: → Add talent · shortlist empty
+                        - generic [ref=e593]: "1"
+                      - generic [ref=e594]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e596]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e605]':
+                          - generic [ref=e606]: Coord
+                          - img [ref=e608]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted Coordinating · 0/1 confirmed 1 1 Coord QA" [ref=e601] [cursor=pointer]:
-                    - img [ref=e604]
-                    - generic [ref=e607]:
-                      - generic [ref=e608]:
-                        - generic "Cora Cuevas" [ref=e609]
-                        - generic [ref=e610]: NEW
-                        - generic [ref=e611]: 2d
-                      - generic [ref=e612]:
-                        - generic [ref=e613]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e614]: 0/1
-                      - generic [ref=e615]:
-                        - generic [ref=e616]: Coordinating · 0/1 confirmed
-                        - generic [ref=e617]: "1"
-                      - generic [ref=e618]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e620]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e629]':
-                          - generic [ref=e630]: Coord
-                          - img [ref=e632]
+                  - button "Cora Cuevas NEW 2d Cora Cuevas → Add talent · shortlist empty 1 1 Coord QA" [ref=e612] [cursor=pointer]:
+                    - img [ref=e615]
+                    - generic [ref=e618]:
+                      - generic [ref=e619]:
+                        - generic "Cora Cuevas" [ref=e620]
+                        - generic [ref=e621]: NEW
+                        - generic [ref=e622]: 2d
+                      - generic [ref=e624]: Cora Cuevas
+                      - generic [ref=e625]:
+                        - generic [ref=e627]: → Add talent · shortlist empty
+                        - generic [ref=e628]: "1"
+                      - generic [ref=e629]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e631]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e640]':
+                          - generic [ref=e641]: Coord
+                          - img [ref=e643]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted Inviting talent to the shortlist 1 1 Coord QA" [ref=e636] [cursor=pointer]:
-                    - img [ref=e639]
-                    - generic [ref=e642]:
-                      - generic [ref=e643]:
-                        - generic "Cora Cuevas" [ref=e644]
-                        - generic [ref=e645]: NEW
-                        - generic [ref=e646]: 2d
-                      - generic [ref=e647]:
-                        - generic [ref=e648]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e649]: 0/1
-                      - generic [ref=e650]:
-                        - generic [ref=e651]: Inviting talent to the shortlist
-                        - generic [ref=e652]: "1"
-                      - generic [ref=e653]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e655]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e664]':
-                          - generic [ref=e665]: Coord
-                          - img [ref=e667]
+                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted → Add talent · 0/1 accepted 1 1 Coord QA" [ref=e647] [cursor=pointer]:
+                    - img [ref=e650]
+                    - generic [ref=e653]:
+                      - generic [ref=e654]:
+                        - generic "Cora Cuevas" [ref=e655]
+                        - generic [ref=e656]: NEW
+                        - generic [ref=e657]: 2d
+                      - generic [ref=e658]:
+                        - generic [ref=e659]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e660]: 0/1
+                      - generic [ref=e661]:
+                        - generic [ref=e663]: → Add talent · 0/1 accepted
+                        - generic [ref=e664]: "1"
+                      - generic [ref=e665]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e667]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e676]':
+                          - generic [ref=e677]: Coord
+                          - img [ref=e679]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas Inviting talent to the shortlist 1 1 Coord QA" [ref=e671] [cursor=pointer]:
-                    - img [ref=e674]
-                    - generic [ref=e677]:
-                      - generic [ref=e678]:
-                        - generic "Cora Cuevas" [ref=e679]
-                        - generic [ref=e680]: NEW
-                        - generic [ref=e681]: 2d
-                      - generic [ref=e683]: Cora Cuevas
-                      - generic [ref=e684]:
-                        - generic [ref=e685]: Inviting talent to the shortlist
-                        - generic [ref=e686]: "1"
-                      - generic [ref=e687]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e689]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e698]':
-                          - generic [ref=e699]: Coord
-                          - img [ref=e701]
+                  - generic [ref=e682]: Yesterday
+                  - button "Cora Cuevas NEW 1d Cora Cuevas 1 of 1 talent accepted Offer $800 · awaiting client 3 2 Coord QA" [ref=e684] [cursor=pointer]:
+                    - img [ref=e687]
+                    - generic [ref=e690]:
+                      - generic [ref=e691]:
+                        - generic "Cora Cuevas" [ref=e692]
+                        - generic [ref=e693]: NEW
+                        - generic [ref=e694]: 1d
+                      - generic [ref=e695]:
+                        - generic [ref=e696]: Cora Cuevas
+                        - generic "1 of 1 talent accepted" [ref=e697]: 1/1
+                      - generic [ref=e698]:
+                        - generic [ref=e699]: Offer $800 · awaiting client
+                        - generic [ref=e700]: "3"
+                      - generic [ref=e701]:
+                        - 'progressbar "Stage 2 of 4: Offer" [ref=e703]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e712]':
+                          - generic [ref=e713]: Coord
+                          - img [ref=e715]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas Inviting talent to the shortlist 1 1 Coord QA" [ref=e705] [cursor=pointer]:
-                    - img [ref=e708]
-                    - generic [ref=e711]:
-                      - generic [ref=e712]:
-                        - generic "Cora Cuevas" [ref=e713]
-                        - generic [ref=e714]: NEW
-                        - generic [ref=e715]: 2d
-                      - generic [ref=e717]: Cora Cuevas
-                      - generic [ref=e718]:
-                        - generic [ref=e719]: Inviting talent to the shortlist
-                        - generic [ref=e720]: "1"
-                      - generic [ref=e721]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e723]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e732]':
-                          - generic [ref=e733]: Coord
-                          - img [ref=e735]
+                  - button "Cora Cuevas NEW 1d Cora Cuevas 1 of 1 talent accepted Booked · $800 4 3 Coord QA" [ref=e719] [cursor=pointer]:
+                    - img [ref=e722]
+                    - generic [ref=e725]:
+                      - generic [ref=e726]:
+                        - generic "Cora Cuevas" [ref=e727]
+                        - generic [ref=e728]: NEW
+                        - generic [ref=e729]: 1d
+                      - generic [ref=e730]:
+                        - generic [ref=e731]: Cora Cuevas
+                        - generic "1 of 1 talent accepted" [ref=e732]: 1/1
+                      - generic [ref=e733]:
+                        - generic [ref=e734]: Booked · $800
+                        - generic [ref=e735]: "4"
+                      - generic [ref=e736]:
+                        - 'progressbar "Stage 3 of 4: Booked" [ref=e738]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e747]':
+                          - generic [ref=e748]: Coord
+                          - img [ref=e750]
                           - text: QA
-                  - button "Cora Cuevas NEW 2d Cora Cuevas 0 of 1 talent accepted Inviting talent to the shortlist 1 1 Coord QA" [ref=e739] [cursor=pointer]:
-                    - img [ref=e742]
-                    - generic [ref=e745]:
-                      - generic [ref=e746]:
-                        - generic "Cora Cuevas" [ref=e747]
-                        - generic [ref=e748]: NEW
-                        - generic [ref=e749]: 2d
-                      - generic [ref=e750]:
-                        - generic [ref=e751]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e752]: 0/1
-                      - generic [ref=e753]:
-                        - generic [ref=e754]: Inviting talent to the shortlist
-                        - generic [ref=e755]: "1"
-                      - generic [ref=e756]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e758]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e767]':
-                          - generic [ref=e768]: Coord
-                          - img [ref=e770]
+                  - generic [ref=e753]: This week
+                  - button "Cora Cuevas NEW 2d Cora Cuevas 1 of 1 talent accepted Offer $800 · awaiting client 2 2 Coord QA" [ref=e755] [cursor=pointer]:
+                    - img [ref=e758]
+                    - generic [ref=e761]:
+                      - generic [ref=e762]:
+                        - generic "Cora Cuevas" [ref=e763]
+                        - generic [ref=e764]: NEW
+                        - generic [ref=e765]: 2d
+                      - generic [ref=e766]:
+                        - generic [ref=e767]: Cora Cuevas
+                        - generic "1 of 1 talent accepted" [ref=e768]: 1/1
+                      - generic [ref=e769]:
+                        - generic [ref=e770]: Offer $800 · awaiting client
+                        - generic [ref=e771]: "2"
+                      - generic [ref=e772]:
+                        - 'progressbar "Stage 2 of 4: Offer" [ref=e774]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e783]':
+                          - generic [ref=e784]: Coord
+                          - img [ref=e786]
                           - text: QA
-                  - generic [ref=e773]: Today
-                  - button "Cora Cuevas now Cora Cuevas Inviting talent to the shortlist 2 1 Coord QA" [ref=e775] [cursor=pointer]:
-                    - img [ref=e778]
-                    - generic [ref=e781]:
-                      - generic [ref=e782]:
-                        - generic "Cora Cuevas" [ref=e783]
-                        - generic [ref=e784]: now
-                      - generic [ref=e786]: Cora Cuevas
-                      - generic [ref=e787]:
-                        - generic [ref=e788]: Inviting talent to the shortlist
-                        - generic [ref=e789]: "2"
-                      - generic [ref=e790]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e792]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e801]':
-                          - generic [ref=e802]: Coord
-                          - img [ref=e804]
+                  - generic [ref=e789]: Today
+                  - button "Cora Cuevas now Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e791] [cursor=pointer]:
+                    - img [ref=e794]
+                    - generic [ref=e797]:
+                      - generic [ref=e798]:
+                        - generic "Cora Cuevas" [ref=e799]
+                        - generic [ref=e800]: now
+                      - generic [ref=e802]: Cora Cuevas
+                      - generic [ref=e805]: → Add talent · shortlist empty
+                      - generic [ref=e806]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e808]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e817]':
+                          - generic [ref=e818]: Coord
+                          - img [ref=e820]
                           - text: QA
-                  - button "Nadia Varela 17h Nadia Varela 1 of 1 talent accepted All talent confirmed · drafting offer 1 Coord QA" [ref=e808] [cursor=pointer]:
-                    - img [ref=e811]
-                    - generic [ref=e814]:
-                      - generic [ref=e815]:
-                        - generic "Nadia Varela" [ref=e816]
-                        - generic [ref=e817]: 17h
-                      - generic [ref=e818]:
-                        - generic [ref=e819]: Nadia Varela
-                        - generic "1 of 1 talent accepted" [ref=e820]: 1/1
-                      - generic [ref=e822]: All talent confirmed · drafting offer
-                      - generic [ref=e823]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e825]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e834]':
-                          - generic [ref=e835]: Coord
-                          - img [ref=e837]
+                  - button "Cora Cuevas now Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e824] [cursor=pointer]:
+                    - img [ref=e827]
+                    - generic [ref=e830]:
+                      - generic [ref=e831]:
+                        - generic "Cora Cuevas" [ref=e832]
+                        - generic [ref=e833]: now
+                      - generic [ref=e835]: Cora Cuevas
+                      - generic [ref=e838]: → Add talent · shortlist empty
+                      - generic [ref=e839]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e841]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e850]':
+                          - generic [ref=e851]: Coord
+                          - img [ref=e853]
                           - text: QA
-                  - button "Nadia Varela 22h Nadia Varela 1 of 1 talent accepted Client approved · prep production 3 3 Coord QA" [ref=e841] [cursor=pointer]:
-                    - img [ref=e844]
-                    - generic [ref=e847]:
-                      - generic [ref=e848]:
-                        - generic "Nadia Varela" [ref=e849]
-                        - generic [ref=e850]: 22h
-                      - generic [ref=e851]:
-                        - generic [ref=e852]: Nadia Varela
-                        - generic "1 of 1 talent accepted" [ref=e853]: 1/1
-                      - generic [ref=e854]:
-                        - generic [ref=e855]: Client approved · prep production
-                        - generic [ref=e856]: "3"
-                      - generic [ref=e857]:
-                        - 'progressbar "Stage 3 of 4: Booked" [ref=e859]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e868]':
-                          - generic [ref=e869]: Coord
-                          - img [ref=e871]
+                  - button "Cora Cuevas now Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 Coord QA" [ref=e857] [cursor=pointer]:
+                    - img [ref=e860]
+                    - generic [ref=e863]:
+                      - generic [ref=e864]:
+                        - generic "Cora Cuevas" [ref=e865]
+                        - generic [ref=e866]: now
+                      - generic [ref=e867]:
+                        - generic [ref=e868]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e869]: 0/1
+                      - generic [ref=e872]: → Nudge talent · 1 not responded
+                      - generic [ref=e873]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e875]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e884]':
+                          - generic [ref=e885]: Coord
+                          - img [ref=e887]
                           - text: QA
-                  - button "Nadia Varela 22h Nadia Varela 1 of 1 talent accepted Client approved · prep production 3 3 Coord QA" [ref=e875] [cursor=pointer]:
-                    - img [ref=e878]
-                    - generic [ref=e881]:
-                      - generic [ref=e882]:
-                        - generic "Nadia Varela" [ref=e883]
-                        - generic [ref=e884]: 22h
-                      - generic [ref=e885]:
-                        - generic [ref=e886]: Nadia Varela
-                        - generic "1 of 1 talent accepted" [ref=e887]: 1/1
-                      - generic [ref=e888]:
-                        - generic [ref=e889]: Client approved · prep production
-                        - generic [ref=e890]: "3"
-                      - generic [ref=e891]:
-                        - 'progressbar "Stage 3 of 4: Booked" [ref=e893]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e902]':
-                          - generic [ref=e903]: Coord
-                          - img [ref=e905]
+                  - button "Cora Cuevas now Cora Cuevas 1 of 1 talent accepted → Draft offer · lineup confirmed 1 1 Coord QA" [ref=e891] [cursor=pointer]:
+                    - img [ref=e894]
+                    - generic [ref=e897]:
+                      - generic [ref=e898]:
+                        - generic "Cora Cuevas" [ref=e899]
+                        - generic [ref=e900]: now
+                      - generic [ref=e901]:
+                        - generic [ref=e902]: Cora Cuevas
+                        - generic "1 of 1 talent accepted" [ref=e903]: 1/1
+                      - generic [ref=e904]:
+                        - generic [ref=e906]: → Draft offer · lineup confirmed
+                        - generic [ref=e907]: "1"
+                      - generic [ref=e908]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e910]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e919]':
+                          - generic [ref=e920]: Coord
+                          - img [ref=e922]
                           - text: QA
-                  - button "Nadia Varela 22h Nadia Varela 1 of 1 talent accepted Client approved · prep production 3 3 Coord QA" [ref=e909] [cursor=pointer]:
-                    - img [ref=e912]
-                    - generic [ref=e915]:
-                      - generic [ref=e916]:
-                        - generic "Nadia Varela" [ref=e917]
-                        - generic [ref=e918]: 22h
-                      - generic [ref=e919]:
-                        - generic [ref=e920]: Nadia Varela
-                        - generic "1 of 1 talent accepted" [ref=e921]: 1/1
-                      - generic [ref=e922]:
-                        - generic [ref=e923]: Client approved · prep production
-                        - generic [ref=e924]: "3"
-                      - generic [ref=e925]:
-                        - 'progressbar "Stage 3 of 4: Booked" [ref=e927]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e936]':
-                          - generic [ref=e937]: Coord
-                          - img [ref=e939]
+                  - button "Cora Cuevas now Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e926] [cursor=pointer]:
+                    - img [ref=e929]
+                    - generic [ref=e932]:
+                      - generic [ref=e933]:
+                        - generic "Cora Cuevas" [ref=e934]
+                        - generic [ref=e935]: now
+                      - generic [ref=e937]: Cora Cuevas
+                      - generic [ref=e940]: → Add talent · shortlist empty
+                      - generic [ref=e941]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e943]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e952]':
+                          - generic [ref=e953]: Coord
+                          - img [ref=e955]
                           - text: QA
-                  - button "Nadia Varela 22h Nadia Varela 1 of 1 talent accepted Client approved · prep production 3 3 Coord QA" [ref=e943] [cursor=pointer]:
-                    - img [ref=e946]
-                    - generic [ref=e949]:
-                      - generic [ref=e950]:
-                        - generic "Nadia Varela" [ref=e951]
-                        - generic [ref=e952]: 22h
-                      - generic [ref=e953]:
-                        - generic [ref=e954]: Nadia Varela
-                        - generic "1 of 1 talent accepted" [ref=e955]: 1/1
-                      - generic [ref=e956]:
-                        - generic [ref=e957]: Client approved · prep production
-                        - generic [ref=e958]: "3"
-                      - generic [ref=e959]:
-                        - 'progressbar "Stage 3 of 4: Booked" [ref=e961]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e970]':
-                          - generic [ref=e971]: Coord
-                          - img [ref=e973]
+                  - button "Cora Cuevas now Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e959] [cursor=pointer]:
+                    - img [ref=e962]
+                    - generic [ref=e965]:
+                      - generic [ref=e966]:
+                        - generic "Cora Cuevas" [ref=e967]
+                        - generic [ref=e968]: now
+                      - generic [ref=e970]: Cora Cuevas
+                      - generic [ref=e973]: → Add talent · shortlist empty
+                      - generic [ref=e974]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e976]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e985]':
+                          - generic [ref=e986]: Coord
+                          - img [ref=e988]
                           - text: QA
-                  - button "Nadia Varela 22h Nadia Varela 0 of 1 talent accepted Coordinating · 0/1 confirmed 1 Coord QA" [ref=e977] [cursor=pointer]:
-                    - img [ref=e980]
-                    - generic [ref=e983]:
-                      - generic [ref=e984]:
-                        - generic "Nadia Varela" [ref=e985]
-                        - generic [ref=e986]: 22h
-                      - generic [ref=e987]:
-                        - generic [ref=e988]: Nadia Varela
-                        - generic "0 of 1 talent accepted" [ref=e989]: 0/1
-                      - generic [ref=e991]: Coordinating · 0/1 confirmed
-                      - generic [ref=e992]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e994]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1003]':
-                          - generic [ref=e1004]: Coord
-                          - img [ref=e1006]
+                  - button "Cora Cuevas now Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e992] [cursor=pointer]:
+                    - img [ref=e995]
+                    - generic [ref=e998]:
+                      - generic [ref=e999]:
+                        - generic "Cora Cuevas" [ref=e1000]
+                        - generic [ref=e1001]: now
+                      - generic [ref=e1003]: Cora Cuevas
+                      - generic [ref=e1006]: → Add talent · shortlist empty
+                      - generic [ref=e1007]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1009]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1018]':
+                          - generic [ref=e1019]: Coord
+                          - img [ref=e1021]
                           - text: QA
-                  - generic [ref=e1009]: This week
-                  - button "Cora Cuevas 2d Cora Cuevas Inviting talent to the shortlist 1 Coord QA" [ref=e1011] [cursor=pointer]:
-                    - img [ref=e1014]
-                    - generic [ref=e1017]:
-                      - generic [ref=e1018]:
-                        - generic "Cora Cuevas" [ref=e1019]
-                        - generic [ref=e1020]: 2d
-                      - generic [ref=e1022]: Cora Cuevas
-                      - generic [ref=e1024]: Inviting talent to the shortlist
-                      - generic [ref=e1025]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1027]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1036]':
-                          - generic [ref=e1037]: Coord
-                          - img [ref=e1039]
+                  - button "Cora Cuevas now Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e1025] [cursor=pointer]:
+                    - img [ref=e1028]
+                    - generic [ref=e1031]:
+                      - generic [ref=e1032]:
+                        - generic "Cora Cuevas" [ref=e1033]
+                        - generic [ref=e1034]: now
+                      - generic [ref=e1036]: Cora Cuevas
+                      - generic [ref=e1039]: → Add talent · shortlist empty
+                      - generic [ref=e1040]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1042]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1051]':
+                          - generic [ref=e1052]: Coord
+                          - img [ref=e1054]
                           - text: QA
-                  - button "Cora Cuevas 2d Cora Cuevas Inviting talent to the shortlist 1 Coord QA" [ref=e1043] [cursor=pointer]:
-                    - img [ref=e1046]
-                    - generic [ref=e1049]:
-                      - generic [ref=e1050]:
-                        - generic "Cora Cuevas" [ref=e1051]
-                        - generic [ref=e1052]: 2d
-                      - generic [ref=e1054]: Cora Cuevas
-                      - generic [ref=e1056]: Inviting talent to the shortlist
-                      - generic [ref=e1057]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1059]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1068]':
-                          - generic [ref=e1069]: Coord
-                          - img [ref=e1071]
+                  - button "Cora Cuevas now Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e1058] [cursor=pointer]:
+                    - img [ref=e1061]
+                    - generic [ref=e1064]:
+                      - generic [ref=e1065]:
+                        - generic "Cora Cuevas" [ref=e1066]
+                        - generic [ref=e1067]: now
+                      - generic [ref=e1069]: Cora Cuevas
+                      - generic [ref=e1072]: → Add talent · shortlist empty
+                      - generic [ref=e1073]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1075]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1084]':
+                          - generic [ref=e1085]: Coord
+                          - img [ref=e1087]
                           - text: QA
-                  - button "Cora Cuevas 2d Cora Cuevas Inviting talent to the shortlist 1 Coord QA" [ref=e1075] [cursor=pointer]:
-                    - img [ref=e1078]
-                    - generic [ref=e1081]:
-                      - generic [ref=e1082]:
-                        - generic "Cora Cuevas" [ref=e1083]
-                        - generic [ref=e1084]: 2d
-                      - generic [ref=e1086]: Cora Cuevas
-                      - generic [ref=e1088]: Inviting talent to the shortlist
-                      - generic [ref=e1089]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1091]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1100]':
-                          - generic [ref=e1101]: Coord
-                          - img [ref=e1103]
+                  - button "Cora Cuevas now Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e1091] [cursor=pointer]:
+                    - img [ref=e1094]
+                    - generic [ref=e1097]:
+                      - generic [ref=e1098]:
+                        - generic "Cora Cuevas" [ref=e1099]
+                        - generic [ref=e1100]: now
+                      - generic [ref=e1102]: Cora Cuevas
+                      - generic [ref=e1105]: → Add talent · shortlist empty
+                      - generic [ref=e1106]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1108]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1117]':
+                          - generic [ref=e1118]: Coord
+                          - img [ref=e1120]
                           - text: QA
-                  - button "Cora Cuevas 2d Cora Cuevas 0 of 1 talent accepted Coordinating · 0/1 confirmed 1 Coord QA" [ref=e1107] [cursor=pointer]:
-                    - img [ref=e1110]
-                    - generic [ref=e1113]:
-                      - generic [ref=e1114]:
-                        - generic "Cora Cuevas" [ref=e1115]
-                        - generic [ref=e1116]: 2d
-                      - generic [ref=e1117]:
-                        - generic [ref=e1118]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e1119]: 0/1
-                      - generic [ref=e1121]: Coordinating · 0/1 confirmed
-                      - generic [ref=e1122]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1124]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1133]':
-                          - generic [ref=e1134]: Coord
-                          - img [ref=e1136]
+                  - button "Cora Cuevas now Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e1124] [cursor=pointer]:
+                    - img [ref=e1127]
+                    - generic [ref=e1130]:
+                      - generic [ref=e1131]:
+                        - generic "Cora Cuevas" [ref=e1132]
+                        - generic [ref=e1133]: now
+                      - generic [ref=e1135]: Cora Cuevas
+                      - generic [ref=e1138]: → Add talent · shortlist empty
+                      - generic [ref=e1139]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1141]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1150]':
+                          - generic [ref=e1151]: Coord
+                          - img [ref=e1153]
                           - text: QA
-                  - button "Cora Cuevas 2d Cora Cuevas 0 of 1 talent accepted Coordinating · 0/1 confirmed 1 Coord QA" [ref=e1140] [cursor=pointer]:
-                    - img [ref=e1143]
-                    - generic [ref=e1146]:
-                      - generic [ref=e1147]:
-                        - generic "Cora Cuevas" [ref=e1148]
-                        - generic [ref=e1149]: 2d
-                      - generic [ref=e1150]:
-                        - generic [ref=e1151]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e1152]: 0/1
-                      - generic [ref=e1154]: Coordinating · 0/1 confirmed
-                      - generic [ref=e1155]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1157]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1166]':
-                          - generic [ref=e1167]: Coord
-                          - img [ref=e1169]
+                  - button "Cora Cuevas now Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 Coord QA" [ref=e1157] [cursor=pointer]:
+                    - img [ref=e1160]
+                    - generic [ref=e1163]:
+                      - generic [ref=e1164]:
+                        - generic "Cora Cuevas" [ref=e1165]
+                        - generic [ref=e1166]: now
+                      - generic [ref=e1167]:
+                        - generic [ref=e1168]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e1169]: 0/1
+                      - generic [ref=e1172]: → Nudge talent · 1 not responded
+                      - generic [ref=e1173]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1175]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1184]':
+                          - generic [ref=e1185]: Coord
+                          - img [ref=e1187]
                           - text: QA
-                  - button "Cora Cuevas 2d Cora Cuevas 0 of 1 talent accepted Coordinating · 0/1 confirmed 1 Coord QA" [ref=e1173] [cursor=pointer]:
-                    - img [ref=e1176]
-                    - generic [ref=e1179]:
-                      - generic [ref=e1180]:
-                        - generic "Cora Cuevas" [ref=e1181]
-                        - generic [ref=e1182]: 2d
-                      - generic [ref=e1183]:
-                        - generic [ref=e1184]: Cora Cuevas
-                        - generic "0 of 1 talent accepted" [ref=e1185]: 0/1
-                      - generic [ref=e1187]: Coordinating · 0/1 confirmed
-                      - generic [ref=e1188]:
-                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1190]'
-                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1199]':
-                          - generic [ref=e1200]: Coord
-                          - img [ref=e1202]
+                  - button "Cora Cuevas 1h Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 Coord QA" [ref=e1191] [cursor=pointer]:
+                    - img [ref=e1194]
+                    - generic [ref=e1197]:
+                      - generic [ref=e1198]:
+                        - generic "Cora Cuevas" [ref=e1199]
+                        - generic [ref=e1200]: 1h
+                      - generic [ref=e1201]:
+                        - generic [ref=e1202]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e1203]: 0/1
+                      - generic [ref=e1206]: → Nudge talent · 1 not responded
+                      - generic [ref=e1207]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1209]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1218]':
+                          - generic [ref=e1219]: Coord
+                          - img [ref=e1221]
                           - text: QA
-              - generic [ref=e1206]:
-                - generic [ref=e1208]:
-                  - button "Back to Inbox" [ref=e1209] [cursor=pointer]:
-                    - img [ref=e1210]
-                  - generic:
-                    - heading "Cora Cuevas · Cora Cuevas" [level=1]:
-                      - generic:
-                        - text: Cora Cuevas
-                        - generic [ref=e1212]: · Cora Cuevas
-                    - 'generic "Source: Cold email" [ref=e1213]':
-                      - img [ref=e1215]
-                      - text: Cold email
-                  - generic [ref=e1217]:
-                    - generic [ref=e1218]:
-                      - button "Edit job details" [ref=e1219] [cursor=pointer]:
-                        - img [ref=e1220]
-                      - button "Propose a time" [ref=e1222] [cursor=pointer]:
-                        - img [ref=e1223]
-                        - generic [ref=e1226]: Propose a time
-                      - 'button "Coordinator: QA Journeys Owner · click to reassign or assign a talent" [ref=e1227] [cursor=pointer]':
-                        - img [ref=e1228]
-                        - generic [ref=e1232]: "Coord: QA"
-                      - button "Move to" [ref=e1234] [cursor=pointer]:
-                        - text: Move to
-                        - img [ref=e1235]
-                      - button "Search this conversation" [ref=e1237] [cursor=pointer]:
-                        - img [ref=e1238]
-                      - button "More actions" [ref=e1243] [cursor=pointer]:
-                        - img [ref=e1245]
-                    - 'button "Status: Inquiry. Open full breakdown." [ref=e1249] [cursor=pointer]':
-                      - text: Inquiry
-                      - img [ref=e1250]
-                - generic [ref=e1252]:
-                  - tablist [ref=e1253]:
-                    - tab "Client" [selected] [ref=e1254] [cursor=pointer]:
-                      - img [ref=e1256]
-                      - generic [ref=e1260]: Client
-                      - generic [ref=e1261]: "2"
-                    - tab "Group" [ref=e1262] [cursor=pointer]:
-                      - img [ref=e1264]
-                      - generic [ref=e1269]: Group
-                    - tab "Activity" [ref=e1270] [cursor=pointer]:
-                      - img [ref=e1272]
-                      - generic [ref=e1275]: Activity
-                    - tab "Lineup" [ref=e1276] [cursor=pointer]:
-                      - generic [ref=e1277]: Lineup
-                    - tab "Offer" [ref=e1278] [cursor=pointer]:
-                      - img [ref=e1280]
-                      - generic [ref=e1283]: Offer
-                    - tab "Details" [ref=e1284] [cursor=pointer]:
-                      - generic [ref=e1285]: Details
-                    - tab "Files" [ref=e1286] [cursor=pointer]:
-                      - img [ref=e1288]
-                      - generic [ref=e1292]: Files
-                  - generic [ref=e1293]:
-                    - img [ref=e1294]
-                    - text: Your turn. Reply to the client to move this forward.
-                  - generic [ref=e1297]:
-                    - generic "Client thread. Visible to the client and workspace staff." [ref=e1298]: Client thread
-                    - generic [ref=e1299]:
-                      - generic [ref=e1302]: Fri 8:01 PM
+                  - button "Nadia Varela 17h Nadia Varela 1 of 1 talent accepted → Draft offer · lineup confirmed 1 Coord QA" [ref=e1225] [cursor=pointer]:
+                    - img [ref=e1228]
+                    - generic [ref=e1231]:
+                      - generic [ref=e1232]:
+                        - generic "Nadia Varela" [ref=e1233]
+                        - generic [ref=e1234]: 17h
+                      - generic [ref=e1235]:
+                        - generic [ref=e1236]: Nadia Varela
+                        - generic "1 of 1 talent accepted" [ref=e1237]: 1/1
+                      - generic [ref=e1240]: → Draft offer · lineup confirmed
+                      - generic [ref=e1241]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1243]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1252]':
+                          - generic [ref=e1253]: Coord
+                          - img [ref=e1255]
+                          - text: QA
+                  - button "Nadia Varela 23h Nadia Varela 1 of 1 talent accepted → Reply to client · \"QA Journeys Talent approved the offer.\" 3 3 Coord QA" [ref=e1259] [cursor=pointer]:
+                    - img [ref=e1262]
+                    - generic [ref=e1265]:
+                      - generic [ref=e1266]:
+                        - generic "Nadia Varela" [ref=e1267]
+                        - generic [ref=e1268]: 23h
+                      - generic [ref=e1269]:
+                        - generic [ref=e1270]: Nadia Varela
+                        - generic "1 of 1 talent accepted" [ref=e1271]: 1/1
+                      - generic [ref=e1272]:
+                        - generic [ref=e1274]: → Reply to client · "QA Journeys Talent approved the offer."
+                        - generic [ref=e1275]: "3"
+                      - generic [ref=e1276]:
+                        - 'progressbar "Stage 3 of 4: Booked" [ref=e1278]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1287]':
+                          - generic [ref=e1288]: Coord
+                          - img [ref=e1290]
+                          - text: QA
+                  - button "Nadia Varela 23h Nadia Varela 1 of 1 talent accepted → Reply to client · \"QA Journeys Talent approved the offer.\" 3 3 Coord QA" [ref=e1294] [cursor=pointer]:
+                    - img [ref=e1297]
+                    - generic [ref=e1300]:
+                      - generic [ref=e1301]:
+                        - generic "Nadia Varela" [ref=e1302]
+                        - generic [ref=e1303]: 23h
                       - generic [ref=e1304]:
+                        - generic [ref=e1305]: Nadia Varela
+                        - generic "1 of 1 talent accepted" [ref=e1306]: 1/1
+                      - generic [ref=e1307]:
+                        - generic [ref=e1309]: → Reply to client · "QA Journeys Talent approved the offer."
+                        - generic [ref=e1310]: "3"
+                      - generic [ref=e1311]:
+                        - 'progressbar "Stage 3 of 4: Booked" [ref=e1313]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1322]':
+                          - generic [ref=e1323]: Coord
+                          - img [ref=e1325]
+                          - text: QA
+                  - button "Nadia Varela 23h Nadia Varela 1 of 1 talent accepted → Reply to client · \"QA Journeys Talent approved the offer.\" 3 3 Coord QA" [ref=e1329] [cursor=pointer]:
+                    - img [ref=e1332]
+                    - generic [ref=e1335]:
+                      - generic [ref=e1336]:
+                        - generic "Nadia Varela" [ref=e1337]
+                        - generic [ref=e1338]: 23h
+                      - generic [ref=e1339]:
+                        - generic [ref=e1340]: Nadia Varela
+                        - generic "1 of 1 talent accepted" [ref=e1341]: 1/1
+                      - generic [ref=e1342]:
+                        - generic [ref=e1344]: → Reply to client · "QA Journeys Talent approved the offer."
+                        - generic [ref=e1345]: "3"
+                      - generic [ref=e1346]:
+                        - 'progressbar "Stage 3 of 4: Booked" [ref=e1348]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1357]':
+                          - generic [ref=e1358]: Coord
+                          - img [ref=e1360]
+                          - text: QA
+                  - button "Nadia Varela 23h Nadia Varela 1 of 1 talent accepted → Reply to client · \"QA Journeys Talent approved the offer.\" 3 3 Coord QA" [ref=e1364] [cursor=pointer]:
+                    - img [ref=e1367]
+                    - generic [ref=e1370]:
+                      - generic [ref=e1371]:
+                        - generic "Nadia Varela" [ref=e1372]
+                        - generic [ref=e1373]: 23h
+                      - generic [ref=e1374]:
+                        - generic [ref=e1375]: Nadia Varela
+                        - generic "1 of 1 talent accepted" [ref=e1376]: 1/1
+                      - generic [ref=e1377]:
+                        - generic [ref=e1379]: → Reply to client · "QA Journeys Talent approved the offer."
+                        - generic [ref=e1380]: "3"
+                      - generic [ref=e1381]:
+                        - 'progressbar "Stage 3 of 4: Booked" [ref=e1383]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1392]':
+                          - generic [ref=e1393]: Coord
+                          - img [ref=e1395]
+                          - text: QA
+                  - button "Nadia Varela 23h Nadia Varela 0 of 1 talent accepted → Nudge talent · 1 not responded 1 Coord QA" [ref=e1399] [cursor=pointer]:
+                    - img [ref=e1402]
+                    - generic [ref=e1405]:
+                      - generic [ref=e1406]:
+                        - generic "Nadia Varela" [ref=e1407]
+                        - generic [ref=e1408]: 23h
+                      - generic [ref=e1409]:
+                        - generic [ref=e1410]: Nadia Varela
+                        - generic "0 of 1 talent accepted" [ref=e1411]: 0/1
+                      - generic [ref=e1414]: → Nudge talent · 1 not responded
+                      - generic [ref=e1415]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1417]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1426]':
+                          - generic [ref=e1427]: Coord
+                          - img [ref=e1429]
+                          - text: QA
+                  - generic [ref=e1432]: This week
+                  - button "Cora Cuevas 2d Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e1434] [cursor=pointer]:
+                    - img [ref=e1437]
+                    - generic [ref=e1440]:
+                      - generic [ref=e1441]:
+                        - generic "Cora Cuevas" [ref=e1442]
+                        - generic [ref=e1443]: 2d
+                      - generic [ref=e1445]: Cora Cuevas
+                      - generic [ref=e1448]: → Add talent · shortlist empty
+                      - generic [ref=e1449]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1451]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1460]':
+                          - generic [ref=e1461]: Coord
+                          - img [ref=e1463]
+                          - text: QA
+                  - button "Cora Cuevas 2d Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e1467] [cursor=pointer]:
+                    - img [ref=e1470]
+                    - generic [ref=e1473]:
+                      - generic [ref=e1474]:
+                        - generic "Cora Cuevas" [ref=e1475]
+                        - generic [ref=e1476]: 2d
+                      - generic [ref=e1478]: Cora Cuevas
+                      - generic [ref=e1481]: → Add talent · shortlist empty
+                      - generic [ref=e1482]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1484]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1493]':
+                          - generic [ref=e1494]: Coord
+                          - img [ref=e1496]
+                          - text: QA
+                  - button "Cora Cuevas 2d Cora Cuevas → Add talent · shortlist empty 1 Coord QA" [ref=e1500] [cursor=pointer]:
+                    - img [ref=e1503]
+                    - generic [ref=e1506]:
+                      - generic [ref=e1507]:
+                        - generic "Cora Cuevas" [ref=e1508]
+                        - generic [ref=e1509]: 2d
+                      - generic [ref=e1511]: Cora Cuevas
+                      - generic [ref=e1514]: → Add talent · shortlist empty
+                      - generic [ref=e1515]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1517]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1526]':
+                          - generic [ref=e1527]: Coord
+                          - img [ref=e1529]
+                          - text: QA
+                  - button "Cora Cuevas 2d Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 Coord QA" [ref=e1533] [cursor=pointer]:
+                    - img [ref=e1536]
+                    - generic [ref=e1539]:
+                      - generic [ref=e1540]:
+                        - generic "Cora Cuevas" [ref=e1541]
+                        - generic [ref=e1542]: 2d
+                      - generic [ref=e1543]:
+                        - generic [ref=e1544]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e1545]: 0/1
+                      - generic [ref=e1548]: → Nudge talent · 1 not responded
+                      - generic [ref=e1549]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1551]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1560]':
+                          - generic [ref=e1561]: Coord
+                          - img [ref=e1563]
+                          - text: QA
+                  - button "Cora Cuevas 2d Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 Coord QA" [ref=e1567] [cursor=pointer]:
+                    - img [ref=e1570]
+                    - generic [ref=e1573]:
+                      - generic [ref=e1574]:
+                        - generic "Cora Cuevas" [ref=e1575]
+                        - generic [ref=e1576]: 2d
+                      - generic [ref=e1577]:
+                        - generic [ref=e1578]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e1579]: 0/1
+                      - generic [ref=e1582]: → Nudge talent · 1 not responded
+                      - generic [ref=e1583]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1585]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1594]':
+                          - generic [ref=e1595]: Coord
+                          - img [ref=e1597]
+                          - text: QA
+                  - button "Cora Cuevas 2d Cora Cuevas 0 of 1 talent accepted → Nudge talent · 1 not responded 1 Coord QA" [ref=e1601] [cursor=pointer]:
+                    - img [ref=e1604]
+                    - generic [ref=e1607]:
+                      - generic [ref=e1608]:
+                        - generic "Cora Cuevas" [ref=e1609]
+                        - generic [ref=e1610]: 2d
+                      - generic [ref=e1611]:
+                        - generic [ref=e1612]: Cora Cuevas
+                        - generic "0 of 1 talent accepted" [ref=e1613]: 0/1
+                      - generic [ref=e1616]: → Nudge talent · 1 not responded
+                      - generic [ref=e1617]:
+                        - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1619]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1628]':
+                          - generic [ref=e1629]: Coord
+                          - img [ref=e1631]
+                          - text: QA
+                  - generic [ref=e1634]: Today
+                  - button "Nadia Varela 18h Nadia Varela 1 of 1 talent accepted Booked · $800 4 3 Coord QA" [ref=e1636] [cursor=pointer]:
+                    - img [ref=e1639]
+                    - generic [ref=e1642]:
+                      - generic [ref=e1643]:
+                        - generic "Nadia Varela" [ref=e1644]
+                        - generic [ref=e1645]: 18h
+                      - generic [ref=e1646]:
+                        - generic [ref=e1647]: Nadia Varela
+                        - generic "1 of 1 talent accepted" [ref=e1648]: 1/1
+                      - generic [ref=e1649]:
+                        - generic [ref=e1650]: Booked · $800
+                        - generic [ref=e1651]: "4"
+                      - generic [ref=e1652]:
+                        - 'progressbar "Stage 3 of 4: Booked" [ref=e1654]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1663]':
+                          - generic [ref=e1664]: Coord
+                          - img [ref=e1666]
+                          - text: QA
+                  - button "Nadia Varela 22h Nadia Varela 1 of 1 talent accepted Booked · $800 4 3 Coord QA" [ref=e1670] [cursor=pointer]:
+                    - img [ref=e1673]
+                    - generic [ref=e1676]:
+                      - generic [ref=e1677]:
+                        - generic "Nadia Varela" [ref=e1678]
+                        - generic [ref=e1679]: 22h
+                      - generic [ref=e1680]:
+                        - generic [ref=e1681]: Nadia Varela
+                        - generic "1 of 1 talent accepted" [ref=e1682]: 1/1
+                      - generic [ref=e1683]:
+                        - generic [ref=e1684]: Booked · $800
+                        - generic [ref=e1685]: "4"
+                      - generic [ref=e1686]:
+                        - 'progressbar "Stage 3 of 4: Booked" [ref=e1688]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1697]':
+                          - generic [ref=e1698]: Coord
+                          - img [ref=e1700]
+                          - text: QA
+                  - button "Nadia Varela 23h Nadia Varela 1 of 1 talent accepted Booked · $800 4 3 Coord QA" [ref=e1704] [cursor=pointer]:
+                    - img [ref=e1707]
+                    - generic [ref=e1710]:
+                      - generic [ref=e1711]:
+                        - generic "Nadia Varela" [ref=e1712]
+                        - generic [ref=e1713]: 23h
+                      - generic [ref=e1714]:
+                        - generic [ref=e1715]: Nadia Varela
+                        - generic "1 of 1 talent accepted" [ref=e1716]: 1/1
+                      - generic [ref=e1717]:
+                        - generic [ref=e1718]: Booked · $800
+                        - generic [ref=e1719]: "4"
+                      - generic [ref=e1720]:
+                        - 'progressbar "Stage 3 of 4: Booked" [ref=e1722]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1731]':
+                          - generic [ref=e1732]: Coord
+                          - img [ref=e1734]
+                          - text: QA
+                  - button "Nadia Varela 23h Nadia Varela 1 of 1 talent accepted Offer $800 · awaiting client 1 2 Coord QA" [ref=e1738] [cursor=pointer]:
+                    - img [ref=e1741]
+                    - generic [ref=e1744]:
+                      - generic [ref=e1745]:
+                        - generic "Nadia Varela" [ref=e1746]
+                        - generic [ref=e1747]: 23h
+                      - generic [ref=e1748]:
+                        - generic [ref=e1749]: Nadia Varela
+                        - generic "1 of 1 talent accepted" [ref=e1750]: 1/1
+                      - generic [ref=e1751]:
+                        - generic [ref=e1752]: Offer $800 · awaiting client
+                        - generic [ref=e1753]: "1"
+                      - generic [ref=e1754]:
+                        - 'progressbar "Stage 2 of 4: Offer" [ref=e1756]'
+                        - 'generic "Coordinator: QA Journeys Owner" [ref=e1765]':
+                          - generic [ref=e1766]: Coord
+                          - img [ref=e1768]
+                          - text: QA
+              - generic [ref=e1772]:
+                - generic [ref=e1773]:
+                  - generic [ref=e1774]:
+                    - button "Back to Inbox" [ref=e1775] [cursor=pointer]:
+                      - img [ref=e1776]
+                    - generic:
+                      - heading "Cora Cuevas · Cora Cuevas" [level=1]:
                         - generic:
-                          - generic:
-                            - button "Add reaction":
-                              - img
-                          - button "Reply to this message":
-                            - img
-                        - img [ref=e1306]
-                        - generic [ref=e1309]:
-                          - generic [ref=e1311]: System · system
-                          - generic [ref=e1312]: Need two models for a catalog shoot next month.
-                          - generic [ref=e1313]: Fri 8:01 PM
-                      - generic [ref=e1314]:
-                        - generic:
-                          - generic:
-                            - button "Add reaction":
-                              - img
-                          - button "Reply to this message":
-                            - img
-                        - img [ref=e1316]
-                        - generic [ref=e1320]: Status updated
-                    - generic [ref=e1323]:
-                      - generic "Attach file" [ref=e1324] [cursor=pointer]:
-                        - img [ref=e1325]
-                      - button "Show smart replies" [ref=e1327] [cursor=pointer]:
-                        - img [ref=e1328]
-                      - textbox "Reply to Cora Cuevas…" [ref=e1331]
-                      - button "Record voice note" [disabled] [ref=e1332]:
-                        - img [ref=e1333]
-                      - button "Send" [disabled] [ref=e1336]:
-                        - img [ref=e1337]
-                - generic [ref=e1339]:
-                  - generic [ref=e1340]: Reply to client to keep this moving.
-                  - button "Reply to client" [ref=e1341] [cursor=pointer]
-                  - button "Dismiss next-action nudge" [ref=e1342] [cursor=pointer]: ×
-    - dialog [ref=e1343]:
-      - separator "Resize drawer" [ref=e1344]
-      - banner [ref=e1345]:
+                          - text: Cora Cuevas
+                          - generic [ref=e1778]: · Cora Cuevas
+                      - 'generic "Source: Cold email" [ref=e1779]':
+                        - img [ref=e1781]
+                        - text: Cold email
+                    - generic [ref=e1783]:
+                      - generic [ref=e1784]:
+                        - button "Edit job details" [ref=e1785] [cursor=pointer]:
+                          - img [ref=e1786]
+                        - button "Propose a time" [ref=e1788] [cursor=pointer]:
+                          - img [ref=e1789]
+                          - generic [ref=e1792]: Propose a time
+                        - 'button "Coordinator: QA Journeys Owner · click to reassign or assign a talent" [ref=e1793] [cursor=pointer]':
+                          - img [ref=e1794]
+                          - generic [ref=e1798]: "Coord: QA"
+                        - button "Move to" [ref=e1800] [cursor=pointer]:
+                          - text: Move to
+                          - img [ref=e1801]
+                        - button "Search this conversation" [ref=e1803] [cursor=pointer]:
+                          - img [ref=e1804]
+                        - button "More actions" [ref=e1809] [cursor=pointer]:
+                          - img [ref=e1811]
+                      - 'button "Status: Inquiry. Open full breakdown." [ref=e1815] [cursor=pointer]':
+                        - text: Inquiry
+                        - img [ref=e1816]
+                  - generic [ref=e1818]:
+                    - button "1 talent on this inquiry. Open the Lineup tab." [ref=e1819] [cursor=pointer]:
+                      - generic "QA Journeys Talent · pending" [ref=e1821]:
+                        - img [ref=e1823]
+                      - generic [ref=e1826]: 1 talent
+                      - generic [ref=e1827]: · 0/1 accepted
+                    - 'button "Offer state: Draft · $0. Open the Offer tab." [ref=e1828] [cursor=pointer]': Draft · $0
+                - generic [ref=e1829]:
+                  - tablist [ref=e1830]:
+                    - tab "Client" [ref=e1831] [cursor=pointer]:
+                      - img [ref=e1833]
+                      - generic [ref=e1837]: Client
+                    - tab "Group" [ref=e1838] [cursor=pointer]:
+                      - img [ref=e1840]
+                      - generic [ref=e1845]: Group
+                    - tab "Activity" [ref=e1846] [cursor=pointer]:
+                      - img [ref=e1848]
+                      - generic [ref=e1851]: Activity
+                    - tab "Lineup" [ref=e1852] [cursor=pointer]:
+                      - generic [ref=e1853]: Lineup
+                    - tab "Offer" [selected] [ref=e1854] [cursor=pointer]:
+                      - img [ref=e1856]
+                      - generic [ref=e1859]: Offer
+                    - tab "Details" [ref=e1860] [cursor=pointer]:
+                      - generic [ref=e1861]: Details
+                    - tab "Files" [ref=e1862] [cursor=pointer]:
+                      - img [ref=e1864]
+                      - generic [ref=e1868]: Files
+                  - generic [ref=e1871]:
+                    - generic [ref=e1873]:
+                      - generic [ref=e1875]: Draft
+                      - generic [ref=e1876]: $0
+                    - button "Send to client" [ref=e1878] [cursor=pointer]
+                    - generic [ref=e1880]:
+                      - generic [ref=e1881]: Draft editor
+                      - generic [ref=e1882]: 1 line item · total $0
+                      - button "Edit" [ref=e1883] [cursor=pointer]
+                - generic [ref=e1884]:
+                  - generic [ref=e1885]: Reply to client to keep this moving.
+                  - button "Reply to client" [ref=e1886] [cursor=pointer]
+                  - button "Dismiss next-action nudge" [ref=e1887] [cursor=pointer]: ×
+    - dialog [ref=e1888]:
+      - separator "Resize drawer" [ref=e1889]
+      - banner [ref=e1890]:
         - generic:
           - generic:
             - heading [level=2]
-        - generic [ref=e1346]:
-          - button "Copy link to this drawer" [ref=e1348] [cursor=pointer]:
-            - img [ref=e1349]
-          - generic [ref=e1352]:
-            - button "compact size" [ref=e1354] [cursor=pointer]:
-              - img [ref=e1355]
-            - button "half size" [ref=e1359] [cursor=pointer]:
-              - img [ref=e1360]
-            - button "full size" [ref=e1364] [cursor=pointer]:
-              - img [ref=e1365]
-          - button "Close" [ref=e1368] [cursor=pointer]:
-            - img [ref=e1369]
+        - generic [ref=e1891]:
+          - button "Copy link to this drawer" [ref=e1893] [cursor=pointer]:
+            - img [ref=e1894]
+          - generic [ref=e1897]:
+            - button "compact size" [ref=e1899] [cursor=pointer]:
+              - img [ref=e1900]
+            - button "half size" [ref=e1904] [cursor=pointer]:
+              - img [ref=e1905]
+            - button "full size" [ref=e1909] [cursor=pointer]:
+              - img [ref=e1910]
+          - button "Close" [ref=e1913] [cursor=pointer]:
+            - img [ref=e1914]
     - status
-  - alert [ref=e1372]
+  - alert [ref=e1917]
 ```
 
 # Test source
 
 ```ts
-  1   | /**
-  2   |  * Case-journey spec pattern.
-  3   |  *
-  4   |  * Fixtures prepare state. This file only opens the real interface.
-  5   |  * Each case adds `e2e/cases/Cxx-….spec.ts` rather than a bespoke harness.
-  6   |  *
-  7   |  * Auth: PLAYWRIGHT_USE_DEV_SIGNIN=1 and /api/dev/signin already exist.
-  8   |  * Device: tablet-pos and mobile-checkout projects in playwright.config.ts.
-  9   |  *
-  10  |  * A login page, host-not-registered page, or empty error shell cannot pass.
-  11  |  */
-  12  | 
-  13  | import { test, expect, type Page } from "@playwright/test";
-  14  | 
-  15  | export { test, expect };
-  16  | 
-  17  | export const JOURNEYS_SLUG = process.env.JOURNEYS_TENANT_SLUG ?? "qa-journeys";
-  18  | export const JOURNEYS_DISPLAY = process.env.JOURNEYS_TENANT_NAME ?? "QA Journeys";
-  19  | export const FIXTURE_READY = process.env.JOURNEYS_FIXTURE_READY === "1";
-  20  | 
-  21  | export async function prepareJourneysPage(page: Page): Promise<void> {
-  22  |   await page.addInitScript(() => {
-  23  |     try {
-  24  |       window.localStorage.setItem("impronta_analytics_consent", "denied");
-  25  |     } catch {
-  26  |       /* ignore */
-  27  |     }
-  28  |   });
-  29  | }
-  30  | 
-  31  | export async function assertNotAuthWall(page: Page): Promise<void> {
-  32  |   const url = page.url().toLowerCase();
-  33  |   expect(url, "login URL cannot pass a journey").not.toMatch(/\/login|\/signin|\/auth\//);
-  34  |   await expect(
-  35  |     page.getByText(/host not registered/i),
-  36  |     "unregistered host page cannot pass a journey",
-  37  |   ).toHaveCount(0);
-  38  |   // A public header "Sign in" link is not an auth wall. The wall is a
-  39  |   // sign-in heading as the page itself — scanning the whole body also
-  40  |   // matched builder CSS and failed every storefront journey.
-  41  |   await expect(
-  42  |     page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i }),
-  43  |     "login heading cannot pass a journey",
-  44  |   ).toHaveCount(0);
-  45  | }
-  46  | 
-  47  | export async function assertWorkspaceIdentity(page: Page): Promise<void> {
-  48  |   await assertNotAuthWall(page);
-  49  |   expect(
-  50  |     page.url(),
-  51  |     "workspace identity must be asserted on a workspace surface",
-  52  |   ).toMatch(/\/(admin|talent|client)(\/|\?|$)/);
-  53  |   await expect(
-  54  |     page.getByRole("heading", { name: /this page is no longer here/i }),
-  55  |     "branded 404 cannot pass a workspace identity check",
-  56  |   ).toHaveCount(0);
-> 57  |   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-      |                                                         ^ Error: expect(locator).toBeVisible() failed
-  58  |   const landmarks = await page
-  59  |     .locator("header, [role='banner'], nav, aside, h1")
-  60  |     .allTextContents();
-  61  |   const shell = [await page.title(), ...landmarks].join(" ").toLowerCase();
-  62  |   expect(shell, `workspace chrome must name ${JOURNEYS_DISPLAY}`).toContain(
-  63  |     JOURNEYS_DISPLAY.toLowerCase().slice(0, 8),
-  64  |   );
-  65  | }
-  66  | 
-  67  | export async function openWorkspace(page: Page, segment: string): Promise<void> {
-  68  |   await signInJourneysStaff(page, `/admin/${segment}`);
-  69  |   await assertWorkspaceIdentity(page);
-  70  | }
-  71  | 
-  72  | export async function openStorefront(page: Page): Promise<void> {
-  73  |   await page.goto("/");
-  74  |   await assertNotAuthWall(page);
-  75  |   await expect(page.locator("body")).toBeVisible();
-  76  | }
-  77  | 
-  78  | export const JOURNEYS_OWNER_EMAIL =
-  79  |   process.env.JOURNEYS_OWNER_EMAIL ?? "qa-journeys-owner@impronta.test";
-  80  | export const JOURNEYS_TALENT_EMAIL =
-  81  |   process.env.JOURNEYS_TALENT_EMAIL ?? "qa-journeys-talent@impronta.test";
-  82  | 
-  83  | /**
-  84  |  * How many times to ask for a session before calling it a failure.
-  85  |  *
-  86  |  * A 404 from `/api/dev/signin` has two very different causes and only one of
-  87  |  * them is worth retrying.
-  88  |  *
-  89  |  * PERMANENT: TULALA_ALLOW_DEV_SURFACES is not set on the dev server. The Edge
-  90  |  * proxy inlines NODE_ENV=production, so without the flag `/api/dev/*` is not
-  91  |  * short-circuited, falls through host resolution, and every request lands on
-  92  |  * the storefront's not-found page. Retrying cannot help and the message below
-  93  |  * has to name the flag, because the symptom looks like a missing route.
-  94  |  *
-  95  |  * TRANSIENT: the Turbopack dev server briefly loses the route from its tree
-  96  |  * after it rebuilds — observed as four consecutive 404s immediately after
-  97  |  * `Compiling /_not-found/page`, followed by 307 for the sixteen requests
-  98  |  * either side of them, all inside one server process with the flag set the
-  99  |  * whole time. It is a dev-server fault, not a product one, so it must not be
-  100 |  * allowed to read as "the fixture cannot sign in".
-  101 |  */
-  102 | const SIGNIN_ATTEMPTS = 6;
-  103 | 
-  104 | /**
-  105 |  * Passwordless fixture sign-in. Reads cookies from the 307 and then opens
-  106 |  * `nextPath` on PLAYWRIGHT_BASE_URL so a Location that dropped the proxy
-  107 |  * port cannot bounce the browser onto :80.
-  108 |  */
-  109 | export async function signInJourneysStaff(
-  110 |   page: Page,
-  111 |   nextPath = "/admin/pos",
-  112 |   email = JOURNEYS_OWNER_EMAIL,
-  113 | ): Promise<void> {
-  114 |   const params = new URLSearchParams({ email, next: nextPath });
-  115 |   const seen: number[] = [];
-  116 |   let setCookies: string[] = [];
-  117 |   for (let attempt = 1; attempt <= SIGNIN_ATTEMPTS; attempt += 1) {
-  118 |     const res = await page.request.get(`/api/dev/signin?${params.toString()}`, {
-  119 |       maxRedirects: 0,
-  120 |     });
-  121 |     if (res.status() === 307) {
-  122 |       setCookies = res
-  123 |         .headersArray()
-  124 |         .filter((h) => h.name.toLowerCase() === "set-cookie")
-  125 |         .map((h) => h.value);
-  126 |       break;
-  127 |     }
-  128 |     seen.push(res.status());
-  129 |     // 404 (Turbopack briefly missing the route) and 502/503 (Next restarting
-  130 |     // or the proxy's upstream gone) are the only statuses worth retrying.
-  131 |     // 403/400/401/500 are the handler answering; retrying only delays the report.
-  132 |     if (res.status() !== 404 && res.status() !== 502 && res.status() !== 503) {
-  133 |       expect(res.status(), `dev sign-in refused: ${await res.text()}`).toBe(307);
-  134 |     }
-  135 |     if (attempt < SIGNIN_ATTEMPTS) await page.waitForTimeout(250 * attempt);
-  136 |   }
-  137 |   expect(
-  138 |     seen.length,
-  139 |     `dev sign-in returned ${seen.join(", ")} — ${SIGNIN_ATTEMPTS} 404s is not a rebuild ` +
-  140 |       `gap. Start the dev server with TULALA_ALLOW_DEV_SURFACES=1 or /api/dev/* falls ` +
-  141 |       `through to the storefront's not-found page.`,
-  142 |   ).toBeLessThan(SIGNIN_ATTEMPTS);
-  143 |   // A response that is not followed does not always reach the browser's cookie
-  144 |   // jar (observed on a remote https origin: only the platform's own cookie was
-  145 |   // stored). The session cookie is the whole point of the call, so put it in
-  146 |   // the context explicitly rather than trusting the transfer.
-  147 |   await adoptSetCookies(page, setCookies);
-  148 |   await page.goto(nextPath);
-  149 |   await assertNotAuthWall(page);
-  150 | }
-  151 | 
-  152 | /** Parse `Set-Cookie` headers from a non-followed response into the context. */
-  153 | async function adoptSetCookies(page: Page, headers: string[]): Promise<void> {
-  154 |   if (headers.length === 0) return;
-  155 |   const origin = new URL(
-  156 |     process.env.PLAYWRIGHT_BASE_URL ?? new URL(page.url()).origin,
-  157 |   );
+  199 |   expect(assigned, "staff assign must persist a talent lineup on qa-journeys").not.toBeNull();
+  200 |   expect(assigned?.talentIds).toContain(QA_JOURNEYS_TALENT_ID);
+  201 |   expect(assigned?.offerStatus, "draft offer must exist on qa-journeys").toMatch(
+  202 |     /draft|pending|sent/,
+  203 |   );
+  204 | 
+  205 |   await page.screenshot({
+  206 |     path: testInfo.outputPath("c08-op-assign.png"),
+  207 |     fullPage: true,
+  208 |   });
+  209 | });
+  210 | 
+  211 | test("C08-OP send: staff prices a line and sends the offer", async ({ page }, testInfo) => {
+  212 |   test.setTimeout(180_000);
+  213 |   const marker = `c08-op-${Date.now()}@impronta.test`;
+  214 |   const brief = "Need two models for a catalog shoot next month.";
+  215 | 
+  216 |   const chat = await openFreshDirectoryChat(page);
+  217 |   const composer = chat.getByPlaceholder(/type your message|write a reply|type a message/i);
+  218 |   await expect(composer).toBeVisible({ timeout: 30_000 });
+  219 |   await composer.fill(brief);
+  220 |   const sendLine = chat.getByRole("button", { name: /send message/i }).first();
+  221 |   if (await sendLine.isVisible().catch(() => false)) {
+  222 |     await sendLine.click();
+  223 |   } else {
+  224 |     await chat.getByRole("button", { name: /send to agency/i }).click();
+  225 |   }
+  226 |   await expect(chat.getByPlaceholder(/^first name$/i)).toBeVisible({ timeout: 20_000 });
+  227 |   await chat.getByPlaceholder(/^first name$/i).fill("Cora");
+  228 |   await chat.getByPlaceholder(/^last name$/i).fill("Cuevas");
+  229 |   await chat.getByPlaceholder(/email/i).fill(marker);
+  230 |   await chat.getByRole("button", { name: /^send message$/i }).click();
+  231 |   await expect(
+  232 |     page.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting|inquiry sent/i).first(),
+  233 |   ).toBeVisible({ timeout: 60_000 });
+  234 | 
+  235 |   const seed = await latestGuestDirectoryInquiry(marker);
+  236 |   expect(seed, "C08-OP send guest inquiry must exist before staff send").not.toBeNull();
+  237 | 
+  238 |   await signInJourneysStaff(page, "/admin/messages");
+  239 |   await expect(page).toHaveURL(/\/admin\/messages/, { timeout: 30_000 });
+  240 |   const inbox = page.locator("[data-tulala-inbox-scroll]");
+  241 |   await expect(inbox).toBeVisible({ timeout: 40_000 });
+  242 |   // Messages after the fidelity pass keeps the h1 in the tree but hidden;
+  243 |   // the inbox is the identity check for this screen.
+  244 |   await assertNotAuthWall(page);
+  245 |   await page.keyboard.press("Escape");
+  246 | 
+  247 |   const allChip = page.getByRole("button", { name: /^all$/i });
+  248 |   if (await allChip.isVisible().catch(() => false)) {
+  249 |     await allChip.click();
+  250 |   }
+  251 |   const row = inbox
+  252 |     .getByRole("button", { name: /cora cuevas/i })
+  253 |     .filter({ hasText: /shortlist empty/i })
+  254 |     .first();
+  255 |   await expect(row).toBeVisible({ timeout: 30_000 });
+  256 |   await row.click();
+  257 | 
+  258 |   await page.getByRole("tab", { name: /^lineup$/i }).click();
+  259 |   await expect(page.locator("[data-live-lineup-loading]")).toHaveCount(0, {
+  260 |     timeout: 20_000,
+  261 |   });
+  262 |   const manage = page.getByText(/^manage$/i);
+  263 |   if (await manage.isVisible().catch(() => false)) {
+  264 |     await manage.click();
+  265 |   }
+  266 |   const alreadyOnLineup = page.getByText(/qa journeys talent/i);
+  267 |   if (!(await alreadyOnLineup.isVisible().catch(() => false))) {
+  268 |     const addTalent = page.getByRole("button", { name: /^add talent$/i });
+  269 |     await expect(addTalent).toBeVisible({ timeout: 20_000 });
+  270 |     await addTalent.click();
+  271 |     const rosterSearch = page.getByPlaceholder(/search roster/i);
+  272 |     await expect(rosterSearch).toBeVisible({ timeout: 10_000 });
+  273 |     await rosterSearch.fill("QA Journeys");
+  274 |     await page.getByRole("button", { name: "QA Journeys Talent", exact: true }).click();
+  275 |     await expect(page.getByText(/invited|added to lineup/i).first()).toBeVisible({
+  276 |       timeout: 20_000,
+  277 |     });
+  278 |   }
+  279 | 
+  280 |   await page.getByRole("tab", { name: /^offer$/i }).click();
+  281 |   const startOffer = page.getByRole("button", { name: /start drafting offer/i });
+  282 |   if (await startOffer.isVisible().catch(() => false)) {
+  283 |     await startOffer.click();
+  284 |     await expect(page.getByText(/offer draft created/i)).toBeVisible({
+  285 |       timeout: 20_000,
+  286 |     });
+  287 |   }
+  288 |   // Fidelity keeps the draft editor collapsed ("1 line item · total $0").
+  289 |   const editDraft = page.getByRole("button", { name: /^edit$/i });
+  290 |   if (await editDraft.first().isVisible().catch(() => false)) {
+  291 |     await editDraft.first().click();
+  292 |   }
+  293 | 
+  294 |   const addLine = page.getByRole("button", { name: /add line item/i });
+  295 |   const talentSelect = page
+  296 |     .locator("select")
+  297 |     .filter({ has: page.locator("option", { hasText: /qa journeys talent/i }) });
+  298 |   if ((await talentSelect.count()) === 0) {
+> 299 |     await expect(addLine).toBeVisible({ timeout: 20_000 });
+      |                           ^ Error: expect(locator).toBeVisible() failed
+  300 |     await addLine.click();
+  301 |   }
+  302 |   await expect(talentSelect.first()).toBeVisible({ timeout: 10_000 });
+  303 |   await talentSelect.first().selectOption({ label: "QA Journeys Talent" });
+  304 |   const rate = page.locator('input[placeholder="rate"]').first();
+  305 |   await expect(rate).toBeVisible({ timeout: 10_000 });
+  306 |   await rate.fill("800");
+  307 |   await page.getByRole("button", { name: /^save draft$/i }).click();
+  308 |   await expect(page.getByText(/saved ·/i).first()).toBeVisible({ timeout: 20_000 });
+  309 | 
+  310 |   const sendOffer = page.getByRole("button", { name: /^send to client$/i });
+  311 |   await expect(sendOffer).toBeEnabled({ timeout: 20_000 });
+  312 |   await sendOffer.click();
+  313 |   await expect(
+  314 |     page.getByText(/send offer done|awaiting client and talent approval/i).first(),
+  315 |   ).toBeVisible({ timeout: 30_000 });
+  316 | 
+  317 |   expect(
+  318 |     await latestGuestDirectoryInquiry(marker),
+  319 |     "C08-OP send guest inquiry must still exist on qa-journeys",
+  320 |   ).not.toBeNull();
+  321 |   const sent = await latestSentDirectoryInquiry();
+  322 |   expect(sent, "a sent offer must exist on qa-journeys").not.toBeNull();
+  323 |   expect(sent?.offerStatus, "offer must be sent on qa-journeys").toBe("sent");
+  324 |   expect(sent?.sentAt, "sent_at must be stamped").not.toBeNull();
+  325 |   expect(Number(sent?.totalClientPrice ?? 0)).toBeGreaterThan(0);
+  326 |   expect(sent?.contactEmail ?? "").toMatch(/c08-op-/);
+  327 |   expect(sent?.inquiryStatus).toMatch(/offer_pending|coordination/);
+  328 |   const lines = await inquiryOfferLines(sent!.offerId);
+  329 |   expect(lines.length, "sent offer must have a priced line").toBeGreaterThan(0);
+  330 |   expect(lines.some((line) => line.talentProfileId === QA_JOURNEYS_TALENT_ID)).toBe(true);
+  331 |   expect(lines.reduce((sum, line) => sum + line.totalPrice, 0)).toBeGreaterThan(0);
+  332 |   const approvals = await inquiryOfferApprovalCount(sent!.offerId);
+  333 |   expect(approvals, "send must seed at least the priced talent approval").toBeGreaterThan(0);
+  334 | 
+  335 |   await page.screenshot({
+  336 |     path: testInfo.outputPath("c08-op-send.png"),
+  337 |     fullPage: true,
+  338 |   });
+  339 | });
+  340 | 
+  341 | test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo) => {
+  342 |   test.setTimeout(180_000);
+  343 |   const awaiting = await latestSentOfferAwaitingTalent();
+  344 |   expect(awaiting, "a sent offer must still wait on QA Journeys Talent").not.toBeNull();
+  345 |   expect(awaiting?.offerStatus).toBe("sent");
+  346 |   expect(awaiting?.inquiryStatus).toMatch(/offer_pending|coordination/);
+  347 | 
+  348 |   await signInJourneysStaff(page, `/talent/inbox/${awaiting!.inquiryId}`, JOURNEYS_TALENT_EMAIL);
+  349 |   await expect(page).toHaveURL(/\/talent\/inbox/, { timeout: 40_000 });
+  350 |   await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
+  351 |   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
+  352 |   await expect(page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i })).toHaveCount(0);
+  353 |   await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
+  354 | 
+  355 |   const offerTab = page.getByRole("tab", { name: /^offer$/i });
+  356 |   if (await offerTab.isVisible().catch(() => false)) {
+  357 |     await offerTab.click();
+  358 |   }
+  359 |   const approve = page.getByRole("button", { name: /approve offer/i });
+  360 |   const acceptInvite = page.getByRole("button", { name: /^(accept|show next action: accept)$/i });
+  361 |   if (!(await approve.isVisible().catch(() => false))) {
+  362 |     if (await acceptInvite.first().isVisible().catch(() => false)) {
+  363 |       await acceptInvite.first().click();
+  364 |     }
+  365 |   }
+  366 |   if (!(await approve.isVisible().catch(() => false))) {
+  367 |     await page.goto("/talent/inbox");
+  368 |     await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
+  369 |     const allChip = page.getByRole("button", { name: /^all$/i });
+  370 |     if (await allChip.isVisible().catch(() => false)) {
+  371 |       await allChip.click();
+  372 |     }
+  373 |     const row = page
+  374 |       .locator("[data-tulala-inbox-row]")
+  375 |       .filter({ hasText: /cora cuevas/i })
+  376 |       .filter({ hasText: /offer sla/i })
+  377 |       .first();
+  378 |     await expect(row).toBeVisible({ timeout: 40_000 });
+  379 |     await row.click();
+  380 |     if (await offerTab.isVisible().catch(() => false)) {
+  381 |       await offerTab.click();
+  382 |     }
+  383 |   }
+  384 |   await expect(approve).toBeVisible({ timeout: 40_000 });
+  385 |   await approve.click();
+  386 |   await expect(
+  387 |     page.getByText(
+  388 |       /offer approved|you've approved|approved the offer|waiting on client|you approved/i,
+  389 |     ).first(),
+  390 |   ).toBeVisible({ timeout: 30_000 });
+  391 | 
+  392 |   const approvals = await inquiryOfferApprovals(awaiting!.offerId);
+  393 |   const talent = approvals.find(
+  394 |     (row) => row.talentProfileId === QA_JOURNEYS_TALENT_ID,
+  395 |   );
+  396 |   const client = approvals.find((row) => row.role === "client");
+  397 |   expect(talent?.status, "talent approval must be accepted").toBe("accepted");
+  398 |   expect(client?.status, "client approval must still be pending").toBe("pending");
+  399 | 
 ```
