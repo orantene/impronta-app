@@ -22,4 +22,10 @@ is out of scope. Mobile and Counter/Overview polish builders are active; this
 package does not touch their files.
 
 `verify-session-move-race.mjs` exits 2 without the isolated env (same guard as
-Package 1 race scripts).
+Package 1 race scripts). Confirmed locally 2026-09-11: exit 2.
+
+Local gates on `5cc48dbd2` (private tsc lane `/tmp/tulala-tsc.sched.lock`):
+
+- `npm run typecheck` PASS
+- `npm run lint` PASS
+- `test:money` `test:capacity` `test:commands` `test:tenant-isolation` `test:size-ratchet` `test:phase1-i18n` `test:scheduling` `test:sessions` `test:reservations` PASS (fail 0)
