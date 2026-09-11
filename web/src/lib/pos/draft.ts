@@ -24,6 +24,7 @@ export type CreateDraftOrderInput = {
   customerId?: string | null;
   visitId?: string | null;
   spaceId?: string | null;
+  sourceChannel?: string;
 };
 
 export type CreateDraftOrderResult =
@@ -51,8 +52,8 @@ export async function createDraftOrder(
         tax_cents: 0,
         total_cents: 0,
         receipt_code: generateOpaqueCode(),
-        source_channel: "pos",
-        source_page: input.context ?? "pos",
+        source_channel: input.sourceChannel ?? "pos",
+        source_page: input.context ?? input.sourceChannel ?? "pos",
         visit_id: input.visitId ?? null,
         space_id: input.spaceId ?? null,
         payout_release_rule: "immediate",

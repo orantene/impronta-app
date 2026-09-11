@@ -1465,6 +1465,13 @@
       "soldOut": "Agotado",
       "soldOutError": "{item} esta agotado.",
       "submit": "Enviar pedido"
+    },
+    "thread": {
+      "title": "Tu conversacion",
+      "continue": "Continuar en este telefono",
+      "pay": "Pagar de forma segura",
+      "empty": "Aun no hay mensajes.",
+      "codeSent": "Si el SMS esta disponible, se envio un codigo."
     }
   },
   "dashboard": {
@@ -12533,6 +12540,43 @@
         "today": "Hoy una venta lleva un código; las listas de precios, los descuentos manuales y los precios de miembro no se aplican."
       }
     },
+    "venue": {
+      "engine": {
+        "refusal": {
+          "duplicate_slug": "Ese identificador de ubicacion ya esta en uso.",
+          "last_location": "Un espacio necesita al menos una ubicacion.",
+          "has_spaces": "Esa zona todavia tiene mesas.",
+          "already_seated": "Ese grupo ya esta sentado.",
+          "space_occupied": "Esa mesa ya tiene un grupo.",
+          "expired": "Ese lugar en la lista de espera expiro.",
+          "overlap": "Esos periodos de servicio se solapan.",
+          "two_active": "Esta ubicacion ya tiene un plano activo.",
+          "station_in_use": "Esa estacion todavia tiene tickets o articulos.",
+          "visit_closed": "Esta visita de mesa ya termino.",
+          "item_unavailable": "Ese articulo no esta disponible.",
+          "already_paid": "Esa parte ya esta pagada.",
+          "exceeds_outstanding": "Eso es mas de lo que todavia se debe.",
+          "not_submitted": "La cocina aun no recibio esa linea.",
+          "seat_taken": "Ese asiento ya esta tomado.",
+          "hold_expired": "La reserva de ese asiento expiro.",
+          "same_session": "Ese boleto ya es para esta noche.",
+          "price_up_needs_payment": "La nueva noche cuesta mas. Paga la diferencia primero.",
+          "needs_approval": "Un gerente tiene que aprobar esto primero.",
+          "channel_unavailable": "Ese canal de entrega no esta disponible.",
+          "superseded": "Este codigo de boleto fue reemplazado.",
+          "too_many_attempts": "Demasiados intentos. Espera e intentalo de nuevo.",
+          "unknown_device": "Este dispositivo no esta registrado.",
+          "not_replayable": "Ese comando no se puede guardar sin conexion.",
+          "stale_app": "Esta version de la app es demasiado vieja.",
+          "conflict": "Esto acaba de cambiar. Recarga e intentalo de nuevo.",
+          "not_found": "Ese registro ya no esta.",
+          "wrong_tenant": "Ese registro no esta en este espacio.",
+          "invalid": "Eso no se puede guardar.",
+          "unavailable": "Esto no se pudo completar. Intentalo de nuevo.",
+          "not_allowed": "No puedes hacer esto aqui."
+        }
+      }
+    },
     "scheduling": {
       "engine": {
         "refusal": {
@@ -12593,6 +12637,82 @@
           "already_accepted": "Esa oferta ya se tomo.",
           "amount": "Ese monto en efectivo no es valido.",
           "already_closed": "Ese turno ya esta cerrado."
+        }
+      },
+      "messages": {
+        "title": "Mensajes",
+        "inbox": "Bandeja",
+        "thread": "Conversacion",
+        "search": "Buscar mensajes",
+        "reply": "Responder",
+        "note": "Nota interna",
+        "assign": "Asignar responsable",
+        "resolve": "Resolver",
+        "reopen": "Reabrir",
+        "handOver": "Pasar",
+        "sendOptions": "Enviar opciones",
+        "addToDraft": "Agregar al borrador",
+        "requestPayment": "Pedir pago",
+        "collectHere": "Cobrar aqui",
+        "closeLost": "Cerrar como perdida",
+        "remind": "Recordar",
+        "newConversation": "Nueva conversacion",
+        "tabCustomer": "Cliente",
+        "tabLinked": "Ligados",
+        "tabNotes": "Notas",
+        "empty": "Aun no hay conversaciones.",
+        "noResults": "Ninguna conversacion coincide.",
+        "failedLoad": "No se pudieron cargar las conversaciones.",
+        "toastIncoming": "Llego un mensaje nuevo.",
+        "backToSale": "Volver a la venta",
+        "deposit": "Anticipo",
+        "full": "Monto completo",
+        "none": "Sin pago ahora",
+        "webChatOnlyCustomer": "El chat web solo lo puede abrir el cliente.",
+        "whatsappNeedsTemplate": "WhatsApp necesita primero una plantilla aprobada.",
+        "draftKept": "Tu texto sigue aqui.",
+        "filter": {
+          "all": "Todas",
+          "unread": "Sin leer",
+          "unassigned": "Sin asignar",
+          "mine": "Mias",
+          "needsReply": "Necesitan respuesta",
+          "awaitingCustomer": "Esperando al cliente",
+          "resolved": "Resueltas"
+        },
+        "state": {
+          "needsReply": "Necesita respuesta",
+          "awaitingCustomer": "Esperando al cliente",
+          "resolved": "Resuelta",
+          "gathering": "Juntando detalles",
+          "offerSent": "Oferta enviada",
+          "awaitingAcceptance": "Esperando aceptacion",
+          "acceptedAwaitingDeposit": "Aceptada, falta el anticipo",
+          "won": "Ganada",
+          "lost": "Perdida"
+        },
+        "refusal": {
+          "conflict": "Esta conversacion acaba de cambiar. Recarga e intentalo de nuevo.",
+          "not_found": "Esa conversacion ya no esta.",
+          "wrong_tenant": "Ese registro no es de este espacio.",
+          "invalid": "Eso no se puede guardar.",
+          "unavailable": "No se pudo completar. Intentalo de nuevo.",
+          "channel_unavailable": "Ese canal no esta disponible.",
+          "template_required": "WhatsApp necesita primero una plantilla aprobada.",
+          "rate_limited": "Espera un momento e intentalo de nuevo.",
+          "checkout_locked": "El pago esta bloqueado a la canasta que se envio.",
+          "already_resolved": "Esta conversacion ya esta resuelta.",
+          "no_owner": "Esta conversacion aun no tiene responsable.",
+          "identity_unconfirmed": "La identidad del cliente no esta confirmada.",
+          "already_linked": "Ese registro ya esta ligado.",
+          "version_stale": "Otra persona guardo primero. Compara las tres versiones.",
+          "payment_unknown": "El estado del pago es desconocido. No lo pidas de nuevo.",
+          "already_paid": "Esto ya esta pagado.",
+          "hold_ended": "La reserva de este horario ya termino.",
+          "basket_changed": "La canasta cambio despues de iniciar el pago.",
+          "not_allowed": "No puedes hacer eso desde aqui.",
+          "expired": "Este enlace u oferta ya vencio.",
+          "already": "Eso ya esta hecho."
         }
       },
       "newSale": "Nueva venta",

@@ -29,6 +29,11 @@ export type PurchaseLineInput = {
    * order, a charge, a seat, and NO TICKET.
    */
   sessionId?: string | null;
+  /**
+   * Multi-day event (Package 3). Expanded to one line per scheduled night
+   * before pricing. Distinct from `sessions.series_id` (class materialiser).
+   */
+  eventSeriesId?: string | null;
 };
 
 export type PurchaseInput = {

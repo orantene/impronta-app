@@ -12,15 +12,11 @@
  * workspace itself has turned on, and which modes that person's role is
  * allowed to reach.
  *
- * WHY "LOCATION" MEANS "WORKSPACE" FOR NOW. There is no locations table yet.
- * `enabledPosModesFromSettings` reads the workspace's per-workspace settings
- * blob (`agencies.settings`, the same JSONB column every other workspace
- * setting already lives in — see `admin-workspace-settings.ts`) at the path
- * `pos.locations.default.modes`. The literal key `"default"` stands in for
- * the workspace's one implicit location. When a real locations table exists,
- * each row gets its own key under `pos.locations.<id>.modes` and this reader
- * changes to take a location id — the shape does not have to change, and
- * nothing that already reads `"default"` breaks.
+ * WHY "LOCATION" USED TO MEAN "WORKSPACE". `enabledPosModesFromSettings` still
+ * reads `pos.locations.default.modes` so existing workspaces keep working.
+ * `venue_locations.slug` now keys `pos.locations.<slug>.modes`. The seeded
+ * row is slug `default`. `enabledPosModesAtLocation` reads a slug and falls
+ * back to `default` when that slug has no modes path.
  *
  * WHY "CASHIER", "HOST" AND "PROFESSIONAL" ARE NOT ROLES HERE. The tenant
  * role ladder (`lib/access/roles.ts`) has exactly five stored ranks: viewer,
@@ -230,6 +226,29 @@ export function enabledPosModesFromSettings(settings: unknown): PosMode[] {
     if (mode && !parsed.includes(mode)) parsed.push(mode);
   }
   return parsed.length > 0 ? parsed : [...DEFAULT_ENABLED_MODES];
+}
+
+/**
+ * Modes for one `venue_locations.slug`. A missing slug falls back to the
+ * implicit `default` location, then to counter-only.
+ */
+export function enabledPosModesAtLocation(settings: unknown, slug: string): PosMode[] {
+  const key = slug.trim().toLowerCase();
+  const pos = isPlainRecord(settings) ? settings.pos : undefined;
+  const locations = isPlainRecord(pos) ? pos.locations : undefined;
+  const named = isPlainRecord(locations) ? locations[key] : undefined;
+  const rawModes = isPlainRecord(named) ? named.modes : undefined;
+  if (Array.isArray(rawModes)) {
+    if (rawModes.length === 0) return [];
+    const parsed: PosMode[] = [];
+    for (const raw of rawModes) {
+      const mode = storedPosMode(raw);
+      if (mode && !parsed.includes(mode)) parsed.push(mode);
+    }
+    if (parsed.length > 0) return parsed;
+  }
+  if (key !== "default") return enabledPosModesFromSettings(settings);
+  return [...DEFAULT_ENABLED_MODES];
 }
 
 /**
