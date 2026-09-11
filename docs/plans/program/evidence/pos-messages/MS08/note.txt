@@ -1,0 +1,1 @@
+The card shows its own state (sent · viewed · selected). Customer and operator edit one draft (#1203); the panel is the draft. The pickup slot is kept only while the payment link is valid.

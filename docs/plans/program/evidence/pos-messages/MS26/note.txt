@@ -1,0 +1,1 @@
+One scheduled message per record; the row says why it was cancelled (reply, payment, handover) or why it failed (invalid number) and what to do.

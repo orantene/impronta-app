@@ -1,0 +1,1 @@
+Customer content (lines, total, deposit, milestones, validity, cancellation) is one card; internal (fees, margin) is a separate locked card that is never sent. Projects

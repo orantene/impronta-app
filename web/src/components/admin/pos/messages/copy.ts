@@ -1,6 +1,167 @@
 import type { Translator } from "@/components/admin/pos/translator";
 
-import type { ConversationState, InboxFilter, OpportunityState } from "@/lib/messaging/types";
+import type { ConversationState, InboxFilter, InboxNextAction, OpportunityState } from "@/lib/messaging/types";
+
+const KEYS = [
+  "dashboard.pos.messages.title",
+  "dashboard.pos.messages.inbox",
+  "dashboard.pos.messages.thread",
+  "dashboard.pos.messages.search",
+  "dashboard.pos.messages.reply",
+  "dashboard.pos.messages.note",
+  "dashboard.pos.messages.assign",
+  "dashboard.pos.messages.resolve",
+  "dashboard.pos.messages.reopen",
+  "dashboard.pos.messages.handOver",
+  "dashboard.pos.messages.sendOptions",
+  "dashboard.pos.messages.addToDraft",
+  "dashboard.pos.messages.requestPayment",
+  "dashboard.pos.messages.collectHere",
+  "dashboard.pos.messages.closeLost",
+  "dashboard.pos.messages.remind",
+  "dashboard.pos.messages.newConversation",
+  "dashboard.pos.messages.tabCustomer",
+  "dashboard.pos.messages.tabLinked",
+  "dashboard.pos.messages.tabNotes",
+  "dashboard.pos.messages.empty",
+  "dashboard.pos.messages.noResults",
+  "dashboard.pos.messages.failedLoad",
+  "dashboard.pos.messages.toastIncoming",
+  "dashboard.pos.messages.backToSale",
+  "dashboard.pos.messages.deposit",
+  "dashboard.pos.messages.full",
+  "dashboard.pos.messages.none",
+  "dashboard.pos.messages.webChatOnlyCustomer",
+  "dashboard.pos.messages.whatsappNeedsTemplate",
+  "dashboard.pos.messages.draftKept",
+  "dashboard.pos.messages.filter.all",
+  "dashboard.pos.messages.filter.unread",
+  "dashboard.pos.messages.filter.unassigned",
+  "dashboard.pos.messages.filter.mine",
+  "dashboard.pos.messages.filter.needsReply",
+  "dashboard.pos.messages.filter.awaitingCustomer",
+  "dashboard.pos.messages.filter.resolved",
+  "dashboard.pos.messages.state.needsReply",
+  "dashboard.pos.messages.state.awaitingCustomer",
+  "dashboard.pos.messages.state.resolved",
+  "dashboard.pos.messages.state.gathering",
+  "dashboard.pos.messages.state.offerSent",
+  "dashboard.pos.messages.state.awaitingAcceptance",
+  "dashboard.pos.messages.state.acceptedAwaitingDeposit",
+  "dashboard.pos.messages.state.won",
+  "dashboard.pos.messages.state.lost",
+  "dashboard.pos.messages.refusal.conflict",
+  "dashboard.pos.messages.refusal.not_found",
+  "dashboard.pos.messages.refusal.wrong_tenant",
+  "dashboard.pos.messages.refusal.invalid",
+  "dashboard.pos.messages.refusal.unavailable",
+  "dashboard.pos.messages.refusal.channel_unavailable",
+  "dashboard.pos.messages.refusal.template_required",
+  "dashboard.pos.messages.refusal.rate_limited",
+  "dashboard.pos.messages.refusal.checkout_locked",
+  "dashboard.pos.messages.refusal.already_resolved",
+  "dashboard.pos.messages.refusal.no_owner",
+  "dashboard.pos.messages.refusal.identity_unconfirmed",
+  "dashboard.pos.messages.refusal.already_linked",
+  "dashboard.pos.messages.refusal.version_stale",
+  "dashboard.pos.messages.refusal.payment_unknown",
+  "dashboard.pos.messages.refusal.already_paid",
+  "dashboard.pos.messages.refusal.hold_ended",
+  "dashboard.pos.messages.refusal.basket_changed",
+  "dashboard.pos.messages.refusal.not_allowed",
+  "dashboard.pos.messages.refusal.expired",
+  "dashboard.pos.messages.refusal.already",
+  "dashboard.pos.messages.ui.visitor",
+  "dashboard.pos.messages.ui.unassigned",
+  "dashboard.pos.messages.ui.actions",
+  "dashboard.pos.messages.ui.createOrLink",
+  "dashboard.pos.messages.ui.attachFile",
+  "dashboard.pos.messages.ui.scheduleReminder",
+  "dashboard.pos.messages.ui.ask",
+  "dashboard.pos.messages.ui.matchExisting",
+  "dashboard.pos.messages.ui.noProfile",
+  "dashboard.pos.messages.ui.saveSuggested",
+  "dashboard.pos.messages.ui.guestOrder",
+  "dashboard.pos.messages.ui.nameNotGiven",
+  "dashboard.pos.messages.ui.webChatOnly",
+  "dashboard.pos.messages.ui.nothingLinked",
+  "dashboard.pos.messages.ui.shareBookingLink",
+  "dashboard.pos.messages.ui.clearSearch",
+  "dashboard.pos.messages.ui.tryAgain",
+  "dashboard.pos.messages.ui.emptyBody",
+  "dashboard.pos.messages.ui.noResultsBody",
+  "dashboard.pos.messages.ui.failedBody",
+  "dashboard.pos.messages.ui.composerCustomer",
+  "dashboard.pos.messages.ui.composerNote",
+  "dashboard.pos.messages.ui.replyPlaceholder",
+  "dashboard.pos.messages.ui.notePlaceholder",
+  "dashboard.pos.messages.ui.customerReceives",
+  "dashboard.pos.messages.ui.openCount",
+  "dashboard.pos.messages.ui.source",
+  "dashboard.pos.messages.ui.request",
+  "dashboard.pos.messages.ui.history",
+  "dashboard.pos.messages.ui.owedNow",
+  "dashboard.pos.messages.ui.letComplete",
+  "dashboard.pos.messages.ui.cancelPayment",
+  "dashboard.pos.messages.ui.recoverKitchen",
+  "dashboard.pos.messages.ui.recoverOrder",
+  "dashboard.pos.messages.ui.retrySameTicket",
+  "dashboard.pos.messages.ui.assignToMe",
+  "dashboard.pos.messages.ui.cancel",
+  "dashboard.pos.messages.ui.sendForCustomer",
+  "dashboard.pos.messages.ui.previewCard",
+  "dashboard.pos.messages.ui.ownerHint",
+  "dashboard.pos.messages.ui.relinkImpact",
+  "dashboard.pos.messages.ui.confirmSuggestions",
+  "dashboard.pos.messages.ui.later",
+  "dashboard.pos.messages.ui.open",
+  "dashboard.pos.messages.ui.details",
+  "dashboard.pos.messages.ui.searchHint",
+  "dashboard.pos.messages.ui.reminderOne",
+  "dashboard.pos.messages.ui.nudgeReply",
+  "dashboard.pos.messages.ui.collectLink",
+  "dashboard.pos.messages.ui.collectTap",
+  "dashboard.pos.messages.ui.collectCash",
+  "dashboard.pos.messages.ui.collectPickup",
+  "dashboard.pos.messages.ui.paidRemaining",
+  "dashboard.pos.messages.ui.nextReply",
+  "dashboard.pos.messages.ui.nextAssign",
+  "dashboard.pos.messages.ui.nextCollect",
+  "dashboard.pos.messages.ui.nextFollow",
+  "dashboard.pos.messages.ui.revise",
+  "dashboard.pos.messages.ui.withdraw",
+  "dashboard.pos.messages.disabled.attach",
+  "dashboard.pos.messages.disabled.tapToPay",
+  "dashboard.pos.messages.disabled.webChat",
+  "dashboard.pos.messages.disabled.rail",
+  "dashboard.pos.messages.disabled.today",
+  "dashboard.pos.messages.disabled.change",
+  "dashboard.pos.messages.disabled.whatsapp",
+  "public.thread.title",
+  "public.thread.continue",
+  "public.thread.pay",
+  "public.thread.empty",
+  "public.thread.codeSent",
+  "public.thread.choose",
+  "public.thread.configure",
+  "public.thread.keepSlot",
+  "public.thread.waitlist",
+  "public.thread.dateMismatch",
+  "public.thread.accept",
+  "public.thread.changes",
+  "public.thread.decline",
+  "public.thread.processing",
+  "public.thread.declined",
+  "public.thread.expired",
+  "public.thread.cancelled",
+  "public.thread.unknown",
+  "public.thread.paid",
+  "public.thread.receipt",
+  "public.thread.backToThread",
+  "public.thread.smsPlain",
+  "public.thread.talentView",
+  "public.thread.payBy",
+] as const;
 
 export function messagesCopy(t: Translator) {
   return {
@@ -35,6 +196,76 @@ export function messagesCopy(t: Translator) {
     webChatOnlyCustomer: t("dashboard.pos.messages.webChatOnlyCustomer"),
     whatsappNeedsTemplate: t("dashboard.pos.messages.whatsappNeedsTemplate"),
     draftKept: t("dashboard.pos.messages.draftKept"),
+    visitor: t("dashboard.pos.messages.ui.visitor"),
+    unassigned: t("dashboard.pos.messages.ui.unassigned"),
+    actions: t("dashboard.pos.messages.ui.actions"),
+    createOrLink: t("dashboard.pos.messages.ui.createOrLink"),
+    attachFile: t("dashboard.pos.messages.ui.attachFile"),
+    scheduleReminder: t("dashboard.pos.messages.ui.scheduleReminder"),
+    ask: t("dashboard.pos.messages.ui.ask"),
+    matchExisting: t("dashboard.pos.messages.ui.matchExisting"),
+    noProfile: t("dashboard.pos.messages.ui.noProfile"),
+    saveSuggested: t("dashboard.pos.messages.ui.saveSuggested"),
+    guestOrder: t("dashboard.pos.messages.ui.guestOrder"),
+    nameNotGiven: t("dashboard.pos.messages.ui.nameNotGiven"),
+    webChatOnly: t("dashboard.pos.messages.ui.webChatOnly"),
+    nothingLinked: t("dashboard.pos.messages.ui.nothingLinked"),
+    shareBookingLink: t("dashboard.pos.messages.ui.shareBookingLink"),
+    clearSearch: t("dashboard.pos.messages.ui.clearSearch"),
+    tryAgain: t("dashboard.pos.messages.ui.tryAgain"),
+    emptyBody: t("dashboard.pos.messages.ui.emptyBody"),
+    noResultsBody: t("dashboard.pos.messages.ui.noResultsBody"),
+    failedBody: t("dashboard.pos.messages.ui.failedBody"),
+    composerCustomer: t("dashboard.pos.messages.ui.composerCustomer"),
+    composerNote: t("dashboard.pos.messages.ui.composerNote"),
+    replyPlaceholder: t("dashboard.pos.messages.ui.replyPlaceholder"),
+    notePlaceholder: t("dashboard.pos.messages.ui.notePlaceholder"),
+    customerReceives: t("dashboard.pos.messages.ui.customerReceives"),
+    openCount: t("dashboard.pos.messages.ui.openCount"),
+    source: t("dashboard.pos.messages.ui.source"),
+    request: t("dashboard.pos.messages.ui.request"),
+    history: t("dashboard.pos.messages.ui.history"),
+    owedNow: t("dashboard.pos.messages.ui.owedNow"),
+    letComplete: t("dashboard.pos.messages.ui.letComplete"),
+    cancelPayment: t("dashboard.pos.messages.ui.cancelPayment"),
+    recoverKitchen: t("dashboard.pos.messages.ui.recoverKitchen"),
+    recoverOrder: t("dashboard.pos.messages.ui.recoverOrder"),
+    retrySameTicket: t("dashboard.pos.messages.ui.retrySameTicket"),
+    assignToMe: t("dashboard.pos.messages.ui.assignToMe"),
+    cancel: t("dashboard.pos.messages.ui.cancel"),
+    sendForCustomer: t("dashboard.pos.messages.ui.sendForCustomer"),
+    previewCard: t("dashboard.pos.messages.ui.previewCard"),
+    ownerHint: t("dashboard.pos.messages.ui.ownerHint"),
+    relinkImpact: t("dashboard.pos.messages.ui.relinkImpact"),
+    confirmSuggestions: t("dashboard.pos.messages.ui.confirmSuggestions"),
+    later: t("dashboard.pos.messages.ui.later"),
+    open: t("dashboard.pos.messages.ui.open"),
+    details: t("dashboard.pos.messages.ui.details"),
+    searchHint: t("dashboard.pos.messages.ui.searchHint"),
+    reminderOne: t("dashboard.pos.messages.ui.reminderOne"),
+    nudgeReply: t("dashboard.pos.messages.ui.nudgeReply"),
+    collectLink: t("dashboard.pos.messages.ui.collectLink"),
+    collectTap: t("dashboard.pos.messages.ui.collectTap"),
+    collectCash: t("dashboard.pos.messages.ui.collectCash"),
+    collectPickup: t("dashboard.pos.messages.ui.collectPickup"),
+    paidRemaining: t("dashboard.pos.messages.ui.paidRemaining"),
+    revise: t("dashboard.pos.messages.ui.revise"),
+    withdraw: t("dashboard.pos.messages.ui.withdraw"),
+    next: {
+      reply: t("dashboard.pos.messages.ui.nextReply"),
+      assign: t("dashboard.pos.messages.ui.nextAssign"),
+      collect: t("dashboard.pos.messages.ui.nextCollect"),
+      follow_up: t("dashboard.pos.messages.ui.nextFollow"),
+    } satisfies Record<InboxNextAction, string>,
+    disabled: {
+      attach: t("dashboard.pos.messages.disabled.attach"),
+      tapToPay: t("dashboard.pos.messages.disabled.tapToPay"),
+      webChat: t("dashboard.pos.messages.disabled.webChat"),
+      rail: t("dashboard.pos.messages.disabled.rail"),
+      today: t("dashboard.pos.messages.disabled.today"),
+      change: t("dashboard.pos.messages.disabled.change"),
+      whatsapp: t("dashboard.pos.messages.disabled.whatsapp"),
+    },
     filter: {
       all: t("dashboard.pos.messages.filter.all"),
       unread: t("dashboard.pos.messages.filter.unread"),
@@ -62,77 +293,5 @@ export function messagesCopy(t: Translator) {
 }
 
 export function pinMessagingKeys(t: Translator): void {
-  t("dashboard.pos.messages.title");
-  t("dashboard.pos.messages.inbox");
-  t("dashboard.pos.messages.thread");
-  t("dashboard.pos.messages.search");
-  t("dashboard.pos.messages.reply");
-  t("dashboard.pos.messages.note");
-  t("dashboard.pos.messages.assign");
-  t("dashboard.pos.messages.resolve");
-  t("dashboard.pos.messages.reopen");
-  t("dashboard.pos.messages.handOver");
-  t("dashboard.pos.messages.sendOptions");
-  t("dashboard.pos.messages.addToDraft");
-  t("dashboard.pos.messages.requestPayment");
-  t("dashboard.pos.messages.collectHere");
-  t("dashboard.pos.messages.closeLost");
-  t("dashboard.pos.messages.remind");
-  t("dashboard.pos.messages.newConversation");
-  t("dashboard.pos.messages.tabCustomer");
-  t("dashboard.pos.messages.tabLinked");
-  t("dashboard.pos.messages.tabNotes");
-  t("dashboard.pos.messages.empty");
-  t("dashboard.pos.messages.noResults");
-  t("dashboard.pos.messages.failedLoad");
-  t("dashboard.pos.messages.toastIncoming");
-  t("dashboard.pos.messages.backToSale");
-  t("dashboard.pos.messages.deposit");
-  t("dashboard.pos.messages.full");
-  t("dashboard.pos.messages.none");
-  t("dashboard.pos.messages.webChatOnlyCustomer");
-  t("dashboard.pos.messages.whatsappNeedsTemplate");
-  t("dashboard.pos.messages.draftKept");
-  t("dashboard.pos.messages.filter.all");
-  t("dashboard.pos.messages.filter.unread");
-  t("dashboard.pos.messages.filter.unassigned");
-  t("dashboard.pos.messages.filter.mine");
-  t("dashboard.pos.messages.filter.needsReply");
-  t("dashboard.pos.messages.filter.awaitingCustomer");
-  t("dashboard.pos.messages.filter.resolved");
-  t("dashboard.pos.messages.state.needsReply");
-  t("dashboard.pos.messages.state.awaitingCustomer");
-  t("dashboard.pos.messages.state.resolved");
-  t("dashboard.pos.messages.state.gathering");
-  t("dashboard.pos.messages.state.offerSent");
-  t("dashboard.pos.messages.state.awaitingAcceptance");
-  t("dashboard.pos.messages.state.acceptedAwaitingDeposit");
-  t("dashboard.pos.messages.state.won");
-  t("dashboard.pos.messages.state.lost");
-  t("dashboard.pos.messages.refusal.conflict");
-  t("dashboard.pos.messages.refusal.not_found");
-  t("dashboard.pos.messages.refusal.wrong_tenant");
-  t("dashboard.pos.messages.refusal.invalid");
-  t("dashboard.pos.messages.refusal.unavailable");
-  t("dashboard.pos.messages.refusal.channel_unavailable");
-  t("dashboard.pos.messages.refusal.template_required");
-  t("dashboard.pos.messages.refusal.rate_limited");
-  t("dashboard.pos.messages.refusal.checkout_locked");
-  t("dashboard.pos.messages.refusal.already_resolved");
-  t("dashboard.pos.messages.refusal.no_owner");
-  t("dashboard.pos.messages.refusal.identity_unconfirmed");
-  t("dashboard.pos.messages.refusal.already_linked");
-  t("dashboard.pos.messages.refusal.version_stale");
-  t("dashboard.pos.messages.refusal.payment_unknown");
-  t("dashboard.pos.messages.refusal.already_paid");
-  t("dashboard.pos.messages.refusal.hold_ended");
-  t("dashboard.pos.messages.refusal.basket_changed");
-  t("dashboard.pos.messages.refusal.not_allowed");
-  t("dashboard.pos.messages.refusal.expired");
-  t("dashboard.pos.messages.refusal.already");
-  t("public.thread.title");
-  t("public.thread.continue");
-  t("public.thread.pay");
-  t("public.thread.empty");
-  t("public.thread.codeSent");
+  for (const key of KEYS) t(key);
 }

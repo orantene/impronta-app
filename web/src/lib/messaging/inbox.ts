@@ -1,7 +1,7 @@
 import "server-only";
 
 import { readConversationState, readOpportunityState } from "./state";
-import type { InboxFilter, InboxRow, MessagingChannel, RecordChip } from "./types";
+import type { InboxFilter, InboxNextAction, InboxRow, MessagingChannel, RecordChip } from "./types";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,6 +25,7 @@ type InquiryRow = {
   lost_reason: string | null;
   status: string;
   current_offer_id: string | null;
+  message: string | null;
   updated_at: string;
   version: number;
 };
@@ -36,7 +37,7 @@ export async function loadMessagingInbox(
   const { data, error } = await admin
     .from("inquiries")
     .select(
-      "id, tenant_id, location_slug, contact_name, contact_phone, contact_email, conversation_state, opportunity_state, channel, owner_user_id, last_customer_message_at, last_staff_message_at, resolved_at, lost_reason, status, current_offer_id, updated_at, version",
+      "id, tenant_id, location_slug, contact_name, contact_phone, contact_email, conversation_state, opportunity_state, channel, owner_user_id, last_customer_message_at, last_staff_message_at, resolved_at, lost_reason, status, current_offer_id, message, updated_at, version",
     )
     .eq("tenant_id", input.tenantId)
     .order("updated_at", { ascending: false });
@@ -46,6 +47,8 @@ export async function loadMessagingInbox(
   const ids = inquiries.map((row) => row.id);
   const reads = await loadReads(admin, input.actorUserId, ids);
   const chips = await loadChips(admin, input.tenantId, ids);
+  const previews = await loadPreviews(admin, ids);
+  const owners = await loadOwnerLabels(admin, inquiries.map((row) => row.owner_user_id));
 
   const rows: InboxRow[] = [];
   let unreadCount = 0;
@@ -84,7 +87,37 @@ export async function loadMessagingInbox(
       }),
       channel: (row.channel as MessagingChannel | null) ?? "web_chat",
       ownerUserId: row.owner_user_id,
+      ownerLabel: row.owner_user_id ? (owners.get(row.owner_user_id) ?? null) : null,
       unread,
+      unreadCount: unread ? 1 : 0,
+      subject: clip(row.message ?? "") || clip(previews.get(row.id) ?? "") || displayName(row.contact_name),
+      lastMessagePreview: clip(previews.get(row.id) ?? row.message ?? ""),
+      nextAction: deriveNextAction({
+        ownerUserId: row.owner_user_id,
+        conversationState: readConversationState({
+          conversationState: row.conversation_state,
+          opportunityState: row.opportunity_state,
+          lastCustomerMessageAt: row.last_customer_message_at,
+          lastStaffMessageAt: row.last_staff_message_at,
+          resolvedAt: row.resolved_at,
+          lostReason: row.lost_reason,
+          status: row.status,
+          currentOfferId: row.current_offer_id,
+          unread,
+        }),
+        opportunityState: readOpportunityState({
+          conversationState: row.conversation_state,
+          opportunityState: row.opportunity_state,
+          lastCustomerMessageAt: row.last_customer_message_at,
+          lastStaffMessageAt: row.last_staff_message_at,
+          resolvedAt: row.resolved_at,
+          lostReason: row.lost_reason,
+          status: row.status,
+          currentOfferId: row.current_offer_id,
+          unread,
+        }),
+        recordChips: chips.get(row.id) ?? [],
+      }),
       lastCustomerMessageAt: row.last_customer_message_at,
       lastStaffMessageAt: row.last_staff_message_at,
       updatedAt: row.updated_at,
@@ -105,6 +138,32 @@ function matchesFilter(row: InboxRow, filter: InboxFilter, actorUserId: string):
   if (filter === "awaiting_customer") return row.conversationState === "awaiting_customer";
   if (filter === "resolved") return row.conversationState === "resolved";
   return true;
+}
+
+function displayName(name: string): string {
+  const trimmed = name.trim();
+  return trimmed === "" ? "Visitor" : trimmed;
+}
+
+function clip(value: string): string {
+  const text = value.replace(/\s+/g, " ").trim();
+  if (text.length <= 72) return text;
+  return `${text.slice(0, 71)}…`;
+}
+
+function deriveNextAction(input: {
+  ownerUserId: string | null;
+  conversationState: InboxRow["conversationState"];
+  opportunityState: InboxRow["opportunityState"];
+  recordChips: readonly RecordChip[];
+}): InboxNextAction | null {
+  if (input.conversationState === "resolved") return null;
+  if (input.ownerUserId == null && input.conversationState === "needs_reply") return "assign";
+  if (input.conversationState === "needs_reply") return "reply";
+  const unpaid = input.recordChips.some((chip) => chip.paymentState !== "paid" && chip.kind !== "offer");
+  if (input.conversationState === "awaiting_customer" && unpaid) return "collect";
+  if (input.opportunityState === "lost" || input.opportunityState === "gathering") return "follow_up";
+  return null;
 }
 
 function isUnread(row: InquiryRow, lastReadAt: string | null): boolean {
@@ -148,6 +207,37 @@ async function loadChips(admin: Admin, tenantId: string, inquiryIds: string[]): 
       fulfilmentState: null,
     });
     map.set(row.inquiry_id, list);
+  }
+  return map;
+}
+
+async function loadPreviews(admin: Admin, inquiryIds: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (inquiryIds.length === 0) return map;
+  const { data, error } = await admin
+    .from("inquiry_messages")
+    .select("inquiry_id, body, message_kind, created_at")
+    .in("inquiry_id", inquiryIds)
+    .order("created_at", { ascending: false })
+    .limit(400);
+  if (error) return map;
+  for (const row of (data ?? []) as { inquiry_id: string; body: string | null; message_kind: string }[]) {
+    if (map.has(row.inquiry_id)) continue;
+    if (row.message_kind === "internal_note") continue;
+    if (!row.body) continue;
+    map.set(row.inquiry_id, row.body);
+  }
+  return map;
+}
+
+async function loadOwnerLabels(admin: Admin, userIds: Array<string | null>): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const ids = [...new Set(userIds.filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0) return map;
+  const { data, error } = await admin.from("profiles").select("id, display_name").in("id", ids);
+  if (error) return map;
+  for (const row of (data ?? []) as { id: string; display_name: string | null }[]) {
+    if (row.display_name) map.set(row.id, row.display_name);
   }
   return map;
 }

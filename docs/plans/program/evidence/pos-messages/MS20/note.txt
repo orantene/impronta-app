@@ -1,0 +1,1 @@
+The payment page is locked to basket v3. A later edit becomes v4; either let v3 complete or cancel the page and send v4 for review. Nothing is silently merged.

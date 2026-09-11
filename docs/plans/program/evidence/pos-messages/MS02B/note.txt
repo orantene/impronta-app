@@ -1,0 +1,1 @@
+Both side columns collapse to a rail. Every commerce action (send options, create or link, request payment, attach, note, reminder) lives in one labelled Actions control beside the composer.

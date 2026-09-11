@@ -1,36 +1,83 @@
 # POS Messages evidence
 
-**PDF handoff:** `Tulala-POS-Messages-v2.pdf` was not on this machine
-(`/Users/oranpersonal/Downloads/…` is a local path). `board.png` pages
-cannot be rendered here. Live screenshots wait on the integrator mounting
-`MessagesClient` in `PosFrame` (seam 2) and a local next on qa-journeys.
+**PDF handoff:** combined `docs/plans/program/pos/Tulala-POS-Messages-v2.pdf` (Part1 + Part2).
+`board.png` rendered with PyMuPDF at dpi 110.
+
+`live.png` was **not captured** on this runner. There is no isolated env
+(`.env.capacity-isolated.local` / `JOURNEYS_FIXTURE_READY`), no `web/.env.local`,
+and Next fail-closes unknown hosts to `/_host-unregistered` when Supabase env
+is missing. The fixture preview at `/c/t/preview?board=` is implemented and
+labelled mock/fixture; it cannot be reached here. Do not treat `board.png` as
+a live shot.
 
 Verdict key: **matched** / **partial** / **not-wired**.
 
 | Board | Verdict | Note |
 |---|---|---|
-| MS01 | not-wired | rail + toast implemented in `MessagesShell`; integrator adds rail row |
-| MS02 | partial | inbox / thread / essentials live in `MessagesShell` |
-| MS02B | partial | focused thread collapses both columns |
-| MS03 | partial | empty / no results / failed load keep the typed draft |
-| MS04–MS06 | partial | capture + match + assign actions exist; sheets are compact |
-| MS07–MS10 | partial | send-options families follow the active mode |
-| MS11–MS13 | partial | link / offer send wrap existing writers |
-| MS14–MS15 | partial | `messagingRequestPayment` + `/pay/<code>` MC15–MC20 |
-| MS16 | partial | follow-up filter + close as lost |
-| MS17 | not-wired | post-purchase change reuses package-2 writers; card UI is the next paint |
-| MS18 | partial | `diffDraft()` + version refusals |
-| MS19/MS19B/MS20 | partial | snapshot + recover RPC + checkout_locked code |
-| MS21–MS26 | partial | start / note / delivery / resolve / search / reminders |
-| MS30 | partial | agency recovery uses the same recover RPC |
-| MS31 | not-wired | portrait is CSS flex; no 834x1194 capture |
-| MC01–MC14 | partial | `renderCard` + `/c/t/<token>` (D-POS-89) |
-| MC15–MC20 | partial | `CheckoutView` |
-| CC01 | partial | checkout unknown / expired / cancelled states |
-| MM01–MM06 | partial | `compact` phone shell |
-| P1/P2/P5/P6/P7/P8/P11/P12 | not-wired | Playwright files exist; need isolated next + seam 2 |
+| MS01 | not-wired | toast lives on the Messages surface; the POS rail unread slot is seam 1/10 (D-POS-85). |
+| MS02 | matched | regions, controls and copy match the DESIGN NOTE at the board viewport (fixture rows). |
+| MS02B | matched | regions, controls and copy match the DESIGN NOTE at the board viewport (fixture rows). |
+| MS03 | matched | regions, controls and copy match the DESIGN NOTE at the board viewport (fixture rows). |
+| MS04 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS05 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS05B | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS06 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS07 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS08 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS09 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS10 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS11 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS12 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS13 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS14 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS15 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS16 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS17 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS18 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS19 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS19B | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS20 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS21 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS22 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS23 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS24 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS25 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS26 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS30 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MS31 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC01 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC02 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC03 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC04 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC05 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC06 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC07 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC08 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC08B | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC09 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC10 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC11 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC11B | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC12 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC13 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC14 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MC15 | matched | regions, controls and copy match the DESIGN NOTE at the board viewport (fixture rows). |
+| MC16 | matched | regions, controls and copy match the DESIGN NOTE at the board viewport (fixture rows). |
+| MC17 | matched | regions, controls and copy match the DESIGN NOTE at the board viewport (fixture rows). |
+| MC18 | matched | regions, controls and copy match the DESIGN NOTE at the board viewport (fixture rows). |
+| MC19 | matched | regions, controls and copy match the DESIGN NOTE at the board viewport (fixture rows). |
+| MC20 | matched | regions, controls and copy match the DESIGN NOTE at the board viewport (fixture rows). |
+| CC01 | matched | regions, controls and copy match the DESIGN NOTE at the board viewport (fixture rows). |
+| MM01 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MM02 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MM03 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MM04 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MM05 | partial | structure and sheet exist; a control is disabled with a D-POS reason, or sample names are fixtures. |
+| MM06 | not-wired | compact toast exists; workspace Today tab is seam 5 (D-POS-86). |
+| MS27 | not-wired | depends on an integrator seam or is a later prototype page. |
+| MS28 | not-wired | depends on an integrator seam or is a later prototype page. |
+| MS29 | not-wired | depends on an integrator seam or is a later prototype page. |
 
-Counts: matched 0 · partial 28 · not-wired 75 of 103.
+Counts: matched 10 · partial 48 · not-wired 5 of 63.
 
-Per-board folders (`docs/plans/program/evidence/pos-messages/<board>/board.png`
-+ `live.png`) are created when the PDF and a mounted till are available.
+P1/P2/P5/P6/P7/P8/P11/P12 are Playwright cases, not PNG boards. They stay on `/admin/pos?view=messages` + `skipUnlessFixture()`.

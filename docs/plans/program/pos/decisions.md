@@ -1091,7 +1091,7 @@ time" says the end is not re-planned when a timed extra is picked
 board's footnote as the true sentence: no refund rule is set; a paid place
 keeps its payment until refunded from the sale.
 
-## D-POS-82 — a seated party does not take a second table; joins stay a seating-time decision
+## D-POS-97 — a seated party does not take a second table; joins stay a seating-time decision
 
 Decided 2026-09-11 (wire-pos-money). The engine's `visit_transfer` moves a
 visit from one space to another and refuses an occupied destination; it
@@ -1105,7 +1105,7 @@ mark after a transfer is written by the tables action wrapper
 (`visitTransfer` in `admin/tables/actions.ts`), the same rule
 `moveVisitToSpace` kept.
 
-## D-POS-83 — the person on the lock screen and the approver on the PIN dialog are named by the screen; the PIN is the proof
+## D-POS-98 — the person on the lock screen and the approver on the PIN dialog are named by the screen; the PIN is the proof
 
 Decided 2026-09-11 (wire-pos-money). `pos_unlock_till`, `pos_switch_operator`
 and `pos_approve_custom_amount` verify the PIN against the hash of the user
@@ -1119,7 +1119,7 @@ and points at People when nobody does; the approval dialog lists only
 managers who hold one. A PIN is 4 to 6 digits, so the pad submits on the
 sixth digit or on `Unlock` from the fourth.
 
-## D-POS-84 — a payment link is minted whether or not a card provider is set up, and the panel says which page it opens
+## D-POS-99 — a payment link is minted whether or not a card provider is set up, and the panel says which page it opens
 
 Decided 2026-09-11 (wire-pos-money). `createPaymentLink` reserves the amount
 on the sale and mints `/pay/<code>`; with Stripe keys the page is Checkout,
@@ -1134,7 +1134,7 @@ Projects mode's Links destination (`POSPaymentLink`, `listWorkspacePaymentLinks`
 D-POS-27's link half and D-POS-42 are closed; bank transfer and two methods
 stay as D-POS-27 says.
 
-## D-POS-85 — M26 "Collect another way" stays not wired
+## D-POS-100 — M26 "Collect another way" stays not wired
 
 Decided 2026-09-11 (wire-pos-money). No RPC records an authorised alternate
 collection on an unresolved card attempt (both records, the provider-only
@@ -1144,7 +1144,7 @@ manager-PIN verification the engine gained is bound to a custom line
 PIN pad that approves nothing would be a control that silently does nothing,
 so it is not drawn.
 
-## D-POS-86 — the hand-over is recorded with the close; movements are their own rows
+## D-POS-101 — the hand-over is recorded with the close; movements are their own rows
 
 Decided 2026-09-11 (wire-pos-money). `pos_shift_movements` holds paid in,
 paid out, drops and float adds (`posRecordShiftMovement`); the Cash screen's
@@ -1155,7 +1155,7 @@ so the card's choice is carried into the close and recorded there, and the
 card says so. `Open drawer (no sale)` stays disabled: no drawer device
 (D-POS-28). D-POS-29 is closed.
 
-## D-POS-87 — register PINs live on People › Access; the custom-amount limit on Settings › Roles & limits
+## D-POS-102 — register PINs live on People › Access; the custom-amount limit on Settings › Roles & limits
 
 Decided 2026-09-11 (wire-pos-money). `posSetStaffPin` is the Access hat's
 `Register PIN` block (W29), and the Access table's PIN column reads Set /
@@ -1164,7 +1164,7 @@ read). `posSetCustomAmountLimit` is the `Custom amounts at the counter`
 block under Roles & limits (W22); at 0 every custom amount needs a manager.
 D-POS-23 and D-POS-34 are closed.
 
-## D-POS-88 — the display's tip reaches the counter on the same device through storage, not polling
+## D-POS-103 — the display's tip reaches the counter on the same device through storage, not polling
 
 Decided 2026-09-11 (wire-pos-money). The customer display writes
 `orders.tip_cents` through `posSetTip` (D02 / D03; D-POS-11 closed) and the
@@ -1176,7 +1176,7 @@ A display on another device is not covered; the counter's reload on the
 conflict banner is the fallback. Tips are never a line: the basket's `Tip`
 row and the display's row both read the order's column.
 
-## D-POS-89 — the Front desk queue offers a place with the engine's hold
+## D-POS-104 — the Front desk queue offers a place with the engine's hold
 
 Decided 2026-09-11 (wire-pos-money). `Offer the place` on the Front desk
 (B06 and the Waitlist screen) is `waitlistOfferPlace`: a `waitlist_offers` row
@@ -1187,7 +1187,7 @@ an offer. `They took it` is `waitlistAcceptOffer` (commits the hold);
 live offer id per entry. Restaurant T08 (a party waitlist with a table hold)
 stays as D-POS-68 says.
 
-## D-POS-90 — a check is split by items; a visit's checks are listed on its card
+## D-POS-105 — a check is split by items; a visit's checks are listed on its card
 
 Decided 2026-09-11 (wire-pos-money). T18's `By items` is the engine's
 `visit_split_check`: the ticked lines of check A move to a new draft order on
@@ -1198,7 +1198,7 @@ the card shows `N checks · total` and a door per check, each collected on
 the counter on its own. The merge (T16) moves the other table's lines onto
 this check and cancels its order; the other party stays seated with no check.
 
-## D-POS-91 — a price phase is added, never edited or removed on the screen
+## D-POS-106 — a price phase is added, never edited or removed on the screen
 
 Decided 2026-09-11 (wire-scheduling). `setOfferingPricePhase` inserts; the
 engine has no writer that edits or deletes a phase, and a phase already
@@ -1207,7 +1207,7 @@ the rows with their state (live · upcoming · ended) and adds one; each
 row's `Remove` is disabled with the sentence. The next phase's start is how
 an operator ends the current one.
 
-## D-POS-92 — the package composition is on the item's Details tab
+## D-POS-107 — the package composition is on the item's Details tab
 
 Decided 2026-09-11 (wire-scheduling). The PackageEditor board draws
 Composition as its first tab. The catalog editor has seven tabs shared by
@@ -1218,7 +1218,7 @@ proportional share `packageRefundShare` uses, so the editor shows what a
 refund would split. Dependencies, manual amounts and the guest preview stay
 one sentence (D-POS-53 keeps them).
 
-## D-POS-93 — role limits are written by a settings action, not the engine
+## D-POS-108 — role limits are written by a settings action, not the engine
 
 Decided 2026-09-11 (wire-scheduling). Package 2 reads `role_limits` in
 `assertRoleLimit` and gave no writer. Roles & limits (W22) needs to set a
@@ -1229,7 +1229,7 @@ a role). It is the only writer of that table. The approval inbox (W56)
 reads `approval_requests` from the same module; deciding is the engine's
 `decideApprovalAction`, unchanged.
 
-## D-POS-94 — a milestone's file rides the conversation's bucket
+## D-POS-109 — a milestone's file rides the conversation's bucket
 
 Decided 2026-09-11 (wire-scheduling). `booking_deliverables.file_path` is
 "a storage path on the existing media bucket pattern". The one path a
@@ -1240,7 +1240,7 @@ registers it there (the conversation's Files tab lists it too) and then
 stamps the path on the milestone with `attachDeliverableFileAction`. A
 project with no conversation has no prefix and its Upload says so.
 
-## D-POS-95 — the manage link allows one action, and the page says which
+## D-POS-110 — the manage link allows one action, and the page says which
 
 Decided 2026-09-11 (wire-scheduling). A manage token names ONE action
 (D-POS-73). `/manage/<token>` draws both A07 buttons; the one the token
@@ -1261,3 +1261,32 @@ snapshot is rewritten. The projects reader was not changed to prefer the
 live profile name (a snapshot is deliberately frozen for a deleted profile);
 the engine session owns the fix: rewrite the snapshot inside
 `project_replace_talent`.
+
+## D-POS-111 — attach is disabled until a messaging upload seam exists
+
+Decided 2026-09-11 (pos-messages fidelity). MS02B and MS22 show Attach.
+This package has no upload writer. The control is disabled with a sentence
+in en/es/fr. The Actions menu still lists it so the board's order is kept.
+
+## D-POS-112 — Tap to Pay on the phone Collect sheet is disabled
+
+Decided 2026-09-11 (pos-messages fidelity). MM03 reuses the phone's Collect
+methods. Payment link, cash and pay-at-pickup are offered. Tap to Pay needs
+the provider-app hand-off, which is not mounted in this package.
+
+## D-POS-113 — the POS rail unread slot is an integrator seam
+
+Decided 2026-09-11 (pos-messages fidelity). MS01's toast is implemented on
+the Messages surface. The rail row and its unread count stay in `modes.ts`
++ `PosFrame` (seams 1 and 10). This package does not edit those files.
+
+## D-POS-114 — the workspace Today tab badge is an integrator seam
+
+Decided 2026-09-11 (pos-messages fidelity). MM06's toast and the compact
+phone inbox are implemented. The Today tab itself is seam 5.
+
+## D-POS-115 — post-purchase change is disabled without the package-2 writer
+
+Decided 2026-09-11 (pos-messages fidelity). MS17 shows an exact policy
+check. The package-2 change writer is not mounted here. The control is
+disabled with a sentence in en/es/fr.
