@@ -39,3 +39,63 @@ neither appears in new code. The mode's landing action is "Collect a balance".
 
 **Why:** a mode whose id differs from its destination gives the same idea two
 names, which is how the old "Client work" confusion started.
+
+## D-POS-11 — the customer display offers no tip until the engine has a tip line
+
+Decided 2026-09-11 by the `cd-scan` build under the owner's standing authority.
+Design boards D02 and D03 offer 10% / 15% / 20% / custom / no tip on the
+customer display. The order engine has no tip or gratuity concept anywhere:
+no column on `orders`, `order_lines` or `booking_transactions`, no line kind,
+and `addLine` accepts only a published `talent_offerings` row of this
+workspace. Writing a tip as a fake catalogue line, or adding cents to a total
+outside `cartTotals`, would be a second totals rule, which the program forbids.
+
+**The display renders tips as not offered, in one sentence, in three
+languages** (`dashboard.pos.display.tipNotOffered`), and the review screen
+carries no tip control at all. When a tip line kind exists in the engine
+(one write path, one totals rule, its own money row so the shift's expected
+cash and the payout both see it), the display's review screen gains the
+choices the board shows. Nothing about the display's state machine changes.
+
+## D-POS-12 — receipt by text is not offered; receipt by email attaches the customer and sends the existing order email
+
+Decided 2026-09-11 by the `cd-scan` build. Board D07 offers "Text me" and
+"Email me"; D08 collects a phone number. There is no customer-facing SMS
+sender in the codebase (the only Twilio path is the owner-alert WhatsApp
+channel, gated on `SUPPORT_OWNER_WHATSAPP_TO`), and there is no
+`posSendReceipt`. What does exist: `ensureCustomer` (the attach the counter's
+own collection uses, idempotent on `(tenant, email)`), the order-confirmation
+email (`lib/email/order-confirmation.ts`, carrying the public `/r/<code>`
+link) and `sendEmailResult`, which reports `sent`, `skipped` (no provider
+configured) or `failed`.
+
+**Email is the one receipt channel the display offers.** The address becomes
+the sale's customer through `ensureCustomer`, attached to the order only when
+the order has no customer yet (a name the cashier attached is never
+overwritten), and the order-confirmation email is sent. A `skipped` send is
+told to the customer as such ("we saved your address, this workspace cannot
+send email yet"), never as "sent". "Text me" renders disabled with a sentence
+in three languages. Refused unless the order is paid.
+
+## D-POS-13 — a scanned code is an offering id or a link code; there is no barcode column
+
+Decided 2026-09-11 by the `cd-scan` build. `talent_offerings` has no `sku` or
+`barcode` column. The two things a printed code can carry today are the
+offering's own id (a UUID) and a QR & Links code (`/q/<code>` or the bare
+code) whose row names the offering in `context.offering_id`, the same
+relation `findLinkForSubject` already queries. The counter resolves exactly
+those two shapes; anything else is "Nothing matches <code>" in a sentence.
+Adding a `barcode` column to `talent_offerings` (unique per tenant) is the
+honest next step for retail; it is a schema decision and is not taken here.
+
+## D-POS-14 — the customer display follows the counter by a same-device beacon, else the workspace's newest open sale
+
+Decided 2026-09-11 by the `cd-scan` build. There is no devices or registers
+table, and no realtime channel. The display polls the counter's own reader
+(`loadPosSale`) every two seconds. Which sale it follows: the `localStorage`
+beacon the counter writes on the same device (a second window of the same
+browser, for a tablet with an external screen) wins; a display on another
+device follows the workspace's newest open draft. A sale the display has just
+finished with is never re-adopted. When a registers table exists, the beacon
+becomes a row keyed by register and the read gains a `registerId`; the state
+machine does not change.

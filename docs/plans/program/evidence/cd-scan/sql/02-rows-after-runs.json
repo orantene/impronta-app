@@ -1,0 +1,67 @@
+{
+  "display_order": {
+    "id": "f52cc410-ecb5-41b3-a39b-aa52a34b8ad9",
+    "tenant_id": "33333333-3333-4333-8333-333333333333",
+    "status": "paid",
+    "source_channel": "pos",
+    "total_cents": 1800,
+    "customer_id": "536454d2-afe3-4aeb-a038-c0c18c4bb305",
+    "receipt_code": "3c5gir2274tqwh378n3c",
+    "version": 4
+  },
+  "display_lines": [
+    {
+      "offering_id": "33330012-0000-4000-8000-000000000002",
+      "label": "House pizza",
+      "units": 1,
+      "unit_cents": 1800,
+      "total_cents": 1800
+    }
+  ],
+  "display_money": [
+    {
+      "status": "paid",
+      "gross_amount_cents": 1800,
+      "metadata": {
+        "actor": "33330001-0000-4000-8000-000000000001",
+        "paid_via": "cash",
+        "shift_id": "96a32a62-4b72-42a7-921d-eef4abf1883e",
+        "settled_at": "door",
+        "change_cents": 0,
+        "tendered_cents": 1800,
+        "collection_reservation_id": "b9099902-7cce-4c88-ad3a-b0b8b15353a9"
+      },
+      "requested_at": "2026-09-11T02:57:49.464915+00:00"
+    }
+  ],
+  "display_customer": {
+    "id": "536454d2-afe3-4aeb-a038-c0c18c4bb305",
+    "tenant_id": "33333333-3333-4333-8333-333333333333",
+    "email": "qa-display-1789095496596@impronta.test",
+    "display_name": null,
+    "created_at": "2026-09-11T02:58:18.513031+00:00"
+  },
+  "scan_order": {
+    "id": "882b3d28-4686-4223-a50e-4a8f6ccd4737",
+    "tenant_id": "33333333-3333-4333-8333-333333333333",
+    "status": "draft",
+    "source_channel": "pos",
+    "total_cents": 3600,
+    "version": 3
+  },
+  "scan_lines": [
+    {
+      "offering_id": "33330012-0000-4000-8000-000000000002",
+      "label": "House pizza",
+      "units": 1,
+      "total_cents": 1800
+    },
+    {
+      "offering_id": "33330012-0000-4000-8000-000000000002",
+      "label": "House pizza",
+      "units": 1,
+      "total_cents": 1800
+    }
+  ],
+  "scan_link_after_cleanup": []
+}

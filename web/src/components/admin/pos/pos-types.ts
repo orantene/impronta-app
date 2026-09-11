@@ -155,6 +155,9 @@ export const POS_REFUSAL_REASONS = [
   "amountInvalid",
   "shiftAlreadyOpen",
   "shiftAlreadyClosed",
+  "scanNoMatch",
+  "receiptNotPaid",
+  "receiptNotSent",
 ] as const;
 
 export type PosRefusalReason = (typeof POS_REFUSAL_REASONS)[number];

@@ -54,15 +54,21 @@ import {
   type PosCollectionMethodState,
   type PosRefusalCopy,
   type PosRefusalReason,
+  ScanStatus,
+  ScannerListener,
+  type ScanCopy,
+  type ScanToast,
   type SellSurfaceCopy,
   type ShiftBarCopy,
 } from "@/components/admin/pos";
 import { POS_PRIMARY_ACTION, POS_SECONDARY_ACTION, POS_SURFACE } from "@/components/admin/pos/pos-classes";
 import type { PosCounterPageCopy } from "@/components/admin/pos/pos-copy";
+import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { PosMode } from "@/lib/pos/modes";
 import { refusalFromResult } from "@/lib/pos/refusal-reason";
 
+import { CounterDisplayBeacon } from "./counter-display-beacon";
 import {
   CounterContactFields,
   CounterPrepPanel,
@@ -87,6 +93,7 @@ import {
   posOpenShift,
   posRemoveLine,
   posReprice,
+  posResolveScanCode,
   posSearchCustomers,
   posStartCollection,
   posSubmitPrep,
@@ -118,6 +125,9 @@ export type PosClientCopy = {
   shiftBar: ShiftBarCopy;
   refusal: PosRefusalCopy;
   page: PosCounterPageCopy;
+  scan: ScanCopy;
+  /** The rail's door to the customer display (`/admin/pos/display`). */
+  displayLink: { label: string; hint: string };
   heldSaleLabel: string;
   categories: Readonly<Record<string, string>>;
   legacy: {
@@ -140,6 +150,8 @@ export type PosClientCopy = {
 
 export type PosClientProps = {
   mode: PosMode;
+  /** For the customer display's beacon (`display-beacon.ts`), keyed per workspace. */
+  tenantId: string;
   /** This workspace's own name. See the page's comment on why it is read. */
   workspaceName: string;
   /** This request's own `/…/admin/pos` path, so links keep the host shape. */
@@ -201,6 +213,9 @@ export function PosClient(props: PosClientProps) {
 
   const [prepDestination, setPrepDestination] = useState<"table" | "pickup" | "counter">("counter");
   const [promisedAtLocal, setPromisedAtLocal] = useState("");
+
+  const [scanToast, setScanToast] = useState<ScanToast | null>(null);
+  const dismissScanToast = useCallback(() => setScanToast(null), []);
 
   const saleHref = useCallback(
     (orderId: string | null) =>
@@ -299,6 +314,50 @@ export function PosClient(props: PosClientProps) {
       }
     },
     [attached, email, phone, props.receiptCode, run, sale, tenderedCents],
+  );
+
+  /**
+   * A SCAN IS A TAP ON A TILE. The code is looked up (`posResolveScanCode`:
+   * an offering id, or a link code whose row names one), and the item goes
+   * into the basket through `posAddLine`, the same write a tile uses, so the
+   * basket has one write path and one set of refusals. With no sale open, a
+   * scan opens one first, the way a tap on a tile does. The outcome is one
+   * sentence in the toast: "Added <name>" or "Nothing matches <code>"; a
+   * refusal from the engine goes to the banner like any other.
+   */
+  const scan = useCallback(
+    async (code: string) => {
+      const resolved = await posResolveScanCode(code);
+      if (!resolved.ok) {
+        setScanToast(
+          resolved.reason === "no_match"
+            ? { kind: "no_match", sentence: interpolate(copy.scan.noMatch, { code }) }
+            : { kind: "unavailable", sentence: copy.scan.unavailable },
+        );
+        return;
+      }
+      let orderId: string;
+      let expectedVersion: number;
+      if (sale) {
+        orderId = sale.orderId;
+        expectedVersion = sale.version;
+      } else {
+        const opened = await run("sale", () => posCreateDraft());
+        if (!opened.ok || !("orderId" in opened) || typeof opened.orderId !== "string") return;
+        orderId = opened.orderId;
+        expectedVersion = 1;
+        setPaid(null);
+        setCollectOpen(false);
+      }
+      const target = { orderId, expectedVersion };
+      const added = await run("sale", () =>
+        posAddLine({ ...target, offeringId: resolved.offeringId, units: 1 }),
+      );
+      if (!added.ok) return;
+      setScanToast({ kind: "added", sentence: interpolate(copy.scan.added, { name: resolved.title }) });
+      if (!sale) router.push(saleHref(orderId));
+    },
+    [copy.scan, router, run, sale, saleHref],
   );
 
   const receiptHref =
@@ -592,7 +651,10 @@ export function PosClient(props: PosClientProps) {
 
   const sellScreen = paidScreen ?? (
     <div className="grid min-h-0 flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
-      <div className={`${POS_SURFACE} min-h-0 overflow-hidden`}>{sellSurface}</div>
+      <div className="flex min-h-0 flex-col gap-3">
+        <ScanStatus toast={scanToast} onDismiss={dismissScanToast} copy={copy.scan} />
+        <div className={`${POS_SURFACE} min-h-0 flex-1 overflow-hidden`}>{sellSurface}</div>
+      </div>
       <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
         <div className="flex gap-2">
           <button type="button" disabled={busy} className={`${POS_PRIMARY_ACTION} flex-1`} onClick={() => void startSale()}>
@@ -660,8 +722,14 @@ export function PosClient(props: PosClientProps) {
     />
   );
 
+  const displayHref = sale
+    ? `${props.posPath}/display?order=${encodeURIComponent(sale.orderId)}`
+    : `${props.posPath}/display`;
+
   return (
     <div className="flex min-h-[calc(100vh-56px)] w-full flex-col">
+      <CounterDisplayBeacon tenantId={props.tenantId} orderId={sale?.orderId ?? null} />
+      <ScannerListener onScan={(code) => void scan(code)} enabled={destination === "sell" && !paid && !collectOpen} />
       <ShiftBar
         shift={toShiftSummary(props.shift)}
         currency={props.currency}
@@ -675,6 +743,7 @@ export function PosClient(props: PosClientProps) {
         activeDestination={destination}
         onSelectDestination={(id) => setDestination(id as Destination)}
         destinationLabels={copy.frame.destinationLabels}
+        links={[{ id: "display", label: copy.displayLink.label, href: displayHref, hint: copy.displayLink.hint }]}
         className="flex-1 rounded-none border-0"
       >
         {/*

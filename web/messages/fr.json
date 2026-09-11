@@ -1293,7 +1293,10 @@
           "notAllowed": "Vous n'avez pas le droit de faire cela au comptoir.",
           "amountInvalid": "Saisissez un montant de zéro ou plus.",
           "shiftAlreadyOpen": "Un service est déjà ouvert ici.",
-          "shiftAlreadyClosed": "Ce service est déjà clôturé."
+          "shiftAlreadyClosed": "Ce service est déjà clôturé.",
+          "scanNoMatch": "Ce code ne correspond à rien de ce que vend cet espace.",
+          "receiptNotPaid": "Cette vente n'a pas encore été payée, il n'y a donc pas de reçu à envoyer.",
+          "receiptNotSent": "Le reçu n'a pas pu être envoyé. Imprimez-le à la place."
         },
         "switch": {
           "label": "Espace de travail ou point de vente",
@@ -1331,6 +1334,14 @@
           "service": "Services",
           "package": "Forfaits",
           "product": "Produits"
+        },
+        "scan": {
+          "ready": "Scanner prêt",
+          "readyHint": "Scannez un code pour l'ajouter à cette vente.",
+          "added": "{name} ajouté",
+          "noMatch": "Rien ne correspond à {code}",
+          "unavailable": "Le code n'a pas pu être recherché. Réessayez.",
+          "dismiss": "Fermer"
         }
       },
       "counterOffTitle": "Le comptoir est désactivé",
@@ -1673,6 +1684,56 @@
           "kitchenEmpty": "Ajoutez quelque chose à l'addition avant de l'envoyer en cuisine. Ouvrez l'addition pour ajouter des articles.",
           "kitchenNotFound": "Cette addition n'est plus ouverte. Rechargez la salle."
         }
+      },
+      "display": {
+        "title": "Écran client",
+        "openLink": "Écran client",
+        "openHint": "S'ouvre sur un second écran et suit cette vente.",
+        "idleWelcome": "Bienvenue chez {workspace}",
+        "idleBody": "Votre commande apparaîtra ici",
+        "reviewHeadingNamed": "Bonjour {name}, votre visite du jour",
+        "reviewHeadingAnon": "Votre visite du jour",
+        "subtotal": "Sous-total",
+        "discount": "Remise",
+        "depositPaid": "Acompte versé",
+        "toPay": "À payer aujourd'hui",
+        "tipNotOffered": "Il n'est pas encore possible d'ajouter un pourboire sur cet écran. Dites-le à l'équipe si vous souhaitez en laisser un.",
+        "reviewNote": "Rien n'est débité tant que l'équipe ne l'a pas confirmé avec vous.",
+        "looksRight": "C'est bon",
+        "confirmHeading": "Prêt à payer",
+        "confirmBody": "{amount} pour la visite du jour",
+        "confirmNote": "L'équipe va encaisser votre paiement maintenant.",
+        "back": "Retour",
+        "waitingHeading": "Suivez le lecteur de carte ou le lien de paiement",
+        "waitingBody": "{amount} · rien n'a encore été débité",
+        "declinedHeading": "Paiement refusé",
+        "declinedBody": "Rien n'a été débité. Essayez une autre carte ou demandez à l'équipe d'autres moyens de paiement.",
+        "paidHeadingNamed": "Merci, {name}",
+        "paidHeadingAnon": "Merci",
+        "paidBody": "{amount} payé",
+        "paidVia": "{amount} payé · {method}",
+        "methodCash": "espèces",
+        "methodCard": "carte",
+        "receiptQuestion": "Un reçu ?",
+        "emailMe": "Par e-mail",
+        "textMe": "Par SMS",
+        "textNotOffered": "Les reçus par SMS ne sont pas encore disponibles. Nous pouvons l'envoyer par e-mail, ou l'équipe peut l'imprimer.",
+        "noReceipt": "Pas de reçu",
+        "clearsSoon": "Cet écran va s'effacer dans un instant",
+        "contactHeading": "Où devons-nous envoyer votre reçu ?",
+        "contactEmailLabel": "Adresse e-mail",
+        "contactEmailPlaceholder": "vous@exemple.com",
+        "contactSend": "Envoyer",
+        "contactNote": "Utilisée uniquement pour ce reçu, sauf indication contraire donnée à l'équipe.",
+        "sentHeading": "Reçu envoyé",
+        "sentBody": "Nous l'avons envoyé à {email}",
+        "sentSkipped": "Nous avons enregistré {email}, mais cet espace ne peut pas encore envoyer d'e-mails. Demandez un reçu imprimé à l'équipe.",
+        "refusalInvalidEmail": "Cela ne ressemble pas à une adresse e-mail. Vérifiez-la et réessayez.",
+        "refusalNotPaid": "Cette vente n'a pas encore été payée, il n'y a donc pas de reçu à envoyer.",
+        "refusalSendFailed": "L'e-mail n'a pas pu être envoyé. Demandez un reçu imprimé à l'équipe.",
+        "refusalUnavailable": "Le reçu n'a pas pu être envoyé pour le moment. Demandez un reçu imprimé à l'équipe.",
+        "readUnavailable": "Cet écran a perdu la connexion avec le comptoir. Il continue d'essayer.",
+        "notAllowed": "Ce compte ne peut pas ouvrir l'écran client."
       }
     },
     "adminAppointments": {
