@@ -832,3 +832,52 @@ reads `orderTax` (`lib/catalog/tax`): `unset` says "Not set up" because no
 line can carry a tax category yet (`talent_offerings` has no such column),
 never a zero nobody decided; the `Saved hh:mm` line starts from the sale
 row's `updated_at`. Favorites stays disabled (D-POS-31): nothing records one.
+
+## D-POS-70 — the Front desk reads as the boards: B05 fills the screen, A09 is a sheet of free times, the Book door is the five-step flow A01 to A06 over one service
+
+Decided 2026-09-11 (fid-polish2). Three structural changes on the Front desk
+(`?mode=classes`), all on the readers and writers that already existed:
+
+1. **B05 is the whole content area.** Opening a class from the Classes
+   segment hides the day list; the header names the class and "starts in N
+   min", a 46px strip under it carries the three chips, the roster and the
+   360px action column fill the rest. The rail's `Sessions` row from an open
+   check-in is the way back to the list (the board draws no other door). The
+   frame gets the counter's `Lock` (disabled, D-POS-15) and `Workspace` rows.
+2. **A09 is a sheet inside the appointment pane.** "Move it" opens
+   `MoveSheet`: day chips (the day shown and the next two), the free times
+   as cards read by `classesMoveSlots` → `loadMoveSlots`
+   (`lib/pos/classes/move.ts`), which finds the booking's person through the
+   order's first offering (an instant booking, the walk-in's kind) or else
+   the `talent_bookings` mirror behind the source inquiry, then runs the
+   walk-in's own `freeStartsForPerson` (the website's slot composition) for
+   the booking's own length. A booking with no person behind it says so and
+   still takes a hand-typed time ("Another time", on the venue's clock),
+   which the proven `rescheduleAppointment` decides; the refusal names who
+   is busy. Price and Paid so far are the sale's; Policy says no
+   cancellation rule is modelled; Old slot states the engine's rule.
+3. **The Book door is the A01 to A06 flow, full screen** (`BookingFlow`):
+   Service (radio cards, one per booking; the note says a second service is a
+   second booking), People & place (the service's person as the guaranteed
+   card, the venue as the place; rooms, chairs and buffers drawn as facts
+   with their reason), Time (five day chips, the free times as cards, the
+   itinerary is start–end), Details (customer, who it is for, notes and
+   reminders disabled with their sentence), Review (the line, when, with,
+   pay: cash at the visit or now), then Confirmed ("Booked for …", the
+   chips, WHERE THIS NOW LIVES from the write's own result: the day list,
+   the sale with its balance, the customer by the contact given; Collect
+   now / Done / Book another). The write is `bookWalkInAppointment`, the
+   Walk-in sheet's. Not wired, each said on the control: a multi-service
+   basket, chair or room choice, intake forms, notes on a booking from the
+   desk, per-booking reminders, a card deposit at booking, a confirmation
+   message from the till.
+
+Also settled here: BOOKED vs ADDED TODAY on B01 splits the sale's lines by
+the booking's own service (a line linked to the booking or carrying the
+appointment's title was booked; the rest was added at the desk), because a
+sale line records no "added at" instant; Services vs Retail by the till's
+own extras list (a product offering is retail). The B02 sheet's "New end
+time" says the end is not re-planned when a timed extra is picked
+(D-POS-19) and otherwise shows the booking's end unchanged. B06 carries the
+board's footnote as the true sentence: no refund rule is set; a paid place
+keeps its payment until refunded from the sale.

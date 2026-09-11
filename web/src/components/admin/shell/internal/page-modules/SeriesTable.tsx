@@ -30,7 +30,7 @@ const STATE_TONE: Record<SeriesRowState, PillTone> = {
   needsAttention: "coral",
 };
 
-const ROW_GRID = "grid grid-cols-[1.5fr_1.6fr_110px_120px_120px_1.3fr_150px_24px] items-center gap-[10px] px-[16px]";
+const ROW_GRID = "grid grid-cols-[1.5fr_1.2fr_110px_120px_120px_1.2fr_130px_24px] items-center gap-[10px] px-[16px] *:min-w-0";
 
 function cadence(row: SeriesRow, t: (k: string) => string): string {
   const days = row.weekdays
@@ -89,18 +89,16 @@ export function SeriesTable({
           </div>
         ) : (
           rows.map((row) => (
-            <div key={row.id} data-series-row={row.id} className={`${ROW_GRID} border-t border-admin-border-soft py-[9px] font-admin-body text-admin-12h`}>
+            <div key={row.id} data-series-row={row.id} className={`${ROW_GRID} border-t border-admin-border-soft py-[10px] font-admin-body text-admin-12h`}>
               <span className="font-semibold text-admin-ink">{row.title}</span>
               <span className="text-admin-ink-muted">{cadence(row, t)}</span>
               <span className="truncate text-admin-ink-muted">{row.room ?? "—"}</span>
               <span className="text-admin-ink-muted">—</span>
               <span className="tabular-nums text-admin-ink">{row.seats}</span>
               <span className="line-clamp-2 text-admin-ink-muted" title={generated(row)}>{generated(row)}</span>
-              <span>
-                <StatePill tone={STATE_TONE[row.state]} state={row.state}>
-                  {t(`${K}.state.${row.state}`)}
-                </StatePill>
-              </span>
+              <StatePill tone={STATE_TONE[row.state]} state={row.state} className="justify-start">
+                {t(`${K}.state.${row.state}`)}
+              </StatePill>
               <button
                 type="button"
                 aria-label={t(`${K}.showSessions`)}
@@ -115,9 +113,9 @@ export function SeriesTable({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-[16px]">
-        <div className={`${CARD} p-[16px]`}>
-          <div className="mb-[6px] font-admin-body text-[14px] font-semibold text-admin-ink">{t(`${K}.holds.title`)}</div>
+      <div className="grid grid-cols-2 gap-[14px]">
+        <div className={`${CARD} px-[16px] py-[14px]`}>
+          <div className="mb-[8px] font-admin-body text-admin-13 font-semibold text-admin-ink">{t(`${K}.holds.title`)}</div>
           <FactRow label={t(`${K}.holds.definition`)}>{t(`${K}.holds.definitionValue`)}</FactRow>
           <FactRow label={t(`${K}.holds.cadence`)}>{t(`${K}.holds.cadenceValue`)}</FactRow>
           <FactRow label={t(`${K}.holds.capacity`)}>{t(`${K}.holds.capacityValue`)}</FactRow>
@@ -125,12 +123,12 @@ export function SeriesTable({
           <FactRow label={t(`${K}.holds.windows`)}>{t(`${K}.holds.windowsValue`)}</FactRow>
           <FactRow label={t(`${K}.holds.generate`)}>{t(`${K}.holds.generateValue`)}</FactRow>
         </div>
-        <div className={`${CARD} p-[16px]`}>
-          <div className="mb-[6px] font-admin-body text-[14px] font-semibold text-admin-ink">{t(`${K}.kinds.title`)}</div>
+        <div className={`${CARD} px-[16px] py-[14px]`}>
+          <div className="mb-[8px] font-admin-body text-admin-13 font-semibold text-admin-ink">{t(`${K}.kinds.title`)}</div>
           <FactRow label={t(`${K}.kinds.course`)}>{t(`${K}.kinds.courseValue`)}</FactRow>
           <FactRow label={t(`${K}.kinds.dropIn`)}>{t(`${K}.kinds.dropInValue`)}</FactRow>
           <FactRow label={t(`${K}.kinds.three`)}>{t(`${K}.kinds.threeValue`)}</FactRow>
-          <div className="mt-[12px]">
+          <div className="mt-[8px]">
             <UsedIn
               count={posOn ? 2 : 1}
               label={t("dashboard.adminAppointments.board.usedIn")}

@@ -23,6 +23,7 @@ import type {
 } from "@/lib/scheduling/session-waitlist";
 import type { JoinWaitlistRefusalKey } from "@/lib/scheduling/waitlist-desk";
 
+import { bookingCopy, moveCopy, type ClassesBookingCopy, type ClassesMoveCopy } from "./classes-copy-flows";
 import type { Translator } from "./translator";
 
 export type ClassesRailCopy = Readonly<Record<string, string>>;
@@ -220,6 +221,10 @@ export type ClassesCopy = {
       readonly minutes: string;
       readonly noTime: string;
       readonly timeNotReplanned: string;
+      readonly timeNotReplannedShort: string;
+      readonly newEndTime: string;
+      /** "{time} · unchanged" */
+      readonly endUnchanged: string;
       readonly newBalance: string;
       readonly who: string;
       /** "Add {item} · +{amount}" */
@@ -279,7 +284,11 @@ export type ClassesCopy = {
       readonly later: string;
       /** "Offer to {name}" */
       readonly offerButton: string;
+      readonly policyNote: string;
     };
+    /** A01 to A06 (the New booking flow) and A09 (the move): `classes-copy-flows.ts`. */
+    readonly booking: ClassesBookingCopy;
+    readonly move: ClassesMoveCopy;
     readonly sheet: {
       readonly title: string;
       readonly subtitle: string;
@@ -295,6 +304,8 @@ export type ClassesCopy = {
       readonly payHint: string;
       /** "Book {name} · {time}" */
       readonly bookNow: string;
+      /** "Now · {time}", the first free card of a walk-in */
+      readonly nowAt: string;
       readonly close: string;
       readonly withPerson: string;
     };
@@ -498,6 +509,7 @@ export function classesCopy(t: Translator): ClassesCopy {
       needsContact: t("dashboard.pos.classes.refusal.needsContact"),
       notForSale: t("dashboard.pos.classes.refusal.notForSale"),
       couldNotBook: t("dashboard.pos.classes.refusal.couldNotBook"),
+      bookingNoPerson: t("dashboard.pos.classes.refusal.bookingNoPerson"),
     },
     board: {
       header: {
@@ -557,6 +569,9 @@ export function classesCopy(t: Translator): ClassesCopy {
         minutes: t("dashboard.pos.classes.board.extra.minutes"),
         noTime: t("dashboard.pos.classes.board.extra.noTime"),
         timeNotReplanned: t("dashboard.pos.classes.board.extra.timeNotReplanned"),
+        timeNotReplannedShort: t("dashboard.pos.classes.board.extra.timeNotReplannedShort"),
+        newEndTime: t("dashboard.pos.classes.board.extra.newEndTime"),
+        endUnchanged: t("dashboard.pos.classes.board.extra.endUnchanged"),
         newBalance: t("dashboard.pos.classes.board.extra.newBalance"),
         who: t("dashboard.pos.classes.board.extra.who"),
         add: t("dashboard.pos.classes.board.extra.add"),
@@ -611,7 +626,10 @@ export function classesCopy(t: Translator): ClassesCopy {
         leaveEmpty: t("dashboard.pos.classes.board.opened.leaveEmpty"),
         later: t("dashboard.pos.classes.board.opened.later"),
         offerButton: t("dashboard.pos.classes.board.opened.offerButton"),
+        policyNote: t("dashboard.pos.classes.board.opened.policyNote"),
       },
+      booking: bookingCopy(t),
+      move: moveCopy(t),
       sheet: {
         title: t("dashboard.pos.classes.board.sheet.title"),
         subtitle: t("dashboard.pos.classes.board.sheet.subtitle"),
@@ -625,6 +643,7 @@ export function classesCopy(t: Translator): ClassesCopy {
         payNothing: t("dashboard.pos.classes.board.sheet.payNothing"),
         payHint: t("dashboard.pos.classes.board.sheet.payHint"),
         bookNow: t("dashboard.pos.classes.board.sheet.bookNow"),
+        nowAt: t("dashboard.pos.classes.board.sheet.nowAt"),
         close: t("dashboard.pos.classes.board.sheet.close"),
         withPerson: t("dashboard.pos.classes.board.sheet.withPerson"),
       },
