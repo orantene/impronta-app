@@ -15356,7 +15356,6 @@
         "refusalInvalid": "Esa solicitud no indico una entrega sobre la que pudieramos actuar.",
         "sumTitle": "Hitos y entregables",
         "add": "Añadir hito",
-        "addUnavailable": "Un hito se escribe en la reserva a la que pertenece; todavía no hay editor aquí.",
         "onDelivery": "A la entrega · {date}",
         "requestChanges": "Pedir cambios",
         "approveClient": "Aprobar (cliente)",
@@ -15458,7 +15457,6 @@
         "reasonAlreadyClosed": "Este proyecto ya está cerrado",
         "reasonNotConfirmed": "No disponible · solo un proyecto confirmado o en curso puede completarse",
         "reasonNotClosed": "Solo para proyectos cerrados",
-        "reasonNoWriter": "Todavía no disponible · nada registra este estado",
         "back": "Volver",
         "confirmComplete": "Completar proyecto",
         "confirmCancel": "Cancelar proyecto…",
@@ -15599,7 +15597,6 @@
       "activityUnavailable": "No pudimos leer la actividad ahora mismo.",
       "files": "Archivos",
       "filesUpload": "Subir",
-      "filesUnavailable": "Todavía no hay un almacén de archivos por proyecto; los archivos se comparten en la conversación.",
       "activity": {
         "created_manual": "Proyecto creado a mano",
         "duplicated": "Proyecto duplicado",

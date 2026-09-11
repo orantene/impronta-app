@@ -4181,7 +4181,6 @@
         "refusalInvalid": "Cette demande ne designait aucun livrable sur lequel agir.",
         "sumTitle": "Jalons et livrables",
         "add": "Ajouter un jalon",
-        "addUnavailable": "Un jalon s'écrit sur la réservation à laquelle il appartient ; il n'y a pas encore d'éditeur ici.",
         "onDelivery": "À la livraison · {date}",
         "requestChanges": "Demander des modifications",
         "approveClient": "Approuver (client)",
@@ -4283,7 +4282,6 @@
         "reasonAlreadyClosed": "Ce projet est déjà clôturé",
         "reasonNotConfirmed": "Indisponible · seul un projet confirmé ou en cours peut être terminé",
         "reasonNotClosed": "Seulement pour les projets clôturés",
-        "reasonNoWriter": "Pas encore disponible · rien n'enregistre cet état",
         "back": "Retour",
         "confirmComplete": "Terminer le projet",
         "confirmCancel": "Annuler le projet…",
@@ -4424,7 +4422,6 @@
       "activityUnavailable": "Impossible de lire l'activité pour le moment.",
       "files": "Fichiers",
       "filesUpload": "Téléverser",
-      "filesUnavailable": "Aucun espace de fichiers n'est encore rattaché à un projet ; les fichiers se partagent dans la conversation.",
       "activity": {
         "created_manual": "Projet créé manuellement",
         "duplicated": "Projet dupliqué",

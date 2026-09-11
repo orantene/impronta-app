@@ -15356,7 +15356,6 @@
         "refusalInvalid": "That request did not name a deliverable we could act on.",
         "sumTitle": "Milestones & deliverables",
         "add": "Add milestone",
-        "addUnavailable": "A milestone is written on the booking it belongs to; there is no editor here yet.",
         "onDelivery": "On delivery · {date}",
         "requestChanges": "Request changes",
         "approveClient": "Approve (client)",
@@ -15458,7 +15457,6 @@
         "reasonAlreadyClosed": "This project is already closed",
         "reasonNotConfirmed": "Not available · only a confirmed or in-progress project can be completed",
         "reasonNotClosed": "Only for closed projects",
-        "reasonNoWriter": "Not available yet · nothing records this state",
         "back": "Back",
         "confirmComplete": "Complete project",
         "confirmCancel": "Cancel project…",
@@ -15599,7 +15597,6 @@
       "activityUnavailable": "We could not read the activity right now.",
       "files": "Files",
       "filesUpload": "Upload",
-      "filesUnavailable": "No file store hangs off a project yet; files are shared on the conversation.",
       "activity": {
         "created_manual": "Project created by hand",
         "duplicated": "Project duplicated",
