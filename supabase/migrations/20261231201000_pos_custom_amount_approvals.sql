@@ -299,7 +299,7 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'reason', 'not_found');
   END IF;
 
-  v_hash := crypt(p_pin, gen_salt('bf'));
+  v_hash := extensions.crypt(p_pin, extensions.gen_salt('bf'));
   v_people := COALESCE(v_settings->'people', '{}'::jsonb);
   v_pins := COALESCE(v_people->'pins', '{}'::jsonb);
   v_pins := jsonb_set(v_pins, ARRAY[p_user_id::text], to_jsonb(v_hash), true);
@@ -434,7 +434,7 @@ BEGIN
   SELECT COALESCE(settings, '{}'::jsonb) INTO v_settings
     FROM public.agencies WHERE id = p_tenant_id;
   v_hash := public.pos_staff_pin_hash(v_settings, p_approver);
-  IF v_hash IS NULL OR p_pin IS NULL OR crypt(p_pin, v_hash) IS DISTINCT FROM v_hash THEN
+  IF v_hash IS NULL OR p_pin IS NULL OR extensions.crypt(p_pin, v_hash) IS DISTINCT FROM v_hash THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'pin_invalid');
   END IF;
 

@@ -108,7 +108,7 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'reason', 'not_found');
   END IF;
   v_hash := public.pos_staff_pin_hash(v_settings, p_user_id);
-  IF v_hash IS NULL OR p_pin IS NULL OR crypt(p_pin, v_hash) IS DISTINCT FROM v_hash THEN
+  IF v_hash IS NULL OR p_pin IS NULL OR extensions.crypt(p_pin, v_hash) IS DISTINCT FROM v_hash THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'pin_invalid');
   END IF;
 
