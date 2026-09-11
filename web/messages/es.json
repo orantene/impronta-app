@@ -1465,6 +1465,42 @@
       "soldOut": "Agotado",
       "soldOutError": "{item} esta agotado.",
       "submit": "Enviar pedido"
+    },
+    "manageBooking": {
+      "title": "Tu reserva",
+      "noDate": "Fecha por confirmar",
+      "nothingPaid": "Nada todavía",
+      "deadlinePassed": "El plazo de cancelación gratuita ya pasó",
+      "deadlineUntil": "{when}",
+      "deadlineNone": "No aplica ningún plazo de cancelación",
+      "statusConfirmed": "Confirmada",
+      "statusClosed": "Cerrada",
+      "paid": "Pagado",
+      "atVisit": "En la visita",
+      "atVisitValue": "El resto se paga en la visita",
+      "freeUntil": "Cancelación gratuita hasta",
+      "reschedule": "Cambiar la hora",
+      "cancel": "Cancelar",
+      "addToCalendar": "Añadir al calendario",
+      "onlyCancels": "Este enlace puede cancelar la reserva; pide otro enlace para moverla.",
+      "onlyReschedules": "Este enlace puede mover la reserva; pide otro enlace para cancelarla.",
+      "closedSentence": "Esta reserva está cerrada.",
+      "note": "Al cambiar la hora se comprueban primero la persona y la sala; tu reserva se mantiene hasta que se confirme la nueva hora.",
+      "cancelTitle": "¿Cancelar esta reserva?",
+      "cancelPolicy": "Política",
+      "cancelRefund": "{amount} vuelve por donde se pagó, en cuanto el banco lo confirme.",
+      "cancelNoRefund": "El pago se mantiene; el plazo de cancelación gratuita ya pasó.",
+      "reason": "Motivo",
+      "reasonPlaceholder": "Opcional",
+      "keep": "Mantener la reserva",
+      "cancelConfirm": "Cancelar reserva{amount}",
+      "cancelled": "Tu reserva está cancelada.",
+      "cancelledRefund": "Tu reserva está cancelada. {amount} vuelve por donde se pagó.",
+      "rescheduleTitle": "Elige una nueva hora",
+      "newTime": "Nueva hora",
+      "rescheduleConfirm": "Confirmar la nueva hora",
+      "rescheduled": "Tu reserva se movió a la nueva hora.",
+      "cancelNothingPaid": "No se pagó nada, así que no hay nada que devolver."
     }
   },
   "dashboard": {
@@ -4857,7 +4893,7 @@
           "other": "{count} miembros"
         },
         "limitsHeading": "Límites por persona",
-        "limitsGap": "Tulala todavía no registra límites individuales de descuento o reembolso. Cualquiera que tenga acceso a un modo de venta puede usar todo lo que ese modo ofrece.",
+        "limitsGap": "Esta acción todavía no tiene un límite por rol. Cualquiera que tenga acceso a un modo de venta puede usar todo lo que ese modo ofrece.",
         "posOffNotice": "Este espacio de trabajo tiene todos los modos de venta desactivados, así que ningún rol llega al punto de venta. Activa uno en Punto de venta, arriba.",
         "invitedCount": {
           "one": "{count} invitación sin aceptar todavía",
@@ -4914,6 +4950,34 @@
           "save": "Guardar límite",
           "saving": "Guardando…",
           "saved": "Límite guardado."
+        },
+        "saveReason": "Cada celda se guarda al cambiar; no queda nada que pulsar.",
+        "limits": {
+          "intro": "Por encima del límite, la caja pide la aprobación de un gerente. Una celda vacía es sin límite.",
+          "discount": "Descuento manual",
+          "refund": "Reembolso",
+          "colAction": "Límite por acción",
+          "noLimit": "Sin límite",
+          "readOnly": "Solo un propietario o administrador puede fijar un límite.",
+          "loading": "Leyendo límites…",
+          "loadFailed": "No se pudieron leer los límites.",
+          "saving": "Guardando…",
+          "saved": "Guardado {time}",
+          "saveFailed": "No se guardó",
+          "retry": "Reintentar"
+        },
+        "inbox": {
+          "heading": "Solicitudes de aprobación",
+          "intro": "Lo que alguien pidió por encima de su límite. Aprobar deja pasar esa única acción; el rol no cambia.",
+          "none": "No hay nada pendiente de aprobación.",
+          "title": "{kind} · {ref}",
+          "by": "{who} · {when}",
+          "kindDiscount": "Descuento solicitado",
+          "kindRefund": "Reembolso solicitado",
+          "approve": "Aprobar",
+          "deny": "Rechazar",
+          "approved": "Aprobado",
+          "denied": "Rechazado"
         }
       },
       "locations": {
@@ -5048,7 +5112,20 @@
           "never": "Nunca se salta",
           "neverValue": "Exclusividad física · aforo",
           "preview": "Vista previa del impacto",
-          "previewValue": "Todavía no disponible"
+          "previewValue": "Todavía no disponible",
+          "intro": "Por artículo, sobre los valores por defecto de arriba. Una celda vacía mantiene el valor por defecto.",
+          "col": {
+            "item": "Artículo",
+            "deposit": "Depósito %",
+            "freeCancel": "Cancelación gratis (horas)",
+            "noShow": "Cargo por no presentarse"
+          },
+          "placeholder": "Por defecto",
+          "rowDefault": "Valor del espacio de trabajo",
+          "rowSet": "Condiciones propias · no presentarse {fee}",
+          "none": "Todavía no hay artículos reservables; crea primero un servicio, una clase o un paquete en el catálogo.",
+          "note": "El depósito y el reembolso por cancelación leen primero estas filas, luego el artículo y luego el valor del espacio de trabajo.",
+          "loadFailed": "No se pudieron leer las excepciones."
         },
         "notWired": {
           "previewImpact": "Una vista previa del impacto necesita versiones de política, que todavía no se guardan.",
@@ -12303,7 +12380,8 @@
         "providerRefused": "El proveedor de pagos rechazó el reembolso. No se reembolsó nada y no se cobró nada. Inténtalo otra vez o revisa el pago en el proveedor.",
         "partialFailure": "Una parte de este reembolso salió y otra no. No lo intentes otra vez: los reembolsos que salieron son reales. Alguien tiene que terminar el resto a mano.",
         "unavailable": "No se pudo registrar el reembolso. No se reembolsó nada. Inténtalo de nuevo en un momento."
-      }
+      },
+      "refundComponentShare": "Reparto por componente"
     },
     "sales": {
       "pageTitle": "Ventas",
@@ -12569,7 +12647,10 @@
           "not_found": "Ese registro ya no esta.",
           "wrong_tenant": "Ese registro no esta en este espacio.",
           "invalid": "Eso no se puede guardar.",
-          "unavailable": "Esto no se pudo completar. Intentalo de nuevo."
+          "unavailable": "Esto no se pudo completar. Intentalo de nuevo.",
+          "not_allowed": "No tienes permiso para hacer esto aquí.",
+          "not_reschedulable": "Esta reserva no se puede mover.",
+          "slot_taken": "Ese horario ya no está libre."
         }
       }
     },
@@ -12935,10 +13016,10 @@
           "reportAs": "Reportar como",
           "reportAsUnavailable": "Las categorías de reporte aún no están configuradas.",
           "amount": "Importe",
-          "limitNote": "Supera tu límite de {limit} · un gerente lo aprobará en el siguiente paso",
+          "limitNote": "Un importe personalizado necesita la aprobación de un encargado en el siguiente paso",
           "continueAsk": "Continuar · pedir a un encargado",
           "approvalTitle": "Aprobación del encargado",
-          "approvalSubtitle": "Importe libre {amount} · {cashier} · supera el límite de {limit}",
+          "approvalSubtitle": "Importe personalizado {amount} · {cashier}",
           "item": "Artículo",
           "approve": "Aprobar",
           "withinLimit": "Dentro de tu límite de {limit} · no necesita aprobación",
@@ -12946,7 +13027,9 @@
           "whoApproves": "Quién aprueba",
           "noManagers": "Ningún gerente tiene PIN de caja todavía. Configúralo en Ajustes › Personas.",
           "pinPrompt": "PIN del gerente",
-          "approving": "Aprobando…"
+          "approving": "Aprobando…",
+          "pinWrong": "Ese PIN no es correcto",
+          "approveUnavailable": "Los PIN de encargado y los importes personalizados aún no están configurados, así que no se puede aprobar aquí."
         },
         "holdSale": {
           "title": "¿Dejar esta venta en espera?",
@@ -12978,7 +13061,7 @@
           "thisSale": "Esta venta",
           "keepSeparate": "Mantener aparte",
           "linkOnly": "Solo vincular",
-          "linkAndPay": "Vincular y cobrar {amount}",
+          "linkAndPay": "Vincular y pagar",
           "noCustomerAction": "Asignar un cliente",
           "unreadable": "No se pudieron leer sus reservas. Inténtalo de nuevo.",
           "loading": "Leyendo sus reservas…",
@@ -12987,7 +13070,8 @@
           "ticketLine": "Nada que cobrar · {count} invitados",
           "paidLine": "Pagado por completo",
           "alreadyLinked": "Esta venta ya está vinculada a {booking}.",
-          "linking": "Vinculando…"
+          "linking": "Vinculando…",
+          "unavailable": "Vincular una venta de mostrador a una reserva aún no está conectado; esta venta queda aparte."
         },
         "cashDone": {
           "title": "Caja abierta",
@@ -13019,12 +13103,12 @@
           "openNoSaleHint": "sin venta · registrado",
           "onceOpenNote": "Disponible cuando abras la caja. No necesitas una caja para consultar reservas o enviar enlaces de pago.",
           "movements": "Movimientos",
-          "movementsEmpty": "Las ventas en efectivo entran en este cajón automáticamente. El efectivo agregado, retirado o llevado a la caja fuerte aparece aquí.",
+          "movementsEmpty": "Las ventas en efectivo entran en esta caja automáticamente. Los movimientos aún no se registran, así que esta lista queda vacía.",
           "handOver": "Entregar la caja a alguien",
           "newResponsible": "Nuevo responsable",
           "countedTogether": "Lo contamos juntos",
-          "handOverNote": "La entrega se registra al cerrar y contar el cajón; el siguiente cajón se abre a su nombre.",
-          "handOverAction": "Entregar a {name}",
+          "handOverNote": "La sesión sigue abierta; los movimientos a partir de ahora son suyos.",
+          "handOverAction": "Entregar",
           "closeAndCount": "Cerrar caja y contar",
           "countEyebrow": "Cuenta lo que hay en la caja",
           "coins": "Escribe el total contado, o usa los botones y añade las monedas escribiendo.",
@@ -13050,7 +13134,10 @@
           },
           "newResponsibleNone": "Elige a una persona",
           "handOverChosen": "Entregado a {name} · se registra con este conteo",
-          "whatHappenedHint": "p. ej. di cambio de mi propio dinero a las 09:12"
+          "whatHappenedHint": "p. ej. di cambio de mi propio dinero a las 09:12",
+          "movementsUnavailable": "Los movimientos de efectivo aún no se registran; solo el fondo inicial y el recuento de cierre.",
+          "handOverUnavailable": "La entrega de la caja a otra persona aún no se registra; ciérrala y que abra la suya.",
+          "whatHappenedUnavailable": "Una nota en el cierre aún no se guarda."
         },
         "receipts": {
           "subtitle": "{day} · {count} ventas · {total}",
@@ -13391,7 +13478,8 @@
           "linkSale": "Venta {id}",
           "linkResend": "Reenviar",
           "linkReceipt": "Ver recibo",
-          "linkNew": "Enviar enlace nuevo"
+          "linkNew": "Enviar enlace nuevo",
+          "linksUnavailable": "Todavía ninguna tabla registra un enlace de pago enviado, así que no hay nada que listar ni reenviar aquí."
         }
       },
       "classes": {
@@ -13539,7 +13627,7 @@
             "whoDidWhat": "Quien hizo que",
             "whoDidWhatOff": "Una linea de venta todavia no se atribuye a una persona, asi que aqui no se pueden mostrar ingresos por persona.",
             "sendLink": "Enviar enlace de pago",
-            "sendLinkOff": "A esta cita no le queda nada por cobrar, así que no hay enlace que enviar.",
+            "sendLinkOff": "Los enlaces de pago se envian desde el modo Caja; la recepcion solo cobra en efectivo por ahora.",
             "rebook": "Volver a reservar",
             "rebookOff": "Volver a reservar desde una cita terminada todavia no esta conectado; usa Reservar con el mismo servicio.",
             "serviceDone": "Servicio hecho",
@@ -14159,7 +14247,7 @@
             "collect": "Cobrar {amount}",
             "moveOrJoin": "Mover o unir mesas",
             "changeServer": "Cambiar mesero",
-            "changeServerReason": "Cambiar de mesero no está disponible en esta pantalla.",
+            "changeServerReason": "Una visita aún no registra su mesero, así que no hay a quién pasarla.",
             "extendTime": "Extender tiempo",
             "extendTimeReason": "El tiempo de turno viene de las reglas del local; aún no se extiende por mesa.",
             "partyLeft": "El grupo se fue",
@@ -14167,7 +14255,7 @@
             "block": "Bloquear mesa",
             "blockReason": "Bloquear una mesa se hace en Espacios, no desde la caja.",
             "split": "Dividir la cuenta",
-            "splitReason": "Dividir una cuenta necesita sus líneas, que esta pantalla no lee.",
+            "splitReason": "Dividir una cuenta por artículos o partes aún no está construido.",
             "checks": "{n} cuentas · {amount}",
             "openCheck": "Abrir cuenta {letter} · {amount}",
             "servedBy": "Atiende {name}"
@@ -14241,11 +14329,11 @@
             "joinTitle": "Unir mesas para este grupo",
             "joinBody": "Añade una mesa vecina libre para un grupo mayor.",
             "joinCta": "Elegir mesa para unir",
-            "joinReason": "La unión se decide al sentar al grupo (T05); el traslado del motor mueve un grupo entre mesas y no puede añadir una segunda mesa a uno ya sentado.",
+            "joinReason": "La unión se decide al sentar al grupo; un grupo ya sentado aún no puede tomar una segunda mesa.",
             "mergeTitle": "Fusionar con la cuenta de otra mesa",
             "mergeBody": "Combina dos cuentas pendientes en una.",
             "mergeCta": "Elegir cuenta",
-            "mergeReason": "Unir dos cuentas no está disponible en esta pantalla.",
+            "mergeReason": "Fusionar dos cuentas aún no está construido.",
             "cancel": "Cancelar"
           },
           "move": {
@@ -15065,7 +15153,10 @@
         "proposedBody": "{from} pasa a {to}. El trabajo sigue según v{n} hasta que el cliente acepte; si rechaza, v{n} se mantiene tal cual.",
         "remind": "Recordar al cliente",
         "withdrawOnConversation": "Retirar desde la conversación",
-        "priorKept": "v{n} (enviada el {date}, {amount}) se conserva sin cambios para el registro."
+        "priorKept": "v{n} (enviada el {date}, {amount}) se conserva sin cambios para el registro.",
+        "sendVersion": "Enviar v{n}",
+        "discardProposal": "Descartar propuesta",
+        "refusalNoLock": "No se pudo leer la conversación. Recarga e inténtalo de nuevo."
       },
       "milestones": {
         "title": "Hitos y entregas",
@@ -15098,7 +15189,14 @@
         "requestChanges": "Pedir cambios",
         "approveClient": "Aprobar (cliente)",
         "edit": "Editar",
-        "overdue": "Atrasado"
+        "overdue": "Atrasado",
+        "addTitle": "Hito",
+        "addDue": "Vence",
+        "addSave": "Guardar",
+        "replaceFile": "Reemplazar archivo",
+        "uploadNoInquiry": "Este proyecto no tiene conversación donde guardar un archivo.",
+        "uploadFailed": "No se pudo subir el archivo. Inténtalo de nuevo.",
+        "uploading": "Subiendo…"
       },
       "team": {
         "title": "Equipo",
@@ -15106,7 +15204,7 @@
         "noneHint": "La asignacion se crea al aceptar una oferta con lineas. Cada profesional asignado tiene su propia linea.",
         "colRole": "Rol",
         "unnamed": "Nombre no registrado",
-        "replaceNote": "Al reemplazar a una persona se conserva el nombre saliente en la linea, para que la historia de quien hizo el trabajo sobreviva al cambio. El reemplazo todavia no se edita desde esta pantalla.",
+        "replaceNote": "Sustituir a una persona mueve la asignación y sus reservas firmes en una sola operación; el motor lo rechaza si la persona sustituta no está libre a esa hora o si el trabajo ya empezó. El nombre saliente se mantiene en la línea hasta que se reescriba el registro.",
         "marginNote": "El honorario y el cargo se muestran juntos porque esta es la vista del espacio de trabajo. Un profesional asignado solo ve su propio honorario.",
         "assignments": "Asignaciones",
         "assign": "Asignar desde Personas › Reservable",
@@ -15116,7 +15214,7 @@
         "replaceTitle": "Sustituir a {name}",
         "replaceSubtitle": "El impacto antes de confirmar",
         "replacement": "Sustituto",
-        "replacementUnavailable": "Todavía nada lista quién encaja en este trabajo; sustituye a la persona desde el equipo de la conversación.",
+        "replacementUnavailable": "No se pudo leer el equipo. Recarga e inténtalo de nuevo.",
         "impact": "Impacto",
         "impactSchedule": "Agenda",
         "impactFee": "Honorario",
@@ -15126,7 +15224,10 @@
         "impactOutgoingValue": "Se conserva en la línea para el registro · nada ganado",
         "impactClient": "Cliente",
         "impactClientValue": "No se avisa desde aquí · no requiere aprobación",
-        "replaceConfirm": "Sustituir e invitar"
+        "replaceConfirm": "Sustituir e invitar",
+        "replaceNoProfile": "Esta persona se escribió en la oferta y no tiene perfil que sustituir.",
+        "replacementPick": "Elige a una persona",
+        "replacementNone": "Todavía no hay nadie más en el equipo."
       },
       "money": {
         "quotedNotAgreed": "No se ha aceptado ninguna version, asi que todavia no hay precio acordado.",
@@ -15179,7 +15280,7 @@
         "archive": "Archivar",
         "archiveBody": "Ocultar de la lista activa; conservar cada registro y saldo",
         "reopen": "Reabrir más tarde",
-        "reopenBody": "Solo para proyectos cerrados",
+        "reopenBody": "Devolver un proyecto archivado a confirmado",
         "reasonMilestonesOpen": "No disponible · todavía hay hitos abiertos",
         "reasonMoneyOwed": "No disponible · todavía se debe dinero",
         "reasonAlreadyClosed": "Este proyecto ya está cerrado",
@@ -15190,7 +15291,11 @@
         "confirmComplete": "Completar proyecto",
         "confirmCancel": "Cancelar proyecto…",
         "refused": "No se cerró.",
-        "done": "Hecho · todos los proyectos"
+        "done": "Hecho · todos los proyectos",
+        "reasonNotArchived": "Solo un proyecto archivado se puede reabrir",
+        "reasonAlreadyArchived": "Este proyecto ya está archivado",
+        "confirmArchive": "Archivar proyecto",
+        "confirmReopen": "Reabrir proyecto"
       },
       "visibility": {
         "title": "Quien ve que",
@@ -15349,7 +15454,8 @@
       "sideDates": "Fechas",
       "dateStarts": "Empieza",
       "dateEnds": "Termina",
-      "dateMilestoneDue": "{title} vence"
+      "dateMilestoneDue": "{title} vence",
+      "filesNone": "Todavía no hay ningún archivo adjunto a un hito."
     },
     "clientRecord": {
       "title": "Cliente",
@@ -16092,6 +16198,54 @@
           "concurrent": "Uso simultáneo",
           "reporting": "Informes"
         }
+      },
+      "package": {
+        "title": "Composición",
+        "intro": "Lo que incluye este paquete. Cada componente es un artículo de este catálogo; el reembolso de un paquete se reparte según estas partes.",
+        "col": {
+          "component": "Componente",
+          "included": "Incluido",
+          "qty": "Cant.",
+          "listPrice": "Precio de lista",
+          "alloc": "Valor asignado"
+        },
+        "pick": "Elige un artículo",
+        "required": "Obligatorio",
+        "optional": "Opcional",
+        "remove": "Quitar componente",
+        "none": "Todavía sin componentes.",
+        "add": "Añadir componente",
+        "addHint": "Guarda la composición cuando cada fila tenga un artículo.",
+        "emptyCatalog": "Crea otro artículo primero; un paquete se compone de artículos.",
+        "save": "Guardar composición",
+        "saved": "Composición guardada.",
+        "allocationNote": "La asignación es proporcional al precio de lista de cada componente; el resto del redondeo va a la última fila, así las partes siempre suman el precio del paquete.",
+        "dependenciesReason": "Las dependencias entre componentes, los importes manuales y la vista previa del cliente todavía no se registran; un componente obligatorio no disponible rechaza todo el paquete en caja."
+      },
+      "phases": {
+        "title": "Fases de precio",
+        "intro": "Precios con fecha, como una preventa. La fase vigente fija el precio de una venta la primera vez; una fase posterior nunca cambia una línea ya valorada.",
+        "col": {
+          "phase": "Fase",
+          "from": "Desde",
+          "until": "Hasta",
+          "price": "Precio",
+          "state": "Estado"
+        },
+        "open": "Abierta",
+        "none": "Todavía sin fases; aplica el precio base.",
+        "state": {
+          "live": "Vigente",
+          "upcoming": "Próxima",
+          "ended": "Terminada"
+        },
+        "remove": "Quitar",
+        "removeReason": "Una fase todavía no se puede editar ni quitar; añade la siguiente fase con su fecha de inicio.",
+        "add": "Añadir fase",
+        "save": "Guardar fase",
+        "cancel": "Cancelar",
+        "saved": "Fase guardada.",
+        "stampNote": "Una venta conserva la fase con la que se valoró. Cambiar una fase después de vender nunca revaloriza esa venta."
       }
     },
     "events": {
@@ -17479,7 +17633,8 @@
           "removed": "Retirado",
           "noContact": "Sin correo registrado",
           "pinSet": "Configurado",
-          "pinNone": "Sin PIN"
+          "pinNone": "Sin PIN",
+          "pinWhy": "el punto de venta no tiene PIN"
         },
         "empty": {
           "everyone": "Todavía no hay nadie. Añade a la primera persona y elige qué sombreros lleva.",

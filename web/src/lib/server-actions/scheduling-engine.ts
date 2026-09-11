@@ -22,6 +22,7 @@ import {
   setDeliverableAmount,
 } from "@/lib/projects/project-ops";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
+import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
 import { sessionCancel, sessionMoveParticipant, sessionSetInstructor } from "@/lib/sessions/session-ops";
 import { generateSessionsForSeries, upsertSessionSeries } from "@/lib/sessions/series-write";
 
@@ -188,6 +189,62 @@ export async function cancelBookingByManageToken(input: {
     reason: parsed.data.reason,
     by: "customer",
   });
+}
+
+/**
+ * The customer's own reschedule from the signed link (A07 / R05). The
+ * token names the booking, the tenant and the action; the move itself is
+ * the existing `reschedule_booking_set` path (locks the set, moves the
+ * allocations, refuses a taken slot). No staff session: the actor is the
+ * customer, and the audit line says so through the empty actor id.
+ */
+export async function rescheduleBookingByManageToken(input: {
+  token: string;
+  operationKey: string;
+  newStartsAt: string;
+  expectedStartsAt: string | null;
+}): Promise<
+  | { ok: true; startsAt: string; endsAt: string; already: boolean }
+  | { ok: false; reason: "token_invalid" | "not_reschedulable" | "slot_taken" | "conflict" | "not_found" | "wrong_tenant" | "invalid" | "unavailable" }
+> {
+  const parsed = z
+    .object({
+      token: z.string().min(8),
+      operationKey: opKey,
+      newStartsAt: z.string().min(10),
+      expectedStartsAt: z.string().min(10).nullable(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, reason: "invalid" };
+  const verified = verifyBookingManageToken(parsed.data.token);
+  if (!verified.ok) return verified;
+  if (verified.payload.action !== "reschedule") return { ok: false, reason: "token_invalid" };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, reason: "unavailable" };
+  const result = await rescheduleBooking(admin, {
+    tenantId: verified.payload.tenantId,
+    bookingId: verified.payload.bookingId,
+    newStartsAt: parsed.data.newStartsAt,
+    newEndsAt: null,
+    actorUserId: "",
+    operationKey: parsed.data.operationKey,
+    expectedStartsAt: parsed.data.expectedStartsAt,
+  });
+  if (result.ok) return { ok: true, startsAt: result.startsAt, endsAt: result.endsAt, already: result.already };
+  switch (result.reason) {
+    case "not_reschedulable":
+    case "conflict":
+    case "not_found":
+    case "wrong_tenant":
+    case "invalid":
+      return { ok: false, reason: result.reason };
+    case "slot_taken":
+    case "sold_out":
+    case "ancestor_full":
+      return { ok: false, reason: "slot_taken" };
+    default:
+      return { ok: false, reason: "unavailable" };
+  }
 }
 
 export async function projectReplaceTalentAction(input: {

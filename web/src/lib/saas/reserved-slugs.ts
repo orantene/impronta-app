@@ -44,6 +44,7 @@ export const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   "events",
   "r",
   "pay",
+  "manage",
   // Static
   "sitemap.xml", "robots.txt",
   // Prototypes + internals

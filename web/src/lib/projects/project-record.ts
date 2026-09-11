@@ -126,6 +126,9 @@ export type ProjectMilestone = {
   readonly revision: number;
   readonly revisionLimit: number;
   readonly dueAt: string | null;
+  /** `amount_cents`, 0 until set; `file_path`, an object path never a URL (W47). */
+  readonly amountCents: number;
+  readonly filePath: string | null;
 };
 
 /**
@@ -169,6 +172,8 @@ export type ProjectRecord = {
   readonly endsAt: string | null;
   /** The conversation this project came from. Null for a project opened directly. */
   readonly inquiryId: string | null;
+  /** `inquiries.version`, the optimistic lock an amendment send or discard carries. */
+  readonly inquiryVersion: number | null;
   readonly clientName: string | null;
   /** `customers.id` — the record money hangs off. Null when nobody has paid yet. */
   readonly customerId: string | null;
@@ -390,7 +395,8 @@ export type CloseOptionRefusal =
   | "already_closed"
   | "not_confirmed"
   | "not_closed"
-  | "no_writer";
+  | "not_archived"
+  | "already_archived";
 
 export type CloseOptionVerdict =
   | { readonly option: CloseOption; readonly ok: true }
@@ -401,12 +407,13 @@ const COMPLETABLE_STATUSES: readonly ProjectStatus[] = ["confirmed", "in_progres
 /** The states `cancelBookingAction` accepts. */
 const CANCELLABLE_STATUSES: readonly ProjectStatus[] = ["draft", "tentative", "confirmed", "in_progress"];
 
+/** The states `project_archive` accepts (Package 2). */
+const ARCHIVABLE_STATUSES: readonly ProjectStatus[] = ["completed", "cancelled"];
+
 /**
  * Which closures are possible right now, each with its reason when not.
- *
- * Archive and Reopen have no writer in the engine (`agency_bookings.status`
- * is moved only by close and cancel), so they are refused as `no_writer`
- * rather than drawn as buttons that would have to invent one.
+ * Archive: completed or cancelled to `archived`; Reopen: archived back to
+ * `confirmed` (Package 2). Mirrors the engine's gates, never widens them.
  */
 export function closeOptions(project: ProjectRecord): readonly CloseOptionVerdict[] {
   const closed = CLOSED_STATUSES.includes(project.status);
@@ -423,10 +430,17 @@ export function closeOptions(project: ProjectRecord): readonly CloseOptionVerdic
   const cancel: CloseOptionVerdict = CANCELLABLE_STATUSES.includes(project.status)
     ? { option: "cancel", ok: true }
     : { option: "cancel", ok: false, reason: "already_closed" };
-  const archive: CloseOptionVerdict = { option: "archive", ok: false, reason: "no_writer" };
-  const reopen: CloseOptionVerdict = closed
-    ? { option: "reopen", ok: false, reason: "no_writer" }
-    : { option: "reopen", ok: false, reason: "not_closed" };
+  const archive: CloseOptionVerdict = ARCHIVABLE_STATUSES.includes(project.status)
+    ? { option: "archive", ok: true }
+    : project.status === "archived"
+      ? { option: "archive", ok: false, reason: "already_archived" }
+      : { option: "archive", ok: false, reason: "not_closed" };
+  const reopen: CloseOptionVerdict =
+    project.status === "archived"
+      ? { option: "reopen", ok: true }
+      : closed
+        ? { option: "reopen", ok: false, reason: "not_archived" }
+        : { option: "reopen", ok: false, reason: "not_closed" };
   return [complete, cancel, archive, reopen];
 }
 

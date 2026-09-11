@@ -40,6 +40,8 @@ function milestone(over: Partial<ProjectMilestone> = {}): ProjectMilestone {
     revision: 0,
     revisionLimit: 1,
     dueAt: null,
+    amountCents: 0,
+    filePath: null,
     ...over,
   };
 }
@@ -66,6 +68,7 @@ function project(over: Partial<ProjectRecord> = {}): ProjectRecord {
     startsAt: "2026-10-02T03:00:00Z",
     endsAt: null,
     inquiryId: "i-1",
+    inquiryVersion: 1,
     clientName: "Sofía Ramírez",
     customerId: "c-1",
     agreements: [agreement()],

@@ -1,0 +1,16 @@
+Gates on work/wire-scheduling, 2026-09-11, private tsc lane
+(TSC_QUEUE_LOCK=/tmp/tulala-tsc.wire-scheduling.lock), real exit codes.
+
+npm run typecheck             exit 0  (verdict /tmp/tulala-tsc.1c31b201.last 2026-09-11T21:24:23Z TSC PASS; run after the last code change)
+npm run lint                  exit 0  (first run: 11 errors, all fixed: 8 raw .from() in new server actions routed through tenantScopedQuery, the tenantless profiles read moved to lib/approvals/requester-names.ts; Date.now() in the manage page render -> requestNowMs(); project-record.ts trimmed to 800 lines)
+npm run test:design-system    exit 0  (112 pass; 4 new catalog-model tests)
+npm run test:tenant-isolation exit 0  (613 pass; first run failed 1: "manage" not reserved, fixed on both layers: reserved-routes.ts + migration 20261231231000_reserve_manage_slug.sql, never pushed)
+npm run test:size-ratchet     exit 0  (173 pass; first run failed 1: three unchecked Supabase reads, each now checks error)
+npm run test:phase1-i18n      exit 0  (20 pass; 11 dead keys of replaced controls deleted, 129 keys added in en/es/fr, none newly dead)
+tsx --test src/lib/scheduling/engine-refusals.static.test.ts src/i18n/message-catalog-duplicate-keys.static.test.ts src/lib/translation/phase1-invariants.test.ts   exit 0 (13 pass)
+tsx --test src/lib/saas/surface-allow-list.test.ts   exit 0 (42 pass, /manage added)
+tsx --test src/lib/scheduling/cancel-booking.test.ts exit 0 (4 pass, after the offering_id fix)
+
+Playwright (local dev 3230 behind host-proxy-ws 3231, --workers=1):
+POS-projects-collect-a-balance.spec.ts   exit 0 (1 passed, 2.6m)
+SELL-catalog-events-spaces-discounts.spec.ts   exit 1 x3, always step 3 (Spaces -> tables, untouched by this pass; compile and load timing), steps 1 (Catalog, changed here) and 2 green each run; see runs/

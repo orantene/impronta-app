@@ -19,7 +19,8 @@
  * preset's own sentence; no-show and reschedule cutoffs are drawn as what
  * they are (nothing charges a no-show; the booking notice is the only
  * cutoff). Table deposits are set on Reservations › Settings and linked, not
- * duplicated. Intake forms, overrides, versions and the impact preview have
+ * duplicated. Per-item overrides are live (`BookingPolicyOverridesCard`,
+ * Package 2, D-POS-75); intake forms, versions and the impact preview have
  * no reader or writer and are disabled with their reason (D-POS-58).
  */
 
@@ -37,7 +38,6 @@ import {
   GridHead,
   GridRow,
   LoadingLines,
-  Note,
   SaveStateChip,
   SelectField,
   SettingsCard,
@@ -47,6 +47,7 @@ import {
   UsedIn,
   type SaveState,
 } from "./settings-ui";
+import { BookingPolicyOverridesCard } from "./booking-policy-overrides-card";
 
 const K = "dashboard.adminWorkspace.bookingPolicies";
 
@@ -259,7 +260,7 @@ export function BookingPoliciesCard({ tenantSlug, reservationsSettingsHref }: { 
         </>
       )}
 
-      <div className="grid grid-cols-1 gap-[16px] lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-[16px] lg:grid-cols-2">
         <SettingsCard title={t(`${K}.holds.title`)} testId="booking-policies-holds">
           {facts ? (
             <div className="flex flex-col">
@@ -282,15 +283,8 @@ export function BookingPoliciesCard({ tenantSlug, reservationsSettingsHref }: { 
             {t(`${K}.intake.manage`)}
           </ActionButton>
         </SettingsCard>
-        <SettingsCard title={t(`${K}.overrides.title`)} testId="booking-policies-overrides">
-          <div className="flex flex-col">
-            <FactRow label={t(`${K}.overrides.may`)}>{t(`${K}.overrides.mayValue`)}</FactRow>
-            <FactRow label={t(`${K}.overrides.never`)}>{t(`${K}.overrides.neverValue`)}</FactRow>
-            <FactRow label={t(`${K}.overrides.preview`)} muted>{t(`${K}.overrides.previewValue`)}</FactRow>
-          </div>
-          <Note>{reason("overrides")}</Note>
-        </SettingsCard>
       </div>
+      <BookingPolicyOverridesCard />
     </div>
   );
 }

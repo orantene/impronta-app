@@ -42,6 +42,22 @@ export function refundableCentsFromPolicy(input: {
   return paid;
 }
 
+/** The offering a booking was sold as: the first offering on its order's lines. */
+export async function bookingOfferingId(admin: Admin, orderId: string): Promise<string | null> {
+  const { data, error } = await admin
+    .from("order_lines")
+    .select("offering_id")
+    .eq("order_id", orderId)
+    .not("offering_id", "is", null)
+    .limit(1);
+  if (error) {
+    logServerError("scheduling.bookingOfferingId", error);
+    return null;
+  }
+  const first = ((data ?? []) as Array<{ offering_id: string | null }>)[0];
+  return first?.offering_id ?? null;
+}
+
 export async function cancelBookingSet(
   admin: Admin,
   input: {
@@ -56,9 +72,15 @@ export async function cancelBookingSet(
   if (input.operationKey.trim().length < 8) return { ok: false, reason: "invalid" };
   if (typeof admin.rpc !== "function") return { ok: false, reason: "unavailable" };
 
+  // `agency_bookings` has no offering column: the offering a booking was
+  // sold as is on its order's lines (`order_lines.offering_id`), the same
+  // path `rescheduleBooking` reads the duration through. Selecting a column
+  // that does not exist made every real cancel answer `unavailable`
+  // (42703) while the mocked unit test stayed green; found by the manage
+  // page on the isolated database, 2026-09-11.
   const { data: booking, error: loadErr } = await admin
     .from("agency_bookings")
-    .select("id, tenant_id, offering_id, starts_at, order_id")
+    .select("id, tenant_id, starts_at, order_id")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (loadErr) {
@@ -68,7 +90,6 @@ export async function cancelBookingSet(
   if (!booking) return { ok: false, reason: "not_found" };
   const b = booking as {
     tenant_id: string;
-    offering_id?: string | null;
     starts_at?: string | null;
     order_id?: string | null;
   };
@@ -111,8 +132,9 @@ export async function cancelBookingSet(
   }
 
   let cancelFreeHours: number | null = null;
-  if (b.offering_id) {
-    const override = await readPolicyOverride(admin, { tenantId: input.tenantId, offeringId: b.offering_id });
+  const offeringId = orderId ? await bookingOfferingId(admin, orderId) : null;
+  if (offeringId) {
+    const override = await readPolicyOverride(admin, { tenantId: input.tenantId, offeringId });
     if (override.ok) cancelFreeHours = override.row?.cancelFreeHours ?? null;
   }
 

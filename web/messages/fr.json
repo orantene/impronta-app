@@ -538,6 +538,42 @@
       "noHours": "Personne n'a encore defini les horaires de reservation de ce service, il n'y a donc rien a reserver en ligne ici. Envoyez une demande a la place.",
       "closed": "Ferme tous les jours des deux prochaines semaines. Essayez une date plus tard, ou envoyez une demande.",
       "fullyBooked": "Tous les creneaux libres des deux prochaines semaines sont pris. Reessayez plus tard, ou envoyez une demande."
+    },
+    "manageBooking": {
+      "title": "Votre réservation",
+      "noDate": "Date à confirmer",
+      "nothingPaid": "Rien pour l'instant",
+      "deadlinePassed": "Le délai d'annulation gratuite est passé",
+      "deadlineUntil": "{when}",
+      "deadlineNone": "Aucun délai d'annulation ne s'applique",
+      "statusConfirmed": "Confirmée",
+      "statusClosed": "Clôturée",
+      "paid": "Payé",
+      "atVisit": "Sur place",
+      "atVisitValue": "Le solde se règle sur place",
+      "freeUntil": "Annulation gratuite jusqu'au",
+      "reschedule": "Déplacer",
+      "cancel": "Annuler",
+      "addToCalendar": "Ajouter au calendrier",
+      "onlyCancels": "Ce lien permet d'annuler la réservation ; demandez un autre lien pour la déplacer.",
+      "onlyReschedules": "Ce lien permet de déplacer la réservation ; demandez un autre lien pour l'annuler.",
+      "closedSentence": "Cette réservation est clôturée.",
+      "note": "Déplacer vérifie d'abord la personne et la salle ; votre réservation reste en place jusqu'à la confirmation du nouvel horaire.",
+      "cancelTitle": "Annuler cette réservation ?",
+      "cancelPolicy": "Conditions",
+      "cancelRefund": "{amount} revient par le moyen de paiement utilisé, dès que la banque confirme.",
+      "cancelNoRefund": "Le paiement est conservé ; le délai d'annulation gratuite est passé.",
+      "reason": "Motif",
+      "reasonPlaceholder": "Facultatif",
+      "keep": "Garder la réservation",
+      "cancelConfirm": "Annuler la réservation{amount}",
+      "cancelled": "Votre réservation est annulée.",
+      "cancelledRefund": "Votre réservation est annulée. {amount} revient par le moyen de paiement utilisé.",
+      "rescheduleTitle": "Choisissez un nouvel horaire",
+      "newTime": "Nouvel horaire",
+      "rescheduleConfirm": "Confirmer le nouvel horaire",
+      "rescheduled": "Votre réservation a été déplacée au nouvel horaire.",
+      "cancelNothingPaid": "Rien n’a été payé, donc rien ne revient."
     }
   },
   "dashboard": {
@@ -1084,7 +1120,7 @@
           "other": "{count} membres"
         },
         "limitsHeading": "Limites par personne",
-        "limitsGap": "Tulala ne suit pas encore les limites individuelles de remise ou de remboursement. Toute personne eligible a un mode de vente peut utiliser tout ce que ce mode offre.",
+        "limitsGap": "Cette action n'a pas encore de limite par rôle. Toute personne éligible à un mode de vente peut utiliser tout ce que ce mode offre.",
         "posOffNotice": "Cet espace de travail a désactivé tous les modes de vente, aucun rôle n'atteint donc le point de vente. Activez-en un dans Point de vente, ci-dessus.",
         "invitedCount": {
           "one": "{count} invitation pas encore acceptée",
@@ -1141,6 +1177,34 @@
           "save": "Enregistrer la limite",
           "saving": "Enregistrement…",
           "saved": "Limite enregistrée."
+        },
+        "saveReason": "Chaque cellule s'enregistre dès qu'elle change ; il ne reste rien à valider.",
+        "limits": {
+          "intro": "Au-dessus de la limite, la caisse demande l'accord d'un responsable. Une cellule vide signifie sans limite.",
+          "discount": "Remise manuelle",
+          "refund": "Remboursement",
+          "colAction": "Limite par action",
+          "noLimit": "Sans limite",
+          "readOnly": "Seul un propriétaire ou un administrateur peut fixer une limite.",
+          "loading": "Lecture des limites…",
+          "loadFailed": "Les limites n'ont pas pu être lues.",
+          "saving": "Enregistrement…",
+          "saved": "Enregistré {time}",
+          "saveFailed": "Échec de l'enregistrement",
+          "retry": "Réessayer"
+        },
+        "inbox": {
+          "heading": "Demandes d'approbation",
+          "intro": "Ce que quelqu'un a demandé au-dessus de sa limite. Approuver laisse passer cette seule action ; le rôle ne change pas.",
+          "none": "Rien n'attend d'approbation.",
+          "title": "{kind} · {ref}",
+          "by": "{who} · {when}",
+          "kindDiscount": "Remise demandée",
+          "kindRefund": "Remboursement demandé",
+          "approve": "Approuver",
+          "deny": "Refuser",
+          "approved": "Approuvé",
+          "denied": "Refusé"
         }
       },
       "locations": {
@@ -1275,7 +1339,20 @@
           "never": "Jamais de dérogation",
           "neverValue": "Exclusivité physique · capacité",
           "preview": "Aperçu de l'impact",
-          "previewValue": "Pas encore disponible"
+          "previewValue": "Pas encore disponible",
+          "intro": "Par article, en plus des valeurs par défaut ci-dessus. Une cellule vide garde la valeur par défaut.",
+          "col": {
+            "item": "Article",
+            "deposit": "Acompte %",
+            "freeCancel": "Annulation gratuite (heures)",
+            "noShow": "Frais de non-présentation"
+          },
+          "placeholder": "Par défaut",
+          "rowDefault": "Valeur de l'espace de travail",
+          "rowSet": "Conditions propres · non-présentation {fee}",
+          "none": "Aucun article réservable pour l'instant ; créez d'abord un service, un cours ou un forfait dans le catalogue.",
+          "note": "L'acompte et le remboursement d'annulation lisent d'abord ces lignes, puis l'article, puis la valeur de l'espace de travail.",
+          "loadFailed": "Les dérogations n'ont pas pu être lues."
         },
         "notWired": {
           "previewImpact": "Un aperçu de l'impact a besoin de versions de politique, qui ne sont pas encore conservées.",
@@ -1515,7 +1592,10 @@
           "not_found": "Cet enregistrement n'existe plus.",
           "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
           "invalid": "Cela ne peut pas etre enregistre.",
-          "unavailable": "Impossible de terminer. Reessayez."
+          "unavailable": "Impossible de terminer. Reessayez.",
+          "not_allowed": "Vous n'êtes pas autorisé à faire cela ici.",
+          "not_reschedulable": "Cette réservation ne peut pas être déplacée.",
+          "slot_taken": "Ce créneau n'est plus libre."
         }
       }
     },
@@ -1881,10 +1961,10 @@
           "reportAs": "Déclarer comme",
           "reportAsUnavailable": "Les catégories de rapport ne sont pas encore configurées.",
           "amount": "Montant",
-          "limitNote": "Au-dessus de votre limite de {limit} · un responsable approuvera à l'étape suivante",
+          "limitNote": "Un montant libre nécessite l'approbation d'un responsable à l'étape suivante",
           "continueAsk": "Continuer · demander à un responsable",
           "approvalTitle": "Approbation du responsable",
-          "approvalSubtitle": "Montant libre {amount} · {cashier} · au-dessus de la limite de {limit}",
+          "approvalSubtitle": "Montant libre {amount} · {cashier}",
           "item": "Article",
           "approve": "Approuver",
           "withinLimit": "Dans votre limite de {limit} · aucune approbation nécessaire",
@@ -1892,7 +1972,9 @@
           "whoApproves": "Qui approuve",
           "noManagers": "Aucun responsable n'a encore de code de caisse. Définissez-en un dans Réglages › Personnes.",
           "pinPrompt": "Code du responsable",
-          "approving": "Approbation…"
+          "approving": "Approbation…",
+          "pinWrong": "Ce PIN n'est pas correct",
+          "approveUnavailable": "Les PIN de responsable et les montants libres ne sont pas encore configurés, cela ne peut donc pas être approuvé ici."
         },
         "holdSale": {
           "title": "Mettre cette vente en attente ?",
@@ -1924,7 +2006,7 @@
           "thisSale": "Cette vente",
           "keepSeparate": "Garder séparé",
           "linkOnly": "Lier seulement",
-          "linkAndPay": "Lier et encaisser {amount}",
+          "linkAndPay": "Lier et payer",
           "noCustomerAction": "Associer un client",
           "unreadable": "Ses réservations n'ont pas pu être lues. Réessayez.",
           "loading": "Lecture de ses réservations…",
@@ -1933,7 +2015,8 @@
           "ticketLine": "Rien à encaisser · {count} invités",
           "paidLine": "Payé en totalité",
           "alreadyLinked": "Cette vente est déjà liée à {booking}.",
-          "linking": "Liaison…"
+          "linking": "Liaison…",
+          "unavailable": "Lier une vente au comptoir à une réservation n'est pas encore branché ; cette vente reste séparée."
         },
         "cashDone": {
           "title": "Tiroir ouvert",
@@ -1965,12 +2048,12 @@
           "openNoSaleHint": "sans vente · consigné",
           "onceOpenNote": "Disponible une fois le tiroir ouvert. Vous n'avez pas besoin d'un tiroir pour consulter les réservations ou envoyer des liens de paiement.",
           "movements": "Mouvements",
-          "movementsEmpty": "Les ventes en espèces entrent automatiquement dans ce tiroir. Les espèces ajoutées, retirées ou déposées au coffre apparaissent ici.",
+          "movementsEmpty": "Les ventes en espèces entrent automatiquement dans ce tiroir. Les mouvements ne sont pas encore enregistrés, cette liste reste donc vide.",
           "handOver": "Confier le tiroir à quelqu'un",
           "newResponsible": "Nouveau responsable",
           "countedTogether": "Nous l'avons compté ensemble",
-          "handOverNote": "La remise est enregistrée à la fermeture et au comptage du tiroir ; le tiroir suivant s'ouvre à son nom.",
-          "handOverAction": "Remettre à {name}",
+          "handOverNote": "La session reste ouverte ; les mouvements à partir de maintenant sont les siens.",
+          "handOverAction": "Confier",
           "closeAndCount": "Fermer le tiroir et compter",
           "countEyebrow": "Comptez ce qu'il y a dans le tiroir",
           "coins": "Saisissez le total compté, ou utilisez les boutons et ajoutez les pièces en saisissant.",
@@ -1996,7 +2079,10 @@
           },
           "newResponsibleNone": "Choisir une personne",
           "handOverChosen": "Remis à {name} · enregistré avec ce comptage",
-          "whatHappenedHint": "p. ex. monnaie rendue de ma poche à 09:12"
+          "whatHappenedHint": "p. ex. monnaie rendue de ma poche à 09:12",
+          "movementsUnavailable": "Les mouvements d'espèces ne sont pas encore enregistrés ; seuls le fond initial et le comptage de clôture le sont.",
+          "handOverUnavailable": "La remise du tiroir à une autre personne n'est pas encore enregistrée ; fermez-le et laissez-la ouvrir le sien.",
+          "whatHappenedUnavailable": "Une note à la clôture n'est pas encore enregistrée."
         },
         "receipts": {
           "subtitle": "{day} · {count} ventes · {total}",
@@ -2337,7 +2423,8 @@
           "linkSale": "Vente {id}",
           "linkResend": "Renvoyer",
           "linkReceipt": "Voir le reçu",
-          "linkNew": "Envoyer un nouveau lien"
+          "linkNew": "Envoyer un nouveau lien",
+          "linksUnavailable": "Aucune table n'enregistre encore un lien de paiement envoyé ; il n'y a donc rien à lister ni à renvoyer ici."
         }
       },
       "classes": {
@@ -2485,7 +2572,7 @@
             "whoDidWhat": "Qui a fait quoi",
             "whoDidWhatOff": "Une ligne de vente n'est pas encore attribuee a une personne, les gains par personne ne peuvent donc pas s'afficher ici.",
             "sendLink": "Envoyer un lien de paiement",
-            "sendLinkOff": "Il ne reste rien à encaisser sur ce rendez-vous, donc aucun lien à envoyer.",
+            "sendLinkOff": "Les liens de paiement s'envoient depuis le mode Caisse ; l'accueil n'encaisse qu'en especes pour l'instant.",
             "rebook": "Reprendre rendez-vous",
             "rebookOff": "Reprendre rendez-vous depuis un rendez-vous termine n'est pas encore cable ; utilisez Reserver avec le meme service.",
             "serviceDone": "Service termine",
@@ -3198,7 +3285,7 @@
             "collect": "Encaisser {amount}",
             "moveOrJoin": "Déplacer ou joindre des tables",
             "changeServer": "Changer de serveur",
-            "changeServerReason": "Changer de serveur n'est pas disponible sur cet écran.",
+            "changeServerReason": "Une visite n'enregistre pas encore son serveur, il n'y a donc personne à qui la confier.",
             "extendTime": "Prolonger",
             "extendTimeReason": "La durée vient des règles de l'établissement ; elle ne se prolonge pas encore par table.",
             "partyLeft": "Le groupe est parti",
@@ -3206,7 +3293,7 @@
             "block": "Bloquer la table",
             "blockReason": "Bloquer une table se fait dans Espaces, pas depuis la caisse.",
             "split": "Partager l'addition",
-            "splitReason": "Diviser une addition nécessite ses lignes, que cet écran ne lit pas.",
+            "splitReason": "Partager une addition par article ou par part n'est pas encore construit.",
             "checks": "{n} additions · {amount}",
             "openCheck": "Ouvrir l'addition {letter} · {amount}",
             "servedBy": "Servi par {name}"
@@ -3280,11 +3367,11 @@
             "joinTitle": "Joindre des tables pour ce groupe",
             "joinBody": "Ajoute une table voisine libre pour un groupe plus grand.",
             "joinCta": "Choisir une table à joindre",
-            "joinReason": "La jonction se décide à l'installation du groupe (T05) ; le transfert du moteur déplace un groupe d'une table à l'autre et ne peut pas ajouter une seconde table à un groupe déjà installé.",
+            "joinReason": "La jonction se décide à l'installation ; un groupe déjà installé ne peut pas encore prendre une seconde table.",
             "mergeTitle": "Fusionner avec l'addition d'une autre table",
             "mergeBody": "Réunit deux additions impayées en une.",
             "mergeCta": "Choisir une addition",
-            "mergeReason": "Fusionner deux additions n'est pas disponible sur cet écran.",
+            "mergeReason": "Fusionner deux additions n'est pas encore construit.",
             "cancel": "Annuler"
           },
           "move": {
@@ -3891,7 +3978,10 @@
         "proposedBody": "{from} devient {to}. Le travail continue selon v{n} jusqu'à l'acceptation du client ; un refus garde v{n} telle quelle.",
         "remind": "Relancer le client",
         "withdrawOnConversation": "Retirer depuis la conversation",
-        "priorKept": "v{n} (envoyée le {date}, {amount}) est conservée telle quelle pour l'historique."
+        "priorKept": "v{n} (envoyée le {date}, {amount}) est conservée telle quelle pour l'historique.",
+        "sendVersion": "Envoyer la v{n}",
+        "discardProposal": "Abandonner la proposition",
+        "refusalNoLock": "La conversation n'a pas pu être lue. Rechargez et réessayez."
       },
       "milestones": {
         "title": "Jalons et livrables",
@@ -3924,7 +4014,14 @@
         "requestChanges": "Demander des modifications",
         "approveClient": "Approuver (client)",
         "edit": "Modifier",
-        "overdue": "En retard"
+        "overdue": "En retard",
+        "addTitle": "Jalon",
+        "addDue": "Échéance",
+        "addSave": "Enregistrer",
+        "replaceFile": "Remplacer le fichier",
+        "uploadNoInquiry": "Ce projet n'a pas de conversation où garder un fichier.",
+        "uploadFailed": "Le fichier n'a pas pu être envoyé. Réessayez.",
+        "uploading": "Envoi…"
       },
       "team": {
         "title": "Equipe",
@@ -3932,7 +4029,7 @@
         "noneHint": "L'affectation est creee a l'acceptation d'une offre comportant des lignes. Chaque professionnel affecte a sa propre ligne.",
         "colRole": "Role",
         "unnamed": "Nom non enregistre",
-        "replaceNote": "Remplacer une personne conserve le nom sortant sur la ligne, pour que l'histoire de qui a fait le travail survive au changement. Le remplacement ne se modifie pas encore depuis cet ecran.",
+        "replaceNote": "Remplacer une personne déplace l’affectation et ses réservations fermes en une seule opération ; le moteur refuse si la personne remplaçante n’est pas libre à cette heure ou si le travail a commencé. Le nom sortant reste sur la ligne jusqu’à la réécriture de l’enregistrement.",
         "marginNote": "Les honoraires et la facturation figurent ensemble parce que c'est la vue de l'espace de travail. Un professionnel affecte ne voit que ses propres honoraires.",
         "assignments": "Assignations",
         "assign": "Assigner depuis Personnes › Réservable",
@@ -3942,7 +4039,7 @@
         "replaceTitle": "Remplacer {name}",
         "replaceSubtitle": "L'impact avant de confirmer",
         "replacement": "Remplaçant",
-        "replacementUnavailable": "Rien ne liste encore qui convient à ce travail ; remplacez la personne depuis l'équipe de la conversation.",
+        "replacementUnavailable": "L'équipe n'a pas pu être lue. Rechargez et réessayez.",
         "impact": "Impact",
         "impactSchedule": "Planning",
         "impactFee": "Honoraires",
@@ -3952,7 +4049,10 @@
         "impactOutgoingValue": "Conservé sur la ligne pour l'historique · rien de gagné",
         "impactClient": "Client",
         "impactClientValue": "Non prévenu d'ici · aucune approbation requise",
-        "replaceConfirm": "Remplacer et inviter"
+        "replaceConfirm": "Remplacer et inviter",
+        "replaceNoProfile": "Cette personne a été saisie sur l'offre et n'a pas de profil à remplacer.",
+        "replacementPick": "Choisir une personne",
+        "replacementNone": "Personne d'autre n'est encore dans l'équipe."
       },
       "money": {
         "quotedNotAgreed": "Aucune version n'a ete acceptee : il n'y a donc pas encore de prix convenu.",
@@ -4005,7 +4105,7 @@
         "archive": "Archiver",
         "archiveBody": "Masquer de la liste active ; garder chaque enregistrement et solde",
         "reopen": "Rouvrir plus tard",
-        "reopenBody": "Seulement pour les projets clôturés",
+        "reopenBody": "Ramener un projet archivé à confirmé",
         "reasonMilestonesOpen": "Indisponible · des jalons sont encore ouverts",
         "reasonMoneyOwed": "Indisponible · de l'argent est encore dû",
         "reasonAlreadyClosed": "Ce projet est déjà clôturé",
@@ -4016,7 +4116,11 @@
         "confirmComplete": "Terminer le projet",
         "confirmCancel": "Annuler le projet…",
         "refused": "Non clôturé.",
-        "done": "Terminé · tous les projets"
+        "done": "Terminé · tous les projets",
+        "reasonNotArchived": "Seul un projet archivé peut être rouvert",
+        "reasonAlreadyArchived": "Ce projet est déjà archivé",
+        "confirmArchive": "Archiver le projet",
+        "confirmReopen": "Rouvrir le projet"
       },
       "visibility": {
         "title": "Qui voit quoi",
@@ -4175,7 +4279,8 @@
       "sideDates": "Dates",
       "dateStarts": "Début",
       "dateEnds": "Fin",
-      "dateMilestoneDue": "{title} dû"
+      "dateMilestoneDue": "{title} dû",
+      "filesNone": "Aucun fichier n'est encore joint à un jalon."
     },
     "clientRecord": {
       "title": "Client",
@@ -4747,7 +4852,8 @@
         "providerRefused": "Le prestataire de paiement a refusé le remboursement. Rien n'a été remboursé et rien n'a été débité. Réessayez, ou vérifiez le paiement chez le prestataire.",
         "partialFailure": "Une partie de ce remboursement est passée, l'autre non. Ne réessayez pas : les remboursements effectués sont réels. Quelqu'un doit terminer le reste à la main.",
         "unavailable": "Le remboursement n'a pas pu être enregistré. Rien n'a été remboursé. Réessayez dans un instant."
-      }
+      },
+      "refundComponentShare": "Répartition par composant"
     },
     "workspaceShell": {
       "create": {
@@ -5346,6 +5452,54 @@
           "concurrent": "Utilisation simultanée",
           "reporting": "Reporting"
         }
+      },
+      "package": {
+        "title": "Composition",
+        "intro": "Ce que contient ce forfait. Chaque composant est un article de ce catalogue ; le remboursement d'un forfait se répartit selon ces parts.",
+        "col": {
+          "component": "Composant",
+          "included": "Inclus",
+          "qty": "Qté",
+          "listPrice": "Prix catalogue",
+          "alloc": "Valeur allouée"
+        },
+        "pick": "Choisir un article",
+        "required": "Obligatoire",
+        "optional": "Optionnel",
+        "remove": "Retirer le composant",
+        "none": "Pas encore de composant.",
+        "add": "Ajouter un composant",
+        "addHint": "Enregistrez la composition quand chaque ligne a un article.",
+        "emptyCatalog": "Créez d'abord un autre article ; un forfait se compose d'articles.",
+        "save": "Enregistrer la composition",
+        "saved": "Composition enregistrée.",
+        "allocationNote": "L'allocation est proportionnelle au prix catalogue de chaque composant ; le reste de l'arrondi va à la dernière ligne, pour que les parts fassent toujours le prix du forfait.",
+        "dependenciesReason": "Les dépendances entre composants, les montants manuels et l'aperçu client ne sont pas encore enregistrés ; un composant obligatoire indisponible refuse tout le forfait en caisse."
+      },
+      "phases": {
+        "title": "Phases de prix",
+        "intro": "Des prix datés, comme un tarif early bird. La phase en cours fixe le prix d'une vente à sa première tarification ; une phase suivante ne change jamais une ligne déjà tarifée.",
+        "col": {
+          "phase": "Phase",
+          "from": "Du",
+          "until": "Jusqu'au",
+          "price": "Prix",
+          "state": "État"
+        },
+        "open": "Ouverte",
+        "none": "Pas encore de phase ; le prix de base s'applique.",
+        "state": {
+          "live": "En cours",
+          "upcoming": "À venir",
+          "ended": "Terminée"
+        },
+        "remove": "Retirer",
+        "removeReason": "Une phase ne peut pas encore être modifiée ni retirée ; ajoutez la phase suivante avec sa date de début.",
+        "add": "Ajouter une phase",
+        "save": "Enregistrer la phase",
+        "cancel": "Annuler",
+        "saved": "Phase enregistrée.",
+        "stampNote": "Une vente garde la phase à laquelle elle a été tarifée. Modifier une phase après une vente ne retarife jamais cette vente."
       }
     },
     "discounts": {
@@ -6059,7 +6213,8 @@
           "removed": "Retiré",
           "noContact": "Pas d'e-mail enregistré",
           "pinSet": "Défini",
-          "pinNone": "Aucun"
+          "pinNone": "Aucun",
+          "pinWhy": "le point de vente n'a pas de PIN"
         },
         "empty": {
           "everyone": "Personne pour l'instant. Ajoutez la première personne et choisissez ses casquettes.",

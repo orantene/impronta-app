@@ -12,8 +12,11 @@ import { test } from "node:test";
 import { blankOffering, validateOffering, type TalentOffering } from "@/lib/talent/offerings-types";
 import {
   categoryCounts,
+  engineRefusalKey,
   exampleTotals,
   filterItems,
+  packageAllocation,
+  phaseState,
   itemAvailability,
   itemChannels,
   itemStatus,
@@ -108,4 +111,39 @@ test("query readers fall back to the first tab and view", () => {
   assert.equal(tabFromQuery("nope"), "details");
   assert.equal(viewFromQuery("structure"), "structure");
   assert.equal(viewFromQuery(null), "items");
+});
+
+// ── Package 2: packages and price phases ─────────────────────────────
+
+test("packageAllocation weights by qty x list price and sums to the package exactly", () => {
+  const shares = packageAllocation(420000, [
+    { qty: 1, unitCents: 200000 },
+    { qty: 1, unitCents: 120000 },
+    { qty: 10, unitCents: 10000 },
+  ]);
+  assert.deepEqual(shares, [200000, 120000, 100000]);
+  const odd = packageAllocation(100, [
+    { qty: 1, unitCents: 1 },
+    { qty: 1, unitCents: 1 },
+    { qty: 1, unitCents: 1 },
+  ]);
+  assert.equal(odd.reduce<number>((n, c) => n + (c ?? 0), 0), 100);
+});
+
+test("packageAllocation refuses to weigh nothing: null per row, never zero", () => {
+  assert.deepEqual(packageAllocation(null, [{ qty: 1, unitCents: 100 }]), [null]);
+  assert.deepEqual(packageAllocation(5000, [{ qty: 1, unitCents: null }]), [null]);
+});
+
+test("phaseState mirrors livePhasePrice: upcoming, live, ended", () => {
+  const now = "2026-09-11T12:00:00.000Z";
+  assert.equal(phaseState({ startsAt: "2026-09-12T00:00:00Z", endsAt: null }, now), "upcoming");
+  assert.equal(phaseState({ startsAt: "2026-09-01T00:00:00Z", endsAt: null }, now), "live");
+  assert.equal(phaseState({ startsAt: "2026-09-01T00:00:00Z", endsAt: "2026-09-11T12:00:00Z" }, now), "ended");
+  assert.equal(phaseState({ startsAt: "2026-09-01T00:00:00Z", endsAt: "2026-09-11T12:00:01Z" }, now), "live");
+});
+
+test("engineRefusalKey: a contract code is its sentence key, anything else is unavailable", () => {
+  assert.equal(engineRefusalKey("cycle"), "dashboard.scheduling.engine.refusal.cycle");
+  assert.equal(engineRefusalKey("made_up"), "dashboard.scheduling.engine.refusal.unavailable");
 });
