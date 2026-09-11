@@ -74,12 +74,21 @@ export function WorkspaceShell() {
 
   // WS-7.4 — global keyboard shortcuts. ⌘K + onOpenSearch both route to
   // the unified BottomActionFab palette via window event.
+  //
+  // SUPPRESSED UNDER POINT-OF-SALE CHROME. The till replaces the workspace
+  // chrome, and a keyboard-wedge barcode scanner is a keyboard: it types the
+  // code into the document with nothing focused. With these shortcuts live,
+  // a scanned code containing `c` opened the New inquiry drawer over the
+  // register and one containing `g` then `o` navigated the cashier to
+  // Overview mid-scan (found by `e2e/cases/pos-scanner.spec.ts`). `Cmd/Ctrl-K`
+  // is unaffected: it needs a modifier no scanner sends.
+  const posChromeForKeys = resolveDestination(state.page)?.chrome === "pos";
   useKeyboardLayer({
     onOpenPalette: openPalette,
     onOpenHelp:    () => setHelpOpen((v) => !v),
     onNavigate:    setPage,
     onCompose:     () => openDrawer("new-inquiry"),
-    isModalOpen:   !!state.drawer.drawerId || helpOpen || paletteOpen,
+    isModalOpen:   !!state.drawer.drawerId || helpOpen || paletteOpen || posChromeForKeys,
   });
 
   return (

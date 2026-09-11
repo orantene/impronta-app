@@ -69,7 +69,13 @@ export type PosActionRefusalReason =
   | "not_allowed"
   | "unavailable"
   | "invalid"
-  | "pickup_window";
+  | "pickup_window"
+  /** A scanned code that names nothing this workspace sells (`posResolveScanCode`). */
+  | "no_match"
+  /** A receipt asked for on a sale that has not been paid (`posDisplayEmailReceipt`). */
+  | "not_paid"
+  /** The receipt email could not be sent (`posDisplayEmailReceipt`). */
+  | "send_failed";
 
 export const SALE_REFUSALS: Readonly<Record<PosSaleRefusalReason, PosRefusalReason>> = {
   // Someone else already claimed part of this balance under the row lock, so
@@ -121,6 +127,9 @@ export const ACTION_REFUSALS: Readonly<Record<PosActionRefusalReason, PosRefusal
   unavailable: "paymentUnknown",
   invalid: "itemRefused",
   pickup_window: "pickupWindow",
+  no_match: "scanNoMatch",
+  not_paid: "receiptNotPaid",
+  send_failed: "receiptNotSent",
 };
 
 function lookup<K extends string>(

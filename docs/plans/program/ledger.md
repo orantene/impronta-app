@@ -107,14 +107,14 @@ cross-reference against the P/M-ids and T-ids above, not a replacement.
 | POS-1.8 | Create-and-return component | pos / ui | not started | — |
 | POS-1.9 | Missing-setup & first-run states | pos / onboarding | not started | — |
 | POS-2.1a | Identity rule by product, not by amount (D-POS-6) | orders | not started; contradicts the currently shipped rule (`orders_identified_before_payment`, F07) | — |
-| POS-2.1 | New sale → options → cash → receipt → next | pos / counter | not started | P3-01, P3-02 |
+| POS-2.1 | New sale → options → cash → receipt → next | pos / counter | customer display (D01–D08) built 2026-09-11 (`cd-scan`): `/admin/pos/display` behind the counter's capability, opened from the counter rail, polls `loadPosSale` every 2 s; idle → review → confirm → waiting → declined / paid → receipt contact (email; text and tips rendered as not offered, D-POS-11/12); proven locally against the QA database (`evidence/cd-scan/`), D05/D06 by model tests only; the rest of the row is not started | P3-01, P3-02 |
 | POS-2.2 | Customer search/create/attach | pos / customers | not started | — |
 | POS-2.3 | Discounts | catalog | not started | P2-05 |
 | POS-2.4 | Custom amount + approval | pos | not started | — |
 | POS-2.5 | Hold / expired hold / sold-out-on-charge | pos / capacity | not started | P3-05 (C09-DIFF proves the sold-out-on-charge case already) |
 | POS-2.6 | Link a booking | pos / bookings | not started | — |
 | POS-2.7 | Orders list, pickup handoff, duplicate guard | pos / fulfilment | not started | P5-02, P5-08 |
-| POS-2.8 | Scanner ready + product toast | pos | not started | — |
+| POS-2.8 | Scanner ready + product toast | pos | built 2026-09-11 (`cd-scan`): document-level keyboard-wedge listener on the counter's Sell screen, "Scanner ready" chip, `posResolveScanCode` (offering id or QR & Links code with `context.offering_id`, D-POS-13), item added through `posAddLine`, toast "Added <name>" / "Nothing matches <code>" in three languages; proven on a local dev server of the branch against the QA database (`evidence/cd-scan/`), not yet on the deployed host | — |
 | POS-2.9 | Measured quantity, returns, restock/waste | pos / inventory | not started | — |
 | POS-2.10 | Multi-seller separation | pos | not started | — |
 | POS-2.11 | Offline policy (cash-only degraded mode) | pos / offline | not started | D-POS-5 |

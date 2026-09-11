@@ -12362,7 +12362,10 @@
           "notAllowed": "You are not allowed to do that at the counter.",
           "amountInvalid": "Enter an amount of zero or more.",
           "shiftAlreadyOpen": "A shift is already open here.",
-          "shiftAlreadyClosed": "That shift is already closed."
+          "shiftAlreadyClosed": "That shift is already closed.",
+          "scanNoMatch": "That code does not match anything this workspace sells.",
+          "receiptNotPaid": "This sale has not been paid yet, so there is no receipt to send.",
+          "receiptNotSent": "The receipt could not be sent. Print it instead."
         },
         "switch": {
           "label": "Workspace or point of sale",
@@ -12400,6 +12403,14 @@
           "service": "Services",
           "package": "Packages",
           "product": "Products"
+        },
+        "scan": {
+          "ready": "Scanner ready",
+          "readyHint": "Scan a code to add it to this sale.",
+          "added": "Added {name}",
+          "noMatch": "Nothing matches {code}",
+          "unavailable": "The code could not be looked up. Try again.",
+          "dismiss": "Dismiss"
         }
       },
       "counterOffTitle": "The counter is switched off",
@@ -12742,6 +12753,56 @@
           "kitchenEmpty": "Put something on the check before sending it to the kitchen. Open the check to add items.",
           "kitchenNotFound": "That check is no longer open. Reload the floor."
         }
+      },
+      "display": {
+        "title": "Customer display",
+        "openLink": "Customer display",
+        "openHint": "Opens on a second screen and follows this sale.",
+        "idleWelcome": "Welcome to {workspace}",
+        "idleBody": "Your order will appear here",
+        "reviewHeadingNamed": "Hi {name}, your visit today",
+        "reviewHeadingAnon": "Your visit today",
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "depositPaid": "Deposit paid",
+        "toPay": "To pay today",
+        "tipNotOffered": "Tips cannot be added on this screen yet. Tell the team if you would like to leave one.",
+        "reviewNote": "Nothing is charged until the team confirms with you.",
+        "looksRight": "Looks right",
+        "confirmHeading": "Ready to pay",
+        "confirmBody": "{amount} for today's visit",
+        "confirmNote": "The team will take your payment now.",
+        "back": "Back",
+        "waitingHeading": "Follow the card reader or the payment link",
+        "waitingBody": "{amount} · nothing has been charged yet",
+        "declinedHeading": "Payment declined",
+        "declinedBody": "Nothing was charged. Please try another card or ask the team about other ways to pay.",
+        "paidHeadingNamed": "Thank you, {name}",
+        "paidHeadingAnon": "Thank you",
+        "paidBody": "{amount} paid",
+        "paidVia": "{amount} paid · {method}",
+        "methodCash": "cash",
+        "methodCard": "card",
+        "receiptQuestion": "Receipt?",
+        "emailMe": "Email me",
+        "textMe": "Text me",
+        "textNotOffered": "Text receipts are not available yet. We can email it, or the team can print it.",
+        "noReceipt": "No receipt",
+        "clearsSoon": "This screen clears in a moment",
+        "contactHeading": "Where should we send your receipt?",
+        "contactEmailLabel": "Email address",
+        "contactEmailPlaceholder": "you@example.com",
+        "contactSend": "Send",
+        "contactNote": "Used only for this receipt unless you told the team otherwise.",
+        "sentHeading": "Receipt sent",
+        "sentBody": "We sent it to {email}",
+        "sentSkipped": "We saved {email}, but this workspace cannot send email yet. Ask the team for a printed receipt.",
+        "refusalInvalidEmail": "That does not look like an email address. Check it and try again.",
+        "refusalNotPaid": "This sale has not been paid yet, so there is no receipt to send.",
+        "refusalSendFailed": "The email could not be sent. Ask the team for a printed receipt.",
+        "refusalUnavailable": "The receipt could not be sent right now. Ask the team for a printed receipt.",
+        "readUnavailable": "This display lost its connection to the counter. It will keep trying.",
+        "notAllowed": "This account cannot open the customer display."
       }
     },
     "tables": {

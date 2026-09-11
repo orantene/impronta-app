@@ -175,6 +175,9 @@ export function refusalCopy(t: Translator): PosRefusalCopy {
     amountInvalid: t("dashboard.pos.counter.refusal.amountInvalid"),
     shiftAlreadyOpen: t("dashboard.pos.counter.refusal.shiftAlreadyOpen"),
     shiftAlreadyClosed: t("dashboard.pos.counter.refusal.shiftAlreadyClosed"),
+    scanNoMatch: t("dashboard.pos.counter.refusal.scanNoMatch"),
+    receiptNotPaid: t("dashboard.pos.counter.refusal.receiptNotPaid"),
+    receiptNotSent: t("dashboard.pos.counter.refusal.receiptNotSent"),
     retry: t("dashboard.pos.counter.refusal.retry"),
     reload: t("dashboard.pos.counter.refusal.reload"),
   };

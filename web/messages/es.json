@@ -12362,7 +12362,10 @@
           "notAllowed": "No tienes permiso para hacer eso en el mostrador.",
           "amountInvalid": "Ingresa un monto de cero o más.",
           "shiftAlreadyOpen": "Ya hay un turno abierto aquí.",
-          "shiftAlreadyClosed": "Ese turno ya está cerrado."
+          "shiftAlreadyClosed": "Ese turno ya está cerrado.",
+          "scanNoMatch": "Ese código no coincide con nada que venda este espacio de trabajo.",
+          "receiptNotPaid": "Esta venta todavía no se ha pagado, así que no hay recibo que enviar.",
+          "receiptNotSent": "No se pudo enviar el recibo. Imprímelo en su lugar."
         },
         "switch": {
           "label": "Espacio de trabajo o punto de venta",
@@ -12400,6 +12403,14 @@
           "service": "Servicios",
           "package": "Paquetes",
           "product": "Productos"
+        },
+        "scan": {
+          "ready": "Escáner listo",
+          "readyHint": "Escanea un código para agregarlo a esta venta.",
+          "added": "Se agregó {name}",
+          "noMatch": "Nada coincide con {code}",
+          "unavailable": "No se pudo buscar el código. Inténtalo de nuevo.",
+          "dismiss": "Cerrar"
         }
       },
       "counterOffTitle": "El mostrador está desactivado",
@@ -12742,6 +12753,56 @@
           "kitchenEmpty": "Agrega algo a la cuenta antes de enviarla a cocina. Abre la cuenta para agregar artículos.",
           "kitchenNotFound": "Esa cuenta ya no está abierta. Recarga el salón."
         }
+      },
+      "display": {
+        "title": "Pantalla del cliente",
+        "openLink": "Pantalla del cliente",
+        "openHint": "Se abre en una segunda pantalla y sigue esta venta.",
+        "idleWelcome": "Bienvenido a {workspace}",
+        "idleBody": "Tu pedido aparecerá aquí",
+        "reviewHeadingNamed": "Hola {name}, tu visita de hoy",
+        "reviewHeadingAnon": "Tu visita de hoy",
+        "subtotal": "Subtotal",
+        "discount": "Descuento",
+        "depositPaid": "Anticipo pagado",
+        "toPay": "A pagar hoy",
+        "tipNotOffered": "Todavía no se puede agregar propina en esta pantalla. Dile al equipo si quieres dejar una.",
+        "reviewNote": "No se cobra nada hasta que el equipo lo confirme contigo.",
+        "looksRight": "Está bien",
+        "confirmHeading": "Listo para pagar",
+        "confirmBody": "{amount} por la visita de hoy",
+        "confirmNote": "El equipo tomará tu pago ahora.",
+        "back": "Volver",
+        "waitingHeading": "Sigue el lector de tarjetas o el enlace de pago",
+        "waitingBody": "{amount} · todavía no se ha cobrado nada",
+        "declinedHeading": "Pago rechazado",
+        "declinedBody": "No se cobró nada. Prueba con otra tarjeta o pregunta al equipo por otras formas de pago.",
+        "paidHeadingNamed": "Gracias, {name}",
+        "paidHeadingAnon": "Gracias",
+        "paidBody": "{amount} pagado",
+        "paidVia": "{amount} pagado · {method}",
+        "methodCash": "efectivo",
+        "methodCard": "tarjeta",
+        "receiptQuestion": "¿Recibo?",
+        "emailMe": "Por correo",
+        "textMe": "Por mensaje",
+        "textNotOffered": "Los recibos por mensaje aún no están disponibles. Podemos enviarlo por correo o el equipo puede imprimirlo.",
+        "noReceipt": "Sin recibo",
+        "clearsSoon": "Esta pantalla se limpiará en un momento",
+        "contactHeading": "¿A dónde enviamos tu recibo?",
+        "contactEmailLabel": "Correo electrónico",
+        "contactEmailPlaceholder": "tu@ejemplo.com",
+        "contactSend": "Enviar",
+        "contactNote": "Se usa solo para este recibo, salvo que le hayas dicho otra cosa al equipo.",
+        "sentHeading": "Recibo enviado",
+        "sentBody": "Lo enviamos a {email}",
+        "sentSkipped": "Guardamos {email}, pero este espacio de trabajo aún no puede enviar correos. Pide al equipo un recibo impreso.",
+        "refusalInvalidEmail": "Eso no parece un correo electrónico. Revísalo e inténtalo de nuevo.",
+        "refusalNotPaid": "Esta venta todavía no se ha pagado, así que no hay recibo que enviar.",
+        "refusalSendFailed": "No se pudo enviar el correo. Pide al equipo un recibo impreso.",
+        "refusalUnavailable": "No se pudo enviar el recibo en este momento. Pide al equipo un recibo impreso.",
+        "readUnavailable": "Esta pantalla perdió la conexión con el mostrador. Seguirá intentando.",
+        "notAllowed": "Esta cuenta no puede abrir la pantalla del cliente."
       }
     },
     "tables": {

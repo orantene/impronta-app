@@ -22,6 +22,7 @@ import {
   shiftBarCopy,
 } from "@/components/admin/pos/pos-copy";
 import type { PosBasketLine, PosCollectionMethodState } from "@/components/admin/pos";
+import { customerDisplayLinkCopy, scanCopy } from "@/components/admin/pos/customer-display-copy";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { isKnownTenantRole } from "@/lib/access";
@@ -572,6 +573,7 @@ export default async function PosPage({
       <PageRouteSyncer page="pos" />
       <PosClient
         mode={mode}
+        tenantId={scope.tenantId}
         workspaceName={workspaceName}
         posPath={adminPath}
         workspacePath={adminPath.replace(/\/pos$/, "")}
@@ -619,6 +621,8 @@ export default async function PosPage({
           shiftBar: shiftBarCopy(tr),
           refusal: refusalCopy(tr),
           page: counterPageCopy(tr),
+          scan: scanCopy(tr),
+          displayLink: customerDisplayLinkCopy(tr),
           heldSaleLabel: tr("dashboard.pos.counter.held.saleLabel"),
           categories: {
             service: tr("dashboard.pos.counter.category.service"),

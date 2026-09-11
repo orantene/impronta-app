@@ -7,7 +7,7 @@
  * the engine's.
  */
 
-export { PosFrame, type PosFrameProps } from "./PosFrame";
+export { PosFrame, type PosFrameProps, type PosFrameLink } from "./PosFrame";
 export {
   SellSurface,
   ALL_CATEGORIES_ID,
@@ -57,3 +57,7 @@ export {
   posModeLabel,
   type PosCounterPageCopy,
 } from "./pos-copy";
+export { CustomerDisplay, type CustomerDisplayProps, type CustomerDisplayScreen } from "./CustomerDisplay";
+export { customerDisplayCopy, customerDisplayLinkCopy, scanCopy, type CustomerDisplayCopy, type ScanCopy } from "./customer-display-copy";
+export { ScannerListener } from "./ScannerListener";
+export { ScanStatus, type ScanToast } from "./ScanStatus";
