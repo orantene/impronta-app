@@ -176,7 +176,7 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
     const rosterSearch = page.getByPlaceholder(/search roster/i);
     await expect(rosterSearch).toBeVisible({ timeout: 10_000 });
     await rosterSearch.fill("QA Journeys");
-    await page.getByRole("button", { name: /qa journeys talent/i }).click();
+    await page.getByRole("button", { name: "QA Journeys Talent", exact: true }).click();
     await expect(page.getByText(/invited|added to lineup/i).first()).toBeVisible({
       timeout: 20_000,
     });
@@ -271,7 +271,7 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
     const rosterSearch = page.getByPlaceholder(/search roster/i);
     await expect(rosterSearch).toBeVisible({ timeout: 10_000 });
     await rosterSearch.fill("QA Journeys");
-    await page.getByRole("button", { name: /qa journeys talent/i }).click();
+    await page.getByRole("button", { name: "QA Journeys Talent", exact: true }).click();
     await expect(page.getByText(/invited|added to lineup/i).first()).toBeVisible({
       timeout: 20_000,
     });
@@ -347,7 +347,7 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
   await expect(page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i })).toHaveCount(0);
   await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
 
-  const approve = page.getByRole("button", { name: /approve offer/i });
+  const approve = page.getByRole("button", { name: /^(approve offer|accept)$/i });
   if (!(await approve.isVisible().catch(() => false))) {
     await page.goto("/talent/inbox");
     await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
@@ -358,6 +358,7 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
     const row = page
       .locator("[data-tulala-inbox-row]")
       .filter({ hasText: /cora cuevas/i })
+      .filter({ hasText: /offer/i })
       .first();
     await expect(row).toBeVisible({ timeout: 40_000 });
     await row.click();
@@ -365,7 +366,7 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
   await expect(approve).toBeVisible({ timeout: 40_000 });
   await approve.click();
   await expect(
-    page.getByText(/offer approved|waiting on client|awaiting client/i).first(),
+    page.getByText(/offer approved|waiting on client|awaiting client|you approved/i).first(),
   ).toBeVisible({ timeout: 30_000 });
 
   const approvals = await inquiryOfferApprovals(awaiting!.offerId);
