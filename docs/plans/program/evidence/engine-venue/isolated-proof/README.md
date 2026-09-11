@@ -175,7 +175,7 @@ to the caller — instead of the idempotent `{ok:true, already:true}` reply
 the function is supposed to guarantee on a retried operation key.
 
 Fixed in a new migration
-[`20260911202541_pos_outbox_apply_serialize_operation_key.sql`](../../../../../../supabase/migrations/20260911202541_pos_outbox_apply_serialize_operation_key.sql)
+[`20261231230000_pos_outbox_apply_serialize_operation_key.sql`](../../../../../../supabase/migrations/20261231230000_pos_outbox_apply_serialize_operation_key.sql)
 (applied, committed `1e34c8558`): reordered the function so the device row
 is locked `FOR UPDATE` **first** (the function's own natural per-device
 serialization point), and the `operation_key` existence check runs **after**
