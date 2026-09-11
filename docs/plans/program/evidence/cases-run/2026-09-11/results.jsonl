@@ -63,3 +63,10 @@
 {"spec":"VENUE-table-service.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:56:40Z","rerun":true}
 {"spec":"C08-modelling-or-talent-agency.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T20:03:09Z","rerun":true,"note":"CUS inquiry passed; OP/TAL/CUS-accept still fail"}
 {"spec":"C08-modelling-or-talent-agency.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T20:58:06Z","rerun":8,"note":"5/7 passed: smokes + CUS inquiry + OP assign + OP send. TAL D-114. CUS accept D-113."}
+{"spec":"C01-nail-salon.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"/book Gel manicure visible; deposit persisted; Sales missing instant_book"}
+{"spec":"C02-spa.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"Massage/Couples on /book; couples slot/confirm still fail"}
+{"spec":"C07-bar.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"T1 tab occupied / T1 not free; visits RLS"}
+{"spec":"C09-yoga-or-fitness-studio.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"session_picker booked; Sales missing channel; counter chips missing"}
+{"spec":"POS-projects-collect-a-balance.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"42501 INSERT orders"}
+{"spec":"pos-scanner.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"42501 INSERT links"}
+{"spec":"VENUE-table-service.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"360s leaveCounter timeout"}

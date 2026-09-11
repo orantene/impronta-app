@@ -5,7 +5,9 @@ Honest checkpoint from the 2026-09-11 Playwright run against
 `https://staging-qa-journeys-b.tulala.digital`). Host commit
 `dd74cf00f` (`sentry-release=dd74cf00f3ed6a9f64d895e687267e6a9339fdf3`).
 Isolated database: Supabase branch `qa-journeys` (`fxlankepwnvelxjrahwk`).
-Production was not written.
+Production was not written. The seven failed-fixture specs were rerun
+after leftover delete + seed (`fixture-rerun-7.log`). Spec-level counts
+are unchanged: 51 passed / 2 failed-app / 7 failed-fixture.
 
 **Parity aliases:** Master cases are `CS-01`–`CS-48` (same businesses as `C01`–`C48`
 evidence dirs). Catalog QA is `C-01`–`C-32`. Full 404 scenario register:
@@ -16,15 +18,15 @@ body and the operator Sales heading. That is not a journey pass.
 
 | Case | Scenario | Title | Status | Evidence |
 |---|---|---|---|---|
-| C01 | C01-CUS | Nail salon | failed-fixture — /book picker `.limit(24)` by sort_order; Gel manicure is sort_order 10 and sits behind 42 sort_order=0 leftovers (Prove class / POS class / Blowout / Door night). Smoke passed. 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C01-nail-salon.a1.log` |
+| C01 | C01-CUS | Nail salon | failed-fixture — after leftover delete, Gel manicure is on `/book` and deposit order `df4f0c50-897b-4064-b007-ef17103072d7` persisted (`instant_book` / `$50` / `pending_payment`). Sales first page has no `instant_book` text. Smoke passed. 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
 | C01 | C01-OP | Nail salon | passed (smoke, not a journey pass) — 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C01-nail-salon.a1.log` |
 | C01 | C01-TAL | Nail salon | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C01-nail-salon.a1.log` |
 | C01 | C01-DIFF | Nail salon | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C01-nail-salon.a1.log` |
 | C01 | C01-REC | Nail salon | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C01-nail-salon.a1.log` |
-| C02 | C02-CUS | Spa | failed-fixture — Massage sort_order 20 and Couples massage 30 are off the /book page (same 24-cap). Smoke passed. 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C02-spa.a1.log` |
+| C02 | C02-CUS | Spa | failed-fixture — Massage / Couples massage are on `/book`. Last-resource booked Massage at `Fri, Sep 11, 3:45 PM`; that label is gone from the Couples picker. Couples confirm stayed on `/book`. Smoke passed. 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
 | C02 | C02-OP | Spa | passed (smoke, not a journey pass) — 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C02-spa.a1.log` |
 | C02 | C02-TAL | Spa | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C02-spa.a1.log` |
-| C02 | C02-DIFF | Spa | failed-fixture — Couples massage not in the /book select (sort_order 30). 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C02-spa.a1.log` |
+| C02 | C02-DIFF | Spa | failed-fixture — Couples is on `/book` and a paid `instant_book` landed; Sales first page has no `instant_book` text. 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
 | C02 | C02-REC | Spa | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C02-spa.a1.log` |
 | C03 | C03-CUS | Independent massage therapist | passed (smoke, not a journey pass) — 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C03-independent-massage-therapist.a1.log` |
 | C03 | C03-OP | Independent massage therapist | passed (smoke, not a journey pass) — 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C03-independent-massage-therapist.a1.log` |
@@ -46,8 +48,8 @@ body and the operator Sales heading. That is not a journey pass.
 | C06 | C06-TAL | Restaurant | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C06-restaurant.r1.log` |
 | C06 | C06-DIFF | Restaurant | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C06-restaurant.r1.log` |
 | C06 | C06-REC | Restaurant | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C06-restaurant.r1.log` |
-| C07 | C07-CUS | Bar | failed-fixture — owner JWT cannot SELECT/UPDATE `visits` (no service-role key in this runner); `releaseTable1Floor` / `latestOpenTable1Visit` throw 42501. Smoke passed. 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C07-bar.a1.log` |
-| C07 | C07-OP | Bar | failed-fixture — same visits RLS as C07-CUS. Smoke passed. 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C07-bar.a1.log` |
+| C07 | C07-CUS | Bar | failed-fixture — T1 showed Free and Open tab clicked; `tab · occupied` never appeared. Owner JWT still cannot SELECT/UPDATE `visits`. Seed also seats Diego Paz on T1. Smoke passed. 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
+| C07 | C07-OP | Bar | failed-fixture — T1 is not Free (CUS leftover and/or seed seated Diego Paz). Same visits RLS. Smoke passed. 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
 | C07 | C07-TAL | Bar | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C07-bar.a1.log` |
 | C07 | C07-DIFF | Bar | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C07-bar.a1.log` |
 | C07 | C07-REC | Bar | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C07-bar.a1.log` |
@@ -56,10 +58,10 @@ body and the operator Sales heading. That is not a journey pass.
 | C08 | C08-TAL | Modelling or talent agency | failed-app D-114 — DB has a sent `c08-op-` offer awaiting talent; `/talent/inbox/:id` stays Inquiry with Accept and no Approve offer. 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C08-modelling-or-talent-agency.r8.log` |
 | C08 | C08-DIFF | Modelling or talent agency | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C08-modelling-or-talent-agency.r8.log` |
 | C08 | C08-REC | Modelling or talent agency | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C08-modelling-or-talent-agency.r8.log` |
-| C09 | C09-CUS | Yoga or fitness studio | failed-fixture — storefront session_picker has no radio (Morning class / Last place offerings are missing from the tenant). Smoke passed. 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C09-yoga-or-fitness-studio.a1.log` |
-| C09 | C09-OP | Yoga or fitness studio | failed-fixture — Complimentary class tile is present; Morning class offering does not exist. Smoke passed. 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C09-yoga-or-fitness-studio.a1.log` |
+| C09 | C09-CUS | Yoga or fitness studio | failed-fixture — session_picker radio booked; paid `session_picker` order `7f1a578e-0b03-44c7-b1ee-a43e74885f40` exists. Sales first page has no `session_picker` text. Smoke passed. 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
+| C09 | C09-OP | Yoga or fitness studio | failed-fixture — Complimentary class tile is present; Morning class session `33330013-…0001` is scheduled for tomorrow but the counter has no `Morning class` chip. Smoke passed. 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
 | C09 | C09-TAL | Yoga or fitness studio | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C09-yoga-or-fitness-studio.a1.log` |
-| C09 | C09-DIFF | Yoga or fitness studio | failed-fixture — Last place session `33330013-…0003` is not on the picker; Last place offering is absent. 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C09-yoga-or-fitness-studio.a1.log` |
+| C09 | C09-DIFF | Yoga or fitness studio | failed-fixture — storefront took Last place (`2f197ef8-…` paid `session_picker`); counter has no `Last place class` chip (180s timeout). 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
 | C09 | C09-REC | Yoga or fitness studio | no automated case in this suite | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C09-yoga-or-fitness-studio.a1.log` |
 | C10 | C10-CUS | Photography studio | passed (smoke, not a journey pass) — 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C10-photography-studio.a1.log` |
 | C10 | C10-OP | Photography studio | passed (smoke, not a journey pass) — 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/C10-photography-studio.a1.log` |
@@ -267,11 +269,11 @@ body and the operator Sales heading. That is not a journey pass.
 | POS-counter-cash-sale | passed — 4/4, 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/POS-counter-cash-sale.a1.log` |
 | POS-floor-mode | passed — after Settings identity check (no h1). 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/POS-floor-mode.r1.log` |
 | POS-platform-switch | passed — 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/POS-platform-switch.a1.log` |
-| POS-projects-collect-a-balance | failed-fixture — owner JWT cannot INSERT `orders` for the cancelled-order seed (42501; no service-role key). 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/POS-projects-collect-a-balance.a2.log` |
-| pos-scanner | failed-fixture — owner JWT cannot INSERT `links` (42501). 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/pos-scanner.a2.log` |
+| POS-projects-collect-a-balance | failed-fixture — owner JWT cannot INSERT `orders` for the cancelled-order seed (42501; no service-role key). Unchanged after seed. 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
+| pos-scanner | failed-fixture — owner JWT cannot INSERT `links` (42501). Unchanged after seed. 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
 | pos-customer-display | passed — 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/pos-customer-display.a1.log` |
 | VENUE-join-and-refusal | passed — 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/VENUE-join-and-refusal.a1.log` |
-| VENUE-table-service | failed-fixture — Add to waiting list refused “The room is full for that turn.” (7 parties already waiting; leftover reservations the runner cannot release). Overlay stays up, so Waiting is unreachable. 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/VENUE-table-service.r1.log` |
+| VENUE-table-service | failed-fixture — 360s timeout on `leaveCounter` Workspace toggle after the walk-in (got past the earlier “room is full” waitlist refusal). 2026-09-11 fixture-rerun-7, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/fixture-rerun-7.log` |
 | VENUE-refusals-in-words | passed — 2026-09-11, host dd74cf00f | `docs/plans/program/evidence/cases-run/2026-09-11/logs/VENUE-refusals-in-words.a1.log` |
 
 Records (CS role grid): **240**. Passed (including smoke): **88**. Failed or mixed: **12**. No automated case in this suite: **140**. Blocked-external: **0**.
