@@ -285,13 +285,18 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
       timeout: 20_000,
     });
   }
+  // Fidelity keeps the draft editor collapsed ("1 line item · total $0").
+  const editDraft = page.getByRole("button", { name: /^edit$/i });
+  if (await editDraft.first().isVisible().catch(() => false)) {
+    await editDraft.first().click();
+  }
 
-  const addLine = page.getByRole("button", { name: /\+ add line item/i });
-  await expect(addLine).toBeVisible({ timeout: 20_000 });
+  const addLine = page.getByRole("button", { name: /add line item/i });
   const talentSelect = page
     .locator("select")
     .filter({ has: page.locator("option", { hasText: /qa journeys talent/i }) });
   if ((await talentSelect.count()) === 0) {
+    await expect(addLine).toBeVisible({ timeout: 20_000 });
     await addLine.click();
   }
   await expect(talentSelect.first()).toBeVisible({ timeout: 10_000 });
@@ -347,7 +352,17 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
   await expect(page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i })).toHaveCount(0);
   await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
 
-  const approve = page.getByRole("button", { name: /^(approve offer|accept)$/i });
+  const offerTab = page.getByRole("tab", { name: /^offer$/i });
+  if (await offerTab.isVisible().catch(() => false)) {
+    await offerTab.click();
+  }
+  const approve = page.getByRole("button", { name: /approve offer/i });
+  const acceptInvite = page.getByRole("button", { name: /^(accept|show next action: accept)$/i });
+  if (!(await approve.isVisible().catch(() => false))) {
+    if (await acceptInvite.first().isVisible().catch(() => false)) {
+      await acceptInvite.first().click();
+    }
+  }
   if (!(await approve.isVisible().catch(() => false))) {
     await page.goto("/talent/inbox");
     await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
@@ -358,15 +373,20 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
     const row = page
       .locator("[data-tulala-inbox-row]")
       .filter({ hasText: /cora cuevas/i })
-      .filter({ hasText: /offer/i })
+      .filter({ hasText: /offer sla/i })
       .first();
     await expect(row).toBeVisible({ timeout: 40_000 });
     await row.click();
+    if (await offerTab.isVisible().catch(() => false)) {
+      await offerTab.click();
+    }
   }
   await expect(approve).toBeVisible({ timeout: 40_000 });
   await approve.click();
   await expect(
-    page.getByText(/offer approved|waiting on client|awaiting client|you approved/i).first(),
+    page.getByText(
+      /offer approved|you've approved|approved the offer|waiting on client|you approved/i,
+    ).first(),
   ).toBeVisible({ timeout: 30_000 });
 
   const approvals = await inquiryOfferApprovals(awaiting!.offerId);
