@@ -1,0 +1,50 @@
+## Task 1 — object existence + privileges
+
+table public.pos_approvals: EXISTS
+table public.pos_device_sessions: EXISTS
+table public.payment_links: EXISTS
+table public.waitlist_offers: EXISTS
+table public.pos_shift_movements: EXISTS
+column public.orders.tip_cents: EXISTS (bigint)
+column public.order_lines.kind: EXISTS (text)
+column public.order_lines.operator_user_id: EXISTS (uuid)
+column public.order_lines.booking_id: EXISTS (uuid)
+column public.order_lines.booking_kind: EXISTS (text)
+function public.pos_approve_custom_amount(uuid,uuid,uuid,text,uuid,text,text): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.pos_link_booking(uuid,uuid,text,uuid,text): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.pos_set_tip(uuid,uuid,bigint,text,integer): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.visit_transfer(uuid,uuid,uuid,text): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.visit_split_check(uuid,uuid,uuid[],text): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.visit_merge_checks(uuid,uuid,uuid,text): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.visit_change_server(uuid,uuid,uuid): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.waitlist_offer_place(uuid,uuid,text,integer): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.waitlist_accept_offer(uuid,uuid,text): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.waitlist_decline_offer(uuid,uuid): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.pos_set_staff_pin(uuid,uuid,uuid,text): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+function public.pos_reserve_collection(uuid,uuid,text,bigint,text,uuid,integer,integer): EXISTS | anon.execute=false authenticated.execute=false service_role.execute=true
+
+## Task 3 — manager PIN path via pos_set_staff_pin / pos_approve_custom_amount
+
+pos_set_staff_pin(tenant, owner-as-actor, owner-as-target, '4321') => {"ok":true}
+pos_mutate_draft_line add custom line => {"ok":true,"line_id":"0d2ffaed-de0f-4869-b7f4-e3916a8e1853","version":2,"tax_cents":0,"total_cents":1500,"discount_cents":0,"subtotal_cents":1500}
+pos_approve_custom_amount with WRONG pin '0000' => {"ok":false,"reason":"pin_invalid"}
+pos_approve_custom_amount with RIGHT pin '4321' => {"ok":true,"already":false,"approval_id":"2a138349-e590-49e1-bddb-8e0dac121ad6"}
+ground truth pos_approvals row(s) for line 0d2ffaed-de0f-4869-b7f4-e3916a8e1853: [{"id":"2a138349-e590-49e1-bddb-8e0dac121ad6","kind":"custom_amount","approver_user_id":"33330001-0000-4000-8000-000000000001","method":"pin","operation_key":"pin-proof-op-right"}]
+cleaned up PIN-proof order 38bb3885-334b-4cf1-9c18-47448e7d6563 and its line/approval rows
+
+## Task 2 — race scripts
+
+### verify-payment-link-reserve.mjs
+
+fixture: created draft order 6ab1a63c-ad3c-45fb-920e-aa1613489e14, added catalog line => {"ok":true,"line_id":"74c47e17-addf-40ff-81ca-8f5d24b49a8e","version":2,"tax_cents":0,"total_cents":5000,"discount_cents":0,"subtotal_cents":5000}
+
+### verify-visit-transfer-race.mjs
+
+fixture: created open visit daf59080-542d-4a79-b2a1-e5ad91fd6c30 at space 33330011-0000-4000-8000-000000000015 (Table 5); race targets space_a=33330011-0000-4000-8000-000000000001 (Table 1) space_b=33330011-0000-4000-8000-000000000002 (Room A)
+
+### verify-waitlist-offer-race.mjs
+
+fixture: using session eb9d8244-bdca-43b0-b6e2-25f84c871bfa / pool b47d16c1-4170-47f5-813d-15554162ddb6 for waitlist offer
+waitlist_offer_place(entry=97edc3be-c273-4dcf-89d9-28aa73654cae) => {"ok":true,"offer_id":"d3ffec71-9bff-4571-8155-85bdb3d57b5a","expires_at":"2026-09-11T16:31:38.247628+00:00"}
+
+(fixture ids written for the driver script)

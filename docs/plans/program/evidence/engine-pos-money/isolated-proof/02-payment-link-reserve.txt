@@ -1,0 +1,2 @@
+[payment-link-reserve] wins=1 a={"ok":true,"state":"reserved","already":false,"version":5,"expires_at":"2026-09-11T16:47:03.975242+00:00","amount_cents":5000,"reservation_id":"562f76af-cd57-4601-af9f-435ad8fcc805","transaction_id":null,"outstanding_cents":0} b={"ok":false,"reason":"exceeds_outstanding","outstanding_cents":0}
+EXIT_CODE=0

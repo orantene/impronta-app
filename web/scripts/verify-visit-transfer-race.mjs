@@ -36,18 +36,24 @@ if (!visitId || !spaceA || !spaceB) {
   process.exit(1);
 }
 
+// Both hosts looked at the same screen: same version. Exactly one may win.
+const beforeRes = await fetch(`${URL_}/rest/v1/visits?id=eq.${visitId}&select=version`, { headers });
+const expected = (await beforeRes.json())?.[0]?.version;
+if (typeof expected !== "number") { console.error("[visit-transfer-race] could not read the visit's version"); process.exit(1); }
 const [a, b] = await Promise.all([
   rpc("visit_transfer", {
     p_tenant_id: TENANT,
     p_visit_id: visitId,
     p_to_space: spaceA,
     p_operation_key: `xfer-race-a-${crypto.randomUUID()}`,
+    p_expected_version: expected,
   }),
   rpc("visit_transfer", {
     p_tenant_id: TENANT,
     p_visit_id: visitId,
     p_to_space: spaceB,
     p_operation_key: `xfer-race-b-${crypto.randomUUID()}`,
+    p_expected_version: expected,
   }),
 ]);
 
