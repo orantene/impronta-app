@@ -55,6 +55,7 @@ test("both host shapes agree for every canonical page", () => {
 test("nested canonical routes work on both shapes", () => {
   for (const p of [
     "/admin/settings/discover",
+    "/admin/settings/channels",
     "/admin/roster/applications",
     "/admin/roster/registration",
     "/admin/policy/auto-ack",

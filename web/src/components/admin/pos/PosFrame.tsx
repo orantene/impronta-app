@@ -47,6 +47,8 @@ import {
   type LucideProps,
 } from "lucide-react";
 
+// EXPERIMENTAL. Renders nothing when the flag is off. Does not use AdminShell.
+import { WhatsAppDrawerHost } from "@/components/admin/channels/WhatsAppChrome";
 import { POS_MODE_META, type PosMode } from "@/lib/pos/modes";
 import { cn } from "@/lib/utils";
 import { usePosModeMenuRender } from "./pos-mode-menu-context";
@@ -271,6 +273,7 @@ export function PosFrame({
         )}
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <WhatsAppDrawerHost />
     </div>
   );
 }

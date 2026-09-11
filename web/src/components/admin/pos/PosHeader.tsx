@@ -15,6 +15,7 @@
 import { AlertTriangle, ChevronDown, MapPin } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
+import { WhatsAppTopBarButton } from "@/components/admin/channels/WhatsAppChrome";
 import { cn } from "@/lib/utils";
 
 export type PosHeaderMenuItem = {
@@ -147,6 +148,7 @@ export function PosHeader({
           {live}
         </span>
       )}
+      <WhatsAppTopBarButton size={40} />
       <span data-pos-location className={cn(CHIP, "max-[900px]:hidden")}>
         <MapPin aria-hidden size={16} strokeWidth={1.75} className="text-admin-ink-muted" />
         {location}

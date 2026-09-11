@@ -15,6 +15,8 @@ import { useCanonicalRouteChildren } from "../canonical-route-children";
 import { resolveDestination } from "@/lib/workspace/destinations";
 import { TulalaWordmark } from "@/components/brand/tulala-logo";
 import { TulalaIdentityBar } from "./IdentityBar-1";
+// EXPERIMENTAL. Renders nothing when the flag is off. Delete with REMOVAL.md.
+import { WhatsAppDrawerHost } from "@/components/admin/channels/WhatsAppChrome";
 import { GLOBAL_SEARCH_OPEN_EVENT, GlobalSearchOverlay } from "./GlobalSearchOverlay";
 import { PosRailModeMenuProvider } from "./PosRailModeMenu";
 // Every SPA page is a `next/dynamic` boundary (workspace-pages-lazy.tsx says
@@ -114,6 +116,7 @@ export function WorkspaceShell() {
       {/* WS-7.5 Shortcut help overlay */}
       <ShortcutHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       <GlobalSearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <WhatsAppDrawerHost />
     </>
   );
 }
