@@ -191,7 +191,9 @@ Rows are in `sql/*.run20.out.json` (and `.run19.` for run 19), read with
    (`auth.uid()` null, guard not applied) and annotates it. The two
    `c08-cus-*` fixture accounts carry the same `onboarding` status, so
    `C08-CUS accept` is likely failing for the same reason. Owner: auth /
-   onboarding.
+   onboarding. **Closed 2026-09-11 by `20260911022138` (D-111, evidence in
+   `../defects-close/`); the service-role write in this spec is now a read-only
+   assertion.**
 2. **The public receipt says nothing about a partial payment.** `/r/<code>`
    shows the order's total and lines and calls them "Your tickets"; a client who
    paid a $300.00 deposit on an $800.00 project reads $800.00 and nothing about
