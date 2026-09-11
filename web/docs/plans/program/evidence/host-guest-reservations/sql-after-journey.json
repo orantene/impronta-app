@@ -1,0 +1,63 @@
+{
+  "order": {
+    "id": "8d9f6711-4a53-4d8c-a9a4-7a0f8204112d",
+    "tenant_id": "33333333-3333-4333-8333-333333333333",
+    "customer_id": "a74464d7-8a57-4706-b8a1-dfa4a5eaab12",
+    "inquiry_id": null,
+    "status": "cancelled",
+    "version": 1,
+    "currency": "USD",
+    "subtotal_cents": 0,
+    "discount_cents": 0,
+    "tax_cents": 0,
+    "total_cents": 0,
+    "source_channel": "reservation",
+    "source_page": "/",
+    "space_id": null,
+    "session_id": null,
+    "payout_release_rule": "immediate",
+    "hold_expires_at": null,
+    "created_by": null,
+    "created_at": "2026-09-11T02:28:58.763809+00:00",
+    "updated_at": "2026-09-11T02:29:07.969114+00:00",
+    "visit_id": null,
+    "promo_code_id": null,
+    "guest_session_id": null,
+    "receipt_code": "8jwwd9ki4nbyt5aq3sfw",
+    "age_gate_min_age": null,
+    "age_gate_confirmed_age": null,
+    "age_gate_confirmed_at": null
+  },
+  "lines": [
+    {
+      "id": "d25f5eb4-07b6-4bf6-bebe-44c8820f9964",
+      "offering_id": "33330012-0000-4000-8000-000000000004"
+    }
+  ],
+  "admissions": [
+    {
+      "id": "a542b2e6-ab1a-43dc-897b-471cc6795cfb",
+      "tenant_id": "33333333-3333-4333-8333-333333333333",
+      "allocation_id": "f1022cc8-9e12-44b9-a05a-7c9ba45e4629",
+      "order_line_id": "d25f5eb4-07b6-4bf6-bebe-44c8820f9964",
+      "session_id": null,
+      "space_id": null,
+      "customer_id": "a74464d7-8a57-4706-b8a1-dfa4a5eaab12",
+      "holder_name": "C06 diner",
+      "holder_email": "c06-cus-rsv-1789093732900@impronta.test",
+      "starts_at": "2026-09-11T18:00:00+00:00",
+      "status": "valid",
+      "party_size": 2,
+      "admitted_count": 0,
+      "created_at": "2026-09-11T02:28:59.192633+00:00",
+      "updated_at": "2026-09-11T02:28:59.192633+00:00",
+      "line_seq": 0,
+      "seated_at": null,
+      "no_show_at": null,
+      "completed_at": null,
+      "token_version": 1,
+      "door_amount_cents": null,
+      "door_paid_via": null
+    }
+  ]
+}
