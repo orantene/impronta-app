@@ -23,7 +23,7 @@ const LIVE_SURFACES: Array<{ key: string; ask: string; page: string }> = [
   {
     key: "events",
     ask: "how do i create an event",
-    page: join("src", "components", "admin", "shell", "internal", "page-modules", "EventsPage.tsx"),
+    page: join("src", "components", "admin", "shell", "internal", "page-modules", "events", "EventsPage.tsx"),
   },
   {
     key: "sessions",

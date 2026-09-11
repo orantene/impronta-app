@@ -150,7 +150,7 @@ export async function listOpenPosSales(
  */
 export async function listPaidPosSales(
   admin: Admin,
-  input: { tenantId: string; sinceIso: string; limit?: number },
+  input: { tenantId: string; sinceIso: string; limit?: number; sourcePage?: string },
 ): Promise<
   | {
       ok: true;
@@ -175,12 +175,16 @@ export async function listPaidPosSales(
     customers: { display_name: string | null } | { display_name: string | null }[] | null;
     order_lines: Array<{ label: string | null; units: number | string }> | null;
   };
-  const { data, error } = await admin
+  let query = admin
     .from("orders")
     .select("id, total_cents, currency, updated_at, receipt_code, customers(display_name), order_lines(label, units)")
     .eq("tenant_id", input.tenantId)
     .eq("status", "paid")
-    .eq("source_channel", "pos")
+    .eq("source_channel", "pos");
+  // The door's Receipts rail shows the door's own sales (`source_page`
+  // "door"); the counter's shows every sale through the till.
+  if (input.sourcePage) query = query.eq("source_page", input.sourcePage);
+  const { data, error } = await query
     .gte("updated_at", input.sinceIso)
     .order("updated_at", { ascending: false })
     .limit(input.limit ?? 200);

@@ -596,3 +596,71 @@ Offers.dc.html is the project agreement's version view, built as W46 under
 wizard over pacing, buffers and assignment scope that Spaces & Resources
 does not record. None of these is drawn as a page of disabled controls under
 a route the registry does not know.
+
+## D-POS-54 — the gate's second button, the manual admit's reason, and the "refund requested" state
+
+Decided 2026-09-11 (fid-door). The Door mode's gate (G01 to G08) is the
+counter's frame over Sessions' `scanAdmission` and Events' `admitAtDoor`;
+the verdict hero is the engine's `DoorOutcome` and nothing else. The second
+button under a verdict is decided by `gateSecondaryAction` (pure, tested):
+`Look up the order` (G07) opens the lookup; `Redeem meal` (G02), `Let in
+anyway · manager` (G03) and `Exchange date · box office` (G04) have no writer
+(no meal benefit on a ticket, no manager override in `check_in`, no date
+exchange) and are drawn disabled with their sentence in three languages.
+G08's `Reason` and `Authorized by` are drawn disabled: `admitAtDoor` records
+who was signed in, not a reason or a manager PIN. G05 (`Refund requested`)
+is not a state the engine produces: `admissions.status` is valid, void or
+refunded, and a refund request is not recorded on the row; a refunded ticket
+scans as G07 `Cancelled`. It cannot be rendered from real data and is listed
+as not wired rather than faked.
+
+## D-POS-55 — ticket delivery, comps, passes, seats and the hold timer are not built at the door
+
+Decided 2026-09-11 (fid-door). E15 (delivery) draws four rows over the one
+fact the workspace has: the signed code was handed over at this till. No
+ticket email is sent (`Resend` disabled), no SMS, no printer, no wallet
+pass. E06's `Print tickets · Text link · Resend email` and E09's `Resend all
+tickets` are disabled with the same sentences. E10's `Transfer` (re-issues
+the credential; no writer bumps `token_version` for a new holder) and
+`Exchange` (no writer moves a ticket to another night) are disabled;
+`Cancel & refund` is the refunds desk's own `refundOrderAtDesk` with
+`cancel_ticket`, and `Name it` is `posDoorNameTicket` (E13). E12 (comp from a
+sponsor allocation) has no comp writer at the till (D-POS-22), E14 (a
+multi-day pass issuing one credential per night) has no pass model, E03
+(assigned seats) has no seat map (Spaces S4-S6), and E05 (a ten-minute hold
+that expires) does not exist because `startCollection` reserves at the moment
+the cash is confirmed: the box office says "Continue · N tickets" and "Seats
+are held the moment the cash is confirmed", never "Hold N places".
+
+## D-POS-56 — the Events destination: what a row does not carry is a dash or a disabled control
+
+Decided 2026-09-11 (fid-door). W16, CreateEvent, EventDetail, W17 and W18
+are drawn over `loadWorkspaceEvents`, `createEvent`, `addTier`, `updateTier`,
+`setEventStatus`, `loadSessionPools` and `setSessionPoolUnits`. Sold, Left
+and Door alloc. on the list print a dash with the reason (per night, on the
+event's Tickets & Offers tab, where the night's pools give Attendance
+capacity, Sold as committed peak, and Remaining). Venue is not on the row and
+nothing edits `events.venue_id` after creation: the Venue column, W17's
+Space / Layout / Blocked interval / Dining fields, `Change venue` and `Save`
+are disabled with their sentence. Price phases, packages, allocations, named
+ticket, transfer, re-entry, the venue commitment and `Block seats` have no
+column on a tier. Templates, Import, Calendar, the Venue and Sales filters,
+`Share`, and the Orders, Page & Promotion, Money & Reports and Settings tabs
+have no engine behind them and say what they wait on. CreateEvent's
+Essentials step writes the name, the sales model (`admission_kind`) and the
+doors offset; every other field on the board has no column; steps 3 to 5
+point at the Sessions page and the event's own tabs.
+
+## D-POS-57 — event-day rules have no columns; the POS applies fixed answers and says so
+
+Decided 2026-09-11 (fid-door). W18's Gate and Box office cards list every
+rule the board names (entrances, scanner devices, re-entry, wrong night,
+refund requested, refund confirmed, override, offline scanning, device, door
+phase price, names, comp allocation, meal redemption, staff tonight) as a
+disabled control whose value is what the engine actually does tonight (admits
+once, refuses a wrong night by naming the night, a confirmed refund stops the
+ticket immediately, manual admit without a PIN, no offline scanning, the
+tier's price at the door, names optional at the till, no comps, whoever is
+signed in). `Save` is disabled with the sentence. The Readiness strip is
+derived from rows that exist: published, ticket types, nights scheduled,
+pools on this night.

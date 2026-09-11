@@ -72,6 +72,7 @@ import { PageRouteSyncer } from "../_page-route-syncer";
 
 import type { PosCatalogItem } from "./counter-model";
 import { doorCopy } from "./door-copy";
+import { receiptRows } from "./receipt-rows";
 import { FloorScreen } from "./floor-screen";
 // The three client modes this route mounts directly, each behind
 // `next/dynamic` so the register's initial bundle carries only the mode
@@ -419,24 +420,39 @@ export default async function PosPage({
   // so the shift's expected cash, the Payments page and the door's guest list
   // read the same rows. See `door-actions.ts` for why it is not `sellAtDoor`.
   if (mode === "door") {
-    const tonight = await loadDoorTonight(admin, scope.tenantId);
+    const doorPath = await currentAdminPath(tenantSlug);
+    const doorRequestedAt = new Date();
+    const doorWeekAgo = new Date(doorRequestedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const [tonight, doorCashier, doorShift, doorPaid] = await Promise.all([
+      loadDoorTonight(admin, scope.tenantId),
+      loadCashierName(admin),
+      currentShift(admin, { tenantId: scope.tenantId }),
+      // The door's Receipts rail: the door's own paid sales through the till.
+      listPaidPosSales(admin, { tenantId: scope.tenantId, sinceIso: doorWeekAgo, sourcePage: "door" }),
+    ]);
     const doorHdrs = await headers();
     const doorHost = doorHdrs.get("x-forwarded-host") ?? doorHdrs.get("host") ?? "";
     const doorProto = doorHdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
+    const doorOrigin = doorHost ? `${doorProto}://${doorHost}` : "";
     const cashOnly = tr("dashboard.pos.door.sell.cashOnly");
+    const doorReceipts = receiptRows(doorPaid.ok ? doorPaid.rows : [], doorRequestedAt, locale, doorOrigin);
     return (
       <>
         <PageRouteSyncer page="pos" />
         <DoorClient
           tenantId={scope.tenantId}
           workspaceName={workspaceName}
-          receiptOrigin={doorHost ? `${doorProto}://${doorHost}` : ""}
+          cashierName={doorCashier}
+          drawerOpen={doorShift.ok ? doorShift.shift !== null : false}
+          workspacePath={doorPath.replace(/\/pos$/, "")}
+          receiptOrigin={doorOrigin}
           locale={locale}
           zone={tonight.ok ? tonight.zone : "UTC"}
           nowIso={tonight.ok ? tonight.nowIso : new Date().toISOString()}
           sessions={tonight.ok ? tonight.sessions : []}
           tonightFailed={!tonight.ok}
           currency="USD"
+          receipts={doorReceipts}
           methods={[
             { id: "cash", available: true },
             { id: "card", available: false, unavailableReason: cashOnly },
@@ -447,6 +463,10 @@ export default async function PosPage({
             door: doorCopy(tr),
             collect: collectSheetCopy(tr),
             refusal: refusalCopy(tr),
+            chrome: chromeCopy(tr),
+            receipts: receiptsCopy(tr),
+            issues: issuesCopy(tr),
+            modeLabel: posModeLabel(tr, "door"),
             frameNavLabel: tr("dashboard.pos.door.rail.label"),
           }}
         />
@@ -627,26 +647,7 @@ export default async function PosPage({
   // The receipts rows, bucketed on the reader's own clock into today /
   // yesterday / this week. Each row links to the same `/r/<code>` page the
   // customer holds.
-  const startOfToday = new Date(requestedAt);
-  startOfToday.setHours(0, 0, 0, 0);
-  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
-  const clock = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
-  const receipts: PosReceiptRow[] = (paidLoad.ok ? paidLoad.rows : []).map((row) => {
-    const when = row.paidAt ? new Date(row.paidAt) : null;
-    const dayKey =
-      when && when.getTime() >= startOfToday.getTime() ? "today" : when && when.getTime() >= startOfYesterday.getTime() ? "yesterday" : "week";
-    return {
-      orderId: row.id,
-      code: row.receiptCode,
-      time: when && !Number.isNaN(when.getTime()) ? clock.format(when) : "",
-      dayKey,
-      customer: row.customerName,
-      summary: row.lineLabels.join(", "),
-      totalCents: row.totalCents,
-      currency: row.currency,
-      href: row.receiptCode && receiptOrigin ? `${receiptOrigin}/r/${row.receiptCode}` : null,
-    };
-  });
+  const receipts: PosReceiptRow[] = receiptRows(paidLoad.ok ? paidLoad.rows : [], requestedAt, locale, receiptOrigin);
 
   return (
     <>

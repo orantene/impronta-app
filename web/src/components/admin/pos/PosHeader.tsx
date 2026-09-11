@@ -13,7 +13,7 @@
  */
 
 import { AlertTriangle, ChevronDown, MapPin } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -38,6 +38,8 @@ export type PosHeaderProps = {
    * with the mode chip and its menu of destinations. Only drawn under 900px.
    */
   readonly portraitMenu?: { readonly label: string; readonly menuLabel: string; readonly items: readonly PosHeaderMenuItem[] };
+  /** A figure drawn before the chips (`POSGateReady`: `11 of 14 in`). */
+  readonly meta?: ReactNode;
   readonly className?: string;
 };
 
@@ -53,6 +55,7 @@ export function PosHeader({
   cashierMenuLabel,
   cashierMenu,
   portraitMenu,
+  meta,
   className,
 }: PosHeaderProps) {
   const [open, setOpen] = useState(false);
@@ -116,6 +119,7 @@ export function PosHeader({
         <p className="m-0 truncate text-[13px] text-admin-ink-muted">{subtitle}</p>
       </div>
       <div className="flex-1" />
+      {meta}
       {alert && (
         <button
           type="button"

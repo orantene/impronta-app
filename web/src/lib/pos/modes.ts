@@ -88,7 +88,12 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
   door: {
     id: "door",
     label: "Door",
-    destinations: ["checkin", "tickets"],
+    // The board's rail (`POSGateReady`): Sell tickets · Gate · Lookup ·
+    // Receipts · Issues. `tickets` is the box office (E01 to E07), `checkin`
+    // the gate (G01 to G08), `lookup` the ticket finder (E09, E10, E15);
+    // Receipts lists the door's own paid sales and Issues is the workspace's
+    // inbox, drawn over its one sentence (D-POS-28).
+    destinations: ["tickets", "checkin", "lookup", "receipts", "issues"],
     built: true,
   },
   classes: {

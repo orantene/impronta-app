@@ -32,6 +32,7 @@
  * mint, name, admit) as two actions with the sale's id and version between them.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -40,7 +41,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
-import { addLine, createDraftOrder } from "@/lib/pos/draft";
+import { addLine, createDraftOrder, loadPosSale } from "@/lib/pos/draft";
 import { finalizeOrCancel } from "@/lib/pos/finalize";
 import { startCollection } from "@/lib/pos/collection";
 import { loadDoorTonight, type DoorTonightResult } from "@/lib/pos/door-tonight";
@@ -95,10 +96,14 @@ export type OpenTicketSaleResult =
 export async function posDoorOpenTicketSale(input: {
   sessionId: string;
   variantId: string;
+  /** Tickets of this tier (E02's quantity). Defaults to one. */
+  units?: number;
 }): Promise<OpenTicketSaleResult> {
   const g = await staff();
   if (!g.ok) return g;
-  const parsed = z.object({ sessionId: uuid, variantId: uuid }).safeParse(input);
+  const parsed = z
+    .object({ sessionId: uuid, variantId: uuid, units: z.number().int().positive().max(50).optional() })
+    .safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
   const { admin, tenantId } = g;
 
@@ -121,7 +126,7 @@ export async function posDoorOpenTicketSale(input: {
     tenantId,
     orderId: draft.orderId,
     expectedVersion: 1,
-    line: { offeringId, units: 1, sessionId: parsed.data.sessionId, variantId: parsed.data.variantId },
+    line: { offeringId, units: parsed.data.units ?? 1, sessionId: parsed.data.sessionId, variantId: parsed.data.variantId },
   });
   if (!added.ok) {
     // A refused line leaves no half-sale behind for the Orders screen to find.
@@ -158,6 +163,194 @@ export async function posDoorOpenTicketSale(input: {
   };
 }
 
+/**
+ * Another tier on the same sale (E02's basket): the same `addLine`, the same
+ * session, a different variant. Quantity changes and removals go through the
+ * counter's own `posUpdateLine` / `posRemoveLine`, which need no variant.
+ */
+export async function posDoorAddTicketLine(input: {
+  orderId: string;
+  sessionId: string;
+  variantId: string;
+  units: number;
+  expectedVersion: number;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      orderId: uuid,
+      sessionId: uuid,
+      variantId: uuid,
+      units: z.number().int().positive().max(50),
+      expectedVersion: z.number().int().positive(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: "invalid" };
+  const { admin, tenantId } = g;
+  const { data: session, error: sErr } = await admin
+    .from("sessions")
+    .select("id, offering_id")
+    .eq("id", parsed.data.sessionId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (sErr) {
+    logServerError("pos.door.addLine/session", sErr);
+    return { ok: false as const, error: "unavailable" };
+  }
+  const offeringId = (session as { offering_id?: string | null } | null)?.offering_id ?? null;
+  if (!session || !offeringId) return { ok: false as const, reason: "not_found", error: "no session" };
+  return addLine(admin, {
+    tenantId,
+    orderId: parsed.data.orderId,
+    expectedVersion: parsed.data.expectedVersion,
+    line: { offeringId, units: parsed.data.units, sessionId: parsed.data.sessionId, variantId: parsed.data.variantId },
+  });
+}
+
+export type DoorSaleLine = {
+  id: string;
+  variantId: string | null;
+  label: string;
+  units: number;
+  unitCents: number;
+  totalCents: number;
+};
+
+export type DoorSaleView = DoorTicketSale & { lines: DoorSaleLine[] };
+
+/** The open sale as the basket draws it: lines with their labels and units, and the version every write needs. */
+export async function posDoorReadSale(orderId: string): Promise<{ ok: true; sale: DoorSaleView } | { ok: false; reason?: unknown; error?: unknown }> {
+  const g = await staff();
+  if (!g.ok) return g;
+  if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
+  const loaded = await loadPosSale(g.admin, { tenantId: g.tenantId, orderId });
+  if (!loaded.ok) return { ok: false as const, reason: loaded.reason, error: loaded.reason };
+  const sale = loaded.sale;
+  return {
+    ok: true as const,
+    sale: {
+      orderId: sale.orderId,
+      version: sale.version,
+      currency: sale.currency,
+      totalCents: sale.totalCents,
+      label: sale.lines[0]?.label ?? "",
+      lines: sale.lines.map((l) => ({
+        id: l.id,
+        variantId: l.variantId,
+        label: l.label,
+        units: l.units,
+        unitCents: l.unitCents,
+        totalCents: l.totalCents,
+      })),
+    },
+  };
+}
+
+/**
+ * Naming a ticket (E13): the holder's name on ONE admission of this tenant.
+ * A name already on the row is kept unless `replace` is asked for, and a
+ * dead row (refunded, void) is refused: naming it would make it look valid.
+ */
+export async function posDoorNameTicket(input: { admissionId: string; holderName: string; replace?: boolean }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({ admissionId: uuid, holderName: z.string().trim().min(1).max(120), replace: z.boolean().optional() })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: "invalid" };
+  const { admin, tenantId } = g;
+  const { data: row, error: rErr } = await admin
+    .from("admissions")
+    .select("id, holder_name, status")
+    .eq("id", parsed.data.admissionId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (rErr) {
+    logServerError("pos.door.name/read", rErr);
+    return { ok: false as const, error: "unavailable" };
+  }
+  const found = row as { id: string; holder_name: string | null; status: string } | null;
+  if (!found) return { ok: false as const, reason: "not_found", error: "not_found" };
+  if (found.status !== "valid") return { ok: false as const, reason: "not_valid", error: "not_valid" };
+  if (found.holder_name && !parsed.data.replace) return { ok: false as const, reason: "already_named", error: "already_named" };
+  const { error: uErr } = await admin
+    .from("admissions")
+    .update({ holder_name: parsed.data.holderName })
+    .eq("id", found.id)
+    .eq("tenant_id", tenantId);
+  if (uErr) {
+    logServerError("pos.door.name/write", uErr);
+    return { ok: false as const, error: "unavailable" };
+  }
+  return { ok: true as const, admissionId: found.id, holderName: parsed.data.holderName };
+}
+
+/**
+ * The tickets minted off one paid order, signed: E06 after a sale, E07's
+ * "try issuing again" re-read, E09's order card. Read through the real rows,
+ * never from a success line.
+ */
+async function issuedTicketsFor(
+  admin: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+): Promise<{ ok: true; tickets: DoorIssuedTicket[] } | { ok: false; error: string }> {
+  const { data: lines, error: lErr } = await admin
+    .from("order_lines")
+    .select("id, label")
+    .eq("order_id", orderId)
+    .eq("tenant_id", tenantId);
+  if (lErr) {
+    logServerError("pos.door.issued/lines", lErr);
+    return { ok: false, error: "unavailable" };
+  }
+  const labelByLine = new Map(((lines ?? []) as Array<{ id: string; label: string | null }>).map((l) => [l.id, l.label]));
+  const lineIds = [...labelByLine.keys()];
+  const { data: minted, error: mErr } = lineIds.length
+    ? await admin
+        .from("admissions")
+        .select("id, holder_name, party_size, token_version, session_id, order_line_id, line_seq, status, admitted_count")
+        .eq("tenant_id", tenantId)
+        .in("order_line_id", lineIds)
+        .order("line_seq", { ascending: true })
+    : { data: [], error: null };
+  if (mErr) {
+    logServerError("pos.door.issued/admissions", mErr);
+    return { ok: false, error: "unavailable" };
+  }
+  const rows = (minted ?? []) as Array<{
+    id: string;
+    holder_name: string | null;
+    party_size: number | string;
+    token_version: number | string;
+    order_line_id: string | null;
+    line_seq: number | string | null;
+    status: string;
+    admitted_count: number | string;
+  }>;
+  return {
+    ok: true,
+    tickets: rows.map((r) => ({
+      admissionId: r.id,
+      holderName: r.holder_name,
+      partySize: Number(r.party_size) || 1,
+      code: signAdmissionToken(r.id, Number(r.token_version) || 1),
+      tierLabel: r.order_line_id ? (labelByLine.get(r.order_line_id) ?? null) : null,
+      lineSeq: r.line_seq === null ? null : Number(r.line_seq),
+      status: r.status,
+      admittedCount: Number(r.admitted_count) || 0,
+    })),
+  };
+}
+
+export async function posDoorIssuedTickets(orderId: string) {
+  const g = await staff();
+  if (!g.ok) return g;
+  if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
+  return issuedTicketsFor(g.admin, g.tenantId, orderId);
+}
+
 export async function posDoorCancelTicketSale(orderId: string, expectedVersion?: number) {
   const g = await staff();
   if (!g.ok) return g;
@@ -171,6 +364,12 @@ export type DoorIssuedTicket = {
   partySize: number;
   /** The signed code the holder types or scans at the gate; null only when the signing secret is unset. */
   code: string | null;
+  /** The tier, as the order line named it (E06: "General admission · Tomás"). */
+  tierLabel: string | null;
+  /** 1-based position on the order, the number after the dash in "#AB12-1". */
+  lineSeq: number | null;
+  status: string;
+  admittedCount: number;
 };
 
 export type CollectTicketResult =
@@ -209,6 +408,8 @@ export async function posDoorCollectTicket(input: {
   holderName?: string;
   email?: string;
   phone?: string;
+  /** One name per ticket, in order (E04); a blank leaves that ticket unnamed. */
+  attendeeNames?: string[];
   admitNow: boolean;
 }): Promise<CollectTicketResult> {
   const g = await staff();
@@ -224,6 +425,7 @@ export async function posDoorCollectTicket(input: {
       holderName: z.string().trim().max(120).optional(),
       email: z.string().email().optional(),
       phone: z.string().optional(),
+      attendeeNames: z.array(z.string().trim().max(120)).max(50).optional(),
       admitNow: z.boolean(),
     })
     .safeParse(input);
@@ -256,50 +458,28 @@ export async function posDoorCollectTicket(input: {
 
   // The rows the mint wrote for THIS order, read back through the real reader
   // rather than trusted from the hook's return: a success line is not a ticket.
-  const { data: lines, error: lErr } = await admin
-    .from("order_lines")
-    .select("id")
-    .eq("order_id", p.orderId)
-    .eq("tenant_id", tenantId);
-  if (lErr) {
-    logServerError("pos.door.collect/lines", lErr);
-    return { ok: false as const, error: "unavailable" };
-  }
-  const lineIds = ((lines ?? []) as Array<{ id: string }>).map((l) => l.id);
-  const { data: minted, error: mErr } = lineIds.length
-    ? await admin
-        .from("admissions")
-        .select("id, holder_name, party_size, token_version, session_id")
-        .eq("tenant_id", tenantId)
-        .in("order_line_id", lineIds)
-        .order("line_seq", { ascending: true })
-    : { data: [], error: null };
-  if (mErr) {
-    logServerError("pos.door.collect/admissions", mErr);
-    return { ok: false as const, error: "unavailable" };
-  }
-  const rows = (minted ?? []) as Array<{
-    id: string;
-    holder_name: string | null;
-    party_size: number | string;
-    token_version: number | string;
-    session_id: string | null;
-  }>;
+  const issued = await issuedTicketsFor(admin, tenantId, p.orderId);
+  if (!issued.ok) return { ok: false as const, error: issued.error };
+  let tickets = issued.tickets;
 
-  // Naming the ticket (E13). Only rows the mint left unnamed, only this
-  // order's rows, only when a name was typed: never overwrite a holder.
-  const name = p.holderName?.trim() || null;
-  if (name) {
-    const unnamed = rows.filter((r) => !r.holder_name).map((r) => r.id);
-    if (unnamed.length > 0) {
-      const { error: nErr } = await admin
-        .from("admissions")
-        .update({ holder_name: name })
-        .eq("tenant_id", tenantId)
-        .in("id", unnamed);
-      if (nErr) logServerError("pos.door.collect/name", nErr);
-      else for (const r of rows) if (!r.holder_name) r.holder_name = name;
+  // Naming the tickets (E04, E13). Only rows the mint left unnamed, only this
+  // order's rows, only when a name was typed: never overwrite a holder. The
+  // per-attendee names go on in line order; the buyer's name covers the rest.
+  const buyer = p.holderName?.trim() || null;
+  const names = p.attendeeNames ?? [];
+  const toName = tickets
+    .map((t, i) => ({ id: t.admissionId, name: (names[i]?.trim() || buyer) ?? null, unnamed: !t.holderName }))
+    .filter((x): x is { id: string; name: string; unnamed: true } => x.unnamed && Boolean(x.name));
+  if (toName.length > 0) {
+    let failed = false;
+    for (const x of toName) {
+      const { error: nErr } = await admin.from("admissions").update({ holder_name: x.name }).eq("tenant_id", tenantId).eq("id", x.id);
+      if (nErr) {
+        logServerError("pos.door.collect/name", nErr);
+        failed = true;
+      }
     }
+    if (!failed) tickets = tickets.map((t) => ({ ...t, holderName: t.holderName ?? toName.find((x) => x.id === t.admissionId)?.name ?? null }));
   }
 
   const { data: receipt, error: rErr } = await admin
@@ -310,13 +490,6 @@ export async function posDoorCollectTicket(input: {
     .maybeSingle();
   if (rErr) logServerError("pos.door.collect/receipt", rErr);
   const receiptCode = (receipt as { receipt_code?: string | null } | null)?.receipt_code ?? null;
-
-  const tickets: DoorIssuedTicket[] = rows.map((r) => ({
-    admissionId: r.id,
-    holderName: r.holder_name,
-    partySize: Number(r.party_size) || 1,
-    code: signAdmissionToken(r.id, Number(r.token_version) || 1),
-  }));
 
   let admitted: Array<{ admissionId: string; outcome: DoorOutcome }> | null = null;
   if (p.admitNow) {

@@ -25,7 +25,7 @@ import { GLOBAL_SEARCH_OPEN_EVENT, GlobalSearchOverlay } from "./GlobalSearchOve
 import { PayoutsPage } from "./PayoutsPage";
 import { PitchesPage } from "./PitchesPage-1";
 import { AppointmentsPage } from "./AppointmentsPage";
-import { EventsPage } from "./EventsPage";
+import { EventsPage } from "./events/EventsPage";
 import { ReviewsPage } from "./ReviewsPage";
 import { AnalyticsPage } from "./AnalyticsPage";
 import { TalentPage } from "./TalentPage-1";
