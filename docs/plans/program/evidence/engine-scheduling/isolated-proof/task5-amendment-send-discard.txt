@@ -1,0 +1,28 @@
+Amendment send/discard — one path each, isolated branch fxlankepwnvelxjrahwk.
+
+--- SEND (public.engine_send_offer, pre-existing RPC, not part of Package 2) ---
+inquiry d8b2af9a-8a14-4843-937f-88b0d4e4fdfc version 1
+offer created: {"id":"a5953ca1-83f3-4d3d-a24c-d54e58272d15","version":1,"status":"draft"}
+select public.engine_send_offer($1,$2,null,$3,1) -> reply: (2,2)
+offer after send: {"id":"a5953ca1-83f3-4d3d-a24c-d54e58272d15","version":2,"status":"sent","sent_at":"2026-09-11T18:09:04.204Z"}
+inquiry after send: {"id":"d8b2af9a-8a14-4843-937f-88b0d4e4fdfc","version":2,"status":"offer_pending","current_offer_id":"a5953ca1-83f3-4d3d-a24c-d54e58272d15"}
+
+Attempting a second draft offer on the same inquiry while one is active correctly
+raised unique constraint inquiry_offers_one_active_offer (inquiry_id) — proves the
+engine will not let two offers be live on one inquiry at once. This is why send and
+discard could not be chained on the SAME offer in one pass (discard requires status
+'draft'; send moves the offer to 'sent').
+
+Fixture inquiry deleted (cascade removed its offer) after the proof.
+
+--- DISCARD (public.amendment_discard, Package 2 / 20261231219000_project_ops.sql) ---
+Run separately, own draft-only fixture (see task5-amendment-discard.txt for the
+full transcript):
+inquiry f2934de5-c24c-43e0-b4eb-e8430e208854 version 1
+offer before discard: {"id":"75f88fed-f791-4411-b783-cc357555eec2","version":1,"status":"draft"}
+select public.amendment_discard($1,$2,1,$3) -> reply: {"ok":true,"offer_id":"75f88fed-f791-4411-b783-cc357555eec2"}
+offer after discard: {"id":"75f88fed-f791-4411-b783-cc357555eec2","version":1,"status":"superseded"}
+inquiry after discard: {"id":"f2934de5-c24c-43e0-b4eb-e8430e208854","version":2}
+cleaned up amendment fixture
+
+Both fixtures deleted after each proof; no rows left behind.
