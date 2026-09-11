@@ -1,0 +1,47 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/SELL-catalog-events-spaces-discounts.spec.ts:36:5 › SELL: catalog, events, spaces and discounts open with real rows; a discount code is created and read back
+[1A[2K  1) [chromium] › e2e/cases/SELL-catalog-events-spaces-discounts.spec.ts:36:5 › SELL: catalog, events, spaces and discounts open with real rows; a discount code is created and read back 
+
+    Error: login heading cannot pass a journey
+
+    [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveCount[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  getByRole('heading', { name: /^(sign in|log in|iniciar sesión)$/i })
+    Expected: [32m0[39m
+    Received: [31mundefined[39m
+    Timeout:  5000ms
+
+    Call log:
+    [2m  - login heading cannot pass a journey with timeout 5000ms[22m
+    [2m  - waiting for getByRole('heading', { name: /^(sign in|log in|iniciar sesión)$/i })[22m
+
+
+       at cases/_harness.ts:44
+
+      42 |     page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i }),
+      43 |     "login heading cannot pass a journey",
+    > 44 |   ).toHaveCount(0);
+         |     ^
+      45 | }
+      46 |
+      47 | export async function assertWorkspaceIdentity(page: Page): Promise<void> {
+        at assertNotAuthWall (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-catalog/web/e2e/cases/_harness.ts:44:5)
+        at assertWorkspaceIdentity (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-catalog/web/e2e/cases/_harness.ts:48:3)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-catalog/web/e2e/cases/SELL-catalog-events-spaces-discounts.spec.ts:58:3
+
+    Error Context: test-results/cases-SELL-catalog-events--8f8bc-de-is-created-and-read-back-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-SELL-catalog-events--8f8bc-de-is-created-and-read-back-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-SELL-catalog-events--8f8bc-de-is-created-and-read-back-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/SELL-catalog-events-spaces-discounts.spec.ts:36:5 › SELL: catalog, events, spaces and discounts open with real rows; a discount code is created and read back 
+EXIT=1

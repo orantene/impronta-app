@@ -304,9 +304,14 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     requires: { roles: ["owner", "manager"] },
     // Discounts are the catalog's promotions (W36: "price lists, promotions,
     // passes & plans"), a child of this row rather than a row of their own.
+    // W01's segments: the items, the structure the Counter and the menu
+    // page draw them in (W07), the promotions (W08, its own route) and the
+    // passes (W09, drawn disabled until the product decision).
     subViews: [
       { id: "items", label: "Items", segment: "" },
+      { id: "structure", label: "Menu structure", segment: "", query: "view=structure" },
       { id: "discounts", label: "Discounts", segment: "", under: "discounts" },
+      { id: "passes", label: "Passes & cards", segment: "", query: "view=passes" },
     ],
   },
   events: {

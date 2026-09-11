@@ -1173,8 +1173,6 @@
       }
     },
     "adminMenu": {
-      "title": "Catalogue",
-      "subtitle": "Artículos del espacio de trabajo que los clientes pueden pedir en tu sitio.",
       "noTenant": "No hay un espacio de trabajo activo.",
       "import": {
         "action": {
@@ -1187,7 +1185,6 @@
         "confirm": "Importer {create} nouveaux, mettre à jour {update}",
         "done": "Importé. {created} créés, {updated} mis à jour.",
         "nothingToDo": "Ce fichier correspond à ce que vous avez déjà. Rien à importer.",
-        "open": "Importer un menu",
         "orphans": "{n} ne sont plus dans ce fichier (rien ne sera supprimé)",
         "placeholder": "Collez le fichier du menu (JSON)",
         "preview": "Aperçu",
@@ -3557,6 +3554,534 @@
           "payoutDestination": "la destination des versements",
           "websitePublished": "une page web publiée"
         }
+      }
+    },
+    "catalog": {
+      "loading": "Chargement du catalogue",
+      "saving": "Enregistrement",
+      "saved": "Enregistré",
+      "dash": "—",
+      "untitled": "(sans titre)",
+      "itemMissing": "Cet article n'est plus dans ce catalogue. La liste ci-dessous est à jour.",
+      "type": {
+        "product": "Produit",
+        "service": "Service",
+        "package": "Forfait",
+        "custom": "Service sur devis"
+      },
+      "status": {
+        "published": "Publié",
+        "draft": "Brouillon",
+        "incomplete": "Incomplet"
+      },
+      "channel": {
+        "website": "Site web",
+        "posCounter": "POS Comptoir",
+        "none": "Pas encore en vente"
+      },
+      "availability": {
+        "unlimited": "Illimité",
+        "soldOut": "Épuisé",
+        "stockPool": "Stock",
+        "stockLeft": "Stock · {n} restants",
+        "title": "Mode de disponibilité",
+        "intro": "Le stock que le POS et le site vérifient avant de vendre",
+        "mode": {
+          "unlimited": "Illimité",
+          "unlimitedNote": "Sans comptage",
+          "stock": "Stock",
+          "stockNote": "Un comptage pour l'espace",
+          "batches": "Lots datés",
+          "batchesNote": "Un comptage par date · ex. 20 pizzas pour vendredi",
+          "session": "Jauge par session",
+          "sessionNote": "Places dans une session planifiée"
+        },
+        "batchesReason": "Les lots datés n'ont pas encore de table ; un stock par article aujourd'hui.",
+        "sessionReason": "Les places par session se règlent sur la session, dans Rendez-vous et cours, pas sur l'article.",
+        "availableNow": "Disponibles maintenant",
+        "availableHint": "Vide signifie illimité ; zéro signifie épuisé.",
+        "held": "{n} retenus par des commandes ouvertes",
+        "batch": {
+          "batch": "Lot",
+          "made": "Faits",
+          "left": "Restants",
+          "window": "Créneau de retrait",
+          "release": "Envoi en cuisine"
+        },
+        "addBatch": "Ajouter un lot",
+        "repeatWeekly": "Répéter chaque semaine",
+        "lowStock": "Alerte stock bas à",
+        "lowStockReason": "Aucun seuil n'est encore enregistré sur un article.",
+        "whenSoldOut": "Une fois épuisé",
+        "whenSoldOutHint": "La règle du moteur ; ce n'est pas un réglage.",
+        "soldOutRule": "Afficher « Épuisé » · invendable",
+        "leadTime": "Délai",
+        "leadTimeReason": "Aucun délai n'est encore enregistré sur un article.",
+        "cancellation": "Annulation",
+        "cancellationHint": "Heures avant la réservation où l'annulation gratuite s'arrête ; vide signifie flexible."
+      },
+      "preparation": {
+        "reason": "Aucune station ni temps de préparation n'est encore enregistré sur un article."
+      },
+      "usedIn": {
+        "label": "Utilisé dans",
+        "pos": "POS",
+        "web": "Web",
+        "posParts": "Comptoir, Rendez-vous et cours",
+        "webParts": "Site web · boutique et menu, widget de réservation",
+        "rule": "une fiche, un stock, partout",
+        "itemPos": "Comptoir",
+        "itemWeb": "Site web · menu et retrait",
+        "structureWeb": "Page menu du site (collections)"
+      },
+      "list": {
+        "title": "Catalogue",
+        "intro": "Tout ce que le POS, le site web et le profil peuvent vendre · une fiche par article",
+        "import": "Importer",
+        "createItem": "Créer un article",
+        "empty": "Rien dans le catalogue pour l'instant. Créez un article ou importez un menu.",
+        "noMatch": "Aucun article ne correspond à ces filtres."
+      },
+      "segment": {
+        "label": "Sections du catalogue",
+        "items": "Articles",
+        "packages": "Forfaits",
+        "priceLists": "Listes de prix",
+        "promotions": "Promotions",
+        "passes": "Pass et cartes"
+      },
+      "filter": {
+        "type": "Type",
+        "all": "tous",
+        "any": "tous",
+        "typeFixedByView": "Cette vue ne liste que les forfaits.",
+        "location": "Lieu",
+        "locationReason": "Un catalogue par espace : les articles ne sont pas encore enregistrés par lieu.",
+        "channel": "Canal",
+        "incompleteOnly": "Incomplets seulement"
+      },
+      "col": {
+        "item": "Article",
+        "type": "Type",
+        "channels": "Canaux",
+        "price": "Prix",
+        "availability": "Disponibilité",
+        "preparation": "Préparation",
+        "status": "Statut"
+      },
+      "rowMenu": {
+        "label": "Actions de l'article",
+        "open": "Ouvrir",
+        "publish": "Publier",
+        "unpublish": "Dépublier",
+        "duplicate": "Dupliquer",
+        "moveUp": "Monter",
+        "moveDown": "Descendre",
+        "delete": "Supprimer"
+      },
+      "create": {
+        "title": "Que vendez-vous ?",
+        "intro": "Le type ne charge que les sections utiles et décide quel mode POS le vend",
+        "continue": "Continuer",
+        "cancel": "Annuler",
+        "elsewhere": "Ce type se crée dans sa propre destination. Continuer l'ouvre là-bas.",
+        "product": {
+          "title": "Produit",
+          "note": "Détail, nourriture ou boisson. Variantes, options, stock ou lots datés, retrait, routage de préparation.",
+          "sold": "Vendu au Comptoir · Tables · QR de table"
+        },
+        "service": {
+          "title": "Service (rendez-vous)",
+          "note": "Durée et phases, professionnels éligibles, salles/stations, acompte, formulaire d'accueil.",
+          "sold": "Vendu dans Rendez-vous et cours"
+        },
+        "class": {
+          "title": "Cours / formation",
+          "note": "Modèle avec capacité, positions d'équipement, sessions ou formation datée.",
+          "sold": "Vendu dans Rendez-vous et cours"
+        },
+        "ticket": {
+          "title": "Offre liée à un billet",
+          "note": "Admission, forfait table ou extra lié à une occurrence d'événement et à ses jauges.",
+          "sold": "Vendu dans Billets et admissions"
+        },
+        "space": {
+          "title": "Service d'espace",
+          "note": "Location de salle, terrain, station ou équipement à l'heure ; combinaisons et tampons.",
+          "sold": "Vendu dans Espaces et ressources"
+        },
+        "custom": {
+          "title": "Service sur devis",
+          "note": "Prix par offre ; jalons et livrables ; encaissé comme travail client.",
+          "sold": "Vendu dans Projets · Services sur site"
+        },
+        "package": {
+          "title": "Forfait",
+          "note": "Composants obligatoires et optionnels avec leur propre capacité, dates et répartition.",
+          "sold": "Vendu au Comptoir · Espaces"
+        },
+        "pass": {
+          "title": "Pass ou abonnement",
+          "note": "Crédits ou éligibilité récurrente ; utilisé plus tard, ne réserve jamais seul.",
+          "sold": "Vendu au Comptoir · Rendez-vous et cours"
+        },
+        "gift": {
+          "title": "Carte cadeau",
+          "note": "Valeur stockée ; un passif jusqu'à son utilisation à l'encaissement.",
+          "sold": "Vendu au Comptoir"
+        }
+      },
+      "editor": {
+        "unsaved": "Pas encore enregistré",
+        "draftChanges": "Modifications en brouillon",
+        "previewPos": "Aperçu sur le POS",
+        "previewReason": "Le comptoir n'a pas encore d'aperçu d'un article ; publiez-le et ouvrez le Comptoir.",
+        "saveDraft": "Enregistrer le brouillon",
+        "publish": "Publier",
+        "draftHint": "Rien n'est écrit tant que vous n'enregistrez pas le brouillon ou ne publiez pas ; un rechargement le perd."
+      },
+      "tab": {
+        "label": "Sections de l'article",
+        "details": "Détails",
+        "pricing": "Tarifs",
+        "options": "Options",
+        "availability": "Disponibilité",
+        "fulfillment": "Exécution",
+        "channels": "Canaux",
+        "policies": "Règles"
+      },
+      "blocker": {
+        "title": "Donnez-lui un nom.",
+        "price": "Fixez un prix, ou affichez-le sur devis.",
+        "instantPrice": "La réservation directe exige un prix exact (zéro est gratuit).",
+        "depositPct": "Fixez l'acompte entre 1 et 99 pour cent.",
+        "identityReason": "Dites pourquoi le nom de l'acheteur est requis.",
+        "currency": "Choisissez une devise."
+      },
+      "details": {
+        "title": "Détails",
+        "intro": "Le nom et les mots portés par la tuile, le menu et le reçu",
+        "name": "Nom",
+        "namePlaceholder": "ex. Latte · Massage 60 min · Dîner privé",
+        "description": "Description",
+        "descriptionPlaceholder": "Ce qui est inclus, pour qui",
+        "type": "Type",
+        "typeHint": "Un cours, un billet ou un espace se crée dans sa propre destination.",
+        "category": "Catégorie",
+        "categoryHint": "Regroupe les tuiles du Comptoir et la page menu.",
+        "categoryPlaceholder": "ex. Café, Boulangerie, Massages",
+        "duration": "Durée (min)",
+        "durationHint": "Services et cours ; vide pour un produit.",
+        "photos": "Photos",
+        "photosReason": "Les photos sur un article de l'espace ne sont pas encore disponibles ; la galerie est liée à un profil de talent."
+      },
+      "pricing": {
+        "baseTitle": "Prix de base",
+        "baseIntro": "Les prix acceptés sont figés à chaque vente ; publier ne réécrit jamais les anciens reçus",
+        "price": "Prix",
+        "soldBy": "Vendu par",
+        "soldByHint": "Unité · Heure · Jour · Séance · Personne · Événement",
+        "unit": {
+          "each": "Unité",
+          "hour": "Par heure",
+          "halfDay": "Par demi-journée",
+          "day": "Par jour",
+          "week": "Par semaine",
+          "session": "Par séance",
+          "person": "Par personne",
+          "event": "Par événement"
+        },
+        "taxCategory": "Catégorie de taxe",
+        "taxUnset": "Inconnue · non configurée",
+        "taxReason": "Les catégories de taxe ne sont pas encore lues sur cet écran ; le reçu affiche la taxe comme non configurée.",
+        "cost": "Coût (facultatif)",
+        "costReason": "Aucune colonne n'enregistre encore un coût, la marge n'est donc pas rapportée.",
+        "shownAs": "Affiché comme",
+        "shownAsHint": "Un devis n'a pas de montant et ne se vend jamais directement.",
+        "display": {
+          "exact": "Prix fixe",
+          "from": "À partir de",
+          "quote": "Prix sur demande"
+        },
+        "currency": "Devise",
+        "listsTitle": "Listes de prix",
+        "listsIntro": "Par lieu et par règle ; le POS utilise la liste de son lieu et de son heure",
+        "defaultList": "Par défaut",
+        "always": "Toujours",
+        "addRule": "Ajouter une règle",
+        "listsReason": "Un prix par article aujourd'hui : les listes par lieu et par horaire n'ont pas encore de table.",
+        "depositTitle": "Acompte / prépaiement",
+        "depositIntro": "Comment un client réserve ceci et ce qui est encaissé d'avance",
+        "depositProducts": "Sans objet pour les produits · défini sur les services et réservations",
+        "howBooked": "Comment les clients réservent",
+        "howBookedHint": "La réservation directe réserve immédiatement ; une demande est d'abord confirmée par vous.",
+        "instantNeedsPrice": "La réservation directe exige un prix fixe.",
+        "booking": {
+          "request": "Demande de réservation · vous confirmez d'abord",
+          "instant": "Réservation directe · immédiate"
+        },
+        "collectUpFront": "Pour réserver, le client paie",
+        "collectHint": "Seule une réservation directe encaisse d'avance.",
+        "reserve": {
+          "full": "Le montant total",
+          "deposit": "Un acompte",
+          "free": "Rien · réservation gratuite"
+        },
+        "depositPct": "Acompte (%)",
+        "holdDays": "Maintenir (jours)",
+        "holdDaysHint": "Ensuite la réservation est libérée d'elle-même."
+      },
+      "options": {
+        "title": "Groupes d'options",
+        "intro": "Ce que le caissier ou le client doit ou peut choisir ; le POS refuse les combinaisons qui enfreignent ces règles",
+        "saveFirst": "Enregistrez d'abord l'article, puis ajoutez ses options.",
+        "groupOptions": "Options",
+        "groupExtras": "Extras",
+        "required": "Obligatoire",
+        "optional": "Facultatif",
+        "pickOne": "Choisir exactement 1",
+        "zeroToN": "0 à {n}",
+        "pricePerItem": "Prix par article",
+        "basePrice": "prix de base",
+        "none": "Aucune ligne pour l'instant.",
+        "labelPlaceholder": "Nom (ex. Avoine)",
+        "pricePlaceholder": "Prix",
+        "priceOptional": "Prix (facultatif)",
+        "addOption": "Ajouter une option",
+        "remove": "Retirer",
+        "stationReason": "Aucun code de station n'est encore enregistré sur une option.",
+        "availabilityReason": "Une option n'a pas encore de stock propre ; le stock de l'article s'applique.",
+        "addGroup": "Ajouter un groupe",
+        "copyGroups": "Copier les groupes de",
+        "groupsReason": "Deux groupes existent aujourd'hui (choix unique, extras) ; les groupes libres n'ont pas encore d'écriture.",
+        "prepNotes": "Notes pour la préparation",
+        "allergy": "Champ allergies",
+        "prepReason": "Les invites de préparation ne sont pas encore enregistrées sur un article."
+      },
+      "fulfillment": {
+        "title": "Exécution et préparation",
+        "intro": "Comment l'article parvient au client et quelle station le prépare",
+        "reason": "Exécution, station, temps de préparation et service ne sont pas encore enregistrés sur un article ; le comptoir remet au paiement.",
+        "fulfillment": "Exécution",
+        "fulfillmentHint": "Remise immédiate · Retrait · Livraison · Service à table",
+        "handoffNow": "Remise immédiate",
+        "station": "Station",
+        "prepTime": "Temps de préparation",
+        "course": "Service par défaut (tables)"
+      },
+      "channels": {
+        "title": "Où il peut être vendu",
+        "intro": "La disponibilité par canal n'est pas une autorisation par rôle ; le serveur applique la même règle sur le web, le POS et le QR",
+        "website": "Site web · collections",
+        "websiteNote": "Page menu, commande à emporter",
+        "needsPublish": "Affiché une fois l'article publié",
+        "posCounter": "POS · Comptoir",
+        "counterOff": "Pas en vente : l'article est un brouillon",
+        "favorites": "Favoris",
+        "allItems": "Tous les articles",
+        "posTables": "POS · Tables",
+        "posTablesNote": "Section et service sur le menu des tables",
+        "tableQr": "QR de table (commande client)",
+        "tableQrNote": "Les clients peuvent le commander eux-mêmes",
+        "profile": "Profil de talent",
+        "profileNote": "Un article de l'espace n'est pas sur le profil d'une personne",
+        "privateLink": "Lien privé",
+        "privateLinkNote": "URL non répertoriée pour une campagne",
+        "priceOverride": "Prix spécifique",
+        "reason": "Ce canal n'a pas encore d'indicateur sur l'article ; les deux qui existent sont le site web et le comptoir.",
+        "overrideReason": "Un prix par canal n'a pas encore de colonne ; chaque canal vend le prix de base.",
+        "rule": "Désactiver un canal n'annule jamais les ventes déjà faites par ce canal."
+      },
+      "policies": {
+        "title": "Règles · la version acceptée est conservée sur chaque vente",
+        "intro": "Ce que la vente demande à l'acheteur et ce qu'elle permet ensuite",
+        "needsName": "Exige le nom de l'acheteur",
+        "needsNameNote": "E-mail ou téléphone, quel que soit le prix ; la seule chose qui fait refuser une vente faute de nom",
+        "why": "Pourquoi",
+        "whyHint": "Demandé seulement quand le nom est requis.",
+        "identity": {
+          "attendee_names": "Chaque participant doit être nommé",
+          "delivery": "Il doit être livré à quelqu'un",
+          "entitlement": "Il émet un crédit dépensé plus tard"
+        },
+        "requireAccount": "Compte requis pour réserver",
+        "requireAccountNote": "Un client sans compte est refusé sur le site",
+        "payInPerson": "Autoriser le paiement sur place",
+        "payInPersonNote": "Espèces ou sur place ; la carte reste la valeur par défaut",
+        "returns": "Retours",
+        "refundPolicy": "Politique de remboursement",
+        "discounts": "Remises",
+        "discountable": "Remisable",
+        "comp": "Offert autorisé",
+        "reason": "Aucune colonne n'enregistre encore cette règle sur un article ; les remboursements se décident au cas par cas."
+      },
+      "side": {
+        "counterTile": "Tuile du comptoir",
+        "optionsPill": "Options",
+        "exampleTotals": "Exemples de totaux",
+        "base": "Base",
+        "noExtras": "Pas encore d'extra",
+        "timesTwo": "× 2",
+        "tax": "Taxe",
+        "taxUnset": "Non configurée · non affichée",
+        "beforePublish": "Avant de publier",
+        "readyToPublish": "Prêt à publier",
+        "cashierSees": "Le caissier voit",
+        "chooseOne": "Choisir 1",
+        "upTo": "Jusqu'à {n}",
+        "noOptionsYet": "Pas encore d'options : la tuile vend l'article de base.",
+        "noExtrasYet": "Pas encore d'extras.",
+        "perItemNote": "« Prix par article » signifie 2 lattes à l'avoine = 2 × (base + avoine). Figé sur la ligne.",
+        "posBehaviour": "Comportement du POS",
+        "soldOutOnCharge": "Épuisé à l'encaissement",
+        "soldOutOnChargeValue": "Ligne refusée · vente conservée",
+        "cancelFlexible": "Flexible · retourne au stock",
+        "cancelHours": "Gratuite jusqu'à {n} h avant",
+        "kitchen": "Cuisine",
+        "poolNote": "Le stock fait foi : le comptoir retient une unité à l'encaissement et la rend à l'annulation.",
+        "visibleOn": "Visible sur",
+        "tablesMenu": "Menu des tables",
+        "menu": "Menu",
+        "hidden": "Masqué",
+        "channelOffNote": "Désactiver un canal n'annule jamais les ventes déjà faites par ce canal.",
+        "onCounterTile": "Sur la tuile du comptoir"
+      },
+      "structure": {
+        "title": "Structure du menu",
+        "intro": "Ce qu'affichent les tuiles du Comptoir, le menu des Tables et le QR de table",
+        "oneLocation": "Cet espace",
+        "save": "Enregistrer",
+        "saveReason": "Chaque changement ici est enregistré au moment où vous le faites.",
+        "favorites": "Comptoir · Favoris (premier écran)",
+        "nOfCap": "{n} sur {cap}",
+        "noFavorites": "Pas encore de favoris ; le comptoir s'ouvre sur tous les articles.",
+        "pickItem": "Choisir un article",
+        "addFavorite": "Ajouter aux favoris",
+        "removeFavorite": "Retirer des favoris",
+        "categories": "Comptoir · Catégories",
+        "uncategorised": "Sans catégorie",
+        "nItems": "{n} articles",
+        "categoriesHint": "La catégorie est l'étiquette de l'article lui-même ; renommez-la sur l'article.",
+        "sections": "Tables et QR · sections → services",
+        "sectionsReason": "Les sections et services du menu des tables n'ont pas encore de table ; le mode tables vend le même catalogue.",
+        "qrOrdering": "Les clients peuvent commander depuis le QR",
+        "qrOrderingNote": "Le personnel accepte avant l'envoi",
+        "backToItems": "Retour aux articles"
+      },
+      "priceLists": {
+        "title": "Listes de prix",
+        "intro": "Par lieu et par règle ; le POS utilise la liste de son lieu et de son heure",
+        "add": "Ajouter une liste de prix",
+        "list": "Liste",
+        "when": "Quand"
+      },
+      "passes": {
+        "title": "Pass, abonnements et cartes cadeaux",
+        "intro": "Produits qui créent des droits ; utilisés plus tard au POS ou à l'accueil",
+        "create": "Créer",
+        "edit": "Modifier",
+        "reason": "Vendre des pass exige une décision produit.",
+        "notDecided": "Non décidé",
+        "usedPos": "Comptoir, Rendez-vous et cours",
+        "usedWeb": "Site web · boutique, portail membres",
+        "pass": {
+          "title": "Pass de cours",
+          "kind": "Pass"
+        },
+        "membership": {
+          "title": "Abonnement mensuel",
+          "kind": "Abonnement"
+        },
+        "gift": {
+          "title": "Carte cadeau",
+          "kind": "Valeur stockée"
+        },
+        "row": {
+          "price": "Prix",
+          "credits": "Crédits",
+          "eligible": "Éligible",
+          "activation": "Activation",
+          "expiry": "Expiration",
+          "consumed": "Consommé",
+          "cancellation": "Annulation",
+          "transferable": "Transférable",
+          "billing": "Facturation",
+          "gives": "Donne droit à",
+          "pause": "Pause",
+          "cancel": "Résiliation",
+          "renewalFails": "Échec du renouvellement",
+          "eligibility": "Éligibilité vérifiée",
+          "amounts": "Montants",
+          "valid": "Validité",
+          "use": "Utilisation",
+          "partial": "Utilisation partielle",
+          "concurrent": "Utilisation simultanée",
+          "reporting": "Reporting"
+        }
+      }
+    },
+    "discounts": {
+      "pageTitle": "Promotions et limites de remise",
+      "pageIntro": "Règles appliquées par le POS et limites imposées par rôle",
+      "unavailable": "Impossible de charger les promotions.",
+      "empty": "Pas encore de promotions.",
+      "readOnly": "Seul un propriétaire peut ajouter ou désactiver une promotion.",
+      "newPromotion": "Nouvelle promotion",
+      "usedIn": "Utilisé dans",
+      "usedPos": "POS",
+      "usedPosParts": "Comptoir, Rendez-vous et cours, Billets et admissions",
+      "usedWeb": "Web",
+      "usedWebParts": "Paiement du site, widget de réservation",
+      "colPromotion": "Promotion",
+      "colValue": "Valeur",
+      "colEligible": "Éligible",
+      "colStacking": "Cumul",
+      "colUses": "Utilisations",
+      "colActive": "Active",
+      "on": "Active",
+      "off": "Inactive",
+      "kindCode": "code",
+      "eligibleAll": "Tout l'espace",
+      "eligibleEvent": "Un événement",
+      "perCustomer": "{n} par client",
+      "stackingOne": "Un code par vente",
+      "usesUnknown": "Non lu",
+      "form": {
+        "code": "Code",
+        "label": "Libellé (facultatif)",
+        "kind": "Type",
+        "percent": "Pourcentage",
+        "fixed": "Montant ({currency})",
+        "value": "Valeur",
+        "add": "Ajouter le code",
+        "saving": "Enregistrement",
+        "close": "Fermer",
+        "notAllowed": "Seul un propriétaire peut ajouter une promotion.",
+        "invalid": "Vérifiez le code (2 à 40 caractères) et la valeur (1 à 100 pour un pourcentage).",
+        "unavailable": "La promotion n'a pas été enregistrée ; le code existe peut-être déjà.",
+        "refused": "La promotion n'a pas été enregistrée."
+      },
+      "limits": {
+        "title": "Limites de remise manuelle par rôle",
+        "cashier": "Caissier",
+        "server": "Serveur",
+        "manager": "Responsable",
+        "owner": "Propriétaire",
+        "notSet": "Non défini",
+        "rule": "Au-delà de la limite, le POS demande un code responsable. Les remises ne contournent jamais une ligne « non remisable ».",
+        "reason": "Les remises manuelles et gestes commerciaux ne s'écrivent pas encore au comptoir ; il n'y a donc pas de limite à définir.",
+        "edit": "Modifier les limites"
+      },
+      "stacking": {
+        "title": "Ordre de cumul",
+        "intro": "Déterministe : éligibilité → lignes éligibles → combinaisons permises → répartition → frais/taxes → total final",
+        "priceList": "Liste de prix",
+        "codes": "Codes",
+        "manual": "Manuelle",
+        "member": "Prix membre",
+        "live": "Actif",
+        "notWired": "Cette étape n'a pas encore de moteur.",
+        "today": "Aujourd'hui une vente porte un seul code ; listes de prix, remises manuelles et prix membres ne s'appliquent pas."
       }
     }
   },

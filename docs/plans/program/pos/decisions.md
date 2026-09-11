@@ -477,3 +477,122 @@ Pay** columns draw a dash whose title names what is not tracked. Trust
 badges, skills and the "Earned" line are the profile drawer's own sections
 and are not re-read into the sheet. Rooms and chairs (`profile_kind =
 resource`) stay out of People (D-POS-1).
+
+## D-POS-54 — passes, memberships and gift cards are drawn disabled behind one sentence
+
+Decided 2026-09-11 (fid-catalog). W09 and the two W02 cards (`Pass or
+membership`, `Gift card`) are built with every control disabled and the one
+sentence the owner already knows, in three languages: "Selling passes needs
+a product decision." `entitlement_credits` exists as a ledger a customer
+holds; no product creates one, nothing bills a membership, and a gift card
+is a liability nobody has decided how to carry. The three W09 cards show the
+board's rows as the questions that decision answers, each reading "Not
+decided". P04, P05, P07, P08 and P09 (the till's membership and gift-card
+screens) are not drawn: they would be POS screens made only of disabled
+controls under a mode the register does not offer, which the projects build
+already ruled a fork (W19); the sentence lives on W09 and W02 instead.
+
+## D-POS-55 — one catalog per workspace; location is a chip disabled with its reason
+
+Decided 2026-09-11 (fid-catalog). W01's `Location: Centro`, W03's per-location
+price lists and W07's `Centro · Polanco` switch all assume an item exists per
+location. `talent_offerings` has no location column and no price-list table;
+the list's Location chip, the structure view's switch and the price-list
+rows are drawn disabled with "One catalog per workspace: items are not
+recorded per location yet." The `Price lists` segment lists the one list the
+engine has (every item's base price, always).
+
+## D-POS-56 — preparation, fulfillment, photos and tables sections have no column on an item
+
+Decided 2026-09-11 (fid-catalog). W01's Preparation column, W05's
+`Fulfillment & preparation` (fulfillment, station, prep time, default
+course), W04's station codes and preparation prompts, W07's `Tables & QR ·
+sections → courses` and its QR-ordering switch, and W06's Tables, Table QR,
+profile and private-link channels have no column on `talent_offerings` and
+no related table. Each is drawn as the board draws it, disabled with one
+sentence; the list prints a dash. Photos on a workspace item are disabled
+too: `talent_offering_media` joins a talent profile and the workspace's rows
+have none (the old editor said the same in English).
+
+## D-POS-47 — tax category and cost are not read on the item; the receipt shows tax as unset
+
+Decided 2026-09-11 (fid-catalog). `tax_categories` exists and `lib/catalog/tax`
+computes a line's tax, but nothing on this surface reads or writes an item's
+category, and no column records a cost. W03's `Tax category` reads "Unknown ·
+not configured" disabled with its sentence; `Cost (optional)` is disabled;
+the right column's example totals print "Not configured · not shown" for
+tax, which is what the receipt does (`TAX_UNSET`), never 0.
+
+## D-POS-48 — options are the two child rows the engine has; free-form groups have no writer
+
+Decided 2026-09-11 (fid-catalog). W04 draws Milk · Size · Extras as option
+groups. The engine has exactly two: OPTIONS (`talent_offering_variants`, the
+buyer picks one; a row without a price is the base price) and EXTRAS
+(`talent_offering_addons`, any number, each priced). Both are wired for the
+workspace through `setWorkspaceMenuItemOptions`, the same replace-all writer
+the talent editor uses (`replaceOfferingChildren`, now shared).
+`catalog_modifier_groups` / `catalog_modifiers` (T1-04B) have a table and no
+reader, writer or POS consumer, so `Add group` and `Copy groups from` are
+disabled with "Two groups exist today (pick one, extras); free-form groups
+have no writer yet." Per-option availability and station codes are dashes.
+
+## D-POS-49 — availability is unlimited or one stock pool; dated batches and session pools are not on the item
+
+Decided 2026-09-11 (fid-catalog). W05's four modes map to the engine as:
+`Unlimited` and `Stock pool` wired through the capacity RPC
+(`setMenuItemStockAction`: a number is AVAILABLE NOW and the pool total
+becomes that plus what open orders hold); `Dated batches` disabled ("no table
+yet; one stock pool per item today"); `Session pool` disabled ("places are
+set on the session under Appointments & Classes, not on the item").
+`When sold out` is shown as the engine's own rule, locked; low-stock warning
+and lead time have no column. Cancellation is `cancellation_hours`.
+
+## D-POS-50 — two channels exist: the website and the counter; every other switch is drawn disabled
+
+Decided 2026-09-11 (fid-catalog). W06's six rows map to two flags: Website
+is `visibility` (`agency_only` means staff can sell it and the site does not
+show it, the storefront's own filter) and POS · Counter is `status` (the
+counter's `addLine` refuses anything not `published`). Tables, Table QR,
+Talent profile and Private link have no flag and a price override no column;
+each is disabled with its sentence. The list's Channels column and the
+right column's `Visible on` are derived from the same two flags
+(`itemChannels`, tested).
+
+## D-POS-51 — policies on an item are the identity rule, the account rule and pay-in-person; returns, refunds, discountability and comps are not recorded
+
+Decided 2026-09-11 (fid-catalog). W06's Policies section is its own tab.
+Wired: `requires_identity` with its reason (T1-04), `require_account_to_book`,
+`allow_pay_in_person`. Returns, refund policy, `not discountable` and comp
+allowance have no column; each is disabled with "No column records this
+policy on an item yet; the counter's refunds desk decides case by case."
+
+## D-POS-52 — the Promotions page is the codes table; manual limits by role have nothing to edit
+
+Decided 2026-09-11 (fid-catalog). W08 at `/admin/discounts` (a child of the
+Catalog destination) lists `tenant_promo_codes` with their redemption counts
+from `tenant_promo_redemptions` (rows, never a counter), `New promotion`
+opens the real form (`createTenantPromo`) and the on/off switch is
+`setTenantPromoActive`. Stacking reads "One code per sale" on every row
+because a sale carries one `promo_code_id`; the stacking-order card marks
+`Codes` live and the other three steps as having no engine. `Manual discount
+limits by role` reads "Not set" per role and `Edit limits` is disabled per
+D-POS-22 (manual discounts and comps have no writer at the counter). Found
+on the way: the old form sent `kind: "amount"`, which the table's CHECK
+(`percent` | `fixed`) refused, so every fixed-amount code ever typed failed
+with "unavailable"; the form now sends `fixed` with cents and the workspace
+currency.
+
+## D-POS-53 — packages, offers and the offer wizard are not built in the catalog group
+
+Decided 2026-09-11 (fid-catalog). `Package` is a kind on `talent_offerings`
+and is listed, created and edited as one item; PackageEditor's Composition
+(components with their own capacity, dates and allocation), P01, P02, P03
+and P06 (the till configuring, substituting, issuing and refunding a
+package's components) need a package-components model that does not exist:
+`lib/resources/hybrid-combinations` reserves several resources as one
+command, but nothing on a catalog row names which rows are its components.
+Offers.dc.html is the project agreement's version view, built as W46 under
+`/admin/projects/[id]` by fid-projects; OfferWizard is a reservation-offer
+wizard over pacing, buffers and assignment scope that Spaces & Resources
+does not record. None of these is drawn as a page of disabled controls under
+a route the registry does not know.

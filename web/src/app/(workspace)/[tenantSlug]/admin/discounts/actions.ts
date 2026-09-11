@@ -6,12 +6,19 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 
-const createSchema = z.object({
-  code: z.string().trim().min(2).max(40),
-  kind: z.enum(["percent", "amount"]),
-  value: z.number().int().positive(),
-  label: z.string().trim().max(80).optional(),
-});
+// `kind` is the table's own enum (`percent` | `fixed`, CHECK-constrained);
+// `value` is 1..100 for a percent and INTEGER CENTS for a fixed amount, which
+// then needs its currency (the table's `promo_fixed_currency` CHECK).
+const createSchema = z
+  .object({
+    code: z.string().trim().min(2).max(40),
+    kind: z.enum(["percent", "fixed"]),
+    value: z.number().int().positive(),
+    currency: z.string().trim().length(3).optional(),
+    label: z.string().trim().max(80).optional(),
+  })
+  .refine((v) => v.kind !== "percent" || v.value <= 100, { message: "percent_range" })
+  .refine((v) => v.kind !== "fixed" || Boolean(v.currency), { message: "fixed_currency" });
 
 export async function createTenantPromo(input: z.infer<typeof createSchema>) {
   const guard = await requireWorkspaceStaffAction();
@@ -30,6 +37,7 @@ export async function createTenantPromo(input: z.infer<typeof createSchema>) {
     code: parsed.data.code,
     kind: parsed.data.kind,
     value: parsed.data.value,
+    currency: parsed.data.kind === "fixed" ? parsed.data.currency!.toUpperCase() : null,
     label: parsed.data.label ?? null,
     is_active: true,
     per_customer_limit: 1,

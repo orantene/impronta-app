@@ -76,3 +76,85 @@ export async function loadOfferingChildren(
   }
   return { variants, addOns };
 }
+
+export type OfferingChildrenInput = {
+  variants: { label: string; amountCents: number | null }[];
+  addOns: { label: string; amountCents: number }[];
+};
+
+export type OfferingChildrenSaved =
+  | { ok: true; variants: OfferingVariant[]; addOns: OfferingAddOn[] }
+  | { ok: false; error: string };
+
+/**
+ * Replace an offering's OPTIONS (variants) and EXTRAS (add-ons). Array order IS
+ * the display order. Labels are required; a variant without a price falls back
+ * to the offering's base price; an add-on must carry one. Replace-all, the same
+ * semantics as the photos writer, so the caller re-syncs from the fresh ids.
+ *
+ * The caller has already proven the offering is its own (talent or workspace);
+ * this only writes the child rows.
+ */
+export async function replaceOfferingChildren(
+  db: SupabaseClient,
+  offeringId: string,
+  input: OfferingChildrenInput,
+  logScope: string,
+): Promise<OfferingChildrenSaved> {
+  const variants = (input.variants ?? [])
+    .map((v) => ({
+      label: (v.label ?? "").trim().slice(0, MAX_LABEL),
+      amount_cents:
+        typeof v.amountCents === "number" && Number.isFinite(v.amountCents) && v.amountCents >= 0
+          ? Math.round(v.amountCents)
+          : null,
+    }))
+    .filter((v) => v.label)
+    .slice(0, MAX_OPTIONS_PER_OFFERING);
+  const addOns = (input.addOns ?? [])
+    .map((a) => ({
+      label: (a.label ?? "").trim().slice(0, MAX_LABEL),
+      amount_cents:
+        typeof a.amountCents === "number" && Number.isFinite(a.amountCents) && a.amountCents >= 0
+          ? Math.round(a.amountCents)
+          : null,
+    }))
+    .filter((a): a is { label: string; amount_cents: number } => Boolean(a.label) && a.amount_cents != null)
+    .slice(0, MAX_OPTIONS_PER_OFFERING);
+
+  const { error: delV } = await db.from("talent_offering_variants").delete().eq("offering_id", offeringId);
+  const { error: delA } = await db.from("talent_offering_addons").delete().eq("offering_id", offeringId);
+  if (delV || delA) {
+    logServerError(`${logScope}.optionsClear`, delV ?? delA);
+    return { ok: false, error: "Failed to save options." };
+  }
+  let savedVariants: { id: string; label: string; amount_cents: number | null }[] = [];
+  let savedAddOns: { id: string; label: string; amount_cents: number }[] = [];
+  if (variants.length > 0) {
+    const { data, error } = await db
+      .from("talent_offering_variants")
+      .insert(variants.map((v, i) => ({ offering_id: offeringId, label: v.label, amount_cents: v.amount_cents, sort_order: i })))
+      .select("id, label, amount_cents");
+    if (error) {
+      logServerError(`${logScope}.variantsSet`, error);
+      return { ok: false, error: "Failed to save options." };
+    }
+    savedVariants = (data ?? []) as typeof savedVariants;
+  }
+  if (addOns.length > 0) {
+    const { data, error } = await db
+      .from("talent_offering_addons")
+      .insert(addOns.map((a, i) => ({ offering_id: offeringId, label: a.label, amount_cents: a.amount_cents, sort_order: i })))
+      .select("id, label, amount_cents");
+    if (error) {
+      logServerError(`${logScope}.addonsSet`, error);
+      return { ok: false, error: "Failed to save extras." };
+    }
+    savedAddOns = (data ?? []) as typeof savedAddOns;
+  }
+  return {
+    ok: true,
+    variants: savedVariants.map((v) => ({ id: v.id, label: v.label, amountCents: v.amount_cents })),
+    addOns: savedAddOns.map((a) => ({ id: a.id, label: a.label, amountCents: a.amount_cents })),
+  };
+}

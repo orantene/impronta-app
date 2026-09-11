@@ -11922,8 +11922,6 @@
       "delayNextUpdate": "Próxima actualización: {when}"
     },
     "adminMenu": {
-      "title": "Catálogo",
-      "subtitle": "Artículos del espacio de trabajo que los clientes pueden pedir en tu sitio.",
       "noTenant": "No hay un espacio de trabajo activo.",
       "import": {
         "action": {
@@ -11936,7 +11934,6 @@
         "confirm": "Importar {create} nuevos, actualizar {update}",
         "done": "Importado. {created} creados, {updated} actualizados.",
         "nothingToDo": "Este archivo coincide con lo que ya tienes. No hay nada que importar.",
-        "open": "Importar un menú",
         "orphans": "{n} ya no están en este archivo (no se borrará nada)",
         "placeholder": "Pega el archivo del menú (JSON)",
         "preview": "Vista previa",
@@ -12118,16 +12115,68 @@
       "timesInVenueZone": "Los horarios se muestran en la zona horaria del espacio de trabajo."
     },
     "discounts": {
-      "pageTitle": "Descuentos",
-      "pageIntro": "Códigos promocionales de este espacio. El canje se vuelve a comprobar bajo un bloqueo al comprar.",
-      "unavailable": "No pudimos cargar los descuentos.",
-      "empty": "Aún no hay códigos.",
-      "colCode": "Código",
+      "pageTitle": "Promociones y límites de descuento",
+      "pageIntro": "Reglas que aplica el POS y límites que impone por rol",
+      "unavailable": "No pudimos cargar las promociones.",
+      "empty": "Aún no hay promociones.",
       "colValue": "Valor",
-      "colActive": "Activo",
-      "on": "Sí",
-      "off": "No",
-      "readOnly": "Solo un dueño puede agregar o apagar un código."
+      "colActive": "Activa",
+      "on": "Activa",
+      "off": "Apagada",
+      "readOnly": "Solo un propietario puede añadir o apagar una promoción.",
+      "newPromotion": "Nueva promoción",
+      "usedIn": "Se usa en",
+      "usedPos": "POS",
+      "usedPosParts": "Mostrador, Citas y clases, Entradas y admisiones",
+      "usedWeb": "Web",
+      "usedWebParts": "Pago del sitio web, widget de reservas",
+      "colPromotion": "Promoción",
+      "colEligible": "Aplica a",
+      "colStacking": "Acumulación",
+      "colUses": "Usos",
+      "kindCode": "código",
+      "eligibleAll": "Todo el espacio",
+      "eligibleEvent": "Un evento",
+      "perCustomer": "{n} por cliente",
+      "stackingOne": "Un código por venta",
+      "usesUnknown": "Sin leer",
+      "form": {
+        "code": "Código",
+        "label": "Etiqueta (opcional)",
+        "kind": "Tipo",
+        "percent": "Porcentaje",
+        "fixed": "Importe ({currency})",
+        "value": "Valor",
+        "add": "Añadir código",
+        "saving": "Guardando",
+        "close": "Cerrar",
+        "notAllowed": "Solo un propietario puede añadir una promoción.",
+        "invalid": "Revisa el código (2 a 40 caracteres) y el valor (1 a 100 para un porcentaje).",
+        "unavailable": "La promoción no se guardó; puede que el código ya exista.",
+        "refused": "La promoción no se guardó."
+      },
+      "limits": {
+        "title": "Límites de descuento manual por rol",
+        "cashier": "Cajero",
+        "server": "Camarero",
+        "manager": "Gerente",
+        "owner": "Propietario",
+        "notSet": "Sin definir",
+        "rule": "Por encima del límite el POS pide un PIN de gerente. Los descuentos nunca saltan una línea marcada “sin descuento”.",
+        "reason": "Los descuentos manuales y cortesías aún no se escriben en el mostrador, así que no hay límite que definir.",
+        "edit": "Editar límites"
+      },
+      "stacking": {
+        "title": "Orden de acumulación",
+        "intro": "Determinista: elegibilidad → líneas elegibles → combinaciones permitidas → reparto → tasas/impuestos → total final",
+        "priceList": "Lista de precios",
+        "codes": "Códigos",
+        "manual": "Manual",
+        "member": "Precio de miembro",
+        "live": "Activo",
+        "notWired": "Este paso aún no tiene motor.",
+        "today": "Hoy una venta lleva un código; las listas de precios, los descuentos manuales y los precios de miembro no se aplican."
+      }
     },
     "pos": {
       "pageTitle": "Nueva venta",
@@ -14397,6 +14446,470 @@
           "onlinePayments": "pagos en línea",
           "payoutDestination": "destino de los pagos",
           "websitePublished": "una página web publicada"
+        }
+      }
+    },
+    "catalog": {
+      "loading": "Cargando el catálogo",
+      "saving": "Guardando",
+      "saved": "Guardado",
+      "dash": "—",
+      "untitled": "(sin título)",
+      "itemMissing": "Ese artículo ya no está en este catálogo. La lista de abajo está al día.",
+      "type": {
+        "product": "Producto",
+        "service": "Servicio",
+        "package": "Paquete",
+        "custom": "Servicio a medida"
+      },
+      "status": {
+        "published": "Publicado",
+        "draft": "Borrador",
+        "incomplete": "Incompleto"
+      },
+      "channel": {
+        "website": "Sitio web",
+        "posCounter": "POS Mostrador",
+        "none": "Aún no a la venta"
+      },
+      "availability": {
+        "unlimited": "Ilimitado",
+        "soldOut": "Agotado",
+        "stockPool": "Existencias",
+        "stockLeft": "Existencias · quedan {n}",
+        "title": "Modo de disponibilidad",
+        "intro": "El cupo que el POS y el sitio web comprueban antes de vender",
+        "mode": {
+          "unlimited": "Ilimitado",
+          "unlimitedNote": "Sin conteo",
+          "stock": "Existencias",
+          "stockNote": "Un conteo para el espacio",
+          "batches": "Lotes con fecha",
+          "batchesNote": "Un conteo por fecha · p. ej. 20 pizzas para el viernes",
+          "session": "Cupo por sesión",
+          "sessionNote": "Plazas en una sesión programada"
+        },
+        "batchesReason": "Los lotes con fecha aún no tienen tabla; hoy hay un pool de stock por artículo.",
+        "sessionReason": "Las plazas por sesión se definen en la sesión, en Citas y clases, no en el artículo.",
+        "availableNow": "Disponibles ahora",
+        "availableHint": "Vacío significa ilimitado; cero significa agotado.",
+        "held": "{n} retenidos por pedidos abiertos",
+        "batch": {
+          "batch": "Lote",
+          "made": "Hechas",
+          "left": "Quedan",
+          "window": "Ventana de recogida",
+          "release": "Enviar a cocina"
+        },
+        "addBatch": "Añadir lote",
+        "repeatWeekly": "Repetir cada semana",
+        "lowStock": "Aviso de stock bajo en",
+        "lowStockReason": "Aún no se registra un umbral en un artículo.",
+        "whenSoldOut": "Al agotarse",
+        "whenSoldOutHint": "La regla del motor; no es un ajuste.",
+        "soldOutRule": "Mostrar “Agotado” · no se vende",
+        "leadTime": "Antelación",
+        "leadTimeReason": "Aún no se registra antelación en un artículo.",
+        "cancellation": "Cancelación",
+        "cancellationHint": "Horas antes de la reserva en que termina la cancelación gratuita; vacío es flexible."
+      },
+      "preparation": {
+        "reason": "Aún no se registra estación ni tiempo de preparación en un artículo."
+      },
+      "usedIn": {
+        "label": "Se usa en",
+        "pos": "POS",
+        "web": "Web",
+        "posParts": "Mostrador, Citas y clases",
+        "webParts": "Sitio web · tienda y menú, widget de reservas",
+        "rule": "un registro, un stock, en todas partes",
+        "itemPos": "Mostrador",
+        "itemWeb": "Sitio web · menú y recogida",
+        "structureWeb": "Página de menú del sitio (colecciones)"
+      },
+      "list": {
+        "title": "Catálogo",
+        "intro": "Todo lo que el POS, el sitio web y el perfil pueden vender · un registro por artículo",
+        "import": "Importar",
+        "createItem": "Crear artículo",
+        "empty": "Aún no hay nada en el catálogo. Crea un artículo o importa un menú.",
+        "noMatch": "Ningún artículo coincide con estos filtros."
+      },
+      "segment": {
+        "label": "Secciones del catálogo",
+        "items": "Artículos",
+        "packages": "Paquetes",
+        "priceLists": "Listas de precios",
+        "promotions": "Promociones",
+        "passes": "Pases y tarjetas"
+      },
+      "filter": {
+        "type": "Tipo",
+        "all": "todos",
+        "any": "cualquiera",
+        "typeFixedByView": "Esta vista muestra solo paquetes.",
+        "location": "Ubicación",
+        "locationReason": "Un catálogo por espacio: los artículos aún no se registran por ubicación.",
+        "channel": "Canal",
+        "incompleteOnly": "Solo incompletos"
+      },
+      "col": {
+        "item": "Artículo",
+        "type": "Tipo",
+        "channels": "Canales",
+        "price": "Precio",
+        "availability": "Disponibilidad",
+        "preparation": "Preparación",
+        "status": "Estado"
+      },
+      "rowMenu": {
+        "label": "Acciones del artículo",
+        "open": "Abrir",
+        "publish": "Publicar",
+        "unpublish": "Despublicar",
+        "duplicate": "Duplicar",
+        "moveUp": "Subir",
+        "moveDown": "Bajar",
+        "delete": "Eliminar"
+      },
+      "create": {
+        "title": "¿Qué vendes?",
+        "intro": "El tipo carga solo las secciones que necesitas y decide qué modo del POS lo vende",
+        "continue": "Continuar",
+        "cancel": "Cancelar",
+        "elsewhere": "Este tipo se crea en su propio destino. Continuar lo abre allí.",
+        "product": {
+          "title": "Producto",
+          "note": "Retail, comida o bebida. Variantes, opciones, stock o lotes con fecha, recogida, enrutado de preparación.",
+          "sold": "Se vende en Mostrador · Mesas · QR de mesa"
+        },
+        "service": {
+          "title": "Servicio (cita)",
+          "note": "Duración y fases, profesionales elegibles, salas/estaciones, depósito, formulario de entrada.",
+          "sold": "Se vende en Citas y clases"
+        },
+        "class": {
+          "title": "Clase / curso",
+          "note": "Plantilla con capacidad, posiciones de equipo, sesiones o un curso con fechas.",
+          "sold": "Se vende en Citas y clases"
+        },
+        "ticket": {
+          "title": "Oferta ligada a entradas",
+          "note": "Entrada, paquete de mesa o extra ligado a una función del evento y sus cupos.",
+          "sold": "Se vende en Entradas y admisiones"
+        },
+        "space": {
+          "title": "Servicio de espacio",
+          "note": "Alquiler de sala, cancha, estación o equipo por hora; combinaciones y márgenes.",
+          "sold": "Se vende en Espacios y recursos"
+        },
+        "custom": {
+          "title": "Servicio a medida (cotización)",
+          "note": "Precio por oferta; hitos y entregables; se cobra como trabajo de cliente.",
+          "sold": "Se vende en Proyectos · Servicios a domicilio"
+        },
+        "package": {
+          "title": "Paquete",
+          "note": "Componentes obligatorios y opcionales con su propia capacidad, fechas y reparto.",
+          "sold": "Se vende en Mostrador · Espacios"
+        },
+        "pass": {
+          "title": "Pase o membresía",
+          "note": "Créditos o elegibilidad recurrente; se canjea después, nunca reserva por sí solo.",
+          "sold": "Se vende en Mostrador · Citas y clases"
+        },
+        "gift": {
+          "title": "Tarjeta regalo",
+          "note": "Saldo almacenado; un pasivo hasta que se canjea en Cobrar.",
+          "sold": "Se vende en Mostrador"
+        }
+      },
+      "editor": {
+        "unsaved": "Aún sin guardar",
+        "draftChanges": "Cambios en borrador",
+        "previewPos": "Vista previa en POS",
+        "previewReason": "El mostrador aún no tiene vista previa de un artículo; publícalo y abre el Mostrador.",
+        "saveDraft": "Guardar borrador",
+        "publish": "Publicar",
+        "draftHint": "No se escribe nada hasta que guardes el borrador o publiques; recargar lo pierde."
+      },
+      "tab": {
+        "label": "Secciones del artículo",
+        "details": "Detalles",
+        "pricing": "Precios",
+        "options": "Opciones",
+        "availability": "Disponibilidad",
+        "fulfillment": "Entrega",
+        "channels": "Canales",
+        "policies": "Políticas"
+      },
+      "blocker": {
+        "title": "Ponle un nombre.",
+        "price": "Pon un precio o muéstralo como cotización.",
+        "instantPrice": "La reserva directa necesita un precio exacto (cero es gratis).",
+        "depositPct": "Pon el depósito entre 1 y 99 por ciento.",
+        "identityReason": "Di por qué se necesita el nombre del comprador.",
+        "currency": "Elige una moneda."
+      },
+      "details": {
+        "title": "Detalles",
+        "intro": "El nombre y las palabras que llevan la tarjeta, el menú y el recibo",
+        "name": "Nombre",
+        "namePlaceholder": "p. ej. Latte · Masaje de 60 min · Cena privada",
+        "description": "Descripción",
+        "descriptionPlaceholder": "Qué incluye, para quién es",
+        "type": "Tipo",
+        "typeHint": "Una clase, una entrada o un espacio se crean en su propio destino.",
+        "category": "Categoría",
+        "categoryHint": "Agrupa las tarjetas del Mostrador y la página del menú.",
+        "categoryPlaceholder": "p. ej. Café, Panadería, Masajes",
+        "duration": "Duración (min)",
+        "durationHint": "Servicios y clases; vacío para un producto.",
+        "photos": "Fotos",
+        "photosReason": "Las fotos en un artículo del espacio aún no están disponibles; la galería se une a un perfil de talento."
+      },
+      "pricing": {
+        "baseTitle": "Precio base",
+        "baseIntro": "Los precios aceptados se congelan en cada venta; publicar nunca reescribe recibos antiguos",
+        "price": "Precio",
+        "soldBy": "Se vende por",
+        "soldByHint": "Unidad · Hora · Día · Sesión · Persona · Evento",
+        "unit": {
+          "each": "Unidad",
+          "hour": "Por hora",
+          "halfDay": "Por media jornada",
+          "day": "Por día",
+          "week": "Por semana",
+          "session": "Por sesión",
+          "person": "Por persona",
+          "event": "Por evento"
+        },
+        "taxCategory": "Categoría fiscal",
+        "taxUnset": "Desconocida · sin configurar",
+        "taxReason": "Las categorías fiscales aún no se leen en esta pantalla; el recibo muestra el impuesto como no configurado.",
+        "cost": "Costo (opcional)",
+        "costReason": "Ninguna columna registra un costo todavía, así que no se informa el margen.",
+        "shownAs": "Se muestra como",
+        "shownAsHint": "Una cotización no tiene número y nunca se vende directamente.",
+        "display": {
+          "exact": "Precio fijo",
+          "from": "Desde",
+          "quote": "Precio a consultar"
+        },
+        "currency": "Moneda",
+        "listsTitle": "Listas de precios",
+        "listsIntro": "Por ubicación y por regla; el POS usa la lista de su ubicación y hora",
+        "defaultList": "Predeterminada",
+        "always": "Siempre",
+        "addRule": "Añadir regla de lista",
+        "listsReason": "Hoy hay un precio por artículo: las listas por ubicación y por horario aún no tienen tabla.",
+        "depositTitle": "Depósito / prepago",
+        "depositIntro": "Cómo reserva esto un cliente y qué se cobra por adelantado",
+        "depositProducts": "No aplica a productos · se define en servicios y reservas",
+        "howBooked": "Cómo reservan los clientes",
+        "howBookedHint": "La reserva directa reserva al instante; una consulta la confirmas tú primero.",
+        "instantNeedsPrice": "La reserva directa necesita un precio fijo.",
+        "booking": {
+          "request": "Consulta para reservar · tú confirmas primero",
+          "instant": "Reserva directa · al instante"
+        },
+        "collectUpFront": "Para reservar, el cliente paga",
+        "collectHint": "Solo una reserva directa cobra por adelantado.",
+        "reserve": {
+          "full": "El importe completo",
+          "deposit": "Un depósito",
+          "free": "Nada · reserva gratis"
+        },
+        "depositPct": "Depósito (%)",
+        "holdDays": "Mantener (días)",
+        "holdDaysHint": "Después la reserva se libera sola."
+      },
+      "options": {
+        "title": "Grupos de opciones",
+        "intro": "Lo que el cajero o el cliente debe o puede elegir; el POS rechaza combinaciones que rompan estas reglas",
+        "saveFirst": "Guarda el artículo primero y luego añade sus opciones.",
+        "groupOptions": "Opciones",
+        "groupExtras": "Extras",
+        "required": "Obligatorio",
+        "optional": "Opcional",
+        "pickOne": "Elige exactamente 1",
+        "zeroToN": "0 a {n}",
+        "pricePerItem": "Precio por unidad",
+        "basePrice": "precio base",
+        "none": "Aún no hay filas.",
+        "labelPlaceholder": "Nombre (p. ej. Avena)",
+        "pricePlaceholder": "Precio",
+        "priceOptional": "Precio (opcional)",
+        "addOption": "Añadir opción",
+        "remove": "Quitar",
+        "stationReason": "Aún no se registra código de estación en una opción.",
+        "availabilityReason": "Una opción aún no tiene stock propio; aplica el pool del artículo.",
+        "addGroup": "Añadir grupo",
+        "copyGroups": "Copiar grupos de",
+        "groupsReason": "Hoy existen dos grupos (elige uno, extras); los grupos libres aún no tienen escritor.",
+        "prepNotes": "Notas para preparación",
+        "allergy": "Campo de alergias",
+        "prepReason": "Los avisos de preparación aún no se registran en un artículo."
+      },
+      "fulfillment": {
+        "title": "Entrega y preparación",
+        "intro": "Cómo llega el artículo al cliente y qué estación lo prepara",
+        "reason": "Entrega, estación, tiempo de preparación y tiempo de servicio aún no se registran en un artículo; el mostrador entrega al pagar.",
+        "fulfillment": "Entrega",
+        "fulfillmentHint": "Entrega inmediata · Recogida · A domicilio · Servir en mesa",
+        "handoffNow": "Entrega inmediata",
+        "station": "Estación",
+        "prepTime": "Tiempo de preparación",
+        "course": "Tiempo por defecto (mesas)"
+      },
+      "channels": {
+        "title": "Dónde se puede vender",
+        "intro": "La disponibilidad por canal no es autorización por rol; el servidor aplica la misma regla en web, POS y QR",
+        "website": "Sitio web · colecciones",
+        "websiteNote": "Página de menú, pedidos para recoger",
+        "needsPublish": "Se muestra cuando el artículo esté publicado",
+        "posCounter": "POS · Mostrador",
+        "counterOff": "No a la venta: el artículo es un borrador",
+        "favorites": "Favoritos",
+        "allItems": "Todos los artículos",
+        "posTables": "POS · Mesas",
+        "posTablesNote": "Sección y tiempo en el menú de mesas",
+        "tableQr": "QR de mesa (pedido del cliente)",
+        "tableQrNote": "Los clientes pueden pedirlo solos",
+        "profile": "Perfil de talento",
+        "profileNote": "Un artículo del espacio no está en el perfil de una persona",
+        "privateLink": "Enlace privado",
+        "privateLinkNote": "URL no listada para una campaña",
+        "priceOverride": "Precio especial",
+        "reason": "Este canal aún no tiene indicador en el artículo; los dos que existen son el sitio web y el mostrador.",
+        "overrideReason": "Un precio por canal aún no tiene columna; cada canal vende el precio base.",
+        "rule": "Apagar un canal nunca cancela las ventas ya hechas por él."
+      },
+      "policies": {
+        "title": "Políticas · la versión aceptada se conserva en cada venta",
+        "intro": "Lo que la venta le pide al comprador y lo que permite después",
+        "needsName": "Necesita el nombre del comprador",
+        "needsNameNote": "Email o teléfono, cueste lo que cueste; lo único que hace que una venta se rechace por falta de nombre",
+        "why": "Por qué",
+        "whyHint": "Solo se pide cuando se necesita el nombre.",
+        "identity": {
+          "attendee_names": "Cada asistente debe tener nombre",
+          "delivery": "Debe entregarse a alguien",
+          "entitlement": "Emite crédito que se gasta después"
+        },
+        "requireAccount": "Requiere cuenta para reservar",
+        "requireAccountNote": "Un cliente sin cuenta es rechazado en el sitio web",
+        "payInPerson": "Permitir pagar en la cita",
+        "payInPersonNote": "Efectivo o en persona; la tarjeta sigue siendo lo predeterminado",
+        "returns": "Devoluciones",
+        "refundPolicy": "Política de reembolso",
+        "discounts": "Descuentos",
+        "discountable": "Con descuento posible",
+        "comp": "Cortesía permitida",
+        "reason": "Ninguna columna registra esta política en un artículo aún; la mesa de reembolsos decide caso por caso."
+      },
+      "side": {
+        "counterTile": "Tarjeta del mostrador",
+        "optionsPill": "Opciones",
+        "exampleTotals": "Totales de ejemplo",
+        "base": "Base",
+        "noExtras": "Sin extra aún",
+        "timesTwo": "× 2",
+        "tax": "Impuesto",
+        "taxUnset": "Sin configurar · no se muestra",
+        "beforePublish": "Antes de publicar",
+        "readyToPublish": "Listo para publicar",
+        "cashierSees": "El cajero ve",
+        "chooseOne": "Elige 1",
+        "upTo": "Hasta {n}",
+        "noOptionsYet": "Aún sin opciones: la tarjeta vende el artículo base.",
+        "noExtrasYet": "Aún sin extras.",
+        "perItemNote": "“Precio por unidad” significa 2 lattes con avena = 2 × (base + avena). Congelado en la línea.",
+        "posBehaviour": "Comportamiento del POS",
+        "soldOutOnCharge": "Agotado al cobrar",
+        "soldOutOnChargeValue": "Línea rechazada · venta conservada",
+        "cancelFlexible": "Flexible · vuelve al pool",
+        "cancelHours": "Gratis hasta {n} h antes",
+        "kitchen": "Cocina",
+        "poolNote": "El pool es la verdad: el mostrador retiene una unidad al cobrar y la devuelve al cancelar.",
+        "visibleOn": "Visible en",
+        "tablesMenu": "Menú de mesas",
+        "menu": "Menú",
+        "hidden": "Oculto",
+        "channelOffNote": "Apagar un canal nunca cancela las ventas ya hechas por él.",
+        "onCounterTile": "En la tarjeta del mostrador"
+      },
+      "structure": {
+        "title": "Estructura del menú",
+        "intro": "Lo que muestran las tarjetas del Mostrador, el menú de Mesas y el QR de mesa",
+        "oneLocation": "Este espacio",
+        "save": "Guardar",
+        "saveReason": "Cada cambio aquí se guarda al hacerlo.",
+        "favorites": "Mostrador · Favoritos (primera pantalla)",
+        "nOfCap": "{n} de {cap}",
+        "noFavorites": "Aún sin favoritos; el mostrador abre con todos los artículos.",
+        "pickItem": "Elige un artículo",
+        "addFavorite": "Añadir a favoritos",
+        "removeFavorite": "Quitar de favoritos",
+        "categories": "Mostrador · Categorías",
+        "uncategorised": "Sin categoría",
+        "nItems": "{n} artículos",
+        "categoriesHint": "La categoría es la etiqueta del propio artículo; cámbiala en el artículo.",
+        "sections": "Mesas y QR · secciones → tiempos",
+        "sectionsReason": "Las secciones y tiempos del menú de mesas aún no tienen tabla; el modo mesas vende el mismo catálogo.",
+        "qrOrdering": "Los clientes pueden pedir desde el QR",
+        "qrOrderingNote": "El personal acepta antes de enviar",
+        "backToItems": "Volver a los artículos"
+      },
+      "priceLists": {
+        "title": "Listas de precios",
+        "intro": "Por ubicación y por regla; el POS usa la lista de su ubicación y hora",
+        "add": "Añadir lista de precios",
+        "list": "Lista",
+        "when": "Cuándo"
+      },
+      "passes": {
+        "title": "Pases, membresías y tarjetas regalo",
+        "intro": "Productos que crean derechos; se canjean después en el POS o al registrarse",
+        "create": "Crear",
+        "edit": "Editar",
+        "reason": "Vender pases necesita una decisión de producto.",
+        "notDecided": "Sin decidir",
+        "usedPos": "Mostrador, Citas y clases",
+        "usedWeb": "Sitio web · tienda, portal de miembros",
+        "pass": {
+          "title": "Pase de clases",
+          "kind": "Pase"
+        },
+        "membership": {
+          "title": "Membresía mensual",
+          "kind": "Membresía"
+        },
+        "gift": {
+          "title": "Tarjeta regalo",
+          "kind": "Saldo"
+        },
+        "row": {
+          "price": "Precio",
+          "credits": "Créditos",
+          "eligible": "Válido para",
+          "activation": "Activación",
+          "expiry": "Vencimiento",
+          "consumed": "Se consume",
+          "cancellation": "Cancelación",
+          "transferable": "Transferible",
+          "billing": "Cobro",
+          "gives": "Da derecho a",
+          "pause": "Pausa",
+          "cancel": "Cancelar",
+          "renewalFails": "Si falla la renovación",
+          "eligibility": "Elegibilidad comprobada",
+          "amounts": "Importes",
+          "valid": "Validez",
+          "use": "Uso",
+          "partial": "Uso parcial",
+          "concurrent": "Uso simultáneo",
+          "reporting": "Informes"
         }
       }
     }

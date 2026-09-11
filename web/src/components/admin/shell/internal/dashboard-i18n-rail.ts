@@ -42,6 +42,9 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Relationships": "Relaciones",
   "All orders": "Todos los pedidos",
   "Items": "Artículos",
+  // The Catalog's other children (W01, W07, W09).
+  "Menu structure": "Estructura del menú",
+  "Passes & cards": "Pases y tarjetas",
   // The foot of a staff rail, where Settings would be (W38).
   "Setup is owner-only · ask the owner": "La configuración es solo del propietario · pídesela",
   // The tagline under the wordmark at the head of the rail.
