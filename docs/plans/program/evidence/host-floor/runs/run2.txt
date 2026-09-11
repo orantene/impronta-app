@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/POS-floor-mode.spec.ts:71:5 › POS-FLOOR: seat, send to the kitchen, move, end, mark ready; and the join a refusal offers
+[1A[2K  1 passed (57.5s)
+EXIT=0

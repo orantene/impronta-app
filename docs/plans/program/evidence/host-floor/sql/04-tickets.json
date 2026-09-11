@@ -1,0 +1,56 @@
+[
+  {
+    "id": "5467d5d7-ec4a-47fb-ad11-a5127f2fcd42",
+    "order_id": "cdbb34bd-7145-4d47-b374-bb106f63430b",
+    "visit_id": "9501d09b-f0ad-4cda-9dc8-c9ef2726890f",
+    "destination": "table",
+    "status": "queued",
+    "revision": 1,
+    "submitted_at": "2026-09-11T02:29:44.444Z"
+  },
+  {
+    "id": "47ae921a-d825-4fac-b59e-ba03c3341caa",
+    "order_id": "c97b1762-abc6-4c26-b6eb-80e08c7ee7b6",
+    "visit_id": "2ae70aa5-f26d-4783-8b5d-cbc18e79a83b",
+    "destination": "table",
+    "status": "queued",
+    "revision": 1,
+    "submitted_at": "2026-09-11T02:26:43.285Z"
+  },
+  {
+    "id": "82f05c6d-c01c-4180-bd21-2914eb9b34d9",
+    "order_id": "13831392-2723-4224-b389-c59b9762321e",
+    "visit_id": "08d5551c-ac46-4135-97bb-2313b453234c",
+    "destination": "table",
+    "status": "queued",
+    "revision": 1,
+    "submitted_at": "2026-09-10T19:49:16.397Z"
+  },
+  {
+    "id": "b64610f5-c7f5-4ef2-ba68-33fbc36a4c3b",
+    "order_id": "3c0840e1-1dd8-4d12-9478-a8617d515a58",
+    "visit_id": "f4e7ba9f-615e-4af6-957e-cda1edb5bb10",
+    "destination": "table",
+    "status": "queued",
+    "revision": 1,
+    "submitted_at": "2026-09-10T19:45:20.290Z"
+  },
+  {
+    "id": "5ec15cea-0b01-43a0-9283-85d0b0941210",
+    "order_id": "28b08aaf-38a3-4d83-8198-a331e084279a",
+    "visit_id": null,
+    "destination": "counter",
+    "status": "cancelled",
+    "revision": 1,
+    "submitted_at": "2026-09-10T16:44:47.219Z"
+  },
+  {
+    "id": "f9f93a27-9557-44ff-b59f-f8f3c01e4ea9",
+    "order_id": "96105ef4-2030-47ca-bd64-9b0ec29826e5",
+    "visit_id": null,
+    "destination": "counter",
+    "status": "cancelled",
+    "revision": 1,
+    "submitted_at": "2026-09-10T16:44:22.830Z"
+  }
+]
