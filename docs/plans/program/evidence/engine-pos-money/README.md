@@ -18,5 +18,19 @@ Contract: `docs/plans/program/engine/pos-money.md`.
 
 Isolated apply (`fxlankepwnvelxjrahwk` via `npm run journeys:repair`) is a
 blocker until `.env.capacity-isolated.local` is present in this environment.
-Race scripts exit 2 without that env. Production `db:push` is out of scope
-for this branch.
+Race scripts exit 2 without that env (confirmed: payment-link, visit-transfer,
+waitlist-offer). Production `db:push` is out of scope for this branch.
+
+Local gates on `4c074850f` (private tsc lane):
+
+| Gate | Result |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | exit 0 |
+| `npm run test:money` | 1005 tests, 1004 pass, 1 skipped |
+| `npm run test:capacity` | 106 pass |
+| `npm run test:commands` | 116 pass |
+| `npm run test:tenant-isolation` | 609 pass |
+| `npm run test:size-ratchet` | 173 pass |
+| `npm run test:phase1-i18n` | 20 pass |
+| `npm run test:reservations` | 143 pass |
