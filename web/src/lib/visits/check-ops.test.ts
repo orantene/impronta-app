@@ -14,8 +14,8 @@ test("two transfer calls of one visit: the RPC decides the winner", async () => 
         : { data: { ok: false, reason: "conflict" }, error: null };
     },
   };
-  const a = await visitTransfer(admin, { tenantId: "t1", visitId: "v1", toSpaceId: "s2", operationKey: "xfer-aaaaaa" });
-  const b = await visitTransfer(admin, { tenantId: "t1", visitId: "v1", toSpaceId: "s3", operationKey: "xfer-bbbbbb" });
+  const a = await visitTransfer(admin, { tenantId: "t1", visitId: "v1", toSpaceId: "s2", operationKey: "xfer-aaaaaa", expectedVersion: 1 });
+  const b = await visitTransfer(admin, { tenantId: "t1", visitId: "v1", toSpaceId: "s3", operationKey: "xfer-bbbbbb", expectedVersion: 1 });
   assert.equal(a.ok, true);
   assert.equal(b.ok, false);
   if (!b.ok) assert.equal(b.reason, "conflict");

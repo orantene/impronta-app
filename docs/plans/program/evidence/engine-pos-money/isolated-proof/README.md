@@ -189,3 +189,17 @@ Verified clean by re-querying every id above (all empty) before this commit.
 | `verify-payment-link-reserve.mjs` | PASS — exit 0, wins=1 (after correcting the fixture amount to match outstanding) |
 | `verify-visit-transfer-race.mjs` | **FAIL** — exit 1, wins=2, both concurrent transfers wrote; real gap in `visit_transfer`, not a fixture defect |
 | `verify-waitlist-offer-race.mjs` | PASS — exit 0, fresh=1 already=1 |
+
+## Follow-up: visit_transfer race closed (2026-09-11, integrator)
+
+Migration `20261231210000_visit_transfer_expected_version.sql` gives
+`visit_transfer` a `p_expected_version` (the version the screen saw); a stale
+caller is refused `conflict` with the current version. The TS wrapper and the
+tables action require `expectedVersion`; the race script reads the version once
+before both calls. Re-run on the isolated branch with a fresh open visit:
+
+```
+[visit-transfer-race] wins=1 a={"ok":true,"version":2,...} b={"ok":false,"reason":"conflict","version":2}
+exit=0
+```
+Ground truth after: `space_id = Table 1, version = 2`. Fixture visit deleted by id.

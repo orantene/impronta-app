@@ -49,14 +49,17 @@ async function call(
 
 export async function visitTransfer(
   admin: Admin,
-  input: { tenantId: string; visitId: string; toSpaceId: string; operationKey: string },
+  input: { tenantId: string; visitId: string; toSpaceId: string; operationKey: string; expectedVersion: number },
 ) {
   if (input.operationKey.trim().length < 8) return { ok: false as const, reason: "invalid" as const };
+  // The version the screen saw: a stale host is told `conflict`, never a
+  // silent last-writer-wins (isolated race proof, 2026-09-11).
   const r = await call(admin, "visit_transfer", {
     p_tenant_id: input.tenantId,
     p_visit_id: input.visitId,
     p_to_space: input.toSpaceId,
     p_operation_key: input.operationKey.trim(),
+    p_expected_version: input.expectedVersion,
   });
   if (!r.ok) return r;
   return { ok: true as const, visitId: String(r.payload.visit_id ?? input.visitId), spaceId: String(r.payload.space_id ?? input.toSpaceId) };

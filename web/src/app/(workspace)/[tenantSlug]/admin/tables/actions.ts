@@ -139,6 +139,7 @@ export async function visitTransfer(input: {
   visitId: string;
   toSpaceId: string;
   operationKey: string;
+  expectedVersion: number;
 }) {
   const g = await staff();
   if (!g.ok) return g;
@@ -146,6 +147,7 @@ export async function visitTransfer(input: {
     visitId: uuid,
     toSpaceId: uuid,
     operationKey: z.string().min(8).max(80),
+    expectedVersion: z.number().int().nonnegative(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return transferVisit(g.admin, { tenantId: g.tenantId, ...parsed.data });
