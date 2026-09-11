@@ -27,7 +27,8 @@
  * ──────────────────────────────────────────
  * The task brief named a check: "an assistant sees a different fourth tab
  * than an owner", with an acceptance set of "Today, Calendar, Clients,
- * Sales". Neither is true of the registry as shipped, and this file asserts
+ * Sales". The SET is now the registry's (the MW00 board fixed it, D-POS-67,
+ * 2026-09-11); the role difference is still not true, and this file asserts
  * what IS true rather than the brief's text — see
  * `the fixed top-4 bar is role-invariant, and here is the structural reason`
  * below, which pins the CAUSE (no destination with a `mobilePriority` of 1-4
@@ -158,6 +159,10 @@ test("the counter this ratchet uses actually counts inline style attributes", ()
 
 test("the workspace More sheet is class-driven", () => {
   const src = read(SRC);
+  // The class sheet itself lives next door (mobile-nav-css.ts) so the
+  // component stays under the line cap; the component must still render it.
+  assert.ok(src.includes("<style>{MOBILE_NAV_CSS}</style>"), "the component must render its class sheet");
+  const css = read("src/components/admin/shell/internal/page-modules/mobile-nav-css.ts");
   for (const cls of [
     "tulala-mnav-bar",
     "tulala-mnav-bar-row",
@@ -167,7 +172,7 @@ test("the workspace More sheet is class-driven", () => {
     "tulala-mnav-feedback",
   ]) {
     assert.ok(src.includes(cls), `${cls} must exist — the workspace branch is class-driven`);
-    assert.ok(src.includes(`.${cls} {`), `${cls} must be defined in the component's <style> block`);
+    assert.ok(css.includes(`.${cls} {`), `${cls} must be defined in the component's class sheet`);
   }
 });
 
@@ -265,7 +270,7 @@ test("the top-4 mobile bar is identical for a cafe, a solo professional, and a h
   // instead of shipping unnoticed.
   assert.deepEqual(cafeIds, hybridIds);
   assert.deepEqual(soloIds, hybridIds);
-  assert.deepEqual(cafeIds, ["overview", "messages", "calendar", "appts"]);
+  assert.deepEqual(cafeIds, ["overview", "calendar", "clients", "sales"]);
 });
 
 test("every mobile tab id is a real, built destination", () => {
@@ -378,7 +383,7 @@ test("the fixed top-4 bar is role-invariant, and here is the structural reason",
   const ownerTabs = mobileTabs(owner, 4).map((d) => d.id);
   const assistantTabs = mobileTabs(assistant, 4).map((d) => d.id);
   assert.deepEqual(ownerTabs, assistantTabs);
-  assert.deepEqual(ownerTabs, ["overview", "messages", "calendar", "appts"]);
+  assert.deepEqual(ownerTabs, ["overview", "calendar", "clients", "sales"]);
   // Role DOES change the phone today — in the sheet, not the bar. Proven in
   // "role changes what a person can reach" above.
 });

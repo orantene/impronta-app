@@ -4373,6 +4373,15 @@
       "open": "Ouvrir",
       "result": {
         "seatLostAfterPayment": "Cette place a ete perdue apres le paiement, aucun billet ne peut donc etre emis. Un remboursement est du a la place, et il attend deja dans cette liste sur sa propre ligne."
+      },
+      "sheet": {
+        "age": "Depuis",
+        "attempts": "Tentatives",
+        "owner": "Qui s'en occupe",
+        "whatYouCanDo": "Ce que vous pouvez faire",
+        "resumeDetail": "Relance le traitement ; l'effet arrive jusqu'à une minute plus tard et la ligne garde son résultat.",
+        "openDetail": "L'enregistrement auquel cet incident appartient.",
+        "backToList": "Retour à la liste"
       }
     },
     "adminSessions": {
@@ -4502,7 +4511,9 @@
         "uncertainPayments": "{count} paiement(s) incertain(s)",
         "exceptionsNone": "Rien d'incertain",
         "exceptionsPartial": "Lecture impossible : {sources}",
-        "unreadable": "Lecture impossible pour le moment"
+        "unreadable": "Lecture impossible pour le moment",
+        "collectedShort": "Encaissé",
+        "balancesShort": "Dû"
       },
       "needsYou": {
         "title": "À traiter maintenant",
@@ -4518,7 +4529,8 @@
         "resolve": "Résoudre",
         "lateTitle": "En retard · {who} · table de {size}",
         "lateDetail": "{minutes} min après l'heure et personne n'est arrivé.",
-        "openBook": "Ouvrir le livre"
+        "openBook": "Ouvrir le livre",
+        "moreOnPhone": "{count} de plus dans Incidents"
       },
       "today": {
         "title": "Aujourd'hui",
@@ -4664,7 +4676,8 @@
         "import": "Importer",
         "createItem": "Créer un article",
         "empty": "Rien dans le catalogue pour l'instant. Créez un article ou importez un menu.",
-        "noMatch": "Aucun article ne correspond à ces filtres."
+        "noMatch": "Aucun article ne correspond à ces filtres.",
+        "phoneScope": "L'édition complète (options, grilles tarifaires, canaux, politiques) se fait sur ordinateur. Ici vous changez la disponibilité, le prix et l'essentiel."
       },
       "segment": {
         "label": "Sections du catalogue",
@@ -4762,7 +4775,8 @@
         "previewReason": "Le comptoir n'a pas encore d'aperçu d'un article ; publiez-le et ouvrez le Comptoir.",
         "saveDraft": "Enregistrer le brouillon",
         "publish": "Publier",
-        "draftHint": "Rien n'est écrit tant que vous n'enregistrez pas le brouillon ou ne publiez pas ; un rechargement le perd."
+        "draftHint": "Rien n'est écrit tant que vous n'enregistrez pas le brouillon ou ne publiez pas ; un rechargement le perd.",
+        "save": "Enregistrer"
       },
       "tab": {
         "label": "Sections de l'article",
@@ -5504,6 +5518,36 @@
         "payoutPending": "Destination définie · versements non activés",
         "payoutMissing": "Aucune destination · espèces et planification gratuite fonctionnent toujours",
         "websiteMissing": "Aucune page publiée pour l'instant"
+      }
+    },
+    "mobile": {
+      "close": "Fermer",
+      "back": "Retour",
+      "search": "Chercher dans l'espace",
+      "ownerOnly": "propriétaire seulement",
+      "myWorkNotBuilt": "Mon travail n'existe pas encore : aucune page ne montre à une personne ses propres créneaux et réservations.",
+      "role": {
+        "owner": "propriétaire",
+        "manager": "gérant",
+        "assistant": "équipe"
+      },
+      "switch": {
+        "title": "Changer d'espace ou de lieu",
+        "rowHint": "changer d'espace ou de lieu",
+        "workspaces": "Espaces",
+        "locations": "Lieux · {workspace}",
+        "plan": "Forfait {plan}",
+        "current": "Actuel",
+        "loading": "Lecture de vos espaces",
+        "unavailable": "Impossible de lire vos espaces pour le moment.",
+        "none": "Vous n'êtes membre d'aucun autre espace.",
+        "oneLocation": "Un seul lieu. Il n'y a pas encore de table des lieux, cet espace est donc son propre lieu.",
+        "note": "Changer d'espace change ce que montrent Aujourd'hui, Commandes et le POS. Les ventes enregistrées restent avec leur espace."
+      },
+      "myWork": {
+        "title": "Mon travail",
+        "sentence": "Mon travail n'existe pas encore. Aucune page ne montre à une personne ses propres créneaux, missions et gains, donc rien ici ne peut le prétendre.",
+        "detail": "Vos rendez-vous sont dans le Calendrier et sous Rendez-vous et cours ; les projets où vous êtes sont sous Projets. Les missions à accepter, les conflits d'agenda et vos gains vivront ici dès qu'un lecteur existera (D-POS-69)."
       }
     }
   },

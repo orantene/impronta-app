@@ -15,6 +15,7 @@
 import type { ReactNode } from "react";
 
 import { useT } from "@/i18n/use-t";
+import { MobileDetailHeaderSyncer } from "../mobile-header-store";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import type { OfferingsEditor } from "@/components/talent/services/use-offerings-editor";
 import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
@@ -145,17 +146,19 @@ export function CatalogItemEditor({
   }
 
   return (
-    <div className="-mx-[28px] -mt-[24px] grid min-w-0 grid-cols-[minmax(0,1fr)_340px]" data-testid="catalog-item-editor">
+    <div className="-mx-[28px] -mt-[24px] grid min-w-0 grid-cols-[minmax(0,1fr)_340px] max-[720px]:-mx-[14px] max-[720px]:-mt-[14px] max-[720px]:grid-cols-[minmax(0,1fr)]" data-testid="catalog-item-editor">
+      {/* MW22: the phone's back header reads the item over "Catalog · type". */}
+      <MobileDetailHeaderSyncer title={item.title || t("dashboard.catalog.untitled")} subtitle={meta} backHref={nav.href({})} />
       <div className="flex min-w-0 flex-col">
-        <div className="flex flex-col gap-[12px] px-[28px] pt-[18px]">
-          <header className="flex items-center justify-between gap-[12px]">
+        <div className="flex flex-col gap-[12px] px-[28px] pt-[18px] max-[720px]:px-[14px] max-[720px]:pt-[14px]">
+          <header className="flex items-center justify-between gap-[12px] max-[720px]:flex-wrap">
             <div className="min-w-0">
-              <h1 className="m-0 truncate font-admin-body text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink" data-testid="catalog-item-title">
+              <h1 className="m-0 truncate font-admin-body text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink max-[720px]:text-[20px]!" data-testid="catalog-item-title">
                 {item.title || t("dashboard.catalog.untitled")}
               </h1>
-              <p className="m-0 mt-[4px] font-admin-body text-admin-13 text-admin-ink-muted">{meta}</p>
+              <p className="m-0 mt-[4px] font-admin-body text-admin-13 text-admin-ink-muted max-[720px]:text-admin-12h">{meta}</p>
             </div>
-            <div className="flex shrink-0 items-center gap-[8px]">
+            <div className="flex shrink-0 items-center gap-[8px] max-[720px]:hidden">
               {item.status !== "published" ? <StatePill tone="coral">{t("dashboard.catalog.editor.draftChanges")}</StatePill> : null}
               <ActionButton reason={t("dashboard.catalog.editor.previewReason")} testId="catalog-preview-pos">
                 {t("dashboard.catalog.editor.previewPos")}
@@ -189,13 +192,56 @@ export function CatalogItemEditor({
           />
           <TabStrip label={t("dashboard.catalog.tab.label")} tabs={tabs} />
         </div>
-        <div className="flex flex-col gap-[16px] px-[28px] py-[18px]">{body}</div>
-        <div className="min-h-[16px] px-[28px] pb-[12px] font-admin-body text-[11px]">
+        <div className="flex flex-col gap-[16px] px-[28px] py-[18px] max-[720px]:gap-[12px] max-[720px]:px-[14px] max-[720px]:py-[12px]">{body}</div>
+        <div className="min-h-[16px] px-[28px] pb-[12px] font-admin-body text-[11px] max-[720px]:px-[14px]">
           {editor.saving ? <span className="text-admin-ink-muted">{t("dashboard.catalog.saving")}</span> : null}
           {editor.savedOk && !editor.saving ? <span className="text-admin-green">{t("dashboard.catalog.saved")}</span> : null}
         </div>
+        {/* MW22/MW23: Save rides the phone's fixed bar; it reads "Saved" once the write lands. */}
+        <div aria-hidden className="hidden h-[80px] max-[720px]:block" />
+        <div
+          data-tulala-mobile-action-bar
+          className="fixed inset-x-0 bottom-[calc(62px+env(safe-area-inset-bottom,0px))] z-[60] hidden flex-col gap-[8px] border-t border-admin-border-soft bg-admin-surface px-[14px] py-[10px] max-[720px]:flex"
+        >
+          {item.status === "published" ? (
+            <button
+              type="button"
+              onClick={() => void persist("published")}
+              disabled={editor.saving || !canPublish}
+              title={canPublish ? undefined : blockers[0]}
+              className={`inline-flex h-[50px] w-full cursor-pointer items-center justify-center rounded-[12px] border font-admin-body text-admin-15 font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+                editor.savedOk && !editor.saving ? "border-admin-border bg-admin-card text-admin-ink opacity-70" : "border-admin-brand bg-admin-brand text-white"
+              }`}
+              data-testid="catalog-save-phone"
+            >
+              {editor.saving ? t("dashboard.catalog.saving") : editor.savedOk ? t("dashboard.catalog.saved") : t("dashboard.catalog.editor.save")}
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => void persist("published")}
+                disabled={editor.saving || !canPublish}
+                title={canPublish ? undefined : blockers[0]}
+                className="inline-flex h-[50px] w-full cursor-pointer items-center justify-center rounded-[12px] border border-admin-brand bg-admin-brand font-admin-body text-admin-15 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="catalog-publish-phone"
+              >
+                {t("dashboard.catalog.editor.publish")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void persist("draft")}
+                disabled={editor.saving}
+                className="inline-flex h-[50px] w-full cursor-pointer items-center justify-center rounded-[12px] border border-admin-border bg-admin-card font-admin-body text-admin-15 font-semibold text-admin-ink disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="catalog-save-draft-phone"
+              >
+                {editor.saving ? t("dashboard.catalog.saving") : editor.savedOk ? t("dashboard.catalog.saved") : t("dashboard.catalog.editor.saveDraft")}
+              </button>
+            </>
+          )}
+        </div>
       </div>
-      <aside className="flex min-w-0 flex-col gap-[12px] border-l border-admin-border bg-admin-surface p-[18px]" data-testid="catalog-item-side">
+      <aside className="flex min-w-0 flex-col gap-[12px] border-l border-admin-border bg-admin-surface p-[18px] max-[720px]:hidden" data-testid="catalog-item-side">
         {side}
       </aside>
     </div>

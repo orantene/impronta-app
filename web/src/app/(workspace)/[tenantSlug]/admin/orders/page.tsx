@@ -153,9 +153,9 @@ export default async function OrdersPage({
   };
 
   return (
-    <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto", color: C.ink }}>
-      <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>{t("pageTitle")}</h1>
-      <p style={{ color: C.inkMuted, marginTop: 6, marginBottom: 24 }}>{t("pageIntro")}</p>
+    <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto", color: C.ink }} className="max-[720px]:p-0!">
+      <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }} className="max-[720px]:text-[22px]! max-[720px]:tracking-[-0.02em]">{t("pageTitle")}</h1>
+      <p style={{ color: C.inkMuted, marginTop: 6, marginBottom: 24 }} className="max-[720px]:mb-[12px]! max-[720px]:mt-[2px]! max-[720px]:text-[12.5px]">{t("pageIntro")}</p>
 
       {/*
         A read failure is its own state, never an empty list. `loadWorkspaceOrders`
@@ -176,7 +176,8 @@ export default async function OrdersPage({
         </section>
       ) : (
         <>
-          <nav style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+          {/* MW17: on the phone the buckets are the scrolling chip strip. */}
+          <nav style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }} className="max-[720px]:mb-[12px]! max-[720px]:flex-nowrap! max-[720px]:gap-[6px]! max-[720px]:overflow-x-auto max-[720px]:[scrollbar-width:none]">
             {BUCKETS.map((b) => {
               const active = b === bucket;
               return (
@@ -192,6 +193,7 @@ export default async function OrdersPage({
                     background: active ? C.ink : C.cardBg,
                     color: active ? "#fff" : C.inkMuted,
                   }}
+                  className="max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:font-semibold"
                 >
                   {t(BUCKET_KEY[b])}
                 </Link>
@@ -226,6 +228,7 @@ export default async function OrdersPage({
                   padding: "14px 18px",
                   marginBottom: 18,
                 }}
+                className="max-[720px]:mb-[12px]! max-[720px]:gap-x-[14px]! max-[720px]:gap-y-[4px]! max-[720px]:px-[14px]! max-[720px]:py-[10px]!"
               >
                 <span style={{ fontSize: 14 }}>
                   <strong>{totals.count}</strong>{" "}
@@ -262,7 +265,50 @@ export default async function OrdersPage({
                 </span>
               </section>
 
-              <div style={{ overflowX: "auto" }}>
+              {/* MW17: the phone's list is one card of rows — the order and
+                  who it is for, its lines and total, its status as a pill. The
+                  refund form stays on the desktop table (D-POS-68). */}
+              <ul className="m-0 hidden list-none overflow-hidden rounded-[14px] border border-admin-border bg-admin-card p-0 max-[720px]:block">
+                {rows.map((row) => {
+                  const owed = outstandingCents(row);
+                  const statusKey = STATUS_KEY[row.status];
+                  const toPay = bucketOf(row.status) === "to_pay";
+                  const pill = toPay
+                    ? "bg-admin-coral-soft text-admin-coral-deep"
+                    : row.status === "paid"
+                      ? "bg-admin-success-soft text-admin-green"
+                      : "bg-admin-amber-soft text-admin-amber";
+                  const body = (
+                    <>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14.5px] font-semibold leading-[1.3] text-admin-ink">
+                          #{shortId(row.id)} · {row.customerName ?? t("noCustomer")}
+                        </span>
+                        <span className="mt-0.5 block text-[12.5px] leading-[1.35] text-admin-ink-muted">
+                          {row.lineCount} {t("lineCount")} · {row.sourceChannel} · {formatOrderMoney(row.totalCents, row.currency)}
+                          {owed > 0 ? ` · ${t("colOutstanding")} ${formatOrderMoney(owed, row.currency)}` : ""}
+                        </span>
+                      </span>
+                      <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${pill}`}>
+                        {statusKey ? t(statusKey) : row.status}
+                      </span>
+                    </>
+                  );
+                  const cls = "flex w-full items-center gap-2.5 px-3.5 py-3 text-left no-underline";
+                  return (
+                    <li key={row.id} className="border-t border-admin-border-soft first:border-t-0">
+                      {row.inquiryId ? (
+                        <Link href={`/${tenantSlug}/admin/messages?inquiry=${row.inquiryId}`} title={t("openThread")} className={cls}>
+                          {body}
+                        </Link>
+                      ) : (
+                        <div className={cls}>{body}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div style={{ overflowX: "auto" }} className="max-[720px]:hidden">
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                   <thead>
                     <tr style={{ textAlign: "left", color: C.inkMuted, fontSize: 12 }}>

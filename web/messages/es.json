@@ -15194,6 +15194,15 @@
       "open": "Abrir",
       "result": {
         "seatLostAfterPayment": "Este lugar se perdio despues de que la persona pago, asi que no se puede emitir ninguna entrada. Ahora se le debe un reembolso, y ya esta esperando en esta lista como su propia fila."
+      },
+      "sheet": {
+        "age": "Desde",
+        "attempts": "Intentos",
+        "owner": "Quién lo atiende",
+        "whatYouCanDo": "Qué puedes hacer",
+        "resumeDetail": "Vuelve a lanzar el proceso; el efecto llega hasta un minuto después y la fila conserva su resultado.",
+        "openDetail": "El registro al que pertenece esta incidencia.",
+        "backToList": "Volver a la lista"
       }
     },
     "workspaceShell": {
@@ -15248,7 +15257,9 @@
         "uncertainPayments": "{count} pago(s) inciertos",
         "exceptionsNone": "Nada incierto",
         "exceptionsPartial": "No se pudo leer: {sources}",
-        "unreadable": "No se pudo leer esto ahora"
+        "unreadable": "No se pudo leer esto ahora",
+        "collectedShort": "Cobrado",
+        "balancesShort": "Por cobrar"
       },
       "needsYou": {
         "title": "Te necesita ahora",
@@ -15264,7 +15275,8 @@
         "resolve": "Resolver",
         "lateTitle": "Con retraso · {who} · mesa de {size}",
         "lateDetail": "{minutes} min después de la hora y nadie ha llegado.",
-        "openBook": "Abrir el libro"
+        "openBook": "Abrir el libro",
+        "moreOnPhone": "{count} más en Incidencias"
       },
       "today": {
         "title": "Hoy",
@@ -15410,7 +15422,8 @@
         "import": "Importar",
         "createItem": "Crear artículo",
         "empty": "Aún no hay nada en el catálogo. Crea un artículo o importa un menú.",
-        "noMatch": "Ningún artículo coincide con estos filtros."
+        "noMatch": "Ningún artículo coincide con estos filtros.",
+        "phoneScope": "La edición completa (opciones, listas de precios, canales, políticas) está en escritorio. Aquí puedes cambiar disponibilidad, precio y lo esencial."
       },
       "segment": {
         "label": "Secciones del catálogo",
@@ -15508,7 +15521,8 @@
         "previewReason": "El mostrador aún no tiene vista previa de un artículo; publícalo y abre el Mostrador.",
         "saveDraft": "Guardar borrador",
         "publish": "Publicar",
-        "draftHint": "No se escribe nada hasta que guardes el borrador o publiques; recargar lo pierde."
+        "draftHint": "No se escribe nada hasta que guardes el borrador o publiques; recargar lo pierde.",
+        "save": "Guardar"
       },
       "tab": {
         "label": "Secciones del artículo",
@@ -16160,6 +16174,36 @@
         "payoutPending": "Destino fijado · pagos no activados",
         "payoutMissing": "Sin destino · efectivo y agenda gratis siguen funcionando",
         "websiteMissing": "Ninguna página publicada todavía"
+      }
+    },
+    "mobile": {
+      "close": "Cerrar",
+      "back": "Atrás",
+      "search": "Buscar en el workspace",
+      "ownerOnly": "solo propietario",
+      "myWorkNotBuilt": "Mi trabajo todavía no existe: no hay una página que muestre a una persona sus propios turnos y reservas.",
+      "role": {
+        "owner": "propietario",
+        "manager": "gerente",
+        "assistant": "equipo"
+      },
+      "switch": {
+        "title": "Cambiar de workspace o ubicación",
+        "rowHint": "cambiar de workspace o ubicación",
+        "workspaces": "Workspaces",
+        "locations": "Ubicaciones · {workspace}",
+        "plan": "Plan {plan}",
+        "current": "Actual",
+        "loading": "Leyendo tus workspaces",
+        "unavailable": "No se pudieron leer tus workspaces ahora mismo.",
+        "none": "No eres miembro de ningún otro workspace.",
+        "oneLocation": "Una ubicación. Todavía no existe una tabla de ubicaciones, así que este workspace es su propia ubicación.",
+        "note": "Cambiar de workspace cambia lo que muestran Hoy, Pedidos y el POS. Las ventas guardadas se quedan con su workspace."
+      },
+      "myWork": {
+        "title": "Mi trabajo",
+        "sentence": "Mi trabajo todavía no existe. No hay una página que muestre a una persona sus propios turnos, asignaciones y ganancias, así que aquí nada puede fingirlo.",
+        "detail": "Tus citas están en el Calendario y en Citas y clases; los proyectos en los que participas, en Proyectos. Las asignaciones por aceptar, los conflictos de agenda y tus ganancias vivirán aquí cuando exista un lector (D-POS-69)."
       }
     }
   },

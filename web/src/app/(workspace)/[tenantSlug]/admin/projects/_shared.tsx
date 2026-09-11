@@ -36,15 +36,28 @@ export const BTN_ROW = "h-[30px] px-3 text-[12px]";
  * gives the board's 28px sides and 24px top, so these shells add none.
  */
 export function PageShell({ children }: { children: React.ReactNode }) {
-  return <div className="flex w-full flex-col gap-4">{children}</div>;
+  return <div className="flex w-full flex-col gap-4 max-[720px]:gap-[12px]">{children}</div>;
 }
 
-/** A record page: the main column and the 320px right column. */
-export function RecordShell({ main, side }: { main: React.ReactNode; side: React.ReactNode }) {
+/**
+ * A record page: the main column and the 320px right column. On the phone
+ * (MW06, MW10) the right column is folded away unless the page asks for it
+ * (`sideOnMobile`, the Details tab), and the main column's blocks sit 12px
+ * apart as the boards draw them.
+ */
+export function RecordShell({
+  main,
+  side,
+  sideOnMobile,
+}: {
+  main: React.ReactNode;
+  side: React.ReactNode;
+  sideOnMobile?: boolean;
+}) {
   return (
     <div className="grid w-full min-w-0 grid-cols-1 gap-x-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="flex min-w-0 flex-col gap-[18px] border-admin-border lg:border-r lg:pr-7">{main}</div>
-      <aside className="flex min-w-0 flex-col gap-4">{side}</aside>
+      <div className="flex min-w-0 flex-col gap-[18px] border-admin-border lg:border-r lg:pr-7 max-[720px]:gap-[12px]">{main}</div>
+      <aside className={cn("flex min-w-0 flex-col gap-4 max-[720px]:mt-[12px]", !sideOnMobile && "max-[720px]:hidden")}>{side}</aside>
     </div>
   );
 }
@@ -53,20 +66,33 @@ export function PageHeading({
   title,
   intro,
   actions,
+  actionsOnMobile = true,
+  aside,
 }: {
   title: string;
   intro?: string;
   actions?: React.ReactNode;
+  /** MW09 draws the list without its header buttons; they wait on the desktop. */
+  actionsOnMobile?: boolean;
+  /** The pill beside the title on the phone (MW09: "Needs action · 3"). */
+  aside?: React.ReactNode;
 }) {
   return (
-    <header className="flex items-center justify-between gap-3">
-      <div className="min-w-0">
-        <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">
-          {title}
-        </h1>
-        {intro ? <p className="m-0 mt-1 text-[13px] text-admin-ink-muted">{intro}</p> : null}
+    <header className="flex items-center justify-between gap-3 max-[720px]:flex-wrap">
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="min-w-0">
+          <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">
+            {title}
+          </h1>
+          {intro ? <p className="m-0 mt-1 text-[13px] text-admin-ink-muted max-[720px]:hidden">{intro}</p> : null}
+        </div>
+        {aside ? <span className="hidden max-[720px]:inline-flex">{aside}</span> : null}
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className={cn("flex shrink-0 items-center gap-2 max-[720px]:w-full max-[720px]:flex-wrap", !actionsOnMobile && "max-[720px]:hidden")}>
+          {actions}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -203,20 +229,23 @@ export function KpiCard({
   note,
   tone = "ink",
   testId,
+  desktopOnly,
 }: {
   label: string;
   value: string;
   note?: string;
   tone?: "ink" | "muted" | "coral";
   testId?: string;
+  /** Not one of the phone's two numbers (MW06, MW10). */
+  desktopOnly?: boolean;
 }) {
   return (
-    <div className="min-w-0 rounded-[12px] border border-admin-border bg-admin-card px-4 py-3.5">
+    <div className={cn("min-w-0 rounded-[12px] border border-admin-border bg-admin-card px-4 py-3.5 max-[720px]:px-3.5 max-[720px]:py-3", desktopOnly && "max-[720px]:hidden")}>
       <dt className="text-[11px] font-bold uppercase tracking-[0.06em] text-admin-ink-muted">{label}</dt>
       <dd
         data-kpi={testId}
         className={cn(
-          "m-0 mt-1 text-[22px] font-semibold leading-tight tracking-[-0.02em] tabular-nums",
+          "m-0 mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[22px] font-semibold leading-tight tracking-[-0.02em] tabular-nums max-[720px]:text-[20px]",
           tone === "coral" ? "text-admin-coral-deep" : tone === "muted" ? "text-admin-ink-muted" : "text-admin-ink",
         )}
       >
@@ -282,12 +311,22 @@ export function Notice({
   );
 }
 
-/** The segmented filter: a grey track, the active pill white. */
+/**
+ * The segmented filter: a grey track, the active pill white. On the phone
+ * (MW09, MW17) it is the scrolling chip strip: the active chip ink, the rest
+ * outlined, a fade at the right edge.
+ */
 export function Segments({ children, label }: { children: React.ReactNode; label: string }) {
   return (
-    <nav aria-label={label} className="inline-flex gap-0.5 rounded-[9px] bg-admin-surface-alt p-[3px]">
-      {children}
-    </nav>
+    <div className="relative min-w-0 max-[720px]:w-full">
+      <nav
+        aria-label={label}
+        className="inline-flex gap-0.5 rounded-[9px] bg-admin-surface-alt p-[3px] max-[720px]:flex max-[720px]:gap-[6px] max-[720px]:overflow-x-auto max-[720px]:rounded-none max-[720px]:bg-transparent max-[720px]:p-0 max-[720px]:pr-[28px] max-[720px]:[scrollbar-width:none]"
+      >
+        {children}
+      </nav>
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 hidden w-[36px] bg-[linear-gradient(90deg,transparent,var(--color-admin-surface-alt)_70%)] max-[720px]:block" />
+    </div>
   );
 }
 
@@ -305,8 +344,10 @@ export function SegmentLink({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "rounded-[7px] px-2.5 py-[5px] text-[12px] font-semibold no-underline",
-        active ? "bg-admin-card text-admin-ink shadow-admin-rest" : "text-admin-ink-muted hover:text-admin-ink",
+        "rounded-[7px] px-2.5 py-[5px] text-[12px] font-semibold no-underline max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:text-[13px] max-[720px]:shadow-none",
+        active
+          ? "bg-admin-card text-admin-ink shadow-admin-rest max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white"
+          : "text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card",
       )}
     >
       {children}
@@ -323,23 +364,29 @@ export function TabStrip({
   tabs: readonly { id: string; href: string; label: string; active: boolean }[];
 }) {
   return (
-    <nav aria-label={label} className="flex gap-0.5 border-b border-admin-border">
-      {tabs.map((tab) => (
-        <Link
-          key={tab.id}
-          href={tab.href}
-          aria-current={tab.active ? "page" : undefined}
-          className={cn(
-            "-mb-px border-b-2 px-3 py-2.5 text-[13px] no-underline",
-            tab.active
-              ? "border-admin-brand font-semibold text-admin-ink"
-              : "border-transparent font-medium text-admin-ink-muted hover:text-admin-ink",
-          )}
-        >
-          {tab.label}
-        </Link>
-      ))}
-    </nav>
+    <div className="relative min-w-0">
+      <nav
+        aria-label={label}
+        className="flex gap-0.5 border-b border-admin-border max-[720px]:gap-[6px] max-[720px]:overflow-x-auto max-[720px]:border-b-0 max-[720px]:pr-[28px] max-[720px]:[scrollbar-width:none]"
+      >
+        {tabs.map((tab) => (
+          <Link
+            key={tab.id}
+            href={tab.href}
+            aria-current={tab.active ? "page" : undefined}
+            className={cn(
+              "-mb-px border-b-2 px-3 py-2.5 text-[13px] no-underline max-[720px]:mb-0 max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:font-semibold",
+              tab.active
+                ? "border-admin-brand font-semibold text-admin-ink max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white"
+                : "border-transparent font-medium text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card",
+            )}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 hidden w-[36px] bg-[linear-gradient(90deg,transparent,var(--color-admin-surface-alt)_70%)] max-[720px]:block" />
+    </div>
   );
 }
 
@@ -359,6 +406,74 @@ export function Initials({ name, size = 56 }: { name: string; size?: number }) {
     </span>
   );
 }
+
+/**
+ * The phone's list row (MW09, MW17, MW21): a title, a second line and a
+ * trailing pill or chevron, the whole row a link. Drawn beside the desktop
+ * grid row and swapped by the breakpoint, so a list page carries both
+ * without forking.
+ */
+export function MobileListRow({
+  href,
+  title,
+  detail,
+  trailing,
+  className,
+}: {
+  href?: string;
+  title: React.ReactNode;
+  detail?: React.ReactNode;
+  trailing?: React.ReactNode;
+  className?: string;
+}) {
+  const body = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14.5px] font-semibold leading-[1.3] text-admin-ink">{title}</span>
+        {detail ? <span className="mt-0.5 block text-[12.5px] leading-[1.35] text-admin-ink-muted">{detail}</span> : null}
+      </span>
+      {trailing}
+    </>
+  );
+  const cls = cn(
+    "hidden w-full items-center gap-2.5 border-t border-admin-border-soft px-3.5 py-3 text-left no-underline first:border-t-0 max-[720px]:flex",
+    className,
+  );
+  return href ? (
+    <Link href={href} className={cls}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+/** The chevron a phone row that opens something carries. */
+export function RowChevron() {
+  return (
+    <svg aria-hidden width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-admin-ink-dim">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+/** The phone's fixed action bar above the tab bar, and the space it needs. */
+export function MobileActions({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <div aria-hidden className="hidden h-[80px] max-[720px]:block" />
+      <div
+        data-tulala-mobile-action-bar
+        className="fixed inset-x-0 bottom-[calc(62px+env(safe-area-inset-bottom,0px))] z-[60] hidden flex-col gap-2 border-t border-admin-border-soft bg-admin-surface px-3.5 py-2.5 max-[720px]:flex"
+      >
+        {children}
+      </div>
+    </>
+  );
+}
+
+/** The 50px, full-width phone button. */
+export const BTN_MOBILE = "h-[50px]! w-full rounded-[12px]! text-[15px]!";
 
 // ── Small helpers ────────────────────────────────────────────────────
 

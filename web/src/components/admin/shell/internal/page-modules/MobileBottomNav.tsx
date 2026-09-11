@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon, useRovingTabindex, type AdminShellIconName } from "../primitives";
 import {
@@ -15,6 +16,9 @@ import {
   Z,
   useAdminShell,
 } from "../state";
+import { MOBILE_NAV_CSS } from "./mobile-nav-css";
+import { MOBILE_BUTTON_SECONDARY, MobileSheet } from "./MobileSheet";
+import { WORKSPACE_SWITCH_OPEN_EVENT, WorkspaceSwitchSheet } from "./WorkspaceSwitchSheet";
 import type { TalentPage, WorkspacePage } from "../state";
 import {
   destinationHref,
@@ -81,11 +85,16 @@ export function MobileBottomNav() {
     adminBasePath,
     workspacePosEnabled,
     workspacePosModes,
+    effectiveTenant,
   } = useAdminShell();
   const copy = useDashboardText();
+  const t = useT();
   const router = useRouter();
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  // MW26: "My work" has no route (destinations.ts, built: false); its chip
+  // opens the screen that says so, in the person's language.
+  const [myWorkOpen, setMyWorkOpen] = useState(false);
   // WS-12.6 — left/right arrows move between bottom nav tabs
   const bottomNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(bottomNavRef, "button", { orientation: "horizontal" });
@@ -139,25 +148,35 @@ export function MobileBottomNav() {
       people: rosterPending || undefined,
     };
 
-    // Top 4 by the registry's own mobile ordering, plus More — never a
-    // hand-written list, so a destination can't appear here and be missing
-    // from the sidebar (or the reverse): both are projections of the same
+    // Top 4 by the registry's own mobile ordering (the MW00 board: Today ·
+    // Calendar · Clients · Sales), plus More — never a hand-written list, so a
+    // destination can't appear here and be missing from the sidebar (or the
+    // reverse): both are projections of the same
     // `visibleDestinations(navContext)`.
     const barDestinations = mobileTabs(navContext, 4);
-    const tabs = barDestinations.map((d) => {
+    const go = (d: Destination) => {
       const legacy = toLegacyPage(d);
-      const label = d.id === "overview" ? copy.t("Today") : copy.t(destinationShortLabel(d, preset));
-      return {
-        id: d.id,
-        label,
-        active: legacy !== null && state.page === legacy,
-        run: () => {
-          if (legacy) setPage(legacy);
-        },
-        icon: d.icon,
-        badge: destinationBadge[d.id],
-      };
-    });
+      if (legacy !== null) {
+        setPage(legacy);
+        return;
+      }
+      const href = destinationHref(d, adminBasePath);
+      if (href !== null) router.push(href);
+    };
+    const isActive = (d: Destination) => {
+      const legacy = toLegacyPage(d);
+      if (legacy !== null) return state.page === legacy;
+      const href = destinationHref(d, adminBasePath);
+      return pathname !== null && href !== null && pathname === href;
+    };
+    const tabs = barDestinations.map((d) => ({
+      id: d.id,
+      label: d.id === "overview" ? copy.t("Today") : copy.t(destinationShortLabel(d, preset)),
+      active: isActive(d),
+      run: () => go(d),
+      icon: d.icon,
+      badge: destinationBadge[d.id],
+    }));
 
     // The sheet's non-destination rows. `workspacePosModes` is the workspace's
     // own `pos.locations.default.modes`, already parsed (and already defaulted
@@ -184,13 +203,26 @@ export function MobileBottomNav() {
     };
 
     // Same grouping, same order the sidebar uses — sidebarGroups() already
-    // drops the pos group and empty groups.
+    // drops the pos group and empty groups. The board (MW00) draws each
+    // group as a cloud of chips under its eyebrow, and Settings as the
+    // sheet's last line; staff, who have no Settings row (W38), read where
+    // setup lives instead.
     const groups = sidebarGroups(navContext);
+    // The four destinations on the bar are not repeated as chips (MW00
+    // draws Operate without Calendar, Relationships without Clients, Money
+    // without Sales); they stay one tap away on the bar itself.
+    const onBar = new Set(barDestinations.map((d) => d.id));
+    const chipGroups = groups
+      .filter((g) => g.group !== "settings")
+      .map((g) => ({ ...g, destinations: g.destinations.filter((d) => !onBar.has(d.id)) }))
+      .filter((g) => g.destinations.length > 0);
+    const settingsRow = groups.find((g) => g.group === "settings")?.destinations[0] ?? null;
 
     const moreActive = moreOpen;
 
     return (
       <>
+        <WorkspaceSwitchSheet />
         <nav
           ref={bottomNavRef}
           data-tulala-mobile-bottom-nav
@@ -198,8 +230,8 @@ export function MobileBottomNav() {
           className="tulala-mnav-bar"
         >
           <div className="tulala-mnav-bar-row">
-            {tabs.map((t) => (
-              <BottomTab key={t.id} {...t} />
+            {tabs.map((tb) => (
+              <BottomTab key={tb.id} {...tb} />
             ))}
             <BottomTab
               id="more"
@@ -210,272 +242,161 @@ export function MobileBottomNav() {
             />
           </div>
         </nav>
-        {moreOpen && (
-          <div
-            className="tulala-mnav-backdrop"
-            onClick={() => setMoreOpen(false)}
+        <MobileSheet
+          open={moreOpen}
+          name="more"
+          title={copy.t("More")}
+          closeLabel={t("dashboard.mobile.close")}
+          onClose={() => setMoreOpen(false)}
+        >
+          <button
+            type="button"
+            className="tulala-mnav-switcher"
+            onClick={() => {
+              setMoreOpen(false);
+              if (typeof window !== "undefined") window.dispatchEvent(new Event(WORKSPACE_SWITCH_OPEN_EVENT));
+            }}
           >
-            <div
-              className="tulala-mnav-sheet"
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-label={copy.t("More sections")}
-            >
-              <div className="tulala-mnav-grabber" />
+            <span aria-hidden className="tulala-mnav-switcher-avatar">
+              {effectiveTenant.name.slice(0, 2).toUpperCase()}
+            </span>
+            <span className="tulala-mnav-switcher-text">
+              <span className="tulala-mnav-switcher-name">{effectiveTenant.name}</span>
+              <span className="tulala-mnav-role-chip" role="status" aria-label={`${copy.t("Role")}: ${copy.t(WORK_ROLE_LABEL[role])}`}>
+                {copy.t(WORK_ROLE_LABEL[role])} · {t("dashboard.mobile.switch.rowHint")}
+              </span>
+            </span>
+            <Icon name="chevron-down" size={14} stroke={1.75} color="currentColor" />
+          </button>
 
-              <button
-                type="button"
-                className="tulala-mnav-switcher"
-                onClick={() => {
-                  openDrawer("tenant-switcher");
-                  setMoreOpen(false);
-                }}
-              >
-                <Icon name="team" size={16} stroke={1.7} />
-                <span>{copy.t("Switch workspace")}</span>
-              </button>
-              <div
-                className="tulala-mnav-role-chip"
-                role="status"
-                aria-label={`${copy.t("Role")}: ${copy.t(WORK_ROLE_LABEL[role])}`}
-              >
-                {copy.t(WORK_ROLE_LABEL[role])}
-              </div>
-
-              <div className="tulala-mnav-divider" />
-
-              {groups.map((g) => (
-                <div key={g.group}>
-                  {g.label && (
-                    <div className="tulala-mnav-group-label">{copy.t(g.label)}</div>
-                  )}
-                  {g.destinations.map((d) => {
-                    const legacy = toLegacyPage(d);
-                    // A handful of real canonical routes (orders, the
-                    // financials page payments falls back to, exceptions)
-                    // are deliberately not in WORKSPACE_PAGES — see
-                    // toLegacyPage's doc comment. Those still get a real href
-                    // via the registry so they are reachable, just via
-                    // navigation instead of the SPA's setPage.
-                    const href = legacy === null ? destinationHref(d, adminBasePath) : null;
-                    if (legacy === null && href === null) return null;
-                    const active =
-                      legacy !== null
-                        ? state.page === legacy
-                        : pathname !== null && href !== null && pathname === href;
-                    const badge = destinationBadge[d.id];
+          {chipGroups.map((g) => (
+            <div key={g.group}>
+              {g.label && <div className="tulala-mnav-group-label">{copy.t(g.label)}</div>}
+              <div className="tulala-mnav-chips">
+                {g.destinations.map((d) => {
+                  const legacy = toLegacyPage(d);
+                  // A handful of real canonical routes (orders, the
+                  // financials page payments falls back to, exceptions)
+                  // are deliberately not in WORKSPACE_PAGES — see
+                  // toLegacyPage's doc comment. Those still get a real href
+                  // via the registry so they are reachable, just via
+                  // navigation instead of the SPA's setPage.
+                  const href = legacy === null ? destinationHref(d, adminBasePath) : null;
+                  if (legacy === null && href === null) {
+                    // `mywork` has no route (destinations.ts): the chip opens
+                    // the screen with the sentence (MW26), never a page that
+                    // is not there.
                     return (
                       <button
                         key={d.id}
                         type="button"
-                        className={
-                          active ? "tulala-mnav-row tulala-mnav-row--active" : "tulala-mnav-row"
-                        }
-                        aria-current={active ? "page" : undefined}
+                        title={t("dashboard.mobile.myWorkNotBuilt")}
+                        className="tulala-mnav-row"
                         onClick={() => {
-                          if (legacy !== null) {
-                            setPage(legacy);
-                          } else if (href !== null) {
-                            router.push(href);
-                          }
                           setMoreOpen(false);
+                          setMyWorkOpen(true);
                         }}
                       >
-                        <Icon name={d.icon} size={16} stroke={1.7} />
-                        <span className="tulala-mnav-row-label">
-                          {copy.t(destinationLabel(d, preset))}
-                        </span>
-                        {badge && badge > 0 && (
-                          <span className="tulala-mnav-badge">{badge > 9 ? "9+" : badge}</span>
-                        )}
+                        {copy.t(destinationLabel(d, preset))}
                       </button>
                     );
-                  })}
-                </div>
-              ))}
+                  }
+                  const active = isActive(d);
+                  const badge = destinationBadge[d.id];
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      className={active ? "tulala-mnav-row tulala-mnav-row--active" : "tulala-mnav-row"}
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => {
+                        go(d);
+                        setMoreOpen(false);
+                      }}
+                    >
+                      <span className="tulala-mnav-row-label">{copy.t(destinationLabel(d, preset))}</span>
+                      {badge && badge > 0 && (
+                        <span className="tulala-mnav-badge">{badge > 9 ? "9+" : badge}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
 
-              <div className="tulala-mnav-divider" />
+          <div className="tulala-mnav-chips">
+            {moreActions.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                className="tulala-mnav-row"
+                data-mnav-action={a.id}
+                onClick={() => runMoreAction(a.id)}
+              >
+                <Icon name={a.icon} size={14} stroke={1.7} color="currentColor" />
+                <span className="tulala-mnav-row-label">{copy.t(a.label)}</span>
+              </button>
+            ))}
+          </div>
 
-              {moreActions.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  className="tulala-mnav-row"
-                  data-mnav-action={a.id}
-                  onClick={() => runMoreAction(a.id)}
-                >
-                  <Icon name={a.icon} size={16} stroke={1.7} />
-                  <span className="tulala-mnav-row-label">{copy.t(a.label)}</span>
-                </button>
-              ))}
-
-              <div className="tulala-mnav-divider" />
-
-              {/* Feedback row — same behaviour as the talent branch's copy,
-                  drawn from this branch's own class sheet rather than a
-                  duplicated style object. */}
+          <div className="tulala-mnav-foot">
+            {settingsRow ? (
               <button
                 type="button"
+                className="tulala-mnav-foot-row"
                 onClick={() => {
-                  if (typeof window !== "undefined") {
-                    window.dispatchEvent(new CustomEvent("tulala-open-feedback"));
-                  }
+                  go(settingsRow);
                   setMoreOpen(false);
                 }}
-                className="tulala-mnav-row tulala-mnav-feedback text-admin-ink"
               >
-                <span className="tulala-mnav-feedback-icon text-admin-ink-muted">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 4.5h10v6.5l-3 .5-2 2-2-2H3v-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </span>
-                {copy.t("Send feedback")}
+                <Icon name="settings" size={14} stroke={1.75} color="currentColor" />
+                {copy.t(destinationLabel(settingsRow, preset))} · {t("dashboard.mobile.ownerOnly")}
               </button>
-            </div>
+            ) : (
+              <div className="tulala-mnav-foot-row">
+                <Icon name="settings" size={14} stroke={1.75} color="currentColor" />
+                {copy.t("Setup is owner-only · ask the owner")}
+              </div>
+            )}
+            {/* Feedback row — same behaviour as the talent branch's copy,
+                drawn from this branch's own class sheet rather than a
+                duplicated style object. */}
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("tulala-open-feedback"));
+                }
+                setMoreOpen(false);
+              }}
+              className="tulala-mnav-foot-row tulala-mnav-feedback text-admin-ink"
+            >
+              <span className="tulala-mnav-feedback-icon text-admin-ink-muted">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 4.5h10v6.5l-3 .5-2 2-2-2H3v-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </span>
+              {copy.t("Send feedback")}
+            </button>
           </div>
-        )}
-        <style>{`
-          /* The fixed bar. display:none is the DESKTOP state; the shell's own
-             mobile media query (admin-shell-client.tsx, "Show the mobile
-             bottom tab bar") flips it to block with !important, so a plain
-             class carries exactly as far as the inline style it replaced. */
-          .tulala-mnav-bar {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: ${COLORS.card};
-            border-top: 1px solid ${COLORS.borderSoft};
-            z-index: ${Z.topbar};
-            display: none;
-            padding-bottom: env(safe-area-inset-bottom, 0px);
-            font-family: ${FONTS.body};
+        </MobileSheet>
+        <MobileSheet
+          open={myWorkOpen}
+          name="mywork"
+          title={t("dashboard.mobile.myWork.title")}
+          closeLabel={t("dashboard.mobile.close")}
+          onClose={() => setMyWorkOpen(false)}
+          footer={
+            <button type="button" onClick={() => setMyWorkOpen(false)} className={MOBILE_BUTTON_SECONDARY}>
+              {t("dashboard.mobile.close")}
+            </button>
           }
-          .tulala-mnav-bar-row {
-            display: flex;
-            align-items: stretch;
-            height: 64px;
-          }
-          .tulala-mnav-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(11,11,13,0.36);
-            z-index: ${Z.modalBackdrop};
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-          }
-          .tulala-mnav-sheet {
-            width: 100%;
-            max-height: 82vh;
-            overflow-y: auto;
-            background: #fff;
-            border-radius: 16px 16px 0 0;
-            padding: 8px 0 max(env(safe-area-inset-bottom, 0px), 12px);
-            box-shadow: 0 -10px 30px rgba(11,11,13,0.18);
-            font-family: ${FONTS.body};
-          }
-          .tulala-mnav-grabber {
-            width: 36px;
-            height: 4px;
-            border-radius: 999px;
-            background: rgba(11,11,13,0.18);
-            margin: 8px auto 12px;
-          }
-          .tulala-mnav-switcher {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            width: calc(100% - 24px);
-            margin: 0 12px 4px;
-            padding: 12px 14px;
-            border-radius: 12px;
-            border: 1px solid ${COLORS.borderSoft};
-            background: ${COLORS.surfaceAlt};
-            color: ${COLORS.ink};
-            font-family: ${FONTS.body};
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-          }
-          .tulala-mnav-role-chip {
-            display: inline-flex;
-            align-items: center;
-            margin: 8px 12px 4px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            background: ${COLORS.borderSoft};
-            color: ${COLORS.inkMuted};
-            font-family: ${FONTS.body};
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-          }
-          .tulala-mnav-divider {
-            height: 1px;
-            background: ${COLORS.borderSoft};
-            margin: 6px 12px;
-          }
-          .tulala-mnav-group-label {
-            padding: 10px 18px 4px;
-            font-family: ${FONTS.body};
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: ${COLORS.inkMuted};
-          }
-          .tulala-mnav-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            width: 100%;
-            padding: 12px 18px;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            font-family: ${FONTS.body};
-            font-size: 15px;
-            font-weight: 500;
-            color: ${COLORS.ink};
-            text-align: left;
-            transition: background ${TRANSITION.sm};
-          }
-          .tulala-mnav-row--active {
-            background: ${COLORS.accentSoft};
-            color: ${COLORS.accentDeep};
-            font-weight: 600;
-          }
-          .tulala-mnav-row-label {
-            flex: 1;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-          /* The feedback row sits a touch taller than a destination row, and
-             carries its icon in a plain span instead of the Icon primitive. */
-          .tulala-mnav-feedback {
-            padding: 14px 18px;
-          }
-          .tulala-mnav-feedback-icon {
-            display: inline-flex;
-          }
-          .tulala-mnav-badge {
-            min-width: 18px;
-            height: 18px;
-            padding: 0 5px;
-            border-radius: 999px;
-            background: ${COLORS.coral};
-            color: #fff;
-            font-size: 11px;
-            font-weight: 700;
-            line-height: 18px;
-            text-align: center;
-            font-variant-numeric: tabular-nums;
-          }
-        `}</style>
+        >
+          <p className="m-0 text-admin-13 leading-[1.5] text-admin-ink">{t("dashboard.mobile.myWork.sentence")}</p>
+          <p className="m-0 text-admin-12h leading-[1.5] text-admin-ink-muted">{t("dashboard.mobile.myWork.detail")}</p>
+        </MobileSheet>
+        <style>{MOBILE_NAV_CSS}</style>
       </>
     );
   }
@@ -652,90 +573,14 @@ function BottomTab({
     <button
       type="button"
       onClick={run}
-      className="tulala-bottom-tab"
+      className={active ? "tulala-bottom-tab tulala-mnav-tab tulala-mnav-tab--active" : "tulala-bottom-tab tulala-mnav-tab"}
       aria-current={active ? "page" : undefined}
-      style={{
-        flex: 1,
-        // Active: soft accent wash covers the whole tab (icon + label) —
-        //   no more "icon-only" half-button feel.
-        // Inactive: transparent base; hover/press adds a subtle wash so
-        //   it visibly behaves like a button.
-        background: active ? COLORS.accentSoft : "transparent",
-        border: "none",
-        borderRadius: 14,
-        cursor: "pointer",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 3,
-        padding: "7px 6px 6px",
-        margin: "4px 3px",
-        color: active ? COLORS.accentDeep : COLORS.inkMuted,
-        fontFamily: FONTS.body,
-        fontSize: 11,
-        fontWeight: active ? 600 : 500,
-        letterSpacing: 0.05,
-        lineHeight: 1.2,
-        position: "relative",
-        transition: `background ${TRANSITION.sm}, color ${TRANSITION.sm}`,
-      }}
     >
-      <span
-        aria-hidden
-        style={{
-          position: "relative",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Icon
-          name={icon}
-          size={18}
-          stroke={active ? 2 : 1.7}
-          color={active ? COLORS.accent : COLORS.inkMuted}
-        />
-        {badge && badge > 0 && (
-          <span
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: -4,
-              right: -7,
-              minWidth: 16,
-              height: 16,
-              padding: "0 4px",
-              borderRadius: 999,
-              background: COLORS.coral,
-              color: "#fff",
-              fontSize: 9.5,
-              fontWeight: 700,
-              lineHeight: 1,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontVariantNumeric: "tabular-nums",
-              boxShadow: "0 0 0 1.5px #fff",
-            }}
-          >
-            {badge > 9 ? "9+" : badge}
-          </span>
-        )}
+      <span aria-hidden className="tulala-mnav-tab-icon">
+        <Icon name={icon} size={18} stroke={1.75} color="currentColor" />
+        {badge && badge > 0 && <span className="tulala-mnav-tab-badge">{badge > 9 ? "9+" : badge}</span>}
       </span>
-      <span style={{
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        maxWidth: 76,
-        lineHeight: 1.3,
-        // Reserve space for descenders so y/g/p don't clip on iOS where
-        // line-box rounds down. paddingBottom + display:block guarantees
-        // the descender area is part of the layout box.
-        display: "block",
-      }}>
-        {label}
-      </span>
+      <span className="tulala-mnav-tab-label">{label}</span>
     </button>
   );
 }

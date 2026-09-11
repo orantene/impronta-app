@@ -166,7 +166,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     label: "Messages",
     shortLabel: "Messages",
     built: true,
-    mobilePriority: 2,
+    mobilePriority: 5,
   },
   calendar: {
     id: "calendar",
@@ -178,7 +178,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     label: "Calendar",
     shortLabel: "Calendar",
     built: true,
-    mobilePriority: 3,
+    mobilePriority: 2,
   },
   appts: {
     id: "appts",
@@ -194,7 +194,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     presetLabels: { solo: "Appointments" },
     shortLabel: "Bookings",
     built: true,
-    mobilePriority: 4,
+    mobilePriority: 6,
     // TABS, not routes: /admin/sessions still holds one page.tsx, so the three
     // views hang off the live route under a `view` query, the shape Events'
     // Tickets child already has. See AppointmentsPage.
@@ -217,7 +217,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     shortLabel: "Book",
     built: true,
     requires: { tenantFlags: ["takesReservations"] },
-    mobilePriority: 6,
+    mobilePriority: 8,
   },
   orders: {
     id: "orders",
@@ -229,7 +229,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     label: "Orders",
     shortLabel: "Orders",
     built: true,
-    mobilePriority: 5,
+    mobilePriority: 7,
     // Preparation is the kitchen's view of the same orders (W36: "Acceptance,
     // preparation, pickup/delivery, handoff, returns"), so it hangs here.
     subViews: [
@@ -300,7 +300,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     presetLabels: { cafe: "Menu & catalog", solo: "Services" },
     shortLabel: "Catalog",
     built: true,
-    mobilePriority: 7,
+    mobilePriority: 9,
     requires: { roles: ["owner", "manager"] },
     // Discounts are the catalog's promotions (W36: "price lists, promotions,
     // passes & plans"), a child of this row rather than a row of their own.
@@ -371,7 +371,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     label: "Clients",
     shortLabel: "Clients",
     built: true,
-    mobilePriority: 8,
+    mobilePriority: 3,
   },
   people: {
     id: "people",
@@ -389,7 +389,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     presetLabels: { cafe: "Team" },
     shortLabel: "People",
     built: true,
-    mobilePriority: 9,
+    mobilePriority: 10,
     requires: { roles: ["owner", "manager"] },
     // The four children the rail has drawn under the roster since WS-3. The
     // last three are TALENT-ONLY because the routes are: each of
@@ -465,6 +465,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "chart",
     label: "Sales",
     built: true,
+    mobilePriority: 4,
   },
   payments: {
     id: "payments",
@@ -724,7 +725,14 @@ export function sidebarGroups(context: WorkspaceNavContext): readonly SidebarGro
   })).filter((g) => g.destinations.length > 0);
 }
 
-/** The mobile tab bar: the highest-priority visible destinations, in order. */
+/**
+ * The mobile tab bar: the highest-priority visible destinations, in order.
+ * The board (MW00, 2026-09-09) fixes the phone's four tabs as Today · Calendar
+ * · Clients · Sales; the priorities above follow it (D-POS-67). Messages,
+ * Appointments, Orders, Reservations, Catalog and People come next, so a
+ * workspace that hides one of the four (a solo with no Sales row, say) still
+ * fills the bar from the registry rather than from a hand-written list.
+ */
 export function mobileTabs(
   context: WorkspaceNavContext,
   limit = 5,
