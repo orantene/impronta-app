@@ -681,3 +681,44 @@ Decided 2026-09-11 (engine-pos-money). `waitlist_offers` holds a seat for a
 `session_waitlist_entries` row via `reserve_resource_set_v2`. It has no party
 or venue columns. Restaurant T08 party waitlist stays blocked until that
 table exists.
+
+## D-POS-60 — a session's instructor is a user id on the row
+
+Decided 2026-09-11 (engine-scheduling). Boards W39/W40 filter and substitute
+by instructor. `sessions` had no instructor column. Additive
+`session_series.instructor_user_id` and `sessions.instructor_user_id`
+(nullable FK to auth users via uuid, no FK to a people table that does not
+exist). Room stays `venue_id`. Overlapping room means overlapping scheduled
+windows at the same venue.
+
+## D-POS-61 — Generate sessions is one explicit materialiser pass
+
+Decided 2026-09-11 (engine-scheduling). `generateSessionsForSeries` calls
+`decideMaterialisation` + `createSessionWithPools` once through `untilDate`.
+The nightly cron is unchanged. Nothing is a second materialiser.
+
+## D-POS-62 — cancelling a session never refunds inside the command
+
+Decided 2026-09-11 (engine-scheduling). `session_cancel` voids admissions and
+writes `ticket_refund_intents` with reason `session_cancelled`. The existing
+cron pays. Same rule as `cancel_event_cascade`.
+
+## D-POS-63 — customer manage is a signed token, not a new guest cookie
+
+Decided 2026-09-11 (engine-scheduling). HMAC over `{bookingId, tenantId,
+action, exp}` using `GUEST_COOKIE_SECRET`. The public page is the UI
+session's. This package ships sign/verify only.
+
+## D-POS-64 — a package is an offering with component rows
+
+Decided 2026-09-11 (engine-scheduling). `offering_components` is the
+composition. A price phase is stamped on the line the first time it is
+priced and is never rewritten by a later phase. Passes, memberships and
+gift cards stay out (D-POS-54).
+
+## D-POS-65 — offering policy overrides and role limits are rows
+
+Decided 2026-09-11 (engine-scheduling). `booking_policy_overrides` win over
+offering / workspace defaults for deposit, free-cancel hours and no-show
+fee. `role_limits` + `approval_requests` gate discounts and refunds above
+the role's cents cap.
