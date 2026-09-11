@@ -917,3 +917,32 @@ Decided 2026-09-11 (pos-messages). Next 16 rejects two `/c/[*]` routes.
 The guest UUID path stays at `/c/[inquiryId]`. POS customer cards use
 `/c/t/<token>` via `publicThreadPath`. `/c/*` is already on the surface
 allow-list. The integrator can later fold the token into `/c/:param`.
+
+## D-POS-83 — attach is disabled until a messaging upload seam exists
+
+Decided 2026-09-11 (pos-messages fidelity). MS02B and MS22 show Attach.
+This package has no upload writer. The control is disabled with a sentence
+in en/es/fr. The Actions menu still lists it so the board's order is kept.
+
+## D-POS-84 — Tap to Pay on the phone Collect sheet is disabled
+
+Decided 2026-09-11 (pos-messages fidelity). MM03 reuses the phone's Collect
+methods. Payment link, cash and pay-at-pickup are offered. Tap to Pay needs
+the provider-app hand-off, which is not mounted in this package.
+
+## D-POS-85 — the POS rail unread slot is an integrator seam
+
+Decided 2026-09-11 (pos-messages fidelity). MS01's toast is implemented on
+the Messages surface. The rail row and its unread count stay in `modes.ts`
++ `PosFrame` (seams 1 and 10). This package does not edit those files.
+
+## D-POS-86 — the workspace Today tab badge is an integrator seam
+
+Decided 2026-09-11 (pos-messages fidelity). MM06's toast and the compact
+phone inbox are implemented. The Today tab itself is seam 5.
+
+## D-POS-87 — post-purchase change is disabled without the package-2 writer
+
+Decided 2026-09-11 (pos-messages fidelity). MS17 shows an exact policy
+check. The package-2 change writer is not mounted here. The control is
+disabled with a sentence in en/es/fr.

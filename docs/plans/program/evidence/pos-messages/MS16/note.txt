@@ -1,0 +1,1 @@
+Each queue has an owner and one action. Closing as lost names the reason and can withdraw the live offer; the customer’s existing records are untouched.

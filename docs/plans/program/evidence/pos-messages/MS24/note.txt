@@ -1,0 +1,1 @@
+A reply after resolution reopens the conversation for the same owner. Handover moves the pending draft and reminders; the customer sees the same thread.

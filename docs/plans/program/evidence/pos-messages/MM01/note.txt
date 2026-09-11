@@ -1,0 +1,1 @@
+List pane of the live mobile Messages: search, scrolling filters, one row = name, subject, last message, record chip, unread count.

@@ -1,0 +1,1 @@
+Sent, delivered, read and failed per channel; a failed message is kept and retried once; drafts survive a disconnect; new messages below the fold are a pill, not a jump.
