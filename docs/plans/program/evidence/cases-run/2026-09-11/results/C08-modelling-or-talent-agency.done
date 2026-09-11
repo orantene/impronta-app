@@ -1,1 +1,6 @@
 failed
+# r8 2026-09-11T20:58:06Z host dd74cf00f
+# 5 passed / 2 failed
+# passed: CUS smoke, OP smoke, CUS inquiry, OP assign, OP send
+# failed-app D-114: C08-TAL
+# failed-app D-113: C08-CUS accept

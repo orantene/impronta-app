@@ -62,3 +62,4 @@
 {"spec":"POS-floor-mode.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:55:01Z","rerun":true}
 {"spec":"VENUE-table-service.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:56:40Z","rerun":true}
 {"spec":"C08-modelling-or-talent-agency.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T20:03:09Z","rerun":true,"note":"CUS inquiry passed; OP/TAL/CUS-accept still fail"}
+{"spec":"C08-modelling-or-talent-agency.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T20:58:06Z","rerun":8,"note":"5/7 passed: smokes + CUS inquiry + OP assign + OP send. TAL D-114. CUS accept D-113."}

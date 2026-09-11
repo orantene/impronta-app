@@ -14,21 +14,21 @@
 ```
 Error: expect(locator).toBeVisible() failed
 
-Locator: getByRole('button', { name: /cora cuevas/i }).filter({ hasText: /offer sla/i }).first()
+Locator: getByRole('button', { name: /approve offer/i })
 Expected: visible
 Timeout: 40000ms
 Error: element(s) not found
 
 Call log:
   - Expect "toBeVisible" with timeout 40000ms
-  - waiting for getByRole('button', { name: /cora cuevas/i }).filter({ hasText: /offer sla/i }).first()
+  - waiting for getByRole('button', { name: /approve offer/i })
 
 ```
 
 # Page snapshot
 
 ```yaml
-- generic [active] [ref=e1]:
+- generic [ref=e1]:
   - generic [ref=e2]:
     - link "Skip to main content" [ref=e3] [cursor=pointer]:
       - /url: "#tulala-main"
@@ -42,7 +42,7 @@ Call log:
             - generic [ref=e23]: QA Journeys (48-case fixture)
             - generic [ref=e24]: $0 net YTD
           - img [ref=e26]
-        - button "Notifications · 15 unread" [ref=e29] [cursor=pointer]:
+        - button "Notifications · 16 unread" [ref=e29] [cursor=pointer]:
           - img [ref=e30]
           - generic [ref=e33]: 9+
         - link "Preview site" [ref=e34] [cursor=pointer]:
@@ -101,7 +101,7 @@ Call log:
                 - generic [ref=e111]:
                   - heading "My jobs" [level=3] [ref=e112]
                   - generic [ref=e113]:
-                    - generic [ref=e114]: "32"
+                    - generic [ref=e114]: "34"
                     - button "Collapse jobs list" [ref=e115] [cursor=pointer]:
                       - img [ref=e116]
                 - generic [ref=e119]:
@@ -144,7 +144,7 @@ Call log:
                       - generic [ref=e189]: Inquiry
                       - 'generic "SLA: fresh" [ref=e190]'
                       - generic [ref=e191]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. now 1 Inquiry SLA: fresh awaiting you" [ref=e192] [cursor=pointer]':
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. now 1 1 Inquiry SLA: fresh awaiting you" [ref=e192] [cursor=pointer]':
                   - img [ref=e195]
                   - generic [ref=e198]:
                     - generic "Cora Cuevas" [ref=e200]
@@ -152,26 +152,26 @@ Call log:
                     - generic [ref=e203]:
                       - generic [ref=e204]: "QA: Awaiting your response."
                       - generic [ref=e205]: now
-                    - generic [ref=e206]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e208]'
-                      - generic [ref=e217]: Inquiry
-                      - 'generic "SLA: fresh" [ref=e218]'
-                      - generic [ref=e219]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. now 1 1 Inquiry SLA: fresh awaiting you" [ref=e220] [cursor=pointer]':
-                  - img [ref=e223]
-                  - generic [ref=e226]:
-                    - generic "Cora Cuevas" [ref=e228]
-                    - generic [ref=e230]: Need two models for a catalog shoot next month.
-                    - generic [ref=e231]:
-                      - generic [ref=e232]: "QA: Awaiting your response."
-                      - generic [ref=e233]: now
-                      - generic [ref=e234]: "1"
+                      - generic [ref=e206]: "1"
+                    - generic [ref=e207]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e209]'
+                      - generic [ref=e218]: Inquiry
+                      - 'generic "SLA: fresh" [ref=e219]'
+                      - generic [ref=e220]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. now 1 Inquiry SLA: fresh awaiting you" [ref=e221] [cursor=pointer]':
+                  - img [ref=e224]
+                  - generic [ref=e227]:
+                    - generic "Cora Cuevas" [ref=e229]
+                    - generic [ref=e231]: Need two models for a catalog shoot next month.
+                    - generic [ref=e232]:
+                      - generic [ref=e233]: "QA: Awaiting your response."
+                      - generic [ref=e234]: now
                     - generic [ref=e235]:
                       - 'progressbar "Stage 1 of 4: Inquiry" [ref=e237]'
                       - generic [ref=e246]: Inquiry
                       - 'generic "SLA: fresh" [ref=e247]'
                       - generic [ref=e248]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. now 1 Inquiry SLA: fresh awaiting you" [ref=e249] [cursor=pointer]':
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. now 1 1 Inquiry SLA: fresh awaiting you" [ref=e249] [cursor=pointer]':
                   - img [ref=e252]
                   - generic [ref=e255]:
                     - generic "Cora Cuevas" [ref=e257]
@@ -179,115 +179,115 @@ Call log:
                     - generic [ref=e260]:
                       - generic [ref=e261]: "QA: Awaiting your response."
                       - generic [ref=e262]: now
-                    - generic [ref=e263]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e265]'
-                      - generic [ref=e274]: Inquiry
-                      - 'generic "SLA: fresh" [ref=e275]'
-                      - generic [ref=e276]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. now 1 2 Offer SLA: fresh awaiting you" [ref=e277] [cursor=pointer]':
-                  - img [ref=e280]
-                  - generic [ref=e283]:
-                    - generic "Cora Cuevas" [ref=e285]
-                    - generic [ref=e287]: Need two models for a catalog shoot next month.
-                    - generic [ref=e288]:
-                      - generic [ref=e289]: "QA: Awaiting your response."
-                      - generic [ref=e290]: now
-                      - generic [ref=e291]: "1"
+                      - generic [ref=e263]: "1"
+                    - generic [ref=e264]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e266]'
+                      - generic [ref=e275]: Inquiry
+                      - 'generic "SLA: fresh" [ref=e276]'
+                      - generic [ref=e277]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. now 1 Inquiry SLA: fresh awaiting you" [ref=e278] [cursor=pointer]':
+                  - img [ref=e281]
+                  - generic [ref=e284]:
+                    - generic "Cora Cuevas" [ref=e286]
+                    - generic [ref=e288]: Need two models for a catalog shoot next month.
+                    - generic [ref=e289]:
+                      - generic [ref=e290]: "QA: Awaiting your response."
+                      - generic [ref=e291]: now
                     - generic [ref=e292]:
-                      - 'progressbar "Stage 2 of 4: Offer" [ref=e294]'
-                      - generic [ref=e303]: Offer
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e294]'
+                      - generic [ref=e303]: Inquiry
                       - 'generic "SLA: fresh" [ref=e304]'
                       - generic [ref=e305]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 1h 1 Inquiry SLA: fresh awaiting you" [ref=e306] [cursor=pointer]':
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. now 1 2 Offer SLA: fresh awaiting you" [ref=e306] [cursor=pointer]':
                   - img [ref=e309]
                   - generic [ref=e312]:
                     - generic "Cora Cuevas" [ref=e314]
                     - generic [ref=e316]: Need two models for a catalog shoot next month.
                     - generic [ref=e317]:
                       - generic [ref=e318]: "QA: Awaiting your response."
-                      - generic [ref=e319]: 1h
-                    - generic [ref=e320]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e322]'
-                      - generic [ref=e331]: Inquiry
-                      - 'generic "SLA: fresh" [ref=e332]'
-                      - generic [ref=e333]: awaiting you
-                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Awaiting your response. 18h 1 Inquiry SLA: aging awaiting you" [ref=e334] [cursor=pointer]':
-                  - img [ref=e337]
-                  - generic [ref=e340]:
-                    - generic "Nadia Varela" [ref=e342]
-                    - generic [ref=e344]: A brand shoot with one model, to be collected at the desk.
-                    - generic [ref=e345]:
-                      - generic [ref=e346]: "QA: Awaiting your response."
-                      - generic [ref=e347]: 18h
-                    - generic [ref=e348]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e350]'
-                      - generic [ref=e359]: Inquiry
-                      - 'generic "SLA: aging" [ref=e360]'
-                      - generic [ref=e361]: awaiting you
-                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Booking confirmed — check logistics tab. 18h 2 3 Booked" [ref=e362] [cursor=pointer]':
-                  - img [ref=e365]
-                  - generic [ref=e368]:
-                    - generic "Nadia Varela" [ref=e370]
-                    - generic [ref=e372]: A brand shoot with one model, to be collected at the desk.
-                    - generic [ref=e373]:
-                      - generic [ref=e374]: "QA: Booking confirmed — check logistics tab."
-                      - generic [ref=e375]: 18h
-                      - generic [ref=e376]: "2"
-                    - generic [ref=e377]:
-                      - 'progressbar "Stage 3 of 4: Booked" [ref=e379]'
-                      - generic [ref=e388]: Booked
-                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Booking confirmed — check logistics tab. 22h 2 3 Booked" [ref=e389] [cursor=pointer]':
-                  - img [ref=e392]
-                  - generic [ref=e395]:
-                    - generic "Nadia Varela" [ref=e397]
-                    - generic [ref=e399]: A brand shoot with one model, to be collected at the desk.
-                    - generic [ref=e400]:
-                      - generic [ref=e401]: "QA: Booking confirmed — check logistics tab."
-                      - generic [ref=e402]: 22h
-                      - generic [ref=e403]: "2"
-                    - generic [ref=e404]:
-                      - 'progressbar "Stage 3 of 4: Booked" [ref=e406]'
-                      - generic [ref=e415]: Booked
-                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Booking confirmed — check logistics tab. 23h 2 3 Booked" [ref=e416] [cursor=pointer]':
-                  - img [ref=e419]
-                  - generic [ref=e422]:
-                    - generic "Nadia Varela" [ref=e424]
-                    - generic [ref=e426]: A brand shoot with one model, to be collected at the desk.
-                    - generic [ref=e427]:
-                      - generic [ref=e428]: "QA: Booking confirmed — check logistics tab."
-                      - generic [ref=e429]: 23h
-                      - generic [ref=e430]: "2"
+                      - generic [ref=e319]: now
+                      - generic [ref=e320]: "1"
+                    - generic [ref=e321]:
+                      - 'progressbar "Stage 2 of 4: Offer" [ref=e323]'
+                      - generic [ref=e332]: Offer
+                      - 'generic "SLA: fresh" [ref=e333]'
+                      - generic [ref=e334]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. now 1 2 Offer SLA: fresh awaiting you" [ref=e335] [cursor=pointer]':
+                  - img [ref=e338]
+                  - generic [ref=e341]:
+                    - generic "Cora Cuevas" [ref=e343]
+                    - generic [ref=e345]: Need two models for a catalog shoot next month.
+                    - generic [ref=e346]:
+                      - generic [ref=e347]: "QA: Awaiting your response."
+                      - generic [ref=e348]: now
+                      - generic [ref=e349]: "1"
+                    - generic [ref=e350]:
+                      - 'progressbar "Stage 2 of 4: Offer" [ref=e352]'
+                      - generic [ref=e361]: Offer
+                      - 'generic "SLA: fresh" [ref=e362]'
+                      - generic [ref=e363]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 1h 1 Inquiry SLA: fresh awaiting you" [ref=e364] [cursor=pointer]':
+                  - img [ref=e367]
+                  - generic [ref=e370]:
+                    - generic "Cora Cuevas" [ref=e372]
+                    - generic [ref=e374]: Need two models for a catalog shoot next month.
+                    - generic [ref=e375]:
+                      - generic [ref=e376]: "QA: Awaiting your response."
+                      - generic [ref=e377]: 1h
+                    - generic [ref=e378]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e380]'
+                      - generic [ref=e389]: Inquiry
+                      - 'generic "SLA: fresh" [ref=e390]'
+                      - generic [ref=e391]: awaiting you
+                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Awaiting your response. 18h 1 Inquiry SLA: aging awaiting you" [ref=e392] [cursor=pointer]':
+                  - img [ref=e395]
+                  - generic [ref=e398]:
+                    - generic "Nadia Varela" [ref=e400]
+                    - generic [ref=e402]: A brand shoot with one model, to be collected at the desk.
+                    - generic [ref=e403]:
+                      - generic [ref=e404]: "QA: Awaiting your response."
+                      - generic [ref=e405]: 18h
+                    - generic [ref=e406]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e408]'
+                      - generic [ref=e417]: Inquiry
+                      - 'generic "SLA: aging" [ref=e418]'
+                      - generic [ref=e419]: awaiting you
+                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Booking confirmed — check logistics tab. 18h 2 3 Booked" [ref=e420] [cursor=pointer]':
+                  - img [ref=e423]
+                  - generic [ref=e426]:
+                    - generic "Nadia Varela" [ref=e428]
+                    - generic [ref=e430]: A brand shoot with one model, to be collected at the desk.
                     - generic [ref=e431]:
-                      - 'progressbar "Stage 3 of 4: Booked" [ref=e433]'
-                      - generic [ref=e442]: Booked
-                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Awaiting your response. 23h 1 2 Offer SLA: aging awaiting you" [ref=e443] [cursor=pointer]':
-                  - img [ref=e446]
-                  - generic [ref=e449]:
-                    - generic "Nadia Varela" [ref=e451]
-                    - generic [ref=e453]: A brand shoot with one model, to be collected at the desk.
-                    - generic [ref=e454]:
-                      - generic [ref=e455]: "QA: Awaiting your response."
-                      - generic [ref=e456]: 23h
-                      - generic [ref=e457]: "1"
+                      - generic [ref=e432]: "QA: Booking confirmed — check logistics tab."
+                      - generic [ref=e433]: 18h
+                      - generic [ref=e434]: "2"
+                    - generic [ref=e435]:
+                      - 'progressbar "Stage 3 of 4: Booked" [ref=e437]'
+                      - generic [ref=e446]: Booked
+                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Booking confirmed — check logistics tab. 23h 2 3 Booked" [ref=e447] [cursor=pointer]':
+                  - img [ref=e450]
+                  - generic [ref=e453]:
+                    - generic "Nadia Varela" [ref=e455]
+                    - generic [ref=e457]: A brand shoot with one model, to be collected at the desk.
                     - generic [ref=e458]:
-                      - 'progressbar "Stage 2 of 4: Offer" [ref=e460]'
-                      - generic [ref=e469]: Offer
-                      - 'generic "SLA: aging" [ref=e470]'
-                      - generic [ref=e471]: awaiting you
-                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Awaiting your response. 23h 1 2 Offer SLA: aging awaiting you" [ref=e472] [cursor=pointer]':
-                  - img [ref=e475]
-                  - generic [ref=e478]:
-                    - generic "Nadia Varela" [ref=e480]
-                    - generic [ref=e482]: A brand shoot with one model, to be collected at the desk.
-                    - generic [ref=e483]:
-                      - generic [ref=e484]: "QA: Awaiting your response."
-                      - generic [ref=e485]: 23h
-                      - generic [ref=e486]: "1"
-                    - generic [ref=e487]:
-                      - 'progressbar "Stage 2 of 4: Offer" [ref=e489]'
-                      - generic [ref=e498]: Offer
-                      - 'generic "SLA: aging" [ref=e499]'
-                      - generic [ref=e500]: awaiting you
+                      - generic [ref=e459]: "QA: Booking confirmed — check logistics tab."
+                      - generic [ref=e460]: 23h
+                      - generic [ref=e461]: "2"
+                    - generic [ref=e462]:
+                      - 'progressbar "Stage 3 of 4: Booked" [ref=e464]'
+                      - generic [ref=e473]: Booked
+                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Booking confirmed — check logistics tab. 23h 2 3 Booked" [ref=e474] [cursor=pointer]':
+                  - img [ref=e477]
+                  - generic [ref=e480]:
+                    - generic "Nadia Varela" [ref=e482]
+                    - generic [ref=e484]: A brand shoot with one model, to be collected at the desk.
+                    - generic [ref=e485]:
+                      - generic [ref=e486]: "QA: Booking confirmed — check logistics tab."
+                      - generic [ref=e487]: 23h
+                      - generic [ref=e488]: "2"
+                    - generic [ref=e489]:
+                      - 'progressbar "Stage 3 of 4: Booked" [ref=e491]'
+                      - generic [ref=e500]: Booked
                 - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Awaiting your response. 23h 1 2 Offer SLA: aging awaiting you" [ref=e501] [cursor=pointer]':
                   - img [ref=e504]
                   - generic [ref=e507]:
@@ -330,7 +330,7 @@ Call log:
                       - generic [ref=e585]: Offer
                       - 'generic "SLA: aging" [ref=e586]'
                       - generic [ref=e587]: awaiting you
-                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Awaiting your response. 23h 1 Inquiry SLA: aging awaiting you" [ref=e588] [cursor=pointer]':
+                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Awaiting your response. 23h 1 2 Offer SLA: aging awaiting you" [ref=e588] [cursor=pointer]':
                   - img [ref=e591]
                   - generic [ref=e594]:
                     - generic "Nadia Varela" [ref=e596]
@@ -338,105 +338,105 @@ Call log:
                     - generic [ref=e599]:
                       - generic [ref=e600]: "QA: Awaiting your response."
                       - generic [ref=e601]: 23h
-                    - generic [ref=e602]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e604]'
-                      - generic [ref=e613]: Inquiry
-                      - 'generic "SLA: aging" [ref=e614]'
-                      - generic [ref=e615]: awaiting you
-                - generic [ref=e616]: This week
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e617] [cursor=pointer]':
+                      - generic [ref=e602]: "1"
+                    - generic [ref=e603]:
+                      - 'progressbar "Stage 2 of 4: Offer" [ref=e605]'
+                      - generic [ref=e614]: Offer
+                      - 'generic "SLA: aging" [ref=e615]'
+                      - generic [ref=e616]: awaiting you
+                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Awaiting your response. 23h 1 2 Offer SLA: aging awaiting you" [ref=e617] [cursor=pointer]':
                   - img [ref=e620]
                   - generic [ref=e623]:
-                    - generic "Cora Cuevas" [ref=e625]
-                    - generic [ref=e627]: Need two models for a catalog shoot next month.
+                    - generic "Nadia Varela" [ref=e625]
+                    - generic [ref=e627]: A brand shoot with one model, to be collected at the desk.
                     - generic [ref=e628]:
                       - generic [ref=e629]: "QA: Awaiting your response."
-                      - generic [ref=e630]: 2d
-                    - generic [ref=e631]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e633]'
-                      - generic [ref=e642]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e643]'
-                      - generic [ref=e644]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e645] [cursor=pointer]':
-                  - img [ref=e648]
-                  - generic [ref=e651]:
-                    - generic "Cora Cuevas" [ref=e653]
-                    - generic [ref=e655]: Need two models for a catalog shoot next month.
-                    - generic [ref=e656]:
-                      - generic [ref=e657]: "QA: Awaiting your response."
-                      - generic [ref=e658]: 2d
-                    - generic [ref=e659]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e661]'
-                      - generic [ref=e670]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e671]'
-                      - generic [ref=e672]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e673] [cursor=pointer]':
-                  - img [ref=e676]
-                  - generic [ref=e679]:
-                    - generic "Cora Cuevas" [ref=e681]
-                    - generic [ref=e683]: Need two models for a catalog shoot next month.
-                    - generic [ref=e684]:
-                      - generic [ref=e685]: "QA: Awaiting your response."
-                      - generic [ref=e686]: 2d
-                    - generic [ref=e687]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e689]'
-                      - generic [ref=e698]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e699]'
-                      - generic [ref=e700]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e701] [cursor=pointer]':
-                  - img [ref=e704]
-                  - generic [ref=e707]:
-                    - generic "Cora Cuevas" [ref=e709]
-                    - generic [ref=e711]: Need two models for a catalog shoot next month.
-                    - generic [ref=e712]:
-                      - generic [ref=e713]: "QA: Awaiting your response."
-                      - generic [ref=e714]: 2d
-                    - generic [ref=e715]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e717]'
-                      - generic [ref=e726]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e727]'
-                      - generic [ref=e728]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Booking confirmed — check logistics tab. 2d 2 3 Booked" [ref=e729] [cursor=pointer]':
-                  - img [ref=e732]
-                  - generic [ref=e735]:
-                    - generic "Cora Cuevas" [ref=e737]
-                    - generic [ref=e739]: Need two models for a catalog shoot next month.
-                    - generic [ref=e740]:
-                      - generic [ref=e741]: "QA: Booking confirmed — check logistics tab."
-                      - generic [ref=e742]: 2d
-                      - generic [ref=e743]: "2"
-                    - generic [ref=e744]:
-                      - 'progressbar "Stage 3 of 4: Booked" [ref=e746]'
-                      - generic [ref=e755]: Booked
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 2 Offer SLA: overdue awaiting you" [ref=e756] [cursor=pointer]':
-                  - img [ref=e759]
-                  - generic [ref=e762]:
-                    - generic "Cora Cuevas" [ref=e764]
-                    - generic [ref=e766]: Need two models for a catalog shoot next month.
-                    - generic [ref=e767]:
-                      - generic [ref=e768]: "QA: Awaiting your response."
-                      - generic [ref=e769]: 2d
-                      - generic [ref=e770]: "1"
-                    - generic [ref=e771]:
-                      - 'progressbar "Stage 2 of 4: Offer" [ref=e773]'
-                      - generic [ref=e782]: Offer
-                      - 'generic "SLA: overdue" [ref=e783]'
-                      - generic [ref=e784]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 2 Offer SLA: overdue awaiting you" [ref=e785] [cursor=pointer]':
-                  - img [ref=e788]
-                  - generic [ref=e791]:
-                    - generic "Cora Cuevas" [ref=e793]
-                    - generic [ref=e795]: Need two models for a catalog shoot next month.
-                    - generic [ref=e796]:
-                      - generic [ref=e797]: "QA: Awaiting your response."
-                      - generic [ref=e798]: 2d
-                      - generic [ref=e799]: "1"
-                    - generic [ref=e800]:
-                      - 'progressbar "Stage 2 of 4: Offer" [ref=e802]'
-                      - generic [ref=e811]: Offer
-                      - 'generic "SLA: overdue" [ref=e812]'
-                      - generic [ref=e813]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e814] [cursor=pointer]':
+                      - generic [ref=e630]: 23h
+                      - generic [ref=e631]: "1"
+                    - generic [ref=e632]:
+                      - 'progressbar "Stage 2 of 4: Offer" [ref=e634]'
+                      - generic [ref=e643]: Offer
+                      - 'generic "SLA: aging" [ref=e644]'
+                      - generic [ref=e645]: awaiting you
+                - 'button "Nadia Varela A brand shoot with one model, to be collected at the desk. QA: Awaiting your response. 23h 1 Inquiry SLA: aging awaiting you" [ref=e646] [cursor=pointer]':
+                  - img [ref=e649]
+                  - generic [ref=e652]:
+                    - generic "Nadia Varela" [ref=e654]
+                    - generic [ref=e656]: A brand shoot with one model, to be collected at the desk.
+                    - generic [ref=e657]:
+                      - generic [ref=e658]: "QA: Awaiting your response."
+                      - generic [ref=e659]: 23h
+                    - generic [ref=e660]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e662]'
+                      - generic [ref=e671]: Inquiry
+                      - 'generic "SLA: aging" [ref=e672]'
+                      - generic [ref=e673]: awaiting you
+                - generic [ref=e674]: This week
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e675] [cursor=pointer]':
+                  - img [ref=e678]
+                  - generic [ref=e681]:
+                    - generic "Cora Cuevas" [ref=e683]
+                    - generic [ref=e685]: Need two models for a catalog shoot next month.
+                    - generic [ref=e686]:
+                      - generic [ref=e687]: "QA: Awaiting your response."
+                      - generic [ref=e688]: 2d
+                    - generic [ref=e689]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e691]'
+                      - generic [ref=e700]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e701]'
+                      - generic [ref=e702]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e703] [cursor=pointer]':
+                  - img [ref=e706]
+                  - generic [ref=e709]:
+                    - generic "Cora Cuevas" [ref=e711]
+                    - generic [ref=e713]: Need two models for a catalog shoot next month.
+                    - generic [ref=e714]:
+                      - generic [ref=e715]: "QA: Awaiting your response."
+                      - generic [ref=e716]: 2d
+                    - generic [ref=e717]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e719]'
+                      - generic [ref=e728]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e729]'
+                      - generic [ref=e730]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e731] [cursor=pointer]':
+                  - img [ref=e734]
+                  - generic [ref=e737]:
+                    - generic "Cora Cuevas" [ref=e739]
+                    - generic [ref=e741]: Need two models for a catalog shoot next month.
+                    - generic [ref=e742]:
+                      - generic [ref=e743]: "QA: Awaiting your response."
+                      - generic [ref=e744]: 2d
+                    - generic [ref=e745]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e747]'
+                      - generic [ref=e756]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e757]'
+                      - generic [ref=e758]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e759] [cursor=pointer]':
+                  - img [ref=e762]
+                  - generic [ref=e765]:
+                    - generic "Cora Cuevas" [ref=e767]
+                    - generic [ref=e769]: Need two models for a catalog shoot next month.
+                    - generic [ref=e770]:
+                      - generic [ref=e771]: "QA: Awaiting your response."
+                      - generic [ref=e772]: 2d
+                    - generic [ref=e773]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e775]'
+                      - generic [ref=e784]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e785]'
+                      - generic [ref=e786]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Booking confirmed — check logistics tab. 2d 2 3 Booked" [ref=e787] [cursor=pointer]':
+                  - img [ref=e790]
+                  - generic [ref=e793]:
+                    - generic "Cora Cuevas" [ref=e795]
+                    - generic [ref=e797]: Need two models for a catalog shoot next month.
+                    - generic [ref=e798]:
+                      - generic [ref=e799]: "QA: Booking confirmed — check logistics tab."
+                      - generic [ref=e800]: 2d
+                      - generic [ref=e801]: "2"
+                    - generic [ref=e802]:
+                      - 'progressbar "Stage 3 of 4: Booked" [ref=e804]'
+                      - generic [ref=e813]: Booked
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 2 Offer SLA: overdue awaiting you" [ref=e814] [cursor=pointer]':
                   - img [ref=e817]
                   - generic [ref=e820]:
                     - generic "Cora Cuevas" [ref=e822]
@@ -444,180 +444,224 @@ Call log:
                     - generic [ref=e825]:
                       - generic [ref=e826]: "QA: Awaiting your response."
                       - generic [ref=e827]: 2d
-                    - generic [ref=e828]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e830]'
-                      - generic [ref=e839]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e840]'
-                      - generic [ref=e841]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e842] [cursor=pointer]':
-                  - img [ref=e845]
-                  - generic [ref=e848]:
-                    - generic "Cora Cuevas" [ref=e850]
-                    - generic [ref=e852]: Need two models for a catalog shoot next month.
-                    - generic [ref=e853]:
-                      - generic [ref=e854]: "QA: Awaiting your response."
-                      - generic [ref=e855]: 2d
-                    - generic [ref=e856]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e858]'
-                      - generic [ref=e867]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e868]'
-                      - generic [ref=e869]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e870] [cursor=pointer]':
-                  - img [ref=e873]
-                  - generic [ref=e876]:
-                    - generic "Cora Cuevas" [ref=e878]
-                    - generic [ref=e880]: Need two models for a catalog shoot next month.
-                    - generic [ref=e881]:
-                      - generic [ref=e882]: "QA: Awaiting your response."
-                      - generic [ref=e883]: 2d
-                    - generic [ref=e884]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e886]'
-                      - generic [ref=e895]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e896]'
-                      - generic [ref=e897]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e898] [cursor=pointer]':
-                  - img [ref=e901]
-                  - generic [ref=e904]:
-                    - generic "Cora Cuevas" [ref=e906]
-                    - generic [ref=e908]: Need two models for a catalog shoot next month.
-                    - generic [ref=e909]:
-                      - generic [ref=e910]: "QA: Awaiting your response."
-                      - generic [ref=e911]: 2d
-                    - generic [ref=e912]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e914]'
-                      - generic [ref=e923]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e924]'
-                      - generic [ref=e925]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e926] [cursor=pointer]':
-                  - img [ref=e929]
-                  - generic [ref=e932]:
-                    - generic "Cora Cuevas" [ref=e934]
-                    - generic [ref=e936]: Need two models for a catalog shoot next month.
-                    - generic [ref=e937]:
-                      - generic [ref=e938]: "QA: Awaiting your response."
-                      - generic [ref=e939]: 2d
-                    - generic [ref=e940]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e942]'
-                      - generic [ref=e951]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e952]'
-                      - generic [ref=e953]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e954] [cursor=pointer]':
-                  - img [ref=e957]
-                  - generic [ref=e960]:
-                    - generic "Cora Cuevas" [ref=e962]
-                    - generic [ref=e964]: Need two models for a catalog shoot next month.
-                    - generic [ref=e965]:
-                      - generic [ref=e966]: "QA: Awaiting your response."
-                      - generic [ref=e967]: 2d
-                    - generic [ref=e968]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e970]'
-                      - generic [ref=e979]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e980]'
-                      - generic [ref=e981]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e982] [cursor=pointer]':
-                  - img [ref=e985]
-                  - generic [ref=e988]:
-                    - generic "Cora Cuevas" [ref=e990]
-                    - generic [ref=e992]: Need two models for a catalog shoot next month.
-                    - generic [ref=e993]:
-                      - generic [ref=e994]: "QA: Awaiting your response."
-                      - generic [ref=e995]: 2d
-                    - generic [ref=e996]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e998]'
-                      - generic [ref=e1007]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e1008]'
-                      - generic [ref=e1009]: awaiting you
-                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e1010] [cursor=pointer]':
-                  - img [ref=e1013]
-                  - generic [ref=e1016]:
-                    - generic "Cora Cuevas" [ref=e1018]
-                    - generic [ref=e1020]: Need two models for a catalog shoot next month.
-                    - generic [ref=e1021]:
-                      - generic [ref=e1022]: "QA: Awaiting your response."
-                      - generic [ref=e1023]: 2d
-                    - generic [ref=e1024]:
-                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1026]'
-                      - generic [ref=e1035]: Inquiry
-                      - 'generic "SLA: overdue" [ref=e1036]'
-                      - generic [ref=e1037]: awaiting you
-            - separator "Resize jobs list" [ref=e1038]
-            - generic [ref=e1041]:
-              - generic [ref=e1042]:
-                - generic [ref=e1043]:
-                  - button "Back to my jobs" [ref=e1044] [cursor=pointer]:
-                    - img [ref=e1045]
-                  - generic [ref=e1047]:
-                    - heading "Cora Cuevas · Need two models for a catalog shoot next month. Guest" [level=1] [ref=e1048]:
-                      - generic [ref=e1049]:
+                      - generic [ref=e828]: "1"
+                    - generic [ref=e829]:
+                      - 'progressbar "Stage 2 of 4: Offer" [ref=e831]'
+                      - generic [ref=e840]: Offer
+                      - 'generic "SLA: overdue" [ref=e841]'
+                      - generic [ref=e842]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 2 Offer SLA: overdue awaiting you" [ref=e843] [cursor=pointer]':
+                  - img [ref=e846]
+                  - generic [ref=e849]:
+                    - generic "Cora Cuevas" [ref=e851]
+                    - generic [ref=e853]: Need two models for a catalog shoot next month.
+                    - generic [ref=e854]:
+                      - generic [ref=e855]: "QA: Awaiting your response."
+                      - generic [ref=e856]: 2d
+                      - generic [ref=e857]: "1"
+                    - generic [ref=e858]:
+                      - 'progressbar "Stage 2 of 4: Offer" [ref=e860]'
+                      - generic [ref=e869]: Offer
+                      - 'generic "SLA: overdue" [ref=e870]'
+                      - generic [ref=e871]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e872] [cursor=pointer]':
+                  - img [ref=e875]
+                  - generic [ref=e878]:
+                    - generic "Cora Cuevas" [ref=e880]
+                    - generic [ref=e882]: Need two models for a catalog shoot next month.
+                    - generic [ref=e883]:
+                      - generic [ref=e884]: "QA: Awaiting your response."
+                      - generic [ref=e885]: 2d
+                    - generic [ref=e886]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e888]'
+                      - generic [ref=e897]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e898]'
+                      - generic [ref=e899]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e900] [cursor=pointer]':
+                  - img [ref=e903]
+                  - generic [ref=e906]:
+                    - generic "Cora Cuevas" [ref=e908]
+                    - generic [ref=e910]: Need two models for a catalog shoot next month.
+                    - generic [ref=e911]:
+                      - generic [ref=e912]: "QA: Awaiting your response."
+                      - generic [ref=e913]: 2d
+                    - generic [ref=e914]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e916]'
+                      - generic [ref=e925]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e926]'
+                      - generic [ref=e927]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e928] [cursor=pointer]':
+                  - img [ref=e931]
+                  - generic [ref=e934]:
+                    - generic "Cora Cuevas" [ref=e936]
+                    - generic [ref=e938]: Need two models for a catalog shoot next month.
+                    - generic [ref=e939]:
+                      - generic [ref=e940]: "QA: Awaiting your response."
+                      - generic [ref=e941]: 2d
+                    - generic [ref=e942]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e944]'
+                      - generic [ref=e953]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e954]'
+                      - generic [ref=e955]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e956] [cursor=pointer]':
+                  - img [ref=e959]
+                  - generic [ref=e962]:
+                    - generic "Cora Cuevas" [ref=e964]
+                    - generic [ref=e966]: Need two models for a catalog shoot next month.
+                    - generic [ref=e967]:
+                      - generic [ref=e968]: "QA: Awaiting your response."
+                      - generic [ref=e969]: 2d
+                    - generic [ref=e970]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e972]'
+                      - generic [ref=e981]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e982]'
+                      - generic [ref=e983]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e984] [cursor=pointer]':
+                  - img [ref=e987]
+                  - generic [ref=e990]:
+                    - generic "Cora Cuevas" [ref=e992]
+                    - generic [ref=e994]: Need two models for a catalog shoot next month.
+                    - generic [ref=e995]:
+                      - generic [ref=e996]: "QA: Awaiting your response."
+                      - generic [ref=e997]: 2d
+                    - generic [ref=e998]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1000]'
+                      - generic [ref=e1009]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e1010]'
+                      - generic [ref=e1011]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e1012] [cursor=pointer]':
+                  - img [ref=e1015]
+                  - generic [ref=e1018]:
+                    - generic "Cora Cuevas" [ref=e1020]
+                    - generic [ref=e1022]: Need two models for a catalog shoot next month.
+                    - generic [ref=e1023]:
+                      - generic [ref=e1024]: "QA: Awaiting your response."
+                      - generic [ref=e1025]: 2d
+                    - generic [ref=e1026]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1028]'
+                      - generic [ref=e1037]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e1038]'
+                      - generic [ref=e1039]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e1040] [cursor=pointer]':
+                  - img [ref=e1043]
+                  - generic [ref=e1046]:
+                    - generic "Cora Cuevas" [ref=e1048]
+                    - generic [ref=e1050]: Need two models for a catalog shoot next month.
+                    - generic [ref=e1051]:
+                      - generic [ref=e1052]: "QA: Awaiting your response."
+                      - generic [ref=e1053]: 2d
+                    - generic [ref=e1054]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1056]'
+                      - generic [ref=e1065]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e1066]'
+                      - generic [ref=e1067]: awaiting you
+                - 'button "Cora Cuevas Need two models for a catalog shoot next month. QA: Awaiting your response. 2d 1 Inquiry SLA: overdue awaiting you" [ref=e1068] [cursor=pointer]':
+                  - img [ref=e1071]
+                  - generic [ref=e1074]:
+                    - generic "Cora Cuevas" [ref=e1076]
+                    - generic [ref=e1078]: Need two models for a catalog shoot next month.
+                    - generic [ref=e1079]:
+                      - generic [ref=e1080]: "QA: Awaiting your response."
+                      - generic [ref=e1081]: 2d
+                    - generic [ref=e1082]:
+                      - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1084]'
+                      - generic [ref=e1093]: Inquiry
+                      - 'generic "SLA: overdue" [ref=e1094]'
+                      - generic [ref=e1095]: awaiting you
+            - separator "Resize jobs list" [ref=e1096]
+            - generic [ref=e1099]:
+              - generic [ref=e1100]:
+                - generic [ref=e1101]:
+                  - button "Back to my jobs" [ref=e1102] [cursor=pointer]:
+                    - img [ref=e1103]
+                  - generic [ref=e1105]:
+                    - heading "Cora Cuevas · Need two models for a catalog shoot next month. Guest" [level=1] [ref=e1106]:
+                      - generic [ref=e1107]:
                         - text: Cora Cuevas
-                        - generic [ref=e1050]: · Need two models for a catalog shoot next month.
-                      - generic [ref=e1052]: Guest
-                    - generic [ref=e1054]: via QA Journeys (48-case fixture)
-                  - generic [ref=e1055]:
-                    - 'button "Status: Inquiry. Tap for details." [ref=e1056] [cursor=pointer]': Inquiry
-                    - button "Search this conversation" [ref=e1057] [cursor=pointer]:
-                      - img [ref=e1058]
-                    - button "More actions" [ref=e1062] [cursor=pointer]:
-                      - img [ref=e1064]
-                - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1069]':
-                  - generic [ref=e1072]: Inquiry
-                  - generic [ref=e1075]: Offer
-                  - generic [ref=e1078]: Booked
-                  - generic [ref=e1081]: Wrapped
-              - generic [ref=e1082]:
-                - tablist [ref=e1083]:
-                  - tab "Activity" [selected] [ref=e1084] [cursor=pointer]:
-                    - img [ref=e1086]
-                    - generic [ref=e1089]: Activity
-                  - tab "Lineup" [ref=e1090] [cursor=pointer]:
-                    - generic [ref=e1091]: Lineup
-                  - tab "Offer" [ref=e1092] [cursor=pointer]:
-                    - img [ref=e1094]
-                    - generic [ref=e1097]: Offer
-                  - tab "Details" [ref=e1098] [cursor=pointer]:
-                    - generic [ref=e1099]: Details
-                  - tab "Files" [ref=e1100] [cursor=pointer]:
-                    - img [ref=e1102]
-                    - generic [ref=e1106]: Files
-                - generic [ref=e1107]:
-                  - img [ref=e1108]
-                  - text: Waiting for the coordinator to set up your offer.
-                - generic [ref=e1111]:
-                  - button "Search this thread" [ref=e1114] [cursor=pointer]:
-                    - img [ref=e1115]
-                  - generic [ref=e1119]:
-                    - generic [ref=e1120]: No activity yet
-                    - generic [ref=e1121]: Offers, payments and booking confirmations will appear here as the job progresses.
-              - generic [ref=e1122]:
-                - generic [ref=e1123]: Coordinator invited you. Accept, hold, or decline?
-                - button "Decline" [ref=e1124] [cursor=pointer]
-                - button "Accept" [ref=e1125] [cursor=pointer]
-                - button "Dismiss next-action nudge" [ref=e1126] [cursor=pointer]: ×
-    - dialog [ref=e1127]:
-      - separator "Resize drawer" [ref=e1128]
-      - banner [ref=e1129]:
+                        - generic [ref=e1108]: · Need two models for a catalog shoot next month.
+                      - generic [ref=e1110]: Guest
+                    - generic [ref=e1112]: via QA Journeys (48-case fixture)
+                  - generic [ref=e1113]:
+                    - 'button "Status: Inquiry. Tap for details." [ref=e1114] [cursor=pointer]': Inquiry
+                    - button "Search this conversation" [ref=e1115] [cursor=pointer]:
+                      - img [ref=e1116]
+                    - button "More actions" [ref=e1120] [cursor=pointer]:
+                      - img [ref=e1122]
+                - 'progressbar "Stage 1 of 4: Inquiry" [ref=e1127]':
+                  - generic [ref=e1130]: Inquiry
+                  - generic [ref=e1133]: Offer
+                  - generic [ref=e1136]: Booked
+                  - generic [ref=e1139]: Wrapped
+              - generic [ref=e1140]:
+                - tablist [ref=e1141]:
+                  - tab "Activity" [ref=e1142] [cursor=pointer]:
+                    - img [ref=e1144]
+                    - generic [ref=e1147]: Activity
+                  - tab "Lineup" [ref=e1148] [cursor=pointer]:
+                    - generic [ref=e1149]: Lineup
+                  - tab "Offer" [active] [selected] [ref=e1150] [cursor=pointer]:
+                    - img [ref=e1152]
+                    - generic [ref=e1155]: Offer
+                  - tab "Details" [ref=e1156] [cursor=pointer]:
+                    - generic [ref=e1157]: Details
+                  - tab "Files" [ref=e1158] [cursor=pointer]:
+                    - img [ref=e1160]
+                    - generic [ref=e1164]: Files
+                - generic [ref=e1166]:
+                  - region "Payouts" [ref=e1167]:
+                    - img [ref=e1169]
+                    - generic [ref=e1171]:
+                      - generic [ref=e1172]: Payouts
+                      - generic [ref=e1173]: Connect your bank to receive payouts
+                      - generic [ref=e1174]: Set up Stripe Express once and we'll auto-transfer your share of every booking. Stripe handles the bank + tax info.
+                      - link "Connect Stripe →" [ref=e1175] [cursor=pointer]:
+                        - /url: /qa-journeys/talent/settings/payouts
+                  - generic [ref=e1176]:
+                    - generic [ref=e1177]: Submit your rate
+                    - generic [ref=e1178]: The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home, so quote what you actually need to walk out with, plus a small margin for usage.
+                    - generic [ref=e1179]: No offer yet. Your coordinator will send one when it's ready.
+              - 'button "Show next action: Accept" [ref=e1181] [cursor=pointer]': ↑ Accept
+    - dialog [ref=e1182]:
+      - separator "Resize drawer" [ref=e1183]
+      - banner [ref=e1184]:
         - generic:
           - generic:
             - heading [level=2]
-        - generic [ref=e1130]:
-          - button "Copy link to this drawer" [ref=e1132] [cursor=pointer]:
-            - img [ref=e1133]
-          - generic [ref=e1136]:
-            - button "compact size" [ref=e1138] [cursor=pointer]:
-              - img [ref=e1139]
-            - button "half size" [ref=e1143] [cursor=pointer]:
-              - img [ref=e1144]
-            - button "full size" [ref=e1148] [cursor=pointer]:
-              - img [ref=e1149]
-          - button "Close" [ref=e1152] [cursor=pointer]:
-            - img [ref=e1153]
+        - generic [ref=e1185]:
+          - button "Copy link to this drawer" [ref=e1187] [cursor=pointer]:
+            - img [ref=e1188]
+          - generic [ref=e1191]:
+            - button "compact size" [ref=e1193] [cursor=pointer]:
+              - img [ref=e1194]
+            - button "half size" [ref=e1198] [cursor=pointer]:
+              - img [ref=e1199]
+            - button "full size" [ref=e1203] [cursor=pointer]:
+              - img [ref=e1204]
+          - button "Close" [ref=e1207] [cursor=pointer]:
+            - img [ref=e1208]
     - status
-  - alert [ref=e1156]
+  - alert [ref=e1211]
 ```
 
 # Test source
 
 ```ts
+  273 |     await rosterSearch.fill("QA Journeys");
+  274 |     await page.getByRole("button", { name: "QA Journeys Talent", exact: true }).click();
+  275 |     await expect(page.getByText(/invited|added to lineup/i).first()).toBeVisible({
+  276 |       timeout: 20_000,
+  277 |     });
+  278 |   }
+  279 | 
+  280 |   await page.getByRole("tab", { name: /^offer$/i }).click();
+  281 |   const startOffer = page.getByRole("button", { name: /start drafting offer/i });
+  282 |   if (await startOffer.isVisible().catch(() => false)) {
+  283 |     await startOffer.click();
+  284 |     await expect(page.getByText(/offer draft created/i)).toBeVisible({
+  285 |       timeout: 20_000,
+  286 |     });
+  287 |   }
+  288 |   // Fidelity keeps the draft editor collapsed ("1 line item · total $0").
   289 |   // Other "Edit" buttons exist on Messages; only the one beside Draft editor
   290 |   // expands the line-item grid.
   291 |   const draftEditorLabel = page.getByText(/^draft editor$/i);
@@ -680,136 +724,114 @@ Call log:
   348 |   expect(awaiting, "a sent offer must still wait on QA Journeys Talent").not.toBeNull();
   349 |   expect(awaiting?.offerStatus).toBe("sent");
   350 |   expect(awaiting?.inquiryStatus).toMatch(/offer_pending|coordination/);
-  351 | 
-  352 |   await signInJourneysStaff(page, `/talent/inbox/${awaiting!.inquiryId}`, JOURNEYS_TALENT_EMAIL);
-  353 |   await expect(page).toHaveURL(/\/talent\/inbox/, { timeout: 40_000 });
-  354 |   await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
-  355 |   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
-  356 |   await expect(page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i })).toHaveCount(0);
-  357 |   await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
-  358 | 
-  359 |   const offerTab = page.getByRole("tab", { name: /^offer$/i });
-  360 |   if (await offerTab.isVisible().catch(() => false)) {
-  361 |     await offerTab.click();
-  362 |   }
-  363 |   const approve = page.getByRole("button", { name: /approve offer/i });
-  364 |   const acceptInvite = page.getByRole("button", { name: /^accept$/i });
+  351 |   expect(awaiting?.contactEmail ?? "", "talent must open the just-sent C08 offer").toMatch(
+  352 |     /c08-op-/,
+  353 |   );
+  354 | 
+  355 |   await signInJourneysStaff(page, `/talent/inbox/${awaiting!.inquiryId}`, JOURNEYS_TALENT_EMAIL);
+  356 |   await expect(page).toHaveURL(/\/talent\/inbox/, { timeout: 40_000 });
+  357 |   await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
+  358 |   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
+  359 |   await expect(page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i })).toHaveCount(0);
+  360 |   await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
+  361 | 
+  362 |   // Fresh send still shows Inquiry SLA until talent accepts the invite.
+  363 |   const acceptInvite = page.getByRole("button", { name: /accept$/i });
+  364 |   const approve = page.getByRole("button", { name: /approve offer/i });
   365 |   if (!(await approve.isVisible().catch(() => false))) {
-  366 |     if (await acceptInvite.isVisible().catch(() => false)) {
-  367 |       await acceptInvite.click();
-  368 |       if (await offerTab.isVisible().catch(() => false)) {
-  369 |         await offerTab.click();
-  370 |       }
-  371 |     }
+  366 |     await expect(acceptInvite.first()).toBeVisible({ timeout: 20_000 });
+  367 |     await acceptInvite.first().click();
+  368 |   }
+  369 |   const offerTab = page.getByRole("tab", { name: /^offer$/i });
+  370 |   if (await offerTab.isVisible().catch(() => false)) {
+  371 |     await offerTab.click();
   372 |   }
-  373 |   if (!(await approve.isVisible().catch(() => false))) {
-  374 |     await expect(approve)
-  375 |       .toBeVisible({ timeout: 15_000 })
-  376 |       .catch(() => undefined);
-  377 |   }
-  378 |   if (!(await approve.isVisible().catch(() => false))) {
-  379 |     await page.goto("/talent/inbox");
-  380 |     await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
-  381 |     const allChip = page.getByRole("button", { name: /^all$/i });
-  382 |     if (await allChip.isVisible().catch(() => false)) {
-  383 |       await allChip.click();
-  384 |     }
-  385 |     const row = page
-  386 |       .getByRole("button", { name: /cora cuevas/i })
-  387 |       .filter({ hasText: /offer sla/i })
-  388 |       .first();
-> 389 |     await expect(row).toBeVisible({ timeout: 40_000 });
-      |                       ^ Error: expect(locator).toBeVisible() failed
-  390 |     await row.click();
-  391 |     if (await offerTab.isVisible().catch(() => false)) {
-  392 |       await offerTab.click();
-  393 |     }
-  394 |   }
-  395 |   await expect(approve).toBeVisible({ timeout: 40_000 });
-  396 |   await approve.click();
-  397 |   await expect(
-  398 |     page.getByText(
-  399 |       /offer approved|you've approved|approved the offer|waiting on client|you approved/i,
-  400 |     ).first(),
-  401 |   ).toBeVisible({ timeout: 30_000 });
-  402 | 
-  403 |   const approvals = await inquiryOfferApprovals(awaiting!.offerId);
-  404 |   const talent = approvals.find(
-  405 |     (row) => row.talentProfileId === QA_JOURNEYS_TALENT_ID,
-  406 |   );
-  407 |   const client = approvals.find((row) => row.role === "client");
-  408 |   expect(talent?.status, "talent approval must be accepted").toBe("accepted");
-  409 |   expect(client?.status, "client approval must still be pending").toBe("pending");
-  410 | 
-  411 |   const after = await latestSentDirectoryInquiry();
-  412 |   expect(after?.inquiryId).toBe(awaiting!.inquiryId);
-  413 |   expect(after?.offerStatus, "offer stays sent until the client also accepts").toBe("sent");
-  414 |   expect(after?.inquiryStatus, "inquiry stays offer_pending until the client accepts").toMatch(
-  415 |     /offer_pending|coordination/,
-  416 |   );
-  417 | 
-  418 |   await page.screenshot({
-  419 |     path: testInfo.outputPath("c08-tal-accept.png"),
-  420 |     fullPage: true,
-  421 |   });
-  422 | });
-  423 | 
-  424 | test("C08-CUS accept: claimed client approves the sent offer", async ({ page }, testInfo) => {
-  425 |   test.setTimeout(180_000);
-  426 |   const ready = await latestOfferReadyForClientAccept();
-  427 |   expect(ready, "a sent offer must wait on the claimed client after talent approve").not.toBeNull();
-  428 |   expect(ready?.contactEmail, "claimed client email must exist").toMatch(/@impronta\.test$/);
-  429 |   expect(ready?.offerStatus).toBe("sent");
-  430 |   expect(ready?.inquiryStatus).toMatch(/offer_pending|coordination/);
-  431 | 
-  432 |   const messagesPath = `/${JOURNEYS_SLUG}/client/messages?inquiry=${ready!.inquiryId}&tab=offer`;
-  433 |   await signInJourneysStaff(page, messagesPath, ready!.contactEmail!);
-  434 |   if (/\/onboarding\/role/.test(page.url())) {
-  435 |     const chooseClient = page.getByRole("button", { name: /i'm a client/i });
-  436 |     await expect(chooseClient).toBeVisible();
-  437 |     await chooseClient.click();
-  438 |     await expect(page.getByText(/something went wrong/i)).toHaveCount(0);
-  439 |     await expect(page).not.toHaveURL(/\/onboarding\/role/, { timeout: 30_000 });
-  440 |     await page.goto(messagesPath);
-  441 |   }
-  442 |   await expect(page).toHaveURL(
-  443 |     new RegExp(`(?:/${JOURNEYS_SLUG})?/client/messages`),
-  444 |     { timeout: 40_000 },
-  445 |   );
-  446 |   await expect(page.getByRole("heading", { name: /no client account here/i })).toHaveCount(0);
-  447 |   await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
-  448 |   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
-  449 | 
-  450 |   const offerTab = page.getByRole("tab", { name: /^offer$/i });
-  451 |   if (await offerTab.isVisible().catch(() => false)) {
-  452 |     await offerTab.click();
-  453 |   }
-  454 |   const approve = page.getByRole("button", { name: /approve & lock/i });
-  455 |   await expect(approve.first()).toBeVisible({ timeout: 40_000 });
-  456 |   await approve.first().click();
-  457 |   await expect(approve.nth(1)).toBeVisible({ timeout: 15_000 });
-  458 |   await approve.nth(1).click();
-  459 |   await expect(
-  460 |     page.getByText(
-  461 |       /you approved this offer|you approved · awaiting others|offer approved|approved, booking soon|all approvals are complete/i,
-  462 |     ).first(),
-  463 |   ).toBeVisible({ timeout: 30_000 });
-  464 | 
-  465 |   const approvals = await inquiryOfferApprovals(ready!.offerId);
-  466 |   const talent = approvals.find((row) => row.talentProfileId === QA_JOURNEYS_TALENT_ID);
-  467 |   const client = approvals.find((row) => row.role === "client");
-  468 |   expect(talent?.status, "talent approval must stay accepted").toBe("accepted");
-  469 |   expect(client?.status, "client approval must be accepted").toBe("accepted");
-  470 | 
-  471 |   const offer = await latestInquiryOffer(ready!.inquiryId);
-  472 |   expect(offer?.status, "all parties accepted so the offer must flip to accepted").toBe("accepted");
-  473 |   const persisted = await latestGuestDirectoryInquiry(ready!.contactEmail!);
-  474 |   expect(persisted?.status, "inquiry must be approved once every party accepts").toBe("approved");
-  475 | 
-  476 |   await page.screenshot({
-  477 |     path: testInfo.outputPath("c08-cus-accept.png"),
-  478 |     fullPage: true,
-  479 |   });
-  480 | });
-  481 | 
+> 373 |   await expect(approve).toBeVisible({ timeout: 40_000 });
+      |                         ^ Error: expect(locator).toBeVisible() failed
+  374 |   await approve.click();
+  375 |   await expect(
+  376 |     page.getByText(
+  377 |       /offer approved|you've approved|approved the offer|waiting on client|you approved/i,
+  378 |     ).first(),
+  379 |   ).toBeVisible({ timeout: 30_000 });
+  380 | 
+  381 |   const approvals = await inquiryOfferApprovals(awaiting!.offerId);
+  382 |   const talent = approvals.find(
+  383 |     (row) => row.talentProfileId === QA_JOURNEYS_TALENT_ID,
+  384 |   );
+  385 |   const client = approvals.find((row) => row.role === "client");
+  386 |   expect(talent?.status, "talent approval must be accepted").toBe("accepted");
+  387 |   expect(client?.status, "client approval must still be pending").toBe("pending");
+  388 | 
+  389 |   const after = await latestSentDirectoryInquiry();
+  390 |   expect(after?.inquiryId).toBe(awaiting!.inquiryId);
+  391 |   expect(after?.offerStatus, "offer stays sent until the client also accepts").toBe("sent");
+  392 |   expect(after?.inquiryStatus, "inquiry stays offer_pending until the client accepts").toMatch(
+  393 |     /offer_pending|coordination/,
+  394 |   );
+  395 | 
+  396 |   await page.screenshot({
+  397 |     path: testInfo.outputPath("c08-tal-accept.png"),
+  398 |     fullPage: true,
+  399 |   });
+  400 | });
+  401 | 
+  402 | test("C08-CUS accept: claimed client approves the sent offer", async ({ page }, testInfo) => {
+  403 |   test.setTimeout(180_000);
+  404 |   const ready = await latestOfferReadyForClientAccept();
+  405 |   expect(ready, "a sent offer must wait on the claimed client after talent approve").not.toBeNull();
+  406 |   expect(ready?.contactEmail, "claimed client email must exist").toMatch(/@impronta\.test$/);
+  407 |   expect(ready?.offerStatus).toBe("sent");
+  408 |   expect(ready?.inquiryStatus).toMatch(/offer_pending|coordination/);
+  409 | 
+  410 |   const messagesPath = `/${JOURNEYS_SLUG}/client/messages?inquiry=${ready!.inquiryId}&tab=offer`;
+  411 |   await signInJourneysStaff(page, messagesPath, ready!.contactEmail!);
+  412 |   if (/\/onboarding\/role/.test(page.url())) {
+  413 |     const chooseClient = page.getByRole("button", { name: /i'm a client/i });
+  414 |     await expect(chooseClient).toBeVisible();
+  415 |     await chooseClient.click();
+  416 |     await expect(page.getByText(/something went wrong/i)).toHaveCount(0);
+  417 |     await expect(page).not.toHaveURL(/\/onboarding\/role/, { timeout: 30_000 });
+  418 |     await page.goto(messagesPath);
+  419 |   }
+  420 |   await expect(page).toHaveURL(
+  421 |     new RegExp(`(?:/${JOURNEYS_SLUG})?/client/messages`),
+  422 |     { timeout: 40_000 },
+  423 |   );
+  424 |   await expect(page.getByRole("heading", { name: /no client account here/i })).toHaveCount(0);
+  425 |   await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
+  426 |   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
+  427 | 
+  428 |   const offerTab = page.getByRole("tab", { name: /^offer$/i });
+  429 |   if (await offerTab.isVisible().catch(() => false)) {
+  430 |     await offerTab.click();
+  431 |   }
+  432 |   const approve = page.getByRole("button", { name: /approve & lock/i });
+  433 |   await expect(approve.first()).toBeVisible({ timeout: 40_000 });
+  434 |   await approve.first().click();
+  435 |   await expect(approve.nth(1)).toBeVisible({ timeout: 15_000 });
+  436 |   await approve.nth(1).click();
+  437 |   await expect(
+  438 |     page.getByText(
+  439 |       /you approved this offer|you approved · awaiting others|offer approved|approved, booking soon|all approvals are complete/i,
+  440 |     ).first(),
+  441 |   ).toBeVisible({ timeout: 30_000 });
+  442 | 
+  443 |   const approvals = await inquiryOfferApprovals(ready!.offerId);
+  444 |   const talent = approvals.find((row) => row.talentProfileId === QA_JOURNEYS_TALENT_ID);
+  445 |   const client = approvals.find((row) => row.role === "client");
+  446 |   expect(talent?.status, "talent approval must stay accepted").toBe("accepted");
+  447 |   expect(client?.status, "client approval must be accepted").toBe("accepted");
+  448 | 
+  449 |   const offer = await latestInquiryOffer(ready!.inquiryId);
+  450 |   expect(offer?.status, "all parties accepted so the offer must flip to accepted").toBe("accepted");
+  451 |   const persisted = await latestGuestDirectoryInquiry(ready!.contactEmail!);
+  452 |   expect(persisted?.status, "inquiry must be approved once every party accepts").toBe("approved");
+  453 | 
+  454 |   await page.screenshot({
+  455 |     path: testInfo.outputPath("c08-cus-accept.png"),
+  456 |     fullPage: true,
+  457 |   });
+  458 | });
+  459 | 
 ```

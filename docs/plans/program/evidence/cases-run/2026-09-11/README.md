@@ -21,19 +21,19 @@ this VM. Vercel access used a one-time share JWT in Playwright
 `/api/dev/signin`. Release helpers no-op without service role.
 
 60/60 specs ran. Failures were rerun once. Selector patches were rerun
-for C06, POS-floor, VENUE-table-service, and C08.
+for C06, POS-floor, VENUE-table-service, and C08 (through r8).
 
 ## Spec-level counts
 
 | Class | Count |
 |---|---|
 | passed | 51 |
-| failed-app | 1 spec (C12; role C12-DIFF is D-112. C08-CUS accept is D-113 inside the C08 spec) |
+| failed-app | 2 (C12 D-112; C08 D-113 + D-114 — inquiry and OP assign/send passed) |
 | failed-fixture | 7 (C01, C02, C07, C09, pos-scanner, POS-projects, VENUE-table-service) |
-| failed-spec | 1 (C08 — inquiry passed; OP/TAL chrome and CUS accept did not) |
+| failed-spec | 0 |
 | blocked-external | 0 |
 
-C08 is one failed spec with mixed roles (inquiry passed; assign/send/TAL/accept did not). C12 is one failed spec with CUS+OP passed.
+C08 is one failed spec file with mixed roles (inquiry + OP passed; TAL is D-114; CUS accept is D-113). C12 is one failed spec with CUS+OP passed.
 
 ## D-ids filed this run
 
@@ -41,13 +41,14 @@ C08 is one failed spec with mixed roles (inquiry passed; assign/send/TAL/accept 
 |---|---|---|
 | D-112 | C12-DIFF | After “At the door”, `[data-ticket-picker=held]` never appeared (rerun once). |
 | D-113 | C08-CUS accept | Claimed client (`/…/client/messages?inquiry=…`) lands on **No client account here**. |
+| D-114 | C08-TAL | Sent `c08-op-` offer is pending in DB; talent inbox stays Inquiry with no Approve offer. |
 
 ## Specs edited this run
 
 - `C06-restaurant.spec.ts` — Sales row accepts `Unpaid · Awaiting payment` as well as `still owed`.
 - `POS-floor-mode.spec.ts` — Settings uses `assertNotAuthWall` (no h1 after fidelity).
 - `VENUE-table-service.spec.ts` — dismiss `[data-pos-overlay]` Close after waitlist.
-- `C08-modelling-or-talent-agency.spec.ts` — fresh inquiry + clear `impronta_guest`; receipt regex allows `Sent · awaiting reply`; Messages identity does not require a visible h1.
+- `C08-modelling-or-talent-agency.spec.ts` — fresh inquiry + clear `impronta_guest`; receipt regex allows `Sent · awaiting reply`; Messages identity does not require a visible h1; roster button is exact `QA Journeys Talent`; offer send clicks Draft editor Edit; talent Accept is the invite then Approve offer.
 - `_isolated-db.ts` / `_floor-db.ts` / `_venue-db.ts` — release helpers return when service role is unset.
 
 ## Fixture drift confirmed on qa-journeys
