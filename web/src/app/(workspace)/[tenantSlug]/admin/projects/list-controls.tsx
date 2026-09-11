@@ -62,11 +62,11 @@ export function ListControls({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <button type="button" disabled title={copy.ownerUnavailable} className={cn(CHIP, "disabled:cursor-not-allowed disabled:opacity-60")}>
+      <button type="button" disabled title={copy.ownerUnavailable} className={cn(CHIP, "disabled:cursor-not-allowed disabled:opacity-60 max-[720px]:hidden")}>
         {copy.owner}
         <ChevronDown aria-hidden size={12} strokeWidth={1.75} className="text-admin-ink-dim" />
       </button>
-      <label className={CHIP}>
+      <label className={cn(CHIP, "max-[720px]:hidden")}>
         <span>{copy.status}</span>
         <select
           value={status}
@@ -81,7 +81,7 @@ export function ListControls({
           ))}
         </select>
       </label>
-      <label className={CHIP}>
+      <label className={cn(CHIP, "max-[720px]:hidden")}>
         <span>{copy.deadline}</span>
         <select
           value={deadline}
@@ -94,7 +94,7 @@ export function ListControls({
         </select>
       </label>
       <form
-        className={cn(CHIP, "w-[220px] gap-1.5")}
+        className={cn(CHIP, "w-[220px] gap-1.5 max-[720px]:h-[44px] max-[720px]:w-full max-[720px]:rounded-[12px]")}
         onSubmit={(e) => {
           e.preventDefault();
           push({ q });

@@ -783,3 +783,64 @@ Issues queue's two most consequential rows. W56 (Approval review) is not
 built: the engine has no per-action limit and no approval request to review,
 so there is nothing to draw the dialog over; recorded here rather than as a
 dialog that would approve nothing.
+
+## D-POS-67 — the phone's four tabs are the board's: Today · Calendar · Clients · Sales
+
+Decided 2026-09-11 (fid-mobile). The registry's `mobilePriority` ordered the
+bar Overview · Messages · Calendar · Appointments; the approved MW00 board
+(2026-09-09) draws Today · Calendar · Clients · Sales · More, and MW26 draws
+the professional's bar with the same shape. The priorities now follow the
+board (`destinations.ts`: overview 1, calendar 2, clients 3, sales 4, then
+messages, appts, orders, reservations, catalog, people), so a workspace that
+hides one of the four still fills the bar from the registry and never from a
+hand-written list. Both tests that pinned the old order were re-pointed at
+the board's (`destinations.test.ts`, `mobile-bottom-nav.static.test.ts`).
+The bar is still role-invariant: none of the four carries a role or billing
+clause. The More sheet draws every other visible destination as a chip under
+its group and does not repeat the four on the bar. Messages, the fourth
+tab of the professional's bar on MW26, waits on My work (D-POS-69).
+
+## D-POS-68 — the phone's Orders list opens the conversation; an order has no record page
+
+Decided 2026-09-11 (fid-mobile). MW18–MW20 draw an order's own screen (its
+lines with their stations and readiness, Total · Payment · Notify · If not
+collected, then Mark ready · Hand over). No route renders one order: the
+Orders desk is a list, readiness lives on the kitchen's tickets (K09, the
+Preparation destination) and a handoff is not recorded anywhere. The phone's
+Orders list (MW17) therefore draws each order as a row that opens its
+conversation when it has one, the same door the desktop table offers; Mark
+ready and Hand over are not drawn because there is nothing for them to write.
+The refund form stays on the desktop table.
+
+## D-POS-69 — My work on the phone is the screen with the sentence
+
+Decided 2026-09-11 (fid-mobile). `mywork` is `built: false` in the registry
+on purpose (no page shows one person their own shifts, assignments and
+earnings). The phone's More sheet keeps the chip and the chip opens a sheet
+that says so in three languages and points at where the person's work lives
+today (Calendar, Appointments & Classes, Projects). MW27–MW31 (a project or
+appointment assignment to accept, a field job, a schedule conflict, earnings)
+have no reader or writer and are not drawn beyond that sentence.
+
+## D-POS-70 — invitations redeem on the link; the accept, decline and state screens are not drawn
+
+Decided 2026-09-11 (fid-mobile). MW32–MW34 draw an invitation as a screen
+with Accept and Decline and three states (expired, wrong account, access
+removed). The engine's `/invite/[token]` redeems the invitation on GET and
+redirects; an expired or invalid token redirects to the home page with a
+query flag, and there is no pending-accept state to draw a decision over.
+Building the screens would add a state to the invite model, which is a
+product change, not a skin; recorded here as not wired. MW36 (a link that
+expired, a booking no longer available, no access, a session that ended) is
+the same shape: those states are answered by the routes that own them and
+were not restyled in this group.
+
+## D-POS-71 — the workspace switch sheet lists one location: the workspace itself
+
+Decided 2026-09-11 (fid-mobile). MW01 draws Workspaces and Locations. The
+sheet lists the person's memberships from `actionLoadUserWorkspaces` (the
+same reader as the desktop switcher drawer), the current one marked; the
+Locations card has one row, the workspace's own name, disabled with the
+reason, because there is no locations table (D-POS-18). The desktop drawer
+(`wave2.tsx`) is at its size budget, so the phone's sheet is its own
+component over the same reader rather than a rewrite of the drawer.

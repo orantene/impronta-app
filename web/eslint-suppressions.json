@@ -674,7 +674,7 @@
   },
   "src/components/admin/shell/internal/page-modules/MobileBottomNav.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 13
+      "count": 9
     }
   },
   "src/components/admin/shell/internal/page-modules/PageStatusChip.tsx": {

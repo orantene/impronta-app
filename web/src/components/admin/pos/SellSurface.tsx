@@ -208,7 +208,8 @@ export function SellSurface({
         <div
           className={cn(
             "grid min-h-0 flex-1 auto-rows-[112px] content-start gap-3 overflow-y-auto px-5 pb-5 pt-1.5",
-            columns === 3 ? "grid-cols-3" : "grid-cols-4 max-[900px]:grid-cols-3",
+            // POSHandheld: a phone takes two tiles across.
+            columns === 3 ? "grid-cols-3 max-[520px]:grid-cols-2" : "grid-cols-4 max-[900px]:grid-cols-3 max-[520px]:grid-cols-2",
           )}
         >
           {visible.map((product) => {

@@ -15132,6 +15132,15 @@
       "open": "Open",
       "result": {
         "seatLostAfterPayment": "This seat was lost after the buyer paid, so no ticket can be issued for it. A refund is owed instead, and it is now waiting in this list as its own row."
+      },
+      "sheet": {
+        "age": "Since",
+        "attempts": "Attempts",
+        "owner": "Who owns it",
+        "whatYouCanDo": "What you can do",
+        "resumeDetail": "Arms the worker again; the effect lands up to a minute later and the row keeps its result.",
+        "openDetail": "The record this issue belongs to.",
+        "backToList": "Back to the list"
       }
     },
     "workspaceShell": {
@@ -15186,7 +15195,9 @@
         "uncertainPayments": "{count} uncertain payment(s)",
         "exceptionsNone": "Nothing uncertain",
         "exceptionsPartial": "Could not read: {sources}",
-        "unreadable": "Could not read this right now"
+        "unreadable": "Could not read this right now",
+        "collectedShort": "Collected",
+        "balancesShort": "Due"
       },
       "needsYou": {
         "title": "Needs you now",
@@ -15202,7 +15213,8 @@
         "resolve": "Resolve",
         "lateTitle": "Running late · {who} · party of {size}",
         "lateDetail": "{minutes} min past the seating with nobody arrived.",
-        "openBook": "Open the book"
+        "openBook": "Open the book",
+        "moreOnPhone": "{count} more in Issues"
       },
       "today": {
         "title": "Today",
@@ -15348,7 +15360,8 @@
         "import": "Import",
         "createItem": "Create item",
         "empty": "Nothing in the catalog yet. Create an item or import a menu.",
-        "noMatch": "No item matches these filters."
+        "noMatch": "No item matches these filters.",
+        "phoneScope": "Full editing (options, price lists, channels, policies) is on desktop. Here you can change availability, price and essentials."
       },
       "segment": {
         "label": "Catalog sections",
@@ -15446,7 +15459,8 @@
         "previewReason": "The counter has no preview of one item yet; publish it and open the Counter.",
         "saveDraft": "Save draft",
         "publish": "Publish",
-        "draftHint": "Nothing is written until you save the draft or publish; a reload loses it."
+        "draftHint": "Nothing is written until you save the draft or publish; a reload loses it.",
+        "save": "Save"
       },
       "tab": {
         "label": "Item sections",
@@ -16098,6 +16112,36 @@
         "payoutPending": "Destination set · payouts not enabled",
         "payoutMissing": "No destination · cash and free scheduling still work",
         "websiteMissing": "No page published yet"
+      }
+    },
+    "mobile": {
+      "close": "Close",
+      "back": "Back",
+      "search": "Search the workspace",
+      "ownerOnly": "owner only",
+      "myWorkNotBuilt": "My work is not built yet: there is no page that shows one person their own shifts and bookings.",
+      "role": {
+        "owner": "owner",
+        "manager": "manager",
+        "assistant": "staff"
+      },
+      "switch": {
+        "title": "Switch workspace or location",
+        "rowHint": "switch workspace or location",
+        "workspaces": "Workspaces",
+        "locations": "Locations · {workspace}",
+        "plan": "{plan} plan",
+        "current": "Current",
+        "loading": "Reading your workspaces",
+        "unavailable": "Could not read your workspaces right now.",
+        "none": "You are a member of no other workspace.",
+        "oneLocation": "One location. There is no locations table yet, so this workspace is its own location.",
+        "note": "Switching workspace changes what Today, Orders and the POS show. Saved sales stay with their workspace."
+      },
+      "myWork": {
+        "title": "My work",
+        "sentence": "My work is not built yet. There is no page that shows one person their own shifts, assignments and earnings, so nothing here can pretend to.",
+        "detail": "Your appointments are on the Calendar and under Appointments & Classes; projects you are on are under Projects. Assignments to accept, schedule conflicts and your earnings will live here once a reader exists (D-POS-69)."
       }
     }
   },

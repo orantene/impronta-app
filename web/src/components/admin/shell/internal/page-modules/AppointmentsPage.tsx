@@ -227,18 +227,18 @@ export function AppointmentsPage() {
   return (
     <div
       data-tulala-appointments-board
-      className={`-mx-[28px] -mt-[24px] -mb-[60px] grid min-h-[calc(100vh-56px-var(--proto-cbar,50px))] font-admin-body ${
+      className={`-mx-[28px] -mt-[24px] -mb-[60px] grid min-h-[calc(100vh-56px-var(--proto-cbar,50px))] font-admin-body max-[720px]:-mx-[14px] max-[720px]:-mt-[14px] max-[720px]:mb-0 max-[720px]:min-h-0 max-[720px]:grid-cols-[1fr] ${
         panel ? "grid-cols-[1fr_380px]" : "grid-cols-[1fr]"
       }`}
     >
-      <div className={`flex min-w-0 flex-col gap-[12px] py-[20px] ${panel ? "border-r border-admin-border px-[24px]" : "px-[28px]"}`}>
+      <div className={`flex min-w-0 flex-col gap-[12px] py-[20px] max-[720px]:border-r-0 max-[720px]:px-[14px] max-[720px]:py-[14px] ${panel ? "border-r border-admin-border px-[24px]" : "px-[28px]"}`}>
         {/* Title, subtitle, the two header actions */}
-        <div className="flex items-start justify-between gap-[12px]">
-          <div>
+        <div className="flex items-start justify-between gap-[12px] max-[720px]:flex-wrap">
+          <div className="min-w-0">
             <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t(`${K}.title`)}</h1>
-            <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted">{t(`${B}.subtitle.${view}`)}</p>
+            <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted max-[720px]:text-admin-12h">{t(`${B}.subtitle.${view}`)}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-[8px]">
+          <div className="flex shrink-0 items-center gap-[8px] max-[720px]:hidden">
             <ActionButton reason={t(`${B}.generateOff`)}>{t(`${B}.generate`)}</ActionButton>
             <ActionButton reason={t(`${B}.newSeriesOff`)} tone="primary">
               <Icon name="plus" size={14} stroke={1.75} />
@@ -255,8 +255,8 @@ export function AppointmentsPage() {
 
         <BookingHoursProposalsBanner proposals={proposals} defaultTimezone={defaultTimezone} onAccepted={() => void refresh()} />
 
-        {/* Tabs with counts */}
-        <div className="flex gap-[2px] border-b border-admin-border" role="tablist">
+        {/* Tabs with counts; the phone's chip strip (MW13) */}
+        <div className="flex gap-[2px] border-b border-admin-border max-[720px]:gap-[6px] max-[720px]:overflow-x-auto max-[720px]:border-b-0 max-[720px]:[scrollbar-width:none]" role="tablist">
           {APPOINTMENT_VIEWS.map((id) => (
             <button
               key={id}
@@ -264,8 +264,10 @@ export function AppointmentsPage() {
               role="tab"
               aria-selected={view === id}
               data-testid={`appointments-tab-${id}`}
-              className={`-mb-px cursor-pointer border-b-2 px-[12px] py-[10px] text-admin-13 ${
-                view === id ? "border-admin-brand font-semibold text-admin-ink" : "border-transparent font-medium text-admin-ink-muted hover:text-admin-ink"
+              className={`-mb-px cursor-pointer border-b-2 px-[12px] py-[10px] text-admin-13 max-[720px]:mb-0 max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:font-semibold ${
+                view === id
+                  ? "border-admin-brand font-semibold text-admin-ink max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white"
+                  : "border-transparent font-medium text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card"
               }`}
               onClick={() => setView(id)}
             >
@@ -361,12 +363,28 @@ export function AppointmentsPage() {
       </div>
 
       {panel ? (
-        <aside
-          data-testid="appointments-panel"
-          className="sticky top-[56px] flex h-[calc(100vh-56px)] min-w-0 flex-col self-start overflow-y-auto bg-admin-surface p-[18px]"
-        >
-          {panel}
-        </aside>
+        <>
+          {/* MW14/MW15: on the phone the panel is a bottom sheet over the list;
+              the scrim closes it. */}
+          <button
+            type="button"
+            aria-label={t("dashboard.mobile.close")}
+            tabIndex={-1}
+            onClick={() => {
+              setSelectedAppointmentId(null);
+              setSelectedSessionId(null);
+              setMoveOpen(false);
+            }}
+            className="fixed inset-0 z-[209] hidden border-0 bg-admin-ink/35 max-[720px]:block"
+          />
+          <aside
+            data-testid="appointments-panel"
+            className="sticky top-[56px] flex h-[calc(100vh-56px)] min-w-0 flex-col self-start overflow-y-auto bg-admin-surface p-[18px] max-[720px]:fixed max-[720px]:inset-x-0 max-[720px]:top-auto max-[720px]:bottom-0 max-[720px]:z-[210] max-[720px]:h-auto max-[720px]:max-h-[86vh] max-[720px]:rounded-t-[20px] max-[720px]:bg-admin-card max-[720px]:px-[18px] max-[720px]:pb-[max(26px,env(safe-area-inset-bottom))] max-[720px]:pt-[22px] max-[720px]:shadow-[0_-20px_50px_-30px_rgba(0,0,0,0.5)]"
+          >
+            <span aria-hidden className="absolute left-1/2 top-[8px] hidden h-[4px] w-[38px] -translate-x-1/2 rounded-full bg-admin-border-strong max-[720px]:block" />
+            {panel}
+          </aside>
+        </>
       ) : null}
     </div>
   );

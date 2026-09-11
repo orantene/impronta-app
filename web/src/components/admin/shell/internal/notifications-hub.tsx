@@ -137,6 +137,14 @@ export function NotificationsBell({
     const btn = buttonRef.current;
     if (!pop || !btn) return;
     const reposition = () => {
+      // On a phone the popover is a bottom sheet (MobileChromeStyles owns
+      // its placement); anchoring it to the bell would fight that sheet.
+      if (window.innerWidth <= 720) {
+        pop.style.top = "";
+        pop.style.left = "";
+        pop.style.right = "";
+        return;
+      }
       const r = btn.getBoundingClientRect();
       const popWidth = pop.offsetWidth || 380;
       const margin = 12;
@@ -361,6 +369,7 @@ export function NotificationsBell({
       <div
         ref={popoverRef}
         id={popoverId}
+        data-tulala-notifications-popover
         {...({ popover: "auto" } as Record<string, string>)}
         style={{
           width: 380, maxWidth: "calc(100vw - 24px)",

@@ -77,7 +77,7 @@ export function RecordSheet({
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-[22px] py-[18px]">{children}</div>
         {footerStart || footerEnd ? (
-          <div className="flex items-center gap-2 border-t border-admin-border-soft px-[22px] py-3.5">
+          <div data-record-sheet-footer className="flex items-center gap-2 border-t border-admin-border-soft px-[22px] py-3.5">
             {footerStart}
             <span className="flex-1" />
             {footerEnd}

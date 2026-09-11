@@ -45,6 +45,7 @@ import {
   Card,
   ListHead,
   ListRow,
+  MobileListRow,
   Notice,
   PageHeading,
   PageShell,
@@ -184,9 +185,19 @@ export default async function AdminProjectsPage({
 
   return (
     <PageShell>
-      <PageHeading title={tr("dashboard.projects.pageTitle")} intro={tr("dashboard.projects.pageIntro")} actions={actions} />
+      <PageHeading
+        title={tr("dashboard.projects.pageTitle")}
+        intro={tr("dashboard.projects.pageIntro")}
+        actions={actions}
+        actionsOnMobile={false}
+        aside={
+          filterProjectRows(allRows, "needs_action").length > 0 ? (
+            <Pill tone="coral">{`${tr(FILTER_KEY.needs_action)} · ${filterProjectRows(allRows, "needs_action").length}`}</Pill>
+          ) : null
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 max-[720px]:flex-col max-[720px]:items-stretch">
         <Segments label={tr("dashboard.projects.pageTitle")}>
           {SEGMENTS.map((f) => {
             const count = filterProjectRows(allRows, f).length;
@@ -261,6 +272,7 @@ function ProjectsTable({
   const noDate = tr("dashboard.projects.noDate");
   return (
     <Card>
+      <div className="contents max-[720px]:hidden">
       <ListHead cols={COLS}>
         <span>{tr("dashboard.projects.colProject")}</span>
         <span>{tr("dashboard.projects.colClient")}</span>
@@ -271,10 +283,27 @@ function ProjectsTable({
         <span>{tr("dashboard.projects.colRemaining")}</span>
         <span />
       </ListHead>
+      </div>
       <ul className="m-0 list-none p-0" aria-label={tr("dashboard.projects.tableCaption")}>
         {rows.map((row) => (
           <li key={row.id}>
-            <ListRow cols={COLS} className="border-t">
+            {/* MW09: the phone's row is the project and its client, the next
+                deadline and what is due, and the status pill. */}
+            <MobileListRow
+              href={`/${tenantSlug}/admin/projects/${row.id}`}
+              title={`${row.title || shortId(row.id)}${row.clientName ? ` · ${row.clientName}` : ""}`}
+              detail={[
+                row.nextDeadline
+                  ? `${row.nextDeadline.title} · ${dayLabel(row.nextDeadline.at, row.timeZone, locale, noDate)}`
+                  : dayLabel(row.startsAt, row.timeZone, locale, noDate),
+                row.dueCents > 0 ? formatOrderMoney(row.dueCents, row.currency) : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              trailing={<StatusPill row={row} tr={tr} />}
+              className="border-t first:border-t"
+            />
+            <ListRow cols={COLS} className="border-t max-[720px]:hidden">
               <span className="min-w-0 truncate font-semibold">
                 <Link href={`/${tenantSlug}/admin/projects/${row.id}`} className="text-admin-ink no-underline hover:underline">
                   {row.title || shortId(row.id)}
@@ -328,7 +357,7 @@ function ProjectsTable({
         ))}
       </ul>
       {/* Which clock these dates are on. */}
-      <p className="m-0 border-t border-admin-border-soft px-4 py-2 text-[11.5px] text-admin-ink-muted">
+      <p className="m-0 border-t border-admin-border-soft px-4 py-2 text-[11.5px] text-admin-ink-muted max-[720px]:hidden">
         {tr("dashboard.projects.timezoneEach")}
         {" · "}
         {interpolate(tr("dashboard.projects.count"), { count: rows.length })}

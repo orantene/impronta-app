@@ -213,8 +213,9 @@ export function EventDetail({ event, nav, locale, onChanged }: { event: EventLis
           {t("dashboard.events.detail.openEventDay")}
         </a>
       </header>
-      <div className="grid grid-cols-[180px_minmax(0,1fr)] gap-[24px]">
-        <nav aria-label={t("dashboard.events.detail.sections")} className="flex flex-col gap-[2px] border-r border-admin-border pr-[12px]">
+      {/* MW25: on the phone the sections are a chip strip over one column. */}
+      <div className="grid grid-cols-[180px_minmax(0,1fr)] gap-[24px] max-[720px]:grid-cols-[minmax(0,1fr)] max-[720px]:gap-[12px]">
+        <nav aria-label={t("dashboard.events.detail.sections")} className="flex flex-col gap-[2px] border-r border-admin-border pr-[12px] max-[720px]:flex-row max-[720px]:gap-[6px] max-[720px]:overflow-x-auto max-[720px]:border-r-0 max-[720px]:pr-0 max-[720px]:[scrollbar-width:none]">
           {DETAIL_TABS.map((id) => (
             <a
               key={id}
@@ -225,7 +226,7 @@ export function EventDetail({ event, nav, locale, onChanged }: { event: EventLis
                 nav.go({ event: event.id, tab: id });
               }}
               data-testid={`events-tab-${id}`}
-              className={`rounded-[8px] px-[10px] py-[7px] font-admin-body text-admin-13 no-underline ${nav.tab === id ? "bg-admin-card font-semibold text-admin-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : "text-admin-ink-muted hover:text-admin-ink"}`}
+              className={`rounded-[8px] px-[10px] py-[7px] font-admin-body text-admin-13 no-underline max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:font-semibold max-[720px]:shadow-none ${nav.tab === id ? "bg-admin-card font-semibold text-admin-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)] max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white" : "text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card"}`}
             >
               {tabLabel[id]}
             </a>

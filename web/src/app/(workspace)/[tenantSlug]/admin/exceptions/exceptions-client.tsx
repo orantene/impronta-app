@@ -30,6 +30,23 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import type { ExceptionRow, ExceptionSeverity, ExceptionSummary } from "@/lib/exceptions/model";
 import { resumeExceptionAction } from "../_exceptions-actions";
+import {
+  MOBILE_BUTTON_PRIMARY,
+  MOBILE_BUTTON_SECONDARY,
+  MobileCard,
+  MobileEyebrow,
+  MobileNote,
+  MobilePill,
+  MobileRow,
+  MobileSheet,
+  type MobilePillTone,
+} from "@/components/admin/shell/internal/page-modules/MobileSheet";
+
+const SEVERITY_PILL: Record<ExceptionSeverity, MobilePillTone> = {
+  critical: "red",
+  high: "coral",
+  normal: "slate",
+};
 
 const K = "dashboard.issues";
 
@@ -87,6 +104,16 @@ function ageLabel(iso: string, t: (key: string) => string): string {
 
 type RowState = { pending: boolean; message: string | null; failed: boolean };
 
+/** A label on the left, a value on the right (MW03's facts card). */
+function KV({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-[12px] border-b border-admin-border-soft py-[6px] text-[13px] last:border-b-0">
+      <span className="text-admin-ink-muted">{label}</span>
+      <span className="text-right font-medium text-admin-ink tabular-nums">{value}</span>
+    </div>
+  );
+}
+
 export function ExceptionsClient({
   rows,
   summary,
@@ -98,6 +125,10 @@ export function ExceptionsClient({
 }) {
   const t = useT();
   const [state, setState] = useState<Record<string, RowState>>({});
+  // MW03/MW04: on the phone a row opens as a sheet with the facts, what can
+  // be done, and the result once it is done.
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const openRow = openKey ? (rows.find((r) => r.key === openKey) ?? null) : null;
 
   // One key per row, for the life of this mount. See the header.
   const keys = useMemo(() => {
@@ -135,7 +166,7 @@ export function ExceptionsClient({
   );
 
   return (
-    <main style={{ padding: "32px 28px", maxWidth: 1080, margin: "0 auto", color: C.ink }}>
+    <main style={{ padding: "32px 28px", maxWidth: 1080, margin: "0 auto", color: C.ink }} className="max-[720px]:p-0!">
       <header>
         <div
           style={{
@@ -148,12 +179,12 @@ export function ExceptionsClient({
         >
           {t(`${K}.eyebrow`)}
         </div>
-        <h1 style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 600, letterSpacing: -0.2 }}>
+        <h1 style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 600, letterSpacing: -0.2 }} className="max-[720px]:text-[22px]!">
           {summary.total === 0
             ? t(`${K}.titleEmpty`)
             : interpolate(t(summary.total === 1 ? `${K}.titleOne` : `${K}.titleOther`), { count: summary.total })}
         </h1>
-        <p style={{ margin: "6px 0 0", fontSize: 13, color: C.inkMuted, maxWidth: 660, lineHeight: 1.5 }}>
+        <p style={{ margin: "6px 0 0", fontSize: 13, color: C.inkMuted, maxWidth: 660, lineHeight: 1.5 }} className="max-[720px]:hidden">
           {t(`${K}.subtitle`)}
         </p>
       </header>
@@ -216,7 +247,7 @@ export function ExceptionsClient({
           {t(`${K}.allClear`)}
         </div>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: "22px 0 0", display: "grid", gap: 10 }}>
+        <ul style={{ listStyle: "none", padding: 0, margin: "22px 0 0", display: "grid", gap: 10 }} className="max-[720px]:mt-[12px]! max-[720px]:gap-0! max-[720px]:overflow-hidden max-[720px]:rounded-[14px] max-[720px]:border max-[720px]:border-admin-border max-[720px]:bg-admin-card">
           {rows.map((row) => {
             const chrome = SEVERITY_CHROME[row.severity];
             const rowState = state[row.key];
@@ -229,7 +260,24 @@ export function ExceptionsClient({
                   borderRadius: 14,
                   padding: "14px 18px",
                 }}
+                className="max-[720px]:rounded-none! max-[720px]:border-x-0! max-[720px]:border-b-0! max-[720px]:border-t! max-[720px]:border-t-admin-border-soft! max-[720px]:p-0! max-[720px]:first:border-t-0!"
               >
+                {/* MW03: the phone's row — title, detail, the severity pill — opens the sheet. */}
+                <button
+                  type="button"
+                  onClick={() => setOpenKey(row.key)}
+                  className="hidden w-full cursor-pointer items-center gap-[10px] border-0 bg-transparent px-[14px] py-[12px] text-left max-[720px]:flex"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14.5px] font-semibold leading-[1.3] text-admin-ink">{row.title}</span>
+                    <span className="mt-[2px] block text-[12.5px] leading-[1.35] text-admin-ink-muted">
+                      {t(`${K}.owner.${OWNER_KEY[row.owner] ?? row.owner}`)} · {interpolate(t(`${K}.ageOld`), { age: ageLabel(row.firstSeenAt, t) })}
+                      {rowState?.message ? ` · ${rowState.message}` : ""}
+                    </span>
+                  </span>
+                  <MobilePill tone={SEVERITY_PILL[row.severity]}>{t(`${K}.severity.${row.severity}`)}</MobilePill>
+                </button>
+                <div className="contents max-[720px]:hidden">
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   <span
                     style={{
@@ -329,11 +377,80 @@ export function ExceptionsClient({
                     </span>
                   )}
                 </div>
+                </div>
               </li>
             );
           })}
         </ul>
       )}
+      {/* MW03 · MW04: the issue as a sheet — the facts, what can be done, the
+          result. The sheet closes on "Back to Today"; the row keeps its
+          result until the next load, as the desktop rows do. */}
+      <MobileSheet
+        open={openRow !== null}
+        name="issue"
+        title={openRow?.title ?? ""}
+        closeLabel={t("dashboard.mobile.close")}
+        onClose={() => setOpenKey(null)}
+        footer={
+          openRow ? (
+            openRow.nextAction.kind === "resume" ? (
+              <button
+                type="button"
+                onClick={() => void resume(openRow)}
+                disabled={state[openRow.key]?.pending === true || (state[openRow.key]?.message != null && !state[openRow.key]?.failed)}
+                className={MOBILE_BUTTON_PRIMARY}
+              >
+                {state[openRow.key]?.pending ? t(`${K}.working`) : openRow.nextAction.label}
+              </button>
+            ) : openRow.href ? (
+              <Link href={openRow.href} className={MOBILE_BUTTON_PRIMARY}>
+                {openRow.nextAction.label}
+              </Link>
+            ) : null
+          ) : null
+        }
+      >
+        {openRow ? (
+          <>
+            <MobileCard>
+              <div className="px-[14px] py-[14px]">
+                <div className="flex items-center gap-[8px]">
+                  <span className="text-[18px] font-semibold text-admin-ink">{t(`${K}.severity.${openRow.severity}`)}</span>
+                  <MobilePill tone={SEVERITY_PILL[openRow.severity]}>{t(`${K}.owner.${OWNER_KEY[openRow.owner] ?? openRow.owner}`)}</MobilePill>
+                </div>
+                <div className="mt-[4px] text-[12.5px] text-admin-ink-muted">{openRow.detail}</div>
+              </div>
+            </MobileCard>
+            <MobileCard>
+              <div className="px-[14px] py-[4px]">
+                <KV label={t(`${K}.sheet.age`)} value={interpolate(t(`${K}.ageOld`), { age: ageLabel(openRow.firstSeenAt, t) })} />
+                <KV label={t(`${K}.sheet.attempts`)} value={String(openRow.attempts)} />
+                <KV label={t(`${K}.sheet.owner`)} value={t(`${K}.owner.${OWNER_KEY[openRow.owner] ?? openRow.owner}`)} />
+              </div>
+            </MobileCard>
+            <MobileEyebrow>{t(`${K}.sheet.whatYouCanDo`)}</MobileEyebrow>
+            <MobileCard>
+              {openRow.nextAction.kind === "resume" ? (
+                <MobileRow title={openRow.nextAction.label} detail={t(`${K}.sheet.resumeDetail`)} />
+              ) : (
+                <MobileRow title={openRow.nextAction.label} detail={openRow.nextAction.why} />
+              )}
+              {openRow.href ? (
+                <MobileRow title={t(`${K}.open`)} detail={t(`${K}.sheet.openDetail`)} href={openRow.href} />
+              ) : null}
+            </MobileCard>
+            {state[openRow.key]?.message ? (
+              <MobileNote tone={state[openRow.key]?.failed ? "coral" : "slate"}>{state[openRow.key]?.message}</MobileNote>
+            ) : null}
+            {state[openRow.key]?.message && !state[openRow.key]?.failed ? (
+              <button type="button" onClick={() => setOpenKey(null)} className={MOBILE_BUTTON_SECONDARY}>
+                {t(`${K}.sheet.backToList`)}
+              </button>
+            ) : null}
+          </>
+        ) : null}
+      </MobileSheet>
     </main>
   );
 }

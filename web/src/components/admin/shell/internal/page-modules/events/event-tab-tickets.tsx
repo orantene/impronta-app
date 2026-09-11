@@ -100,7 +100,7 @@ export function TicketsTab({ event, sessionId, locale, onChanged }: { event: Eve
         ]}
       />
       <p className="m-0 -mt-[8px] font-admin-body text-[11.5px] text-admin-ink-dim">{t("dashboard.events.tickets.subtabsReason")}</p>
-      <div className="grid grid-cols-4 gap-[12px]">
+      <div className="grid grid-cols-4 gap-[12px] max-[720px]:grid-cols-3 max-[720px]:gap-[8px]">
         {stat(t("dashboard.events.tickets.capacity"), figures?.capacity === null || figures === null ? null : String(figures.capacity), sessionId ? (figures ? interpolate(t("dashboard.events.tickets.capacityNote"), { pooled: figures.pooled, tiers: figures.tiers }) : t("dashboard.events.loading")) : noNight, "events-stat-capacity")}
         {stat(t("dashboard.events.tickets.sold"), figures?.sold === null || figures === null ? null : String(figures.sold), sessionId ? t("dashboard.events.tickets.soldNote") : noNight, "events-stat-sold")}
         {stat(t("dashboard.events.tickets.remaining"), figures?.remaining === null || figures === null ? null : String(figures.remaining), sessionId ? t("dashboard.events.tickets.remainingNote") : noNight, "events-stat-remaining")}
