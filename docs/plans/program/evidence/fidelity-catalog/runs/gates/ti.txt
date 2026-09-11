@@ -1,0 +1,3110 @@
+
+> web@0.1.0 test:tenant-isolation
+> bash scripts/gate-queue.sh test 2 -- NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/saas/contact-host.test.ts src/lib/integrations/env-bypass.static.test.ts src/lib/saas/plan-seat-caps.test.ts src/lib/saas/team-seat-limit.test.ts src/lib/saas/membership-auth-sweep.guard.test.ts src/lib/saas/admin-scope.test.ts src/lib/saas/scope.test.ts src/lib/saas/edit-surface-scope.security.test.ts src/lib/saas/admin-workspace-scope.security.test.ts src/lib/saas/tenant-isolation.test.ts src/lib/saas/code-snippets-tenant-isolation.test.ts src/lib/saas/surface-allow-list.test.ts src/lib/saas/api-route-reachability.static.test.ts src/lib/saas/public-booking-surface.static.test.ts src/lib/saas/public-hrefs.test.ts src/lib/saas/workspace-live-url.test.ts src/lib/saas/branded-admin-url.test.ts src/components/admin/shell/canonical-routes.test.ts src/lib/saas/admin-href-invariant.static.test.ts src/lib/saas/admin-api-tenant-scope.security.test.ts src/lib/directory/taxonomy-tenant-safety.test.ts src/lib/saas/public-profile-override-tenant.test.ts src/lib/directory/discover-index-gates.guard.test.ts src/lib/directory/resource-profile-leakage.static.test.ts src/lib/saas/host-safe-destination.test.ts src/lib/saas/host-safe-links.static.test.ts src/lib/saas/marketing-locale-hrefs.guard.test.ts src/lib/auth-popup.test.ts src/lib/saas/rls-grant-drift.static.test.ts src/lib/saas/tenant-isolation.security.test.ts src/lib/saas/tracking-tenant-isolation.test.ts src/lib/saas/posts-tenant-isolation.static.test.ts src/lib/site-admin/sections/no-hardcoded-copy.static.test.ts src/lib/quality/package-json-unique-keys.static.test.ts src/lib/seo/spanish-named-routes.test.ts src/lib/saas/workspace-type.test.ts src/lib/saas/rail-visible-pages.static.test.ts src/lib/workspace/destinations.test.ts src/lib/workspace/nav-context.test.ts src/lib/talent/menu-tenant-isolation.static.test.ts src/lib/saas/ensure-self-roster.test.ts src/lib/cms/clean-urls.test.ts src/lib/site-admin/reserved-routes.collisions.static.test.ts src/lib/marketing/features/feature-catalogue.static.test.ts src/lib/marketing/features/feature-nav-items.static.test.ts src/lib/platform/server-safe-constants.static.test.ts src/lib/analytics/conversion-events.static.test.ts src/lib/analytics/session-id.test.ts src/lib/marketing/experiment.test.ts src/lib/marketing/compare/compare.static.test.ts src/lib/seo/title-template.static.test.ts src/lib/marketing/first-touch-attribution.test.ts src/lib/marketing/launch-readiness/criteria.static.test.ts src/lib/marketing/ticket-fee-comparison.test.ts src/lib/marketing/ticket-fee-qualifier.static.test.ts src/lib/marketing/launch-readiness/profile-criteria.static.test.ts src/lib/pos/modes.test.ts src/lib/saas/catalog-tax-entitlements-rls.static.test.ts src/lib/workspace/page-ids.test.ts src/components/admin/shell/internal/page-modules/workspace-nav-groups.test.ts src/lib/workspace/mobile-more-actions.test.ts src/lib/workspace/pos-bridge.test.ts src/components/admin/shell/internal/page-modules/mobile-bottom-nav.static.test.ts src/lib/workspace/pos-device-mode.test.ts src/components/admin/shell/internal/page-modules/pos-mode-switch.static.test.ts src/lib/people/hats.test.ts src/lib/people/exclusivity.test.ts src/lib/people/display-name.test.ts 'src/app/(workspace)/[tenantSlug]/admin/people/people-invitations.test.ts' src/lib/pos/pos-modes-persistence.test.ts src/lib/payments/provider-status.test.ts src/lib/quality/settings-refusal-copy.static.test.ts src/i18n/plural-category.test.ts src/i18n/interpolate.test.ts src/lib/settings/role-members.test.ts
+
+TAP version 13
+# Subtest: a live token means this workspace is waiting, folded the way redemption folds it
+ok 1 - a live token means this workspace is waiting, folded the way redemption folds it
+  ---
+  duration_ms: 0.738083
+  ...
+# Subtest: redeemed, revoked and expired tokens are NOT still waiting
+ok 2 - redeemed, revoked and expired tokens are NOT still waiting
+  ---
+  duration_ms: 2.740875
+  ...
+# Subtest: an invitation lands on the record whose email it names, and no other
+ok 3 - an invitation lands on the record whose email it names, and no other
+  ---
+  duration_ms: 0.108458
+  ...
+# Subtest: canonical admin pages resolve on the path-based host (/{slug}/admin/...)
+ok 4 - canonical admin pages resolve on the path-based host (/{slug}/admin/...)
+  ---
+  duration_ms: 0.579042
+  ...
+# Subtest: canonical admin pages resolve on a BRANDED host (/admin/... with no slug)
+ok 5 - canonical admin pages resolve on a BRANDED host (/admin/... with no slug)
+  ---
+  duration_ms: 0.107542
+  ...
+# Subtest: both host shapes agree for every canonical page
+ok 6 - both host shapes agree for every canonical page
+  ---
+  duration_ms: 0.140958
+  ...
+# Subtest: nested canonical routes work on both shapes
+ok 7 - nested canonical routes work on both shapes
+  ---
+  duration_ms: 0.179084
+  ...
+# Subtest: id-bearing routes need the id segment on both shapes
+ok 8 - id-bearing routes need the id segment on both shapes
+  ---
+  duration_ms: 0.080375
+  ...
+# Subtest: SPA-owned surfaces stay non-canonical on both shapes
+ok 9 - SPA-owned surfaces stay non-canonical on both shapes
+  ---
+  duration_ms: 0.089583
+  ...
+# Subtest: Projects is canonical at the list AND at the record; the Clients LIST is not
+ok 10 - Projects is canonical at the list AND at the record; the Clients LIST is not
+  ---
+  duration_ms: 0.115542
+  ...
+# Subtest: platform-scoped talent routes still resolve
+ok 11 - platform-scoped talent routes still resolve
+  ---
+  duration_ms: 0.055583
+  ...
+# Subtest: empty and unknown paths are not canonical
+ok 12 - empty and unknown paths are not canonical
+  ---
+  duration_ms: 0.123917
+  ...
+# Subtest: leading slashes are normalised
+ok 13 - leading slashes are normalised
+  ---
+  duration_ms: 0.051584
+  ...
+# Subtest: PROJECTS LINKS TO THE THREAD ITSELF, NOT TO THE INBOX WITH A DEAD PARAM
+ok 14 - PROJECTS LINKS TO THE THREAD ITSELF, NOT TO THE INBOX WITH A DEAD PARAM
+  ---
+  duration_ms: 0.679458
+  ...
+# Subtest: People is canonical on both host shapes, from the registry and not by hand
+ok 15 - People is canonical on both host shapes, from the registry and not by hand
+  ---
+  duration_ms: 0.113292
+  ...
+# Subtest: MobileBottomNav is built from the destinations registry, not a hand-written list
+ok 16 - MobileBottomNav is built from the destinations registry, not a hand-written list
+  ---
+  duration_ms: 2.948458
+  ...
+# Subtest: MobileBottomNav hides on the point of sale route
+ok 17 - MobileBottomNav hides on the point of sale route
+  ---
+  duration_ms: 1.44625
+  ...
+# Subtest: MobileBottomNav adds no inline style attribute beyond its recorded baseline
+ok 18 - MobileBottomNav adds no inline style attribute beyond its recorded baseline
+  ---
+  duration_ms: 3.359417
+  ...
+# Subtest: the counter this ratchet uses actually counts inline style attributes
+ok 19 - the counter this ratchet uses actually counts inline style attributes
+  ---
+  duration_ms: 0.096
+  ...
+# Subtest: the workspace More sheet is class-driven
+ok 20 - the workspace More sheet is class-driven
+  ---
+  duration_ms: 1.723959
+  ...
+# Subtest: the Open POS row's inputs come from the shell bridge, not from literals
+ok 21 - the Open POS row's inputs come from the shell bridge, not from literals
+  ---
+  duration_ms: 1.708292
+  ...
+# Subtest: the shell bridge actually carries both POS inputs end to end
+ok 22 - the shell bridge actually carries both POS inputs end to end
+  ---
+  duration_ms: 15.135458
+  ...
+# Subtest: the platform POS switch is a real column the loader reads
+ok 23 - the platform POS switch is a real column the loader reads
+  ---
+  duration_ms: 0.641875
+  ...
+# Subtest: the top-4 mobile bar is identical for a cafe, a solo professional, and a hybrid workspace
+ok 24 - the top-4 mobile bar is identical for a cafe, a solo professional, and a hybrid workspace
+  ---
+  duration_ms: 0.68375
+  ...
+# Subtest: every mobile tab id is a real, built destination
+ok 25 - every mobile tab id is a real, built destination
+  ---
+  duration_ms: 0.125084
+  ...
+# Subtest: each phone surface is a faithful projection of the registry — it invents nothing and drops nothing
+ok 26 - each phone surface is a faithful projection of the registry — it invents nothing and drops nothing
+  ---
+  duration_ms: 0.515209
+  ...
+# Subtest: the phone's People row opens the People surface, on every workspace type
+ok 27 - the phone's People row opens the People surface, on every workspace type
+  ---
+  duration_ms: 0.216917
+  ...
+# Subtest: POS never appears on the phone bar or in the More sheet — it is chrome, reached from its own row
+ok 28 - POS never appears on the phone bar or in the More sheet — it is chrome, reached from its own row
+  ---
+  duration_ms: 0.152708
+  ...
+# Subtest: role changes what a person can reach — through the registry clauses that exist today
+ok 29 - role changes what a person can reach — through the registry clauses that exist today
+  ---
+  duration_ms: 0.202125
+  ...
+# Subtest: the fixed top-4 bar is role-invariant, and here is the structural reason
+ok 30 - the fixed top-4 bar is role-invariant, and here is the structural reason
+  ---
+  duration_ms: 0.109583
+  ...
+# Subtest: the professional hat gates mywork, which has nowhere to route yet — never a mobile tab
+ok 31 - the professional hat gates mywork, which has nowhere to route yet — never a mobile tab
+  ---
+  duration_ms: 0.074
+  ...
+# Subtest: the switch is mounted in the identity bar, and nowhere else
+ok 32 - the switch is mounted in the identity bar, and nowhere else
+  ---
+  duration_ms: 2.021166
+  ...
+# Subtest: the switch renders nothing on its own — every gate comes from the tested model
+ok 33 - the switch renders nothing on its own — every gate comes from the tested model
+  ---
+  duration_ms: 0.522167
+  ...
+# Subtest: the remembered mode is read in an effect, never during the first render
+ok 34 - the remembered mode is read in an effect, never during the first render
+  ---
+  duration_ms: 0.165458
+  ...
+# Subtest: the switch hides on narrow viewports — the phone has its own door
+ok 35 - the switch hides on narrow viewports — the phone has its own door
+  ---
+  duration_ms: 0.531875
+  ...
+# Subtest: the point of sale is chrome, not a rail row
+ok 36 - the point of sale is chrome, not a rail row
+  ---
+  duration_ms: 1.167708
+  ...
+# Subtest: inside the point of sale the shell drops the sidebar, from server-seeded state
+ok 37 - inside the point of sale the shell drops the sidebar, from server-seeded state
+  ---
+  duration_ms: 0.987375
+  ...
+# Subtest: six groups plus a pinned Settings, in the registry's order
+ok 38 - six groups plus a pinned Settings, in the registry's order
+  ---
+  duration_ms: 1.451333
+  ...
+# Subtest: the point of sale is never a rail row
+ok 39 - the point of sale is never a rail row
+  ---
+  duration_ms: 0.532084
+  ...
+# Subtest: every rail row points at a route that exists and a page the shell can open
+ok 40 - every rail row points at a route that exists and a page the shell can open
+  ---
+  duration_ms: 0.510709
+  ...
+# Subtest: an unbuilt destination is not a row, even though its URL resolves
+ok 41 - an unbuilt destination is not a row, even though its URL resolves
+  ---
+  duration_ms: 0.698875
+  ...
+# Subtest: a cafe tenant's rail says Menu & catalog, and Team
+ok 42 - a cafe tenant's rail says Menu & catalog, and Team
+  ---
+  duration_ms: 1.548458
+  ...
+# Subtest: a solo professional's rail says Services
+ok 43 - a solo professional's rail says Services
+  ---
+  duration_ms: 0.623791
+  ...
+# Subtest: the same trade with a team is hybrid and keeps the base labels
+ok 44 - the same trade with a team is hybrid and keeps the base labels
+  ---
+  duration_ms: 0.519
+  ...
+# Subtest: a workspace with no preset on the bridge keeps the base labels
+ok 45 - a workspace with no preset on the bridge keeps the base labels
+  ---
+  duration_ms: 0.747333
+  ...
+# Subtest: Media appears only on the agency plan
+ok 46 - Media appears only on the agency plan
+  ---
+  duration_ms: 1.344208
+  ...
+# Subtest: a workspace that takes no reservations and runs no events gets neither row
+ok 47 - a workspace that takes no reservations and runs no events gets neither row
+  ---
+  duration_ms: 0.521458
+  ...
+# Subtest: a row the workspace type refuses is never drawn
+ok 48 - a row the workspace type refuses is never drawn
+  ---
+  duration_ms: 0.360208
+  ...
+# Subtest: a business workspace still gets People, with only its talent-only children hidden
+ok 49 - a business workspace still gets People, with only its talent-only children hidden
+  ---
+  duration_ms: 0.791583
+  ...
+# Subtest: the People row opens the People surface, and its queues stay where the pages are
+ok 50 - the People row opens the People surface, and its queues stay where the pages are
+  ---
+  duration_ms: 0.470958
+  ...
+# Subtest: the pending count rides the Applications child, not just the parent
+ok 51 - the pending count rides the Applications child, not just the parent
+  ---
+  duration_ms: 0.860458
+  ...
+# Subtest: the five Events children are drawn, queries and cross-link included
+ok 52 - the five Events children are drawn, queries and cross-link included
+  ---
+  duration_ms: 0.451916
+  ...
+# Subtest: only one Events child looks current at a time
+ok 53 - only one Events child looks current at a time
+  ---
+  duration_ms: 1.482125
+  ...
+# Subtest: every Appointments child stays on the one route it has, as a query
+ok 54 - every Appointments child stays on the one route it has, as a query
+  ---
+  duration_ms: 0.4855
+  ...
+# Subtest: only one Appointments child looks current at a time
+ok 55 - only one Appointments child looks current at a time
+  ---
+  duration_ms: 0.818917
+  ...
+# Subtest: the Website sub-nav is passed through with active state resolved
+ok 56 - the Website sub-nav is passed through with active state resolved
+  ---
+  duration_ms: 0.233125
+  ...
+# Subtest: active state comes from the registry's segments and aliases
+ok 57 - active state comes from the registry's segments and aliases
+  ---
+  duration_ms: 0.852959
+  ...
+# Subtest: badges land on the row they were addressed to
+ok 58 - badges land on the row they were addressed to
+  ---
+  duration_ms: 0.214584
+  ...
+# Subtest: hrefs are built from the admin base, never a hardcoded slug
+ok 59 - hrefs are built from the admin base, never a hardcoded slug
+  ---
+  duration_ms: 0.237666
+  ...
+# Subtest: interpolate()
+    # Subtest: substitutes named placeholders
+    ok 1 - substitutes named placeholders
+      ---
+      duration_ms: 0.4465
+      ...
+    # Subtest: leaves unknown placeholders intact
+    ok 2 - leaves unknown placeholders intact
+      ---
+      duration_ms: 0.118375
+      ...
+    # Subtest: coerces numbers to string
+    ok 3 - coerces numbers to string
+      ---
+      duration_ms: 0.098417
+      ...
+    1..3
+ok 60 - interpolate()
+  ---
+  duration_ms: 1.082458
+  type: 'suite'
+  ...
+# Subtest: withInterpolation()
+    # Subtest: substitutes values from the catalog
+    ok 1 - substitutes values from the catalog
+      ---
+      duration_ms: 0.092459
+      ...
+    # Subtest: returns raw resolved string when no values provided
+    ok 2 - returns raw resolved string when no values provided
+      ---
+      duration_ms: 0.058375
+      ...
+    1..2
+ok 61 - withInterpolation()
+  ---
+  duration_ms: 0.263292
+  type: 'suite'
+  ...
+# Subtest: withPluralization()
+    # Subtest: uses .one for count === 1
+    ok 1 - uses .one for count === 1
+      ---
+      duration_ms: 0.091958
+      ...
+    # Subtest: uses .other for count !== 1
+    ok 2 - uses .other for count !== 1
+      ---
+      duration_ms: 0.098833
+      ...
+    # Subtest: falls back to base key when plural forms missing
+    ok 3 - falls back to base key when plural forms missing
+      ---
+      duration_ms: 0.111833
+      ...
+    1..3
+ok 62 - withPluralization()
+  ---
+  duration_ms: 0.39825
+  type: 'suite'
+  ...
+# Subtest: createEnhancedTranslator()
+    # Subtest: dispatches plural when count is provided
+    ok 1 - dispatches plural when count is provided
+      ---
+      duration_ms: 0.089209
+      ...
+    # Subtest: falls through to interpolation when no count
+    ok 2 - falls through to interpolation when no count
+      ---
+      duration_ms: 0.123833
+      ...
+    1..2
+ok 63 - createEnhancedTranslator()
+  ---
+  duration_ms: 0.278125
+  type: 'suite'
+  ...
+# Subtest: English and Spanish put zero in the plural
+ok 64 - English and Spanish put zero in the plural
+  ---
+  duration_ms: 16.064334
+  ...
+# Subtest: French puts zero in the singular
+ok 65 - French puts zero in the singular
+  ---
+  duration_ms: 0.462541
+  ...
+# Subtest: one is singular and two is plural everywhere here
+ok 66 - one is singular and two is plural everywhere here
+  ---
+  duration_ms: 0.197958
+  ...
+# Subtest: an unknown or absent locale falls back to the count rule
+ok 67 - an unknown or absent locale falls back to the count rule
+  ---
+  duration_ms: 0.076084
+  ...
+# Subtest: a category with no catalog form collapses onto other
+ok 68 - a category with no catalog form collapses onto other
+  ---
+  duration_ms: 5.260042
+  ...
+# Subtest: the translator picks the form the locale asks for
+ok 69 - the translator picks the form the locale asks for
+  ---
+  duration_ms: 0.635125
+  ...
+# Subtest: every conversion event has a helper that real code calls
+ok 70 - every conversion event has a helper that real code calls
+  ---
+  duration_ms: 8089.202875
+  ...
+# Subtest: every conversion event is mapped to a helper
+ok 71 - every conversion event is mapped to a helper
+  ---
+  duration_ms: 0.154166
+  ...
+# Subtest: the count of never-emitted product events does not grow
+ok 72 - the count of never-emitted product events does not grow
+  ---
+  duration_ms: 62970.222042
+  ...
+# Subtest: analytics session id
+    # Subtest: is stable across calls within a visit
+    ok 1 - is stable across calls within a visit
+      ---
+      duration_ms: 31.314666
+      ...
+    # Subtest: two visits get different ids
+    ok 2 - two visits get different ids
+      ---
+      duration_ms: 21.351917
+      ...
+    # Subtest: blocked storage returns null instead of throwing
+    ok 3 - blocked storage returns null instead of throwing
+      ---
+      duration_ms: 19.326625
+      ...
+    # Subtest: returns null on the server
+    ok 4 - returns null on the server
+      ---
+      duration_ms: 9.492875
+      ...
+    1..4
+ok 73 - analytics session id
+  ---
+  duration_ms: 82.789833
+  type: 'suite'
+  ...
+# Subtest: the client actually sends session_id to the events route
+ok 74 - the client actually sends session_id to the events route
+  ---
+  duration_ms: 1.294583
+  ...
+# Subtest: an absolute destination leaves the current origin
+ok 75 - an absolute destination leaves the current origin
+  ---
+  duration_ms: 0.775625
+  ...
+# Subtest: a same-surface destination still routes in-app
+ok 76 - a same-surface destination still routes in-app
+  ---
+  duration_ms: 0.120334
+  ...
+# Subtest: protocol matching is case-insensitive and anchored
+ok 77 - protocol matching is case-insensitive and anchored
+  ---
+  duration_ms: 0.125583
+  ...
+# Subtest: a tenant path the platform does not own rewrites to the CMS catch-all
+ok 78 - a tenant path the platform does not own rewrites to the CMS catch-all
+  ---
+  duration_ms: 0.74875
+  ...
+# Subtest: platform routes are never treated as page slugs
+ok 79 - platform routes are never treated as page slugs
+  ---
+  duration_ms: 0.128792
+  ...
+# Subtest: the site shell sentinel is never publicly routable
+ok 80 - the site shell sentinel is never publicly routable
+  ---
+  duration_ms: 0.067709
+  ...
+# Subtest: only tenant surfaces serve clean page URLs
+ok 81 - only tenant surfaces serve clean page URLs
+  ---
+  duration_ms: 0.129625
+  ...
+# Subtest: malformed paths are left alone
+ok 82 - malformed paths are left alone
+  ---
+  duration_ms: 0.079375
+  ...
+# Subtest: legacy /p/<slug> redirects to the clean root URL
+ok 83 - legacy /p/<slug> redirects to the clean root URL
+  ---
+  duration_ms: 0.289083
+  ...
+# Subtest: locale prefixes are preserved across the redirect
+ok 84 - locale prefixes are preserved across the redirect
+  ---
+  duration_ms: 0.081708
+  ...
+# Subtest: the /w/<tenantSlug> workspace prefix is preserved
+ok 85 - the /w/<tenantSlug> workspace prefix is preserved
+  ---
+  duration_ms: 0.126625
+  ...
+# Subtest: an unknown leading segment is not mistaken for a locale
+ok 86 - an unknown leading segment is not mistaken for a locale
+  ---
+  duration_ms: 0.097084
+  ...
+# Subtest: the site shell editing surface never redirects
+ok 87 - the site shell editing surface never redirects
+  ---
+  duration_ms: 0.10375
+  ...
+# Subtest: a grandfathered slug that collides with a platform route keeps serving
+ok 88 - a grandfathered slug that collides with a platform route keeps serving
+  ---
+  duration_ms: 0.070417
+  ...
+# Subtest: bare /p does not redirect
+ok 89 - bare /p does not redirect
+  ---
+  duration_ms: 0.048
+  ...
+# Subtest: non-tenant surfaces do not collapse /p
+ok 90 - non-tenant surfaces do not collapse /p
+  ---
+  duration_ms: 0.04175
+  ...
+# Subtest: paths that are not the CMS namespace are untouched
+ok 91 - paths that are not the CMS namespace are untouched
+  ---
+  duration_ms: 0.106583
+  ...
+# Subtest: a tenant redirect pointing at the retired /p/ form is collapsed
+ok 92 - a tenant redirect pointing at the retired /p/ form is collapsed
+  ---
+  duration_ms: 0.099875
+  ...
+# Subtest: redirect destinations that are not legacy CMS paths are untouched
+ok 93 - redirect destinations that are not legacy CMS paths are untouched
+  ---
+  duration_ms: 0.0645
+  ...
+# Subtest: every redirect destination rewrites back to the URL it came from
+ok 94 - every redirect destination rewrites back to the URL it came from
+  ---
+  duration_ms: 0.123375
+  ...
+# Subtest: the newest talent_discover_index definition keeps every exposure gate
+ok 95 - the newest talent_discover_index definition keeps every exposure gate
+  ---
+  duration_ms: 261.633
+  ...
+# Subtest: a dropped gate is NOT masked by comments mentioning it
+ok 96 - a dropped gate is NOT masked by comments mentioning it
+  ---
+  duration_ms: 0.220208
+  ...
+# Subtest: the guard still recognises a real definition
+ok 97 - the guard still recognises a real definition
+  ---
+  duration_ms: 51.471542
+  ...
+# Subtest: appointments_v1 migration keeps every resource-leakage SQL predicate
+ok 98 - appointments_v1 migration keeps every resource-leakage SQL predicate
+  ---
+  duration_ms: 2.549416
+  ...
+# Subtest: expire-calendar-holds reaper ships with the gist constraint
+ok 99 - expire-calendar-holds reaper ships with the gist constraint
+  ---
+  duration_ms: 0.993542
+  ...
+# Subtest: every public talent_profiles read listed here filters out resources
+ok 100 - every public talent_profiles read listed here filters out resources
+  ---
+  duration_ms: 10.080292
+  ...
+# Subtest: claim UI maps resource_profile onto the unavailable presentation
+ok 101 - claim UI maps resource_profile onto the unavailable presentation
+  ---
+  duration_ms: 1.141375
+  ...
+# Subtest: directory taxonomy safety keeps enabled terms with enabled ancestors
+ok 102 - directory taxonomy safety keeps enabled terms with enabled ancestors
+  ---
+  duration_ms: 0.718666
+  ...
+# Subtest: directory taxonomy safety hides terms disabled directly for the tenant
+ok 103 - directory taxonomy safety hides terms disabled directly for the tenant
+  ---
+  duration_ms: 0.077541
+  ...
+# Subtest: directory taxonomy safety hides descendants when a parent is disabled
+ok 104 - directory taxonomy safety hides descendants when a parent is disabled
+  ---
+  duration_ms: 0.113916
+  ...
+# Subtest: directory taxonomy safety hides terms removed from directory but still enabled internally
+ok 105 - directory taxonomy safety hides terms removed from directory but still enabled internally
+  ---
+  duration_ms: 0.052791
+  ...
+# Subtest: display filtering fails OPEN for a term outside the tenant's hidden subtrees
+ok 106 - display filtering fails OPEN for a term outside the tenant's hidden subtrees
+  ---
+  duration_ms: 0.071958
+  ...
+# Subtest: filter input fails CLOSED for an unresolvable term id
+ok 107 - filter input fails CLOSED for an unresolvable term id
+  ---
+  duration_ms: 0.049375
+  ...
+# Subtest: display filtering hides a descendant of a disabled category root
+ok 108 - display filtering hides a descendant of a disabled category root
+  ---
+  duration_ms: 0.066
+  ...
+# Subtest: the allow-all visibility object shows every term
+ok 109 - the allow-all visibility object shows every term
+  ---
+  duration_ms: 0.048916
+  ...
+# Subtest: a talent whose every category is disabled resolves to zero visible terms
+ok 110 - a talent whose every category is disabled resolves to zero visible terms
+  ---
+  duration_ms: 0.119
+  ...
+# Subtest: JSON-LD OMITS jobTitle entirely when every category is hidden
+ok 111 - JSON-LD OMITS jobTitle entirely when every category is hidden
+  ---
+  duration_ms: 0.232625
+  ...
+# Subtest: JSON-LD keeps jobTitle when a category survives the tenant override
+ok 112 - JSON-LD keeps jobTitle when a category survives the tenant override
+  ---
+  duration_ms: 0.071917
+  ...
+# Subtest: leaf resolution expands a parent group to its descendant leaves
+ok 113 - leaf resolution expands a parent group to its descendant leaves
+  ---
+  duration_ms: 0.113458
+  ...
+# Subtest: leaf resolution leaves a granular (leaf) request unchanged
+ok 114 - leaf resolution leaves a granular (leaf) request unchanged
+  ---
+  duration_ms: 0.113833
+  ...
+# Subtest: leaf resolution unions leaves across multiple requested groups
+ok 115 - leaf resolution unions leaves across multiple requested groups
+  ---
+  duration_ms: 0.110166
+  ...
+# Subtest: integration env vars are read only through the resolver
+ok 116 - integration env vars are read only through the resolver
+  ---
+  duration_ms: 1121.277167
+  ...
+# Subtest: every allow-list entry still exists and still reads a guarded var
+ok 117 - every allow-list entry still exists and still reads a guarded var
+  ---
+  duration_ms: 2.038875
+  ...
+# Subtest: every comparison is dated and sourced
+ok 118 - every comparison is dated and sourced
+  ---
+  duration_ms: 0.683875
+  ...
+# Subtest: every comparison says where the competitor is stronger
+ok 119 - every comparison says where the competitor is stronger
+  ---
+  duration_ms: 0.11125
+  ...
+# Subtest: no disparagement of competitors
+ok 120 - no disparagement of competitors
+  ---
+  duration_ms: 0.39675
+  ...
+# Subtest: no em dashes, per the house copy rule
+ok 121 - no em dashes, per the house copy rule
+  ---
+  duration_ms: 0.174791
+  ...
+# Subtest: slugs and paths are unique and well formed
+ok 122 - slugs and paths are unique and well formed
+  ---
+  duration_ms: 0.144167
+  ...
+# Subtest: a sourcing caveat, when present, is written in both languages
+ok 123 - a sourcing caveat, when present, is written in both languages
+  ---
+  duration_ms: 0.052542
+  ...
+# Subtest: both languages carry the same comparison rows
+ok 124 - both languages carry the same comparison rows
+  ---
+  duration_ms: 0.056834
+  ...
+# Subtest: marketing experiments
+    # Subtest: the same visit always gets the same arm
+    ok 1 - the same visit always gets the same arm
+      ---
+      duration_ms: 46.054667
+      ...
+    # Subtest: two experiments do not assign correlated arms
+    ok 2 - two experiments do not assign correlated arms
+      ---
+      duration_ms: 1110.8155
+      ...
+    # Subtest: the split is roughly even
+    ok 3 - the split is roughly even
+      ---
+      duration_ms: 2089.0205
+      ...
+    # Subtest: no session id means no assignment, so the caller shows control
+    ok 4 - no session id means no assignment, so the caller shows control
+      ---
+      duration_ms: 3.583459
+      ...
+    # Subtest: returns null on the server rather than guessing
+    ok 5 - returns null on the server rather than guessing
+      ---
+      duration_ms: 4.031041
+      ...
+    1..5
+ok 125 - marketing experiments
+  ---
+  duration_ms: 3255.156459
+  type: 'suite'
+  ...
+# Subtest: no em dashes or en dashes in any feature copy
+ok 126 - no em dashes or en dashes in any feature copy
+  ---
+  duration_ms: 1.246792
+  ...
+# Subtest: the dash check reads the source modules, not just the exports
+ok 127 - the dash check reads the source modules, not just the exports
+  ---
+  duration_ms: 0.668
+  ...
+# Subtest: exactly 21 plates, numbered 1 to 21 with no gaps or repeats
+ok 128 - exactly 21 plates, numbered 1 to 21 with no gaps or repeats
+  ---
+  duration_ms: 0.12325
+  ...
+# Subtest: slugs are unique, url safe, and never collide across locales
+ok 129 - slugs are unique, url safe, and never collide across locales
+  ---
+  duration_ms: 0.277458
+  ...
+# Subtest: every cross-link points at a feature that exists
+ok 130 - every cross-link points at a feature that exists
+  ---
+  duration_ms: 0.34625
+  ...
+# Subtest: a feature never cross-links to itself
+ok 131 - a feature never cross-links to itself
+  ---
+  duration_ms: 0.055875
+  ...
+# Subtest: both locales are populated for every feature
+ok 132 - both locales are populated for every feature
+  ---
+  duration_ms: 0.200125
+  ...
+# Subtest: subtitles stay inside a meta description
+ok 133 - subtitles stay inside a meta description
+  ---
+  duration_ms: 0.128666
+  ...
+# Subtest: every group has features and the stage order is complete
+ok 134 - every group has features and the stage order is complete
+  ---
+  duration_ms: 0.145166
+  ...
+# Subtest: the homepage split matches the owner's specification
+ok 135 - the homepage split matches the owner's specification
+  ---
+  duration_ms: 0.188542
+  ...
+# Subtest: paths are built from the slugs, in both route trees
+ok 136 - paths are built from the slugs, in both route trees
+  ---
+  duration_ms: 0.097167
+  ...
+# Subtest: roadmap features are marked coming and say so in their copy
+ok 137 - roadmap features are marked coming and say so in their copy
+  ---
+  duration_ms: 0.138459
+  ...
+# Subtest: the nav projection matches the catalogue exactly
+ok 138 - the nav projection matches the catalogue exactly
+  ---
+  duration_ms: 0.975959
+  ...
+# Subtest: the projection carries every feature, in plate order
+ok 139 - the projection carries every feature, in plate order
+  ---
+  duration_ms: 0.097583
+  ...
+# Subtest: first-touch attribution
+    # Subtest: captures utm params and the landing path
+    ok 1 - captures utm params and the landing path
+      ---
+      duration_ms: 34.836375
+      ...
+    # Subtest: FIRST touch wins: a later page never overwrites the campaign
+    ok 2 - FIRST touch wins: a later page never overwrites the campaign
+      ---
+      duration_ms: 4.438834
+      ...
+    # Subtest: our own domain is not recorded as a referrer
+    ok 3 - our own domain is not recorded as a referrer
+      ---
+      duration_ms: 2.526542
+      ...
+    # Subtest: an external referrer is recorded as a hostname
+    ok 4 - an external referrer is recorded as a hostname
+      ---
+      duration_ms: 2.963833
+      ...
+    # Subtest: the url beats first touch when a campaign links straight to the form
+    ok 5 - the url beats first touch when a campaign links straight to the form
+      ---
+      duration_ms: 3.397
+      ...
+    # Subtest: a signup after browsing still records the original campaign
+    ok 6 - a signup after browsing still records the original campaign
+      ---
+      duration_ms: 2.401958
+      ...
+    # Subtest: blocked storage never throws into the page
+    ok 7 - blocked storage never throws into the page
+      ---
+      duration_ms: 9.089333
+      ...
+    1..7
+ok 140 - first-touch attribution
+  ---
+  duration_ms: 60.905417
+  type: 'suite'
+  ...
+# Subtest: every criterion is written in both languages
+ok 141 - every criterion is written in both languages
+  ---
+  duration_ms: 0.556625
+  ...
+# Subtest: every criterion records why it exists
+ok 142 - every criterion records why it exists
+  ---
+  duration_ms: 0.077375
+  ...
+# Subtest: no criterion is a judgement call
+ok 143 - no criterion is a judgement call
+  ---
+  duration_ms: 0.17075
+  ...
+# Subtest: the contact criterion demands delivery, not presence
+ok 144 - the contact criterion demands delivery, not presence
+  ---
+  duration_ms: 0.214125
+  ...
+# Subtest: no em dashes in tenant-facing copy
+ok 145 - no em dashes in tenant-facing copy
+  ---
+  duration_ms: 0.086625
+  ...
+# Subtest: every criterion is honest about not being agreed yet
+ok 146 - every criterion is honest about not being agreed yet
+  ---
+  duration_ms: 0.420458
+  ...
+# Subtest: the unverified list is derivable, so nobody has to remember
+ok 147 - the unverified list is derivable, so nobody has to remember
+  ---
+  duration_ms: 0.302
+  ...
+# Subtest: every criterion cites how many profiles actually failed it
+ok 148 - every criterion cites how many profiles actually failed it
+  ---
+  duration_ms: 0.093375
+  ...
+# Subtest: the list stays ordered by measured failure rate
+ok 149 - the list stays ordered by measured failure rate
+  ---
+  duration_ms: 0.154584
+  ...
+# Subtest: both languages, and no em dashes
+ok 150 - both languages, and no em dashes
+  ---
+  duration_ms: 0.094042
+  ...
+# Subtest: the photograph is an upgrade, not a requirement
+ok 151 - the photograph is an upgrade, not a requirement
+  ---
+  duration_ms: 0.165625
+  ...
+# Subtest: every criterion declares a weight
+ok 152 - every criterion declares a weight
+  ---
+  duration_ms: 0.049416
+  ...
+# Subtest: Directory's thresholds are recorded verbatim on every criterion
+ok 153 - Directory's thresholds are recorded verbatim on every criterion
+  ---
+  duration_ms: 0.060208
+  ...
+# Subtest: criteria stay ordered by measured failure
+ok 154 - criteria stay ordered by measured failure
+  ---
+  duration_ms: 0.109834
+  ...
+# Subtest: the table follows the configured rate
+ok 155 - the table follows the configured rate
+  ---
+  duration_ms: 1.097084
+  ...
+# Subtest: Eventbrite's numbers match their published terms
+ok 156 - Eventbrite's numbers match their published terms
+  ---
+  duration_ms: 0.087792
+  ...
+# Subtest: the flat fee's shape is the argument, so it is pinned
+ok 157 - the flat fee's shape is the argument, so it is pinned
+  ---
+  duration_ms: 0.102083
+  ...
+# Subtest: no rate is written as a literal in the fee tree
+ok 158 - no rate is written as a literal in the fee tree
+  ---
+  duration_ms: 0.24575
+  ...
+# Subtest: the split in the prose is derived, not typed
+ok 159 - the split in the prose is derived, not typed
+  ---
+  duration_ms: 0.143792
+  ...
+# Subtest: the banner is gated on catalogue status, not shown unconditionally
+ok 160 - the banner is gated on catalogue status, not shown unconditionally
+  ---
+  duration_ms: 0.539666
+  ...
+# Subtest: while ticketing is not live the banner exists in both languages
+ok 161 - while ticketing is not live the banner exists in both languages
+  ---
+  duration_ms: 0.1505
+  ...
+# Subtest: the banner links to the ticketing feature page in the reader's language
+ok 162 - the banner links to the ticketing feature page in the reader's language
+  ---
+  duration_ms: 0.102875
+  ...
+# Subtest: cash needs no setup
+ok 163 - cash needs no setup
+  ---
+  duration_ms: 0.403125
+  ...
+# Subtest: stripe checkout is unconfigured with no secret key, and blank strings do not count
+ok 164 - stripe checkout is unconfigured with no secret key, and blank strings do not count
+  ---
+  duration_ms: 0.091625
+  ...
+# Subtest: stripe checkout is ready once a secret key is present
+ok 165 - stripe checkout is ready once a secret key is present
+  ---
+  duration_ms: 0.064
+  ...
+# Subtest: stripe terminal needs BOTH a key and a reader, and names which is missing
+ok 166 - stripe terminal needs BOTH a key and a reader, and names which is missing
+  ---
+  duration_ms: 0.121584
+  ...
+# Subtest: mercado pago point is never reported configured — no key can make it so
+ok 167 - mercado pago point is never reported configured — no key can make it so
+  ---
+  duration_ms: 0.062375
+  ...
+# Subtest: every provider id appears exactly once
+ok 168 - every provider id appears exactly once
+  ---
+  duration_ms: 0.307042
+  ...
+# Subtest: a missing name is ABSENT, never an identifier and never a placeholder
+ok 169 - a missing name is ABSENT, never an identifier and never a placeholder
+  ---
+  duration_ms: 0.491625
+  ...
+# Subtest: the SCREEN decides what absence looks like, in its own language
+ok 170 - the SCREEN decides what absence looks like, in its own language
+  ---
+  duration_ms: 0.079667
+  ...
+# Subtest: the team reader does not substitute an id fragment for a name
+ok 171 - the team reader does not substitute an id fragment for a name
+  ---
+  duration_ms: 0.979917
+  ...
+# Subtest: no primary row anywhere means no exclusive claim
+ok 172 - no primary row anywhere means no exclusive claim
+  ---
+  duration_ms: 0.700333
+  ...
+# Subtest: this workspace's own exclusive claim does not block booking here
+ok 173 - this workspace's own exclusive claim does not block booking here
+  ---
+  duration_ms: 0.268167
+  ...
+# Subtest: ANOTHER workspace's exclusive claim turns the hat off, with a sentence
+ok 174 - ANOTHER workspace's exclusive claim turns the hat off, with a sentence
+  ---
+  duration_ms: 0.207417
+  ...
+# Subtest: a release from the other workspace puts the hat back on
+ok 175 - a release from the other workspace puts the hat back on
+  ---
+  duration_ms: 0.07875
+  ...
+# Subtest: a free workspace's primary row is not an exclusive claim
+ok 176 - a free workspace's primary row is not an exclusive claim
+  ---
+  duration_ms: 0.075125
+  ...
+# Subtest: a declined exclusivity status is not a claim
+ok 177 - a declined exclusivity status is not a claim
+  ---
+  duration_ms: 0.050666
+  ...
+# Subtest: each talent gets its own verdict
+ok 178 - each talent gets its own verdict
+  ---
+  duration_ms: 0.132666
+  ...
+# Subtest: all switches on: the bookable hat is on and names no reason
+ok 179 - all switches on: the bookable hat is on and names no reason
+  ---
+  duration_ms: 2.250042
+  ...
+# Subtest: each switch, turned off alone, turns the hat off AND names itself
+ok 180 - each switch, turned off alone, turns the hat off AND names itself
+  ---
+  duration_ms: 0.212125
+  ...
+# Subtest: a refusal ALWAYS carries at least one reason, never an empty box
+ok 181 - a refusal ALWAYS carries at least one reason, never an empty box
+  ---
+  duration_ms: 0.4735
+  ...
+# Subtest: GUARD BITES: a hat with no reason would fail the no-empty-box rule
+ok 182 - GUARD BITES: a hat with no reason would fail the no-empty-box rule
+  ---
+  duration_ms: 2.562958
+  ...
+# Subtest: the workspace-wide allowance substitutes for the per-person one
+ok 183 - the workspace-wide allowance substitutes for the per-person one
+  ---
+  duration_ms: 0.314291
+  ...
+# Subtest: a resource skips the person opt-in; a person does not
+ok 184 - a resource skips the person opt-in; a person does not
+  ---
+  duration_ms: 0.261916
+  ...
+# Subtest: no hours is a warning on a bookable person, not a refusal
+ok 185 - no hours is a warning on a bookable person, not a refusal
+  ---
+  duration_ms: 1.1885
+  ...
+# Subtest: only the bookable hat puts a person in Pick a professional
+ok 186 - only the bookable hat puts a person in Pick a professional
+  ---
+  duration_ms: 0.579
+  ...
+# Subtest: bookable never grants money permissions
+ok 187 - bookable never grants money permissions
+  ---
+  duration_ms: 1.144625
+  ...
+# Subtest: a removed membership holds nothing, whatever role the row still says
+ok 188 - a removed membership holds nothing, whatever role the row still says
+  ---
+  duration_ms: 0.316875
+  ...
+# Subtest: an invitation is not access, and carries no money permissions
+ok 189 - an invitation is not access, and carries no money permissions
+  ---
+  duration_ms: 0.119583
+  ...
+# Subtest: a person with an invitation OUT is a different state from one nobody invited
+ok 190 - a person with an invitation OUT is a different state from one nobody invited
+  ---
+  duration_ms: 0.094959
+  ...
+# Subtest: every access role is a known role and only three carry money
+ok 191 - every access role is a known role and only three carry money
+  ---
+  duration_ms: 0.596958
+  ...
+# Subtest: removing one hat leaves the other two
+ok 192 - removing one hat leaves the other two
+  ---
+  duration_ms: 0.430791
+  ...
+# Subtest: taking off the public profile hat is declared to take bookable with it
+ok 193 - taking off the public profile hat is declared to take bookable with it
+  ---
+  duration_ms: 0.211458
+  ...
+# Subtest: a roster person carries their own access hat, not a constant
+ok 194 - a roster person carries their own access hat, not a constant
+  ---
+  duration_ms: 12.160666
+  ...
+# Subtest: one human with a roster row AND a membership is ONE record
+ok 195 - one human with a roster row AND a membership is ONE record
+  ---
+  duration_ms: 0.121584
+  ...
+# Subtest: BREAK IT: different account ids stay two people
+ok 196 - BREAK IT: different account ids stay two people
+  ---
+  duration_ms: 0.233458
+  ...
+# Subtest: an unclaimed profile and a member with no profile each stand alone
+ok 197 - an unclaimed profile and a member with no profile each stand alone
+  ---
+  duration_ms: 0.097209
+  ...
+# Subtest: personKey prefers the account id and never collapses on empty strings
+ok 198 - personKey prefers the account id and never collapses on empty strings
+  ---
+  duration_ms: 0.969583
+  ...
+# Subtest: a member with no profile still shows both other hats as OFF with a reason
+ok 199 - a member with no profile still shows both other hats as OFF with a reason
+  ---
+  duration_ms: 0.693125
+  ...
+# Subtest: who performs: three distinct nos and a marked unverified yes
+ok 200 - who performs: three distinct nos and a marked unverified yes
+  ---
+  duration_ms: 0.236583
+  ...
+# Subtest: every reason this model can produce is in the published reason list
+ok 201 - every reason this model can produce is in the published reason list
+  ---
+  duration_ms: 8.296166
+  ...
+# Subtest: marketing server pages do not import values from client modules
+ok 202 - marketing server pages do not import values from client modules
+  ---
+  duration_ms: 35.648875
+  ...
+# Subtest: parsePosMode rejects junk
+ok 203 - parsePosMode rejects junk
+  ---
+  duration_ms: 1.187792
+  ...
+# Subtest: an assistant (viewer rank) gets no modes even with everything enabled
+ok 204 - an assistant (viewer rank) gets no modes even with everything enabled
+  ---
+  duration_ms: 0.777083
+  ...
+# Subtest: an owner on a workspace with only counter enabled gets exactly counter
+ok 205 - an owner on a workspace with only counter enabled gets exactly counter
+  ---
+  duration_ms: 0.159459
+  ...
+# Subtest: a host (editor rank, the derived frontline role) gets floor and door when enabled
+ok 206 - a host (editor rank, the derived frontline role) gets floor and door when enabled
+  ---
+  duration_ms: 0.145167
+  ...
+# Subtest: a manager gets projects but an editor does not, even when both are enabled
+ok 207 - a manager gets projects but an editor does not, even when both are enabled
+  ---
+  duration_ms: 0.079583
+  ...
+# Subtest: enabledPosModesFromSettings defaults to counter when the path is absent or malformed
+ok 208 - enabledPosModesFromSettings defaults to counter when the path is absent or malformed
+  ---
+  duration_ms: 0.114584
+  ...
+# Subtest: a literal empty list is a decision, not an absence, and is kept
+ok 209 - a literal empty list is a decision, not an absence, and is kept
+  ---
+  duration_ms: 0.103417
+  ...
+# Subtest: enabledPosModesFromSettings reads pos.locations.default.modes and drops unknown entries
+ok 210 - enabledPosModesFromSettings reads pos.locations.default.modes and drops unknown entries
+  ---
+  duration_ms: 0.065708
+  ...
+# Subtest: a stored `client` or `work` still means the projects mode (D-POS-10), once, and never from a URL
+ok 211 - a stored `client` or `work` still means the projects mode (D-POS-10), once, and never from a URL
+  ---
+  duration_ms: 0.65825
+  ...
+# Subtest: an explicitly empty mode list survives the read
+ok 212 - an explicitly empty mode list survives the read
+  ---
+  duration_ms: 1.644125
+  ...
+# Subtest: a missing pos path still answers with the counter
+ok 213 - a missing pos path still answers with the counter
+  ---
+  duration_ms: 0.166291
+  ...
+# Subtest: an array of junk is malformed, not deliberate, and keeps the counter
+ok 214 - an array of junk is malformed, not deliberate, and keeps the counter
+  ---
+  duration_ms: 0.176958
+  ...
+# Subtest: one bad entry beside a good one drops only itself
+ok 215 - one bad entry beside a good one drops only itself
+  ---
+  duration_ms: 0.138792
+  ...
+# Subtest: the empty list closes the doors instead of leaving an engine with none
+ok 216 - the empty list closes the doors instead of leaving an engine with none
+  ---
+  duration_ms: 0.156875
+  ...
+# Subtest: switching the counter back on is reachable, so the state is not a trap
+ok 217 - switching the counter back on is reachable, so the state is not a trap
+  ---
+  duration_ms: 0.057167
+  ...
+# Subtest: package.json has no duplicate keys anywhere
+ok 218 - package.json has no duplicate keys anywhere
+  ---
+  duration_ms: 2.7465
+  ...
+# Subtest: Point of sale › Selling modes: every refusal id has a sentence in en, es and fr
+ok 219 - Point of sale › Selling modes: every refusal id has a sentence in en, es and fr
+  ---
+  duration_ms: 0.706959
+  ...
+# Subtest: Point of sale › Selling modes: the retry that clears a dead load is translated too
+ok 220 - Point of sale › Selling modes: the retry that clears a dead load is translated too
+  ---
+  duration_ms: 0.102459
+  ...
+# Subtest: Payments & providers: every refusal id has a sentence in en, es and fr
+ok 221 - Payments & providers: every refusal id has a sentence in en, es and fr
+  ---
+  duration_ms: 0.059708
+  ...
+# Subtest: Payments & providers: the retry that clears a dead load is translated too
+ok 222 - Payments & providers: the retry that clears a dead load is translated too
+  ---
+  duration_ms: 0.048042
+  ...
+# Subtest: neither settings action returns an English sentence to the screen
+ok 223 - neither settings action returns an English sentence to the screen
+  ---
+  duration_ms: 0.935958
+  ...
+# Subtest: the counted noun on the roles card has both plural forms, in all three
+ok 224 - the counted noun on the roles card has both plural forms, in all three
+  ---
+  duration_ms: 0.405375
+  ...
+# Subtest: GUARD BITES: an id with no copy is reported
+ok 225 - GUARD BITES: an id with no copy is reported
+  ---
+  duration_ms: 0.952709
+  ...
+# Subtest: inspector/talent route scopes the talent lookup to the caller's tenant roster
+ok 226 - inspector/talent route scopes the talent lookup to the caller's tenant roster
+  ---
+  duration_ms: 1.88125
+  ...
+# Subtest: clients/[id]/snapshot route scopes the client lookup to the caller's tenant relationships
+ok 227 - clients/[id]/snapshot route scopes the client lookup to the caller's tenant relationships
+  ---
+  duration_ms: 0.174458
+  ...
+# Subtest: INVARIANT src/components/admin/shell: client nav builds admin hrefs from adminBasePath, not a hardcoded slug
+ok 228 - INVARIANT src/components/admin/shell: client nav builds admin hrefs from adminBasePath, not a hardcoded slug
+  ---
+  duration_ms: 121.837125
+  ...
+# Subtest: INVARIANT src/components/admin/shell: the guard actually scans a non-trivial number of files
+ok 229 - INVARIANT src/components/admin/shell: the guard actually scans a non-trivial number of files
+  ---
+  duration_ms: 13.26675
+  ...
+# Subtest: assertRowBelongsToTenant returns true when the query resolves a row in-tenant
+ok 230 - assertRowBelongsToTenant returns true when the query resolves a row in-tenant
+  ---
+  duration_ms: 0.70975
+  ...
+# Subtest: assertRowBelongsToTenant returns false when the row is not in the caller's tenant
+ok 231 - assertRowBelongsToTenant returns false when the row is not in the caller's tenant
+  ---
+  duration_ms: 0.077166
+  ...
+# Subtest: assertRowBelongsToTenant short-circuits on empty inputs
+ok 232 - assertRowBelongsToTenant short-circuits on empty inputs
+  ---
+  duration_ms: 0.064833
+  ...
+# Subtest: assertRowBelongsToTenant filters agency_bookings by tenant_id
+ok 233 - assertRowBelongsToTenant filters agency_bookings by tenant_id
+  ---
+  duration_ms: 0.114667
+  ...
+# Subtest: assertRowBelongsToTenant filters client_accounts by tenant_id
+ok 234 - assertRowBelongsToTenant filters client_accounts by tenant_id
+  ---
+  duration_ms: 0.072542
+  ...
+# Subtest: extractAdminWorkspaceSlug: canonical /{slug}/admin/* paths name the workspace
+ok 235 - extractAdminWorkspaceSlug: canonical /{slug}/admin/* paths name the workspace
+  ---
+  duration_ms: 0.455875
+  ...
+# Subtest: extractAdminWorkspaceSlug: path-addressed /w/{slug}/admin/* names the workspace
+ok 236 - extractAdminWorkspaceSlug: path-addressed /w/{slug}/admin/* names the workspace
+  ---
+  duration_ms: 0.059875
+  ...
+# Subtest: extractAdminWorkspaceSlug: non-admin and slug-less surfaces yield nothing
+ok 237 - extractAdminWorkspaceSlug: non-admin and slug-less surfaces yield nothing
+  ---
+  duration_ms: 0.058709
+  ...
+# Subtest: REPRO: member-of-A-and-B + cookie-prefers-A + action-invoked-from-B's-admin resolves B, never A
+ok 238 - REPRO: member-of-A-and-B + cookie-prefers-A + action-invoked-from-B's-admin resolves B, never A
+  ---
+  duration_ms: 0.081708
+  ...
+# Subtest: a non-member on a workspace admin surface fails closed instead of downgrading
+ok 239 - a non-member on a workspace admin surface fails closed instead of downgrading
+  ---
+  duration_ms: 0.054291
+  ...
+# Subtest: branded-host binding matches by the host's verified tenant id
+ok 240 - branded-host binding matches by the host's verified tenant id
+  ---
+  duration_ms: 0.049375
+  ...
+# Subtest: membership order never decides the answer
+ok 241 - membership order never decides the answer
+  ---
+  duration_ms: 0.055417
+  ...
+# Subtest: an empty membership list resolves nothing
+ok 242 - an empty membership list resolves nothing
+  ---
+  duration_ms: 0.09525
+  ...
+# Subtest: workspace scope resolver and guard accept no tenant input from the caller
+ok 243 - workspace scope resolver and guard accept no tenant input from the caller
+  ---
+  duration_ms: 0.379083
+  ...
+# Subtest: fail-closed: a surface non-member is logged and refused, never downgraded
+ok 244 - fail-closed: a surface non-member is logged and refused, never downgraded
+  ---
+  duration_ms: 0.155625
+  ...
+# Subtest: workspace-admin action files do not call requireStaffTenantAction()
+ok 245 - workspace-admin action files do not call requireStaffTenantAction()
+  ---
+  duration_ms: 40.978834
+  ...
+# Subtest: every API route is reachable on at least one host kind
+ok 246 - every API route is reachable on at least one host kind
+  ---
+  duration_ms: 9.648083
+  ...
+# Subtest: every UNREACHABLE_BY_DESIGN entry carries a reason and is still unreachable
+ok 247 - every UNREACHABLE_BY_DESIGN entry carries a reason and is still unreachable
+  ---
+  duration_ms: 0.199917
+  ...
+# Subtest: the proxy short-circuit list here matches src/proxy.ts
+ok 248 - the proxy short-circuit list here matches src/proxy.ts
+  ---
+  duration_ms: 0.543291
+  ...
+# Subtest: redirect: strips the slug from admin paths
+ok 249 - redirect: strips the slug from admin paths
+  ---
+  duration_ms: 0.399375
+  ...
+# Subtest: redirect: strips the slug from client paths
+ok 250 - redirect: strips the slug from client paths
+  ---
+  duration_ms: 0.0615
+  ...
+# Subtest: redirect: leaves already-branded paths alone
+ok 251 - redirect: leaves already-branded paths alone
+  ---
+  duration_ms: 0.098125
+  ...
+# Subtest: redirect: never touches the public storefront
+ok 252 - redirect: never touches the public storefront
+  ---
+  duration_ms: 0.047917
+  ...
+# Subtest: redirect: does not match a slug that is only a prefix of the segment
+ok 253 - redirect: does not match a slug that is only a prefix of the segment
+  ---
+  duration_ms: 0.049458
+  ...
+# Subtest: redirect: no-ops without a slug (pre-migration agency_domains rows)
+ok 254 - redirect: no-ops without a slug (pre-migration agency_domains rows)
+  ---
+  duration_ms: 0.0455
+  ...
+# Subtest: rewrite: adds the slug for admin and client
+ok 255 - rewrite: adds the slug for admin and client
+  ---
+  duration_ms: 0.056125
+  ...
+# Subtest: rewrite: excludes /talent/* — it has its own host-agnostic tree
+ok 256 - rewrite: excludes /talent/* — it has its own host-agnostic tree
+  ---
+  duration_ms: 0.041291
+  ...
+# Subtest: rewrite: excludes /client/register — an unauthenticated (auth) route
+ok 257 - rewrite: excludes /client/register — an unauthenticated (auth) route
+  ---
+  duration_ms: 0.101584
+  ...
+# Subtest: rewrite: is idempotent — an already-slugged path is left alone
+ok 258 - rewrite: is idempotent — an already-slugged path is left alone
+  ---
+  duration_ms: 0.096792
+  ...
+# Subtest: redirect and rewrite are exact inverses on the branded surfaces
+ok 259 - redirect and rewrite are exact inverses on the branded surfaces
+  ---
+  duration_ms: 0.069542
+  ...
+# Subtest: next: rewrites a slugged next back to the branded path
+ok 260 - next: rewrites a slugged next back to the branded path
+  ---
+  duration_ms: 12.491208
+  ...
+# Subtest: next: preserves other query params
+ok 261 - next: preserves other query params
+  ---
+  duration_ms: 0.119542
+  ...
+# Subtest: next: handles a relative location without inventing a host
+ok 262 - next: handles a relative location without inventing a host
+  ---
+  duration_ms: 0.152042
+  ...
+# Subtest: next: leaves non-workspace next values untouched
+ok 263 - next: leaves non-workspace next values untouched
+  ---
+  duration_ms: 0.0725
+  ...
+# Subtest: next: no-ops when there is no location or no next
+ok 264 - next: no-ops when there is no location or no next
+  ---
+  duration_ms: 0.078375
+  ...
+# Subtest: the table that created them still enables RLS on all four
+ok 265 - the table that created them still enables RLS on all four
+  ---
+  duration_ms: 1.929375
+  ...
+# Subtest: tax_categories has a tenant-staff SELECT policy
+ok 266 - tax_categories has a tenant-staff SELECT policy
+  ---
+  duration_ms: 0.554875
+  ...
+# Subtest: tax_categories revokes writes from anon and authenticated
+ok 267 - tax_categories revokes writes from anon and authenticated
+  ---
+  duration_ms: 0.438333
+  ...
+# Subtest: tax_categories revokes anon SELECT and grants service_role
+ok 268 - tax_categories revokes anon SELECT and grants service_role
+  ---
+  duration_ms: 0.300458
+  ...
+# Subtest: catalog_modifier_groups has a tenant-staff SELECT policy
+ok 269 - catalog_modifier_groups has a tenant-staff SELECT policy
+  ---
+  duration_ms: 0.4355
+  ...
+# Subtest: catalog_modifier_groups revokes writes from anon and authenticated
+ok 270 - catalog_modifier_groups revokes writes from anon and authenticated
+  ---
+  duration_ms: 0.054
+  ...
+# Subtest: catalog_modifier_groups revokes anon SELECT and grants service_role
+ok 271 - catalog_modifier_groups revokes anon SELECT and grants service_role
+  ---
+  duration_ms: 0.20525
+  ...
+# Subtest: catalog_modifiers has a tenant-staff SELECT policy
+ok 272 - catalog_modifiers has a tenant-staff SELECT policy
+  ---
+  duration_ms: 0.301209
+  ...
+# Subtest: catalog_modifiers revokes writes from anon and authenticated
+ok 273 - catalog_modifiers revokes writes from anon and authenticated
+  ---
+  duration_ms: 0.136208
+  ...
+# Subtest: catalog_modifiers revokes anon SELECT and grants service_role
+ok 274 - catalog_modifiers revokes anon SELECT and grants service_role
+  ---
+  duration_ms: 0.110792
+  ...
+# Subtest: entitlement_credits has a tenant-staff SELECT policy
+ok 275 - entitlement_credits has a tenant-staff SELECT policy
+  ---
+  duration_ms: 0.137709
+  ...
+# Subtest: entitlement_credits revokes writes from anon and authenticated
+ok 276 - entitlement_credits revokes writes from anon and authenticated
+  ---
+  duration_ms: 0.045375
+  ...
+# Subtest: entitlement_credits revokes anon SELECT and grants service_role
+ok 277 - entitlement_credits revokes anon SELECT and grants service_role
+  ---
+  duration_ms: 0.043667
+  ...
+# Subtest: entitlement_credits also lets a customer read their own rows
+ok 278 - entitlement_credits also lets a customer read their own rows
+  ---
+  duration_ms: 0.141375
+  ...
+# Subtest: the migration asserts its own grants rather than trusting the apply
+ok 279 - the migration asserts its own grants rather than trusting the apply
+  ---
+  duration_ms: 0.051834
+  ...
+# Subtest: no policy predicate is revoked, which would break every query
+ok 280 - no policy predicate is revoked, which would break every query
+  ---
+  duration_ms: 0.099375
+  ...
+# Subtest: the read path returns only the requested tenant's PUBLISHED snippets
+ok 281 - the read path returns only the requested tenant's PUBLISHED snippets
+  ---
+  duration_ms: 0.848042
+  ...
+# Subtest: no snippet of tenant A is ever emitted while rendering tenant B
+ok 282 - no snippet of tenant A is ever emitted while rendering tenant B
+  ---
+  duration_ms: 0.089042
+  ...
+# Subtest: the platform hub renders no tenant's custom code
+ok 283 - the platform hub renders no tenant's custom code
+  ---
+  duration_ms: 0.071417
+  ...
+# Subtest: an unresolved tenant renders nothing — fails closed, never open
+ok 284 - an unresolved tenant renders nothing — fails closed, never open
+  ---
+  duration_ms: 0.067208
+  ...
+# Subtest: a forged tenant id that merely LOOKS like the owner's does not match
+ok 285 - a forged tenant id that merely LOOKS like the owner's does not match
+  ---
+  duration_ms: 0.143916
+  ...
+# Subtest: isolation holds even when the other tenant's snippet sorts first
+ok 286 - isolation holds even when the other tenant's snippet sorts first
+  ---
+  duration_ms: 0.076125
+  ...
+# Subtest: the other tenant's rows do not consume this tenant's render budget
+ok 287 - the other tenant's rows do not consume this tenant's render budget
+  ---
+  duration_ms: 0.116792
+  ...
+# Subtest: host-dispatch picks marketing for marketing kind and storefront otherwise
+ok 288 - host-dispatch picks marketing for marketing kind and storefront otherwise
+  ---
+  duration_ms: 0.461834
+  ...
+# Subtest: scope comes from the surface, not from the operator's default workspace
+ok 289 - scope comes from the surface, not from the operator's default workspace
+  ---
+  duration_ms: 0.396459
+  ...
+# Subtest: a non-member on a storefront fails closed instead of downgrading
+ok 290 - a non-member on a storefront fails closed instead of downgrading
+  ---
+  duration_ms: 0.060708
+  ...
+# Subtest: membership order never decides the answer
+ok 291 - membership order never decides the answer
+  ---
+  duration_ms: 0.059209
+  ...
+# Subtest: an empty membership list resolves nothing
+ok 292 - an empty membership list resolves nothing
+  ---
+  duration_ms: 0.085667
+  ...
+# Subtest: editor scope resolvers accept no caller input
+ok 293 - editor scope resolvers accept no caller input
+  ---
+  duration_ms: 0.2115
+  ...
+# Subtest: no editor server action resolves scope via requireTenantScope()
+ok 294 - no editor server action resolves scope via requireTenantScope()
+  ---
+  duration_ms: 9.390416
+  ...
+# Subtest: missing row → insert site_visible self roster
+ok 295 - missing row → insert site_visible self roster
+  ---
+  duration_ms: 0.786542
+  ...
+# Subtest: historical self-link roster_only upgrades to site_visible + booking flag
+ok 296 - historical self-link roster_only upgrades to site_visible + booking flag
+  ---
+  duration_ms: 0.093791
+  ...
+# Subtest: does not flip the display switch on an already-public row
+ok 297 - does not flip the display switch on an already-public row
+  ---
+  duration_ms: 0.055334
+  ...
+# Subtest: never flips agency-authored featured or site_visible
+ok 298 - never flips agency-authored featured or site_visible
+  ---
+  duration_ms: 0.061292
+  ...
+# Subtest: reactivates a removed/inactive self row without touching featured
+ok 299 - reactivates a removed/inactive self row without touching featured
+  ---
+  duration_ms: 0.061084
+  ...
+# Subtest: workspace destinations stay relative on surfaces that serve them
+ok 300 - workspace destinations stay relative on surfaces that serve them
+  ---
+  duration_ms: 0.704041
+  ...
+# Subtest: workspace destinations cross to the app host on marketing and hub
+ok 301 - workspace destinations cross to the app host on marketing and hub
+  ---
+  duration_ms: 0.352334
+  ...
+# Subtest: the query string rides along and is not part of the allow-list check
+ok 302 - the query string rides along and is not part of the allow-list check
+  ---
+  duration_ms: 0.101958
+  ...
+# Subtest: destinations the surface already serves are untouched
+ok 303 - destinations the surface already serves are untouched
+  ---
+  duration_ms: 0.130833
+  ...
+# Subtest: unknown host kinds and absolute destinations are left alone
+ok 304 - unknown host kinds and absolute destinations are left alone
+  ---
+  duration_ms: 0.078167
+  ...
+# Subtest: talent post-auth default stays relative where /talent/* is served
+ok 305 - talent post-auth default stays relative where /talent/* is served
+  ---
+  duration_ms: 0.131958
+  ...
+# Subtest: talent post-auth default crosses to the app host on marketing and hub
+ok 306 - talent post-auth default crosses to the app host on marketing and hub
+  ---
+  duration_ms: 0.154083
+  ...
+# Subtest: the talent default is NEVER slug-prefixed on agency hosts
+ok 307 - the talent default is NEVER slug-prefixed on agency hosts
+  ---
+  duration_ms: 0.132542
+  ...
+# Subtest: headers that render on marketing or hub route account links through the host-safe helper
+ok 308 - headers that render on marketing or hub route account links through the host-safe helper
+  ---
+  duration_ms: 1.572709
+  ...
+# Subtest: the auth popup destination is host-checked before it reaches the opener
+ok 309 - the auth popup destination is host-checked before it reaches the opener
+  ---
+  duration_ms: 0.5395
+  ...
+# Subtest: dashboard links in email are built from the app host, not the marketing apex
+ok 310 - dashboard links in email are built from the app host, not the marketing apex
+  ---
+  duration_ms: 0.454542
+  ...
+# Subtest: marketing internal hrefs go through withLocaleHref
+ok 311 - marketing internal hrefs go through withLocaleHref
+  ---
+  duration_ms: 23.200416
+  ...
+# Subtest: MarketingCta localises internally so every caller is covered
+ok 312 - MarketingCta localises internally so every caller is covered
+  ---
+  duration_ms: 0.168916
+  ...
+# Subtest: requireStaffTenantAction is membership-based, not global-app_role-based
+ok 313 - requireStaffTenantAction is membership-based, not global-app_role-based
+  ---
+  duration_ms: 5.545416
+  ...
+# Subtest: requireStaffTenantAction's default capability is the workspace-shell baseline
+ok 314 - requireStaffTenantAction's default capability is the workspace-shell baseline
+  ---
+  duration_ms: 0.074917
+  ...
+# Subtest: admin-roster-card-badges.ts grades its guard up to agency.site_admin.design.edit
+ok 315 - admin-roster-card-badges.ts grades its guard up to agency.site_admin.design.edit
+  ---
+  duration_ms: 0.148
+  ...
+# Subtest: admin-agency-logo-upload.ts grades its guard up to agency.site_admin.branding.edit
+ok 316 - admin-agency-logo-upload.ts grades its guard up to agency.site_admin.branding.edit
+  ---
+  duration_ms: 0.11025
+  ...
+# Subtest: roster-direct-booking.ts grades its guard up to manage_agency_settings
+ok 317 - roster-direct-booking.ts grades its guard up to manage_agency_settings
+  ---
+  duration_ms: 0.10525
+  ...
+# Subtest: capability lattice: membership role alone decides the graded surfaces
+ok 318 - capability lattice: membership role alone decides the graded surfaces
+  ---
+  duration_ms: 0.116834
+  ...
+# Subtest: no NEW surface re-introduces the global-app_role gate
+ok 319 - no NEW surface re-introduces the global-app_role gate
+  ---
+  duration_ms: 772.505958
+  ...
+# Subtest: the canonical table matches the enforced product contract
+ok 320 - the canonical table matches the enforced product contract
+  ---
+  duration_ms: 1.669875
+  ...
+# Subtest: the table matches the agencies.talent_seat_limit documented defaults
+ok 321 - the table matches the agencies.talent_seat_limit documented defaults
+  ---
+  duration_ms: 0.544667
+  ...
+# Subtest: the Studio roster cut ships with a grandfathering UPDATE
+ok 322 - the Studio roster cut ships with a grandfathering UPDATE
+  ---
+  duration_ms: 0.320417
+  ...
+# Subtest: unknown plans fall back to Free, never to unlimited
+ok 323 - unknown plans fall back to Free, never to unlimited
+  ---
+  duration_ms: 0.290333
+  ...
+# Subtest: seatCapLabel renders numbers and the unlimited wording
+ok 324 - seatCapLabel renders numbers and the unlimited wording
+  ---
+  duration_ms: 0.181125
+  ...
+# Subtest: no surface re-hard-codes a roster cap in copy
+ok 325 - no surface re-hard-codes a roster cap in copy
+  ---
+  duration_ms: 2.920875
+  ...
+# Subtest: website plan: zero roster seats, custom domain, no whitelabel, no pitches
+ok 326 - website plan: zero roster seats, custom domain, no whitelabel, no pitches
+  ---
+  duration_ms: 0.516208
+  ...
+# Subtest: before/after: writers resolve every plan to PLAN_SEAT_CAPS
+ok 327 - before/after: writers resolve every plan to PLAN_SEAT_CAPS
+  ---
+  duration_ms: 0.414084
+  ...
+# Subtest: writers import the table instead of restating studio=50 / agency=200
+ok 328 - writers import the table instead of restating studio=50 / agency=200
+  ---
+  duration_ms: 1.368084
+  ...
+# Subtest: builder + public-roster surfaces derive the Free cap from the table
+ok 329 - builder + public-roster surfaces derive the Free cap from the table
+  ---
+  duration_ms: 0.750834
+  ...
+# Subtest: a zero roster cap reads as 'no roster', not 'out of seats'
+ok 330 - a zero roster cap reads as 'no roster', not 'out of seats'
+  ---
+  duration_ms: 0.30575
+  ...
+# Subtest: no raw .from("cms_posts") anywhere in the posts write path
+ok 331 - no raw .from("cms_posts") anywhere in the posts write path
+  ---
+  duration_ms: 0.537416
+  ...
+# Subtest: every cms_posts query in the lib layer routes through tenantScopedQuery with the tenantId
+ok 332 - every cms_posts query in the lib layer routes through tenantScopedQuery with the tenantId
+  ---
+  duration_ms: 0.139667
+  ...
+# Subtest: the only raw .from() is the cms_post_revisions insert (no tenant_id column to scope)
+ok 333 - the only raw .from() is the cms_post_revisions insert (no tenant_id column to scope)
+  ---
+  duration_ms: 0.36775
+  ...
+# Subtest: every exported lib-layer operation gates on requirePhase5Capability
+ok 334 - every exported lib-layer operation gates on requirePhase5Capability
+  ---
+  duration_ms: 0.125791
+  ...
+# Subtest: the server actions resolve the tenant from the session scope, never from client input
+ok 335 - the server actions resolve the tenant from the session scope, never from client input
+  ---
+  duration_ms: 0.107041
+  ...
+# Subtest: the slot picker's endpoint is reachable on every public surface
+ok 336 - the slot picker's endpoint is reachable on every public surface
+  ---
+  duration_ms: 0.667959
+  ...
+# Subtest: prefixPublicHref prefixes only internal root-relative hrefs
+ok 337 - prefixPublicHref prefixes only internal root-relative hrefs
+  ---
+  duration_ms: 0.717584
+  ...
+# Subtest: prefixPublicHrefsDeep prefixes configured CTA/link fields only
+ok 338 - prefixPublicHrefsDeep prefixes configured CTA/link fields only
+  ---
+  duration_ms: 0.378375
+  ...
+# Subtest: prefixPublicHrefsDeep skips platform auth paths (Phase 6C carve-out)
+ok 339 - prefixPublicHrefsDeep skips platform auth paths (Phase 6C carve-out)
+  ---
+  duration_ms: 0.136166
+  ...
+# Subtest: neutralizeDangerousHref neutralizes script-capable schemes to \#
+ok 340 - neutralizeDangerousHref neutralizes script-capable schemes to \#
+  ---
+  duration_ms: 0.1365
+  ...
+# Subtest: neutralizeDangerousHref preserves legitimate link schemes + relative hrefs
+ok 341 - neutralizeDangerousHref preserves legitimate link schemes + relative hrefs
+  ---
+  duration_ms: 0.0705
+  ...
+# Subtest: prefixPublicHref neutralizes dangerous schemes regardless of prefix
+ok 342 - prefixPublicHref neutralizes dangerous schemes regardless of prefix
+  ---
+  duration_ms: 0.048916
+  ...
+# Subtest: prefixPublicHrefsDeep neutralizes dangerous CTA fields even on apex (empty prefix)
+ok 343 - prefixPublicHrefsDeep neutralizes dangerous CTA fields even on apex (empty prefix)
+  ---
+  duration_ms: 0.135042
+  ...
+# Subtest: neutralizeFormAction blocks script-capable form actions
+ok 344 - neutralizeFormAction blocks script-capable form actions
+  ---
+  duration_ms: 0.109833
+  ...
+# Subtest: neutralizeFormAction preserves legitimate form actions
+ok 345 - neutralizeFormAction preserves legitimate form actions
+  ---
+  duration_ms: 0.124
+  ...
+# Subtest: isSafeFormAction agrees with neutralizeFormAction (write-time gate)
+ok 346 - isSafeFormAction agrees with neutralizeFormAction (write-time gate)
+  ---
+  duration_ms: 0.11375
+  ...
+# Subtest: prefixPublicHrefsDeep guards `action` without tenant-prefixing it
+ok 347 - prefixPublicHrefsDeep guards `action` without tenant-prefixing it
+  ---
+  duration_ms: 0.081875
+  ...
+# Subtest: publicLocaleHref preserves tenant slug before locale prefixing
+ok 348 - publicLocaleHref preserves tenant slug before locale prefixing
+  ---
+  duration_ms: 1.574834
+  ...
+# Subtest: agency host keys on the surface tenant (unchanged behaviour)
+ok 349 - agency host keys on the surface tenant (unchanged behaviour)
+  ---
+  duration_ms: 0.534791
+  ...
+# Subtest: hub host resolves the SAME tenant the agency host uses
+ok 350 - hub host resolves the SAME tenant the agency host uses
+  ---
+  duration_ms: 0.16025
+  ...
+# Subtest: the hub agency's own tenant is never the answer for a roster talent
+ok 351 - the hub agency's own tenant is never the answer for a roster talent
+  ---
+  duration_ms: 0.0845
+  ...
+# Subtest: no roster row at all → null (no tenant overrides, canonical defaults)
+ok 352 - no roster row at all → null (no tenant overrides, canonical defaults)
+  ---
+  duration_ms: 0.122375
+  ...
+# Subtest: only a status='removed' roster row → null, not the removed tenant
+ok 353 - only a status='removed' roster row → null, not the removed tenant
+  ---
+  duration_ms: 0.388
+  ...
+# Subtest: empty talent id short-circuits to null without a query
+ok 354 - empty talent id short-circuits to null without a query
+  ---
+  duration_ms: 0.056084
+  ...
+# Subtest: multi-tenant talent: the primary agency wins
+ok 355 - multi-tenant talent: the primary agency wins
+  ---
+  duration_ms: 0.146
+  ...
+# Subtest: multi-tenant talent with no primary: the oldest roster row wins, stably
+ok 356 - multi-tenant talent with no primary: the oldest roster row wins, stably
+  ---
+  duration_ms: 0.083583
+  ...
+# Subtest: multi-tenant tie on added_at falls through to id — total order
+ok 357 - multi-tenant tie on added_at falls through to id — total order
+  ---
+  duration_ms: 0.128667
+  ...
+# Subtest: a roster read error resolves to null, not to a wrong tenant
+ok 358 - a roster read error resolves to null, not to a wrong tenant
+  ---
+  duration_ms: 0.108041
+  ...
+# Subtest: INVARIANT /t/[profileCode]: override-keyed reads use the resolved tenant, not hostCtx.tenantId
+ok 359 - INVARIANT /t/[profileCode]: override-keyed reads use the resolved tenant, not hostCtx.tenantId
+  ---
+  duration_ms: 0.580125
+  ...
+# Subtest: a read error on an AGENCY host still keys on the surface tenant
+ok 360 - a read error on an AGENCY host still keys on the surface tenant
+  ---
+  duration_ms: 0.054792
+  ...
+# Subtest: WorkspacePage is the registry's ids plus its aliases, nothing hand-listed
+ok 361 - WorkspacePage is the registry's ids plus its aliases, nothing hand-listed
+  ---
+  duration_ms: 0.788291
+  ...
+# Subtest: WORKSPACE_PAGES is the registry's built destinations, not a literal
+ok 362 - WORKSPACE_PAGES is the registry's built destinations, not a literal
+  ---
+  duration_ms: 0.512584
+  ...
+# Subtest: THE RAIL CANNOT SILENTLY LOSE A PAGE: every built destination has a nav page
+ok 363 - THE RAIL CANNOT SILENTLY LOSE A PAGE: every built destination has a nav page
+  ---
+  duration_ms: 0.09725
+  ...
+# Subtest: the rail is a projection of the registry, not a hardcoded literal
+ok 364 - the rail is a projection of the registry, not a hardcoded literal
+  ---
+  duration_ms: 0.240417
+  ...
+# Subtest: the point of sale is never a sidebar row
+ok 365 - the point of sale is never a sidebar row
+  ---
+  duration_ms: 0.126042
+  ...
+# Subtest: group labels and their order come from the registry
+ok 366 - group labels and their order come from the registry
+  ---
+  duration_ms: 2.703292
+  ...
+# Subtest: the nav hook reads the shell's own state and the registry, nothing else
+ok 367 - the nav hook reads the shell's own state and the registry, nothing else
+  ---
+  duration_ms: 0.275541
+  ...
+# Subtest: visibleWorkspacePages hides Pitches — and NOT People — for a business workspace
+ok 368 - visibleWorkspacePages hides Pitches — and NOT People — for a business workspace
+  ---
+  duration_ms: 0.1125
+  ...
+# Subtest: the roster's talent-only routes still refuse a business workspace
+ok 369 - the roster's talent-only routes still refuse a business workspace
+  ---
+  duration_ms: 0.2675
+  ...
+# Subtest: the rail's preset comes from the tenant bridge, never from a literal
+ok 370 - the rail's preset comes from the tenant bridge, never from a literal
+  ---
+  duration_ms: 0.30325
+  ...
+# Subtest: the identity bridge carries the industry preset from the agencies row
+ok 371 - the identity bridge carries the industry preset from the agencies row
+  ---
+  duration_ms: 0.230416
+  ...
+# Subtest: every registry sub-view names a route that exists today
+ok 372 - every registry sub-view names a route that exists today
+  ---
+  duration_ms: 0.396
+  ...
+# Subtest: THE PEOPLE ROW OPENS THE PEOPLE SURFACE, from the rail and from the phone
+ok 373 - THE PEOPLE ROW OPENS THE PEOPLE SURFACE, from the rail and from the phone
+  ---
+  duration_ms: 0.1955
+  ...
+# Subtest: the roster keeps its own address and its own body
+ok 374 - the roster keeps its own address and its own body
+  ---
+  duration_ms: 0.199625
+  ...
+# Subtest: every registry label the rail can draw has a Spanish row
+ok 375 - every registry label the rail can draw has a Spanish row
+  ---
+  duration_ms: 1.447458
+  ...
+# Subtest: no source file imports the deleted admin-nav island
+ok 376 - no source file imports the deleted admin-nav island
+  ---
+  duration_ms: 337.683709
+  ...
+# Subtest: every function REVOKE in the hardening migration names PUBLIC
+ok 377 - every function REVOKE in the hardening migration names PUBLIC
+  ---
+  duration_ms: 0.602167
+  ...
+# Subtest: the two originally-drifted service-role RPCs are revoked from PUBLIC
+ok 378 - the two originally-drifted service-role RPCs are revoked from PUBLIC
+  ---
+  duration_ms: 0.210833
+  ...
+# Subtest: engine_emit_notification loses every API grant
+ok 379 - engine_emit_notification loses every API grant
+  ---
+  duration_ms: 0.118417
+  ...
+# Subtest: no RLS policy predicate loses its role grant
+ok 380 - no RLS policy predicate loses its role grant
+  ---
+  duration_ms: 34.160583
+  ...
+# Subtest: anon-key public surfaces keep their EXECUTE grant
+ok 381 - anon-key public surfaces keep their EXECUTE grant
+  ---
+  duration_ms: 0.614458
+  ...
+# Subtest: the hardening migration asserts its own outcome
+ok 382 - the hardening migration asserts its own outcome
+  ---
+  duration_ms: 0.221667
+  ...
+# Subtest: view migration restores invoker without touching the talent line-item view
+ok 383 - view migration restores invoker without touching the talent line-item view
+  ---
+  duration_ms: 0.200042
+  ...
+# [saas/scope.resolveTenantFromHost] simulated 
+# Subtest: resolveTenantFromHost lower-cases and trims the hostname before lookup
+ok 384 - resolveTenantFromHost lower-cases and trims the hostname before lookup
+  ---
+  duration_ms: 0.815167
+  ...
+# Subtest: resolveTenantFromHost restricts to active/ssl_provisioned/verified statuses
+ok 385 - resolveTenantFromHost restricts to active/ssl_provisioned/verified statuses
+  ---
+  duration_ms: 0.098958
+  ...
+# Subtest: resolveTenantFromHost returns null on empty hostname
+ok 386 - resolveTenantFromHost returns null on empty hostname
+  ---
+  duration_ms: 0.066417
+  ...
+# Subtest: resolveTenantFromHost returns null when the hostname is unmapped
+ok 387 - resolveTenantFromHost returns null when the hostname is unmapped
+  ---
+  duration_ms: 0.05875
+  ...
+# Subtest: resolveTenantFromHost returns null when Supabase errors (no seed fallback)
+ok 388 - resolveTenantFromHost returns null when Supabase errors (no seed fallback)
+  ---
+  duration_ms: 0.949709
+  ...
+# Subtest: agency host: storefront + workspace + auth + root + static allowed
+ok 389 - agency host: storefront + workspace + auth + root + static allowed
+  ---
+  duration_ms: 1.07025
+  ...
+# Subtest: app host: workspaces + app api + auth + root + static allowed
+ok 390 - app host: workspaces + app api + auth + root + static allowed
+  ---
+  duration_ms: 0.2955
+  ...
+# Subtest: canonical talent surface: /t/* allowed on agency + app + marketing + hub
+ok 391 - canonical talent surface: /t/* allowed on agency + app + marketing + hub
+  ---
+  duration_ms: 0.128666
+  ...
+# Subtest: marketing host: guest support chat API is allowed; other /api/ai stays blocked
+ok 392 - marketing host: guest support chat API is allowed; other /api/ai stays blocked
+  ---
+  duration_ms: 0.12625
+  ...
+# Subtest: read-only deploy diagnostics: /api/health/* allowed on every host kind
+ok 393 - read-only deploy diagnostics: /api/health/* allowed on every host kind
+  ---
+  duration_ms: 0.069125
+  ...
+# Subtest: QA guest-session reset: /api/dev/reset-guest allowed on every host kind (W0-H)
+ok 394 - QA guest-session reset: /api/dev/reset-guest allowed on every host kind (W0-H)
+  ---
+  duration_ms: 0.048958
+  ...
+# Subtest: Tulala Agent API is host-agnostic; /api/ai stays scoped
+ok 395 - Tulala Agent API is host-agnostic; /api/ai stays scoped
+  ---
+  duration_ms: 0.070541
+  ...
+# Subtest: hub host: auth + workspace slug paths + shared routes allowed
+ok 396 - hub host: auth + workspace slug paths + shared routes allowed
+  ---
+  duration_ms: 0.160375
+  ...
+# Subtest: path-based tenant public routes strip the tenant prefix before agency dispatch
+ok 397 - path-based tenant public routes strip the tenant prefix before agency dispatch
+  ---
+  duration_ms: 0.536708
+  ...
+# Subtest: path-based tenant public routes do not swallow workspace or reserved routes
+ok 398 - path-based tenant public routes do not swallow workspace or reserved routes
+  ---
+  duration_ms: 0.136833
+  ...
+# Subtest: canonical /w/<slug> resolves the same shapes as the legacy flat form
+ok 399 - canonical /w/<slug> resolves the same shapes as the legacy flat form
+  ---
+  duration_ms: 0.184417
+  ...
+# Subtest: /w resolver only matches the canonical prefix, and never eats reserved routes
+ok 400 - /w resolver only matches the canonical prefix, and never eats reserved routes
+  ---
+  duration_ms: 0.064125
+  ...
+# Subtest: resolveAnyTenantPublicPath accepts canonical and legacy during migration
+ok 401 - resolveAnyTenantPublicPath accepts canonical and legacy during migration
+  ---
+  duration_ms: 0.107333
+  ...
+# Subtest: marketing host: public marketing pages + root + static + bearer-gated shared api allowed
+ok 402 - marketing host: public marketing pages + root + static + bearer-gated shared api allowed
+  ---
+  duration_ms: 0.747208
+  ...
+# Subtest: marketing host: non-marketing hosts must 404 marketing pages
+ok 403 - marketing host: non-marketing hosts must 404 marketing pages
+  ---
+  duration_ms: 1.2525
+  ...
+# Subtest: compliance endpoints: /unsubscribe + /api/unsubscribe allowed on every host kind
+ok 404 - compliance endpoints: /unsubscribe + /api/unsubscribe allowed on every host kind
+  ---
+  duration_ms: 0.109459
+  ...
+# Subtest: PWA offline fallback: /offline allowed on every host kind
+ok 405 - PWA offline fallback: /offline allowed on every host kind
+  ---
+  duration_ms: 0.061375
+  ...
+# Subtest: prefix boundaries: /talented is not /talent, /administration is not /admin
+ok 406 - prefix boundaries: /talented is not /talent, /administration is not /admin
+  ---
+  duration_ms: 0.193333
+  ...
+# Subtest: api segment boundaries: /api/directoryz ≠ /api/directory, /api/admins ≠ /api/admin
+ok 407 - api segment boundaries: /api/directoryz ≠ /api/directory, /api/admins ≠ /api/admin
+  ---
+  duration_ms: 0.086208
+  ...
+# Subtest: HQ support investigation bundle is allowed on workspace hosts
+ok 408 - HQ support investigation bundle is allowed on workspace hosts
+  ---
+  duration_ms: 0.139334
+  ...
+# Subtest: post-checkout landing is reachable on every host kind (Stripe redirects to request origin)
+ok 409 - post-checkout landing is reachable on every host kind (Stripe redirects to request origin)
+  ---
+  duration_ms: 0.115208
+  ...
+# Subtest: public embed loader + roster widget reachable on every host kind (partner iframes)
+ok 410 - public embed loader + roster widget reachable on every host kind (partner iframes)
+  ---
+  duration_ms: 0.0695
+  ...
+# Subtest: gated media reads (P0-1) reachable on every host kind, scoped to /api/media/asset
+ok 411 - gated media reads (P0-1) reachable on every host kind, scoped to /api/media/asset
+  ---
+  duration_ms: 0.071834
+  ...
+# Subtest: team-invite + template-preview reachable on agency + app workspace hosts
+ok 412 - team-invite + template-preview reachable on agency + app workspace hosts
+  ---
+  duration_ms: 0.049917
+  ...
+# Subtest: staff watermark-bake repair route lives under /api/admin and is reachable on staff hosts
+ok 413 - staff watermark-bake repair route lives under /api/admin and is reachable on staff hosts
+  ---
+  duration_ms: 0.084917
+  ...
+# Subtest: /events and /r resolve on the two host kinds that carry a tenant
+ok 414 - /events and /r resolve on the two host kinds that carry a tenant
+  ---
+  duration_ms: 0.048958
+  ...
+# Subtest: /events and /r do NOT resolve on app or marketing
+ok 415 - /events and /r do NOT resolve on app or marketing
+  ---
+  duration_ms: 0.043041
+  ...
+# Subtest: a tenant cannot claim the slug "events" or "r"
+ok 416 - a tenant cannot claim the slug "events" or "r"
+  ---
+  duration_ms: 0.043625
+  ...
+# Subtest: /q resolves on the two host kinds that carry a tenant
+ok 417 - /q resolves on the two host kinds that carry a tenant
+  ---
+  duration_ms: 0.071875
+  ...
+# Subtest: /q does NOT resolve on app or marketing, where no tenant owns the code
+ok 418 - /q does NOT resolve on app or marketing, where no tenant owns the code
+  ---
+  duration_ms: 0.037
+  ...
+# Subtest: a tenant cannot claim the slug "q" and shadow every printed code
+ok 419 - a tenant cannot claim the slug "q" and shadow every printed code
+  ---
+  duration_ms: 0.038167
+  ...
+# Subtest: /q is not confused with a tenant slug that merely starts with q
+ok 420 - /q is not confused with a tenant slug that merely starts with q
+  ---
+  duration_ms: 0.046833
+  ...
+# Subtest: /visit resolves on the two host kinds that carry a tenant
+ok 421 - /visit resolves on the two host kinds that carry a tenant
+  ---
+  duration_ms: 0.13525
+  ...
+# Subtest: /visit does NOT resolve on app or marketing
+ok 422 - /visit does NOT resolve on app or marketing
+  ---
+  duration_ms: 0.144125
+  ...
+# Subtest: POS, tables and preparation desks resolve on agency and app, not marketing
+ok 423 - POS, tables and preparation desks resolve on agency and app, not marketing
+  ---
+  duration_ms: 0.09725
+  ...
+# Subtest: a tenant cannot claim the slug "visit" and shadow occupancy tokens
+ok 424 - a tenant cannot claim the slug "visit" and shadow occupancy tokens
+  ---
+  duration_ms: 0.052916
+  ...
+# Subtest: the QR asset endpoint is reachable on the surfaces the workspace runs on
+ok 425 - the QR asset endpoint is reachable on the surfaces the workspace runs on
+  ---
+  duration_ms: 0.057833
+  ...
+# Subtest: the QR asset endpoint is not exposed on the marketing apex
+ok 426 - the QR asset endpoint is not exposed on the marketing apex
+  ---
+  duration_ms: 0.040375
+  ...
+# Subtest: the ratified team-seat ladder
+ok 427 - the ratified team-seat ladder
+  ---
+  duration_ms: 2.983916
+  ...
+# Subtest: unknown or missing plans fall back to Free, never to unlimited
+ok 428 - unknown or missing plans fall back to Free, never to unlimited
+  ---
+  duration_ms: 0.099333
+  ...
+# Subtest: under cap is allowed
+ok 429 - under cap is allowed
+  ---
+  duration_ms: 1.741083
+  ...
+# Subtest: landing exactly ON the cap is allowed
+ok 430 - landing exactly ON the cap is allowed
+  ---
+  duration_ms: 0.607709
+  ...
+# Subtest: going over the cap is blocked, with free-plan upgrade copy
+ok 431 - going over the cap is blocked, with free-plan upgrade copy
+  ---
+  duration_ms: 1.155084
+  ...
+# Subtest: going over the cap on a paid plan uses generic copy
+ok 432 - going over the cap on a paid plan uses generic copy
+  ---
+  duration_ms: 0.111541
+  ...
+# Subtest: a null limit is unlimited
+ok 433 - a null limit is unlimited
+  ---
+  duration_ms: 0.067291
+  ...
+# Subtest: additionalSeats 0 asks whether current usage still fits (redeem path)
+ok 434 - additionalSeats 0 asks whether current usage still fits (redeem path)
+  ---
+  duration_ms: 0.126583
+  ...
+# Subtest: checkTeamSeatAvailability counts memberships PLUS pending invites
+ok 435 - checkTeamSeatAvailability counts memberships PLUS pending invites
+  ---
+  duration_ms: 2.576042
+  ...
+# Subtest: checkTeamSeatAvailability allows an agency workspace unlimited seats
+ok 436 - checkTeamSeatAvailability allows an agency workspace unlimited seats
+  ---
+  duration_ms: 0.208791
+  ...
+# Subtest: an unreadable agency row FAILS CLOSED, it does not read as unlimited
+ok 437 - an unreadable agency row FAILS CLOSED, it does not read as unlimited
+  ---
+  duration_ms: 0.143958
+  ...
+# Subtest: INVARIANT proxy.ts: inbound tenant header is OVERWRITTEN on tenant contexts and DELETED on non-tenant contexts
+ok 438 - INVARIANT proxy.ts: inbound tenant header is OVERWRITTEN on tenant contexts and DELETED on non-tenant contexts
+  ---
+  duration_ms: 0.465042
+  ...
+# Subtest: INVARIANT proxy.ts: the spoofable tenant header is never READ before it is neutralised
+ok 439 - INVARIANT proxy.ts: the spoofable tenant header is never READ before it is neutralised
+  ---
+  duration_ms: 0.131708
+  ...
+# Subtest: INVARIANT proxy.ts: the strip-then-set contract is documented at the call site
+ok 440 - INVARIANT proxy.ts: the strip-then-set contract is documented at the call site
+  ---
+  duration_ms: 0.059625
+  ...
+# Subtest: INVARIANT proxy.ts: /api/dev and /dev gates use a compile-time flag, never Host
+ok 441 - INVARIANT proxy.ts: /api/dev and /dev gates use a compile-time flag, never Host
+  ---
+  duration_ms: 1.548583
+  ...
+# Subtest: INVARIANT: tenant/host wire constants are frozen to their exact header/cookie names
+ok 442 - INVARIANT: tenant/host wire constants are frozen to their exact header/cookie names
+  ---
+  duration_ms: 0.282666
+  ...
+# Subtest: INVARIANT proxy.ts references the SHARED constants (not string literals) for the tenant/slug/prefix headers
+ok 443 - INVARIANT proxy.ts references the SHARED constants (not string literals) for the tenant/slug/prefix headers
+  ---
+  duration_ms: 0.121167
+  ...
+# Subtest: INVARIANT host-context: every failure path resolves to not_found — no tenant-\#1 / seed fallback
+ok 444 - INVARIANT host-context: every failure path resolves to not_found — no tenant-\#1 / seed fallback
+  ---
+  duration_ms: 0.11925
+  ...
+# Subtest: INVARIANT host-context: agency_domains reads are restricted to the live status allow-list
+ok 445 - INVARIANT host-context: agency_domains reads are restricted to the live status allow-list
+  ---
+  duration_ms: 0.062709
+  ...
+# Subtest: INVARIANT host-context: hostnames are DB-driven — no production domain is hardcoded in the resolver
+ok 446 - INVARIANT host-context: hostnames are DB-driven — no production domain is hardcoded in the resolver
+  ---
+  duration_ms: 0.427708
+  ...
+# Subtest: INVARIANT src/lib/saas/**: the seed tenant UUID literal appears ONLY in tenant.ts (its definition)
+ok 447 - INVARIANT src/lib/saas/**: the seed tenant UUID literal appears ONLY in tenant.ts (its definition)
+  ---
+  duration_ms: 2.775583
+  ...
+# Subtest: LEGACY_TENANT_ID is frozen to the seed UUID
+ok 448 - LEGACY_TENANT_ID is frozen to the seed UUID
+  ---
+  duration_ms: 0.424458
+  ...
+# Subtest: LEGACY_TENANT_ID is never used as a runtime fallback outside seed/migration paths
+ok 449 - LEGACY_TENANT_ID is never used as a runtime fallback outside seed/migration paths
+  ---
+  duration_ms: 284.148291
+  ...
+# Subtest: admin-scope helpers are the single tenant-aware guard for admin actions
+ok 450 - admin-scope helpers are the single tenant-aware guard for admin actions
+  ---
+  duration_ms: 0.170208
+  ...
+# Subtest: admin inquiry/booking action files delegate through requireStaffTenantAction
+ok 451 - admin inquiry/booking action files delegate through requireStaffTenantAction
+  ---
+  duration_ms: 0.292875
+  ...
+# Subtest: site-admin data access is kind-agnostic (M1 abstraction gate)
+ok 452 - site-admin data access is kind-agnostic (M1 abstraction gate)
+  ---
+  duration_ms: 313.792833
+  ...
+# Subtest: no admin action uses bare requireStaff + tenant-scoped table write
+ok 453 - no admin action uses bare requireStaff + tenant-scoped table write
+  ---
+  duration_ms: 148.745416
+  ...
+# Subtest: the render path emits only the requested tenant's connected accounts
+ok 454 - the render path emits only the requested tenant's connected accounts
+  ---
+  duration_ms: 0.93725
+  ...
+# Subtest: no tracker of tenant A is ever emitted while rendering tenant B
+ok 455 - no tracker of tenant A is ever emitted while rendering tenant B
+  ---
+  duration_ms: 0.114584
+  ...
+# Subtest: the platform hub emits no tenant's trackers
+ok 456 - the platform hub emits no tenant's trackers
+  ---
+  duration_ms: 0.061416
+  ...
+# Subtest: an unresolved tenant emits nothing — fails closed, never open
+ok 457 - an unresolved tenant emits nothing — fails closed, never open
+  ---
+  duration_ms: 0.067333
+  ...
+# Subtest: a forged tenant id that merely LOOKS like the owner's does not match
+ok 458 - a forged tenant id that merely LOOKS like the owner's does not match
+  ---
+  duration_ms: 0.085417
+  ...
+# Subtest: a provider nobody connected emits nothing
+ok 459 - a provider nobody connected emits nothing
+  ---
+  duration_ms: 0.119042
+  ...
+# Subtest: a stored value that fails validation is dropped rather than rendered
+ok 460 - a stored value that fails validation is dropped rather than rendered
+  ---
+  duration_ms: 0.1645
+  ...
+# Subtest: a Free workspace with no domain rows resolves to the path host
+ok 461 - a Free workspace with no domain rows resolves to the path host
+  ---
+  duration_ms: 0.975
+  ...
+# Subtest: a Free workspace never gets a branded subdomain, even with a live row
+ok 462 - a Free workspace never gets a branded subdomain, even with a live row
+  ---
+  duration_ms: 0.111167
+  ...
+# Subtest: a pending subdomain row is not a live address
+ok 463 - a pending subdomain row is not a live address
+  ---
+  duration_ms: 0.072125
+  ...
+# Subtest: an eligible plan with a live subdomain row uses the branded host
+ok 464 - an eligible plan with a live subdomain row uses the branded host
+  ---
+  duration_ms: 0.181
+  ...
+# Subtest: a live custom domain wins over the branded subdomain
+ok 465 - a live custom domain wins over the branded subdomain
+  ---
+  duration_ms: 0.067292
+  ...
+# Subtest: workspaceLiveCustomDomain is empty unless a live custom row exists
+ok 466 - workspaceLiveCustomDomain is empty unless a live custom row exists
+  ---
+  duration_ms: 0.065
+  ...
+# Subtest: resolveLiveDomainState prefers the primary row among live rows
+ok 467 - resolveLiveDomainState prefers the primary row among live rows
+  ---
+  duration_ms: 0.111333
+  ...
+# Subtest: isLiveDomainStatus rejects every non-live status
+ok 468 - isLiveDomainStatus rejects every non-live status
+  ---
+  duration_ms: 0.055917
+  ...
+# Subtest: normalizeWorkspaceUrlPlan degrades unknown plans to free
+ok 469 - normalizeWorkspaceUrlPlan degrades unknown plans to free
+  ---
+  duration_ms: 0.105834
+  ...
+# Subtest: admin storefront cards do not synthesize slug.tulala.digital
+ok 470 - admin storefront cards do not synthesize slug.tulala.digital
+  ---
+  duration_ms: 0.422292
+  ...
+# Subtest: ALL_PAGES is exactly what the registry produces
+ok 471 - ALL_PAGES is exactly what the registry produces
+  ---
+  duration_ms: 0.728875
+  ...
+# Subtest: normalizeWorkspaceType passes through the known types
+ok 472 - normalizeWorkspaceType passes through the known types
+  ---
+  duration_ms: 0.083041
+  ...
+# Subtest: normalizeWorkspaceType tolerates case and whitespace
+ok 473 - normalizeWorkspaceType tolerates case and whitespace
+  ---
+  duration_ms: 0.054375
+  ...
+# Subtest: normalizeWorkspaceType degrades ANYTHING unrecognised to talent
+ok 474 - normalizeWorkspaceType degrades ANYTHING unrecognised to talent
+  ---
+  duration_ms: 0.073208
+  ...
+# Subtest: WORKSPACE_TYPES is the exhaustive union and defaults to talent
+ok 475 - WORKSPACE_TYPES is the exhaustive union and defaults to talent
+  ---
+  duration_ms: 0.109541
+  ...
+# Subtest: rosterEnabled is true only for talent workspaces
+ok 476 - rosterEnabled is true only for talent workspaces
+  ---
+  duration_ms: 0.046333
+  ...
+# Subtest: rosterEnabled composed with the normalizer never hides an unknown type's roster
+ok 477 - rosterEnabled composed with the normalizer never hides an unknown type's roster
+  ---
+  duration_ms: 0.04175
+  ...
+# Subtest: visibleWorkspacePages returns every page for a talent workspace
+ok 478 - visibleWorkspacePages returns every page for a talent workspace
+  ---
+  duration_ms: 0.157625
+  ...
+# Subtest: visibleWorkspacePages drops exactly pitches for a business workspace
+ok 479 - visibleWorkspacePages drops exactly pitches for a business workspace
+  ---
+  duration_ms: 0.139583
+  ...
+# Subtest: visibleWorkspacePages preserves order and does not mutate its input
+ok 480 - visibleWorkspacePages preserves order and does not mutate its input
+  ---
+  duration_ms: 0.147833
+  ...
+# Subtest: visibleWorkspacePages on an empty list is empty for both types
+ok 481 - visibleWorkspacePages on an empty list is empty for both types
+  ---
+  duration_ms: 0.050416
+  ...
+# Subtest: the hidden page list matches the shell's canonical page names
+ok 482 - the hidden page list matches the shell's canonical page names
+  ---
+  duration_ms: 0.110125
+  ...
+# Subtest: workspacePageVisible allows everything on talent
+ok 483 - workspacePageVisible allows everything on talent
+  ---
+  duration_ms: 0.100458
+  ...
+# Subtest: workspacePageVisible blocks pitches — and NOT People — on business
+ok 484 - workspacePageVisible blocks pitches — and NOT People — on business
+  ---
+  duration_ms: 0.111666
+  ...
+# Subtest: clampWorkspacePage is identity on a talent workspace
+ok 485 - clampWorkspacePage is identity on a talent workspace
+  ---
+  duration_ms: 0.059833
+  ...
+# Subtest: clampWorkspacePage sends hidden pages to overview on business
+ok 486 - clampWorkspacePage sends hidden pages to overview on business
+  ---
+  duration_ms: 0.044417
+  ...
+# Subtest: clampWorkspacePage is idempotent
+ok 487 - clampWorkspacePage is idempotent
+  ---
+  duration_ms: 0.054167
+  ...
+# Subtest: [branded host] a business workspace opens /roster instead of bouncing
+ok 488 - [branded host] a business workspace opens /roster instead of bouncing
+  ---
+  duration_ms: 0.234083
+  ...
+# Subtest: [branded host] a business workspace clamps /pitches, and /talent still means roster
+ok 489 - [branded host] a business workspace clamps /pitches, and /talent still means roster
+  ---
+  duration_ms: 0.11675
+  ...
+# Subtest: [branded host] the People surface is reachable and never clamped away
+ok 490 - [branded host] the People surface is reachable and never clamped away
+  ---
+  duration_ms: 0.212875
+  ...
+# Subtest: [branded host] every non-pitches deep link survives on a business workspace
+ok 491 - [branded host] every non-pitches deep link survives on a business workspace
+  ---
+  duration_ms: 2.821666
+  ...
+# Subtest: [branded host] a talent workspace is unaffected by the clamp
+ok 492 - [branded host] a talent workspace is unaffected by the clamp
+  ---
+  duration_ms: 0.92225
+  ...
+# Subtest: [platform host] a business workspace opens /roster instead of bouncing
+ok 493 - [platform host] a business workspace opens /roster instead of bouncing
+  ---
+  duration_ms: 0.178625
+  ...
+# Subtest: [platform host] a business workspace clamps /pitches, and /talent still means roster
+ok 494 - [platform host] a business workspace clamps /pitches, and /talent still means roster
+  ---
+  duration_ms: 0.076292
+  ...
+# Subtest: [platform host] the People surface is reachable and never clamped away
+ok 495 - [platform host] the People surface is reachable and never clamped away
+  ---
+  duration_ms: 0.126625
+  ...
+# Subtest: [platform host] every non-pitches deep link survives on a business workspace
+ok 496 - [platform host] every non-pitches deep link survives on a business workspace
+  ---
+  duration_ms: 0.160875
+  ...
+# Subtest: [platform host] a talent workspace is unaffected by the clamp
+ok 497 - [platform host] a talent workspace is unaffected by the clamp
+  ---
+  duration_ms: 0.044292
+  ...
+# Subtest: matches the Spanish-named routes with or without a locale prefix
+ok 498 - matches the Spanish-named routes with or without a locale prefix
+  ---
+  duration_ms: 0.445917
+  ...
+# Subtest: does not swallow neighbouring or nested routes
+ok 499 - does not swallow neighbouring or nested routes
+  ---
+  duration_ms: 0.146208
+  ...
+# Subtest: canonical is the /es/ form, not the bare path
+ok 500 - canonical is the /es/ form, not the bare path
+  ---
+  duration_ms: 0.110958
+  ...
+# Subtest: never claims an English alternate for a page that has no English version
+ok 501 - never claims an English alternate for a page that has no English version
+  ---
+  duration_ms: 0.075708
+  ...
+# Subtest: the route list stays in sync with the sitemap's Spanish-named handling
+ok 502 - the route list stays in sync with the sitemap's Spanish-named handling
+  ---
+  duration_ms: 0.309542
+  ...
+# Subtest: pins es only on the marketing host, and only for these routes
+ok 503 - pins es only on the marketing host, and only for these routes
+  ---
+  duration_ms: 0.068916
+  ...
+# Subtest: a Spanish-slugged SUBTREE pins to Spanish, on a slash boundary
+ok 504 - a Spanish-slugged SUBTREE pins to Spanish, on a slash boundary
+  ---
+  duration_ms: 0.0885
+  ...
+# Subtest: cross-slug pages claim only their own URL in each locale
+ok 505 - cross-slug pages claim only their own URL in each locale
+  ---
+  duration_ms: 0.092959
+  ...
+# Subtest: the root title template appends the brand exactly once
+ok 506 - the root title template appends the brand exactly once
+  ---
+  duration_ms: 0.6235
+  ...
+# Subtest: the marketing homepage title does not also contain the brand
+ok 507 - the marketing homepage title does not also contain the brand
+  ---
+  duration_ms: 0.789791
+  ...
+# Subtest: an unaccepted invitation is not counted as a member of the role
+ok 508 - an unaccepted invitation is not counted as a member of the role
+  ---
+  duration_ms: 0.761666
+  ...
+# Subtest: the pending people are kept, not dropped
+ok 509 - the pending people are kept, not dropped
+  ---
+  duration_ms: 0.080458
+  ...
+# Subtest: every role in the ladder is present even when nobody holds it
+ok 510 - every role in the ladder is present even when nobody holds it
+  ---
+  duration_ms: 0.092167
+  ...
+# Subtest: a role the ladder does not know is ignored rather than crashing the card
+ok 511 - a role the ladder does not know is ignored rather than crashing the card
+  ---
+  duration_ms: 0.064542
+  ...
+# Subtest: every route segment reachable on a tenant host is reserved
+ok 512 - every route segment reachable on a tenant host is reserved
+  ---
+  duration_ms: 2.476125
+  ...
+# Subtest: every platform locale code is reserved
+ok 513 - every platform locale code is reserved
+  ---
+  duration_ms: 0.2655
+  ...
+# Subtest: the words the clean-URL move made dangerous are reserved
+ok 514 - the words the clean-URL move made dangerous are reserved
+  ---
+  duration_ms: 0.130083
+  ...
+# Subtest: registry has no duplicate entries
+ok 515 - registry has no duplicate entries
+  ---
+  duration_ms: 0.159125
+  ...
+# Subtest: tenant-ownable slugs stay ownable
+ok 516 - tenant-ownable slugs stay ownable
+  ---
+  duration_ms: 0.11825
+  ...
+# Subtest: layer 1 (registry) and layer 2 (DB seed) hold the same words
+ok 517 - layer 1 (registry) and layer 2 (DB seed) hold the same words
+  ---
+  duration_ms: 43.678958
+  ...
+# Subtest: the creation-time error names the word and a usable alternative
+ok 518 - the creation-time error names the word and a usable alternative
+  ---
+  duration_ms: 0.131167
+  ...
+# Subtest: no NEW user-visible English is hardcoded in a storefront component
+ok 519 - no NEW user-visible English is hardcoded in a storefront component
+  ---
+  duration_ms: 36.510042
+  ...
+# Subtest: menu offerings actions always filter tenant_id AND owner_kind=workspace
+ok 520 - menu offerings actions always filter tenant_id AND owner_kind=workspace
+  ---
+  duration_ms: 0.618208
+  ...
+# Subtest: menu_board public fetcher scopes by tenant_id and owner_kind=workspace
+ok 521 - menu_board public fetcher scopes by tenant_id and owner_kind=workspace
+  ---
+  duration_ms: 0.159042
+  ...
+# Subtest: the purchase pipeline stamps NO calendar placeholder
+ok 522 - the purchase pipeline stamps NO calendar placeholder
+  ---
+  duration_ms: 0.233667
+  ...
+# Subtest: the registry has no runtime imports
+ok 523 - the registry has no runtime imports
+  ---
+  duration_ms: 0.802875
+  ...
+# Subtest: every legacy segment resolves to the right destination
+ok 524 - every legacy segment resolves to the right destination
+  ---
+  duration_ms: 0.247916
+  ...
+# Subtest: every canonical segment resolves to itself, and the root is Overview
+ok 525 - every canonical segment resolves to itself, and the root is Overview
+  ---
+  duration_ms: 0.103209
+  ...
+# Subtest: an unknown segment REFUSES rather than answering Overview
+ok 526 - an unknown segment REFUSES rather than answering Overview
+  ---
+  duration_ms: 0.120708
+  ...
+# Subtest: no segment or alias is claimed twice
+ok 527 - no segment or alias is claimed twice
+  ---
+  duration_ms: 0.11325
+  ...
+# Subtest: every destination's live route is a route that exists
+ok 528 - every destination's live route is a route that exists
+  ---
+  duration_ms: 0.400125
+  ...
+# Subtest: an unbuilt destination either falls back to a page that exists, or says it has none
+ok 529 - an unbuilt destination either falls back to a page that exists, or says it has none
+  ---
+  duration_ms: 0.266291
+  ...
+# Subtest: Projects is built and answers at its own segment, not at a stand-in
+ok 530 - Projects is built and answers at its own segment, not at a stand-in
+  ---
+  duration_ms: 0.056583
+  ...
+# Subtest: a built destination renamed ahead of its route still points at the live one
+ok 531 - a built destination renamed ahead of its route still points at the live one
+  ---
+  duration_ms: 0.130084
+  ...
+# Subtest: every segment the router accepted before the registry still has a destination
+ok 532 - every segment the router accepted before the registry still has a destination
+  ---
+  duration_ms: 0.166167
+  ...
+# Subtest: every real admin route is either a destination or a declared deep page
+ok 533 - every real admin route is either a destination or a declared deep page
+  ---
+  duration_ms: 0.175167
+  ...
+# Subtest: a business workspace sees People, but no talent sub-views and no Pitches
+ok 534 - a business workspace sees People, but no talent sub-views and no Pitches
+  ---
+  duration_ms: 0.233291
+  ...
+# Subtest: Media needs the agency plan
+ok 535 - Media needs the agency plan
+  ---
+  duration_ms: 0.106084
+  ...
+# Subtest: the plan ladder mirrors PLAN_META, which cannot be imported here
+ok 536 - the plan ladder mirrors PLAN_META, which cannot be imported here
+  ---
+  duration_ms: 0.62875
+  ...
+# Subtest: the tenant flags gate Reservations and Events, and nothing else
+ok 537 - the tenant flags gate Reservations and Events, and nothing else
+  ---
+  duration_ms: 0.070625
+  ...
+# Subtest: the Payments item in the rail opens the Payments page, not Financials
+ok 538 - the Payments item in the rail opens the Payments page, not Financials
+  ---
+  duration_ms: 0.052708
+  ...
+# Subtest: Payments needs the billing permission, and My work needs the professional hat
+ok 539 - Payments needs the billing permission, and My work needs the professional hat
+  ---
+  duration_ms: 0.073958
+  ...
+# Subtest: POS is never in a sidebar group
+ok 540 - POS is never in a sidebar group
+  ---
+  duration_ms: 0.308417
+  ...
+# Subtest: groups come out in rail order, empty ones dropped
+ok 541 - groups come out in rail order, empty ones dropped
+  ---
+  duration_ms: 0.096166
+  ...
+# Subtest: the mobile tabs are the top priorities, and never POS
+ok 542 - the mobile tabs are the top priorities, and never POS
+  ---
+  duration_ms: 0.176917
+  ...
+# Subtest: the label follows the preset
+ok 543 - the label follows the preset
+  ---
+  duration_ms: 0.112959
+  ...
+# Subtest: no label uses an em dash, and every icon is a real shell icon
+ok 544 - no label uses an em dash, and every icon is a real shell icon
+  ---
+  duration_ms: 0.296541
+  ...
+# Subtest: the workspace's default enabled modes are not empty — an unconfigured workspace still has counter
+ok 545 - the workspace's default enabled modes are not empty — an unconfigured workspace still has counter
+  ---
+  duration_ms: 0.662541
+  ...
+# Subtest: an owner on a workspace with the point of sale enabled sees the Open POS row
+ok 546 - an owner on a workspace with the point of sale enabled sees the Open POS row
+  ---
+  duration_ms: 0.23825
+  ...
+# Subtest: the Open POS row is absent when the platform flag is off
+ok 547 - the Open POS row is absent when the platform flag is off
+  ---
+  duration_ms: 0.068125
+  ...
+# Subtest: the flag alone is not enough — a read-only viewer never reaches the POS
+ok 548 - the flag alone is not enough — a read-only viewer never reaches the POS
+  ---
+  duration_ms: 0.056833
+  ...
+# Subtest: a workspace that has switched every mode off hides the row even for an owner
+ok 549 - a workspace that has switched every mode off hides the row even for an owner
+  ---
+  duration_ms: 0.059041
+  ...
+# Subtest: search and notifications are unconditional, and order is stable
+ok 550 - search and notifications are unconditional, and order is stable
+  ---
+  duration_ms: 0.056666
+  ...
+# Subtest: a menu with no appointments is a cafe, whatever the team size
+ok 551 - a menu with no appointments is a cafe, whatever the team size
+  ---
+  duration_ms: 0.409666
+  ...
+# Subtest: appointments and at most one person is solo
+ok 552 - appointments and at most one person is solo
+  ---
+  duration_ms: 0.074
+  ...
+# Subtest: appointments with a team is hybrid
+ok 553 - appointments with a team is hybrid
+  ---
+  duration_ms: 0.106541
+  ...
+# Subtest: the preset derivation fails OPEN to hybrid
+ok 554 - the preset derivation fails OPEN to hybrid
+  ---
+  duration_ms: 0.073166
+  ...
+# Subtest: the five membership roles collapse onto three hats
+ok 555 - the five membership roles collapse onto three hats
+  ---
+  duration_ms: 0.084625
+  ...
+# Subtest: an unknown role fails CLOSED to assistant
+ok 556 - an unknown role fails CLOSED to assistant
+  ---
+  duration_ms: 0.100166
+  ...
+# Subtest: professional is a fourth hat, not a rung
+ok 557 - professional is a fourth hat, not a rung
+  ---
+  duration_ms: 0.365417
+  ...
+# Subtest: only an owner manages billing, mirroring roles.ts
+ok 558 - only an owner manages billing, mirroring roles.ts
+  ---
+  duration_ms: 0.127833
+  ...
+# Subtest: the derived preset is what the labels read
+ok 559 - the derived preset is what the labels read
+  ---
+  duration_ms: 0.144
+  ...
+# Subtest: the nav context is built from the bridge objects, whole
+ok 560 - the nav context is built from the bridge objects, whole
+  ---
+  duration_ms: 0.15125
+  ...
+# Subtest: the preset is READ off the tenant row, not defaulted
+ok 561 - the preset is READ off the tenant row, not defaulted
+  ---
+  duration_ms: 0.094708
+  ...
+# Subtest: a missing tenant bridge is standalone mode, not a crash
+ok 562 - a missing tenant bridge is standalone mode, not a crash
+  ---
+  duration_ms: 0.059042
+  ...
+# Subtest: the server's billing answer wins, and the role ladder answers otherwise
+ok 563 - the server's billing answer wins, and the role ladder answers otherwise
+  ---
+  duration_ms: 0.065958
+  ...
+# Subtest: the tenant flags are read back off visiblePages, never guessed
+ok 564 - the tenant flags are read back off visiblePages, never guessed
+  ---
+  duration_ms: 0.141792
+  ...
+# Subtest: WORKSPACE_PAGE_IDS is exactly the registry's ids plus its aliases
+ok 565 - WORKSPACE_PAGE_IDS is exactly the registry's ids plus its aliases
+  ---
+  duration_ms: 0.660625
+  ...
+# Subtest: the WorkspacePage union covers the runtime set, member for member
+ok 566 - the WorkspacePage union covers the runtime set, member for member
+  ---
+  duration_ms: 0.453459
+  ...
+# Subtest: a renamed-but-not-moved destination reports the page it renders as
+ok 567 - a renamed-but-not-moved destination reports the page it renders as
+  ---
+  duration_ms: 0.092209
+  ...
+# Subtest: a destination with no route at all reports null, not a guess
+ok 568 - a destination with no route at all reports null, not a guess
+  ---
+  duration_ms: 0.100833
+  ...
+# Subtest: every legacy URL opens the page it always opened
+ok 569 - every legacy URL opens the page it always opened
+  ---
+  duration_ms: 0.160583
+  ...
+# Subtest: payouts and roster keep their own bodies, whatever claims them as an alias
+ok 570 - payouts and roster keep their own bodies, whatever claims them as an alias
+  ---
+  duration_ms: 0.050875
+  ...
+# Subtest: anything the registry does not describe lands on overview
+ok 571 - anything the registry does not describe lands on overview
+  ---
+  duration_ms: 0.049916
+  ...
+# Subtest: navWorkspacePages is one entry per built destination, in registry order
+ok 572 - navWorkspacePages is one entry per built destination, in registry order
+  ---
+  duration_ms: 0.233417
+  ...
+# Subtest: an absent platform switch reads as off
+ok 573 - an absent platform switch reads as off
+  ---
+  duration_ms: 0.457167
+  ...
+# Subtest: an absent mode list falls back to counter, NEVER to an empty list
+ok 574 - an absent mode list falls back to counter, NEVER to an empty list
+  ---
+  duration_ms: 0.328209
+  ...
+# Subtest: a workspace that really has every mode off is preserved, not overwritten by the default
+ok 575 - a workspace that really has every mode off is preserved, not overwritten by the default
+  ---
+  duration_ms: 0.057458
+  ...
+# Subtest: a real mode list passes through untouched
+ok 576 - a real mode list passes through untouched
+  ---
+  duration_ms: 0.055666
+  ...
+# Subtest: the platform kill switch alone hides the control, even for an owner
+ok 577 - the platform kill switch alone hides the control, even for an owner
+  ---
+  duration_ms: 0.652667
+  ...
+# Subtest: an assistant sees no switch at all
+ok 578 - an assistant sees no switch at all
+  ---
+  duration_ms: 0.090083
+  ...
+# Subtest: a workspace with every mode switched off hides the control
+ok 579 - a workspace with every mode switched off hides the control
+  ---
+  duration_ms: 0.097958
+  ...
+# Subtest: the menu offers only the modes this person may actually use
+ok 580 - the menu offers only the modes this person may actually use
+  ---
+  duration_ms: 0.098583
+  ...
+# Subtest: first paint never depends on what the device remembers
+ok 581 - first paint never depends on what the device remembers
+  ---
+  duration_ms: 0.078083
+  ...
+# Subtest: a remembered mode the person may no longer use is ignored, not honoured
+ok 582 - a remembered mode the person may no longer use is ignored, not honoured
+  ---
+  duration_ms: 0.046416
+  ...
+# Subtest: which half reads as selected comes from the surface, not from storage
+ok 583 - which half reads as selected comes from the surface, not from storage
+  ---
+  duration_ms: 0.059917
+  ...
+# Subtest: two workspaces on one device do not share a remembered mode
+ok 584 - two workspaces on one device do not share a remembered mode
+  ---
+  duration_ms: 0.221459
+  ...
+# Subtest: the device memory round-trips, and refuses a mode that is not allowed
+ok 585 - the device memory round-trips, and refuses a mode that is not allowed
+  ---
+  duration_ms: 0.17975
+  ...
+# Subtest: storage that throws on every call is survivable
+ok 586 - storage that throws on every call is survivable
+  ---
+  duration_ms: 0.195958
+  ...
+# Subtest: no storage at all (a server render) is survivable
+ok 587 - no storage at all (a server render) is survivable
+  ---
+  duration_ms: 0.060084
+  ...
+# Subtest: on the point of sale, the mode in the address wins over what the device remembered
+ok 588 - on the point of sale, the mode in the address wins over what the device remembered
+  ---
+  duration_ms: 0.062458
+  ...
+# Subtest: off the point of sale, the address is ignored and the remembered mode is offered
+ok 589 - off the point of sale, the address is ignored and the remembered mode is offered
+  ---
+  duration_ms: 0.044791
+  ...
+# Subtest: an address naming a mode this person may not use falls back to the remembered one
+ok 590 - an address naming a mode this person may not use falls back to the remembered one
+  ---
+  duration_ms: 0.108333
+  ...
+1..590
+# tests 609
+# suites 7
+# pass 609
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 72681.186083
+EXIT=0

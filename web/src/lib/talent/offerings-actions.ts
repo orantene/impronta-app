@@ -23,7 +23,7 @@ import {
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
-import { loadOfferingChildren, MAX_OPTIONS_PER_OFFERING } from "@/lib/talent/offerings-children";
+import { loadOfferingChildren, replaceOfferingChildren } from "@/lib/talent/offerings-children";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -433,65 +433,10 @@ export async function setOfferingOptions(
       .maybeSingle();
     if (!own) return { ok: false, error: "Not found." };
 
-    const variants = (input.variants ?? [])
-      .map((v) => ({
-        label: (v.label ?? "").trim().slice(0, 80),
-        amount_cents:
-          typeof v.amountCents === "number" && Number.isFinite(v.amountCents) && v.amountCents >= 0
-            ? Math.round(v.amountCents)
-            : null,
-      }))
-      .filter((v) => v.label)
-      .slice(0, MAX_OPTIONS_PER_OFFERING);
-    const addOns = (input.addOns ?? [])
-      .map((a) => ({
-        label: (a.label ?? "").trim().slice(0, 80),
-        amount_cents:
-          typeof a.amountCents === "number" && Number.isFinite(a.amountCents) && a.amountCents >= 0
-            ? Math.round(a.amountCents)
-            : null,
-      }))
-      .filter((a): a is { label: string; amount_cents: number } => Boolean(a.label) && a.amount_cents != null)
-      .slice(0, MAX_OPTIONS_PER_OFFERING);
-
-    // Replace-all (same semantics as setOfferingImages).
-    const { error: delV } = await admin.from("talent_offering_variants").delete().eq("offering_id", offeringId);
-    const { error: delA } = await admin.from("talent_offering_addons").delete().eq("offering_id", offeringId);
-    if (delV || delA) {
-      logServerError("talent.offerings.optionsClear", delV ?? delA);
-      return { ok: false, error: "Failed to save options." };
-    }
-    let savedVariants: { id: string; label: string; amount_cents: number | null }[] = [];
-    let savedAddOns: { id: string; label: string; amount_cents: number }[] = [];
-    if (variants.length > 0) {
-      const { data, error } = await admin
-        .from("talent_offering_variants")
-        .insert(variants.map((v, i) => ({ offering_id: offeringId, label: v.label, amount_cents: v.amount_cents, sort_order: i })))
-        .select("id, label, amount_cents");
-      if (error) {
-        logServerError("talent.offerings.variantsSet", error);
-        return { ok: false, error: "Failed to save options." };
-      }
-      savedVariants = (data ?? []) as typeof savedVariants;
-    }
-    if (addOns.length > 0) {
-      const { data, error } = await admin
-        .from("talent_offering_addons")
-        .insert(addOns.map((a, i) => ({ offering_id: offeringId, label: a.label, amount_cents: a.amount_cents, sort_order: i })))
-        .select("id, label, amount_cents");
-      if (error) {
-        logServerError("talent.offerings.addonsSet", error);
-        return { ok: false, error: "Failed to save extras." };
-      }
-      savedAddOns = (data ?? []) as typeof savedAddOns;
-    }
-
+    const saved = await replaceOfferingChildren(admin, offeringId, input, "talent.offerings");
+    if (!saved.ok) return saved;
     revalidatePath("/talent/services");
-    return {
-      ok: true,
-      variants: savedVariants.map((v) => ({ id: v.id, label: v.label, amountCents: v.amount_cents })),
-      addOns: savedAddOns.map((a) => ({ id: a.id, label: a.label, amountCents: a.amount_cents })),
-    };
+    return saved;
   } catch (err) {
     logServerError("talent.offerings.setOptions", err);
     return { ok: false, error: "Unexpected error." };

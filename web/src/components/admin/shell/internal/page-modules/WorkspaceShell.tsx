@@ -16,7 +16,7 @@ import { useCanonicalRouteChildren } from "../canonical-route-children";
 import { resolveDestination } from "@/lib/workspace/destinations";
 import { TulalaWordmark } from "@/components/brand/tulala-logo";
 import { CalendarPage } from "./CalendarPage";
-import { MenuPage } from "./MenuPage";
+import { CatalogPage } from "./catalog/CatalogPage";
 import { ClientsPage } from "./ClientsPage";
 import { TulalaIdentityBar } from "./IdentityBar-1";
 import { WorkspaceMessagesPage } from "./InboxPage";
@@ -491,7 +491,7 @@ function PageRouter({ page }: { page: WorkspacePage }) {
       break;
     case "menu":
     case "catalog":   // registry id; renders at /admin/menu until the route moves
-      body = <MenuPage />;
+      body = <CatalogPage />;
       break;
     // Appointments & Classes — the registry's `appts` destination, still
     // rendering at /admin/sessions until the route moves. Four views under one

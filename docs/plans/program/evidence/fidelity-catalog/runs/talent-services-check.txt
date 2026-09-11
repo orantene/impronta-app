@@ -1,0 +1,4 @@
+manager text head: Your services | What clients can book or buy from your page. You choose per service how they book — send an inquiry first, or reserve instantly. | + Add a service | G
+add button: 1
+composer open: true
+composer closed: true

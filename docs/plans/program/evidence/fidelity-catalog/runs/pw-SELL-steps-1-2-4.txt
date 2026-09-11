@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/TMP-SELL-no-spaces.spec.ts:36:5 › SELL: catalog, events, spaces and discounts open with real rows; a discount code is created and read back
+[1A[2K  1 passed (47.1s)
+EXIT=0

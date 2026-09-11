@@ -64,15 +64,16 @@ test("SELL: catalog, events, spaces and discounts open with real rows; a discoun
   // ── 4. Discounts — create a code through the real form, read it back ─────
   await signInJourneysStaff(page, "/admin/discounts");
   await assertWorkspaceIdentity(page);
-  await expect(page.getByRole("heading", { name: "Discounts" })).toBeVisible();
+  // W08: the page is titled as the board titles it; the Discounts rail row
+  // is the door to it.
+  await expect(page.getByRole("heading", { name: "Promotions & discount limits" })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("04-discounts-before.png"), fullPage: true });
 
-  // The form's own inputs, addressed by name — `getByLabel("Code")` also
-  // matches the sidebar's "Discounts — Promo codes this…" nav button (its
-  // accessible name starts with "Discounts — Promo codes") and the
-  // "Website — Pages, posts, redirects…" nav button (accessible name
-  // contains "code"), a strict-mode violation the form's own scope avoids.
-  const form = page.locator("form").filter({ has: page.locator('input[name="code"]') });
+  // The form opens from `New promotion` (W08) and its inputs are addressed
+  // by name inside the form's own scope: `getByLabel("Code")` also matches
+  // the sidebar's nav buttons whose accessible names contain "code".
+  await page.getByTestId("discounts-new").click();
+  const form = page.getByTestId("discounts-form");
   await form.locator('input[name="code"]').fill(code);
   await form.locator('select[name="kind"]').selectOption("percent");
   await form.locator('input[name="value"]').fill("15");

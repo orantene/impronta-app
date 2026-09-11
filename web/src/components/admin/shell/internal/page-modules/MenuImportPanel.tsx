@@ -20,13 +20,17 @@ type Phase = "idle" | "previewed" | "done";
 
 export function MenuImportPanel({
   tenantId,
+  open,
+  onClose,
   onImported,
 }: {
   tenantId: string;
+  /** The Catalog's own `Import` button owns the open state (W01). */
+  open: boolean;
+  onClose: () => void;
   onImported?: () => void;
 }) {
   const t = useT();
-  const [open, setOpen] = useState(false);
   const [source, setSource] = useState("");
   const [plan, setPlan] = useState<ImportPlan | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -75,34 +79,24 @@ export function MenuImportPanel({
     onImported?.();
   }
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="mb-4 rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-black hover:bg-black/[0.03]"
-      >
-        {t("dashboard.adminMenu.import.open")}
-      </button>
-    );
-  }
+  if (!open) return null;
 
   const nothingToDo = plan != null && plan.counts.create === 0 && plan.counts.update === 0;
 
   return (
-    <section className="mb-6 rounded-xl border border-black/10 p-4">
+    <section className="rounded-[14px] border border-admin-border bg-admin-card p-4" data-testid="menu-import-panel">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-black">
+        <h2 className="m-0 text-[14px] font-semibold text-admin-ink">
           {t("dashboard.adminMenu.import.title")}
         </h2>
         <button
           type="button"
           onClick={() => {
-            setOpen(false);
             reset();
             setSource("");
+            onClose();
           }}
-          className="text-sm text-black/50 hover:text-black"
+          className="text-sm text-admin-ink-muted hover:text-admin-ink"
         >
           {t("dashboard.adminMenu.import.close")}
         </button>
@@ -119,7 +113,7 @@ export function MenuImportPanel({
         disabled={pending}
         rows={5}
         placeholder={t("dashboard.adminMenu.import.placeholder")}
-        className="w-full rounded-lg border border-black/10 p-2 font-mono text-xs"
+        className="w-full rounded-[9px] border border-admin-border bg-admin-card p-2 font-mono text-xs text-admin-ink"
       />
 
       <div className="mt-3 flex items-center gap-2">
@@ -127,7 +121,7 @@ export function MenuImportPanel({
           type="button"
           disabled={pending || !source.trim()}
           onClick={() => startTransition(() => void preview())}
-          className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium disabled:opacity-40"
+          className="rounded-[9px] border border-admin-border bg-admin-card px-3 py-2 text-sm font-medium text-admin-ink disabled:opacity-40"
         >
           {pending && phase === "idle"
             ? t("dashboard.adminMenu.import.reading")
@@ -140,7 +134,7 @@ export function MenuImportPanel({
             type="button"
             disabled={pending}
             onClick={() => startTransition(() => void apply())}
-            className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-[9px] bg-admin-brand px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
           >
             {t("dashboard.adminMenu.import.confirm")
               .replace("{create}", String(plan?.counts.create ?? 0))
@@ -162,7 +156,7 @@ export function MenuImportPanel({
 
       {plan ? (
         <div className="mt-4">
-          <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-black/70">
+          <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-admin-ink-muted">
             <li>{t("dashboard.adminMenu.import.willCreate").replace("{n}", String(plan.counts.create))}</li>
             <li>{t("dashboard.adminMenu.import.willUpdate").replace("{n}", String(plan.counts.update))}</li>
             <li>{t("dashboard.adminMenu.import.unchanged").replace("{n}", String(plan.counts.unchanged))}</li>
@@ -170,7 +164,7 @@ export function MenuImportPanel({
           </ul>
 
           {nothingToDo ? (
-            <p className="text-sm text-black/60">{t("dashboard.adminMenu.import.nothingToDo")}</p>
+            <p className="text-sm text-admin-ink-muted">{t("dashboard.adminMenu.import.nothingToDo")}</p>
           ) : null}
 
           {/* Refusals sit BESIDE the plan, not behind a link: an operator judging
@@ -180,7 +174,7 @@ export function MenuImportPanel({
               <summary className="cursor-pointer text-sm font-medium text-[var(--color-admin-critical)]">
                 {t("dashboard.adminMenu.import.refused").replace("{n}", String(plan.refused.length))}
               </summary>
-              <ul className="mt-1 list-disc pl-5 text-sm text-black/70">
+              <ul className="mt-1 list-disc pl-5 text-sm text-admin-ink-muted">
                 {plan.refused.slice(0, 50).map((r) => (
                   <li key={r.sourceId}>
                     {r.detail} — {t(`dashboard.adminMenu.import.reason.${r.reason}`)}
@@ -193,10 +187,10 @@ export function MenuImportPanel({
           {/* Orphans are REPORTED, never actioned. Nothing here deletes. */}
           {plan.orphans.length > 0 ? (
             <details className="mb-3">
-              <summary className="cursor-pointer text-sm font-medium text-black/70">
+              <summary className="cursor-pointer text-sm font-medium text-admin-ink-muted">
                 {t("dashboard.adminMenu.import.orphans").replace("{n}", String(plan.orphans.length))}
               </summary>
-              <ul className="mt-1 list-disc pl-5 text-sm text-black/70">
+              <ul className="mt-1 list-disc pl-5 text-sm text-admin-ink-muted">
                 {plan.orphans.slice(0, 50).map((o) => (
                   <li key={o.offeringId}>{o.title}</li>
                 ))}
@@ -204,20 +198,20 @@ export function MenuImportPanel({
             </details>
           ) : null}
 
-          <div className="max-h-72 overflow-y-auto rounded-lg border border-black/10">
+          <div className="max-h-72 overflow-y-auto rounded-lg border border-admin-border">
             <table className="w-full text-left text-sm">
               <tbody>
                 {plan.rows
                   .filter((r) => r.action !== "unchanged")
                   .slice(0, 200)
                   .map((r) => (
-                    <tr key={r.sourceId} className="border-b border-black/5 last:border-0">
-                      <td className="px-2 py-1 text-xs uppercase tracking-wide text-black/45">
+                    <tr key={r.sourceId} className="border-b border-admin-border-soft last:border-0">
+                      <td className="px-2 py-1 text-xs uppercase tracking-wide text-admin-ink-dim">
                         {t(`dashboard.adminMenu.import.action.${r.action}`)}
                       </td>
                       <td className="px-2 py-1">{r.title}</td>
-                      <td className="px-2 py-1 text-black/55">{r.category}</td>
-                      <td className="px-2 py-1 tabular-nums text-black/70">
+                      <td className="px-2 py-1 text-admin-ink-muted">{r.category}</td>
+                      <td className="px-2 py-1 tabular-nums text-admin-ink-muted">
                         {r.amountCents == null
                           ? t("dashboard.adminMenu.import.tiered").replace("{n}", String(r.variantCount))
                           : `${(r.amountCents / 100).toFixed(2)} ${r.currency}`}

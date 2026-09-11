@@ -1,0 +1,24 @@
+ok   availability: side reads 5 left after the stock RPC
+ok   list: House pizza reads Stock pool · 5 left
+ok   list: House pizza back to Unlimited
+ok   options: Large +$21 is a row after the writer answers
+ok   options: the cashier preview shows Large
+ok   options: removed again
+ok   structure: House pizza is a favorite
+ok   structure: favorite removed
+ok   channels: website switched off (agency_only)
+ok   channels: side reads Hidden for the website
+ok   list: House pizza has no Website chip while agency_only
+ok   channels: website back on
+ok   create: pass card shows the product-decision sentence
+ok   create: Continue disabled for a pass
+ok   create: continue opens the draft editor
+ok   draft: Publish disabled while the draft is incomplete
+ok   draft: Publish enabled once named and priced
+ok   draft: saved and the URL carries the new id
+ok   draft: the editor stays open on the saved row
+ok   list: the draft is listed
+ok   list: it wears the Draft pill
+ok   list: the draft is deleted (4246363f-d3ac-48e8-aa84-857fc2e43df4)
+ALL OK
+EXIT=0

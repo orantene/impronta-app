@@ -1,0 +1,7 @@
+
+> web@0.1.0 typecheck
+> bash scripts/tsc-queue.sh
+
+TSC PASS (exit 0)
+tsc-queue: read this run again with -> cat /tmp/tulala-tsc.41a601dd.last
+EXIT=0

@@ -11882,8 +11882,6 @@
       "delayNextUpdate": "Next update: {when}"
     },
     "adminMenu": {
-      "title": "Catalog",
-      "subtitle": "Workspace-owned items customers can order from your site.",
       "noTenant": "No active workspace.",
       "import": {
         "action": {
@@ -11896,7 +11894,6 @@
         "confirm": "Import {create} new, update {update}",
         "done": "Imported. {created} created, {updated} updated.",
         "nothingToDo": "This file matches what you already have. Nothing to import.",
-        "open": "Import a menu",
         "orphans": "{n} no longer in this file (nothing will be deleted)",
         "placeholder": "Paste the menu export (JSON)",
         "preview": "Preview",
@@ -12078,16 +12075,68 @@
       "timesInVenueZone": "Times are shown in this workspace's own time zone."
     },
     "discounts": {
-      "pageTitle": "Discounts",
-      "pageIntro": "Promo codes this workspace owns. Redemption is checked again under a lock at purchase.",
-      "unavailable": "We could not load discounts.",
-      "empty": "No codes yet.",
-      "colCode": "Code",
+      "pageTitle": "Promotions & discount limits",
+      "pageIntro": "Rules the POS applies and the limits it enforces per role",
+      "unavailable": "We could not load promotions.",
+      "empty": "No promotions yet.",
       "colValue": "Value",
       "colActive": "Active",
       "on": "On",
       "off": "Off",
-      "readOnly": "Only an owner can add or turn off a code."
+      "readOnly": "Only an owner can add or turn off a promotion.",
+      "newPromotion": "New promotion",
+      "usedIn": "Used in",
+      "usedPos": "POS",
+      "usedPosParts": "Counter, Appointments & Classes, Tickets & Admissions",
+      "usedWeb": "Web",
+      "usedWebParts": "Website checkout, Booking widget",
+      "colPromotion": "Promotion",
+      "colEligible": "Eligible",
+      "colStacking": "Stacking",
+      "colUses": "Uses",
+      "kindCode": "code",
+      "eligibleAll": "Whole workspace",
+      "eligibleEvent": "One event",
+      "perCustomer": "{n} per customer",
+      "stackingOne": "One code per sale",
+      "usesUnknown": "Not read",
+      "form": {
+        "code": "Code",
+        "label": "Label (optional)",
+        "kind": "Kind",
+        "percent": "Percent off",
+        "fixed": "Amount off ({currency})",
+        "value": "Value",
+        "add": "Add code",
+        "saving": "Saving",
+        "close": "Close",
+        "notAllowed": "Only an owner can add a promotion.",
+        "invalid": "Check the code (2 to 40 characters) and the value (1 to 100 for a percent).",
+        "unavailable": "The promotion was not saved; the code may already exist.",
+        "refused": "The promotion was not saved."
+      },
+      "limits": {
+        "title": "Manual discount limits by role",
+        "cashier": "Cashier",
+        "server": "Server",
+        "manager": "Manager",
+        "owner": "Owner",
+        "notSet": "Not set",
+        "rule": "Above the limit the POS asks for a manager PIN. Discounts never bypass a line marked “not discountable”.",
+        "reason": "Manual discounts and comps have no writer at the counter yet, so there is no limit to set.",
+        "edit": "Edit limits"
+      },
+      "stacking": {
+        "title": "Stacking order",
+        "intro": "Deterministic: eligibility → eligible lines → permitted combinations → allocation → fees/taxes → final quote",
+        "priceList": "Price list",
+        "codes": "Codes",
+        "manual": "Manual",
+        "member": "Member price",
+        "live": "Live",
+        "notWired": "This step has no engine yet.",
+        "today": "Today a sale carries one code; price lists, manual discounts and member prices are not applied."
+      }
     },
     "pos": {
       "pageTitle": "New sale",
@@ -14357,6 +14406,470 @@
           "onlinePayments": "online payments",
           "payoutDestination": "payout destination",
           "websitePublished": "a published website page"
+        }
+      }
+    },
+    "catalog": {
+      "loading": "Loading the catalog",
+      "saving": "Saving",
+      "saved": "Saved",
+      "dash": "—",
+      "untitled": "(untitled)",
+      "itemMissing": "That item is not in this catalog any more. The list below is current.",
+      "type": {
+        "product": "Product",
+        "service": "Service",
+        "package": "Package",
+        "custom": "Custom service"
+      },
+      "status": {
+        "published": "Published",
+        "draft": "Draft",
+        "incomplete": "Incomplete"
+      },
+      "channel": {
+        "website": "Website",
+        "posCounter": "POS Counter",
+        "none": "Not for sale yet"
+      },
+      "availability": {
+        "unlimited": "Unlimited",
+        "soldOut": "Sold out",
+        "stockPool": "Stock pool",
+        "stockLeft": "Stock pool · {n} left",
+        "title": "Availability mode",
+        "intro": "The pool the POS and the website both check before selling",
+        "mode": {
+          "unlimited": "Unlimited",
+          "unlimitedNote": "No count",
+          "stock": "Stock pool",
+          "stockNote": "One count for the workspace",
+          "batches": "Dated batches",
+          "batchesNote": "A count per date · e.g. 20 pizzas for Friday",
+          "session": "Session pool",
+          "sessionNote": "Places in a scheduled session"
+        },
+        "batchesReason": "Dated batches have no table yet; one stock pool per item today.",
+        "sessionReason": "Session places are set on the session under Appointments & Classes, not on the item.",
+        "availableNow": "Available now",
+        "availableHint": "Empty means unlimited; zero means sold out.",
+        "held": "{n} held by open orders",
+        "batch": {
+          "batch": "Batch",
+          "made": "Made",
+          "left": "Left",
+          "window": "Pickup window",
+          "release": "Release to kitchen"
+        },
+        "addBatch": "Add batch",
+        "repeatWeekly": "Repeat every week",
+        "lowStock": "Low-stock warning at",
+        "lowStockReason": "No threshold is recorded on an item yet.",
+        "whenSoldOut": "When sold out",
+        "whenSoldOutHint": "The engine's rule; it is not a setting.",
+        "soldOutRule": "Show “Sold out” · not sellable",
+        "leadTime": "Lead time",
+        "leadTimeReason": "No lead time is recorded on an item yet.",
+        "cancellation": "Cancellation",
+        "cancellationHint": "Hours before the booking when free cancellation ends; empty is flexible."
+      },
+      "preparation": {
+        "reason": "No station or preparation time is recorded on an item yet."
+      },
+      "usedIn": {
+        "label": "Used in",
+        "pos": "POS",
+        "web": "Web",
+        "posParts": "Counter, Appointments & Classes",
+        "webParts": "Website · shop & menu, Booking widget",
+        "rule": "one record, one stock, everywhere",
+        "itemPos": "Counter",
+        "itemWeb": "Website · menu & pickup",
+        "structureWeb": "Website menu page (collections)"
+      },
+      "list": {
+        "title": "Catalog",
+        "intro": "Everything the POS, the website and the profile can sell · one record per item",
+        "import": "Import",
+        "createItem": "Create item",
+        "empty": "Nothing in the catalog yet. Create an item or import a menu.",
+        "noMatch": "No item matches these filters."
+      },
+      "segment": {
+        "label": "Catalog sections",
+        "items": "Items",
+        "packages": "Packages",
+        "priceLists": "Price lists",
+        "promotions": "Promotions",
+        "passes": "Passes & cards"
+      },
+      "filter": {
+        "type": "Type",
+        "all": "all",
+        "any": "any",
+        "typeFixedByView": "This view lists packages only.",
+        "location": "Location",
+        "locationReason": "One catalog per workspace: items are not recorded per location yet.",
+        "channel": "Channel",
+        "incompleteOnly": "Incomplete only"
+      },
+      "col": {
+        "item": "Item",
+        "type": "Type",
+        "channels": "Channels",
+        "price": "Price",
+        "availability": "Availability",
+        "preparation": "Preparation",
+        "status": "Status"
+      },
+      "rowMenu": {
+        "label": "Item actions",
+        "open": "Open",
+        "publish": "Publish",
+        "unpublish": "Unpublish",
+        "duplicate": "Duplicate",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "delete": "Delete"
+      },
+      "create": {
+        "title": "What are you selling?",
+        "intro": "The type loads only the sections you need and decides which POS mode sells it",
+        "continue": "Continue",
+        "cancel": "Cancel",
+        "elsewhere": "This type is created in its own destination. Continue opens it there.",
+        "product": {
+          "title": "Product",
+          "note": "Retail, food or drink. Variants, options, stock or dated batches, pickup, preparation routing.",
+          "sold": "Sold in Counter · Tables · Table QR"
+        },
+        "service": {
+          "title": "Service (appointment)",
+          "note": "Duration and phases, eligible professionals, rooms/stations, deposit, intake.",
+          "sold": "Sold in Appointments & Classes"
+        },
+        "class": {
+          "title": "Class / course",
+          "note": "Template with capacity, equipment positions, sessions or a dated course.",
+          "sold": "Sold in Appointments & Classes"
+        },
+        "ticket": {
+          "title": "Ticket-linked offering",
+          "note": "Admission, table package or add-on tied to an event occurrence and its pools.",
+          "sold": "Sold in Tickets & Admissions"
+        },
+        "space": {
+          "title": "Space service",
+          "note": "Room, court, station or equipment hire by the hour; combinations and buffers.",
+          "sold": "Sold in Spaces & Resources"
+        },
+        "custom": {
+          "title": "Custom service (quote)",
+          "note": "Priced by offer; milestones and deliverables; collected as client work.",
+          "sold": "Sold in Projects · Field Services"
+        },
+        "package": {
+          "title": "Package",
+          "note": "Required and optional components with their own capacity, dates and allocation.",
+          "sold": "Sold in Counter · Spaces"
+        },
+        "pass": {
+          "title": "Pass or membership",
+          "note": "Credits or recurring eligibility; redeemed later, never books by itself.",
+          "sold": "Sold in Counter · Appointments & Classes"
+        },
+        "gift": {
+          "title": "Gift card",
+          "note": "Stored value; a liability until redeemed at Collect.",
+          "sold": "Sold in Counter"
+        }
+      },
+      "editor": {
+        "unsaved": "Not saved yet",
+        "draftChanges": "Draft changes",
+        "previewPos": "Preview on POS",
+        "previewReason": "The counter has no preview of one item yet; publish it and open the Counter.",
+        "saveDraft": "Save draft",
+        "publish": "Publish",
+        "draftHint": "Nothing is written until you save the draft or publish; a reload loses it."
+      },
+      "tab": {
+        "label": "Item sections",
+        "details": "Details",
+        "pricing": "Pricing",
+        "options": "Options",
+        "availability": "Availability",
+        "fulfillment": "Fulfillment",
+        "channels": "Channels",
+        "policies": "Policies"
+      },
+      "blocker": {
+        "title": "Give it a name.",
+        "price": "Set a price, or show it as a quote.",
+        "instantPrice": "Direct booking needs one exact price (zero is free).",
+        "depositPct": "Set the deposit between 1 and 99 percent.",
+        "identityReason": "Say why the buyer's name is needed.",
+        "currency": "Pick a currency."
+      },
+      "details": {
+        "title": "Details",
+        "intro": "The name and words the tile, the menu and the receipt carry",
+        "name": "Name",
+        "namePlaceholder": "e.g. Latte · 60-min massage · Private dinner",
+        "description": "Description",
+        "descriptionPlaceholder": "What is included, who it is for",
+        "type": "Type",
+        "typeHint": "A class, a ticket or a space is created in its own destination.",
+        "category": "Category",
+        "categoryHint": "Groups the Counter tiles and the menu page.",
+        "categoryPlaceholder": "e.g. Coffee, Bakery, Bodywork",
+        "duration": "Duration (min)",
+        "durationHint": "Services and classes; leave empty for a product.",
+        "photos": "Photos",
+        "photosReason": "Photos on a workspace item are not available yet; the gallery joins a talent profile."
+      },
+      "pricing": {
+        "baseTitle": "Base price",
+        "baseIntro": "Accepted prices are snapshotted on every sale; publishing never rewrites old receipts",
+        "price": "Price",
+        "soldBy": "Sold by",
+        "soldByHint": "Each · Hour · Day · Session · Person · Event",
+        "unit": {
+          "each": "Each",
+          "hour": "Per hour",
+          "halfDay": "Per half-day",
+          "day": "Per day",
+          "week": "Per week",
+          "session": "Per session",
+          "person": "Per person",
+          "event": "Per event"
+        },
+        "taxCategory": "Tax category",
+        "taxUnset": "Unknown · not configured",
+        "taxReason": "Tax categories are not read on this screen yet; the receipt shows tax as not configured.",
+        "cost": "Cost (optional)",
+        "costReason": "No column records a cost yet, so margin is not reported.",
+        "shownAs": "Shown as",
+        "shownAsHint": "A quote has no number and is never sold directly.",
+        "display": {
+          "exact": "Fixed price",
+          "from": "From (starting at)",
+          "quote": "Contact for price"
+        },
+        "currency": "Currency",
+        "listsTitle": "Price lists",
+        "listsIntro": "Per location and per rule; the POS uses the list for its location and time",
+        "defaultList": "Default",
+        "always": "Always",
+        "addRule": "Add price list rule",
+        "listsReason": "One price per item today: per-location and timed price lists have no table yet.",
+        "depositTitle": "Deposit / prepayment",
+        "depositIntro": "How a guest books this and what is collected up front",
+        "depositProducts": "Not applicable to products · set on services and reservations",
+        "howBooked": "How clients book",
+        "howBookedHint": "Direct booking reserves instantly; an inquiry is confirmed by you first.",
+        "instantNeedsPrice": "Direct booking needs one fixed price.",
+        "booking": {
+          "request": "Inquiry to book · you confirm first",
+          "instant": "Direct booking · reserved instantly"
+        },
+        "collectUpFront": "To reserve, clients pay",
+        "collectHint": "Only a direct booking collects up front.",
+        "reserve": {
+          "full": "Full amount",
+          "deposit": "A deposit",
+          "free": "Nothing · free reserve"
+        },
+        "depositPct": "Deposit (%)",
+        "holdDays": "Hold for (days)",
+        "holdDaysHint": "Then the hold is released on its own."
+      },
+      "options": {
+        "title": "Option groups",
+        "intro": "What the cashier or guest must or may choose; the POS refuses configurations that break these rules",
+        "saveFirst": "Save the item first, then add its options.",
+        "groupOptions": "Options",
+        "groupExtras": "Extras",
+        "required": "Required",
+        "optional": "Optional",
+        "pickOne": "Pick exactly 1",
+        "zeroToN": "0 to {n}",
+        "pricePerItem": "Price per item",
+        "basePrice": "base price",
+        "none": "No rows yet.",
+        "labelPlaceholder": "Name (e.g. Oat)",
+        "pricePlaceholder": "Price",
+        "priceOptional": "Price (optional)",
+        "addOption": "Add option",
+        "remove": "Remove",
+        "stationReason": "No station code is recorded on an option yet.",
+        "availabilityReason": "An option has no stock of its own yet; the item's pool applies.",
+        "addGroup": "Add group",
+        "copyGroups": "Copy groups from",
+        "groupsReason": "Two groups exist today (pick one, extras); free-form groups have no writer yet.",
+        "prepNotes": "Notes for preparation",
+        "allergy": "Allergy field",
+        "prepReason": "Preparation prompts are not recorded on an item yet."
+      },
+      "fulfillment": {
+        "title": "Fulfillment & preparation",
+        "intro": "How the item reaches the guest and which station makes it",
+        "reason": "Fulfillment, station, prep time and course are not recorded on an item yet; the counter hands over on payment.",
+        "fulfillment": "Fulfillment",
+        "fulfillmentHint": "Handoff now · Pickup · Delivery · Serve at table",
+        "handoffNow": "Handoff now",
+        "station": "Station",
+        "prepTime": "Prep time",
+        "course": "Default course (tables)"
+      },
+      "channels": {
+        "title": "Where it can be sold",
+        "intro": "Channel availability is not role authorization; the server applies the same rule on web, POS and QR",
+        "website": "Website · collections",
+        "websiteNote": "Menu page, pickup ordering",
+        "needsPublish": "Shown once the item is published",
+        "posCounter": "POS · Counter",
+        "counterOff": "Not for sale: the item is a draft",
+        "favorites": "Favorites",
+        "allItems": "All items",
+        "posTables": "POS · Tables",
+        "posTablesNote": "Section and course on the tables menu",
+        "tableQr": "Table QR (guest ordering)",
+        "tableQrNote": "Guests can order it themselves",
+        "profile": "Talent profile",
+        "profileNote": "A workspace item is not on a person's profile",
+        "privateLink": "Private link",
+        "privateLinkNote": "Unlisted URL for a campaign",
+        "priceOverride": "Price override",
+        "reason": "This channel has no flag on the item yet; the two that exist are the website and the counter.",
+        "overrideReason": "A per-channel price has no column yet; every channel sells the base price.",
+        "rule": "Turning a channel off never cancels sales already made through it."
+      },
+      "policies": {
+        "title": "Policies · accepted version is kept on every sale",
+        "intro": "What the sale asks of the buyer and what it allows afterwards",
+        "needsName": "Needs the buyer's name",
+        "needsNameNote": "Email or phone, whatever it costs; the only thing that makes a sale refuse for want of one",
+        "why": "Why",
+        "whyHint": "Only asked when the name is needed.",
+        "identity": {
+          "attendee_names": "Every attendee has to be named",
+          "delivery": "It has to be delivered to someone",
+          "entitlement": "It issues credit spent later"
+        },
+        "requireAccount": "Require an account to book",
+        "requireAccountNote": "A guest without an account is refused on the website",
+        "payInPerson": "Allow pay at the appointment",
+        "payInPersonNote": "Cash or in person; card stays the default",
+        "returns": "Returns",
+        "refundPolicy": "Refund policy",
+        "discounts": "Discounts",
+        "discountable": "Discountable",
+        "comp": "Comp allowed",
+        "reason": "No column records this policy on an item yet; the counter's refunds desk decides case by case."
+      },
+      "side": {
+        "counterTile": "Counter tile",
+        "optionsPill": "Options",
+        "exampleTotals": "Example totals",
+        "base": "Base",
+        "noExtras": "No extra yet",
+        "timesTwo": "× 2",
+        "tax": "Tax",
+        "taxUnset": "Not configured · not shown",
+        "beforePublish": "Before publish",
+        "readyToPublish": "Ready to publish",
+        "cashierSees": "Cashier sees",
+        "chooseOne": "Choose 1",
+        "upTo": "Up to {n}",
+        "noOptionsYet": "No options yet: the tile sells the base item.",
+        "noExtrasYet": "No extras yet.",
+        "perItemNote": "“Price per item” means 2 lattes with oat = 2 × (base + oat). Snapshotted on the line.",
+        "posBehaviour": "POS behaviour",
+        "soldOutOnCharge": "Sold out on charge",
+        "soldOutOnChargeValue": "Line refused · sale kept",
+        "cancelFlexible": "Flexible · returns to the pool",
+        "cancelHours": "Free until {n} h before",
+        "kitchen": "Kitchen",
+        "poolNote": "The pool is the truth: the counter holds a unit at collect and gives it back on cancel.",
+        "visibleOn": "Visible on",
+        "tablesMenu": "Tables menu",
+        "menu": "Menu",
+        "hidden": "Hidden",
+        "channelOffNote": "Turning a channel off never cancels sales already made through it.",
+        "onCounterTile": "On the Counter tile"
+      },
+      "structure": {
+        "title": "Menu structure",
+        "intro": "What the Counter tiles, the Tables menu and the Table QR show",
+        "oneLocation": "This workspace",
+        "save": "Save",
+        "saveReason": "Each change here is saved as you make it.",
+        "favorites": "Counter · Favorites (first screen)",
+        "nOfCap": "{n} of {cap}",
+        "noFavorites": "No favorites yet; the counter opens on all items.",
+        "pickItem": "Pick an item",
+        "addFavorite": "Add to favorites",
+        "removeFavorite": "Remove from favorites",
+        "categories": "Counter · Categories",
+        "uncategorised": "No category",
+        "nItems": "{n} items",
+        "categoriesHint": "A category is the item's own label; rename it on the item.",
+        "sections": "Tables & QR · sections → courses",
+        "sectionsReason": "Sections and courses for the tables menu have no table yet; the tables mode sells the same catalog.",
+        "qrOrdering": "Guests can order from the QR",
+        "qrOrderingNote": "Staff accept before dispatch",
+        "backToItems": "Back to items"
+      },
+      "priceLists": {
+        "title": "Price lists",
+        "intro": "Per location and per rule; the POS uses the list for its location and time",
+        "add": "Add price list",
+        "list": "List",
+        "when": "When"
+      },
+      "passes": {
+        "title": "Passes, memberships & gift cards",
+        "intro": "Products that create entitlements; redeemed later at the POS or at check-in",
+        "create": "Create",
+        "edit": "Edit",
+        "reason": "Selling passes needs a product decision.",
+        "notDecided": "Not decided",
+        "usedPos": "Counter, Appointments & Classes",
+        "usedWeb": "Website · shop, Member portal",
+        "pass": {
+          "title": "Class pass",
+          "kind": "Pass"
+        },
+        "membership": {
+          "title": "Monthly membership",
+          "kind": "Membership"
+        },
+        "gift": {
+          "title": "Gift card",
+          "kind": "Stored value"
+        },
+        "row": {
+          "price": "Price",
+          "credits": "Credits",
+          "eligible": "Eligible",
+          "activation": "Activation",
+          "expiry": "Expiry",
+          "consumed": "Consumed",
+          "cancellation": "Cancellation",
+          "transferable": "Transferable",
+          "billing": "Billing",
+          "gives": "Gives",
+          "pause": "Pause",
+          "cancel": "Cancel",
+          "renewalFails": "Renewal fails",
+          "eligibility": "Eligibility checked",
+          "amounts": "Amounts",
+          "valid": "Valid",
+          "use": "Use",
+          "partial": "Partial use",
+          "concurrent": "Concurrent use",
+          "reporting": "Reporting"
         }
       }
     }
