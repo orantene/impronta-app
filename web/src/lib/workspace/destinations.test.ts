@@ -264,6 +264,7 @@ test("every real admin route is either a destination or a declared deep page", (
     policy: "workspace policy pages, reached from Settings",
     print: "printable output, opened from Orders and Reservations",
     production: "legacy shell segment with no rail entry",
+    setup: "the first-run checklist (W55), reached from the Overview's setup readiness bar",
     "site-settings": "reached from Website",
     triage: "a focused queue, reached from Messages",
   };

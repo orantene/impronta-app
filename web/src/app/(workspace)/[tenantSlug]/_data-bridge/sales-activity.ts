@@ -31,6 +31,8 @@ export type SalesActivityRow = {
    * `database.types.ts`, so it is `null` here rather than a guessed value.
    */
   sourceChannel: string | null;
+  /** How many lines an order carries; `null` for every other kind (nothing counts them). */
+  lineCount: number | null;
 };
 
 export type SalesActivityLoad =
@@ -82,6 +84,7 @@ function mapOrder(tenantSlug: string, row: OrderListRow): SalesActivityRow {
     href: orderHref(tenantSlug, row.id),
     owed: isMoneyOwed(row),
     sourceChannel: row.sourceChannel,
+    lineCount: row.lineCount,
   };
 }
 
@@ -176,6 +179,7 @@ export async function loadWorkspaceSalesActivity(
       href: bookingHref(tenantSlug, row.id),
       owed: totalCents > 0 && row.payment_status !== "paid",
       sourceChannel: null,
+      lineCount: null,
     });
   }
 
@@ -200,6 +204,7 @@ export async function loadWorkspaceSalesActivity(
       href: `/${tenantSlug}/admin/tables`,
       owed: false,
       sourceChannel: null,
+      lineCount: null,
     });
   }
 
@@ -222,6 +227,7 @@ export async function loadWorkspaceSalesActivity(
       href: `/${tenantSlug}/admin/sessions`,
       owed: false,
       sourceChannel: null,
+      lineCount: null,
     });
   }
 

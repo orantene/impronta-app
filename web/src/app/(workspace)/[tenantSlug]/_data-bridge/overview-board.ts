@@ -18,7 +18,9 @@
  *                     unconfirmed bookings today, ranked by consequence.
  *   Today             the same rows the Front desk, Reservations and Tables
  *                     screens read, three tabs.
- *   Setup readiness   six facts read off the workspace row and its catalog.
+ *   Setup readiness   eight facts read off the workspace row, its catalog,
+ *                     its people and its pages (`setup-checklist.ts`, the
+ *                     same reader the first-run page W55 draws).
  *
  * EVERY READER FAILS ON ITS OWN. A card whose reader failed says so (`ok:
  * false`); the others still show. An Overview that read 0 collected because
@@ -34,7 +36,6 @@ import { listFloor, type FloorTable } from "@/lib/visits/floor";
 import { listBoard } from "@/lib/preparation/tickets";
 import { bucketOf, outstandingCents } from "@/lib/orders/orders-list";
 import { groupTakingsByMethod, sumOwedByCurrency } from "@/lib/payments/activity-shape";
-import { computeProviderStatuses, readProviderStatusEnv } from "@/lib/payments/provider-status";
 import {
   NEEDS_YOU_RANK,
   sortNeedsYou,
@@ -46,7 +47,6 @@ import {
   type OverviewOrders,
   type OverviewSnapshot,
   type OverviewToday,
-  type SetupItem,
   type TodayBadge,
   type TodayRow,
 } from "@/lib/overview/model";
@@ -55,15 +55,9 @@ import type { ExceptionRow } from "@/lib/exceptions/model";
 import { loadHostStand, type HostStandState } from "../admin/reservations/host-stand-data";
 import { loadTenantOwedOrders, loadTenantTakings } from "./payments-activity";
 import { loadWorkspaceOrders } from "./orders";
+import { loadSetupItems, readAgencySetupRow } from "./setup-checklist";
 
 const DEFAULT_ZONE = "UTC";
-
-type AgencyRow = {
-  timezone: string | null;
-  takes_reservations: boolean | null;
-  stripe_account_id: string | null;
-  stripe_payouts_enabled: boolean | null;
-};
 
 /** HH:MM on the venue's clock. */
 function clock(iso: string | Date, timeZone: string): string {
@@ -91,21 +85,6 @@ function money(currency: string, cents: number): string {
   } catch {
     return `${(cents / 100).toFixed(2)} ${currency}`;
   }
-}
-
-async function readAgency(tenantId: string): Promise<AgencyRow | null> {
-  const admin = createServiceRoleClient();
-  if (!admin) return null;
-  const { data, error } = await admin
-    .from("agencies")
-    .select("timezone, takes_reservations, stripe_account_id, stripe_payouts_enabled")
-    .eq("id", tenantId)
-    .maybeSingle();
-  if (error) {
-    logServerError("overview.agency", error);
-    return null;
-  }
-  return (data as AgencyRow | null) ?? null;
 }
 
 async function readMoney(
@@ -406,50 +385,6 @@ function buildNeedsYou(input: {
   return sortNeedsYou(rows);
 }
 
-async function readSetup(tenantId: string, agency: AgencyRow | null): Promise<SetupItem[]> {
-  const admin = createServiceRoleClient();
-  const providers = computeProviderStatuses(readProviderStatusEnv());
-  const online = providers.some((p) => p.id !== "cash" && p.configured);
-  let catalogItem = false;
-  let bookableHours = false;
-  let websitePublished = false;
-  if (admin) {
-    const [items, hours, pages] = await Promise.all([
-      admin
-        .from("talent_offerings")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("owner_kind", "workspace"),
-      admin
-        .from("talent_booking_hours")
-        .select("talent_profile_id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId),
-      admin
-        .from("cms_pages")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("status", "published"),
-    ]);
-    if (items.error) logServerError("overview.setup.catalog", items.error);
-    if (hours.error) logServerError("overview.setup.hours", hours.error);
-    if (pages.error) logServerError("overview.setup.pages", pages.error);
-    catalogItem = (items.count ?? 0) > 0;
-    bookableHours = (hours.count ?? 0) > 0;
-    websitePublished = (pages.count ?? 0) > 0;
-  }
-  return [
-    { key: "timeZone", done: Boolean(agency?.timezone) },
-    { key: "catalogItem", done: catalogItem },
-    { key: "bookableHours", done: bookableHours },
-    { key: "onlinePayments", done: online },
-    {
-      key: "payoutDestination",
-      done: Boolean(agency?.stripe_account_id) && agency?.stripe_payouts_enabled === true,
-    },
-    { key: "websitePublished", done: websitePublished },
-  ];
-}
-
 export async function loadOverviewSnapshot(input: {
   tenantId: string;
   tenantSlug: string;
@@ -459,7 +394,7 @@ export async function loadOverviewSnapshot(input: {
   const now = input.now ?? new Date();
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const agency = await readAgency(input.tenantId);
+  const agency = await readAgencySetupRow(input.tenantId);
   const timeZone = agency?.timezone?.trim() || DEFAULT_ZONE;
   const window = venueDayWindow(now, timeZone, 0) ?? venueDayWindow(now, DEFAULT_ZONE, 0);
   if (!window) return null;
@@ -541,6 +476,6 @@ export async function loadOverviewSnapshot(input: {
       adminBase: input.adminBase,
     }),
     today,
-    setup: await readSetup(input.tenantId, agency),
+    setup: await loadSetupItems(input.tenantId, agency),
   };
 }

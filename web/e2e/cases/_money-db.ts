@@ -56,7 +56,10 @@ type RawOrder = {
   created_at: string;
 };
 
-const PAGE = 500;
+// 500 ids in one `in()` is an 18 KB request line, which the dev server refuses
+// (undici answers "fetch failed", deterministically, once the fixture has grown
+// past that many orders). 100 ids is under 4 KB and the same rows.
+const PAGE = 100;
 
 async function toFacts(rows: RawOrder[]): Promise<OrderFact[]> {
   const collected = new Map<string, number>();
