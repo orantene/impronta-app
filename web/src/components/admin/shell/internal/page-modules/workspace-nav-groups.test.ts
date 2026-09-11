@@ -151,10 +151,10 @@ test("an unbuilt destination is not a row, even though its URL resolves", () => 
 // went from "Menu" to "Catalog". They start at a bridge payload and end at a
 // drawn label; nothing in them names a preset shape by hand.
 
-test("a cafe tenant's rail says Menu and catalog, and Team", () => {
+test("a cafe tenant's rail says Menu & catalog, and Team", () => {
   // `restaurant` sells a menu and books nobody — the cafe shape.
   const cafe = railFor({ industryPreset: "restaurant" });
-  assert.equal(labelOf(cafe, "catalog"), "Menu and catalog");
+  assert.equal(labelOf(cafe, "catalog"), "Menu & catalog");
   assert.equal(labelOf(cafe, "people"), "Team");
 });
 

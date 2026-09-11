@@ -735,11 +735,6 @@
       "count": 34
     }
   },
-  "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 1
-    }
-  },
   "src/components/admin/shell/internal/page-modules/WorkspaceTopbar.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 23
@@ -1648,11 +1643,6 @@
   "src/lib/server-actions/alternate-domain.ts": {
     "ratchet/no-untenanted-from": {
       "count": 6
-    }
-  },
-  "src/lib/server-actions/bank-link.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 1
     }
   },
   "src/lib/server-actions/cancel-subscription.ts": {

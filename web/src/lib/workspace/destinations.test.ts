@@ -405,7 +405,7 @@ test("the mobile tabs are the top priorities, and never POS", () => {
 // ── Labels ───────────────────────────────────────────────────────────
 
 test("the label follows the preset", () => {
-  assert.equal(destinationLabel(DESTINATIONS.catalog, "cafe"), "Menu and catalog");
+  assert.equal(destinationLabel(DESTINATIONS.catalog, "cafe"), "Menu & catalog");
   assert.equal(destinationLabel(DESTINATIONS.catalog, "solo"), "Services");
   assert.equal(destinationLabel(DESTINATIONS.catalog, "hybrid"), "Catalog");
   assert.equal(destinationLabel(DESTINATIONS.people, "cafe"), "Team");

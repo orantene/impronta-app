@@ -65,8 +65,12 @@ export function useWorkspaceNav(): WorkspaceNavResult {
     effectiveTeamMembers,
     bridgeSessionIdentity,
     bridgeTenantIdentity,
+    overviewMetrics,
   } = useAdminShell();
   const peopleCounts = usePeopleCounts();
+  // The Issues count the board draws on its row: the exceptions queue's
+  // total, read with the overview metrics. `null` (unreadable) draws nothing.
+  const issuesOpen = overviewMetrics?.issuesOpenCount ?? 0;
   const websiteSubnav = useWebsiteSubnav();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -132,6 +136,7 @@ export function useWorkspaceNav(): WorkspaceNavResult {
         search,
         badges: {
           messages: { count: totalUnread, tone: "brand" },
+          issues: { count: issuesOpen, tone: "amber" },
           people: { count: peopleCounts.row, tone: "amber" },
         },
         // The pending count the parent badge advertises, on the child that
@@ -147,6 +152,7 @@ export function useWorkspaceNav(): WorkspaceNavResult {
       pathname,
       search,
       totalUnread,
+      issuesOpen,
       peopleCounts,
       websiteSubItems,
     ],

@@ -316,7 +316,7 @@ function BellIcon() {
  * QuickCreateMenu and the mobile FloatingFab popup so the choices stay
  * in sync. Each item is gated by role + plan.
  */
-type QuickCreateItem = {
+export type QuickCreateItem = {
   id: string;
   label: string;
   sub: string;
@@ -326,7 +326,7 @@ type QuickCreateItem = {
   shortcut: string;
   canDo: boolean;
 };
-function useQuickCreateItems(): QuickCreateItem[] {
+export function useQuickCreateItems(): QuickCreateItem[] {
   const { state } = useAdminShell();
   return [
     {

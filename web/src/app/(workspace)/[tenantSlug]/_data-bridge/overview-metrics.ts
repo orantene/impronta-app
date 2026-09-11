@@ -1,6 +1,8 @@
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { loadExceptions } from "@/lib/exceptions/read";
 import { logServerError } from "@/lib/server/safe-error";
 import { guardedQuery } from "@/lib/server/guarded-query";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
@@ -94,7 +96,31 @@ export type WorkspaceOverviewMetrics = {
     confirmedYtdCents: number;
     confirmedCount: number;
   }> | null;
+  /**
+   * Open exceptions (the Issues queue: refunds owed, ticket shortfalls, failed
+   * effects, uncertain card collections, dead jobs, stale claims), for the
+   * rail's Issues count. `null` when the queue could not be read at all; a
+   * number with some sources unavailable is a lower bound, which the Issues
+   * page itself says out loud.
+   */
+  issuesOpenCount: number | null;
 };
+
+/** `null` = the queue could not be read; see `issuesOpenCount`. */
+async function countOpenExceptions(tenantId: string): Promise<number | null> {
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return null;
+    // Hrefs are not read from a count, so the slug the reader wants for them
+    // can be empty here.
+    const load = await loadExceptions(admin, { tenantId, tenantSlug: "" });
+    if (load.rows.length === 0 && load.unavailable.length > 0) return null;
+    return load.summary.total;
+  } catch (err) {
+    logServerError("workspace.loadOverviewMetrics.issues", err);
+    return null;
+  }
+}
 
 export async function loadWorkspaceOverviewMetrics(
   tenantId: string,
@@ -103,7 +129,7 @@ export async function loadWorkspaceOverviewMetrics(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
 
-    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes, nextBookingRes, viewsRes, financialKpisRes, unassignedRes, agencyActionRes, readyToBookRes] = await Promise.all([
+    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes, nextBookingRes, viewsRes, financialKpisRes, unassignedRes, agencyActionRes, readyToBookRes, issuesOpenCount] = await Promise.all([
       // Roster: total + published count
       supabase
         .from("agency_talent_roster")
@@ -219,6 +245,10 @@ export async function loadWorkspaceOverviewMetrics(
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
         .eq("status", "approved"),
+      // The Issues queue, counted for the rail. Reads with the service role
+      // like the Issues page itself: three of its six sources are engine
+      // tables no membership policy grants a person.
+      countOpenExceptions(tenantId),
     ]);
 
     if (rosterRes.error) {
@@ -284,6 +314,7 @@ export async function loadWorkspaceOverviewMetrics(
       confirmedBookingCount: financialKpisRes?.confirmedBookingCount ?? null,
       kpiCurrency: financialKpisRes?.currency ?? null,
       offCurrencySubtotals: financialKpisRes?.offCurrencySubtotals ?? null,
+      issuesOpenCount,
     };
   } catch (err) {
     logServerError("workspace.loadOverviewMetrics", err);

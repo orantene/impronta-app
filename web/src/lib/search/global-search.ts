@@ -50,11 +50,17 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
     // literal % or _ doesn't widen the match.
     const pattern = `%${escapeLike(q)}%`;
 
-    const [inquiries, bookings, messages, talent] = await Promise.all([
+    const [inquiries, bookings, messages, talent, clients, sales, catalog] = await Promise.all([
       searchInquiries(supabase, pattern),
       searchBookings(supabase, pattern),
       searchMessages(supabase, pattern),
       searchTalent(supabase, pattern),
+      // The three record kinds the workspace search board (W53) groups that
+      // the palette never had: Clients, Sales and Catalog. Admin-only hrefs;
+      // RLS scopes the rows exactly as it does the four above.
+      surface === "admin" ? searchClients(supabase, pattern) : Promise.resolve([]),
+      surface === "admin" ? searchSales(supabase, pattern) : Promise.resolve([]),
+      surface === "admin" ? searchCatalog(supabase, pattern) : Promise.resolve([]),
     ]);
 
     // Resolve all tenant slugs in one batch (RLS already limited rows to ones
@@ -63,6 +69,9 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
     for (const r of inquiries) if (r.tenant_id) tenantIds.add(r.tenant_id);
     for (const r of bookings) if (r.tenant_id) tenantIds.add(r.tenant_id);
     for (const r of messages) if (r.tenant_id) tenantIds.add(r.tenant_id);
+    for (const r of clients) tenantIds.add(r.tenant_id);
+    for (const r of sales) tenantIds.add(r.tenant_id);
+    for (const r of catalog) if (r.tenant_id) tenantIds.add(r.tenant_id);
     const slugByTenant = await loadTenantSlugs(supabase, Array.from(tenantIds));
 
     const out: SearchResult[] = [];
@@ -117,9 +126,116 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       });
     }
 
-    return out.slice(0, MAX_RESULTS);
+    for (const r of clients) {
+      const slug = slugByTenant.get(r.tenant_id);
+      if (!slug) continue;
+      out.push({
+        kind: "client",
+        id: r.id,
+        title: r.display_name || r.email || "Client",
+        snippet: r.display_name ? snippet(r.email ?? "") : "",
+        href: `/${slug}/admin/clients/${encodeURIComponent(r.id)}`,
+      });
+    }
+
+    for (const r of sales) {
+      const slug = slugByTenant.get(r.tenant_id);
+      if (!slug) continue;
+      out.push({
+        kind: "sale",
+        id: r.id,
+        title: `${r.receipt_code ? `#${r.receipt_code}` : r.id.slice(0, 8)} · ${formatCents(r.total_cents, r.currency)}`,
+        snippet: `${r.status}`,
+        href: `/${slug}/admin/orders?q=${encodeURIComponent(r.id)}`,
+      });
+    }
+
+    for (const r of catalog) {
+      const slug = r.tenant_id ? slugByTenant.get(r.tenant_id) : undefined;
+      if (!slug) continue;
+      out.push({
+        kind: "catalog",
+        id: r.id,
+        title: r.title,
+        snippet: r.price_display ?? "",
+        href: `/${slug}/admin/menu`,
+      });
+    }
+
+    return out.slice(0, MAX_RESULTS + 12);
   } catch (err) {
     logServerError("search.global", err);
+    return [];
+  }
+}
+
+function formatCents(cents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(
+      cents / 100,
+    );
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency}`;
+  }
+}
+
+type ClientRow = { id: string; tenant_id: string; display_name: string | null; email: string | null };
+
+async function searchClients(supabase: Sb, pattern: string): Promise<ClientRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id, tenant_id, display_name, email")
+      .is("merged_into_id", null)
+      .or(`display_name.ilike.${pattern},email.ilike.${pattern}`)
+      .order("last_seen_at", { ascending: false, nullsFirst: false })
+      .limit(PER_KIND_LIMIT);
+    if (error) return [];
+    return (data ?? []) as ClientRow[];
+  } catch {
+    return [];
+  }
+}
+
+type SaleRow = {
+  id: string;
+  tenant_id: string;
+  receipt_code: string | null;
+  status: string;
+  total_cents: number;
+  currency: string;
+};
+
+/** Orders by receipt code — the one number a person reads off a receipt. */
+async function searchSales(supabase: Sb, pattern: string): Promise<SaleRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("id, tenant_id, receipt_code, status, total_cents, currency")
+      .ilike("receipt_code", pattern)
+      .order("created_at", { ascending: false })
+      .limit(PER_KIND_LIMIT);
+    if (error) return [];
+    return (data ?? []) as SaleRow[];
+  } catch {
+    return [];
+  }
+}
+
+type CatalogRow = { id: string; tenant_id: string | null; title: string; price_display: string | null };
+
+async function searchCatalog(supabase: Sb, pattern: string): Promise<CatalogRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from("talent_offerings")
+      .select("id, tenant_id, title, price_display")
+      .eq("owner_kind", "workspace")
+      .ilike("title", pattern)
+      .order("updated_at", { ascending: false })
+      .limit(PER_KIND_LIMIT);
+    if (error) return [];
+    return (data ?? []) as CatalogRow[];
+  } catch {
     return [];
   }
 }
