@@ -1,0 +1,2 @@
+[waitlist-offer-race] fresh=1 already=1 a={"ok":true,"offer_id":"d3ffec71-9bff-4571-8155-85bdb3d57b5a","allocation_id":"05f3c778-1315-4f1d-a2da-41d60d675441"} b={"ok":true,"already":true,"offer_id":"d3ffec71-9bff-4571-8155-85bdb3d57b5a","allocation_id":"05f3c778-1315-4f1d-a2da-41d60d675441"}
+EXIT_CODE=0
