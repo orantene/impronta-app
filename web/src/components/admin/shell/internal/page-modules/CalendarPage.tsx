@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
-import { pinNextConversation as pinNextConversationP } from "../messages";
+import { pinNextConversation as pinNextConversationP } from "../messages/conversation-pending";
 import { SecondaryButton, StatusStrip } from "../primitives";
 import { COLORS, FONTS, RICH_INQUIRIES, TRANSITION, useAdminShell } from "../state";
 import { parseInquiryDays } from "./InboxPage";

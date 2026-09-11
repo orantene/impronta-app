@@ -19,7 +19,7 @@
  * unhide reuse the EXISTING adminHideReviewAction — hide collects a reason code
  * (recorded on the immutable audit trail); unhide needs none.
  *
- * Tokens come from the drawer's "../../drawer-shared" (COLORS / FONTS / RADIUS),
+ * Tokens come from the shell state (COLORS / FONTS / RADIUS),
  * so it drops into any admin drawer/section and matches the drawer aesthetic.
  *
  * MOUNTING — there is no wired review-moderation admin surface yet, though the
@@ -54,7 +54,11 @@ import type {
   ReportedReview,
 } from "@/lib/reviews/review-moderation-loaders";
 import { StaticStars } from "@/components/reviews/star-rating";
-import { COLORS, FONTS, RADIUS, useDashboardText } from "../../drawer-shared";
+// From the leaves, not `../../drawer-shared`: that hub re-exports the whole
+// drawer graph, and this queue also renders inside the Reviews PAGE, which
+// would otherwise carry every drawer body for four tokens and one hook.
+import { COLORS, FONTS, RADIUS } from "../../../state";
+import { useDashboardText } from "../../../dashboard-i18n";
 
 /**
  * Fixed reason-code set for HIDING a flagged review. Kept in sync with the

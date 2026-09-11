@@ -18,8 +18,8 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { COLORS, FONTS, useAdminShell, RICH_INQUIRIES } from "./state";
-import { MOCK_CONVERSATIONS } from "./talent";
-import { ageLabel } from "./messages";
+import { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
+import { ageLabel } from "./messages/messages-shared";
 import { useDashboardText } from "./dashboard-i18n";
 import type { UserNotification } from "./data-bridge";
 import {
