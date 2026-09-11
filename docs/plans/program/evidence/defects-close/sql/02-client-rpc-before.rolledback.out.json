@@ -1,0 +1,3 @@
+{"captured": "2026-09-11T02:2xZ before 20260911022138 was applied; the same script as 02-client-rpc-after (repro-before.sql: set request.jwt.claim.sub = b8e341cc-b1c8-44c3-a676-af72a937dbbf, set local role authenticated, select public.complete_client_onboarding(), reset role, read the row, rollback)",
+ "rpc_result": "complete_client_onboarding returned void (success)",
+ "row_after_rpc": {"id": "b8e341cc-b1c8-44c3-a676-af72a937dbbf", "app_role": "client", "account_status": "onboarding", "onboarding_completed_at": null, "client_profile_rows": "1"}}

@@ -1,0 +1,5 @@
+GET http://localhost:3161/api/dev/signin?email=defects-close-1789095860980%40impronta.test&next=%2Fonboarding%2Frole 307
+GET http://localhost:3161/onboarding/role 200
+POST http://localhost:3161/onboarding/role 303
+GET http://localhost:3161/onboarding/role 307
+GET http://localhost:3161/client 200

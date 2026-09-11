@@ -1,0 +1,14 @@
+
+> web@0.1.0 journeys:repair
+> JOURNEYS_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/repair-journeys-isolated.mjs 20260906030451_product_features_localized_labels.sql 20260907003312_plan_names_that_fit_every_industry.sql 20261229000801_ticket_refund_intents_revoke_anon.sql 20261229000802_ticket_refund_intents_authenticated_select_only.sql
+
+
+[repair] isolated target fxlankepwnvelxjrahwk
+
+  OK    20260906030451_product_features_localized_labels.sql
+  OK    20260907003312_plan_names_that_fit_every_industry.sql
+  OK    20261229000801_ticket_refund_intents_revoke_anon.sql
+  OK    20261229000802_ticket_refund_intents_authenticated_select_only.sql
+
+[repair] done. Now run probe-journeys-isolated.mjs — the ledger is not evidence.
+

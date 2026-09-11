@@ -1,0 +1,17 @@
+NOTICE: T3.3: System A field tables absent; nothing to archive
+NOTICE: function public.reconcile_field_mirror_drift() does not exist, skipping
+NOTICE: table "field_values" does not exist, skipping
+NOTICE: table "field_definitions" does not exist, skipping
+NOTICE: table "field_definitions_archived_20260611" does not exist, skipping
+NOTICE: table "field_values_archived_20260611" does not exist, skipping
+SET 
+BEGIN 
+DO 
+CREATE 
+CREATE 
+DROP 
+DROP 
+DROP 
+DROP 
+DROP 
+ROLLBACK 

@@ -1,0 +1,29 @@
+[
+ {
+  "version": "20260911022138"
+ }
+]
+[
+ {
+  "proname": "onboarding_transition_begin",
+  "proacl": "{postgres=X/postgres,service_role=X/postgres}"
+ },
+ {
+  "proname": "onboarding_transition_end",
+  "proacl": "{postgres=X/postgres,service_role=X/postgres}"
+ }
+]
+[
+ {
+  "guard_has_flag": true,
+  "cco": true,
+  "cto": true,
+  "ctowl": true,
+  "epcu": true
+ }
+]
+[
+ {
+  "tgname": "profiles_self_update_guard"
+ }
+]

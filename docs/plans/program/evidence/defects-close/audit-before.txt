@@ -1,0 +1,80 @@
+
+> web@0.1.0 journeys:audit
+> JOURNEYS_ISOLATED=1 node --env-file=.env.capacity-isolated.local scripts/audit-journeys-schema.mjs
+
+
+[audit] isolated target fxlankepwnvelxjrahwk  (read-only session)
+[audit] parsed 800 migrations: expecting 320 relations, 348 functions, 694 added columns
+
+NO MIGRATION CREATES THESE — 54 object(s) that production has (per database.types.ts) and this repo cannot rebuild:
+
+      column   public._archive_deprecated_field_defs_20260615.field_group_id
+      column   public._archive_deprecated_field_defs_20260615.show_in_directory_card
+      column   public._archive_deprecated_field_defs_20260615.show_in_directory_filter
+      column   public._archive_deprecated_field_defs_20260615.show_in_public_profile_sidebar
+      column   public._archive_deprecated_field_defs_20260615.show_when
+      column   public._archive_deprecated_field_defs_20260615.validation_rules
+      column   public._archive_deprecated_field_recs_20260615.is_admin_only
+      column   public._archive_deprecated_field_recs_20260615.required_at_registration
+      column   public._archive_deprecated_field_recs_20260615.required_before_publish
+      column   public._archive_deprecated_field_recs_20260615.required_before_verification
+      column   public._archive_deprecated_field_recs_20260615.requires_verification
+      column   public._archive_deprecated_field_settings_20260615.show_in_directory_card_override
+      column   public._archive_deprecated_field_settings_20260615.show_in_directory_filter_override
+      column   public._archive_deprecated_field_settings_20260615.show_in_public_profile_sidebar_override
+      table    public._backfill_is_primary_20260805
+      table    public._impronta_pages_backup_20260817
+      column   public.cms_navigation_items.pin_in_menu
+      column   public.cms_navigation_items.show_in_sticky_top_nav
+      column   public.engine_audit_log.after_value
+      column   public.engine_audit_log.before_value
+      column   public.engine_audit_log.operation
+      column   public.engine_audit_log.subject_id
+      column   public.engine_audit_log.subject_key
+      column   public.engine_audit_log.subject_kind
+      column   public.platform_settings.default_component_styles
+      column   public.platform_settings.default_theme_preset_slug
+      column   public.platform_settings.default_theme_tokens
+      column   public.platform_settings.default_theme_updated_at
+      column   public.platform_settings.default_theme_updated_by
+      column   public.saas_marketing_signups.recovery_email_sent_at
+      column   public.talent_profiles.subscription_template
+      table    public.talent_type_field_groups
+      column   public.talent_discover_index.agency_name
+      column   public.talent_discover_index.agency_plan_tier
+      column   public.talent_discover_index.agency_tenant_id
+      column   public.talent_discover_index.availability_dots_14d
+      column   public.talent_discover_index.available_days_in_next_30
+      column   public.talent_discover_index.category_label
+      column   public.talent_discover_index.category_slug
+      column   public.talent_discover_index.display_name
+      column   public.talent_discover_index.first_name
+      column   public.talent_discover_index.home_city_text
+      column   public.talent_discover_index.home_country_text
+      column   public.talent_discover_index.id
+      column   public.talent_discover_index.index_refreshed_at
+      column   public.talent_discover_index.is_exclusive
+      column   public.talent_discover_index.last_name
+      column   public.talent_discover_index.next_available_date
+      column   public.talent_discover_index.profile_code
+      column   public.talent_discover_index.rating_avg
+      column   public.talent_discover_index.rating_count
+      column   public.talent_discover_index.residence_city_id
+      column   public.talent_discover_index.trust_tier
+      column   public.talent_discover_index.would_book_again_pct
+
+  These are repo defects, not isolated-branch drift: a fresh database built from
+  supabase/migrations/ will not have them, so any code path that reads one fails
+  everywhere except the project where the DDL was applied by hand.
+
+MISSING — 2 object(s) across 1 migration(s)
+
+  20261021000000_drop_system_a_field_tables.sql
+      table    public.field_definitions_archived_20260611
+      table    public.field_values_archived_20260611
+
+[audit] replay them with:
+  npm run journeys:repair -- $(npm run --silent journeys:audit -- --list | tr '\n' ' ')
+
+[audit] Isolated branch only. Never re-apply to production.
+

@@ -1,0 +1,41 @@
+[
+ {
+  "version": "20260906030451",
+  "name": "product_features_localized_labels"
+ },
+ {
+  "version": "20260907003312",
+  "name": "plan_names_that_fit_every_industry"
+ },
+ {
+  "version": "20260911022138",
+  "name": "onboarding_rpcs_pass_profile_self_update_guard"
+ },
+ {
+  "version": "20261229000801",
+  "name": "ticket_refund_intents_revoke_anon"
+ },
+ {
+  "version": "20261229000802",
+  "name": "ticket_refund_intents_authenticated_select_only"
+ }
+]
+[
+ {
+  "grantee": "authenticated",
+  "privs": "SELECT"
+ },
+ {
+  "grantee": "postgres",
+  "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+ },
+ {
+  "grantee": "service_role",
+  "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+ }
+]
+[
+ {
+  "tiers": "0"
+ }
+]

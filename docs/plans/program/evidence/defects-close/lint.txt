@@ -1,0 +1,5 @@
+
+> web@0.1.0 lint
+> bash scripts/gate-queue.sh lint 1 -- node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --quiet --suppressions-location eslint-suppressions.json
+
+lint-exit=0

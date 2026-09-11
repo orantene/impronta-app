@@ -1,0 +1,23 @@
+BEGIN 
+[
+ {
+  "set_config": "b8e341cc-b1c8-44c3-a676-af72a937dbbf"
+ }
+]
+SET 
+[
+ {
+  "complete_client_onboarding": ""
+ }
+]
+RESET 
+[
+ {
+  "id": "b8e341cc-b1c8-44c3-a676-af72a937dbbf",
+  "app_role": "client",
+  "account_status": "active",
+  "onboarding_completed_at": "2026-09-11T02:24:31.227Z",
+  "client_profile_rows": "1"
+ }
+]
+ROLLBACK 
