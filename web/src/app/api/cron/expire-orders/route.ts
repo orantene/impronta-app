@@ -31,6 +31,7 @@ import { recoverUnresolvedCollections } from "@/lib/pos/recover-collections";
 import { reapPaymentLinks } from "@/lib/payments/links";
 import { reapWaitlistOffers } from "@/lib/scheduling/waitlist-offers";
 import { reapPartyWaitlist } from "@/lib/venues/party-waitlist";
+import { reapAdmissionHolds } from "@/lib/venues/event-holds";
 import { recordCronHeartbeat } from "@/lib/ops/cron-heartbeat";
 
 export const runtime = "nodejs";
@@ -59,16 +60,19 @@ export async function GET(request: Request) {
     const links = await reapPaymentLinks(admin);
     const offers = await reapWaitlistOffers(admin);
     const parties = await reapPartyWaitlist(admin);
+    const holds = await reapAdmissionHolds(admin);
     const reservationsReleased = reaped.ok ? reaped.released : 0;
     const paymentLinksExpired = links.ok ? links.expired : 0;
     const waitlistOffersReleased = offers.ok ? offers.released : 0;
     const partyWaitlistExpired = parties.ok ? parties.expired : 0;
+    const admissionHoldsReleased = holds.ok ? holds.released : 0;
     void improntaLog("orders.cron.expire_orders", {
       ...result,
       reservationsReleased,
       paymentLinksExpired,
       waitlistOffersReleased,
       partyWaitlistExpired,
+      admissionHoldsReleased,
       // FLAT, because the log's fields are scalars. A nested summary would
       // serialise as "[object Object]" and the four numbers that say whether a
       // customer was charged twice would be unreadable in the one place an
@@ -88,6 +92,7 @@ export async function GET(request: Request) {
         + `payment_links_expired=${paymentLinksExpired} `
         + `waitlist_offers_released=${waitlistOffersReleased} `
         + `party_waitlist_expired=${partyWaitlistExpired} `
+        + `admission_holds_released=${admissionHoldsReleased} `
         + `recovery_claimed=${recovered.claimed} recovery_settled=${recovered.settled} `
         + `recovery_released=${recovered.released} recovery_stuck=${recovered.stuck}`,
     });

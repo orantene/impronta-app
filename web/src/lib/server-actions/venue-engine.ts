@@ -31,6 +31,21 @@ import {
   guestVisitSubstituteAccept as acceptGuestSubstitute,
   posLineOfferSubstitute as offerLineSubstitute,
 } from "@/lib/visits/guest-order";
+import {
+  admissionComp as compAdmission,
+  admissionDeliver as deliverAdmission,
+  admissionExchange as exchangeAdmission,
+  admissionHoldSeats as holdAdmissionSeats,
+  eventSeatMapUpsert as upsertEventSeatMap,
+  eventSeriesUpsert as upsertEventSeries,
+} from "@/lib/venues/event-holds";
+import { ticketLookup as lookupTicket, ticketResend as resendTicket, ticketTransfer as transferTicket } from "@/lib/venues/ticket-self";
+import {
+  posDeviceHeartbeat as heartbeatDevice,
+  posDeviceRegister as registerDevice,
+  posDeviceUpdate as updateDevice,
+  posOutboxApply as applyOutbox,
+} from "@/lib/venues/pos-devices";
 
 const uuid = z.string().uuid();
 const slug = z.string().trim().min(1).max(63);
@@ -351,17 +366,9 @@ export async function guestVisitPayShare(input: {
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
   const proto = hdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
-  const { data: visit } = await g.admin
-    .from("visits")
-    .select("opened_by")
-    .eq("public_token", parsed.data.token)
-    .eq("tenant_id", g.tenantId)
-    .maybeSingle();
-  const actorUserId = String((visit as { opened_by?: string } | null)?.opened_by ?? "");
-  if (!actorUserId) return { ok: false as const, reason: "unavailable" as const };
   return payGuestShare(g.admin, {
     tenantId: g.tenantId,
-    actorUserId,
+    actorUserId: "",
     publicOrigin: host ? `${proto}://${host}` : "",
     ...parsed.data,
   });
@@ -371,4 +378,208 @@ export async function guestVisitBill(input: { token: string }) {
   const g = await guestVisit(input.token);
   if (!g.ok) return g;
   return readGuestBill(g.admin, { tenantId: g.tenantId, token: input.token });
+}
+
+export async function admissionHoldSeats(input: {
+  sessionId: string;
+  seatIds: string[];
+  guestSessionId?: string | null;
+  ttlSeconds?: number;
+  operationKey: string;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      sessionId: uuid,
+      seatIds: z.array(uuid).min(1).max(40),
+      guestSessionId: z.string().trim().max(80).nullable().optional(),
+      ttlSeconds: z.number().int().min(30).max(3600).optional(),
+      operationKey: z.string().trim().min(8).max(80),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return holdAdmissionSeats(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function admissionExchange(input: {
+  admissionId: string;
+  toSessionId: string;
+  operationKey: string;
+  expectedVersion?: number;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      admissionId: uuid,
+      toSessionId: uuid,
+      operationKey: z.string().trim().min(8).max(80),
+      expectedVersion: z.number().int().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return exchangeAdmission(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function admissionComp(input: {
+  sessionId: string;
+  tierVariantId: string;
+  holderName: string;
+  holderEmail?: string | null;
+  reason: string;
+  approver?: string | null;
+  operationKey: string;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      sessionId: uuid,
+      tierVariantId: uuid,
+      holderName: z.string().trim().min(1).max(120),
+      holderEmail: z.string().email().nullable().optional(),
+      reason: z.string().trim().min(1).max(200),
+      approver: uuid.nullable().optional(),
+      operationKey: z.string().trim().min(8).max(80),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return compAdmission(g.admin, { tenantId: g.tenantId, actorRole: "editor", ...parsed.data });
+}
+
+export async function admissionDeliver(input: {
+  admissionId: string;
+  method: "email" | "sms" | "print" | "wallet";
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({ admissionId: uuid, method: z.enum(["email", "sms", "print", "wallet"]) })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return deliverAdmission(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function eventSeatMapUpsert(input: { sessionId: string; layoutId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ sessionId: uuid, layoutId: uuid }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return upsertEventSeatMap(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function eventSeriesUpsert(input: { id?: string; name: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ id: uuid.optional(), name: z.string().trim().min(1).max(160) }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return upsertEventSeries(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+async function publicTicket() {
+  const host = await getPublicHostContext();
+  if ((host.kind !== "agency" && host.kind !== "hub") || !host.tenantId) {
+    return { ok: false as const, reason: "unavailable" as const };
+  }
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false as const, reason: "unavailable" as const };
+  return { ok: true as const, tenantId: host.tenantId, admin };
+}
+
+export async function ticketTransfer(input: { code: string; toName: string; toEmail: string }) {
+  const g = await publicTicket();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      code: z.string().trim().min(8),
+      toName: z.string().trim().min(1).max(120),
+      toEmail: z.string().email(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return transferTicket(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function ticketResend(input: { code: string }) {
+  const g = await publicTicket();
+  if (!g.ok) return g;
+  if (!input.code || input.code.trim().length < 8) return { ok: false as const, reason: "invalid" as const };
+  return resendTicket(g.admin, { tenantId: g.tenantId, code: input.code.trim() });
+}
+
+export async function ticketLookup(input: { email: string; last4OfReceipt: string }) {
+  const g = await publicTicket();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({ email: z.string().email(), last4OfReceipt: z.string().trim().min(4).max(8) })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return lookupTicket(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function posDeviceRegister(input: {
+  deviceKey: string;
+  name: string;
+  kind: "tablet" | "phone" | "display" | "printer" | "reader";
+  locationId?: string | null;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      deviceKey: z.string().trim().min(8).max(80),
+      name: z.string().trim().min(1).max(80),
+      kind: z.enum(["tablet", "phone", "display", "printer", "reader"]),
+      locationId: uuid.nullable().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return registerDevice(g.admin, { tenantId: g.tenantId, registeredBy: g.userId, ...parsed.data });
+}
+
+export async function posDeviceHeartbeat(input: { deviceKey: string; appVersion?: string | null }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({ deviceKey: z.string().trim().min(8).max(80), appVersion: z.string().trim().max(40).nullable().optional() })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return heartbeatDevice(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function posDeviceUpdate(input: {
+  id: string;
+  settings: Record<string, unknown>;
+  expectedVersion?: number;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      id: uuid,
+      settings: z.record(z.string(), z.unknown()),
+      expectedVersion: z.number().int().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return updateDevice(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function posOutboxApply(input: {
+  deviceId: string;
+  operationKey: string;
+  command: Record<string, unknown>;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      deviceId: uuid,
+      operationKey: z.string().trim().min(8).max(80),
+      command: z.record(z.string(), z.unknown()),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return applyOutbox(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }

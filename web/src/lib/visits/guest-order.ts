@@ -231,6 +231,16 @@ export async function guestVisitPayShare(
 ): Promise<{ ok: true; url: string } | GuestFail> {
   const visit = await openVisit(admin, input.tenantId, input.token);
   if (!visit.ok) return visit;
+  let actorUserId = input.actorUserId;
+  if (!actorUserId) {
+    const { data: visitRow } = await admin
+      .from("visits")
+      .select("opened_by")
+      .eq("id", visit.visitId)
+      .maybeSingle();
+    actorUserId = String((visitRow as { opened_by?: string } | null)?.opened_by ?? "");
+  }
+  if (!actorUserId) return { ok: false, reason: "unavailable" };
   const { data: orders, error } = await admin
     .from("orders")
     .select("id, total_cents")

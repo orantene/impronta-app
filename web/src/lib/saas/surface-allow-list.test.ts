@@ -699,6 +699,18 @@ test("/visit does NOT resolve on app or marketing", () => {
   assert.equal(isPathAllowedForHostKind("marketing", "/visit/opaque-token-here"), false);
 });
 
+test("/ticket resolves on the two host kinds that carry a tenant", () => {
+  for (const path of ["/ticket/adm1.payload.sig", "/ticket/adm1.abc.def"]) {
+    assert.equal(isPathAllowedForHostKind("agency", path), true, `agency ${path}`);
+    assert.equal(isPathAllowedForHostKind("hub", path), true, `hub ${path}`);
+  }
+});
+
+test("/ticket does NOT resolve on app or marketing", () => {
+  assert.equal(isPathAllowedForHostKind("app", "/ticket/adm1.payload.sig"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/ticket/adm1.payload.sig"), false);
+});
+
 test("POS, tables and preparation desks resolve on agency and app, not marketing", () => {
   for (const path of ["/admin/pos", "/admin/tables", "/admin/preparation"]) {
     assert.equal(isPathAllowedForHostKind("agency", path), true, `agency ${path}`);
@@ -710,6 +722,11 @@ test("POS, tables and preparation desks resolve on agency and app, not marketing
 test('a tenant cannot claim the slug "visit" and shadow occupancy tokens', () => {
   assert.equal(isPathAllowedForHostKind("app", "/visit/admin"), false);
   assert.equal(resolvePathBasedTenantPublicPath("/visit/opaque-token-here"), null);
+});
+
+test('a tenant cannot claim the slug "ticket" and shadow admission codes', () => {
+  assert.equal(isPathAllowedForHostKind("app", "/ticket/admin"), false);
+  assert.equal(resolvePathBasedTenantPublicPath("/ticket/adm1.payload.sig"), null);
 });
 
 test("the QR asset endpoint is reachable on the surfaces the workspace runs on", () => {

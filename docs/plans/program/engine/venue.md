@@ -201,3 +201,102 @@ Public pages (existing `/visit/[token]` landing is unchanged):
 | already_paid | `dashboard.venue.engine.refusal.already_paid` |
 | exceeds_outstanding | `dashboard.venue.engine.refusal.exceeds_outstanding` |
 | not_submitted | `dashboard.venue.engine.refusal.not_submitted` |
+
+---
+
+## 5. Events: seats, holds, exchange, comp, multi-day, delivery
+
+Unblocks: E03, E05, E11, E12, E14, E15, W17. Records D-POS-81.
+
+Seat maps reuse task-3 layouts. A seat is `spaces.kind='seat'`. Capacity
+goes through existing space pools via `reserve_resource_set_v2`, never a
+second count. Expired holds are reaped in `api/cron/expire-orders`.
+
+`event_series` is distinct from class `session_series`. `purchase.ts`
+expands `eventSeriesId` into one line per scheduled night.
+
+Exchange never moves money silently: a higher price writes a draft line
+and returns `price_up_needs_payment`; a lower price writes
+`ticket_refund_intents`. Comp consults Package 2 `role_limits` /
+`approval_requests`. Delivery writes `admissions.delivery`; sms and
+wallet return `channel_unavailable`.
+
+### `admissionHoldSeats`
+
+Input: `{ sessionId, seatIds[], guestSessionId?, ttlSeconds?, operationKey }`
+
+Success: `{ ok: true, id, expiresAt, already? }`
+
+### `admissionExchange`
+
+Input: `{ admissionId, toSessionId, operationKey, expectedVersion? }`
+
+Success: `{ ok: true, id, version, deltaCents }`
+
+### `admissionComp`
+
+Input: `{ sessionId, tierVariantId, holderName, holderEmail?, reason,
+approver?, operationKey }`
+
+Success: `{ ok: true, id, orderId }`
+
+### `admissionDeliver`
+
+Input: `{ admissionId, method: 'email'|'sms'|'print'|'wallet' }`
+
+Success: `{ ok: true, id, method }`
+
+### `eventSeatMapUpsert` / `eventSeriesUpsert`
+
+| reason | sentence key |
+|---|---|
+| seat_taken | `dashboard.venue.engine.refusal.seat_taken` |
+| hold_expired | `dashboard.venue.engine.refusal.hold_expired` |
+| same_session | `dashboard.venue.engine.refusal.same_session` |
+| price_up_needs_payment | `dashboard.venue.engine.refusal.price_up_needs_payment` |
+| needs_approval | `dashboard.venue.engine.refusal.needs_approval` |
+| channel_unavailable | `dashboard.venue.engine.refusal.channel_unavailable` |
+
+---
+
+## 6. Ticket self-service
+
+Unblocks: E08, E09, E10. Path is `/ticket/[code]` (D-POS-77). Signed codes
+stay `adm1.…`. Transfer bumps `token_version` and re-signs; the old code
+is `superseded`. Resend is email only. Lookup is rate-limited.
+
+Public page: `/ticket/[code]` (en / es / fr copy, no em dashes).
+
+### `ticketTransfer` / `ticketResend` / `ticketLookup`
+
+| reason | sentence key |
+|---|---|
+| superseded | `dashboard.venue.engine.refusal.superseded` |
+| not_found | `dashboard.venue.engine.refusal.not_found` |
+| too_many_attempts | `dashboard.venue.engine.refusal.too_many_attempts` |
+| channel_unavailable | `dashboard.venue.engine.refusal.channel_unavailable` |
+
+---
+
+## 7. Device registry and offline outbox
+
+Unblocks: POSDevices, POSConnection, POSCounterOffline, W20. Records
+D-POS-82.
+
+`pos_devices` is the registry. `pos_device_sessions.device_id` points at
+it. Heartbeat refreshes `last_seen_at`. Settings (`default_mode`,
+`drawer_id`, `printer_id`, `min_app_version`) live in `settings jsonb`.
+
+The client may queue only cash sales while offline (D-POS-11).
+`pos_outbox_apply` replays `kind=cash_collect` through
+`pos_reserve_collection` and refuses `not_replayable` for anything that
+names a provider.
+
+### `posDeviceRegister` / `posDeviceHeartbeat` / `posDeviceUpdate` / `posOutboxApply`
+
+| reason | sentence key |
+|---|---|
+| unknown_device | `dashboard.venue.engine.refusal.unknown_device` |
+| not_replayable | `dashboard.venue.engine.refusal.not_replayable` |
+| stale_app | `dashboard.venue.engine.refusal.stale_app` |
+| conflict | `dashboard.venue.engine.refusal.conflict` |

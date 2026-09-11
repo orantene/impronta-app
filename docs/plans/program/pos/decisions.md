@@ -908,3 +908,18 @@ Decided 2026-09-11 (engine-venue). Table QR ordering writes a draft on the
 open visit with `source_channel=guest_qr` and pays a share through the
 existing payment-link reserve. The landing page at `/visit/[token]` is not
 replaced.
+
+## D-POS-81 — event_series is not session_series
+
+Decided 2026-09-11 (engine-venue). Multi-day events are `event_series` +
+`sessions.event_series_id`. Class materialisation stays on
+`session_series`. Seat holds lock `admission_holds` under a unique live
+row and reserve space pools through `reserve_resource_set_v2`. Comp
+reads Package 2 `role_limits` / `approval_requests`.
+
+## D-POS-82 — offline outbox is cash-only
+
+Decided 2026-09-11 (engine-venue). `pos_outbox_apply` replays
+`cash_collect` through `pos_reserve_collection`. A command that names a
+provider, a card method, or a checkout session is `not_replayable`. The
+client must not queue those while offline (D-POS-11).

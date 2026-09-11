@@ -9,9 +9,9 @@ the capacity-isolated env is present. Unit tests live next to the libs.
 | Party waitlist | `20261231224000_party_waitlist.sql` | `web/src/lib/venues/party-waitlist.test.ts` | `web/scripts/verify-party-waitlist-race.mjs` |
 | Layouts / periods / stations | `20261231225000_layouts_periods_stations.sql` | `web/src/lib/venues/layouts.test.ts`, `web/src/lib/reservations/periods.test.ts` | embedded DO $proof$ |
 | Guest QR + pay share | `20261231226000_guest_qr_substitutes.sql` | `web/src/lib/visits/guest-order.test.ts` | `web/scripts/verify-guest-share-race.mjs` |
-| Events seats / holds / exchange | pending | pending | `web/scripts/verify-seat-hold-race.mjs` |
-| Ticket self-service | pending | pending | n/a |
-| Devices + outbox | pending | pending | `web/scripts/verify-outbox-replay.mjs` |
+| Events seats / holds / exchange | `20261231227000_event_seats_holds.sql` | `web/src/lib/venues/event-holds.test.ts`, `event-series.test.ts` | `web/scripts/verify-seat-hold-race.mjs` |
+| Ticket self-service | n/a (uses admissions.token_version) | `web/src/lib/venues/ticket-self.test.ts` | n/a |
+| Devices + outbox | `20261231228000_pos_devices_outbox.sql` | `web/src/lib/venues/pos-devices.test.ts` | `web/scripts/verify-outbox-replay.mjs` |
 
 Contract: `docs/plans/program/engine/venue.md`.
 Actions: `web/src/lib/server-actions/venue-engine.ts` (do not re-export from an existing client-imported `"use server"` module).

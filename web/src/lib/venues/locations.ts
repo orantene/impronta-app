@@ -7,7 +7,7 @@ export type VenueAdmin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: any; error: { message?: string } | null }>;
+  rpc: (...args: any[]) => any;
 };
 
 export type VenueLocationRow = {
