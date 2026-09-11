@@ -90,7 +90,7 @@ export async function loadMessagingInbox(
       ownerLabel: row.owner_user_id ? (owners.get(row.owner_user_id) ?? null) : null,
       unread,
       unreadCount: unread ? 1 : 0,
-      subject: clip(row.message) || clip(previews.get(row.id) ?? "") || displayName(row.contact_name),
+      subject: clip(row.message ?? "") || clip(previews.get(row.id) ?? "") || displayName(row.contact_name),
       lastMessagePreview: clip(previews.get(row.id) ?? row.message ?? ""),
       nextAction: deriveNextAction({
         ownerUserId: row.owner_user_id,
