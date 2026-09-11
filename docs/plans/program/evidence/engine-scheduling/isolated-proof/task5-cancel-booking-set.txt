@@ -1,0 +1,6 @@
+reserved allocation id: 24856871-1d6e-45b9-8896-b9b8b0924d8f
+allocation before cancel: {"id":"24856871-1d6e-45b9-8896-b9b8b0924d8f","state":"committed","released_at":null}
+cancel_booking_set reply: {"by":"staff","ok":true,"order_id":"1996333e-7ea7-4dc9-9b34-07b3eb557a85","booking_id":"4a4d9a22-4805-47c1-ab4f-21fe2788e755"}
+allocation after cancel: {"id":"24856871-1d6e-45b9-8896-b9b8b0924d8f","state":"released","released_at":"2026-09-11T18:08:28.291Z"}
+booking after cancel: {"status":"cancelled","cancelled_reason":"testing"}
+cleaned up cancel fixture

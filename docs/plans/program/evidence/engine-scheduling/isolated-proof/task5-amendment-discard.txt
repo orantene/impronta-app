@@ -1,0 +1,6 @@
+inquiry f2934de5-c24c-43e0-b4eb-e8430e208854 version 1
+offer before discard: {"id":"75f88fed-f791-4411-b783-cc357555eec2","version":1,"status":"draft"}
+amendment_discard reply: {"ok":true,"offer_id":"75f88fed-f791-4411-b783-cc357555eec2"}
+offer after discard: {"id":"75f88fed-f791-4411-b783-cc357555eec2","version":1,"status":"superseded"}
+inquiry after discard: {"id":"f2934de5-c24c-43e0-b4eb-e8430e208854","version":2}
+cleaned up amendment fixture
