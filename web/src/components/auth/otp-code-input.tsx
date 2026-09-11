@@ -141,16 +141,21 @@ export function OtpCodeInput({
                 }}
                 type="text"
                 inputMode="numeric"
-                pattern="\\d*"
+                // No `pattern` and no `maxLength` on purpose. A pattern here
+                // shipped once with a doubled backslash and constraint
+                // validation then refused EVERY submit with no visible error
+                // (live 2026-09-10); the digits are filtered in fillFrom, so
+                // the browser has nothing to validate. No maxLength because an
+                // autofill or keyboard suggestion inserts the whole code into
+                // one box and fillFrom spreads it across all of them.
                 autoComplete={i === 0 ? "one-time-code" : "off"}
                 autoFocus={i === 0}
                 aria-label={`${i + 1} / ${length}`}
                 aria-invalid={invalid || undefined}
                 disabled={disabled}
-                maxLength={1}
                 value={digits[i]}
-                // Typing is handled in onKeyDown; onChange only catches
-                // keyboard-suggestion and autofill inserts of several digits.
+                // Typing is handled in onKeyDown; onChange catches inserted
+                // text (autofill, suggestion bar, some mobile keyboards).
                 onChange={(e) => fillFrom(i, e.target.value)}
                 onKeyDown={onKeyDown(i)}
                 onPaste={onPaste(i)}
