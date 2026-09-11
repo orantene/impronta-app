@@ -113,7 +113,7 @@ export function DoorClient(props: DoorClientProps) {
         setDoorFailed(true);
         return;
       }
-      setDoor({ session, rows: loaded.rows, counts: loaded.counts, tiers: tiers.ok ? tiers.tiers : [] });
+      setDoor({ session, rows: loaded.rows, counts: loaded.counts, tiers: tiers.ok ? tiers.tiers : [], nights: loaded.nights });
     } finally {
       setBusy(false);
     }

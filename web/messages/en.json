@@ -4723,7 +4723,11 @@
           "drawerClosed": "No shift open · the float is set when a shift opens",
           "drawerOpen": "Open since {time} · float {float}",
           "readerName": "Card reader",
-          "pair": "Pair a device"
+          "pair": "Pair a device",
+          "pairName": "Device name",
+          "pairFallback": "Device",
+          "lastSeen": "Last seen {time}",
+          "registryNote": "Paired devices share this location's modes. Offline counter stays cash-only."
         },
         "tips": {
           "title": "Tips",
@@ -4755,7 +4759,8 @@
           "never": "Never offline",
           "neverValue": "Everything",
           "unsynced": "Unsynced work",
-          "unsyncedValue": "None · nothing is kept on the device"
+          "unsyncedValue": "None · nothing is kept on the device",
+          "cashOnly": "When this device is offline, only cash sales can be queued. Card and wallet wait until it is back online."
         }
       },
       "paymentsProviders": {
@@ -13345,7 +13350,14 @@
           "showTest": "Open display",
           "drawerDetail": "Via receipt printer",
           "openLogged": "Open (logged)",
-          "drawerUnavailable": "No cash drawer is connected to this device."
+          "drawerUnavailable": "No cash drawer is connected to this device.",
+          "registryTitle": "Paired devices",
+          "registryEmpty": "No devices paired yet.",
+          "cashOnlyOffline": "Offline counter stays cash-only. Card and wallet wait until the device is back online.",
+          "pairName": "Device name",
+          "thisTill": "This till",
+          "pairThisTill": "Pair this till",
+          "pairFirst": "Pair this till before syncing queued cash sales."
         },
         "connection": {
           "subtitle": "This device · {location}",
@@ -13364,6 +13376,7 @@
           "readerConnected": "Connected",
           "readerNote": "Card payments need the internet to get an answer from the bank; the counter cannot drive a reader yet either way.",
           "nothingQueued": "Nothing is kept on this device while offline. A sale needs the connection to be saved.",
+          "queuedCount": "{count} cash sales waiting to sync.",
           "syncNow": "Sync now"
         }
       },
@@ -14150,7 +14163,13 @@
           "footnote": "Every change invalidates the replaced credential the moment it is confirmed. Money follows the accepted price and the refund policy, never the current list price.",
           "back": "Back",
           "transferAction": "Transfer",
-          "exchangeAction": "Exchange"
+          "transferToName": "New holder name",
+          "transferToEmail": "New holder email",
+          "transferred": "Transferred. The old code no longer admits.",
+          "exchangeAction": "Exchange",
+          "exchangeNight": "New night",
+          "exchanged": "Moved to the new night. The old code no longer admits.",
+          "noOtherNight": "This event has no other night to move the ticket to."
         },
         "delivery": {
           "title": "{code} · delivery",
@@ -14720,6 +14739,20 @@
         "offerTitle": "A substitution is waiting",
         "acceptOffer": "Accept {name}",
         "back": "Your table"
+      },
+      "ticket": {
+        "title": "Your ticket",
+        "night": "Night",
+        "show": "Show this code at the door.",
+        "transfer": "Transfer this ticket",
+        "toName": "New holder name",
+        "toEmail": "New holder email",
+        "transferAction": "Transfer",
+        "resend": "Resend by email",
+        "lookup": "Find a ticket",
+        "last4": "Last four of the receipt",
+        "lookupAction": "Look up",
+        "found": "Open {code}"
       },
       "share": {
         "title": "Pay my share",
@@ -16435,7 +16468,12 @@
         "usesTables": "Table group (exclusive)",
         "noPool": "no pool",
         "totalNote": "Total attendance capacity {capacity} across {pooled} pooled tiers on this night. A second layout cannot create capacity the space lacks.",
-        "totalNoteNone": "No pool is set for this night, so there is no capacity to add up yet."
+        "totalNoteNone": "No pool is set for this night, so there is no capacity to add up yet.",
+        "saved": "Layout saved for this night.",
+        "seats": "Seats",
+        "seatsEmpty": "This layout has no seats yet. Add seats on Spaces, then hold them here.",
+        "holdSeats": "Hold selected seats",
+        "heldUntil": "Hold until {when}"
       },
       "day": {
         "title": "Event day · {date}",
@@ -16478,7 +16516,13 @@
         "readyPublished": "Published",
         "readyTiers": "Ticket types",
         "readyNight": "Nights scheduled",
-        "readyPools": "Pools on this night"
+        "readyPools": "Pools on this night",
+        "compTitle": "Complimentary admission",
+        "compName": "Guest name",
+        "compEmail": "Guest email",
+        "compReason": "Reason",
+        "compAction": "Issue a complimentary ticket",
+        "compDone": "Complimentary ticket issued."
       },
       "guests": {
         "openDoor": "Open the door"
@@ -16510,6 +16554,10 @@
         "modelRsvp": "RSVP",
         "modelRegistration": "Registration",
         "modelPass": "Pass",
+        "series": "Pass series",
+        "seriesHint": "One named series. Nights are still scheduled from Sessions.",
+        "seriesReason": "A series is for a multi-day pass. Switch the sales model to Pass.",
+        "seriesPlaceholder": "Weekend pass",
         "organizer": "Organizer",
         "organizerReason": "The workspace is the organizer; a separate organizer has no column yet.",
         "format": "Event format",

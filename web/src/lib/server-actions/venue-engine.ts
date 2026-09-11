@@ -54,6 +54,7 @@ import {
   posDeviceHeartbeat as heartbeatDevice,
   posDeviceRegister as registerDevice,
   posDeviceUpdate as updateDevice,
+  posDevicesList as listPosDevices,
   posOutboxApply as applyOutbox,
 } from "@/lib/venues/pos-devices";
 
@@ -610,6 +611,12 @@ export async function ticketLookup(input: { email: string; last4OfReceipt: strin
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return lookupTicket(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function posDevicesList() {
+  const g = await staff();
+  if (!g.ok) return g;
+  return listPosDevices(g.admin, { tenantId: g.tenantId });
 }
 
 export async function posDeviceRegister(input: {

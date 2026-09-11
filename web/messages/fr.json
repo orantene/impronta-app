@@ -933,7 +933,11 @@
           "drawerClosed": "Aucun service ouvert · le fond de caisse est fixé à l'ouverture",
           "drawerOpen": "Ouverte depuis {time} · fond {float}",
           "readerName": "Lecteur de carte",
-          "pair": "Associer un appareil"
+          "pair": "Associer un appareil",
+          "pairName": "Nom de l'appareil",
+          "pairFallback": "Appareil",
+          "lastSeen": "Vu {time}",
+          "registryNote": "Les appareils associés partagent les modes de ce lieu. Hors ligne, le comptoir n'accepte que les espèces."
         },
         "tips": {
           "title": "Pourboires",
@@ -965,7 +969,8 @@
           "never": "Jamais hors ligne",
           "neverValue": "Tout",
           "unsynced": "Travail non synchronisé",
-          "unsyncedValue": "Aucun · rien n'est conservé sur l'appareil"
+          "unsyncedValue": "Aucun · rien n'est conservé sur l'appareil",
+          "cashOnly": "Quand cet appareil est hors ligne, seules les ventes en espèces peuvent être mises en file. Carte et portefeuille attendent le retour de la connexion."
         }
       },
       "paymentsProviders": {
@@ -2291,7 +2296,14 @@
           "showTest": "Ouvrir l'écran",
           "drawerDetail": "Via l'imprimante de reçus",
           "openLogged": "Ouvrir (consigné)",
-          "drawerUnavailable": "Aucun tiroir-caisse n'est connecté à cet appareil."
+          "drawerUnavailable": "Aucun tiroir-caisse n'est connecté à cet appareil.",
+          "registryTitle": "Appareils associés",
+          "registryEmpty": "Aucun appareil associé pour l'instant.",
+          "cashOnlyOffline": "Hors ligne, le comptoir n'accepte que les espèces. Carte et portefeuille attendent le retour de la connexion.",
+          "pairName": "Nom de l'appareil",
+          "thisTill": "Cette caisse",
+          "pairThisTill": "Associer cette caisse",
+          "pairFirst": "Associez cette caisse avant de synchroniser les ventes en espèces en file."
         },
         "connection": {
           "subtitle": "Cet appareil · {location}",
@@ -2310,6 +2322,7 @@
           "readerConnected": "Connecté",
           "readerNote": "Les paiements par carte ont besoin d'internet pour obtenir la réponse de la banque ; le comptoir ne peut de toute façon pas encore piloter un lecteur.",
           "nothingQueued": "Rien n'est conservé sur cet appareil hors ligne. Une vente a besoin de la connexion pour être enregistrée.",
+          "queuedCount": "{count} ventes en espèces en attente de synchronisation.",
           "syncNow": "Synchroniser"
         }
       },
@@ -3096,7 +3109,13 @@
           "footnote": "Chaque modification invalide le justificatif remplacé dès sa confirmation. L'argent suit le prix accepté et la politique de remboursement, jamais le prix courant.",
           "back": "Retour",
           "transferAction": "Transférer",
-          "exchangeAction": "Échanger"
+          "transferToName": "Nom du nouveau titulaire",
+          "transferToEmail": "Email du nouveau titulaire",
+          "transferred": "Transféré. L'ancien code n'admet plus.",
+          "exchangeAction": "Échanger",
+          "exchangeNight": "Nouvelle soirée",
+          "exchanged": "Déplacé vers la nouvelle soirée. L'ancien code n'admet plus.",
+          "noOtherNight": "Cet événement n'a pas d'autre soirée vers laquelle déplacer le billet."
         },
         "delivery": {
           "title": "{code} · envoi",
@@ -5726,7 +5745,12 @@
         "usesTables": "Groupe de tables (exclusif)",
         "noPool": "aucune place",
         "totalNote": "Capacité d'accueil totale {capacity} sur {pooled} types avec des places ce soir. Un second plan ne peut pas créer la capacité que l'espace n'a pas.",
-        "totalNoteNone": "Aucune place n'est définie pour cette soirée, il n'y a donc pas encore de capacité à additionner."
+        "totalNoteNone": "Aucune place n'est définie pour cette soirée, il n'y a donc pas encore de capacité à additionner.",
+        "saved": "Plan enregistré pour cette soirée.",
+        "seats": "Sièges",
+        "seatsEmpty": "Ce plan n'a pas encore de sièges. Ajoutez-les dans Espaces, puis réservez-les ici.",
+        "holdSeats": "Réserver les sièges sélectionnés",
+        "heldUntil": "Réservation jusqu'à {when}"
       },
       "day": {
         "title": "Jour J · {date}",
@@ -5769,7 +5793,13 @@
         "readyPublished": "Publié",
         "readyTiers": "Types de billet",
         "readyNight": "Soirées programmées",
-        "readyPools": "Places ce soir"
+        "readyPools": "Places ce soir",
+        "compTitle": "Admission offerte",
+        "compName": "Nom de l'invité",
+        "compEmail": "Email de l'invité",
+        "compReason": "Motif",
+        "compAction": "Émettre un billet offert",
+        "compDone": "Billet offert émis."
       },
       "guests": {
         "openDoor": "Ouvrir la porte"
@@ -5801,6 +5831,10 @@
         "modelRsvp": "RSVP",
         "modelRegistration": "Inscription",
         "modelPass": "Pass",
+        "series": "Série du pass",
+        "seriesHint": "Une série nommée. Les soirées se programment encore depuis Séances.",
+        "seriesReason": "Une série est pour un pass de plusieurs jours. Passez le modèle de vente sur Pass.",
+        "seriesPlaceholder": "Pass week-end",
         "organizer": "Organisateur",
         "organizerReason": "L'espace est l'organisateur ; un organisateur distinct n'a pas encore de colonne.",
         "format": "Format de l'événement",
@@ -5875,6 +5909,20 @@
         "add": "Ajouter",
         "offerTitle": "Une substitution attend",
         "acceptOffer": "Accepter {name}"
+      },
+      "ticket": {
+        "title": "Votre billet",
+        "night": "Soirée",
+        "show": "Montrez ce code à l'entrée.",
+        "transfer": "Céder ce billet",
+        "toName": "Nom du nouveau titulaire",
+        "toEmail": "Email du nouveau titulaire",
+        "transferAction": "Céder",
+        "resend": "Renvoyer par email",
+        "lookup": "Retrouver un billet",
+        "last4": "Quatre derniers du reçu",
+        "lookupAction": "Chercher",
+        "found": "Ouvrir {code}"
       },
       "share": {
         "title": "Payer ma part",

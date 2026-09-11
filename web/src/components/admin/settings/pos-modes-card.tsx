@@ -20,8 +20,9 @@
  * has its own sentence and a retry (W59), never "Loading…" for ever.
  *
  * WHAT IS DRAWN BUT NOT WIRED, each disabled with its one-sentence reason
- * (D-POS-58): Field Services, Pair a device, and every Tips / Receipts /
- * Offline field. Locations come from `venue_locations`.
+ * (D-POS-58): Field Services and every Tips / Receipts / Offline field
+ * except the cash-only sentence. Pair a device writes `pos_devices`.
+ * Locations come from `venue_locations`.
  *
  * THE PLATFORM SWITCH OUTRANKS EVERYTHING HERE. With
  * `platform_settings.workspace_pos_enabled` off nothing reads the modes
@@ -35,7 +36,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { getLocationModes, setLocationModes } from "@/lib/server-actions/pos-modes";
 import { getPosLocationFacts, type PosLocationFacts } from "@/lib/server-actions/pos-location-facts";
-import { locationsList } from "@/lib/server-actions/venue-engine";
+import { locationsList, posDeviceRegister, posDevicesList } from "@/lib/server-actions/venue-engine";
 import { CLIENT_LOAD_REFUSAL, type ClientLoadRefusal, type PosModesRefusal } from "@/lib/settings/refusals";
 import { POS_MODES, POS_MODE_META, type PosMode } from "@/lib/pos/modes";
 import { formatOrderMoney } from "@/lib/orders/money-format";
@@ -54,6 +55,7 @@ import {
   StatePill,
   Switch,
   SwitchRow,
+  TextField,
   type SaveState,
 } from "./settings-ui";
 
@@ -96,6 +98,9 @@ export function PosModesSettingsCard({
   const [locationOptions, setLocationOptions] = useState<LocationOption[]>([]);
   const [locationSlug, setLocationSlug] = useState("default");
   const [reloadToken, setReloadToken] = useState(0);
+  const [devices, setDevices] = useState<Array<{ id: string; name: string; kind: string; lastSeenAt: string | null }>>([]);
+  const [pairing, setPairing] = useState(false);
+  const [pairName, setPairName] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +112,7 @@ export function PosModesSettingsCard({
           setLoadRefusal(CLIENT_LOAD_REFUSAL);
           return;
         }
-        const options = res.locations.map((row) => ({ id: row.slug, slug: row.slug, label: row.name }));
+        const options = res.locations.map((row) => ({ id: row.id, slug: row.slug, label: row.name }));
         setLocationOptions(options);
         setLocationSlug((prev) => (options.some((row) => row.slug === prev) ? prev : options.find((row) => row.slug === "default")?.slug ?? options[0]?.slug ?? "default"));
       })
@@ -141,6 +146,20 @@ export function PosModesSettingsCard({
       cancelled = true;
     };
   }, [locationSlug, reloadToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void posDevicesList()
+      .then((res) => {
+        if (!cancelled && res.ok) setDevices(res.devices);
+      })
+      .catch(() => {
+        /* the devices card keeps the hardware rows it already has */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadToken]);
 
   const commit = useCallback(
     async (next: PosMode[]) => {
@@ -319,13 +338,47 @@ export function PosModesSettingsCard({
               tone={facts && facts.drawer !== "unreadable" && facts.drawer !== null ? "green" : "dim"}
             />
             <DeviceRow name={t(`${K}.devices.readerName`)} detail={readerDetail} tone={facts?.reader.configured ? "green" : "coral"} />
+            {devices.map((device) => (
+              <DeviceRow
+                key={device.id}
+                name={device.name}
+                detail={device.lastSeenAt ? interpolate(t(`${K}.devices.lastSeen`), { time: clock(device.lastSeenAt, timeZone) }) : device.kind}
+                tone={device.status === "active" ? "green" : "dim"}
+              />
+            ))}
           </div>
+          <TextField
+            label={t(`${K}.devices.pairName`)}
+            value={pairName}
+            onChange={setPairName}
+            testId="pos-pair-name"
+          />
           <div>
-            <ActionButton reason={notWiredReason("pairDevice")} className="h-[30px] px-[12px] text-[12px]" testId="pos-pair-device">
+            <ActionButton
+              disabled={pairing || !canEdit}
+              className="h-[30px] px-[12px] text-[12px]"
+              testId="pos-pair-device"
+              onClick={() => {
+                setPairing(true);
+                void (async () => {
+                  const res = await posDeviceRegister({
+                    deviceKey: crypto.randomUUID(),
+                    name: pairName.trim() || t(`${K}.devices.pairFallback`),
+                    kind: "tablet",
+                    locationId: selectedLocation?.id,
+                  });
+                  setPairing(false);
+                  if (res.ok) {
+                    setPairName("");
+                    setReloadToken((n) => n + 1);
+                  }
+                })();
+              }}
+            >
               + {t(`${K}.devices.pair`)}
             </ActionButton>
           </div>
-          <Note>{t(`${K}.devicesGap`)}</Note>
+          <Note>{t(`${K}.devices.registryNote`)}</Note>
         </SettingsCard>
       </div>
 
@@ -345,6 +398,7 @@ export function PosModesSettingsCard({
           {(["policy", "allowed", "never", "unsynced"] as const).map((f) => (
             <SelectField key={f} label={t(`${K}.offline.${f}`)} value={t(`${K}.offline.${f}Value`)} reason={notWiredReason("offline")} />
           ))}
+          <Note>{t(`${K}.offline.cashOnly`)}</Note>
         </SettingsCard>
       </div>
     </div>

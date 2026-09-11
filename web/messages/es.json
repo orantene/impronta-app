@@ -4723,7 +4723,11 @@
           "drawerClosed": "Sin turno abierto · el fondo se fija al abrir un turno",
           "drawerOpen": "Abierta desde las {time} · fondo {float}",
           "readerName": "Lector de tarjetas",
-          "pair": "Vincular un dispositivo"
+          "pair": "Vincular un dispositivo",
+          "pairName": "Nombre del dispositivo",
+          "pairFallback": "Dispositivo",
+          "lastSeen": "Visto {time}",
+          "registryNote": "Los dispositivos vinculados comparten los modos de este local. Sin conexión, el mostrador solo acepta efectivo."
         },
         "tips": {
           "title": "Propinas",
@@ -4755,7 +4759,8 @@
           "never": "Nunca sin conexión",
           "neverValue": "Todo",
           "unsynced": "Trabajo sin sincronizar",
-          "unsyncedValue": "Ninguno · nada se guarda en el dispositivo"
+          "unsyncedValue": "Ninguno · nada se guarda en el dispositivo",
+          "cashOnly": "Cuando este dispositivo está sin conexión, solo se pueden poner en cola ventas en efectivo. Tarjeta y monedero esperan a que vuelva la red."
         }
       },
       "paymentsProviders": {
@@ -13345,7 +13350,14 @@
           "showTest": "Abrir pantalla",
           "drawerDetail": "A través de la impresora de recibos",
           "openLogged": "Abrir (registrado)",
-          "drawerUnavailable": "No hay ninguna caja conectada a este dispositivo."
+          "drawerUnavailable": "No hay ninguna caja conectada a este dispositivo.",
+          "registryTitle": "Dispositivos vinculados",
+          "registryEmpty": "Aún no hay dispositivos vinculados.",
+          "cashOnlyOffline": "Sin conexión, el mostrador solo acepta efectivo. Tarjeta y monedero esperan a que vuelva la red.",
+          "pairName": "Nombre del dispositivo",
+          "thisTill": "Esta caja",
+          "pairThisTill": "Vincular esta caja",
+          "pairFirst": "Vincula esta caja antes de sincronizar ventas en efectivo en cola."
         },
         "connection": {
           "subtitle": "Este dispositivo · {location}",
@@ -13364,6 +13376,7 @@
           "readerConnected": "Conectado",
           "readerNote": "Los pagos con tarjeta necesitan internet para obtener respuesta del banco; el mostrador aún no puede usar un lector en ningún caso.",
           "nothingQueued": "No se guarda nada en este dispositivo sin conexión. Una venta necesita conexión para guardarse.",
+          "queuedCount": "{count} ventas en efectivo esperando sincronizar.",
           "syncNow": "Sincronizar ahora"
         }
       },
@@ -14150,7 +14163,13 @@
           "footnote": "Cada cambio invalida la credencial sustituida en cuanto se confirma. El dinero sigue el precio aceptado y la política de reembolsos, nunca el precio de lista actual.",
           "back": "Atrás",
           "transferAction": "Transferir",
-          "exchangeAction": "Cambiar fecha"
+          "transferToName": "Nombre del nuevo titular",
+          "transferToEmail": "Email del nuevo titular",
+          "transferred": "Transferida. El código anterior ya no admite.",
+          "exchangeAction": "Cambiar fecha",
+          "exchangeNight": "Nueva noche",
+          "exchanged": "Pasada a la nueva noche. El código anterior ya no admite.",
+          "noOtherNight": "Este evento no tiene otra noche a la que mover la entrada."
         },
         "delivery": {
           "title": "{code} · entrega",
@@ -14720,6 +14739,20 @@
         "offerTitle": "Hay una sustitución esperando",
         "acceptOffer": "Aceptar {name}",
         "back": "Tu mesa"
+      },
+      "ticket": {
+        "title": "Tu entrada",
+        "night": "Noche",
+        "show": "Muestra este código en la puerta.",
+        "transfer": "Ceder esta entrada",
+        "toName": "Nombre del nuevo titular",
+        "toEmail": "Correo del nuevo titular",
+        "transferAction": "Ceder",
+        "resend": "Reenviar por correo",
+        "lookup": "Buscar una entrada",
+        "last4": "Últimos cuatro del recibo",
+        "lookupAction": "Buscar",
+        "found": "Abrir {code}"
       },
       "share": {
         "title": "Pagar mi parte",
@@ -16435,7 +16468,12 @@
         "usesTables": "Grupo de mesas (exclusivo)",
         "noPool": "sin plazas",
         "totalNote": "Aforo total {capacity} en {pooled} tipos con plazas esta noche. Un segundo diseño no puede crear el aforo que el espacio no tiene.",
-        "totalNoteNone": "No hay plazas definidas para esta noche, así que todavía no hay aforo que sumar."
+        "totalNoteNone": "No hay plazas definidas para esta noche, así que todavía no hay aforo que sumar.",
+        "saved": "Diseño guardado para esta noche.",
+        "seats": "Asientos",
+        "seatsEmpty": "Este diseño aún no tiene asientos. Añádelos en Espacios y resérvalos aquí.",
+        "holdSeats": "Reservar asientos seleccionados",
+        "heldUntil": "Reserva hasta {when}"
       },
       "day": {
         "title": "Día del evento · {date}",
@@ -16478,7 +16516,13 @@
         "readyPublished": "Publicado",
         "readyTiers": "Tipos de entrada",
         "readyNight": "Noches programadas",
-        "readyPools": "Plazas esta noche"
+        "readyPools": "Plazas esta noche",
+        "compTitle": "Admisión de cortesía",
+        "compName": "Nombre del invitado",
+        "compEmail": "Email del invitado",
+        "compReason": "Motivo",
+        "compAction": "Emitir una entrada de cortesía",
+        "compDone": "Entrada de cortesía emitida."
       },
       "guests": {
         "openDoor": "Abrir la puerta"
@@ -16510,6 +16554,10 @@
         "modelRsvp": "RSVP",
         "modelRegistration": "Inscripción",
         "modelPass": "Pase",
+        "series": "Serie del pase",
+        "seriesHint": "Una serie con nombre. Las noches se programan desde Sesiones.",
+        "seriesReason": "Una serie es para un pase de varios días. Cambia el modelo de venta a Pase.",
+        "seriesPlaceholder": "Pase de fin de semana",
         "organizer": "Organizador",
         "organizerReason": "El espacio es el organizador; un organizador aparte todavía no tiene columna.",
         "format": "Formato del evento",
