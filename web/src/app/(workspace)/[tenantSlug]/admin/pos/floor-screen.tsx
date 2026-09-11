@@ -2,67 +2,56 @@ import "server-only";
 
 /**
  * The Floor mode's server half: the same reads the workspace Spaces page
- * makes (`listFloor`, the venue's zone), plus the kitchen's active ticket per
- * open check so a card can say whether the food has been sent, seen, or is
- * ready. Rendered by `page.tsx` when `?mode=floor`; it owns no route of its
- * own.
+ * and the host stand make (`listFloor`, `loadHostStand`, the venue's zone),
+ * plus the kitchen's active ticket per open check so a card can say whether
+ * the food has been sent, seen, or is ready. Rendered by `page.tsx` when
+ * `?mode=floor`; it owns no route of its own.
  *
  * The kitchen read is `listBoard`, the exact reader the station board uses,
- * narrowed here to the orders on this floor. One more query than the Spaces
- * page makes, and the reason is the brief's own rule: a figure on the screen
- * must trace to rows read by the rule the workspace uses, and the workspace's
- * rule for "what is the kitchen doing with this check" is that board.
+ * narrowed here to the orders on this floor. The book is `loadHostStand`,
+ * the exact reader the Reservations destination uses, so the Arriving list
+ * on the till and the one on the host stand cannot disagree.
  */
 
 import { createTranslator } from "@/i18n/messages";
-import { interpolate } from "@/i18n/interpolate";
 import { listBoard } from "@/lib/preparation/tickets";
 import { logServerError } from "@/lib/server/safe-error";
-import { venueZoneLabel } from "@/lib/spaces/venue-clock";
 import { tenantTimezone } from "@/lib/spaces/venues";
 import { listFloor } from "@/lib/visits/floor";
+import { issuesCopy } from "@/components/admin/pos/pos-copy";
 
-import type { FloorTicket } from "./floor-client";
+import type { FloorBoardData } from "@/components/admin/floor/floor-types";
+import { loadFloorBook } from "../reservations/floor-book";
 import { floorCopy } from "./floor-copy";
 import { FloorClient } from "./mode-clients";
 
 type Admin = Parameters<typeof listFloor>[0];
 
-export async function FloorScreen(props: {
-  admin: Admin;
-  tenantId: string;
-  locale: string;
-  workspaceName: string;
-  posPath: string;
-}) {
-  const tr = await createTranslator(props.locale);
-  const copy = floorCopy(tr);
-  const [floor, timeZone, board] = await Promise.all([
-    listFloor(props.admin, props.tenantId),
-    tenantTimezone(props.tenantId),
-    listBoard(props.admin, props.tenantId),
+/**
+ * Everything the board draws, read once. Shared with the workspace's Live
+ * Floor (`admin/reservations/page.tsx`), which mounts the same board in the
+ * admin shell.
+ */
+export async function loadFloorBoardData(
+  admin: Admin,
+  tenantId: string,
+  locale: string,
+): Promise<{ ok: true; data: FloorBoardData } | { ok: false }> {
+  const now = new Date();
+  const [floor, timeZone, board, book] = await Promise.all([
+    listFloor(admin, tenantId),
+    tenantTimezone(tenantId),
+    listBoard(admin, tenantId),
+    loadFloorBook(tenantId, now),
   ]);
-  const zoneNote = interpolate(tr("dashboard.tables.timesInZone"), {
-    zone: venueZoneLabel(timeZone, props.locale, new Date()),
-  });
-
-  if (!floor.ok) {
-    return (
-      <main className="flex min-h-[60vh] w-full flex-col gap-4 p-4">
-        <h1 className="m-0 text-[18px] font-semibold text-foreground">{copy.title}</h1>
-        <p className="m-0 text-sm text-destructive">{tr("dashboard.pos.floor.unavailable")}</p>
-      </main>
-    );
-  }
+  if (!floor.ok) return { ok: false };
 
   // A board that cannot be read is not a reason to hide the floor: the cards
   // then read "nothing sent yet", which is the honest fallback for a fact this
   // request could not establish. `listBoard` logs its own failure.
-  const tickets: Record<string, FloorTicket> = {};
+  const tickets: Record<string, FloorBoardData["tickets"][string]> = {};
   if (board.ok) {
-    const onFloor = new Set(
-      floor.tables.map((t) => t.orderId).filter((id): id is string => typeof id === "string"),
-    );
+    const onFloor = new Set(floor.tables.map((t) => t.orderId).filter((id): id is string => typeof id === "string"));
     for (const ticket of board.tickets) {
       if (!onFloor.has(ticket.orderId)) continue;
       if (ticket.status === "cancelled") continue;
@@ -76,15 +65,9 @@ export async function FloorScreen(props: {
   // reads the same column for the same reason. A failed read leaves the map
   // empty and the client falls back to the counter's default, USD.
   const currencies: Record<string, string> = {};
-  const orderIds = [
-    ...new Set(floor.tables.map((t) => t.orderId).filter((id): id is string => typeof id === "string")),
-  ];
+  const orderIds = [...new Set(floor.tables.map((t) => t.orderId).filter((id): id is string => typeof id === "string"))];
   if (orderIds.length > 0) {
-    const read = await props.admin
-      .from("orders")
-      .select("id, currency")
-      .eq("tenant_id", props.tenantId)
-      .in("id", orderIds);
+    const read = await admin.from("orders").select("id, currency").eq("tenant_id", tenantId).in("id", orderIds);
     if (read.error) logServerError("pos.floor.currency", read.error);
     const rows: Array<{ id: string; currency: string | null }> = read.data ?? [];
     for (const row of rows) {
@@ -92,17 +75,60 @@ export async function FloorScreen(props: {
     }
   }
 
+  return {
+    ok: true,
+    data: {
+      locale,
+      timeZone,
+      nowIso: now.toISOString(),
+      service: book.service,
+      defaultTurnMinutes: book.defaultTurnMinutes,
+      tables: floor.tables,
+      book: book.entries,
+      tickets,
+      currencies,
+      walkinsEnabled: book.walkinsEnabled,
+      waitlistEnabled: book.waitlistEnabled,
+      bookable: book.bookable,
+    },
+  };
+}
+
+export async function FloorScreen(props: {
+  admin: Admin;
+  tenantId: string;
+  locale: string;
+  workspaceName: string;
+  posPath: string;
+  cashierName: string;
+  drawerOpen: boolean;
+}) {
+  const tr = await createTranslator(props.locale);
+  const copy = floorCopy(tr);
+  const loaded = await loadFloorBoardData(props.admin, props.tenantId, props.locale);
+
+  if (!loaded.ok) {
+    return (
+      <main className="flex min-h-[60vh] w-full flex-col gap-4 p-4">
+        <h1 className="m-0 text-[18px] font-semibold text-admin-ink">{copy.board.title}</h1>
+        <p className="m-0 text-sm text-admin-red">{tr("dashboard.pos.floor.unavailable")}</p>
+      </main>
+    );
+  }
+
+  const workspacePath = props.posPath.replace(/\/pos$/, "");
   return (
     <FloorClient
       workspaceName={props.workspaceName}
       posPath={props.posPath}
-      locale={props.locale}
-      timeZone={timeZone}
-      zoneNote={zoneNote}
-      tables={floor.tables}
-      tickets={tickets}
-      currencies={currencies}
+      workspacePath={workspacePath}
+      preparationPath={`${workspacePath}/preparation`}
+      cashierName={props.cashierName}
+      drawerOpen={props.drawerOpen}
+      data={loaded.data}
       copy={copy}
+      issuesCopy={issuesCopy(tr)}
+      receiptsCopy={{ title: tr("dashboard.pos.counter.rail.receipts"), notWired: tr("dashboard.pos.floor.board.receiptsNotWired") }}
     />
   );
 }

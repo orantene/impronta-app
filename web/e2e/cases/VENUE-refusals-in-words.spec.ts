@@ -80,6 +80,8 @@ function labels(locale: string): Catalog {
     prepTitle: dashboard.preparation!.pageTitle!,
     acknowledge: dashboard.preparation!.acknowledge!,
     statusAcknowledged: dashboard.preparation!.statusAcknowledged!,
+    tabQueued: dashboard.preparation!.tabQueued!,
+    tabPreparing: dashboard.preparation!.tabPreparing!,
     destination: dashboard.preparation!.destination!,
     destinationCounter: dashboard.preparation!.destinationCounter!,
   };
@@ -226,14 +228,22 @@ test("VENUE-WORDS kitchen: a ticket another station already took is refused in a
     // The board lists every open ticket the venue has, oldest first, and
     // other journeys leave pickup tickets on it. The one this pass just sent
     // is a COUNTER ticket and the newest card of that kind.
+    // The card says where it goes beside its code ("#A1B2 · Counter").
     const ownTicket = (p: import("@playwright/test").Page) =>
       p
-        .locator("li")
+        .locator("li[data-prep-ticket]")
         .filter({ hasText: /house pizza/i })
-        .filter({ hasText: new RegExp(`${copy.destination}: ${copy.destinationCounter}`, "i") })
+        .filter({ hasText: new RegExp(copy.destinationCounter, "i") })
         .last();
+    await page.getByRole("tab", { name: new RegExp(`^${copy.tabQueued}`, "i") }).click();
     const ticket = ownTicket(page);
     await expect(ticket).toBeVisible({ timeout: 30_000 });
+    // The card's own id, so the SAME ticket is followed across the tabs and
+    // across the two stations: `.last()` on a filtered tab would otherwise
+    // land on an older card the moment this one moves.
+    const ticketId = await ticket.getAttribute("data-prep-ticket");
+    expect(ticketId, "the card must carry its ticket id").toBeTruthy();
+    const byId = (p: import("@playwright/test").Page) => p.locator(`li[data-prep-ticket="${ticketId}"]`);
 
     // Station two: a second browser context, its own session, looking at the
     // same board before anyone touched it.
@@ -244,17 +254,21 @@ test("VENUE-WORDS kitchen: a ticket another station already took is refused in a
       await signInJourneysStaff(other, "/admin/preparation");
       await other.context().addCookies([{ name: "locale", value: locale, url: origin }]);
       await other.goto("/admin/preparation");
-      const stale = ownTicket(other);
+      await other.getByRole("tab", { name: new RegExp(`^${copy.tabQueued}`, "i") }).click();
+      const stale = byId(other);
       await expect(stale).toBeVisible({ timeout: 30_000 });
       await expect(stale.getByRole("button", { name: copy.acknowledge, exact: true })).toBeVisible();
 
-      // Station one takes it, and its own board says so in words.
-      await ticket.getByRole("button", { name: copy.acknowledge, exact: true }).click();
-      await expect(ownTicket(page)).toContainText(copy.statusAcknowledged, { timeout: 30_000 });
+      // Station one takes it, and its own board says so in words (the
+      // ticket leaves the Queued tab and reads Preparing on the next).
+      await byId(page).getByRole("button", { name: copy.acknowledge, exact: true }).click();
+      await expect(byId(page)).toHaveCount(0, { timeout: 30_000 });
+      await page.getByRole("tab", { name: new RegExp(`^${copy.tabPreparing}`, "i") }).click();
+      await expect(byId(page)).toContainText(copy.statusAcknowledged, { timeout: 30_000 });
 
       // Station two taps the button it is still showing.
       await stale.getByRole("button", { name: copy.acknowledge, exact: true }).click();
-      const banner = other.locator("p.text-destructive").first();
+      const banner = other.locator('p[role="alert"]').first();
       await expect(banner, `the board must refuse in ${locale}`).toBeVisible({ timeout: 30_000 });
       await expect(banner).toHaveText(KITCHEN_INVALID_STATE[locale]!);
       await expect(
@@ -270,10 +284,12 @@ test("VENUE-WORDS kitchen: a ticket another station already took is refused in a
       await second.close();
     }
 
-    // Leave nothing owed behind: the sale was never collected, so cancel it
-    // the way the counter's own control does.
+    // Leave nothing owed behind: the sale was never collected, so discard it
+    // the way the counter's own control does (`Hold sale` → `Discard sale`).
     await page.context().addCookies([{ name: "locale", value: "en", url: origin }]);
     await page.goto(`/admin/pos?mode=counter&order=${orderId}`);
-    await page.getByRole("button", { name: /cancel sale/i }).click();
+    await page.locator("[data-pos-hold]").click();
+    await page.locator("[data-pos-discard]").click();
+    await expect(page.locator("[data-pos-discard]")).toHaveCount(0, { timeout: 40_000 });
   }
 });

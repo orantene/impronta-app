@@ -66,6 +66,7 @@ function toBookRow(row: AdmissionRow, spaceCodes: Map<string, string>): BookRow 
     // Unassigned is a valid state, so a missing code is null and never a dash
     // or an empty string pretending to be a table.
     spaceCode: spaceId ? (spaceCodes.get(spaceId) ?? null) : null,
+    seatedAt: str(row.seated_at) ? new Date(str(row.seated_at)!) : null,
   };
 }
 
@@ -122,7 +123,7 @@ export async function loadHostStand(
     const { data: rows, error } = await sb
       .from("admissions")
       .select(
-        "id, starts_at, party_size, admitted_count, no_show_at, completed_at, status, holder_name, space_id",
+        "id, starts_at, party_size, admitted_count, no_show_at, completed_at, status, holder_name, space_id, seated_at",
       )
       .eq("tenant_id", tenantId)
       .gte("starts_at", dayStart.toISOString())

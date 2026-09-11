@@ -38,8 +38,13 @@ export type PosHeaderProps = {
    * with the mode chip and its menu of destinations. Only drawn under 900px.
    */
   readonly portraitMenu?: { readonly label: string; readonly menuLabel: string; readonly items: readonly PosHeaderMenuItem[] };
+<<<<<<< HEAD
   /** A figure drawn before the chips (`POSGateReady`: `11 of 14 in`). */
   readonly meta?: ReactNode;
+=======
+  /** `Live`: the green dot the floor boards carry before the location chip. */
+  readonly live?: string;
+>>>>>>> work/fid-tables
   readonly className?: string;
 };
 
@@ -55,7 +60,11 @@ export function PosHeader({
   cashierMenuLabel,
   cashierMenu,
   portraitMenu,
+<<<<<<< HEAD
   meta,
+=======
+  live,
+>>>>>>> work/fid-tables
   className,
 }: PosHeaderProps) {
   const [open, setOpen] = useState(false);
@@ -131,6 +140,12 @@ export function PosHeader({
           <AlertTriangle aria-hidden size={16} strokeWidth={1.75} />
           {alert.label}
         </button>
+      )}
+      {live && (
+        <span data-pos-live className="inline-flex items-center gap-1.5 text-[14px] font-bold text-admin-success">
+          <i aria-hidden className="inline-block h-2 w-2 rounded-full bg-admin-success" />
+          {live}
+        </span>
       )}
       <span data-pos-location className={cn(CHIP, "max-[900px]:hidden")}>
         <MapPin aria-hidden size={16} strokeWidth={1.75} className="text-admin-ink-muted" />

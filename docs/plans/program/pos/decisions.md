@@ -597,7 +597,7 @@ wizard over pacing, buffers and assignment scope that Spaces & Resources
 does not record. None of these is drawn as a page of disabled controls under
 a route the registry does not know.
 
-## D-POS-54 — the gate's second button, the manual admit's reason, and the "refund requested" state
+## D-POS-58 — the gate's second button, the manual admit's reason, and the "refund requested" state
 
 Decided 2026-09-11 (fid-door). The Door mode's gate (G01 to G08) is the
 counter's frame over Sessions' `scanAdmission` and Events' `admitAtDoor`;
@@ -614,7 +614,7 @@ refunded, and a refund request is not recorded on the row; a refunded ticket
 scans as G07 `Cancelled`. It cannot be rendered from real data and is listed
 as not wired rather than faked.
 
-## D-POS-55 — ticket delivery, comps, passes, seats and the hold timer are not built at the door
+## D-POS-59 — ticket delivery, comps, passes, seats and the hold timer are not built at the door
 
 Decided 2026-09-11 (fid-door). E15 (delivery) draws four rows over the one
 fact the workspace has: the signed code was handed over at this till. No
@@ -632,7 +632,7 @@ that expires) does not exist because `startCollection` reserves at the moment
 the cash is confirmed: the box office says "Continue · N tickets" and "Seats
 are held the moment the cash is confirmed", never "Hold N places".
 
-## D-POS-56 — the Events destination: what a row does not carry is a dash or a disabled control
+## D-POS-60 — the Events destination: what a row does not carry is a dash or a disabled control
 
 Decided 2026-09-11 (fid-door). W16, CreateEvent, EventDetail, W17 and W18
 are drawn over `loadWorkspaceEvents`, `createEvent`, `addTier`, `updateTier`,
@@ -664,3 +664,70 @@ tier's price at the door, names optional at the till, no comps, whoever is
 signed in). `Save` is disabled with the sentence. The Readiness strip is
 derived from rows that exist: published, ticket types, nights scheduled,
 pools on this night.
+## D-POS-61 — the Tables mode and the Live Floor are one board; the moves the engine has no writer for are disabled with their reason
+
+Decided 2026-09-11 (fid-tables). The till's Tables mode (`POSLiveFloor`,
+`POSFloorTimeline`, `POSFloorList`, T04–T08, T12–T13, T23–T24, R01–R03) and
+the workspace's Reservations destination (`LiveFloor`) draw ONE component
+(`components/admin/floor/FloorBoard`) over the same readers (`listFloor`,
+`loadHostStand`, `listBoard`) and the same writers (the Spaces page's
+`tablesSeatParty` / `tablesMoveVisit` / `tablesCloseVisit` /
+`tablesResetTable`, the host stand's `reservationsTakeWalkIn`, the counter's
+`posSubmitPrep`, and the website block's own `loadReserveAvailability` +
+`createReservation` behind a staff guard as `floorLoadReserveTimes` /
+`floorCreateReservation`). The rail is the board's (Floor · Orders · Prep ·
+Receipts · Issues): Orders is the list narrowed to open checks, Prep opens
+the Preparation destination, Receipts and Issues open one sentence each
+(the counter's readers are not mounted on this mode). Wired: seat (with the
+join the combination rules allow, decided at seating), walk-in to the
+waiting list, seat from the waiting list, move, party left → free the table
+(the engine refuses while the check is unpaid), reset, send to the kitchen,
+the staff reservation with the website's times and deposit, open order /
+add items / collect on the counter. Drawn disabled over one sentence in
+en/es/fr, because no writer or column exists: **Change server** (a visit
+records no server), **Extend time** (the turn comes from the rules, not per
+table), **Block table** (Spaces), **Split the check**, **Join tables** for
+an already seated party and **Merge checks** (T15 after seating, T16),
+**Keep the bill open / They paid another way / Walk-out** on T23, the
+walk-in's **mobile** and **needs**, the waiting list's **Offer table** and
+**Remove**, the move's **Why**, the seat sheet's **Server** and **No-show**
+(the grace sweep stamps it), **Pause online bookings**, and the
+reservation's **table preference / note / occasion**. A seated party's tile
+is named `T2+T3` for a joined pair and the joined half is not drawn twice.
+The floor plan has no coordinates (W13 is not built), so the map groups
+tiles by room, else by kind. The list shows the next booking on a table
+from tonight's book; the timeline draws seated, held, booked and vacated
+blocks against the service window.
+
+## D-POS-62 — Receipts on the Tables mode is one sentence
+
+Decided 2026-09-11 (fid-tables). The board's rail draws Receipts; the
+receipts reader (`listPaid…`, the counter's) is not mounted on the floor
+route. The row opens "Receipts are the counter's screen. Switch to the
+Counter mode to find a receipt by its code." rather than a blank, until a
+shared receipts loader exists for every mode.
+
+## D-POS-63 — the guest's table QR page greets, shows the bill, and cannot order or pay yet
+
+Decided 2026-09-11 (fid-tables). Q01 is drawn on `loadOpenVisitByToken`
+(now with the table's code, the visit's start and party): the venue, "Welcome
+to table T2", when the visit started and for how many, the bill with its
+lines and total in the check's own currency. Q02–Q07 (browse, submit,
+substitution, pay at table, pay my share, already paid) have no engine:
+`Start ordering`, `Pay all` and `Pay my share` are disabled over one
+sentence each in en/es/fr. The server line says "Ask any member of staff"
+because a visit records no server.
+
+## D-POS-64 — the kitchen station is T26's own screen inside the Preparation destination; a station table and course firing are not built
+
+Decided 2026-09-11 (fid-tables). The Preparation destination draws
+`POSKitchen`: the station header with the venue's clock and counts, the
+Preparing · Queued · Ready tabs (filters over the same `listBoard` rows),
+one card per ticket with a timer from the send, the lines with `New` on
+what this revision added (`addedLineIds`, the previous revision's snapshot
+diffed on the server), `Start` / `Mark ready` / `Confirm handoff`, and the
+K09 amendment banner. Not built, said: **Recall** (handed-off tickets are
+not kept), station routing and dispatch rules (W15 has no stations table;
+every ticket is `station = kitchen`), courses and firing, per-line cancel,
+`avg` prep time. The board is drawn inside the workspace shell because the
+destination lives there; a full-screen station mode is a later door.

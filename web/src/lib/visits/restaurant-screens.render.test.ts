@@ -141,10 +141,11 @@ test("a table ticket says WHICH table, in every language", () => {
   for (const locale of ["en", "es", "fr"]) {
     const copy = preparationCopy(createTranslator(locale));
     const markup = renderUnder("UTC", locale);
-    assert.ok(
-      markup.includes(`${copy.destinationTable} T1`),
-      `the ${locale} ticket does not name its table: expected "${copy.destinationTable} T1"`,
-    );
+    // The card leads with the table's code (`T1`) and says what kind of
+    // destination it is beside it (`Table · 2 guests`), as the station board draws it.
+    const board = markup.split("<!--split-->")[1] ?? "";
+    assert.ok(board.includes(">T1</strong>"), `the ${locale} ticket does not lead with its table code`);
+    assert.ok(board.includes(copy.destinationTable), `the ${locale} ticket does not say it goes to a table`);
   }
 });
 
