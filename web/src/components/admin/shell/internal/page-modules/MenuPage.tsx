@@ -8,10 +8,11 @@
 import { useAdminShell } from "../state";
 import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
 import { MenuImportPanel } from "./MenuImportPanel";
+import { WhoPerforms } from "@/components/admin/people/WhoPerforms";
 import { useT } from "@/i18n/use-t";
 
 export function MenuPage() {
-  const { bridgeTenantIdentity } = useAdminShell();
+  const { bridgeTenantIdentity, adminBasePath } = useAdminShell();
   const t = useT();
   const tenantId = bridgeTenantIdentity?.tenantId ?? null;
 
@@ -33,6 +34,8 @@ export function MenuPage() {
       </p>
       <MenuImportPanel tenantId={tenantId} />
       <TalentOfferingsManager owner={{ kind: "workspace", tenantId }} />
+      {/* W31 — who performs the items above: People › Bookable, read once. */}
+      <WhoPerforms peopleHref={`${adminBasePath}/people?view=bookable`} />
     </div>
   );
 }

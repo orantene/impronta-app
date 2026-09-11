@@ -30,6 +30,9 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Sessions": "Sesiones",
   "Series": "Series",
   "Waitlist": "Lista de espera",
+  // The People sub-views (W27): tabs of one route, rows in the rail. "Talent",
+  // "Bookable" and "Everyone" already have rows in the inline table.
+  "Access": "Acceso",
   // The approved navigation (W36, 2026-09-09): three destinations and two
   // group headings carry the board's own words, and two rows became children.
   "Appointments & Classes": "Citas y clases",

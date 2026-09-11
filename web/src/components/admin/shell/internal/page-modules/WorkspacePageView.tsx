@@ -710,6 +710,7 @@ export function WorkspacePageView() {
           <RolesLimitsCard
             members={effectiveTeamMembers}
             workspacePosModes={workspacePosModes}
+            onInvite={isAdmin && !isFree ? () => openDrawer("team") : undefined}
           />
         ),
         extraSearch: [

@@ -36,6 +36,8 @@ import {
 import { setRosterDirectBooking } from "@/lib/server-actions/roster-direct-booking";
 import { setTalentDirectBookingOptIn } from "@/lib/server-actions/booking-hours";
 import { parseTenantAppointmentSettings } from "@/lib/scheduling/appointment-policy";
+import { pickAProfessional } from "@/lib/people/hats";
+import { loadPeopleSurface } from "./people-data";
 
 /**
  * Every answer this surface can give. Each is a key under
@@ -408,4 +410,45 @@ async function revalidatePeople(): Promise<void> {
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return;
   revalidatePath(`/${auth.tenantSlug}/admin/people`);
+}
+
+// ── Who performs (W31) ────────────────────────────────────────────────
+
+export type PerformerRow = {
+  readonly key: string;
+  readonly name: string;
+  readonly hats: readonly ("publicProfile" | "bookable" | "access")[];
+  readonly role: string | null;
+  readonly offeringsCount: number;
+  readonly hasHours: boolean;
+};
+
+export type WhoPerformsResult =
+  | { ok: true; performers: readonly PerformerRow[]; workspaceAppointmentsEnabled: boolean }
+  | { ok: false; reasonKey: PeopleReasonKey };
+
+/**
+ * The people a workspace service can be performed by: exactly
+ * `pickAProfessional` over the People reader, the same list the booking page
+ * and the POS filter with. A service does not name a required skill yet, so
+ * the list is the same for every service; the screen says so.
+ */
+export async function loadWhoPerforms(): Promise<WhoPerformsResult> {
+  const auth = await requireWorkspaceStaffAction();
+  if (!auth.ok) return { ok: false, reasonKey: "notAuthorized" };
+  const surface = await loadPeopleSurface(auth.tenantId);
+  if (surface.loadFailed) return { ok: false, reasonKey: "couldNotSave" };
+  const performers = pickAProfessional(surface.people).map<PerformerRow>((p) => ({
+    key: p.key,
+    name: p.name,
+    hats: [
+      ...(p.publicProfile.on ? (["publicProfile"] as const) : []),
+      ...(p.bookable.on ? (["bookable"] as const) : []),
+      ...(p.access.on ? (["access"] as const) : []),
+    ],
+    role: p.role,
+    offeringsCount: p.facts.offerings.length,
+    hasHours: p.facts.hours != null,
+  }));
+  return { ok: true, performers, workspaceAppointmentsEnabled: surface.workspaceAppointmentsEnabled };
 }

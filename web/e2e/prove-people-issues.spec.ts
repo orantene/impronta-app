@@ -75,7 +75,11 @@ async function openPeopleFromTheRail(page: Page): Promise<void> {
   ).toBeVisible({ timeout: 60_000 });
 }
 
-/** Select one person in the People list by their displayed name. */
+/**
+ * Select one person in the People list by their displayed name. The row's
+ * name is a button; clicking it opens the person's sheet, whose heading is
+ * the same name.
+ */
 async function selectPerson(page: Page, name: string): Promise<void> {
   await page.getByRole("button", { name: new RegExp(`^${name}`) }).first().click();
   await expect(page.getByRole("heading", { level: 2, name })).toBeVisible({ timeout: 20_000 });
@@ -116,9 +120,11 @@ test("People: the sidebar rail opens the People surface", async ({ page }) => {
   // the People surface and not the roster grid that used to answer this click.
   // Scoped to the surface's own tab strip: the rail carries a child row with
   // the same label, and an unscoped lookup resolves to both.
+  // The boards' words (W27): Everyone, then Talent · N, Bookable · N and
+  // Access · N, each count the reader's own.
   const tabs = page.getByRole("navigation", { name: "People", exact: true });
-  for (const tab of ["Everyone", "Public profiles", "Bookable", "Access"]) {
-    await expect(tabs.getByRole("button", { name: tab, exact: true })).toBeVisible();
+  for (const tab of [/^Everyone$/, /^Talent · \d+$/, /^Bookable · \d+$/, /^Access · \d+$/]) {
+    await expect(tabs.getByRole("button", { name: tab })).toBeVisible();
   }
   await page.screenshot({ path: `${EVIDENCE}/01-people-from-the-rail.png`, fullPage: true });
 });
