@@ -658,6 +658,16 @@ test('a tenant cannot claim the slug "pay"', () => {
   assert.equal(resolvePathBasedTenantPublicPath("/pay/opaque-link"), null);
 });
 
+test("/manage resolves on the two host kinds that carry a tenant, and nowhere else", () => {
+  for (const path of ["/manage/signed.token", "/manage/x"]) {
+    assert.equal(isPathAllowedForHostKind("agency", path), true, `agency ${path}`);
+    assert.equal(isPathAllowedForHostKind("hub", path), true, `hub ${path}`);
+    assert.equal(isPathAllowedForHostKind("app", path), false, `app ${path}`);
+    assert.equal(isPathAllowedForHostKind("marketing", path), false, `marketing ${path}`);
+  }
+  assert.equal(resolvePathBasedTenantPublicPath("/manage/signed.token"), null);
+});
+
 test("/q resolves on the two host kinds that carry a tenant", () => {
   for (const path of ["/q/t7", "/q/door", "/q/reserve"]) {
     assert.equal(isPathAllowedForHostKind("agency", path), true, `agency ${path}`);

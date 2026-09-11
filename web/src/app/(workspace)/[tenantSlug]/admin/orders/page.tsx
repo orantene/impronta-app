@@ -129,6 +129,7 @@ export default async function OrdersPage({
     refund: t("refund"),
     effect: t("refundEffect"),
     confirm: t("refundConfirm"),
+    componentShare: t("refundComponentShare"),
     effects: {
       keep_entitlement: tr(REFUND_EFFECT_KEY.keep_entitlement),
       cancel_ticket: tr(REFUND_EFFECT_KEY.cancel_ticket),
@@ -340,7 +341,7 @@ export default async function OrdersPage({
                             ) : null}
                             {row.status === "paid" || row.status === "partially_refunded" ? (
                               <div style={{ marginTop: 8 }}>
-                                <OrdersRefundForm orderId={row.id} copy={refundCopy} />
+                                <OrdersRefundForm orderId={row.id} currency={row.currency} copy={refundCopy} />
                               </div>
                             ) : null}
                           </td>

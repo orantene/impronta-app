@@ -873,3 +873,67 @@ Decided 2026-09-11 (engine-scheduling). `booking_policy_overrides` win over
 offering / workspace defaults for deposit, free-cancel hours and no-show
 fee. `role_limits` + `approval_requests` gate discounts and refunds above
 the role's cents cap. W56 can now be a real review dialog over these rows.
+
+## D-POS-76 — a price phase is added, never edited or removed on the screen
+
+Decided 2026-09-11 (wire-scheduling). `setOfferingPricePhase` inserts; the
+engine has no writer that edits or deletes a phase, and a phase already
+stamped on a sold line must stay readable. W03's `Price phases` card lists
+the rows with their state (live · upcoming · ended) and adds one; each
+row's `Remove` is disabled with the sentence. The next phase's start is how
+an operator ends the current one.
+
+## D-POS-77 — the package composition is on the item's Details tab
+
+Decided 2026-09-11 (wire-scheduling). The PackageEditor board draws
+Composition as its first tab. The catalog editor has seven tabs shared by
+every kind; adding an eighth for one kind would put a tab on every product.
+A Package item's Details tab carries the Composition card under the
+details fields (`item-tab-package.tsx`); the `Value alloc.` column is the
+proportional share `packageRefundShare` uses, so the editor shows what a
+refund would split. Dependencies, manual amounts and the guest preview stay
+one sentence (D-POS-53 keeps them).
+
+## D-POS-78 — role limits are written by a settings action, not the engine
+
+Decided 2026-09-11 (wire-scheduling). Package 2 reads `role_limits` in
+`assertRoleLimit` and gave no writer. Roles & limits (W22) needs to set a
+cent cap per role and action, so `lib/server-actions/role-limits-settings.ts`
+upserts on the unique `(tenant_id, role, action)` and deletes on a blank,
+behind `manage_memberships` (the capability that already decides who holds
+a role). It is the only writer of that table. The approval inbox (W56)
+reads `approval_requests` from the same module; deciding is the engine's
+`decideApprovalAction`, unchanged.
+
+## D-POS-79 — a milestone's file rides the conversation's bucket
+
+Decided 2026-09-11 (wire-scheduling). `booking_deliverables.file_path` is
+"a storage path on the existing media bucket pattern". The one path a
+project already has is the inquiry-files signed-upload pipeline
+(`actionCreateInquiryAttachmentUploadUrl` → PUT → `actionRegisterInquiryAttachment`),
+so a milestone's Upload mints the object under the project's conversation,
+registers it there (the conversation's Files tab lists it too) and then
+stamps the path on the milestone with `attachDeliverableFileAction`. A
+project with no conversation has no prefix and its Upload says so.
+
+## D-POS-80 — the manage link allows one action, and the page says which
+
+Decided 2026-09-11 (wire-scheduling). A manage token names ONE action
+(D-POS-73). `/manage/<token>` draws both A07 buttons; the one the token
+does not allow is disabled with the sentence ("This link can cancel the
+booking; ask for a new link to move it."). Reschedule from the link is
+`rescheduleBookingByManageToken` in `scheduling-engine.ts`: the token is
+verified, then the existing `reschedule_booking_set` moves the set with
+the customer's expected window as the lock. A refund is never taken on the
+page; the cancel reports what comes back and the refund path pays.
+
+## D-POS-81 — replacing a person keeps the offer's name snapshot
+
+Finding 2026-09-11 (wire-scheduling), not a choice. `project_replace_talent`
+moves `booking_talent.talent_profile_id`, the talent bookings and the firm
+holds, and leaves `talent_name_snapshot` as the outgoing person's name. The
+W48 sheet closes on `ok` and the row still reads the old name until the
+snapshot is rewritten. The projects reader was not changed to prefer the
+live profile name (a snapshot is deliberately frozen for a deleted profile);
+the engine session owns the fix: rewrite the snapshot inside
+`project_replace_talent`.

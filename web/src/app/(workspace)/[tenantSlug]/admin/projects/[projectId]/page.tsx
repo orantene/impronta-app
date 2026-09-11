@@ -23,12 +23,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requestNowMs } from "@/lib/projects/request-clock";
+import { schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
 import { userHasCapability } from "@/lib/access";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
-import { loadProject, loadProjectActivity, loadProjectContact } from "@/lib/projects/projects-reader";
+import { loadProject, loadProjectActivity, loadProjectContact, loadReplacementCandidates } from "@/lib/projects/projects-reader";
 import {
   acceptedAgreement,
   milestonesAwaitingApproval,
@@ -125,9 +126,10 @@ export default async function ProjectRecordPage({
   }
 
   const project = load.project;
-  const [contact, activity] = await Promise.all([
+  const [contact, activity, candidates] = await Promise.all([
     loadProjectContact(scope.tenantId, project.customerId),
     loadProjectActivity(scope.tenantId, project.id),
+    tab === "team" ? loadReplacementCandidates(scope.tenantId) : Promise.resolve<Awaited<ReturnType<typeof loadReplacementCandidates>>>({ ok: true, candidates: [] }),
   ]);
   const money = projectMoney(project);
   const accepted = acceptedAgreement(project);
@@ -333,7 +335,7 @@ export default async function ProjectRecordPage({
       ) : null}
       {tab === "scope" ? <ScopeTab project={project} locale={locale} tenantSlug={tenantSlug} tr={tr} /> : null}
       {tab === "milestones" ? <MilestonesTab project={project} locale={locale} tr={tr} /> : null}
-      {tab === "team" ? <TeamTab project={project} locale={locale} visibilityHref={tabHref("visibility")} conversationHref={project.inquiryId ? `/${tenantSlug}/admin/messages/${project.inquiryId}` : null} tr={tr} /> : null}
+      {tab === "team" ? <TeamTab project={project} candidates={candidates} locale={locale} visibilityHref={tabHref("visibility")} conversationHref={project.inquiryId ? `/${tenantSlug}/admin/messages/${project.inquiryId}` : null} tr={tr} /> : null}
       {tab === "money" ? <MoneyTab project={project} tenantSlug={tenantSlug} tr={tr} /> : null}
       {tab === "activity" ? <ActivityTab project={project} activity={activity} locale={locale} tr={tr} /> : null}
       {tab === "visibility" ? <VisibilityTab tr={tr} /> : null}
@@ -440,12 +442,16 @@ function closeSheetCopy(tr: Tr) {
       already_closed: tr("dashboard.projects.close.reasonAlreadyClosed"),
       not_confirmed: tr("dashboard.projects.close.reasonNotConfirmed"),
       not_closed: tr("dashboard.projects.close.reasonNotClosed"),
-      no_writer: tr("dashboard.projects.close.reasonNoWriter"),
+      not_archived: tr("dashboard.projects.close.reasonNotArchived"),
+      already_archived: tr("dashboard.projects.close.reasonAlreadyArchived"),
     },
     back: tr("dashboard.projects.close.back"),
     confirmComplete: tr("dashboard.projects.close.confirmComplete"),
     confirmCancel: tr("dashboard.projects.close.confirmCancel"),
+    confirmArchive: tr("dashboard.projects.close.confirmArchive"),
+    confirmReopen: tr("dashboard.projects.close.confirmReopen"),
     refused: tr("dashboard.projects.close.refused"),
     done: tr("dashboard.projects.close.done"),
+    engine: schedulingEngineSentences(tr),
   };
 }

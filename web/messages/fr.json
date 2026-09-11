@@ -538,6 +538,42 @@
       "noHours": "Personne n'a encore defini les horaires de reservation de ce service, il n'y a donc rien a reserver en ligne ici. Envoyez une demande a la place.",
       "closed": "Ferme tous les jours des deux prochaines semaines. Essayez une date plus tard, ou envoyez une demande.",
       "fullyBooked": "Tous les creneaux libres des deux prochaines semaines sont pris. Reessayez plus tard, ou envoyez une demande."
+    },
+    "manageBooking": {
+      "title": "Votre réservation",
+      "noDate": "Date à confirmer",
+      "nothingPaid": "Rien pour l'instant",
+      "deadlinePassed": "Le délai d'annulation gratuite est passé",
+      "deadlineUntil": "{when}",
+      "deadlineNone": "Aucun délai d'annulation ne s'applique",
+      "statusConfirmed": "Confirmée",
+      "statusClosed": "Clôturée",
+      "paid": "Payé",
+      "atVisit": "Sur place",
+      "atVisitValue": "Le solde se règle sur place",
+      "freeUntil": "Annulation gratuite jusqu'au",
+      "reschedule": "Déplacer",
+      "cancel": "Annuler",
+      "addToCalendar": "Ajouter au calendrier",
+      "onlyCancels": "Ce lien permet d'annuler la réservation ; demandez un autre lien pour la déplacer.",
+      "onlyReschedules": "Ce lien permet de déplacer la réservation ; demandez un autre lien pour l'annuler.",
+      "closedSentence": "Cette réservation est clôturée.",
+      "note": "Déplacer vérifie d'abord la personne et la salle ; votre réservation reste en place jusqu'à la confirmation du nouvel horaire.",
+      "cancelTitle": "Annuler cette réservation ?",
+      "cancelPolicy": "Conditions",
+      "cancelRefund": "{amount} revient par le moyen de paiement utilisé, dès que la banque confirme.",
+      "cancelNoRefund": "Le paiement est conservé ; le délai d'annulation gratuite est passé.",
+      "reason": "Motif",
+      "reasonPlaceholder": "Facultatif",
+      "keep": "Garder la réservation",
+      "cancelConfirm": "Annuler la réservation{amount}",
+      "cancelled": "Votre réservation est annulée.",
+      "cancelledRefund": "Votre réservation est annulée. {amount} revient par le moyen de paiement utilisé.",
+      "rescheduleTitle": "Choisissez un nouvel horaire",
+      "newTime": "Nouvel horaire",
+      "rescheduleConfirm": "Confirmer le nouvel horaire",
+      "rescheduled": "Votre réservation a été déplacée au nouvel horaire.",
+      "cancelNothingPaid": "Rien n’a été payé, donc rien ne revient."
     }
   },
   "dashboard": {
@@ -1084,7 +1120,7 @@
           "other": "{count} membres"
         },
         "limitsHeading": "Limites par personne",
-        "limitsGap": "Tulala ne suit pas encore les limites individuelles de remise ou de remboursement. Toute personne eligible a un mode de vente peut utiliser tout ce que ce mode offre.",
+        "limitsGap": "Cette action n'a pas encore de limite par rôle. Toute personne éligible à un mode de vente peut utiliser tout ce que ce mode offre.",
         "posOffNotice": "Cet espace de travail a désactivé tous les modes de vente, aucun rôle n'atteint donc le point de vente. Activez-en un dans Point de vente, ci-dessus.",
         "invitedCount": {
           "one": "{count} invitation pas encore acceptée",
@@ -1108,7 +1144,6 @@
           "markReceived": "Marquer un paiement reçu",
           "refund": "Rembourser",
           "compVoid": "Offrir / annuler",
-          "manualDiscount": "Remise manuelle",
           "drawer": "Ouvrir / fermer la caisse",
           "voidSentItem": "Annuler un article envoyé",
           "moveTables": "Déplacer / fusionner des tables",
@@ -1131,6 +1166,34 @@
           "crossBusinessValue": "Occupé/libre seulement est le design ; rien n'est encore partagé",
           "audit": "Audit",
           "auditValue": "Les changements d'adhésion et de casquette sont journalisés ; remboursements et gestes commerciaux ne le sont pas par personne"
+        },
+        "saveReason": "Chaque cellule s'enregistre dès qu'elle change ; il ne reste rien à valider.",
+        "limits": {
+          "intro": "Au-dessus de la limite, la caisse demande l'accord d'un responsable. Une cellule vide signifie sans limite.",
+          "discount": "Remise manuelle",
+          "refund": "Remboursement",
+          "colAction": "Limite par action",
+          "noLimit": "Sans limite",
+          "readOnly": "Seul un propriétaire ou un administrateur peut fixer une limite.",
+          "loading": "Lecture des limites…",
+          "loadFailed": "Les limites n'ont pas pu être lues.",
+          "saving": "Enregistrement…",
+          "saved": "Enregistré {time}",
+          "saveFailed": "Échec de l'enregistrement",
+          "retry": "Réessayer"
+        },
+        "inbox": {
+          "heading": "Demandes d'approbation",
+          "intro": "Ce que quelqu'un a demandé au-dessus de sa limite. Approuver laisse passer cette seule action ; le rôle ne change pas.",
+          "none": "Rien n'attend d'approbation.",
+          "title": "{kind} · {ref}",
+          "by": "{who} · {when}",
+          "kindDiscount": "Remise demandée",
+          "kindRefund": "Remboursement demandé",
+          "approve": "Approuver",
+          "deny": "Refuser",
+          "approved": "Approuvé",
+          "denied": "Refusé"
         }
       },
       "locations": {
@@ -1260,18 +1323,24 @@
         },
         "overrides": {
           "title": "Dérogations",
-          "may": "Les responsables peuvent déroger",
-          "mayValue": "Rien pour l'instant",
-          "never": "Jamais de dérogation",
-          "neverValue": "Exclusivité physique · capacité",
-          "preview": "Aperçu de l'impact",
-          "previewValue": "Pas encore disponible"
+          "intro": "Par article, en plus des valeurs par défaut ci-dessus. Une cellule vide garde la valeur par défaut.",
+          "col": {
+            "item": "Article",
+            "deposit": "Acompte %",
+            "freeCancel": "Annulation gratuite (heures)",
+            "noShow": "Frais de non-présentation"
+          },
+          "placeholder": "Par défaut",
+          "rowDefault": "Valeur de l'espace de travail",
+          "rowSet": "Conditions propres · non-présentation {fee}",
+          "none": "Aucun article réservable pour l'instant ; créez d'abord un service, un cours ou un forfait dans le catalogue.",
+          "note": "L'acompte et le remboursement d'annulation lisent d'abord ces lignes, puis l'article, puis la valeur de l'espace de travail.",
+          "loadFailed": "Les dérogations n'ont pas pu être lues."
         },
         "notWired": {
           "previewImpact": "Un aperçu de l'impact a besoin de versions de politique, qui ne sont pas encore conservées.",
           "publish": "Les politiques s'enregistrent au fil des modifications ; les versions ne sont pas encore conservées.",
-          "intake": "Les formulaires d'accueil ne sont pas encore modélisés ; rien ne demande à un client d'en remplir un.",
-          "overrides": "Les dérogations par rôle ne sont pas modélisées ; les règles de capacité refusent déjà tout le monde de la même façon."
+          "intake": "Les formulaires d'accueil ne sont pas encore modélisés ; rien ne demande à un client d'en remplir un."
         }
       }
     },
@@ -1505,7 +1574,10 @@
           "not_found": "Cet enregistrement n'existe plus.",
           "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
           "invalid": "Cela ne peut pas etre enregistre.",
-          "unavailable": "Impossible de terminer. Reessayez."
+          "unavailable": "Impossible de terminer. Reessayez.",
+          "not_allowed": "Vous n'êtes pas autorisé à faire cela ici.",
+          "not_reschedulable": "Cette réservation ne peut pas être déplacée.",
+          "slot_taken": "Ce créneau n'est plus libre."
         }
       }
     },
@@ -3602,7 +3674,10 @@
         "proposedBody": "{from} devient {to}. Le travail continue selon v{n} jusqu'à l'acceptation du client ; un refus garde v{n} telle quelle.",
         "remind": "Relancer le client",
         "withdrawOnConversation": "Retirer depuis la conversation",
-        "priorKept": "v{n} (envoyée le {date}, {amount}) est conservée telle quelle pour l'historique."
+        "priorKept": "v{n} (envoyée le {date}, {amount}) est conservée telle quelle pour l'historique.",
+        "sendVersion": "Envoyer la v{n}",
+        "discardProposal": "Abandonner la proposition",
+        "refusalNoLock": "La conversation n'a pas pu être lue. Rechargez et réessayez."
       },
       "milestones": {
         "title": "Jalons et livrables",
@@ -3630,12 +3705,18 @@
         "refusalInvalid": "Cette demande ne designait aucun livrable sur lequel agir.",
         "sumTitle": "Jalons et livrables",
         "add": "Ajouter un jalon",
-        "addUnavailable": "Un jalon s'écrit sur la réservation à laquelle il appartient ; il n'y a pas encore d'éditeur ici.",
         "onDelivery": "À la livraison · {date}",
         "requestChanges": "Demander des modifications",
         "approveClient": "Approuver (client)",
         "edit": "Modifier",
-        "overdue": "En retard"
+        "overdue": "En retard",
+        "addTitle": "Jalon",
+        "addDue": "Échéance",
+        "addSave": "Enregistrer",
+        "replaceFile": "Remplacer le fichier",
+        "uploadNoInquiry": "Ce projet n'a pas de conversation où garder un fichier.",
+        "uploadFailed": "Le fichier n'a pas pu être envoyé. Réessayez.",
+        "uploading": "Envoi…"
       },
       "team": {
         "title": "Equipe",
@@ -3643,7 +3724,7 @@
         "noneHint": "L'affectation est creee a l'acceptation d'une offre comportant des lignes. Chaque professionnel affecte a sa propre ligne.",
         "colRole": "Role",
         "unnamed": "Nom non enregistre",
-        "replaceNote": "Remplacer une personne conserve le nom sortant sur la ligne, pour que l'histoire de qui a fait le travail survive au changement. Le remplacement ne se modifie pas encore depuis cet ecran.",
+        "replaceNote": "Remplacer une personne déplace l’affectation et ses réservations fermes en une seule opération ; le moteur refuse si la personne remplaçante n’est pas libre à cette heure ou si le travail a commencé. Le nom sortant reste sur la ligne jusqu’à la réécriture de l’enregistrement.",
         "marginNote": "Les honoraires et la facturation figurent ensemble parce que c'est la vue de l'espace de travail. Un professionnel affecte ne voit que ses propres honoraires.",
         "assignments": "Assignations",
         "assign": "Assigner depuis Personnes › Réservable",
@@ -3653,7 +3734,7 @@
         "replaceTitle": "Remplacer {name}",
         "replaceSubtitle": "L'impact avant de confirmer",
         "replacement": "Remplaçant",
-        "replacementUnavailable": "Rien ne liste encore qui convient à ce travail ; remplacez la personne depuis l'équipe de la conversation.",
+        "replacementUnavailable": "L'équipe n'a pas pu être lue. Rechargez et réessayez.",
         "impact": "Impact",
         "impactSchedule": "Planning",
         "impactFee": "Honoraires",
@@ -3663,7 +3744,10 @@
         "impactOutgoingValue": "Conservé sur la ligne pour l'historique · rien de gagné",
         "impactClient": "Client",
         "impactClientValue": "Non prévenu d'ici · aucune approbation requise",
-        "replaceConfirm": "Remplacer et inviter"
+        "replaceConfirm": "Remplacer et inviter",
+        "replaceNoProfile": "Cette personne a été saisie sur l'offre et n'a pas de profil à remplacer.",
+        "replacementPick": "Choisir une personne",
+        "replacementNone": "Personne d'autre n'est encore dans l'équipe."
       },
       "money": {
         "quotedNotAgreed": "Aucune version n'a ete acceptee : il n'y a donc pas encore de prix convenu.",
@@ -3716,18 +3800,21 @@
         "archive": "Archiver",
         "archiveBody": "Masquer de la liste active ; garder chaque enregistrement et solde",
         "reopen": "Rouvrir plus tard",
-        "reopenBody": "Seulement pour les projets clôturés",
+        "reopenBody": "Ramener un projet archivé à confirmé",
         "reasonMilestonesOpen": "Indisponible · des jalons sont encore ouverts",
         "reasonMoneyOwed": "Indisponible · de l'argent est encore dû",
         "reasonAlreadyClosed": "Ce projet est déjà clôturé",
         "reasonNotConfirmed": "Indisponible · seul un projet confirmé ou en cours peut être terminé",
         "reasonNotClosed": "Seulement pour les projets clôturés",
-        "reasonNoWriter": "Pas encore disponible · rien n'enregistre cet état",
         "back": "Retour",
         "confirmComplete": "Terminer le projet",
         "confirmCancel": "Annuler le projet…",
         "refused": "Non clôturé.",
-        "done": "Terminé · tous les projets"
+        "done": "Terminé · tous les projets",
+        "reasonNotArchived": "Seul un projet archivé peut être rouvert",
+        "reasonAlreadyArchived": "Ce projet est déjà archivé",
+        "confirmArchive": "Archiver le projet",
+        "confirmReopen": "Rouvrir le projet"
       },
       "visibility": {
         "title": "Qui voit quoi",
@@ -3859,7 +3946,6 @@
       "activityUnavailable": "Impossible de lire l'activité pour le moment.",
       "files": "Fichiers",
       "filesUpload": "Téléverser",
-      "filesUnavailable": "Aucun espace de fichiers n'est encore rattaché à un projet ; les fichiers se partagent dans la conversation.",
       "activity": {
         "created_manual": "Projet créé manuellement",
         "duplicated": "Projet dupliqué",
@@ -3886,7 +3972,8 @@
       "sideDates": "Dates",
       "dateStarts": "Début",
       "dateEnds": "Fin",
-      "dateMilestoneDue": "{title} dû"
+      "dateMilestoneDue": "{title} dû",
+      "filesNone": "Aucun fichier n'est encore joint à un jalon."
     },
     "clientRecord": {
       "title": "Client",
@@ -4448,7 +4535,8 @@
         "providerRefused": "Le prestataire de paiement a refusé le remboursement. Rien n'a été remboursé et rien n'a été débité. Réessayez, ou vérifiez le paiement chez le prestataire.",
         "partialFailure": "Une partie de ce remboursement est passée, l'autre non. Ne réessayez pas : les remboursements effectués sont réels. Quelqu'un doit terminer le reste à la main.",
         "unavailable": "Le remboursement n'a pas pu être enregistré. Rien n'a été remboursé. Réessayez dans un instant."
-      }
+      },
+      "refundComponentShare": "Répartition par composant"
     },
     "workspaceShell": {
       "create": {
@@ -5042,6 +5130,54 @@
           "concurrent": "Utilisation simultanée",
           "reporting": "Reporting"
         }
+      },
+      "package": {
+        "title": "Composition",
+        "intro": "Ce que contient ce forfait. Chaque composant est un article de ce catalogue ; le remboursement d'un forfait se répartit selon ces parts.",
+        "col": {
+          "component": "Composant",
+          "included": "Inclus",
+          "qty": "Qté",
+          "listPrice": "Prix catalogue",
+          "alloc": "Valeur allouée"
+        },
+        "pick": "Choisir un article",
+        "required": "Obligatoire",
+        "optional": "Optionnel",
+        "remove": "Retirer le composant",
+        "none": "Pas encore de composant.",
+        "add": "Ajouter un composant",
+        "addHint": "Enregistrez la composition quand chaque ligne a un article.",
+        "emptyCatalog": "Créez d'abord un autre article ; un forfait se compose d'articles.",
+        "save": "Enregistrer la composition",
+        "saved": "Composition enregistrée.",
+        "allocationNote": "L'allocation est proportionnelle au prix catalogue de chaque composant ; le reste de l'arrondi va à la dernière ligne, pour que les parts fassent toujours le prix du forfait.",
+        "dependenciesReason": "Les dépendances entre composants, les montants manuels et l'aperçu client ne sont pas encore enregistrés ; un composant obligatoire indisponible refuse tout le forfait en caisse."
+      },
+      "phases": {
+        "title": "Phases de prix",
+        "intro": "Des prix datés, comme un tarif early bird. La phase en cours fixe le prix d'une vente à sa première tarification ; une phase suivante ne change jamais une ligne déjà tarifée.",
+        "col": {
+          "phase": "Phase",
+          "from": "Du",
+          "until": "Jusqu'au",
+          "price": "Prix",
+          "state": "État"
+        },
+        "open": "Ouverte",
+        "none": "Pas encore de phase ; le prix de base s'applique.",
+        "state": {
+          "live": "En cours",
+          "upcoming": "À venir",
+          "ended": "Terminée"
+        },
+        "remove": "Retirer",
+        "removeReason": "Une phase ne peut pas encore être modifiée ni retirée ; ajoutez la phase suivante avec sa date de début.",
+        "add": "Ajouter une phase",
+        "save": "Enregistrer la phase",
+        "cancel": "Annuler",
+        "saved": "Phase enregistrée.",
+        "stampNote": "Une vente garde la phase à laquelle elle a été tarifée. Modifier une phase après une vente ne retarife jamais cette vente."
       }
     },
     "discounts": {

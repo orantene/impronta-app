@@ -8,6 +8,7 @@ import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
 import { cancelHybridComponents } from "@/lib/orders/hybrid-package";
 import { isRefundEffect, refundReasonForEffect } from "@/lib/orders/refund-effects";
 import { refundDeskOutcome, type RefundDeskOutcome } from "@/lib/orders/refund-desk-copy";
+import { packageRefundShare } from "@/lib/catalog/packages";
 
 /**
  * EVERY ANSWER FROM THIS FILE IS A CODE, NEVER A SENTENCE.
@@ -31,7 +32,58 @@ export type DeskOrderLine = {
   name: string;
   totalCents: number;
   refundedCents: number;
+  /**
+   * P06: when the line is a package, what a refund of its remainder would
+   * split per component, by component share (`packageRefundShare`, Package
+   * 2). Null for a line that is not a package.
+   */
+  components: Array<{ name: string; cents: number }> | null;
 };
+
+async function packageShares(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+  lines: Array<{ offeringId: string | null; totalCents: number; refundedCents: number }>,
+): Promise<Map<string, Array<{ name: string; cents: number }>>> {
+  const out = new Map<string, Array<{ name: string; cents: number }>>();
+  const offeringIds = [...new Set(lines.map((l) => l.offeringId).filter((x): x is string => !!x))];
+  if (offeringIds.length === 0) return out;
+  const { data: comps, error } = await admin
+    .from("offering_components")
+    .select("offering_id, component_offering_id, qty")
+    .eq("tenant_id", tenantId)
+    .in("offering_id", offeringIds);
+  if (error || !comps || comps.length === 0) return out;
+  const rows = comps as Array<{ offering_id: string; component_offering_id: string; qty: number }>;
+  const componentIds = [...new Set(rows.map((r) => r.component_offering_id))];
+  const { data: offerings } = await admin
+    .from("talent_offerings")
+    .select("id, title, amount_cents")
+    .in("id", componentIds);
+  const byId = new Map(
+    ((offerings ?? []) as Array<{ id: string; title: string | null; amount_cents: number | null }>).map((o) => [o.id, o]),
+  );
+  for (const offeringId of offeringIds) {
+    const own = rows.filter((r) => r.offering_id === offeringId);
+    if (own.length === 0) continue;
+    const line = lines.find((l) => l.offeringId === offeringId);
+    if (!line) continue;
+    const share = packageRefundShare({
+      packageTotalCents: line.totalCents,
+      refundCents: Math.max(0, line.totalCents - line.refundedCents),
+      components: own.map((r) => ({
+        componentOfferingId: r.component_offering_id,
+        qty: Number(r.qty),
+        unitCents: Number(byId.get(r.component_offering_id)?.amount_cents ?? 0),
+      })),
+    });
+    out.set(
+      offeringId,
+      share.map((s) => ({ name: byId.get(s.componentOfferingId)?.title ?? s.componentOfferingId.slice(0, 8), cents: s.cents })),
+    );
+  }
+  return out;
+}
 
 export async function loadOrderLinesForDesk(orderId: string): Promise<DeskLinesResult> {
   const guard = await requireWorkspaceStaffAction();
@@ -54,19 +106,29 @@ export async function loadOrderLinesForDesk(orderId: string): Promise<DeskLinesR
 
   const { data, error } = await admin
     .from("order_lines")
-    .select("id, label, total_cents, refunded_cents")
+    .select("id, label, total_cents, refunded_cents, offering_id")
     .eq("order_id", orderId);
   if (error) return { ok: false, outcome: "unavailable" };
-  const lines = ((data ?? []) as Array<{
+  const raw = ((data ?? []) as Array<{
     id: string;
     label: string | null;
     total_cents: number;
     refunded_cents: number | null;
+    offering_id: string | null;
   }>).map((row) => ({
     id: row.id,
     name: row.label ?? row.id.slice(0, 8),
     totalCents: row.total_cents,
     refundedCents: row.refunded_cents ?? 0,
+    offeringId: row.offering_id,
+  }));
+  const shares = await packageShares(admin, guard.tenantId, raw);
+  const lines: DeskOrderLine[] = raw.map((row) => ({
+    id: row.id,
+    name: row.name,
+    totalCents: row.totalCents,
+    refundedCents: row.refundedCents,
+    components: row.offeringId ? shares.get(row.offeringId) ?? null : null,
   }));
   return { ok: true, lines };
 }

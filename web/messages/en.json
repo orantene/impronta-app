@@ -1465,6 +1465,42 @@
       "soldOut": "Sold out",
       "soldOutError": "{item} is sold out.",
       "submit": "Send order"
+    },
+    "manageBooking": {
+      "title": "Your booking",
+      "noDate": "Date to be confirmed",
+      "nothingPaid": "Nothing yet",
+      "deadlinePassed": "The free cancellation window has passed",
+      "deadlineUntil": "{when}",
+      "deadlineNone": "No cancellation window applies",
+      "statusConfirmed": "Confirmed",
+      "statusClosed": "Closed",
+      "paid": "Paid",
+      "atVisit": "At the visit",
+      "atVisitValue": "The balance is settled at the visit",
+      "freeUntil": "Free cancellation until",
+      "reschedule": "Reschedule",
+      "cancel": "Cancel",
+      "addToCalendar": "Add to calendar",
+      "onlyCancels": "This link can cancel the booking; ask for a new link to move it.",
+      "onlyReschedules": "This link can move the booking; ask for a new link to cancel it.",
+      "closedSentence": "This booking is closed.",
+      "note": "Rescheduling checks the person and the room first; your booking stays until a new time is confirmed.",
+      "cancelTitle": "Cancel this booking?",
+      "cancelPolicy": "Policy",
+      "cancelRefund": "{amount} comes back the way it was paid, once the bank confirms.",
+      "cancelNoRefund": "The payment stays; the free cancellation window has passed.",
+      "reason": "Reason",
+      "reasonPlaceholder": "Optional",
+      "keep": "Keep the booking",
+      "cancelConfirm": "Cancel booking{amount}",
+      "cancelled": "Your booking is cancelled.",
+      "cancelledRefund": "Your booking is cancelled. {amount} comes back the way it was paid.",
+      "rescheduleTitle": "Pick a new time",
+      "newTime": "New time",
+      "rescheduleConfirm": "Confirm the new time",
+      "rescheduled": "Your booking has moved to the new time.",
+      "cancelNothingPaid": "Nothing was paid, so nothing comes back."
     }
   },
   "dashboard": {
@@ -4857,7 +4893,7 @@
           "other": "{count} members"
         },
         "limitsHeading": "Per-person limits",
-        "limitsGap": "Tulala does not track individual discount or refund limits yet. Everyone eligible for a selling mode can use everything that mode offers.",
+        "limitsGap": "This action has no per-role gate yet. Everyone eligible for a selling mode can use everything that mode offers.",
         "posOffNotice": "This workspace has every selling mode switched off, so no role reaches the point of sale. Turn one on in Point of sale above.",
         "invitedCount": {
           "one": "{count} invitation not accepted yet",
@@ -4881,7 +4917,6 @@
           "markReceived": "Mark a payment received",
           "refund": "Refund",
           "compVoid": "Comp / void",
-          "manualDiscount": "Manual discount",
           "drawer": "Open / close drawer",
           "voidSentItem": "Void a sent item",
           "moveTables": "Move / merge tables",
@@ -4904,6 +4939,34 @@
           "crossBusinessValue": "Busy/free only is the design; nothing is shared yet",
           "audit": "Audit",
           "auditValue": "Membership and hat changes are logged; refunds and comps are not per person"
+        },
+        "saveReason": "Every cell saves as it changes; there is nothing left to press.",
+        "limits": {
+          "intro": "Above the limit, the till asks a manager to approve. A blank cell is no limit.",
+          "discount": "Manual discount",
+          "refund": "Refund",
+          "colAction": "Limit per action",
+          "noLimit": "No limit",
+          "readOnly": "Only an owner or admin can set a limit.",
+          "loading": "Reading limits…",
+          "loadFailed": "The limits could not be read.",
+          "saving": "Saving…",
+          "saved": "Saved {time}",
+          "saveFailed": "Save failed",
+          "retry": "Retry"
+        },
+        "inbox": {
+          "heading": "Approval requests",
+          "intro": "What someone asked for above their limit. Approving lets that one action through; the role is unchanged.",
+          "none": "Nothing is waiting for approval.",
+          "title": "{kind} · {ref}",
+          "by": "{who} · {when}",
+          "kindDiscount": "Discount requested",
+          "kindRefund": "Refund requested",
+          "approve": "Approve",
+          "deny": "Reject",
+          "approved": "Approved",
+          "denied": "Rejected"
         }
       },
       "locations": {
@@ -5033,18 +5096,24 @@
         },
         "overrides": {
           "title": "Overrides",
-          "may": "Managers may override",
-          "mayValue": "Nothing yet",
-          "never": "Never override",
-          "neverValue": "Physical exclusivity · capacity",
-          "preview": "Impact preview",
-          "previewValue": "Not available yet"
+          "intro": "Per item, on top of the defaults above. A blank cell keeps the default.",
+          "col": {
+            "item": "Item",
+            "deposit": "Deposit %",
+            "freeCancel": "Free cancel (hours)",
+            "noShow": "No-show fee"
+          },
+          "placeholder": "Default",
+          "rowDefault": "Workspace default",
+          "rowSet": "Own terms · no-show {fee}",
+          "none": "No bookable item yet; create a service, class or package in the catalog first.",
+          "note": "The deposit and the cancellation refund read these rows first, then the item, then the workspace default.",
+          "loadFailed": "The overrides could not be read."
         },
         "notWired": {
           "previewImpact": "An impact preview needs policy versions, which are not kept yet.",
           "publish": "Policies save as you change them; versions are not kept yet.",
-          "intake": "Intake forms are not modelled yet; nothing asks a client to fill one.",
-          "overrides": "Per-role overrides are not modelled; the capacity rules already refuse everyone alike."
+          "intake": "Intake forms are not modelled yet; nothing asks a client to fill one."
         }
       }
     },
@@ -12293,7 +12362,8 @@
         "providerRefused": "The payment provider refused the refund. Nothing was refunded and nothing was charged. Try again, or check the payment at the provider.",
         "partialFailure": "Part of this refund went through and part did not. Do not try again: the refunds that landed are real. Somebody has to finish the rest by hand.",
         "unavailable": "The refund could not be recorded. Nothing was refunded. Try again in a moment."
-      }
+      },
+      "refundComponentShare": "Split by component share"
     },
     "sales": {
       "pageTitle": "Sales",
@@ -12559,7 +12629,10 @@
           "not_found": "That record is gone.",
           "wrong_tenant": "That record is not in this workspace.",
           "invalid": "That cannot be saved.",
-          "unavailable": "This could not be completed. Try again."
+          "unavailable": "This could not be completed. Try again.",
+          "not_allowed": "You are not allowed to do this here.",
+          "not_reschedulable": "This booking cannot be moved.",
+          "slot_taken": "That time is no longer free."
         }
       }
     },
@@ -14776,7 +14849,10 @@
         "proposedBody": "{from} becomes {to}. Work continues under v{n} until the client accepts; declining keeps v{n} as it is.",
         "remind": "Remind the client",
         "withdrawOnConversation": "Withdraw on the conversation",
-        "priorKept": "v{n} (sent {date}, {amount}) is kept unchanged for the record."
+        "priorKept": "v{n} (sent {date}, {amount}) is kept unchanged for the record.",
+        "sendVersion": "Send v{n}",
+        "discardProposal": "Discard proposal",
+        "refusalNoLock": "The conversation could not be read. Reload and try again."
       },
       "milestones": {
         "title": "Milestones and deliverables",
@@ -14804,12 +14880,18 @@
         "refusalInvalid": "That request did not name a deliverable we could act on.",
         "sumTitle": "Milestones & deliverables",
         "add": "Add milestone",
-        "addUnavailable": "A milestone is written on the booking it belongs to; there is no editor here yet.",
         "onDelivery": "On delivery · {date}",
         "requestChanges": "Request changes",
         "approveClient": "Approve (client)",
         "edit": "Edit",
-        "overdue": "Overdue"
+        "overdue": "Overdue",
+        "addTitle": "Milestone",
+        "addDue": "Due",
+        "addSave": "Save",
+        "replaceFile": "Replace file",
+        "uploadNoInquiry": "This project has no conversation to keep a file on.",
+        "uploadFailed": "The file could not be uploaded. Try again.",
+        "uploading": "Uploading…"
       },
       "team": {
         "title": "Team",
@@ -14817,7 +14899,7 @@
         "noneHint": "An assignment is created when an offer with line items is accepted. Each assigned professional gets their own line.",
         "colRole": "Role",
         "unnamed": "Name not recorded",
-        "replaceNote": "Replacing a person keeps the outgoing name on the line, so the history of who did the work survives the swap. The replacement itself is not editable from this screen yet.",
+        "replaceNote": "Replacing a person moves the assignment and its firm holds under one operation; the engine refuses when the replacement is not free at the job time or the work has started. The outgoing name stays on the line until the record is rewritten.",
         "marginNote": "Fee and charge are shown together because this is the workspace view. An assigned professional sees only their own fee.",
         "assignments": "Assignments",
         "assign": "Assign from People › Bookable",
@@ -14827,7 +14909,7 @@
         "replaceTitle": "Replace {name}",
         "replaceSubtitle": "Impact before you confirm",
         "replacement": "Replacement",
-        "replacementUnavailable": "Nothing lists who fits this job yet; replace the person from the conversation's lineup.",
+        "replacementUnavailable": "The roster could not be read. Reload and try again.",
         "impact": "Impact",
         "impactSchedule": "Schedule",
         "impactFee": "Fee",
@@ -14837,7 +14919,10 @@
         "impactOutgoingValue": "Kept on the line for the record · nothing earned",
         "impactClient": "Client",
         "impactClientValue": "Not notified from here · no approval required",
-        "replaceConfirm": "Replace and invite"
+        "replaceConfirm": "Replace and invite",
+        "replaceNoProfile": "This person was typed on the offer and has no profile to replace.",
+        "replacementPick": "Choose a person",
+        "replacementNone": "Nobody else is on the roster yet."
       },
       "money": {
         "quotedNotAgreed": "No version has been accepted, so there is no agreed price yet.",
@@ -14890,18 +14975,21 @@
         "archive": "Archive",
         "archiveBody": "Hide from the active list; keep every record and balance",
         "reopen": "Reopen later",
-        "reopenBody": "Only for closed projects",
+        "reopenBody": "Bring an archived project back to confirmed",
         "reasonMilestonesOpen": "Not available · milestones are still open",
         "reasonMoneyOwed": "Not available · money is still owed",
         "reasonAlreadyClosed": "This project is already closed",
         "reasonNotConfirmed": "Not available · only a confirmed or in-progress project can be completed",
         "reasonNotClosed": "Only for closed projects",
-        "reasonNoWriter": "Not available yet · nothing records this state",
         "back": "Back",
         "confirmComplete": "Complete project",
         "confirmCancel": "Cancel project…",
         "refused": "Not closed.",
-        "done": "Done · all projects"
+        "done": "Done · all projects",
+        "reasonNotArchived": "Only an archived project can be reopened",
+        "reasonAlreadyArchived": "This project is already archived",
+        "confirmArchive": "Archive project",
+        "confirmReopen": "Reopen project"
       },
       "visibility": {
         "title": "Who sees what",
@@ -15033,7 +15121,6 @@
       "activityUnavailable": "We could not read the activity right now.",
       "files": "Files",
       "filesUpload": "Upload",
-      "filesUnavailable": "No file store hangs off a project yet; files are shared on the conversation.",
       "activity": {
         "created_manual": "Project created by hand",
         "duplicated": "Project duplicated",
@@ -15060,7 +15147,8 @@
       "sideDates": "Dates",
       "dateStarts": "Starts",
       "dateEnds": "Ends",
-      "dateMilestoneDue": "{title} due"
+      "dateMilestoneDue": "{title} due",
+      "filesNone": "No file is attached to a milestone yet."
     },
     "clientRecord": {
       "title": "Client",
@@ -15788,6 +15876,54 @@
           "concurrent": "Concurrent use",
           "reporting": "Reporting"
         }
+      },
+      "package": {
+        "title": "Composition",
+        "intro": "What this package holds. Every component is an item of this catalog; the refund of a package splits by these shares.",
+        "col": {
+          "component": "Component",
+          "included": "Included",
+          "qty": "Qty",
+          "listPrice": "List price",
+          "alloc": "Value alloc."
+        },
+        "pick": "Choose an item",
+        "required": "Required",
+        "optional": "Optional",
+        "remove": "Remove component",
+        "none": "No components yet.",
+        "add": "Add component",
+        "addHint": "Save the composition once every row has an item.",
+        "emptyCatalog": "Create another item first; a package is made of items.",
+        "save": "Save composition",
+        "saved": "Composition saved.",
+        "allocationNote": "Allocation is proportional to each component's list price; the rounding remainder goes to the last row, so the parts always sum to the package price.",
+        "dependenciesReason": "Dependencies between components, manual amounts and the guest preview are not recorded yet; a required component that is unavailable refuses the whole package at the till."
+      },
+      "phases": {
+        "title": "Price phases",
+        "intro": "Dated prices, like an early bird. The live phase prices a sale on its first price; a later phase never changes a line already priced.",
+        "col": {
+          "phase": "Phase",
+          "from": "From",
+          "until": "Until",
+          "price": "Price",
+          "state": "State"
+        },
+        "open": "Open",
+        "none": "No phases yet; the base price applies.",
+        "state": {
+          "live": "Live",
+          "upcoming": "Upcoming",
+          "ended": "Ended"
+        },
+        "remove": "Remove",
+        "removeReason": "A phase cannot be edited or removed yet; add the next phase with a start date instead.",
+        "add": "Add phase",
+        "save": "Save phase",
+        "cancel": "Cancel",
+        "saved": "Phase saved.",
+        "stampNote": "A sale keeps the phase it was priced at. Changing a phase after a sale never reprices that sale."
       }
     },
     "events": {

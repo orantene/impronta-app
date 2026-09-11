@@ -8,9 +8,10 @@
  * choice is drawn, and each of the four choices carries its own verdict
  * from `closeOptions`: Complete only when nothing is outstanding and the
  * engine's `closeBookingAction` will accept the status; Cancel whenever
- * `cancelBookingAction` will; Archive and Reopen have no writer (D-POS-39)
- * and say so. Every engine refusal comes back as a sentence, never as a
- * silent close.
+ * `cancelBookingAction` will; Archive when the project is completed or
+ * cancelled and Reopen when it is archived (Package 2's `project_archive`
+ * / `project_reopen`, closing D-POS-39). Every engine refusal comes back
+ * as a sentence, never as a silent close.
  */
 
 import { useCallback, useId, useState, useTransition } from "react";
@@ -29,6 +30,8 @@ import {
   type CloseOptionRefusal,
   type ProjectRecord,
 } from "@/lib/projects/project-record";
+import { projectArchiveAction, projectReopenAction } from "@/lib/server-actions/scheduling-engine";
+import { schedulingEngineSentence, type SchedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
 import { cancelBookingAction, closeBookingAction } from "../../_pipeline-actions";
 import { BTN_DANGER, BTN_PRIMARY, BTN_SECONDARY, Eyebrow, KeyValue } from "../_shared";
 import { RecordSheet } from "../_sheet";
@@ -61,8 +64,11 @@ export type CloseSheetCopy = {
   back: string;
   confirmComplete: string;
   confirmCancel: string;
+  confirmArchive: string;
+  confirmReopen: string;
   refused: string;
   done: string;
+  engine: SchedulingEngineSentences;
 };
 
 export type RecordMenuCopy = {
@@ -199,13 +205,24 @@ function CloseSheet({
     if (!choice) return;
     setRefusal(null);
     startTransition(async () => {
-      const result =
-        choice === "complete"
-          ? await closeBookingAction(tenantSlug, project.id, null)
-          : await cancelBookingAction(tenantSlug, project.id, null);
-      if (!result.ok) {
-        setRefusal(`${copy.refused} ${result.error}`);
-        return;
+      if (choice === "archive" || choice === "reopen") {
+        const result =
+          choice === "archive"
+            ? await projectArchiveAction({ bookingId: project.id, reason: "" })
+            : await projectReopenAction({ bookingId: project.id, reason: "" });
+        if (!result.ok) {
+          setRefusal(schedulingEngineSentence(result.reason, copy.engine));
+          return;
+        }
+      } else {
+        const result =
+          choice === "complete"
+            ? await closeBookingAction(tenantSlug, project.id, null)
+            : await cancelBookingAction(tenantSlug, project.id, null);
+        if (!result.ok) {
+          setRefusal(`${copy.refused} ${result.error}`);
+          return;
+        }
       }
       setDone(true);
       router.refresh();
@@ -219,7 +236,9 @@ function CloseSheet({
     foot: v.ok ? (v.option === "cancel" ? copy.cancelNote : "") : copy.reason[v.reason],
   }));
   const chosen = options.find((v) => v.option === choice);
-  const canConfirm = Boolean(chosen && chosen.ok && (choice === "complete" || choice === "cancel")) && !pending && !done;
+  const canConfirm = Boolean(chosen && chosen.ok) && !pending && !done;
+  const confirmLabel =
+    choice === "cancel" ? copy.confirmCancel : choice === "archive" ? copy.confirmArchive : choice === "reopen" ? copy.confirmReopen : copy.confirmComplete;
 
   return (
     <RecordSheet
@@ -247,7 +266,7 @@ function CloseSheet({
             className={choice === "cancel" ? BTN_DANGER : BTN_PRIMARY}
             data-project-close-confirm={choice ?? ""}
           >
-            {choice === "cancel" ? copy.confirmCancel : copy.confirmComplete}
+            {confirmLabel}
           </button>
         )
       }
