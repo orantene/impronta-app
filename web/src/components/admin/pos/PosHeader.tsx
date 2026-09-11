@@ -38,13 +38,10 @@ export type PosHeaderProps = {
    * with the mode chip and its menu of destinations. Only drawn under 900px.
    */
   readonly portraitMenu?: { readonly label: string; readonly menuLabel: string; readonly items: readonly PosHeaderMenuItem[] };
-<<<<<<< HEAD
   /** A figure drawn before the chips (`POSGateReady`: `11 of 14 in`). */
   readonly meta?: ReactNode;
-=======
   /** `Live`: the green dot the floor boards carry before the location chip. */
   readonly live?: string;
->>>>>>> work/fid-tables
   readonly className?: string;
 };
 
@@ -60,11 +57,8 @@ export function PosHeader({
   cashierMenuLabel,
   cashierMenu,
   portraitMenu,
-<<<<<<< HEAD
   meta,
-=======
   live,
->>>>>>> work/fid-tables
   className,
 }: PosHeaderProps) {
   const [open, setOpen] = useState(false);

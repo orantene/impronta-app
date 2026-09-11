@@ -38,13 +38,8 @@ import {
   ScanLine,
   Search,
   ShoppingBag,
-<<<<<<< HEAD
   Tag,
   Users,
-=======
-  Ticket,
-  UserCheck,
->>>>>>> work/fid-tables
   Wallet,
   type LucideProps,
 } from "lucide-react";
@@ -104,16 +99,11 @@ const DESTINATION_ICONS: Readonly<Record<string, ComponentType<LucideProps>>> = 
   shifts: Wallet,
   issues: AlertTriangle,
   tables: LayoutGrid,
-<<<<<<< HEAD
   seating: Users,
+  prep: Flame,
   checkin: ScanLine,
   tickets: Tag,
   lookup: Search,
-=======
-  prep: Flame,
-  checkin: UserCheck,
-  tickets: Ticket,
->>>>>>> work/fid-tables
   today: Calendar,
   sessions: Clock,
   walkin: CalendarClock,
