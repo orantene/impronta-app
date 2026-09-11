@@ -21,6 +21,8 @@
  */
 
 import { useRouter } from "next/navigation";
+
+import { POS_MESSAGES_DESTINATION, posMessagesHref } from "@/lib/pos/modes";
 import { useMemo, useState } from "react";
 
 import { FloorBoard } from "@/components/admin/floor/FloorBoard";
@@ -40,6 +42,8 @@ import { kitchenOutcome } from "./floor-kitchen";
 
 export type FloorClientProps = {
   readonly workspaceName: string;
+  /** The Messages inbox's unread count: the rail's `messages` badge (seam 10). */
+  readonly messagesUnread?: number;
   /** This request's own `/…/admin/pos` path, so links keep the host shape. */
   readonly posPath: string;
   readonly workspacePath: string;
@@ -145,10 +149,14 @@ export function FloorClient(props: FloorClientProps) {
             router.push(props.preparationPath);
             return;
           }
+          if (id === POS_MESSAGES_DESTINATION) {
+            router.push(posMessagesHref("floor"));
+            return;
+          }
           if (id === "tables" || id === "orders" || id === "receipts" || id === "issues") setDestination(id);
         }}
         destinationLabels={copy.board.rail}
-        counts={{ orders: openChecks, prep: Object.keys(data.tickets).length }}
+        counts={{ orders: openChecks, prep: Object.keys(data.tickets).length, messages: props.messagesUnread ?? 0 }}
         modeLabel={copy.modeLabel}
         modeEyebrow={copy.chrome.modeEyebrow}
         lock={{ label: copy.chrome.lock, disabledReason: copy.chrome.lockUnavailable }}

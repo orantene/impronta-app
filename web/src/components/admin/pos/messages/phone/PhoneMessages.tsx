@@ -40,7 +40,7 @@ export function PhoneMessages(props: {
 }) {
   if (!props.active) {
     return (
-      <div className="flex h-full min-h-[844px] flex-col bg-admin-surface text-admin-ink" data-pos-messages="phone">
+      <div className="flex h-full min-h-0 flex-col bg-admin-surface text-admin-ink" data-pos-messages="phone">
         {props.toast ? (
           <div className={cn(POS_NOTE_INFO, "m-3")}>
             <p>{props.copy.toastIncoming}</p>
@@ -81,20 +81,20 @@ export function PhoneMessages(props: {
   }
   const name = isVisitorName(props.active.contactName) ? props.copy.visitor : props.active.contactName;
   return (
-    <div className="flex h-full min-h-[844px] flex-col bg-admin-surface text-admin-ink" data-pos-messages="phone-thread">
+    <div className="flex h-full min-h-0 flex-col bg-admin-surface text-admin-ink" data-pos-messages="phone-thread">
       <header className="border-b border-admin-border-soft px-4 py-3">
         <p className="font-semibold">{name}</p>
         <p className="text-[13px] text-admin-ink-muted">{props.copy.conversation[props.active.conversationState]}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {props.active.recordChips.map((chip) => (
             <button key={chip.recordId} type="button" className={POS_SECONDARY_ACTION} onClick={() => props.onOpenSheet("link")}>
-              {chip.label}
+              {props.copy.record[chip.kind]}
             </button>
           ))}
         </div>
       </header>
       {props.active.nextAction === "reply" ? <p className={cn(POS_NOTE_INFO, "mx-3 mt-2")}>{props.copy.nudgeReply}</p> : null}
-      <ol className="flex-1 space-y-3 overflow-y-auto p-3">
+      <ol className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {props.messages.map((message) => (
           <li key={message.id}>
             <OperatorCard message={message} model={renderCard(message.kind, message.payload, "operator")} />

@@ -12883,7 +12883,8 @@
           "empty": "No hay ventas en espera.",
           "resume": "Reanudar",
           "heldSince": "En espera desde",
-          "saleLabel": "Venta"
+          "saleLabel": "Venta",
+          "fromMessages": "desde Mensajes"
         },
         "refusal": {
           "balanceChanged": "Alguien ya cobró parte de este saldo. El monto pendiente cambió.",
@@ -13177,6 +13178,7 @@
           "methodUnavailable": "Filtrar por cómo llegó el dinero aún no está disponible aquí.",
           "empty": "Todavía no hay ventas de mostrador pagadas en este rango.",
           "noCode": "Sin código",
+          "fromMessages": "desde Mensajes · pagado por enlace",
           "open": "Abrir recibo"
         },
         "issues": {
@@ -14593,12 +14595,26 @@
         "failedLoad": "No se pudieron cargar las conversaciones.",
         "toastIncoming": "Llego un mensaje nuevo.",
         "backToSale": "Volver a la venta",
+        "backToSaleDetail": {
+          "one": "Volver a la venta {ref} · {total} · 1 línea",
+          "other": "Volver a la venta {ref} · {total} · {count} líneas"
+        },
+        "backTo": "Volver a {screen}",
         "deposit": "Anticipo",
         "full": "Monto completo",
         "none": "Sin pago ahora",
         "webChatOnlyCustomer": "El chat web solo lo puede abrir el cliente.",
         "whatsappNeedsTemplate": "WhatsApp necesita primero una plantilla aprobada.",
         "draftKept": "Tu texto sigue aqui.",
+        "record": {
+          "order": "Pedido",
+          "appointment": "Cita",
+          "reservation": "Reserva",
+          "class_enrolment": "Plaza en clase",
+          "tickets": "Entradas",
+          "project": "Proyecto",
+          "offer": "Oferta"
+        },
         "filter": {
           "all": "Todas",
           "unread": "Sin leer",
@@ -14813,6 +14829,7 @@
       "tabReady": "Listos",
       "recall": "Recuperar",
       "recallReason": "Las comandas entregadas aún no se guardan en el tablero.",
+      "fromMessages": "desde Mensajes · pagado por enlace",
       "subtitle": "{date} · {time} · {preparing} preparando · {queued} en cola · {ready} listos",
       "fired": "Enviada {time}",
       "amendmentBanner": "{code} · comanda modificada · revisión {n} · acéptala de nuevo",

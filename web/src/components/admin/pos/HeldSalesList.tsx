@@ -17,6 +17,8 @@ export type HeldSalesListCopy = {
   readonly empty: string;
   readonly resume: string;
   readonly heldSince: string;
+  /** "from Messages": the row's origin pill when the draft came from a conversation. */
+  readonly fromMessages: string;
 };
 
 export type HeldSalesListProps = {
@@ -42,7 +44,14 @@ export function HeldSalesList({ sales, onResume, copy, className }: HeldSalesLis
               className="flex min-h-[64px] items-center gap-4 border-b border-admin-border-soft px-4 py-3 last:border-b-0"
             >
               <span className={cn("w-[82px] font-mono text-[15px] text-admin-ink-muted", POS_NUM)}>{sale.heldAt}</span>
-              <span className="min-w-0 flex-1 truncate text-[16px] font-semibold text-admin-ink">{sale.label}</span>
+              <span className="min-w-0 flex-1 truncate text-[16px] font-semibold text-admin-ink">
+                {sale.label}
+                {sale.origin === "messages" && (
+                  <span data-pos-sale-origin="messages" className="ml-2 rounded-full bg-admin-brand-soft px-2 py-0.5 text-[11.5px] font-semibold text-admin-brand">
+                    {copy.fromMessages}
+                  </span>
+                )}
+              </span>
               <span className={cn("font-mono text-[15px] font-bold text-admin-ink", POS_NUM)}>
                 {formatOrderMoney(sale.totalCents, sale.currency)}
               </span>

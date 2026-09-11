@@ -1828,7 +1828,8 @@
           "empty": "Aucune vente en attente.",
           "resume": "Reprendre",
           "heldSince": "En attente depuis",
-          "saleLabel": "Vente"
+          "saleLabel": "Vente",
+          "fromMessages": "depuis Messages"
         },
         "refusal": {
           "balanceChanged": "Quelqu'un a déjà encaissé une partie de ce solde. Le montant dû a changé.",
@@ -2122,6 +2123,7 @@
           "methodUnavailable": "Filtrer selon le moyen de paiement n'est pas encore disponible ici.",
           "empty": "Aucune vente au comptoir payée sur cette période pour l'instant.",
           "noCode": "Sans code",
+          "fromMessages": "depuis Messages · payé par lien",
           "open": "Ouvrir le reçu"
         },
         "issues": {
@@ -3631,12 +3633,26 @@
         "failedLoad": "Impossible de charger les conversations.",
         "toastIncoming": "Un nouveau message est arrive.",
         "backToSale": "Retour a la vente",
+        "backToSaleDetail": {
+          "one": "Retour à la vente {ref} · {total} · 1 ligne",
+          "other": "Retour à la vente {ref} · {total} · {count} lignes"
+        },
+        "backTo": "Retour à {screen}",
         "deposit": "Acompte",
         "full": "Montant complet",
         "none": "Pas de paiement maintenant",
         "webChatOnlyCustomer": "Le chat web ne peut etre ouvert que par le client.",
         "whatsappNeedsTemplate": "WhatsApp exige d abord un modele approuve.",
         "draftKept": "Votre texte est toujours la.",
+        "record": {
+          "order": "Commande",
+          "appointment": "Rendez-vous",
+          "reservation": "Réservation",
+          "class_enrolment": "Place en cours",
+          "tickets": "Billets",
+          "project": "Projet",
+          "offer": "Offre"
+        },
         "filter": {
           "all": "Tous",
           "unread": "Non lus",
@@ -4651,6 +4667,7 @@
       "tabReady": "Prêts",
       "recall": "Rappeler",
       "recallReason": "Les tickets remis ne sont pas encore gardés sur le tableau.",
+      "fromMessages": "depuis Messages · payé par lien",
       "subtitle": "{date} · {time} · {preparing} en préparation · {queued} en attente · {ready} prêts",
       "fired": "Envoyé {time}",
       "amendmentBanner": "{code} · ticket modifié · révision {n} · acceptez-le à nouveau",

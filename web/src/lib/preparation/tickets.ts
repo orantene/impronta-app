@@ -49,6 +49,13 @@ export type PrepTicketView = {
   readyAt: string | null;
   snapshotLines: Array<{ id: string; label: string; units: number }>;
   /**
+   * Where the order came from: `messages` when the Messages surface opened
+   * the draft and the customer paid by link (`orders.source_channel`,
+   * messaging contract seam 3). The card says "from Messages · paid by link"
+   * so the cook knows nobody is standing at the counter for it.
+   */
+  origin: "pos" | "messages" | null;
+  /**
    * The lines this revision ADDED against the one before it (every line on
    * a first send; on an amendment, the lines that were not on the previous
    * snapshot or whose units grew). The station's "New" pill is drawn from
@@ -403,13 +410,22 @@ export async function cancelTicket(
   return { ok: true, ticketId: input.ticketId };
 }
 
+/** PostgREST's embed of the ticket's order: one object, or a list, or nothing. */
+type OrderOriginEmbed = { source_channel: string | null } | { source_channel: string | null }[] | null | undefined;
+
+function ticketOrigin(embed: OrderOriginEmbed): PrepTicketView["origin"] {
+  const order = Array.isArray(embed) ? embed[0] : embed;
+  if (!order) return null;
+  return order.source_channel === "messages" ? "messages" : "pos";
+}
+
 export async function loadActiveTicketForOrder(
   admin: Admin,
   input: { tenantId: string; orderId: string },
 ): Promise<{ ok: true; ticket: PrepTicketView | null } | { ok: false; reason: "unavailable" }> {
   const { data, error } = await admin
     .from("preparation_tickets")
-    .select("id, order_id, visit_id, station, destination, status, revision, promised_at, handed_off_at, submitted_at, acknowledged_at, ready_at")
+    .select("id, order_id, visit_id, station, destination, status, revision, promised_at, handed_off_at, submitted_at, acknowledged_at, ready_at, orders(source_channel)")
     .eq("order_id", input.orderId)
     .eq("tenant_id", input.tenantId)
     .neq("status", "cancelled")
@@ -432,6 +448,7 @@ export async function loadActiveTicketForOrder(
     submitted_at: string | null;
     acknowledged_at: string | null;
     ready_at: string | null;
+    orders: OrderOriginEmbed;
   };
   const snap = await loadSnapshotLines(admin, row.id, row.revision);
   if (!snap.ok) return { ok: false, reason: "unavailable" };
@@ -456,6 +473,7 @@ export async function loadActiveTicketForOrder(
       acknowledgedAt: row.acknowledged_at,
       readyAt: row.ready_at,
       snapshotLines: snap.lines,
+      origin: ticketOrigin(row.orders),
       addedLineIds: addedLines(snap.lines, previous?.ok ? previous.lines : null),
     },
   };
@@ -467,7 +485,7 @@ export async function listBoard(
 ): Promise<{ ok: true; tickets: PrepTicketView[] } | { ok: false; reason: "unavailable" }> {
   const { data, error } = await admin
     .from("preparation_tickets")
-    .select("id, order_id, visit_id, station, destination, status, revision, promised_at, handed_off_at, submitted_at, acknowledged_at, ready_at")
+    .select("id, order_id, visit_id, station, destination, status, revision, promised_at, handed_off_at, submitted_at, acknowledged_at, ready_at, orders(source_channel)")
     .eq("tenant_id", tenantId)
     .neq("status", "cancelled")
     .order("submitted_at", { ascending: true });
@@ -496,6 +514,7 @@ export async function listBoard(
     submitted_at: string | null;
     acknowledged_at: string | null;
     ready_at: string | null;
+    orders: OrderOriginEmbed;
   }>) {
     const snap = await loadSnapshotLines(admin, row.id, row.revision);
     if (!snap.ok) return { ok: false, reason: "unavailable" };
@@ -519,6 +538,7 @@ export async function listBoard(
       acknowledgedAt: row.acknowledged_at,
       readyAt: row.ready_at,
       snapshotLines: snap.lines,
+      origin: ticketOrigin(row.orders),
       addedLineIds: addedLines(snap.lines, previous?.ok ? previous.lines : null),
     });
   }

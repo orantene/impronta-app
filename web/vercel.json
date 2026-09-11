@@ -251,6 +251,14 @@
     {
       "path": "/api/cron/outbox",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/messaging-reminders",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/messaging-delivery-retry",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
