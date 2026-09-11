@@ -1,0 +1,47 @@
+
+Running 4 tests using 1 worker
+
+[1/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:309:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree
+  1) [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:309:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree 
+
+    Error: the drawer must actually open
+
+    expect(locator).toBeVisible() failed
+
+    Locator: locator('[data-pos-close-and-count]')
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+      - the drawer must actually open with timeout 30000ms
+      - waiting for locator('[data-pos-close-and-count]')
+
+
+      211 |   await openingField.fill("100.00");
+      212 |   await page.locator("[data-pos-open-shift]").click();
+    > 213 |   await expect(closeAndCount, "the drawer must actually open").toBeVisible({ timeout: 30_000 });
+          |                                                                ^
+      214 | }
+      215 |
+      216 | /** Back to the sell surface. */
+        at openFreshShift (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-polish1/web/e2e/cases/POS-counter-cash-sale.spec.ts:213:64)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-polish1/web/e2e/cases/POS-counter-cash-sale.spec.ts:323:3
+
+    Error Context: test-results/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[2/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:549:5 › POS-OP counter refusal: a sale someone else already collected against
+[3/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:599:5 › POS-OP counter refusal: a sale changed underneath the operator
+[4/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:651:5 › POS-OP counter refusal: an item that needs the customer's name, sold without one
+  1 failed
+    [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:309:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree 
+  3 did not run

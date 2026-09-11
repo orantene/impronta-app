@@ -96,7 +96,9 @@ export async function reservationsSeatBooking(input: {
  * arriving immediately, so the Seat control above can put them on a table.
  */
 const walkInInput = z.object({
-  holderName: z.string().trim().min(1).max(120),
+  // Optional, as the board says (T07 "Name · Optional"): a party that gives
+  // no name is on the list as a walk-in, never refused for it.
+  holderName: z.string().trim().max(120),
   partySize: z.number().int().min(1).max(200),
 });
 
@@ -135,7 +137,7 @@ export async function reservationsTakeWalkIn(input: {
     startsAt: plan.plan.startsAt,
     endsAt: plan.plan.endsAt,
     partySize: parsed.data.partySize,
-    holderName: parsed.data.holderName,
+    holderName: parsed.data.holderName || null,
     actorUserId: guard.user.id,
   });
   return seated.ok ? { ok: true, admissionId: seated.admissionId } : { ok: false, reason: seated.reason };

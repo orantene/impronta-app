@@ -108,15 +108,21 @@ export type OverviewToday = {
   readonly tabs: readonly ("arrivals" | "classes" | "tables")[];
 };
 
+export type SetupItemKey =
+  | "timeZone"
+  | "catalogItem"
+  | "whoPerforms"
+  | "bookableHours"
+  | "onlinePayments"
+  | "bookingPolicy"
+  | "payoutDestination"
+  | "websitePublished";
+
 export type SetupItem = {
-  readonly key:
-    | "timeZone"
-    | "catalogItem"
-    | "bookableHours"
-    | "onlinePayments"
-    | "payoutDestination"
-    | "websitePublished";
+  readonly key: SetupItemKey;
   readonly done: boolean;
+  /** The fact when done (a timezone, an item and its price), the consequence when not. */
+  readonly detail: OverviewCopy;
 };
 
 export type OverviewSnapshot = {

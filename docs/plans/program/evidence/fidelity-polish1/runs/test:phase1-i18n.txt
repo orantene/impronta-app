@@ -1,0 +1,60 @@
+  ...
+# Subtest: a plan-name message never leaks the message key itself
+ok 11 - a plan-name message never leaks the message key itself
+  ---
+  duration_ms: 9.697541
+  ...
+# Subtest: public bio: non-empty ES always shown on /es (incl. stale semantics)
+ok 12 - public bio: non-empty ES always shown on /es (incl. stale semantics)
+  ---
+  duration_ms: 0.419417
+  ...
+# Subtest: public bio: empty ES falls back to EN on es locale
+ok 13 - public bio: empty ES falls back to EN on es locale
+  ---
+  duration_ms: 0.067708
+  ...
+# Subtest: public bio: en locale uses English source
+ok 14 - public bio: en locale uses English source
+  ---
+  duration_ms: 0.0825
+  ...
+# Subtest: public bio: en locale falls back to Spanish when English empty
+ok 15 - public bio: en locale falls back to Spanish when English empty
+  ---
+  duration_ms: 0.133875
+  ...
+# Subtest: stale: already stale → no new status from EN-change helper
+ok 16 - stale: already stale → no new status from EN-change helper
+  ---
+  duration_ms: 0.079417
+  ...
+# Subtest: stale: published ES + non-stale status → stale on EN edit
+ok 17 - stale: published ES + non-stale status → stale on EN edit
+  ---
+  duration_ms: 0.045334
+  ...
+# Subtest: stale: no published ES → no stale transition
+ok 18 - stale: no published ES → no stale transition
+  ---
+  duration_ms: 0.040417
+  ...
+# Subtest: buildBioEnEditExtras: identical EN text does not bump bio_en_updated_at
+ok 19 - buildBioEnEditExtras: identical EN text does not bump bio_en_updated_at
+  ---
+  duration_ms: 0.120083
+  ...
+# Subtest: buildBioEnEditExtras: EN text change + published ES → stale + audit
+ok 20 - buildBioEnEditExtras: EN text change + published ES → stale + audit
+  ---
+  duration_ms: 0.115875
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1965.306209

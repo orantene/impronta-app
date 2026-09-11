@@ -65,6 +65,9 @@ async function setPlatformPosEnabled(page: Page, desired: boolean): Promise<void
 }
 
 test("the platform POS switch and the workspace panel agree, end to end", async ({ page }) => {
+  // Five sign-ins and four page loads; on a cold dev server that is more than
+  // the default 30s, the same budget the other journeys give themselves.
+  test.setTimeout(420_000);
   // ── 1. Platform admin turns the switch OFF, through the real action ──────
   await signInJourneysStaff(page, "/platform/admin/settings", PLATFORM_ADMIN_EMAIL);
   await setPlatformPosEnabled(page, false);
@@ -111,7 +114,9 @@ test("the platform POS switch and the workspace panel agree, end to end", async 
   await expect(counterSwitch).toBeVisible({ timeout: 20000 });
   if ((await counterSwitch.getAttribute("aria-checked")) !== "true") {
     await counterSwitch.click();
-    await expect(page.getByTestId("pos-modes-card").getByText("Saved", { exact: true })).toBeVisible();
+    // W58: the header's save chip says Saved HH:MM once the server has read
+    // the write back; a chip stuck on Saving or a Save failed is a failure here.
+    await expect(page.getByTestId("pos-save-state")).toHaveAttribute("data-save-state", "saved", { timeout: 20000 });
   }
   await page.screenshot({
     path: "../docs/plans/program/evidence/pos-enable/screenshots/3-workspace-panel-counter-on.png",

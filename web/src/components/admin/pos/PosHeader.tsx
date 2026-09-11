@@ -20,7 +20,13 @@ import { cn } from "@/lib/utils";
 export type PosHeaderMenuItem = {
   readonly id: string;
   readonly label: string;
-  readonly onSelect: () => void;
+  readonly onSelect?: () => void;
+  /**
+   * A door OUT of this window (the customer display opens as a second
+   * window): rendered as a real link with `target="_blank"` so the browser,
+   * not a script, opens it and a right-click offers "open in new window".
+   */
+  readonly href?: string;
 };
 
 export type PosHeaderProps = {
@@ -40,6 +46,8 @@ export type PosHeaderProps = {
   readonly portraitMenu?: { readonly label: string; readonly menuLabel: string; readonly items: readonly PosHeaderMenuItem[] };
   /** A figure drawn before the chips (`POSGateReady`: `11 of 14 in`). */
   readonly meta?: ReactNode;
+  /** `Live`: the green dot the floor boards carry before the location chip. */
+  readonly live?: string;
   readonly className?: string;
 };
 
@@ -56,6 +64,7 @@ export function PosHeader({
   cashierMenu,
   portraitMenu,
   meta,
+  live,
   className,
 }: PosHeaderProps) {
   const [open, setOpen] = useState(false);
@@ -100,7 +109,7 @@ export function PosHeader({
                     role="menuitem"
                     onClick={() => {
                       setModeOpen(false);
-                      item.onSelect();
+                      item.onSelect?.();
                     }}
                     className="flex h-11 w-full items-center rounded-[9px] px-3 text-left text-[14px] font-semibold text-admin-ink hover:bg-admin-surface-alt"
                   >
@@ -131,6 +140,12 @@ export function PosHeader({
           <AlertTriangle aria-hidden size={16} strokeWidth={1.75} />
           {alert.label}
         </button>
+      )}
+      {live && (
+        <span data-pos-live className="inline-flex items-center gap-1.5 text-[14px] font-bold text-admin-success">
+          <i aria-hidden className="inline-block h-2 w-2 rounded-full bg-admin-success" />
+          {live}
+        </span>
       )}
       <span data-pos-location className={cn(CHIP, "max-[900px]:hidden")}>
         <MapPin aria-hidden size={16} strokeWidth={1.75} className="text-admin-ink-muted" />
@@ -163,17 +178,31 @@ export function PosHeader({
           >
             {cashierMenu!.map((item) => (
               <li key={item.id} role="none">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpen(false);
-                    item.onSelect();
-                  }}
-                  className="flex h-11 w-full items-center rounded-[9px] px-3 text-left text-[14px] font-semibold text-admin-ink hover:bg-admin-surface-alt"
-                >
-                  {item.label}
-                </button>
+                {item.href ? (
+                  <a
+                    role="menuitem"
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-pos-frame-link={item.id}
+                    onClick={() => setOpen(false)}
+                    className="flex h-11 w-full items-center rounded-[9px] px-3 text-left text-[14px] font-semibold text-admin-ink no-underline hover:bg-admin-surface-alt"
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setOpen(false);
+                      item.onSelect?.();
+                    }}
+                    className="flex h-11 w-full items-center rounded-[9px] px-3 text-left text-[14px] font-semibold text-admin-ink hover:bg-admin-surface-alt"
+                  >
+                    {item.label}
+                  </button>
+                )}
               </li>
             ))}
           </ul>

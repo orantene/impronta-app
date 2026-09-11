@@ -429,7 +429,7 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
     );
 
   return (
-    <div className="relative flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] min-h-[560px] w-full flex-col overflow-hidden">
+    <div className="relative flex h-[calc(100vh-var(--proto-cbar,50px))] min-h-[560px] w-full flex-col overflow-hidden">
       <PosFrame
         mode="projects"
         navLabel={mode.rail.label}

@@ -67,7 +67,8 @@ test("C07-CUS tab: guest reads open check then ended after close", async ({
   await prepareJourneysPage(guestPage);
   const visitPath = `/visit/${opened!.publicToken}`;
   await guestPage.goto(visitPath);
-  await expect(guestPage.getByRole("heading", { level: 1 })).toHaveText(/your table/i);
+  // Q01: the guest is greeted by the table the code was printed for.
+  await expect(guestPage.getByRole("heading", { level: 1 })).toHaveText(/welcome to table/i);
   await expect(guestPage.getByText(/house pizza/i)).toBeVisible();
   await expect(guestPage.getByText(/total:\s*1800\s*usd/i)).toBeVisible();
   await guestPage.reload();

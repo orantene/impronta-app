@@ -8,6 +8,9 @@
  * the rail by itself.
  *
  * Top of the rail: the `MODE · Counter` chip (the mode this frame is in).
+ * When the shell provides a menu through `PosModeMenuContext` the chip is a
+ * button that opens it (`M33_ModeSwitch`: the till's own mode switch, since
+ * the POS has no workspace top bar); without a provider it is a label.
  * Then one 82x64 row per destination — icon over label, a count badge in the
  * corner when the caller has one (`counts`). Bottom: `Lock` (only when the
  * caller gives it something to do) and the `Workspace` door back out.
@@ -18,7 +21,7 @@
  * the POS lives in the top bar and is out of scope here.
  */
 
-import type { ComponentType, ReactNode } from "react";
+import { useId, useState, type ComponentType, type ReactNode } from "react";
 import {
   AlertTriangle,
   Calendar,
@@ -29,6 +32,7 @@ import {
   Clock,
   CreditCard,
   FileText,
+  Flame,
   FolderOpen,
   LayoutGrid,
   Link2,
@@ -45,6 +49,7 @@ import {
 
 import { POS_MODE_META, type PosMode } from "@/lib/pos/modes";
 import { cn } from "@/lib/utils";
+import { usePosModeMenuRender } from "./pos-mode-menu-context";
 
 export type PosFrameProps = {
   readonly mode: PosMode;
@@ -99,6 +104,7 @@ const DESTINATION_ICONS: Readonly<Record<string, ComponentType<LucideProps>>> = 
   issues: AlertTriangle,
   tables: LayoutGrid,
   seating: Users,
+  prep: Flame,
   checkin: ScanLine,
   tickets: Tag,
   lookup: Search,
@@ -132,23 +138,50 @@ export function PosFrame({
 }: PosFrameProps) {
   const meta = POS_MODE_META[mode];
   const destinations = meta.destinations;
+  const renderModeMenu = usePosModeMenuRender();
+  const [modeOpen, setModeOpen] = useState(false);
+  const modeMenuId = useId();
+  const chipInner = (
+    <>
+      <span className="text-[10.5px] font-bold uppercase leading-none tracking-[0.06em] opacity-75">{modeEyebrow ?? "Mode"}</span>
+      <span className="flex items-center gap-1 text-center text-[12px] font-bold leading-[1.1]">
+        {modeLabel ?? meta.label}
+        <ChevronDown aria-hidden size={12} strokeWidth={1.75} className="shrink-0" />
+      </span>
+    </>
+  );
+  const CHIP =
+    "mb-1.5 flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 rounded-[14px] border-[1.5px] border-admin-brand/20 bg-admin-brand-soft text-admin-brand";
 
   return (
-    <div className={cn("flex h-full min-h-[560px] w-full overflow-hidden bg-admin-surface", className)}>
+    // `leading-[1.2]`: the boards set no line-height of their own (the
+    // browser's `normal`), and the admin body's 1.65 made every chip, price
+    // and totals row on the till a few pixels taller than drawn.
+    <div className={cn("flex h-full min-h-[560px] w-full overflow-hidden bg-admin-surface leading-[1.2]", className)}>
       <nav
         aria-label={navLabel}
         className="flex w-24 shrink-0 flex-col items-center gap-1 border-r border-admin-border bg-admin-card px-0 pb-2.5 pt-3 max-[900px]:hidden"
       >
-        <div
-          data-pos-mode-chip
-          className="mb-1.5 flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 rounded-[14px] border-[1.5px] border-admin-brand/20 bg-admin-brand-soft text-admin-brand"
-        >
-          <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] opacity-75">{modeEyebrow ?? "Mode"}</span>
-          <span className="flex items-center gap-1 text-center text-[12px] font-bold leading-[1.1]">
-            {modeLabel ?? meta.label}
-            <ChevronDown aria-hidden size={12} strokeWidth={1.75} className="shrink-0" />
-          </span>
-        </div>
+        {renderModeMenu ? (
+          <div className="relative">
+            <button
+              type="button"
+              data-pos-mode-chip
+              aria-haspopup="menu"
+              aria-expanded={modeOpen}
+              aria-controls={modeOpen ? modeMenuId : undefined}
+              onClick={() => setModeOpen((open) => !open)}
+              className={cn(CHIP, "cursor-pointer hover:border-admin-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand")}
+            >
+              {chipInner}
+            </button>
+            {renderModeMenu({ open: modeOpen, onClose: () => setModeOpen(false), menuId: modeMenuId })}
+          </div>
+        ) : (
+          <div data-pos-mode-chip className={CHIP}>
+            {chipInner}
+          </div>
+        )}
         {destinations.map((destinationId) => {
           const active = destinationId === activeDestination;
           const Icon = DESTINATION_ICONS[destinationId] ?? LayoutGrid;
