@@ -53,3 +53,6 @@ next-env.d.ts
 /scripts/ai-builder-eval/screenshots/
 .worktree-owner
 .email-previews/
+# Local QA-runner helpers (secrets stay in /tmp; this is just the script)
+scripts/.refresh-tokens.mjs
+scripts/.bootstrap-*.mjs

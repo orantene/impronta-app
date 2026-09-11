@@ -29,7 +29,16 @@ export const JOURNEYS_B_OWNER_EMAIL = "qa-journeys-b-owner@impronta.test";
  * rather than pass because the thing it wanted to reach was never seeded.
  */
 export async function workspaceBFixturePresent(): Promise<boolean> {
-  const sb = isolatedService();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  const bJwt = process.env.JOURNEYS_B_OWNER_ACCESS_TOKEN ?? "";
+  const sb =
+    bJwt && anon && url.includes("fxlankepwnvelxjrahwk")
+      ? createClient(url, anon, {
+          global: { headers: { Authorization: `Bearer ${bJwt}` } },
+          auth: { persistSession: false, autoRefreshToken: false },
+        })
+      : isolatedService();
   const { data, error } = await sb
     .from("orders")
     .select("id, tenant_id, total_cents, status")
@@ -49,10 +58,23 @@ export function isolatedService(): SupabaseClient {
   if (!url.includes("fxlankepwnvelxjrahwk")) {
     throw new Error("isolated db helper requires the qa-journeys project ref");
   }
-  if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY missing");
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  if (key) {
+    return createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  // Cloud/QA runner without the service-role secret: use the fixture
+  // owner's user JWT (same isolated project). RLS still applies, so this
+  // cannot impersonate service_role or read workspace B.
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  const userJwt = process.env.JOURNEYS_OWNER_ACCESS_TOKEN ?? "";
+  if (anon && userJwt) {
+    return createClient(url, anon, {
+      global: { headers: { Authorization: `Bearer ${userJwt}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY missing");
 }
 
 export type PaidPosPizza = {
