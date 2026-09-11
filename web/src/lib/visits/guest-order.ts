@@ -103,11 +103,12 @@ export async function guestVisitAddLine(
 ): Promise<{ ok: true; orderId: string } | GuestFail> {
   const visit = await openVisit(admin, input.tenantId, input.token);
   if (!visit.ok) return visit;
-  const { data: visitRow } = await admin
+  const { data: visitRow, error: visitErr } = await admin
     .from("visits")
     .select("opened_by")
     .eq("id", visit.visitId)
     .maybeSingle();
+  if (visitErr) return { ok: false, reason: "unavailable" };
   const actorUserId = input.actorUserId || String((visitRow as { opened_by?: string } | null)?.opened_by ?? "");
   if (!actorUserId) return { ok: false, reason: "unavailable" };
   const { data: offering, error } = await admin
@@ -233,11 +234,12 @@ export async function guestVisitPayShare(
   if (!visit.ok) return visit;
   let actorUserId = input.actorUserId;
   if (!actorUserId) {
-    const { data: visitRow } = await admin
+    const { data: visitRow, error: visitErr } = await admin
       .from("visits")
       .select("opened_by")
       .eq("id", visit.visitId)
       .maybeSingle();
+    if (visitErr) return { ok: false, reason: "unavailable" };
     actorUserId = String((visitRow as { opened_by?: string } | null)?.opened_by ?? "");
   }
   if (!actorUserId) return { ok: false, reason: "unavailable" };
@@ -287,7 +289,8 @@ export async function guestVisitBill(
   if (!loaded.ok) {
     return { ok: false, reason: loaded.reason === "ended" ? "visit_closed" : loaded.reason === "not_found" ? "not_found" : "unavailable" };
   }
-  const { data: orders } = await admin.from("orders").select("id").eq("visit_id", loaded.visitId);
+  const { data: orders, error: orderErr } = await admin.from("orders").select("id").eq("visit_id", loaded.visitId);
+  if (orderErr) return { ok: false, reason: "unavailable" };
   const orderIds = ((orders ?? []) as { id: string }[]).map((o) => o.id);
   let paidCents = 0;
   if (orderIds.length > 0) {
