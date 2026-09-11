@@ -299,7 +299,7 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   const talentSelect = page
     .locator("select")
     .filter({ has: page.locator("option", { hasText: /qa journeys talent/i }) });
-  await expect(addLine.or(talentSelect.first())).toBeVisible({ timeout: 20_000 });
+  await expect(addLine).toBeVisible({ timeout: 20_000 });
   if ((await talentSelect.count()) === 0) {
     await addLine.click();
   }
