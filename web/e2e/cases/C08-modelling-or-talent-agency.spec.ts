@@ -348,6 +348,9 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
   expect(awaiting, "a sent offer must still wait on QA Journeys Talent").not.toBeNull();
   expect(awaiting?.offerStatus).toBe("sent");
   expect(awaiting?.inquiryStatus).toMatch(/offer_pending|coordination/);
+  expect(awaiting?.contactEmail ?? "", "talent must open the just-sent C08 offer").toMatch(
+    /c08-op-/,
+  );
 
   await signInJourneysStaff(page, `/talent/inbox/${awaiting!.inquiryId}`, JOURNEYS_TALENT_EMAIL);
   await expect(page).toHaveURL(/\/talent\/inbox/, { timeout: 40_000 });
@@ -356,41 +359,16 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
   await expect(page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i })).toHaveCount(0);
   await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
 
+  // Fresh send still shows Inquiry SLA until talent accepts the invite.
+  const acceptInvite = page.getByRole("button", { name: /accept$/i });
+  const approve = page.getByRole("button", { name: /approve offer/i });
+  if (!(await approve.isVisible().catch(() => false))) {
+    await expect(acceptInvite.first()).toBeVisible({ timeout: 20_000 });
+    await acceptInvite.first().click();
+  }
   const offerTab = page.getByRole("tab", { name: /^offer$/i });
   if (await offerTab.isVisible().catch(() => false)) {
     await offerTab.click();
-  }
-  const approve = page.getByRole("button", { name: /approve offer/i });
-  const acceptInvite = page.getByRole("button", { name: /^accept$/i });
-  if (!(await approve.isVisible().catch(() => false))) {
-    if (await acceptInvite.isVisible().catch(() => false)) {
-      await acceptInvite.click();
-      if (await offerTab.isVisible().catch(() => false)) {
-        await offerTab.click();
-      }
-    }
-  }
-  if (!(await approve.isVisible().catch(() => false))) {
-    await expect(approve)
-      .toBeVisible({ timeout: 15_000 })
-      .catch(() => undefined);
-  }
-  if (!(await approve.isVisible().catch(() => false))) {
-    await page.goto("/talent/inbox");
-    await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
-    const allChip = page.getByRole("button", { name: /^all$/i });
-    if (await allChip.isVisible().catch(() => false)) {
-      await allChip.click();
-    }
-    const row = page
-      .getByRole("button", { name: /cora cuevas/i })
-      .filter({ hasText: /offer sla/i })
-      .first();
-    await expect(row).toBeVisible({ timeout: 40_000 });
-    await row.click();
-    if (await offerTab.isVisible().catch(() => false)) {
-      await offerTab.click();
-    }
   }
   await expect(approve).toBeVisible({ timeout: 40_000 });
   await approve.click();
