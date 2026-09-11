@@ -6,13 +6,11 @@
  * modes at this location beside the devices & drawers, then Tips, Receipts
  * and Offline.
  *
- * THE ONLY UI THAT WRITES `agencies.settings.pos.locations.default.modes`
- * (money.md §2). Loads its own value with `getPosModes()` rather than
- * trusting shell state (the shell's `workspacePosModes` is a layout-bridge
- * snapshot that can be a request behind); a toggle saves immediately and the
- * header's chip says Saving · Saved HH:MM · Save failed (W58): on failure the
- * switch stays where the person put it and Retry sends the same change once.
- * Writes are gated to the owner: `setPosModes` requires `manage_billing`.
+ * Writes `agencies.settings.pos.locations.<slug>.modes` through
+ * `getLocationModes` / `setLocationModes` (D-POS-76). A toggle saves
+ * immediately and the header's chip says Saving · Saved HH:MM · Save failed
+ * (W58). Writes are gated to the owner: `setLocationModes` requires
+ * `manage_billing`.
  *
  * TURNING THE LAST MODE OFF IS A REAL, PERSISTED STATE, said in words
  * (`allOffHint`). A MODE WITH NO SCREEN IS NEVER OFFERED AS A TOGGLE THAT
@@ -22,10 +20,8 @@
  * has its own sentence and a retry (W59), never "Loading…" for ever.
  *
  * WHAT IS DRAWN BUT NOT WIRED, each disabled with its one-sentence reason
- * (D-POS-58): a second location, Field Services, Pair a device, and every
- * Tips / Receipts / Offline field. The boxes show the honest current
- * behaviour (receipts name the workspace; the till is online only) so the
- * screen never claims a setting the engine does not read.
+ * (D-POS-58): Field Services, Pair a device, and every Tips / Receipts /
+ * Offline field. Locations come from `venue_locations`.
  *
  * THE PLATFORM SWITCH OUTRANKS EVERYTHING HERE. With
  * `platform_settings.workspace_pos_enabled` off nothing reads the modes
@@ -37,8 +33,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { getPosModes, setPosModes } from "@/lib/server-actions/pos-modes";
+import { getLocationModes, setLocationModes } from "@/lib/server-actions/pos-modes";
 import { getPosLocationFacts, type PosLocationFacts } from "@/lib/server-actions/pos-location-facts";
+import { locationsList } from "@/lib/server-actions/venue-engine";
 import { CLIENT_LOAD_REFUSAL, type ClientLoadRefusal, type PosModesRefusal } from "@/lib/settings/refusals";
 import { POS_MODES, POS_MODE_META, type PosMode } from "@/lib/pos/modes";
 import { formatOrderMoney } from "@/lib/orders/money-format";
@@ -65,8 +62,7 @@ const K = "dashboard.adminWorkspace.posModes";
 /** A server refusal, or the one failure that never reaches the server at all. */
 type CardRefusal = PosModesRefusal | ClientLoadRefusal;
 
-/** The one location every workspace has today (`lib/pos/modes.ts`: "default"). */
-const LOCATION_ID = "default";
+type LocationOption = { id: string; slug: string; label: string };
 
 function clock(iso: string | null, timeZone: string): string {
   if (!iso) return "";
@@ -97,16 +93,23 @@ export function PosModesSettingsCard({
   // The change a failed save was carrying, so Retry sends the SAME change once.
   const [pending, setPending] = useState<PosMode[] | null>(null);
   const [facts, setFacts] = useState<PosLocationFacts | null>(null);
+  const [locationOptions, setLocationOptions] = useState<LocationOption[]>([]);
+  const [locationSlug, setLocationSlug] = useState("default");
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoadRefusal(null);
-    void getPosModes()
+    void locationsList()
       .then((res) => {
         if (cancelled) return;
-        if (res.ok) setCurrent(res.modes);
-        else setLoadRefusal(res.reason);
+        if (!res.ok) {
+          setLoadRefusal(CLIENT_LOAD_REFUSAL);
+          return;
+        }
+        const options = res.locations.map((row) => ({ id: row.slug, slug: row.slug, label: row.name }));
+        setLocationOptions(options);
+        setLocationSlug((prev) => (options.some((row) => row.slug === prev) ? prev : options.find((row) => row.slug === "default")?.slug ?? options[0]?.slug ?? "default"));
       })
       .catch(() => {
         if (!cancelled) setLoadRefusal(CLIENT_LOAD_REFUSAL);
@@ -123,12 +126,28 @@ export function PosModesSettingsCard({
     };
   }, [reloadToken]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void getLocationModes({ slug: locationSlug })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) setCurrent(res.modes);
+        else setLoadRefusal(res.reason);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadRefusal(CLIENT_LOAD_REFUSAL);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [locationSlug, reloadToken]);
+
   const commit = useCallback(
     async (next: PosMode[]) => {
       setSave({ kind: "saving" });
       setPending(next);
       try {
-        const res = await setPosModes({ modes: next });
+        const res = await setLocationModes({ slug: locationSlug, modes: next });
         if (res.ok) {
           setCurrent(res.modes);
           setPending(null);
@@ -141,7 +160,7 @@ export function PosModesSettingsCard({
         setSave({ kind: "failed", message: t(`${K}.errors.${CLIENT_LOAD_REFUSAL}`) });
       }
     },
-    [queueRouterRefresh, t],
+    [locationSlug, queueRouterRefresh, t],
   );
 
   function toggle(mode: PosMode) {
@@ -157,8 +176,13 @@ export function PosModesSettingsCard({
   }
 
   const timeZone = facts?.timezone ?? "UTC";
-  const location = facts?.venueName?.trim() || workspaceName;
+  const selectedLocation = locationOptions.find((row) => row.slug === locationSlug);
+  const location = selectedLocation?.label || facts?.venueName?.trim() || workspaceName;
   const notWiredReason = (key: string) => t(`${K}.notWired.${key}`);
+  const locationOptionsForControl =
+    locationOptions.length > 0
+      ? locationOptions.map((row) => ({ id: row.slug, label: row.label }))
+      : [{ id: "default", label: location }];
 
   const header = (
     <SettingsHeader
@@ -176,12 +200,12 @@ export function PosModesSettingsCard({
           />
           <Segmented
             label={t(`${K}.locationsLabel`)}
-            value={LOCATION_ID}
-            onChange={() => undefined}
-            options={[
-              { id: LOCATION_ID, label: location },
-              { id: "second", label: t(`${K}.secondLocation`), reason: notWiredReason("secondLocation") },
-            ]}
+            value={locationSlug}
+            onChange={(id) => {
+              setLocationSlug(id);
+              setCurrent(null);
+            }}
+            options={locationOptionsForControl}
           />
         </>
       }

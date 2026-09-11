@@ -60,6 +60,7 @@ import { dateAt, timeAt, type DoorScreenCopy, type OpenDoor, type RecentScan } f
 export type DoorClientProps = {
   tenantId: string;
   workspaceName: string;
+  locationName?: string;
   cashierName: string;
   drawerOpen: boolean;
   workspacePath: string;
@@ -334,7 +335,7 @@ export function DoorClient(props: DoorClientProps) {
         <PosHeader
           title={header.title}
           subtitle={header.subtitle}
-          location={props.workspaceName}
+          location={props.locationName ?? props.workspaceName}
           cashier={{
             initials: initialsOf(props.cashierName || props.workspaceName),
             label: `${props.cashierName || props.workspaceName} · ${props.drawerOpen ? copy.chrome.drawerOpen : copy.chrome.drawerNone}`,

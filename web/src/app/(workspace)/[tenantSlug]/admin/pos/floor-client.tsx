@@ -40,6 +40,7 @@ import { kitchenOutcome } from "./floor-kitchen";
 
 export type FloorClientProps = {
   readonly workspaceName: string;
+  readonly locationName?: string;
   /** This request's own `/…/admin/pos` path, so links keep the host shape. */
   readonly posPath: string;
   readonly workspacePath: string;
@@ -144,7 +145,7 @@ export function FloorClient(props: FloorClientProps) {
         <PosHeader
           title={header.title}
           subtitle={header.subtitle}
-          location={props.workspaceName}
+          location={props.locationName ?? props.workspaceName}
           cashier={{
             initials: initialsOf(props.cashierName || props.workspaceName),
             label: `${props.cashierName || props.workspaceName} · ${props.drawerOpen ? copy.chrome.drawerOpen : copy.chrome.drawerNone}`,

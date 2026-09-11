@@ -74,6 +74,7 @@ export type ProjectsModeView = "collect" | "projects" | "links" | "receipts" | "
 
 export type ProjectsModeClientProps = {
   readonly workspaceName: string;
+  readonly locationName?: string;
   readonly cashierName: string;
   readonly drawerOpen: boolean;
   readonly posPath: string;
@@ -451,7 +452,7 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
         <PosHeader
           title={header.title}
           subtitle={header.subtitle}
-          location={props.workspaceName}
+          location={props.locationName ?? props.workspaceName}
           cashier={{ initials: initialsOf(props.cashierName), label: cashierLine }}
           cashierMenuLabel={copy.chrome.cashierMenu}
         />

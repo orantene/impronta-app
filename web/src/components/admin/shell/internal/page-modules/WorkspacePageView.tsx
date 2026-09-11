@@ -454,7 +454,7 @@ export function WorkspacePageView() {
         extra: tenantSlug ? <LocationsCard workspaceName={effectiveTenant.name} onEditLocation={() => applySettingsTarget({ section: "venue" })} /> : null,
         extraSearch: [
           { title: t("dashboard.adminWorkspace.locations.label"), desc: t("dashboard.adminWorkspace.locations.subtitle") },
-          { title: t("dashboard.adminWorkspace.locations.zonesHeading"), desc: t("dashboard.adminWorkspace.locations.notWired.zones") },
+          { title: t("dashboard.adminWorkspace.locations.zonesHeading"), desc: t("dashboard.adminWorkspace.locations.notWired.travel") },
         ],
       },
       {

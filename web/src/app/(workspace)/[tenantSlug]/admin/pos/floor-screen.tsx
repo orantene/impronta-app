@@ -99,6 +99,7 @@ export async function FloorScreen(props: {
   tenantId: string;
   locale: string;
   workspaceName: string;
+  locationName?: string;
   posPath: string;
   cashierName: string;
   drawerOpen: boolean;
@@ -120,6 +121,7 @@ export async function FloorScreen(props: {
   return (
     <FloorClient
       workspaceName={props.workspaceName}
+      locationName={props.locationName}
       posPath={props.posPath}
       workspacePath={workspacePath}
       preparationPath={`${workspacePath}/preparation`}

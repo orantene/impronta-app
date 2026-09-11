@@ -31,6 +31,7 @@ function asView(raw: unknown): ProjectsModeView {
 export async function ProjectsModePage(props: {
   tenantId: string;
   workspaceName: string;
+  locationName?: string;
   posPath: string;
   workspacePath: string;
   receiptOrigin: string;
@@ -59,6 +60,7 @@ export async function ProjectsModePage(props: {
   return (
     <ProjectsModeClient
       workspaceName={props.workspaceName}
+      locationName={props.locationName}
       cashierName={props.cashierName}
       drawerOpen={props.drawerOpen}
       posPath={props.posPath}

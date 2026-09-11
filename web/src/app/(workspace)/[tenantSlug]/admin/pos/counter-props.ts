@@ -96,6 +96,8 @@ export type PosClientProps = {
   tenantId: string;
   /** This workspace's own name: the location chip until a locations table exists. */
   workspaceName: string;
+  /** Default `venue_locations` name for the till chip (D-POS-76). */
+  locationName?: string;
   /** The signed-in person, as the cashier chip names them. */
   cashierName: string;
   locale: string;
