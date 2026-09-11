@@ -1466,7 +1466,6 @@
       "soldOutError": "{item} is sold out.",
       "submit": "Send order"
     },
-<<<<<<< HEAD
     "manageBooking": {
       "title": "Your booking",
       "noDate": "Date to be confirmed",
@@ -1502,14 +1501,13 @@
       "rescheduleConfirm": "Confirm the new time",
       "rescheduled": "Your booking has moved to the new time.",
       "cancelNothingPaid": "Nothing was paid, so nothing comes back."
-=======
+    },
     "thread": {
       "title": "Your conversation",
       "continue": "Continue on this phone",
       "pay": "Pay securely",
       "empty": "No messages yet.",
       "codeSent": "If SMS is available, a code was sent."
->>>>>>> origin/main
     }
   },
   "dashboard": {
@@ -4902,7 +4900,7 @@
           "other": "{count} members"
         },
         "limitsHeading": "Per-person limits",
-        "limitsGap": "This action has no per-role gate yet. Everyone eligible for a selling mode can use everything that mode offers.",
+        "limitsGap": "Tulala does not track individual discount or refund limits yet. Everyone eligible for a selling mode can use everything that mode offers.",
         "posOffNotice": "This workspace has every selling mode switched off, so no role reaches the point of sale. Turn one on in Point of sale above.",
         "invitedCount": {
           "one": "{count} invitation not accepted yet",
@@ -12630,43 +12628,6 @@
         "today": "Today a sale carries one code; price lists, manual discounts and member prices are not applied."
       }
     },
-    "venue": {
-      "engine": {
-        "refusal": {
-          "duplicate_slug": "That location slug is already in use.",
-          "last_location": "A workspace needs at least one location.",
-          "has_spaces": "That zone still has tables on it.",
-          "already_seated": "That party is already seated.",
-          "space_occupied": "That table already has a party.",
-          "expired": "That waitlist place has expired.",
-          "overlap": "Those service periods overlap.",
-          "two_active": "This location already has an active layout.",
-          "station_in_use": "That station still has tickets or items.",
-          "visit_closed": "This table visit has ended.",
-          "item_unavailable": "That item is not available.",
-          "already_paid": "That share is already paid.",
-          "exceeds_outstanding": "That is more than what is still owed.",
-          "not_submitted": "The kitchen has not received that line yet.",
-          "seat_taken": "That seat is already taken.",
-          "hold_expired": "The hold on that seat has expired.",
-          "same_session": "That ticket is already for this night.",
-          "price_up_needs_payment": "The new night costs more. Pay the difference first.",
-          "needs_approval": "A manager has to approve this first.",
-          "channel_unavailable": "That delivery channel is not available.",
-          "superseded": "This ticket code was replaced.",
-          "too_many_attempts": "Too many tries. Wait and try again.",
-          "unknown_device": "This device is not registered.",
-          "not_replayable": "That command cannot be saved offline.",
-          "stale_app": "This app version is too old.",
-          "conflict": "This just changed. Reload and try again.",
-          "not_found": "That record is gone.",
-          "wrong_tenant": "That record is not in this workspace.",
-          "invalid": "That cannot be saved.",
-          "unavailable": "This could not be completed. Try again.",
-          "not_allowed": "You cannot do this here."
-        }
-      }
-    },
     "scheduling": {
       "engine": {
         "refusal": {
@@ -12732,82 +12693,6 @@
           "already_closed": "That shift is already closed.",
           "not_allowed": "You do not have permission to do this.",
           "no_customer": "Attach a customer to this sale first."
-        }
-      },
-      "messages": {
-        "title": "Messages",
-        "inbox": "Inbox",
-        "thread": "Thread",
-        "search": "Search messages",
-        "reply": "Reply",
-        "note": "Internal note",
-        "assign": "Assign owner",
-        "resolve": "Resolve",
-        "reopen": "Reopen",
-        "handOver": "Hand over",
-        "sendOptions": "Send options",
-        "addToDraft": "Add to draft",
-        "requestPayment": "Request payment",
-        "collectHere": "Collect here",
-        "closeLost": "Close as lost",
-        "remind": "Remind",
-        "newConversation": "New conversation",
-        "tabCustomer": "Customer",
-        "tabLinked": "Linked",
-        "tabNotes": "Notes",
-        "empty": "No conversations yet.",
-        "noResults": "No conversations match.",
-        "failedLoad": "Could not load conversations.",
-        "toastIncoming": "A new message arrived.",
-        "backToSale": "Back to sale",
-        "deposit": "Deposit",
-        "full": "Full amount",
-        "none": "No payment now",
-        "webChatOnlyCustomer": "Web chat can only be opened by the customer.",
-        "whatsappNeedsTemplate": "WhatsApp needs an approved template first.",
-        "draftKept": "Your typed draft is still here.",
-        "filter": {
-          "all": "All",
-          "unread": "Unread",
-          "unassigned": "Unassigned",
-          "mine": "Mine",
-          "needsReply": "Needs reply",
-          "awaitingCustomer": "Awaiting customer",
-          "resolved": "Resolved"
-        },
-        "state": {
-          "needsReply": "Needs reply",
-          "awaitingCustomer": "Awaiting customer",
-          "resolved": "Resolved",
-          "gathering": "Gathering details",
-          "offerSent": "Offer sent",
-          "awaitingAcceptance": "Awaiting acceptance",
-          "acceptedAwaitingDeposit": "Accepted, awaiting deposit",
-          "won": "Won",
-          "lost": "Lost"
-        },
-        "refusal": {
-          "conflict": "This conversation just changed. Reload and try again.",
-          "not_found": "That conversation is gone.",
-          "wrong_tenant": "That record is not in this workspace.",
-          "invalid": "That cannot be saved.",
-          "unavailable": "This could not be completed. Try again.",
-          "channel_unavailable": "That channel is not available.",
-          "template_required": "WhatsApp needs an approved template first.",
-          "rate_limited": "Wait a moment and try again.",
-          "checkout_locked": "Checkout is locked to the basket that was sent.",
-          "already_resolved": "This conversation is already resolved.",
-          "no_owner": "This conversation has no owner yet.",
-          "identity_unconfirmed": "Customer identity is not confirmed.",
-          "already_linked": "That record is already linked.",
-          "version_stale": "Someone else saved first. Compare the three versions.",
-          "payment_unknown": "Payment status is unknown. Do not request again.",
-          "already_paid": "This is already paid.",
-          "hold_ended": "The hold for this booking has ended.",
-          "basket_changed": "The basket changed after checkout started.",
-          "not_allowed": "You cannot do that from here.",
-          "expired": "This link or offer has expired.",
-          "already": "That is already done."
         }
       },
       "newSale": "New sale",
@@ -14662,6 +14547,82 @@
           "totalWouldBe": "Total would be {amount}",
           "add": "Add {amount} tip"
         }
+      },
+      "messages": {
+        "title": "Messages",
+        "inbox": "Inbox",
+        "thread": "Thread",
+        "search": "Search messages",
+        "reply": "Reply",
+        "note": "Internal note",
+        "assign": "Assign owner",
+        "resolve": "Resolve",
+        "reopen": "Reopen",
+        "handOver": "Hand over",
+        "sendOptions": "Send options",
+        "addToDraft": "Add to draft",
+        "requestPayment": "Request payment",
+        "collectHere": "Collect here",
+        "closeLost": "Close as lost",
+        "remind": "Remind",
+        "newConversation": "New conversation",
+        "tabCustomer": "Customer",
+        "tabLinked": "Linked",
+        "tabNotes": "Notes",
+        "empty": "No conversations yet.",
+        "noResults": "No conversations match.",
+        "failedLoad": "Could not load conversations.",
+        "toastIncoming": "A new message arrived.",
+        "backToSale": "Back to sale",
+        "deposit": "Deposit",
+        "full": "Full amount",
+        "none": "No payment now",
+        "webChatOnlyCustomer": "Web chat can only be opened by the customer.",
+        "whatsappNeedsTemplate": "WhatsApp needs an approved template first.",
+        "draftKept": "Your typed draft is still here.",
+        "filter": {
+          "all": "All",
+          "unread": "Unread",
+          "unassigned": "Unassigned",
+          "mine": "Mine",
+          "needsReply": "Needs reply",
+          "awaitingCustomer": "Awaiting customer",
+          "resolved": "Resolved"
+        },
+        "state": {
+          "needsReply": "Needs reply",
+          "awaitingCustomer": "Awaiting customer",
+          "resolved": "Resolved",
+          "gathering": "Gathering details",
+          "offerSent": "Offer sent",
+          "awaitingAcceptance": "Awaiting acceptance",
+          "acceptedAwaitingDeposit": "Accepted, awaiting deposit",
+          "won": "Won",
+          "lost": "Lost"
+        },
+        "refusal": {
+          "conflict": "This conversation just changed. Reload and try again.",
+          "not_found": "That conversation is gone.",
+          "wrong_tenant": "That record is not in this workspace.",
+          "invalid": "That cannot be saved.",
+          "unavailable": "This could not be completed. Try again.",
+          "channel_unavailable": "That channel is not available.",
+          "template_required": "WhatsApp needs an approved template first.",
+          "rate_limited": "Wait a moment and try again.",
+          "checkout_locked": "Checkout is locked to the basket that was sent.",
+          "already_resolved": "This conversation is already resolved.",
+          "no_owner": "This conversation has no owner yet.",
+          "identity_unconfirmed": "Customer identity is not confirmed.",
+          "already_linked": "That record is already linked.",
+          "version_stale": "Someone else saved first. Compare the three versions.",
+          "payment_unknown": "Payment status is unknown. Do not request again.",
+          "already_paid": "This is already paid.",
+          "hold_ended": "The hold for this booking has ended.",
+          "basket_changed": "The basket changed after checkout started.",
+          "not_allowed": "You cannot do that from here.",
+          "expired": "This link or offer has expired.",
+          "already": "That is already done."
+        }
       }
     },
     "tables": {
@@ -15326,7 +15287,7 @@
         "noneHint": "An assignment is created when an offer with line items is accepted. Each assigned professional gets their own line.",
         "colRole": "Role",
         "unnamed": "Name not recorded",
-        "replaceNote": "Replacing a person moves the assignment and its firm holds under one operation; the engine refuses when the replacement is not free at the job time or the work has started. The outgoing name stays on the line until the record is rewritten.",
+        "replaceNote": "Replacing a person keeps the outgoing name on the line, so the history of who did the work survives the swap. The replacement itself is not editable from this screen yet.",
         "marginNote": "Fee and charge are shown together because this is the workspace view. An assigned professional sees only their own fee.",
         "assignments": "Assignments",
         "assign": "Assign from People › Bookable",
@@ -15336,7 +15297,7 @@
         "replaceTitle": "Replace {name}",
         "replaceSubtitle": "Impact before you confirm",
         "replacement": "Replacement",
-        "replacementUnavailable": "The roster could not be read. Reload and try again.",
+        "replacementUnavailable": "Nothing lists who fits this job yet; replace the person from the conversation's lineup.",
         "impact": "Impact",
         "impactSchedule": "Schedule",
         "impactFee": "Fee",
@@ -15402,7 +15363,7 @@
         "archive": "Archive",
         "archiveBody": "Hide from the active list; keep every record and balance",
         "reopen": "Reopen later",
-        "reopenBody": "Bring an archived project back to confirmed",
+        "reopenBody": "Only for closed projects",
         "reasonMilestonesOpen": "Not available · milestones are still open",
         "reasonMoneyOwed": "Not available · money is still owed",
         "reasonAlreadyClosed": "This project is already closed",
@@ -16770,6 +16731,43 @@
         "title": "My work",
         "sentence": "My work is not built yet. There is no page that shows one person their own shifts, assignments and earnings, so nothing here can pretend to.",
         "detail": "Your appointments are on the Calendar and under Appointments & Classes; projects you are on are under Projects. Assignments to accept, schedule conflicts and your earnings will live here once a reader exists (D-POS-69)."
+      }
+    },
+    "venue": {
+      "engine": {
+        "refusal": {
+          "duplicate_slug": "That location slug is already in use.",
+          "last_location": "A workspace needs at least one location.",
+          "has_spaces": "That zone still has tables on it.",
+          "already_seated": "That party is already seated.",
+          "space_occupied": "That table already has a party.",
+          "expired": "That waitlist place has expired.",
+          "overlap": "Those service periods overlap.",
+          "two_active": "This location already has an active layout.",
+          "station_in_use": "That station still has tickets or items.",
+          "visit_closed": "This table visit has ended.",
+          "item_unavailable": "That item is not available.",
+          "already_paid": "That share is already paid.",
+          "exceeds_outstanding": "That is more than what is still owed.",
+          "not_submitted": "The kitchen has not received that line yet.",
+          "seat_taken": "That seat is already taken.",
+          "hold_expired": "The hold on that seat has expired.",
+          "same_session": "That ticket is already for this night.",
+          "price_up_needs_payment": "The new night costs more. Pay the difference first.",
+          "needs_approval": "A manager has to approve this first.",
+          "channel_unavailable": "That delivery channel is not available.",
+          "superseded": "This ticket code was replaced.",
+          "too_many_attempts": "Too many tries. Wait and try again.",
+          "unknown_device": "This device is not registered.",
+          "not_replayable": "That command cannot be saved offline.",
+          "stale_app": "This app version is too old.",
+          "conflict": "This just changed. Reload and try again.",
+          "not_found": "That record is gone.",
+          "wrong_tenant": "That record is not in this workspace.",
+          "invalid": "That cannot be saved.",
+          "unavailable": "This could not be completed. Try again.",
+          "not_allowed": "You cannot do this here."
+        }
       }
     }
   },

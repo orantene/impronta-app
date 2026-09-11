@@ -539,7 +539,6 @@
       "closed": "Ferme tous les jours des deux prochaines semaines. Essayez une date plus tard, ou envoyez une demande.",
       "fullyBooked": "Tous les creneaux libres des deux prochaines semaines sont pris. Reessayez plus tard, ou envoyez une demande."
     },
-<<<<<<< HEAD
     "manageBooking": {
       "title": "Votre réservation",
       "noDate": "Date à confirmer",
@@ -575,14 +574,13 @@
       "rescheduleConfirm": "Confirmer le nouvel horaire",
       "rescheduled": "Votre réservation a été déplacée au nouvel horaire.",
       "cancelNothingPaid": "Rien n’a été payé, donc rien ne revient."
-=======
+    },
     "thread": {
       "title": "Votre conversation",
       "continue": "Continuer sur ce telephone",
       "pay": "Payer en securite",
       "empty": "Pas encore de messages.",
       "codeSent": "Si le SMS est disponible, un code a ete envoye."
->>>>>>> origin/main
     }
   },
   "dashboard": {
@@ -1129,7 +1127,7 @@
           "other": "{count} membres"
         },
         "limitsHeading": "Limites par personne",
-        "limitsGap": "Cette action n'a pas encore de limite par rôle. Toute personne éligible à un mode de vente peut utiliser tout ce que ce mode offre.",
+        "limitsGap": "Tulala ne suit pas encore les limites individuelles de remise ou de remboursement. Toute personne eligible a un mode de vente peut utiliser tout ce que ce mode offre.",
         "posOffNotice": "Cet espace de travail a désactivé tous les modes de vente, aucun rôle n'atteint donc le point de vente. Activez-en un dans Point de vente, ci-dessus.",
         "invitedCount": {
           "one": "{count} invitation pas encore acceptée",
@@ -1575,43 +1573,6 @@
       "title": "Catalogue",
       "subtitle": "Artículos del espacio de trabajo que los clientes pueden pedir en tu sitio."
     },
-    "venue": {
-      "engine": {
-        "refusal": {
-          "duplicate_slug": "Cet identifiant d'emplacement est deja utilise.",
-          "last_location": "Un espace a besoin d'au moins un emplacement.",
-          "has_spaces": "Cette zone a encore des tables.",
-          "already_seated": "Ce groupe est deja installe.",
-          "space_occupied": "Cette table a deja un groupe.",
-          "expired": "Cette place en liste d'attente a expire.",
-          "overlap": "Ces periodes de service se chevauchent.",
-          "two_active": "Cet emplacement a deja un plan actif.",
-          "station_in_use": "Cette station a encore des tickets ou des articles.",
-          "visit_closed": "Cette visite de table est terminee.",
-          "item_unavailable": "Cet article n'est pas disponible.",
-          "already_paid": "Cette part est deja payee.",
-          "exceeds_outstanding": "C'est plus que ce qui reste a payer.",
-          "not_submitted": "La cuisine n'a pas encore recu cette ligne.",
-          "seat_taken": "Cette place est deja prise.",
-          "hold_expired": "La retenue sur cette place a expire.",
-          "same_session": "Ce billet est deja pour cette soiree.",
-          "price_up_needs_payment": "La nouvelle soiree coute plus. Payez d'abord la difference.",
-          "needs_approval": "Un responsable doit d'abord approuver cela.",
-          "channel_unavailable": "Ce canal d'envoi n'est pas disponible.",
-          "superseded": "Ce code de billet a ete remplace.",
-          "too_many_attempts": "Trop d'essais. Attendez et reessayez.",
-          "unknown_device": "Cet appareil n'est pas enregistre.",
-          "not_replayable": "Cette commande ne peut pas etre enregistree hors ligne.",
-          "stale_app": "Cette version de l'application est trop ancienne.",
-          "conflict": "Cela vient de changer. Rechargez et reessayez.",
-          "not_found": "Cet enregistrement n'existe plus.",
-          "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
-          "invalid": "Cela ne peut pas etre enregistre.",
-          "unavailable": "Impossible de terminer. Reessayez.",
-          "not_allowed": "Vous ne pouvez pas faire cela ici."
-        }
-      }
-    },
     "scheduling": {
       "engine": {
         "refusal": {
@@ -1677,82 +1638,6 @@
           "already_closed": "Ce service est deja cloture.",
           "not_allowed": "Vous n'avez pas la permission de faire cela.",
           "no_customer": "Associez d'abord un client à cette vente."
-        }
-      },
-      "messages": {
-        "title": "Messages",
-        "inbox": "Boite",
-        "thread": "Fil",
-        "search": "Rechercher des messages",
-        "reply": "Repondre",
-        "note": "Note interne",
-        "assign": "Attribuer un responsable",
-        "resolve": "Resoudre",
-        "reopen": "Rouvrir",
-        "handOver": "Transmettre",
-        "sendOptions": "Envoyer des options",
-        "addToDraft": "Ajouter au brouillon",
-        "requestPayment": "Demander un paiement",
-        "collectHere": "Encaisser ici",
-        "closeLost": "Classer comme perdu",
-        "remind": "Rappeler",
-        "newConversation": "Nouvelle conversation",
-        "tabCustomer": "Client",
-        "tabLinked": "Lies",
-        "tabNotes": "Notes",
-        "empty": "Pas encore de conversations.",
-        "noResults": "Aucune conversation ne correspond.",
-        "failedLoad": "Impossible de charger les conversations.",
-        "toastIncoming": "Un nouveau message est arrive.",
-        "backToSale": "Retour a la vente",
-        "deposit": "Acompte",
-        "full": "Montant complet",
-        "none": "Pas de paiement maintenant",
-        "webChatOnlyCustomer": "Le chat web ne peut etre ouvert que par le client.",
-        "whatsappNeedsTemplate": "WhatsApp exige d abord un modele approuve.",
-        "draftKept": "Votre texte est toujours la.",
-        "filter": {
-          "all": "Tous",
-          "unread": "Non lus",
-          "unassigned": "Non attribues",
-          "mine": "Les miens",
-          "needsReply": "A repondre",
-          "awaitingCustomer": "En attente du client",
-          "resolved": "Resolus"
-        },
-        "state": {
-          "needsReply": "A repondre",
-          "awaitingCustomer": "En attente du client",
-          "resolved": "Resolu",
-          "gathering": "Collecte des details",
-          "offerSent": "Offre envoyee",
-          "awaitingAcceptance": "En attente d acceptation",
-          "acceptedAwaitingDeposit": "Acceptee, acompte en attente",
-          "won": "Gagne",
-          "lost": "Perdu"
-        },
-        "refusal": {
-          "conflict": "Cette conversation vient de changer. Rechargez et reessayez.",
-          "not_found": "Cette conversation n existe plus.",
-          "wrong_tenant": "Cet enregistrement n appartient pas a cet espace.",
-          "invalid": "Cela ne peut pas etre enregistre.",
-          "unavailable": "Impossible de terminer. Reessayez.",
-          "channel_unavailable": "Ce canal n est pas disponible.",
-          "template_required": "WhatsApp exige d abord un modele approuve.",
-          "rate_limited": "Attendez un instant et reessayez.",
-          "checkout_locked": "Le paiement est verrouille sur le panier envoye.",
-          "already_resolved": "Cette conversation est deja resolue.",
-          "no_owner": "Cette conversation n a pas encore de responsable.",
-          "identity_unconfirmed": "L identite du client n est pas confirmee.",
-          "already_linked": "Cet enregistrement est deja lie.",
-          "version_stale": "Quelqu un d autre a enregistre d abord. Comparez les trois versions.",
-          "payment_unknown": "Le statut du paiement est inconnu. Ne le redemandez pas.",
-          "already_paid": "C est deja paye.",
-          "hold_ended": "La retenue pour ce creneau est terminee.",
-          "basket_changed": "Le panier a change apres le debut du paiement.",
-          "not_allowed": "Vous ne pouvez pas faire cela ici.",
-          "expired": "Ce lien ou cette offre a expire.",
-          "already": "C est deja fait."
         }
       },
       "newSale": "Nouvelle vente",
@@ -3700,6 +3585,82 @@
           "totalWouldBe": "Le total serait de {amount}",
           "add": "Ajouter {amount} de pourboire"
         }
+      },
+      "messages": {
+        "title": "Messages",
+        "inbox": "Boite",
+        "thread": "Fil",
+        "search": "Rechercher des messages",
+        "reply": "Repondre",
+        "note": "Note interne",
+        "assign": "Attribuer un responsable",
+        "resolve": "Resoudre",
+        "reopen": "Rouvrir",
+        "handOver": "Transmettre",
+        "sendOptions": "Envoyer des options",
+        "addToDraft": "Ajouter au brouillon",
+        "requestPayment": "Demander un paiement",
+        "collectHere": "Encaisser ici",
+        "closeLost": "Classer comme perdu",
+        "remind": "Rappeler",
+        "newConversation": "Nouvelle conversation",
+        "tabCustomer": "Client",
+        "tabLinked": "Lies",
+        "tabNotes": "Notes",
+        "empty": "Pas encore de conversations.",
+        "noResults": "Aucune conversation ne correspond.",
+        "failedLoad": "Impossible de charger les conversations.",
+        "toastIncoming": "Un nouveau message est arrive.",
+        "backToSale": "Retour a la vente",
+        "deposit": "Acompte",
+        "full": "Montant complet",
+        "none": "Pas de paiement maintenant",
+        "webChatOnlyCustomer": "Le chat web ne peut etre ouvert que par le client.",
+        "whatsappNeedsTemplate": "WhatsApp exige d abord un modele approuve.",
+        "draftKept": "Votre texte est toujours la.",
+        "filter": {
+          "all": "Tous",
+          "unread": "Non lus",
+          "unassigned": "Non attribues",
+          "mine": "Les miens",
+          "needsReply": "A repondre",
+          "awaitingCustomer": "En attente du client",
+          "resolved": "Resolus"
+        },
+        "state": {
+          "needsReply": "A repondre",
+          "awaitingCustomer": "En attente du client",
+          "resolved": "Resolu",
+          "gathering": "Collecte des details",
+          "offerSent": "Offre envoyee",
+          "awaitingAcceptance": "En attente d acceptation",
+          "acceptedAwaitingDeposit": "Acceptee, acompte en attente",
+          "won": "Gagne",
+          "lost": "Perdu"
+        },
+        "refusal": {
+          "conflict": "Cette conversation vient de changer. Rechargez et reessayez.",
+          "not_found": "Cette conversation n existe plus.",
+          "wrong_tenant": "Cet enregistrement n appartient pas a cet espace.",
+          "invalid": "Cela ne peut pas etre enregistre.",
+          "unavailable": "Impossible de terminer. Reessayez.",
+          "channel_unavailable": "Ce canal n est pas disponible.",
+          "template_required": "WhatsApp exige d abord un modele approuve.",
+          "rate_limited": "Attendez un instant et reessayez.",
+          "checkout_locked": "Le paiement est verrouille sur le panier envoye.",
+          "already_resolved": "Cette conversation est deja resolue.",
+          "no_owner": "Cette conversation n a pas encore de responsable.",
+          "identity_unconfirmed": "L identite du client n est pas confirmee.",
+          "already_linked": "Cet enregistrement est deja lie.",
+          "version_stale": "Quelqu un d autre a enregistre d abord. Comparez les trois versions.",
+          "payment_unknown": "Le statut du paiement est inconnu. Ne le redemandez pas.",
+          "already_paid": "C est deja paye.",
+          "hold_ended": "La retenue pour ce creneau est terminee.",
+          "basket_changed": "Le panier a change apres le debut du paiement.",
+          "not_allowed": "Vous ne pouvez pas faire cela ici.",
+          "expired": "Ce lien ou cette offre a expire.",
+          "already": "C est deja fait."
+        }
       }
     },
     "adminAppointments": {
@@ -4151,7 +4112,7 @@
         "noneHint": "L'affectation est creee a l'acceptation d'une offre comportant des lignes. Chaque professionnel affecte a sa propre ligne.",
         "colRole": "Role",
         "unnamed": "Nom non enregistre",
-        "replaceNote": "Remplacer une personne déplace l’affectation et ses réservations fermes en une seule opération ; le moteur refuse si la personne remplaçante n’est pas libre à cette heure ou si le travail a commencé. Le nom sortant reste sur la ligne jusqu’à la réécriture de l’enregistrement.",
+        "replaceNote": "Remplacer une personne conserve le nom sortant sur la ligne, pour que l'histoire de qui a fait le travail survive au changement. Le remplacement ne se modifie pas encore depuis cet ecran.",
         "marginNote": "Les honoraires et la facturation figurent ensemble parce que c'est la vue de l'espace de travail. Un professionnel affecte ne voit que ses propres honoraires.",
         "assignments": "Assignations",
         "assign": "Assigner depuis Personnes › Réservable",
@@ -4161,7 +4122,7 @@
         "replaceTitle": "Remplacer {name}",
         "replaceSubtitle": "L'impact avant de confirmer",
         "replacement": "Remplaçant",
-        "replacementUnavailable": "L'équipe n'a pas pu être lue. Rechargez et réessayez.",
+        "replacementUnavailable": "Rien ne liste encore qui convient à ce travail ; remplacez la personne depuis l'équipe de la conversation.",
         "impact": "Impact",
         "impactSchedule": "Planning",
         "impactFee": "Honoraires",
@@ -4227,7 +4188,7 @@
         "archive": "Archiver",
         "archiveBody": "Masquer de la liste active ; garder chaque enregistrement et solde",
         "reopen": "Rouvrir plus tard",
-        "reopenBody": "Ramener un projet archivé à confirmé",
+        "reopenBody": "Seulement pour les projets clôturés",
         "reasonMilestonesOpen": "Indisponible · des jalons sont encore ouverts",
         "reasonMoneyOwed": "Indisponible · de l'argent est encore dû",
         "reasonAlreadyClosed": "Ce projet est déjà clôturé",
@@ -6114,6 +6075,43 @@
         "title": "Mon travail",
         "sentence": "Mon travail n'existe pas encore. Aucune page ne montre à une personne ses propres créneaux, missions et gains, donc rien ici ne peut le prétendre.",
         "detail": "Vos rendez-vous sont dans le Calendrier et sous Rendez-vous et cours ; les projets où vous êtes sont sous Projets. Les missions à accepter, les conflits d'agenda et vos gains vivront ici dès qu'un lecteur existera (D-POS-69)."
+      }
+    },
+    "venue": {
+      "engine": {
+        "refusal": {
+          "duplicate_slug": "Cet identifiant d'emplacement est deja utilise.",
+          "last_location": "Un espace a besoin d'au moins un emplacement.",
+          "has_spaces": "Cette zone a encore des tables.",
+          "already_seated": "Ce groupe est deja installe.",
+          "space_occupied": "Cette table a deja un groupe.",
+          "expired": "Cette place en liste d'attente a expire.",
+          "overlap": "Ces periodes de service se chevauchent.",
+          "two_active": "Cet emplacement a deja un plan actif.",
+          "station_in_use": "Cette station a encore des tickets ou des articles.",
+          "visit_closed": "Cette visite de table est terminee.",
+          "item_unavailable": "Cet article n'est pas disponible.",
+          "already_paid": "Cette part est deja payee.",
+          "exceeds_outstanding": "C'est plus que ce qui reste a payer.",
+          "not_submitted": "La cuisine n'a pas encore recu cette ligne.",
+          "seat_taken": "Cette place est deja prise.",
+          "hold_expired": "La retenue sur cette place a expire.",
+          "same_session": "Ce billet est deja pour cette soiree.",
+          "price_up_needs_payment": "La nouvelle soiree coute plus. Payez d'abord la difference.",
+          "needs_approval": "Un responsable doit d'abord approuver cela.",
+          "channel_unavailable": "Ce canal d'envoi n'est pas disponible.",
+          "superseded": "Ce code de billet a ete remplace.",
+          "too_many_attempts": "Trop d'essais. Attendez et reessayez.",
+          "unknown_device": "Cet appareil n'est pas enregistre.",
+          "not_replayable": "Cette commande ne peut pas etre enregistree hors ligne.",
+          "stale_app": "Cette version de l'application est trop ancienne.",
+          "conflict": "Cela vient de changer. Rechargez et reessayez.",
+          "not_found": "Cet enregistrement n'existe plus.",
+          "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
+          "invalid": "Cela ne peut pas etre enregistre.",
+          "unavailable": "Impossible de terminer. Reessayez.",
+          "not_allowed": "Vous ne pouvez pas faire cela ici."
+        }
       }
     }
   },
