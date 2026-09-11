@@ -42,6 +42,7 @@ export function BookPageClient({
 
   return (
     <div className="mt-8 flex flex-col gap-6">
+      <p className="text-base font-medium">{selected.title}</p>
       {offerings.length > 1 ? (
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium">{t("public.bookPage.chooseService")}</span>

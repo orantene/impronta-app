@@ -39,6 +39,37 @@ export type SystemEventType =
  * (server actions, RPC wrappers); system messages are always
  * platform-authored — there's no user-content path here.
  */
+async function tenantIdForInquiry(
+  supabase: SupabaseClient,
+  inquiryId: string,
+): Promise<string | null> {
+  // supabase-read-unchecked-ok: this read is expected to fail under RLS for a
+  // user-session client (see the function doc above) — the fallback right
+  // below re-reads with the service-role client, so the error case and the
+  // empty case are both handled by falling through to it.
+  const { data, error } = await supabase
+    .from("inquiries")
+    .select("tenant_id")
+    .eq("id", inquiryId)
+    .maybeSingle();
+  void error;
+  if (typeof data?.tenant_id === "string" && data.tenant_id) return data.tenant_id;
+  const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data: row, error: rowError } = await admin
+    .from("inquiries")
+    .select("tenant_id")
+    .eq("id", inquiryId)
+    .maybeSingle();
+  if (rowError) {
+    const { logServerError } = await import("@/lib/server/safe-error");
+    logServerError("inquiry-system-messages/tenant-lookup", rowError);
+    return null;
+  }
+  return typeof row?.tenant_id === "string" && row.tenant_id ? row.tenant_id : null;
+}
+
 export async function insertSystemMessage(
   supabase: SupabaseClient,
   args: {
@@ -49,8 +80,22 @@ export async function insertSystemMessage(
     metadata?: Record<string, unknown>;
   },
 ): Promise<void> {
+  // tenant_id is NOT NULL. Omitting it used to rely on the autofill trigger;
+  // when that trigger was absent (schema-drift environments) the insert either
+  // failed or inherited a platform default, and clientAcceptOffer then threw
+  // [tenant-coherence] because inquiry_messages pointed at another workspace.
+  const tenantId = await tenantIdForInquiry(supabase, args.inquiryId);
+  if (!tenantId) {
+    const { logServerError } = await import("@/lib/server/safe-error");
+    logServerError(
+      "inquiry-system-messages/insert.missing-tenant",
+      new Error(`inquiry ${args.inquiryId} has no tenant_id`),
+    );
+    return;
+  }
   const payload = {
     inquiry_id: args.inquiryId,
+    tenant_id: tenantId,
     thread_type: args.threadType,
     sender_user_id: null,
     body: args.body,

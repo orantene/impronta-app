@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import type { WorkspacePage } from "@/components/admin/shell/internal/state/types";
 import { resolveWorkspaceAdminPage } from "@/app/(workspace)/[tenantSlug]/admin/workspace-page-routing";
+import { navWorkspacePages } from "@/lib/workspace/page-ids";
 import {
   BUSINESS_HIDDEN_PAGES,
   DEFAULT_WORKSPACE_TYPE,
@@ -15,27 +16,47 @@ import {
 } from "./workspace-type";
 
 /**
- * Mirror of `internal/state/fixtures.ts`'s WORKSPACE_PAGES. Duplicated here
- * rather than imported because that module is `"use client"` and this lane must
- * stay free of the shell graph. The `pages list matches the shell's` test below
- * pins the two together, so drift fails here rather than in production.
+ * The shell's WORKSPACE_PAGES, spelled out.
+ *
+ * It used to be a HAND mirror of `internal/state/fixtures.ts` (that module is
+ * `"use client"` and this lane must stay free of the shell graph), and it had
+ * already drifted — `reservations` was in the shell's list and not in this one.
+ * It is now written out AND checked against `navWorkspacePages()`, the pure
+ * projection of the destination registry that produces the real list. Keeping
+ * the literal is deliberate: it is what makes a change to the registry visible
+ * in this diff instead of silently re-deriving underneath the assertions below.
  */
 const ALL_PAGES: WorkspacePage[] = [
   "overview",
   "messages",
   "calendar",
-  "sessions",
-  "menu",
+  "sessions",     // the Appointments destination, at its live route
+  "reservations",
+  "orders",
+  "projects",     // built by P4 (2026-09-10); was unbuilt and stood on Messages
+  "exceptions",   // the Issues destination, at its live route
+  "preparation",
+  "menu",         // the Catalog destination, at its live route
   "events",
-  "roster",
+  "tables",       // the Spaces destination, at its live route
+  "discounts",
   "clients",
+  "people",       // the People destination, at its own route since P4
   "pitches",
   "reviews",
+  "sales",
+  "payments",   // built as of P4-money; it used to fall back to financials
   "analytics",
   "website",
   "media",
   "settings",
+  "pos",
 ];
+
+test("ALL_PAGES is exactly what the registry produces", () => {
+  // The mirror above cannot drift from the shell any more: both are this.
+  assert.deepEqual(ALL_PAGES, navWorkspacePages());
+});
 
 // ─── normalizeWorkspaceType — fails CLOSED toward "talent" ───────────────────
 
@@ -90,24 +111,35 @@ test("visibleWorkspacePages returns every page for a talent workspace", () => {
   assert.deepEqual(visibleWorkspacePages("talent", ALL_PAGES), ALL_PAGES);
 });
 
-test("visibleWorkspacePages drops exactly roster + pitches for a business workspace", () => {
+test("visibleWorkspacePages drops exactly pitches for a business workspace", () => {
   const visible = visibleWorkspacePages("business", ALL_PAGES);
   assert.deepEqual(visible, [
     "overview",
     "messages",
     "calendar",
     "sessions",
+    "reservations",
+    "orders",
+    "projects", // commissioned work is not talent-only: a restaurant caters
+    "exceptions",
+    "preparation",
     "menu",
     "events",
+    "tables",
+    "discounts",
     "clients",
+    "people", // every workspace has people; a restaurant has staff
     "reviews",
+    "sales",
+    "payments",
     "analytics",
     "website",
     "media",
     "settings",
+    "pos",
   ]);
-  // Nothing beyond the documented two is removed — a business workspace keeps
-  // the full site builder, inbox, calendar, clients, media and settings.
+  // Nothing beyond the documented one is removed — a business workspace keeps
+  // the full site builder, inbox, calendar, clients, People, media and settings.
   const removed = ALL_PAGES.filter((p) => !visible.includes(p));
   assert.deepEqual(removed, [...BUSINESS_HIDDEN_PAGES]);
 });
@@ -142,9 +174,14 @@ test("workspacePageVisible allows everything on talent", () => {
   }
 });
 
-test("workspacePageVisible blocks roster and pitches on business", () => {
-  assert.equal(workspacePageVisible("business", "roster"), false);
+test("workspacePageVisible blocks pitches — and NOT People — on business", () => {
   assert.equal(workspacePageVisible("business", "pitches"), false);
+  // `roster` is the live page of the People destination, the row every
+  // workspace has. Hiding it took the People row off the rail of every
+  // business workspace and clamped the page to Overview. The talent-only
+  // roster QUEUES are refused on their own routes by `assertRosterWorkspace`,
+  // which is where a refusal belongs.
+  assert.equal(workspacePageVisible("business", "roster"), true);
   assert.equal(workspacePageVisible("business", "overview"), true);
   assert.equal(workspacePageVisible("business", "website"), true);
   assert.equal(workspacePageVisible("business", "clients"), true);
@@ -160,8 +197,8 @@ test("clampWorkspacePage is identity on a talent workspace", () => {
 });
 
 test("clampWorkspacePage sends hidden pages to overview on business", () => {
-  assert.equal(clampWorkspacePage("roster", "business"), "overview");
   assert.equal(clampWorkspacePage("pitches", "business"), "overview");
+  assert.equal(clampWorkspacePage("roster", "business"), "roster", "People is not a hidden page");
   assert.equal(clampWorkspacePage("messages", "business"), "messages");
   assert.equal(clampWorkspacePage("overview", "business"), "overview");
 });
@@ -198,28 +235,50 @@ const HOST_SHAPES = [
 ] as const;
 
 for (const shape of HOST_SHAPES) {
-  test(`[${shape.name}] a business workspace clamps /roster deep links to overview`, () => {
+  test(`[${shape.name}] a business workspace opens /roster instead of bouncing`, () => {
+    // This clamp used to send every /roster URL to Overview on a business
+    // workspace, which also meant the rail could not draw a People row. People
+    // is every workspace's row; the roster's talent-only sub-routes refuse a
+    // business workspace on the SERVER (`assertRosterWorkspace` → 404), which
+    // is a refusal the SPA clamp was never able to express — it can only
+    // resolve the first segment, and all four of these resolve to `roster`.
     for (const seg of ["/roster", "/roster/new", "/roster/applications", "/roster/rates"]) {
       const derived = deriveInitialPage(shape.path(seg), shape.prefix);
       assert.equal(derived, "roster", `derivation broke for ${seg}`);
-      assert.equal(clampWorkspacePage(derived, "business"), "overview", seg);
+      assert.equal(clampWorkspacePage(derived, "business"), "roster", seg);
       assert.equal(clampWorkspacePage(derived, "talent"), "roster", seg);
     }
   });
 
-  test(`[${shape.name}] a business workspace clamps /pitches and the legacy /talent alias`, () => {
+  test(`[${shape.name}] a business workspace clamps /pitches, and /talent still means roster`, () => {
     const pitches = deriveInitialPage(shape.path("/pitches"), shape.prefix);
     assert.equal(pitches, "pitches");
     assert.equal(clampWorkspacePage(pitches, "business"), "overview");
 
-    // "/talent" is a legacy alias that resolves to roster — it must clamp too,
-    // otherwise the old URL is a hole straight through the new guard.
+    // "/talent" is a legacy alias of the People destination. It follows People
+    // wherever People goes — the alias must never be a second, different
+    // answer. It resolved to "roster" while People rendered there and resolves
+    // to "people" now that People has its own route; what may never happen is
+    // the two disagreeing.
     const legacy = deriveInitialPage(shape.path("/talent"), shape.prefix);
-    assert.equal(legacy, "roster");
-    assert.equal(clampWorkspacePage(legacy, "business"), "overview");
+    assert.equal(legacy, "people");
+    assert.equal(
+      clampWorkspacePage(legacy, "business"),
+      clampWorkspacePage("people", "business"),
+    );
   });
 
-  test(`[${shape.name}] every non-roster deep link survives on a business workspace`, () => {
+  test(`[${shape.name}] the People surface is reachable and never clamped away`, () => {
+    // THE DOOR. /admin/people has to derive to the People page on both host
+    // shapes and survive the business clamp, or the rail row that now points
+    // here bounces an operator to Overview.
+    const derived = deriveInitialPage(shape.path("/people"), shape.prefix);
+    assert.equal(derived, "people");
+    assert.equal(clampWorkspacePage(derived, "business"), "people");
+    assert.equal(clampWorkspacePage(derived, "talent"), "people");
+  });
+
+  test(`[${shape.name}] every non-pitches deep link survives on a business workspace`, () => {
     for (const seg of [
       "",
       "/messages",
@@ -232,6 +291,7 @@ for (const shape of HOST_SHAPES) {
       "/settings",
       "/financials",
       "/payouts",
+      "/roster",
     ]) {
       const derived = deriveInitialPage(shape.path(seg), shape.prefix);
       assert.equal(

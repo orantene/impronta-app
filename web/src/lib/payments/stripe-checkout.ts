@@ -79,6 +79,24 @@ export type CheckoutSessionInput = {
    * NULL omits the metadata key entirely. Absent means absent.
    */
   inquiryId: string | null;
+  /**
+   * When Stripe must stop accepting this session, ISO-8601. Optional: an
+   * invoice link is meant to sit in an inbox, and omitting the field keeps
+   * Stripe's own default (about 24 hours).
+   *
+   * A POS COLLECTION IS THE OPPOSITE CASE. It holds a claim on the order's
+   * outstanding balance while the buyer is at the terminal, and that claim is
+   * reaped on a timer. A session that outlives its claim is how the same money
+   * was collected twice: the reaper freed the balance, a second till took it,
+   * and the first customer's page still worked. So the POS path passes the
+   * CLAIM's own expiry here and the two lifetimes cannot diverge.
+   *
+   * Stripe refuses anything closer than 30 minutes out, and an expiry it
+   * refuses would fail the whole session rather than silently widen: that is
+   * the right failure, because a session created without the expiry we asked
+   * for is not the session we meant to create.
+   */
+  expiresAt?: string | null;
   bookingId: string;
   successUrl: string;
   cancelUrl: string;
@@ -133,6 +151,21 @@ export async function createCheckoutSessionForTransaction(
       return { ok: false, error: "Amount must be positive." };
     }
 
+    // Unix seconds, and only when the caller named one that parses. A bad
+    // string is dropped rather than sent: Stripe would reject the create, and
+    // failing a real payment over a malformed optional field would be worse
+    // than the provider default it falls back to.
+    const parsedExpiry = input.expiresAt ? Date.parse(input.expiresAt) : NaN;
+    const expiresAtSeconds = Number.isFinite(parsedExpiry)
+      ? Math.floor(parsedExpiry / 1000)
+      : null;
+    if (input.expiresAt && expiresAtSeconds === null) {
+      logServerError(
+        "payments.stripe.createCheckoutSessionForTransaction",
+        `transaction ${input.transactionId}: expiresAt ${input.expiresAt} is not a date; the session keeps Stripe's default lifetime`,
+      );
+    }
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       payment_method_types: ["card"],
@@ -154,6 +187,7 @@ export async function createCheckoutSessionForTransaction(
       client_reference_id: input.transactionId,
       success_url: input.successUrl,
       cancel_url: input.cancelUrl,
+      ...(expiresAtSeconds !== null ? { expires_at: expiresAtSeconds } : {}),
       metadata: {
         transaction_id: input.transactionId,
         // Omitted rather than sent empty. Stripe metadata is optional per key,

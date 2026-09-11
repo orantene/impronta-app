@@ -75,6 +75,32 @@ export function toStripeReason(
 /** Statuses from which a refund is meaningful — money was actually collected. */
 const REFUNDABLE_STATUSES = new Set(["paid", "payout_pending", "payout_sent", "disputed"]);
 
+/**
+ * Why a refund cannot be issued, as a CODE rather than a sentence.
+ *
+ * `blockedReason` below is English prose. It is right for a log and wrong for a
+ * screen: the Orders desk is read in three languages, and it used to render
+ * whatever string reached it, which is how a cashier ended up reading
+ * `refund_refused`. A code travels; the sentence is chosen at the edge by
+ * `lib/orders/refund-desk-copy.ts` and translated there.
+ */
+export type RefundBlockedCode =
+  /** The payment never reached a collected state, so there is nothing to give back. */
+  | "not_collected"
+  | "already_refunded"
+  /** Collected off-platform (cash, transfer): no provider charge exists to reverse. */
+  | "no_provider_charge"
+  | "stripe_not_configured"
+  /** The row asked about is itself a refund. */
+  | "is_a_refund"
+  | "amount"
+  /** The transaction asked about does not exist for this caller. */
+  | "not_found"
+  /** The read itself failed. Nothing is known, so nothing is claimed. */
+  | "unavailable"
+  /** The provider was reached and said no. */
+  | "provider_refused";
+
 export type RefundEligibility = {
   /** Amount still refundable, in cents. 0 when nothing more can be refunded. */
   remainingCents: number;
@@ -84,8 +110,14 @@ export type RefundEligibility = {
   currency: string;
   /** The `pi_...` this transaction settled on, when known. */
   paymentIntentId: string | null;
-  /** Present when a refund cannot be issued; human-readable. */
+  /** Present when a refund cannot be issued; human-readable, English, for logs. */
   blockedReason: string | null;
+  /**
+   * The same refusal as a code, for a screen to translate. Always set when
+   * `blockedReason` is, and always null when it is not, so a caller cannot read
+   * one as blocked and the other as clear.
+   */
+  blockedCode: RefundBlockedCode | null;
 };
 
 /**
@@ -101,7 +133,7 @@ export function computeRefundEligibility(input: {
   paymentIntentId: string | null;
   provider: string;
 }): RefundEligibility {
-  const base: Omit<RefundEligibility, "blockedReason"> = {
+  const base: Omit<RefundEligibility, "blockedReason" | "blockedCode"> = {
     remainingCents: Math.max(0, input.grossAmountCents - input.alreadyRefundedCents),
     alreadyRefundedCents: input.alreadyRefundedCents,
     grossAmountCents: input.grossAmountCents,
@@ -116,6 +148,7 @@ export function computeRefundEligibility(input: {
         input.status === "refunded"
           ? "This payment is already fully refunded."
           : `This payment cannot be refunded while it is "${input.status}". Only a collected payment can be refunded.`,
+      blockedCode: input.status === "refunded" ? "already_refunded" : "not_collected",
     };
   }
   if (!input.paymentIntentId) {
@@ -125,17 +158,22 @@ export function computeRefundEligibility(input: {
         "No Stripe charge is linked to this payment, so there is nothing to refund at Stripe. " +
         "That means it was collected off-platform (cash, wire), or it settled before Tulala started recording the charge id. " +
         "Record it as an off-platform refund instead.",
+      blockedCode: "no_provider_charge",
     };
   }
   if (base.remainingCents <= 0) {
-    return { ...base, blockedReason: "This payment is already fully refunded." };
+    return { ...base, blockedReason: "This payment is already fully refunded.", blockedCode: "already_refunded" };
   }
-  return { ...base, blockedReason: null };
+  return { ...base, blockedReason: null, blockedCode: null };
 }
 
 export type RefundExecuteResult =
   | { ok: true; refundId: string; amountCents: number; currency: string }
-  | { ok: false; error: string };
+  /**
+   * `error` stays English prose for the log; `code` is what a screen renders a
+   * translated sentence from. Both are always present on a refusal.
+   */
+  | { ok: false; error: string; code: RefundBlockedCode };
 
 /**
  * Read the refund eligibility for a transaction straight from the database.
@@ -144,22 +182,22 @@ export type RefundExecuteResult =
  */
 export async function loadRefundEligibility(
   transactionId: string,
-): Promise<RefundEligibility | { error: string }> {
+): Promise<RefundEligibility | { error: string; code: RefundBlockedCode }> {
   const sb = createServiceRoleClient();
-  if (!sb) return { error: "Database unavailable." };
+  if (!sb) return { error: "Database unavailable.", code: "unavailable" };
 
   const { data: txn, error } = await sb
     .from("booking_transactions")
     .select("id, status, gross_amount_cents, currency, provider, provider_metadata, refund_of_transaction_id")
     .eq("id", transactionId)
     .maybeSingle();
-  if (error || !txn) return { error: "Payment not found." };
+  if (error || !txn) return { error: "Payment not found.", code: "not_found" };
 
   const row = txn as Record<string, unknown>;
   // Refund rows are themselves booking_transactions; refunding a refund is
   // never meaningful and would double-count against the parent.
   if (row.refund_of_transaction_id) {
-    return { error: "This record is a refund, not a payment." };
+    return { error: "This record is a refund, not a payment.", code: "is_a_refund" };
   }
 
   const { data: refundRows } = await sb
@@ -212,31 +250,36 @@ export async function executeBookingRefund(input: {
   note?: string | null;
 }): Promise<RefundExecuteResult> {
   if (!isStripeConfigured()) {
-    return { ok: false, error: "Stripe is not configured, so no refund was issued." };
+    return { ok: false, error: "Stripe is not configured, so no refund was issued.", code: "stripe_not_configured" };
   }
   const stripe = getStripe();
   if (!stripe) {
-    return { ok: false, error: "Stripe is not configured, so no refund was issued." };
+    return { ok: false, error: "Stripe is not configured, so no refund was issued.", code: "stripe_not_configured" };
   }
 
   const eligibility = await loadRefundEligibility(input.transactionId);
-  if ("error" in eligibility) return { ok: false, error: eligibility.error };
-  if (eligibility.blockedReason) return { ok: false, error: eligibility.blockedReason };
+  if ("error" in eligibility) return { ok: false, error: eligibility.error, code: eligibility.code };
+  if (eligibility.blockedReason) {
+    // `blockedCode` is set with `blockedReason` and never apart from it, so the
+    // fallback below can only be reached if that invariant is ever broken.
+    return { ok: false, error: eligibility.blockedReason, code: eligibility.blockedCode ?? "provider_refused" };
+  }
   if (!eligibility.paymentIntentId) {
     // computeRefundEligibility already guards this; belt and braces so the
     // Stripe call below can never be reached without a charge to refund.
-    return { ok: false, error: "No Stripe charge is linked to this payment." };
+    return { ok: false, error: "No Stripe charge is linked to this payment.", code: "no_provider_charge" };
   }
 
   const requested = input.amountCents ?? eligibility.remainingCents;
   const amountCents = Math.floor(requested);
   if (!Number.isFinite(amountCents) || amountCents <= 0) {
-    return { ok: false, error: "Enter a refund amount greater than zero." };
+    return { ok: false, error: "Enter a refund amount greater than zero.", code: "amount" };
   }
   if (amountCents > eligibility.remainingCents) {
     return {
       ok: false,
       error: `That is more than is left to refund. At most ${(eligibility.remainingCents / 100).toFixed(2)} ${eligibility.currency} can still be returned.`,
+      code: "amount",
     };
   }
 
@@ -270,6 +313,6 @@ export async function executeBookingRefund(input: {
       err && typeof err === "object" && "message" in err
         ? String((err as { message: unknown }).message)
         : "Stripe rejected the refund.";
-    return { ok: false, error: message };
+    return { ok: false, error: message, code: "provider_refused" };
   }
 }

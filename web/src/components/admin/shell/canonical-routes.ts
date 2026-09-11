@@ -6,6 +6,37 @@
  * below shipped precisely because nothing covered it.
  */
 
+import { DESTINATION_LIST, liveRouteSegment } from "@/lib/workspace/destinations";
+
+/**
+ * The canonical segments the DESTINATION REGISTRY owns.
+ *
+ * A destination marked `render: "canonical"` is a real Next.js server page, and
+ * the shell must yield to it rather than stacking the prototype SPA underneath.
+ * Both names are matched: the canonical segment a destination is moving to, and
+ * `liveRouteSegment` — the one it renders at TODAY. Several are not the same
+ * (`spaces` renders at /admin/tables, `issues` at /admin/exceptions), and
+ * matching only the first would have un-canonicalised those live pages.
+ *
+ * ALIASES ARE DELIBERATELY NOT INCLUDED. `payouts` is an alias of `payments`,
+ * but `/admin/payouts` is an SPA section whose page.tsx is a bare
+ * PageRouteSyncer: making it canonical would yield to a route that renders
+ * `null` and paint a blank screen.
+ */
+const REGISTRY_CANONICAL_SEGMENTS: readonly string[] = [
+  ...new Set(
+    DESTINATION_LIST.filter((d) => d.render === "canonical").flatMap((d) => {
+      const live = liveRouteSegment(d);
+      return live === null || live === "" ? [d.segment] : [d.segment, live];
+    }),
+  ),
+];
+
+const REGISTRY_MATCHERS: Array<(segments: string[]) => boolean> =
+  REGISTRY_CANONICAL_SEGMENTS.map(
+    (segment) => (s: string[]) => s[0] === "admin" && s[1] === segment,
+  );
+
 /**
  * Route patterns that should render the canonical Next.js page (children)
  * INSTEAD of the prototype SPA. Matched against `usePathname()` segments
@@ -16,8 +47,31 @@
  * The tenant slug itself isn't passed (it's variable across workspaces).
  */
 export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
+  // Every destination the registry marks `render: "canonical"`, at BOTH its
+  // canonical segment and the segment it actually renders at today — see
+  // REGISTRY_CANONICAL_SEGMENTS above. `financials`, `exceptions`, `orders`,
+  // `sales`, `discounts`, `pos`, `tables`, `preparation` and `reservations`
+  // used to be nine hand-written lines here; they are now that projection.
+  ...REGISTRY_MATCHERS,
+  // /<tenant>/admin/financials — a real server page (the per-talent payout
+  // report). It used to reach the list above only as the UNBUILT `payments`
+  // destination's `fallbackSegment`; when Payments became a real page that
+  // fallback went away and took `financials` with it, which would have stacked
+  // the prototype SPA back on top of a live route. It is named here because it
+  // is canonical on its own account, not because something else points at it.
+  (s) => s[0] === "admin" && s[1] === "financials",
   // /<tenant>/admin/work/<id> — canonical booking detail w/ payment state machine
   (s) => s[0] === "admin" && s[1] === "work" && typeof s[2] === "string" && s[2].length > 0,
+  // /<tenant>/admin/projects/<id> — the project record and its tabs (P4). The
+  // registry matcher above covers the LIST at /admin/projects; a matcher takes
+  // exactly two segments, so without this line the record page rendered
+  // stacked under the SPA — the same failure the bookings/account matchers
+  // were added for.
+  (s) => s[0] === "admin" && s[1] === "projects" && typeof s[2] === "string" && s[2].length > 0,
+  // /<tenant>/admin/clients/<id> — the client record (P4). The Clients LIST is
+  // still the SPA page-module and deliberately has no matcher; only the record
+  // is a real page.
+  (s) => s[0] === "admin" && s[1] === "clients" && typeof s[2] === "string" && s[2].length > 0,
   // /<tenant>/admin/policy/<…> — workspace policy pages (auto-ack, etc.)
   // rendered as standalone server components, not via the prototype SPA.
   (s) => s[0] === "admin" && s[1] === "policy",
@@ -58,22 +112,10 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // explicit owner sign-off.
   // /<tenant>/admin/triage — focused queue (separate from Messages shell).
   (s) => s[0] === "admin" && s[1] === "triage",
-  // /<tenant>/admin/financials — Business Financials page (L46).
-  (s) => s[0] === "admin" && s[1] === "financials",
-  // /<tenant>/admin/orders — the Orders desk (0.10). Canonical server route
-  // like `financials`, not a prototype SPA tab: it reads `orders` directly and
-  // has no shell data-bridge projection to hang off.
-  (s) => s[0] === "admin" && s[1] === "orders",
   // /<tenant>/admin/events/door — live check-in desk. The Events SPA owns
   // /admin/events (list + tabs); the door is a real server page and must not
   // stack under EventsPage.
   (s) => s[0] === "admin" && s[1] === "events" && s[2] === "door",
-  // /<tenant>/admin/reservations/** — R3 host stand. Canonical server route
-  // like `orders`, not a prototype SPA tab: it reads `lib/reservations/book.ts`
-  // directly. Matching on s[1] alone covers /reservations, /reservations/[date]
-  // and /reservations/settings so all three render in the shell <main> rather
-  // than stacking under the SPA overview.
-  (s) => s[0] === "admin" && s[1] === "reservations",
   // /<tenant>/admin/reviews/** — WP1. The review-photo moderation grid at
   // /admin/reviews/media is a real server page; the new Reviews page-module
   // links to it. Without this matcher it rendered without shell chrome /
@@ -106,6 +148,12 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // render stacked underneath the real page (the failure the bookings/account
   // matchers below were added for).
   (s) => s[0] === "admin" && s[1] === "website" && s[2] === "redirects",
+  // /<tenant>/admin/people is NOT hand-written here any more. People is
+  // `render: "canonical"` in the registry with no fallbackSegment, so
+  // REGISTRY_MATCHERS above covers it — which is the point: the rail, the
+  // mobile tab bar and `setPage` all read the same entry, so the door and the
+  // matcher can no longer disagree. `/admin/roster` stays SPA because `roster`
+  // is only an alias and aliases are deliberately excluded from the projection.
   // /<tenant>/admin/messages/<id> — Phase 2.1 canonical thread inspect.
   // The mega Messages shell still owns the LIST (no path segment after
   // "messages") + the legacy ?inquiry=<id> query-param flow. The new

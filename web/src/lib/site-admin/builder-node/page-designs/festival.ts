@@ -523,6 +523,14 @@ const festivalTree: BuilderNode[] = [
         ],
       },
       // ── Passes (P2 pricing_table) ───────────────────────────────────────────
+      // NOT a `ticket_picker`. This design is a TEMPLATE a tenant picks in the
+      // builder, and a template cannot carry anybody's event UUID: the picker's
+      // own rule (`configured = UUID.test(tenantId) && UUID.test(eventId)`,
+      // ticket-picker-island.tsx) turns an empty `eventId` into the honest
+      // "this block is not set up yet" placeholder, so seeding one here shipped
+      // every tenant a passes section that sells nothing. The live picker
+      // belongs on `/events/<slug>`, where `event-page-view.tsx` mounts it with
+      // a real tenant + event and a server-seeded preload.
       {
         id: "festival-passes-section",
         kind: "container",
@@ -589,7 +597,7 @@ const festivalTree: BuilderNode[] = [
                   price: "$89",
                   period: "/ night",
                   ctaLabel: "Buy day pass",
-                  ctaHref: "/passes/day",
+                  ctaHref: "?inquiry=open",
                   features: [
                     { label: "Single-night entry", included: true },
                     { label: "All three stages", included: true },
@@ -604,7 +612,7 @@ const festivalTree: BuilderNode[] = [
                   price: "$149",
                   period: "/ weekend",
                   ctaLabel: "Buy festival pass",
-                  ctaHref: "/passes/festival",
+                  ctaHref: "?inquiry=open",
                   highlighted: true,
                   features: [
                     { label: "Three-night entry", included: true },
@@ -620,7 +628,7 @@ const festivalTree: BuilderNode[] = [
                   price: "$320",
                   period: "/ weekend",
                   ctaLabel: "Become a patron",
-                  ctaHref: "/passes/patron",
+                  ctaHref: "?inquiry=open",
                   features: [
                     { label: "Everything in Festival", included: true },
                     { label: "Backstage sessions", included: true },

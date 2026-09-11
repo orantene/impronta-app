@@ -10,7 +10,12 @@
  *      tenant, so it will cheerfully admit another tenant's guest if handed
  *      their id. THE SCOPING IS THIS FILE'S JOB and there is nowhere else it
  *      can happen — that obligation is stated in the function's own comment.
- *   3. CALL `check_in` with `p_mode => 'token'` and the version the signature
+ *   3. SCOPE TO THE NIGHT. The same obligation, one level finer, and it went
+ *      undischarged until it was found by audit: `check_in` takes no session
+ *      either, so a genuine ticket for another date passed every gate — the
+ *      signature is real, the tenant matches, the version is current, the
+ *      status is valid — and admitted. See `doorOutcomeForSessionScope`.
+ *   4. CALL `check_in` with `p_mode => 'token'` and the version the signature
  *      carried. The row decides; this reports.
  *
  *
@@ -39,6 +44,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { verifyAdmissionToken } from "@/lib/sessions/admission-token";
 import {
   doorOutcomeForCheckIn,
+  doorOutcomeForSessionScope,
   doorOutcomeForToken,
   type DoorOutcome,
 } from "@/lib/sessions/door";
@@ -46,7 +52,12 @@ import {
 export type ScanResult = { outcome: DoorOutcome };
 
 /**
- * Scan one QR at the door for one workspace.
+ * Scan one QR at the door for one workspace, on one night.
+ *
+ * `doorSessionId` is REQUIRED and sits ahead of the optional `units` on
+ * purpose. Placing it after a defaulted parameter would let a caller omit it
+ * and still compile, and an omitted session scope is an admitted wrong-night
+ * ticket — the failure this argument exists to prevent.
  *
  * `units` is how many of a party to admit — 1 for a ticket, more when a host
  * seats several of a booking at once. It is passed to `check_in`, which checks
@@ -55,6 +66,7 @@ export type ScanResult = { outcome: DoorOutcome };
  */
 export async function scanAdmission(
   tenantId: string,
+  doorSessionId: string,
   rawToken: string,
   units = 1,
 ): Promise<ScanResult> {
@@ -90,7 +102,7 @@ export async function scanAdmission(
     // obligation.
     const { data: owned, error: ownerError } = await admin
       .from("admissions")
-      .select("id")
+      .select("id, session_id, starts_at")
       .eq("id", verdict.admissionId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -104,7 +116,21 @@ export async function scanAdmission(
       return { outcome: { kind: "unknown_ticket" } };
     }
 
-    // ── 3. The row decides ──────────────────────────────────────────────────
+    // ── 3. The night, before the RPC that does not know about nights ────────
+    //
+    // Read outside the lock deliberately, and it is safe TODAY because nothing
+    // writes `admissions.session_id` after the mint. THE DAY EXCHANGE SHIPS
+    // (moving a ticket between nights) THAT STOPS BEING TRUE and this check
+    // has to move inside `check_in` under the row lock, next to the version
+    // check, which is mutable for exactly the same reason.
+    const offNight = doorOutcomeForSessionScope({
+      doorSessionId,
+      admissionSessionId: (owned.session_id as string | null) ?? null,
+      ticketStartsAt: (owned.starts_at as string | null) ?? null,
+    });
+    if (offNight) return { outcome: offNight };
+
+    // ── 4. The row decides ──────────────────────────────────────────────────
     const { data, error } = await admin.rpc("check_in", {
       p_admission_id: verdict.admissionId,
       p_count: units,

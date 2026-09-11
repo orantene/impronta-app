@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { capacityReleaseFor, selectAdmissionsForRefund } from "./refund-admissions";
+import {
+  admissionIsRefundable,
+  capacityReleaseFor,
+  classifyAdmissionEffect,
+  selectAdmissionsForRefund,
+} from "./refund-admissions";
 
 const adm = (id: string, lineSeq: number, admittedCount = 0, status = "valid") =>
   ({ id, orderLineId: "L1", lineSeq, admittedCount, status });
@@ -62,4 +67,69 @@ test("a PARTIAL refund must NOT release capacity — the engine has no partial r
   const r = capacityReleaseFor(false);
   assert.equal(r.release, false);
   assert.equal(r.reason, "partial_refund_cannot_release_units");
+});
+
+// ── The effect classifier. The failure branch is the one that was wrong, so it
+// is the one tested first.
+
+test("AN RPC ERROR IS INCOMPLETE, NOT A QUIET SKIP", () => {
+  // The defect: the executor logged this and continued, so `stamped` came back
+  // short with `admissionsIncomplete` still false. The caller was told every
+  // ticket was voided while one still admitted and its seat stayed committed.
+  const e = classifyAdmissionEffect(null, { message: "57014 statement timeout" });
+  assert.equal(e.effect, "incomplete");
+  if (e.effect === "incomplete") {
+    assert.equal(e.why, "rpc_error");
+    assert.equal(e.reason, "57014 statement timeout", "a human needs the cause, not a boolean");
+  }
+});
+
+test("a refusal reply is incomplete and carries the engine's reason", () => {
+  const e = classifyAdmissionEffect({ ok: false, reason: "unknown_admission" }, null);
+  assert.equal(e.effect, "incomplete");
+  if (e.effect === "incomplete") {
+    assert.equal(e.why, "refused");
+    assert.equal(e.reason, "unknown_admission");
+  }
+});
+
+test("a null reply with no error is still incomplete, never a success", () => {
+  // PostgREST does not throw. An absent reply must not read as done.
+  assert.equal(classifyAdmissionEffect(null, null).effect, "incomplete");
+});
+
+test("ALREADY REFUNDED COUNTS AS DONE — the RPC is idempotent by identity", () => {
+  // A retried cron run must clear the effect rather than leave an exception
+  // that can never be resolved. An inbox that never empties is unread.
+  const e = classifyAdmissionEffect({ ok: true, reason: "already" }, null);
+  assert.equal(e.effect, "stamped");
+  if (e.effect === "stamped") assert.equal(e.already, true);
+});
+
+test("a fresh stamp is done and says it was fresh", () => {
+  const e = classifyAdmissionEffect({ ok: true }, null);
+  assert.equal(e.effect, "stamped");
+  if (e.effect === "stamped") assert.equal(e.already, false);
+});
+
+test("a scanned ticket is SKIPPED, not incomplete — no retry will ever fix it", () => {
+  // `refund_admission` checks `admitted_count > 0` first, under the row lock,
+  // and answers `already_admitted`. That is a dispute for a human, but it is
+  // not an unresolved effect: reporting it as incomplete would fill the
+  // exceptions queue with items nobody can action.
+  const e = classifyAdmissionEffect({ ok: false, reason: "already_admitted" }, null);
+  assert.equal(e.effect, "skipped");
+});
+
+test("the refundable gate agrees with the RPC about valid and void", () => {
+  assert.equal(admissionIsRefundable({ admittedCount: 0, status: "valid" }), true);
+  assert.equal(
+    admissionIsRefundable({ admittedCount: 0, status: "void" }), true,
+    "cancel_event_cascade voids before the money moves; void must still refund",
+  );
+  assert.equal(admissionIsRefundable({ admittedCount: 0, status: "refunded" }), false);
+  assert.equal(
+    admissionIsRefundable({ admittedCount: 1, status: "valid" }), false,
+    "somebody walked in",
+  );
 });

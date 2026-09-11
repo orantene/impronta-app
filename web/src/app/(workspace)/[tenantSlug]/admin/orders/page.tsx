@@ -26,6 +26,9 @@ import {
   type OrderListBucket,
   type OrderListRow,
 } from "@/lib/orders/orders-list";
+import { OrdersRefundForm, type RefundFormCopy } from "./orders-refund-form";
+import { type RefundEffect } from "@/lib/orders/refund-effects";
+import { REFUND_DESK_KEY } from "@/lib/orders/refund-desk-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +47,21 @@ const C = {
 } as const;
 
 const BUCKETS: readonly OrderListBucket[] = ["all", "open", "to_pay", "settled", "reversed"];
+
+/**
+ * What each refund effect DOES, one message key per effect.
+ *
+ * Written out rather than templated for the reason `projects/_keys.ts` gives:
+ * `message-key-usage.static.test.ts` reads literals out of `src/`, and a missed
+ * path renders as the dotted key itself with every gate still green.
+ */
+const REFUND_EFFECT_KEY: Record<RefundEffect, string> = {
+  keep_entitlement: "dashboard.orders.refundEffectCopy.keepEntitlement",
+  cancel_ticket: "dashboard.orders.refundEffectCopy.cancelTicket",
+  adjustment_after_service: "dashboard.orders.refundEffectCopy.adjustmentAfterService",
+  revoke_unused_admission: "dashboard.orders.refundEffectCopy.revokeUnusedAdmission",
+  refund_hybrid_component: "dashboard.orders.refundEffectCopy.refundHybridComponent",
+};
 
 const BUCKET_KEY: Record<OrderListBucket, string> = {
   all: "bucketAll",
@@ -98,6 +116,41 @@ export default async function OrdersPage({
 
   const rows: OrderListRow[] = load.ok ? filterOrders(load.rows, { bucket, query }) : [];
   const totals = totalsFor(rows);
+
+  // Every word the refund form shows, resolved here where the translator is.
+  // The component itself holds no English: see its header for the defect that
+  // rule ends.
+  //
+  // Written member by member rather than folded out of the key maps, because
+  // `Object.fromEntries` returns an index signature and the only way to hand
+  // that to a `Record<RefundEffect, string>` is an assertion — which would then
+  // stop the compiler noticing a member that lost its key.
+  const refundCopy: RefundFormCopy = {
+    refund: t("refund"),
+    effect: t("refundEffect"),
+    confirm: t("refundConfirm"),
+    effects: {
+      keep_entitlement: tr(REFUND_EFFECT_KEY.keep_entitlement),
+      cancel_ticket: tr(REFUND_EFFECT_KEY.cancel_ticket),
+      adjustment_after_service: tr(REFUND_EFFECT_KEY.adjustment_after_service),
+      revoke_unused_admission: tr(REFUND_EFFECT_KEY.revoke_unused_admission),
+      refund_hybrid_component: tr(REFUND_EFFECT_KEY.refund_hybrid_component),
+    },
+    outcomes: {
+      refunded: tr(REFUND_DESK_KEY.refunded),
+      pick_a_line: tr(REFUND_DESK_KEY.pick_a_line),
+      not_allowed: tr(REFUND_DESK_KEY.not_allowed),
+      invalid: tr(REFUND_DESK_KEY.invalid),
+      not_found: tr(REFUND_DESK_KEY.not_found),
+      nothing_to_refund: tr(REFUND_DESK_KEY.nothing_to_refund),
+      line_already_refunded: tr(REFUND_DESK_KEY.line_already_refunded),
+      exceeds_captured: tr(REFUND_DESK_KEY.exceeds_captured),
+      no_provider_charge: tr(REFUND_DESK_KEY.no_provider_charge),
+      provider_refused: tr(REFUND_DESK_KEY.provider_refused),
+      partial_failure: tr(REFUND_DESK_KEY.partial_failure),
+      unavailable: tr(REFUND_DESK_KEY.unavailable),
+    },
+  };
 
   return (
     <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto", color: C.ink }}>
@@ -284,6 +337,11 @@ export default async function OrdersPage({
                             {statusKey ? t(statusKey) : row.status}
                             {bucketOf(row.status) === "to_pay" ? (
                               <span style={{ color: C.amber }}> ●</span>
+                            ) : null}
+                            {row.status === "paid" || row.status === "partially_refunded" ? (
+                              <div style={{ marginTop: 8 }}>
+                                <OrdersRefundForm orderId={row.id} copy={refundCopy} />
+                              </div>
                             ) : null}
                           </td>
                         </tr>

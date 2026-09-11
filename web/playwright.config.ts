@@ -7,8 +7,9 @@
  *   npx playwright install chromium
  *   npx playwright test
  *
- * Defaults to the local-host-proxy host so the middleware host resolution
- * matches what we ship to production (`app.tulala.digital` → `app.local`).
+ * Defaults to the local-host-proxy host so the edge host resolution
+ * (`web/src/proxy.ts` + `web/src/lib/saas/gate.ts`) matches production
+ * (`app.tulala.digital` → `app.local`).
  *
  * Override the base URL when QAing a deployed environment:
  *   PLAYWRIGHT_BASE_URL=https://staging.tulala.digital npx playwright test
@@ -96,6 +97,22 @@ export default defineConfig({
   use: {
     baseURL,
     trace: "retain-on-failure",
+    // Vercel Authentication gates every preview deployment, including the
+    // branch-bound QA hosts. The project's Protection Bypass for Automation
+    // secret lets the runner through without disabling protection for people.
+    // Set VERCEL_AUTOMATION_BYPASS_SECRET in .env.capacity-isolated.local (or
+    // the CI secret) when targeting a preview; unset for localhost runs.
+    ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      ? {
+          extraHTTPHeaders: {
+            // Header only. Do NOT ask for the bypass cookie: that makes the
+            // platform answer with its own 307 + Set-Cookie, which a caller
+            // using maxRedirects:0 reads as the app's redirect and never
+            // reaches the route it asked for.
+            "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+          },
+        }
+      : {}),
   },
   projects: [
     {
@@ -118,6 +135,16 @@ export default defineConfig({
       use: {
         ...devices["Desktop Safari"],
       },
+    },
+    {
+      name: "tablet-pos",
+      testMatch: /cases\/.*\.spec\.ts/,
+      use: { ...devices["iPad Pro"] },
+    },
+    {
+      name: "mobile-checkout",
+      testMatch: /cases\/.*\.spec\.ts/,
+      use: { ...devices["iPhone 14"] },
     },
   ],
 });

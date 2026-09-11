@@ -90,6 +90,18 @@ export function DirectoryInquiryModalProvider({ children }: { children: ReactNod
   // no canonical chat surface on this page, so requestOpenChat falls back to the
   // legacy InquiryDrawer sheet rather than no-op (no dead CTA).
   const chatLauncherCount = useRef(0);
+  // ?inquiry=open is read by DirectoryInquiryUrlSync, which often sits ABOVE the
+  // launcher in the tree (directory page, AgencyChatLauncherMount). Child effects
+  // run after that sibling, so a synchronous fallback here opens the sheet and
+  // never the chat. Queue until registerChatLauncher, then sheet only if nobody
+  // registered this turn.
+  const pendingOpenChat = useRef(false);
+  const pendingSeparateInquiry = useRef<SeparateInquiryPayload | null>(null);
+  const sheetFallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [separateInquiryRequest, setSeparateInquiryRequest] = useState<{
+    seq: number;
+    payload: SeparateInquiryPayload;
+  } | null>(null);
 
   const bumpSaveCue = useCallback(() => {
     setSaveCue((n) => n + 1);
@@ -104,37 +116,64 @@ export function DirectoryInquiryModalProvider({ children }: { children: ReactNod
     setOpen(true);
   }, []);
 
+  const flushPendingChatOpen = useCallback(() => {
+    if (sheetFallbackTimer.current) {
+      clearTimeout(sheetFallbackTimer.current);
+      sheetFallbackTimer.current = null;
+    }
+    if (pendingOpenChat.current) {
+      pendingOpenChat.current = false;
+      setOpenChatCue((n) => n + 1);
+    }
+    const separate = pendingSeparateInquiry.current;
+    if (separate) {
+      pendingSeparateInquiry.current = null;
+      setSeparateInquiryRequest((prev) => ({ seq: (prev?.seq ?? 0) + 1, payload: separate }));
+    }
+  }, []);
+
   const registerChatLauncher = useCallback(() => {
     chatLauncherCount.current += 1;
+    flushPendingChatOpen();
     return () => {
       chatLauncherCount.current = Math.max(0, chatLauncherCount.current - 1);
     };
+  }, [flushPendingChatOpen]);
+
+  const scheduleSheetFallback = useCallback(() => {
+    if (sheetFallbackTimer.current) clearTimeout(sheetFallbackTimer.current);
+    sheetFallbackTimer.current = setTimeout(() => {
+      sheetFallbackTimer.current = null;
+      if (chatLauncherCount.current > 0) {
+        pendingOpenChat.current = false;
+        pendingSeparateInquiry.current = null;
+        return;
+      }
+      if (!pendingOpenChat.current && !pendingSeparateInquiry.current) return;
+      pendingOpenChat.current = false;
+      pendingSeparateInquiry.current = null;
+      setSuccess(null);
+      setOpen(true);
+    }, 0);
   }, []);
 
-  const [separateInquiryRequest, setSeparateInquiryRequest] = useState<{
-    seq: number;
-    payload: SeparateInquiryPayload;
-  } | null>(null);
   const requestSeparateInquiry = useCallback((payload: SeparateInquiryPayload) => {
     if (chatLauncherCount.current > 0) {
       setSeparateInquiryRequest((prev) => ({ seq: (prev?.seq ?? 0) + 1, payload }));
       return;
     }
-    setSuccess(null);
-    setOpen(true);
-  }, []);
+    pendingSeparateInquiry.current = payload;
+    scheduleSheetFallback();
+  }, [scheduleSheetFallback]);
 
   const requestOpenChat = useCallback(() => {
     if (chatLauncherCount.current > 0) {
       setOpenChatCue((n) => n + 1);
       return;
     }
-    // No chat launcher mounted — open the legacy sheet so the control still has
-    // a destination (the sheet binds to the same shared cart, so the lineup is
-    // preserved; it is the synced form-view of the same inquiry).
-    setSuccess(null);
-    setOpen(true);
-  }, []);
+    pendingOpenChat.current = true;
+    scheduleSheetFallback();
+  }, [scheduleSheetFallback]);
 
   const showSuccess = useCallback((params: InquirySuccessParams) => {
     setSuccess(params);

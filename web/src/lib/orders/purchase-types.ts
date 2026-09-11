@@ -39,6 +39,17 @@ export type PurchaseInput = {
   actorUserId: string | null;
   contact: { email?: string | null; phone?: string | null; displayName?: string | null };
   lines: PurchaseLineInput[];
+  /**
+   * What the buyer stated about their age, when something in the basket is
+   * gated.
+   *
+   * `undefined`/`null` means they were never asked, which the pipeline treats
+   * as a REFUSAL on a gated line rather than as consent — a client that has not
+   * been updated must fail loudly, not sell an 18+ ticket by omission. Ungated
+   * baskets ignore this entirely; see `lib/orders/age-gate.ts` for why the
+   * artefact is an attestation and not a date of birth.
+   */
+  ageAttestation?: { confirmedAge: number } | null;
   /** INTENT, not policy. Re-validated against the offering rows. */
   paymentChoice: PaymentChoice;
   sourceChannel: string;
@@ -92,7 +103,22 @@ export type PurchaseInput = {
     title?: string | null;
     /** The pool whose TTL governs both holds. */
     poolId?: string | null;
+    bufferBeforeSeconds?: number;
+    bufferAfterSeconds?: number;
   } | null;
+  /**
+   * Several people in one purchase (bridal group, couples massage). The
+   * singular `reservation` is still honoured; both are reserved as one set.
+   */
+  holds?: Array<{
+    talentProfileId: string;
+    startsAt: string;
+    endsAt: string;
+    title?: string | null;
+    poolId?: string | null;
+    bufferBeforeSeconds?: number;
+    bufferAfterSeconds?: number;
+  }>;
 };
 
 export type PurchaseRefusalReason =
@@ -107,6 +133,9 @@ export type PurchaseRefusalReason =
   | "invalid_payment_choice"
   | "offering_not_priceable"
   | "variant_not_on_offering"
+  | "variant_required"
+  | "below_min_per_order"
+  | "above_max_per_order"
   | "addon_not_on_offering"
   | "amount_out_of_range"
   | "no_contact"
@@ -128,13 +157,27 @@ export type PurchaseRefusalReason =
   | "promo_not_applicable"
   /** The promo READ failed. A retry, not a verdict on the code. */
   | "promo_unavailable"
+  /** C34: a provisional talent profile cannot take money until claimed. */
+  | "unclaimed_seller"
+  /**
+   * Age gates. Two reasons, not one, because the surfaces differ: the first
+   * means "ask the question", the second means "the answer was no".
+   */
+  | "age_gate_unconfirmed"
+  | "age_gate_below_minimum"
   | "engine_error";
 
 export type PurchaseResult =
   | {
       ok: true;
       orderId: string;
-      customerId: string;
+      /**
+       * Null on an ANONYMOUS purchase: money does not require a name, and the
+       * buyer who gave none is reached through `orders.receipt_code` at
+       * `/r/<code>`. A caller that needs a customer (a reservation, a saved
+       * card) must check for null rather than assume one.
+       */
+      customerId: string | null;
       totalCents: number;
       /** What the pipeline decided to collect now. Derived, never sent. */
       collectCents: number;

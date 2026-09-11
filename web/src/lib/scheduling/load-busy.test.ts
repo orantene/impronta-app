@@ -176,7 +176,11 @@ test("clampPublicSlotDays and parsePublicSlotFrom stay bounded", () => {
   assert.equal(clampPublicSlotDays("0"), 1);
   assert.equal(clampPublicSlotDays("99"), 60);
   assert.equal(clampPublicSlotDays("nope"), 7);
-  assert.equal(parsePublicSlotFrom("2026-03-09", NOW).toISOString(), "2026-03-09T00:00:00.000Z");
+  // Today's date is the picker's own request, and it must not reach back to
+  // midnight: at 12:00 the morning's slots are gone, not on sale.
+  assert.equal(parsePublicSlotFrom("2026-03-09", NOW).toISOString(), NOW.toISOString());
+  assert.equal(parsePublicSlotFrom("2026-03-10", NOW).toISOString(), "2026-03-10T00:00:00.000Z");
+  assert.equal(parsePublicSlotFrom("2026-03-09T11:00:00.000Z", NOW).toISOString(), NOW.toISOString());
   assert.equal(parsePublicSlotFrom("garbage", NOW).toISOString(), NOW.toISOString());
 });
 

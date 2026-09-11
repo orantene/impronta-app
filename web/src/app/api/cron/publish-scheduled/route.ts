@@ -130,6 +130,38 @@ export async function GET(request: Request) {
       // Freeform pages persist their tree to `cms_pages.blocks` and never touch
       // `cms_page_sections`; the shared core is the exact sequence the operator's
       // Publish button runs (status flip + `kind='published'` revision).
+      // Cron cannot run the session-scoped drawer preflight; validate the tree
+      // shape at least so a broken schedule cannot freeze an invalid snapshot.
+      const { data: pageRow, error: pageErr } = await supabase
+        .from("cms_pages")
+        .select("blocks")
+        .eq("id", row.id)
+        .eq("tenant_id", row.tenant_id)
+        .maybeSingle();
+      if (pageErr) {
+        logServerError("cron/publish-scheduled/load-freeform-tree", pageErr);
+        return { ok: false, error: "Could not read the page tree." };
+      }
+      const blocks = (pageRow as { blocks?: { builderTree?: unknown } | null } | null)?.blocks;
+      const tree = blocks && typeof blocks === "object" ? (blocks as { builderTree?: unknown }).builderTree : null;
+      if (tree) {
+        const { validateBuilderNodeTree } = await import(
+          "@/lib/site-admin/builder-node/validate"
+        );
+        const { preflightBlocksPublish } = await import(
+          "@/lib/site-admin/edit-mode/publish-preflight-gate"
+        );
+        const validated = validateBuilderNodeTree(tree);
+        if (!validated.ok) {
+          const gate = preflightBlocksPublish(
+            validated.issues.map((issue) => ({
+              severity: "error" as const,
+              message: issue.message,
+            })),
+          );
+          if (gate.blocked) return { ok: false, error: gate.message };
+        }
+      }
       const result = await publishCmsFreeformPageWithClient({
         supabase,
         tenantId: row.tenant_id,

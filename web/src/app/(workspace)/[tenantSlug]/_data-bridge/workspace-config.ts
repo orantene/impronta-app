@@ -3,6 +3,7 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { personDisplayName } from "@/lib/people/display-name";
 
 /**
  * _data-bridge/workspace-config.ts — agency identity, plan, custom domain,
@@ -302,6 +303,11 @@ export async function loadWorkspaceDomainSummary(
 export type WorkspaceTeamMember = {
   /** profile_id from agency_memberships */
   id: string;
+  /**
+   * `profiles.display_name`, trimmed. `""` when the member has none — an
+   * ABSENCE, not a placeholder. Never the member's id: a screen that renders
+   * this raw is showing an operator a name, and a raw identifier is not one.
+   */
   name: string;
   /** Member headshot URL from `profiles.avatar_url`, when it is an http(s)
    *  URL. Shown on the identity card; falls back to an initial avatar. */
@@ -391,7 +397,9 @@ export async function loadWorkspaceTeamMembers(
     const out: WorkspaceTeamMember[] = rows.map((row) => {
       const profileJoin = row.profiles;
       const profile = Array.isArray(profileJoin) ? profileJoin[0] : profileJoin;
-      const name = profile?.display_name?.trim() || row.profile_id.slice(0, 8);
+      // ABSENCE STAYS ABSENT — see `lib/people/display-name.ts` for the rule
+      // and for the raw-identifier defect it replaces.
+      const name = personDisplayName(profile);
       const avatar = profile?.avatar_url?.trim();
       return {
         id: row.profile_id,

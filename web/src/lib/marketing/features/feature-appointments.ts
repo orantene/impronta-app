@@ -7,12 +7,13 @@ import type { Feature } from "./types";
  * "sistema de reservas", "appointment booking system". Displaces Booksy,
  * Fresha and Calendly, none of which give the business its own website.
  *
- * STATUS: LIVE as of 2026-08-30, confirmed by the owner once the appointments
- * engine shipped. It was held at `coming` until then on purpose, because
- * claiming a booking feature before a customer can take a booking is the one
- * thing that would cost trust. The waitlist banner and the "not yet" answer
- * came off in the same change that flipped the flag; a page that says `live`
- * while its own FAQ says "not yet" is worse than either.
+ * STATUS: COMING as of the 2026 appointments-hours audit. The engine and the
+ * public slots endpoint are real, but production tenants had no
+ * `talent_booking_hours` rows: every bookable offering answered
+ * `no_booking_hours`, which reads as a fully booked calendar. Advertising
+ * `live` while the storefront cannot take a booking is the trust failure this
+ * page was held at `coming` to avoid. Default hours now seed on publish; the
+ * flag flips back to `live` only once that path is verified on real tenants.
  */
 export const APPOINTMENTS_FEATURE: Feature = {
   key: "appointments",
@@ -21,7 +22,7 @@ export const APPOINTMENTS_FEATURE: Feature = {
   slugEn: "appointments",
   slugEs: "citas-y-reservas",
   tier: "S",
-  status: "live",
+  status: "coming",
   related: ["inquiry-engine", "payments", "messenger", "tables-and-seating"],
 
   en: {
@@ -130,7 +131,7 @@ export const APPOINTMENTS_FEATURE: Feature = {
     faq: [
       {
         q: "Can I use this today?",
-        a: "Yes. Online booking is live. Turn it on from your dashboard, set your hours and how each service should book, and your page starts taking real appointments.",
+        a: "Not yet. The scheduling engine and the public slots endpoint already exist, but self serve online booking is not shipped yet. It is on the roadmap, and this page will update the day clients can book for themselves.",
       },
       {
         q: "Do my clients need an account to book?",
@@ -265,7 +266,7 @@ export const APPOINTMENTS_FEATURE: Feature = {
     faq: [
       {
         q: "¿Puedo usarlo hoy?",
-        a: "Sí. Las reservas en línea ya están disponibles. Actívalas desde tu panel, define tus horarios y cómo se reserva cada servicio, y tu página empieza a recibir citas reales.",
+        a: "Todavía no. El motor de agenda y el endpoint público de horarios ya existen, pero la reserva en línea por cuenta propia todavía no se lanza. Está en la hoja de ruta, y esta página se actualiza el día en que tus clientes puedan reservar solos.",
       },
       {
         q: "¿Mis clientes necesitan cuenta para reservar?",

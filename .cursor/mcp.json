@@ -7,6 +7,9 @@
     "supabase": {
       "url": "https://mcp.supabase.com/mcp?read_only=true&project_ref=pluhdapdnuiulvxmyspd"
     },
+    "supabase-qa": {
+      "url": "https://mcp.supabase.com/mcp?project_ref=fxlankepwnvelxjrahwk"
+    },
     "vercel": {
       "url": "https://mcp.vercel.com"
     },

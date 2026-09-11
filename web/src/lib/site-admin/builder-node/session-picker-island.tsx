@@ -31,7 +31,6 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { PickerSession } from "@/app/(public)/_sessions/session-picker-actions";
-import { pickerConfig } from "@/lib/sessions/picker-config";
 
 type Locale = "en" | "es";
 
@@ -175,6 +174,10 @@ export function SessionPickerIsland({
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [boundOfferingId, setBoundOfferingId] = useState<string | null>(
+    offeringId.trim() || null,
+  );
+  const [hidden, setHidden] = useState(false);
 
   // NOT CONFIGURED IS NOT AN OUTAGE.
   //
@@ -193,19 +196,28 @@ export function SessionPickerIsland({
   // Checked in the island rather than in the action because only the island
   // knows the difference between "nobody configured me" and "my caller sent
   // something wrong": the action sees one empty string either way.
-  const configured = pickerConfig(tenantId, offeringId).ok;
-
   const load = useCallback(async () => {
-    if (!configured) {
+    const tenant = (tenantId ?? "").trim();
+    if (!tenant) {
       setSessions([]);
       setRefusal(t("not_configured"));
       return;
     }
     try {
-      const { loadSessionPicker } = await import(
-        "@/app/(public)/_sessions/session-picker-actions"
-      );
-      const result = await loadSessionPicker({ tenantId, offeringId });
+      const actions = await import("@/app/(public)/_sessions/session-picker-actions");
+      let offering = (offeringId ?? "").trim();
+      if (!offering) {
+        const resolved = await actions.resolveSessionPickerOffering({ tenantId: tenant });
+        if (!resolved.ok) {
+          setHidden(true);
+          setSessions([]);
+          return;
+        }
+        offering = resolved.offeringId;
+        setBoundOfferingId(offering);
+      }
+      setHidden(false);
+      const result = await actions.loadSessionPicker({ tenantId: tenant, offeringId: offering });
       if (result.ok) setSessions(result.sessions);
       else {
         setSessions([]);
@@ -217,7 +229,7 @@ export function SessionPickerIsland({
       setSessions([]);
       setRefusal(t("unavailable"));
     }
-  }, [tenantId, offeringId, loc, configured]);
+  }, [tenantId, offeringId, loc]);
 
   useEffect(() => {
     void load();
@@ -237,7 +249,7 @@ export function SessionPickerIsland({
       );
       const result = await bookSessionSeat({
         tenantId,
-        offeringId,
+        offeringId: boundOfferingId ?? offeringId,
         sessionId: chosen,
         units: seats,
         clientOrderKey: orderKey,
@@ -262,6 +274,8 @@ export function SessionPickerIsland({
       setBusy(false);
     }
   }
+
+  if (hidden) return null;
 
   if (done) {
     return (

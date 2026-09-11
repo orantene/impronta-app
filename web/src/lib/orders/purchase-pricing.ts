@@ -43,6 +43,10 @@ export type PricedVariant = {
   label: string;
   /** Overrides the offering's base price when set. */
   amountCents: number | null;
+  /** Purchase floor for this tier. Defaults to 1 when the column is absent. */
+  minPerOrder?: number;
+  /** Purchase ceiling. Null means no ceiling beyond the cart's own limits. */
+  maxPerOrder?: number | null;
 };
 
 export type PricedAddon = {
@@ -77,6 +81,9 @@ export type PricingRefusal = {
   reason:
     | "offering_not_priceable"
     | "variant_not_on_offering"
+    | "variant_required"
+    | "below_min_per_order"
+    | "above_max_per_order"
     | "addon_not_on_offering"
     | "amount_out_of_range";
   offeringId?: string;
@@ -126,6 +133,21 @@ export function pricePurchase(
     let label = offering.label;
     let variantId: string | null = null;
 
+    // Variants on an offering are OPTIONS the buyer must pick. Falling through
+    // to the base price when none was chosen used to silently sell "General"
+    // when the UI meant "VIP" and the request omitted the id.
+    const offeringVariants = [...catalog.variants.values()].filter(
+      (v) => v.offeringId === req.offeringId,
+    );
+    if (offeringVariants.length > 0 && !req.variantId) {
+      return {
+        ok: false,
+        reason: "variant_required",
+        offeringId: req.offeringId,
+        message: "Pick an option before buying.",
+      };
+    }
+
     if (req.variantId) {
       const variant = catalog.variants.get(req.variantId);
       // A variant that belongs to a DIFFERENT offering is refused, not ignored.
@@ -142,6 +164,25 @@ export function pricePurchase(
       variantId = variant.variantId;
       if (variant.amountCents != null) unitCents = variant.amountCents;
       if (variant.label) label = `${offering.label} — ${variant.label}`;
+
+      const min = variant.minPerOrder ?? 1;
+      const max = variant.maxPerOrder ?? null;
+      if (!Number.isInteger(req.units) || req.units < min) {
+        return {
+          ok: false,
+          reason: "below_min_per_order",
+          offeringId: req.offeringId,
+          message: min === 1 ? "Add at least one." : `This tier needs at least ${min}.`,
+        };
+      }
+      if (max != null && req.units > max) {
+        return {
+          ok: false,
+          reason: "above_max_per_order",
+          offeringId: req.offeringId,
+          message: `This tier allows at most ${max} per order.`,
+        };
+      }
     }
 
     if (unitCents == null || !Number.isInteger(unitCents) || unitCents < 0) {

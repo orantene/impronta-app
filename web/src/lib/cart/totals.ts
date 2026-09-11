@@ -28,6 +28,20 @@ export type CartLineInput = {
   readonly units: number;
   /** Integer cents, zero until D5 lands. */
   readonly taxCents?: number;
+  /**
+   * Chosen extras, charged ONCE for the line and not multiplied by `units`.
+   *
+   * Threaded through here rather than folded into `unitCents` by the caller
+   * because it cannot be: an add-on that is not divisible by `units` has no
+   * unit price, and rounding one into existence would make the line's total
+   * disagree with the sum of its parts by a few cents on every multi-unit sale.
+   *
+   * The per-line rather than per-unit rule is `purchase-pricing.ts`'s, argued
+   * there in full — the catalog has no column saying which extras scale with
+   * quantity, and overcharging is the worse way to be wrong. This exists so the
+   * register can obey the SAME rule instead of dropping the charge entirely.
+   */
+  readonly addonCents?: number;
 };
 
 export type CartTotals = {
@@ -53,8 +67,13 @@ export function lineTotalCents(line: CartLineInput): number {
   // wrongly, it would be REJECTED — turning a bad input into a 500 at the write
   // instead of a caught condition here.
   const unit = Math.max(0, Math.trunc(line.unitCents));
-  if (units === 0 || unit === 0) return 0;
-  return unit * units;
+  const addon = Number.isFinite(line.addonCents) ? Math.max(0, Math.trunc(line.addonCents ?? 0)) : 0;
+  // A zero-priced base item with paid extras is a real basket (a free coffee
+  // refill with a paid shot of syrup), so the early return has to consider the
+  // add-on too or it would silently zero the line.
+  if (units === 0) return 0;
+  if (unit === 0 && addon === 0) return 0;
+  return unit * units + addon;
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * presets.ts — the sixteen industry presets.
+ * presets.ts — the twenty industry presets.
  *
  * A preset is a bundle of words, features, site design, header verb and chat
  * voice over the same engines. A padel club and a restaurant run identical

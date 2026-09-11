@@ -1,0 +1,1002 @@
+-- T1-03: two cashiers must not be able to collect the same money twice.
+--
+-- Timestamp sorts after 20261230002200. Do not use calendar 20260909: this
+-- file references public.orders (20261228000142) and the deposit-era index
+-- (20260614031530), and a calendar-dated name would sort BEFORE both and break
+-- a rebuild from zero. The band is the ordering, not the wall clock.
+--
+-- THE DEFECT. `lib/pos/collection.ts` computed what is still owed by reading
+-- `booking_transactions` and subtracting, with no lock. Two devices on the same
+-- tab therefore both read the full balance, both passed the "not more than
+-- outstanding" check, and both collected it. A retry did the same thing through
+-- a different door: the idempotency key was minted per call, so the second
+-- attempt was a second allocation rather than a replay.
+--
+-- Outstanding is not a number a caller may compute. It is a fact about the
+-- order, and only the row lock on the order can produce it truthfully. So it
+-- moves in here: `pos_reserve_collection` locks the order, subtracts what is
+-- paid AND what is already reserved, and hands back a reservation. Money is
+-- claimed before it is taken.
+--
+-- THE THIRD DEFECT, without which the fix cannot ship. Orders are the money
+-- aggregate and outstanding is a SUM over their transactions, but
+-- `idx_booking_transactions_booking_active` allows only ONE active non-deposit
+-- transaction per booking, and every collection on an order lands on that
+-- order's single booking shell. A second cash allocation therefore raised 23505
+-- on a real database. The split test never saw it because its fake store has no
+-- indexes. The index is relaxed to `order_id IS NULL` so inquiry-backed
+-- bookings keep exactly today's guard and order-backed ones are governed by the
+-- order instead. 20261228000142 deferred precisely this relaxation to the phase
+-- that had Orders; this is that phase.
+--
+-- WHAT THE RELAXATION COST, AND WHAT PAYS FOR IT. Dropping `order_id IS NULL`
+-- into that predicate traded a HARD DATABASE REFUSAL for a soft 900 second
+-- claim, and the card rail can outlive a claim: a Stripe Checkout session had
+-- no expiry at all and lives about 24 hours, so the every-minute reaper
+-- released the claim while the session was still payable. A second till then
+-- reserved the whole balance again and took it, and the first customer's
+-- session settled afterwards: 10000 cents collected on a 5000 cent order, on
+-- one order-backed booking shell, with every RPC in this file behaving as
+-- written. A timer is not a guard.
+--
+-- So the refusal comes back, at the place that cannot be raced: the money
+-- write itself. `guard_order_not_overcollected` refuses to move an
+-- order-backed transaction into a money-received status when the order's
+-- already-collected total plus this row would exceed the order total, holding
+-- the order row lock while it decides. A genuine split across two tenders is
+-- unaffected, which is the whole point of the relaxed index, because the guard
+-- counts PAID rows and this one and never live reservations, so a tender never
+-- has to pay for its own claim.
+--
+-- The claim's lifetime is fixed alongside it rather than instead of it. A card
+-- reservation now lasts 1980 seconds and `lib/payments/stripe-checkout.ts`
+-- stamps the SAME instant on the Checkout session as `expires_at`, so the
+-- session cannot outlive the balance it holds. Stripe's floor for that field
+-- is 30 minutes, which is why the card TTL is over half an hour and not the
+-- 900 seconds cash uses.
+
+BEGIN;
+
+-- ── The reservation ledger ──────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.order_collection_reservations (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id      uuid NOT NULL REFERENCES public.agencies(id) ON DELETE CASCADE,
+  order_id       uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  operation_key  text NOT NULL,
+  amount_cents   bigint NOT NULL,
+  method         text NOT NULL,
+  state          text NOT NULL DEFAULT 'reserved',
+  transaction_id uuid REFERENCES public.booking_transactions(id) ON DELETE SET NULL,
+  expires_at     timestamptz NOT NULL,
+  created_by     uuid,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  settled_at     timestamptz,
+  CONSTRAINT order_collection_reservations_amount_positive CHECK (amount_cents > 0),
+  CONSTRAINT order_collection_reservations_key_shape CHECK (char_length(btrim(operation_key)) BETWEEN 1 AND 200),
+  CONSTRAINT order_collection_reservations_method_known CHECK (method IN ('cash', 'online_card', 'terminal')),
+  CONSTRAINT order_collection_reservations_state_known CHECK (state IN ('reserved', 'settled', 'released')),
+  CONSTRAINT order_collection_reservations_key_uniq UNIQUE (order_id, operation_key)
+);
+
+COMMENT ON TABLE public.order_collection_reservations IS
+  'T1-03: a claim on part of an order''s outstanding balance, taken under the order row lock before any money is recorded. Live rows (state=reserved, not expired) subtract from outstanding exactly as paid transactions do.';
+
+-- Live reservations are what the outstanding SUM reads on every collection, and
+-- the reaper walks the expiry edge. Both are partial because a settled or
+-- released row is history and must not slow either path down.
+CREATE INDEX IF NOT EXISTS order_collection_reservations_live_idx
+  ON public.order_collection_reservations (order_id)
+  WHERE state = 'reserved';
+
+CREATE INDEX IF NOT EXISTS order_collection_reservations_expiry_idx
+  ON public.order_collection_reservations (expires_at)
+  WHERE state = 'reserved';
+
+CREATE INDEX IF NOT EXISTS order_collection_reservations_tenant_idx
+  ON public.order_collection_reservations (tenant_id, created_at DESC);
+
+ALTER TABLE public.order_collection_reservations ENABLE ROW LEVEL SECURITY;
+
+-- Staff may LOOK at what their own till has claimed. Nobody signs in and
+-- writes one: every write goes through the SECURITY DEFINER functions below,
+-- which is the only place the order lock is held.
+DROP POLICY IF EXISTS order_collection_reservations_staff_select ON public.order_collection_reservations;
+CREATE POLICY order_collection_reservations_staff_select ON public.order_collection_reservations
+  FOR SELECT TO authenticated
+  USING (public.is_staff_of_tenant(tenant_id));
+
+REVOKE ALL ON public.order_collection_reservations FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.order_collection_reservations TO authenticated;
+GRANT ALL ON public.order_collection_reservations TO service_role;
+
+-- ── Relax the one-active-transaction index for order-backed money ───────────
+
+DROP INDEX IF EXISTS public.idx_booking_transactions_booking_active;
+
+CREATE UNIQUE INDEX idx_booking_transactions_booking_active
+  ON public.booking_transactions USING btree (booking_id)
+  WHERE (
+    order_id IS NULL
+    AND status <> ALL (ARRAY['cancelled'::text, 'failed'::text, 'refunded'::text])
+    AND NOT (
+      checkout_type = 'deposit'
+      AND status = ANY (ARRAY['paid'::text, 'payout_pending'::text, 'payout_sent'::text, 'payout'::text])
+    )
+  );
+
+COMMENT ON INDEX public.idx_booking_transactions_booking_active IS
+  'One live charge per INQUIRY-BACKED booking, unchanged since 20260614031530. Order-backed transactions are excluded: the order is their aggregate and public.pos_reserve_collection is their guard, so a split tab is many rows on one shell by design.';
+
+-- ── One definition of "money in" for an order ───────────────────────────
+--
+-- Three readers need the same answer: the reservation RPC, the overcollection
+-- guard, and anything that reports a balance. Three copies of the status list
+-- is three chances for them to disagree, and a guard that counts a different
+-- set from the RPC it backs is a hole with a green test over it.
+
+CREATE OR REPLACE FUNCTION public.order_money_statuses()
+RETURNS text[]
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  SELECT ARRAY['paid', 'payout_pending', 'payout_sent', 'payout']::text[];
+$$;
+
+COMMENT ON FUNCTION public.order_money_statuses() IS
+  'T1-03: the booking_transactions statuses that mean the money is in hand. `payout` is carried defensively: it is not in today''s status CHECK, and counting a status that cannot occur is free while missing one reopens a paid balance.';
+
+-- Paid is wider than status='paid'. A POS card charge that has entered the
+-- payout states is money already in hand, and counting only 'paid' would
+-- reopen the whole balance the moment a transfer started. Refund rows are
+-- excluded by their parent link; a refunded BASE row leaves the set on its own
+-- status and reopens the balance, which is what a refund means.
+--
+-- `p_excluding_transaction` exists for the guard: a row being moved INTO a
+-- money status must not be counted twice, once from the table and once from
+-- the amount being added.
+CREATE OR REPLACE FUNCTION public.order_collected_cents(
+  p_order_id              uuid,
+  p_excluding_transaction uuid DEFAULT NULL
+) RETURNS bigint
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(SUM(t.gross_amount_cents), 0)::bigint
+    FROM public.booking_transactions t
+   WHERE t.order_id = p_order_id
+     AND t.refund_of_transaction_id IS NULL
+     AND (p_excluding_transaction IS NULL OR t.id <> p_excluding_transaction)
+     AND t.status = ANY (public.order_money_statuses());
+$$;
+
+REVOKE ALL ON FUNCTION public.order_collected_cents(uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.order_collected_cents(uuid, uuid) TO service_role;
+
+COMMENT ON FUNCTION public.order_collected_cents(uuid, uuid) IS
+  'T1-03: cents already collected against an order. The single definition read by pos_reserve_collection and by guard_order_not_overcollected, so the claim and the refusal can never count different sets.';
+
+-- ── pos_reserve_collection: the only place outstanding is computed ──────────
+
+CREATE OR REPLACE FUNCTION public.pos_reserve_collection(
+  p_tenant_id        uuid,
+  p_order_id         uuid,
+  p_operation_key    text,
+  p_amount_cents     bigint,
+  p_method           text,
+  p_actor_id         uuid,
+  p_expected_version integer,
+  p_ttl_seconds      integer
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_order       public.orders%ROWTYPE;
+  v_key         text;
+  v_existing    public.order_collection_reservations%ROWTYPE;
+  v_paid        bigint := 0;
+  v_reserved    bigint := 0;
+  v_uncollected bigint := 0;
+  v_outstanding bigint := 0;
+  v_amount      bigint;
+  v_version     integer;
+  v_ttl         integer;
+  v_row         public.order_collection_reservations%ROWTYPE;
+BEGIN
+  v_key := btrim(COALESCE(p_operation_key, ''));
+  IF p_tenant_id IS NULL OR p_order_id IS NULL OR v_key = '' THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'bad_input');
+  END IF;
+  IF p_method IS NULL OR p_method NOT IN ('cash', 'online_card', 'terminal') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'bad_input');
+  END IF;
+
+  -- The lock. Everything below reads a balance that cannot move under it.
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_found');
+  END IF;
+  IF v_order.tenant_id IS DISTINCT FROM p_tenant_id THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'wrong_tenant');
+  END IF;
+
+  -- REPLAY IS ANSWERED BEFORE THE STATE CHECK, and that ordering is the whole
+  -- point of an idempotency key. The cashier whose network dropped retries
+  -- AFTER the first attempt closed the sale, so by then the order is `paid`
+  -- and a not_open refusal would tell a till that already took the money that
+  -- the money was never taken. Tenant is checked first; nothing else may be.
+  SELECT * INTO v_existing
+    FROM public.order_collection_reservations
+   WHERE order_id = p_order_id AND operation_key = v_key;
+  IF FOUND THEN
+    v_paid := public.order_collected_cents(p_order_id);
+    SELECT COALESCE(SUM(r.amount_cents), 0) INTO v_reserved
+      FROM public.order_collection_reservations r
+     WHERE r.order_id = p_order_id AND r.state = 'reserved' AND r.expires_at > now();
+    RETURN jsonb_build_object(
+      'ok', true,
+      'already', true,
+      'reservation_id', v_existing.id,
+      'state', v_existing.state,
+      'transaction_id', v_existing.transaction_id,
+      'amount_cents', v_existing.amount_cents,
+      'outstanding_cents', GREATEST(0, v_order.total_cents - v_paid - v_reserved),
+      -- The claim's OWN expiry, not a fresh one. The card path derives the
+      -- Checkout session's `expires_at` from this, and a resumed collection
+      -- that reported "now + a full TTL" would hand the session a life the
+      -- claim does not have, which is the divergence this whole change closes.
+      'expires_at', v_existing.expires_at,
+      'version', v_order.version
+    );
+  END IF;
+
+  IF v_order.status NOT IN ('draft', 'pending_payment') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_open');
+  END IF;
+
+  IF p_expected_version IS NOT NULL AND v_order.version IS DISTINCT FROM p_expected_version THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'conflict', 'version', v_order.version);
+  END IF;
+
+  v_paid := public.order_collected_cents(p_order_id);
+
+  SELECT COALESCE(SUM(r.amount_cents), 0) INTO v_reserved
+    FROM public.order_collection_reservations r
+   WHERE r.order_id = p_order_id AND r.state = 'reserved' AND r.expires_at > now();
+
+  -- TWO DIFFERENT REFUSALS, and conflating them is how the second cashier gets
+  -- told the wrong thing. `already_collected` means the MONEY is all in: paid
+  -- covers the total and this sale is finished. `exceeds_outstanding` means
+  -- money is still owed but another till has claimed it, which is a "try again
+  -- in a moment", not a "this sale is done". So the uncollected balance is
+  -- computed first, and reservations are subtracted after.
+  v_uncollected := v_order.total_cents - v_paid;
+  IF v_uncollected <= 0 THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'already_collected', 'outstanding_cents', 0);
+  END IF;
+
+  v_outstanding := v_uncollected - v_reserved;
+
+  -- A NULL amount means "whatever is left", resolved HERE under the lock. A
+  -- caller that resolved it itself would be reading the stale balance this
+  -- function exists to replace.
+  IF p_amount_cents IS NOT NULL AND p_amount_cents <= 0 THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'amount', 'outstanding_cents', GREATEST(0, v_outstanding));
+  END IF;
+  v_amount := COALESCE(p_amount_cents, v_outstanding);
+  IF v_outstanding <= 0 OR v_amount > v_outstanding THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'exceeds_outstanding', 'outstanding_cents', GREATEST(0, v_outstanding));
+  END IF;
+
+  v_ttl := GREATEST(30, LEAST(COALESCE(p_ttl_seconds, 900), 86400));
+
+  INSERT INTO public.order_collection_reservations (
+    tenant_id, order_id, operation_key, amount_cents, method, state, expires_at, created_by
+  ) VALUES (
+    p_tenant_id, p_order_id, v_key, v_amount, p_method, 'reserved',
+    now() + make_interval(secs => v_ttl), p_actor_id
+  )
+  RETURNING * INTO v_row;
+
+  -- The version bump is what makes a second device's stale expected_version a
+  -- conflict rather than a second collection.
+  UPDATE public.orders
+     SET version = v_order.version + 1
+   WHERE id = p_order_id
+     AND version = v_order.version;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'already', false,
+    'reservation_id', v_row.id,
+    'state', v_row.state,
+    'transaction_id', NULL,
+    'amount_cents', v_row.amount_cents,
+    'outstanding_cents', v_outstanding - v_amount,
+    'expires_at', v_row.expires_at,
+    'version', v_order.version + 1
+  );
+EXCEPTION
+  WHEN unique_violation THEN
+    -- Same key, two connections. The loser reads the winner's row rather than
+    -- reporting a fault: an idempotent call has one right answer.
+    SELECT * INTO v_existing
+      FROM public.order_collection_reservations
+     WHERE order_id = p_order_id AND operation_key = v_key;
+    IF FOUND THEN
+      -- Recomputed rather than left null: a caller that has to guess what is
+      -- still owed is the defect this function replaces.
+      v_paid := public.order_collected_cents(p_order_id);
+      SELECT COALESCE(SUM(r.amount_cents), 0) INTO v_reserved
+        FROM public.order_collection_reservations r
+       WHERE r.order_id = p_order_id AND r.state = 'reserved' AND r.expires_at > now();
+      SELECT version INTO v_version FROM public.orders WHERE id = p_order_id;
+      RETURN jsonb_build_object(
+        'ok', true,
+        'already', true,
+        'reservation_id', v_existing.id,
+        'state', v_existing.state,
+        'transaction_id', v_existing.transaction_id,
+        'amount_cents', v_existing.amount_cents,
+        'outstanding_cents', GREATEST(0, v_order.total_cents - v_paid - v_reserved),
+        'expires_at', v_existing.expires_at,
+        'version', v_version
+      );
+    END IF;
+    RETURN jsonb_build_object('ok', false, 'reason', 'conflict');
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'unavailable', 'error', SQLERRM);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.pos_reserve_collection(uuid, uuid, text, bigint, text, uuid, integer, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.pos_reserve_collection(uuid, uuid, text, bigint, text, uuid, integer, integer) TO service_role;
+
+COMMENT ON FUNCTION public.pos_reserve_collection(uuid, uuid, text, bigint, text, uuid, integer, integer) IS
+  'T1-03: lock the order, replay by (order_id, operation_key), and claim part of the outstanding balance. Outstanding is total minus paid transactions minus live reservations. Refusals are data.';
+
+-- ── pos_settle_collection_reservation: compare-and-set on reserved ──────────
+
+CREATE OR REPLACE FUNCTION public.pos_settle_collection_reservation(
+  p_reservation_id uuid,
+  p_transaction_id uuid,
+  p_state          text
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_row public.order_collection_reservations%ROWTYPE;
+BEGIN
+  IF p_reservation_id IS NULL OR p_state IS NULL OR p_state NOT IN ('settled', 'released') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'bad_input');
+  END IF;
+
+  UPDATE public.order_collection_reservations
+     SET state = p_state,
+         transaction_id = COALESCE(p_transaction_id, transaction_id),
+         settled_at = now()
+   WHERE id = p_reservation_id
+     AND state = 'reserved'
+  RETURNING * INTO v_row;
+
+  IF FOUND THEN
+    RETURN jsonb_build_object(
+      'ok', true, 'already', false, 'reservation_id', v_row.id,
+      'state', v_row.state, 'transaction_id', v_row.transaction_id
+    );
+  END IF;
+
+  SELECT * INTO v_row FROM public.order_collection_reservations WHERE id = p_reservation_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_found');
+  END IF;
+  IF v_row.state = p_state THEN
+    RETURN jsonb_build_object(
+      'ok', true, 'already', true, 'reservation_id', v_row.id,
+      'state', v_row.state, 'transaction_id', v_row.transaction_id
+    );
+  END IF;
+
+  -- Settled and released are terminal and NOT interchangeable. A reaper that
+  -- released a reservation the till then settled must not be able to un-settle
+  -- it, so the mismatch is reported rather than overwritten.
+  RETURN jsonb_build_object(
+    'ok', false, 'reason', 'not_reserved', 'state', v_row.state,
+    'transaction_id', v_row.transaction_id
+  );
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'unavailable', 'error', SQLERRM);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.pos_settle_collection_reservation(uuid, uuid, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.pos_settle_collection_reservation(uuid, uuid, text) TO service_role;
+
+COMMENT ON FUNCTION public.pos_settle_collection_reservation(uuid, uuid, text) IS
+  'T1-03: compare-and-set a reservation out of `reserved`. Re-applying the same terminal state is `already`; crossing from one terminal state to the other is refused.';
+
+-- ── pos_bind_collection_reservation: name the money row while it is live ───
+--
+-- THE SECOND ROUTE TO A DOUBLE TAKE. A card collection reserves, THEN inserts
+-- its `booking_transactions` row, THEN opens a Checkout session. A retry of
+-- the same operation key got `already = true` with `transaction_id` still
+-- null, because the reservation only learned its transaction when it settled.
+-- The caller could not tell "this key already has a payment in flight" from
+-- "this key has a claim and no payment yet", so it minted a SECOND transaction
+-- and a SECOND session against one claim, and both were payable.
+--
+-- Binding at creation closes it: the claim carries its transaction from the
+-- moment the row exists, so a replay is answered with the payment already in
+-- flight and resumes it instead of opening another.
+--
+-- Only from `reserved`, and only onto an unbound claim or the same
+-- transaction. Rebinding a live claim to a different row would silently move
+-- the money the claim is holding.
+
+CREATE OR REPLACE FUNCTION public.pos_bind_collection_reservation(
+  p_reservation_id uuid,
+  p_transaction_id uuid
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_row public.order_collection_reservations%ROWTYPE;
+BEGIN
+  IF p_reservation_id IS NULL OR p_transaction_id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'bad_input');
+  END IF;
+
+  UPDATE public.order_collection_reservations
+     SET transaction_id = p_transaction_id
+   WHERE id = p_reservation_id
+     AND state = 'reserved'
+     AND (transaction_id IS NULL OR transaction_id = p_transaction_id)
+  RETURNING * INTO v_row;
+
+  IF FOUND THEN
+    RETURN jsonb_build_object(
+      'ok', true, 'reservation_id', v_row.id, 'transaction_id', v_row.transaction_id
+    );
+  END IF;
+
+  SELECT * INTO v_row FROM public.order_collection_reservations WHERE id = p_reservation_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_found');
+  END IF;
+  IF v_row.state <> 'reserved' THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_reserved', 'state', v_row.state);
+  END IF;
+  RETURN jsonb_build_object(
+    'ok', false, 'reason', 'bound_elsewhere', 'transaction_id', v_row.transaction_id
+  );
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'unavailable', 'error', SQLERRM);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.pos_bind_collection_reservation(uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.pos_bind_collection_reservation(uuid, uuid) TO service_role;
+
+COMMENT ON FUNCTION public.pos_bind_collection_reservation(uuid, uuid) IS
+  'T1-03: attach a live claim to the money row that will complete it, so a replayed operation key resumes that payment instead of opening a second one.';
+
+-- ── reap_collection_reservations: a claim nobody completed is not a claim ───
+
+CREATE OR REPLACE FUNCTION public.reap_collection_reservations(
+  p_limit integer
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_ids uuid[] := '{}';
+BEGIN
+  WITH doomed AS (
+    SELECT id
+      FROM public.order_collection_reservations
+     WHERE state = 'reserved'
+       AND expires_at <= now()
+     ORDER BY expires_at
+     LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 200), 1000))
+     FOR UPDATE SKIP LOCKED
+  ), released AS (
+    UPDATE public.order_collection_reservations r
+       SET state = 'released', settled_at = now()
+      FROM doomed d
+     WHERE r.id = d.id
+       AND r.state = 'reserved'
+    RETURNING r.id
+  )
+  SELECT COALESCE(array_agg(id), '{}') INTO v_ids FROM released;
+
+  RETURN jsonb_build_object('ok', true, 'released', COALESCE(array_length(v_ids, 1), 0), 'ids', to_jsonb(v_ids));
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'unavailable', 'error', SQLERRM);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reap_collection_reservations(integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reap_collection_reservations(integer) TO service_role;
+
+COMMENT ON FUNCTION public.reap_collection_reservations(integer) IS
+  'T1-03: release reservations whose TTL lapsed, SKIP LOCKED so a live collection is never blocked by the sweep. An unreaped reservation is money nobody can collect.';
+
+-- ── guard_order_not_overcollected: the refusal the index used to be ────────
+--
+-- WHY A TRIGGER AND NOT A TIMER. Everything above this line is a claim with an
+-- expiry, and an expiry is a race by construction: the reaper releases at T,
+-- and anything the provider still holds open at T can settle at T+1. The
+-- claim's lifetime is now at least the session's (1980 seconds against
+-- Stripe's 30 minute Checkout floor), which shrinks that window to clock skew
+-- rather than fifteen minutes. It does not close it, and only the write itself
+-- can.
+--
+-- WHAT IT COUNTS, AND WHAT IT DELIBERATELY DOES NOT. Paid rows plus this one.
+-- NOT live reservations: the row being paid is normally completing its own
+-- claim, and counting that claim as well would refuse the second half of every
+-- legitimate split. The relaxed index above exists so a tab can be settled
+-- across two tenders, and a guard that broke that would have traded one defect
+-- for another.
+--
+-- The order row lock is what makes the count true. Two tills arriving at the
+-- same instant serialise here exactly as they do in pos_reserve_collection,
+-- and the loser sees the winner's money row.
+--
+-- Refund children are skipped: their parent link takes them out of the paid
+-- set, and a refund is not a collection.
+
+CREATE OR REPLACE FUNCTION public.guard_order_not_overcollected()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_total     bigint;
+  v_collected bigint;
+BEGIN
+  IF NEW.order_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.refund_of_transaction_id IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+  IF NOT (NEW.status = ANY (public.order_money_statuses())) THEN
+    RETURN NEW;
+  END IF;
+
+  -- Already counted. paid → payout_pending → payout_sent is one collection
+  -- walking its own states, not three, and re-checking it would refuse a
+  -- payout on an order that is exactly settled.
+  IF TG_OP = 'UPDATE'
+     AND OLD.status = ANY (public.order_money_statuses())
+     AND OLD.gross_amount_cents = NEW.gross_amount_cents
+     AND OLD.order_id IS NOT DISTINCT FROM NEW.order_id THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT o.total_cents INTO v_total
+    FROM public.orders o WHERE o.id = NEW.order_id FOR UPDATE;
+  IF NOT FOUND THEN
+    -- `booking_transactions_order_id_fkey` is ON DELETE SET NULL, so a missing
+    -- order means the link was just cleared underneath us. There is no total
+    -- to test against; refusing here would block a write for a reason nobody
+    -- could act on.
+    RETURN NEW;
+  END IF;
+
+  v_collected := public.order_collected_cents(NEW.order_id, NEW.id);
+
+  IF v_collected + NEW.gross_amount_cents > v_total THEN
+    RAISE EXCEPTION
+      'booking_transactions: order % already has %/% cents collected; a further % cents would overcollect it',
+      NEW.order_id, v_collected, v_total, NEW.gross_amount_cents
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_booking_transactions_order_not_overcollected ON public.booking_transactions;
+CREATE TRIGGER trg_booking_transactions_order_not_overcollected
+  BEFORE INSERT OR UPDATE ON public.booking_transactions
+  FOR EACH ROW EXECUTE FUNCTION public.guard_order_not_overcollected();
+
+COMMENT ON FUNCTION public.guard_order_not_overcollected() IS
+  'T1-03: an order-backed transaction may not enter a money-received status if the order is already collected in full. This is the refusal idx_booking_transactions_booking_active used to provide before it was scoped to order_id IS NULL, restored at the write rather than at the shell so a genuine split still settles.';
+
+-- ── The grants must actually have taken ─────────────────────────────────────
+
+DO $check$
+BEGIN
+  IF has_function_privilege('anon', 'public.pos_reserve_collection(uuid,uuid,text,bigint,text,uuid,integer,integer)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.pos_reserve_collection(uuid,uuid,text,bigint,text,uuid,integer,integer)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.pos_settle_collection_reservation(uuid,uuid,text)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.pos_settle_collection_reservation(uuid,uuid,text)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.reap_collection_reservations(integer)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.reap_collection_reservations(integer)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.pos_bind_collection_reservation(uuid,uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.pos_bind_collection_reservation(uuid,uuid)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.order_collected_cents(uuid,uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.order_collected_cents(uuid,uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'T1-03: the collection reservation RPCs are executable by anon/authenticated; the REVOKE did not take';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+     WHERE tgrelid = 'public.booking_transactions'::regclass
+       AND tgname = 'trg_booking_transactions_order_not_overcollected'
+       AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'T1-03: the overcollection guard is not attached to booking_transactions';
+  END IF;
+
+  IF has_table_privilege('anon', 'public.order_collection_reservations', 'SELECT')
+     OR has_table_privilege('anon', 'public.order_collection_reservations', 'INSERT')
+     OR has_table_privilege('authenticated', 'public.order_collection_reservations', 'INSERT')
+     OR has_table_privilege('authenticated', 'public.order_collection_reservations', 'UPDATE')
+     OR has_table_privilege('authenticated', 'public.order_collection_reservations', 'DELETE') THEN
+    RAISE EXCEPTION 'T1-03: order_collection_reservations is writable by anon/authenticated';
+  END IF;
+END
+$check$;
+
+-- ── PROOF. Runs on every apply and cleans up after itself. ──────────────────
+--
+-- Six claims, none of them taken on trust:
+--   1. two PAID transactions coexist on one order-backed booking shell;
+--   2. a second live transaction on an inquiry-backed shell still raises 23505;
+--   3. a second reservation for money already claimed is refused, and says how
+--      much is actually left;
+--   4. the same operation key twice is one reservation, not two;
+--   5. THE REVIEWER'S INTERLEAVING. A card claim is reaped while its session is
+--      open, a second till takes the whole balance, and the first session then
+--      settles: the second money row is REFUSED and the order ends on its own
+--      total, not twice it;
+--   6. a legitimate split across two tenders still settles in full, so the
+--      guard did not buy claim 5 by breaking what the relaxed index is for.
+
+DO $proof$
+DECLARE
+  v_tenant           uuid;
+  v_order            uuid;
+  v_shell_order      uuid;
+  v_shell_inquiry    uuid;
+  v_txn_a            uuid;
+  v_txn_b            uuid;
+  v_txn_c            uuid;
+  v_paid_rows        integer;
+  v_inquiry_refused  boolean := false;
+  v_first            jsonb;
+  v_second           jsonb;
+  v_replay           jsonb;
+  v_settled          jsonb;
+  v_race_order       uuid;
+  v_race_shell       uuid;
+  v_race_card        uuid;
+  v_race_cash        uuid;
+  v_race_claim       jsonb;
+  v_race_second      jsonb;
+  v_race_refused     boolean := false;
+  v_split_order      uuid;
+  v_split_shell      uuid;
+  v_split_txn        uuid;
+  v_split_claim      jsonb;
+  v_collected        bigint;
+BEGIN
+  INSERT INTO public.agencies (slug, display_name)
+  VALUES ('t1-03-proof-' || substr(gen_random_uuid()::text, 1, 12), 'T1-03 collection proof')
+  RETURNING id INTO v_tenant;
+
+  INSERT INTO public.orders (
+    tenant_id, status, currency, subtotal_cents, discount_cents, tax_cents,
+    total_cents, source_channel, guest_session_id
+  ) VALUES (
+    v_tenant, 'draft', 'USD', 9000, 0, 0, 9000, 'pos', 't1-03-proof-guest'
+  ) RETURNING id INTO v_order;
+
+  -- The order's ONE booking shell, exactly as lib/orders/booking-shell.ts makes it.
+  INSERT INTO public.agency_bookings (
+    tenant_id, tenant_id_snapshot, order_id, title, status, currency_code, total_client_revenue
+  ) VALUES (
+    v_tenant, v_tenant, v_order, 'T1-03 proof order shell', 'confirmed', 'USD', 90
+  ) RETURNING id INTO v_shell_order;
+
+  -- CLAIM 1: two cash allocations on that one shell both reach `paid`.
+  INSERT INTO public.booking_transactions (
+    booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
+    currency, provider, provider_reference, status
+  ) VALUES (
+    v_shell_order, v_order, v_tenant, 3000, 3000, 0, 0, 'USD', 'manual', 't1-03-proof:a', 'draft'
+  ) RETURNING id INTO v_txn_a;
+  UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_txn_a;
+  UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_txn_a;
+
+  INSERT INTO public.booking_transactions (
+    booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
+    currency, provider, provider_reference, status
+  ) VALUES (
+    v_shell_order, v_order, v_tenant, 3000, 3000, 0, 0, 'USD', 'manual', 't1-03-proof:b', 'draft'
+  ) RETURNING id INTO v_txn_b;
+  UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_txn_b;
+  UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_txn_b;
+
+  SELECT count(*) INTO v_paid_rows
+    FROM public.booking_transactions
+   WHERE order_id = v_order AND status = 'paid';
+  IF v_paid_rows <> 2 THEN
+    RAISE EXCEPTION 'T1-03 proof: expected 2 paid rows on one order-backed shell, found %', v_paid_rows;
+  END IF;
+
+  -- CLAIM 2: an inquiry-backed shell (order_id IS NULL on the money row) keeps
+  -- exactly today's one-live-charge rule.
+  INSERT INTO public.agency_bookings (
+    tenant_id, tenant_id_snapshot, title, status, currency_code, total_client_revenue
+  ) VALUES (
+    v_tenant, v_tenant, 'T1-03 proof inquiry shell', 'confirmed', 'USD', 50
+  ) RETURNING id INTO v_shell_inquiry;
+
+  INSERT INTO public.booking_transactions (
+    booking_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
+    currency, provider, provider_reference, status
+  ) VALUES (
+    v_shell_inquiry, v_tenant, 5000, 5000, 0, 0, 'USD', 'manual', 't1-03-proof:c', 'draft'
+  ) RETURNING id INTO v_txn_c;
+
+  BEGIN
+    INSERT INTO public.booking_transactions (
+      booking_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+      platform_fee_basis_points, platform_fee_cents,
+      currency, provider, provider_reference, status
+  ) VALUES (
+      v_shell_inquiry, v_tenant, 5000, 5000, 0, 0, 'USD', 'manual', 't1-03-proof:d', 'draft'
+    );
+  EXCEPTION
+    WHEN unique_violation THEN
+      v_inquiry_refused := true;
+  END;
+
+  IF NOT v_inquiry_refused THEN
+    RAISE EXCEPTION 'T1-03 proof: a second live transaction on an inquiry-backed booking was ACCEPTED; the relaxed index is too wide';
+  END IF;
+
+  -- CLAIM 3: 6000 is paid, so 3000 is left. Claim it, then try to claim a cent
+  -- more on a different key.
+  v_first := public.pos_reserve_collection(
+    v_tenant, v_order, 't1-03-proof:res-1', 3000, 'cash', NULL, NULL, 900
+  );
+  IF COALESCE((v_first->>'ok')::boolean, false) IS NOT TRUE
+     OR (v_first->>'outstanding_cents')::bigint <> 0 THEN
+    RAISE EXCEPTION 'T1-03 proof: the first reservation did not take the remaining 3000: %', v_first;
+  END IF;
+
+  v_second := public.pos_reserve_collection(
+    v_tenant, v_order, 't1-03-proof:res-2', 1, 'cash', NULL, NULL, 900
+  );
+  IF COALESCE((v_second->>'ok')::boolean, true) IS NOT FALSE
+     OR v_second->>'reason' <> 'exceeds_outstanding'
+     OR (v_second->>'outstanding_cents')::bigint <> 0 THEN
+    RAISE EXCEPTION 'T1-03 proof: a second cashier was allowed to claim money already reserved: %', v_second;
+  END IF;
+
+  -- CLAIM 4: the same key twice is one reservation.
+  v_replay := public.pos_reserve_collection(
+    v_tenant, v_order, 't1-03-proof:res-1', 3000, 'cash', NULL, NULL, 900
+  );
+  IF COALESCE((v_replay->>'already')::boolean, false) IS NOT TRUE
+     OR (v_replay->>'reservation_id') <> (v_first->>'reservation_id') THEN
+    RAISE EXCEPTION 'T1-03 proof: a replayed operation key produced a second reservation: %', v_replay;
+  END IF;
+
+  SELECT count(*) INTO v_paid_rows
+    FROM public.order_collection_reservations WHERE order_id = v_order;
+  IF v_paid_rows <> 1 THEN
+    RAISE EXCEPTION 'T1-03 proof: expected exactly 1 reservation row, found %', v_paid_rows;
+  END IF;
+
+  v_settled := public.pos_settle_collection_reservation(
+    (v_first->>'reservation_id')::uuid, v_txn_a, 'settled'
+  );
+  IF COALESCE((v_settled->>'ok')::boolean, false) IS NOT TRUE THEN
+    RAISE EXCEPTION 'T1-03 proof: settling a live reservation failed: %', v_settled;
+  END IF;
+
+  v_settled := public.pos_settle_collection_reservation(
+    (v_first->>'reservation_id')::uuid, v_txn_a, 'released'
+  );
+  IF COALESCE((v_settled->>'ok')::boolean, true) IS NOT FALSE
+     OR v_settled->>'reason' <> 'not_reserved' THEN
+    RAISE EXCEPTION 'T1-03 proof: a settled reservation was allowed to be released: %', v_settled;
+  END IF;
+
+  -- CLAIM 5: THE REVIEWER'S INTERLEAVING, on a fresh 5000 cent order.
+  --
+  -- Till A claims the balance and its card row reaches `payment_requested`,
+  -- which is what an open Checkout session looks like from here. The claim is
+  -- then forced past its expiry and reaped, exactly as the every-minute cron
+  -- would. Till B reserves the whole balance again and collects it in cash.
+  -- Finally till A's session settles. That last write is the one that used to
+  -- take 5000 cents that were already in the drawer.
+  INSERT INTO public.orders (
+    tenant_id, status, currency, subtotal_cents, discount_cents, tax_cents,
+    total_cents, source_channel, guest_session_id
+  ) VALUES (
+    v_tenant, 'draft', 'USD', 5000, 0, 0, 5000, 'pos', 't1-03-proof-race'
+  ) RETURNING id INTO v_race_order;
+
+  INSERT INTO public.agency_bookings (
+    tenant_id, tenant_id_snapshot, order_id, title, status, currency_code, total_client_revenue
+  ) VALUES (
+    v_tenant, v_tenant, v_race_order, 'T1-03 proof race shell', 'confirmed', 'USD', 50
+  ) RETURNING id INTO v_race_shell;
+
+  v_race_claim := public.pos_reserve_collection(
+    v_tenant, v_race_order, 't1-03-proof:till-a', 5000, 'online_card', NULL, NULL, 1980
+  );
+  IF COALESCE((v_race_claim->>'ok')::boolean, false) IS NOT TRUE THEN
+    RAISE EXCEPTION 'T1-03 proof: till A could not claim the balance: %', v_race_claim;
+  END IF;
+
+  -- `provider = 'manual'` keeps the proof off the rail-aware receiver rule,
+  -- which is a different guard on a different concern. What is being proved
+  -- here is the ORDER's arithmetic, and it does not read the provider.
+  INSERT INTO public.booking_transactions (
+    booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
+    currency, provider, provider_reference, status
+  ) VALUES (
+    v_race_shell, v_race_order, v_tenant, 5000, 5000, 0, 0, 'USD', 'manual', 't1-03-proof:till-a', 'draft'
+  ) RETURNING id INTO v_race_card;
+  UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_race_card;
+
+  UPDATE public.order_collection_reservations
+     SET expires_at = now() - interval '1 second'
+   WHERE order_id = v_race_order AND state = 'reserved';
+  PERFORM public.reap_collection_reservations(200);
+
+  v_race_second := public.pos_reserve_collection(
+    v_tenant, v_race_order, 't1-03-proof:till-b', 5000, 'cash', NULL, NULL, 900
+  );
+  IF COALESCE((v_race_second->>'ok')::boolean, false) IS NOT TRUE THEN
+    RAISE EXCEPTION
+      'T1-03 proof: the reaped claim did not free the balance for till B, so this proof is not testing what it claims: %',
+      v_race_second;
+  END IF;
+
+  INSERT INTO public.booking_transactions (
+    booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
+    currency, provider, provider_reference, status
+  ) VALUES (
+    v_race_shell, v_race_order, v_tenant, 5000, 5000, 0, 0, 'USD', 'manual', 't1-03-proof:till-b', 'draft'
+  ) RETURNING id INTO v_race_cash;
+  UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_race_cash;
+  UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_race_cash;
+
+  BEGIN
+    UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_race_card;
+  EXCEPTION
+    WHEN check_violation THEN
+      v_race_refused := true;
+  END;
+
+  IF NOT v_race_refused THEN
+    RAISE EXCEPTION
+      'T1-03 proof: till A''s lapsed-claim checkout settled on top of till B''s cash; the order was collected twice';
+  END IF;
+
+  v_collected := public.order_collected_cents(v_race_order);
+  IF v_collected <> 5000 THEN
+    RAISE EXCEPTION 'T1-03 proof: the raced order collected % cents against a 5000 cent total', v_collected;
+  END IF;
+
+  -- CLAIM 6: the guard did not buy that by breaking a split. 2000 + 3000 on
+  -- one 5000 cent order, both reaching paid on the SAME booking shell, and a
+  -- single further cent refused.
+  INSERT INTO public.orders (
+    tenant_id, status, currency, subtotal_cents, discount_cents, tax_cents,
+    total_cents, source_channel, guest_session_id
+  ) VALUES (
+    v_tenant, 'draft', 'USD', 5000, 0, 0, 5000, 'pos', 't1-03-proof-split'
+  ) RETURNING id INTO v_split_order;
+
+  INSERT INTO public.agency_bookings (
+    tenant_id, tenant_id_snapshot, order_id, title, status, currency_code, total_client_revenue
+  ) VALUES (
+    v_tenant, v_tenant, v_split_order, 'T1-03 proof split shell', 'confirmed', 'USD', 50
+  ) RETURNING id INTO v_split_shell;
+
+  v_split_claim := public.pos_reserve_collection(
+    v_tenant, v_split_order, 't1-03-proof:split-1', 2000, 'cash', NULL, NULL, 900
+  );
+  IF COALESCE((v_split_claim->>'ok')::boolean, false) IS NOT TRUE THEN
+    RAISE EXCEPTION 'T1-03 proof: the first half of the split could not be claimed: %', v_split_claim;
+  END IF;
+  INSERT INTO public.booking_transactions (
+    booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
+    currency, provider, provider_reference, status
+  ) VALUES (
+    v_split_shell, v_split_order, v_tenant, 2000, 2000, 0, 0, 'USD', 'manual', 't1-03-proof:split-1', 'draft'
+  ) RETURNING id INTO v_split_txn;
+  UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_split_txn;
+  UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_split_txn;
+  PERFORM public.pos_settle_collection_reservation(
+    (v_split_claim->>'reservation_id')::uuid, v_split_txn, 'settled'
+  );
+
+  v_split_claim := public.pos_reserve_collection(
+    v_tenant, v_split_order, 't1-03-proof:split-2', 3000, 'cash', NULL, NULL, 900
+  );
+  IF COALESCE((v_split_claim->>'ok')::boolean, false) IS NOT TRUE THEN
+    RAISE EXCEPTION 'T1-03 proof: the second half of the split could not be claimed: %', v_split_claim;
+  END IF;
+  INSERT INTO public.booking_transactions (
+    booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
+    currency, provider, provider_reference, status
+  ) VALUES (
+    v_split_shell, v_split_order, v_tenant, 3000, 3000, 0, 0, 'USD', 'manual', 't1-03-proof:split-2', 'draft'
+  ) RETURNING id INTO v_split_txn;
+  UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_split_txn;
+  UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_split_txn;
+
+  v_collected := public.order_collected_cents(v_split_order);
+  IF v_collected <> 5000 THEN
+    RAISE EXCEPTION
+      'T1-03 proof: a legitimate 2000 + 3000 split settled % cents; the guard broke the case the relaxed index exists for',
+      v_collected;
+  END IF;
+
+  -- One cent past the total, on a route that never reserved anything.
+  v_race_refused := false;
+  INSERT INTO public.booking_transactions (
+    booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
+    currency, provider, provider_reference, status
+  ) VALUES (
+    v_split_shell, v_split_order, v_tenant, 1, 1, 0, 0, 'USD', 'manual', 't1-03-proof:split-over', 'draft'
+  ) RETURNING id INTO v_split_txn;
+  UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_split_txn;
+  BEGIN
+    UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_split_txn;
+  EXCEPTION
+    WHEN check_violation THEN
+      v_race_refused := true;
+  END;
+  IF NOT v_race_refused THEN
+    RAISE EXCEPTION 'T1-03 proof: a tender past the order total was accepted on the unreserved route';
+  END IF;
+
+  -- Clean up. Children first; the agency cascade is not relied on.
+  DELETE FROM public.order_collection_reservations
+   WHERE order_id IN (v_order, v_race_order, v_split_order);
+  DELETE FROM public.booking_transactions
+   WHERE booking_id IN (v_shell_order, v_shell_inquiry, v_race_shell, v_split_shell);
+  DELETE FROM public.agency_bookings
+   WHERE id IN (v_shell_order, v_shell_inquiry, v_race_shell, v_split_shell);
+  DELETE FROM public.orders WHERE tenant_id = v_tenant;
+  DELETE FROM public.agencies WHERE id = v_tenant;
+
+  RAISE NOTICE 'T1-03 proof: 2 paid rows on one order shell, inquiry shell still refuses a second, reservation guards the balance, replay is one row, a reaped card claim cannot be settled on top of a second collection, and a 2000 + 3000 split still lands.';
+END
+$proof$;
+
+COMMIT;

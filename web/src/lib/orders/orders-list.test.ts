@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   bucketOf,
+  salesBucket,
+  isMoneyOwed,
   filterOrders,
   totalsFor,
   canRefund,
@@ -72,6 +74,14 @@ test("bucket and channel and query compose", () => {
     filterOrders(rows, { bucket: "settled", channel: "menu" }).map((r) => r.id),
     ["o1"],
   );
+});
+
+test("a free place is not overdue on the desk", () => {
+  const complimentary = row({ status: "pending_payment", totalCents: 0, collectedCents: 0 });
+  assert.equal(salesBucket(complimentary), "settled");
+  assert.equal(isMoneyOwed(complimentary), false);
+  assert.equal(filterOrders([complimentary], { bucket: "to_pay" }).length, 0);
+  assert.equal(totalsFor([complimentary]).outstandingCents, 0);
 });
 
 test("outstanding is clamped — over-collection is a refund, not a negative", () => {

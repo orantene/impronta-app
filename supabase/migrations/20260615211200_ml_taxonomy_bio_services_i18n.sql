@@ -55,19 +55,32 @@ COMMENT ON COLUMN public.taxonomy_terms.name_i18n IS
 -- ========================================================================
 -- 2. agency_taxonomy_settings.custom_label / custom_label_es → custom_label_i18n
 -- ========================================================================
-ALTER TABLE public.agency_taxonomy_settings
-  ADD COLUMN IF NOT EXISTS custom_label_i18n jsonb NOT NULL DEFAULT '{}'::jsonb;
+-- D-104: agency_taxonomy_settings does not exist on a from-zero replay (it
+-- is only created by 20260909221926, which sorts after this file). Guarded
+-- so this block no-ops there — 20260909221926 creates the table already in
+-- its post-migration shape (custom_label_i18n present, custom_label /
+-- custom_label_es absent) — and runs unchanged on a database that already
+-- has the table.
+DO $$
+BEGIN
+  IF to_regclass('public.agency_taxonomy_settings') IS NOT NULL THEN
+    ALTER TABLE public.agency_taxonomy_settings
+      ADD COLUMN IF NOT EXISTS custom_label_i18n jsonb NOT NULL DEFAULT '{}'::jsonb;
 
-UPDATE public.agency_taxonomy_settings
-SET custom_label_i18n = jsonb_strip_nulls(
-  jsonb_build_object(
-    'en', NULLIF(btrim(custom_label), ''),
-    'es', NULLIF(btrim(custom_label_es), '')
-  )
-);
+    UPDATE public.agency_taxonomy_settings
+    SET custom_label_i18n = jsonb_strip_nulls(
+      jsonb_build_object(
+        'en', NULLIF(btrim(custom_label), ''),
+        'es', NULLIF(btrim(custom_label_es), '')
+      )
+    );
 
-COMMENT ON COLUMN public.agency_taxonomy_settings.custom_label_i18n IS
-  'Per-locale tenant override label for a taxonomy term; {} = use the term default.';
+    COMMENT ON COLUMN public.agency_taxonomy_settings.custom_label_i18n IS
+      'Per-locale tenant override label for a taxonomy term; {} = use the term default.';
+  ELSE
+    RAISE NOTICE 'agency_taxonomy_settings absent — skipping custom_label i18n migration (created by 20260909221926 later in the same replay, already in its post-migration shape)';
+  END IF;
+END $$;
 
 -- ========================================================================
 -- 3. locations.display_name_en / display_name_es → display_name_i18n
@@ -949,9 +962,19 @@ ALTER TABLE public.taxonomy_terms
   DROP COLUMN name_en,
   DROP COLUMN name_es;
 
-ALTER TABLE public.agency_taxonomy_settings
-  DROP COLUMN custom_label,        -- drops attached CHECK agency_taxonomy_settings_custom_label_len
-  DROP COLUMN custom_label_es;
+-- D-104: guarded for the same reason as section 2 above — absent on a
+-- from-zero replay (created later by 20260909221926, already without these
+-- two columns); unchanged on a database that already has the table.
+DO $$
+BEGIN
+  IF to_regclass('public.agency_taxonomy_settings') IS NOT NULL THEN
+    ALTER TABLE public.agency_taxonomy_settings
+      DROP COLUMN custom_label,        -- drops attached CHECK agency_taxonomy_settings_custom_label_len
+      DROP COLUMN custom_label_es;
+  ELSE
+    RAISE NOTICE 'agency_taxonomy_settings absent — skipping custom_label / custom_label_es drop (created by 20260909221926 later in the same replay, already without these columns)';
+  END IF;
+END $$;
 
 ALTER TABLE public.locations
   DROP COLUMN display_name_en,

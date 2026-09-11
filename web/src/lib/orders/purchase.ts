@@ -2,22 +2,17 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
-import { ensureCustomer } from "@/lib/customers/ensure-customer";
+import { resolvePurchaseBuyer } from "@/lib/orders/purchase-buyer";
+import { releaseCapacity, capacityHoldTtlSeconds } from "@/lib/capacity";
 import {
-  reserveCapacityBatch,
-  releaseCapacity,
-  capacityHoldTtlSeconds,
-} from "@/lib/capacity";
-import {
-  placeReservationHold,
   releaseReservationHold,
 } from "@/lib/scheduling/reservation-hold";
 import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
-import type { CapacityRefusalReason } from "@/lib/capacity/types";
+import { appointmentWindowFor } from "@/lib/scheduling/appointment-window";
+import { openPurchaseBooking } from "@/lib/orders/purchase-booking";
+import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import {
   resolvePurchasePolicy,
-  type OfferingPolicy,
-  type PaymentChoice,
 } from "@/lib/orders/purchase-policy";
 import {
   loadCatalog,
@@ -28,6 +23,10 @@ import { doorHoldSeconds } from "@/lib/orders/door-hold";
 import { resolveOrderCurrency } from "@/lib/orders/display-currency";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
+import { reserveResourceSet } from "@/lib/resources/reserve-set";
+import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
+import { ageGateStamp, loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
+import { settleOrHoldOrder } from "@/lib/orders/purchase-settlement";
 import type {
   PurchaseInput,
   PurchaseLineInput,
@@ -97,16 +96,18 @@ export async function createPurchase(
   const heldAllocationIds: string[] = [];
   let createdOrderId: string | null = null;
   let createdTransactionId: string | null = null;
-  let placedHoldId: string | null = null;
+  const placedHoldIds: string[] = [];
 
   const unwind = async (why: string) => {
     // The slot first: it blocks a PERSON's calendar, so leaving it held is the
     // most visible kind of leak — a talent looks booked for a purchase that
     // never happened.
-    if (placedHoldId) {
-      const released = await releaseReservationHold(admin, placedHoldId);
-      if (!released.ok) {
-        logServerError("orders.createPurchase/unwind/slot", `${why}: ${released.error}`);
+    if (placedHoldIds.length > 0) {
+      for (const holdId of [...placedHoldIds].reverse()) {
+        const released = await releaseReservationHold(admin, holdId);
+        if (!released.ok) {
+          logServerError("orders.createPurchase/unwind/slot", `${why}: ${released.error}`);
+        }
       }
     }
     if (heldAllocationIds.length > 0) {
@@ -147,6 +148,11 @@ export async function createPurchase(
     const catalog = await loadCatalog(admin, offeringIds);
     if (!catalog.ok) return { ok: false, reason: "engine_error", error: catalog.error };
 
+    const seller = await refuseUnclaimedSellers(admin, catalog);
+    if (!seller.ok) {
+      return { ok: false, reason: seller.reason, offeringId: seller.offeringId, error: seller.error };
+    }
+
     // ── 2. Re-validate intent against the derived policy. THE gate.
     const policy = resolvePurchasePolicy(
       {
@@ -160,6 +166,27 @@ export async function createPurchase(
     );
     if (!policy.ok) {
       return { ok: false, reason: policy.reason, offeringId: policy.offeringId };
+    }
+
+    // ── 2b. Age. Before pricing, because a refusal here must cost the buyer
+    //       nothing and must not depend on whether the basket happens to price.
+    //
+    //       Read from the database in this request. An age gate the client sent
+    //       would be a gate the client can remove, which is the same class of
+    //       mistake `resolvePurchasePolicy` exists to make impossible.
+    const gates = await loadAgeGates(admin, {
+      tenantId: input.tenantId,
+      lines: input.lines.map((l) => ({ variantId: l.variantId, sessionId: l.sessionId })),
+    });
+    if (!gates.ok) {
+      // FAILS CLOSED. An unreadable restriction is not an absent one — see the
+      // module header. Reported as an engine error because it is a retry, not a
+      // verdict about this buyer.
+      return { ok: false, reason: "engine_error", error: "Could not check the age restriction." };
+    }
+    const ageVerdict = ruleOnAgeGate({ gates: gates.gates, attestation: input.ageAttestation ?? null });
+    if (!ageVerdict.ok) {
+      return { ok: false, reason: ageVerdict.reason, error: ageVerdict.message };
     }
 
     // ── 3. Price from catalog rows.
@@ -202,29 +229,21 @@ export async function createPurchase(
       policy.depositPct,
     );
 
-    // ── 4. Resolve the customer. Never creates an auth.users row.
-    const customer = await ensureCustomer(
-      {
-        tenantId: input.tenantId,
-        email: input.contact.email,
-        phone: input.contact.phone,
-        displayName: input.contact.displayName,
-        userId: input.actorUserId,
-        locale: input.locale,
-      },
-      // The SAME client the rest of this purchase uses. A helper that builds its
-      // own would run one logical purchase across two connections.
-      { admin },
-    );
-    if (!customer.ok) {
-      // An order needs a buyer we can reach — a receipt, a reminder, a refund
-      // notice all need one. Refuse rather than invent a placeholder.
-      return {
-        ok: false,
-        reason: customer.reason === "unavailable" ? "engine_error" : "no_contact",
-        error: customer.error,
-      };
+    // ── 4. Resolve the buyer, IF this order needs one. Money does not
+    //       require a name; a PRODUCT may. See lib/orders/purchase-buyer.ts.
+    const buyer = await resolvePurchaseBuyer(admin, {
+      tenantId: input.tenantId,
+      contact: input.contact,
+      actorUserId: input.actorUserId,
+      locale: input.locale,
+      lines: priced.lines,
+      catalog,
+    });
+    if (!buyer.ok) {
+      return { ok: false, reason: buyer.reason, error: buyer.error };
     }
+    const customerId = buyer.customerId;
+    const guestSessionId = buyer.guestSessionId;
 
     // ── 5. Create the order. `draft` until capacity is held and the payment
     //       decision is made, so an abandoned cart never looks pending.
@@ -234,10 +253,23 @@ export async function createPurchase(
     let promoDiscountCents = 0;
     let promoCodeId: string | null = null;
     if (input.promoCode) {
+      // A DISCOUNT CODE IS TIED TO A BUYER. `redeem_tenant_promo` counts
+      // redemptions per customer under a row lock, so honouring a code on an
+      // order with no customer would make `per_customer_limit` unenforceable
+      // for exactly the buyers who are hardest to identify. Refuse rather than
+      // drop the code silently, which is the overcharge-by-silence this block
+      // already refuses to commit.
+      if (!customerId) {
+        return {
+          ok: false,
+          reason: "no_contact",
+          error: "A discount code belongs to a buyer, so this order needs an email or a phone.",
+        };
+      }
       const resolved = await resolvePromo(admin, {
         tenantId: input.tenantId,
         code: input.promoCode,
-        customerId: customer.customerId,
+        customerId,
         lines: priced.lines.map((l) => ({
           id: l.offeringId,
           totalCents: l.totalCents,
@@ -262,17 +294,23 @@ export async function createPurchase(
       promoCodeId = resolved.codeId;
     }
 
+    // One name for what the order costs, because the settle decision at step 9
+    // asks the same question the insert answers and the two must not drift.
+    // `orders_total_is_derived` refuses a row where they do.
+    const totalCents = priced.subtotalCents - promoDiscountCents;
+
     const { data: orderRow, error: orderErr } = await admin
       .from("orders")
       .insert({
         tenant_id: input.tenantId,
-        customer_id: customer.customerId,
+        customer_id: customerId,
+        guest_session_id: guestSessionId,
         status: "draft",
         currency: orderCurrency,
         subtotal_cents: priced.subtotalCents,
         discount_cents: promoDiscountCents,
         tax_cents: 0,
-        total_cents: priced.subtotalCents - promoDiscountCents,
+        total_cents: totalCents,
         // Public receipt identifier for `/r/<code>`. Assigned HERE because the
         // column is meaningless until an order exists to be shown, and this is
         // the one place an order is created.
@@ -287,6 +325,16 @@ export async function createPurchase(
         source_page: input.sourcePage ?? null,
         payout_release_rule: "immediate",
         created_by: input.actorUserId,
+        // The age gate as it was at the moment of sale, and what the buyer said
+        // about it. Stored on the ORDER rather than derived later because both
+        // halves can move: a venue can lower the gate next week, and the
+        // question a chargeback or a licensing inspector asks is what this
+        // buyer was told and answered on the day.
+        //
+        // All three columns come from one call because `orders_age_gate_paired`
+        // refuses a half-filled triple, and writing them as three expressions
+        // here is how they came apart.
+        ...ageGateStamp(ageVerdict, new Date().toISOString()),
       })
       .select("id")
       .single();
@@ -312,7 +360,7 @@ export async function createPurchase(
       const { data: redeemed, error: redeemErr } = await admin.rpc("redeem_tenant_promo", {
         p_code_id: promoCodeId,
         p_order_id: createdOrderId,
-        p_customer_id: customer.customerId,
+        p_customer_id: customerId,
         p_amount_cents: promoDiscountCents,
       });
 
@@ -388,8 +436,12 @@ export async function createPurchase(
 
     let shortestTtlSeconds: number | null = null;
     const needs = input.capacity ?? [];
+    const slotHolds = [
+      ...(input.holds ?? []),
+      ...(input.reservation ? [input.reservation] : []),
+    ];
 
-    if (needs.length > 0) {
+    if (needs.length > 0 || slotHolds.length > 0) {
       // ONE atomic batch for the whole cart.
       //
       // This used to be a loop, one batch per line, because
@@ -411,6 +463,15 @@ export async function createPurchase(
         const poolTtl = await capacityHoldTtlSeconds(need.poolId, admin);
         const ttl = poolTtl ?? FALLBACK_HOLD_TTL_SECONDS;
         shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
+      }
+      if (input.reservation?.poolId) {
+        const reservationPoolTtl = await capacityHoldTtlSeconds(input.reservation.poolId ?? null, admin);
+        if (reservationPoolTtl != null) {
+          shortestTtlSeconds =
+            shortestTtlSeconds == null
+              ? reservationPoolTtl
+              : Math.min(shortestTtlSeconds, reservationPoolTtl);
+        }
       }
 
       // ── A DOOR HOLD LASTS UNTIL THE SESSION ENDS.
@@ -460,11 +521,9 @@ export async function createPurchase(
         }
       }
 
-      const built = buildCapacityRequests(needs, lineIdByOffering);
+      const built = needs.length > 0 ? buildCapacityRequests(needs, lineIdByOffering) : { ok: true as const, requests: [] };
       if (!built.ok) {
         await unwind(`capacity requests refused: ${built.reason}`);
-        // Distinguished: one is a cart nobody can fulfil, the other a unit this
-        // engine cannot hold.
         return built.reason === "fractional_units_unsupported"
           ? { ok: false, reason: "invalid_units", offeringId: built.offeringId,
               error: "This item cannot be sold in part quantities." }
@@ -472,21 +531,41 @@ export async function createPurchase(
               error: "That is more seats than one order can hold." };
       }
 
-      const reserved = await reserveCapacityBatch(
-        built.requests,
-        { ttlSeconds: holdTtlSeconds, createdBy: input.actorUserId },
-        admin,
-      );
-
-      if (!reserved.ok) {
-        await unwind(`capacity refused: ${reserved.reason}`);
+      // The order id is the command's name. If the answer is lost and the
+      // purchase is retried, the RPC returns the FIRST reservation rather than
+      // allocating the same seats and people a second time.
+      const set = await reserveResourceSet(admin, {
+        tenantId: input.tenantId,
+        operationKey: `order:${createdOrderId}:reserve`,
+        actorUserId: input.actorUserId,
+        ttlSeconds: holdTtlSeconds,
+        capacity: built.requests,
+        holds: slotHolds.map((h) => ({
+          talentProfileId: h.talentProfileId,
+          startsAt: h.startsAt,
+          endsAt: h.endsAt,
+          title: h.title ?? priced.lines[0]?.label ?? "Reservation",
+          bufferBeforeSeconds: h.bufferBeforeSeconds,
+          bufferAfterSeconds: h.bufferAfterSeconds,
+        })),
+      });
+      if (!set.ok) {
+        await unwind(`resource set refused: ${set.reason}`);
         return {
           ok: false,
-          reason: mapCapacityRefusal(reserved.reason),
-          offeringId: needs.find((n) => n.poolId === reserved.failedPoolId)?.offeringId,
+          reason: set.reason === "slot_taken"
+            ? "slot_taken"
+            : set.reason === "sold_out" || set.reason === "ancestor_full"
+              ? mapCapacityRefusal(set.reason)
+              : set.reason === "unavailable"
+                ? "capacity_unavailable"
+                : "engine_error",
+          offeringId: needs.find((n) => n.poolId === set.failedPoolId)?.offeringId,
+          error: set.error,
         };
       }
-      heldAllocationIds.push(...reserved.allocationIds);
+      heldAllocationIds.push(...set.allocationIds);
+      placedHoldIds.push(...set.holdIds);
     }
 
     // ── 7a. A TIMED offering may not be bought without a slot.
@@ -497,7 +576,7 @@ export async function createPurchase(
     // was caught by a Capacity guard that pinned the engine's source, which is
     // the argument for repointing guards rather than deleting them: the guard
     // outlived the file and was still right.
-    if (input.reservation === null || input.reservation === undefined) {
+    if (!input.reservation && !(input.holds && input.holds.length > 0)) {
       for (const line of input.lines) {
         const offering = catalog.rawOfferings.get(line.offeringId);
         if (!offering) continue;
@@ -514,98 +593,35 @@ export async function createPurchase(
       }
     }
 
-    // ── 7b. The calendar slot, when the purchase takes someone's time.
-    //
-    // AFTER capacity and BEFORE money, so a sold-out purchase never blocks a
-    // calendar and a slot conflict never charges a card. Both holds are on the
-    // unwind ledger, so either failing releases the other.
-    if (input.reservation) {
-      const ttlSeconds =
-        (await capacityHoldTtlSeconds(input.reservation.poolId ?? null, admin))
-        ?? shortestTtlSeconds
-        ?? FALLBACK_HOLD_TTL_SECONDS;
-
-      const hold = await placeReservationHold(admin, {
-        talentProfileId: input.reservation.talentProfileId,
-        tenantId: input.tenantId,
-        startsAt: input.reservation.startsAt,
-        endsAt: input.reservation.endsAt,
-        title: input.reservation.title ?? priced.lines[0]?.label ?? "Reservation",
-        ttlSeconds,
-        createdByUserId: input.actorUserId,
-      });
-
-      if (!hold.ok) {
-        await unwind(`slot refused: ${hold.code}`);
-        return {
-          ok: false,
-          // `slot_taken` is NOT sold_out. Seats remain; that TIME is gone. A
-          // buyer told "sold out" stops looking, one told the time is taken
-          // picks another.
-          reason: hold.code === "slot_taken" ? "slot_taken" : "engine_error",
-          error: hold.error,
-        };
-      }
-      placedHoldId = hold.holdId;
-    }
-
     // ── 8/9. The payment leg.
     //
-    // WHY A BOOKING EXISTS HERE AT ALL. `booking_transactions.booking_id` is
-    // NOT NULL, so a payment cannot exist without a booking — that is the
-    // structural reason both old engines create a booking for a taco, and it is
-    // not incidental. Making it nullable means reworking
-    // `idx_booking_transactions_booking_active` and `booking_payouts_unique_leg`,
-    // which are the indexes this track deliberately left alone.
-    //
-    // WHAT IS DIFFERENT FROM THE ENGINES: the booking is created with NO
-    // INQUIRY. `agency_bookings.source_inquiry_id` is nullable — only
-    // `tenant_id` is required — so a purchase gets its money anchor without
-    // being dragged through the inquiry state machine. That deletes the whole
-    // reason menu-order-engine force-writes `status: 'approved'` under the
-    // service role twice, re-reads `version` five times, and stamps
-    // `starts_at = ends_at = now()` as a calendar placeholder.
-    //
-    // The ORDER is the commercial record; the booking is the operations anchor
-    // the money spine still requires. When Finance makes `booking_id` nullable,
-    // this block is the one place to change.
+    // The booking row is the operations anchor the money spine requires, and
+    // the row the Appointments board reads. Whether one exists and what time
+    // it carries is decided in `purchase-booking.ts`; the money leg below only
+    // needs its id.
     let transactionId: string | null = null;
     let bookingId: string | null = null;
 
-    if (collectCents > 0) {
-      const { data: bookingRow, error: bookingErr } = await admin
-        .from("agency_bookings")
-        .insert({
-          // `tenant_id` is the ONLY NOT NULL column on agency_bookings, and
-          // omitting it is how the first live run failed with "Could not open
-          // the payment". The unit test's fake returned an id regardless, so
-          // this was invisible until the pipeline met a real database.
-          tenant_id: input.tenantId,
-          tenant_id_snapshot: input.tenantId,
-          // Set BEFORE insert on purpose: `bookings_write_order` fires AFTER
-          // INSERT and returns early when `order_id` is already present, so
-          // stamping it here is what stops the trigger writing a SECOND order
-          // for the order we just made.
-          order_id: createdOrderId,
-          source_inquiry_id: null,
-          title: priced.lines[0]?.label?.slice(0, 120) ?? "Order",
-          status: "confirmed",
-          contact_name: input.contact.displayName ?? null,
-          contact_email: input.contact.email ?? null,
-          contact_phone: input.contact.phone ?? null,
-          total_client_revenue: priced.subtotalCents / 100,
-          currency_code: "USD",
-        })
-        .select("id")
-        .single();
+    const appointmentWindow = appointmentWindowFor({
+      reservation: input.reservation ?? null,
+      holds: input.holds ?? null,
+    });
+    const anchor = await openPurchaseBooking(admin, {
+      tenantId: input.tenantId,
+      orderId: createdOrderId,
+      title: priced.lines[0]?.label ?? "Order",
+      collectCents,
+      window: appointmentWindow,
+      subtotalCents: priced.subtotalCents,
+      contact: input.contact,
+    });
+    if (!anchor.ok) {
+      await unwind("booking insert failed");
+      return { ok: false, reason: "engine_error", error: anchor.error };
+    }
+    bookingId = anchor.bookingId;
 
-      if (bookingErr || !bookingRow) {
-        logServerError("orders.createPurchase/booking", bookingErr);
-        await unwind("booking insert failed");
-        return { ok: false, reason: "engine_error", error: "Could not open the payment." };
-      }
-      bookingId = (bookingRow as { id: string }).id;
-
+    if (collectCents > 0 && bookingId) {
       const { data: txnRow, error: txnErr } = await admin
         .from("booking_transactions")
         .insert({
@@ -645,27 +661,52 @@ export async function createPurchase(
       createdTransactionId = transactionId;
     }
 
-    // `paid` is reachable ONLY from a webhook or an explicit staff
-    // pay-in-person action. Nothing in this function writes it — which is the
-    // single rule the menu engine breaks when it force-writes state to get past
-    // a gate. A zero-collect order is `paid` because there is nothing to
-    // collect, not because a charge succeeded.
-    const nextStatus = collectCents > 0 ? "pending_payment" : "paid";
+    // `paid` is reachable ONLY from a webhook, an explicit staff pay-in-person
+    // action, or an order that owes nothing — which is the single rule the menu
+    // engine breaks when it force-writes state to get past a gate. A door hold
+    // is the case that must NOT settle: collect is "none" until someone is
+    // standing there, but $20 is still owed, so it stays pending_payment or
+    // `loadHeldDoorOrders` cannot see it and `settleAtDoor` refuses `not_held`.
+    // `settleOrHoldOrder` is where "collected nothing" is told apart from
+    // "owes nothing", and where a settled order's capacity is committed rather
+    // than left to lapse.
+    const settlement = await settleOrHoldOrder(admin, {
+      payInPerson: policy.payInPerson,
+      collectCents,
+      totalCents,
+      heldAllocationIds,
+      holdTtlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS,
+    });
+    if (!settlement.ok) {
+      await unwind(settlement.note);
+      return { ok: false, reason: settlement.reason };
+    }
+
+    // THE PERSON IS COMMITTED WHEN THE TIME IS AGREED. `settleOrHoldOrder`
+    // commits the capacity legs of a settled order; the talent holds this
+    // purchase placed were still carrying their fifteen-minute expiry, so a
+    // confirmed appointment held the chair and lost the person a quarter of
+    // an hour later. Two cases agree a time now: an order that owes nothing
+    // (settled), and one the buyer will pay AT the appointment (pay in
+    // person, pending with no deadline). A card checkout still in flight is
+    // neither; its holds keep their TTL until `completeOrderForTransaction`
+    // commits them, so an abandoned checkout frees the person. Refused, not
+    // logged, for the same reason capacity's commit refuses on this path:
+    // nothing has been charged yet, so refusing is honest and cheap.
+    if (settlement.settled || policy.payInPerson) {
+      const kept = await commitOrderTalentHolds(admin, {
+        tenantId: input.tenantId,
+        orderId: createdOrderId,
+      });
+      if (!kept.ok) {
+        await unwind(`talent holds could not be committed for a settled order: ${kept.error}`);
+        return { ok: false, reason: "engine_error", error: "Could not keep that time." };
+      }
+    }
 
     const { error: statusErr } = await admin
       .from("orders")
-      .update({
-        status: nextStatus,
-        // The SHORTEST hold across the lines. The order expires when its first
-        // allocation does — anything later would leave the order claiming a
-        // hold it no longer has.
-        hold_expires_at:
-          collectCents > 0 && heldAllocationIds.length > 0
-            ? new Date(
-                Date.now() + (shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS) * 1000,
-              ).toISOString()
-            : null,
-      })
+      .update(settlement.patch)
       .eq("id", createdOrderId)
       .eq("status", "draft");
 
@@ -725,14 +766,14 @@ export async function createPurchase(
       ok: true,
       orderId: createdOrderId,
       inquiryId,
-      customerId: customer.customerId,
+      customerId,
       totalCents: priced.subtotalCents,
       collectCents,
       payInPerson: policy.payInPerson,
       allocationIds: heldAllocationIds,
       transactionId,
       bookingId,
-      reservationHoldId: placedHoldId,
+      reservationHoldId: placedHoldIds[0] ?? null,
     };
   } catch (err) {
     logServerError("orders.createPurchase", err);

@@ -73,10 +73,19 @@ lane, take MAIN's line and re-append only your own test file.
   business must never need to open the panel.
 
 ## Verification
-- **Agents do not browser-QA.** The integrator does live checks.
+- **Agents do not browser-QA production or real tenant data.** The integrator
+  does live checks. Never click through Impronta or any customer workspace.
+- **Isolated fixtures are the exception, and they are where browser QA belongs.**
+  Against a disposable target — the `qa-journeys` branch with its own seeded
+  workspaces and hosts — an agent may and should drive a real browser and record
+  the result. The 48 Journeys evidence under `docs/plans/qa-evidence/` is built
+  that way. Guard every such run with the isolated-target refusal
+  (`scripts/isolated-target-guard.mjs`), never a bare env flag.
 - You MAY and SHOULD run `npm run qa:appointments` (read-only by default) to
   prove engine behavior over HTTP. "Not clicked" belongs in your report only for
   things that genuinely need a browser.
+- A green unit lane is not a pass for a user-facing journey, and a skipped
+  Playwright spec is not a pass at all. Say which of the three you have.
 
 ## Reports
 Use `docs/agent-build-report-template.md`. The NOT-DONE section is the most

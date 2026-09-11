@@ -272,15 +272,27 @@ DO UPDATE SET
 -- created_by_user_id (audit field on the row itself; engine_audit_log
 -- already records the actor for every write).
 
-ALTER TABLE public.agency_taxonomy_settings
-  ADD COLUMN IF NOT EXISTS custom_label_es     text,
-  ADD COLUMN IF NOT EXISTS created_by_user_id  uuid REFERENCES public.profiles(id) ON DELETE SET NULL;
+-- D-104: agency_taxonomy_settings does not exist on a from-zero replay (it
+-- is only created by 20260909221926, which sorts after this file because it
+-- depends on public.agencies / public.is_staff_of_tenant, both created after
+-- this file too). Guarded so this block no-ops there and runs unchanged on
+-- any database that already has the table.
+DO $$
+BEGIN
+  IF to_regclass('public.agency_taxonomy_settings') IS NOT NULL THEN
+    ALTER TABLE public.agency_taxonomy_settings
+      ADD COLUMN IF NOT EXISTS custom_label_es     text,
+      ADD COLUMN IF NOT EXISTS created_by_user_id  uuid REFERENCES public.profiles(id) ON DELETE SET NULL;
 
-COMMENT ON COLUMN public.agency_taxonomy_settings.custom_label_es IS
-  'Phase 2 (Sub-Task 1): tenant-scoped Spanish label override for this taxonomy term. NULL = fall back to taxonomy_terms.name_es. Mirrors custom_label (EN).';
+    COMMENT ON COLUMN public.agency_taxonomy_settings.custom_label_es IS
+      'Phase 2 (Sub-Task 1): tenant-scoped Spanish label override for this taxonomy term. NULL = fall back to taxonomy_terms.name_es. Mirrors custom_label (EN).';
 
-COMMENT ON COLUMN public.agency_taxonomy_settings.created_by_user_id IS
-  'Phase 2 (Sub-Task 1): user who first wrote the override row, set at insert. Mirrors workspace_profile_field_settings.last_changed_by_user_id but pinned at insert because most edits use the same actor; engine_audit_log carries the full per-edit history.';
+    COMMENT ON COLUMN public.agency_taxonomy_settings.created_by_user_id IS
+      'Phase 2 (Sub-Task 1): user who first wrote the override row, set at insert. Mirrors workspace_profile_field_settings.last_changed_by_user_id but pinned at insert because most edits use the same actor; engine_audit_log carries the full per-edit history.';
+  ELSE
+    RAISE NOTICE 'agency_taxonomy_settings absent — skipping Sub-Task 1 (created by 20260909221926 later in the same replay)';
+  END IF;
+END $$;
 
 -- ─── Audit trail ────────────────────────────────────────────────────────────
 -- engine_audit_log.tenant_id is NOT NULL, so a platform-wide schema change

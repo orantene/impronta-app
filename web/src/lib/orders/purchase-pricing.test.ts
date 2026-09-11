@@ -157,3 +157,51 @@ test("a nonsensical deposit percentage falls back to the full amount, never to z
     assert.equal(amountToCollectCents(10000, "deposit", pct), 10000, `pct=${pct}`);
   }
 });
+
+test("an offering with variants REFUSES a line that picked none", () => {
+  const r = pricePurchase(
+    [{ offeringId: "off_1", units: 1 }],
+    catalog(
+      [offering()],
+      [{ variantId: "var_1", offeringId: "off_1", label: "VIP", amountCents: 9000 }],
+    ),
+  );
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.reason, "variant_required");
+});
+
+test("min_per_order and max_per_order are enforced on the chosen variant", () => {
+  const below = pricePurchase(
+    [{ offeringId: "off_1", units: 1, variantId: "var_1" }],
+    catalog(
+      [offering()],
+      [{
+        variantId: "var_1",
+        offeringId: "off_1",
+        label: "Table",
+        amountCents: 4000,
+        minPerOrder: 2,
+        maxPerOrder: 4,
+      }],
+    ),
+  );
+  assert.equal(below.ok, false);
+  assert.equal(!below.ok && below.reason, "below_min_per_order");
+
+  const above = pricePurchase(
+    [{ offeringId: "off_1", units: 5, variantId: "var_1" }],
+    catalog(
+      [offering()],
+      [{
+        variantId: "var_1",
+        offeringId: "off_1",
+        label: "Table",
+        amountCents: 4000,
+        minPerOrder: 2,
+        maxPerOrder: 4,
+      }],
+    ),
+  );
+  assert.equal(above.ok, false);
+  assert.equal(!above.ok && above.reason, "above_max_per_order");
+});

@@ -22,6 +22,8 @@ import { NextResponse, after, type NextRequest } from "next/server";
 
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveOpenVisitForSpace } from "@/lib/visits/qr";
 import {
   type ScanRecord,
   classifyDevice,
@@ -66,6 +68,34 @@ function clientIp(request: NextRequest): string | null {
  * way back to the site. Until then this is the honest minimum, and it is a real
  * 404 to a crawler.
  */
+function tableNotSeated(request: NextRequest): NextResponse {
+  const wantsSpanish = (request.headers.get("accept-language") ?? "")
+    .toLowerCase()
+    .startsWith("es");
+  const title = wantsSpanish ? "Esta mesa no está ocupada" : "This table is not seated";
+  const body = wantsSpanish
+    ? "Pide a un camarero que abra la visita. El código de la mesa no abre la cuenta de anoche."
+    : "Ask a member of staff to open this visit. The table code does not open last night's check.";
+  const onward = wantsSpanish ? "Ir al sitio" : "Go to the site";
+  return new NextResponse(
+    `<!doctype html><html lang="${wantsSpanish ? "es" : "en"}"><head>` +
+      `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<meta name="robots" content="noindex"><title>${title}</title></head>` +
+      `<body style="margin:0;display:grid;place-items:center;min-height:100vh;` +
+      `font:16px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;color:#1a1e22;background:#f5f7f4">` +
+      `<main style="max-width:24rem;padding:1.5rem;text-align:center">` +
+      `<h1 style="font-size:1.25rem;margin:0 0 .5rem">${title}</h1>` +
+      `<p style="margin:0 0 1.5rem;color:#4e5a63">${body}</p>` +
+      `<a href="/" style="display:inline-block;padding:.6rem 1.2rem;border-radius:999px;` +
+      `background:#1a1e22;color:#fff;text-decoration:none;font-size:.875rem">${onward}</a>` +
+      `</main></body></html>`,
+    {
+      status: 404,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+    },
+  );
+}
+
 function codeNotFound(request: NextRequest): NextResponse {
   const wantsSpanish = (request.headers.get("accept-language") ?? "")
     .toLowerCase()
@@ -175,11 +205,32 @@ export async function GET(
   const { timezone } = await resolveTenantTimezone(host.tenantId);
   const now = zonedNowIn(new Date(), timezone);
 
-  // Q1 resolves the rules that need no world facts. `eventTonight` is left
-  // undefined rather than guessed, which the resolver treats as "we did not
-  // find out" and falls through to the default — never as "nothing is on".
-  // Events & Ticketing supplies the fact in Q4; until then a door code with
-  // event rules answers with its default, which is honest and still useful.
+  const spaceId =
+    link.kind === "table" && typeof link.context?.space_id === "string" ? link.context.space_id : null;
+  if (spaceId) {
+    const admin = createServiceRoleClient();
+    const visit = admin
+      ? await resolveOpenVisitForSpace(admin, { tenantId: host.tenantId, spaceId })
+      : { ok: false as const, reason: "unavailable" as const };
+    recordScanInBackground({
+      linkId: link.id,
+      tenantId: host.tenantId,
+      outcome: "resolved",
+      resolvedTo: visit.ok ? "visit" : "table_unseated",
+      deviceClass: classifyDevice(request.headers.get("user-agent")),
+      isNfc: request.nextUrl.searchParams.get("t") === NFC_MARKER,
+      referrer: request.headers.get("referer"),
+      country: readCountry(request.headers.get("x-vercel-ip-country")),
+      sessionKey: scanSessionKey(clientIp(request), request.headers.get("user-agent")),
+    });
+    if (!visit.ok) return tableNotSeated(request);
+    const destination = new URL(visit.path, request.url);
+    destination.searchParams.set("l", link.id);
+    const response = NextResponse.redirect(destination, 302);
+    response.headers.set("cache-control", "no-store");
+    return response;
+  }
+
   const resolved = resolveTarget(link.targets, now, {});
 
   if (!resolved.ok) {

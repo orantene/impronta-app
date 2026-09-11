@@ -1,0 +1,48 @@
+
+Running 4 tests using 1 worker
+
+[1/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:231:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree
+  1) [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:231:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('[data-tulala-app-sidebar]')
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('[data-tulala-app-sidebar]')
+        9 × locator resolved to 1 element
+          - unexpected value "1"
+
+
+      155 |   // The counter owns the whole screen: the workspace rail is gone, the POS's
+      156 |   // own rail is there. This is the chrome half of the acceptance.
+    > 157 |   await expect(page.locator("[data-tulala-app-sidebar]")).toHaveCount(0);
+          |                                                           ^
+      158 |   await expect(page.locator("[data-tulala-pos-chrome]")).toHaveCount(1);
+      159 |   await expect(counterRail(page)).toBeVisible();
+      160 | }
+        at enterCounterFromTopBar (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-prove-counter/web/e2e/cases/POS-counter-cash-sale.spec.ts:157:59)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-prove-counter/web/e2e/cases/POS-counter-cash-sale.spec.ts:239:3
+
+    Error Context: ../../pw-out-qa-run2/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out-qa-run2/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out-qa-run2/cases-POS-counter-cash-sal-54e99-t-resolved-money-rows-agree-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[2/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:461:5 › POS-OP counter refusal: a sale someone else already collected against
+[3/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:510:5 › POS-OP counter refusal: a sale changed underneath the operator
+[4/4] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:561:5 › POS-OP counter refusal: an item that needs the customer's name, sold without one
+  1 failed
+    [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:231:5 › POS-OP counter: shift open, two items, cash collected, receipt resolved, money rows agree 
+  3 did not run
+EXIT=1

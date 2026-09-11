@@ -3,6 +3,11 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { commitCapacity } from "@/lib/capacity";
+import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
+import {
+  linesNeedingCompensation,
+  recordCapacityLostCompensation,
+} from "@/lib/orders/capacity-lost-compensation";
 
 /**
  * THE COMPLETION PATH. Step 12 of the 0.6 design, and until now it did not exist.
@@ -89,7 +94,7 @@ export async function completeOrderForTransaction(
 
     const { data: order, error: orderErr } = await admin
       .from("orders")
-      .select("id, status, total_cents, version, tenant_id")
+      .select("id, status, total_cents, version, tenant_id, hold_expires_at")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -101,7 +106,7 @@ export async function completeOrderForTransaction(
 
     const row = order as {
       id: string; status: string; total_cents: number; version: number;
-      tenant_id: string;
+      tenant_id: string; hold_expires_at: string | null;
     };
 
     // Already settled. Idempotent because webhooks redeliver, and a second
@@ -165,18 +170,53 @@ export async function completeOrderForTransaction(
     if (allocErr) logServerError("orders.completeOrder/allocations", allocErr);
 
     let committed = 0;
+    let commitFailed = false;
+    const lineIds = ((await admin.from("order_lines").select("id").eq("order_id", orderId)).data ?? []).map(
+      (l) => (l as { id: string }).id,
+    );
     const allocationIds = (allocRows ?? []).map((a) => (a as { id: string }).id);
     if (allocationIds.length > 0) {
       const result = await commitCapacity(allocationIds, null, admin);
       if (result.ok) {
         committed = result.committed;
       } else {
+        commitFailed = true;
         logServerError(
           "orders.completeOrder/CAPACITY_LOST_AFTER_PAYMENT",
           `order ${orderId} paid but capacity could not be committed (${result.reason}) — `
             + `a customer has paid for something they may no longer hold. Needs a human.`,
         );
       }
+    }
+
+    if (
+      linesNeedingCompensation({
+        holdExpiresAt: row.hold_expires_at ?? null,
+        holdAllocationCount: allocationIds.length,
+        commitFailed,
+        committed,
+      })
+    ) {
+      await recordCapacityLostCompensation(admin, {
+        tenantId: row.tenant_id,
+        orderId,
+        lineIds,
+        transactionId,
+        reason: "seat_lost_after_payment",
+      });
+    }
+
+    // The person legs, same rule as the capacity legs above: the money has
+    // landed, so the flip proceeds either way, and a person whose hold lapsed
+    // before the card cleared is alerted for a human rather than re-held over
+    // whoever may have booked them since.
+    const kept = await commitOrderTalentHolds(admin, { tenantId: row.tenant_id, orderId });
+    if (!kept.ok) {
+      logServerError(
+        "orders.completeOrder/PERSON_LOST_AFTER_PAYMENT",
+        `order ${orderId} paid but its talent holds could not be made permanent (${kept.error}) - `
+          + `the person booked may be offered to somebody else. Needs a human.`,
+      );
     }
 
     // ── DECISION 3: the flip is optimistic-concurrency guarded, and a failure
@@ -233,6 +273,164 @@ export async function completeOrderForTransaction(
     return { ok: true, orderId, status: "paid", committed };
   } catch (err) {
     logServerError("orders.completeOrder", err);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+/**
+ * F04: a free / zero-total sale completes without a fabricated charge.
+ * There is no `booking_transactions` row. `onOrderPaid` still runs so
+ * admissions mint exactly once.
+ *
+ * IT ALSO COMMITS THE CAPACITY, and for a while it did not. Clearing
+ * `hold_expires_at` settles the ORDER but leaves the allocation a `hold` with
+ * its own `expires_at`, and `remaining()` counts a hold only while
+ * `expires_at > now()` — so a free class registration taken at the till
+ * stopped holding its place fifteen minutes later, and
+ * `reap_capacity_allocations` then released it. Nothing failed and nothing
+ * logged; the seat was simply resellable while the registration stood.
+ */
+export async function completeZeroTotalOrder(
+  admin: Pick<SupabaseClient, "from" | "rpc">,
+  input: { tenantId: string; orderId: string },
+  deps: { onOrderPaid?: OnOrderPaid } = {},
+): Promise<CompleteOrderResult> {
+  try {
+    const { data: order, error: orderErr } = await admin
+      .from("orders")
+      .select("id, status, total_cents, version, tenant_id")
+      .eq("id", input.orderId)
+      .maybeSingle();
+    if (orderErr) {
+      logServerError("orders.completeZero/order", orderErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (!order) return { ok: false, reason: "not_found" };
+    const row = order as {
+      id: string;
+      status: string;
+      total_cents: number;
+      version: number;
+      tenant_id: string;
+    };
+    if (row.tenant_id !== input.tenantId) return { ok: false, reason: "not_found" };
+    if (row.status === "paid" || row.status === "fulfilled") {
+      return { ok: true, orderId: row.id, status: "paid", committed: 0 };
+    }
+    if (Number(row.total_cents) !== 0) {
+      return { ok: false, reason: "unavailable", error: "This sale is not free." };
+    }
+    if (row.status !== "draft" && row.status !== "pending_payment") {
+      return { ok: false, reason: "unavailable", error: "This sale is no longer open." };
+    }
+
+    // COMMIT BEFORE THE FLIP, and refuse if the places are gone. No money has
+    // moved on a free sale, so refusing is honest and cheap — the opposite of
+    // `completeOrderForTransaction` above, which cannot refuse because a charge
+    // has already completed and alerts a human instead.
+    const zeroLineIds = (
+      (await admin.from("order_lines").select("id").eq("order_id", row.id)).data ?? []
+    ).map((l) => (l as { id: string }).id);
+    let zeroCommitted = 0;
+    if (zeroLineIds.length > 0) {
+      const { data: holdRows, error: holdErr } = await admin
+        .from("capacity_allocations")
+        .select("id")
+        .in("order_line_id", zeroLineIds)
+        .eq("state", "hold");
+      if (holdErr) {
+        logServerError("orders.completeZero/allocations", holdErr);
+        return { ok: false, reason: "unavailable", error: "Could not check those places." };
+      }
+      const holdIds = (holdRows ?? []).map((a) => (a as { id: string }).id);
+      if (holdIds.length > 0) {
+        const commit = await commitCapacity(holdIds, null, admin);
+        if (!commit.ok) {
+          logServerError(
+            "orders.completeZero/commit",
+            `order ${row.id}: free sale could not keep its places (${commit.reason}).`,
+          );
+          return {
+            ok: false,
+            reason: "unavailable",
+            error:
+              commit.reason === "expired" || commit.reason === "released"
+                ? "Those places are no longer held."
+                : "Could not keep those places.",
+          };
+        }
+        zeroCommitted = commit.committed;
+      }
+    }
+
+    // The person legs of a free sale. Refused like the places above: nothing
+    // has been charged, and a confirmation that names a person the calendar
+    // will drop in fifteen minutes is the defect, not the refusal.
+    const keptPeople = await commitOrderTalentHolds(admin, {
+      tenantId: input.tenantId,
+      orderId: row.id,
+    });
+    if (!keptPeople.ok) {
+      logServerError(
+        "orders.completeZero/holds",
+        `order ${row.id}: free sale could not keep its people (${keptPeople.error}).`,
+      );
+      return { ok: false, reason: "unavailable", error: "Could not keep that time." };
+    }
+
+    const { data: flipped, error: flipErr } = await admin
+      .from("orders")
+      .update({ status: "paid", hold_expires_at: null, version: row.version + 1 })
+      .eq("id", row.id)
+      .eq("tenant_id", input.tenantId)
+      .in("status", ["draft", "pending_payment"])
+      .eq("version", row.version)
+      .select("id")
+      .maybeSingle();
+    if (flipErr) {
+      logServerError("orders.completeZero/flip", flipErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (!flipped) {
+      return { ok: false, reason: "unavailable", error: "This sale was just changed." };
+    }
+
+    if (deps.onOrderPaid) {
+      try {
+        const { data: lineRows, error: lineErr } = await admin
+          .from("order_lines")
+          .select("id, units, session_id, variant_id")
+          .eq("order_id", row.id);
+        if (lineErr) {
+          logServerError("orders.completeZero/onOrderPaid/lines", lineErr);
+        } else {
+          await deps.onOrderPaid({
+            orderId: row.id,
+            tenantId: row.tenant_id,
+            lines: (lineRows ?? []).map((l) => {
+              const r = l as {
+                id: string;
+                units: number | string;
+                session_id: string | null;
+                variant_id: string | null;
+              };
+              return {
+                id: r.id,
+                units: Number(r.units),
+                sessionId: r.session_id,
+                variantId: r.variant_id,
+              };
+            }),
+          });
+        }
+      } catch (hookErr) {
+        logServerError("orders.completeZero/onOrderPaid", hookErr);
+      }
+    }
+
+    return { ok: true, orderId: row.id, status: "paid", committed: zeroCommitted };
+  } catch (err) {
+    logServerError("orders.completeZero", err);
     return { ok: false, reason: "unavailable" };
   }
 }

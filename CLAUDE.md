@@ -42,7 +42,7 @@ There is no migration auto-apply yet — step 2 is mandatory and must happen *be
 
 ## QA caveat (important for any feature dev)
 
-`web/src/middleware.ts` gates every request against the `public.agency_domains` DB table. Any host not in the table returns **404 "Host not registered"** before route matching. This means **raw `*.vercel.app` preview URLs will NOT render the app** — they're not in `agency_domains`.
+`web/src/proxy.ts` (allow-list in `web/src/lib/saas/gate.ts`) gates every request against the `public.agency_domains` DB table. Any host not in the table returns **404 "Host not registered"** before route matching. This means **raw `*.vercel.app` preview URLs will NOT render the app** — they're not in `agency_domains`.
 
 To QA a preview, either:
 - `vercel promote <preview-url> --yes` and test on `tulala.digital` / `app.tulala.digital` / `impronta.tulala.digital`, or

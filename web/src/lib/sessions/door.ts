@@ -7,9 +7,10 @@
  *
  * WHY THE MAPPING IS ITS OWN LAYER
  * ════════════════════════════════
- * Three things can refuse a scan and they fail at different distances:
+ * Four things can refuse a scan and they fail at different distances:
  *
  *   the SIGNATURE      — `verifyAdmissionToken`, in the app, no round trip
+ *   the SCOPE          — tenant and session, in the app, before the RPC
  *   the ROW            — `check_in`, in Postgres, under the row lock
  *   the CONFIGURATION  — no secret set at all
  *
@@ -36,6 +37,16 @@ export type DoorOutcome =
   | { kind: "already_in"; admittedCount: number; partySize: number }
   /** Genuine signature, superseded version: transferred or re-issued. */
   | { kind: "superseded" }
+  /**
+   * A real, valid, unused ticket — for a DIFFERENT night than this door.
+   *
+   * Separate from `unknown_ticket` because the two send staff into different
+   * conversations. "Not found" invites a scan retry and then an argument;
+   * "this is Friday's ticket" ends it in one sentence. `ticketStartsAt` is
+   * carried so the door can say WHICH night rather than just "not tonight" —
+   * null when the admission is anchored to no session at all.
+   */
+  | { kind: "wrong_session"; ticketStartsAt: string | null }
   /** Commercially not good: refunded, void. The row's own word is carried. */
   | { kind: "not_valid"; status: string }
   /** The token is not ours, or was tampered with. */
@@ -83,6 +94,48 @@ export function doorOutcomeForToken(verdict: TokenVerdict): DoorOutcome | null {
     default:
       return { kind: "forged" };
   }
+}
+
+/**
+ * Is this admission for the night this door is standing at?
+ *
+ * WHY THIS EXISTS AT ALL. `check_in` takes no session and asks for none: it
+ * decides entitlement on ONE admission row and is right to, because a session
+ * predicate inside it would have to be optional (walk-ins and band bookings
+ * legitimately have no session) and an optional predicate on an authorisation
+ * function fails open on omission — the exact hazard migration `…000374`
+ * exists to close for `p_mode`. So the session scope is the CALLER'S job, the
+ * same obligation and for the same reason as the tenant scope beside it.
+ *
+ * Until this function existed nobody discharged it, and Friday's ticket
+ * admitted on Saturday: the signature verifies (it is genuine), the tenant
+ * matches (it is ours), the version matches (it was never re-issued), the
+ * status is valid (nobody refunded it) and the party has room (it was never
+ * used). Every gate says yes, because none of them was ever asked the
+ * question that matters.
+ *
+ * `doorSessionId` is NOT nullable, so a door with no session cannot call this
+ * with `undefined` and be waved through — it cannot construct the call at all.
+ *
+ * AN ADMISSION WITH NO SESSION IS ALSO REFUSED. Cases 4 and 5 of the anchor
+ * table (a band reservation, a walk-in against a pool) carry `session_id NULL`
+ * legitimately, but "legitimate row" and "belongs at tonight's door" are
+ * different facts. `loadDoor` lists tonight by `session_id = <this session>`,
+ * so such a row is not on the list and admitting it would put a person through
+ * a door whose count will never mention them.
+ *
+ * Returns null to mean PROCEED, so a caller that forgets to branch on the
+ * result gets a type error rather than a silent admission.
+ */
+export function doorOutcomeForSessionScope(args: {
+  doorSessionId: string;
+  admissionSessionId: string | null;
+  ticketStartsAt: string | null;
+}): DoorOutcome | null {
+  if (args.admissionSessionId !== null && args.admissionSessionId === args.doorSessionId) {
+    return null;
+  }
+  return { kind: "wrong_session", ticketStartsAt: args.ticketStartsAt };
 }
 
 /**

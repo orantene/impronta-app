@@ -7,9 +7,12 @@
  *              studio / network that REPRESENTS talent. Roster is the spine.
  *   "business" — a local business (restaurant, gym, clinic) that wants a site
  *              and books talent as a CLIENT. It represents nobody, so the
- *              roster-shaped surfaces are noise. Everything else — site
- *              builder, inbox, calendar, clients, media, settings, payments —
- *              is identical. A business workspace is NOT read-only.
+ *              surfaces about REPRESENTING people are noise: pitching talent
+ *              outward, taking applications to join a roster, publishing to the
+ *              directory. It still has people — staff — so the People page
+ *              itself stays. Everything else — site builder, inbox, calendar,
+ *              clients, media, settings, payments — is identical. A business
+ *              workspace is NOT read-only.
  *
  * HIDE, NEVER DELETE
  * ──────────────────
@@ -70,12 +73,26 @@ export function rosterEnabled(type: WorkspaceType): boolean {
 /**
  * Workspace nav pages a "business" workspace does not get.
  *
- * `roster` is the representation spine. `pitches` is outbound "here is my
- * talent" marketing — meaningless without a roster to pitch. Every other page
- * (overview, messages, calendar, clients, operations, production, website,
- * media, settings) stays.
+ * `pitches` is outbound "here is my talent" marketing. It is meaningless
+ * without a roster to pitch, and there is no reading of it that applies to a
+ * restaurant, so it is hidden and the page is clamped away.
+ *
+ * `roster` IS NOT HIDDEN, and used to be. It is the live route of the People
+ * destination, the row every workspace has: a restaurant has staff, and People
+ * is the same set of humans under the name its preset gives them ("Team"). With
+ * `roster` on this list the People row was dropped from the rail of every
+ * business workspace and the page clamped to Overview, which is a surface with
+ * no door rather than a surface that does not apply.
+ *
+ * WHAT STILL REFUSES A BUSINESS WORKSPACE, AND WHERE. The roster's talent-only
+ * sub-routes — /admin/roster/{new,applications,registration,rates} — each call
+ * `assertRosterWorkspace`, which 404s when `rosterEnabled` is false. That is a
+ * ROUTE gate on the server and it is untouched by this list; the rail agrees
+ * with it because those three children carry `requires: { workspaceType:
+ * "talent" }` in the destination registry. Hiding a link and refusing a route
+ * are different jobs, and this list only ever did the first.
  */
-export const BUSINESS_HIDDEN_PAGES: readonly WorkspacePage[] = ["roster", "pitches"];
+export const BUSINESS_HIDDEN_PAGES: readonly WorkspacePage[] = ["pitches"];
 
 const BUSINESS_HIDDEN_PAGE_SET: ReadonlySet<WorkspacePage> = new Set(BUSINESS_HIDDEN_PAGES);
 

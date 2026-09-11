@@ -1,0 +1,282 @@
+{
+  "at": "2026-09-10T20:57:28.476Z",
+  "stamp": "1789073463089",
+  "agency": {
+    "timezone": "America/Mexico_City",
+    "pos": {
+      "locations": {
+        "default": {
+          "modes": [
+            "floor",
+            "counter",
+            "door",
+            "classes"
+          ]
+        }
+      }
+    }
+  },
+  "bookings": [
+    {
+      "id": "cba0d642-a730-4e69-9c85-604caaf8b7b4",
+      "contact_name": "walkin-two-1789073463089",
+      "status": "confirmed",
+      "starts_at": "2026-09-11T17:15:00+00:00",
+      "ends_at": "2026-09-11T18:00:00+00:00",
+      "order_id": "c6be16b7-173c-464a-a603-905f07e759ee",
+      "updated_by_staff_id": null
+    },
+    {
+      "id": "301c7942-8d47-4724-b796-20bbb09c73e7",
+      "contact_name": "walkin-1789073463089",
+      "status": "in_progress",
+      "starts_at": "2026-09-12T21:45:00+00:00",
+      "ends_at": "2026-09-12T22:30:00+00:00",
+      "order_id": "3f40289b-af54-48ae-99ed-266ee271a32a",
+      "updated_by_staff_id": "33330001-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "952d6124-1844-41a2-b843-ac4aef425a0e",
+      "contact_name": "seat-one-1789073463089",
+      "status": "confirmed",
+      "starts_at": null,
+      "ends_at": null,
+      "order_id": "8962867a-c569-4af4-bfb4-443280640ed9",
+      "updated_by_staff_id": null
+    },
+    {
+      "id": "38ff52f1-7984-4c5e-b2cb-fb78704805db",
+      "contact_name": "seat-two-1789073463089",
+      "status": "confirmed",
+      "starts_at": null,
+      "ends_at": null,
+      "order_id": "2c05208d-fd5a-40f7-a7df-207543aea89e",
+      "updated_by_staff_id": null
+    }
+  ],
+  "orders": [
+    {
+      "id": "c6be16b7-173c-464a-a603-905f07e759ee",
+      "status": "pending_payment",
+      "total_cents": 5000,
+      "currency": "USD",
+      "source_channel": "pos",
+      "source_page": "pos-classes",
+      "version": 1,
+      "customer_id": null
+    },
+    {
+      "id": "8962867a-c569-4af4-bfb4-443280640ed9",
+      "status": "paid",
+      "total_cents": 500,
+      "currency": "USD",
+      "source_channel": "pos",
+      "source_page": "pos-classes",
+      "version": 4,
+      "customer_id": "fc8ae96c-f987-4545-b27f-021586d0d80a"
+    },
+    {
+      "id": "2c05208d-fd5a-40f7-a7df-207543aea89e",
+      "status": "paid",
+      "total_cents": 500,
+      "currency": "USD",
+      "source_channel": "pos",
+      "source_page": "pos-classes",
+      "version": 4,
+      "customer_id": null
+    },
+    {
+      "id": "3f40289b-af54-48ae-99ed-266ee271a32a",
+      "status": "paid",
+      "total_cents": 5000,
+      "currency": "USD",
+      "source_channel": "pos",
+      "source_page": "pos-classes",
+      "version": 3,
+      "customer_id": "5984d2ce-fd06-4f4d-8e14-d26c14418c77"
+    }
+  ],
+  "customers": [
+    {
+      "id": "5984d2ce-fd06-4f4d-8e14-d26c14418c77",
+      "display_name": "walkin-1789073463089",
+      "email": "walkin-1789073463089@impronta.test"
+    },
+    {
+      "id": "fc8ae96c-f987-4545-b27f-021586d0d80a",
+      "display_name": "seat-one-1789073463089",
+      "email": "seat-one-1789073463089@impronta.test"
+    }
+  ],
+  "booking_transactions": [
+    {
+      "id": "632df55b-6e8d-4ea4-a5b9-7d0c933ceb89",
+      "order_id": "3f40289b-af54-48ae-99ed-266ee271a32a",
+      "status": "paid",
+      "gross_amount_cents": 5000,
+      "provider": "manual",
+      "metadata": {
+        "actor": "33330001-0000-4000-8000-000000000001",
+        "paid_via": "cash",
+        "shift_id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+        "settled_at": "door",
+        "change_cents": 0,
+        "tendered_cents": 5000,
+        "collection_reservation_id": "7ada8c2f-788d-45f4-8750-e40400b2d012"
+      },
+      "paid_at": "2026-09-10T20:52:00.032466+00:00"
+    },
+    {
+      "id": "38eee92f-8832-49d4-85cf-0a21771c8f0e",
+      "order_id": "8962867a-c569-4af4-bfb4-443280640ed9",
+      "status": "paid",
+      "gross_amount_cents": 500,
+      "provider": "manual",
+      "metadata": {
+        "actor": "33330001-0000-4000-8000-000000000001",
+        "paid_via": "cash",
+        "shift_id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+        "settled_at": "door",
+        "change_cents": 0,
+        "tendered_cents": 500,
+        "collection_reservation_id": "99acc4a3-a497-4593-9400-08a55166d92c"
+      },
+      "paid_at": "2026-09-10T20:54:10.665239+00:00"
+    },
+    {
+      "id": "4e43dbe1-5615-4912-b0bf-a48a09f43a59",
+      "order_id": "2c05208d-fd5a-40f7-a7df-207543aea89e",
+      "status": "paid",
+      "gross_amount_cents": 500,
+      "provider": "manual",
+      "metadata": {
+        "actor": "33330001-0000-4000-8000-000000000001",
+        "paid_via": "cash",
+        "shift_id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+        "settled_at": "door",
+        "change_cents": 0,
+        "tendered_cents": 500,
+        "collection_reservation_id": "d9ef4b1c-02f9-4616-88c2-df5c28a6ff41"
+      },
+      "paid_at": "2026-09-10T20:55:05.715387+00:00"
+    }
+  ],
+  "talent_holds": [
+    {
+      "operation_key": "order:c6be16b7-173c-464a-a603-905f07e759ee:reserve",
+      "talent_profile_id": "33330003-0000-4000-8000-000000000001",
+      "starts_at": "2026-09-11T17:15:00+00:00",
+      "ends_at": "2026-09-11T18:00:00+00:00",
+      "expires_at": null
+    },
+    {
+      "operation_key": "order:3f40289b-af54-48ae-99ed-266ee271a32a:reserve",
+      "talent_profile_id": "33330003-0000-4000-8000-000000000001",
+      "starts_at": "2026-09-12T21:45:00+00:00",
+      "ends_at": "2026-09-12T22:30:00+00:00",
+      "expires_at": null
+    }
+  ],
+  "events": [
+    {
+      "id": "822ff097-f19c-4ab6-ac89-4ef103295a6b",
+      "title": "POS class 1789073463089",
+      "status": "published"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "005e8cfd-db24-425f-a8cc-65523825fe45",
+      "title": "POS class 1789073463089",
+      "starts_at": "2026-09-10T21:00:00+00:00",
+      "ends_at": "2026-09-10T22:00:00+00:00",
+      "status": "scheduled",
+      "offering_id": "20439a94-2ef9-4312-84cd-4a6ec06a1009"
+    }
+  ],
+  "capacity_pools": [
+    {
+      "id": "97b7f27a-1e5f-4bdd-98a6-d1e4d4d3f293",
+      "subject_id": "005e8cfd-db24-425f-a8cc-65523825fe45",
+      "pool_key": "seat",
+      "units_total": 3
+    }
+  ],
+  "admissions": [
+    {
+      "id": "005cf3e4-2420-4a5d-9135-98c8b9861765",
+      "session_id": "005e8cfd-db24-425f-a8cc-65523825fe45",
+      "status": "valid",
+      "party_size": 1,
+      "admitted_count": 1,
+      "seated_at": "2026-09-10T20:54:22.417046+00:00",
+      "allocation_id": "79bbee8d-a7b5-4a99-a1e2-bc6855a298ec",
+      "order_line_id": "722b2e01-7257-405d-8e16-6197c1cad48d",
+      "holder_name": "seat-one-1789073463089"
+    },
+    {
+      "id": "1aced52d-5430-48b4-af8d-3cdded958bfc",
+      "session_id": "005e8cfd-db24-425f-a8cc-65523825fe45",
+      "status": "valid",
+      "party_size": 1,
+      "admitted_count": 0,
+      "seated_at": null,
+      "allocation_id": "6834b04c-421b-47bc-ae7c-e7a9e85e38d4",
+      "order_line_id": "aaa3f3b1-1d8f-4309-94a4-393840c180e7",
+      "holder_name": "seat-two-1789073463089"
+    }
+  ],
+  "order_lines": [
+    {
+      "id": "722b2e01-7257-405d-8e16-6197c1cad48d",
+      "order_id": "8962867a-c569-4af4-bfb4-443280640ed9",
+      "offering_id": "20439a94-2ef9-4312-84cd-4a6ec06a1009",
+      "session_id": "005e8cfd-db24-425f-a8cc-65523825fe45",
+      "units": 1
+    },
+    {
+      "id": "aaa3f3b1-1d8f-4309-94a4-393840c180e7",
+      "order_id": "2c05208d-fd5a-40f7-a7df-207543aea89e",
+      "offering_id": "20439a94-2ef9-4312-84cd-4a6ec06a1009",
+      "session_id": "005e8cfd-db24-425f-a8cc-65523825fe45",
+      "units": 1
+    }
+  ],
+  "admission_allocations": [
+    {
+      "id": "79bbee8d-a7b5-4a99-a1e2-bc6855a298ec",
+      "pool_id": "97b7f27a-1e5f-4bdd-98a6-d1e4d4d3f293",
+      "state": "committed",
+      "units": 1,
+      "order_line_id": "722b2e01-7257-405d-8e16-6197c1cad48d"
+    },
+    {
+      "id": "6834b04c-421b-47bc-ae7c-e7a9e85e38d4",
+      "pool_id": "97b7f27a-1e5f-4bdd-98a6-d1e4d4d3f293",
+      "state": "committed",
+      "units": 1,
+      "order_line_id": "aaa3f3b1-1d8f-4309-94a4-393840c180e7"
+    }
+  ],
+  "waitlist": [
+    {
+      "id": "ab393aa4-3a51-4de9-a3c4-72fb7295dbb9",
+      "session_id": "005e8cfd-db24-425f-a8cc-65523825fe45",
+      "customer_name": "Ana Espera 1789073463089",
+      "status": "accepted",
+      "joined_at": "2026-09-10T20:55:24.91202+00:00",
+      "offered_at": "2026-09-10T20:56:22.176167+00:00",
+      "offer_expires_at": "2026-09-10T21:26:22.176167+00:00",
+      "accepted_allocation_id": "1656eef3-e82c-49e7-b761-c451593b033b"
+    }
+  ],
+  "waitlist_allocations": [
+    {
+      "id": "1656eef3-e82c-49e7-b761-c451593b033b",
+      "pool_id": "97b7f27a-1e5f-4bdd-98a6-d1e4d4d3f293",
+      "state": "committed",
+      "units": 1,
+      "order_line_id": null
+    }
+  ]
+}

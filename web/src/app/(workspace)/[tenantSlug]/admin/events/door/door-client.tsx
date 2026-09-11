@@ -33,11 +33,14 @@ import {
   admitAtDoor,
   loadDoor,
   loadDoorTiers,
+  loadHeldDoorOrders,
   loadNightReport,
   sellAtDoor,
+  settleHeldOrderAtDoor,
   type DoorRow,
   type DoorSession,
   type DoorTier,
+  type HeldDoorOrder,
   type NightReport,
 } from "@/app/(workspace)/[tenantSlug]/admin/_door-actions";
 import type { DoorCounts, DoorPaidVia } from "@/lib/events/summary";
@@ -66,6 +69,15 @@ function outcomeLabel(o: DoorOutcome): { text: string; tone: "green" | "red" | "
       return { text: "Not a valid ticket", tone: "red" };
     case "unknown_ticket":
       return { text: "Not found for this event", tone: "red" };
+    case "wrong_session":
+      // The date, when the row has one. "Wrong night" alone starts an argument
+      // that "wrong night — this is for Fri 9 Oct" ends.
+      return {
+        text: o.ticketStartsAt
+          ? `Wrong night — this ticket is for ${dateLabel(o.ticketStartsAt)}`
+          : "Not for tonight — this ticket is not on this door's list",
+        tone: "red",
+      };
     case "too_many":
       return { text: `Only ${o.remaining} left on this ticket`, tone: "amber" };
     case "door_misconfigured":
@@ -79,6 +91,12 @@ function timeLabel(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function dateLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "another night";
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
 }
 
 export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; tenantId: string }) {
@@ -103,6 +121,8 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
   const [sellAmount, setSellAmount] = useState<string>("");
   const [sellVia, setSellVia] = useState<DoorPaidVia>("cash");
   const [sellError, setSellError] = useState<string | null>(null);
+  const [held, setHeld] = useState<HeldDoorOrder[] | null>(null);
+  const [settleError, setSettleError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     if (!sessionId) return;
@@ -114,6 +134,15 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
   }, [sessionId]);
 
   useEffect(refresh, [refresh]);
+
+  const refreshHeld = useCallback(() => {
+    if (!sessionId) return;
+    void loadHeldDoorOrders(sessionId).then((res) => {
+      if (res.ok) setHeld(res.orders);
+    });
+  }, [sessionId]);
+
+  useEffect(refreshHeld, [refreshHeld]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -179,10 +208,10 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
   const onScan = useCallback(
     async (raw: string) => {
       const token = raw.trim();
-      if (!token || busy) return;
+      if (!token || busy || !sessionId) return;
       setBusy(true);
       try {
-        const { outcome } = await scanAdmission(tenantId, token, 1);
+        const { outcome } = await scanAdmission(tenantId, sessionId, token, 1);
         setLast({ outcome, at: Date.now() });
         if (doorAdmits(outcome)) refresh();
       } finally {
@@ -193,22 +222,48 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
         }
       }
     },
-    [busy, refresh, tenantId],
+    [busy, refresh, sessionId, tenantId],
+  );
+
+  const onSettleHeld = useCallback(
+    async (order: HeldDoorOrder, paidVia: "cash" | "card") => {
+      if (busy) return;
+      setBusy(true);
+      setSettleError(null);
+      try {
+        const res = await settleHeldOrderAtDoor({
+          orderId: order.id,
+          paidVia,
+          amountCents: order.totalCents,
+          currency: order.currency,
+          idempotencyKey: `door-settle:${order.id}`,
+        });
+        if (!res.ok) {
+          setSettleError(("error" in res ? res.error : res.reason) ?? "unavailable");
+          return;
+        }
+        refresh();
+        refreshHeld();
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, refresh, refreshHeld],
   );
 
   const onAdmit = useCallback(
     async (row: DoorRow, count?: number) => {
-      if (busy) return;
+      if (busy || !sessionId) return;
       setBusy(true);
       try {
-        const { outcome } = await admitAtDoor(row.id, count);
+        const { outcome } = await admitAtDoor(row.id, sessionId, count);
         setLast({ outcome, at: Date.now() });
         if (doorAdmits(outcome)) refresh();
       } finally {
         setBusy(false);
       }
     },
-    [busy, refresh],
+    [busy, refresh, sessionId],
   );
 
   const onReport = useCallback(async () => {
@@ -290,6 +345,7 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
       <div
         role="status"
         aria-live="assertive"
+        data-door-verdict=""
         className={`rounded-xl px-4 py-5 text-center text-lg font-semibold ${toneClass}`}
       >
         {lastLabel ? lastLabel.text : "Ready"}
@@ -380,6 +436,44 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
             </form>
           )
         ) : null}
+      </section>
+
+      <section className="rounded-xl border border-black/10 p-3">
+        <div className="text-sm font-medium">Pay at the door — held seats</div>
+        {held === null ? (
+          <p className="mt-2 text-xs text-black/50">Loading held orders…</p>
+        ) : held.length === 0 ? (
+          <p className="mt-2 text-xs text-black/60">No held pay-at-door orders for this night.</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-black/10">
+            {held.map((order) => (
+              <li key={order.id} className="flex items-center justify-between gap-2 py-2">
+                <div className="min-w-0 text-sm">
+                  {order.holderName ?? order.id.slice(0, 8).toUpperCase()} · {money(order.totalCents)}
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void onSettleHeld(order, "cash")}
+                    className="rounded-lg bg-black px-2 py-1 text-xs font-medium text-white disabled:opacity-40"
+                  >
+                    Cash
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void onSettleHeld(order, "card")}
+                    className="rounded-lg border border-black/20 px-2 py-1 text-xs disabled:opacity-40"
+                  >
+                    Card
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {settleError ? <p className="mt-2 text-xs text-red-700">{settleError}</p> : null}
       </section>
 
       {/* The list */}

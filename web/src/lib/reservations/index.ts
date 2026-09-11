@@ -43,7 +43,7 @@ export {
 } from "./windows";
 
 export type { BookEntry, BookRow, BookState, BookSummary } from "./book";
-export { ARRIVING_WINDOW_MINUTES, bookState, buildBook, summariseBook } from "./book";
+export { ARRIVING_WINDOW_MINUTES, bookSpan, bookState, buildBook, summariseBook } from "./book";
 
 export type { DueReminder, ReminderKind, RemindableReservation } from "./reminders";
 export {

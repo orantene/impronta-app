@@ -1,0 +1,16 @@
+{
+  "note": "Ceilings for scripts/app-bundle-budget.mjs. Uncompressed bytes, unioned client chunks per route prefix, measured from a real `next build`. Raising a ceiling is allowed and is meant to be an argument: put what it bought in `why`, in the SAME commit that spends it. Re-measure with `npm run build && node scripts/app-bundle-budget.mjs --record`.",
+  "recordedAt": "2026-09-09",
+  "budgets": {
+    "admin": {
+      "maxBytes": 10094025,
+      "measuredBytes": 9569737,
+      "why": "Recorded at the commit that introduced this gate: 9.13 MB uncompressed, the union of the client chunks across all 75 routes under the /admin prefix, dominated by the admin shell every one of them shares. Headroom is 512 KB (~5%) — roughly one substantial new screen, and deliberately not generous, because growth in a UNION means the SHARED shell grew and that is the thing worth being asked about. This is a prefix total, i.e. an upper bound on any single route, not a first-load number."
+    },
+    "pos": {
+      "maxBytes": 9613528,
+      "measuredBytes": 9351384,
+      "why": "8.92 MB uncompressed for the register route's client graph. Headroom is 256 KB, half of admin's, on purpose: this is the tablet-on-venue-wifi surface, and the five POS modes the blueprints specify are supposed to SPLIT this bundle rather than add to it. A mode landing here should show up as a ceiling argument, not as slack already waiting."
+    }
+  }
+}

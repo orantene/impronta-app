@@ -313,7 +313,32 @@ const BUDGETS: Record<string, number> = {
   //   +2 Sessions "Schedule" — PAGE_META entry + WORKSPACE_PAGES nav entry
   //   +1 Events — PAGE_META entry (no WORKSPACE_PAGES line; its rail door is deferred)
   // Number finalized against the consolidated tree's wc -l.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5155,
+  // +1 POS "New sale" — PAGE_META entry required by Record<WorkspacePage>.
+  // +2 P5 — PAGE_META entries for Tables and Preparation (Record<WorkspacePage>).
+  // +5 (blueprint-parity M0): the Sell rail landed five WORKSPACE_PAGES entries
+  // — sales, discounts, pos, tables, preparation — whose PAGE_META rows were
+  // already budgeted above but whose nav-list lines were not, so the recorded
+  // number was short by exactly the nav list. Both halves are mandatory: the
+  // union makes PAGE_META exhaustive and WORKSPACE_PAGES is what the rail is a
+  // projection of, so a page in one and not the other is either a compile error
+  // or an unreachable screen. Re-recorded rather than extracted for the reason
+  // given on the Orders line: the diff is +1/-0 per entry with nothing to trim.
+  // 2026-09-09 T2 (registry-driven rail): +21. WORKSPACE_PAGES and
+  // resolveWorkspacePage SHRANK — both are now one-line projections of
+  // `lib/workspace/page-ids.ts` — but PAGE_META grew, because the union it is
+  // exhaustive over gained the nine registry ids the shell had no rows for
+  // (appts, catalog, people, spaces, issues, projects, mywork, payments,
+  // exceptions), each needing a `pageMeta(...)` line, plus the helper and the
+  // note explaining why the table is exhaustive by TYPE. The labels and icons
+  // inside those rows are no longer written here at all: they come from the
+  // registry, so this table can no longer disagree with the rail about what a
+  // page is called. Re-recorded rather than extracted — an exhaustive Record is
+  // the compile-time proof, and moving it out of the module that owns the page
+  // vocabulary would buy lines and lose that.
+    // Merged with main twice on 2026-09-10 while the pull request was open; the
+  // budget is the merged file's measured size, which CI checks on the merge
+  // rather than on the head alone.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5185,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -368,7 +393,37 @@ const BUDGETS: Record<string, number> = {
   // 2026-08-18 Website Analytics page (W2): +1 for the Spanish entry of the
   // new "Analytics" sub-nav label — ES_TEXT is keyed by the English literal,
   // so it cannot live beside the nav item.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3536,
+  // +5 POS PAGE_META copy.t strings (New sale + description).
+  // +4 P5 PAGE_META copy.t strings (Tables, Preparation + descriptions).
+  // +19 (blueprint-parity M0): Spanish for the five Sell rail entries and their
+  // descriptions, plus the calendar-sync rewrite. The sync strings are a
+  // REPLACEMENT, not an addition — the old drawer promised "two-way sync, last
+  // synced 4 minutes ago" over a hardcoded URL and disabled buttons, and the
+  // read-only iCal subscription that replaced it needs its own sentences
+  // because the old ones were describing something that did not exist. ES_TEXT
+  // is a flat map keyed by the English literal, so a translated string has
+  // nowhere to live except here.
+  // 2026-09-09 T2: +25. Spanish for every label the registry-driven rail can
+  // render — nine destination labels the old template never showed (Appointments,
+  // Reservations, Orders, Issues, Events, Spaces, People, Projects, My work),
+  // the "Menu and catalog" preset label, and the six People/Appointments
+  // sub-view labels that land the day those destinations move to their own
+  // segments. ES_TEXT is a flat map keyed by the English literal, so a
+  // translated nav string has nowhere else to live. The inline
+  // `copy.isSpanish ? … : …` sub-item strings this replaces were in
+  // WorkspaceShell.tsx, which lost 251 lines.
+  // T2-mobile: +19 lines — Spanish entries for the registry-driven labels
+  // and More-sheet rows MobileBottomNav.tsx now needs (Appointments,
+  // Reservations, Spaces, Issues, People, Events, Owner, Assistant, Menu and
+  // catalog, Orders, Open POS, Book, Bookable, Applications, Everyone).
+  // Both landed together, so the budget is the measured size of the merged
+  // file rather than either branch's number.
+  // 2026-09-10 P4 people: +4 — one ES_TEXT entry ("Unnamed person") for the
+  // member the bridge reader returns with an empty display_name, plus the three
+  // comment lines saying why an empty name is printed rather than a user id.
+  // ES_TEXT is a flat map keyed by the English literal; a translated string has
+  // nowhere else to live, so there is nothing here to extract.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3601,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
@@ -450,15 +505,26 @@ const BUDGETS: Record<string, number> = {
   // and the note recording why a bare completeness percentage was replaced by
   // the unmet requirement labels ("Still needs: a bio, 1 language") drawn from
   // the same gate the Publish button enforces.
-  "src/components/admin/shell/internal/state/types.ts": 2882,
+  // +2 POS — WorkspacePage union member `pos` (P3 New Sale).
+  // +2 P5 — WorkspacePage union members `tables` and `preparation`.
+  // 2026-09-09 T2: +4. The WorkspacePage union stopped being a literal member
+  // list and became `DestinationId | LegacyWorkspacePage` — one line for the
+  // derivation, thirteen for the legacy segments still in the wild, and the
+  // note saying why deriving it turns a missed registration into a compile
+  // error. Net +4 against the 29 literals it replaced.
+  "src/components/admin/shell/internal/state/types.ts": 2890,
   // 2026-09-09 messages mobile pass: the ≤720px messages stylesheet (360
   // lines, no interpolation, a self-contained concern) moved out to
   // internal/messages-mobile-css.ts rather than growing this file past its
   // budget to hold the new rules. Net 2430 -> 2182; lowered so the win is
+  // locked in instead of becoming headroom. The journeys merge does not touch
+  // this file, so the lowered budget carries over unchanged.
   // locked in instead of becoming headroom.
   // 2026-09-10 iOS touch-scroll fix: +3 (two properties + a one-line pointer)
   // on the surface-main mobile rule. The rationale lives in the commit, not
   // here, precisely so this budget moves by the fix and not by commentary.
+  // Merged with main on 2026-09-10: main raised this by three lines for the
+  // signup work; the budget is the merged file's measured size.
   "src/components/admin/shell/admin-shell-client.tsx": 2185,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type
@@ -475,7 +541,13 @@ const BUDGETS: Record<string, number> = {
   // +41 for workspace_type: the bridge field, visiblePages, and the
   // clamped page setters. Logic lives in lib/saas/workspace-type.ts;
   // the prose that was here moved there too.
-  "src/components/admin/shell/internal/state/context.tsx": 2450,
+  // 2026-09-10 T2 merge: +1. Two branches each added one bridge field to the
+  // shell context (the workspace industry preset for the rail's preset
+  // labels, and the enabled point-of-sale modes for the phone's Open POS
+  // row). Either alone fit; together they are one line over. Both are
+  // single fields threaded through, with their logic in lib/workspace and
+  // lib/pos, so there is nothing here to extract.
+  "src/components/admin/shell/internal/state/context.tsx": 2451,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,

@@ -20,96 +20,156 @@ import { useDashboardText } from "../dashboard-i18n";
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
+/**
+ * Calendar sync — a real read-only subscription, and nothing it cannot do.
+ *
+ * WHAT THIS REPLACED. A hardcoded URL
+ * (`app.tulala.digital/cal/export/impronta-oran.ics?token=abc123`) with no
+ * route behind it, next to "Google Calendar · Two-way sync · Last synced 4 min
+ * ago" and two permanently disabled buttons. Every part of that was false: the
+ * URL never resolved, nothing was ever synced, and the Google row was a
+ * `connected: true` literal. An operator who trusted it subscribed to a dead
+ * link and then waited for bookings that could never arrive.
+ *
+ * WHY THE PROVIDER ROWS ARE GONE RATHER THAN FIXED. Two-way sync needs OAuth
+ * per provider, a write-authority decision (whose copy wins when both change),
+ * and conflict handling. That is a milestone, not a button. Leaving a
+ * "Connect" control that opens nothing is what produced this defect the first
+ * time; the honest surface is the one mechanism that works, described as what
+ * it is.
+ *
+ * WHY THE URL IS SHOWN ONCE. Only the token's hash is stored, so it cannot be
+ * redisplayed. The drawer says so before the operator generates it, because
+ * "copy this now, it will not be shown again" is only fair as a warning — as a
+ * discovery it is a support ticket.
+ */
 export function CalendarSyncDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "calendar-sync";
   const copy = useDashboardText();
   const tt = copy.t;
 
-  const ICAL_URL = "https://app.tulala.digital/cal/export/impronta-oran.ics?token=abc123";
-  const INTEGRATIONS = [
-    { name: "Google Calendar",       icon: "calendar" as const, connected: true,  note: "Two-way sync · Last synced 4 min ago" },
-    { name: "Apple Calendar (iCal)", icon: "calendar" as const, connected: false, note: "Subscribe via URL below" },
-    { name: "Outlook / Office 365",  icon: "calendar" as const, connected: false, note: "Connect via Microsoft OAuth" },
-  ];
+  const [feedUrl, setFeedUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // The URL is a live credential. Closing the drawer drops it from memory so
+  // reopening does not redisplay a secret the operator may have walked away
+  // from, and so the screen never disagrees with "shown once".
+  useEffect(() => {
+    if (!open) setFeedUrl(null);
+  }, [open]);
+
+  const issue = useCallback(async () => {
+    setBusy(true);
+    try {
+      const { issueCalendarFeedUrl } = await import("@/lib/calendar/feed-actions");
+      const result = await issueCalendarFeedUrl();
+      if (!result.ok) {
+        toast(result.error);
+        return;
+      }
+      setFeedUrl(result.url);
+    } catch {
+      toast(tt("Could not create a subscription URL."));
+    } finally {
+      setBusy(false);
+    }
+  }, [toast, tt]);
+
+  const disconnect = useCallback(async () => {
+    setBusy(true);
+    try {
+      const { disconnectCalendarFeed } = await import("@/lib/calendar/feed-actions");
+      const result = await disconnectCalendarFeed();
+      if (!result.ok) {
+        toast(result.error ?? tt("Could not stop the subscription."));
+        return;
+      }
+      setFeedUrl(null);
+      toast(tt("Subscription stopped. Calendars will stop updating."));
+    } catch {
+      toast(tt("Could not stop the subscription."));
+    } finally {
+      setBusy(false);
+    }
+  }, [toast, tt]);
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title={tt("Calendar sync")}
-      description={tt("Sync your Tulala bookings with your personal calendar. Changes appear within 5 minutes.")}
+      description={tt("Subscribe to your workspace bookings and event nights from any calendar app. One direction: Tulala sends, your calendar receives.")}
       footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
       defaultSize="half"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-        {/* Integrations */}
         <div>
-          <CapsLabel>{tt("Connected calendars")}</CapsLabel>
-          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
-            {INTEGRATIONS.map((intg) => (
-              <div
-                key={intg.name}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "12px 14px", background: COLORS.surfaceAlt,
-                  borderRadius: RADIUS.md, border: `1px solid ${intg.connected ? accentAlpha("44") : COLORS.borderSoft}`,
-                }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Icon name={intg.icon} size={16} color={intg.connected ? COLORS.accent : COLORS.inkMuted} stroke={1.6} />
-                  <div>
-                    <div className="text-admin-ink text-admin-13 font-semibold">{intg.name}</div>
-                    <div style={{ fontSize: 11, color: intg.connected ? COLORS.successDeep : COLORS.inkMuted, marginTop: 1 }}>
-                      {tt(intg.note)}
-                    </div>
-                  </div>
+          <CapsLabel>{tt("Subscription URL")}</CapsLabel>
+          <div style={{ marginTop: 8, fontSize: 12.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
+            {tt("Works in Google Calendar, Apple Calendar, Outlook and anything else that reads an iCal subscription. Your calendar app decides how often it checks; most check every few hours.")}
+          </div>
+
+          {feedUrl ? (
+            <>
+              <div className="flex gap-2">
+                <div style={{ flex: 1, fontSize: 11.5, fontFamily: "monospace", border: `1px solid ${COLORS.border}`, padding: "8px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink bg-admin-surface-alt rounded-admin-sm">
+                  {feedUrl}
                 </div>
                 <button
                   type="button"
-                  disabled
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(feedUrl)
+                      .then(() => toast(tt("Subscription URL copied")))
+                      .catch(() => toast(tt("Couldn't copy, copy manually")));
+                  }}
                   style={{
-                    padding: "5px 12px", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
-                    color: COLORS.inkMuted,
-                    background: "transparent",
-                    border: `1px solid ${COLORS.borderSoft}`,
-                    borderRadius: RADIUS.sm, cursor: "default", opacity: 0.5,
+                    padding: "7px 12px", background: COLORS.fill, border: "none",
+                    borderRadius: RADIUS.sm, color: "#fff", fontFamily: FONTS.body,
+                    fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0,
                   }}
                 >
-                  {intg.connected ? tt("Disconnect") : tt("Connect")}
+                  {tt("Copy")}
                 </button>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* iCal subscription URL */}
-        <div>
-          <CapsLabel>{tt("iCal subscription URL")}</CapsLabel>
-          <div style={{ marginTop: 8, fontSize: 12.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            {tt("Add this URL to any calendar app that supports iCal subscriptions (Apple Calendar, Outlook, Fantastical). Read-only, updates every 15 minutes.")}
-          </div>
-          <div className="flex gap-2">
-            <div style={{ flex: 1, fontSize: 11.5, fontFamily: "monospace", border: `1px solid ${COLORS.border}`, padding: "8px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink bg-admin-surface-alt rounded-admin-sm">
-              {ICAL_URL}
-            </div>
+              <div style={{ marginTop: 8, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
+                {tt("Copy it now — it is not shown again. Anyone with this link can read your workspace calendar, so treat it like a password.")}
+              </div>
+            </>
+          ) : (
             <button
               type="button"
-              onClick={() => {
-                void navigator.clipboard
-                  .writeText(ICAL_URL)
-                  .then(() => toast(tt("iCal URL copied")))
-                  .catch(() => toast(tt("Couldn't copy, copy manually")));
-              }}
+              onClick={() => void issue()}
+              disabled={busy}
               style={{
-                padding: "7px 12px", background: COLORS.fill, border: "none",
-                borderRadius: RADIUS.sm, color: "#fff", fontFamily: FONTS.body,
-                fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+                padding: "9px 18px", background: COLORS.fill, border: "none",
+                borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+                fontSize: 13, fontWeight: 600, cursor: busy ? "wait" : "pointer",
+                opacity: busy ? 0.6 : 1,
               }}
             >
-              {tt("Copy")}
+              {tt("Generate subscription URL")}
             </button>
+          )}
+        </div>
+
+        <div>
+          <CapsLabel>{tt("Stop syncing")}</CapsLabel>
+          <div style={{ marginTop: 8, fontSize: 12.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
+            {tt("Stops every calendar you have subscribed. Generating a new URL also stops the old one.")}
           </div>
+          <SecondaryButton onClick={() => void disconnect()}>
+            {tt("Stop the subscription")}
+          </SecondaryButton>
+        </div>
+
+        <div style={{
+          padding: "10px 14px", background: COLORS.indigoSoft,
+          borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
+          fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
+        }}>
+          {tt("Read-only for now. Moving an event in your own calendar does not move the booking in Tulala — two-way sync is not built yet, and a control that pretended otherwise is what this screen used to be.")}
         </div>
       </div>
     </DrawerShell>

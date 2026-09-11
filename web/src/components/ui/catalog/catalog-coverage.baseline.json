@@ -1,0 +1,25 @@
+{
+  "note": "Primitives in src/components/ui/ that are NOT in the catalog registry, and therefore are never rendered by the axe lane. Recorded, not accepted. The guard fails when this list GROWS — a NEW primitive must be registered. Shrinking is the point; re-record the count in the same commit that registers one.",
+  "count": 19,
+  "unregistered": [
+    "action-bar.tsx",
+    "command.tsx",
+    "count-badge.tsx",
+    "country-dial-picker.tsx",
+    "drawer.tsx",
+    "filter-chips.tsx",
+    "help-tip.tsx",
+    "info-tip.tsx",
+    "inline-toolbar.tsx",
+    "intl-phone-input.tsx",
+    "list-row.tsx",
+    "popover.tsx",
+    "resizable-drawer.tsx",
+    "section-header.tsx",
+    "sheet.tsx",
+    "smart-image.tsx",
+    "textarea.tsx",
+    "tooltip.tsx",
+    "user-avatar.tsx"
+  ]
+}

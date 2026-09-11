@@ -78,12 +78,21 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   takesReservations: false,
   // No tenant, no events. False as a fact.
   runsEvents: false,
+  // No `agencies` row, so no industry preset. Null as a fact; the nav shapes
+  // it reads are a workspace-rail concern and this surface has no rail.
+  industryPreset: null,
   logoUrl: null,
   accentColor: null,
   verifiedDomain: null,
   defaultCoordinatorUserId: null,
   inquiryCoordinatorTalentIds: [],
   networkRequestedAt: null,
+  // No tenant, so no `agencies.settings` blob and no point of sale to reach
+  // from here. Empty as a FACT (this surface has no location to sell from),
+  // not as a stand-in for "we did not look" — which is why the shell's
+  // `readWorkspacePosBridge` defaults an ABSENT list to ["counter"] and leaves
+  // an explicit empty one alone.
+  posModes: [],
 };
 
 export default async function PlatformTalentLayout({

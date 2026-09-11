@@ -20,7 +20,8 @@ export type InstantBookRunPayload = {
 
 export type InstantBookRunActor = {
   kind: "session" | "guest";
-  userId: string;
+  /** `null` for a guest with no account. Never invented; see instant-book-guest-policy.ts. */
+  userId: string | null;
   contactName: string;
   contactEmail: string;
   contactPhone: string | null;
@@ -44,7 +45,7 @@ export type InstantBookRunResult =
     };
 
 export type InstantEngineResult =
-  | { ok: true; inquiryId: string; bookingId: string }
+  | { ok: true; inquiryId: string; bookingId: string; checkoutUrl?: string | null }
   | {
       ok: false;
       reason: string;
@@ -73,7 +74,9 @@ export function mapEngineFail(res: Extract<InstantEngineResult, { ok: false }>):
               ? res.error ?? "This plan cannot auto-confirm. Send a request or upgrade."
               : res.reason === "slot_required"
                 ? res.error ?? "Pick a time to book this service."
-                : "We couldn't complete the booking. Please try the inquiry option instead.";
+                : res.error?.trim()
+                  ? res.error
+                  : "We couldn't complete the booking. Please try the inquiry option instead.";
   return {
     ok: false,
     error: msg,
@@ -110,7 +113,10 @@ export async function runResolvedInstantBook(input: {
     ok: true,
     inquiryId: res.inquiryId,
     bookingId: res.bookingId,
-    redirectPath: `/c/${res.inquiryId}?instant_booked=1`,
+    redirectPath:
+      res.checkoutUrl && res.checkoutUrl.trim()
+        ? res.checkoutUrl
+        : `/c/${res.inquiryId}?instant_booked=1`,
     guest: actor.kind === "guest",
   };
 }

@@ -1,0 +1,46 @@
+[
+ {
+  "transaction_id": "7ae0ffac-f708-4a0e-b568-769c1ee86783",
+  "order_id": "1b699f6c-2f2d-451e-a1d1-e5db4dde93ba",
+  "status": "paid",
+  "gross_amount_cents": "30000",
+  "provider": "manual",
+  "paid_via": "cash",
+  "shift_id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+  "operation_key": null,
+  "created_at": "2026-09-10T21:35:16.124Z"
+ },
+ {
+  "transaction_id": "b753fb8b-95fe-4013-a2ed-ad260f6cece2",
+  "order_id": "1b699f6c-2f2d-451e-a1d1-e5db4dde93ba",
+  "status": "paid",
+  "gross_amount_cents": "25000",
+  "provider": "manual",
+  "paid_via": "cash",
+  "shift_id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+  "operation_key": null,
+  "created_at": "2026-09-10T21:39:32.070Z"
+ },
+ {
+  "transaction_id": "6dc83ee2-83ca-4759-8533-d28b93a6f7d1",
+  "order_id": "1b699f6c-2f2d-451e-a1d1-e5db4dde93ba",
+  "status": "paid",
+  "gross_amount_cents": "12500",
+  "provider": "manual",
+  "paid_via": "cash",
+  "shift_id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+  "operation_key": null,
+  "created_at": "2026-09-10T21:41:03.639Z"
+ },
+ {
+  "transaction_id": "9244fd27-dcd5-4131-afa0-d33d819cc23a",
+  "order_id": "1b699f6c-2f2d-451e-a1d1-e5db4dde93ba",
+  "status": "paid",
+  "gross_amount_cents": "6250",
+  "provider": "manual",
+  "paid_via": "cash",
+  "shift_id": "ad377f08-8a65-41f1-9f41-67dea7e8ef91",
+  "operation_key": null,
+  "created_at": "2026-09-10T21:52:54.518Z"
+ }
+]

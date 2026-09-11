@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ticket_picker — the guest buys a ticket (E5 step 4, CARD ONLY).
+ * ticket_picker — the guest buys a ticket (E5 step 4, card or pay-at-door).
  *
  * THE ONE RULE: this block never renders a buy control it cannot complete.
  * It shows exactly one of a WORKING purchase (a scheduled night, a tier on
@@ -59,6 +59,14 @@ const COPY: Record<Locale, Record<string, string>> = {
     email: "Email",
     emailHelp: "Your ticket goes here. If you cannot open it, we will find you by name at the door.",
     emailPlaceholder: "you@email.com",
+    promo: "Promo code",
+    promoPlaceholder: "If you have one",
+    promo_unknown: "That code is not recognised.",
+    promo_not_started: "That code is not active yet.",
+    promo_expired: "That code has ended.",
+    promo_exhausted: "That code has been used up.",
+    promo_customer_limit: "You have already used that code.",
+    promo_not_applicable: "That code does not apply to this order.",
     name: "Name",
     namePlaceholder: "Your name",
     buy: "Buy with card",
@@ -88,6 +96,11 @@ const COPY: Record<Locale, Record<string, string>> = {
     pay_at_door_not_offered: "Paying at the door is not offered for that night.",
     emailRequired: "We need an email to send your ticket to.",
     not_found: "We could not find that order. Nothing was charged.",
+    ageGate: "Age check",
+    ageConfirm: "I am {n} or over",
+    ageHelp: "Bring ID. Staff check at the door, and a ticket without ID is not admitted.",
+    age_gate_unconfirmed: "Please confirm your age to continue.",
+    age_gate_below_minimum: "This one has an age limit, so we cannot sell it to you.",
   },
   es: {
     heading: "Entradas",
@@ -130,8 +143,21 @@ const COPY: Record<Locale, Record<string, string>> = {
     engine_error: "Algo falló de nuestro lado. No se cobró nada.",
     pay_at_door_not_yet: "Pagar en la puerta aún no está disponible en línea. Pagá con tarjeta, o en la puerta esa noche.",
     pay_at_door_not_offered: "Pagar en la puerta no se ofrece para esa noche.",
+    promo: "Código promocional",
+    promoPlaceholder: "Si tenés uno",
+    promo_unknown: "Ese código no se reconoce.",
+    promo_not_started: "Ese código todavía no está activo.",
+    promo_expired: "Ese código ya terminó.",
+    promo_exhausted: "Ese código ya se usó por completo.",
+    promo_customer_limit: "Ya usaste ese código.",
+    promo_not_applicable: "Ese código no aplica a este pedido.",
     emailRequired: "Necesitamos un correo para enviarte la entrada.",
     not_found: "No encontramos ese pedido. No se cobró nada.",
+    ageGate: "Control de edad",
+    ageConfirm: "Tengo {n} años o más",
+    ageHelp: "Traé documento. En la puerta lo revisan, y sin documento no se entra.",
+    age_gate_unconfirmed: "Confirmá tu edad para continuar.",
+    age_gate_below_minimum: "Esta entrada tiene límite de edad, así que no te la podemos vender.",
   },
 };
 
@@ -184,7 +210,7 @@ export interface TicketPickerIslandProps {
    * Director's file review) shows a real state instead of "loading". Never
    * set on a live page; when set, no action is called.
    */
-  preload?: { eventTitle: string; currency: string; timeZone: string | null; tiers: PickerTier[]; nights: PickerNight[] } | null;
+  preload?: { eventTitle: string; currency: string; timeZone: string | null; tiers: PickerTier[]; nights: PickerNight[]; ageGate?: number | null } | null;
 }
 
 function formatWhen(iso: string, timeZone: string | null, locale: Locale): string {
@@ -202,7 +228,7 @@ function money(cents: number, currency: string, locale: Locale, freeLabel: strin
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type Loaded = { eventTitle: string; currency: string; timeZone: string | null; tiers: PickerTier[]; nights: PickerNight[] };
+type Loaded = { eventTitle: string; currency: string; timeZone: string | null; tiers: PickerTier[]; nights: PickerNight[]; ageGate: number | null };
 
 export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }: TicketPickerIslandProps) {
   const loc = pickLocale(locale);
@@ -211,25 +237,27 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
   // the block with no event sees why, not an outage.
   const configured = UUID.test(tenantId) && UUID.test(eventId);
 
-  const [data, setData] = useState<Loaded | null>(preload ?? null);
+  const [data, setData] = useState<Loaded | null>(preload ? { ...preload, ageGate: preload.ageGate ?? null } : null);
   const [loadRefusal, setLoadRefusal] = useState<string | null>(null);
   const [night, setNight] = useState<string | null>(null);
   const [tier, setTier] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [promo, setPromo] = useState("");
   const [orderKey, setOrderKey] = useState(() => newOrderKey());
   const [busy, setBusy] = useState<"idle" | "holding" | "redirecting">("idle");
   const [refusal, setRefusal] = useState<string | null>(null);
   const [payHow, setPayHow] = useState<"full" | "in_person">("full");
   const [held, setHeld] = useState<{ receiptCode: string | null } | null>(null);
+  const [ageOk, setAgeOk] = useState(false);
 
   const load = useCallback(async () => {
     if (!configured || preload) return;
     try {
       const { loadTicketPicker } = await import("@/app/(public)/_events/ticket-picker-actions");
       const res = await loadTicketPicker({ tenantId, eventId });
-      if (res.ok) { setData({ eventTitle: res.eventTitle, currency: res.currency, timeZone: res.timeZone, tiers: res.tiers, nights: res.nights }); setLoadRefusal(null); }
+      if (res.ok) { setData({ eventTitle: res.eventTitle, currency: res.currency, timeZone: res.timeZone, tiers: res.tiers, nights: res.nights, ageGate: res.ageGate }); setLoadRefusal(null); }
       else { setData(null); setLoadRefusal(t(res.reason)); }
     } catch { setData(null); setLoadRefusal(t("unavailable")); }
   }, [configured, preload, tenantId, eventId, loc]);
@@ -243,7 +271,12 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
     [data, chosenNight],
   );
   const chosenTier = offeredTiers.find((x) => x.variantId === tier) ?? null;
-  const canBuy = Boolean(chosenNight && chosenTier) && busy === "idle";
+  // The strictest minimum that applies to what is actually selected. Computed
+  // the same way the server computes it, and shown for the same reason the
+  // server refuses without it: a gate nobody is asked about is decoration,
+  // which is exactly what this was before.
+  const ageGate = Math.max(data?.ageGate ?? 0, chosenTier?.ageGate ?? 0) || null;
+  const canBuy = Boolean(chosenNight && chosenTier) && (!ageGate || ageOk) && busy === "idle";
   const showQty = Boolean(chosenTier && (chosenTier.minPerOrder !== 1 || chosenTier.maxPerOrder !== 1));
 
   async function buy() {
@@ -255,7 +288,11 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
       const choice = chosenNight.door.offered ? payHow : "full";
       const res = await startTicketPurchase({
         tenantId, eventId, sessionId: chosenNight.sessionId, variantId: chosenTier.variantId, units: qty,
-        email: email.trim(), displayName: name.trim() || undefined, clientOrderKey: orderKey, paymentChoice: choice, locale: loc,
+        email: email.trim(), displayName: name.trim() || undefined, promoCode: promo.trim() || undefined, clientOrderKey: orderKey, paymentChoice: choice, locale: loc,
+        // Sent only when a gate applies AND the box is ticked. The server
+        // refuses a gated basket that arrives without it, so an unticked box is
+        // a refusal there rather than a silent sale here.
+        confirmedAge: ageGate && ageOk ? ageGate : undefined,
       });
       if (!res.ok) {
         setRefusal(t(res.reason === "quantity" ? "quantity_err" : res.reason));
@@ -381,7 +418,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
                           name="tier"
                           value={x.variantId}
                           checked={on}
-                          onChange={() => { setTier(x.variantId); setQty(Math.max(1, x.minPerOrder)); setRefusal(null); }}
+                          onChange={() => { setTier(x.variantId); setQty(Math.max(1, x.minPerOrder)); setRefusal(null); setAgeOk(false); }}
                         />
                         <span className="tp-choice-copy">
                           <span className="tp-choice-title">{x.label}</span>
@@ -450,6 +487,21 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
                   placeholder={t("namePlaceholder")}
                 />
               </label>
+              <label>
+                <span className="tp-field-label">{t("promo")}</span>
+                <input
+                  className="tp-field"
+                  type="text"
+                  name="promo"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={promo}
+                  onChange={(e) => setPromo(e.target.value)}
+                  disabled={busy !== "idle"}
+                  placeholder={t("promoPlaceholder")}
+                  aria-label={t("promo")}
+                />
+              </label>
               {chosenNight?.door.offered ? (
                 <div role="radiogroup" aria-label={t("payHow")}>
                   <div className="tp-label">{t("payHow")}</div>
@@ -466,6 +518,24 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
                       </span>
                     </label>
                   </div>
+                </div>
+              ) : null}
+              {ageGate ? (
+                <div data-ticket-picker="age-gate">
+                  <div className="tp-label">{t("ageGate")}</div>
+                  <label className="tp-choice" data-on={ageOk ? "1" : undefined}>
+                    <input
+                      className="tp-radio"
+                      type="checkbox"
+                      checked={ageOk}
+                      onChange={(e) => { setAgeOk(e.target.checked); setRefusal(null); }}
+                      disabled={busy !== "idle"}
+                    />
+                    <span className="tp-choice-copy">
+                      <span className="tp-choice-title">{t("ageConfirm").replace("{n}", String(ageGate))}</span>
+                      <span className="tp-choice-meta">{t("ageHelp")}</span>
+                    </span>
+                  </label>
                 </div>
               ) : null}
               <button type="button" className="tp-cta" onClick={() => void buy()} disabled={!canBuy}>

@@ -29,6 +29,8 @@ The operating contract for this repo. Every contributor — human or agent — r
 
 ## 3. The deploy ladder
 
+> **Stale as written.** Canonical deploy is `CLAUDE.md`: branch off `main`, PR, merge. Merging to `main` builds a preview. Production ships when the `production` pointer fast-forwards after CI is green on that commit. `stable-work` is retired. Do not push to `stable-work`.
+
 ```
 local → push to stable-work → Vercel builds preview → (optional) alias to staging.tulala.digital → vercel promote → ghost-domain alias → smoke-test
 ```
@@ -71,7 +73,7 @@ local → push to stable-work → Vercel builds preview → (optional) alias to 
 ## 6. Vercel
 
 - Project `tulala`, team `oran-tenes-projects`, Hobby plan.
-- Push to `stable-work` builds **preview**, not production. Manual `vercel promote` for prod.
+- Push to any branch other than `production` builds **preview**, not production. `main` is also a preview. Production is the CI-gated `production` pointer. Manual `vercel promote` is rollback/hotfix only.
 - 9 production env vars set in Vercel dashboard. Updating env: dashboard → Settings → Environment Variables, then update `web/.env.example` in the same commit.
 - No `vercel.json`. All config in dashboard.
 - 2FA on Vercel: enable before launch.

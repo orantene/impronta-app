@@ -1,0 +1,268 @@
+{
+  "at": "2026-09-10T19:50:51.904Z",
+  "pos_settings": {
+    "pos": {
+      "locations": {
+        "default": {
+          "modes": [
+            "floor"
+          ]
+        }
+      }
+    }
+  },
+  "spaces": [
+    {
+      "id": "33330011-0000-4000-8000-000000000014",
+      "code": "B1",
+      "name": "Booth 1",
+      "party_min": 4,
+      "party_max": 6,
+      "needs_reset_at": null
+    },
+    {
+      "id": "33330011-0000-4000-8000-000000000002",
+      "code": "R1",
+      "name": "Room A",
+      "party_min": 1,
+      "party_max": 2,
+      "needs_reset_at": null
+    },
+    {
+      "id": "33330011-0000-4000-8000-000000000001",
+      "code": "T1",
+      "name": "Table 1",
+      "party_min": 1,
+      "party_max": 4,
+      "needs_reset_at": null
+    },
+    {
+      "id": "33330011-0000-4000-8000-000000000011",
+      "code": "T2",
+      "name": "Table 2",
+      "party_min": 1,
+      "party_max": 2,
+      "needs_reset_at": null
+    },
+    {
+      "id": "33330011-0000-4000-8000-000000000012",
+      "code": "T3",
+      "name": "Table 3",
+      "party_min": 1,
+      "party_max": 2,
+      "needs_reset_at": null
+    },
+    {
+      "id": "33330011-0000-4000-8000-000000000013",
+      "code": "T4",
+      "name": "Table 4",
+      "party_min": 2,
+      "party_max": 4,
+      "needs_reset_at": null
+    },
+    {
+      "id": "33330011-0000-4000-8000-000000000015",
+      "code": "T5",
+      "name": "Table 5",
+      "party_min": 1,
+      "party_max": 2,
+      "needs_reset_at": null
+    }
+  ],
+  "visits": [
+    {
+      "id": "8001d396-0bbb-494a-9951-2fa4f6934de6",
+      "space_id": "33330011-0000-4000-8000-000000000011",
+      "joined_space_id": "33330011-0000-4000-8000-000000000012",
+      "status": "closed",
+      "party_size": 4,
+      "service_kind": "table",
+      "opened_at": "2026-09-10T19:50:22.615+00:00",
+      "closed_at": "2026-09-10T19:50:27.379+00:00",
+      "version": 2
+    },
+    {
+      "id": "08d5551c-ac46-4135-97bb-2313b453234c",
+      "space_id": "33330011-0000-4000-8000-000000000015",
+      "joined_space_id": null,
+      "status": "closed",
+      "party_size": 2,
+      "service_kind": "table",
+      "opened_at": "2026-09-10T19:48:52.854+00:00",
+      "closed_at": "2026-09-10T19:49:54.615+00:00",
+      "version": 3
+    },
+    {
+      "id": "580b909e-931d-4474-b93e-b67a2c2b7049",
+      "space_id": "33330011-0000-4000-8000-000000000013",
+      "joined_space_id": null,
+      "status": "closed",
+      "party_size": 2,
+      "service_kind": "table",
+      "opened_at": "2026-09-10T19:47:23.667+00:00",
+      "closed_at": "2026-09-10T19:47:52.216+00:00",
+      "version": 1
+    },
+    {
+      "id": "f4e7ba9f-615e-4af6-957e-cda1edb5bb10",
+      "space_id": "33330011-0000-4000-8000-000000000015",
+      "joined_space_id": null,
+      "status": "closed",
+      "party_size": 2,
+      "service_kind": "table",
+      "opened_at": "2026-09-10T19:44:49.316+00:00",
+      "closed_at": "2026-09-10T19:45:46.878+00:00",
+      "version": 3
+    },
+    {
+      "id": "24eed080-1757-41d7-a902-50750af8a96c",
+      "space_id": "33330011-0000-4000-8000-000000000011",
+      "joined_space_id": "33330011-0000-4000-8000-000000000012",
+      "status": "closed",
+      "party_size": 4,
+      "service_kind": "table",
+      "opened_at": "2026-09-10T16:43:42.065+00:00",
+      "closed_at": "2026-09-10T16:43:44.988+00:00",
+      "version": 2
+    },
+    {
+      "id": "8ee1d76e-7010-4fcd-afc4-af5fec564b3e",
+      "space_id": "33330011-0000-4000-8000-000000000013",
+      "joined_space_id": null,
+      "status": "closed",
+      "party_size": 3,
+      "service_kind": "table",
+      "opened_at": "2026-09-10T16:41:43.299+00:00",
+      "closed_at": "2026-09-10T16:43:02.581+00:00",
+      "version": 2
+    },
+    {
+      "id": "43d39453-d024-471e-818b-6c904bf0abbf",
+      "space_id": "33330011-0000-4000-8000-000000000013",
+      "joined_space_id": null,
+      "status": "closed",
+      "party_size": 3,
+      "service_kind": "table",
+      "opened_at": "2026-09-10T16:40:20.43+00:00",
+      "closed_at": "2026-09-10T16:40:39.249+00:00",
+      "version": 1
+    },
+    {
+      "id": "567bd01d-8477-4413-bd1e-ed8918f51b18",
+      "space_id": "33330011-0000-4000-8000-000000000011",
+      "joined_space_id": "33330011-0000-4000-8000-000000000012",
+      "status": "closed",
+      "party_size": 4,
+      "service_kind": "table",
+      "opened_at": "2026-09-10T16:01:11.055+00:00",
+      "closed_at": "2026-09-10T16:01:15.146+00:00",
+      "version": 2
+    }
+  ],
+  "orders": [
+    {
+      "id": "cbcd60ff-22e0-40c9-a496-2de4d70ec845",
+      "status": "draft",
+      "total_cents": 0,
+      "currency": "USD",
+      "visit_id": "8001d396-0bbb-494a-9951-2fa4f6934de6",
+      "updated_at": "2026-09-10T19:50:22.823776+00:00"
+    },
+    {
+      "id": "13831392-2723-4224-b389-c59b9762321e",
+      "status": "paid",
+      "total_cents": 1800,
+      "currency": "USD",
+      "visit_id": "08d5551c-ac46-4135-97bb-2313b453234c",
+      "updated_at": "2026-09-10T19:49:42.699194+00:00"
+    },
+    {
+      "id": "64f772d4-2a00-401b-8a31-27b18c941100",
+      "status": "draft",
+      "total_cents": 0,
+      "currency": "USD",
+      "visit_id": "580b909e-931d-4474-b93e-b67a2c2b7049",
+      "updated_at": "2026-09-10T19:47:23.885062+00:00"
+    },
+    {
+      "id": "3c0840e1-1dd8-4d12-9478-a8617d515a58",
+      "status": "paid",
+      "total_cents": 1800,
+      "currency": "USD",
+      "visit_id": "f4e7ba9f-615e-4af6-957e-cda1edb5bb10",
+      "updated_at": "2026-09-10T19:45:37.264727+00:00"
+    },
+    {
+      "id": "4da70868-517f-4eaf-886f-d9fff6a98131",
+      "status": "draft",
+      "total_cents": 0,
+      "currency": "USD",
+      "visit_id": "24eed080-1757-41d7-a902-50750af8a96c",
+      "updated_at": "2026-09-10T16:43:42.187852+00:00"
+    },
+    {
+      "id": "54cca6e1-6c3d-4dfc-a6a8-216dc5ac6a98",
+      "status": "paid",
+      "total_cents": 3600,
+      "currency": "USD",
+      "visit_id": "8ee1d76e-7010-4fcd-afc4-af5fec564b3e",
+      "updated_at": "2026-09-10T16:42:39.820682+00:00"
+    }
+  ],
+  "tickets": [
+    {
+      "id": "82f05c6d-c01c-4180-bd21-2914eb9b34d9",
+      "order_id": "13831392-2723-4224-b389-c59b9762321e",
+      "visit_id": "08d5551c-ac46-4135-97bb-2313b453234c",
+      "destination": "table",
+      "status": "queued",
+      "revision": 1,
+      "submitted_at": "2026-09-10T19:49:16.397+00:00"
+    },
+    {
+      "id": "b64610f5-c7f5-4ef2-ba68-33fbc36a4c3b",
+      "order_id": "3c0840e1-1dd8-4d12-9478-a8617d515a58",
+      "visit_id": "f4e7ba9f-615e-4af6-957e-cda1edb5bb10",
+      "destination": "table",
+      "status": "queued",
+      "revision": 1,
+      "submitted_at": "2026-09-10T19:45:20.29+00:00"
+    },
+    {
+      "id": "5ec15cea-0b01-43a0-9283-85d0b0941210",
+      "order_id": "28b08aaf-38a3-4d83-8198-a331e084279a",
+      "visit_id": null,
+      "destination": "counter",
+      "status": "cancelled",
+      "revision": 1,
+      "submitted_at": "2026-09-10T16:44:47.219+00:00"
+    },
+    {
+      "id": "f9f93a27-9557-44ff-b59f-f8f3c01e4ea9",
+      "order_id": "96105ef4-2030-47ca-bd64-9b0ec29826e5",
+      "visit_id": null,
+      "destination": "counter",
+      "status": "cancelled",
+      "revision": 1,
+      "submitted_at": "2026-09-10T16:44:22.83+00:00"
+    },
+    {
+      "id": "9bbfaaea-f767-4e69-bf29-21cb90bf02bd",
+      "order_id": "54cca6e1-6c3d-4dfc-a6a8-216dc5ac6a98",
+      "visit_id": "8ee1d76e-7010-4fcd-afc4-af5fec564b3e",
+      "destination": "table",
+      "status": "cancelled",
+      "revision": 2,
+      "submitted_at": "2026-09-10T16:42:24.928+00:00"
+    },
+    {
+      "id": "a9e5b03e-f440-4c2c-92a2-3110d1845d79",
+      "order_id": "40253f37-f257-4c9c-9678-5453d984e1c6",
+      "visit_id": "43d39453-d024-471e-818b-6c904bf0abbf",
+      "destination": "table",
+      "status": "cancelled",
+      "revision": 1,
+      "submitted_at": "2026-09-10T16:40:31.815+00:00"
+    }
+  ]
+}

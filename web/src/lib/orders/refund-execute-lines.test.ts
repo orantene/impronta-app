@@ -27,6 +27,26 @@ test("a mid-plan failure after money moved is NOT a plain failure", () => {
   assert.match(SRC, /refundIds/, "and which refunds landed, so a human can reconcile");
 });
 
+test("what landed is named PER LEG, with the provider's own id", () => {
+  // A TOTAL AND A BAG OF IDS IS NOT AN ANSWER. `refundIds: ["re_1","re_2"]`
+  // plus `movedCents: 4000` sends a person to the provider's dashboard to work
+  // out which payment each id came off and for how much, and the plan that
+  // produced the split is gone the instant this returns. The step carries all
+  // three facts together, which is the only form that reconciles.
+  assert.match(SRC, /steps: RefundStep\[\]/, "the result must carry the legs, not just the ids");
+  assert.match(
+    SRC,
+    /steps\.push\(\{[\s\S]{0,200}transactionId: step\.transactionId[\s\S]{0,200}refundId: res\.refundId/,
+    "a leg must record its payment and the provider's refund id together",
+  );
+  // And the failed leg is named too: "money moved then something failed" is
+  // not actionable without knowing which payment still owes.
+  assert.match(SRC, /failedTransactionId: step\.transactionId/);
+  // The flat list is DERIVED from the legs rather than accumulated beside
+  // them, so the two can never disagree about what landed.
+  assert.match(SRC, /refundIds: steps\.map\(\(s\) => s\.refundId\)/);
+});
+
 test("a failure with NOTHING moved is retryable and says so", () => {
   // The distinction is the whole point: one is safe to retry unchanged, the
   // other must never be retried blind.
@@ -59,8 +79,61 @@ test("tickets are stamped through refund_admission, never by a bare update", () 
   );
 });
 
-test("an already-scanned or non-valid admission is skipped, not refunded", () => {
-  assert.match(SRC, /admitted_count\s*>\s*0/, "a scanned ticket is a dispute, not a refund");
+test("which admissions may be refunded is decided in ONE place", () => {
+  // The gate and the RPC's own guards have to agree about `valid`, `void` and
+  // a scanned ticket. It moved to `refund-admissions.ts` so the agreement is
+  // unit-testable against real inputs rather than asserted against source
+  // text here; see `admissionIsRefundable`. What this pins is that the
+  // executor does not grow a SECOND copy of the rule.
+  assert.match(SRC, /admissionIsRefundable\(/, "the executor asks the shared gate");
+  assert.doesNotMatch(
+    SRC,
+    /a\.status\s*!==\s*"valid"/,
+    "an inline status check here is a second answer to a settled question",
+  );
+});
+
+test("EVERY refund_admission reply is classified — an RPC error is an outcome", () => {
+  // THE DEFECT. The error branch used to `logServerError(...)` then `continue`,
+  // so `stamped` came back short with `admissionsIncomplete` still false: a
+  // clean-looking refund over a ticket that still admitted and a seat still
+  // committed against its pool. The failed *read* above set the flag; the
+  // failed *call* did not. Two paths to one effect, one of them silent.
+  assert.match(SRC, /classifyAdmissionEffect\(/, "the reply must be classified, not assumed");
+  assert.doesNotMatch(
+    SRC,
+    /logServerError\("orders\.refundLines\/admission",\s*error\);\s*continue;/,
+    "log-and-continue is exactly the silent drop this closes",
+  );
+});
+
+test("a failed per-line stamp is reported, not swallowed", () => {
+  // The money moved and `refunded_cents` did not follow, so every total drawn
+  // from that column understates what was refunded. The refund LEGS are safe
+  // (headroom comes from the sibling transaction rows, not this column), but a
+  // wrong row that nobody is told about stays wrong.
+  assert.match(SRC, /lineStateIncomplete/, "the caller must be able to see it");
+  assert.match(SRC, /LINE_STATE_NOT_STAMPED_AFTER_REFUND/, "and a human must be paged");
+});
+
+test("refund_admission itself accepts the void starting state", () => {
+  // Two halves of one contract that live in different languages: the executor
+  // may only send `void` through because the function on the other side takes
+  // it. Pinned together so relaxing one without the other is a failing test
+  // rather than a silent `not_valid` in a cron log.
+  const MIGRATIONS = join(process.cwd(), "..", "supabase", "migrations");
+  const fn = readFileSync(
+    join(MIGRATIONS, "20261230000900_refund_admission_from_void.sql"),
+    "utf8",
+  );
+  assert.match(fn, /r\.status NOT IN \('valid', 'void'\)/, "both states proceed to the stamp");
+  const admitted = fn.indexOf("r.admitted_count > 0");
+  const statusGate = fn.indexOf("r.status NOT IN");
+  assert.ok(admitted > -1 && statusGate > -1, "both guards must exist");
+  assert.ok(
+    admitted < statusGate,
+    "the dispute guard runs first, or a cancelled event refunds people who came in",
+  );
 });
 
 test("the promo redemption is released only when the planner says FULL", () => {

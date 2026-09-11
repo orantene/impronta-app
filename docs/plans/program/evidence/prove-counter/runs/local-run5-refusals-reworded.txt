@@ -1,0 +1,42 @@
+
+Running 3 tests using 1 worker
+
+[1/3] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:461:5 › POS-OP counter refusal: a sale someone else already collected against
+[2/3] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:510:5 › POS-OP counter refusal: a sale changed underneath the operator
+[3/3] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:561:5 › POS-OP counter refusal: an item that needs the customer's name, sold without one
+  1) [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:561:5 › POS-OP counter refusal: an item that needs the customer's name, sold without one 
+
+    Error: dev sign-in refused: Sign-in failed: Email link is invalid or has expired
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 307
+    Received: 401
+
+       at cases/_harness.ts:133
+
+      131 |     // 403/400/401/500 are the handler answering; retrying only delays the report.
+      132 |     if (res.status() !== 404 && res.status() !== 502 && res.status() !== 503) {
+    > 133 |       expect(res.status(), `dev sign-in refused: ${await res.text()}`).toBe(307);
+          |                                                                        ^
+      134 |     }
+      135 |     if (attempt < SIGNIN_ATTEMPTS) await page.waitForTimeout(250 * attempt);
+      136 |   }
+        at signInJourneysStaff (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-prove-counter/web/e2e/cases/_harness.ts:133:72)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-prove-counter/web/e2e/cases/POS-counter-cash-sale.spec.ts:566:3
+
+    Error Context: ../../pw-out-local-run5/cases-POS-counter-cash-sal-875aa-mer-s-name-sold-without-one-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out-local-run5/cases-POS-counter-cash-sal-875aa-mer-s-name-sold-without-one-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out-local-run5/cases-POS-counter-cash-sal-875aa-mer-s-name-sold-without-one-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  1 failed
+    [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:561:5 › POS-OP counter refusal: an item that needs the customer's name, sold without one 
+  2 passed (1.2m)
+EXIT=1

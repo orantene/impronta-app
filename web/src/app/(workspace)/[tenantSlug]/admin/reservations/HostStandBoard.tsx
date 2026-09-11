@@ -14,6 +14,10 @@
  */
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
+
+import { venueHhmm } from "@/lib/spaces/venue-clock";
+import { reservationsSeatBooking, reservationsTakeWalkIn } from "./actions";
 
 type BookState =
   | "booked" | "arriving" | "late" | "part_seated" | "seated" | "no_show" | "completed";
@@ -32,12 +36,62 @@ type Entry = {
   spaceCode: string | null;
 };
 
+/** A table the desk may seat a party on, as the floor sees it. */
+export type SeatableTable = {
+  spaceId: string;
+  label: string;
+  partyMin: number;
+  partyMax: number;
+  /** True when a booking is already holding this table (the host may still override). */
+  held: boolean;
+};
+
+export type HostStandCopy = {
+  coversBooked: string;
+  arrived: string;
+  arrivingNow: string;
+  runningLate: string;
+  noTableYet: string;
+  empty: string;
+  colTime: string;
+  colGuest: string;
+  colParty: string;
+  colTable: string;
+  walkIn: string;
+  wasNoShow: string;
+  refunded: string;
+  cancelled: string;
+  stateBooked: string;
+  stateArriving: string;
+  stateLate: string;
+  statePartSeated: string;
+  stateSeated: string;
+  stateNoShow: string;
+  stateCompleted: string;
+  seat: string;
+  takeWalkIn: string;
+  takeWalkInHeading: string;
+  walkInNameLabel: string;
+  walkInPartyLabel: string;
+  walkInConfirm: string;
+  seatHeading: string;
+  seatCancel: string;
+  noSeatableTable: string;
+  seatedNotMarked: string;
+  /** One sentence per refusal `reservationsSeatBooking` can answer with. */
+  refusal: Record<string, string>;
+};
+
 type Props = {
+  locale: string;
+  copy: HostStandCopy;
   data: {
     venueName: string;
     timeZone: string;
     onDate: string;
     entries: Entry[];
+    /** Free (or merely held) tables the desk can put a party on. */
+    seatable: SeatableTable[];
     summary: {
       covers: number;
       arrived: number;
@@ -49,88 +103,189 @@ type Props = {
   };
 };
 
-const C = {
-  ink: "#0B0B0D",
-  muted: "rgba(11,11,13,0.55)",
-  dim: "rgba(11,11,13,0.35)",
-  line: "rgba(24,24,27,0.10)",
-  soft: "rgba(24,24,27,0.05)",
-  card: "#ffffff",
-  seated: "#0F4F3E",
-  seatedBg: "rgba(15,79,62,0.08)",
-  arriving: "#8A6A00",
-  arrivingBg: "rgba(138,106,0,0.10)",
-  late: "#A8471B",
-  lateBg: "rgba(168,71,27,0.10)",
-  gone: "#7A2E2E",
-  goneBg: "rgba(122,46,46,0.10)",
-} as const;
-
-const STATE_LABEL: Record<BookState, string> = {
-  booked: "Booked",
-  arriving: "Arriving",
-  late: "Late",
-  part_seated: "Part seated",
-  seated: "Seated",
-  no_show: "No-show",
-  completed: "Done",
+const STATE_BADGE: Record<BookState, string> = {
+  booked: "border-border bg-muted text-muted-foreground",
+  arriving: "border-amber-600/40 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  late: "border-orange-700/40 bg-orange-600/10 text-orange-700 dark:text-orange-400",
+  part_seated: "border-amber-600/40 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  seated: "border-emerald-700/40 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400",
+  no_show: "border-destructive/40 bg-destructive/10 text-destructive",
+  completed: "border-border bg-muted text-muted-foreground",
 };
-
-const STATE_STYLE: Record<BookState, React.CSSProperties> = {
-  booked: { background: C.soft, color: C.muted },
-  arriving: { background: C.arrivingBg, color: C.arriving },
-  late: { background: C.lateBg, color: C.late },
-  part_seated: { background: C.arrivingBg, color: C.arriving },
-  seated: { background: C.seatedBg, color: C.seated },
-  no_show: { background: C.goneBg, color: C.gone },
-  completed: { background: C.soft, color: C.dim },
-};
-
-function hhmm(iso: string, timeZone: string): string {
-  try {
-    return new Intl.DateTimeFormat("en-GB", {
-      timeZone,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(new Date(iso));
-  } catch {
-    return "--:--";
-  }
-}
 
 function Counter({ n, label, tone }: { n: number; label: string; tone?: string }) {
   return (
-    <div style={{ background: C.soft, padding: "12px 14px", borderRadius: 10, minWidth: 96 }}>
-      <div
-        style={{
-          fontSize: 24,
-          fontWeight: 600,
-          fontVariantNumeric: "tabular-nums",
-          color: tone ?? C.ink,
-          lineHeight: 1.1,
-        }}
-      >
-        {n}
-      </div>
-      <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{label}</div>
+    <div className="min-w-[96px] rounded-[10px] bg-muted px-3.5 py-3">
+      <div className={`text-2xl font-semibold leading-tight tabular-nums ${tone ?? "text-foreground"}`}>{n}</div>
+      <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }
 
-export function HostStandBoard({ data }: Props) {
-  const { summary, entries, timeZone } = data;
+/** A refusal code as a sentence. An unknown code reads generic, never raw. */
+export function deskRefusalText(copy: HostStandCopy, code: string): string {
+  return copy.refusal[code] ?? copy.refusal.unavailable;
+}
+
+/** States where a party has not yet been put on a table by this desk. */
+const SEATABLE_STATES: ReadonlySet<BookState> = new Set<BookState>([
+  "booked",
+  "arriving",
+  "late",
+  "no_show",
+]);
+
+export function HostStandBoard({ locale, copy, data }: Props) {
+  const { summary, entries, timeZone, seatable } = data;
+  const router = useRouter();
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState<string | null>(null);
+  const [seatFor, setSeatFor] = React.useState<string | null>(null);
+  const [walkInOpen, setWalkInOpen] = React.useState(false);
+  const [walkInName, setWalkInName] = React.useState("");
+  const [walkInParty, setWalkInParty] = React.useState("2");
+
+  /**
+   * Run one of the desk's writes and ALWAYS hand the screen back.
+   *
+   * A server action that crashes (the request itself failing, not a refusal
+   * it chose to return) rejects the promise. Seen on the QA host: the tap
+   * left "Add a walk-in" greyed out for good and said nothing, because
+   * `setBusy(false)` sat after the await and never ran. A crash is a refusal
+   * the host has to be told about in words, like every other one.
+   */
+  async function attempt<T extends { ok: boolean }>(fn: () => Promise<T>): Promise<T | null> {
+    setBusy(true);
+    setMsg(null);
+    try {
+      return await fn();
+    } catch {
+      setMsg(deskRefusalText(copy, "unavailable"));
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function takeWalkIn() {
+    const r = await attempt(() =>
+      reservationsTakeWalkIn({
+        holderName: walkInName.trim(),
+        partySize: Math.max(1, Math.trunc(Number(walkInParty) || 0)),
+      }),
+    );
+    if (r === null) return;
+    if (!r.ok) {
+      setMsg(deskRefusalText(copy, r.reason));
+      return;
+    }
+    setWalkInOpen(false);
+    setWalkInName("");
+    router.refresh();
+  }
+
+  async function seat(entry: Entry, spaceId: string) {
+    const r = await attempt(() =>
+      reservationsSeatBooking({
+        admissionId: entry.admissionId,
+        spaceId,
+        // The whole party. `check_in` refuses anything past the remainder, and a
+        // part-seated arrival is the door's business, not this one tap's.
+        partySize: entry.partySize,
+      }),
+    );
+    if (r === null) return;
+    if (!r.ok) {
+      setMsg(deskRefusalText(copy, r.reason));
+      return;
+    }
+    setSeatFor(null);
+    if (r.reservationWarning) {
+      setMsg(`${copy.seatedNotMarked} ${deskRefusalText(copy, r.reservationWarning)}`);
+    }
+    router.refresh();
+  }
+
+  const stateLabel: Record<BookState, string> = {
+    booked: copy.stateBooked,
+    arriving: copy.stateArriving,
+    late: copy.stateLate,
+    part_seated: copy.statePartSeated,
+    seated: copy.stateSeated,
+    no_show: copy.stateNoShow,
+    completed: copy.stateCompleted,
+  };
 
   return (
-    <div style={{ marginTop: 8 }}>
-      <p style={{ color: C.muted, fontSize: 13.5, margin: "0 0 18px" }}>
+    <div className="mt-2">
+      {msg ? (
+        <p className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {msg}
+        </p>
+      ) : null}
+      <div className="mb-3">
+        <button
+          type="button"
+          disabled={busy}
+          className="min-h-11 rounded-lg bg-foreground px-3 text-sm font-medium text-background hover:opacity-90 disabled:opacity-40"
+          onClick={() => {
+            setWalkInOpen((open) => !open);
+            setMsg(null);
+          }}
+        >
+          {copy.takeWalkIn}
+        </button>
+        {walkInOpen ? (
+          <div className="mt-2 max-w-[520px] rounded-lg border border-border bg-muted/40 p-3">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">{copy.takeWalkInHeading}</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                {copy.walkInNameLabel}
+                <input
+                  type="text"
+                  value={walkInName}
+                  onChange={(e) => setWalkInName(e.target.value)}
+                  className="h-11 w-52 rounded-lg border border-input bg-background px-2 text-sm text-foreground"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                {copy.walkInPartyLabel}
+                <input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={walkInParty}
+                  onChange={(e) => setWalkInParty(e.target.value)}
+                  className="h-11 w-20 rounded-lg border border-input bg-background px-2 text-sm text-foreground"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={busy || walkInName.trim().length === 0}
+                className="min-h-11 rounded-lg bg-foreground px-3 text-sm font-medium text-background hover:opacity-90 disabled:opacity-40"
+                onClick={() => void takeWalkIn()}
+              >
+                {copy.walkInConfirm}
+              </button>
+              <button
+                type="button"
+                className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm text-muted-foreground hover:bg-accent"
+                onClick={() => setWalkInOpen(false)}
+              >
+                {copy.seatCancel}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+      <p className="mb-[18px] text-[13.5px] text-muted-foreground">
         {data.venueName} &middot; {data.onDate}
         {data.windows.length > 0 ? (
           <>
             {" "}
             &middot;{" "}
             {data.windows
-              .map((w) => `${w.key} ${hhmm(w.startsAtIso, timeZone)} to ${hhmm(w.endsAtIso, timeZone)}`)
+              .map((w) => `${w.key} ${venueHhmm(w.startsAtIso, timeZone, locale)} to ${venueHhmm(w.endsAtIso, timeZone, locale)}`)
               .join(" · ")}
           </>
         ) : null}
@@ -140,36 +295,25 @@ export function HostStandBoard({ data }: Props) {
           no-shows as diners; admitted_count alone reports an empty room at
           18:00. A restaurant wants the first before service and the second
           after it. */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 22 }}>
-        <Counter n={summary.covers} label="covers booked" />
-        <Counter n={summary.arrived} label="arrived" tone={C.seated} />
-        <Counter n={summary.arrivingNow} label="arriving now" tone={C.arriving} />
-        <Counter n={summary.runningLate} label="running late" tone={C.late} />
-        <Counter n={summary.unassigned} label="no table yet" />
+      <div className="mb-[22px] flex flex-wrap gap-2">
+        <Counter n={summary.covers} label={copy.coversBooked} />
+        <Counter n={summary.arrived} label={copy.arrived} tone="text-emerald-700 dark:text-emerald-400" />
+        <Counter n={summary.arrivingNow} label={copy.arrivingNow} tone="text-amber-700 dark:text-amber-400" />
+        <Counter n={summary.runningLate} label={copy.runningLate} tone="text-orange-700 dark:text-orange-400" />
+        <Counter n={summary.unassigned} label={copy.noTableYet} />
       </div>
 
       {entries.length === 0 ? (
-        <p style={{ color: C.muted, fontSize: 14 }}>
-          Nobody is booked for this service yet.
-        </p>
+        <p className="text-sm text-muted-foreground">{copy.empty}</p>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 520 }}>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse">
             <thead>
               <tr>
-                {["Time", "Guest", "Party", "Table", ""].map((h) => (
+                {[copy.colTime, copy.colGuest, copy.colParty, copy.colTable, ""].map((h, i) => (
                   <th
-                    key={h}
-                    style={{
-                      textAlign: "left",
-                      fontSize: 11,
-                      letterSpacing: ".08em",
-                      textTransform: "uppercase",
-                      color: C.dim,
-                      fontWeight: 500,
-                      padding: "0 12px 8px 0",
-                      borderBottom: `1px solid ${C.line}`,
-                    }}
+                    key={i}
+                    className="border-b border-border py-0 pb-2 pr-3 text-left text-[11px] font-medium uppercase tracking-[.08em] text-muted-foreground"
                   >
                     {h}
                   </th>
@@ -178,48 +322,117 @@ export function HostStandBoard({ data }: Props) {
             </thead>
             <tbody>
               {entries.map((e) => (
-                <tr key={e.admissionId}>
-                  <td style={cell(true)}>{hhmm(e.startsAtIso, timeZone)}</td>
-                  <td style={cell()}>
-                    {e.holderName ?? <span style={{ color: C.dim }}>Walk-in</span>}
+                <React.Fragment key={e.admissionId}>
+                <tr>
+                  <td className="whitespace-nowrap border-b border-border py-[11px] pr-3 text-sm tabular-nums text-foreground">
+                    {venueHhmm(e.startsAtIso, timeZone, locale)}
                   </td>
-                  <td style={cell(true)}>
+                  <td className="whitespace-nowrap border-b border-border py-[11px] pr-3 text-sm text-foreground">
+                    {e.holderName ?? <span className="text-muted-foreground">{copy.walkIn}</span>}
+                  </td>
+                  <td className="whitespace-nowrap border-b border-border py-[11px] pr-3 text-sm tabular-nums text-foreground">
                     {/* Part-seated shows both numbers, because "2 of 4" is the
                         fact a host needs and "4" is a lie until the rest arrive. */}
                     {e.admittedCount > 0 && e.admittedCount < e.partySize
                       ? `${e.admittedCount} of ${e.partySize}`
                       : e.partySize}
                   </td>
-                  <td style={cell(true)}>
-                    {e.spaceCode ?? <span style={{ color: C.dim }}>&mdash;</span>}
+                  <td className="whitespace-nowrap border-b border-border py-[11px] pr-3 text-sm tabular-nums text-foreground">
+                    {e.spaceCode ?? <span className="text-muted-foreground">&mdash;</span>}
                   </td>
-                  <td style={{ ...cell(), textAlign: "right" }}>
-                    <span style={{ ...badge, ...STATE_STYLE[e.state] }}>
-                      {STATE_LABEL[e.state]}
+                  <td className="whitespace-nowrap border-b border-border py-[11px] pr-3 text-right text-sm">
+                    <span
+                      className={`inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold ${STATE_BADGE[e.state]}`}
+                    >
+                      {stateLabel[e.state]}
                       {e.state === "late" && e.lateMinutes > 0 ? ` ${e.lateMinutes}m` : ""}
                     </span>
                     {/* Commercial state and the no-show history render BESIDE
                         the state, never folded into it. "Seated, then refunded"
-                        is a real sentence, and a guest who was marked a no-show
-                        and then arrived may already have a fee on their bill —
-                        this is the only place a human can explain it. */}
+                        is a real sentence about one reservation, and a guest who
+                        was marked a no-show and then arrived may already have a
+                        fee on their bill — this is the only place a human can
+                        explain it. */}
                     {e.wasMarkedNoShow ? (
-                      <span style={{ ...badge, ...STATE_STYLE.no_show, marginLeft: 6 }}>
-                        was no-show
+                      <span
+                        className={`ml-1.5 inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold ${STATE_BADGE.no_show}`}
+                      >
+                        {copy.wasNoShow}
                       </span>
                     ) : null}
                     {e.isRefunded ? (
-                      <span style={{ ...badge, background: C.soft, color: C.muted, marginLeft: 6 }}>
-                        refunded
+                      <span className="ml-1.5 inline-block whitespace-nowrap rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                        {copy.refunded}
                       </span>
                     ) : null}
                     {e.isVoid ? (
-                      <span style={{ ...badge, background: C.soft, color: C.muted, marginLeft: 6 }}>
-                        cancelled
+                      <span className="ml-1.5 inline-block whitespace-nowrap rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                        {copy.cancelled}
                       </span>
+                    ) : null}
+                    {/* SEAT. Offered for a party nobody has put on a table yet
+                        — including one already stamped a no-show, because a
+                        guest who was written off and then walked in is the
+                        case the whole no-show/arrival split exists for. A
+                        cancelled or refunded booking is not offered a table. */}
+                    {SEATABLE_STATES.has(e.state) && !e.isVoid && !e.isRefunded ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className="ml-1.5 min-h-9 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-40"
+                        onClick={() => {
+                          setSeatFor(seatFor === e.admissionId ? null : e.admissionId);
+                          setMsg(null);
+                        }}
+                      >
+                        {copy.seat}
+                      </button>
                     ) : null}
                   </td>
                 </tr>
+                {seatFor === e.admissionId ? (
+                  <tr>
+                    <td colSpan={5} className="border-b border-border px-0 py-2">
+                      <div className="rounded-lg border border-border bg-muted/40 p-3">
+                        <p className="mb-1.5 text-xs font-medium text-muted-foreground">{copy.seatHeading}</p>
+                        {(() => {
+                          // The same fit rule the floor uses, applied before a
+                          // table is even offered: a host should not have to
+                          // tap a deuce to be told a party of six will not fit.
+                          const fits = seatable.filter(
+                            (t) => e.partySize >= t.partyMin && e.partySize <= t.partyMax,
+                          );
+                          if (fits.length === 0) {
+                            return <p className="text-xs text-muted-foreground">{copy.noSeatableTable}</p>;
+                          }
+                          return (
+                            <div className="flex flex-wrap gap-2">
+                              {fits.map((t) => (
+                                <button
+                                  key={t.spaceId}
+                                  type="button"
+                                  disabled={busy}
+                                  className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground hover:bg-accent disabled:opacity-40"
+                                  onClick={() => void seat(e, t.spaceId)}
+                                >
+                                  {t.label}
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm text-muted-foreground hover:bg-accent"
+                                onClick={() => setSeatFor(null)}
+                              >
+                                {copy.seatCancel}
+                              </button>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
@@ -228,23 +441,3 @@ export function HostStandBoard({ data }: Props) {
     </div>
   );
 }
-
-function cell(numeric = false): React.CSSProperties {
-  return {
-    padding: "11px 12px 11px 0",
-    borderBottom: `1px solid ${C.soft}`,
-    fontSize: 14,
-    color: C.ink,
-    fontVariantNumeric: numeric ? "tabular-nums" : "normal",
-    whiteSpace: "nowrap",
-  };
-}
-
-const badge: React.CSSProperties = {
-  display: "inline-block",
-  fontSize: 11,
-  fontWeight: 600,
-  padding: "3px 8px",
-  borderRadius: 999,
-  whiteSpace: "nowrap",
-};

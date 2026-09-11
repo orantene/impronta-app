@@ -53,6 +53,20 @@ const BUCKETS: Record<Exclude<OrderListBucket, "all">, readonly string[]> = {
   reversed: ["cancelled", "refunded", "partially_refunded"],
 };
 
+export function salesBucket(row: Pick<OrderListRow, "status" | "totalCents">): OrderListBucket {
+  // A complimentary place is settled even if it never entered pending_payment
+  // as a charged order. Showing it as overdue is the yoga-studio defect.
+  if (row.totalCents <= 0 && row.status === "pending_payment") return "settled";
+  return bucketOf(row.status);
+}
+
+export function isMoneyOwed(
+  row: Pick<OrderListRow, "status" | "totalCents" | "collectedCents">,
+): boolean {
+  if (row.totalCents <= 0) return false;
+  return salesBucket(row) === "to_pay" && outstandingCents(row) > 0;
+}
+
 export function bucketOf(status: string): OrderListBucket {
   for (const [bucket, states] of Object.entries(BUCKETS)) {
     if (states.includes(status)) return bucket as OrderListBucket;
@@ -76,7 +90,7 @@ export function filterOrders(
   const channel = (filter.channel ?? "").trim();
 
   return rows.filter((row) => {
-    if (bucket !== "all" && bucketOf(row.status) !== bucket) return false;
+    if (bucket !== "all" && salesBucket(row) !== bucket) return false;
     if (channel && row.sourceChannel !== channel) return false;
     if (!q) return true;
 
@@ -134,8 +148,8 @@ export function totalsFor(rows: readonly OrderListRow[]): OrderListTotals {
       b = { currency, settledCents: 0, outstandingCents: 0 };
       buckets.set(currency, b);
     }
-    if (bucketOf(row.status) === "settled") b.settledCents += row.totalCents;
-    if (bucketOf(row.status) === "to_pay") b.outstandingCents += outstandingCents(row);
+    if (salesBucket(row) === "settled") b.settledCents += row.totalCents;
+    if (salesBucket(row) === "to_pay") b.outstandingCents += outstandingCents(row);
   }
   const byCurrency = [...buckets.values()].sort((a, b) => a.currency.localeCompare(b.currency));
 

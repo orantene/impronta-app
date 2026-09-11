@@ -1,7 +1,8 @@
 # Migration auto-apply — runbook
 
-**Workflow:** `.github/workflows/auto-apply-migrations.yml`
-**Status:** merged but **DORMANT** — it triggers on pushes that touch `supabase/migrations/**`, but does nothing (neutral green no-op) until the two required secrets below are added. Adding them activates it.
+**Workflow:** `.github/workflows/auto-apply-migrations.yml` — **deleted in `22a9e8af0`**. This runbook is historical. Apply migrations with `cd web && npm run db:push`, then `npm run db:check`. There is no auto-apply.
+
+**Status (historical):** merged but **DORMANT** — it triggered on pushes that touch `supabase/migrations/**`, but did nothing (neutral green no-op) until the two required secrets below were added.
 
 ## What it does
 

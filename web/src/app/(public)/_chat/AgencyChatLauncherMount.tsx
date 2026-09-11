@@ -227,11 +227,6 @@ export async function AgencyChatLauncherMount({
 
   return (
     <>
-      {/* Reads `?inquiry=open`, opens this launcher, then strips the param.
-          Suspense because it reads search params. */}
-      <Suspense fallback={null}>
-        <DirectoryInquiryUrlSync />
-      </Suspense>
       <TalentProfileChatLauncher
         tenantSlug={tenantSlug}
         tenantId={tenantId}
@@ -281,6 +276,11 @@ export async function AgencyChatLauncherMount({
         unreadCoordinatorReply={lifecycle.unreadCoordinatorReply}
         ctaIdentity="guest"
       />
+      {/* After the launcher so registerChatLauncher wins the same paint as
+          `?inquiry=open`. Suspense because it reads search params. */}
+      <Suspense fallback={null}>
+        <DirectoryInquiryUrlSync />
+      </Suspense>
     </>
   );
 }

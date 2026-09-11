@@ -145,6 +145,96 @@ test("an exception closing an open day removes it, without touching weekdays", (
   assert.equal(closedByException, false, "the exception must close it");
 });
 
+/**
+ * OPEN IS NOT STILL BOOKABLE.
+ *
+ * The predicate above answers a calendar question and knows nothing about the
+ * clock, so at 23:45 it still called today open although the last seating was
+ * 23:30. Today became the first chip, `availabilityForWindow` then dropped
+ * every one of its seatings for being before `now + minNotice`, and the guest
+ * got a reserve block with no times on a night the restaurant had tomorrow
+ * wide open — during exactly the hours people book for tomorrow.
+ *
+ * It also made C06's two reservation journeys fail only between last seating
+ * and local midnight, which presents as flake.
+ *
+ * This mirrors the corrected predicate: open AND its last seating is still
+ * reachable.
+ */
+function isBookable(onDate: string, now: Date, minNoticeMinutes = 0): boolean {
+  const earliest = now.getTime() + minNoticeMinutes * 60_000;
+  return WINDOWS.some((window) => {
+    const resolved = resolveWindowOnDate({
+      window,
+      exceptions: [],
+      onDate,
+      timeZone: BA,
+      defaultTurnMinutes: 90,
+    });
+    if (!resolved.ok) return false;
+    return resolved.window.lastSeatingAt.getTime() >= earliest;
+  });
+}
+
+/** The corrected walk. */
+function bookableStrip(fromYmd: string, now: Date, want = 5, scan = 30): string[] {
+  const out: string[] = [];
+  const base = new Date(`${fromYmd}T12:00:00Z`);
+  for (let i = 0; i <= scan && out.length < want; i += 1) {
+    const d = new Date(base.getTime() + i * 86_400_000);
+    const ymd = d.toISOString().slice(0, 10);
+    if (isBookable(ymd, now)) out.push(ymd);
+  }
+  return out;
+}
+
+// Thursday 2026-09-10. The service window runs 10:00 for 900 minutes and has
+// no explicit last-seating offset, so the last seating is the close (01:00)
+// minus one 90 minute turn: 23:30 local.
+const THU = "2026-09-10";
+const at = (localHhMm: string) => {
+  // BA is UTC-3 year round, so the arithmetic here is deliberate and simple:
+  // a zone with transitions would defeat the purpose of a fixture.
+  const [h, m] = localHhMm.split(":").map(Number);
+  return new Date(Date.UTC(2026, 8, 10, h! + 3, m!));
+};
+
+test("a day is offered while its last seating is still ahead", () => {
+  assert.equal(isBookable(THU, at("18:00")), true, "dinner has not started");
+  assert.equal(isBookable(THU, at("23:29")), true, "one minute before last seating");
+});
+
+test("a day whose last seating has passed is NOT offered", () => {
+  assert.equal(isBookable(THU, at("23:31")), false, "last seating was 23:30");
+  // The old predicate cannot tell these two apart, which is the whole defect.
+  assert.equal(isOpen(THU), true, "the calendar still says the venue runs a service");
+});
+
+test("after last seating the first chip is tomorrow, not a dead today", () => {
+  const late = at("23:45");
+  const s = bookableStrip(THU, late);
+  assert.notEqual(s[0], THU, "today had nothing left to take");
+  assert.equal(s[0], "2026-09-11", "Friday is the first day a guest can actually book");
+  assert.equal(s.length, 5, "and the strip is still full");
+});
+
+test("minimum notice is part of the question, not a later filter", () => {
+  // A venue wanting two hours' notice cannot offer a day whose last seating is
+  // 30 minutes away: the availability step would drop it and the strip would
+  // again point at a day with nothing on it.
+  assert.equal(isBookable(THU, at("23:00"), 0), true, "no notice required");
+  assert.equal(isBookable(THU, at("23:00"), 120), false, "two hours' notice cannot be met");
+});
+
+test("future days are unaffected, so the rule needs no special case for today", () => {
+  // Friday's last seating is a day away; no plausible `now` on Thursday can
+  // exclude it. This is why the test is applied to every candidate rather than
+  // branching on i === 0.
+  for (const t of ["00:01", "12:00", "23:59"]) {
+    assert.equal(isBookable("2026-09-11", at(t)), true, `Friday at ${t}`);
+  }
+});
+
 test("the scan is BOUNDED, so a venue closed every day returns fewer days rather than spinning", () => {
   const shut: ServiceWindow = { ...service, isActive: false };
   const none = (ymd: string) =>

@@ -5,6 +5,7 @@
 // the barrel + the "public export surface" proof.
 // ─────────────────────────────────────────────────────────────────────
 import type { DrawerId } from "./drawer-ids";
+import type { DestinationId } from "@/lib/workspace/destinations";
 import type { OfferCommercialTerms } from "@/lib/billing/commercial-terms-types";
 import type { WebsiteHealthReport } from "@/lib/admin/website-health";
 
@@ -23,37 +24,45 @@ export type Role = "viewer" | "editor" | "manager" | "admin" | "owner";
  *    inquiries route to talent (or talent's agency) directly. Listing-fee model.
  */
 export type EntityType = "agency" | "hub";
-// WS-3.1 — Consolidated from 9 → 6 pages.
-// Legacy names (inbox, work, site, billing, workspace) kept in the union
-// for URL backward-compat; they are NOT shown in the sidebar nav.
-// WS-3.6 — URL aliases: inbox→messages, work→messages, talent→roster,
-//           site→settings, billing→settings, workspace→settings.
-export type WorkspacePage =
-  | "overview"
-  | "messages"   // replaces inbox + absorbs work as a "By stage" view filter
-  | "calendar"
-  | "menu"
-  | "roster"     // replaces talent
-  | "clients"
-  | "reviews"    // WP1 — reputation: reported-review moderation + review photos + rating integrity
-  | "analytics"  // WP1 — funnel, money (→ Financials), website analytics, reviews rollup; honest empty states
-  | "website"    // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain, maintenance, announcement)
-  | "media"      // Agency/Studio — workspace media gallery + watermark control
-  | "pitches"    // Phase 9 — pitch history (admin curation of talent suggestions sent to clients). Renders via real server component, not the admin shell.
-  | "financials" // L46 — business financials. Canonical server-rendered route; NOT a SPA nav tab.
-  | "orders"     // 0.10 — the Orders desk. Canonical server-rendered route; NOT a SPA nav tab.
-  | "reservations" // R3 — the host stand (reservations book). Canonical server route like orders; NOT a SPA nav tab. Rail entry + is_active visibility gate are a follow-up (see docs/plans/reservations-rail-slot-contract.md).
-  | "sessions"   // Sessions — the Schedule tab (series, occurrences, series editor). SPA tab in the menu shape; rail entry under Operate. See docs/plans/sessions-rail-slot-contract.md.
-  | "events"     // Events & Ticketing — the Events tab (list + Details/Sessions/Tickets/Seating/Lineup/Sales/Door). SPA tab in the menu shape. Rail entry + events-on visibility gate are a follow-up (needs the events-enabled flag; not shipped as a blind layout fetch). See docs/plans/events-rail-slot-contract.md.
-  | "payouts"    // Stripe Connect payout onboarding + base reservation fee. In-shell SPA section (not in nav).
-  | "settings"   // replaces workspace; billing folded in via anchor nav
-  // ── legacy aliases (hidden from nav, kept for URL compat) ──
+/**
+ * Every workspace destination id, plus the legacy URL segments that still
+ * resolve to one.
+ *
+ * DERIVED FROM THE REGISTRY ON PURPOSE. `DestinationId` comes straight from
+ * `lib/workspace/destinations.ts`, so adding a destination there widens this
+ * union automatically — and every exhaustive `Record<WorkspacePage, …>` in the
+ * shell (PAGE_META above all) becomes a COMPILE error until it is filled in.
+ * That is the whole point: a destination used to need six to eleven separate
+ * registrations and a missed one failed silently.
+ */
+export type WorkspacePage = DestinationId | LegacyWorkspacePage;
+
+/**
+ * The registry's `aliases`, as a type.
+ *
+ * These are URL segments in the wild — bookmarks, emailed links, the routes
+ * several surfaces still render at — so they stay in the union forever even
+ * once their destination moves to its canonical segment. `page-ids.test` pins
+ * this list against `DESTINATIONS[].aliases`, so the two cannot drift.
+ *
+ *   inbox → messages · work → projects · sessions → appts · menu → catalog
+ *   roster/talent → people · exceptions → issues · tables → spaces
+ *   financials/payouts → payments · site → website · workspace/billing → settings
+ */
+export type LegacyWorkspacePage =
   | "inbox"
   | "work"
+  | "sessions"
+  | "menu"
+  | "roster"
   | "talent"
+  | "exceptions"
+  | "tables"
+  | "financials"
+  | "payouts"
   | "site"
-  | "billing"
-  | "workspace";
+  | "workspace"
+  | "billing";
 
 // Talent surface — relationship-based agency context plus a separate
 // Free / Pro / Max personal membership ladder. Workspace plans and talent

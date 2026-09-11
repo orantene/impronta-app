@@ -36,6 +36,7 @@ import {
   type TalentEarningsByCurrency,
 } from "@/lib/talent/earnings-by-currency-types";
 import { setInquiryFlagsTenantSlug, setInquiryFlagsUserId } from "../inquiry-flags-tenant-slug";
+import { readWorkspacePosBridge, type PosMode } from "@/lib/workspace/pos-bridge";
 // Runtime layout may flow in through the bridge (`initialBridgeData.profileEditorLayout`).
 // When absent, fall back to the hardcoded mirror below so the drawer rail never crashes.
 import type { ProfileEditorLayout } from "@/lib/profile-editor/layout-types";
@@ -432,6 +433,9 @@ type Ctx = {
     /** Raw `agencies.workspace_type` ("talent" | "business"). Normalized by
      *  `normalizeWorkspaceType` before it is used for anything. */
     workspaceType?: string;
+    /** Raw `agencies.settings.industry_preset`. The rail's labels are keyed on
+     *  it — see `workspaceNavContext` in lib/workspace/nav-context.ts. */
+    industryPreset?: string | null;
     /** Brand logo URL — replaces the TULALA wordmark when present. */
     logoUrl?: string | null;
     /** Whitelabel accent hex — injected as `--tulala-accent` on the shell
@@ -520,6 +524,9 @@ type Ctx = {
   workspaceTourEnabled: boolean;
   /** Platform-wide switch for the in-app support launcher. Same source; false = hidden. */
   workspaceSupportEnabled: boolean;
+  /** POS platform switch + this workspace's modes. Both read by `lib/workspace/pos-bridge.ts`, which owns the fallback rules. */
+  workspacePosEnabled: boolean;
+  workspacePosModes: readonly PosMode[];
   /** Current UI locale resolved from the locale cookie. */
   locale: string;
   /** Dot-path translator for the current locale. */
@@ -2044,6 +2051,8 @@ export function AdminShellProvider({
   const workspaceFabEnabled = initialBridgeData?.workspaceUi?.fabEnabled ?? false;
   const workspaceTourEnabled = initialBridgeData?.workspaceUi?.tourEnabled ?? false;
   const workspaceSupportEnabled = initialBridgeData?.workspaceUi?.supportEnabled ?? false;
+  const { posEnabled: workspacePosEnabled, posModes: workspacePosModes } =
+    readWorkspacePosBridge(initialBridgeData?.workspaceUi, initialBridgeData?.tenantIdentity);
 
   // DB-backed profile-editor sidebar layout (or the client-safe hardcoded
   // fallback when the bridge didn't carry one). Never null, so the drawer can
@@ -2303,6 +2312,8 @@ export function AdminShellProvider({
       workspaceFabEnabled,
       workspaceTourEnabled,
       workspaceSupportEnabled,
+      workspacePosEnabled,
+      workspacePosModes,
       locale,
       t: createTranslator(locale),
     }),
@@ -2424,6 +2435,8 @@ export function AdminShellProvider({
       workspaceFabEnabled,
       workspaceTourEnabled,
       workspaceSupportEnabled,
+      workspacePosEnabled,
+      workspacePosModes,
       locale,
     ],
   );

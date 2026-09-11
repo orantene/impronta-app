@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1/1] [chromium] › e2e/cases/POS-counter-cash-sale.spec.ts:561:5 › POS-OP counter refusal: an item that needs the customer's name, sold without one
+  1 passed (26.2s)
+EXIT=0

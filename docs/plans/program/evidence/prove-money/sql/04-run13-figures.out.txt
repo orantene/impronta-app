@@ -1,0 +1,118 @@
+-- A. The buyer this run named at the counter, and the sale on their record (client record, screenshot 09).
+[
+ {
+  "customer_id": "eabb0ce1-6acf-4485-9884-c0f4ff40d0b8",
+  "email": "money-1789063906618@impronta.test",
+  "order_id": "7e6e7e56-4456-421d-a8df-f72e2ad334d4",
+  "status": "paid",
+  "total_cents": "1800",
+  "collected_cents": "1800"
+ },
+ {
+  "customer_id": "8b54be3a-1267-4300-aee3-bf42f39b6cf9",
+  "email": "money-1789063668729@impronta.test",
+  "order_id": "18d0fabc-2c7e-4837-867b-ae1736d9d00d",
+  "status": "paid",
+  "total_cents": "1800",
+  "collected_cents": "1800"
+ },
+ {
+  "customer_id": "87ceb85b-b568-4c47-9927-f0faf3040b09",
+  "email": "money-1789063109226@impronta.test",
+  "order_id": "2efd0a82-e92d-4dfe-8939-c437b2d630bc",
+  "status": "paid",
+  "total_cents": "1800",
+  "collected_cents": "1800"
+ }
+]
+
+-- B. The three counter sales of the latest run, by status (paid, cancelled, draft) — none is owed.
+[
+ {
+  "id": "bbba7283-defb-4b20-8b4b-dcef6decbb39",
+  "status": "draft",
+  "total_cents": "1800",
+  "source_channel": "pos",
+  "created_at": "2026-09-10T18:12:01.986Z"
+ },
+ {
+  "id": "d03072ee-d80c-43c3-afb5-1ba3b8d9af61",
+  "status": "cancelled",
+  "total_cents": "1800",
+  "source_channel": "pos",
+  "created_at": "2026-09-10T18:11:54.804Z"
+ },
+ {
+  "id": "7e6e7e56-4456-421d-a8df-f72e2ad334d4",
+  "status": "paid",
+  "total_cents": "1800",
+  "source_channel": "pos",
+  "created_at": "2026-09-10T18:11:47.132Z"
+ }
+]
+
+-- C. Takings by method (Payments, first table): PAID transactions grouped by provider + metadata.paid_via.
+[
+ {
+  "method": "cash",
+  "currency": "USD",
+  "transactions": "58",
+  "amount_cents": "130250"
+ }
+]
+
+-- D. Still owed (Payments): every pending_payment order with a positive total, minus what landed. Whole set, no window.
+[
+ {
+  "owed_orders": "46",
+  "owed_cents": "120900",
+  "orders_in_workspace": "309"
+ }
+]
+
+-- E. Refunds (Payments): none exist on this fixture, so the page must say "No refunds yet."
+[
+ {
+  "refunded_rows": "0"
+ }
+]
+
+-- F. The drawer this run opened and closed: float, expected = float + cash stamped with it, counted, variance.
+[
+ {
+  "id": "72907a62-76e1-40cf-b352-fd76714da7f9",
+  "status": "closed",
+  "opening_cash_cents": 5000,
+  "expected_cash_cents": 6800,
+  "closing_cash_cents": 6750,
+  "variance_cents": -50,
+  "opened_at": "2026-09-10T18:11:46.306Z",
+  "closed_at": "2026-09-10T18:12:08.843Z",
+  "cash_rows": [
+   {
+    "txn": "21465173-4f26-4acf-bed1-f710186a884d",
+    "order": "7e6e7e56-4456-421d-a8df-f72e2ad334d4",
+    "cents": 1800,
+    "paid_via": "cash"
+   }
+  ]
+ }
+]
+
+-- G. The project (booking from the accepted offer) and its orders: Due = sum of owed over attached orders = 0 after the cancel.
+[
+ {
+  "booking_id": "e526e738-60cf-43ab-b126-10d23aa2f3dd",
+  "booking_status": "confirmed",
+  "inquiry_status": "booked",
+  "orders": [
+   {
+    "order": "282c4fdd-fa63-42df-abf0-fce907a349d6",
+    "status": "cancelled",
+    "total": 80000
+   }
+  ],
+  "due_cents": "0",
+  "naive_total_minus_collected_cents": "80000"
+ }
+]

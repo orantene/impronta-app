@@ -86,3 +86,13 @@ test("the provider is still mounted by both route-group layouts", () => {
     assert.match(read(layout), /DirectoryInquiryModalProvider/, `${layout} must mount the provider`);
   }
 });
+
+test("requestOpenChat waits for the launcher instead of opening the sheet on the same tick", () => {
+  const src = read("src/components/directory/directory-inquiry-modal-context.tsx");
+  assert.match(src, /pendingOpenChat/, "UrlSync is a sibling above the launcher");
+  assert.match(
+    src,
+    /flushPendingChatOpen/,
+    "registerChatLauncher must flush the queued ?inquiry=open cue",
+  );
+});

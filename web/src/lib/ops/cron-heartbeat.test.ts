@@ -37,6 +37,7 @@ test("threshold is two intervals plus grace — an alarm must survive ordinary j
   // Both money crons are hourly, so: 60*2 + 15.
   assert.equal(stalenessThresholdMinutes("project-ledger"), 135);
   assert.equal(stalenessThresholdMinutes("ingest-balance-transactions"), 135);
+  assert.equal(stalenessThresholdMinutes("expire-orders"), 7);
 });
 
 test("a job that ran recently is ok", () => {
@@ -117,6 +118,7 @@ test("both money jobs are classified independently", () => {
       row({ job: "ingest-balance-transactions", last_run_at: minutesAgo(400) }),
     ],
     NOW,
+    ["project-ledger", "ingest-balance-transactions"],
   );
   const byJob = Object.fromEntries(v.map((x) => [x.job, x.state]));
   assert.equal(byJob["project-ledger"], "ok");

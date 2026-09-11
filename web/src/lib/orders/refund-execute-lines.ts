@@ -2,8 +2,9 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
-import { executeBookingRefund, type RefundReason } from "@/lib/payments/refund-execute";
+import { executeBookingRefund, type RefundBlockedCode, type RefundReason } from "@/lib/payments/refund-execute";
 import { planRefund, releasesPromoRedemption, type RefundableLine, type PaidTransaction } from "@/lib/orders/refund-plan";
+import { admissionIsRefundable, classifyAdmissionEffect } from "@/lib/orders/refund-admissions";
 import type { PromoScope } from "@/lib/orders/promo-eligibility";
 
 /**
@@ -18,11 +19,33 @@ import type { PromoScope } from "@/lib/orders/promo-eligibility";
  * refund twice, so the partial outcome is a distinct result, not an error.
  */
 
+/**
+ * One leg of a refund, as the provider recorded it.
+ *
+ * WHY THE ID ALONE WAS NOT ENOUGH. A partial failure used to report
+ * `refundIds: ["re_1", "re_2"]` and a total, which is a list of receipts with
+ * no amounts and no payments attached: a person reconciling it had to open
+ * each id at the provider to find out which transaction it belonged to and how
+ * much of it landed, and the plan that produced the split had already been
+ * thrown away. Recording the step means the result can say exactly what did
+ * land without anybody leaving the screen — which is the entire job of a
+ * partial-failure result, since the one thing a caller must never do is retry.
+ */
+export type RefundStep = {
+  /** The paid transaction this leg was taken against. */
+  transactionId: string;
+  amountCents: number;
+  /** The provider's own refund id (`re_...`). */
+  refundId: string;
+};
+
 export type RefundLinesResult =
   | {
       ok: true;
       refundedCents: number;
       refundIds: string[];
+      /** The same refunds, each named with its payment and its amount. */
+      steps: RefundStep[];
       admissionsStamped: number;
       /**
        * TRUE when a ticket that should have been voided may not have been.
@@ -34,15 +57,43 @@ export type RefundLinesResult =
        * refunded ticket may still admit.
        */
       admissionsIncomplete: boolean;
+      /**
+       * TRUE when the money moved but `order_lines.refunded_cents` did not
+       * follow, so the line still reads unrefunded. Not a failure for the same
+       * reason as above — the refund itself landed and re-running it is what
+       * must not happen — but every total derived from that column is now wrong
+       * until somebody corrects it.
+       */
+      lineStateIncomplete: boolean;
       releasedPromoRedemption: boolean;
     }
-  /** Nothing moved. Safe to retry unchanged. */
-  | { ok: false; reason: string; movedCents: 0 }
+  /**
+   * Nothing moved. Safe to retry unchanged.
+   *
+   * `code` carries the PROVIDER's own refusal when there was one, because
+   * `reason: "refund_refused"` is the same word for every way a provider can
+   * say no, and the differences matter to the person reading the screen: a cash
+   * sale has no charge to reverse and never will, while a transient provider
+   * error is worth pressing again. `lib/orders/refund-desk-copy.ts` turns it
+   * into a sentence. Absent when the refusal happened before any provider was
+   * asked, and the reason alone is enough.
+   */
+  | { ok: false; reason: string; movedCents: 0; code?: RefundBlockedCode }
   /**
    * Money moved and then something failed. NOT retryable as-is: the refunds
    * that landed are real. A human decides the remainder.
    */
-  | { ok: false; reason: "partial_failure"; movedCents: number; refundIds: string[]; detail: string };
+  | {
+      ok: false;
+      reason: "partial_failure";
+      movedCents: number;
+      refundIds: string[];
+      /** Exactly what landed: which payment, how much, and the provider's id. */
+      steps: RefundStep[];
+      /** The transaction whose leg failed. Nothing was refunded against it. */
+      failedTransactionId: string;
+      detail: string;
+    };
 
 export async function refundOrderLines(
   admin: SupabaseClient,
@@ -153,7 +204,7 @@ export async function refundOrderLines(
 
     // ── Money. Every step before this point is reversible; nothing after is.
     let moved = 0;
-    const refundIds: string[] = [];
+    const steps: RefundStep[] = [];
     for (const step of plan.steps) {
       const res = await executeBookingRefund({
         transactionId: step.transactionId,
@@ -165,29 +216,52 @@ export async function refundOrderLines(
       if (!res.ok) {
         if (moved === 0) {
           // Nothing landed. A clean refusal the caller may retry unchanged.
-          return { ok: false, reason: "refund_refused", movedCents: 0 };
+          //
+          // The provider's own code travels with it. Dropping it here is what
+          // reduced "this was collected in cash, so there is no card charge to
+          // reverse" to the single word `refund_refused` on the Orders desk.
+          return { ok: false, reason: "refund_refused", movedCents: 0, code: res.code };
         }
         // Money HAS moved. Reporting a plain failure here would invite a retry
         // that refunds the successful legs a second time, and a Stripe refund
         // cannot be taken back. So the partial outcome is its own result and
-        // names what landed.
+        // names what landed — per leg, with the provider's own id, because a
+        // bare total cannot be reconciled against a provider dashboard and the
+        // plan that produced the split is gone the moment this returns.
         logServerError(
           "orders.refundLines/PARTIAL_REFUND_FAILURE",
-          `order ${input.orderId}: ${moved} cents refunded across ${refundIds.length} step(s), `
+          `order ${input.orderId}: ${moved} cents refunded across ${steps.length} step(s) `
+            + `[${steps.map((s) => `${s.refundId}=${s.amountCents} on txn ${s.transactionId}`).join(", ")}], `
             + `then step on txn ${step.transactionId} failed: ${res.error}. Needs a human.`,
         );
         return {
           ok: false, reason: "partial_failure", movedCents: moved,
-          refundIds, detail: res.error,
+          refundIds: steps.map((s) => s.refundId),
+          steps,
+          failedTransactionId: step.transactionId,
+          detail: res.error,
         };
       }
       moved += res.amountCents;
-      refundIds.push(res.refundId);
+      steps.push({
+        transactionId: step.transactionId,
+        amountCents: res.amountCents,
+        refundId: res.refundId,
+      });
     }
 
     // ── Per-line state. After the money, because a line marked refunded with no
     // refund behind it is worse than a refund with a late mark: the first hides
     // money owed, the second is visible in Stripe.
+    //
+    // A FAILURE HERE WAS SWALLOWED ENTIRELY, and it is not cosmetic. The money
+    // moved but `refunded_cents` still reads unrefunded, so every report
+    // overstates what the line is owed and a later operator sees room to refund
+    // it again. The refund LEGS are protected — `planRefund` derives per
+    // transaction headroom from the sibling `refunded` rows, not from this
+    // column, so a second attempt finds no money left to move — but the row is
+    // wrong until a human fixes it, and nobody can fix what nobody is told.
+    let lineStateIncomplete = false;
     for (const l of plan.lines) {
       const current = lines.find((x) => x.id === l.id)?.refundedCents ?? 0;
       const { error } = await admin
@@ -195,7 +269,13 @@ export async function refundOrderLines(
         .update({ refunded_cents: current + l.amountCents })
         .eq("id", l.id);
       if (error) {
-        logServerError("orders.refundLines/lineState", error);
+        lineStateIncomplete = true;
+        logServerError(
+          "orders.refundLines/LINE_STATE_NOT_STAMPED_AFTER_REFUND",
+          `order ${input.orderId}: ${l.amountCents} cents refunded on line ${l.id}, but `
+            + `refunded_cents could not be updated (${error.message}). The line reads unrefunded. `
+            + `Needs a human.`,
+        );
       }
     }
 
@@ -225,15 +305,38 @@ export async function refundOrderLines(
       );
     }
 
+    // `void` is refundable, not skippable. `cancel_event_cascade` stamps every
+    // admission of a cancelled event `void` at the moment of the decision so
+    // the door closes immediately, then leaves a refund intent for the cron —
+    // which lands here. Skipping `void` would leave the row at `void` for ever
+    // (the door then says "cancelled" to a person we did pay back) and, worse,
+    // would never call `refund_admission`, so the seat's allocation would stay
+    // committed against the pool. `refund_admission` accepts both states and
+    // still refuses `admitted_count > 0` first, so an attended ticket remains a
+    // dispute either way.
+    // EVERY outcome is classified, and an RPC ERROR IS AN OUTCOME. It used to
+    // log and `continue`, which left `stamped` short with the flag still false
+    // — a clean-looking refund over a ticket that still admits. See
+    // `classifyAdmissionEffect`, where the failure branch is unit-tested.
     for (const a of (admRows ?? []) as Array<{ id: string; admitted_count: number; status: string }>) {
-      if (a.admitted_count > 0 || a.status !== "valid") continue;
+      if (!admissionIsRefundable({ admittedCount: a.admitted_count, status: a.status })) continue;
       const { data: res, error } = await admin.rpc("refund_admission", { p_admission_id: a.id });
-      if (error) {
-        logServerError("orders.refundLines/admission", error);
-        continue;
+      const effect = classifyAdmissionEffect(
+        res as { ok?: boolean; reason?: string } | null,
+        error,
+      );
+      if (effect.effect === "stamped") {
+        stamped += 1;
+      } else if (effect.effect === "incomplete") {
+        admissionsIncomplete = true;
+        logServerError(
+          "orders.refundLines/TICKETS_NOT_VOIDED_AFTER_REFUND",
+          `order ${input.orderId}: money refunded but admission ${a.id} was not stamped `
+            + `(${effect.why}: ${effect.reason ?? "no reason given"}). That ticket may still `
+            + `admit and its seat is still committed. Retry is safe — refund_admission is `
+            + `idempotent — but the refund legs are NOT. Needs a human.`,
+        );
       }
-      if ((res as { ok?: boolean } | null)?.ok === true) stamped += 1;
-      else admissionsIncomplete = true;
     }
 
     // ── Promo. A FULL refund releases the redemption; a partial does not, and
@@ -251,9 +354,11 @@ export async function refundOrderLines(
     return {
       ok: true,
       refundedCents: moved,
-      refundIds,
+      refundIds: steps.map((s) => s.refundId),
+      steps,
       admissionsStamped: stamped,
       admissionsIncomplete,
+      lineStateIncomplete,
       releasedPromoRedemption: releasedPromo,
     };
   } catch (err) {
