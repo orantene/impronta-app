@@ -18,7 +18,7 @@ ALTER TABLE public.inquiries
 
 UPDATE public.inquiries
    SET channel = COALESCE(channel, CASE
-         WHEN source_channel IN ('web_chat', 'whatsapp', 'sms', 'email', 'counter') THEN source_channel
+         WHEN source_channel::text IN ('web_chat', 'whatsapp', 'sms', 'email', 'counter') THEN source_channel::text
          ELSE 'web_chat'
        END)
  WHERE channel IS NULL;
@@ -320,13 +320,13 @@ BEGIN
   IF NOT FOUND THEN
     RETURN 'gathering';
   END IF;
-  IF v_offer.status IN ('accepted', 'approved') AND v_offer.accepted_at IS NOT NULL THEN
+  IF v_offer.status::text IN ('accepted', 'approved') AND v_offer.accepted_at IS NOT NULL THEN
     RETURN 'accepted_awaiting_deposit';
   END IF;
-  IF v_offer.status IN ('sent', 'pending') AND v_offer.sent_at IS NOT NULL THEN
+  IF v_offer.status::text IN ('sent', 'pending') AND v_offer.sent_at IS NOT NULL THEN
     RETURN 'awaiting_acceptance';
   END IF;
-  IF v_offer.status IN ('draft') THEN
+  IF v_offer.status::text IN ('draft') THEN
     RETURN 'gathering';
   END IF;
   IF v_offer.sent_at IS NOT NULL THEN
