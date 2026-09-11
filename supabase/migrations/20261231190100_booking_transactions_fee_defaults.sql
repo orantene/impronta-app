@@ -17,13 +17,13 @@ ALTER TABLE public.booking_transactions
 COMMIT;
 
 DO $proof$
-DECLARE v_bps int; v_fee bigint;
+DECLARE v_bps boolean; v_fee boolean;
 BEGIN
   SELECT column_default IS NOT NULL INTO v_bps FROM information_schema.columns
    WHERE table_schema='public' AND table_name='booking_transactions' AND column_name='platform_fee_basis_points';
   SELECT column_default IS NOT NULL INTO v_fee FROM information_schema.columns
    WHERE table_schema='public' AND table_name='booking_transactions' AND column_name='platform_fee_cents';
-  IF NOT (v_bps::boolean AND v_fee::boolean) THEN
+  IF NOT (v_bps AND v_fee) THEN
     RAISE EXCEPTION 'fee defaults did not land';
   END IF;
 END $proof$;
