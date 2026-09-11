@@ -34,12 +34,16 @@ export async function createPaymentLink(
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) return { ok: false, reason: "invalid" };
   if (input.idempotencyKey.trim().length < 8) return { ok: false, reason: "invalid" };
 
-  const { data: existing } = await admin
+  const { data: existing, error: existingErr } = await admin
     .from("payment_links")
     .select("code, amount_cents, expires_at, status")
     .eq("tenant_id", input.tenantId)
     .eq("operation_key", input.idempotencyKey.trim())
     .maybeSingle();
+  if (existingErr) {
+    logServerError("payments.createPaymentLink.existing", existingErr);
+    return { ok: false, reason: "unavailable" };
+  }
   if (existing) {
     const row = existing as { code: string; amount_cents: number; expires_at: string; status: string };
     if (row.status === "expired" || row.status === "cancelled") return { ok: false, reason: "expired" };

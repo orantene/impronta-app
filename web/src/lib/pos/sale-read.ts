@@ -81,7 +81,14 @@ export async function loadPosSale(
 
   const limit = await readCustomAmountLimitCents(admin, input.tenantId);
   const limitCents = limit.ok ? limit.limitCents : 0;
-  const { data: approvals } = await admin.from("pos_approvals").select("line_id").eq("order_id", input.orderId);
+  const { data: approvals, error: approvalsErr } = await admin
+    .from("pos_approvals")
+    .select("line_id")
+    .eq("order_id", input.orderId);
+  if (approvalsErr) {
+    logServerError("pos.loadSale.approvals", approvalsErr);
+    return { ok: false, reason: "unavailable" };
+  }
   const approved = new Set(((approvals ?? []) as Array<{ line_id: string }>).map((a) => a.line_id));
 
   return {
