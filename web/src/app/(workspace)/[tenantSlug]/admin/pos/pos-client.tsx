@@ -62,7 +62,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { refusalFromResult } from "@/lib/pos/refusal-reason";
 
-import { CounterDisplayBeacon } from "./counter-display-beacon";
+import { useCounterDisplayBeacon } from "./counter-display-beacon";
 import { useCounterCustomer } from "./counter-customer";
 import { CounterDrawer } from "./counter-drawer";
 import { useCounterEngine } from "./counter-engine";
@@ -226,7 +226,10 @@ export function PosClient(props: PosClientProps) {
     [props.basketLines, props.locale, router, sale],
   );
   const settling = writtenVersion !== null && sale !== null && sale.version === writtenVersion;
-  const working = busy || settling;
+  // The customer display's own write (a tip) on this device: hold the next
+  // command until the re-read has delivered that version (D-POS-75).
+  const beacon = useCounterDisplayBeacon({ tenantId: props.tenantId, orderId: sale?.orderId ?? null, version: sale?.version ?? null });
+  const working = busy || settling || beacon.stale;
 
   const resetForNewSale = useCallback(() => {
     setPaid(null);
@@ -473,7 +476,7 @@ export function PosClient(props: PosClientProps) {
           sentBefore={sentBefore}
           heldCount={held.length}
           onOpenHeld={() => setDestination("orders")}
-          chargeLoading={busy}
+          chargeLoading={working}
           offline={!online}
           savedAt={savedAt}
           hasSale={Boolean(sale)}
@@ -647,7 +650,6 @@ export function PosClient(props: PosClientProps) {
 
   return (
     <div className="relative flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] min-h-[560px] w-full flex-col overflow-hidden">
-      <CounterDisplayBeacon tenantId={props.tenantId} orderId={sale?.orderId ?? null} />
       <ScannerListener onScan={(code) => void scan(code)} enabled={(destination === "sell" || destination === "scan") && !paid && !collectOpen && sheet === null} />
       <PosFrame
         mode={props.mode}
