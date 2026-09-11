@@ -136,3 +136,53 @@ Calendar, Appointments & Classes, Reservations, Orders, Clients and Sales, and
 "Setup is owner-only · ask the owner" where Settings would be. Telling the
 three apart needs a job-function field on the membership, which is a People
 model decision (D-POS-9), not a navigation one.
+
+## D-POS-18 — the Appointments & Classes page draws every board control; the ones the engine cannot serve are disabled with their reason
+
+Decided 2026-09-11 by the appointments fidelity builder (fid-appts). Boards
+W39 (Sessions) and W40 (Series) are built on `loadSchedule`,
+`loadAppointments`, `loadSessionWaitlists` and the Front desk's roster reader
+(`readAdmissionsRoster`, now shared with the workspace through
+`loadSessionParticipants`). Wired: the Week / Day / List window, the Location
+filter (the sessions' own venues), the Needs-attention filter, the row menu
+(opens the panel), Change capacity (`setSessionPoolUnits`, the events night
+editor's own writer, so Capacity's shrink refusal names the floor), the
+waitlist door, Open check-in on the POS (when the Front desk mode is on), and
+on the Appointments tab the move (`reschedule_booking_set`). Drawn disabled
+with a one-sentence reason in en/es/fr, because no reader or writer exists:
+**Generate sessions** (the sweep is the nightly cron over 90 days; nothing
+runs it by hand), **+ New series** (no series writer; the one-off night form
+is the only write, kept below the table), **Room** and **Instructor** filters
+(a session stores a venue and no instructor), **Substitute instructor**,
+**Move participant** (a refund and a new ticket is the engine's path),
+**Cancel session** (no session cancel writer), the **Future sessions /
+Entire series** scopes (`planSeriesEdit` exists; nothing applies it),
+**Add a service** and **Cancel appointment** on the appointment panel.
+Equipment positions and cancellation rules are not modelled; the facts card
+says so instead of inventing a value. W10 (Generate sessions preview) has no
+surface of its own: the sweep's refusals and skipped collisions are shown on
+the Sessions tab, which is the same `decideMaterialisation` call the preview
+would make.
+
+## D-POS-19 — the Front desk draws boards B01 to B06 on the till's own commands; five controls are disabled with their reason
+
+Decided 2026-09-11 (fid-appts). The Front desk mode (`?mode=classes`) is now
+the two-pane Today screen (B01: Today / Due / Done, Appts | Classes, the
+selected appointment with its sale's lines from `posLoadSale`, the totals,
+Collect through the Counter's cash charge, Move it), the Add-extra sheet
+(B02: `posAddLine` on the appointment's own sale, version carried), the
+Walk-in sheet (B04: service, customer, NEXT FREE from `computePublicSlots`,
+Pay = cash at the end or now), the class check-in (B05: numbered roster,
+Check in = `markAttendance`, Sell drop-in = the walk-in seat, Add to
+waitlist) and the "A place opened up" dialog (B06: offer to the next in line
+= `promoteFromWaitlist`, sell as a drop-in, or leave it). Disabled with a
+reason: **Use a pass** (passes and memberships are not modelled), **Who did
+what** (a sale line is not attributed to a person), **Send payment link**
+(links are the Counter mode's), **Rebook**, **Undo** a check-in (no un-admit),
+**Fix** a bad ticket, **Scan a pass**, **Substitute instructor**, **Close
+check-in · mark no-shows** (no no-show state), seat **positions**. A timed
+extra added at the chair does NOT re-plan the appointment's end (B02's "Ends
+13:35 · next client 14:00" needs a calendar re-plan writer); the sheet says
+so. B03 (a sale linked to an appointment for payment only) is the Counter's
+link-a-sale flow and is not built here. The mode keeps its own label, Front
+desk (D-POS-15).

@@ -1,7 +1,7 @@
 /**
  * /admin/appointments — the word on the sidebar, typed by hand. An alias of
  * the `appts` destination (`lib/workspace/destinations.ts`); the body is the
- * SPA's SessionsPage, so this is the same PageRouteSyncer stub as ../appts.
+ * SPA's AppointmentsPage, so this is the same PageRouteSyncer stub as ../appts.
  */
 import { PageRouteSyncer } from "../_page-route-syncer";
 

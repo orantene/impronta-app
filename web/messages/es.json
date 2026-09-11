@@ -12416,7 +12416,7 @@
           "roster": "Lista",
           "rosterEmpty": "Nadie tiene lugar en esta sesión todavía.",
           "unnamed": "Esta entrada no tiene nombre",
-          "mark": "Marcar presente",
+          "mark": "Registrar",
           "marking": "Marcando...",
           "here": "Presente",
           "partOfParty": "{admitted} de {party} dentro",
@@ -12481,6 +12481,136 @@
           "needsContact": "Este servicio necesita el correo o el teléfono del cliente.",
           "notForSale": "Ese servicio no está a la venta en este momento.",
           "couldNotBook": "No se pudo reservar. No se apartó nada."
+        },
+        "board": {
+          "header": {
+            "summary": "{date} · {appointments} citas · {classes} clases",
+            "location": "Lugar",
+            "operator": "Sesion"
+          },
+          "list": {
+            "tabToday": "Hoy",
+            "tabDue": "Por cobrar",
+            "tabDone": "Hechas",
+            "segAppts": "Citas",
+            "segClasses": "Clases",
+            "emptyDue": "No hay nada por cobrar en las citas de hoy.",
+            "emptyDone": "Todavia no hay nada terminado hoy.",
+            "walkIn": "Sin cita",
+            "book": "Reservar",
+            "pickOne": "Elige una cita a la izquierda para verla aqui.",
+            "pickSession": "Elige una clase a la izquierda para abrir su registro.",
+            "classChip": "Clase",
+            "full": "Llena",
+            "here": "{here} dentro"
+          },
+          "detail": {
+            "booked": "Reservado",
+            "addedToday": "Agregado hoy",
+            "linesLoading": "Leyendo la venta...",
+            "linesUnreadable": "No se pudo leer esta venta ahora mismo. Recarga e intentalo de nuevo.",
+            "noLines": "Esta cita todavia no tiene una venta.",
+            "addService": "Agregar servicio",
+            "product": "Producto",
+            "usePass": "Usar un pase",
+            "usePassOff": "Los pases y membresias todavia no existen en el sistema, asi que no hay nada que canjear aqui.",
+            "services": "Servicios",
+            "retail": "Productos",
+            "depositPaid": "Pagado hasta ahora",
+            "balanceDue": "Saldo pendiente",
+            "whoDidWhat": "Quien hizo que",
+            "whoDidWhatOff": "Una linea de venta todavia no se atribuye a una persona, asi que aqui no se pueden mostrar ingresos por persona.",
+            "sendLink": "Enviar enlace de pago",
+            "sendLinkOff": "Los enlaces de pago se envian desde el modo Caja; la recepcion solo cobra en efectivo por ahora.",
+            "rebook": "Volver a reservar",
+            "rebookOff": "Volver a reservar desde una cita terminada todavia no esta conectado; usa Reservar con el mismo servicio.",
+            "serviceDone": "Servicio hecho",
+            "checkedIn": "Registrada",
+            "paidChip": "Pagada",
+            "addOff": "Esta cita no tiene una venta a la que agregar.",
+            "lineDone": "Hecho",
+            "lineAdded": "Agregado",
+            "lineProduct": "Producto"
+          },
+          "extra": {
+            "title": "Agregar a la cita de {name}",
+            "subtitle": "El precio se comprueba antes de agregar nada",
+            "search": "Buscar servicios, extras, productos",
+            "noMatch": "Nada en el catalogo coincide con eso.",
+            "minutes": "+{n} min",
+            "noTime": "Sin tiempo extra",
+            "timeNotReplanned": "La hora de fin de la cita no se replanifica al agregar un servicio con duracion; comprueba el siguiente cliente a mano.",
+            "newBalance": "Nuevo saldo",
+            "who": "Quien",
+            "add": "Agregar {item} · +{amount}",
+            "adding": "Agregando...",
+            "added": "{item} agregado a la venta.",
+            "cancel": "Cancelar"
+          },
+          "checkin": {
+            "startsIn": "empieza en {minutes} min",
+            "startedAgo": "empezo hace {minutes} min",
+            "fullChip": "Llena · {booked} de {total} reservadas",
+            "bookedChip": "{booked} de {total} reservadas",
+            "hereChip": "{here} presentes · {notYet} faltan",
+            "waitlistChip": "{count} en lista de espera",
+            "search": "Buscar un nombre",
+            "tabAll": "Todos {count}",
+            "tabNotHere": "Faltan {count}",
+            "tabProblems": "Problemas {count}",
+            "hereState": "Presente",
+            "bookedState": "Reservado",
+            "cantAttend": "Aun no puede entrar",
+            "check": "Registrar",
+            "undo": "Deshacer",
+            "undoOff": "Deshacer un registro todavia no esta conectado; la entrada sigue admitida.",
+            "fix": "Resolver",
+            "fixOff": "Una entrada no valida se resuelve con un reembolso y una venta nueva; aqui nada puede repararla en el sitio.",
+            "places": "Plazas",
+            "here": "Presentes",
+            "waitlist": "Lista de espera",
+            "positions": "Posiciones",
+            "positionsOff": "no se registran",
+            "scanPass": "Escanear un pase",
+            "scanPassOff": "Los pases todavia no existen en el sistema; una entrada se registra por su nombre.",
+            "sellDropIn": "Vender suelta",
+            "sellDropInFull": "Vender suelta · la clase esta llena",
+            "sellDropInOff": "Esta sesion no tiene una oferta bajo la que vender una plaza.",
+            "addToWaitlist": "Agregar a lista de espera",
+            "substitute": "Instructor sustituto",
+            "substituteOff": "Todavia no se guarda un instructor en una sesion, asi que no hay a quien sustituir.",
+            "closeCheckin": "Cerrar registro · marcar {count} ausencias",
+            "closeCheckinOff": "Las ausencias todavia no son un estado que el motor guarde; una entrada que nunca se registro simplemente queda sin admitir.",
+            "nobody": "Nadie tiene plaza en esta sesion todavia.",
+            "notValidNotice": "La entrada de {name} esta {status}. Reembolsala o vende una nueva antes de dejarle entrar."
+          },
+          "opened": {
+            "title": "Se libero una plaza",
+            "subtitle": "{free} libre(s) · {waiting} en espera",
+            "offerTo": "Ofrecerla a {name} (lista #{n})",
+            "offerHint": "Tiene {minutes} min para decir que si",
+            "sellDropIn": "Venderla como suelta en recepcion",
+            "sellHint": "Se salta la lista de espera",
+            "leaveEmpty": "Dejarla vacia",
+            "later": "Luego",
+            "offerButton": "Ofrecer a {name}"
+          },
+          "sheet": {
+            "title": "Sin cita · reservar ahora",
+            "subtitle": "Quien esta libre ahora para este servicio",
+            "bookTitle": "Nueva reserva",
+            "bookSubtitle": "Servicio, luego una hora libre, luego para quien es",
+            "customer": "Cliente",
+            "customerHint": "Agrega un correo o telefono si quiere un recibo",
+            "nextFree": "Proximo libre",
+            "pay": "Pago",
+            "payAtEnd": "Al final · {amount} en efectivo",
+            "payNothing": "Nada que cobrar",
+            "payHint": "O cobralo ahora, justo despues de reservar",
+            "bookNow": "Reservar con {name} · {time}",
+            "close": "Cerrar",
+            "withPerson": "{name} · {minutes} min · {amount}"
+          }
         }
       },
       "door": {
@@ -12830,28 +12960,12 @@
       "identityNote": "Esta vista es de esta visita, no de la mesa."
     },
     "adminSessions": {
-      "title": "Horario",
-      "subtitle": "Series y sus ocurrencias, con lo que el barrido nocturno rechazo.",
-      "noTenant": "Ningun espacio de trabajo seleccionado.",
       "loading": "Cargando el horario...",
       "minutes": "{n} min",
-      "noTimezone": "sin zona horaria confirmada",
       "noOccurrences": "Sin ocurrencias en los proximos 90 dias.",
       "noPool": "sin plazas definidas",
-      "seatsLeft": "{left} de {total} disponibles",
       "empty": {
-        "title": "Aun no hay series",
         "body": "Una serie es una clase, funcion o salida recurrente. Sus ocurrencias se crean cada noche para los proximos 90 dias, cada una con sus plazas."
-      },
-      "col": {
-        "when": "Cuando",
-        "seats": "Plazas",
-        "status": "Estado"
-      },
-      "status": {
-        "scheduled": "A la venta",
-        "cancelled": "Cancelada",
-        "completed": "Completada"
       },
       "weekday": {
         "mon": "Lun",
@@ -12894,20 +13008,18 @@
         "loadFailed": "No se pudieron cargar los eventos."
       },
       "nights": {
-        "title": "Noches sueltas",
-        "help": "Clases programadas para una sola fecha, sin una serie que se repita. Cada una tiene sus propios lugares.",
         "untitled": "Noche sin título"
       }
     },
     "adminAppointments": {
-      "title": "Citas",
-      "subtitle": "Lo de hoy y lo que viene, las clases que hay detras, y quien espera un lugar.",
+      "title": "Citas y clases",
       "noTenant": "No hay espacio de trabajo seleccionado.",
       "loading": "Cargando las citas...",
       "tabs": {
         "list": "Citas",
-        "sessions": "Sesiones y series",
-        "waitlist": "Lista de espera"
+        "sessions": "Sesiones",
+        "waitlist": "Lista de espera",
+        "series": "Series"
       },
       "bucket": {
         "undated": "Sin fecha acordada",
@@ -12921,7 +13033,7 @@
         "servedBy": "Atiende",
         "place": "Sala o recurso",
         "state": "Estado",
-        "action": "Siguiente"
+        "service": "Servicio"
       },
       "unknownCustomer": "Esta reserva no tiene contacto",
       "unassigned": "Nadie asignado todavia",
@@ -12933,9 +13045,7 @@
       },
       "action": {
         "reschedule": "Moverla",
-        "open": "Abrir la reserva",
-        "cancelled": "Cancelada. Aqui no hay nada que hacer.",
-        "completed": "Terminada. Aqui no hay nada que hacer."
+        "open": "Abrir la reserva"
       },
       "reschedule": {
         "heading": "Mover esta reserva",
@@ -13058,6 +13168,168 @@
         "cancelled": "Cancelada",
         "archived": "Archivada",
         "unknown": "Estado no reconocido"
+      },
+      "board": {
+        "subtitle": {
+          "list": "Hoy y lo que viene, con quien atiende y la sala",
+          "sessions": "Sesiones con fecha de cada serie y cada noche suelta, en el reloj del lugar",
+          "series": "Una serie es una clase con cadencia; el barrido nocturno crea las sesiones con fecha que el POS vende y registra",
+          "waitlist": "Quien espera una plaza en una clase llena, en el orden en que se anoto"
+        },
+        "generate": "Generar sesiones",
+        "generateOff": "Las sesiones las genera el barrido nocturno para los proximos 90 dias; aqui todavia no se puede ejecutar a mano.",
+        "newSeries": "Nueva serie",
+        "newSeriesOff": "Todavia no se puede crear una serie desde el espacio de trabajo; una noche suelta si, debajo de las sesiones.",
+        "viewLabel": "Vista de sesiones",
+        "view": {
+          "week": "Semana",
+          "day": "Dia",
+          "list": "Lista"
+        },
+        "earlier": "Anterior",
+        "later": "Siguiente",
+        "filter": {
+          "location": "Lugar",
+          "room": "Sala",
+          "instructor": "Instructor",
+          "attention": "Requiere atencion",
+          "any": "cualquiera",
+          "noRooms": "Ninguna sesion de esta ventana indica un lugar todavia.",
+          "roomOff": "Las salas todavia no se guardan en una sesion; las sesiones llevan un lugar, que es lo que lee el filtro Lugar.",
+          "instructorOff": "Todavia no se guarda un instructor en una sesion, asi que no hay por que filtrar."
+        },
+        "col": {
+          "time": "Hora",
+          "session": "Sesion",
+          "room": "Sala",
+          "instructor": "Instructor",
+          "seats": "Reservadas / plazas",
+          "state": "Estado"
+        },
+        "sessionOf": "{title} · sesion {n} de {of}",
+        "waitingOne": "{count} en espera",
+        "waitingOther": "{count} en espera",
+        "state": {
+          "scheduled": "Programada",
+          "full": "Llena",
+          "cancelled": "Cancelada",
+          "completed": "Completada",
+          "needsSeats": "Sin plazas",
+          "unknown": "Estado desconocido"
+        },
+        "rowMenu": "Abrir esta sesion",
+        "emptyWindow": "Nada en esta ventana. Mueve las fechas o pasa a Lista para ver todo lo que viene.",
+        "usedIn": "Se usa en",
+        "usedPos": "POS",
+        "usedPosOn": "Modo Recepcion (activo)",
+        "usedPosOff": "Modo Recepcion (apagado en Ajustes)",
+        "usedWeb": "Web",
+        "usedWebWhat": "Bloque selector de sesiones, paginas publicas de eventos",
+        "panel": {
+          "seriesLine": "Serie: {series} · sesion {n} de {of}",
+          "oneOff": "Noche suelta, sin serie",
+          "places": "Plazas",
+          "booked": "reservadas {count}",
+          "waiting": "en espera {count}",
+          "equipment": "Equipamiento",
+          "equipmentOff": "No se registra en este espacio de trabajo",
+          "enrolmentCloses": "Cierre de inscripcion",
+          "enrolmentRule": "En linea hasta la hora de inicio · las ofertas de lista de espera se reservan {minutes} min",
+          "cancellationRule": "Regla de cancelacion",
+          "cancellationOff": "Ninguna definida en este espacio de trabajo",
+          "attendance": "Asistencia",
+          "attendanceRule": "El registro marca la entrada como admitida",
+          "participants": "Participantes",
+          "participantsLoading": "Leyendo las entradas...",
+          "participantsUnreadable": "No se pudieron leer los participantes ahora mismo.",
+          "unnamedTicket": "Entrada sin nombre",
+          "ticketBooked": "Entrada · reservada",
+          "ticketHere": "Entrada · presente",
+          "ticketParty": "Entrada · grupo de {count}",
+          "ticketNotValid": "Entrada · {status}",
+          "fromWaitlist": "De la lista de espera · plaza reservada",
+          "nobodyYet": "Nadie tiene plaza todavia.",
+          "more": "+{count} mas",
+          "changeScope": "Alcance del cambio",
+          "scope": {
+            "this": "Esta sesion",
+            "future": "Sesiones futuras",
+            "series": "Toda la serie"
+          },
+          "scopeOff": "Los cambios a toda una serie todavia no estan conectados: el plan de edicion existe, pero nada lo aplica.",
+          "substitute": "Instructor sustituto",
+          "substituteOff": "Todavia no se guarda un instructor en una sesion, asi que no hay a quien sustituir.",
+          "changeCapacity": "Cambiar plazas",
+          "capacityOffState": "Esta sesion ya no esta a la venta, asi que sus plazas no pueden cambiar.",
+          "capacityOffNoPool": "Nunca se definieron plazas para esta sesion; programala con plazas primero.",
+          "capacityOffTiers": "Esta noche tiene plazas por nivel; cambialas en la noche del evento.",
+          "capacityLabel": "Plazas en esta sesion",
+          "capacityHint": "Un numero por debajo de lo ya vendido lo rechaza el motor, y el rechazo indica el minimo.",
+          "capacityNeedNumber": "Las plazas deben ser un numero entero, 0 o mas.",
+          "capacitySave": "Guardar plazas",
+          "capacitySaving": "Guardando...",
+          "capacitySaved": "Plazas fijadas en {count}.",
+          "capacityClose": "Cerrar",
+          "capacityUnavailable": "No se pudieron cambiar las plazas. Intentalo de nuevo.",
+          "moveParticipant": "Mover participante",
+          "moveOff": "Mover una entrada a otra sesion todavia no esta conectado; reembolsala y vende una nueva.",
+          "cancelSession": "Cancelar sesion...",
+          "cancelOff": "Cancelar una sesion desde aqui todavia no esta conectado.",
+          "openPos": "Abrir el registro en el POS",
+          "openPosOff": "Activa el modo Recepcion en Ajustes › Punto de venta para registrar a la gente.",
+          "clock": "Reloj del lugar",
+          "actions": "Acciones",
+          "addService": "Agregar un servicio",
+          "addServiceOff": "Agregar un servicio a una reserva es tarea de Recepcion y aqui todavia no esta construido.",
+          "cancelAppointment": "Cancelar cita...",
+          "cancelAppointmentOff": "Cancelar desde esta lista todavia no esta conectado; abre la reserva para cancelarla."
+        },
+        "series": {
+          "col": {
+            "series": "Serie",
+            "cadence": "Cadencia",
+            "room": "Sala",
+            "instructor": "Instructor",
+            "capacity": "Plazas",
+            "generated": "Generada hasta",
+            "state": "Estado"
+          },
+          "sessionsOne": "{count} sesion",
+          "sessionsOther": "{count} sesiones",
+          "skipped": "{count} omitidas",
+          "state": {
+            "published": "Publicada",
+            "paused": "Pausada",
+            "needsAttention": "Requiere atencion"
+          },
+          "showSessions": "Ver las sesiones de esta serie",
+          "holds": {
+            "title": "Que contiene una serie",
+            "definition": "Definicion",
+            "definitionValue": "Titulo, lugar y plazas por sesion",
+            "cadence": "Cadencia",
+            "cadenceValue": "Dias, hora local, duracion, fecha de inicio y de fin",
+            "capacity": "Plazas",
+            "capacityValue": "Plazas por sesion, como un pool de capacidad cada noche",
+            "people": "Personas",
+            "peopleValue": "Sin instructor todavia; el lugar es la sala",
+            "windows": "Ventanas",
+            "windowsValue": "Se vende en linea hasta que empieza; las ofertas de lista de espera se reservan 30 min",
+            "generate": "Generar",
+            "generateValue": "Barrido nocturno, 90 dias por delante; los choques se rechazan y se muestran aqui"
+          },
+          "kinds": {
+            "title": "Curso vs suelta",
+            "course": "Curso (cohorte)",
+            "courseValue": "Una compra, una lista, noches fijas (aun no modelado: cada sesion se vende por separado)",
+            "dropIn": "Serie de clases sueltas",
+            "dropInValue": "Cada sesion se vende por separado; una noche suelta funciona igual",
+            "three": "Tres sueltas no son un curso",
+            "threeValue": "Tres entradas en tres noches son tres compras, nunca una"
+          }
+        },
+        "from": "desde el",
+        "waitlistDoor": "Lista de espera"
       }
     },
     "projects": {

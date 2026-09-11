@@ -1,0 +1,9 @@
+
+Running 4 tests using 1 worker
+
+[1/4] [chromium] › e2e/journeys/classes-and-waitlist.spec.ts:125:5 › an operator creates a class night through the interface, and it is on the schedule
+[2/4] [chromium] › e2e/journeys/classes-and-waitlist.spec.ts:208:5 › two guests fill the night on the public page, and the schedule says so
+[3/4] [chromium] › e2e/journeys/classes-and-waitlist.spec.ts:253:5 › the queue is opened from the full row, two people join it, and a place that does not exist is refused
+[4/4] [chromium] › e2e/journeys/classes-and-waitlist.spec.ts:300:5 › a seat is freed, offered, taken, and the accepted place holds a real seat
+  4 passed (4.6m)
+EXIT=0

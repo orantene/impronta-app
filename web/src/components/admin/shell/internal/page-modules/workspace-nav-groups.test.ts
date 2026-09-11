@@ -330,8 +330,8 @@ test("every Appointments child stays on the one route it has, as a query", () =>
   // THE CLAIM IS UNCHANGED, ONLY ITS SUBJECT MOVED. This used to assert that
   // Appointments drew no children at all, because /admin/sessions held one
   // page.tsx and a link to a Series or Waitlist path would have been a link to
-  // a 404. The three views now exist, and they are TABS of that one page rather
-  // than three routes, so the thing that must stay true is not "no children" —
+  // a 404. The four views now exist, and they are TABS of that one page rather
+  // than four routes, so the thing that must stay true is not "no children" —
   // it is that no child adds a path segment nothing can serve. That is what is
   // checked here, against the hrefs the rail actually builds.
   const appts = itemOf(railFor({ industryPreset: "agency" }), "appts");
@@ -339,7 +339,8 @@ test("every Appointments child stays on the one route it has, as a query", () =>
     appts?.subItems.map((s) => [s.label, s.href]),
     [
       ["Appointments", "/admin/sessions"],
-      ["Sessions and series", "/admin/sessions?view=sessions"],
+      ["Sessions", "/admin/sessions?view=sessions"],
+      ["Series", "/admin/sessions?view=series"],
       ["Waitlist", "/admin/sessions?view=waitlist"],
     ],
   );
@@ -369,6 +370,19 @@ test("only one Appointments child looks current at a time", () => {
     onWaitlist?.subItems.filter((s) => s.active).map((s) => s.id),
     ["appts-waitlist"],
     "the landing view stayed lit while a sibling query was on",
+  );
+
+  // The address bar may carry the canonical segment (`/admin/appts`, which
+  // the journeys type) while the rail links the live route (`/admin/sessions`).
+  // A child must light up on either, or the rail goes dark on the URL the
+  // registry itself calls canonical.
+  const onAlias = itemOf(railFor({ industryPreset: "agency" }, {
+    activePage: "sessions", pathname: "/admin/appts", search: "view=series",
+  }), "appts");
+  assert.deepEqual(
+    onAlias?.subItems.filter((s) => s.active).map((s) => s.id),
+    ["appts-series"],
+    "a child went dark on the destination's canonical alias path",
   );
 });
 

@@ -46,8 +46,10 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { classesCopy, classesRailCopy, classesRailNavLabel } from "@/components/admin/pos/classes-copy";
 import { clampDayOffset, loadClassesDay } from "@/lib/pos/classes/day";
+import { loadClassesExtras } from "@/lib/pos/classes/extras";
 import { loadWalkInServices } from "@/lib/pos/classes/walkin";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 
@@ -314,9 +316,13 @@ export default async function PosPage({
     // clamped, not trusted.
     const { timezone } = await resolveTenantTimezone(scope.tenantId);
     const dayOffset = clampDayOffset(q.day);
-    const [dayLoad, servicesLoad] = await Promise.all([
-      loadClassesDay(admin, { tenantId: scope.tenantId, timeZone: timezone, now: new Date(), dayOffset }),
+    const now = new Date();
+    const [dayLoad, servicesLoad, extrasLoad, venueRead] = await Promise.all([
+      loadClassesDay(admin, { tenantId: scope.tenantId, timeZone: timezone, now, dayOffset }),
       loadWalkInServices(admin, scope.tenantId),
+      loadClassesExtras(admin, scope.tenantId),
+      // The location pill (B01): the workspace's venue, when it names one.
+      admin.from("venues").select("name").eq("tenant_id", scope.tenantId).order("created_at", { ascending: true }).limit(1).maybeSingle(),
     ]);
     const classesPath = await currentAdminPath(tenantSlug);
     if (!dayLoad.ok) {
@@ -333,17 +339,30 @@ export default async function PosPage({
       );
     }
     if (!servicesLoad.ok) logServerError("pos.page.classes.services", new Error(servicesLoad.error));
+    if (!extrasLoad.ok) logServerError("pos.page.classes.extras", new Error(extrasLoad.error));
+    if (venueRead.error) logServerError("pos.page.classes.venue", venueRead.error);
+    const venueName = typeof venueRead.data?.name === "string" && venueRead.data.name.trim() ? venueRead.data.name.trim() : null;
+    // The operator pill (B01): the signed-in person, by their own name.
+    const sessionClient = await createClient();
+    const signedIn = sessionClient ? (await sessionClient.auth.getUser()).data.user : null;
+    const metadataName = (signedIn?.user_metadata as { full_name?: unknown } | null)?.full_name;
+    const operatorName =
+      (typeof metadataName === "string" && metadataName.trim()) || signedIn?.email?.split("@")[0] || "";
     return (
       <>
         <PageRouteSyncer page="pos" />
         <ClassesClient
           tenantId={scope.tenantId}
           workspaceName={workspaceName}
+          venueName={venueName}
+          operatorName={operatorName}
           posPath={classesPath}
           locale={locale}
           currency="USD"
+          nowIso={now.toISOString()}
           day={dayLoad.day}
           services={servicesLoad.ok ? servicesLoad.services : []}
+          extras={extrasLoad.ok ? extrasLoad.extras : []}
           copy={{
             frame: { navLabel: classesRailNavLabel(tr), destinationLabels: classesRailCopy(tr) },
             classes: classesCopy(tr),

@@ -1,0 +1,56 @@
+
+Running 5 tests using 1 worker
+
+[1/5] [chromium] › e2e/journeys/appointments-and-classes.spec.ts:223:5 › a booking made on the public page is on the day's board, with its own time and state
+  1) [chromium] › e2e/journeys/appointments-and-classes.spec.ts:223:5 › a booking made on the public page is on the day's board, with its own time and state 
+
+    Test timeout of 180000ms exceeded.
+
+    Error: locator.selectOption: Test timeout of 180000ms exceeded.
+    Call log:
+      - waiting for getByRole('combobox').first()
+        - locator resolved to <select class="rounded-lg border border-[rgba(24,24,27,0.12)] bg-white px-3 py-2">…</select>
+      - attempting select option action
+        2 × waiting for element to be visible and enabled
+          - did not find some options
+        - retrying select option action
+        - waiting 20ms
+        2 × waiting for element to be visible and enabled
+          - did not find some options
+        - retrying select option action
+          - waiting 100ms
+        288 × waiting for element to be visible and enabled
+            - did not find some options
+          - retrying select option action
+            - waiting 500ms
+
+
+      80 |   await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 30_000 });
+      81 |   const chooser = page.getByRole("combobox").first();
+    > 82 |   if (await chooser.count()) await chooser.selectOption({ label: service });
+         |                                            ^
+      83 |   await expect(page.getByText(service).first()).toBeVisible({ timeout: 30_000 });
+      84 |
+      85 |   const slots = page.locator("[data-testid=slot-picker] button");
+        at bookOnThePublicPage (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-appts/web/e2e/journeys/appointments-and-classes.spec.ts:82:44)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-appts/web/e2e/journeys/appointments-and-classes.spec.ts:228:18
+
+    Error Context: ../../fid-appts-pw-appts/journeys-appointments-and--6dbc0-with-its-own-time-and-state-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../fid-appts-pw-appts/journeys-appointments-and--6dbc0-with-its-own-time-and-state-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../fid-appts-pw-appts/journeys-appointments-and--6dbc0-with-its-own-time-and-state-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[2/5] [chromium] › e2e/journeys/appointments-and-classes.spec.ts:278:5 › a move that worked says so, and the database agrees
+[3/5] [chromium] › e2e/journeys/appointments-and-classes.spec.ts:352:5 › a taken time is refused, and the refusal names who is busy
+[4/5] [chromium] › e2e/journeys/appointments-and-classes.spec.ts:399:5 › a screen that went stale is refused rather than overwriting somebody else's move
+[5/5] [chromium] › e2e/journeys/appointments-and-classes.spec.ts:457:5 › a full room is refused, and the refusal names the room
+  1 failed
+    [chromium] › e2e/journeys/appointments-and-classes.spec.ts:223:5 › a booking made on the public page is on the day's board, with its own time and state 
+  4 did not run
+EXIT=1

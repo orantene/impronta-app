@@ -193,10 +193,30 @@ function subItemsFor(
           ];
         });
   const siblingKeys = siblingQueryKeys(raw);
+  const pathname = aliasNormalisedPath(destination, input);
   return raw.map((sub) => ({
     ...sub,
-    active: subItemActive(sub, input.pathname, input.search, siblingKeys),
+    active: subItemActive(sub, pathname, input.search, siblingKeys),
   }));
+}
+
+/**
+ * The current path with an ALIAS of this destination rewritten to its live
+ * route, so a child lights up on `/admin/appts?view=sessions` exactly as it
+ * does on `/admin/sessions?view=sessions`. The hrefs the rail builds always
+ * use the live route; the address bar may carry any alias the registry
+ * accepts (the canonical `appts`, the typed `appointments`), and comparing
+ * the raw path to the built href made every child go dark on those.
+ */
+function aliasNormalisedPath(destination: Destination, input: WorkspaceNavInput): string | null {
+  const { pathname, adminBase } = input;
+  if (pathname === null || !pathname.startsWith(adminBase)) return pathname;
+  const rest = pathname.slice(adminBase.length).replace(/^\//, "");
+  const [first = "", ...tail] = rest.split("/");
+  if (first === "" || resolveDestination(first)?.id !== destination.id) return pathname;
+  const live = destinationHref(destination, adminBase);
+  if (live === null) return pathname;
+  return tail.length > 0 ? `${live}/${tail.join("/")}` : live;
 }
 
 function navItem(

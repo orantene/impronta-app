@@ -51,11 +51,15 @@ export function TulalaIdentityBar() {
   // registry (preset-aware label, translated); the page meta is the fallback
   // for a page the rail does not draw as a row.
   const nav = useWorkspaceNav();
-  const pageLabel = (() => {
-    const rows = [...nav.groups.flatMap((g) => g.items), ...nav.pinned];
-    const active = rows.find((row) => row.active);
-    if (active) return copy.t(active.label);
-    return copy.t(PAGE_META[state.page]?.label ?? state.page);
+  const activeRow = [...nav.groups.flatMap((g) => g.items), ...nav.pinned].find((row) => row.active) ?? null;
+  const pageLabel = activeRow ? copy.t(activeRow.label) : copy.t(PAGE_META[state.page]?.label ?? state.page);
+  // A destination with a lit child reads "Page › Child" (the boards: W39
+  // "Appointments & Classes › Sessions"); a plain page reads "Workspace › Page".
+  const subLabel = (() => {
+    const sub = activeRow?.subItems.find((s) => s.active);
+    // The landing child carries the destination's own word; naming it twice
+    // ("Appointments & Classes › Appointments") is noise, not a crumb.
+    return sub && sub.href.includes("?") ? copy.t(sub.label) : null;
   })();
 
   // Hooks must be called unconditionally (Rules of Hooks). These drive the
@@ -236,10 +240,10 @@ export function TulalaIdentityBar() {
               data-tulala-breadcrumb
               className="flex min-w-0 flex-1 items-center gap-[8px] font-admin-body text-admin-13 text-admin-ink-muted"
             >
-              <span className="overflow-hidden text-ellipsis whitespace-nowrap">{effectiveTenant.name}</span>
+              <span className="overflow-hidden text-ellipsis whitespace-nowrap">{subLabel ? pageLabel : effectiveTenant.name}</span>
               <Icon name="chevron-right" size={13} stroke={1.75} color={COLORS.inkDim} />
               <span className="overflow-hidden text-ellipsis whitespace-nowrap font-semibold text-admin-ink">
-                {pageLabel}
+                {subLabel ?? pageLabel}
               </span>
             </div>
             {/* The ONE door into the point of sale on desktop and tablet.

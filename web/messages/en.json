@@ -12416,7 +12416,7 @@
           "roster": "Roster",
           "rosterEmpty": "Nobody holds a place in this session yet.",
           "unnamed": "No name on this ticket",
-          "mark": "Mark present",
+          "mark": "Check in",
           "marking": "Marking...",
           "here": "Present",
           "partOfParty": "{admitted} of {party} in",
@@ -12481,6 +12481,136 @@
           "needsContact": "This service needs the customer's email or phone.",
           "notForSale": "That service is not for sale right now.",
           "couldNotBook": "Could not book that. Nothing was held."
+        },
+        "board": {
+          "header": {
+            "summary": "{date} · {appointments} appointments · {classes} classes",
+            "location": "Location",
+            "operator": "Signed in"
+          },
+          "list": {
+            "tabToday": "Today",
+            "tabDue": "Due",
+            "tabDone": "Done",
+            "segAppts": "Appts",
+            "segClasses": "Classes",
+            "emptyDue": "Nothing is owed on today's appointments.",
+            "emptyDone": "Nothing is finished yet today.",
+            "walkIn": "Walk-in",
+            "book": "Book",
+            "pickOne": "Pick an appointment on the left to see it here.",
+            "pickSession": "Pick a class on the left to open its check-in.",
+            "classChip": "Class",
+            "full": "Full",
+            "here": "{here} in"
+          },
+          "detail": {
+            "booked": "Booked",
+            "addedToday": "Added today",
+            "linesLoading": "Reading the sale...",
+            "linesUnreadable": "Could not read this sale right now. Reload and try again.",
+            "noLines": "No sale is attached to this appointment yet.",
+            "addService": "Add service",
+            "product": "Product",
+            "usePass": "Use a pass",
+            "usePassOff": "Passes and memberships are not modelled yet, so there is nothing to redeem here.",
+            "services": "Services",
+            "retail": "Retail",
+            "depositPaid": "Paid so far",
+            "balanceDue": "Balance due",
+            "whoDidWhat": "Who did what",
+            "whoDidWhatOff": "A sale line is not attributed to a person yet, so earnings per person cannot be shown here.",
+            "sendLink": "Send payment link",
+            "sendLinkOff": "Payment links are sent from the Counter mode; the front desk takes cash only for now.",
+            "rebook": "Rebook",
+            "rebookOff": "Rebooking from a finished appointment is not wired yet; use Book with the same service.",
+            "serviceDone": "Service done",
+            "checkedIn": "Checked in",
+            "paidChip": "Paid",
+            "addOff": "This appointment has no sale to add to.",
+            "lineDone": "Done",
+            "lineAdded": "Added",
+            "lineProduct": "Product"
+          },
+          "extra": {
+            "title": "Add to {name}'s appointment",
+            "subtitle": "The price is checked before anything is added",
+            "search": "Search services, extras, products",
+            "noMatch": "Nothing in the catalog matches that.",
+            "minutes": "+{n} min",
+            "noTime": "No time needed",
+            "timeNotReplanned": "The appointment's end time is not re-planned when a timed service is added; check the next client by hand.",
+            "newBalance": "New balance",
+            "who": "Who",
+            "add": "Add {item} · +{amount}",
+            "adding": "Adding...",
+            "added": "{item} added to the sale.",
+            "cancel": "Cancel"
+          },
+          "checkin": {
+            "startsIn": "starts in {minutes} min",
+            "startedAgo": "started {minutes} min ago",
+            "fullChip": "Full · {booked} of {total} booked",
+            "bookedChip": "{booked} of {total} booked",
+            "hereChip": "{here} here · {notYet} not yet",
+            "waitlistChip": "{count} on the waitlist",
+            "search": "Find a name",
+            "tabAll": "All {count}",
+            "tabNotHere": "Not here {count}",
+            "tabProblems": "Problems {count}",
+            "hereState": "Here",
+            "bookedState": "Booked",
+            "cantAttend": "Can't attend yet",
+            "check": "Check in",
+            "undo": "Undo",
+            "undoOff": "Undoing a check-in is not wired yet; the ticket stays admitted.",
+            "fix": "Fix",
+            "fixOff": "A ticket that is not valid is fixed by a refund and a new sale; nothing here can repair it in place.",
+            "places": "Places",
+            "here": "Here",
+            "waitlist": "Waitlist",
+            "positions": "Positions",
+            "positionsOff": "not tracked",
+            "scanPass": "Scan a pass",
+            "scanPassOff": "Passes are not modelled yet; a ticket is checked in by its name.",
+            "sellDropIn": "Sell drop-in",
+            "sellDropInFull": "Sell drop-in · class is full",
+            "sellDropInOff": "This session has no offering to sell a seat under.",
+            "addToWaitlist": "Add to waitlist",
+            "substitute": "Substitute instructor",
+            "substituteOff": "No instructor is stored on a session yet, so there is nobody to substitute.",
+            "closeCheckin": "Close check-in · mark {count} no-shows",
+            "closeCheckinOff": "No-shows are not a state the engine stores yet; a ticket that was never checked in simply stays unadmitted.",
+            "nobody": "Nobody holds a place on this session yet.",
+            "notValidNotice": "{name}'s ticket is {status}. Refund it or sell a new one before letting them in."
+          },
+          "opened": {
+            "title": "A place opened up",
+            "subtitle": "{free} free · {waiting} waiting",
+            "offerTo": "Offer it to {name} (waitlist #{n})",
+            "offerHint": "They get {minutes} min to say yes",
+            "sellDropIn": "Sell it as a drop-in at the desk",
+            "sellHint": "Skips the waitlist",
+            "leaveEmpty": "Leave it empty",
+            "later": "Later",
+            "offerButton": "Offer to {name}"
+          },
+          "sheet": {
+            "title": "Walk-in · book now",
+            "subtitle": "Who's free right now for this service",
+            "bookTitle": "New booking",
+            "bookSubtitle": "Service, then a free time, then who it is for",
+            "customer": "Customer",
+            "customerHint": "Add an email or phone if they want a receipt",
+            "nextFree": "Next free",
+            "pay": "Pay",
+            "payAtEnd": "At the end · {amount} in cash",
+            "payNothing": "Nothing to collect",
+            "payHint": "Or take it now, right after booking",
+            "bookNow": "Book {name} · {time}",
+            "close": "Close",
+            "withPerson": "{name} · {minutes} min · {amount}"
+          }
         }
       },
       "door": {
@@ -12830,28 +12960,12 @@
       "identityNote": "This is this visit, not the table."
     },
     "adminSessions": {
-      "title": "Schedule",
-      "subtitle": "Series and their occurrences, with what the nightly sweep refused.",
-      "noTenant": "No workspace selected.",
       "loading": "Loading the schedule...",
       "minutes": "{n} min",
-      "noTimezone": "no timezone confirmed",
       "noOccurrences": "No occurrences in the next 90 days.",
       "noPool": "no seats set",
-      "seatsLeft": "{left} of {total} left",
       "empty": {
-        "title": "No series yet",
         "body": "A series is a recurring class, show or departure. Its occurrences are created nightly for the next 90 days, each with its own seats."
-      },
-      "col": {
-        "when": "When",
-        "seats": "Seats",
-        "status": "Status"
-      },
-      "status": {
-        "scheduled": "On sale",
-        "cancelled": "Cancelled",
-        "completed": "Completed"
       },
       "weekday": {
         "mon": "Mon",
@@ -12894,20 +13008,18 @@
         "loadFailed": "Could not load events."
       },
       "nights": {
-        "title": "Nights on their own",
-        "help": "Classes scheduled for a single date rather than on a repeating series. Each one has its own seats.",
         "untitled": "Untitled night"
       }
     },
     "adminAppointments": {
-      "title": "Appointments",
-      "subtitle": "Today and what is coming, the classes behind them, and who is waiting for a place.",
+      "title": "Appointments & Classes",
       "noTenant": "No workspace selected.",
       "loading": "Loading the appointments...",
       "tabs": {
         "list": "Appointments",
-        "sessions": "Sessions and series",
-        "waitlist": "Waitlist"
+        "sessions": "Sessions",
+        "waitlist": "Waitlist",
+        "series": "Series"
       },
       "bucket": {
         "undated": "No date agreed yet",
@@ -12921,7 +13033,7 @@
         "servedBy": "Serving",
         "place": "Room or resource",
         "state": "State",
-        "action": "Next"
+        "service": "Service"
       },
       "unknownCustomer": "No contact on this booking",
       "unassigned": "Nobody assigned yet",
@@ -12933,9 +13045,7 @@
       },
       "action": {
         "reschedule": "Move it",
-        "open": "Open the booking",
-        "cancelled": "Cancelled. Nothing to do here.",
-        "completed": "Done. Nothing to do here."
+        "open": "Open the booking"
       },
       "reschedule": {
         "heading": "Move this booking",
@@ -13058,6 +13168,168 @@
         "cancelled": "Cancelled",
         "archived": "Archived",
         "unknown": "State not recognised"
+      },
+      "board": {
+        "subtitle": {
+          "list": "Today and what is coming, with the person serving and the room",
+          "sessions": "Dated sessions of each series and every one-off night, on the venue's clock",
+          "series": "A series is a class definition with a cadence; the nightly sweep creates the dated sessions the POS sells and checks in",
+          "waitlist": "Who is waiting for a place on a full class, in the order they joined"
+        },
+        "generate": "Generate sessions",
+        "generateOff": "Sessions are generated by the nightly sweep for the next 90 days; nothing here can run it by hand yet.",
+        "newSeries": "New series",
+        "newSeriesOff": "A series cannot be created from the workspace yet; a one-off night can, below the sessions.",
+        "viewLabel": "Sessions view",
+        "view": {
+          "week": "Week",
+          "day": "Day",
+          "list": "List"
+        },
+        "earlier": "Earlier",
+        "later": "Later",
+        "filter": {
+          "location": "Location",
+          "room": "Room",
+          "instructor": "Instructor",
+          "attention": "Needs attention",
+          "any": "any",
+          "noRooms": "No session in this window names a venue yet.",
+          "roomOff": "Rooms are not stored on a session yet; sessions carry a venue, which the Location filter reads.",
+          "instructorOff": "No instructor is stored on a session yet, so there is nothing to filter by."
+        },
+        "col": {
+          "time": "Time",
+          "session": "Session",
+          "room": "Room",
+          "instructor": "Instructor",
+          "seats": "Booked / places",
+          "state": "State"
+        },
+        "sessionOf": "{title} · session {n} of {of}",
+        "waitingOne": "{count} waiting",
+        "waitingOther": "{count} waiting",
+        "state": {
+          "scheduled": "Scheduled",
+          "full": "Full",
+          "cancelled": "Cancelled",
+          "completed": "Completed",
+          "needsSeats": "Needs seats",
+          "unknown": "Unknown state"
+        },
+        "rowMenu": "Open this session",
+        "emptyWindow": "Nothing in this window. Move the dates, or switch to List to see everything ahead.",
+        "usedIn": "Used in",
+        "usedPos": "POS",
+        "usedPosOn": "Front desk mode (on)",
+        "usedPosOff": "Front desk mode (off in Settings)",
+        "usedWeb": "Web",
+        "usedWebWhat": "Session picker block, public event pages",
+        "panel": {
+          "seriesLine": "Series: {series} · session {n} of {of}",
+          "oneOff": "One-off night, in no series",
+          "places": "Places",
+          "booked": "booked {count}",
+          "waiting": "waiting {count}",
+          "equipment": "Equipment",
+          "equipmentOff": "Not tracked on this workspace",
+          "enrolmentCloses": "Enrolment closes",
+          "enrolmentRule": "Online at start time · waitlist offers hold {minutes} min",
+          "cancellationRule": "Cancellation rule",
+          "cancellationOff": "None set on this workspace",
+          "attendance": "Attendance",
+          "attendanceRule": "Check-in marks the ticket admitted",
+          "participants": "Participants",
+          "participantsLoading": "Reading the tickets...",
+          "participantsUnreadable": "Could not read the participants right now.",
+          "unnamedTicket": "No name on this ticket",
+          "ticketBooked": "Ticket · booked",
+          "ticketHere": "Ticket · here",
+          "ticketParty": "Ticket · party of {count}",
+          "ticketNotValid": "Ticket · {status}",
+          "fromWaitlist": "From the waitlist · place held",
+          "nobodyYet": "Nobody holds a place yet.",
+          "more": "+{count} more",
+          "changeScope": "Change scope",
+          "scope": {
+            "this": "This session",
+            "future": "Future sessions",
+            "series": "Entire series"
+          },
+          "scopeOff": "Changes to a whole series are not wired yet: the edit plan exists, but nothing applies it.",
+          "substitute": "Substitute instructor",
+          "substituteOff": "No instructor is stored on a session yet, so there is nobody to substitute.",
+          "changeCapacity": "Change capacity",
+          "capacityOffState": "This session is no longer on sale, so its places cannot change.",
+          "capacityOffNoPool": "No seats were ever set for this session; schedule it with seats first.",
+          "capacityOffTiers": "This night has seats per tier; change them on the event's night.",
+          "capacityLabel": "Places on this session",
+          "capacityHint": "A number below what is already sold is refused by the engine, and the refusal names the floor.",
+          "capacityNeedNumber": "Places must be a whole number, 0 or more.",
+          "capacitySave": "Save places",
+          "capacitySaving": "Saving...",
+          "capacitySaved": "Places set to {count}.",
+          "capacityClose": "Close",
+          "capacityUnavailable": "Could not change the places. Try again.",
+          "moveParticipant": "Move participant",
+          "moveOff": "Moving a ticket to another session is not wired yet; refund it and sell a new one.",
+          "cancelSession": "Cancel session...",
+          "cancelOff": "Cancelling a session from here is not wired yet.",
+          "openPos": "Open check-in on the POS",
+          "openPosOff": "Turn on the Front desk mode in Settings › Point of sale to check people in.",
+          "clock": "Venue clock",
+          "actions": "Actions",
+          "addService": "Add a service",
+          "addServiceOff": "Adding a service to a booking is the Front desk's job and is not built here yet.",
+          "cancelAppointment": "Cancel appointment...",
+          "cancelAppointmentOff": "Cancelling from this list is not wired yet; open the booking to cancel it."
+        },
+        "series": {
+          "col": {
+            "series": "Series",
+            "cadence": "Cadence",
+            "room": "Room",
+            "instructor": "Instructor",
+            "capacity": "Capacity",
+            "generated": "Generated through",
+            "state": "State"
+          },
+          "sessionsOne": "{count} session",
+          "sessionsOther": "{count} sessions",
+          "skipped": "{count} skipped",
+          "state": {
+            "published": "Published",
+            "paused": "Paused",
+            "needsAttention": "Needs attention"
+          },
+          "showSessions": "Show this series' sessions",
+          "holds": {
+            "title": "What a series holds",
+            "definition": "Definition",
+            "definitionValue": "Title, venue and seats per session",
+            "cadence": "Cadence",
+            "cadenceValue": "Weekdays, local time, duration, start and end date",
+            "capacity": "Capacity",
+            "capacityValue": "Places per session, as a capacity pool each night",
+            "people": "People",
+            "peopleValue": "No instructor yet; the venue is the room",
+            "windows": "Windows",
+            "windowsValue": "Sold online until it starts; waitlist offers hold 30 min",
+            "generate": "Generate",
+            "generateValue": "Nightly sweep, 90 days ahead, collisions refused and shown here"
+          },
+          "kinds": {
+            "title": "Course vs drop-in",
+            "course": "Course (cohort)",
+            "courseValue": "One purchase, one roster, fixed nights (not modelled yet: every session sells on its own)",
+            "dropIn": "Drop-in series",
+            "dropInValue": "Each session sold on its own; a one-off night behaves the same",
+            "three": "Three drop-ins are not a course",
+            "threeValue": "Three tickets on three nights are three purchases, never one"
+          }
+        },
+        "from": "from",
+        "waitlistDoor": "Waitlist"
       }
     },
     "projects": {

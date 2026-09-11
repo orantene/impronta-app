@@ -1,0 +1,13 @@
+
+Running 6 tests using 1 worker
+
+[1/6] [chromium] › e2e/journeys/pos-classes.spec.ts:176:5 › the owner switches Front desk on in Settings and enters it from the top bar switch
+[2/6] [chromium] › e2e/journeys/pos-classes.spec.ts:219:5 › a walk-in is booked onto a free time and pays cash at the till
+[3/6] [chromium] › e2e/journeys/pos-classes.spec.ts:272:5 › the customer is checked in; a stale desk is refused in words
+[4/6] [chromium] › e2e/journeys/pos-classes.spec.ts:302:5 › a move onto a taken time is refused naming who is busy; a move onto a free time moves person and booking together
+[5/6] [chromium] › e2e/journeys/pos-classes.spec.ts:362:5 › a class night for today is created through the interface, a walk-in takes a seat for cash, and attendance is marked
+[6/6] [chromium] › e2e/journeys/pos-classes.spec.ts:467:5 › the night fills, somebody joins its list, a place that does not exist is refused, a seat is opened, the place is offered and taken
+  Slow test file: [chromium] › e2e/journeys/pos-classes.spec.ts (5.6m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  6 passed (5.7m)
+EXIT=0

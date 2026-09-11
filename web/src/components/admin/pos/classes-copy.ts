@@ -155,6 +155,150 @@ export type ClassesCopy = {
     readonly joinRefusal: Readonly<Record<JoinWaitlistRefusalKey, string>>;
   };
   readonly refusal: Readonly<Record<ClassesRefusalKey, string>>;
+  /**
+   * The boards' own words (B01 Today, B02 Add extra, B04 Walk-in, B05 Class
+   * check-in, B06 A place opened up). A control the engine has no action for
+   * carries its reason here too, so the screen never draws a dead button.
+   */
+  readonly board: {
+    readonly header: {
+      /** "{date} · {appointments} appointments · {classes} classes" */
+      readonly summary: string;
+      readonly location: string;
+      readonly operator: string;
+    };
+    readonly list: {
+      readonly tabToday: string;
+      readonly tabDue: string;
+      readonly tabDone: string;
+      readonly segAppts: string;
+      readonly segClasses: string;
+      readonly emptyDue: string;
+      readonly emptyDone: string;
+      readonly walkIn: string;
+      readonly book: string;
+      readonly pickOne: string;
+      readonly pickSession: string;
+      readonly classChip: string;
+      readonly full: string;
+      readonly here: string;
+    };
+    readonly detail: {
+      readonly booked: string;
+      readonly addedToday: string;
+      readonly linesLoading: string;
+      readonly linesUnreadable: string;
+      readonly noLines: string;
+      readonly addService: string;
+      readonly product: string;
+      readonly usePass: string;
+      readonly usePassOff: string;
+      readonly services: string;
+      readonly retail: string;
+      readonly depositPaid: string;
+      readonly balanceDue: string;
+      readonly whoDidWhat: string;
+      readonly whoDidWhatOff: string;
+      readonly sendLink: string;
+      readonly sendLinkOff: string;
+      readonly rebook: string;
+      readonly rebookOff: string;
+      readonly serviceDone: string;
+      readonly checkedIn: string;
+      readonly paidChip: string;
+      readonly addOff: string;
+      readonly lineDone: string;
+      readonly lineAdded: string;
+      readonly lineProduct: string;
+    };
+    readonly extra: {
+      /** "Add to {name}'s appointment" */
+      readonly title: string;
+      readonly subtitle: string;
+      readonly search: string;
+      readonly noMatch: string;
+      readonly minutes: string;
+      readonly noTime: string;
+      readonly timeNotReplanned: string;
+      readonly newBalance: string;
+      readonly who: string;
+      /** "Add {item} · +{amount}" */
+      readonly add: string;
+      readonly adding: string;
+      readonly added: string;
+      readonly cancel: string;
+    };
+    readonly checkin: {
+      readonly startsIn: string;
+      readonly startedAgo: string;
+      readonly fullChip: string;
+      readonly bookedChip: string;
+      readonly hereChip: string;
+      readonly waitlistChip: string;
+      readonly search: string;
+      readonly tabAll: string;
+      readonly tabNotHere: string;
+      readonly tabProblems: string;
+      readonly hereState: string;
+      readonly bookedState: string;
+      readonly cantAttend: string;
+      readonly check: string;
+      readonly undo: string;
+      readonly undoOff: string;
+      readonly fix: string;
+      readonly fixOff: string;
+      readonly places: string;
+      readonly here: string;
+      readonly waitlist: string;
+      readonly positions: string;
+      readonly positionsOff: string;
+      readonly scanPass: string;
+      readonly scanPassOff: string;
+      readonly sellDropIn: string;
+      readonly sellDropInFull: string;
+      readonly sellDropInOff: string;
+      readonly addToWaitlist: string;
+      readonly substitute: string;
+      readonly substituteOff: string;
+      readonly closeCheckin: string;
+      readonly closeCheckinOff: string;
+      readonly nobody: string;
+      readonly notValidNotice: string;
+    };
+    readonly opened: {
+      readonly title: string;
+      /** "{free} free · {waiting} waiting" */
+      readonly subtitle: string;
+      /** "Offer it to {name} (waitlist #{n})" */
+      readonly offerTo: string;
+      /** "They get {minutes} min to say yes" */
+      readonly offerHint: string;
+      readonly sellDropIn: string;
+      readonly sellHint: string;
+      readonly leaveEmpty: string;
+      readonly later: string;
+      /** "Offer to {name}" */
+      readonly offerButton: string;
+    };
+    readonly sheet: {
+      readonly title: string;
+      readonly subtitle: string;
+      readonly bookTitle: string;
+      readonly bookSubtitle: string;
+      readonly customer: string;
+      readonly customerHint: string;
+      readonly nextFree: string;
+      readonly pay: string;
+      /** "At the end · {amount}" */
+      readonly payAtEnd: string;
+      readonly payNothing: string;
+      readonly payHint: string;
+      /** "Book {name} · {time}" */
+      readonly bookNow: string;
+      readonly close: string;
+      readonly withPerson: string;
+    };
+  };
 };
 
 export function classesCopy(t: Translator): ClassesCopy {
@@ -354,6 +498,136 @@ export function classesCopy(t: Translator): ClassesCopy {
       needsContact: t("dashboard.pos.classes.refusal.needsContact"),
       notForSale: t("dashboard.pos.classes.refusal.notForSale"),
       couldNotBook: t("dashboard.pos.classes.refusal.couldNotBook"),
+    },
+    board: {
+      header: {
+        summary: t("dashboard.pos.classes.board.header.summary"),
+        location: t("dashboard.pos.classes.board.header.location"),
+        operator: t("dashboard.pos.classes.board.header.operator"),
+      },
+      list: {
+        tabToday: t("dashboard.pos.classes.board.list.tabToday"),
+        tabDue: t("dashboard.pos.classes.board.list.tabDue"),
+        tabDone: t("dashboard.pos.classes.board.list.tabDone"),
+        segAppts: t("dashboard.pos.classes.board.list.segAppts"),
+        segClasses: t("dashboard.pos.classes.board.list.segClasses"),
+        emptyDue: t("dashboard.pos.classes.board.list.emptyDue"),
+        emptyDone: t("dashboard.pos.classes.board.list.emptyDone"),
+        walkIn: t("dashboard.pos.classes.board.list.walkIn"),
+        book: t("dashboard.pos.classes.board.list.book"),
+        pickOne: t("dashboard.pos.classes.board.list.pickOne"),
+        pickSession: t("dashboard.pos.classes.board.list.pickSession"),
+        classChip: t("dashboard.pos.classes.board.list.classChip"),
+        full: t("dashboard.pos.classes.board.list.full"),
+        here: t("dashboard.pos.classes.board.list.here"),
+      },
+      detail: {
+        booked: t("dashboard.pos.classes.board.detail.booked"),
+        addedToday: t("dashboard.pos.classes.board.detail.addedToday"),
+        linesLoading: t("dashboard.pos.classes.board.detail.linesLoading"),
+        linesUnreadable: t("dashboard.pos.classes.board.detail.linesUnreadable"),
+        noLines: t("dashboard.pos.classes.board.detail.noLines"),
+        addService: t("dashboard.pos.classes.board.detail.addService"),
+        product: t("dashboard.pos.classes.board.detail.product"),
+        usePass: t("dashboard.pos.classes.board.detail.usePass"),
+        usePassOff: t("dashboard.pos.classes.board.detail.usePassOff"),
+        services: t("dashboard.pos.classes.board.detail.services"),
+        retail: t("dashboard.pos.classes.board.detail.retail"),
+        depositPaid: t("dashboard.pos.classes.board.detail.depositPaid"),
+        balanceDue: t("dashboard.pos.classes.board.detail.balanceDue"),
+        whoDidWhat: t("dashboard.pos.classes.board.detail.whoDidWhat"),
+        whoDidWhatOff: t("dashboard.pos.classes.board.detail.whoDidWhatOff"),
+        sendLink: t("dashboard.pos.classes.board.detail.sendLink"),
+        sendLinkOff: t("dashboard.pos.classes.board.detail.sendLinkOff"),
+        rebook: t("dashboard.pos.classes.board.detail.rebook"),
+        rebookOff: t("dashboard.pos.classes.board.detail.rebookOff"),
+        serviceDone: t("dashboard.pos.classes.board.detail.serviceDone"),
+        checkedIn: t("dashboard.pos.classes.board.detail.checkedIn"),
+        paidChip: t("dashboard.pos.classes.board.detail.paidChip"),
+        addOff: t("dashboard.pos.classes.board.detail.addOff"),
+        lineDone: t("dashboard.pos.classes.board.detail.lineDone"),
+        lineAdded: t("dashboard.pos.classes.board.detail.lineAdded"),
+        lineProduct: t("dashboard.pos.classes.board.detail.lineProduct"),
+      },
+      extra: {
+        title: t("dashboard.pos.classes.board.extra.title"),
+        subtitle: t("dashboard.pos.classes.board.extra.subtitle"),
+        search: t("dashboard.pos.classes.board.extra.search"),
+        noMatch: t("dashboard.pos.classes.board.extra.noMatch"),
+        minutes: t("dashboard.pos.classes.board.extra.minutes"),
+        noTime: t("dashboard.pos.classes.board.extra.noTime"),
+        timeNotReplanned: t("dashboard.pos.classes.board.extra.timeNotReplanned"),
+        newBalance: t("dashboard.pos.classes.board.extra.newBalance"),
+        who: t("dashboard.pos.classes.board.extra.who"),
+        add: t("dashboard.pos.classes.board.extra.add"),
+        adding: t("dashboard.pos.classes.board.extra.adding"),
+        added: t("dashboard.pos.classes.board.extra.added"),
+        cancel: t("dashboard.pos.classes.board.extra.cancel"),
+      },
+      checkin: {
+        startsIn: t("dashboard.pos.classes.board.checkin.startsIn"),
+        startedAgo: t("dashboard.pos.classes.board.checkin.startedAgo"),
+        fullChip: t("dashboard.pos.classes.board.checkin.fullChip"),
+        bookedChip: t("dashboard.pos.classes.board.checkin.bookedChip"),
+        hereChip: t("dashboard.pos.classes.board.checkin.hereChip"),
+        waitlistChip: t("dashboard.pos.classes.board.checkin.waitlistChip"),
+        search: t("dashboard.pos.classes.board.checkin.search"),
+        tabAll: t("dashboard.pos.classes.board.checkin.tabAll"),
+        tabNotHere: t("dashboard.pos.classes.board.checkin.tabNotHere"),
+        tabProblems: t("dashboard.pos.classes.board.checkin.tabProblems"),
+        hereState: t("dashboard.pos.classes.board.checkin.hereState"),
+        bookedState: t("dashboard.pos.classes.board.checkin.bookedState"),
+        cantAttend: t("dashboard.pos.classes.board.checkin.cantAttend"),
+        check: t("dashboard.pos.classes.board.checkin.check"),
+        undo: t("dashboard.pos.classes.board.checkin.undo"),
+        undoOff: t("dashboard.pos.classes.board.checkin.undoOff"),
+        fix: t("dashboard.pos.classes.board.checkin.fix"),
+        fixOff: t("dashboard.pos.classes.board.checkin.fixOff"),
+        places: t("dashboard.pos.classes.board.checkin.places"),
+        here: t("dashboard.pos.classes.board.checkin.here"),
+        waitlist: t("dashboard.pos.classes.board.checkin.waitlist"),
+        positions: t("dashboard.pos.classes.board.checkin.positions"),
+        positionsOff: t("dashboard.pos.classes.board.checkin.positionsOff"),
+        scanPass: t("dashboard.pos.classes.board.checkin.scanPass"),
+        scanPassOff: t("dashboard.pos.classes.board.checkin.scanPassOff"),
+        sellDropIn: t("dashboard.pos.classes.board.checkin.sellDropIn"),
+        sellDropInFull: t("dashboard.pos.classes.board.checkin.sellDropInFull"),
+        sellDropInOff: t("dashboard.pos.classes.board.checkin.sellDropInOff"),
+        addToWaitlist: t("dashboard.pos.classes.board.checkin.addToWaitlist"),
+        substitute: t("dashboard.pos.classes.board.checkin.substitute"),
+        substituteOff: t("dashboard.pos.classes.board.checkin.substituteOff"),
+        closeCheckin: t("dashboard.pos.classes.board.checkin.closeCheckin"),
+        closeCheckinOff: t("dashboard.pos.classes.board.checkin.closeCheckinOff"),
+        nobody: t("dashboard.pos.classes.board.checkin.nobody"),
+        notValidNotice: t("dashboard.pos.classes.board.checkin.notValidNotice"),
+      },
+      opened: {
+        title: t("dashboard.pos.classes.board.opened.title"),
+        subtitle: t("dashboard.pos.classes.board.opened.subtitle"),
+        offerTo: t("dashboard.pos.classes.board.opened.offerTo"),
+        offerHint: t("dashboard.pos.classes.board.opened.offerHint"),
+        sellDropIn: t("dashboard.pos.classes.board.opened.sellDropIn"),
+        sellHint: t("dashboard.pos.classes.board.opened.sellHint"),
+        leaveEmpty: t("dashboard.pos.classes.board.opened.leaveEmpty"),
+        later: t("dashboard.pos.classes.board.opened.later"),
+        offerButton: t("dashboard.pos.classes.board.opened.offerButton"),
+      },
+      sheet: {
+        title: t("dashboard.pos.classes.board.sheet.title"),
+        subtitle: t("dashboard.pos.classes.board.sheet.subtitle"),
+        bookTitle: t("dashboard.pos.classes.board.sheet.bookTitle"),
+        bookSubtitle: t("dashboard.pos.classes.board.sheet.bookSubtitle"),
+        customer: t("dashboard.pos.classes.board.sheet.customer"),
+        customerHint: t("dashboard.pos.classes.board.sheet.customerHint"),
+        nextFree: t("dashboard.pos.classes.board.sheet.nextFree"),
+        pay: t("dashboard.pos.classes.board.sheet.pay"),
+        payAtEnd: t("dashboard.pos.classes.board.sheet.payAtEnd"),
+        payNothing: t("dashboard.pos.classes.board.sheet.payNothing"),
+        payHint: t("dashboard.pos.classes.board.sheet.payHint"),
+        bookNow: t("dashboard.pos.classes.board.sheet.bookNow"),
+        close: t("dashboard.pos.classes.board.sheet.close"),
+        withPerson: t("dashboard.pos.classes.board.sheet.withPerson"),
+      },
     },
   };
 }

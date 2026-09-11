@@ -1,45 +1,55 @@
 "use client";
 
 /**
- * AppointmentsPage — the destination the registry calls `appts`.
+ * AppointmentsPage — the destination the registry calls `appts`, drawn as
+ * boards W39 (Sessions) and W40 (Series): the title and subtitle, Generate
+ * sessions / + New series, the four tabs with their counts (Appointments ·
+ * Sessions · Series · Waitlist), the tab's body on the left and, for a
+ * selected session or appointment, the panel on the right.
  *
- * WHAT WAS HERE BEFORE. `SessionsPage`, alone: series, their occurrences and
- * the materialiser's refusals. That is a real surface and it stays, as one of
- * three views. What it never had was the thing the destination is NAMED for —
- * the appointments themselves — or the waitlist a full class needs, or any
- * sight of the booking-hours proposals that were being written on every
- * publish and read by nobody.
+ * FOUR VIEWS, ONE ROUTE. The registry's sub-views for `appts` are states of
+ * this page under a `view` query, exactly as Events' Tickets tab is: they
+ * are not routes. The rail links carry `?view=`; this reads it.
  *
- * THREE VIEWS, ONE ROUTE. The registry's sub-views for `appts` are states of
- * this page under a `view` query, exactly as Events' Tickets tab is: they are
- * not routes, and inventing three directories under `/admin/sessions` to hold
- * three tabs would put three page.tsx files in the tree that each render the
- * same component. The rail links carry `?view=`; this reads it.
+ * EVERY NUMBER IS A READER'S. `loadAppointments` (the board), `loadSchedule`
+ * (series, dated sessions, the sweep's refusals), `loadSessionWaitlists` (the
+ * queues) and `loadBookingHoursProposals` (the banner). Nothing is mocked; a
+ * reader that refuses puts its sentence above the tabs.
  *
- * WHY THE PROPOSALS BANNER SITS ABOVE THE TABS. Somebody whose public booking
- * page says "no hours available" comes here to find out why. The answer must
- * be the first thing on the screen, not inside whichever tab they happen to
- * open. Same placement rule the refusals panel already follows on the Schedule
- * view, for the same reason.
+ * NOT WIRED, said on the control (D-POS-18): "Generate sessions" (the sweep
+ * runs nightly for 90 days; there is no on-demand generator) and "+ New
+ * series" (no series writer exists; the one write on this page is the
+ * one-off night form on the Sessions tab, which is what the classes journey
+ * schedules through).
  *
- * NOTHING HERE LOOKS AT A CLOCK. The buckets on each appointment row are
- * decided on the server and travel with the row, so what renders is decided
- * from data present at first paint.
+ * NOTHING HERE LOOKS AT A CLOCK for layout: the buckets on each appointment
+ * row are decided on the server; the Sessions view's anchor day is the
+ * workspace's today, read once from the board's own zone.
  *
- * Rendered inside the shell's own <main>, so this returns a fragment. Token
- * classes only; inline styles are frozen under components/admin/shell.
+ * Token classes only; inline styles are frozen under components/admin/shell.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { useAdminShell } from "../state";
 import { useT } from "@/i18n/use-t";
-import { PageHeader } from "./pages-shared";
-import { SessionsPage } from "./SessionsPage";
+import { Icon } from "../primitives";
 import { AppointmentsList } from "./AppointmentsList";
+import { AppointmentPanel } from "./AppointmentPanel";
 import { AppointmentsWaitlist } from "./AppointmentsWaitlist";
 import { BookingHoursProposalsBanner } from "./BookingHoursProposalsBanner";
+import { ScheduleNightForm } from "./ScheduleNightForm";
+import { SessionsTable } from "./SessionsTable";
+import { SessionPanel } from "./SessionPanel";
+import { SeriesTable } from "./SeriesTable";
+import { ActionButton, UsedIn } from "./appointments-classes-ui";
+import {
+  buildSeriesRows,
+  buildSessionRows,
+  waitlistCount,
+  type SessionsView,
+} from "./appointments-classes-model";
 import {
   loadAppointments,
   loadBookingHoursProposals,
@@ -48,56 +58,52 @@ import {
   type WaitlistView,
 } from "@/lib/scheduling/appointments-actions";
 import type { AppointmentRow } from "@/lib/scheduling/appointments-board";
+import { loadSchedule, type ScheduleNight, type ScheduleSeries } from "@/lib/sessions/schedule-actions";
 
 const K = "dashboard.adminAppointments";
+const B = "dashboard.adminAppointments.board";
 
-/** The three views, and the `view` query value that selects each. */
-export const APPOINTMENT_VIEWS = ["list", "sessions", "waitlist"] as const;
+/** The four views, and the `view` query value that selects each. */
+export const APPOINTMENT_VIEWS = ["list", "sessions", "series", "waitlist"] as const;
 export type AppointmentView = (typeof APPOINTMENT_VIEWS)[number];
 
 function viewFromQuery(raw: string | null): AppointmentView {
-  return (APPOINTMENT_VIEWS as readonly string[]).includes(raw ?? "")
-    ? (raw as AppointmentView)
-    : "list";
+  return (APPOINTMENT_VIEWS as readonly string[]).includes(raw ?? "") ? (raw as AppointmentView) : "list";
 }
 
 export function AppointmentsPage() {
-  const { bridgeTenantIdentity, adminBasePath } = useAdminShell();
+  const { bridgeTenantIdentity, adminBasePath, workspacePosEnabled, workspacePosModes } = useAdminShell();
   const searchParams = useSearchParams();
   const t = useT();
   const tenantId = bridgeTenantIdentity?.tenantId ?? null;
 
-  const [view, setView] = useState<AppointmentView>(() =>
-    viewFromQuery(searchParams.get("view")),
-  );
+  const [view, setView] = useState<AppointmentView>(() => viewFromQuery(searchParams.get("view")));
   const [rows, setRows] = useState<AppointmentRow[] | null>(null);
+  const [series, setSeries] = useState<ScheduleSeries[] | null>(null);
+  const [nights, setNights] = useState<ScheduleNight[]>([]);
   const [waitlists, setWaitlists] = useState<WaitlistView[] | null>(null);
-  // Upcoming sessions the desk could not answer for. Carried so the waitlist
-  // view can say a sentence about a list that is short, rather than letting a
-  // failed seat read look like a workspace with nothing full in it.
   const [unreadableSessions, setUnreadableSessions] = useState(0);
-  // How far ahead the desk looked, and whether there was more. Carried so a
-  // capped list can say so instead of reading as "nothing is full".
   const [checkedAhead, setCheckedAhead] = useState(0);
   const [truncated, setTruncated] = useState(false);
-  // Set when the operator arrives from a full class on the Sessions view.
   const [focusSessionId, setFocusSessionId] = useState<string | null>(null);
   const [proposals, setProposals] = useState<BookingHoursProposalRow[]>([]);
   const [defaultTimezone, setDefaultTimezone] = useState("UTC");
   const [timeZone, setTimeZone] = useState("UTC");
   const [error, setError] = useState<string | null>(null);
-  // THE LAST REFRESH ASKED FOR IS THE ONLY ONE ALLOWED TO PAINT. Every write on
-  // the waitlist card calls `refresh`, and a read here is not quick: the desk
-  // asks the engine for the seats of every upcoming class. So "offer the
-  // place" started a read, "they took it" started a second, and the FIRST
-  // came back last and painted the row back to "Offered" over a seat the
-  // database had already committed. Seen in a browser: the notice said "Beto
-  // has the place" under a row that still offered it. A stale answer is
-  // dropped by comparing its ticket to the latest one issued.
+
+  // Sessions tab state: the view, the anchor day, the filters, the selection.
+  const [sessionsView, setSessionsView] = useState<SessionsView>("week");
+  const [anchorYmd, setAnchorYmd] = useState<string | null>(null);
+  const [room, setRoom] = useState<string | null>(null);
+  const [attentionOnly, setAttentionOnly] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+
+  // THE LAST REFRESH ASKED FOR IS THE ONLY ONE ALLOWED TO PAINT: a stale
+  // answer is dropped by comparing its ticket to the latest one issued.
   const refreshTicket = useRef(0);
 
-  // A rail link changes the query without remounting the page module, so the
-  // tab follows the URL rather than only seeding from it.
   const queryView = viewFromQuery(searchParams.get("view"));
   useEffect(() => {
     setView(queryView);
@@ -108,13 +114,10 @@ export function AppointmentsPage() {
     const ticket = refreshTicket.current + 1;
     refreshTicket.current = ticket;
     setError(null);
-    // A REJECTED action must not leave the page loading for ever. Without this
-    // catch the promise rejects, the state stays null, and the screen shows
-    // "Loading the appointments..." permanently with nothing in the console,
-    // which is indistinguishable from a slow server.
     try {
-      const [board, queue, pending] = await Promise.all([
+      const [board, schedule, queue, pending] = await Promise.all([
         loadAppointments(tenantId),
+        loadSchedule(tenantId),
         loadSessionWaitlists(tenantId, focusSessionId),
         loadBookingHoursProposals(tenantId),
       ]);
@@ -123,11 +126,21 @@ export function AppointmentsPage() {
       if (board.ok) {
         setRows(board.rows);
         setTimeZone(board.timeZone);
+        // The anchor day is the READER's today, decided on the server in the
+        // workspace's zone; this page never reads the browser's clock.
+        setAnchorYmd((prev) => prev ?? board.todayYmd);
       } else {
         setRows([]);
         setError(board.error);
       }
-
+      if (schedule.ok) {
+        setSeries(schedule.series);
+        setNights(schedule.nights);
+      } else {
+        setSeries([]);
+        setNights([]);
+        setError((prev) => prev ?? schedule.error);
+      }
       if (queue.ok) {
         setWaitlists(queue.sessions);
         setUnreadableSessions(queue.unreadableSessions);
@@ -139,10 +152,6 @@ export function AppointmentsPage() {
         setTruncated(false);
         setError((prev) => prev ?? queue.error);
       }
-
-      // A proposal read that refuses hides the banner rather than blanking the
-      // page: the appointments are still worth showing, and the refusal is
-      // surfaced above them like any other.
       if (pending.ok) {
         setProposals(pending.proposals);
         setDefaultTimezone(pending.defaultTimezone);
@@ -153,107 +162,212 @@ export function AppointmentsPage() {
     } catch (err) {
       if (refreshTicket.current !== ticket) return;
       setRows([]);
+      setSeries([]);
+      setNights([]);
       setWaitlists([]);
-      setUnreadableSessions(0);
-      setTruncated(false);
       setProposals([]);
       setError(err instanceof Error ? err.message : String(err));
     }
-    // `focusSessionId` is a dependency because the desk must be re-read with
-    // the class the operator just opened, or the door leads to a card that is
-    // not there.
   }, [focusSessionId, tenantId]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
+  const sessionRows = useMemo(
+    () => buildSessionRows({ series: series ?? [], nights, waitlists: waitlists ?? [], fallbackTimeZone: timeZone }),
+    [series, nights, waitlists, timeZone],
+  );
+  const seriesRows = useMemo(() => buildSeriesRows(series ?? []), [series]);
+  const selectedSession = sessionRows.find((r) => r.id === selectedSessionId) ?? null;
+  const selectedAppointment = (rows ?? []).find((r) => r.id === selectedAppointmentId) ?? null;
+  const posOn = workspacePosEnabled && workspacePosModes.includes("classes");
+
+  const openWaitlist = (sessionId: string) => {
+    setFocusSessionId(sessionId);
+    setView("waitlist");
+  };
+
   if (!tenantId) {
     return (
-      <>
-        <PageHeader title={t(`${K}.title`)} />
+      <div className="font-admin-body">
+        <h1 className="m-0 text-[22px]! font-semibold text-admin-ink">{t(`${K}.title`)}</h1>
         <div className="p-6 text-sm text-admin-ink-muted">{t(`${K}.noTenant`)}</div>
-      </>
+      </div>
     );
   }
 
-  return (
-    <>
-      <PageHeader title={t(`${K}.title`)} subtitle={t(`${K}.subtitle`)} />
+  const counts: Record<AppointmentView, number | null> = {
+    list: rows === null ? null : rows.length,
+    sessions: series === null ? null : sessionRows.length,
+    series: series === null ? null : seriesRows.length,
+    waitlist: waitlists === null ? null : waitlistCount(waitlists),
+  };
 
-      {error ? (
-        <div className="mb-[16px] rounded-[12px] border border-admin-border-soft bg-admin-card p-[16px] text-[13.5px] text-admin-ink">
-          {error}
-        </div>
-      ) : null}
-
-      <BookingHoursProposalsBanner
-        proposals={proposals}
-        defaultTimezone={defaultTimezone}
-        onAccepted={() => void refresh()}
+  const panel =
+    view === "sessions" && selectedSession ? (
+      <SessionPanel
+        row={selectedSession}
+        waitlist={(waitlists ?? []).find((w) => w.sessionId === selectedSession.id) ?? null}
+        tenantId={tenantId}
+        onChanged={() => void refresh()}
+        onOpenWaitlist={openWaitlist}
       />
+    ) : view === "list" && selectedAppointment ? (
+      <AppointmentPanel
+        row={selectedAppointment}
+        tenantId={tenantId}
+        adminBase={adminBasePath}
+        moveOpen={moveOpen}
+        onMoveOpen={setMoveOpen}
+        onChanged={() => void refresh()}
+      />
+    ) : null;
 
-      <div className="mb-[16px] flex flex-wrap gap-[8px]" role="tablist">
-        {APPOINTMENT_VIEWS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={view === id}
-            data-testid={`appointments-tab-${id}`}
-            className={
-              view === id
-                ? "rounded-admin border border-admin-border-strong px-3 py-2 text-admin-ink"
-                : "rounded-admin border border-admin-line px-3 py-2 text-admin-ink-muted"
-            }
-            onClick={() => setView(id)}
-          >
-            {t(`${K}.tabs.${id}`)}
-          </button>
-        ))}
+  return (
+    <div
+      data-tulala-appointments-board
+      className={`-mx-[28px] -mt-[24px] -mb-[60px] grid min-h-[calc(100vh-56px-var(--proto-cbar,50px))] font-admin-body ${
+        panel ? "grid-cols-[1fr_380px]" : "grid-cols-[1fr]"
+      }`}
+    >
+      <div className={`flex min-w-0 flex-col gap-[12px] py-[20px] ${panel ? "border-r border-admin-border px-[24px]" : "px-[28px]"}`}>
+        {/* Title, subtitle, the two header actions */}
+        <div className="flex items-start justify-between gap-[12px]">
+          <div>
+            <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t(`${K}.title`)}</h1>
+            <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted">{t(`${B}.subtitle.${view}`)}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-[8px]">
+            <ActionButton reason={t(`${B}.generateOff`)}>{t(`${B}.generate`)}</ActionButton>
+            <ActionButton reason={t(`${B}.newSeriesOff`)} tone="primary">
+              <Icon name="plus" size={14} stroke={1.75} />
+              {t(`${B}.newSeries`)}
+            </ActionButton>
+          </div>
+        </div>
+
+        {error ? (
+          <div role="alert" className="rounded-[12px] border border-admin-border-soft bg-admin-card px-[16px] py-[12px] text-admin-13 text-admin-ink">
+            {error}
+          </div>
+        ) : null}
+
+        <BookingHoursProposalsBanner proposals={proposals} defaultTimezone={defaultTimezone} onAccepted={() => void refresh()} />
+
+        {/* Tabs with counts */}
+        <div className="flex gap-[2px] border-b border-admin-border" role="tablist">
+          {APPOINTMENT_VIEWS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={view === id}
+              data-testid={`appointments-tab-${id}`}
+              className={`-mb-px cursor-pointer border-b-2 px-[12px] py-[10px] text-admin-13 ${
+                view === id ? "border-admin-brand font-semibold text-admin-ink" : "border-transparent font-medium text-admin-ink-muted hover:text-admin-ink"
+              }`}
+              onClick={() => setView(id)}
+            >
+              {t(`${K}.tabs.${id}`)}
+              {counts[id] === null ? "" : ` · ${counts[id]}`}
+            </button>
+          ))}
+        </div>
+
+        {view === "sessions" ? (
+          series === null || anchorYmd === null ? (
+            <div className="p-6 text-sm text-admin-ink-muted">{t("dashboard.adminSessions.loading")}</div>
+          ) : (
+            <>
+              <SessionsTable
+                rows={sessionRows}
+                series={series}
+                view={sessionsView}
+                anchorYmd={anchorYmd}
+                room={room}
+                attentionOnly={attentionOnly}
+                selectedId={selectedSessionId}
+                onView={setSessionsView}
+                onAnchor={setAnchorYmd}
+                onRoom={setRoom}
+                onAttention={setAttentionOnly}
+                onSelect={setSelectedSessionId}
+                onOpenWaitlist={openWaitlist}
+              />
+              <UsedIn
+                count={posOn ? 2 : 1}
+                label={t(`${B}.usedIn`)}
+                parts={[
+                  { where: t(`${B}.usedPos`), what: posOn ? t(`${B}.usedPosOn`) : t(`${B}.usedPosOff`) },
+                  { where: t(`${B}.usedWeb`), what: t(`${B}.usedWebWhat`) },
+                ]}
+              />
+              {/* The write path: a one-off night. Below the list on purpose,
+                  so somebody whose class is missing reads the refusal first. */}
+              <ScheduleNightForm tenantId={tenantId} onScheduled={() => void refresh()} />
+            </>
+          )
+        ) : view === "series" ? (
+          series === null ? (
+            <div className="p-6 text-sm text-admin-ink-muted">{t("dashboard.adminSessions.loading")}</div>
+          ) : (
+            <SeriesTable
+              rows={seriesRows}
+              posOn={posOn}
+              onShowSessions={(seriesId) => {
+                const first = sessionRows.find((r) => r.seriesId === seriesId);
+                setSessionsView("list");
+                if (first) {
+                  setAnchorYmd(first.ymd);
+                  setSelectedSessionId(first.id);
+                }
+                setView("sessions");
+              }}
+            />
+          )
+        ) : view === "waitlist" ? (
+          waitlists === null ? (
+            <div className="p-6 text-sm text-admin-ink-muted">{t(`${K}.waitlist.loading`)}</div>
+          ) : (
+            <AppointmentsWaitlist
+              tenantId={tenantId}
+              sessions={waitlists}
+              unreadableSessions={unreadableSessions}
+              checkedAhead={checkedAhead}
+              truncated={truncated}
+              timeZone={timeZone}
+              focusSessionId={focusSessionId}
+              onChanged={() => void refresh()}
+            />
+          )
+        ) : rows === null ? (
+          <div className="p-6 text-sm text-admin-ink-muted">{t(`${K}.loading`)}</div>
+        ) : (
+          <AppointmentsList
+            rows={rows}
+            adminBase={adminBasePath}
+            selectedId={selectedAppointmentId}
+            onSelect={(id) => {
+              setSelectedAppointmentId(id);
+              setMoveOpen(false);
+            }}
+            onMove={(id) => {
+              setSelectedAppointmentId(id);
+              setMoveOpen(true);
+            }}
+          />
+        )}
       </div>
 
-      {view === "sessions" ? (
-        // The Schedule surface, whole and unchanged, as one view of this
-        // destination. Its own header is suppressed: this page already named
-        // itself, and two headings stacked reads as a broken layout.
-        //
-        // It hands back a session id when an operator wants to queue somebody
-        // for a class that is full. That is where they NOTICE it is full, so
-        // that is where the door belongs; this switches the view and the
-        // waitlist opens on that card.
-        <SessionsPage
-          embedded
-          onOpenWaitlist={(sessionId) => {
-            setFocusSessionId(sessionId);
-            setView("waitlist");
-          }}
-        />
-      ) : view === "waitlist" ? (
-        waitlists === null ? (
-          <div className="p-6 text-sm text-admin-ink-muted">{t(`${K}.waitlist.loading`)}</div>
-        ) : (
-          <AppointmentsWaitlist
-            tenantId={tenantId}
-            sessions={waitlists}
-            unreadableSessions={unreadableSessions}
-            checkedAhead={checkedAhead}
-            truncated={truncated}
-            timeZone={timeZone}
-            focusSessionId={focusSessionId}
-            onChanged={() => void refresh()}
-          />
-        )
-      ) : rows === null ? (
-        <div className="p-6 text-sm text-admin-ink-muted">{t(`${K}.loading`)}</div>
-      ) : (
-        <AppointmentsList
-          tenantId={tenantId}
-          rows={rows}
-          adminBase={adminBasePath}
-          onChanged={() => void refresh()}
-        />
-      )}
-    </>
+      {panel ? (
+        <aside
+          data-testid="appointments-panel"
+          className="sticky top-[56px] flex h-[calc(100vh-56px)] min-w-0 flex-col self-start overflow-y-auto bg-admin-surface p-[18px]"
+        >
+          {panel}
+        </aside>
+      ) : null}
+    </div>
   );
 }
