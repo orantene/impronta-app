@@ -1133,7 +1133,7 @@
       }
     },
     "adminMenu": {
-      "title": "Menú",
+      "title": "Catalogue",
       "subtitle": "Artículos del espacio de trabajo que los clientes pueden pedir en tu sitio.",
       "noTenant": "No hay un espacio de trabajo activo.",
       "import": {

@@ -255,7 +255,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     // Renders at /admin/sessions until the routing task moves it. The old
     // segment stays an alias forever: it is in the wild in bookmarks.
     segment: "appts",
-    aliases: ["sessions"],
+    aliases: ["sessions", "appointments"], // the sidebar word, typed by hand
     fallbackSegment: "sessions",
     render: "spa",
     icon: "layers",

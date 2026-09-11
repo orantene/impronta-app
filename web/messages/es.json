@@ -12029,7 +12029,7 @@
       "delayNextUpdate": "Próxima actualización: {when}"
     },
     "adminMenu": {
-      "title": "Menú",
+      "title": "Catálogo",
       "subtitle": "Artículos del espacio de trabajo que los clientes pueden pedir en tu sitio.",
       "noTenant": "No hay un espacio de trabajo activo.",
       "import": {

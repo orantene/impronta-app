@@ -277,9 +277,9 @@ export const PAGE_META: Record<WorkspacePage, PageMetaEntry> = {
   settings:  pageMeta("settings",  "Account, plan, branding, integrations, team, and danger zone"),
   pos:       pageMeta("pos",       "Open a walk-in sale, add items, and collect"),
   // ── legacy aliases (hidden from nav, kept for URL compat) ──
-  inbox:     pageMeta("inbox"),
-  work:      pageMeta("work"),
+  inbox:     pageMeta("inbox"),  work: pageMeta("work"),
   sessions:  pageMeta("sessions",  "Appointments, sessions and series, with the series editor"),
+  appointments: pageMeta("appointments", "Appointments, sessions and series, with the series editor"),
   menu:      pageMeta("menu",      "Workspace-owned items customers can order from your site"),
   roster:    pageMeta("roster",    "Your talent, availability, and performance"),
   talent:    pageMeta("talent"),

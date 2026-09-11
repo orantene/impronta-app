@@ -997,6 +997,37 @@ html[data-public-font-preset="editorial"] {
   --popover-foreground: #f4f4f5;
 }
 
+/*
+ * Back office semantic remap. The workspace paints its own admin-* palette,
+ * but the body still carries the storefront's theme class, so the shadcn
+ * semantic names (--foreground, --card, --muted ...) resolved to the
+ * storefront's DARK values inside the back office: white headings and black
+ * cards on the light surface, seen live on People, Projects, Tables and
+ * Preparation on 2026-09-11. Every page written with text-foreground /
+ * bg-card now reads the admin palette. The point of sale keeps the dark
+ * body values on purpose (its chrome is dark by design), hence the :not().
+ */
+.tulala-shell [data-tulala-workspace-grid]:not([data-tulala-pos-chrome]) {
+  --background: var(--color-admin-surface);
+  --foreground: var(--color-admin-ink);
+  --card: var(--color-admin-card);
+  --card-foreground: var(--color-admin-ink);
+  --popover: var(--color-admin-card);
+  --popover-foreground: var(--color-admin-ink);
+  --muted: var(--color-admin-surface-alt);
+  --muted-foreground: var(--color-admin-ink-muted);
+  --border: var(--color-admin-border);
+  --input: var(--color-admin-border-strong);
+  --primary: var(--color-admin-brand);
+  --primary-foreground: var(--color-admin-card);
+  --secondary: var(--color-admin-surface-alt);
+  --secondary-foreground: var(--color-admin-ink);
+  --accent: var(--color-admin-brand-soft);
+  --accent-solid: var(--color-admin-brand);
+  --accent-foreground: var(--color-admin-ink);
+  --ring: var(--color-admin-brand);
+}
+
 /* Subtle motion only — never start from opacity:0 + fill-mode:both (can leave content invisible). */
 @keyframes dashboard-segment-in {
   from {

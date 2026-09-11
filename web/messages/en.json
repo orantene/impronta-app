@@ -12029,7 +12029,7 @@
       "delayNextUpdate": "Next update: {when}"
     },
     "adminMenu": {
-      "title": "Menu",
+      "title": "Catalog",
       "subtitle": "Workspace-owned items customers can order from your site.",
       "noTenant": "No active workspace.",
       "import": {

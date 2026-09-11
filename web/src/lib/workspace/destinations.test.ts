@@ -66,6 +66,7 @@ test("every legacy segment resolves to the right destination", () => {
   const legacy: ReadonlyArray<readonly [string, string]> = [
     ["inbox", "messages"],
     ["sessions", "appts"],
+    ["appointments", "appts"],
     ["work", "projects"],
     ["exceptions", "issues"],
     ["menu", "catalog"],
