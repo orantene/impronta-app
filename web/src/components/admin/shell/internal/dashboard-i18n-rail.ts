@@ -29,4 +29,17 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   // the inline table.
   "Sessions and series": "Sesiones y series",
   "Waitlist": "Lista de espera",
+  // The approved navigation (W36, 2026-09-09): three destinations and two
+  // group headings carry the board's own words, and two rows became children.
+  "Appointments & Classes": "Citas y clases",
+  "Events & Tickets": "Eventos y entradas",
+  "Spaces & Resources": "Espacios y recursos",
+  "Sell & manage": "Vender y gestionar",
+  "Relationships": "Relaciones",
+  "All orders": "Todos los pedidos",
+  "Items": "Artículos",
+  // The foot of a staff rail, where Settings would be (W38).
+  "Setup is owner-only · ask the owner": "La configuración es solo del propietario · pídesela",
+  // The tagline under the wordmark at the head of the rail.
+  "Sell what you do, not what you ship": "Vende lo que haces, no lo que envías",
 };

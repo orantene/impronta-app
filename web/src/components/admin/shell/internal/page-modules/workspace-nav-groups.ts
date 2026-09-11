@@ -209,6 +209,9 @@ function navItem(
   // Projects, Payments, People and Issues were each in this state and each got
   // a row the day its slice built it.
   if (!destination.built) return null;
+  // A child of another row (Preparation under Orders, Discounts under Catalog)
+  // is drawn by its parent's sub-view, never as a row of its own.
+  if (destination.parent !== undefined) return null;
   const href = destinationHref(destination, input.adminBase);
   const page = liveWorkspacePage(destination);
   if (href === null || page === null) return null;
@@ -236,7 +239,10 @@ export function workspaceNavGroups(input: WorkspaceNavInput): WorkspaceNavResult
   // Active state from the registry's own segment/alias resolution: `/admin/menu`
   // lights Catalog, `/admin/roster` lights People, `/admin/exceptions` lights
   // Issues. No hand-written list of "which page also means this row".
-  const activeId = resolveDestination(input.activePage)?.id ?? null;
+  const active = resolveDestination(input.activePage);
+  // A child page lights the row it hangs under: /admin/preparation is Orders'
+  // kitchen view, so Orders is the row that reads as current.
+  const activeId = active === null ? null : (active.parent ?? active.id);
   const groups: WorkspaceNavGroup[] = [];
   const pinned: WorkspaceNavItem[] = [];
   for (const group of sidebarGroups(input.context)) {

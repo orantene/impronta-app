@@ -1303,7 +1303,16 @@
           "workspace": "Espace de travail",
           "openMenu": "Choisissez un mode de point de vente",
           "makeDefault": "En faire le choix par défaut ici",
-          "defaultSaved": "Enregistré sur cet appareil"
+          "defaultSaved": "Enregistré sur cet appareil",
+          "pos": "PDV",
+          "openPos": "Ouvrir le PDV",
+          "turnedOff": "Désactivé chez {workspace}",
+          "notYourRole": "Pas votre rôle",
+          "defaultHere": "Par défaut ici",
+          "footer": "Les ventes enregistrées et la caisse restent en l'état. Les modes non activés dans cet espace de travail sont masqués ici et refusés par le serveur.",
+          "spacesMode": "Espaces et ressources",
+          "fieldMode": "Services à domicile",
+          "noScreen": "Pas encore d'écran"
         },
         "mode": {
           "counter": "Comptoir",
@@ -2390,6 +2399,134 @@
         "providerRefused": "Le prestataire de paiement a refusé le remboursement. Rien n'a été remboursé et rien n'a été débité. Réessayez, ou vérifiez le paiement chez le prestataire.",
         "partialFailure": "Une partie de ce remboursement est passée, l'autre non. Ne réessayez pas : les remboursements effectués sont réels. Quelqu'un doit terminer le reste à la main.",
         "unavailable": "Le remboursement n'a pas pu être enregistré. Rien n'a été remboursé. Réessayez dans un instant."
+      }
+    },
+    "workspaceShell": {
+      "create": {
+        "label": "Créer",
+        "newAppointment": "Nouveau rendez-vous",
+        "returnNote": "Ce que vous créez s'ouvre par-dessus cette page. En le fermant, vous revenez ici."
+      },
+      "search": {
+        "label": "Rechercher dans l'espace de travail",
+        "placeholder": "Clients, projets, ventes, rendez-vous, catalogue",
+        "allTypes": "tous les types",
+        "results": "Résultats",
+        "typeToSearch": "Saisissez au moins deux caractères.",
+        "searching": "Recherche",
+        "failed": "La recherche n'a pas abouti. Réessayez.",
+        "empty": "Aucun résultat.",
+        "noSummary": "Pas de résumé pour cette fiche.",
+        "openRecord": "Ouvrir la fiche",
+        "collect": "Encaisser",
+        "collectOff": "Encaisser depuis la recherche demande un lecteur de solde par client qui n'existe pas encore. Ouvrez la fiche pour encaisser.",
+        "newAppointment": "Nouveau rendez-vous",
+        "bookOff": "Seul un gérant ou le propriétaire peut réserver ici.",
+        "paneEmpty": "Choisissez un résultat pour voir ce que c'est et ce que vous pouvez faire.",
+        "neverCreates": "La recherche ne crée jamais de fiche ; « Nouveau client » se trouve dans Clients."
+      }
+    },
+    "overviewBoard": {
+      "loading": "Chargement des chiffres du jour",
+      "header": {
+        "arrivalsToday": "{count} arrivées aujourd'hui",
+        "needYouOne": "{count} chose vous attend",
+        "needYouOther": "{count} choses vous attendent"
+      },
+      "actions": {
+        "openPos": "Ouvrir le PDV",
+        "openPosOff": "Le point de vente n'est pas activé pour vous ici.",
+        "newAppointment": "Nouveau rendez-vous",
+        "newAppointmentOff": "Seul un gérant ou le propriétaire peut réserver ici.",
+        "today": "Aujourd'hui"
+      },
+      "kpi": {
+        "collectedToday": "Encaissé aujourd'hui",
+        "collectedSplit": "Espèces {cash} · Carte {card}",
+        "balancesDue": "Soldes dus",
+        "balancesSub": "{count} commandes · {today} dus aujourd'hui",
+        "arrivals": "Arrivées",
+        "arrivalsSub": "{inService} en service · {late} en retard",
+        "openOrders": "Commandes ouvertes",
+        "ordersSub": "{preparing} en préparation · {ready} prêtes",
+        "exceptions": "Exceptions",
+        "uncertainPayments": "{count} paiement(s) incertain(s)",
+        "exceptionsNone": "Rien d'incertain",
+        "exceptionsPartial": "Lecture impossible : {sources}",
+        "unreadable": "Lecture impossible pour le moment"
+      },
+      "needsYou": {
+        "title": "À traiter maintenant",
+        "sorted": "Trié par conséquence",
+        "empty": "Rien ne vous attend pour l'instant.",
+        "checkStatus": "Vérifier l'état",
+        "inspectOnly": "Une personne doit regarder celui-ci ; il n'y a pas de bouton sûr.",
+        "balanceDueTitle": "Solde dû aujourd'hui · {who} · {service}",
+        "balanceDueDetail": "{amount} restants",
+        "collectBalance": "Encaisser le solde",
+        "unconfirmedTitle": "Non confirmé · {who} · {service}",
+        "unconfirmedDetail": "Commence à {time}. Confirmez ou libérez le créneau.",
+        "resolve": "Résoudre",
+        "lateTitle": "En retard · {who} · table de {size}",
+        "lateDetail": "{minutes} min après l'heure et personne n'est arrivé.",
+        "openBook": "Ouvrir le livre"
+      },
+      "today": {
+        "title": "Aujourd'hui",
+        "tab": {
+          "arrivals": "Arrivées",
+          "classes": "Cours",
+          "tables": "Tables"
+        },
+        "tabOff": {
+          "arrivals": "Cet espace de travail ne prend ni rendez-vous ni réservations.",
+          "classes": "Cet espace de travail ne donne pas de cours.",
+          "tables": "Cet espace de travail n'a pas de tables."
+        },
+        "empty": {
+          "arrivals": "Personne n'est attendu aujourd'hui.",
+          "classes": "Pas de cours aujourd'hui.",
+          "tables": "Aucune table configurée.",
+          "none": "Rien au livre aujourd'hui."
+        },
+        "partyOf": "Table de {size} · {space}",
+        "serviceDue": "{service} · {amount} dus",
+        "tableOpen": "Ouverte {minutes} min · table de {party}",
+        "tableSeats": "De {min} à {max} couverts",
+        "badge": {
+          "arrived": "Arrivé",
+          "inService": "En service",
+          "waiting": "En attente",
+          "confirmed": "Confirmé",
+          "depositPaid": "Solde dû",
+          "late": "{count} min de retard",
+          "booked": "Réservé",
+          "noShow": "Absent",
+          "completed": "Terminé",
+          "full": "Complet",
+          "seatsLeft": "{count} restantes",
+          "waitlisted": "{count} en liste d'attente",
+          "free": "Libre",
+          "held": "Réservée",
+          "occupied": "Occupée",
+          "unconfirmed": "Non confirmé"
+        },
+        "partyOfUnplaced": "Table de {size} · pas encore placée"
+      },
+      "setup": {
+        "title": "Configuration",
+        "progress": "Configuration · {done} sur {total}",
+        "missing": "Manque : {items}",
+        "complete": "Tout est configuré.",
+        "finish": "Terminer la configuration",
+        "item": {
+          "timeZone": "fuseau horaire",
+          "catalogItem": "un article du catalogue",
+          "bookableHours": "des heures réservables",
+          "onlinePayments": "les paiements en ligne",
+          "payoutDestination": "la destination des versements",
+          "websitePublished": "une page web publiée"
+        }
       }
     }
   },

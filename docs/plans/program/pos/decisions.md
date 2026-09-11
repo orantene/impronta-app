@@ -99,3 +99,40 @@ device follows the workspace's newest open draft. A sale the display has just
 finished with is never re-adopted. When a registers table exists, the beacon
 becomes a row keyed by register and the read gains a `registerId`; the state
 machine does not change.
+## D-POS-15 — the POS switch keeps the modes' own labels for now
+
+Decided 2026-09-11 by the shell fidelity builder (fid-shell). The approved top
+bar (W00) lists the modes as Counter · Appointments & Classes · Tables · Spaces
+& Resources · Tickets & Admissions · Projects · Field Services. The built modes
+are labelled through `dashboard.pos.counter.mode.*` (Counter · Tables · Door ·
+Front desk · Collect), and those words are also the POS rails' own names and
+what four proven journeys click. The switch therefore shows the modes' current
+labels, plus the two modes with no screen (Spaces & Resources, Field Services)
+disabled with "No screen yet". The relabel to the board's words belongs to the
+POS shells (disposition F33: "POS shells Office/Bookings/Door relabel pending")
+and changes the switch and the rails in one move.
+
+## D-POS-16 — search never carries a per-client balance
+
+Decided 2026-09-11 (fid-shell). The search board (W53) shows a client's "Due
+now", "Next booking" and "Pass" in the preview pane with a Collect action. The
+search reader (`lib/search/global-search.ts`) returns a record's title,
+summary and address; no per-client balance reader exists in the engine. The
+pane shows the record's own summary, "Open record" and "New appointment";
+"Collect" is drawn disabled with the reason. The three record kinds the board
+groups that the palette never searched (Clients, Sales by receipt code,
+Catalog) were added to the same reader under RLS.
+
+## D-POS-17 — an assistant sees the union of the three staff rails
+
+Decided 2026-09-11 (fid-shell). W38 draws three staff rails: a cashier
+(Orders, Clients, Sales), an assistant (Messages, Calendar, Appointments,
+Clients) and a host (Messages, Calendar, Reservations, Clients). The tenant
+role ladder has five ranks (viewer · editor · manager · admin · owner) and no
+cashier, host or assistant; `nav-context.ts` folds editor and viewer into one
+`assistant` hat. The registry now carries W36's owner · manager clause on
+every other row, so an assistant-rank person sees Overview, Messages,
+Calendar, Appointments & Classes, Reservations, Orders, Clients and Sales, and
+"Setup is owner-only · ask the owner" where Settings would be. Telling the
+three apart needs a job-function field on the membership, which is a People
+model decision (D-POS-9), not a navigation one.

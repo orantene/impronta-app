@@ -91,7 +91,7 @@ test("only an owner manages billing, mirroring roles.ts", () => {
 
 test("the derived preset is what the labels read", () => {
   const cafe = derivePreset({ industryPreset: CAFE, teamMemberCount: 6 });
-  assert.equal(destinationLabel(DESTINATIONS.catalog, cafe), "Menu and catalog");
+  assert.equal(destinationLabel(DESTINATIONS.catalog, cafe), "Menu & catalog");
   assert.equal(destinationLabel(DESTINATIONS.people, cafe), "Team");
 
   const solo = derivePreset({ industryPreset: APPOINTMENTS, teamMemberCount: 1 });

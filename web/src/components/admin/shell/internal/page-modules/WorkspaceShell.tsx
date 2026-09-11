@@ -7,19 +7,21 @@ import { WorkspaceMediaPage } from "../media-page";
 import { useWorkspaceNav } from "./workspace-nav";
 import type { WorkspaceNavItem } from "./workspace-nav-groups";
 import { useDashboardText } from "../dashboard-i18n";
-import { Avatar, Icon, useRovingTabindex } from "../primitives";
+import { Icon, useRovingTabindex } from "../primitives";
 import type { AdminShellIconName } from "../primitives";
-import { COLORS, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
+import { COLORS, FAB_PALETTE_CHANGED_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
 import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
 import { useCanonicalRouteChildren } from "../canonical-route-children";
 import { resolveDestination } from "@/lib/workspace/destinations";
+import { TulalaWordmark } from "@/components/brand/tulala-logo";
 import { CalendarPage } from "./CalendarPage";
 import { MenuPage } from "./MenuPage";
 import { ClientsPage } from "./ClientsPage";
 import { TulalaIdentityBar } from "./IdentityBar-1";
 import { WorkspaceMessagesPage } from "./InboxPage";
-import { OverviewPage } from "./OverviewPage";
+import { OverviewBoard } from "./OverviewBoard";
+import { GLOBAL_SEARCH_OPEN_EVENT, GlobalSearchOverlay } from "./GlobalSearchOverlay";
 import { PayoutsPage } from "./PayoutsPage";
 import { PitchesPage } from "./PitchesPage-1";
 import { AppointmentsPage } from "./AppointmentsPage";
@@ -53,12 +55,16 @@ export function WorkspaceShell() {
   const { state, setPage, openDrawer } = useAdminShell();
   const [helpOpen,  setHelpOpen]  = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  const openPalette = () => {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event(FAB_PALETTE_OPEN_EVENT));
-    }
-  };
+  // ⌘K and the top bar's search button open the record search (W53). The
+  // bottom FAB keeps its own create/AI palette behind FAB_PALETTE_OPEN_EVENT.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onOpen = () => setSearchOpen(true);
+    window.addEventListener(GLOBAL_SEARCH_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(GLOBAL_SEARCH_OPEN_EVENT, onOpen);
+  }, []);
 
   // Track FAB palette state via the broadcast event so global keyboard
   // shortcuts (G I, j/k, etc.) suppress while the palette is open.
@@ -84,16 +90,18 @@ export function WorkspaceShell() {
   // is unaffected: it needs a modifier no scanner sends.
   const posChromeForKeys = resolveDestination(state.page)?.chrome === "pos";
   useKeyboardLayer({
-    onOpenPalette: openPalette,
+    onOpenPalette: () => setSearchOpen(true),
     onOpenHelp:    () => setHelpOpen((v) => !v),
     onNavigate:    setPage,
     onCompose:     () => openDrawer("new-inquiry"),
-    isModalOpen:   !!state.drawer.drawerId || helpOpen || paletteOpen || posChromeForKeys,
+    isModalOpen:   !!state.drawer.drawerId || helpOpen || paletteOpen || searchOpen || posChromeForKeys,
   });
 
   return (
-    <HybridShell>
-      {/* The sidebar rail is the ONE canonical workspace chrome. The legacy
+    <>
+      {/* The sidebar rail is the ONE canonical workspace chrome, and it now
+          hosts the identity bar in its content column (the board's layout:
+          brand in the rail, "Workspace › Page" beside the page). The legacy
           horizontal-topbar layout (workspaceLayout === "topbar") is retired:
           it duplicated the rail's nav as a second parallel surface. The
           workspaceLayout pref is ignored here on purpose — do not re-add a
@@ -101,22 +109,24 @@ export function WorkspaceShell() {
       <WorkspaceSidebarShell />
       {/* WS-7.5 Shortcut help overlay */}
       <ShortcutHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
-    </HybridShell>
+      <GlobalSearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+    </>
   );
 }
 
 /**
- * Sidebar nav IA — a light grouped rail, built entirely from the destination
- * registry (`lib/workspace/destinations.ts`) via `useWorkspaceNav()`.
+ * Sidebar nav IA — the approved rail (Main / W36 / W37 / W38), built entirely
+ * from the destination registry (`lib/workspace/destinations.ts`) via
+ * `useWorkspaceNav()`.
  *
- * WHAT WENT. SIDEBAR_GROUP_TEMPLATE, buildSidebarGroups, SIDEBAR_ICON,
- * subItemsFor and the pageLabel helper: five structures that had to agree by
- * hand with the fixtures' page list, the admin route resolver and the canonical
- * matchers, and did not. Groups, order, labels (including the per-preset ones),
- * icons, sub-views and plan/role gating are now one projection.
+ * WHAT THE BOARD FIXES. The wordmark and its tagline sit at the head of the
+ * rail, not in the top bar; the workspace chip carries the plan; the groups
+ * read Operate / Sell & manage / Relationships / Money / Grow; counts sit on
+ * Messages and Issues as quiet pills; Settings is pinned to the foot. Rows are
+ * 27px high at 12.5px, the active row is a white pill with a hairline ring.
  *
- * WHAT STAYED. The tenant chip, the pinned Settings row, the skip link, the
- * roving-focus nav and the `data-tulala-app-sidebar` test hook are untouched.
+ * WHAT STAYED. The skip link, the roving-focus nav and the
+ * `data-tulala-app-sidebar` test hook.
  *
  * WHAT WILL NOT COME BACK. A point-of-sale row. The POS replaces the whole
  * admin chrome and is entered from the centred switch in the top bar; the
@@ -127,7 +137,6 @@ function SidebarNavButton({
   icon,
   active,
   badge,
-  badgeTone = "amber",
   badgeTitle,
   onSelect,
   label,
@@ -137,7 +146,6 @@ function SidebarNavButton({
   icon: AdminShellIconName;
   active: boolean;
   badge?: number;
-  badgeTone?: "amber" | "brand";
   badgeTitle?: string;
   onSelect: () => void;
   label: string;
@@ -150,10 +158,10 @@ function SidebarNavButton({
       title={description}
       aria-label={description ? `${label} — ${description}` : label}
       aria-current={active ? "page" : undefined}
-      className={`flex w-full cursor-pointer items-center gap-[10px] rounded-[8px] border px-[10px] py-[8px] text-left font-admin-body text-[13px] tracking-[0.05px] [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro),box-shadow_var(--transition-admin-micro)] ${
+      className={`flex h-[27px] w-full cursor-pointer items-center gap-[9px] rounded-[8px] border-0 px-[10px] text-left font-admin-body text-admin-12h [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro),box-shadow_var(--transition-admin-micro)] ${
         active
-          ? "border-admin-border-soft bg-white font-semibold text-admin-ink shadow-admin-rest"
-          : "border-transparent bg-transparent font-medium text-admin-ink-muted hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink"
+          ? "bg-admin-card font-semibold text-admin-ink shadow-[var(--shadow-admin-rest),inset_0_0_0_1px_var(--color-admin-border-soft)]"
+          : "bg-transparent font-medium text-admin-ink-muted hover:bg-admin-card/60 hover:text-admin-ink"
       }`}
     >
       <Icon name={icon} size={15} stroke={1.6} color="currentColor" />
@@ -164,9 +172,7 @@ function SidebarNavButton({
         <span
           title={badgeTitle}
           aria-label={badgeTitle ?? `${badge} pending`}
-          className={`inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-[5px] text-[10px] font-bold leading-none text-white ${
-            badgeTone === "brand" ? "bg-admin-brand" : "bg-admin-amber"
-          }`}
+          className="inline-flex items-center rounded-full bg-admin-surface-alt px-[6px] py-px text-admin-10h font-bold leading-[1.4] text-admin-ink-muted"
         >
           {badge > 99 ? "99+" : badge}
         </span>
@@ -176,13 +182,15 @@ function SidebarNavButton({
 }
 
 /**
- * SidebarShell — the workspace's one chrome: a LIGHT tinted rail on the left
- * with grouped, icon-complete nav (white active pill), live badges, sub-links
- * under the active section, and Settings pinned at the bottom.
+ * SidebarShell — the workspace's one chrome: the tinted rail on the left with
+ * the brand at its head, grouped icon-complete nav (white active pill), live
+ * counts, sub-links under the active section, and Settings pinned at the foot.
+ * The top bar sits in the content column beside the rail, as the board draws
+ * it, so the breadcrumb reads "Workspace › Page" next to the page itself.
  *
  * Every list this used to own now comes from `useWorkspaceNav()`. What is left
- * here is presentation: the tenant chip, the skip link, roving focus, and how a
- * row and its children draw.
+ * here is presentation: the brand block, the tenant chip, the skip link, roving
+ * focus, and how a row and its children draw.
  */
 function WorkspaceSidebarShell() {
   const { state, setPage, openDrawer, effectiveTenant } = useAdminShell();
@@ -219,6 +227,9 @@ function WorkspaceSidebarShell() {
     if (item.id === "messages") {
       return copy.isSpanish ? `${item.badge.count} sin leer` : `${item.badge.count} unread`;
     }
+    if (item.id === "issues") {
+      return copy.isSpanish ? `${item.badge.count} abiertas` : `${item.badge.count} open`;
+    }
     return copy.isSpanish
       ? `${item.badge.count} pendientes de revisión`
       : `${item.badge.count} awaiting review`;
@@ -230,7 +241,6 @@ function WorkspaceSidebarShell() {
         icon={item.icon}
         active={item.active}
         badge={item.badge?.count}
-        badgeTone={item.badge?.tone}
         badgeTitle={badgeTitleFor(item)}
         onSelect={() => setPage(item.page)}
         label={copy.t(item.label)}
@@ -245,7 +255,7 @@ function WorkspaceSidebarShell() {
           workspace base path (never the tenant slug — see the
           admin-href-invariant guard). */}
       {item.active && item.subItems.length > 0 && (
-        <div className="mb-[3px] mt-[2px] flex flex-col gap-px pl-[25px]">
+        <div className="mb-[3px] mt-[2px] flex flex-col gap-px pl-[24px]">
           {item.subItems.map((sub) => (
             <button
               key={sub.id}
@@ -256,7 +266,7 @@ function WorkspaceSidebarShell() {
                   : router.push(sub.href)
               }
               aria-current={sub.active ? "page" : undefined}
-              className={`flex cursor-pointer items-center gap-[8px] border-y-0 border-r-0 border-l-2 border-solid bg-transparent px-[10px] py-[5px] text-left font-admin-body text-[12.5px] hover:text-admin-ink [transition:color_var(--transition-admin-micro),border-color_var(--transition-admin-micro)] ${
+              className={`flex cursor-pointer items-center gap-[8px] border-y-0 border-r-0 border-l-2 border-solid bg-transparent px-[10px] py-[4px] text-left font-admin-body text-[12px] hover:text-admin-ink [transition:color_var(--transition-admin-micro),border-color_var(--transition-admin-micro)] ${
                 sub.active
                   ? "border-l-admin-ink font-semibold text-admin-ink"
                   : "border-l-admin-border font-medium text-admin-ink-muted"
@@ -271,7 +281,7 @@ function WorkspaceSidebarShell() {
                 </span>
               )}
               {sub.count != null && sub.count > 0 && (
-                <span className="inline-flex h-[15px] min-w-[16px] items-center justify-center rounded-full bg-admin-amber-soft px-[4px] text-[9.5px] font-bold leading-none text-admin-amber-deep">
+                <span className="inline-flex items-center rounded-full bg-admin-surface-alt px-[6px] py-px text-admin-10 font-bold leading-[1.4] text-admin-ink-muted">
                   {sub.count > 99 ? "99+" : sub.count}
                 </span>
               )}
@@ -289,6 +299,7 @@ function WorkspaceSidebarShell() {
         data-tulala-pos-chrome
         className="grid grid-cols-[1fr] bg-admin-surface min-h-[calc(100vh-56px-56px-50px)]"
       >
+        <TulalaIdentityBar />
         <main
           id="tulala-workspace-content"
           tabIndex={-1}
@@ -301,90 +312,141 @@ function WorkspaceSidebarShell() {
     );
   }
 
+  const planLabel = PLAN_META[state.plan]?.label ?? state.plan;
+
   return (
     <div
       data-tulala-workspace-grid
-      className="grid grid-cols-[240px_1fr] bg-admin-surface min-h-[calc(100vh-56px-56px-50px)]"
+      className="grid grid-cols-[240px_1fr] bg-admin-surface-alt min-h-[calc(100vh-var(--proto-cbar,50px))]"
     >
       {/* Full viewport-column height (not max-height) so the tinted rail
           never ends mid-page — it reads as chrome, not a floating card. */}
       <aside
         data-tulala-app-sidebar
-        className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto border-r border-admin-border-soft bg-admin-surface-alt px-[10px] pb-[12px] pt-[14px] font-admin-body"
+        className="sticky top-[var(--proto-cbar,50px)] flex h-[calc(100vh-var(--proto-cbar,50px))] flex-col self-start overflow-hidden border-r border-admin-border-soft bg-admin-surface-alt font-admin-body"
       >
         {/* WS-12.10 — secondary skip link lets keyboard users bypass the
             sidebar nav and jump straight to the page content area. */}
         <a href="#tulala-workspace-content" className="skip-to-main">
           {copy.t("Skip to page content")}
         </a>
-        {/* Tenant switcher (#3) — compact context chip at the top of the
-            sidebar. Clicking opens the tenant-switcher drawer. On multi-
-            workspace accounts this lists all workspaces; single-workspace
-            shows workspace info. */}
-        <button
-          type="button"
-          onClick={() => openDrawer("tenant-switcher")}
-          className="flex w-full cursor-pointer items-center gap-[9px] rounded-[9px] border border-admin-border-soft bg-white px-[10px] py-[8px] text-left font-admin-body shadow-admin-rest hover:border-admin-border-strong [transition:border-color_var(--transition-admin-micro),box-shadow_var(--transition-admin-micro)]"
-        >
-          <Avatar initials={effectiveTenant.name.slice(0, 2).toUpperCase()} size={26} tone="ink" />
-          <div className="flex-1 min-w-0">
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] font-semibold text-admin-ink">
-              {effectiveTenant.name}
+
+        {/* The brand, at the head of the rail (Main board). Whitelabel tiers
+            with an uploaded logo show their own mark here instead; the
+            wordmark + tagline lockup is the default for everyone else. */}
+        <div className="flex h-[56px] shrink-0 flex-col justify-center gap-[3px] border-b border-admin-border-soft bg-admin-surface px-[14px]">
+          <WorkspaceBrandMark />
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-[10px] px-[10px] pb-[10px] pt-[12px]">
+          {/* Tenant switcher (#3) — compact context chip at the top of the
+              sidebar. Clicking opens the tenant-switcher drawer. On multi-
+              workspace accounts this lists all workspaces; single-workspace
+              shows workspace info. */}
+          <button
+            type="button"
+            onClick={() => openDrawer("tenant-switcher")}
+            className="flex w-full cursor-pointer items-center gap-[9px] rounded-[9px] border border-admin-border-soft bg-admin-card px-[10px] py-[8px] text-left font-admin-body shadow-admin-rest hover:border-admin-border-strong [transition:border-color_var(--transition-admin-micro),box-shadow_var(--transition-admin-micro)]"
+          >
+            <span
+              aria-hidden
+              className="inline-flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-admin-brand text-[11px] font-bold text-white"
+            >
+              {effectiveTenant.name.slice(0, 2).toUpperCase()}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-admin-12h font-semibold text-admin-ink">
+                {effectiveTenant.name}
+              </div>
+              <div className="text-admin-11 text-admin-ink-muted">
+                {copy.isSpanish ? `Plan ${copy.t(planLabel)}` : `${planLabel} plan`}
+              </div>
             </div>
-            <div className="text-[10.5px] text-admin-ink-muted">
-              {copy.isSpanish
-                ? `Plan ${copy.t(PLAN_META[state.plan]?.label ?? state.plan)}`
-                : `${PLAN_META[state.plan]?.label ?? state.plan} plan`}
-            </div>
+            <Icon name="chevron-down" size={13} color={COLORS.inkDim} />
+          </button>
+
+          {/* Page nav — the one thing the sidebar owns. Grouped as the
+              registry groups it. */}
+          <nav
+            ref={sidebarNavRef}
+            aria-label="Workspace sections"
+            className="flex min-h-0 flex-1 flex-col gap-px overflow-y-auto"
+          >
+            {groups.map((group) => (
+              <div key={group.id} className="flex flex-col gap-px">
+                {group.label && (
+                  <div
+                    aria-hidden
+                    className="px-[10px] pb-[3px] pt-[7px] text-admin-9h font-bold uppercase tracking-[0.14em] text-admin-ink-dim"
+                  >
+                    {copy.t(group.label)}
+                  </div>
+                )}
+                {group.items.map(renderItem)}
+              </div>
+            ))}
+          </nav>
+
+          {/* Settings — pinned to the rail's foot. No create CTA here: the
+              top bar's Create menu, the ⌘K palette and the C shortcut are the
+              doors into creating things. */}
+          <div className="flex flex-col gap-[6px] border-t border-admin-border pt-[6px]">
+            {pinned.map(renderItem)}
+            {/* Staff have no Settings row (W38): the foot says where setup
+                lives instead of leaving a gap. */}
+            {pinned.length === 0 && (
+              <div className="px-[10px] py-[6px] text-admin-11h leading-[1.4] text-admin-ink-dim">
+                {copy.t("Setup is owner-only · ask the owner")}
+              </div>
+            )}
           </div>
-          <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
-        </button>
-
-        {/* Page nav — the one thing the sidebar owns. Tenant identity,
-            mode toggle, bell/help all live in the persistent identity
-            bar above. Grouped Shopify-style. */}
-        <nav ref={sidebarNavRef} aria-label="Workspace sections" className="flex flex-col gap-[2px]">
-          {groups.map((group) => (
-            <div key={group.id} className="flex flex-col gap-[2px]">
-              {group.label && (
-                <div
-                  aria-hidden
-                  className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-bold uppercase tracking-[0.14em] text-admin-ink-dim"
-                >
-                  {copy.t(group.label)}
-                </div>
-              )}
-              {group.items.map(renderItem)}
-            </div>
-          ))}
-        </nav>
-
-        <div className="flex-1" />
-
-        {/* Settings — pinned to the rail's bottom, Shopify-style. No create
-            CTA here: "New inquiry" already lives in the Overview header, the
-            + FAB, the ⌘K palette, and the C shortcut — a fifth entry point
-            would be duplication, not convenience. */}
-        <div className="flex flex-col gap-[6px] border-t border-admin-border pt-[6px]">
-          {pinned.map(renderItem)}
         </div>
       </aside>
 
-      <main
-        id="tulala-workspace-content"
-        tabIndex={-1}
-        data-tulala-surface-main
-        style={{
-          padding: "28px 28px 60px",
-          maxWidth: 1180,
-          width: "100%",
-          margin: "0 auto",
-          outline: "none",
-        }}
-      >
-        <PageRouter page={state.page} />
-      </main>
+      <div className="flex min-w-0 flex-col">
+        <TulalaIdentityBar />
+        <main
+          id="tulala-workspace-content"
+          tabIndex={-1}
+          data-tulala-surface-main
+          className="mx-auto w-full max-w-[1180px] px-[28px] pb-[60px] pt-[24px] outline-none"
+        >
+          <PageRouter page={state.page} />
+        </main>
+      </div>
     </div>
+  );
+}
+
+/**
+ * The mark at the head of the rail. A whitelabel tier with an uploaded logo
+ * shows that logo; everyone else shows the Tulala lockup: wordmark at 20px
+ * and the tagline beneath it, as the Main board draws it.
+ */
+function WorkspaceBrandMark() {
+  const { bridgeTenantIdentity } = useAdminShell();
+  const copy = useDashboardText();
+  const agencyLogoUrl = bridgeTenantIdentity?.logoUrl ?? null;
+  if (agencyLogoUrl) {
+    return (
+      <img
+        src={agencyLogoUrl}
+        alt={bridgeTenantIdentity?.displayName || "Workspace logo"}
+        data-tulala-brand
+        className="block h-[30px] w-auto max-w-[200px] object-contain object-left"
+      />
+    );
+  }
+  // The lockup's own tagline is 9px at 0.2em tracking, which does not fit a
+  // 240px rail; the board sets it at 8px, 0.08em, so the tagline is drawn
+  // here at that size under the same wordmark.
+  return (
+    <span aria-hidden className="inline-flex flex-col items-start gap-[3px] leading-none text-admin-ink">
+      <TulalaWordmark height={20} />
+      <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.08em] text-admin-ink-dim">
+        {copy.t("Sell what you do, not what you ship")}
+      </span>
+    </span>
   );
 }
 
@@ -411,7 +473,9 @@ function PageRouter({ page }: { page: WorkspacePage }) {
   } else
   switch (page) {
     case "overview":
-      body = <OverviewPage />;
+      // The board reads its snapshot from the store /admin/page.tsx fills;
+      // on any other path with this page clamped in, it says it is loading.
+      body = <OverviewBoard />;
       break;
     // WS-3.2 — canonical "messages" route (was "inbox").
     // 2026 redesign: legacy "inbox" alias now also routes to MessagesShell

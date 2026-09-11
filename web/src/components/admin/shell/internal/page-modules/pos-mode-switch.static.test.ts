@@ -38,15 +38,16 @@ test("the switch is mounted in the identity bar, and nowhere else", () => {
   const bar = read(IDENTITY_BAR);
   assert.match(bar, /import \{ PosModeSwitch \}/, "the identity bar must import the switch");
   assert.match(bar, /<PosModeSwitch \/>/, "the identity bar must render the switch");
-  // In the CENTRE cluster: between the two flex spacers that surround the
-  // search field, not in the trailing icon run beside the avatar.
-  const centre = bar.slice(bar.indexOf("data-tulala-topbar-search"));
-  const mount = centre.indexOf("<PosModeSwitch />");
-  const closingSpacer = centre.indexOf('<div className="flex-1" />');
-  assert.ok(mount > 0, "the switch must sit after the search field");
+  // CENTRED: between the breadcrumb on the left and the action cluster on the
+  // right (Create · bell · plan · account), never inside the trailing icon run.
+  const breadcrumb = bar.indexOf("data-tulala-breadcrumb");
+  const mount = bar.indexOf("<PosModeSwitch />");
+  const actions = bar.indexOf("data-tulala-topbar-actions");
+  assert.ok(breadcrumb > 0, "the workspace bar must carry the breadcrumb");
+  assert.ok(mount > breadcrumb, "the switch must sit after the breadcrumb");
   assert.ok(
-    mount < closingSpacer,
-    "the switch must sit INSIDE the centred cluster, before its closing spacer",
+    actions > mount,
+    "the switch must sit BEFORE the right-hand action cluster, in the centre",
   );
 });
 

@@ -157,10 +157,12 @@ async function enterCounterFromTopBar(page: Page): Promise<void> {
     "the top bar switch is the only desktop door into the counter; " +
       "it needs platform_settings.workspace_pos_enabled on this database",
   ).toBeVisible({ timeout: 30_000 });
-  await control.getByRole("button", { name: /^counter$/i }).click();
-  const menu = page.getByRole("menu", { name: /choose a point of sale mode/i });
-  if (await menu.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await menu.getByRole("menuitem", { name: /^counter$/i }).click();
+  await control.getByRole("button", { name: /^(pos · )?counter$/i }).click();
+  // With more than one mode switched on, the POS half opens the mode menu
+  // (W00) instead of going straight to the counter; pick Counter there.
+  const menu = page.getByRole("menu");
+  if (await menu.waitFor({ state: "visible", timeout: 3_000 }).then(() => true, () => false)) {
+    await menu.getByRole("menuitem", { name: /^(counter|mostrador|comptoir)$/i }).click();
   }
   await expect(page).toHaveURL(
     new RegExp(`${ADMIN_BASE.replace(/\//g, "\\/")}\\/pos\\?mode=counter`),

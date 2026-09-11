@@ -74,7 +74,7 @@ const ES_TEXT: Record<string, string> = {
   "My work": "Mi trabajo",
   // Preset labels: a cafe's catalog is its menu, a solo professional's is their
   // services (already translated below).
-  "Menu and catalog": "Menú y catálogo",
+  "Menu & catalog": "Menú y catálogo",
   // The rail's children: the roster queues under People, the event states and
   // the door under Events.
   "Everyone": "Todos",
