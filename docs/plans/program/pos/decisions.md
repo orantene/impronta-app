@@ -328,3 +328,109 @@ extra added at the chair does NOT re-plan the appointment's end (B02's "Ends
 so. B03 (a sale linked to an appointment for payment only) is the Counter's
 link-a-sale flow and is not built here. The mode keeps its own label, Front
 desk (D-POS-15).
+
+## D-POS-44 — a project has no owner and no blank "New project"; both are drawn disabled
+
+Decided 2026-09-11 by the `fid-projects` build under the owner's standing
+authority. W45 draws an `Owner` column, an `Owner: any` filter and a `New
+project` button, and W42 an `Owner` line. `agency_bookings.owner_staff_id`
+is not read by the projects reader and no name is resolved for it, so the
+column and the line print a dash glyph for the absence and the filter is
+disabled with the sentence. A project is minted only by `Create booking` on
+an accepted offer (`convertInquiryToBookingAction`); there is no writer for
+a project with no offer, so `New project` is disabled with the reason and
+`From inquiry or offer` opens Messages, where projects are actually made.
+
+## D-POS-45 — no reminder is sent from a project; "Request approval" and "Remind" are disabled
+
+Decided 2026-09-11 (fid-projects). W42's banner offers `Request approval`
+and W46's proposed-change card `Remind Mariana`. No engine action sends a
+reminder to a client about a deliverable or a version, so both are drawn
+disabled with "There is no reminder sender yet; ask the client from the
+conversation". `Record approval given verbally` is live: it is
+`approveDeliverable`, the same call as W47's `Approve (client)`.
+
+## D-POS-37 — milestones have no amount and no editor here; files have no store
+
+Decided 2026-09-11 (fid-projects). The boards print `$6,000` on every
+milestone and offer `Add milestone`, `Edit`, `Upload` and a `Files &
+activity` tab. `booking_deliverables` carries no money column (the record's
+`ProjectAmount` says so), so the amount cell is a glyph with the sentence
+"No amount is recorded on a milestone", never a zero. A deliverable is
+written on the booking it belongs to and no file store hangs off a booking,
+so `Add milestone`, `Edit` and `Upload` are disabled with their sentences;
+the activity half of the tab reads `booking_activity_log` through a new
+reader (`loadProjectActivity`) and is live.
+
+## D-POS-38 — replacing a person shows the impact and cannot be confirmed
+
+Decided 2026-09-11 (fid-projects). W48's sheet lists `Replacement` from
+"people whose skills and requirements fit the shoot" and confirms with
+`Replace and invite`. No reader lists who fits a job, `booking_talent` has
+no invitation state, and nothing notifies the outgoing person, so the
+`Replacement` field is disabled with the sentence and the confirm button
+cannot be pressed. The impact rows are drawn from the record's own facts
+(the date, the fee line, that client money stands) so the operator reads
+the consequence before going to the conversation's lineup, where the swap
+is actually made (`deleteBookingTalentRow` + `addBookingTalentRow`).
+
+## D-POS-39 — Complete and Cancel are live on the close sheet; Archive and Reopen have no writer
+
+Decided 2026-09-11 (fid-projects). W50's four choices map onto the engine
+as follows: `Complete` calls `closeBookingAction`, offered only when
+`closeReadiness` has no blockers AND the status is one the engine accepts
+(`confirmed`, `in_progress`); `Cancel` calls `cancelBookingAction`, offered
+whenever the status is cancellable; `Archive` and `Reopen later` are
+refused with "Not available yet · nothing records this state" because no
+action moves `agency_bookings.status` to `archived` or back. `closeOptions`
+in `project-record.ts` carries the four verdicts and their reasons.
+
+## D-POS-40 — the client collect sheet takes one record at a time
+
+Decided 2026-09-11 (fid-projects). W44 lets several unpaid records be
+ticked and `Continue to payment · $1,255` collects the sum. Which unpaid
+records a single payment applies to is not recorded anywhere (the project
+page's own `notBuilt.allocation` finding), so the sheet ticks the first
+record, allows any number to be ticked, and enables `Continue to payment`
+only when exactly one is: it opens the counter on that sale
+(`/admin/pos?mode=counter&order=<id>`), the engine's real door. Two or more
+ticked disable the button with the sentence. `Send payment link` is
+disabled per D-POS-27. Tip reads "Not asked" (D-POS-11); pass or credit
+reads "Not applicable"; the receipt channel is the customer's email, else
+phone, else a printed code.
+
+## D-POS-41 — the client record has no editor, no participants, no preferences, no intake
+
+Decided 2026-09-11 (fid-projects). W41 draws `Edit`, `Contacts &
+participants` (a daughter with guardian consent), `Preferences`
+(professional, times, receipts, marketing) and `Intake · restricted`
+(colour history, allergies). `customers` carries none of those columns and
+no related table does; `Edit` is disabled with its sentence, the
+participants card states that none are recorded, the preferences read "Not
+recorded" except `Receipts` (email or phone on file), and the intake card
+shows the CRM pair's tags and notes when present, else that none are on
+file. `New ▾` opens the calendar, where a booking is made.
+
+## D-POS-42 — the Collect mode's rail draws Links and Issues over one sentence each
+
+Decided 2026-09-11 (fid-projects). The boards' rail is `Collect · Projects
+· Links · Receipts · Issues`. `POS_MODE_META.projects.destinations` now
+lists all five. `Links` (POSPaymentLink) draws the board's frame over "No
+table records a sent payment link yet" plus the board's own rule about
+resending; `Issues` reuses the counter's not-wired Issues screen
+(D-POS-31). POSOffice's `Due now · Later · Needs approval` segments are
+drawn on the Collect landing (O07) over `collectSegment`, and its `Record a
+bank transfer` is disabled per D-POS-27.
+
+## D-POS-43 — an amendment is shown in the till and sent from the conversation
+
+Decided 2026-09-11 (fid-projects). O06 draws `Send v3 to Laura` and
+`Discard proposal`. `sendOffer` needs the offer composer's line items and
+re-seeds approvals, and no action discards a draft version, so the till
+draws the three columns (accepted · kept, proposed, if the client accepts)
+from the record's own versions and disables both buttons with "An
+amendment is sent or withdrawn from the conversation's offer composer, not
+from the till", beside the door to the workspace. `Earned so far` and `Paid
+out` on O03's money strip read "Not recorded" and "Not read here": nothing
+attaches an amount to a milestone and the payout ledger is not read by the
+projects reader.

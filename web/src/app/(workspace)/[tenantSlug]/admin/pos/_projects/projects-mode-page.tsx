@@ -13,7 +13,7 @@ import "server-only";
 import type { Translator } from "@/components/admin/pos/translator";
 import type { PosCollectionMethodState } from "@/components/admin/pos";
 // `pos-copy`, not the barrel — see the same note in `../page.tsx`.
-import { collectSheetCopy, refusalCopy } from "@/components/admin/pos/pos-copy";
+import { chromeCopy, collectSheetCopy, issuesCopy, refusalCopy } from "@/components/admin/pos/pos-copy";
 import { minorUnitDivisor } from "@/lib/orders/money-format";
 
 import { projectsModeCopy } from "./projects-copy";
@@ -25,7 +25,7 @@ import { projectsModeRow, type ProjectsModeRow } from "./projects-mode-model";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function asView(raw: unknown): ProjectsModeView {
-  return raw === "projects" || raw === "receipts" ? raw : "collect";
+  return raw === "projects" || raw === "receipts" || raw === "links" || raw === "issues" ? raw : "collect";
 }
 
 export async function ProjectsModePage(props: {
@@ -35,6 +35,10 @@ export async function ProjectsModePage(props: {
   workspacePath: string;
   receiptOrigin: string;
   methods: PosCollectionMethodState[];
+  /** The signed-in person, as the header's cashier chip names them. */
+  cashierName: string;
+  /** Whether a cash drawer (shift) is open right now, for the footer line. */
+  drawerOpen: boolean;
   tr: Translator;
   search: { project?: string; view?: string };
 }) {
@@ -55,6 +59,8 @@ export async function ProjectsModePage(props: {
   return (
     <ProjectsModeClient
       workspaceName={props.workspaceName}
+      cashierName={props.cashierName}
+      drawerOpen={props.drawerOpen}
       posPath={props.posPath}
       workspacePath={props.workspacePath}
       receiptOrigin={props.receiptOrigin}
@@ -67,6 +73,8 @@ export async function ProjectsModePage(props: {
         mode: projectsModeCopy(props.tr),
         collectSheet: collectSheetCopy(props.tr),
         refusal: refusalCopy(props.tr),
+        chrome: chromeCopy(props.tr),
+        issues: issuesCopy(props.tr),
       }}
     />
   );

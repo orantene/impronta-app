@@ -633,3 +633,92 @@ export async function loadClientRecord(
     },
   };
 }
+
+// ── The record's side facts: contact and activity ────────────────────
+
+export type ProjectClientContact = {
+  readonly email: string | null;
+  readonly phone: string | null;
+  readonly displayName: string | null;
+  readonly locale: string | null;
+};
+
+/**
+ * The customer the money hangs off, for the CLIENT card and the receipt
+ * fields. Null when no customer exists yet (nobody has paid) or when the
+ * read failed; the caller says which sentence, this only says "nothing".
+ */
+export async function loadProjectContact(
+  tenantId: string,
+  customerId: string | null,
+): Promise<ProjectClientContact | null> {
+  if (!customerId) return null;
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("customers")
+    .select("email, phone_e164, display_name, locale")
+    .eq("tenant_id", tenantId)
+    .eq("id", customerId)
+    .maybeSingle();
+  if (error) {
+    logServerError("projects.loadProjectContact", error);
+    return null;
+  }
+  const row = data as
+    | { email: string | null; phone_e164: string | null; display_name: string | null; locale: string | null }
+    | null;
+  if (!row) return null;
+  return {
+    email: row.email ?? null,
+    phone: row.phone_e164 ?? null,
+    displayName: row.display_name ?? null,
+    locale: row.locale ?? null,
+  };
+}
+
+export type ProjectActivityRow = {
+  readonly id: string;
+  readonly at: string;
+  readonly eventType: string;
+  readonly payload: Record<string, unknown>;
+};
+
+export type ProjectActivityLoad =
+  | { readonly ok: true; readonly rows: ProjectActivityRow[] }
+  | { readonly ok: false };
+
+/**
+ * What happened on this booking, newest first, from `booking_activity_log`
+ * (the audit trail `logBookingActivity` writes: status changes, cancels,
+ * closes, reschedules). A read error is `ok: false`, never an empty list.
+ */
+export async function loadProjectActivity(
+  tenantId: string,
+  projectId: string,
+  limit = 20,
+): Promise<ProjectActivityLoad> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false };
+  const { data, error } = await admin
+    .from("booking_activity_log")
+    .select("id, created_at, event_type, payload")
+    .eq("tenant_id", tenantId)
+    .eq("booking_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    logServerError("projects.loadProjectActivity", error);
+    return { ok: false };
+  }
+  const rows = ((data ?? []) as Array<Record<string, unknown>>).map((raw) => ({
+    id: String(raw.id),
+    at: String(raw.created_at ?? ""),
+    eventType: String(raw.event_type ?? ""),
+    payload:
+      raw.payload && typeof raw.payload === "object" && !Array.isArray(raw.payload)
+        ? (raw.payload as Record<string, unknown>)
+        : {},
+  }));
+  return { ok: true, rows };
+}

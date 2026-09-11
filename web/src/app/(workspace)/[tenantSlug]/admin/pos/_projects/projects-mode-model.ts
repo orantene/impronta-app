@@ -41,12 +41,33 @@ export type ProjectsModeRow = {
   /** Owed on the project, by the desk's rule. */
   readonly dueCents: number;
   readonly collectedCents: number;
+  /** The accepted version's number and total; null when nothing is accepted. */
+  readonly acceptedVersion: number | null;
+  readonly quotedCents: number | null;
   readonly action: ProjectAction;
   readonly collect: CollectVerdict;
+  readonly segment: CollectSegment;
 };
+
+/**
+ * Which of the board's three lists a row belongs to (POSOffice): `Due now`
+ * is what can be collected this minute; `Needs approval` is what is waiting
+ * on the client (a version or a deliverable); `Later` is everything else
+ * still open; a closed project is in none of them.
+ */
+export type CollectSegment = "due_now" | "needs_approval" | "later" | "closed";
+
+export function collectSegment(verdict: CollectVerdict): CollectSegment {
+  if (verdict.ok) return "due_now";
+  if (verdict.reason === "milestone_awaiting" || verdict.reason === "agreement_awaiting") return "needs_approval";
+  if (verdict.reason === "project_closed") return "closed";
+  return "later";
+}
 
 export function projectsModeRow(project: ProjectRecord): ProjectsModeRow {
   const money = projectMoney(project);
+  const accepted = acceptedAgreement(project);
+  const verdict = collectVerdict(project);
   return {
     id: project.id,
     title: project.title,
@@ -54,8 +75,11 @@ export function projectsModeRow(project: ProjectRecord): ProjectsModeRow {
     currency: project.currency,
     dueCents: money.dueCents,
     collectedCents: money.collectedCents,
+    acceptedVersion: accepted ? accepted.version : null,
+    quotedCents: accepted ? accepted.totalClientCents : null,
     action: nextProjectAction(project),
-    collect: collectVerdict(project),
+    collect: verdict,
+    segment: collectSegment(verdict),
   };
 }
 

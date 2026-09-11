@@ -502,4 +502,13 @@ test("A POS ORDER SHELL IS NOT LISTED AS A COMMISSIONED PROJECT", () => {
     isOrderShellBooking({ order_id: null, source_inquiry_id: null, calendar_lane: null }),
     false,
   );
+  // A shell whose order was deleted keeps only the shell writer's title.
+  assert.equal(
+    isOrderShellBooking({ order_id: null, source_inquiry_id: null, calendar_lane: null, title: "POS sale" }),
+    true,
+  );
+  assert.equal(
+    isOrderShellBooking({ order_id: null, source_inquiry_id: null, calendar_lane: null, title: "Brand shoot" }),
+    false,
+  );
 });

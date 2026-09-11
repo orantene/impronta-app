@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/POS-projects-collect-a-balance.spec.ts:342:5 › POS PROJECTS: find a project, see what is owed with its rows, collect a deposit, and a cancelled order moves nothing
+[1A[2K  1 passed (1.6m)
+EXIT=0

@@ -103,11 +103,13 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
     // balance on commissioned work (D-POS-10). The id stays `projects`, which
     // is also the workspace destination the same work lives under.
     label: "Collect",
-    // The design's rail is Due · Projects · Links · Receipts · Issues
-    // (`docs/plans/program/pos/modes.md`). `collect` IS Due (the landing
-    // action is "Collect a balance", D-POS-10); Links has no table yet and
-    // Issues is the workspace's own inbox, so neither is a row here.
-    destinations: ["collect", "projects", "receipts"],
+    // The design's rail is Collect · Projects · Links · Receipts · Issues
+    // (`docs/plans/program/pos/modes.md`, boards O07 / POSOffice /
+    // POSPaymentLink). `collect` IS Due (the landing action is "Collect a
+    // balance", D-POS-10). Links has no table yet and Issues is the
+    // workspace's own inbox: both rows are drawn, each over its one
+    // sentence (D-POS-28, D-POS-42), never over a blank.
+    destinations: ["collect", "projects", "links", "receipts", "issues"],
     built: true,
   },
 };
