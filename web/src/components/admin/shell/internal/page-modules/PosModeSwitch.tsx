@@ -99,8 +99,15 @@ export function PosModeSwitch() {
       setUrlMode(null);
       return;
     }
-    const raw = new URLSearchParams(window.location.search).get("mode");
-    setUrlMode(parsePosMode(raw) ?? null);
+    const read = () => {
+      const raw = new URLSearchParams(window.location.search).get("mode");
+      setUrlMode(parsePosMode(raw) ?? null);
+    };
+    read();
+    // Back/forward between modes changes the address without changing the
+    // page, so the address is re-read on popstate as well.
+    window.addEventListener("popstate", read);
+    return () => window.removeEventListener("popstate", read);
   }, [onPos, state.page]);
 
   useEffect(() => {
@@ -125,6 +132,9 @@ export function PosModeSwitch() {
       // the last one left off without anybody configuring anything.
       writeDevicePosMode(mode, tenantSlug);
       setRemembered(mode);
+      // Mode-to-mode moves keep `state.page` at "pos", so the address effect
+      // does not re-run; the chosen mode is the address from here on.
+      setUrlMode(mode);
       setMenuOpen(false);
       setSavedDefault(false);
       router.push(`${adminBasePath}/pos?mode=${mode}`);
