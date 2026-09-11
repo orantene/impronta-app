@@ -78,6 +78,17 @@ function railButton(page: Page, destination: string) {
     .first();
 }
 
+/**
+ * The rail shows a destination's children under the row that is lit, so
+ * Preparation (Orders' kitchen view) is reached through Orders.
+ */
+async function openPreparation(page: Page) {
+  await railButton(page, "Orders").click();
+  await expect(page).toHaveURL(/\/admin\/orders/, { timeout: 30_000 });
+  await railButton(page, "Preparation").click();
+  await expect(page).toHaveURL(/\/admin\/preparation/, { timeout: 30_000 });
+}
+
 /** The floor card for one table, found by the code printed on it. */
 function tableCard(page: Page, code: string) {
   return page.locator("li").filter({ has: page.getByText(code, { exact: true }) }).first();
@@ -90,11 +101,13 @@ function tableCard(page: Page, code: string) {
  */
 function tableTicket(page: Page, code: string) {
   return page
-    .locator("li")
+    .locator("li[data-prep-ticket]")
     .filter({ hasText: /house pizza/i })
-    // Adjacent spans concatenate in textContent ("Table T4New"), so a word
+    // The card leads with the table's code and says "Table" beside it.
+    // Adjacent spans concatenate in textContent ("T4Table"), so a word
     // boundary never comes; "not followed by another digit" is the real test.
-    .filter({ hasText: new RegExp(`table ${code}(?![0-9])`, "i") })
+    .filter({ hasText: new RegExp(`${code}(?![0-9])`, "i") })
+    .filter({ hasText: /table/i })
     .first();
 }
 
@@ -152,44 +165,66 @@ test("VENUE-OP: walk-in booked, seated, fed, amended, collected and the table ha
 
   await railButton(page, "Reservations").click();
   await expect(page).toHaveURL(/\/admin\/reservations/, { timeout: 30_000 });
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^reservations$/i);
+  // The Live Floor (`LiveFloor.dc.html`).
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^live floor$/i);
   // A read that failed and an empty book are different screens; neither is
   // the one this journey runs on.
   await expect(page.getByText(/we could not load the book/i)).toHaveCount(0);
   await expect(page.getByText(/no venue yet|no service windows yet/i)).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: /^arriving/i })).toBeVisible();
 
-  // Take the party. Three covers, because a two-top will not hold them and
-  // that is what makes the table choice a real one.
-  await page.getByRole("button", { name: /add a walk-in/i }).click();
-  await page.getByLabel(/^name$/i).fill(guest);
-  await page.getByLabel(/^party$/i).fill("3");
-  await page.getByRole("button", { name: /add to the book/i }).click();
+  // Take the party (T07, the Walk-in sheet). Three covers, because a two-top
+  // will not hold them and that is what makes the table choice a real one.
+  // A click that lands before hydration is a click on nothing, so the door
+  // is knocked until the sheet is there.
+  const walkInSheet = page.locator('[data-pos-sheet="walk-in"]');
+  for (let attempt = 0; attempt < 5 && !(await walkInSheet.isVisible()); attempt += 1) {
+    await page.locator("[data-floor-walk-in]").click();
+    await page.waitForTimeout(1_000);
+  }
+  await expect(walkInSheet).toBeVisible({ timeout: 20_000 });
+  await walkInSheet.getByLabel(/^name$/i).fill(guest);
+  await walkInSheet.getByRole("button", { name: /one more guest/i }).click();
+  await expect(walkInSheet.locator("[data-floor-party]")).toContainText("3");
+  // RIGHT NOW offers only the tables that fit three: never a two-top.
+  await expect(walkInSheet.locator('[data-floor-walkin-fit="T2"]'), "a two-top must not be offered to a party of three").toHaveCount(0);
+  await expect(walkInSheet.locator('[data-floor-walkin-fit="T4"]')).toBeVisible();
+  await walkInSheet.locator("[data-floor-walkin-waitlist]").click();
 
-  const bookRow = page.getByRole("row", { name: new RegExp(guest) });
+  // The party lands on tonight's book: on the Waiting list (here, no table yet).
+  await page.getByRole("tab", { name: /^waiting/i }).click();
+  const bookRow = page.locator("[data-floor-party]").filter({ hasText: guest });
   await expect(bookRow, "the walk-in must land on tonight's book").toBeVisible({
     timeout: 30_000,
   });
-  await expect(bookRow).toContainText(/arriving/i);
+  await expect(bookRow).toContainText(/waiting/i);
   await page.screenshot({ path: testInfo.outputPath("desk-walk-in-on-the-book.png"), fullPage: true });
 
-  // ── Seat them ──────────────────────────────────────────────────────
-  await bookRow.getByRole("button", { name: /^seat$/i }).click();
-  await expect(page.getByText(/seat this party at/i)).toBeVisible();
+  // ── Seat them (T08 → T05) ──────────────────────────────────────────
+  await bookRow.click();
+  const waiting = page.locator('[data-pos-sheet="waiting"]');
+  await expect(waiting).toBeVisible();
+  await waiting.locator("[data-floor-waiting]").filter({ hasText: guest }).getByRole("button", { name: /^seat now$/i }).click();
+  const seatSheet = page.locator('[data-pos-sheet="seat-party"]');
+  await expect(seatSheet).toBeVisible();
+  await expect(seatSheet).toContainText(new RegExp(`Seat ${guest} · 3`));
   // Only tables that FIT are offered. A party of three must never be shown a
   // two-top, and the fixture's floor has several.
   await expect(
-    page.getByRole("button", { name: /^T2$/ }),
+    seatSheet.getByRole("radio", { name: /^T2 · seats/ }),
     "a two-top must not be offered to a party of three",
   ).toHaveCount(0);
-  const fourTop = page.getByRole("button", { name: /^T4$/ });
+  const fourTop = seatSheet.getByRole("radio", { name: /^T4 · seats/ });
   await expect(fourTop).toBeVisible();
   await fourTop.click();
+  await seatSheet.getByRole("button", { name: /^seat 3 guests at T4$/i }).click();
 
-  await expect(
-    page.getByRole("row", { name: new RegExp(guest) }),
-    "the desk must show the party seated at the table it chose",
-  ).toContainText(/seated/i, { timeout: 30_000 });
-  await expect(page.getByRole("row", { name: new RegExp(guest) })).toContainText("T4");
+  // The Seated tab shows the party at the table it chose.
+  await page.getByRole("tab", { name: /^seated/i }).click();
+  const seatedTile = page.locator('[data-floor-seated="T4"]');
+  await expect(seatedTile, "the desk must show the party seated at the table it chose").toContainText(new RegExp(guest), { timeout: 30_000 });
+  await expect(seatedTile).toContainText(/seated/i);
+  await expect(seatedTile).toContainText("T4");
   await page.screenshot({ path: testInfo.outputPath("desk-party-seated.png"), fullPage: true });
 
   // The booking row agrees before the floor is even opened: the admission is
@@ -238,28 +273,34 @@ test("VENUE-OP: walk-in booked, seated, fed, amended, collected and the table ha
   await sendToKitchen(page);
   await leaveCounter(page);
 
-  await railButton(page, "Preparation").click();
-  await expect(page).toHaveURL(/\/admin\/preparation/, { timeout: 30_000 });
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^preparation$/i);
+  await openPreparation(page);
+  // The station board (T26): `Kitchen`, the venue's clock, tabs Queued · Preparing · Ready.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^kitchen/i);
   await expect(page.getByText(/we could not load the board/i)).toHaveCount(0);
   await expect(
     page.getByText(new RegExp(`times shown in ${VENUE_ZONE}`, "i")),
     "the kitchen must name the clock it prints in",
   ).toBeVisible();
 
+  await page.getByRole("tab", { name: /^queued/i }).click();
   const ticket = tableTicket(page, "T4");
   await expect(ticket, "the kitchen must see a ticket that names the table").toBeVisible({
     timeout: 30_000,
   });
-  // The status is its own badge; textContent runs the spans together
-  // ("Table T4NewHouse pizza"), so the badge is asserted as an element.
+  // Every line of a first send is new; the pill is its own element because
+  // textContent runs the spans together ("T4TableHouse pizzaNew").
   await expect(ticket.getByText("New", { exact: true })).toBeVisible();
-  await expect(ticket).toContainText(/destination: table t4/i);
+  await expect(ticket).toContainText(/table/i);
+  await expect(ticket).toContainText(/3 guests/i);
+  await expect(ticket).toContainText(/fired \d\d:\d\d/i);
   await expect(ticket, "a first send is not an amendment").not.toContainText(/acknowledge again/i);
   await page.screenshot({ path: testInfo.outputPath("kitchen-ticket-new.png"), fullPage: true });
 
-  await ticket.getByRole("button", { name: /^acknowledge$/i }).click();
-  await expect(tableTicket(page, "T4")).toContainText(/acknowledged/i, { timeout: 30_000 });
+  // `Start` acknowledges the ticket; it moves to the Preparing tab.
+  await ticket.getByRole("button", { name: /^start$/i }).click();
+  await page.getByRole("tab", { name: /^preparing/i }).click();
+  await expect(tableTicket(page, "T4")).toContainText(/preparing/i, { timeout: 30_000 });
+  await expect(tableTicket(page, "T4").getByRole("button", { name: /mark ready/i })).toBeVisible();
 
   const acknowledged = await venueJourneyRows(guest, orderId!);
   expect(acknowledged.ticket, "sending to preparation must write a ticket").not.toBeNull();
@@ -281,19 +322,24 @@ test("VENUE-OP: walk-in booked, seated, fed, amended, collected and the table ha
   await sendToKitchen(page);
   await leaveCounter(page);
 
-  await railButton(page, "Preparation").click();
-  await expect(page).toHaveURL(/\/admin\/preparation/, { timeout: 30_000 });
+  await openPreparation(page);
+  // An amendment re-queues the ticket: the board opens on the Queued tab
+  // and the K09 banner names the table and the revision.
   const amended = tableTicket(page, "T4");
   await expect(amended, "an amendment must say so in words, not by a number changing").toContainText(
     /amended\. acknowledge again\./i,
     { timeout: 30_000 },
   );
   await expect(amended).toContainText(/revision 2/i);
+  // Only the line the amendment added is new: the second pizza grew the
+  // units of the one line, so that line carries the pill.
   await expect(amended.getByText("New", { exact: true })).toBeVisible();
+  await expect(page.locator("[data-prep-amendment]")).toContainText(/T4 · ticket amended · revision 2/i);
   await page.screenshot({ path: testInfo.outputPath("kitchen-ticket-amended.png"), fullPage: true });
 
-  await amended.getByRole("button", { name: /^acknowledge$/i }).click();
-  await expect(tableTicket(page, "T4")).toContainText(/acknowledged/i, { timeout: 30_000 });
+  await amended.getByRole("button", { name: /^acknowledge change$/i }).click();
+  await page.getByRole("tab", { name: /^preparing/i }).click();
+  await expect(tableTicket(page, "T4")).toContainText(/preparing/i, { timeout: 30_000 });
 
   const reacked = await venueJourneyRows(guest, orderId!);
   expect(reacked.ticketCount, "an amendment is a revision, never a second ticket").toBe(1);

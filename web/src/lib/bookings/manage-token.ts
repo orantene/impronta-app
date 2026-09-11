@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * Signed customer-manage token for cancel / reschedule from an email link.
  *
  * Same HMAC family as `lib/guest-cookie.ts` (`GUEST_COOKIE_SECRET`).
- * The public page is the UI session's (D-POS-63).
+ * The public page is the UI session's (D-POS-73).
  */
 
 export type BookingManageAction = "cancel" | "reschedule";

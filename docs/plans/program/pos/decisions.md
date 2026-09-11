@@ -597,7 +597,7 @@ wizard over pacing, buffers and assignment scope that Spaces & Resources
 does not record. None of these is drawn as a page of disabled controls under
 a route the registry does not know.
 
-## D-POS-54 — the gate's second button, the manual admit's reason, and the "refund requested" state
+## D-POS-58 — the gate's second button, the manual admit's reason, and the "refund requested" state
 
 Decided 2026-09-11 (fid-door). The Door mode's gate (G01 to G08) is the
 counter's frame over Sessions' `scanAdmission` and Events' `admitAtDoor`;
@@ -614,7 +614,7 @@ refunded, and a refund request is not recorded on the row; a refunded ticket
 scans as G07 `Cancelled`. It cannot be rendered from real data and is listed
 as not wired rather than faked.
 
-## D-POS-55 — ticket delivery, comps, passes, seats and the hold timer are not built at the door
+## D-POS-59 — ticket delivery, comps, passes, seats and the hold timer are not built at the door
 
 Decided 2026-09-11 (fid-door). E15 (delivery) draws four rows over the one
 fact the workspace has: the signed code was handed over at this till. No
@@ -632,7 +632,7 @@ that expires) does not exist because `startCollection` reserves at the moment
 the cash is confirmed: the box office says "Continue · N tickets" and "Seats
 are held the moment the cash is confirmed", never "Hold N places".
 
-## D-POS-56 — the Events destination: what a row does not carry is a dash or a disabled control
+## D-POS-60 — the Events destination: what a row does not carry is a dash or a disabled control
 
 Decided 2026-09-11 (fid-door). W16, CreateEvent, EventDetail, W17 and W18
 are drawn over `loadWorkspaceEvents`, `createEvent`, `addTier`, `updateTier`,
@@ -664,8 +664,127 @@ tier's price at the door, names optional at the till, no comps, whoever is
 signed in). `Save` is disabled with the sentence. The Readiness strip is
 derived from rows that exist: published, ticket types, nights scheduled,
 pools on this night.
+## D-POS-61 — the Tables mode and the Live Floor are one board; the moves the engine has no writer for are disabled with their reason
 
-## D-POS-58 — a visit may own more than one order (split check)
+Decided 2026-09-11 (fid-tables). The till's Tables mode (`POSLiveFloor`,
+`POSFloorTimeline`, `POSFloorList`, T04–T08, T12–T13, T23–T24, R01–R03) and
+the workspace's Reservations destination (`LiveFloor`) draw ONE component
+(`components/admin/floor/FloorBoard`) over the same readers (`listFloor`,
+`loadHostStand`, `listBoard`) and the same writers (the Spaces page's
+`tablesSeatParty` / `tablesMoveVisit` / `tablesCloseVisit` /
+`tablesResetTable`, the host stand's `reservationsTakeWalkIn`, the counter's
+`posSubmitPrep`, and the website block's own `loadReserveAvailability` +
+`createReservation` behind a staff guard as `floorLoadReserveTimes` /
+`floorCreateReservation`). The rail is the board's (Floor · Orders · Prep ·
+Receipts · Issues): Orders is the list narrowed to open checks, Prep opens
+the Preparation destination, Receipts and Issues open one sentence each
+(the counter's readers are not mounted on this mode). Wired: seat (with the
+join the combination rules allow, decided at seating), walk-in to the
+waiting list, seat from the waiting list, move, party left → free the table
+(the engine refuses while the check is unpaid), reset, send to the kitchen,
+the staff reservation with the website's times and deposit, open order /
+add items / collect on the counter. Drawn disabled over one sentence in
+en/es/fr, because no writer or column exists: **Change server** (a visit
+records no server), **Extend time** (the turn comes from the rules, not per
+table), **Block table** (Spaces), **Split the check**, **Join tables** for
+an already seated party and **Merge checks** (T15 after seating, T16),
+**Keep the bill open / They paid another way / Walk-out** on T23, the
+walk-in's **mobile** and **needs**, the waiting list's **Offer table** and
+**Remove**, the move's **Why**, the seat sheet's **Server** and **No-show**
+(the grace sweep stamps it), **Pause online bookings**, and the
+reservation's **table preference / note / occasion**. A seated party's tile
+is named `T2+T3` for a joined pair and the joined half is not drawn twice.
+The floor plan has no coordinates (W13 is not built), so the map groups
+tiles by room, else by kind. The list shows the next booking on a table
+from tonight's book; the timeline draws seated, held, booked and vacated
+blocks against the service window.
+
+## D-POS-62 — Receipts on the Tables mode is one sentence
+
+Decided 2026-09-11 (fid-tables). The board's rail draws Receipts; the
+receipts reader (`listPaid…`, the counter's) is not mounted on the floor
+route. The row opens "Receipts are the counter's screen. Switch to the
+Counter mode to find a receipt by its code." rather than a blank, until a
+shared receipts loader exists for every mode.
+
+## D-POS-63 — the guest's table QR page greets, shows the bill, and cannot order or pay yet
+
+Decided 2026-09-11 (fid-tables). Q01 is drawn on `loadOpenVisitByToken`
+(now with the table's code, the visit's start and party): the venue, "Welcome
+to table T2", when the visit started and for how many, the bill with its
+lines and total in the check's own currency. Q02–Q07 (browse, submit,
+substitution, pay at table, pay my share, already paid) have no engine:
+`Start ordering`, `Pay all` and `Pay my share` are disabled over one
+sentence each in en/es/fr. The server line says "Ask any member of staff"
+because a visit records no server.
+
+## D-POS-64 — the kitchen station is T26's own screen inside the Preparation destination; a station table and course firing are not built
+
+Decided 2026-09-11 (fid-tables). The Preparation destination draws
+`POSKitchen`: the station header with the venue's clock and counts, the
+Preparing · Queued · Ready tabs (filters over the same `listBoard` rows),
+one card per ticket with a timer from the send, the lines with `New` on
+what this revision added (`addedLineIds`, the previous revision's snapshot
+diffed on the server), `Start` / `Mark ready` / `Confirm handoff`, and the
+K09 amendment banner. Not built, said: **Recall** (handed-off tickets are
+not kept), station routing and dispatch rules (W15 has no stations table;
+every ticket is `station = kitchen`), courses and firing, per-line cancel,
+`avg` prep time. The board is drawn inside the workspace shell because the
+destination lives there; a full-screen station mode is a later door.
+
+## D-POS-65 — Settings › POS, Payments & providers, Locations and Booking policies: what is drawn and what is disabled
+
+Decided 2026-09-11 (fid-money). The four settings boards are drawn over the
+readers and writers that exist: `getPosModes` / `setPosModes` (the modes at
+the one location), `getPosLocationFacts` (the default venue, its clock, the
+open `pos_shifts` drawer, the platform's Stripe Terminal reader),
+`getPaymentProviderStatus`, `loadTenantCommercialTerms` /
+`updateTenantCommercialTerms` and `getBookingPolicyFacts` (the hold TTLs and
+the waitlist offer window read from the modules that enforce them). Every
+control the engine has no reader or writer for is drawn DISABLED with a
+one-sentence reason in en/es/fr, never as a control that silently does
+nothing: a second location and Field Services (no locations table, no service
+zones); Pair a device (no device registry); every Tips, Receipts and Offline
+field (tips, per-receipt language, text/email delivery, CFDI and an offline
+mode are not modelled; the boxes show what the till actually does); Save and
+Connect account on Payments & providers (providers are platform env, there is
+no place to store a Mercado Pago account); Add location, Add zone, the zone
+matrix, the surcharge and the professionals-per-zone control; Preview impact,
+Publish, Manage forms, intake forms and per-role overrides on Booking
+policies (no policy versions, no intake forms, capacity rules refuse everyone
+alike). The method table is the engine's own facts (cash needs an open shift;
+the reader row follows `stripe_terminal`; a payment link has no table; a
+recorded bank transfer is not a tender `settleAtDoor` knows; credit is an
+entitlement; two methods on one sale is `collection.split`). The Booking
+policies table has no Rentals row (nothing sells a rental) and its
+Reservations · tables row points at Reservations › Settings rather than
+duplicating it. The nav label is the board's "POS" with the accessible name
+"Point of sale" so the existing journeys keep their door.
+
+## D-POS-66 — Sales, Payments and the first-run setup page: filters, imports and exports without a reader are disabled
+
+Decided 2026-09-11 (fid-money). Sales (WS008) draws TYPE · REF · CUSTOMER ·
+WHAT · WHEN · PAYMENT · FULFILMENT · AMOUNT · DUE over
+`loadWorkspaceSalesActivity`; payment and fulfilment are ONE pill from the
+row's status (`salesStatePill`), DUE is total minus collected, WHEN is on the
+workspace's clock. The period, payment and seller filters and Export (scoped)
+are disabled with their sentence (nothing filters by period, payment state or
+seller); New sale opens the counter when that mode is on and says why not
+otherwise. Payments (W25) is five tiles and six tabs over `loadPaymentsBoard`
+(takings, owed, refunds, `pos_shifts`, the Issues queue's `refund_intent` and
+`unresolved_collection` rows, `agencies.stripe_*`); Import terminal report
+and Export are disabled (no table holds a terminal row), Next payout says the
+schedule and amount are Stripe's and are not read, Reconciliation says
+nothing has been imported and points unresolved collections at the Attempts
+tab. The first-run page (W55, `/admin/setup`) is the Overview's setup reader
+(`loadSetupItems`, now eight facts including "Who performs" and "Booking
+policy") with a door per unfinished item, and "Blocked right now" is the
+Issues queue's two most consequential rows. W56 (Approval review) is not
+built: the engine has no per-action limit and no approval request to review,
+so there is nothing to draw the dialog over; recorded here rather than as a
+dialog that would approve nothing.
+
+## D-POS-67 — a visit may own more than one order (split check)
 
 Decided 2026-09-11 (engine-pos-money). L52 deferred a multi-order visit until
 a case proved one visit needs several orders. Split check is that case:
@@ -675,50 +794,82 @@ There is no parallel check entity. Unique index `orders_one_per_visit` is
 dropped. Recorded also as an L52 clarification in
 `docs/plans/program/decisions.md`.
 
-## D-POS-59 — waitlist_offers is the class/session hold, not restaurant T08
+## D-POS-68 — waitlist_offers is the class/session hold, not restaurant T08
 
 Decided 2026-09-11 (engine-pos-money). `waitlist_offers` holds a seat for a
 `session_waitlist_entries` row via `reserve_resource_set_v2`. It has no party
 or venue columns. Restaurant T08 party waitlist stays blocked until that
 table exists.
+## D-POS-69 — the till is full-bleed: no workspace top bar inside the point of sale; the rail's MODE chip is the mode switch (M33), the Tax row reads the tax outcome, tile badges are stock and variant facts
 
-## D-POS-60 — a session's instructor is a user id on the row
+Decided 2026-09-11 (fid-polish1). `POSCounter` and `M33_ModeSwitch` draw the
+point of sale with nothing of the workspace above it: a 96px rail, a 64px
+header, the sell surface and the basket fill the viewport. The shell's POS
+chrome branch therefore mounts no `TulalaIdentityBar`; the two things that
+bar offered inside the till are on the rail. The `MODE · Counter` chip opens
+the M33 menu (`PosRailModeMenu`, handed to `PosFrame` through
+`PosModeMenuContext`), rendering the SAME model as the top bar's W00 switch
+(`usePosModeMenuModel`: usable, turned off at this workspace, not your role,
+no screen yet, remembered default); the `Workspace` door at the rail's foot
+leaves. The board's per-mode live hints under each row ("14 today · 2
+balances due") are not drawn: they need every mode's reader on every till
+render. The customer display door moved from the rail (the board's rail is
+five destinations, Lock and Workspace) to the cashier chip's menu beside
+Devices and Connection, as a real `target="_blank"` link.
+
+Tile badges come from facts the engine keeps: `Options` when the offering has
+MORE THAN ONE `talent_offering_variants` row (one variant is not a choice and
+sells as before), and a tap opens the chooser whose pick rides the line as
+`variant_id` (`posAddLine` accepts it; `addLine` prices it); `N left` when
+the offering's capacity pool mirror (`inventory_qty` WITH `capacity_pool_id`)
+is at or under 5 units; `Sold out` at 0 (the tile cannot be tapped);
+`Pick session` unchanged. A second tap on the same offering, variant and
+session on an unsent line adds a unit to that line (`posUpdateLine`), so the
+basket reads `2 · Latte · $90 each` as the board draws it, instead of a
+second identical line. `Held until hh:mm` is the earliest live hold on the
+line (`capacity_allocations`, state `hold`, not lapsed). The basket's Tax row
+reads `orderTax` (`lib/catalog/tax`): `unset` says "Not set up" because no
+line can carry a tax category yet (`talent_offerings` has no such column),
+never a zero nobody decided; the `Saved hh:mm` line starts from the sale
+row's `updated_at`. Favorites stays disabled (D-POS-31): nothing records one.
+
+## D-POS-70 — a session's instructor is a user id on the row
 
 Decided 2026-09-11 (engine-scheduling). Boards W39/W40 filter and substitute
 by instructor. `sessions` had no instructor column. Additive
 `session_series.instructor_user_id` and `sessions.instructor_user_id`
 (nullable FK to auth users via uuid, no FK to a people table that does not
 exist). Room stays `venue_id`. Overlapping room means overlapping scheduled
-windows at the same venue.
+windows at the same venue. Numbered 70 because fidelity already used 60–69.
 
-## D-POS-61 — Generate sessions is one explicit materialiser pass
+## D-POS-71 — Generate sessions is one explicit materialiser pass
 
 Decided 2026-09-11 (engine-scheduling). `generateSessionsForSeries` calls
 `decideMaterialisation` + `createSessionWithPools` once through `untilDate`.
 The nightly cron is unchanged. Nothing is a second materialiser.
 
-## D-POS-62 — cancelling a session never refunds inside the command
+## D-POS-72 — cancelling a session never refunds inside the command
 
 Decided 2026-09-11 (engine-scheduling). `session_cancel` voids admissions and
 writes `ticket_refund_intents` with reason `session_cancelled`. The existing
 cron pays. Same rule as `cancel_event_cascade`.
 
-## D-POS-63 — customer manage is a signed token, not a new guest cookie
+## D-POS-73 — customer manage is a signed token, not a new guest cookie
 
 Decided 2026-09-11 (engine-scheduling). HMAC over `{bookingId, tenantId,
 action, exp}` using `GUEST_COOKIE_SECRET`. The public page is the UI
 session's. This package ships sign/verify only.
 
-## D-POS-64 — a package is an offering with component rows
+## D-POS-74 — a package is an offering with component rows
 
 Decided 2026-09-11 (engine-scheduling). `offering_components` is the
 composition. A price phase is stamped on the line the first time it is
 priced and is never rewritten by a later phase. Passes, memberships and
 gift cards stay out (D-POS-54).
 
-## D-POS-65 — offering policy overrides and role limits are rows
+## D-POS-75 — offering policy overrides and role limits are rows
 
 Decided 2026-09-11 (engine-scheduling). `booking_policy_overrides` win over
 offering / workspace defaults for deposit, free-cancel hours and no-show
 fee. `role_limits` + `approval_requests` gate discounts and refunds above
-the role's cents cap.
+the role's cents cap. W56 can now be a real review dialog over these rows.

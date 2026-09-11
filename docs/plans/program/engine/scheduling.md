@@ -22,7 +22,7 @@ touch `components/**`, admin `*.tsx`, or `globals.css`.
 
 Unblocks: W10, W40 "+ New series" / "Generate sessions". Closes D-POS-35
 (writer half). Instructor lives on `session_series.instructor_user_id` and
-`sessions.instructor_user_id` (D-POS-60). Room is `venue_id` (no space_id on
+`sessions.instructor_user_id` (D-POS-70). Room is `venue_id` (no space_id on
 sessions). Price is the offering's `amount_cents`.
 
 ### `upsertSessionSeries`
@@ -221,7 +221,7 @@ Refund of a package splits by component share
 
 ## 6. Booking policy overrides and role limits
 
-Unblocks: W24, W56. Records D-POS-65.
+Unblocks: W24, W56. Records D-POS-75.
 
 ### `booking_policy_overrides`
 

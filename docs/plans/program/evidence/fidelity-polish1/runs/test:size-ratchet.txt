@@ -1,0 +1,60 @@
+  ...
+# Subtest: the extractor does not borrow a table from an unrelated earlier query
+ok 164 - the extractor does not borrow a table from an unrelated earlier query
+  ---
+  duration_ms: 0.161458
+  ...
+# Subtest: a table separated by a statement boundary is not borrowed at all
+ok 165 - a table separated by a statement boundary is not borrowed at all
+  ---
+  duration_ms: 0.061333
+  ...
+# Subtest: a baselined key whose finding is gone is a NOTE, not a failure
+ok 166 - a baselined key whose finding is gone is a NOTE, not a failure
+  ---
+  duration_ms: 1184.584083
+  ...
+# Subtest: BITES: a NEW finding is still a regression and still fails
+ok 167 - BITES: a NEW finding is still a regression and still fails
+  ---
+  duration_ms: 0.112584
+  ...
+# Subtest: a FIXED finding is classified resolved, never a regression
+ok 168 - a FIXED finding is classified resolved, never a regression
+  ---
+  duration_ms: 0.176667
+  ...
+# Subtest: BITES: an onConflict that is not a string literal is UNKNOWN, never skipped
+ok 169 - BITES: an onConflict that is not a string literal is UNKNOWN, never skipped
+  ---
+  duration_ms: 0.077042
+  ...
+# Subtest: an UNREADABLE site is ratcheted like a broken one
+ok 170 - an UNREADABLE site is ratcheted like a broken one
+  ---
+  duration_ms: 0.128833
+  ...
+# Subtest: BITES: NULLS NOT DISTINCT between the columns and WHERE does not hide a partial index
+ok 171 - BITES: NULLS NOT DISTINCT between the columns and WHERE does not hide a partial index
+  ---
+  duration_ms: 0.476833
+  ...
+# Subtest: BITES: a table named through a wrapper helper resolves, it is not `unknown`
+ok 172 - BITES: a table named through a wrapper helper resolves, it is not `unknown`
+  ---
+  duration_ms: 0.218417
+  ...
+# Subtest: an UNRECOGNISED wrapper still falls back to unknown, never to silence
+ok 173 - an UNRECOGNISED wrapper still falls back to unknown, never to silence
+  ---
+  duration_ms: 0.072792
+  ...
+1..173
+# tests 173
+# suites 0
+# pass 173
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6431.383292

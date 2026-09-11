@@ -1,0 +1,6 @@
+typecheck exit=0
+lint exit=0
+test:design-system exit=0
+test:tenant-isolation exit=0
+test:size-ratchet exit=0
+test:phase1-i18n exit=0

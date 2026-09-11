@@ -42,6 +42,12 @@ export type BookRow = {
   holderName: string | null;
   /** Null is a VALID state: the host has not placed this party yet. */
   spaceCode: string | null;
+  /**
+   * When the party was checked in (`admissions.seated_at`). Optional: the
+   * desk's decisions never read it; the floor uses it to tell tonight's
+   * EARLIER party at a table from the one sitting there now.
+   */
+  seatedAt?: Date | null;
 };
 
 export type BookEntry = BookRow & {

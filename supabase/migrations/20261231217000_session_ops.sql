@@ -1,5 +1,5 @@
 -- Package 2 task 2: substitute, move a seat, cancel with scope.
--- Refunds are intents (D-POS-62), never money inside this transaction.
+-- Refunds are intents (D-POS-72), never money inside this transaction.
 
 BEGIN;
 

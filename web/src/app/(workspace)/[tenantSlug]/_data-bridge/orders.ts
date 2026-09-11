@@ -36,6 +36,25 @@ export type OrdersLoad =
  */
 const PAID = "paid";
 
+const IN_BATCH = 150;
+
+/**
+ * Run one `.in(...)` read per slice of `ids` and concatenate the rows; the
+ * first error wins. An empty id list reads nothing and answers `[]`.
+ */
+async function inBatches<T>(
+  ids: readonly string[],
+  read: (slice: string[]) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<{ data: T[]; error: { message: string } | null }> {
+  const data: T[] = [];
+  for (let i = 0; i < ids.length; i += IN_BATCH) {
+    const res = await read(ids.slice(i, i + IN_BATCH));
+    if (res.error) return { data, error: res.error };
+    data.push(...(res.data ?? []));
+  }
+  return { data, error: null };
+}
+
 export async function loadWorkspaceOrders(
   tenantId: string,
   opts: { limit?: number } = {},
@@ -84,16 +103,17 @@ export async function loadWorkspaceOrders(
   // boundary and a nested PostgREST select silently returns null for a row the
   // policy hides, which reads on screen as "no customer" rather than as a
   // permission result.
+  //
+  // IN BATCHES. PostgREST puts an `in` filter in the URL, and 500 uuids make
+  // a 19 KB request line that undici refuses (`UND_ERR_HEADERS_OVERFLOW`),
+  // which the Overview then showed as "Could not read this right now" on a
+  // workspace with a few hundred orders. ~150 ids is under 6 KB.
   const [linesRes, txRes, custRes] = await Promise.all([
-    admin.from("order_lines").select("order_id").in("order_id", orderIds),
-    admin
-      .from("booking_transactions")
-      .select("order_id, gross_amount_cents")
-      .in("order_id", orderIds)
-      .eq("status", PAID),
-    customerIds.length > 0
-      ? admin.from("customers").select("id, display_name, email").in("id", customerIds)
-      : Promise.resolve({ data: [], error: null }),
+    inBatches(orderIds, (ids) => admin.from("order_lines").select("order_id").in("order_id", ids)),
+    inBatches(orderIds, (ids) =>
+      admin.from("booking_transactions").select("order_id, gross_amount_cents").in("order_id", ids).eq("status", PAID),
+    ),
+    inBatches(customerIds, (ids) => admin.from("customers").select("id, display_name, email").in("id", ids)),
   ]);
 
   if (linesRes.error || txRes.error || custRes.error) {

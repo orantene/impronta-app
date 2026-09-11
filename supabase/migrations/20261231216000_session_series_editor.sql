@@ -1,5 +1,5 @@
 -- Package 2 task 1: instructor on series/sessions. Series writes are TS.
--- Room stays venue_id. Overlap is same-venue scheduled windows (D-POS-60).
+-- Room stays venue_id. Overlap is same-venue scheduled windows (D-POS-70).
 
 BEGIN;
 
