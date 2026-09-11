@@ -1,7 +1,14 @@
 # POS Messages evidence
 
 **PDF handoff:** combined `docs/plans/program/pos/Tulala-POS-Messages-v2.pdf` (Part1 + Part2).
-`board.png` rendered with PyMuPDF at dpi 110. `live.png` is mock/fixture from `/c/t/preview?board=` (not qa-journeys, not PosFrame).
+`board.png` rendered with PyMuPDF at dpi 110.
+
+`live.png` was **not captured** on this runner. There is no isolated env
+(`.env.capacity-isolated.local` / `JOURNEYS_FIXTURE_READY`), no `web/.env.local`,
+and Next fail-closes unknown hosts to `/_host-unregistered` when Supabase env
+is missing. The fixture preview at `/c/t/preview?board=` is implemented and
+labelled mock/fixture; it cannot be reached here. Do not treat `board.png` as
+a live shot.
 
 Verdict key: **matched** / **partial** / **not-wired**.
 

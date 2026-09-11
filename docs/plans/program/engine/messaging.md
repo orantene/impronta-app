@@ -134,4 +134,6 @@ Real exit codes on `cursor/pos-messages-444f`:
 | test:inquiry-workspace | 0 |
 | messaging unit (`src/lib/messaging/*.test.ts`) | 0 (13/13; not wired into `package.json`) |
 
-Isolated apply, race scripts, and Playwright need the isolated env + seam 2. Not run here.
+Isolated apply, race scripts, and Playwright need the isolated env + seam 2.
+MSG-P1/P2/P5/P6/P7/P8/P11/P12 on this runner: skipped 8 / 8 (no `JOURNEYS_FIXTURE_READY`).
+`/c/t/preview` cannot be reached here: no Supabase env, host gate 404s.
