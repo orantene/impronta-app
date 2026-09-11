@@ -215,6 +215,11 @@ export async function settleAtDoor(
       order_id: row.id,
       source_tenant_id: input.tenantId,
       gross_amount_cents: input.amountCents,
+      // A manual tender carries no platform fee. Both fee columns are NOT NULL
+      // on production with no default; the QA branch had a hand-added default
+      // that hid a missing basis-points value from every proof until the
+      // production push refused it. Name both, always.
+      platform_fee_basis_points: 0,
       platform_fee_cents: 0,
       net_amount_cents: input.amountCents,
       currency: input.currency || row.currency || "usd",

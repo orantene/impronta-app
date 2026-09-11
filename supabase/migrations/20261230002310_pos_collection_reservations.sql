@@ -719,18 +719,20 @@ BEGIN
   -- CLAIM 1: two cash allocations on that one shell both reach `paid`.
   INSERT INTO public.booking_transactions (
     booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
     currency, provider, provider_reference, status
   ) VALUES (
-    v_shell_order, v_order, v_tenant, 3000, 3000, 'USD', 'manual', 't1-03-proof:a', 'draft'
+    v_shell_order, v_order, v_tenant, 3000, 3000, 0, 0, 'USD', 'manual', 't1-03-proof:a', 'draft'
   ) RETURNING id INTO v_txn_a;
   UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_txn_a;
   UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_txn_a;
 
   INSERT INTO public.booking_transactions (
     booking_id, order_id, source_tenant_id, gross_amount_cents, net_amount_cents,
+    platform_fee_basis_points, platform_fee_cents,
     currency, provider, provider_reference, status
   ) VALUES (
-    v_shell_order, v_order, v_tenant, 3000, 3000, 'USD', 'manual', 't1-03-proof:b', 'draft'
+    v_shell_order, v_order, v_tenant, 3000, 3000, 0, 0, 'USD', 'manual', 't1-03-proof:b', 'draft'
   ) RETURNING id INTO v_txn_b;
   UPDATE public.booking_transactions SET status = 'payment_requested' WHERE id = v_txn_b;
   UPDATE public.booking_transactions SET status = 'paid' WHERE id = v_txn_b;
