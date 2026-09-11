@@ -260,6 +260,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:inquiry-workspace
 
+      - name: tests — messaging
+        if: ${{ !cancelled() }}
+        run: npm run test:messaging
+
       - name: tests — ai-guardrails
         if: ${{ !cancelled() }}
         run: npm run test:ai-guardrails

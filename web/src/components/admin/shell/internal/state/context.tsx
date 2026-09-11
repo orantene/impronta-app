@@ -737,7 +737,7 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
     offer,
     bookingId: null,
     messages,
-    seen: w.seen,
+    seen: w.seen, messaging: w.messaging,
   };
 }
 

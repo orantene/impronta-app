@@ -30,6 +30,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { POS_MESSAGES_DESTINATION, posMessagesHref } from "@/lib/pos/modes";
+
 import {
   CollectSheet,
   IssuesScreen,
@@ -77,6 +79,8 @@ export type ProjectsModeView = "collect" | "projects" | "links" | "receipts" | "
 
 export type ProjectsModeClientProps = {
   readonly workspaceName: string;
+  /** The Messages inbox's unread count: the rail's `messages` badge (seam 10). */
+  readonly messagesUnread?: number;
   readonly cashierName: string;
   readonly drawerOpen: boolean;
   readonly posPath: string;
@@ -457,6 +461,10 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
         navLabel={mode.rail.label}
         activeDestination={view}
         onSelectDestination={(id) => {
+          if (id === POS_MESSAGES_DESTINATION) {
+            router.push(posMessagesHref("projects"));
+            return;
+          }
           const next = isProjectsModeView(id) ? id : "collect";
           setView(next);
           setRefusal(null);
@@ -464,6 +472,7 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
           if ((next === "receipts" || next === "links" || next === "issues") && detail) router.push(href({ view: next }));
         }}
         destinationLabels={mode.rail.destinations}
+        counts={{ messages: props.messagesUnread ?? 0 }}
         modeLabel={mode.title}
         modeEyebrow={copy.chrome.modeEyebrow}
         lock={{ label: copy.chrome.lock, disabledReason: copy.chrome.lockUnavailable }}

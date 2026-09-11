@@ -23,6 +23,8 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { POS_MESSAGES_DESTINATION, posMessagesHref } from "@/lib/pos/modes";
+
 import {
   PosFrame,
   PosRefusalBanner,
@@ -74,6 +76,8 @@ type Destination = "today" | "sessions" | "walkin" | "waitlist";
 
 export type ClassesClientProps = {
   tenantId: string;
+  /** The Messages inbox's unread count: the rail's `messages` badge (seam 10). */
+  messagesUnread?: number;
   workspaceName: string;
   /** The venue the day is read on, when the workspace names one. */
   venueName: string | null;
@@ -618,6 +622,10 @@ export function ClassesClient(props: ClassesClientProps) {
         navLabel={copy.frame.navLabel}
         activeDestination={destination}
         onSelectDestination={(id) => {
+          if (id === POS_MESSAGES_DESTINATION) {
+            router.push(posMessagesHref("classes"));
+            return;
+          }
           if (walkIn.settled) walkIn.startAgain();
           const next = parseDestination(id);
           if (next === "walkin") {
@@ -630,6 +638,7 @@ export function ClassesClient(props: ClassesClientProps) {
           setNotice(null);
         }}
         destinationLabels={copy.frame.destinationLabels}
+        counts={{ messages: props.messagesUnread ?? 0 }}
         modeLabel={props.modeLabel}
         modeEyebrow={copy.chrome.modeEyebrow}
         lock={{ label: copy.chrome.lock, disabledReason: copy.chrome.lockUnavailable }}

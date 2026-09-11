@@ -34,6 +34,7 @@ import {
   FileText,
   Flame,
   FolderOpen,
+  Inbox,
   LayoutGrid,
   Link2,
   Lock,
@@ -116,6 +117,7 @@ const DESTINATION_ICONS: Readonly<Record<string, ComponentType<LucideProps>>> = 
   projects: FolderOpen,
   display: Monitor,
   links: Link2,
+  messages: Inbox,
 };
 
 const ROW =

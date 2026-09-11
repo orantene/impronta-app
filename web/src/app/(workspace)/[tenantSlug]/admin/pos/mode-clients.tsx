@@ -55,6 +55,14 @@ export const FloorClient = dynamic(
   { loading: () => null },
 );
 
+// The Messages & Inquiries view every mode's rail opens (`?view=messages`,
+// seam 2): its own chunk for the same reason as the modes, since a cashier
+// who never opens the inbox should not download it.
+export const MessagesModeClient = dynamic(
+  () => import("./messages-client").then((m) => ({ default: m.MessagesModeClient })),
+  { loading: () => null },
+);
+
 export const ProjectsModeClient = dynamic(
   () =>
     import("./_projects/projects-mode-client").then((m) => ({

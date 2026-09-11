@@ -1,10 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  POS_MESSAGES_DESTINATION,
+  POS_MODES,
+  POS_MODE_META,
   enabledPosModesAtLocation,
   enabledPosModesFromSettings,
   modesForPerson,
   parsePosMode,
+  posMessagesHref,
 } from "./modes";
 
 test("parsePosMode rejects junk", () => {
@@ -123,4 +127,18 @@ test("enabledPosModesAtLocation reads a slug and falls back to default", () => {
   };
   assert.deepEqual(enabledPosModesAtLocation(settings, "centro"), ["counter", "floor"]);
   assert.deepEqual(enabledPosModesAtLocation(settings, "missing"), ["counter"]);
+});
+
+test("every mode's rail carries the Messages row, last, exactly once (messaging seam 1)", () => {
+  for (const mode of POS_MODES) {
+    const destinations = POS_MODE_META[mode].destinations;
+    assert.equal(destinations.filter((id) => id === POS_MESSAGES_DESTINATION).length, 1, mode);
+    assert.equal(destinations[destinations.length - 1], POS_MESSAGES_DESTINATION, mode);
+  }
+});
+
+test("posMessagesHref is query-only, names the mode, and carries the counter's open sale", () => {
+  assert.equal(posMessagesHref("door"), "?mode=door&view=messages");
+  assert.equal(posMessagesHref("counter", "abc-123"), "?mode=counter&view=messages&order=abc-123");
+  assert.equal(posMessagesHref("counter", null), "?mode=counter&view=messages");
 });

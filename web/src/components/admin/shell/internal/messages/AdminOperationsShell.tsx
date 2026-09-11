@@ -17,6 +17,7 @@ import { MobileInboxTab } from "./shared/inbox-layout-1";
 import type { Offer } from "./shared/machinery-9";
 import { JobStageFunnel } from "./talent-1";
 import { withWeekday } from "./TalentJobShell";
+import { MessagingStateChips } from "./messaging-state-chips";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -522,6 +523,11 @@ export function AdminInquiryRow({
             <span style={{ flexShrink: 0, minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999, boxSizing: "border-box", color: "#fff", fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }} className="bg-admin-accent">{totalUnread}</span>
           )}
         </div>
+
+        {/* Row 3b — the Messages engine's three state families as three
+            chip groups (seam 4): conversation, opportunity, linked records.
+            Only rows the bridge read carry them; fixtures do not. */}
+        {inquiry.messaging && <MessagingStateChips messaging={inquiry.messaging} />}
 
         {/* Row 4 — funnel dots + coordinator owner chip. The uppercase
             stage word is intentionally dropped: the funnel's current-

@@ -55,6 +55,14 @@ const ROLE_RANK: Record<PosPersonRole, number> = {
   owner: 4,
 };
 
+/**
+ * The one destination every mode's rail carries: Messages & Inquiries
+ * (`docs/plans/program/engine/messaging.md`, seam 1). The row opens
+ * `?view=messages` on the same mode and its badge is the inbox's unread count
+ * (seam 10); the mode's own client never handles it as a screen of its own.
+ */
+export const POS_MESSAGES_DESTINATION = "messages" as const;
+
 export type PosModeMeta = {
   readonly id: PosMode;
   /** English label. No other locale exists for this yet. */
@@ -72,7 +80,7 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
     // The board's rail (`POSCounter`): Sell · Orders · Receipts · Cash ·
     // Issues. `shifts` IS the drawer ("Cash" on the rail); `issues` has no
     // reader yet and renders its own sentence (D-POS-28).
-    destinations: ["sell", "orders", "receipts", "shifts", "issues"],
+    destinations: ["sell", "orders", "receipts", "shifts", "issues", "messages"],
     built: true,
   },
   floor: {
@@ -84,7 +92,7 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
     // destination (the station board is its own screen, T26); `receipts`
     // and `issues` have no reader on this mode yet and render one sentence
     // each (D-POS-28, D-POS-48).
-    destinations: ["tables", "orders", "prep", "receipts", "issues"],
+    destinations: ["tables", "orders", "prep", "receipts", "issues", "messages"],
     built: true,
   },
   door: {
@@ -95,13 +103,13 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
     // the gate (G01 to G08), `lookup` the ticket finder (E09, E10, E15);
     // Receipts lists the door's own paid sales and Issues is the workspace's
     // inbox, drawn over its one sentence (D-POS-28).
-    destinations: ["tickets", "checkin", "lookup", "receipts", "issues"],
+    destinations: ["tickets", "checkin", "lookup", "receipts", "issues", "messages"],
     built: true,
   },
   classes: {
     id: "classes",
     label: "Front desk",
-    destinations: ["today", "sessions", "walkin", "waitlist"],
+    destinations: ["today", "sessions", "walkin", "waitlist", "messages"],
     built: true,
   },
   projects: {
@@ -116,10 +124,22 @@ export const POS_MODE_META: Record<PosMode, PosModeMeta> = {
     // balance", D-POS-10). Links has no table yet and Issues is the
     // workspace's own inbox: both rows are drawn, each over its one
     // sentence (D-POS-28, D-POS-42), never over a blank.
-    destinations: ["collect", "projects", "links", "receipts", "issues"],
+    destinations: ["collect", "projects", "links", "receipts", "issues", "messages"],
     built: true,
   },
 };
+
+/**
+ * The address of a mode's Messages view (seam 2): the same `/admin/pos` route,
+ * `?view=messages`, on the mode the rail row was pressed in. Query-only so it
+ * resolves against whatever host shape the till is on (`/admin/pos` on a
+ * branded host, `/<slug>/admin/pos` on the shared one); the counter's open
+ * sale rides along so the view can offer "Back to sale".
+ */
+export function posMessagesHref(mode: PosMode, orderId: string | null = null): string {
+  const order = orderId ? `&order=${encodeURIComponent(orderId)}` : "";
+  return `?mode=${mode}&view=${POS_MESSAGES_DESTINATION}${order}`;
+}
 
 function isPosMode(value: unknown): value is PosMode {
   return typeof value === "string" && (POS_MODES as readonly string[]).includes(value);

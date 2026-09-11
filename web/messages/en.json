@@ -12883,7 +12883,8 @@
           "empty": "No sales on hold.",
           "resume": "Resume",
           "heldSince": "Held since",
-          "saleLabel": "Sale"
+          "saleLabel": "Sale",
+          "fromMessages": "from Messages"
         },
         "refusal": {
           "balanceChanged": "Someone already collected part of this balance. The amount owing has changed.",
@@ -13177,6 +13178,7 @@
           "methodUnavailable": "Filtering by how the money arrived is not available here yet.",
           "empty": "No paid counter sales in this range yet.",
           "noCode": "No code",
+          "fromMessages": "from Messages · paid by link",
           "open": "Open receipt"
         },
         "issues": {
@@ -14593,12 +14595,26 @@
         "failedLoad": "Could not load conversations.",
         "toastIncoming": "A new message arrived.",
         "backToSale": "Back to sale",
+        "backToSaleDetail": {
+          "one": "Back to sale {ref} · {total} · 1 line",
+          "other": "Back to sale {ref} · {total} · {count} lines"
+        },
+        "backTo": "Back to {screen}",
         "deposit": "Deposit",
         "full": "Full amount",
         "none": "No payment now",
         "webChatOnlyCustomer": "Web chat can only be opened by the customer.",
         "whatsappNeedsTemplate": "WhatsApp needs an approved template first.",
         "draftKept": "Your typed draft is still here.",
+        "record": {
+          "order": "Order",
+          "appointment": "Appointment",
+          "reservation": "Reservation",
+          "class_enrolment": "Class place",
+          "tickets": "Tickets",
+          "project": "Project",
+          "offer": "Offer"
+        },
         "filter": {
           "all": "All",
           "unread": "Unread",
@@ -14813,6 +14829,7 @@
       "tabReady": "Ready",
       "recall": "Recall",
       "recallReason": "Handed-off tickets are not kept on the board yet.",
+      "fromMessages": "from Messages · paid by link",
       "subtitle": "{date} · {time} · {preparing} preparing · {queued} queued · {ready} ready",
       "fired": "Fired {time}",
       "amendmentBanner": "{code} · ticket amended · revision {n} · acknowledge it again",

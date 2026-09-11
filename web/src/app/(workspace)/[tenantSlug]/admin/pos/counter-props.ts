@@ -106,6 +106,8 @@ export type PosClientCopy = {
 
 export type PosClientProps = {
   mode: PosMode;
+  /** The Messages inbox's unread count: the rail's `messages` badge (seam 10). */
+  messagesUnread?: number;
   /** For the customer display's beacon (`display-beacon.ts`), keyed per workspace. */
   tenantId: string;
   /** This workspace's own name: the location chip until a locations table exists. */
@@ -124,7 +126,7 @@ export type PosClientProps = {
   taxState: "unset" | "taxed";
   /** The sale's last accepted write, as a clock string, for `Saved hh:mm`. */
   savedAt: string | null;
-  openSales: Array<{ id: string; totalCents: number; createdAt: string | null }>;
+  openSales: Array<{ id: string; totalCents: number; createdAt: string | null; origin?: "pos" | "messages" }>;
   receipts: PosReceiptRow[];
   catalog: PosCatalogItem[];
   currency: string;

@@ -76,6 +76,8 @@ export type PreparationCopy = {
   tabReady: string;
   recall: string;
   recallReason: string;
+  /** "from Messages · paid by link": the card's origin line when the order came from a conversation. */
+  fromMessages: string;
   /** `{date} · {time} · {preparing} preparing · {queued} queued · {ready} ready` */
   subtitle: string;
   /** `Fired {time}` */
@@ -223,6 +225,13 @@ export function PreparationClient(props: {
             {elapsedLabel(since, nowMs)}
           </span>
         </div>
+        {ticket.origin === "messages" && (
+          // Its own line, never squeezed into the header: a cook must read
+          // that nobody is at the counter for this one (seam 3).
+          <p data-prep-origin="messages" className="m-0 border-b border-admin-border-soft bg-admin-brand-soft px-4 py-1.5 text-[12.5px] font-semibold text-admin-brand">
+            {copy.fromMessages}
+          </p>
+        )}
         {isAmended && (
           <p className="m-0 flex items-center gap-2 border-b border-admin-border-soft bg-admin-coral-soft px-4 py-2 text-[13.5px] font-semibold text-admin-coral-deep">
             <AlertTriangle aria-hidden size={14} strokeWidth={1.75} />

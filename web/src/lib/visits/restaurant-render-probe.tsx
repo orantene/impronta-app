@@ -198,6 +198,7 @@ export const PROBE_TICKETS: PrepTicketView[] = [
     acknowledgedAt: null,
     readyAt: null,
     snapshotLines: [{ id: "l1", label: "Tacos al pastor", units: 3 }],
+    origin: "pos",
     addedLineIds: ["l1"],
   },
 ];

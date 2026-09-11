@@ -1,6 +1,6 @@
 import type { Translator } from "@/components/admin/pos/translator";
 
-import type { ConversationState, InboxFilter, InboxNextAction, OpportunityState } from "@/lib/messaging/types";
+import type { ConversationState, InboxFilter, InboxNextAction, OpportunityState, RecordKind } from "@/lib/messaging/types";
 
 const KEYS = [
   "dashboard.pos.messages.title",
@@ -50,6 +50,13 @@ const KEYS = [
   "dashboard.pos.messages.state.acceptedAwaitingDeposit",
   "dashboard.pos.messages.state.won",
   "dashboard.pos.messages.state.lost",
+  "dashboard.pos.messages.record.order",
+  "dashboard.pos.messages.record.appointment",
+  "dashboard.pos.messages.record.reservation",
+  "dashboard.pos.messages.record.class_enrolment",
+  "dashboard.pos.messages.record.tickets",
+  "dashboard.pos.messages.record.project",
+  "dashboard.pos.messages.record.offer",
   "dashboard.pos.messages.refusal.conflict",
   "dashboard.pos.messages.refusal.not_found",
   "dashboard.pos.messages.refusal.wrong_tenant",
@@ -288,6 +295,15 @@ export function messagesCopy(t: Translator) {
       won: t("dashboard.pos.messages.state.won"),
       lost: t("dashboard.pos.messages.state.lost"),
     } satisfies Record<OpportunityState, string>,
+    record: {
+      order: t("dashboard.pos.messages.record.order"),
+      appointment: t("dashboard.pos.messages.record.appointment"),
+      reservation: t("dashboard.pos.messages.record.reservation"),
+      class_enrolment: t("dashboard.pos.messages.record.class_enrolment"),
+      tickets: t("dashboard.pos.messages.record.tickets"),
+      project: t("dashboard.pos.messages.record.project"),
+      offer: t("dashboard.pos.messages.record.offer"),
+    } satisfies Record<RecordKind, string>,
     refusal: (code: string) => t(`dashboard.pos.messages.refusal.${code}`),
   };
 }
