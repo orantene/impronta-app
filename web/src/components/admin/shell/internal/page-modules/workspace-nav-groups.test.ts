@@ -225,18 +225,28 @@ test("a business workspace still gets People, with only its talent-only children
   const people = itemOf(biz, "people");
   assert.ok(people, "a business workspace has no People row at all");
   assert.equal(people.label, "Team", "a cafe-shaped business calls its people Team");
+  // The three hat tabs (W27) are states of the People page and open on any
+  // workspace; only the roster queues are talent-only.
   assert.deepEqual(
     people.subItems.map((s) => s.id),
-    ["people-everyone"],
+    ["people-everyone", "people-talent", "people-bookable", "people-access"],
     "a business workspace was offered a roster queue its routes 404",
   );
   assert.ok(!flat(biz).some((i) => i.id === "pitches"), "Pitches is still hidden");
 
-  // The same rail on a talent workspace keeps all four.
+  // The same rail on a talent workspace keeps all seven.
   const talent = railFor({ industryPreset: "restaurant" });
   assert.deepEqual(
     itemOf(talent, "people")?.subItems.map((s) => s.id),
-    ["people-everyone", "people-applications", "people-registration", "people-rates"],
+    [
+      "people-everyone",
+      "people-talent",
+      "people-bookable",
+      "people-access",
+      "people-applications",
+      "people-registration",
+      "people-rates",
+    ],
   );
 });
 
@@ -259,6 +269,11 @@ test("the People row opens the People surface, and its queues stay where the pag
     people?.subItems.map((s) => [s.label, s.href]),
     [
       ["Everyone", "/admin/people"],
+      // The boards' three tabs (W27): states of the one People page, under
+      // the `view` query the page reads, the shape Appointments' children have.
+      ["Talent", "/admin/people?view=talent"],
+      ["Bookable", "/admin/people?view=bookable"],
+      ["Access", "/admin/people?view=access"],
       ["Applications", "/admin/roster/applications"],
       ["Registration", "/admin/roster/registration"],
       ["Rates", "/admin/roster/rates"],

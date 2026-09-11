@@ -395,8 +395,15 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     // surface. `talent`, `bookable` and `access` are NOT here: /admin/roster/
     // talent is the roster's [id] route, so those three were links into a
     // lookup for a profile with the id "talent" — they arrive with People.
+    // The board's five rows (W27): Everyone · Talent · Bookable · Access ·
+    // Applications. The middle three are TABS of the one People page under a
+    // `view` query, the shape Appointments' children have; they are not
+    // routes, so the same person is never listed twice.
     subViews: [
       { id: "everyone", label: "Everyone", segment: "" },
+      { id: "talent", label: "Talent", segment: "", query: "view=talent" },
+      { id: "bookable", label: "Bookable", segment: "", query: "view=bookable" },
+      { id: "access", label: "Access", segment: "", query: "view=access" },
       {
         id: "applications",
         label: "Applications",

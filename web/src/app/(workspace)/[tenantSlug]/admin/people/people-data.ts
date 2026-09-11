@@ -19,6 +19,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadWorkspaceTeamMembers } from "../../_data-bridge/workspace-config";
+import { loadWorkspaceRosterForCurrentTenant } from "@/components/admin/shell/internal/data-bridge";
+import type { TalentProfile } from "@/components/admin/shell/internal/state/types";
+import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   NOT_EXCLUSIVE,
@@ -35,6 +38,9 @@ import {
   mergePeople,
   publicProfileHat,
   type MembershipSide,
+  type PersonFacts,
+  type PersonHoursSummary,
+  type PersonOffering,
   type PersonRecord,
   type RosterSide,
 } from "@/lib/people/hats";
@@ -113,7 +119,10 @@ function optedIn(bookingTerms: unknown): boolean {
  * server-rendered "Unnamed person" would disagree with the operator's own
  * language on first paint.
  */
-export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface> {
+export async function loadPeopleSurface(
+  tenantId: string,
+  viewerAccountId: string | null = null,
+): Promise<PeopleSurface> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ...EMPTY, loadFailed: true };
   const admin = createServiceRoleClient();
@@ -123,7 +132,10 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
   // what the Team drawer uses, and it resolves the account email that
   // `public.profiles` does not carry. Writing a second query here is how the
   // same person ends up described two different ways.
-  const [rosterRes, members, agencyRes, pendingInvitations] = await Promise.all([
+  // THE ROSTER'S OWN CARD READER draws the Talent cards (W27): code, state,
+  // city, types, headshot. Calling it here rather than re-selecting the same
+  // joins is how the People cards and the roster grid stay one description.
+  const [rosterRes, members, agencyRes, pendingInvitations, cards] = await Promise.all([
     client
       .from("agency_talent_roster")
       .select(
@@ -138,7 +150,9 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
     loadWorkspaceTeamMembers(tenantId),
     client.from("agencies").select("settings").eq("id", tenantId).maybeSingle(),
     loadPendingInvitationEmails(client, tenantId),
+    loadWorkspaceRosterForCurrentTenant(tenantId),
   ]);
+  const cardById = new Map<string, TalentProfile>(cards.map((c) => [c.id, c]));
 
   // A failed read is not an empty workspace. Saying "no one works here" when
   // the query broke is the silent dead end this surface must never render.
@@ -164,9 +178,9 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
     .map((row) => row.talent_profiles?.id)
     .filter((id): id is string => typeof id === "string");
 
-  const [hoursIds, offeringIds, exclusivity] = await Promise.all([
-    loadIdsWithRow(client, "talent_booking_hours", talentIds),
-    loadIdsWithRow(client, "talent_offerings", talentIds),
+  const [hoursById, offeringsById, exclusivity] = await Promise.all([
+    loadHoursSummaries(client, talentIds),
+    loadOfferings(client, talentIds),
     loadExclusivity(client, talentIds, tenantId),
   ]);
 
@@ -193,15 +207,27 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
       isExclusive: claim.isExclusive,
       isExclusivePrimarySite: claim.isExclusivePrimarySite,
       externalBookingReleased: claim.externalBookingReleased,
-      hasBookingHours: hoursIds.has(p.id),
-      hasOfferings: offeringIds.has(p.id),
+      hasBookingHours: hoursById.has(p.id),
+      hasOfferings: (offeringsById.get(p.id)?.length ?? 0) > 0,
+    };
+    const card = cardById.get(p.id);
+    const facts: Partial<PersonFacts> = {
+      profileCode: card?.profileCode ?? null,
+      profileState: card?.state ?? null,
+      city: card?.city ?? null,
+      types: cardTypes(card),
+      siteVisible: bookableInputs.rosterSiteVisible,
+      offerings: offeringsById.get(p.id) ?? [],
+      hours: hoursById.get(p.id) ?? null,
+      isYou: p.user_id != null && p.user_id === viewerAccountId,
     };
     return {
       talentProfileId: p.id,
       accountId: p.user_id,
       name: displayName(p),
       email,
-      avatarUrl: null,
+      avatarUrl: card?.thumb ?? null,
+      facts,
       publicProfile: publicProfileHat({ hasRosterRow: true, rosterStatus: row.status }),
       bookable: bookableHat(bookableInputs),
       // No membership row on this side by definition — but an unaccepted
@@ -222,6 +248,10 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
     email: member.email ?? null,
     avatarUrl: member.photoUrl ?? null,
     role: isAccessRole(member.role) ? member.role : null,
+    facts: {
+      membershipStatus: member.status,
+      isYou: member.id === viewerAccountId,
+    },
     access: accessHat({
       hasMembership: true,
       membershipStatus: member.status,
@@ -241,24 +271,91 @@ export async function loadPeopleSurface(tenantId: string): Promise<PeopleSurface
   };
 }
 
-/** Which of these talent ids have a row in `table`. Empty set on any failure. */
-async function loadIdsWithRow(
+/** The category chips the roster card draws: parent category first, then the secondaries. */
+function cardTypes(card: TalentProfile | undefined): string[] {
+  if (!card) return [];
+  const out: string[] = [];
+  if (card.parentCategory?.labelEn) out.push(card.parentCategory.labelEn);
+  for (const chip of card.secondaryTypes ?? []) {
+    if (chip.labelEn && !out.includes(chip.labelEn)) out.push(chip.labelEn);
+  }
+  return out;
+}
+
+/**
+ * A one-line summary of each person's `talent_booking_hours` row, for the
+ * Bookable table's "Locations · hours" cell. The full row stays with the
+ * hours editor (`loadBookingHours`); this reads only what the cell shows.
+ * Empty map on any failure, logged.
+ */
+async function loadHoursSummaries(
   client: SupabaseClient,
-  table: "talent_booking_hours" | "talent_offerings",
   talentIds: readonly string[],
-): Promise<Set<string>> {
-  if (talentIds.length === 0) return new Set();
+): Promise<Map<string, PersonHoursSummary>> {
+  const out = new Map<string, PersonHoursSummary>();
+  if (talentIds.length === 0) return out;
   const { data, error } = await client
-    .from(table)
-    .select("talent_profile_id")
+    .from("talent_booking_hours")
+    .select(
+      "talent_profile_id, timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days",
+    )
     .in("talent_profile_id", [...talentIds]);
   if (error) {
-    logServerError(`people.load.${table}`, error);
-    return new Set();
+    logServerError("people.load.talent_booking_hours", error);
+    return out;
   }
-  const out = new Set<string>();
-  for (const row of (data ?? []) as Array<{ talent_profile_id: string | null }>) {
-    if (row.talent_profile_id) out.add(row.talent_profile_id);
+  for (const row of (data ?? []) as Array<{ talent_profile_id: string | null } & Record<string, unknown>>) {
+    if (!row.talent_profile_id) continue;
+    const parsed = parseBookingHours(row);
+    if (!parsed) continue;
+    const openDays = ([0, 1, 2, 3, 4, 5, 6] as const).filter((d) => parsed.weekly[d].length > 0);
+    out.set(row.talent_profile_id, {
+      timezone: parsed.timezone,
+      openDays,
+      bufferBeforeMin: parsed.bufferBeforeMin,
+      minNoticeMin: parsed.minNoticeMin,
+    });
+  }
+  return out;
+}
+
+/** Each person's own `talent_offerings`, the "Services here" the boards list. */
+async function loadOfferings(
+  client: SupabaseClient,
+  talentIds: readonly string[],
+): Promise<Map<string, PersonOffering[]>> {
+  const out = new Map<string, PersonOffering[]>();
+  if (talentIds.length === 0) return out;
+  const { data, error } = await client
+    .from("talent_offerings")
+    .select("id, talent_profile_id, title, price_display, visibility, booking_mode, status, sort_order")
+    .in("talent_profile_id", [...talentIds])
+    .neq("status", "archived")
+    .order("sort_order", { ascending: true });
+  if (error) {
+    logServerError("people.load.talent_offerings", error);
+    return out;
+  }
+  for (const row of (data ?? []) as Array<{
+    id: string;
+    talent_profile_id: string | null;
+    title: string;
+    price_display: string | null;
+    visibility: string | null;
+    booking_mode: string | null;
+    status: string | null;
+  }>) {
+    if (!row.talent_profile_id) continue;
+    const list = out.get(row.talent_profile_id) ?? [];
+    list.push({
+      id: row.id,
+      title: row.title,
+      priceDisplay: row.price_display ?? "",
+      visibility: row.visibility ?? "public",
+      bookingMode: row.booking_mode ?? "request",
+      status: row.status ?? "draft",
+    });
+    out.set(row.talent_profile_id, list);
   }
   return out;
 }

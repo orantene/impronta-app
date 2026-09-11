@@ -328,3 +328,47 @@ extra added at the chair does NOT re-plan the appointment's end (B02's "Ends
 so. B03 (a sale linked to an appointment for payment only) is the Counter's
 link-a-sale flow and is not built here. The mode keeps its own label, Front
 desk (D-POS-15).
+
+## D-POS-37 — the People page draws every board control on the three-hat readers; the ones the engine cannot serve are disabled with their reason
+
+Decided 2026-09-11 by the people fidelity builder (fid-people). Boards W26,
+W27, W28, W29, W30, W31, W32, W33, W34, W35, W11 and W22 are built on
+`loadPeopleSurface` (the three hats over `agency_talent_roster`,
+`agency_memberships` and `talent_booking_hours`, now also carrying the
+roster's own card facts through `loadWorkspaceRosterForCurrentTenant`, each
+person's `talent_offerings` and a one-line hours summary) and on the actions
+that already exist. Wired: the four tabs as states of `/admin/people` under
+`?view=` (the rail's children carry it, as Appointments' do); the Talent
+cards, tiles and filters from the listed profiles; the Bookable and Access
+tables; the person sheet with the hat strip, "Open the profile editor" (the
+existing `talent-profile-shell` drawer, untouched), the Public profile and
+Bookable switches (`setPersonPublicProfile`, `setPersonBookable`, with the
+blanket-allow refusal kept), the Access role select, Give / Take access away,
+the invitation to the address on the record; the Bookable hat's own offerings
+list and "Edit X's offerings" (the drawer's Booking terms section); **Hours
+& locations = the same `BookingHoursCard` the talent Calendar settings mount**
+(`saveBookingHours`); Add a person → the roster's create drawer seeded with
+the name and address (Public profile) or `invitePersonAccess` (Access), with
+"Existing person?" matched by email against the loaded record set; Settings
+› Roles & limits as an ACTION × ROLE matrix on `modesForPerson` and
+`roleGrantsCapability` (the same table `userHasCapability` checks); the
+Catalog page's "Who performs" block on `pickAProfessional` through
+`loadWhoPerforms`. Drawn disabled with a one-sentence reason in en/es/fr,
+because no reader or writer exists: **Invite a contractor** (a Bookable-only
+person has no invitation; Add a person refuses Bookable alone the same way),
+**Add from catalog** and the per-service **Add a professional** (a workspace
+service names no required skill and is not assigned to a person; every
+bookable person performs every item), **hours per location** (one hours row
+serves every location), **Requirements checked at booking**, **Limits on
+every brief**, **Pay** (talent cost lives on each booking's labor line, not
+per person), the four **POS permission** switches (the Access role decides),
+**Requirement to perform / Customer may choose / Phase rule** on the catalog
+block (phases are D-POS-2), the **customer-facing word** (nothing stores it;
+the POS and the booking page say "Professional"), Roles & limits' **Save**
+and its untracked rows (comp / void, manual discount cap, drawer, void a sent
+item, move tables, collect another way, re-authorising switch). The Access
+and Bookable tables' **Locations, PIN, Drawer, Busy/free, POS permissions and
+Pay** columns draw a dash whose title names what is not tracked. Trust
+badges, skills and the "Earned" line are the profile drawer's own sections
+and are not re-read into the sheet. Rooms and chairs (`profile_kind =
+resource`) stay out of People (D-POS-1).
