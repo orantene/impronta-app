@@ -56,10 +56,10 @@ storefront's unlayered `h1` rule beat every utility on the 19px header.
 | POSIssues | not wired | Frame with disabled filters and one sentence (D-POS-28). |
 | POSIssueDetail | not wired | No rows exist to open; `live.png` is the Issues screen. |
 | POSLock | not wired | `Lock` on the rail disabled with its sentence (D-POS-31); `live.png` is the counter showing it. |
-| POSDevices | partially | Six device cards from real facts (reader from `reportTerminalAvailability`, scanner listening, display as a window, printers and drawer not set up), `WHILE THE READER IS OFF`, `INTERNET`. Reached from the cashier chip's menu. |
+| POSDevices | partially | Six device cards from real facts, plus a `pos_devices` registry panel (`posDeviceRegister` / `posDevicesList`). Pair also lives on Settings › POS (W20). |
 | POSScan | matched | Scan glyph, `Scan a code`, filter (narrow options disabled, D-POS-30), `TYPE IT INSTEAD` with keypad and `ABC`, `Look up` (live: `posResolveScanCode` + `posAddLine`). |
 | POSScanProduct | matched | The bottom-left toast `Added · House pizza · $18.00` / `Scanner ready for the next code` with `Undo` (live: `posRemoveLine`). |
-| POSConnection | matched | Connected/offline card with `Try again`, `YOU CAN` rows from the real state, `CARD READER`, `WAITING TO SYNC` says nothing is queued (D-POS-29). `live-offline.png` is the same screen with the browser offline. |
+| POSConnection | **partial** | Connected/offline card with `Try again`. `WAITING TO SYNC` replays queued `cash_collect` rows through `posOutboxApply`. CollectSheet is not the enqueue writer on this pass. |
 
 ## Not wired (every one is a disabled control with a one-sentence reason in en, es and fr)
 
