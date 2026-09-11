@@ -16,6 +16,7 @@ import "server-only";
 import { createTranslator } from "@/i18n/messages";
 import { listBoard } from "@/lib/preparation/tickets";
 import { logServerError } from "@/lib/server/safe-error";
+import { listPosStaff } from "@/lib/pos/staff";
 import { tenantTimezone } from "@/lib/spaces/venues";
 import { listFloor } from "@/lib/visits/floor";
 import { partyWaitlistList } from "@/lib/venues/party-waitlist";
@@ -40,13 +41,16 @@ export async function loadFloorBoardData(
   locale: string,
 ): Promise<{ ok: true; data: FloorBoardData } | { ok: false }> {
   const now = new Date();
-  const [floor, timeZone, board, book, waitlist, layouts] = await Promise.all([
+  const [floor, timeZone, board, book, waitlist, layouts, staff] = await Promise.all([
     listFloor(admin, tenantId),
     tenantTimezone(tenantId),
     listBoard(admin, tenantId),
     loadFloorBook(tenantId, now),
     partyWaitlistList(admin, { tenantId }),
     layoutsList(admin, { tenantId }),
+    // T17: the people a table can be given to. A failed read leaves the
+    // change-server sheet saying nobody is listed, never a blank tile.
+    listPosStaff(admin, tenantId),
   ]);
   if (!floor.ok) return { ok: false };
 
@@ -83,7 +87,7 @@ export async function loadFloorBoardData(
   // reads the same column for the same reason. A failed read leaves the map
   // empty and the client falls back to the counter's default, USD.
   const currencies: Record<string, string> = {};
-  const orderIds = [...new Set(floor.tables.map((t) => t.orderId).filter((id): id is string => typeof id === "string"))];
+  const orderIds = [...new Set(floor.tables.flatMap((t) => t.orderIds))];
   if (orderIds.length > 0) {
     const read = await admin.from("orders").select("id, currency").eq("tenant_id", tenantId).in("id", orderIds);
     if (read.error) logServerError("pos.floor.currency", read.error);
@@ -110,6 +114,7 @@ export async function loadFloorBoardData(
       walkinsEnabled: book.walkinsEnabled,
       waitlistEnabled: book.waitlistEnabled,
       bookable: book.bookable,
+      servers: staff.ok ? staff.staff.filter((p) => p.name).map((p) => ({ userId: p.userId, name: p.name })) : [],
     },
   };
 }

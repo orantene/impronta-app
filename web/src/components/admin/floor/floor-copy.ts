@@ -15,6 +15,7 @@
  */
 
 import type { Translator } from "../pos/translator";
+import { floorEngineCopy, floorEngineRefusals, type FloorEngineCopy } from "./floor-copy-engine";
 
 const K = "dashboard.pos.floor.board";
 
@@ -30,6 +31,10 @@ export type FloorRefusalKey =
   | "joined_unavailable"
   | "joined_visit"
   | "not_open"
+  // The engine's table operations (`visit_transfer`, `visit_merge_checks`, ...).
+  | "space_occupied"
+  | "lines_paid"
+  | "conflict"
   | "outstanding"
   | "already_closed"
   | "version_conflict"
@@ -56,10 +61,9 @@ export type FloorRefusalKey =
   | "no_contact"
   | "closed"
   | "too_late_today"
+  // The party waitlist (`floorJoinWaitlist` / `floorSeatWaitlist` / `floorNotifyWaitlist`).
   | "already_seated"
-  | "space_occupied"
   | "expired"
-  | "conflict"
   | "waitlist_no_channel";
 
 export type FloorBoardCopy = {
@@ -422,6 +426,8 @@ export type FloorBoardCopy = {
     readonly seatedNotMarked: string;
   };
   readonly refusal: Readonly<Record<FloorRefusalKey, string>>;
+  /** T16 / T17 / T18 and the multi-check popover (`floor-copy-engine.ts`). */
+  readonly engine: FloorEngineCopy;
 };
 
 export function floorBoardCopy(t: Translator): FloorBoardCopy {
@@ -766,12 +772,16 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       no_contact: t(`${K}.refusal.noContact`),
       closed: t(`${K}.refusal.closed`),
       too_late_today: t(`${K}.refusal.tooLateToday`),
+      // The engine's table operations (`lines_paid`, and the till's wording for the rest).
+      ...floorEngineRefusals(t),
+      // The party waitlist's own sentences win where the venue engine names the code too.
       already_seated: t("dashboard.venue.engine.refusal.already_seated"),
       space_occupied: t("dashboard.venue.engine.refusal.space_occupied"),
       expired: t("dashboard.venue.engine.refusal.expired"),
       conflict: t("dashboard.venue.engine.refusal.conflict"),
       waitlist_no_channel: t(`${K}.waiting.notifyNone`),
     },
+    engine: floorEngineCopy(t),
   };
 }
 

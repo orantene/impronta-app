@@ -17,16 +17,19 @@
  *   closed                           the result the engine returned: expected,
  *                                    counted, and the difference.
  *
- * WHAT IS WIRED. Open (`openShift` with the counted float) and close
+ * WHAT IS WIRED. Open (`openShift` with the counted float), the four
+ * movements (`posRecordShiftMovement`: paid in, paid out, drop to safe, float
+ * added; the list is the shift's own `pos_shift_movements` rows), the
+ * hand-over (who takes the drawer, carried into the close as
+ * `handedOverTo`), the `What happened` note (`closeNote`) and close
  * (`closeShift` with the counted total; the engine computes expected cash
- * from the shift's own money rows and returns the variance). The count is
- * blind on purpose: expected cash is shown only after the close, which is
- * why the right column says so instead of a figure.
+ * from the float, the cash sales and the movements and returns the
+ * variance). The count is blind on purpose: expected cash is shown only
+ * after the close; the movements themselves are facts already on screen.
  *
- * NOT WIRED, each drawn disabled with its sentence: movements and hand-over
- * (no movements or handover table, money.md §3), a choice of drawer or
- * responsible (one drawer per workspace, the signed-in person), the
- * `What happened` note (the close command takes no note) (D-POS-26).
+ * NOT WIRED, drawn disabled with a sentence: a choice of drawer or
+ * responsible at opening (one drawer per workspace, the signed-in person),
+ * and `Open drawer · no sale` (no cash-drawer device, D-POS-28).
  */
 
 import { ArrowLeft, Lock, Minus, Plus, RotateCcw } from "lucide-react";
@@ -36,9 +39,16 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import { cn } from "@/lib/utils";
 import { PosKeypad } from "./PosKeypad";
 import { POS_EYEBROW, POS_INPUT, POS_LABEL, POS_NUM, POS_OUTLINE_ACTION, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION, POS_TOTAL_ROW } from "./pos-classes";
-import type { PosShiftSummary } from "./pos-types";
+import type { PosPerson, PosShiftMovement, PosShiftSummary } from "./pos-types";
 
 export type CashDrawerView = "open" | "movements" | "close" | "closed";
+
+export type CashMovementKind = PosShiftMovement["kind"];
+
+/** The signed sum of one kind of movement, for the close card. */
+export function movementSum(movements: readonly PosShiftMovement[] | undefined, kind: CashMovementKind): number {
+  return (movements ?? []).filter((m) => m.kind === kind).reduce((sum, m) => sum + m.amountCents, 0);
+}
 
 export type CashDrawerCopy = {
   readonly openEyebrow: string;
@@ -61,15 +71,20 @@ export type CashDrawerCopy = {
   readonly openNoSale: string;
   readonly openNoSaleHint: string;
   readonly onceOpenNote: string;
-  readonly movementsUnavailable: string;
+  readonly openNoSaleUnavailable: string;
   readonly movements: string;
   readonly movementsEmpty: string;
+  /** The list's label per kind: `Added cash`, `Taken out`, `Drop to safe`, `Float added`. */
+  readonly movementKind: Readonly<Record<CashMovementKind, string>>;
   readonly handOver: string;
   readonly newResponsible: string;
+  readonly newResponsibleNone: string;
   readonly countedTogether: string;
   readonly handOverNote: string;
+  /** `Hand over to {name}` */
   readonly handOverAction: string;
-  readonly handOverUnavailable: string;
+  /** `Handed over to {name} · closes with the count` */
+  readonly handOverChosen: string;
   readonly closeAndCount: string;
   readonly countEyebrow: string;
   readonly coins: string;
@@ -78,7 +93,7 @@ export type CashDrawerCopy = {
   readonly shouldBe: string;
   readonly blindNote: string;
   readonly whatHappened: string;
-  readonly whatHappenedUnavailable: string;
+  readonly whatHappenedHint: string;
   readonly confirmCount: string;
   readonly back: string;
   readonly closeDrawer: string;
@@ -114,31 +129,85 @@ export type CashDrawerScreenProps = {
   readonly onConfirmedChange: (value: boolean) => void;
   readonly onCloseShift: () => void;
   readonly result: { expectedCents: number; countedCents: number } | null;
+  /** Opens the movement dialog for one kind (`POSCashMovements`). */
+  readonly onMovement?: (kind: CashMovementKind) => void;
+  /** Clock-formatted time of a movement row. */
+  readonly formatTime?: (iso: string) => string;
+  /** The people the drawer can be handed to. */
+  readonly people?: readonly PosPerson[];
+  readonly handOverTo?: string | null;
+  readonly onHandOverToChange?: (userId: string | null) => void;
+  readonly countedTogether?: boolean;
+  readonly onCountedTogetherChange?: (value: boolean) => void;
+  readonly closeNote?: string;
+  readonly onCloseNoteChange?: (value: string) => void;
   readonly copy: CashDrawerCopy;
 };
 
 const TILE =
   "flex min-h-[74px] items-center gap-3.5 rounded-[14px] border-[1.5px] border-admin-border bg-admin-card px-4 py-3 text-left disabled:cursor-not-allowed disabled:opacity-60";
 
-function MovementTiles({ copy, disabled }: { copy: CashDrawerCopy; disabled: boolean }) {
-  const rows = [
-    { icon: Plus, title: copy.addCash, hint: copy.addCashHint },
-    { icon: ArrowLeft, title: copy.takeOut, hint: copy.takeOutHint },
-    { icon: Lock, title: copy.dropSafe, hint: copy.dropSafeHint },
-    { icon: RotateCcw, title: copy.openNoSale, hint: copy.openNoSaleHint },
+function MovementTiles({ copy, disabled, onMovement }: { copy: CashDrawerCopy; disabled: boolean; onMovement?: (kind: CashMovementKind) => void }) {
+  const rows: Array<{ kind: CashMovementKind | null; icon: typeof Plus; title: string; hint: string; reason?: string }> = [
+    { kind: "float_add", icon: Plus, title: copy.addCash, hint: copy.addCashHint },
+    { kind: "paid_out", icon: ArrowLeft, title: copy.takeOut, hint: copy.takeOutHint },
+    { kind: "drop", icon: Lock, title: copy.dropSafe, hint: copy.dropSafeHint },
+    { kind: null, icon: RotateCcw, title: copy.openNoSale, hint: copy.openNoSaleHint, reason: copy.openNoSaleUnavailable },
   ];
   return (
     <div className="grid grid-cols-2 gap-3">
-      {rows.map((row) => (
-        <button key={row.title} type="button" disabled={disabled} title={copy.movementsUnavailable} className={TILE}>
-          <row.icon aria-hidden size={20} strokeWidth={1.75} className="text-admin-ink-muted" />
-          <span>
-            <span className="block text-[16px] font-semibold text-admin-ink">{row.title}</span>
-            <span className="block text-[13px] text-admin-ink-muted">{row.hint}</span>
-          </span>
-        </button>
-      ))}
+      {rows.map((row) => {
+        const kind = row.kind;
+        const off = disabled || kind === null || !onMovement;
+        return (
+          <button
+            key={row.title}
+            type="button"
+            data-pos-movement={row.kind ?? "open"}
+            disabled={off}
+            title={row.reason}
+            onClick={kind !== null && onMovement ? () => onMovement(kind) : undefined}
+            className={TILE}
+          >
+            <row.icon aria-hidden size={20} strokeWidth={1.75} className="text-admin-ink-muted" />
+            <span>
+              <span className="block text-[16px] font-semibold text-admin-ink">{row.title}</span>
+              <span className="block text-[13px] text-admin-ink-muted">{row.reason ?? row.hint}</span>
+            </span>
+          </button>
+        );
+      })}
     </div>
+  );
+}
+
+function MovementList({ movements, currency, copy, formatTime }: { movements: readonly PosShiftMovement[]; currency: string; copy: CashDrawerCopy; formatTime?: (iso: string) => string }) {
+  if (movements.length === 0) {
+    return (
+      <p role="status" data-pos-movements-empty className="m-0 mt-4 rounded-[14px] border-[1.5px] border-admin-border bg-admin-card px-4 py-4 text-[14px] text-admin-ink-muted">
+        {copy.movementsEmpty}
+      </p>
+    );
+  }
+  return (
+    <ul className="m-0 mt-4 list-none overflow-hidden rounded-[14px] border-[1.5px] border-admin-border bg-admin-card p-0" data-pos-movements>
+      {movements.map((m) => {
+        const inbound = m.kind === "paid_in" || m.kind === "float_add";
+        return (
+          <li key={m.id} className="flex items-center gap-3 border-b border-admin-border-soft px-4 py-3 last:border-b-0" data-pos-movement-row={m.kind}>
+            <span className={cn("w-14 shrink-0 text-[14px] text-admin-ink-muted", POS_NUM)}>{formatTime ? formatTime(m.createdAt) : ""}</span>
+            <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-admin-ink">
+              {copy.movementKind[m.kind]}
+              {m.reason ? ` · ${m.reason}` : ""}
+            </span>
+            <span className={cn("shrink-0 font-mono text-[15px] font-semibold", POS_NUM, inbound ? "text-admin-success" : "text-admin-ink")}>
+              {inbound ? "+" : "−"}
+              {formatOrderMoney(m.amountCents, currency)}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -278,17 +347,43 @@ export function CashDrawerScreen(props: CashDrawerScreenProps) {
               <span className="text-admin-ink-muted">{copy.startedWith}</span>
               <span className={cn("font-semibold text-admin-ink", POS_NUM)}>{formatOrderMoney(props.shift.openingCashCents, currency)}</span>
             </div>
+            {(["float_add", "paid_in", "paid_out", "drop"] as const).map((kind) => {
+              const sum = movementSum(props.shift?.movements, kind);
+              if (sum === 0) return null;
+              const inbound = kind === "float_add" || kind === "paid_in";
+              return (
+                <div key={kind} className={POS_TOTAL_ROW} data-pos-close-movement={kind}>
+                  <span className="text-admin-ink-muted">{copy.movementKind[kind]}</span>
+                  <span className={cn("font-semibold", POS_NUM, inbound ? "text-admin-success" : "text-admin-ink")}>
+                    {inbound ? "+" : "−"}
+                    {formatOrderMoney(sum, currency)}
+                  </span>
+                </div>
+              );
+            })}
             <div className={cn(POS_TOTAL_ROW, "border-b-0")}>
               <span className="font-bold text-admin-ink">{copy.shouldBe}</span>
               <span className="text-[14px] text-admin-ink-dim">{copy.blindNote}</span>
             </div>
           </div>
+          {props.handOverTo && props.people && (
+            <p role="status" data-pos-handover-chosen className="m-0 mt-3 rounded-[12px] bg-admin-brand-soft px-4 py-3 text-[14px] font-semibold text-admin-brand">
+              {interpolate(copy.handOverChosen, { name: props.people.find((p) => p.userId === props.handOverTo)?.name ?? "" })}
+            </p>
+          )}
           <div className="mt-4">
-            <span className={POS_LABEL}>
-              {copy.whatHappened} <span className="text-admin-red">*</span>
-            </span>
-            <input className={POS_INPUT} disabled readOnly value="" title={copy.whatHappenedUnavailable} />
-            <p className="m-0 mt-1.5 text-[13px] text-admin-ink-dim">{copy.whatHappenedUnavailable}</p>
+            <label className={POS_LABEL} htmlFor="pos-shift-note">
+              {copy.whatHappened}
+            </label>
+            <input
+              id="pos-shift-note"
+              className={POS_INPUT}
+              value={props.closeNote ?? ""}
+              onChange={(e) => props.onCloseNoteChange?.(e.target.value)}
+              disabled={!props.onCloseNoteChange}
+              placeholder={copy.whatHappenedHint}
+              maxLength={500}
+            />
           </div>
           <label className="mt-4 flex items-center gap-2.5 text-[15px] text-admin-ink">
             <input
@@ -323,29 +418,56 @@ export function CashDrawerScreen(props: CashDrawerScreenProps) {
     );
   }
 
+  const people = props.people ?? [];
+  const handOverName = people.find((p) => p.userId === props.handOverTo)?.name ?? null;
   return (
     <div data-pos-cash-movements className="grid min-h-0 flex-1 grid-cols-[1fr_1fr] overflow-hidden">
       <div className="min-h-0 overflow-y-auto border-r border-admin-border px-6 py-6">
         <p className={cn(POS_EYEBROW, "m-0 mb-3")}>{copy.movements}</p>
-        <MovementTiles copy={copy} disabled />
-        <p role="status" className="m-0 mt-4 rounded-[14px] border-[1.5px] border-admin-border bg-admin-card px-4 py-4 text-[14px] text-admin-ink-muted">
-          {copy.movementsEmpty}
-        </p>
+        <MovementTiles copy={copy} disabled={Boolean(props.busy)} onMovement={props.onMovement} />
+        <MovementList movements={props.shift.movements ?? []} currency={currency} copy={copy} formatTime={props.formatTime} />
       </div>
       <div className="flex min-h-0 flex-col overflow-y-auto px-6 py-6">
         <p className={cn(POS_EYEBROW, "m-0 mb-3")}>{copy.handOver}</p>
         <div className="rounded-[16px] border-[1.5px] border-admin-border bg-admin-card px-4 py-4">
-          <span className={POS_LABEL}>{copy.newResponsible}</span>
-          <input className={POS_INPUT} disabled readOnly value="" title={copy.handOverUnavailable} />
-          <label className="mt-3 flex items-center gap-2.5 text-[15px] text-admin-ink-dim">
-            <input type="checkbox" disabled className="h-5 w-5 rounded-md" />
+          <label className={POS_LABEL} htmlFor="pos-handover-to">
+            {copy.newResponsible}
+          </label>
+          <select
+            id="pos-handover-to"
+            className={POS_INPUT}
+            value={props.handOverTo ?? ""}
+            disabled={!props.onHandOverToChange || people.length === 0}
+            onChange={(e) => props.onHandOverToChange?.(e.target.value || null)}
+          >
+            <option value="">{copy.newResponsibleNone}</option>
+            {people.map((p) => (
+              <option key={p.userId} value={p.userId}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <label className="mt-3 flex items-center gap-2.5 text-[15px] text-admin-ink">
+            <input
+              type="checkbox"
+              data-pos-counted-together
+              checked={Boolean(props.countedTogether)}
+              disabled={!props.onCountedTogetherChange}
+              onChange={(e) => props.onCountedTogetherChange?.(e.target.checked)}
+              className="h-5 w-5 rounded-md accent-admin-brand"
+            />
             {copy.countedTogether}
           </label>
           <p className="m-0 mt-2 text-[14px] text-admin-ink-muted">{copy.handOverNote}</p>
-          <button type="button" disabled title={copy.handOverUnavailable} className={cn(POS_OUTLINE_ACTION, "mt-3 w-full")}>
-            {copy.handOverAction}
+          <button
+            type="button"
+            data-pos-handover
+            disabled={!handOverName || props.busy}
+            onClick={() => props.onViewChange("close")}
+            className={cn(POS_OUTLINE_ACTION, "mt-3 w-full")}
+          >
+            {interpolate(copy.handOverAction, { name: handOverName ?? "…" })}
           </button>
-          <p className="m-0 mt-2 text-[13px] text-admin-ink-dim">{copy.handOverUnavailable}</p>
         </div>
         <div className="flex-1" />
         <button type="button" data-pos-close-and-count onClick={() => props.onViewChange("close")} className={cn(POS_PRIMARY_ACTION, "w-full")}>

@@ -751,11 +751,15 @@ export function WorkspacePageView() {
             members={effectiveTeamMembers}
             workspacePosModes={workspacePosModes}
             onInvite={isAdmin && !isFree ? () => openDrawer("team") : undefined}
+            // Limits are typed in the platform currency (USD only, by ruling).
+            currency="USD"
+            canEditLimits={isAdmin}
           />
         ),
         extraSearch: [
           { title: t("dashboard.adminWorkspace.rolesLimits.label"), desc: t("dashboard.adminWorkspace.rolesLimits.desc") },
-          { title: t("dashboard.adminWorkspace.rolesLimits.limitsHeading"), desc: t("dashboard.adminWorkspace.rolesLimits.limitsGap") },
+          { title: t("dashboard.adminWorkspace.rolesLimits.limitsHeading"), desc: t("dashboard.adminWorkspace.rolesLimits.limits.intro") },
+          { title: t("dashboard.adminWorkspace.rolesLimits.inbox.heading"), desc: t("dashboard.adminWorkspace.rolesLimits.inbox.intro") },
         ],
       },
       {

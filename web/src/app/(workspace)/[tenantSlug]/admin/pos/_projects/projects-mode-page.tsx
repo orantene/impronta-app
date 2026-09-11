@@ -14,7 +14,13 @@ import type { Translator } from "@/components/admin/pos/translator";
 import type { PosCollectionMethodState } from "@/components/admin/pos";
 // `pos-copy`, not the barrel — see the same note in `../page.tsx`.
 import { chromeCopy, collectSheetCopy, issuesCopy, refusalCopy } from "@/components/admin/pos/pos-copy";
+import { engineRefusalCopy, paymentLinkCopy } from "@/components/admin/pos/pos-copy-engine";
 import { minorUnitDivisor } from "@/lib/orders/money-format";
+import { listWorkspacePaymentLinks } from "@/lib/payments/links-board";
+import { isStripeConfigured } from "@/lib/stripe/client";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+
+import { formatClock } from "../counter-model";
 
 import { projectsModeCopy } from "./projects-copy";
 import { ProjectsModeClient } from "../mode-clients";
@@ -41,17 +47,21 @@ export async function ProjectsModePage(props: {
   /** Whether a cash drawer (shift) is open right now, for the footer line. */
   drawerOpen: boolean;
   tr: Translator;
+  locale: string;
   search: { project?: string; view?: string };
 }) {
   const projectParam = typeof props.search.project === "string" ? props.search.project : null;
+  const admin = createServiceRoleClient();
 
-  const [list, detail] = await Promise.all([
+  const [list, detail, links] = await Promise.all([
     loadProjectsForMode(props.tenantId),
     projectParam
       ? UUID.test(projectParam)
         ? loadProjectForMode(props.tenantId, projectParam)
         : Promise.resolve<ProjectsModeDetail>({ ok: false, reason: "invalid" })
       : Promise.resolve<ProjectsModeDetail | null>(null),
+    // The Links destination (POSPaymentLink) and each sale's own links.
+    admin ? listWorkspacePaymentLinks(admin, { tenantId: props.tenantId }) : Promise.resolve({ ok: false as const, reason: "unavailable" as const }),
   ]);
 
   const rows: ProjectsModeRow[] = list.ok ? list.projects.map(projectsModeRow) : [];
@@ -71,12 +81,32 @@ export async function ProjectsModePage(props: {
       detail={detail}
       minorUnitDivisor={minorUnitDivisor(currency)}
       methods={props.methods}
+      links={
+        links.ok
+          ? links.rows.map((row) => ({
+              code: row.code,
+              url: `${props.receiptOrigin}/pay/${row.code}`,
+              orderId: row.orderId,
+              amountCents: row.amountCents,
+              currency: row.currency,
+              status: row.status,
+              sentAt: formatClock(row.createdAt, props.locale),
+              expiresAt: formatClock(row.expiresAt, props.locale),
+              customerName: row.customerName,
+              title: row.title,
+              receiptHref: row.receiptCode && props.receiptOrigin ? `${props.receiptOrigin}/r/${row.receiptCode}` : null,
+            }))
+          : []
+      }
+      linkProvider={isStripeConfigured() ? "stripe" : "mock"}
       copy={{
         mode: projectsModeCopy(props.tr),
         collectSheet: collectSheetCopy(props.tr),
         refusal: refusalCopy(props.tr),
         chrome: chromeCopy(props.tr),
         issues: issuesCopy(props.tr),
+        paymentLink: paymentLinkCopy(props.tr),
+        engineRefusal: engineRefusalCopy(props.tr),
       }}
     />
   );

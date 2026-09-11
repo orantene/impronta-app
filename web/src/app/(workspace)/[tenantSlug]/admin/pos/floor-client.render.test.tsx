@@ -320,15 +320,19 @@ test("the door: the mode is built, the rail is the board's, and the route branch
   );
   assert.match(page, /mode === "floor"/, "the route must branch on the floor mode");
   assert.match(page, /<FloorScreen/, "and render the floor screen");
-  // The client seats, moves, ends, resets, sends and takes walk-ins through
-  // the engine's own actions, never a copy of them.
+  // The client seats, moves, merges, hands over, splits, ends, resets,
+  // sends and takes walk-ins through the engine's own actions, never a copy
+  // of them. The move is the engine's `visit_transfer` with the version the
+  // floor read (Package 1, D-POS-58); a walk-in joins the party waitlist
+  // (`floorJoinWaitlist`, Package 3 T08).
   const client = readFileSync(
     join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/pos/floor-client.tsx"),
     "utf8",
   );
-  for (const action of ["tablesSeatParty", "tablesMoveVisit", "tablesCloseVisit", "tablesResetTable", "posSubmitPrep", "reservationsTakeWalkIn"]) {
+  for (const action of ["tablesSeatParty", "visitTransfer", "visitMergeChecks", "visitChangeServer", "visitSplitCheck", "tablesCloseVisit", "tablesResetTable", "posSubmitPrep", "floorJoinWaitlist"]) {
     assert.ok(client.includes(`${action}(`), `the floor must call ${action}`);
   }
+  assert.match(client, /expectedVersion:\s*input\.expectedVersion/, "the move carries the version the floor read");
   assert.match(client, /\?mode=counter&order=/, "the check opens in the counter, on the same order");
   for (const file of [
     "src/app/(workspace)/[tenantSlug]/admin/pos/floor-client.tsx",

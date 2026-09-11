@@ -1,0 +1,1 @@
+Operators can start a WhatsApp, SMS or email conversation; web chat can only be opened by the customer. Without a contact method there is a note on the record, not a message.

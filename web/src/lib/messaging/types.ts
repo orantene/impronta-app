@@ -102,6 +102,9 @@ export type ActionOk<T extends Record<string, unknown> = Record<string, never>> 
 export type ActionFail = { ok: false; reason: MessagingRefusal };
 export type ActionResult<T extends Record<string, unknown> = Record<string, never>> = ActionOk<T> | ActionFail;
 
+export const NEXT_ACTIONS = ["reply", "assign", "collect", "follow_up"] as const;
+export type InboxNextAction = (typeof NEXT_ACTIONS)[number];
+
 export type InboxRow = {
   id: string;
   tenantId: string;
@@ -113,7 +116,12 @@ export type InboxRow = {
   opportunityState: OpportunityState | null;
   channel: MessagingChannel;
   ownerUserId: string | null;
+  ownerLabel: string | null;
   unread: boolean;
+  unreadCount: number;
+  subject: string;
+  lastMessagePreview: string;
+  nextAction: InboxNextAction | null;
   lastCustomerMessageAt: string | null;
   lastStaffMessageAt: string | null;
   updatedAt: string;
@@ -153,6 +161,8 @@ export type Essentials = {
     phone: string | null;
     identityLevel: IdentityLevel;
     identityMethod: string | null;
+    request: string | null;
+    source: string | null;
   };
   linked: RecordChip[];
   notes: { id: string; body: string; createdAt: string }[];

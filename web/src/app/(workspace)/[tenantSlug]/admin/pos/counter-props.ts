@@ -11,6 +11,7 @@ import type {
   BasketCopy,
   CashDoneCopy,
   CashDrawerCopy,
+  CashMovementCopy,
   CollectSheetCopy,
   ConnectionCopy,
   CustomAmountCopy,
@@ -24,17 +25,22 @@ import type {
   IssuesCopy,
   LineEditCopy,
   LinkBookingCopy,
+  LockScreenCopy,
   PaidScreenCopy,
+  PaymentLinkCopy,
+  PaymentLinkRow,
   PosBasketLine,
   PosChromeCopy,
   PosCollectionMethodState,
   PosDeviceRow,
+  PosPerson,
   PosReceiptRow,
   PosRefusalCopy,
   ReceiptsCopy,
   ScanCopy,
   ScanScreenCopy,
   SellSurfaceCopy,
+  TipSheetCopy,
 } from "@/components/admin/pos";
 import type { PosCounterPageCopy } from "@/components/admin/pos/pos-copy";
 import type { PosMode } from "@/lib/pos/modes";
@@ -48,6 +54,8 @@ export type PosSaleSummary = {
   currency: string;
   customerId: string | null;
   discountCents: number;
+  /** `orders.tip_cents`: part of `totalCents`, never a line. */
+  tipCents: number;
   totalCents: number;
   outstandingCents: number;
   paymentState: "unpaid" | "pending" | "paid" | "cancelled";
@@ -81,6 +89,12 @@ export type PosClientCopy = {
   connection: ConnectionCopy;
   scanScreen: ScanScreenCopy;
   refusal: PosRefusalCopy;
+  /** `dashboard.pos.engine.refusal.*`: every Package 1 code as a sentence. */
+  engineRefusal: Readonly<Record<string, string>>;
+  lock: LockScreenCopy;
+  tip: TipSheetCopy;
+  paymentLink: PaymentLinkCopy;
+  movement: CashMovementCopy;
   page: PosCounterPageCopy;
   scan: ScanCopy;
   /** The rail's door to the customer display (`/admin/pos/display`). */
@@ -121,6 +135,14 @@ export type PosClientProps = {
   /** Whether a card reader is configured at all (`reportTerminalAvailability`). */
   readerConfigured: boolean;
   shift: PosShiftView | null;
+  /** The workspace's people, for the lock screen, the approver row and the hand-over. */
+  people: PosPerson[];
+  /** `agencies.settings.pos.approval.custom_amount_limit_cents` (0 = every custom amount needs a manager). */
+  customAmountLimitCents: number;
+  /** The open sale's payment links, newest first. */
+  paymentLinks: PaymentLinkRow[];
+  /** What `/pay/<code>` does: Stripe Checkout, or the test page that marks the link paid. */
+  linkProvider: "stripe" | "mock";
   copy: PosClientCopy;
 };
 

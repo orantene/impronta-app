@@ -50,6 +50,9 @@ export type FloorOverlay =
   | { kind: "walk-in" }
   | { kind: "waiting" }
   | { kind: "move"; table: FloorTable }
+  | { kind: "merge"; table: FloorTable }
+  | { kind: "server"; table: FloorTable }
+  | { kind: "split"; table: FloorTable }
   | { kind: "departed"; table: FloorTable }
   | { kind: "reset"; table: FloorTable }
   | { kind: "reservation" };
@@ -260,6 +263,8 @@ export function FloorBoard(props: FloorBoardProps) {
             onClose={closeCard}
             onSeat={() => setOverlay({ kind: "seat", table: selected, entry: null })}
             onMoveOrJoin={() => setOverlay({ kind: "move", table: selected })}
+            onChangeServer={actions.changeServer ? () => setOverlay({ kind: "server", table: selected }) : undefined}
+            onSplit={actions.splitCheck && actions.loadCheckLines ? () => setOverlay({ kind: "split", table: selected }) : undefined}
             onPartyLeft={() => setOverlay({ kind: "departed", table: selected })}
             onReset={() => setOverlay({ kind: "reset", table: selected })}
             onSendKitchen={() => void sendToKitchen(selected)}
@@ -285,6 +290,8 @@ export function FloorBoard(props: FloorBoardProps) {
           setAnchor(null);
         }}
         onNotice={setNotice}
+        onOpenMerge={(table) => setOverlay({ kind: "merge", table })}
+        onOpenMove={(table) => setOverlay({ kind: "move", table })}
       />
     </div>
   );

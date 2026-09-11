@@ -173,7 +173,7 @@ async function loadProjectsFor(
   // boundary returns null for a hidden row, which renders as "no team" rather
   // than as a permission result. The fifth is the workspace clock, which is one
   // row and would otherwise be fetched once per project.
-  const [talentRes, deliverableRes, offerRes, orderRes, workspaceTz] = await Promise.all([
+  const [talentRes, deliverableRes, offerRes, orderRes, workspaceTz, inquiryRes] = await Promise.all([
     admin
       .from("booking_talent")
       .select(
@@ -183,7 +183,7 @@ async function loadProjectsFor(
       .in("booking_id", bookingIds),
     admin
       .from("booking_deliverables")
-      .select("id, booking_id, title, kind, status, revision, revision_limit, due_at")
+      .select("id, booking_id, title, kind, status, revision, revision_limit, due_at, amount_cents, file_path")
       .eq("tenant_id", tenantId)
       .in("booking_id", bookingIds),
     inquiryIds.length > 0
@@ -199,14 +199,24 @@ async function loadProjectsFor(
       ? loadAttachedOrders(admin, tenantId, inquiryIds, shellOrderIds)
       : Promise.resolve({ data: [], error: null }),
     loadWorkspaceTimezone(admin, tenantId),
+    // The inquiry's optimistic-lock version: an amendment send or discard
+    // must carry it, and the row is one integer per conversation.
+    inquiryIds.length > 0
+      ? admin.from("inquiries").select("id, version").eq("tenant_id", tenantId).in("id", inquiryIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
-  if (talentRes.error || deliverableRes.error || offerRes.error || orderRes.error) {
+  if (talentRes.error || deliverableRes.error || offerRes.error || orderRes.error || inquiryRes.error) {
     logServerError(
       "projects.loadProjects/related",
-      talentRes.error ?? deliverableRes.error ?? offerRes.error ?? orderRes.error,
+      talentRes.error ?? deliverableRes.error ?? offerRes.error ?? orderRes.error ?? inquiryRes.error,
     );
     return { ok: false, reason: "unavailable" };
+  }
+
+  const inquiryVersion = new Map<string, number>();
+  for (const raw of (inquiryRes.data ?? []) as Array<{ id: string; version: number | null }>) {
+    inquiryVersion.set(String(raw.id), Number(raw.version ?? 0));
   }
 
   const currencyOf = new Map<string, string>(
@@ -245,6 +255,8 @@ async function loadProjectsFor(
       revision: Number(raw.revision ?? 0),
       revisionLimit: Number(raw.revision_limit ?? 0),
       dueAt: (raw.due_at as string | null) ?? null,
+      amountCents: Number(raw.amount_cents ?? 0),
+      filePath: (raw.file_path as string | null) ?? null,
     });
     milestones.set(bookingId, list);
   }
@@ -316,6 +328,7 @@ async function loadProjectsFor(
       startsAt: b.starts_at,
       endsAt: b.ends_at,
       inquiryId,
+      inquiryVersion: inquiryId ? inquiryVersion.get(inquiryId) ?? null : null,
       clientName: b.client_account_name ?? b.contact_name ?? null,
       customerId:
         (inquiryId ? customerByInquiry.get(inquiryId) : null)
@@ -721,4 +734,54 @@ export async function loadProjectActivity(
         : {},
   }));
   return { ok: true, rows };
+}
+
+// ── W48: who could take an assignment ────────────────────────────────
+
+export type ReplacementCandidate = {
+  readonly talentProfileId: string;
+  readonly name: string;
+};
+
+export type ReplacementCandidatesLoad =
+  | { readonly ok: true; readonly candidates: readonly ReplacementCandidate[] }
+  | ReadFailure;
+
+/**
+ * The workspace's own roster, every person on it in any non-removed state:
+ * the list the W48 replacement picker draws from. Whether the person is FREE
+ * at the job's time is the engine's answer (`project_replace_talent` refuses
+ * `talent_unavailable`), not this reader's guess.
+ */
+export async function loadReplacementCandidates(tenantId: string): Promise<ReplacementCandidatesLoad> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, reason: "unavailable" };
+  const { data: roster, error: rosterErr } = await admin
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", tenantId)
+    .neq("status", "removed");
+  if (rosterErr) {
+    logServerError("projects.loadReplacementCandidates/roster", rosterErr);
+    return { ok: false, reason: "unavailable" };
+  }
+  const ids = [...new Set(((roster ?? []) as Array<{ talent_profile_id: string }>).map((r) => r.talent_profile_id))];
+  if (ids.length === 0) return { ok: true, candidates: [] };
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("id, display_name, first_name, last_name")
+    .in("id", ids)
+    .eq("profile_kind", "person");
+  if (error) {
+    logServerError("projects.loadReplacementCandidates/profiles", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  const candidates = ((data ?? []) as Array<{ id: string; display_name: string | null; first_name: string | null; last_name: string | null }>)
+    .map((row) => ({
+      talentProfileId: row.id,
+      name: (row.display_name ?? `${row.first_name ?? ""} ${row.last_name ?? ""}`).trim(),
+    }))
+    .filter((c) => c.name.length > 0)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return { ok: true, candidates };
 }

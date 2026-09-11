@@ -254,15 +254,30 @@ test("CashDrawerScreen: the open form with no shift, movements once one is open,
   const copy = cashDrawerCopy(t);
   const none = renderToStaticMarkup(<CashDrawerScreen {...DRAWER_BASE} view="open" shift={null} copy={copy} />);
   assert.match(none, /id="pos-shift-opening"/);
-  assert.ok(none.includes(copy.movementsUnavailable), "the movement tiles must say why they are off");
+  assert.match(none, /data-pos-movement="float_add"[^>]*disabled=""/, "the movement tiles wait for an open drawer");
+  assert.ok(none.includes(copy.openNoSaleUnavailable), "the drawer-device tile says why it is off");
 
-  const shift = { id: "s1", openingCashCents: 10000, openedAt: "2026-09-09T08:00:00Z" };
-  const open = renderToStaticMarkup(<CashDrawerScreen {...DRAWER_BASE} view="movements" shift={shift} copy={copy} />);
+  const shift = {
+    id: "s1",
+    openingCashCents: 10000,
+    openedAt: "2026-09-09T08:00:00Z",
+    movements: [{ id: "m1", kind: "drop" as const, amountCents: 3000, reason: "witness Dani", createdAt: "2026-09-09T13:10:00Z" }],
+  };
+  const people = [{ userId: "u2", name: "Dani", role: "manager", manager: true, hasPin: true }];
+  const open = renderToStaticMarkup(
+    <CashDrawerScreen {...DRAWER_BASE} view="movements" shift={shift} people={people} onHandOverToChange={noop} onMovement={noop} copy={copy} />,
+  );
   assert.match(open, /data-pos-close-and-count/);
-  assert.ok(open.includes(copy.handOverUnavailable));
+  assert.doesNotMatch(open, /data-pos-movement="drop"[^>]*disabled=""/, "a drop is live once the drawer is open");
+  assert.match(open, /data-pos-movement-row="drop"/, "the shift's own movement rows are listed");
+  assert.ok(open.includes("witness Dani"));
+  assert.match(open, /<option value="u2">Dani<\/option>/, "the hand-over offers the workspace's people");
+  assert.match(open, /data-pos-handover[^>]*disabled=""/, "hand over waits for a person to be chosen");
 
-  const close = renderToStaticMarkup(<CashDrawerScreen {...DRAWER_BASE} view="close" shift={shift} copy={copy} />);
+  const close = renderToStaticMarkup(<CashDrawerScreen {...DRAWER_BASE} view="close" shift={shift} onCloseNoteChange={noop} copy={copy} />);
   assert.match(close, /id="pos-shift-counted"/);
+  assert.match(close, /id="pos-shift-note"/, "the close takes a note");
+  assert.match(close, /data-pos-close-movement="drop"/, "the close card lists the drop beside the float");
   assert.ok(close.includes(copy.blindNote), "a blind count says expected cash comes after the close");
   assert.match(close, /data-pos-close-shift[^>]*disabled=""/, "Close drawer waits for the confirmation");
 });

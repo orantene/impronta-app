@@ -47,10 +47,10 @@ export function DeviceRegistryPanel() {
 
   return (
     <div className="col-span-2 flex flex-col gap-3 rounded-[16px] border-[1.5px] border-admin-border bg-admin-card px-4 py-4" data-testid="pos-device-registry">
-      <p className="m-0 text-[16px] font-semibold text-admin-ink">{t("dashboard.pos.devices.registryTitle")}</p>
-      <p className="m-0 text-[14px] text-admin-ink-muted">{t("dashboard.pos.devices.cashOnlyOffline")}</p>
+      <p className="m-0 text-[16px] font-semibold text-admin-ink">{t("dashboard.pos.counter.devices.registryTitle")}</p>
+      <p className="m-0 text-[14px] text-admin-ink-muted">{t("dashboard.pos.counter.devices.cashOnlyOffline")}</p>
       {devices.length === 0 ? (
-        <p className="m-0 text-[14px] text-admin-ink-muted">{t("dashboard.pos.devices.registryEmpty")}</p>
+        <p className="m-0 text-[14px] text-admin-ink-muted">{t("dashboard.pos.counter.devices.registryEmpty")}</p>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {devices.map((device) => (
@@ -65,7 +65,7 @@ export function DeviceRegistryPanel() {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={t("dashboard.pos.devices.pairName")}
+          placeholder={t("dashboard.pos.counter.devices.pairName")}
           className="h-11 min-w-0 flex-1 rounded-[10px] border border-admin-border bg-admin-card px-3 text-[15px] text-admin-ink"
         />
         <button
@@ -80,7 +80,7 @@ export function DeviceRegistryPanel() {
               const deviceKey = crypto.randomUUID();
               const res = await posDeviceRegister({
                 deviceKey,
-                name: name.trim() || t("dashboard.pos.devices.thisTill"),
+                name: name.trim() || t("dashboard.pos.counter.devices.thisTill"),
                 kind: "tablet",
               });
               setBusy(false);
@@ -94,7 +94,7 @@ export function DeviceRegistryPanel() {
             })();
           }}
         >
-          {t("dashboard.pos.devices.pairThisTill")}
+          {t("dashboard.pos.counter.devices.pairThisTill")}
         </button>
       </div>
       {notice ? (
@@ -120,10 +120,10 @@ export function OutboxSyncPanel() {
     <div className="flex flex-col gap-3" data-testid="pos-outbox-sync">
       <p className="m-0 text-[14px] leading-relaxed text-admin-ink-muted">
         {queued === 0
-          ? t("dashboard.pos.connection.nothingQueued")
-          : interpolate(t("dashboard.pos.connection.queuedCount"), { count: queued })}
+          ? t("dashboard.pos.counter.connection.nothingQueued")
+          : interpolate(t("dashboard.pos.counter.connection.queuedCount"), { count: queued })}
       </p>
-      <p className="m-0 text-[14px] text-admin-ink-muted">{t("dashboard.pos.devices.cashOnlyOffline")}</p>
+      <p className="m-0 text-[14px] text-admin-ink-muted">{t("dashboard.pos.counter.devices.cashOnlyOffline")}</p>
       <button
         type="button"
         disabled={busy || queued === 0}
@@ -132,7 +132,7 @@ export function OutboxSyncPanel() {
         onClick={() => {
           const paired = readPairedDevice();
           if (!paired) {
-            setNotice(t("dashboard.pos.devices.pairFirst"));
+            setNotice(t("dashboard.pos.counter.devices.pairFirst"));
             return;
           }
           setBusy(true);
@@ -156,7 +156,7 @@ export function OutboxSyncPanel() {
           })();
         }}
       >
-        {t("dashboard.pos.connection.syncNow")}
+        {t("dashboard.pos.counter.connection.syncNow")}
       </button>
       {notice ? (
         <p role="alert" className="m-0 text-[13px] text-admin-red">

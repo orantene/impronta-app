@@ -1,0 +1,1 @@
+An incoming message during an open card attempt is a toast beside the sale, never a modal; the attempt keeps its device and drawer owner.

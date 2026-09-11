@@ -23,6 +23,7 @@
  */
 
 import { useState } from "react";
+import { formatOrderMoney } from "@/lib/orders/money-format";
 import { REFUND_EFFECTS, type RefundEffect } from "@/lib/orders/refund-effects";
 import type { RefundDeskOutcome } from "@/lib/orders/refund-desk-copy";
 import { loadOrderLinesForDesk, refundOrderAtDesk } from "./refund-actions";
@@ -31,6 +32,8 @@ export type RefundFormCopy = {
   readonly refund: string;
   readonly effect: string;
   readonly confirm: string;
+  /** P06: "Split by component share" over a package line. */
+  readonly componentShare: string;
   /** One sentence per effect, in the reader's language. */
   readonly effects: Readonly<Record<RefundEffect, string>>;
   /** One sentence per outcome, success included. */
@@ -39,13 +42,15 @@ export type RefundFormCopy = {
 
 export function OrdersRefundForm({
   orderId,
+  currency,
   copy,
 }: {
   orderId: string;
+  currency: string;
   copy: RefundFormCopy;
 }) {
   const [open, setOpen] = useState(false);
-  const [lines, setLines] = useState<Array<{ id: string; name: string; totalCents: number }>>([]);
+  const [lines, setLines] = useState<Array<{ id: string; name: string; totalCents: number; components: Array<{ name: string; cents: number }> | null }>>([]);
   const [picked, setPicked] = useState<string[]>([]);
   const [effect, setEffect] = useState<RefundEffect>("cancel_ticket");
   const [busy, setBusy] = useState(false);
@@ -90,18 +95,32 @@ export function OrdersRefundForm({
           style={{ display: "grid", gap: 8, maxWidth: 320 }}
         >
           {lines.map((line) => (
-            <label key={line.id} style={{ fontSize: 12 }}>
-              <input
-                type="checkbox"
-                checked={picked.includes(line.id)}
-                onChange={(e) => {
-                  setPicked((cur) =>
-                    e.target.checked ? [...cur, line.id] : cur.filter((id) => id !== line.id),
-                  );
-                }}
-              />{" "}
-              {line.name}
-            </label>
+            <div key={line.id}>
+              <label style={{ fontSize: 12 }}>
+                <input
+                  type="checkbox"
+                  checked={picked.includes(line.id)}
+                  onChange={(e) => {
+                    setPicked((cur) =>
+                      e.target.checked ? [...cur, line.id] : cur.filter((id) => id !== line.id),
+                    );
+                  }}
+                />{" "}
+                {line.name}
+              </label>
+              {line.components && picked.includes(line.id) ? (
+                // P06: a package refund splits by component share; the split
+                // is the engine's (`packageRefundShare`), shown before the click.
+                <ul data-orders-refund-shares={line.id} style={{ fontSize: 11, margin: "2px 0 0 20px", paddingLeft: 12 }}>
+                  <li style={{ listStyle: "none", marginLeft: -12 }}>{copy.componentShare}</li>
+                  {line.components.map((c) => (
+                    <li key={c.name}>
+                      {c.name} · {formatOrderMoney(c.cents, currency)}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           ))}
           <label style={{ fontSize: 12 }}>
             {copy.effect}

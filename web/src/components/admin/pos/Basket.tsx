@@ -27,6 +27,7 @@ import {
   POS_NUM,
   POS_PILL,
   POS_PILL_CORAL,
+  POS_PILL_INDIGO,
   POS_PRIMARY_ACTION,
   POS_SECONDARY_ACTION,
   POS_SEGMENT,
@@ -59,7 +60,12 @@ export type BasketCopy = {
   readonly tax: string;
   /** The Tax row when no line has a configured tax category: `Not set up`. */
   readonly taxUnset: string;
+  readonly tip: string;
   readonly total: string;
+  /** The pill on a custom amount waiting for a manager (`POSManagerApproval`). */
+  readonly needsApproval: string;
+  /** `Linked · {booking}` on a line that pays for a booking. */
+  readonly linked: string;
   /** `Charge {amount}`; with no amount, plain `Charge`. */
   readonly charge: string;
   readonly chargeCash: string;
@@ -81,6 +87,12 @@ export type BasketProps = {
   readonly currency: string;
   /** Already-resolved discount, in cents — 0 when none is applied. */
   readonly discountCents?: number;
+  /** The gratuity on the sale (`orders.tip_cents`), 0 when none. */
+  readonly tipCents?: number;
+  /** Opens the tip sheet; absent when the sale cannot take one yet. */
+  readonly onOpenTip?: () => void;
+  /** A tap on a locked custom line opens the manager approval for it. */
+  readonly onApproveLine?: (lineId: string) => void;
   /**
    * `unset` when not one line carries a configured tax category
    * (`lib/catalog/tax`): the row says so instead of showing a zero nobody
@@ -116,6 +128,9 @@ export function Basket({
   lines,
   currency,
   discountCents = 0,
+  tipCents = 0,
+  onOpenTip,
+  onApproveLine,
   taxState = "unset",
   customerName,
   onOpenCustomer,
@@ -137,7 +152,7 @@ export function Basket({
   copy,
   className,
 }: BasketProps) {
-  const totals = basketTotals(lines, discountCents);
+  const totals = basketTotals(lines, discountCents, tipCents);
   const isEmpty = lines.length === 0;
   const chargeDisabled = isEmpty || Boolean(chargeLoading) || Boolean(offline);
   const unsent = lines.filter((line) => !line.locked).length;
@@ -222,13 +237,15 @@ export function Basket({
           {lines.map((line) => {
             const lineTotal = lineTotalCents(line);
             const detail = [line.variantLabel, line.sessionLabel, line.notes].filter(Boolean).join(" · ");
+            const locked = line.needsApproval === true;
             return (
               <li key={line.id} className="border-t border-admin-border-soft first:border-t-0">
                 <button
                   type="button"
                   data-pos-line={line.id}
+                  data-pos-line-locked={locked ? "" : undefined}
                   aria-label={`${copy.editLine}: ${line.label}`}
-                  onClick={() => onEditLine(line.id)}
+                  onClick={() => (locked && onApproveLine ? onApproveLine(line.id) : onEditLine(line.id))}
                   className="flex w-full items-center gap-3 px-4 py-[13px] text-left transition-colors hover:bg-admin-surface-alt/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-admin-brand"
                 >
                   <span
@@ -246,6 +263,16 @@ export function Basket({
                   {line.heldUntil && (
                     <span className={cn(POS_PILL, POS_PILL_CORAL, "px-[11px] py-[5px] text-[13.5px]")}>
                       {fill(copy.heldUntil, { time: line.heldUntil })}
+                    </span>
+                  )}
+                  {locked && (
+                    <span data-pos-line-approval className={cn(POS_PILL, POS_PILL_CORAL, "px-[11px] py-[5px] text-[13.5px]")}>
+                      {copy.needsApproval}
+                    </span>
+                  )}
+                  {line.bookingLabel && (
+                    <span data-pos-line-booking className={cn(POS_PILL, POS_PILL_INDIGO, "px-[11px] py-[5px] text-[13.5px]")}>
+                      {fill(copy.linked, { booking: line.bookingLabel })}
                     </span>
                   )}
                   <span className="shrink-0 text-right">
@@ -296,6 +323,27 @@ export function Basket({
                   {taxState === "taxed" ? formatOrderMoney(totals.taxCents, currency) : copy.taxUnset}
                 </dd>
               </div>
+              {(onOpenTip || totals.tipCents > 0) && (
+                <div className={POS_TOTAL_ROW}>
+                  <dt className="text-admin-ink-muted">
+                    {onOpenTip ? (
+                      <button
+                        type="button"
+                        data-pos-open-tip
+                        onClick={onOpenTip}
+                        className="rounded text-admin-ink-muted underline-offset-4 hover:text-admin-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand"
+                      >
+                        {copy.tip}
+                      </button>
+                    ) : (
+                      copy.tip
+                    )}
+                  </dt>
+                  <dd data-pos-tip className={cn("m-0 font-semibold text-admin-ink", POS_NUM)}>
+                    {totals.tipCents > 0 ? formatOrderMoney(totals.tipCents, currency) : "—"}
+                  </dd>
+                </div>
+              )}
             </dl>
             <div className="flex items-center justify-between gap-2 px-4 pb-1 pt-2.5">
               <span className="text-[17px] font-bold text-admin-ink">{copy.total}</span>

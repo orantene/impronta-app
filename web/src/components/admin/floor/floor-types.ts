@@ -47,6 +47,24 @@ export type FloorReserveResult =
   | { ok: true; orderId: string; admissionId: string; collectCents: number }
   | { ok: false; reason: string };
 
+/** One line of an open check, for the split sheet (T18). */
+export type FloorCheckLine = {
+  readonly id: string;
+  readonly label: string;
+  readonly units: number;
+  readonly totalCents: number;
+};
+
+export type FloorCheckLinesResult =
+  | { ok: true; currency: string; version: number; lines: FloorCheckLine[] }
+  | { ok: false; reason: string };
+
+/** A person a table can be handed to (T17). */
+export type FloorServer = {
+  readonly userId: string;
+  readonly name: string;
+};
+
 export type FloorActions = {
   readonly seatParty: (input: {
     spaceId: string;
@@ -55,7 +73,19 @@ export type FloorActions = {
     admissionId?: string;
   }) => Promise<FloorOutcome>;
   readonly closeVisit: (input: { visitId: string; expectedVersion?: number }) => Promise<FloorOutcome>;
-  readonly moveVisit: (input: { visitId: string; spaceId: string; expectedVersion?: number }) => Promise<FloorOutcome>;
+  /**
+   * T13: the engine's `visit_transfer`, with the version the floor read so a
+   * stale screen is refused (`conflict`) rather than moving a party twice.
+   */
+  readonly moveVisit: (input: { visitId: string; spaceId: string; expectedVersion: number; operationKey: string }) => Promise<FloorOutcome>;
+  /** T16: `visit_merge_checks`; absent where the surface has no writer for it. */
+  readonly mergeChecks?: (input: { fromVisitId: string; intoVisitId: string; operationKey: string }) => Promise<FloorOutcome>;
+  /** T17: `visit_change_server`. */
+  readonly changeServer?: (input: { visitId: string; userId: string }) => Promise<FloorOutcome>;
+  /** T18: `visit_split_check`, the chosen lines onto a new draft on the same visit. */
+  readonly splitCheck?: (input: { visitId: string; lineIds: string[]; operationKey: string }) => Promise<FloorOutcome & { orderId?: string }>;
+  /** The lines of one open check, for the split sheet. */
+  readonly loadCheckLines?: (orderId: string) => Promise<FloorCheckLinesResult>;
   readonly resetTable: (spaceId: string) => Promise<FloorOutcome>;
   /** Absent on a surface with no kitchen send (the workspace's Live Floor). */
   readonly sendToKitchen?: (orderId: string) => Promise<FloorOutcome>;
@@ -98,6 +128,8 @@ export type FloorBoardData = {
   readonly bookable: boolean;
   /** Active layout canvas from W13; tiles use it when tables carry layoutRect. */
   readonly layoutCanvas?: { w: number; h: number } | null;
+  /** The workspace's people, for `Change server` (T17); empty where not read. */
+  readonly servers?: readonly FloorServer[];
 };
 
 export type FloorBoardProps = {

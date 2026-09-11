@@ -5,8 +5,10 @@
  * opens beside the tapped tile. Header: the code, the state pill, one line
  * (who · how many · the server · what is unpaid), chips for what the kitchen
  * is doing. Then ONE primary action for the table's state and the menu of
- * next moves. A move the engine has no writer for is drawn disabled over its
- * one sentence (change server, extend time, block, split).
+ * next moves: move or join (T12), change server (T17), split (T18), party
+ * left (T23). A visit with more than one check (D-POS-67) lists each check
+ * with its own door. A move the engine has no writer for is drawn disabled
+ * over its one sentence (extend time, block).
  */
 
 import { ArrowRight, Check, Clock, CreditCard, Ellipsis, Flame, Plus, ShoppingBag, User, X } from "lucide-react";
@@ -17,6 +19,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 import type { FloorTable } from "@/lib/visits/floor";
 import { cn } from "@/lib/utils";
+import { formatOrderMoney } from "@/lib/orders/money-format";
 import { POS_PILL, POS_PILL_CORAL, POS_PILL_INDIGO, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "../pos/pos-classes";
 
 import type { FloorBoardCopy } from "./floor-copy";
@@ -39,6 +42,10 @@ export type TablePopoverProps = {
   readonly onClose: () => void;
   readonly onSeat: () => void;
   readonly onMoveOrJoin: () => void;
+  /** T17; absent where the surface has no server writer. */
+  readonly onChangeServer?: () => void;
+  /** T18; absent where the surface cannot read a check's lines. */
+  readonly onSplit?: () => void;
   readonly onPartyLeft: () => void;
   readonly onReset: () => void;
   readonly onSendKitchen: () => void;
@@ -136,8 +143,9 @@ export function TablePopover(props: TablePopoverProps) {
           : interpolate(p.freeSeats, { min: table.partyMin, max: table.partyMax });
 
   const partySize = table.partySize ?? entry?.partySize ?? null;
+  const serverName = table.serverUserId ? (data.servers?.find((s) => s.userId === table.serverUserId)?.name ?? null) : null;
   const who = occupied
-    ? [entry?.holderName ?? copy.panel.walkIn, partySize == null ? null : interpolate(p.guests, { n: partySize }), copy.list.serverNone]
+    ? [entry?.holderName ?? copy.panel.walkIn, partySize == null ? null : interpolate(p.guests, { n: partySize }), serverName ? interpolate(copy.engine.popover.servedBy, { name: serverName }) : copy.list.serverNone]
         .filter((x): x is string => Boolean(x))
         .join(" · ")
     : table.held
@@ -147,6 +155,7 @@ export function TablePopover(props: TablePopoverProps) {
         : "";
 
   const unpaid = occupied && table.orderId ? interpolate(p.unpaid, { amount: moneyFor(table, data) }) : occupied ? p.noCheck : "";
+  const manyChecks = table.orderIds.length > 1;
   const ticket = table.orderId ? data.tickets[table.orderId] : undefined;
   const joined = table.joinedWithSpaceId ?? table.joinedFromSpaceId;
   const joinedCode = joined ? (data.tables.find((t) => t.spaceId === joined)?.code ?? "") : "";
@@ -191,6 +200,11 @@ export function TablePopover(props: TablePopoverProps) {
                 {interpolate(copy.tile.partyOf, { n: partySize })}
               </span>
             )}
+            {manyChecks && (
+              <span className={cn(POS_PILL, POS_PILL_INDIGO)} data-floor-checks={table.orderIds.length}>
+                {interpolate(copy.engine.popover.checks, { n: table.orderIds.length, amount: moneyFor(table, data) })}
+              </span>
+            )}
           </div>
         </div>
         <button
@@ -211,6 +225,20 @@ export function TablePopover(props: TablePopoverProps) {
                 <ShoppingBag aria-hidden size={18} strokeWidth={1.75} />
                 {p.openOrder}
               </a>
+              {manyChecks && (
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0" data-floor-check-list>
+                  {table.checks.map((check, index) => (
+                    <li key={check.orderId}>
+                      <a href={props.checkHref(check.orderId)} data-floor-open-check={check.orderId} className={cn(POS_SECONDARY_ACTION, "h-10 w-full text-[14px]")}>
+                        {interpolate(copy.engine.popover.openCheck, {
+                          letter: "ABCDEFGH"[index] ?? String(index + 1),
+                          amount: formatOrderMoney(check.totalCents, data.currencies[check.orderId] ?? "USD"),
+                        })}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <a href={props.checkHref(table.orderId)} className={cn(POS_SECONDARY_ACTION, "min-w-0 px-3")}>
                   <Plus aria-hidden size={18} strokeWidth={1.75} />
@@ -235,10 +263,17 @@ export function TablePopover(props: TablePopoverProps) {
               </>
             )}
             <MenuRow icon={ArrowRight} label={p.moveOrJoin} onSelect={joined ? undefined : props.onMoveOrJoin} reason={joined ? copy.refusal.joined_visit : undefined} busy={busy} testId="move-or-join" />
-            <MenuRow icon={User} label={`${p.changeServer} · ${copy.list.serverNone}`} reason={p.changeServerReason} busy={busy} testId="change-server" />
+            <MenuRow
+              icon={User}
+              label={`${p.changeServer} · ${serverName ?? copy.list.serverNone}`}
+              onSelect={props.onChangeServer}
+              reason={props.onChangeServer ? undefined : p.changeServerReason}
+              busy={busy}
+              testId="change-server"
+            />
             <MenuRow icon={Clock} label={p.extendTime} reason={p.extendTimeReason} busy={busy} testId="extend-time" />
             <MenuRow icon={Check} label={p.partyLeft} onSelect={props.onPartyLeft} busy={busy} testId="party-left" />
-            <MenuRow icon={Ellipsis} label={p.split} reason={p.splitReason} busy={busy} testId="split" />
+            <MenuRow icon={Ellipsis} label={p.split} onSelect={table.orderId ? props.onSplit : undefined} reason={props.onSplit && table.orderId ? undefined : p.splitReason} busy={busy} testId="split" />
           </ul>
         </>
       ) : (

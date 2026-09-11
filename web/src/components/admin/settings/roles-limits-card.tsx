@@ -14,12 +14,14 @@
  *     every server action. A row here is a capability key with a plain label,
  *     so the matrix can never disagree with a refusal.
  *
- * The board's rows the engine has no gate for (comp / void, a manual
- * discount cap, a drawer, voiding a sent item, moving tables, collecting
- * another way, per-role customer fields, a re-authorising switch) are drawn
- * as "not tracked" rows so an operator sees the gap where the board draws
- * the rule; money.md §3 names this the same gap as the People slice's Access
- * hat. Save is disabled with that sentence: there is nothing to save yet.
+ * The board's rows the engine has no gate for (comp / void, a drawer,
+ * voiding a sent item, moving tables, collecting another way, a
+ * re-authorising switch) are drawn as "not tracked" rows so an operator
+ * sees the gap where the board draws the rule; money.md §3 names this the
+ * same gap as the People slice's Access hat. The manual discount and refund
+ * limits are live below the matrix (`RoleLimitsEditor`, Package 2's
+ * `role_limits`), with W56's approval inbox; each cell saves as it changes,
+ * so the header's Save has nothing left to press and says so.
  *
  * Who holds each role is the workspace's own team list, passed in as a prop
  * rather than fetched again. An invitation is not a member: `status`
@@ -36,6 +38,8 @@ import { roleGrantsCapability, type TenantRoleKey } from "@/lib/access/roles";
 import type { CapabilityKey } from "@/lib/access/capabilities";
 import { modesForPerson, POS_MODE_META, type PosMode } from "@/lib/pos/modes";
 import { groupMembersByRole, SETTINGS_ROLE_ORDER, type RoleMember } from "@/lib/settings/role-members";
+import { CustomAmountLimit } from "./custom-amount-limit";
+import { RoleLimitsEditor } from "./role-limits-editor";
 
 export type RolesLimitsMember = RoleMember;
 
@@ -56,7 +60,6 @@ const ROWS: readonly ActionRow[] = [
   { id: "markReceived", kind: "capability", capability: "booking.payment.mark_received" },
   { id: "refund", kind: "capability", capability: "booking.payment.refund" },
   { id: "compVoid", kind: "notTracked" },
-  { id: "manualDiscount", kind: "notTracked" },
   { id: "drawer", kind: "notTracked" },
   { id: "voidSentItem", kind: "notTracked" },
   { id: "moveTables", kind: "notTracked" },
@@ -71,11 +74,17 @@ export function RolesLimitsCard({
   members,
   workspacePosModes,
   onInvite,
+  currency,
+  canEditLimits,
 }: {
   members: readonly RolesLimitsMember[];
   workspacePosModes: readonly PosMode[];
   /** Opens the invitation the Team drawer sends; absent when the caller has no drawer. */
   onInvite?: () => void;
+  /** The workspace's currency, what a limit is typed in. */
+  currency: string;
+  /** Owner or admin: the only roles that may set a limit. */
+  canEditLimits: boolean;
 }) {
   const t = useT();
   const tPlural = useTPlural();
@@ -107,7 +116,7 @@ export function RolesLimitsCard({
           <button
             type="button"
             disabled
-            title={t(`${K}.limitsGap`)}
+            title={t(`${K}.saveReason`)}
             data-not-wired="true"
             data-testid="roles-limits-save"
             className="inline-flex h-[34px] cursor-not-allowed items-center rounded-[9px] border border-admin-brand bg-admin-brand px-[14px] text-admin-13 font-semibold text-white opacity-50"
@@ -210,6 +219,8 @@ export function RolesLimitsCard({
         <div className="text-[12px] font-semibold text-admin-ink">{t(`${K}.limitsHeading`)}</div>
         <div className="mt-[2px] text-[11.5px] leading-relaxed text-admin-ink-muted">{t(`${K}.limitsGap`)}</div>
       </div>
+      <CustomAmountLimit />
+      <RoleLimitsEditor currency={currency} canEdit={canEditLimits} />
     </div>
   );
 }

@@ -1,0 +1,1 @@
+What the operator does depends on what is known: retry a kitchen ticket, recover an order from the saved checkout, check a payment status, or resolve an unavailable slot. None of them requests payment again.

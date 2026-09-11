@@ -539,12 +539,67 @@
       "closed": "Ferme tous les jours des deux prochaines semaines. Essayez une date plus tard, ou envoyez une demande.",
       "fullyBooked": "Tous les creneaux libres des deux prochaines semaines sont pris. Reessayez plus tard, ou envoyez une demande."
     },
+    "manageBooking": {
+      "title": "Votre réservation",
+      "noDate": "Date à confirmer",
+      "nothingPaid": "Rien pour l'instant",
+      "deadlinePassed": "Le délai d'annulation gratuite est passé",
+      "deadlineUntil": "{when}",
+      "deadlineNone": "Aucun délai d'annulation ne s'applique",
+      "statusConfirmed": "Confirmée",
+      "statusClosed": "Clôturée",
+      "paid": "Payé",
+      "atVisit": "Sur place",
+      "atVisitValue": "Le solde se règle sur place",
+      "freeUntil": "Annulation gratuite jusqu'au",
+      "reschedule": "Déplacer",
+      "cancel": "Annuler",
+      "addToCalendar": "Ajouter au calendrier",
+      "onlyCancels": "Ce lien permet d'annuler la réservation ; demandez un autre lien pour la déplacer.",
+      "onlyReschedules": "Ce lien permet de déplacer la réservation ; demandez un autre lien pour l'annuler.",
+      "closedSentence": "Cette réservation est clôturée.",
+      "note": "Déplacer vérifie d'abord la personne et la salle ; votre réservation reste en place jusqu'à la confirmation du nouvel horaire.",
+      "cancelTitle": "Annuler cette réservation ?",
+      "cancelPolicy": "Conditions",
+      "cancelRefund": "{amount} revient par le moyen de paiement utilisé, dès que la banque confirme.",
+      "cancelNoRefund": "Le paiement est conservé ; le délai d'annulation gratuite est passé.",
+      "reason": "Motif",
+      "reasonPlaceholder": "Facultatif",
+      "keep": "Garder la réservation",
+      "cancelConfirm": "Annuler la réservation{amount}",
+      "cancelled": "Votre réservation est annulée.",
+      "cancelledRefund": "Votre réservation est annulée. {amount} revient par le moyen de paiement utilisé.",
+      "rescheduleTitle": "Choisissez un nouvel horaire",
+      "newTime": "Nouvel horaire",
+      "rescheduleConfirm": "Confirmer le nouvel horaire",
+      "rescheduled": "Votre réservation a été déplacée au nouvel horaire.",
+      "cancelNothingPaid": "Rien n’a été payé, donc rien ne revient."
+    },
     "thread": {
       "title": "Votre conversation",
       "continue": "Continuer sur ce telephone",
       "pay": "Payer en securite",
       "empty": "Pas encore de messages.",
-      "codeSent": "Si le SMS est disponible, un code a ete envoye."
+      "codeSent": "Si le SMS est disponible, un code a ete envoye.",
+      "choose": "Choisir",
+      "configure": "Configurer",
+      "keepSlot": "L heure de retrait est tenue tant que ce lien est valable. Rien n est debite avant le paiement.",
+      "waitlist": "Cette seance est complete. Rejoignez la liste d attente.",
+      "dateMismatch": "Cette date n est pas disponible. Une autre date est proposee ci-dessous.",
+      "accept": "Accepter",
+      "changes": "Demander des changements",
+      "decline": "Refuser",
+      "processing": "Le paiement reste ouvert pour verification. Rien de plus n a ete pris.",
+      "declined": "Rien n a ete pris. Le creneau est encore tenu un moment.",
+      "expired": "Cette page de paiement est fermee. Demandez un nouveau lien au commerce.",
+      "cancelled": "Ce paiement a ete annule. Rien n a ete pris.",
+      "unknown": "Le statut du paiement est inconnu. Ne payez pas une seconde fois. Le commerce confirmera.",
+      "paid": "Paye",
+      "receipt": "Voir le recu",
+      "backToThread": "Retour a la conversation",
+      "smsPlain": "La meme commande et la meme page securisee, en texte. Ce canal n affiche pas de cartes.",
+      "talentView": "Vous voyez le client, le service et les notes de poste. Pas la conversation ni les autres prix.",
+      "payBy": "Payez avant cette heure pour garder le creneau."
     }
   },
   "dashboard": {
@@ -1143,6 +1198,44 @@
           "crossBusinessValue": "Occupé/libre seulement est le design ; rien n'est encore partagé",
           "audit": "Audit",
           "auditValue": "Les changements d'adhésion et de casquette sont journalisés ; remboursements et gestes commerciaux ne le sont pas par personne"
+        },
+        "customAmount": {
+          "heading": "Montants libres au comptoir",
+          "loading": "Lecture de la limite…",
+          "everyAmount": "Tout montant libre nécessite le code d'un responsable avant d'être encaissé. Fixez une limite pour laisser passer les petits.",
+          "current": "Un montant libre supérieur à {amount} nécessite le code d'un responsable avant d'être encaissé.",
+          "label": "Limite",
+          "save": "Enregistrer la limite",
+          "saving": "Enregistrement…",
+          "saved": "Limite enregistrée."
+        },
+        "saveReason": "Chaque cellule s'enregistre dès qu'elle change ; il ne reste rien à valider.",
+        "limits": {
+          "intro": "Au-dessus de la limite, la caisse demande l'accord d'un responsable. Une cellule vide signifie sans limite.",
+          "discount": "Remise manuelle",
+          "refund": "Remboursement",
+          "colAction": "Limite par action",
+          "noLimit": "Sans limite",
+          "readOnly": "Seul un propriétaire ou un administrateur peut fixer une limite.",
+          "loading": "Lecture des limites…",
+          "loadFailed": "Les limites n'ont pas pu être lues.",
+          "saving": "Enregistrement…",
+          "saved": "Enregistré {time}",
+          "saveFailed": "Échec de l'enregistrement",
+          "retry": "Réessayer"
+        },
+        "inbox": {
+          "heading": "Demandes d'approbation",
+          "intro": "Ce que quelqu'un a demandé au-dessus de sa limite. Approuver laisse passer cette seule action ; le rôle ne change pas.",
+          "none": "Rien n'attend d'approbation.",
+          "title": "{kind} · {ref}",
+          "by": "{who} · {when}",
+          "kindDiscount": "Remise demandée",
+          "kindRefund": "Remboursement demandé",
+          "approve": "Approuver",
+          "deny": "Refuser",
+          "approved": "Approuvé",
+          "denied": "Refusé"
         }
       },
       "locations": {
@@ -1425,7 +1518,20 @@
           "never": "Jamais de dérogation",
           "neverValue": "Exclusivité physique · capacité",
           "preview": "Aperçu de l'impact",
-          "previewValue": "Pas encore disponible"
+          "previewValue": "Pas encore disponible",
+          "intro": "Par article, en plus des valeurs par défaut ci-dessus. Une cellule vide garde la valeur par défaut.",
+          "col": {
+            "item": "Article",
+            "deposit": "Acompte %",
+            "freeCancel": "Annulation gratuite (heures)",
+            "noShow": "Frais de non-présentation"
+          },
+          "placeholder": "Par défaut",
+          "rowDefault": "Valeur de l'espace de travail",
+          "rowSet": "Conditions propres · non-présentation {fee}",
+          "none": "Aucun article réservable pour l'instant ; créez d'abord un service, un cours ou un forfait dans le catalogue.",
+          "note": "L'acompte et le remboursement d'annulation lisent d'abord ces lignes, puis l'article, puis la valeur de l'espace de travail.",
+          "loadFailed": "Les dérogations n'ont pas pu être lues."
         },
         "notWired": {
           "previewImpact": "Un aperçu de l'impact a besoin de versions de politique, qui ne sont pas encore conservées.",
@@ -1639,43 +1745,6 @@
       "title": "Catalogue",
       "subtitle": "Artículos del espacio de trabajo que los clientes pueden pedir en tu sitio."
     },
-    "venue": {
-      "engine": {
-        "refusal": {
-          "duplicate_slug": "Cet identifiant d'emplacement est deja utilise.",
-          "last_location": "Un espace a besoin d'au moins un emplacement.",
-          "has_spaces": "Cette zone a encore des tables.",
-          "already_seated": "Ce groupe est deja installe.",
-          "space_occupied": "Cette table a deja un groupe.",
-          "expired": "Cette place en liste d'attente a expire.",
-          "overlap": "Ces periodes de service se chevauchent.",
-          "two_active": "Cet emplacement a deja un plan actif.",
-          "station_in_use": "Cette station a encore des tickets ou des articles.",
-          "visit_closed": "Cette visite de table est terminee.",
-          "item_unavailable": "Cet article n'est pas disponible.",
-          "already_paid": "Cette part est deja payee.",
-          "exceeds_outstanding": "C'est plus que ce qui reste a payer.",
-          "not_submitted": "La cuisine n'a pas encore recu cette ligne.",
-          "seat_taken": "Cette place est deja prise.",
-          "hold_expired": "La retenue sur cette place a expire.",
-          "same_session": "Ce billet est deja pour cette soiree.",
-          "price_up_needs_payment": "La nouvelle soiree coute plus. Payez d'abord la difference.",
-          "needs_approval": "Un responsable doit d'abord approuver cela.",
-          "channel_unavailable": "Ce canal d'envoi n'est pas disponible.",
-          "superseded": "Ce code de billet a ete remplace.",
-          "too_many_attempts": "Trop d'essais. Attendez et reessayez.",
-          "unknown_device": "Cet appareil n'est pas enregistre.",
-          "not_replayable": "Cette commande ne peut pas etre enregistree hors ligne.",
-          "stale_app": "Cette version de l'application est trop ancienne.",
-          "conflict": "Cela vient de changer. Rechargez et reessayez.",
-          "not_found": "Cet enregistrement n'existe plus.",
-          "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
-          "invalid": "Cela ne peut pas etre enregistre.",
-          "unavailable": "Impossible de terminer. Reessayez.",
-          "not_allowed": "Vous ne pouvez pas faire cela ici."
-        }
-      }
-    },
     "scheduling": {
       "engine": {
         "refusal": {
@@ -1702,7 +1771,10 @@
           "not_found": "Cet enregistrement n'existe plus.",
           "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
           "invalid": "Cela ne peut pas etre enregistre.",
-          "unavailable": "Impossible de terminer. Reessayez."
+          "unavailable": "Impossible de terminer. Reessayez.",
+          "not_allowed": "Vous n'êtes pas autorisé à faire cela ici.",
+          "not_reschedulable": "Cette réservation ne peut pas être déplacée.",
+          "slot_taken": "Ce créneau n'est plus libre."
         }
       }
     },
@@ -1735,83 +1807,9 @@
           "no_place": "Il n'y a plus de place a offrir.",
           "already_accepted": "Cette offre a deja ete prise.",
           "amount": "Ce montant en especes n'est pas valable.",
-          "already_closed": "Ce service est deja cloture."
-        }
-      },
-      "messages": {
-        "title": "Messages",
-        "inbox": "Boite",
-        "thread": "Fil",
-        "search": "Rechercher des messages",
-        "reply": "Repondre",
-        "note": "Note interne",
-        "assign": "Attribuer un responsable",
-        "resolve": "Resoudre",
-        "reopen": "Rouvrir",
-        "handOver": "Transmettre",
-        "sendOptions": "Envoyer des options",
-        "addToDraft": "Ajouter au brouillon",
-        "requestPayment": "Demander un paiement",
-        "collectHere": "Encaisser ici",
-        "closeLost": "Classer comme perdu",
-        "remind": "Rappeler",
-        "newConversation": "Nouvelle conversation",
-        "tabCustomer": "Client",
-        "tabLinked": "Lies",
-        "tabNotes": "Notes",
-        "empty": "Pas encore de conversations.",
-        "noResults": "Aucune conversation ne correspond.",
-        "failedLoad": "Impossible de charger les conversations.",
-        "toastIncoming": "Un nouveau message est arrive.",
-        "backToSale": "Retour a la vente",
-        "deposit": "Acompte",
-        "full": "Montant complet",
-        "none": "Pas de paiement maintenant",
-        "webChatOnlyCustomer": "Le chat web ne peut etre ouvert que par le client.",
-        "whatsappNeedsTemplate": "WhatsApp exige d abord un modele approuve.",
-        "draftKept": "Votre texte est toujours la.",
-        "filter": {
-          "all": "Tous",
-          "unread": "Non lus",
-          "unassigned": "Non attribues",
-          "mine": "Les miens",
-          "needsReply": "A repondre",
-          "awaitingCustomer": "En attente du client",
-          "resolved": "Resolus"
-        },
-        "state": {
-          "needsReply": "A repondre",
-          "awaitingCustomer": "En attente du client",
-          "resolved": "Resolu",
-          "gathering": "Collecte des details",
-          "offerSent": "Offre envoyee",
-          "awaitingAcceptance": "En attente d acceptation",
-          "acceptedAwaitingDeposit": "Acceptee, acompte en attente",
-          "won": "Gagne",
-          "lost": "Perdu"
-        },
-        "refusal": {
-          "conflict": "Cette conversation vient de changer. Rechargez et reessayez.",
-          "not_found": "Cette conversation n existe plus.",
-          "wrong_tenant": "Cet enregistrement n appartient pas a cet espace.",
-          "invalid": "Cela ne peut pas etre enregistre.",
-          "unavailable": "Impossible de terminer. Reessayez.",
-          "channel_unavailable": "Ce canal n est pas disponible.",
-          "template_required": "WhatsApp exige d abord un modele approuve.",
-          "rate_limited": "Attendez un instant et reessayez.",
-          "checkout_locked": "Le paiement est verrouille sur le panier envoye.",
-          "already_resolved": "Cette conversation est deja resolue.",
-          "no_owner": "Cette conversation n a pas encore de responsable.",
-          "identity_unconfirmed": "L identite du client n est pas confirmee.",
-          "already_linked": "Cet enregistrement est deja lie.",
-          "version_stale": "Quelqu un d autre a enregistre d abord. Comparez les trois versions.",
-          "payment_unknown": "Le statut du paiement est inconnu. Ne le redemandez pas.",
-          "already_paid": "C est deja paye.",
-          "hold_ended": "La retenue pour ce creneau est terminee.",
-          "basket_changed": "Le panier a change apres le debut du paiement.",
-          "not_allowed": "Vous ne pouvez pas faire cela ici.",
-          "expired": "Ce lien ou cette offre a expire.",
-          "already": "C est deja fait."
+          "already_closed": "Ce service est deja cloture.",
+          "not_allowed": "Vous n'avez pas la permission de faire cela.",
+          "no_customer": "Associez d'abord un client à cette vente."
         }
       },
       "newSale": "Nouvelle vente",
@@ -1897,7 +1895,10 @@
           "saved": "Enregistré {time}",
           "savedOffline": "Pas de connexion · rien ne peut être enregistré avant son retour",
           "basketCount": "Panier · {count} articles",
-          "sendAgain": "Renvoyer · {count} articles"
+          "sendAgain": "Renvoyer · {count} articles",
+          "tip": "Pourboire",
+          "needsApproval": "À approuver",
+          "linked": "Lié · {booking}"
         },
         "customer": {
           "title": "Client",
@@ -2088,7 +2089,8 @@
           "saleSubtitle": "Vente {number} · {cashier}",
           "newSaleSubtitle": "Nouvelle vente · {cashier}",
           "close": "Fermer",
-          "drawerTitle": "Tiroir-caisse"
+          "drawerTitle": "Tiroir-caisse",
+          "switchOperator": "Changer d'opérateur"
         },
         "cancel": "Annuler",
         "back": "Retour",
@@ -2143,8 +2145,14 @@
           "approvalTitle": "Approbation du responsable",
           "approvalSubtitle": "Montant libre {amount} · {cashier}",
           "item": "Article",
-          "pinWrong": "Ce PIN n'est pas correct",
           "approve": "Approuver",
+          "withinLimit": "Dans votre limite de {limit} · aucune approbation nécessaire",
+          "addToSale": "Ajouter à la vente",
+          "whoApproves": "Qui approuve",
+          "noManagers": "Aucun responsable n'a encore de code de caisse. Définissez-en un dans Réglages › Personnes.",
+          "pinPrompt": "Code du responsable",
+          "approving": "Approbation…",
+          "pinWrong": "Ce PIN n'est pas correct",
           "approveUnavailable": "Les PIN de responsable et les montants libres ne sont pas encore configurés, cela ne peut donc pas être approuvé ici."
         },
         "holdSale": {
@@ -2171,14 +2179,23 @@
           "title": "Lier une réservation",
           "subtitle": "{customer} · choisissez à quoi correspond ce paiement",
           "noCustomer": "Ajoutez d'abord un client pour voir ses réservations",
-          "unavailable": "Lier une vente au comptoir à une réservation n'est pas encore branché ; cette vente reste séparée.",
           "showPaid": "Afficher les réservations payées",
           "afterLinking": "Après liaison",
           "bookingBalance": "Solde de la réservation",
           "thisSale": "Cette vente",
           "keepSeparate": "Garder séparé",
           "linkOnly": "Lier seulement",
-          "linkAndPay": "Lier et payer"
+          "linkAndPay": "Lier et payer",
+          "noCustomerAction": "Associer un client",
+          "unreadable": "Ses réservations n'ont pas pu être lues. Réessayez.",
+          "loading": "Lecture de ses réservations…",
+          "none": "Ce client n'a aucune réservation à lier.",
+          "balanceLine": "Solde de {amount} dû à la visite · les {count} articles de cette vente deviennent des extras de la réservation",
+          "ticketLine": "Rien à encaisser · {count} invités",
+          "paidLine": "Payé en totalité",
+          "alreadyLinked": "Cette vente est déjà liée à {booking}.",
+          "linking": "Liaison…",
+          "unavailable": "Lier une vente au comptoir à une réservation n'est pas encore branché ; cette vente reste séparée."
         },
         "cashDone": {
           "title": "Tiroir ouvert",
@@ -2209,7 +2226,6 @@
           "openNoSale": "Ouvrir le tiroir (sans vente)",
           "openNoSaleHint": "sans vente · consigné",
           "onceOpenNote": "Disponible une fois le tiroir ouvert. Vous n'avez pas besoin d'un tiroir pour consulter les réservations ou envoyer des liens de paiement.",
-          "movementsUnavailable": "Les mouvements d'espèces ne sont pas encore enregistrés ; seuls le fond initial et le comptage de clôture le sont.",
           "movements": "Mouvements",
           "movementsEmpty": "Les ventes en espèces entrent automatiquement dans ce tiroir. Les mouvements ne sont pas encore enregistrés, cette liste reste donc vide.",
           "handOver": "Confier le tiroir à quelqu'un",
@@ -2217,7 +2233,6 @@
           "countedTogether": "Nous l'avons compté ensemble",
           "handOverNote": "La session reste ouverte ; les mouvements à partir de maintenant sont les siens.",
           "handOverAction": "Confier",
-          "handOverUnavailable": "La remise du tiroir à une autre personne n'est pas encore enregistrée ; fermez-le et laissez-la ouvrir le sien.",
           "closeAndCount": "Fermer le tiroir et compter",
           "countEyebrow": "Comptez ce qu'il y a dans le tiroir",
           "coins": "Saisissez le total compté, ou utilisez les boutons et ajoutez les pièces en saisissant.",
@@ -2226,7 +2241,6 @@
           "shouldBe": "Devrait être dans le tiroir",
           "blindNote": "Comptage à l'aveugle : le montant attendu n'apparaît qu'après la clôture",
           "whatHappened": "Que s'est-il passé",
-          "whatHappenedUnavailable": "Une note à la clôture n'est pas encore enregistrée.",
           "confirmCount": "Je confirme ce comptage",
           "closeDrawer": "Fermer le tiroir",
           "closedTitle": "Tiroir fermé",
@@ -2234,7 +2248,20 @@
           "shortBy": "Manque",
           "overBy": "Excédent",
           "balanced": "Équilibré",
-          "openAnother": "Ouvrir un nouveau tiroir"
+          "openAnother": "Ouvrir un nouveau tiroir",
+          "openNoSaleUnavailable": "Aucun tiroir-caisse n'est connecté à cet appareil.",
+          "movementKind": {
+            "paid_in": "Entré",
+            "paid_out": "Retiré",
+            "drop": "Au coffre",
+            "float_add": "Espèces ajoutées"
+          },
+          "newResponsibleNone": "Choisir une personne",
+          "handOverChosen": "Remis à {name} · enregistré avec ce comptage",
+          "whatHappenedHint": "p. ex. monnaie rendue de ma poche à 09:12",
+          "movementsUnavailable": "Les mouvements d'espèces ne sont pas encore enregistrés ; seuls le fond initial et le comptage de clôture le sont.",
+          "handOverUnavailable": "La remise du tiroir à une autre personne n'est pas encore enregistrée ; fermez-le et laissez-la ouvrir le sien.",
+          "whatHappenedUnavailable": "Une note à la clôture n'est pas encore enregistrée."
         },
         "receipts": {
           "subtitle": "{day} · {count} ventes · {total}",
@@ -2324,6 +2351,65 @@
           "nothingQueued": "Rien n'est conservé sur cet appareil hors ligne. Une vente a besoin de la connexion pour être enregistrée.",
           "queuedCount": "{count} ventes en espèces en attente de synchronisation.",
           "syncNow": "Synchroniser"
+        },
+        "lock": {
+          "title": "Qui est à la caisse ?",
+          "switchTitle": "Changer d'opérateur",
+          "drawerStays": "Le tiroir reste à {name} jusqu'à sa remise",
+          "drawerNone": "Aucun tiroir n'est ouvert sur cette caisse",
+          "noPins": "Personne n'a encore de code de caisse, donc cette caisse ne peut pas être déverrouillée ici.",
+          "noPinsAction": "Définir les codes dans Personnes",
+          "pinPrompt": "Code",
+          "unlocking": "Vérification du code…",
+          "unlock": "Déverrouiller",
+          "switchAction": "Changer"
+        },
+        "tip": {
+          "title": "Ajouter un pourboire ?",
+          "subtitle": "Sur {amount} · arrondi au centime",
+          "other": "Autre",
+          "otherHint": "montant",
+          "noTip": "Sans pourboire",
+          "totalWouldBe": "Le total serait de {amount}",
+          "add": "Ajouter {amount} de pourboire",
+          "remove": "Retirer le pourboire"
+        },
+        "paymentLink": {
+          "create": "Envoyer un lien de {amount}",
+          "creating": "Création du lien…",
+          "providerStripe": "Le lien ouvre une page de paiement par carte. Le montant est réservé sur cette vente jusqu'à ce que le lien soit payé ou expire.",
+          "providerMock": "Aucun prestataire de cartes n'est configuré : le lien ouvre une page de test qui le marque payé à l'ouverture. Le montant est réservé sur cette vente jusque-là.",
+          "linkTitle": "Lien de paiement",
+          "copyLink": "Copier le lien",
+          "copied": "Copié",
+          "whatsapp": "Envoyer par WhatsApp",
+          "whatsappText": "Payez {amount} à {workspace} : {url}",
+          "expires": "Expire {when}",
+          "statusOpen": "Envoyé · non payé",
+          "statusPaid": "Payé",
+          "statusExpired": "Expiré",
+          "statusCancelled": "Annulé",
+          "nothingOwed": "Rien n'est dû sur cette vente.",
+          "resendNote": "Renvoyer le même lien ne crée jamais un second débit. Un lien n'encaisse rien tant qu'il n'est pas payé.",
+          "links": "Liens de cette vente"
+        },
+        "movement": {
+          "title": {
+            "paid_in": "Espèces entrées",
+            "paid_out": "Retirer des espèces",
+            "drop": "Dépôt au coffre",
+            "float_add": "Ajouter des espèces"
+          },
+          "subtitle": {
+            "paid_in": "Argent entré hors vente",
+            "paid_out": "Petite caisse · gardez le reçu",
+            "drop": "Passé du tiroir au coffre",
+            "float_add": "Plus de monnaie pour le tiroir"
+          },
+          "reason": "Motif",
+          "reasonHint": "p. ex. course de lait, témoin Dani",
+          "confirm": "Enregistrer {amount}",
+          "recording": "Enregistrement…"
         }
       },
       "counterOffTitle": "Le comptoir est désactivé",
@@ -2437,7 +2523,6 @@
           "projectsSubtitle": "Demande → offre → accord → projet",
           "linksTitle": "Liens de paiement",
           "linksSubtitle": "Envoyés depuis cet espace",
-          "linksUnavailable": "Aucune table n'enregistre encore un lien de paiement envoyé ; il n'y a donc rien à lister ni à renvoyer ici.",
           "linksNote": "Renvoyer réutilise le même lien et ne crée jamais un second débit. Envoyer un lien n'encaisse rien tant que le client n'a pas payé.",
           "segmentDueNow": "Dû maintenant",
           "segmentLater": "Plus tard",
@@ -2514,7 +2599,19 @@
           "amendmentSend": "Envoyer v{n}",
           "amendmentDiscard": "Abandonner la proposition",
           "amendmentUnavailable": "Un avenant s'envoie ou se retire depuis l'éditeur d'offres de la conversation, pas depuis la caisse.",
-          "amendmentSentOn": "Envoyée le {date}"
+          "amendmentSentOn": "Envoyée le {date}",
+          "linksEmpty": "Aucun lien de paiement n'a encore été envoyé depuis cet espace. Un lien s'envoie depuis l'écran Encaisser d'une vente ou depuis la fiche d'un client.",
+          "linkOpen": "Ouvert · non payé",
+          "linkPaid": "Payé",
+          "linkExpired": "Expiré",
+          "linkCancelled": "Annulé",
+          "linkSent": "envoyé {when}",
+          "linkExpires": "expire {when}",
+          "linkSale": "Vente {id}",
+          "linkResend": "Renvoyer",
+          "linkReceipt": "Voir le reçu",
+          "linkNew": "Envoyer un nouveau lien",
+          "linksUnavailable": "Aucune table n'enregistre encore un lien de paiement envoyé ; il n'y a donc rien à lister ni à renvoyer ici."
         }
       },
       "classes": {
@@ -2591,7 +2688,9 @@
         },
         "waitlist": {
           "heading": "En attente d'une place",
-          "empty": "Aucune séance de ce jour n'est complète et personne n'attend."
+          "empty": "Aucune séance de ce jour n'est complète et personne n'attend.",
+          "decline": "Refuser",
+          "declined": "L'offre de {name} a été retirée et la place est de nouveau libre."
         },
         "refusal": {
           "notAllowed": "Vous n'avez pas accès à cette caisse.",
@@ -2669,7 +2768,12 @@
             "addOff": "Ce rendez-vous n'a pas de vente a completer.",
             "lineDone": "Fait",
             "lineAdded": "Ajoute",
-            "lineProduct": "Produit"
+            "lineProduct": "Produit",
+            "linkedFrom": "Lié depuis la vente {reference} · paiement uniquement",
+            "fromSale": "De la vente {reference}",
+            "linkedPayment": "Paiement lié",
+            "linkedSale": "Vente {reference} (liée)",
+            "linkedChip": "Vente {reference} liée pour le paiement"
           },
           "extra": {
             "title": "Ajouter au rendez-vous de {name}",
@@ -3385,7 +3489,10 @@
             "block": "Bloquer la table",
             "blockReason": "Bloquer une table se fait dans Espaces, pas depuis la caisse.",
             "split": "Partager l'addition",
-            "splitReason": "Partager une addition par article ou par part n'est pas encore construit."
+            "splitReason": "Partager une addition par article ou par part n'est pas encore construit.",
+            "checks": "{n} additions · {amount}",
+            "openCheck": "Ouvrir l'addition {letter} · {amount}",
+            "servedBy": "Servi par {name}"
           },
           "seat": {
             "title": "Installer {name} · {n}",
@@ -3551,6 +3658,56 @@
             "noContact": "Un e-mail ou un téléphone est nécessaire pour joindre le client.",
             "closed": "L'établissement est fermé ce jour-là.",
             "tooLateToday": "Trop tard pour réserver ce soir."
+          },
+          "merge": {
+            "crumb": "{code} › Fusionner",
+            "title": "Fusionner une autre addition dans {code}",
+            "subtitle": "Une seule addition pour deux tables",
+            "none": "Aucune autre table n'a d'addition ouverte à fusionner.",
+            "row": "{code} · {party} · {amount}",
+            "rowHint": "Ses articles passent sur cette addition ; la sienne se ferme",
+            "responsible": "Responsable de l'addition",
+            "responsibleValue": "{party} ({code})",
+            "thisCheck": "Addition {code}",
+            "otherCheck": "+ addition {code}",
+            "oneCheck": "Une seule addition",
+            "payments": "Acomptes / paiements",
+            "paymentsValue": "Une addition avec un paiement est refusée",
+            "confirm": "Fusionner · une addition pour {party} · {amount}",
+            "done": "L'addition de {code} est maintenant sur {into}."
+          },
+          "server": {
+            "title": "Changer de serveur · {code}",
+            "subtitle": "{party} · actuellement {name}",
+            "nobody": "personne",
+            "tables": "{n} tables",
+            "current": "actuel",
+            "none": "Personne dans cet espace n'a encore de nom pour recevoir la table.",
+            "fromNow": "À partir de maintenant",
+            "fromNowValue": "{name} sert {code}",
+            "tips": "Pourboires",
+            "tipsValue": "Restent sur la vente · pas répartis par serveur",
+            "drawer": "Tiroir",
+            "drawerValue": "Inchangé · ce n'est pas une remise d'espèces",
+            "confirm": "Donner {code} à {name}",
+            "done": "{code} est maintenant à {name}."
+          },
+          "split": {
+            "title": "Additions · {code} · {party}",
+            "subtitle": "{amount} d'articles · cochez des articles, puis déplacez-les",
+            "loading": "Lecture de l'addition…",
+            "unreadable": "Cette addition n'a pas pu être lue.",
+            "empty": "Rien sur cette addition pour l'instant.",
+            "check": "Addition {letter}",
+            "unpaid": "Impayée",
+            "items": "Articles",
+            "remaining": "Reste",
+            "selected": "{n} articles sélectionnés · {amount}",
+            "moveToNew": "Déplacer la sélection vers une nouvelle addition",
+            "moving": "Déplacement…",
+            "note": "Les articles se cochent sur l'addition A. Par place, à parts égales et par montants ne sont pas modélisés ; chaque addition s'encaisse au comptoir.",
+            "collect": "Encaisser l'addition {letter} · {amount}",
+            "done": "{n} articles déplacés vers une nouvelle addition."
           }
         }
       },
@@ -3602,7 +3759,169 @@
         "refusalSendFailed": "L'e-mail n'a pas pu être envoyé. Demandez un reçu imprimé à l'équipe.",
         "refusalUnavailable": "Le reçu n'a pas pu être envoyé pour le moment. Demandez un reçu imprimé à l'équipe.",
         "readUnavailable": "Cet écran a perdu la connexion avec le comptoir. Il continue d'essayer.",
-        "notAllowed": "Ce compte ne peut pas ouvrir l'écran client."
+        "notAllowed": "Ce compte ne peut pas ouvrir l'écran client.",
+        "tipRow": "Pourboire",
+        "tip": {
+          "heading": "Ajouter un pourboire ?",
+          "base": "Sur {amount} · arrondi au centime",
+          "other": "Autre",
+          "otherHint": "montant",
+          "noTip": "Sans pourboire",
+          "note": "Rien n'est débité avant votre confirmation à l'écran suivant",
+          "added": "Pourboire ajouté · {amount}",
+          "change": "Modifier le pourboire",
+          "saving": "Enregistrement du pourboire…",
+          "customHeading": "Pourboire",
+          "customBase": "Montant libre · sur {amount}",
+          "totalWouldBe": "Le total serait de {amount}",
+          "add": "Ajouter {amount} de pourboire"
+        }
+      },
+      "messages": {
+        "title": "Messages",
+        "inbox": "Boite",
+        "thread": "Fil",
+        "search": "Rechercher des messages",
+        "reply": "Repondre",
+        "note": "Note interne",
+        "assign": "Attribuer un responsable",
+        "resolve": "Resoudre",
+        "reopen": "Rouvrir",
+        "handOver": "Transmettre",
+        "sendOptions": "Envoyer des options",
+        "addToDraft": "Ajouter au brouillon",
+        "requestPayment": "Demander un paiement",
+        "collectHere": "Encaisser ici",
+        "closeLost": "Classer comme perdu",
+        "remind": "Rappeler",
+        "newConversation": "Nouvelle conversation",
+        "tabCustomer": "Client",
+        "tabLinked": "Lies",
+        "tabNotes": "Notes",
+        "empty": "Pas encore de conversations.",
+        "noResults": "Aucune conversation ne correspond.",
+        "failedLoad": "Impossible de charger les conversations.",
+        "toastIncoming": "Un nouveau message est arrive.",
+        "backToSale": "Retour a la vente",
+        "deposit": "Acompte",
+        "full": "Montant complet",
+        "none": "Pas de paiement maintenant",
+        "webChatOnlyCustomer": "Le chat web ne peut etre ouvert que par le client.",
+        "whatsappNeedsTemplate": "WhatsApp exige d abord un modele approuve.",
+        "draftKept": "Votre texte est toujours la.",
+        "filter": {
+          "all": "Tous",
+          "unread": "Non lus",
+          "unassigned": "Non attribues",
+          "mine": "Les miens",
+          "needsReply": "A repondre",
+          "awaitingCustomer": "En attente du client",
+          "resolved": "Resolus"
+        },
+        "state": {
+          "needsReply": "A repondre",
+          "awaitingCustomer": "En attente du client",
+          "resolved": "Resolu",
+          "gathering": "Collecte des details",
+          "offerSent": "Offre envoyee",
+          "awaitingAcceptance": "En attente d acceptation",
+          "acceptedAwaitingDeposit": "Acceptee, acompte en attente",
+          "won": "Gagne",
+          "lost": "Perdu"
+        },
+        "refusal": {
+          "conflict": "Cette conversation vient de changer. Rechargez et reessayez.",
+          "not_found": "Cette conversation n existe plus.",
+          "wrong_tenant": "Cet enregistrement n appartient pas a cet espace.",
+          "invalid": "Cela ne peut pas etre enregistre.",
+          "unavailable": "Impossible de terminer. Reessayez.",
+          "channel_unavailable": "Ce canal n est pas disponible.",
+          "template_required": "WhatsApp exige d abord un modele approuve.",
+          "rate_limited": "Attendez un instant et reessayez.",
+          "checkout_locked": "Le paiement est verrouille sur le panier envoye.",
+          "already_resolved": "Cette conversation est deja resolue.",
+          "no_owner": "Cette conversation n a pas encore de responsable.",
+          "identity_unconfirmed": "L identite du client n est pas confirmee.",
+          "already_linked": "Cet enregistrement est deja lie.",
+          "version_stale": "Quelqu un d autre a enregistre d abord. Comparez les trois versions.",
+          "payment_unknown": "Le statut du paiement est inconnu. Ne le redemandez pas.",
+          "already_paid": "C est deja paye.",
+          "hold_ended": "La retenue pour ce creneau est terminee.",
+          "basket_changed": "Le panier a change apres le debut du paiement.",
+          "not_allowed": "Vous ne pouvez pas faire cela ici.",
+          "expired": "Ce lien ou cette offre a expire.",
+          "already": "C est deja fait."
+        },
+        "ui": {
+          "visitor": "Visiteur",
+          "unassigned": "Non attribue",
+          "actions": "Actions",
+          "createOrLink": "Creer ou lier un dossier",
+          "attachFile": "Joindre un fichier",
+          "scheduleReminder": "Planifier un rappel",
+          "ask": "Demander",
+          "matchExisting": "Associer un existant",
+          "noProfile": "Sans profil",
+          "saveSuggested": "Enregistrez seulement si vous confirmez que ce sont bien leurs coordonnees.",
+          "guestOrder": "Une commande invite a besoin d un nom et d un moyen de dire que c est pret. Pas de fiche client.",
+          "nameNotGiven": "Non indique",
+          "webChatOnly": "chat web seulement",
+          "nothingLinked": "Rien n est encore lie.",
+          "shareBookingLink": "Partagez votre lien de reservation",
+          "clearSearch": "Effacer la recherche",
+          "tryAgain": "Reessayer",
+          "emptyBody": "Les clients vous ecrivent depuis le site, la reservation, le QR de table et votre profil public.",
+          "noResultsBody": "La recherche couvre noms, sujets, texte et numeros de commande ou de reservation.",
+          "failedBody": "La connexion a ete perdue. Les textes saisis restent sur cet appareil.",
+          "composerCustomer": "Client",
+          "composerNote": "Note interne",
+          "replyPlaceholder": "Repondre…",
+          "notePlaceholder": "Note pour votre equipe seulement",
+          "customerReceives": "Le client recoit ceci",
+          "openCount": "ouvertes",
+          "source": "Source",
+          "request": "Demande",
+          "history": "Historique",
+          "owedNow": "Ce qui reste du",
+          "letComplete": "Laisser le paiement ouvert se terminer",
+          "cancelPayment": "Annuler la page de paiement et envoyer le nouveau panier",
+          "recoverKitchen": "Relancer le ticket cuisine",
+          "recoverOrder": "Recuperer la commande depuis le paiement enregistre",
+          "retrySameTicket": "Le meme identifiant de ticket a chaque essai, donc pas de double debit.",
+          "assignToMe": "M attribuer",
+          "cancel": "Annuler",
+          "sendForCustomer": "Envoyer pour que le client choisisse",
+          "previewCard": "L apercu est la carte client: prix, sans cout ni notes.",
+          "ownerHint": "Le responsable repond et assure le suivi. Qui execute se choisit sur la reservation.",
+          "relinkImpact": "Relier deplace la conversation. Une commande payee garde son paiement et son client.",
+          "confirmSuggestions": "Les details du chat restent des suggestions tant qu ils ne sont pas confirmes.",
+          "later": "Plus tard",
+          "open": "Ouvrir",
+          "details": "Details",
+          "searchHint": "Les resultats montrent l extrait. Ouvrir amene au message.",
+          "reminderOne": "Un message planifie par dossier. Une reponse l annule.",
+          "nudgeReply": "A repondre",
+          "collectLink": "Lien de paiement",
+          "collectTap": "Tap to Pay",
+          "collectCash": "Especes",
+          "collectPickup": "Payer au retrait",
+          "paidRemaining": "Paye et restant",
+          "nextReply": "Repondre",
+          "nextAssign": "Attribuer",
+          "nextCollect": "Encaisser",
+          "nextFollow": "Suivi",
+          "revise": "Reviser",
+          "withdraw": "Retirer"
+        },
+        "disabled": {
+          "attach": "La piece jointe n est pas encore branchee dans ce paquet (D-POS-83).",
+          "tapToPay": "Tap to Pay exige le passage vers l appli du fournisseur, non monte ici (D-POS-84).",
+          "webChat": "Le chat web ne peut etre ouvert que par le client (D-POS-77).",
+          "rail": "Le rail POS est une couture integrateur. Cet ecran ne peut pas ajouter le compteur (D-POS-85).",
+          "today": "L onglet Aujourd hui de l espace est une couture integrateur (D-POS-86).",
+          "change": "Le changement apres achat utilise l ecrivain de politique du paquet 2, non monte ici (D-POS-87).",
+          "whatsapp": "WhatsApp et SMS restent indisponibles tant que ces cles n existent pas (D-POS-78)."
+        }
       }
     },
     "adminAppointments": {
@@ -4003,7 +4322,10 @@
         "proposedBody": "{from} devient {to}. Le travail continue selon v{n} jusqu'à l'acceptation du client ; un refus garde v{n} telle quelle.",
         "remind": "Relancer le client",
         "withdrawOnConversation": "Retirer depuis la conversation",
-        "priorKept": "v{n} (envoyée le {date}, {amount}) est conservée telle quelle pour l'historique."
+        "priorKept": "v{n} (envoyée le {date}, {amount}) est conservée telle quelle pour l'historique.",
+        "sendVersion": "Envoyer la v{n}",
+        "discardProposal": "Abandonner la proposition",
+        "refusalNoLock": "La conversation n'a pas pu être lue. Rechargez et réessayez."
       },
       "milestones": {
         "title": "Jalons et livrables",
@@ -4031,12 +4353,18 @@
         "refusalInvalid": "Cette demande ne designait aucun livrable sur lequel agir.",
         "sumTitle": "Jalons et livrables",
         "add": "Ajouter un jalon",
-        "addUnavailable": "Un jalon s'écrit sur la réservation à laquelle il appartient ; il n'y a pas encore d'éditeur ici.",
         "onDelivery": "À la livraison · {date}",
         "requestChanges": "Demander des modifications",
         "approveClient": "Approuver (client)",
         "edit": "Modifier",
-        "overdue": "En retard"
+        "overdue": "En retard",
+        "addTitle": "Jalon",
+        "addDue": "Échéance",
+        "addSave": "Enregistrer",
+        "replaceFile": "Remplacer le fichier",
+        "uploadNoInquiry": "Ce projet n'a pas de conversation où garder un fichier.",
+        "uploadFailed": "Le fichier n'a pas pu être envoyé. Réessayez.",
+        "uploading": "Envoi…"
       },
       "team": {
         "title": "Equipe",
@@ -4064,7 +4392,10 @@
         "impactOutgoingValue": "Conservé sur la ligne pour l'historique · rien de gagné",
         "impactClient": "Client",
         "impactClientValue": "Non prévenu d'ici · aucune approbation requise",
-        "replaceConfirm": "Remplacer et inviter"
+        "replaceConfirm": "Remplacer et inviter",
+        "replaceNoProfile": "Cette personne a été saisie sur l'offre et n'a pas de profil à remplacer.",
+        "replacementPick": "Choisir une personne",
+        "replacementNone": "Personne d'autre n'est encore dans l'équipe."
       },
       "money": {
         "quotedNotAgreed": "Aucune version n'a ete acceptee : il n'y a donc pas encore de prix convenu.",
@@ -4123,12 +4454,15 @@
         "reasonAlreadyClosed": "Ce projet est déjà clôturé",
         "reasonNotConfirmed": "Indisponible · seul un projet confirmé ou en cours peut être terminé",
         "reasonNotClosed": "Seulement pour les projets clôturés",
-        "reasonNoWriter": "Pas encore disponible · rien n'enregistre cet état",
         "back": "Retour",
         "confirmComplete": "Terminer le projet",
         "confirmCancel": "Annuler le projet…",
         "refused": "Non clôturé.",
-        "done": "Terminé · tous les projets"
+        "done": "Terminé · tous les projets",
+        "reasonNotArchived": "Seul un projet archivé peut être rouvert",
+        "reasonAlreadyArchived": "Ce projet est déjà archivé",
+        "confirmArchive": "Archiver le projet",
+        "confirmReopen": "Rouvrir le projet"
       },
       "visibility": {
         "title": "Qui voit quoi",
@@ -4260,7 +4594,6 @@
       "activityUnavailable": "Impossible de lire l'activité pour le moment.",
       "files": "Fichiers",
       "filesUpload": "Téléverser",
-      "filesUnavailable": "Aucun espace de fichiers n'est encore rattaché à un projet ; les fichiers se partagent dans la conversation.",
       "activity": {
         "created_manual": "Projet créé manuellement",
         "duplicated": "Projet dupliqué",
@@ -4287,7 +4620,8 @@
       "sideDates": "Dates",
       "dateStarts": "Début",
       "dateEnds": "Fin",
-      "dateMilestoneDue": "{title} dû"
+      "dateMilestoneDue": "{title} dû",
+      "filesNone": "Aucun fichier n'est encore joint à un jalon."
     },
     "clientRecord": {
       "title": "Client",
@@ -4387,7 +4721,8 @@
       "tabPurchases": "Achats et soldes",
       "tabProjects": "Projets",
       "tabDetails": "Détails",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "linkSent": "Lien de paiement envoyé · expire {when} · vous serez prévenu au paiement"
     },
     "tables": {
       "pageTitle": "Tables",
@@ -4858,7 +5193,8 @@
         "providerRefused": "Le prestataire de paiement a refusé le remboursement. Rien n'a été remboursé et rien n'a été débité. Réessayez, ou vérifiez le paiement chez le prestataire.",
         "partialFailure": "Une partie de ce remboursement est passée, l'autre non. Ne réessayez pas : les remboursements effectués sont réels. Quelqu'un doit terminer le reste à la main.",
         "unavailable": "Le remboursement n'a pas pu être enregistré. Rien n'a été remboursé. Réessayez dans un instant."
-      }
+      },
+      "refundComponentShare": "Répartition par composant"
     },
     "workspaceShell": {
       "create": {
@@ -5457,6 +5793,54 @@
           "concurrent": "Utilisation simultanée",
           "reporting": "Reporting"
         }
+      },
+      "package": {
+        "title": "Composition",
+        "intro": "Ce que contient ce forfait. Chaque composant est un article de ce catalogue ; le remboursement d'un forfait se répartit selon ces parts.",
+        "col": {
+          "component": "Composant",
+          "included": "Inclus",
+          "qty": "Qté",
+          "listPrice": "Prix catalogue",
+          "alloc": "Valeur allouée"
+        },
+        "pick": "Choisir un article",
+        "required": "Obligatoire",
+        "optional": "Optionnel",
+        "remove": "Retirer le composant",
+        "none": "Pas encore de composant.",
+        "add": "Ajouter un composant",
+        "addHint": "Enregistrez la composition quand chaque ligne a un article.",
+        "emptyCatalog": "Créez d'abord un autre article ; un forfait se compose d'articles.",
+        "save": "Enregistrer la composition",
+        "saved": "Composition enregistrée.",
+        "allocationNote": "L'allocation est proportionnelle au prix catalogue de chaque composant ; le reste de l'arrondi va à la dernière ligne, pour que les parts fassent toujours le prix du forfait.",
+        "dependenciesReason": "Les dépendances entre composants, les montants manuels et l'aperçu client ne sont pas encore enregistrés ; un composant obligatoire indisponible refuse tout le forfait en caisse."
+      },
+      "phases": {
+        "title": "Phases de prix",
+        "intro": "Des prix datés, comme un tarif early bird. La phase en cours fixe le prix d'une vente à sa première tarification ; une phase suivante ne change jamais une ligne déjà tarifée.",
+        "col": {
+          "phase": "Phase",
+          "from": "Du",
+          "until": "Jusqu'au",
+          "price": "Prix",
+          "state": "État"
+        },
+        "open": "Ouverte",
+        "none": "Pas encore de phase ; le prix de base s'applique.",
+        "state": {
+          "live": "En cours",
+          "upcoming": "À venir",
+          "ended": "Terminée"
+        },
+        "remove": "Retirer",
+        "removeReason": "Une phase ne peut pas encore être modifiée ni retirée ; ajoutez la phase suivante avec sa date de début.",
+        "add": "Ajouter une phase",
+        "save": "Enregistrer la phase",
+        "cancel": "Annuler",
+        "saved": "Phase enregistrée.",
+        "stampNote": "Une vente garde la phase à laquelle elle a été tarifée. Modifier une phase après une vente ne retarife jamais cette vente."
       }
     },
     "discounts": {
@@ -5733,7 +6117,6 @@
         "spaceNone": "Non défini",
         "layout": "Plan",
         "layoutNone": "Aucun plan",
-        "layoutReason": "Les plans sont le travail S4-S6 de l'aire Espaces, en attente.",
         "blocked": "Intervalle bloqué",
         "blockedReason": "Un événement ne bloque encore aucun intervalle sur un espace ; seul le délai d'ouverture des portes est enregistré.",
         "dining": "Réservations de table dans la fenêtre",
@@ -5887,14 +6270,12 @@
       "server": "Serveur",
       "serverNone": "Demandez à n'importe quel membre de l'équipe",
       "startOrdering": "Commencer à commander",
-      "orderingReason": "Commander depuis votre téléphone n'est pas encore ouvert ; votre serveur prend la commande.",
       "chipTableOrder": "QR de table",
       "chipNotPayment": "Pas un code de paiement",
       "yourBill": "Votre addition",
       "tableCode": "Table {code}",
       "payAll": "Tout payer · {amount}",
       "payShare": "Payer ma part",
-      "payReason": "Payer depuis votre téléphone n'est pas encore ouvert ; l'addition se règle à table avec votre serveur.",
       "tableLine": "Table {code} · votre visite",
       "menu": {
         "title": "Menu",
@@ -6005,6 +6386,43 @@
         "title": "Mon travail",
         "sentence": "Mon travail n'existe pas encore. Aucune page ne montre à une personne ses propres créneaux, missions et gains, donc rien ici ne peut le prétendre.",
         "detail": "Vos rendez-vous sont dans le Calendrier et sous Rendez-vous et cours ; les projets où vous êtes sont sous Projets. Les missions à accepter, les conflits d'agenda et vos gains vivront ici dès qu'un lecteur existera (D-POS-69)."
+      }
+    },
+    "venue": {
+      "engine": {
+        "refusal": {
+          "duplicate_slug": "Cet identifiant d'emplacement est deja utilise.",
+          "last_location": "Un espace a besoin d'au moins un emplacement.",
+          "has_spaces": "Cette zone a encore des tables.",
+          "already_seated": "Ce groupe est deja installe.",
+          "space_occupied": "Cette table a deja un groupe.",
+          "expired": "Cette place en liste d'attente a expire.",
+          "overlap": "Ces periodes de service se chevauchent.",
+          "two_active": "Cet emplacement a deja un plan actif.",
+          "station_in_use": "Cette station a encore des tickets ou des articles.",
+          "visit_closed": "Cette visite de table est terminee.",
+          "item_unavailable": "Cet article n'est pas disponible.",
+          "already_paid": "Cette part est deja payee.",
+          "exceeds_outstanding": "C'est plus que ce qui reste a payer.",
+          "not_submitted": "La cuisine n'a pas encore recu cette ligne.",
+          "seat_taken": "Cette place est deja prise.",
+          "hold_expired": "La retenue sur cette place a expire.",
+          "same_session": "Ce billet est deja pour cette soiree.",
+          "price_up_needs_payment": "La nouvelle soiree coute plus. Payez d'abord la difference.",
+          "needs_approval": "Un responsable doit d'abord approuver cela.",
+          "channel_unavailable": "Ce canal d'envoi n'est pas disponible.",
+          "superseded": "Ce code de billet a ete remplace.",
+          "too_many_attempts": "Trop d'essais. Attendez et reessayez.",
+          "unknown_device": "Cet appareil n'est pas enregistre.",
+          "not_replayable": "Cette commande ne peut pas etre enregistree hors ligne.",
+          "stale_app": "Cette version de l'application est trop ancienne.",
+          "conflict": "Cela vient de changer. Rechargez et reessayez.",
+          "not_found": "Cet enregistrement n'existe plus.",
+          "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
+          "invalid": "Cela ne peut pas etre enregistre.",
+          "unavailable": "Impossible de terminer. Reessayez.",
+          "not_allowed": "Vous ne pouvez pas faire cela ici."
+        }
       }
     }
   },
@@ -6210,7 +6628,6 @@
           "notTracked": "–",
           "notTrackedWhy": "Pas encore suivi : {what}",
           "locationsWhy": "une personne n'est pas liée à un lieu ; chaque lieu réserve tout le monde",
-          "pinWhy": "le point de vente n'a pas de PIN",
           "drawerWhy": "une caisse n'est pas attribuée à une personne",
           "busyFreeWhy": "le temps occupé chez d'autres entreprises n'est pas encore partagé",
           "posPermissionsWhy": "les permissions du point de vente par personne ne sont pas enregistrées ; le rôle décide",
@@ -6225,7 +6642,10 @@
           "invited": "Invité",
           "suspended": "Suspendu",
           "removed": "Retiré",
-          "noContact": "Pas d'e-mail enregistré"
+          "noContact": "Pas d'e-mail enregistré",
+          "pinSet": "Défini",
+          "pinNone": "Aucun",
+          "pinWhy": "le point de vente n'a pas de PIN"
         },
         "empty": {
           "everyone": "Personne pour l'instant. Ajoutez la première personne et choisissez ses casquettes.",
@@ -6582,6 +7002,17 @@
           "phaseRuleValue": "Tout le rendez-vous bloque la personne",
           "phaseRuleOff": "Les phases de service ne sont pas modélisées (D-POS-2) ; toute la durée bloque la personne."
         }
+      },
+      "pin": {
+        "title": "Code de caisse",
+        "set": "Un code est défini. En saisir un nouveau le remplace ; personne ne peut le relire.",
+        "none": "Pas encore de code. Avec un code, cette personne peut déverrouiller une caisse et, comme responsable, approuver un montant libre.",
+        "label": "Nouveau code",
+        "placeholder": "4 à 6 chiffres",
+        "save": "Définir le code",
+        "replace": "Remplacer le code",
+        "saving": "Enregistrement…",
+        "saved": "Code enregistré. Seul le hachage est conservé."
       }
     }
   }

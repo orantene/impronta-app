@@ -1,0 +1,380 @@
+[
+  {
+    "board": "MS01",
+    "page": 2,
+    "note": "An incoming message during an open card attempt is a toast beside the sale, never a modal; the attempt keeps its device and drawer owner.",
+    "title": "03"
+  },
+  {
+    "board": "MS02",
+    "page": 3,
+    "note": "Row = name or \u201cVisitor\u201d, subject, last message, time, unread, owner, record chips, one next action. The panel shows what the next action needs; history and explanations live behind disclosures.",
+    "title": "04"
+  },
+  {
+    "board": "MS02B",
+    "page": 4,
+    "note": "Both side columns collapse to a rail. Every commerce action (send options, create or link, request payment, attach, note, reminder) lives in one labelled Actions control beside the composer.",
+    "title": "05"
+  },
+  {
+    "board": "MS03",
+    "page": 5,
+    "note": "Three states, three actions. A failed load keeps typed drafts on the device.",
+    "title": "06"
+  },
+  {
+    "board": "MS04",
+    "page": 6,
+    "note": "Details from the chat are suggestions until confirmed. A pickup order needs a name and a way to say it is ready; a guest order (name + reference) is allowed, no customer record required.",
+    "title": "07"
+  },
+  {
+    "board": "MS05",
+    "page": 7,
+    "note": "Linking (internal, shows history to staff) \u2260 confirming identity (a known detail or SMS code) \u2260 granting the customer access to their records. A phone match and a name-only similarity are different choices.",
+    "title": "08"
+  },
+  {
+    "board": "MS05B",
+    "page": 8,
+    "note": "Re-linking shows the impact first: the conversation moves, the paid order keeps its payment and changes buyer, nothing from this chat stays on the wrong person, and the change is audited with a reason.",
+    "title": "09"
+  },
+  {
+    "board": "MS06",
+    "page": 9,
+    "note": "Owner = who replies and follows up; it is a permission, not a profession. Who performs the service is chosen on the booking (MS10). Appts & classes",
+    "title": "10"
+  },
+  {
+    "board": "MS07",
+    "page": 10,
+    "note": "One picker with tabs per family; two exits: send for the customer to choose, or add to the draft. The preview is exactly the customer card: thumbnails, prices in MXN, no cost, margin or notes.",
+    "title": "11"
+  },
+  {
+    "board": "MS08",
+    "page": 11,
+    "note": "The card shows its own state (sent \u00b7 viewed \u00b7 selected). Customer and operator edit one draft (#1203); the panel is the draft. The pickup slot is kept only while the payment link is valid.",
+    "title": "12"
+  },
+  {
+    "board": "MS09",
+    "page": 12,
+    "note": "Colour 1 h 50 (apply, processing, rinse) + cut 45 min = 2 h 35; Olaplex runs during processing. A shown slot is not a hold: availability is rechecked when Laura picks, and the pick holds Dani, chair 2 and the basin for 15 min. Appts & classes",
+    "title": "13"
+  },
+  {
+    "board": "MS10",
+    "page": 13,
+    "note": "Eligibility, location, conflicts, resources per phase. Staff need no acceptance step; represented talent accept each assignment under their contract. Preference vs confirmed assignment is explicit. Appts & classes",
+    "title": "14"
+  },
+  {
+    "board": "MS11",
+    "page": 14,
+    "note": "What is already linked is shown before anything is created. Reservation, catering order and tickets each keep their own payment and capacity; the conversation survives all of them. Tables",
+    "title": "15"
+  },
+  {
+    "board": "MS12",
+    "page": 15,
+    "note": "Customer content (lines, total, deposit, milestones, validity, cancellation) is one card; internal (fees, margin) is a separate locked card that is never sent. Projects",
+    "title": "16"
+  },
+  {
+    "board": "MS13",
+    "page": 16,
+    "note": "v2 is current with Remind / Revise / Withdraw; v1 is a collapsed superseded card. Acceptance is the customer\u2019s, on the exact version; \u201cAccepted \u00b7 awaiting deposit\u201d is not Won. Projects",
+    "title": "17"
+  },
+  {
+    "board": "MS14",
+    "page": 17,
+    "note": "Same three numbers as the customer card ($1,350 \u00b7 $405 \u00b7 $945). Request a secure page or collect at the counter; both settle the same record once. No card is \u201con file\u201d from a chat. Appts & classes",
+    "title": "18"
+  },
+  {
+    "board": "MS15",
+    "page": 18,
+    "note": "The card states paid and remaining with the original request. Requested \u2192 opened \u2192 paid \u2192 saved \u2192 kitchen is a history, not a status bar.",
+    "title": "19"
+  },
+  {
+    "board": "MS16",
+    "page": 19,
+    "note": "Each queue has an owner and one action. Closing as lost names the reason and can withdraw the live offer; the customer\u2019s existing records are untouched.",
+    "title": "20"
+  },
+  {
+    "board": "MS17",
+    "page": 20,
+    "note": "Requested Mon 14 Sep 09:12, 24 h 48 min before the appointment; cutoff Mon 14 Sep 10:00; deposit kept, no fee. What changes for Dani, chair, basin and the original slot is listed before confirming. Appts & classes",
+    "title": "21"
+  },
+  {
+    "board": "MS18",
+    "page": 21,
+    "note": "Previous, Luis\u2019s saved version and your change side by side with the result of keeping both. Marco chose 19:40, so he must review before paying.",
+    "title": "22"
+  },
+  {
+    "board": "MS19",
+    "page": 23,
+    "note": "What the operator does depends on what is known: retry a kitchen ticket, recover an order from the saved checkout, check a payment status, or resolve an unavailable slot. None of them requests payment again.",
+    "title": "24"
+  },
+  {
+    "board": "MS19B",
+    "page": 24,
+    "note": "Same ticket id on every retry, so no duplicate. After three failures the order goes to Issues with the payment and ticket attached; the counter can print it.",
+    "title": "25"
+  },
+  {
+    "board": "MS20",
+    "page": 25,
+    "note": "The payment page is locked to basket v3. A later edit becomes v4; either let v3 complete or cancel the page and send v4 for review. Nothing is silently merged.",
+    "title": "26"
+  },
+  {
+    "board": "MS21",
+    "page": 26,
+    "note": "Operators can start a WhatsApp, SMS or email conversation; web chat can only be opened by the customer. Without a contact method there is a note on the record, not a message.",
+    "title": "27"
+  },
+  {
+    "board": "MS22",
+    "page": 27,
+    "note": "Internal mode is visibly different from a reply. Attachments show sent, uploading and failed states on both sides. Appts & classes",
+    "title": "28"
+  },
+  {
+    "board": "MS23",
+    "page": 28,
+    "note": "Sent, delivered, read and failed per channel; a failed message is kept and retried once; drafts survive a disconnect; new messages below the fold are a pill, not a jump.",
+    "title": "29"
+  },
+  {
+    "board": "MS24",
+    "page": 29,
+    "note": "A reply after resolution reopens the conversation for the same owner. Handover moves the pending draft and reminders; the customer sees the same thread.",
+    "title": "30"
+  },
+  {
+    "board": "MS25",
+    "page": 30,
+    "note": "Results show the matching snippet; opening lands on the message; Back returns to the list, then to the thread at the same position.",
+    "title": "31"
+  },
+  {
+    "board": "MS26",
+    "page": 31,
+    "note": "One scheduled message per record; the row says why it was cancelled (reply, payment, handover) or why it failed (invalid number) and what to do.",
+    "title": "32"
+  },
+  {
+    "board": "MS30",
+    "page": 32,
+    "note": "Acceptance stands 48 h if the deposit fails; a decline after payment proposes a named replacement the customer must approve; an expired version is revised or closed; a withdraw/accept race resolves to the earlier action. Projects",
+    "title": "33"
+  },
+  {
+    "board": "MS31",
+    "page": 33,
+    "note": "On a portrait tablet the thread takes the full width; the return strip keeps the sale, its device and drawer; the reader result appears on the sale, not in the thread. Messages Beside sale #1188 \u00b7 card attempt open \u00b7 Ana \u00b7 Drawer 1",
+    "title": "34"
+  },
+  {
+    "board": "MC01",
+    "page": 35,
+    "note": "Thumbnails, availability, MXN, \u201cChoose\u201d; whole menu one tap away. CN Casa Nube Centro \u00b7 usually replies within the hour Hi! Do you do pizza for pickup around 7:30? We are 3 people. 18:41 Yes \u2014 pickup from 19:00 tonight. Two large pizzas feed 3 easily. Want to see the menu? Ana \u00b7 Casa Nube \u00b7 18:43 OPTIONS FROM CASA NUBE M Margherita Large \u00b7 tomato, mozzarella, basil Available tonight $180 Choose D Diavola Large \u00b7 spicy salami, chilli Available tonight $210 Choose Prices in MXN \u00b7 pickup only \u00b7 Centro \u00b7 from 19:00 See the whole menu Message Casa Nube\u2026",
+    "title": "36"
+  },
+  {
+    "board": "MC02",
+    "page": 36,
+    "note": "The title and price follow the size. Paid extras and free preparation requests are separate lists. CN Casa Nube Centro \u00b7 usually replies within the hour Want to see the menu? Ana \u00b7 18:43 Message Casa Nube\u2026 Diavola \u00b7 Large \u00b7 $210 D Spicy salami, chilli, mozzarella. Title and price follow the size you pick. SIZE \u00b7 REQUIRED Medium $170 Large $210 PAID EXTRAS Extra mozzarella +$30 Jalape\u00f1os +$20 REQUESTS \u00b7 FREE No chilli to the kitchen Well done to the kitchen Quantity \u2212 1 + Add to order \u00b7 $240",
+    "title": "37"
+  },
+  {
+    "board": "MC03",
+    "page": 37,
+    "note": "19:40 is kept while the payment link is valid (pay by 19:15). Nothing charged until the payment page. CN Casa Nube Centro \u00b7 usually replies within the hour Yes \u2014 pickup from 19:00 tonight\u2026 Ana \u00b7 18:43 YOUR ORDER \u00b7 DRAFT Editing together 2 Margherita Large \u00b7 extra basil $360 1 Diavola Large \u00b7 extra mozzarella +$30 \u00b7 no chilli (request) $240 Total \u00b7 MXN $600 PICKUP TIME \u00b7 TONIGHT 19:20 19:40 20:00 Kitchen needs 25 min. 19:40 is kept for you while you pay \u2014 by 19:15. Review & pay \u00b7 $600 Nothing is charged until you confirm on the payment page Message Casa Nube\u2026",
+    "title": "38"
+  },
+  {
+    "board": "MC04",
+    "page": 38,
+    "note": "Colour, cut and Olaplex with their durations; together $1,350 \u00b7 2 h 35; deposit 30% ($405) refundable up to 24 h before. CN Casa Nube Centro \u00b7 usually replies within the hour Hi! I\u2019d like colour and a cut with Dani next week if she has anything Tuesday. And the Olaplex she recommended. 18:05 SERVICES \u00b7 CASA NUBE Colour \u00b7 full head with Dani \u00b7 1 h 50 $900 Cut & blow-dry with Dani \u00b7 45 min $350 Olaplex treatment during the colour \u00b7 no extra time $100 Together \u00b7 2 h 35 $1,350 MXN Deposit 30% ($405) to book \u00b7 Deposit refundable up to 24 h before the appointment. Final price may change if you add something at the chair. Choose a time Message Casa Nube\u2026",
+    "title": "39"
+  },
+  {
+    "board": "MC05",
+    "page": 39,
+    "note": "Live times, rechecked on pick; picking holds Dani for 15 minutes while the deposit is paid. CN Casa Nube Centro \u00b7 usually replies within the hour Two times on Tuesday work for Dani \u2014 Ana \u00b7 18:12 TIMES WITH DANI \u00b7 TUE 15 SEP DC Dani Cruz \u00b7 Stylist Colour + cut + Olaplex \u00b7 2 h 35 \u00b7 Centro 10:00 until 12:35 14:30 until 17:05 Times are live \u2014 checked again when you choose. Picking one holds Dani for 15 minutes while you pay the deposit. Book Tue 15 Sep 10:00 with Dani Message Casa Nube\u2026",
+    "title": "40"
+  },
+  {
+    "board": "MC06",
+    "page": 40,
+    "note": "Capacity, eligibility, pass use, guest pricing; a full session offers the waitlist. CN Casa Nube Centro \u00b7 usually replies within the hour Any Pilates on Tuesday at lunch? Me + a friend if there is space. 12:02 PILATES REFORMER \u00b7 DROP-IN Tue 15 Sep \u00b7 13:00 \u00b7 Studio B \u00b7 Vale 50 min \u00b7 all levels \u00b7 $250 or 1 pass credit 2 places left You have 3 credits WHO IS COMING Just me Uses 1 credit Me + 1 guest Guest pays $250 \u00b7 name at checkout Enrol \u00b7 1 credit + $250 THU 17 SEP \u00b7 13:00 Full \u00b7 6 on the waitlist Waitlist Join waitlist Message Casa Nube\u2026",
+    "title": "41"
+  },
+  {
+    "board": "MC07",
+    "page": 41,
+    "note": "Rooftop Jazz is not on the Saturday Tom\u00e1s asked for: the card says so and offers Fri 18 Sep. Four admissions ($1,600) and an optional add-on ($250) are different things. CN Casa Nube Centro \u00b7 usually replies within the hour Court for 4 on Saturday morning, and 4 tickets for the rooftop after. Sat 12:18 PADEL COURT \u00b7 SAT 12 SEP Court 2 \u00b7 10:00\u201311:30 Up to 4 players \u00b7 rackets included \u00b7 $600 MXN Free Reserve 10:00 \u00b7 $600 ROOFTOP JAZZ Not on Saturday 12 Sep. The next Rooftop Jazz is Fri 18 Sep \u00b7 21:00. General admission $400 each \u2212 4 + Sushi workshop \u00b7 18:00 \u00b7 optional Add-on \u00b7 not an admission \u00b7 $250 Names at checkout \u00b7 standing \u00b7 or reply \u201cnot this Friday\u201d Continue \u00b7 4 admissions \u00b7 $1,600 Message Casa Nube\u2026",
+    "title": "42"
+  },
+  {
+    "board": "MC08",
+    "page": 42,
+    "note": "Exact version, terms, what changed. Accepting collects the deposit on the secure page. CN Casa Nube Social agency \u00b7 Ana Here is v2 with design as its own milestone and the 20 Sep deadline. Ana \u00b7 18:31 OFFER V2 \u00b7 SEPTEMBER CONTENT Awaiting your decision From Casa Nube \u00b7 valid until Fri 11 Sep Content production \u00b7 12 posts $12,000 Design \u00b7 templates + adaptations $6,000 Total \u00b7 MXN $18,000 Deposit to start $6,000 Milestone 2 \u00b7 15 Sep $6,000 Final \u00b7 on approval $6,000 1 revision round included \u00b7 deposit non-refundable after kickoff \u00b7 Full terms \u00b7 What changed from v1 Accept v2 \u00b7 pay $6,000 deposit Request changes Decline Ask Ana a question\u2026",
+    "title": "43"
+  },
+  {
+    "board": "MC08B",
+    "page": 43,
+    "note": "The customer names what to change; v2 stays open until v3 arrives. Declining tells Casa Nube and charges nothing. CN Casa Nube Social agency \u00b7 Ana Here is v2 \u2026 Ana \u00b7 18:31 Message Casa Nube\u2026 Request changes to v2 Tell Casa Nube what to change. v2 stays open until they send v3. WHAT TO CHANGE Scope or deliverables Price or milestones Dates or deadline Something else Could the first 6 posts land by 10 Sep? And 2 revision rounds instead of 1. Or decline: Casa Nube is told, nothing is charged, you can still ask for a new offer later. Send request Decline v2 instead",
+    "title": "44"
+  },
+  {
+    "board": "MC09",
+    "page": 44,
+    "note": "Expired, unavailable, price changed, already accepted, already paid, cancelled: each says what happened, what was (not) charged, and one way forward. A refund shows pending \u2192 completed with the timing. CN Casa Nube States you may see Offer v1 \u00b7 expired 9 Sep Expired This version can no longer be accepted. Ana can send a new one. Ask for a new offer \u2192 Tue 10:00 with Dani is no longer free Changed Someone booked it a moment ago. Your deposit was not charged. Next with Dani: Tue 14:30 \u00b7 Thu 11:00. Choose another time \u2192 Price changed \u00b7 Margherita $180 \u2192 $190 Changed Menu prices updated tonight. Your basket shows the new price; nothing was charged. Review basket \u2192 Already accepted \u00b7 v2 on 10 Sep 18:52 Done Nothing to do here. Your project is in \u201cYour projects\u201d. Open project \u2192 Already paid \u00b7 #1203 at 18:58 Done This link was already used. Your receipt is in the thread. View receipt \u2192 Cancelled by Casa Nube \u00b7 19:05 Refund pending Refund of $600: pending \u00b7 started 19:06 \u00b7 usually 3\u20135 days \u00b7 we message you when it completes. See refund status \u2192",
+    "title": "45"
+  },
+  {
+    "board": "MC10",
+    "page": 45,
+    "note": "\u201cPay by 19:15 to keep 19:40\u201d on the request; \u201cPaid $600 \u00b7 Remaining $0 \u00b7 originally requested $600\u201d on the result. CN Casa Nube Centro \u00b7 usually replies within the hour All set for 19:40. Here is the secure payment for your order. Ana \u00b7 18:52 PAY FOR ORDER #1203 Pay by 19:15 to keep 19:40 3 pizzas \u00b7 MXN $600 Due now $600 Opens Casa Nube\u2019s secure payment page. We never ask for card details in chat. Pay $600 securely PAID \u00b7 ORDER #1203 Paid Confirmed 18:58 \u00b7 card \u00b7\u00b7\u00b74471 Paid $600 Remaining $0 Originally requested $600 \u00b7 receipt sent by SMS Message Casa Nube\u2026",
+    "title": "46"
+  },
+  {
+    "board": "MC11",
+    "page": 46,
+    "note": "Pickup day and time, address, lines, paid and remaining, kitchen status; only actions that exist. CN Casa Nube Centro \u00b7 usually replies within the hour ORDER CONFIRMED \u00b7 #1203 Paid Pickup tonight \u00b7 Thu 10 Sep \u00b7 19:40 Casa Nube \u00b7 Centro \u00b7 Av. Tulum 12 2 \u00d7 Margherita \u00b7 Large \u00b7 extra basil 1 \u00d7 Diavola \u00b7 Large \u00b7 extra mozzarella +$30 \u00b7 no chilli (request) Paid $600 MXN Remaining $0 In the kitchen Ready around 19:35 \u00b7 we\u2019ll message you Get directions Change pickup time Message Casa Nube\u2026",
+    "title": "47"
+  },
+  {
+    "board": "MC11B",
+    "page": 47,
+    "note": "Date, time, end, services, professional, deposit paid, balance at the salon, free-change cutoff. No internal id. CN Casa Nube Centro \u00b7 Ana APPOINTMENT CONFIRMED Confirmed Tue 15 Sep \u00b7 10:00\u201312:35 Colour + cut + Olaplex \u00b7 with Dani \u00b7 2 h 35 \u00b7 Casa Nube Centro Deposit paid $405 Balance at the salon $945 MXN Free changes until Mon 14 Sep \u00b7 10:00 Add to calendar Reschedule Message Casa Nube\u2026",
+    "title": "48"
+  },
+  {
+    "board": "MC12",
+    "page": 48,
+    "note": "Same order, same secure page, same pay-by, same receipt; plain text promises nothing the channel cannot show. CN Casa Nube SMS \u00b7 +52 998 \u00b7\u00b7\u00b7 0100 Casa Nube: Hi Marco, your order #1203 (2 Margherita, 1 Diavola) is $600 MXN, pickup Thu 19:40. Pay securely here: tulala.digital/p/8f2k4 \u2014 pay by 19:15 to keep 19:40. Reply with questions. 18:52 Paid, thanks! 18:58 Casa Nube: Payment received, $600. Order #1203 confirmed for Thu 19:40 at Av. Tulum 12. Receipt: tulala.digital/r/1203 18:58",
+    "title": "49"
+  },
+  {
+    "board": "MC13",
+    "page": 49,
+    "note": "Old vs new date, deposit kept, balance unchanged, the policy fact (requested 24 h 48 min before the cutoff \u00b7 no fee). CN Casa Nube Centro \u00b7 Ana So sorry \u2014 could we move tomorrow\u2019s colour to Thursday same time? Mon 09:12 Of course. Thu 17 Sep \u00b7 10:00 with Dani is free \u2014 moving it now. Ana \u00b7 09:15 APPOINTMENT MOVED Tue 15 Sep \u00b7 10:00 Thu 17 Sep \u00b7 10:00\u201312:35 Confirmed Deposit $405 \u00b7 kept Balance at the salon $945 Requested 24 h 48 min before the cutoff (Mon 14 Sep \u00b7 10:00) \u00b7 no fee \u00b7 Dani, chair and basin moved with it. Add to calendar Cancel appointment Message Casa Nube\u2026",
+    "title": "50"
+  },
+  {
+    "board": "MC14",
+    "page": 50,
+    "note": "Dani sees the client, service and chair notes; not the conversation, other prices or the deposit amount. My work \u00b7 Tue 15 Sep Dani Cruz \u00b7 Centro 10:00\u201312:35 New Laura M\u00e9ndez \u00b7 Colour + cut + Olaplex Chair 2 \u00b7 basin 11:20 \u00b7 deposit paid \u00b7 booked by Ana from Messages 13:00\u201313:45 Confirmed Marta G. \u00b7 Cut Chair 1 15:00\u201317:00 Confirmed Sof\u00eda P. \u00b7 Balayage Chair 2 You see the client\u2019s name, service and chair notes \u2014 not the conversation, other clients\u2019 prices or the deposit amount. New appointment from Messages \u00b7 Laura M\u00e9ndez \u00b7 10:00",
+    "title": "51"
+  },
+  {
+    "board": "MC15",
+    "page": 51,
+    "note": "",
+    "title": "SECTION \u00b7 7 SCREENS"
+  },
+  {
+    "board": "MC16",
+    "page": 53,
+    "note": "Processing keeps the page open for 3-D Secure. A decline says nothing was taken and the slot is still kept. An unknown result says do not pay again and how the result arrives. Secure payment \u00b7 Casa Nube Order #1203 tulala.digital Processing \u00b7 $600 Your bank may ask you to confirm (3-D Secure). Keep this page open. Card declined Not charged Your bank refused the payment. Nothing was taken; 19:40 is still kept until 19:15. Try another card Back to chat We are checking your payment Unknown \u00b7 checking The bank has not answered yet. Do not pay again \u2014 we will message you within a few minutes with the result. Back to chat",
+    "title": "54"
+  },
+  {
+    "board": "MC17",
+    "page": 54,
+    "note": "The paid card and the confirmation land in the thread; the receipt link is the same one the operator sees. CN Casa Nube Centro \u00b7 usually replies within the hour PAID \u00b7 ORDER #1203 Paid Confirmed 18:58 \u00b7 card \u00b7\u00b7\u00b74471 Paid $600 MXN Remaining $0 Receipt tulala.digital/r/1203 \u00b7 sent by SMS View receipt ORDER CONFIRMED \u00b7 #1203 Confirmed Pickup Thu 10 Sep \u00b7 19:40 Casa Nube \u00b7 Centro \u00b7 Av. Tulum 12 \u00b7 in the kitchen Message Casa Nube\u2026",
+    "title": "55"
+  },
+  {
+    "board": "MC18",
+    "page": 55,
+    "note": "Closed page, expired link, paid as the hold ended, deposit then balance, free booking, receipt delivery failed: each with what is (not) charged and one way forward. CN Casa Nube Checkout states You closed the payment page Your order and 19:40 pickup are kept until 19:15. Open the payment again from this chat. Pay now \u2192 This payment link expired at 19:15 Nothing was charged and no payment was attempted. Ask Ana for a new link; pickup times are checked again. Ask for a new link \u2192 Paid at 10:14 \u00b7 the 15-min hold had just ended Your payment went through as the hold expired. Dani 10:00 was still free, so the booking is confirmed. If it had not been, you would get a refund and the next free times. See booking \u2192 Deposit paid $405 \u00b7 balance $945 at the salon Pay the balance after the service at the counter or from this chat. Free booking \u00b7 no payment needed Pilates Reformer Tue 13:00 \u00b7 covered by 1 pass credit \u00b7 nothing charged. Add to calendar \u2192 Receipt could not be sent Payment is confirmed. The SMS to +52 998 \u00b7\u00b7\u00b7 4471 failed; view the receipt here or add an email. View receipt \u2192",
+    "title": "56"
+  },
+  {
+    "board": "MC19",
+    "page": 56,
+    "note": "Only one attempt can settle a record; the other is cancelled and the customer is told there was one charge. CN Casa Nube Centro \u00b7 usually replies within the hour PAID \u00b7 ORDER #1203 Paid once Confirmed 18:58 \u00b7 card \u00b7\u00b7\u00b74471 Ana was about to charge you at the counter at the same moment. Only this payment went through \u2014 the counter attempt was cancelled. One charge, one order. Message Casa Nube\u2026",
+    "title": "57"
+  },
+  {
+    "board": "MC20",
+    "page": 57,
+    "note": "A one-time code to the phone the visitor gave continues the same conversation and payment page; without a phone, a new chat is linked by order number. CN Casa Nube Continue your conversation Pick up where you left off This chat with Casa Nube started on another device. To continue here we send a one-time code to the phone you gave, +52 998 \u00b7\u00b7\u00b7 4471. Send me the code No phone given? Start a new chat; Ana can link it to your order by the order number. Code entered \u00b7 welcome back, Marco Your order #1203 and the messages since 18:41 are here. The payment page is still open until 19:15.",
+    "title": "58"
+  },
+  {
+    "board": "CC01",
+    "page": 58,
+    "note": "Pickup 19:40 \u2192 19:45 and garlic bread added by Luis, named precisely; accept both or remove the item and keep 19:40. Same actor as the operator screen (MS18). CN Casa Nube Centro \u00b7 usually replies within the hour YOUR ORDER \u00b7 DRAFT Changed by Luis \u00b7 just now Pickup changed from your requested 19:40 to 19:45. Garlic bread was added for $60 by Luis at Casa Nube. Review these changes before paying. 2 Margherita $360 1 Diavola \u00b7 extra mozzarella $240 1 Garlic bread \u00b7 added by Luis $60 Total \u00b7 MXN $660 Pickup 19:45 (you asked 19:40) Change Accept changes \u00b7 pay $660 Remove garlic bread \u00b7 keep 19:40 Message Casa Nube\u2026",
+    "title": "59"
+  },
+  {
+    "board": "MM01",
+    "page": 62,
+    "note": "List pane of the live mobile Messages: search, scrolling filters, one row = name, subject, last message, record chip, unread count.",
+    "title": "62"
+  },
+  {
+    "board": "MM02",
+    "page": 63,
+    "note": "The thread pushes over the list (live slide). Record chips replace the tablet header chips; the nudge bar is the live \"Reply to client\" bar with the one next action.",
+    "title": "63"
+  },
+  {
+    "board": "MM03",
+    "page": 65,
+    "note": "MW07\u2019s Collect sheet reused: payment link (primary), Tap to Pay via the provider app hand-off, cash, pay at pickup under the policy. Marks nothing paid by sending a link.",
+    "title": "65"
+  },
+  {
+    "board": "MM04",
+    "page": 66,
+    "note": "Paid, remaining and the original request on the card; the nudge offers the record or resolve.",
+    "title": "66"
+  },
+  {
+    "board": "MM05",
+    "page": 67,
+    "note": "Four situations, one action each; the saved checkout is shown so nothing is retyped.",
+    "title": "67"
+  },
+  {
+    "board": "MM06",
+    "page": 68,
+    "note": "Messages beside other work: tab badge, a \"needs reply\" block on Today, a toast that opens the thread.",
+    "title": "68"
+  },
+  {
+    "board": "MS27",
+    "page": 125,
+    "note": "",
+    "title": "125"
+  },
+  {
+    "board": "MS28",
+    "page": 127,
+    "note": "",
+    "title": "127"
+  },
+  {
+    "board": "MS29",
+    "page": 129,
+    "note": "",
+    "title": "129"
+  }
+]

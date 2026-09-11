@@ -1,0 +1,1 @@
+Internal mode is visibly different from a reply. Attachments show sent, uploading and failed states on both sides. Appts & classes

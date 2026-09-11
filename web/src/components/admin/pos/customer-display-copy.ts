@@ -8,6 +8,7 @@
  * is here in all three shipped languages.
  */
 
+import type { CustomerDisplayTipCopy } from "./CustomerDisplayTip";
 import type { Translator } from "./translator";
 
 export type CustomerDisplayCopy = {
@@ -20,7 +21,9 @@ export type CustomerDisplayCopy = {
   readonly discount: string;
   readonly depositPaid: string;
   readonly toPay: string;
+  /** Only where a tip cannot be taken any more (the sale is past collection). */
   readonly tipNotOffered: string;
+  readonly tipRow: string;
   readonly reviewNote: string;
   readonly looksRight: string;
   readonly confirmHeading: string;
@@ -71,6 +74,7 @@ export function customerDisplayCopy(t: Translator): CustomerDisplayCopy {
     depositPaid: t("dashboard.pos.display.depositPaid"),
     toPay: t("dashboard.pos.display.toPay"),
     tipNotOffered: t("dashboard.pos.display.tipNotOffered"),
+    tipRow: t("dashboard.pos.display.tipRow"),
     reviewNote: t("dashboard.pos.display.reviewNote"),
     looksRight: t("dashboard.pos.display.looksRight"),
     confirmHeading: t("dashboard.pos.display.confirmHeading"),
@@ -107,6 +111,27 @@ export function customerDisplayCopy(t: Translator): CustomerDisplayCopy {
     refusalUnavailable: t("dashboard.pos.display.refusalUnavailable"),
     readUnavailable: t("dashboard.pos.display.readUnavailable"),
     notAllowed: t("dashboard.pos.display.notAllowed"),
+  };
+}
+
+/** D02 / D03: the tip chooser and the custom-amount screen. */
+export function customerDisplayTipCopy(t: Translator): CustomerDisplayTipCopy {
+  return {
+    heading: t("dashboard.pos.display.tip.heading"),
+    base: t("dashboard.pos.display.tip.base"),
+    other: t("dashboard.pos.display.tip.other"),
+    otherHint: t("dashboard.pos.display.tip.otherHint"),
+    noTip: t("dashboard.pos.display.tip.noTip"),
+    note: t("dashboard.pos.display.tip.note"),
+    added: t("dashboard.pos.display.tip.added"),
+    change: t("dashboard.pos.display.tip.change"),
+    saving: t("dashboard.pos.display.tip.saving"),
+    customHeading: t("dashboard.pos.display.tip.customHeading"),
+    customBase: t("dashboard.pos.display.tip.customBase"),
+    totalWouldBe: t("dashboard.pos.display.tip.totalWouldBe"),
+    back: t("dashboard.pos.display.back"),
+    add: t("dashboard.pos.display.tip.add"),
+    keypadBack: t("dashboard.pos.counter.collect.keypadBack"),
   };
 }
 

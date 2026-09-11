@@ -53,10 +53,13 @@ import type { ProjectRecord } from "@/lib/projects/project-record";
 
 import { posCollectionKey, tenderAfterKey } from "../counter-model";
 import { CollectDetail, CollectList, EmptyDetail } from "./collect-screen";
-import { LinksScreen } from "./links-screen";
+import { LinksScreen, type LinksScreenRow } from "./links-screen";
+import { ProjectsLinkPanel } from "./projects-link-panel";
 import { projectsCollect, projectsFindReceipt, type ProjectsReceiptResult } from "./projects-actions";
 import type { ProjectsModeCopy, ProjectsModeRefusal } from "./projects-copy";
 import { CollectedPanel, ReceiptsScreen, type Collected } from "./projects-mode-screens";
+import type { PaymentLinkCopy } from "@/components/admin/pos/PaymentLinkPanel";
+
 import type { ProjectClientContact, ProjectOrderFacts } from "./projects-mode-loader";
 import { collectAmount, collectVerdict, findProjects, type CollectSegment, type ProjectsModeRow } from "./projects-mode-model";
 import { ProjectDetail, ProjectsList } from "./projects-screen";
@@ -85,12 +88,18 @@ export type ProjectsModeClientProps = {
   readonly detail: ProjectsModeDetail | null;
   readonly minorUnitDivisor: number;
   readonly methods: PosCollectionMethodState[];
+  /** The Links destination's rows (`listWorkspacePaymentLinks`), newest first. */
+  readonly links: readonly LinksScreenRow[];
+  /** What `/pay/<code>` does on this workspace. */
+  readonly linkProvider: "stripe" | "mock";
   readonly copy: {
     readonly mode: ProjectsModeCopy;
     readonly collectSheet: CollectSheetCopy;
     readonly refusal: PosRefusalCopy;
     readonly chrome: PosChromeCopy;
     readonly issues: IssuesCopy;
+    readonly paymentLink: PaymentLinkCopy;
+    readonly engineRefusal: Readonly<Record<string, string>>;
   };
 };
 
@@ -316,7 +325,20 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
             onKeypadPress={(key) => { setTenderedCents((current) => tenderAfterKey(current, tenderTouched, key)); setTenderTouched(true); }}
             onTender={(cents) => { setTenderedCents(cents); setTenderTouched(true); }}
             onConfirmCash={() => void collect("cash")}
-            onConfirmLink={() => void collect("online_card")}
+            linkPanel={
+              <ProjectsLinkPanel
+                orderId={verdict.orderId}
+                orderVersion={orderFacts.find((o) => o.orderId === verdict.orderId)?.version ?? 0}
+                amountCents={amountDueCents}
+                currency={currency}
+                workspaceName={props.workspaceName}
+                provider={props.linkProvider}
+                links={props.links.filter((l) => l.orderId === verdict.orderId)}
+                copy={copy.paymentLink}
+                engineRefusal={copy.engineRefusal}
+                onWritten={() => router.refresh()}
+              />
+            }
             confirmLoading={busy}
             onBack={() => setCollectOpen(false)}
             backLabel={mode.collect.back}
@@ -420,7 +442,7 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
     view === "receipts" ? (
       <ReceiptsScreen mode={mode} busy={busy} receiptCode={receiptCode} onReceiptCodeChange={setReceiptCode} receipt={receipt} onFind={() => void findReceipt()} receiptHrefFor={receiptHrefFor} />
     ) : view === "links" ? (
-      <LinksScreen copy={mode} />
+      <LinksScreen copy={mode} rows={props.links} saleHref={(orderId) => `${props.posPath}?mode=counter&order=${encodeURIComponent(orderId)}`} />
     ) : view === "issues" ? (
       <IssuesScreen copy={copy.issues} />
     ) : view === "projects" ? (

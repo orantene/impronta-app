@@ -28,6 +28,7 @@ import { StatePill } from "../appointments-classes-ui";
 import type { TabProps } from "./CatalogItemEditor";
 import { exampleTotals } from "./catalog-model";
 import { BUTTON_SMALL, CARD, Eyebrow, Field, INPUT, SectionHead, TotalRow } from "./catalog-ui";
+import { PricePhases } from "./item-tab-pricing-phases";
 
 const UNITS: ReadonlyArray<{ value: ServicePricingType; key: string }> = [
   { value: "flat_package", key: "dashboard.catalog.pricing.unit.each" },
@@ -51,7 +52,7 @@ function inputToCents(raw: string): number | null {
   return Math.round(n * 100);
 }
 
-export function PricingTab({ item, patch, saving }: TabProps) {
+export function PricingTab({ item, patch, saving, isDraft }: TabProps) {
   const t = useT();
   const locale = useDashboardLocale();
   const quote = item.priceDisplay === "quote";
@@ -154,6 +155,8 @@ export function PricingTab({ item, patch, saving }: TabProps) {
           <span className="ml-[10px] font-admin-body text-[11.5px] text-admin-ink-dim">{t("dashboard.catalog.pricing.listsReason")}</span>
         </div>
       </div>
+
+      <PricePhases item={item} isDraft={isDraft} saving={saving} />
 
       <SectionHead
         title={t("dashboard.catalog.pricing.depositTitle")}

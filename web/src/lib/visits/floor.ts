@@ -88,8 +88,18 @@ export type FloorTable = {
   /** `visits.opened_at`, ISO, when occupied; the timeline draws the block from it. */
   openedAtIso: string | null;
   publicToken: string | null;
+  /**
+   * The visit's FIRST open check (oldest draft order), the one "Open order"
+   * opens. A visit may own more than one check after a split (D-POS-67);
+   * `orderIds` lists them all and `orderTotalCents` is their sum.
+   */
   orderId: string | null;
+  orderIds: string[];
+  /** Each open check with its own total, in `orderIds` order. */
+  checks: Array<{ orderId: string; totalCents: number }>;
   orderTotalCents: number;
+  /** `visits.server_user_id`: who serves this table, when somebody was named. */
+  serverUserId: string | null;
   remainingMinSpendCents: number;
   serviceKind: "table" | "tab";
   state: FloorState;
@@ -133,6 +143,7 @@ type VisitJoinRow = {
   service_kind: string | null;
   opened_at: string | null;
   party_size: number | string | null;
+  server_user_id: string | null;
 };
 
 type AdmissionRow = {
@@ -281,7 +292,7 @@ export async function listFloor(
 
   const { data: visits, error: visitError } = await admin
     .from("visits")
-    .select("id, space_id, joined_space_id, public_token, version, service_kind, opened_at, party_size")
+    .select("id, space_id, joined_space_id, public_token, version, service_kind, opened_at, party_size, server_user_id")
     .eq("tenant_id", tenantId)
     .eq("status", "open");
   if (visitError) {
@@ -298,20 +309,29 @@ export async function listFloor(
   }
   const occupiedSpaceIds = new Set<string>([...visitBySpace.keys(), ...joinedFrom.keys()]);
 
+  // EVERY OPEN CHECK ON THE VISIT, not one. A split (D-POS-67) leaves a
+  // visit with two draft orders and a merge leaves the source order
+  // cancelled on the same visit, so the read keeps only live checks and
+  // carries them all: the first (oldest) is the one a card opens, the sum is
+  // what the table owes.
   const visitIds = visitRows.map((v) => v.id);
-  const orderByVisit = new Map<string, { id: string; total_cents: number }>();
+  const ordersByVisit = new Map<string, Array<{ id: string; total_cents: number }>>();
   if (visitIds.length > 0) {
     const { data: orders, error: orderError } = await admin
       .from("orders")
-      .select("id, visit_id, total_cents")
+      .select("id, visit_id, total_cents, status, created_at")
       .eq("tenant_id", tenantId)
-      .in("visit_id", visitIds);
+      .in("visit_id", visitIds)
+      .in("status", ["draft", "pending_payment"])
+      .order("created_at", { ascending: true });
     if (orderError) {
       logServerError("visits.floor.orders", orderError);
       return { ok: false, reason: "unavailable" };
     }
     for (const o of (orders ?? []) as Array<{ id: string; visit_id: string; total_cents: number | string }>) {
-      orderByVisit.set(o.visit_id, { id: o.id, total_cents: num(o.total_cents) });
+      const list = ordersByVisit.get(o.visit_id) ?? [];
+      list.push({ id: o.id, total_cents: num(o.total_cents) });
+      ordersByVisit.set(o.visit_id, list);
     }
   }
 
@@ -377,9 +397,10 @@ export async function listFloor(
     const ownVisit = visitBySpace.get(space.id) ?? null;
     const asJoined = joinedFrom.get(space.id) ?? null; // this space is a joined-in second table
     const visit = ownVisit ?? asJoined;
-    const order = visit ? (orderByVisit.get(visit.id) ?? null) : null;
+    const orders = visit ? (ordersByVisit.get(visit.id) ?? []) : [];
+    const order = orders[0] ?? null;
     const minSpend = num(space.min_spend_cents);
-    const orderTotal = order?.total_cents ?? 0;
+    const orderTotal = orders.reduce((sum, o) => sum + o.total_cents, 0);
     const partyMin = num(space.party_min) || 1;
     const partyMax = num(space.party_max) || partyMin;
 
@@ -430,7 +451,10 @@ export async function listFloor(
       openedAtIso: visit?.opened_at ?? null,
       publicToken: visit?.public_token ?? null,
       orderId: order?.id ?? null,
+      orderIds: orders.map((o) => o.id),
+      checks: orders.map((o) => ({ orderId: o.id, totalCents: o.total_cents })),
       orderTotalCents: orderTotal,
+      serverUserId: visit?.server_user_id ?? null,
       remainingMinSpendCents: Math.max(0, minSpend - orderTotal),
       serviceKind: visit?.service_kind === "tab" ? "tab" : "table",
       state,

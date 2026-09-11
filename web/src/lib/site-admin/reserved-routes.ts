@@ -79,6 +79,9 @@ export const PLATFORM_RESERVED_SLUGS = [
   "r",
   // POS payment link `/pay/<code>`. Same shadowing as the receipt.
   "pay",
+  // Customer self-manage `/manage/<token>` (A07 / R04). Same shadowing.
+  // Mirrored in `…222000_reserve_manage_slug.sql`.
+  "manage",
   // Table occupancy guest view. `/q/<code>` redirects here while a visit is
   // open. Mirrored in `…00500_reserve_visit_slug.sql`.
   "visit",

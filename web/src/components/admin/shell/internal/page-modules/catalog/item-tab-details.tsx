@@ -12,8 +12,10 @@ import { useT } from "@/i18n/use-t";
 import type { OfferingKind } from "@/lib/talent/offerings-types";
 import type { TabProps } from "./CatalogItemEditor";
 import { Field, INPUT, SectionHead } from "./catalog-ui";
+import { PackageComposition } from "./item-tab-package";
 
-export function DetailsTab({ item, patch, saving, isDraft }: TabProps) {
+export function DetailsTab(props: TabProps) {
+  const { item, patch, saving, isDraft } = props;
   const t = useT();
   return (
     <>
@@ -98,6 +100,7 @@ export function DetailsTab({ item, patch, saving, isDraft }: TabProps) {
       {isDraft ? (
         <p className="m-0 font-admin-body text-[12px] text-admin-ink-muted">{t("dashboard.catalog.editor.draftHint")}</p>
       ) : null}
+      {item.kind === "package" ? <PackageComposition {...props} /> : null}
     </>
   );
 }

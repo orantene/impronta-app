@@ -1,0 +1,1 @@
+Details from the chat are suggestions until confirmed. A pickup order needs a name and a way to say it is ready; a guest order (name + reference) is allowed, no customer record required.

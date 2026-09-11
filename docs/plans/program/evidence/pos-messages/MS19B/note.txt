@@ -1,0 +1,1 @@
+Same ticket id on every retry, so no duplicate. After three failures the order goes to Issues with the payment and ticket attached; the counter can print it.

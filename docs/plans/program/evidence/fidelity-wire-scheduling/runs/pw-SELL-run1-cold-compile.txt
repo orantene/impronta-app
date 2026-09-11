@@ -1,0 +1,39 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/SELL-catalog-events-spaces-discounts.spec.ts:36:5 › SELL: catalog, events, spaces and discounts open with real rows; a discount code is created and read back
+[1A[2K  1) [chromium] › e2e/cases/SELL-catalog-events-spaces-discounts.spec.ts:36:5 › SELL: catalog, events, spaces and discounts open with real rows; a discount code is created and read back 
+
+    [31mTest timeout of 120000ms exceeded.[39m
+
+    Error: page.goto: net::ERR_ABORTED; maybe frame was detached?
+    Call log:
+    [2m  - navigating to "http://127.0.0.1:3231/admin/spaces", waiting until "load"[22m
+
+
+       at cases/_harness.ts:148
+
+      146 |   // the context explicitly rather than trusting the transfer.
+      147 |   await adoptSetCookies(page, setCookies);
+    > 148 |   await page.goto(nextPath);
+          |              ^
+      149 |   await assertNotAuthWall(page);
+      150 | }
+      151 |
+        at signInJourneysStaff (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-wire-scheduling/web/e2e/cases/_harness.ts:148:14)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-wire-scheduling/web/e2e/cases/SELL-catalog-events-spaces-discounts.spec.ts:57:3
+
+    Error Context: test-results/cases-SELL-catalog-events--8f8bc-de-is-created-and-read-back-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-SELL-catalog-events--8f8bc-de-is-created-and-read-back-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-SELL-catalog-events--8f8bc-de-is-created-and-read-back-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/SELL-catalog-events-spaces-discounts.spec.ts:36:5 › SELL: catalog, events, spaces and discounts open with real rows; a discount code is created and read back 
+exit 1
