@@ -237,7 +237,9 @@ function preflightMigrationDriftCheck() {
   );
   process.exit(1);
 }
-preflightMigrationDriftCheck();
+// --check reads only; --alias-only re-points domains at a build that already
+// exists, so neither can introduce schema drift. The drift gate is for promote.
+if (!checkOnly && !aliasOnly) preflightMigrationDriftCheck();
 
 // ── --check mode: just report ─────────────────────────────────────────────
 if (checkOnly) {
