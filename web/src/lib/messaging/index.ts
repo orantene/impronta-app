@@ -16,4 +16,4 @@ export { matchCustomers } from "./match-customers";
 export { diffDraft } from "./diff-draft";
 export { everyKindHasRenderers, isCardKind, renderCard } from "./cards";
 export { MESSAGING_REFUSAL_CODES, fail, refusalKey } from "./refusals";
-export { signThreadToken, verifyThreadToken } from "./thread-token";
+export { publicThreadPath, signThreadToken, verifyThreadToken } from "./thread-token";

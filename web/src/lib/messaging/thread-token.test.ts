@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { issueVisitorCode, signThreadToken, verifyThreadToken } from "./thread-token";
+import { issueVisitorCode, publicThreadPath, signThreadToken, verifyThreadToken } from "./thread-token";
 
 test("round-trip token when secret is set", () => {
   const prev = process.env.GUEST_COOKIE_SECRET;
@@ -19,4 +19,8 @@ test("round-trip token when secret is set", () => {
 test("visitor continuation code is six digits", () => {
   const code = issueVisitorCode();
   assert.match(code, /^[0-9]{6}$/);
+});
+
+test("public thread path is distinct from the guest UUID route", () => {
+  assert.equal(publicThreadPath("v1.abc.def"), "/c/t/v1.abc.def");
 });

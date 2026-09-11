@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPaymentLinkByCode, markPaymentLinkPaid } from "@/lib/payments/links";
 import { getStripe } from "@/lib/stripe/client";
-import { signThreadToken } from "@/lib/messaging/thread-token";
+import { publicThreadPath, signThreadToken } from "@/lib/messaging/thread-token";
 
 import { CheckoutView } from "./CheckoutView";
 
@@ -61,10 +61,11 @@ export default async function PayByCodePage({
     .eq("order_id", loaded.orderId);
   if (linesError) notFound();
 
-  const threadHref =
+  const threadToken =
     orderRow?.inquiry_id && loaded.tenantId
-      ? `/c/${signThreadToken(orderRow.inquiry_id, loaded.tenantId) ?? ""}`
+      ? signThreadToken(orderRow.inquiry_id, loaded.tenantId)
       : null;
+  const threadHref = threadToken ? publicThreadPath(threadToken) : null;
   const receiptHref = orderRow?.receipt_code ? `/r/${orderRow.receipt_code}` : null;
 
   if (query.status === "paid" || loaded.status === "paid") {

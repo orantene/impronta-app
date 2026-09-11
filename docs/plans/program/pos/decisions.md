@@ -910,3 +910,10 @@ using `GUEST_COOKIE_SECRET`, purpose `pos-thread`. The existing
 
 Decided 2026-09-11 (pos-messages). MM01–MM06 are `MessagesClient` with
 `compact` at 390x844. No second store and no parallel screen tree.
+
+## D-POS-82 — customer cards live at `/c/t/<token>` until `/c` can dispatch
+
+Decided 2026-09-11 (pos-messages). Next 16 rejects two `/c/[*]` routes.
+The guest UUID path stays at `/c/[inquiryId]`. POS customer cards use
+`/c/t/<token>` via `publicThreadPath`. `/c/*` is already on the surface
+allow-list. The integrator can later fold the token into `/c/:param`.

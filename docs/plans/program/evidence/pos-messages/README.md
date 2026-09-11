@@ -24,7 +24,7 @@ Verdict key: **matched** / **partial** / **not-wired**.
 | MS21–MS26 | partial | start / note / delivery / resolve / search / reminders |
 | MS30 | partial | agency recovery uses the same recover RPC |
 | MS31 | not-wired | portrait is CSS flex; no 834x1194 capture |
-| MC01–MC14 | partial | `renderCard` + `/c/<token>` |
+| MC01–MC14 | partial | `renderCard` + `/c/t/<token>` (D-POS-82) |
 | MC15–MC20 | partial | `CheckoutView` |
 | CC01 | partial | checkout unknown / expired / cancelled states |
 | MM01–MM06 | partial | `compact` phone shell |

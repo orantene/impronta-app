@@ -58,3 +58,8 @@ export function verifyThreadToken(token: string, nowMs = Date.now()): VerifyThre
 export function issueVisitorCode(): string {
   return String(randomInt(100000, 1000000));
 }
+
+/** Customer cards until the integrator dispatches `/c/:param` (D-POS-82). */
+export function publicThreadPath(token: string): string {
+  return `/c/t/${encodeURIComponent(token)}`;
+}

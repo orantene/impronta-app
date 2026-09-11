@@ -21,7 +21,7 @@ never cancels a record. A paid order never resolves a thread.
 | `matchCustomers` | `lib/messaging/match-customers.ts` | name/email/phone + customer rows | phone / name_only / new |
 | `diffDraft` | `lib/messaging/diff-draft.ts` | base, theirs, yours snapshots | previous / theirs / yours |
 | `renderCard` | `lib/messaging/cards.ts` | kind + payload + audience | operator / customer / SMS |
-| `signThreadToken` / `verifyThreadToken` | `lib/messaging/thread-token.ts` | inquiry + tenant | `/c/<token>` |
+| `signThreadToken` / `verifyThreadToken` / `publicThreadPath` | `lib/messaging/thread-token.ts` | inquiry + tenant | `/c/t/<token>` |
 
 ## Actions (`web/src/lib/server-actions/messaging-engine.ts`)
 
@@ -81,12 +81,15 @@ One-line diff: render the three families as separate chips; do not merge them.
 The existing "Messages" row opens `MessagesClient` with `compact`.
 One-line diff: `compact` prop true at 390px.
 
-### 6. Public `/c/[token]` vs existing `/c/[inquiryId]`
+### 6. Public `/c/t/[token]` vs existing `/c/[inquiryId]`
 
-New page: `web/src/app/(public)/c/[token]/page.tsx` (signed thread token).
+New page: `web/src/app/(public)/c/t/[token]/page.tsx` (signed thread token).
 Existing: `web/src/app/c/[inquiryId]/page.tsx` (guest cookie + UUID).
-These collide on `/c/:param`. Integrator: dispatch UUID → current guest
-thread; `v1.` token → new customer cards. Do not delete the cookie path.
+Next 16 refuses two `/c/[*]` patterns, so cards ship at `/c/t/<token>`
+(D-POS-82). Integrator later: dispatch UUID → current guest thread and
+`v1.` token → `publicThreadPath`; do not delete the cookie path.
+One-line diff in the existing page: if `inquiryId.startsWith("v1.")` then
+`redirect(publicThreadPath(inquiryId))`.
 
 ### 7. Crons
 
