@@ -27,12 +27,41 @@ import {
   inquiryOfferApprovals,
   QA_JOURNEYS_TALENT_ID,
 } from "./_isolated-db";
+import type { Page } from "@playwright/test";
 
 skipUnlessFixture();
 
 test.beforeEach(async ({ page }) => {
   await prepareJourneysPage(page);
 });
+
+/**
+ * Directory guest chat after the fidelity re-skin keeps a prior thread in the
+ * dock. The name/email gate only appears on a first send of a NEW inquiry, so
+ * a leftover draft looks like a missing form. Open a fresh thread first.
+ */
+async function openFreshDirectoryChat(page: Page) {
+  await page.goto("/directory?inquiry=open");
+  await assertNotAuthWall(page);
+  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
+  await expect(chat).toBeVisible({ timeout: 20_000 });
+  const startNew = chat.getByRole("button", { name: /start a new inquiry/i });
+  if (!(await startNew.isVisible().catch(() => false))) {
+    const switcher = chat.getByRole("button", { name: /switch inquiry/i });
+    if (await switcher.isVisible().catch(() => false)) {
+      await switcher.click();
+    }
+  }
+  if (await startNew.isVisible().catch(() => false)) {
+    await startNew.click();
+  } else {
+    const chatTab = chat.getByRole("tab", { name: /^chat$/i });
+    if (await chatTab.isVisible().catch(() => false)) {
+      await chatTab.click();
+    }
+  }
+  return chat;
+}
 
 test("C08-CUS smoke: storefront body is reachable — not a journey pass", async ({ page }) => {
   await openStorefront(page);
@@ -48,17 +77,7 @@ test("C08-CUS inquiry: directory guest chat submits and DB agrees", async ({ pag
   const marker = `c08-cus-${Date.now()}@impronta.test`;
   const brief = "Need two models for a catalog shoot next month.";
 
-  await page.goto("/directory?inquiry=open");
-  await assertNotAuthWall(page);
-
-  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
-  await expect(chat).toBeVisible({ timeout: 20_000 });
-  const start = chat.getByRole("button", { name: /start a new inquiry/i });
-  if (await start.isVisible().catch(() => false)) {
-    await start.click();
-  } else {
-    await chat.getByRole("tab", { name: /^chat$/i }).click();
-  }
+  const chat = await openFreshDirectoryChat(page);
 
   const composer = chat.getByPlaceholder(/type your message|write a reply|type a message/i);
   await expect(composer).toBeVisible({ timeout: 30_000 });
@@ -101,16 +120,7 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
   const marker = `c08-op-${Date.now()}@impronta.test`;
   const brief = "Need two models for a catalog shoot next month.";
 
-  await page.goto("/directory?inquiry=open");
-  await assertNotAuthWall(page);
-  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
-  await expect(chat).toBeVisible({ timeout: 20_000 });
-  const start = chat.getByRole("button", { name: /start a new inquiry/i });
-  if (await start.isVisible().catch(() => false)) {
-    await start.click();
-  } else {
-    await chat.getByRole("tab", { name: /^chat$/i }).click();
-  }
+  const chat = await openFreshDirectoryChat(page);
   const composer = chat.getByPlaceholder(/type your message|write a reply|type a message/i);
   await expect(composer).toBeVisible({ timeout: 30_000 });
   await composer.fill(brief);
@@ -198,16 +208,7 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   const marker = `c08-op-${Date.now()}@impronta.test`;
   const brief = "Need two models for a catalog shoot next month.";
 
-  await page.goto("/directory?inquiry=open");
-  await assertNotAuthWall(page);
-  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
-  await expect(chat).toBeVisible({ timeout: 20_000 });
-  const start = chat.getByRole("button", { name: /start a new inquiry/i });
-  if (await start.isVisible().catch(() => false)) {
-    await start.click();
-  } else {
-    await chat.getByRole("tab", { name: /^chat$/i }).click();
-  }
+  const chat = await openFreshDirectoryChat(page);
   const composer = chat.getByPlaceholder(/type your message|write a reply|type a message/i);
   await expect(composer).toBeVisible({ timeout: 30_000 });
   await composer.fill(brief);

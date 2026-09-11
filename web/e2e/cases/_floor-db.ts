@@ -144,6 +144,7 @@ export async function needsResetAt(spaceId: string): Promise<string | null> {
  * halfway, so the next run does not meet a table this one left occupied.
  */
 export async function releaseFloorProof(): Promise<void> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
   const sb = isolatedService();
   const now = new Date().toISOString();
   const { data: open, error: openErr } = await sb
