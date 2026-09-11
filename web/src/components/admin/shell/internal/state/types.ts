@@ -45,14 +45,14 @@ export type WorkspacePage = DestinationId | LegacyWorkspacePage;
  * once their destination moves to its canonical segment. `page-ids.test` pins
  * this list against `DESTINATIONS[].aliases`, so the two cannot drift.
  *
- *   inbox → messages · work → projects · sessions → appts · menu → catalog
- *   roster/talent → people · exceptions → issues · tables → spaces
- *   financials/payouts → payments · site → website · workspace/billing → settings
+ *   inbox → messages · work → projects · sessions/appointments → appts · menu → catalog
+ *   roster/talent → people · exceptions → issues · tables → spaces · financials/payouts → payments · site → website · workspace/billing → settings
  */
 export type LegacyWorkspacePage =
   | "inbox"
   | "work"
   | "sessions"
+  | "appointments"
   | "menu"
   | "roster"
   | "talent"
