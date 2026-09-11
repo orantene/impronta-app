@@ -14706,7 +14706,34 @@
       "payAll": "Pay all · {amount}",
       "payShare": "Pay my share",
       "payReason": "Paying from your phone is not open yet; the bill is settled at the table with your server.",
-      "tableLine": "Table {code} · your visit"
+      "tableLine": "Table {code} · your visit",
+      "menu": {
+        "title": "Menu",
+        "tableLine": "Table {code}",
+        "viewOrder": "View order · {n} items · {amount}",
+        "submit": "Send the order",
+        "submitted": "The team accepted your order. If something runs out we will suggest here before we change anything.",
+        "orderMore": "Order more",
+        "askBill": "Ask for the bill",
+        "empty": "Nothing to order on this visit yet.",
+        "add": "Add",
+        "offerTitle": "A substitution is waiting",
+        "acceptOffer": "Accept {name}",
+        "back": "Your table"
+      },
+      "share": {
+        "title": "Pay my share",
+        "tableLine": "Table {code} · {amount} total",
+        "myItems": "My items",
+        "splitEven": "Split evenly",
+        "anAmount": "An amount",
+        "payCard": "Pay {amount} by card",
+        "alreadyPaid": "This share is already paid.",
+        "leftover": "Left for the table after this: {amount}. Someone else can pay at the same time; each payment locks its own items.",
+        "back": "Your table",
+        "paid": "Paid",
+        "owed": "Still owed"
+      }
     },
     "adminSessions": {
       "loading": "Loading the schedule...",

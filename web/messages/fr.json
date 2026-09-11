@@ -5861,7 +5861,34 @@
       "payAll": "Tout payer · {amount}",
       "payShare": "Payer ma part",
       "payReason": "Payer depuis votre téléphone n'est pas encore ouvert ; l'addition se règle à table avec votre serveur.",
-      "tableLine": "Table {code} · votre visite"
+      "tableLine": "Table {code} · votre visite",
+      "menu": {
+        "title": "Menu",
+        "tableLine": "Table {code}",
+        "viewOrder": "Voir la commande · {n} plats · {amount}",
+        "submit": "Envoyer la commande",
+        "submitted": "L'équipe a accepté votre commande. S'il manque un plat, nous le dirons ici avant de changer quoi que ce soit.",
+        "orderMore": "Commander encore",
+        "askBill": "Demander l'addition",
+        "back": "Votre table",
+        "empty": "Rien à commander sur cette visite pour l'instant.",
+        "add": "Ajouter",
+        "offerTitle": "Une substitution attend",
+        "acceptOffer": "Accepter {name}"
+      },
+      "share": {
+        "title": "Payer ma part",
+        "tableLine": "Table {code} · {amount} au total",
+        "myItems": "Mes plats",
+        "splitEven": "Partager également",
+        "anAmount": "Un montant",
+        "payCard": "Payer {amount} par carte",
+        "alreadyPaid": "Cette part est déjà payée.",
+        "leftover": "Reste pour la table : {amount}. Quelqu'un d'autre peut payer en même temps ; chaque paiement verrouille ses plats.",
+        "back": "Votre table",
+        "paid": "Payé",
+        "owed": "Reste dû"
+      }
     },
     "setupPage": {
       "welcome": "Bienvenue, {name}",

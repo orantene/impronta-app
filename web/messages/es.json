@@ -14706,7 +14706,34 @@
       "payAll": "Pagar todo · {amount}",
       "payShare": "Pagar mi parte",
       "payReason": "Pagar desde el teléfono aún no está abierto; la cuenta se salda en la mesa con tu mesero.",
-      "tableLine": "Mesa {code} · tu visita"
+      "tableLine": "Mesa {code} · tu visita",
+      "menu": {
+        "title": "Menú",
+        "tableLine": "Mesa {code}",
+        "viewOrder": "Ver pedido · {n} platos · {amount}",
+        "submit": "Enviar el pedido",
+        "submitted": "El equipo aceptó tu pedido. Si algo se acaba, te lo diremos aquí antes de cambiar nada.",
+        "orderMore": "Pedir más",
+        "askBill": "Pedir la cuenta",
+        "empty": "Aún no hay nada que pedir en esta visita.",
+        "add": "Añadir",
+        "offerTitle": "Hay una sustitución esperando",
+        "acceptOffer": "Aceptar {name}",
+        "back": "Tu mesa"
+      },
+      "share": {
+        "title": "Pagar mi parte",
+        "tableLine": "Mesa {code} · {amount} en total",
+        "myItems": "Mis platos",
+        "splitEven": "Partir igual",
+        "anAmount": "Un importe",
+        "payCard": "Pagar {amount} con tarjeta",
+        "alreadyPaid": "Esta parte ya está pagada.",
+        "leftover": "Queda para la mesa: {amount}. Otra persona puede pagar a la vez; cada pago bloquea sus platos.",
+        "back": "Tu mesa",
+        "paid": "Pagado",
+        "owed": "Sigue debiendo"
+      }
     },
     "adminSessions": {
       "loading": "Cargando el horario...",

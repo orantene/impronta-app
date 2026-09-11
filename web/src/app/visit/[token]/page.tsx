@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -22,16 +23,10 @@ type Params = { params: Promise<{ token: string }> };
 
 /**
  * The table QR's guest page: Q01 "Table QR landing" (`Q01_TableQR`) with the
- * bill of Q05 (`Q05_PayAtTable`) under it, read-only.
+ * bill of Q05 (`Q05_PayAtTable`) under it.
  *
- * WHAT IS REAL. The code on the tent resolves to the CURRENT visit (never
- * the table), so the page greets the party by its table, says when the
- * visit started and for how many, and lists what is on the check with the
- * total in the check's own currency. Ordering from the phone and paying at
- * the table have no engine yet (D-POS-49): `Start ordering`, `Pay all` and
- * `Pay my share` are drawn disabled over one sentence each, never a button
- * that does nothing. A closed visit says so (the link stops working when
- * the table is reset).
+ * Ordering and pay-my-share live on `/visit/[token]/menu` and
+ * `/visit/[token]/share`. This landing stays the welcome + bill.
  */
 export default async function GuestVisitPage({ params }: Params) {
   const { token } = await params;
@@ -95,18 +90,12 @@ export default async function GuestVisitPage({ params }: Params) {
               <dd className="m-0 font-semibold text-admin-ink">{tr("dashboard.visit.serverNone")}</dd>
             </div>
           </dl>
-          <button
-            type="button"
-            disabled
-            title={tr("dashboard.visit.orderingReason")}
-            aria-describedby="visit-ordering-reason"
-            className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-[12px] bg-admin-brand text-[15px] font-semibold text-admin-card disabled:cursor-not-allowed disabled:opacity-40"
+          <Link
+            href={`/visit/${token}/menu`}
+            className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-[12px] bg-admin-brand text-[15px] font-semibold text-admin-card"
           >
             {tr("dashboard.visit.startOrdering")}
-          </button>
-          <p id="visit-ordering-reason" className="m-0 mt-2 text-[12.5px] text-admin-ink-muted">
-            {tr("dashboard.visit.orderingReason")}
-          </p>
+          </Link>
           <p className="m-0 mt-3 text-[12px] leading-[1.45] text-admin-ink-muted">{tr("dashboard.visit.identityNote")}</p>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             <span className="rounded-full bg-admin-surface-alt px-2.5 py-1 text-[11.5px] font-semibold text-admin-ink-muted">{tr("dashboard.visit.chipTableOrder")}</span>
@@ -141,14 +130,13 @@ export default async function GuestVisitPage({ params }: Params) {
             <span className="text-[24px] tabular-nums">{total}</span>
           </div>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <button type="button" disabled title={tr("dashboard.visit.payReason")} className="inline-flex h-12 items-center justify-center rounded-[12px] bg-admin-brand text-[15px] font-semibold text-admin-card disabled:cursor-not-allowed disabled:opacity-40">
+            <Link href={`/visit/${token}/share`} className="inline-flex h-12 items-center justify-center rounded-[12px] bg-admin-brand text-[15px] font-semibold text-admin-card">
               {interpolate(tr("dashboard.visit.payAll"), { amount: total })}
-            </button>
-            <button type="button" disabled title={tr("dashboard.visit.payReason")} className="inline-flex h-12 items-center justify-center rounded-[12px] border-[1.5px] border-admin-brand bg-admin-card text-[15px] font-semibold text-admin-brand disabled:cursor-not-allowed disabled:opacity-40">
+            </Link>
+            <Link href={`/visit/${token}/share`} className="inline-flex h-12 items-center justify-center rounded-[12px] border-[1.5px] border-admin-brand bg-admin-card text-[15px] font-semibold text-admin-brand">
               {tr("dashboard.visit.payShare")}
-            </button>
+            </Link>
           </div>
-          <p className="m-0 mt-2 text-[12px] leading-[1.45] text-admin-ink-muted">{tr("dashboard.visit.payReason")}</p>
         </section>
       </div>
     </main>
