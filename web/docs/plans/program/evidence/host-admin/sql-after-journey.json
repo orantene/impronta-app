@@ -1,0 +1,48 @@
+{
+  "platform_settings": [
+    {
+      "id": true,
+      "operating_currency": "USD",
+      "multi_currency_display_enabled": false,
+      "updated_at": "2026-09-11T02:27:18.095+00:00",
+      "updated_by": "2ae856fb-9f13-44e3-93a7-15b6efbfaaf4",
+      "workspace_fab_enabled": false,
+      "workspace_tour_enabled": false,
+      "default_talent_price_from_cents": null,
+      "workspace_quick_bar_enabled": true,
+      "media_private_access_enabled": false,
+      "workspace_support_enabled": false,
+      "support_weekly_digest": null,
+      "support_canned_replies": null,
+      "default_deposit_pct": 0,
+      "default_refund_policy": "tiered",
+      "instant_book_default": false,
+      "active_payout_system": "connect",
+      "default_theme_tokens_talent": null,
+      "default_component_styles_talent": null,
+      "default_theme_preset_slug_talent": null,
+      "default_storefront_template_id": null,
+      "default_talent_template_id": null,
+      "default_talent_freeform_enabled": false,
+      "workspace_pos_enabled": true
+    }
+  ],
+  "agency_pos": [
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "pos": {
+        "locations": {
+          "default": {
+            "modes": [
+              "floor",
+              "counter",
+              "door",
+              "classes",
+              "projects"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

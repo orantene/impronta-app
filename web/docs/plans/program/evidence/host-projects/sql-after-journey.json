@@ -1,0 +1,36 @@
+{
+  "orders": [
+    {
+      "id": "b1fbf921-024e-4e55-84f1-0b2b73232d34",
+      "status": "pending_payment",
+      "total_cents": 80000,
+      "currency": "USD",
+      "source_channel": "offer"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "8602dcbb-9f98-4b96-a9d1-22e089462880",
+      "order_id": "b1fbf921-024e-4e55-84f1-0b2b73232d34",
+      "status": "paid",
+      "gross_amount_cents": 30000,
+      "provider": "manual",
+      "metadata": {
+        "actor": "33330001-0000-4000-8000-000000000001",
+        "paid_via": "cash",
+        "shift_id": "96a32a62-4b72-42a7-921d-eef4abf1883e",
+        "settled_at": "door",
+        "change_cents": 0,
+        "tendered_cents": 30000,
+        "collection_reservation_id": "4a454865-d8b7-42f1-a282-126026a0b98d"
+      }
+    }
+  ],
+  "inquiry": [
+    {
+      "id": "07199f51-89c0-4048-81b1-d2fb3c6a35fd",
+      "status": "booked",
+      "contact_email": "pos-projects-1789093384234@impronta.test"
+    }
+  ]
+}

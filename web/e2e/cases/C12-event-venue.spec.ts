@@ -1,6 +1,13 @@
 /**
  * C12 [R] — event venue. Smoke stays honest. C12-CUS $0 night ticket
  * is a real journey on qa-journeys when the isolated env is set.
+ *
+ * 2026-09-11 (host-b, proving on the deployed QA host): the Sales list now
+ * renders the channel's humanised label ("Ticket page") rather than the raw
+ * `ticket_picker` value; the DB assertions on `sourceChannel` are unchanged
+ * and still check the raw value. The three UI assertions below were updated
+ * to match the actual (correct) rendered text — the row itself was proven
+ * present with the right customer, total and status the whole time.
  */
 import {
   test,
@@ -71,7 +78,7 @@ test("C12-CUS ticket: /events/qa-night General admission → receipt and DB agre
   await assertWorkspaceIdentity(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
-  await expect(page.getByText("ticket_picker").first()).toBeVisible();
+  await expect(page.getByText("Ticket page").first()).toBeVisible();
   await expect(page.getByText(/overdue/i)).toHaveCount(0);
 
   await page.screenshot({
@@ -132,7 +139,7 @@ test("C12-OP door: admit QA Night guest — Sales and DB agree", async ({ page }
   await assertWorkspaceIdentity(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
-  await expect(page.getByText("ticket_picker").first()).toBeVisible();
+  await expect(page.getByText("Ticket page").first()).toBeVisible();
 
   const persisted = await latestTicketPickerNight(marker);
   expect(persisted?.admittedCount).toBe(1);
@@ -217,7 +224,7 @@ test("C12-DIFF door: pay-at-door hold blocks competitor then cash settle", async
   await signInJourneysStaff(page, "/admin/sales");
   await assertWorkspaceIdentity(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
-  await expect(page.getByText("ticket_picker").first()).toBeVisible();
+  await expect(page.getByText("Ticket page").first()).toBeVisible();
 
   await page.screenshot({
     path: testInfo.outputPath("c12-diff-sales.png"),
