@@ -98,7 +98,7 @@ export function PosModesSettingsCard({
   const [locationOptions, setLocationOptions] = useState<LocationOption[]>([]);
   const [locationSlug, setLocationSlug] = useState("default");
   const [reloadToken, setReloadToken] = useState(0);
-  const [devices, setDevices] = useState<Array<{ id: string; name: string; kind: string; lastSeenAt: string | null }>>([]);
+  const [devices, setDevices] = useState<Array<{ id: string; name: string; kind: string; lastSeenAt: string | null; status: string }>>([]);
   const [pairing, setPairing] = useState(false);
   const [pairName, setPairName] = useState("");
 
