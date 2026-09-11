@@ -211,6 +211,7 @@ export async function venueJourneyRows(
  * would be reported as an availability bug.
  */
 export async function releaseVenueJourneyParty(): Promise<void> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
   const sb = isolatedService();
   const now = new Date().toISOString();
 
