@@ -227,19 +227,30 @@ export function AppointmentsPage() {
   return (
     <div
       data-tulala-appointments-board
-      className={`-mx-[28px] -mt-[24px] -mb-[60px] grid min-h-[calc(100vh-56px-var(--proto-cbar,50px))] font-admin-body max-[720px]:-mx-[14px] max-[720px]:-mt-[14px] max-[720px]:mb-0 max-[720px]:min-h-0 max-[720px]:grid-cols-[1fr] ${
+      // `leading-[1.2]`: the boards set no line-height (the browser's
+      // `normal`); the admin body's 1.65 made every row, chip and fact a few
+      // pixels taller than drawn.
+      className={`-mx-[28px] -mt-[24px] -mb-[60px] grid min-h-[calc(100vh-56px-var(--proto-cbar,50px))] font-admin-body leading-[1.2] max-[720px]:-mx-[14px] max-[720px]:-mt-[14px] max-[720px]:mb-0 max-[720px]:min-h-0 max-[720px]:grid-cols-[1fr] ${
         panel ? "grid-cols-[1fr_380px]" : "grid-cols-[1fr]"
       }`}
     >
       <div className={`flex min-w-0 flex-col gap-[12px] py-[20px] max-[720px]:border-r-0 max-[720px]:px-[14px] max-[720px]:py-[14px] ${panel ? "border-r border-admin-border px-[24px]" : "px-[28px]"}`}>
-        {/* Title, subtitle, the two header actions */}
+        {/* Title, subtitle, the two header actions. W40 titles the tab
+            "Series" and offers Templates; W39 titles the page and offers
+            Generate sessions. */}
         <div className="flex items-start justify-between gap-[12px] max-[720px]:flex-wrap">
           <div className="min-w-0">
-            <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t(`${K}.title`)}</h1>
-            <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted max-[720px]:text-admin-12h">{t(`${B}.subtitle.${view}`)}</p>
+            <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">
+              {view === "series" ? t(`${K}.tabs.series`) : t(`${K}.title`)}
+            </h1>
+            <p className="m-0 mt-[4px] text-admin-13 leading-[1.2] text-admin-ink-muted max-[720px]:text-admin-12h">{t(`${B}.subtitle.${view}`)}</p>
           </div>
           <div className="flex shrink-0 items-center gap-[8px] max-[720px]:hidden">
-            <ActionButton reason={t(`${B}.generateOff`)}>{t(`${B}.generate`)}</ActionButton>
+            {view === "series" ? (
+              <ActionButton reason={t(`${B}.templatesOff`)}>{t(`${B}.templates`)}</ActionButton>
+            ) : (
+              <ActionButton reason={t(`${B}.generateOff`)}>{t(`${B}.generate`)}</ActionButton>
+            )}
             <ActionButton reason={t(`${B}.newSeriesOff`)} tone="primary">
               <Icon name="plus" size={14} stroke={1.75} />
               {t(`${B}.newSeries`)}
@@ -264,7 +275,7 @@ export function AppointmentsPage() {
               role="tab"
               aria-selected={view === id}
               data-testid={`appointments-tab-${id}`}
-              className={`-mb-px cursor-pointer border-b-2 px-[12px] py-[10px] text-admin-13 max-[720px]:mb-0 max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:font-semibold ${
+              className={`-mb-px cursor-pointer border-b-2 px-[12px] py-[10px] font-admin-body text-admin-13 leading-[1.2] max-[720px]:mb-0 max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:font-semibold ${
                 view === id
                   ? "border-admin-brand font-semibold text-admin-ink max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white"
                   : "border-transparent font-medium text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card"

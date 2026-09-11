@@ -13391,7 +13391,8 @@
           "needsAccount": "This service needs an account to book. Book it from the website.",
           "needsContact": "This service needs the customer's email or phone.",
           "notForSale": "That service is not for sale right now.",
-          "couldNotBook": "Could not book that. Nothing was held."
+          "couldNotBook": "Could not book that. Nothing was held.",
+          "bookingNoPerson": "This booking names no professional, so free times cannot be listed; type a time by hand and the engine decides."
         },
         "board": {
           "header": {
@@ -13456,7 +13457,10 @@
             "add": "Add {item} · +{amount}",
             "adding": "Adding...",
             "added": "{item} added to the sale.",
-            "cancel": "Cancel"
+            "cancel": "Cancel",
+            "newEndTime": "New end time",
+            "endUnchanged": "{time} · unchanged",
+            "timeNotReplannedShort": "Time not re-planned"
           },
           "checkin": {
             "startsIn": "starts in {minutes} min",
@@ -13504,7 +13508,8 @@
             "sellHint": "Skips the waitlist",
             "leaveEmpty": "Leave it empty",
             "later": "Later",
-            "offerButton": "Offer to {name}"
+            "offerButton": "Offer to {name}",
+            "policyNote": "No refund rule is set on this workspace. A paid place that was given up keeps its payment until it is refunded from the sale."
           },
           "sheet": {
             "title": "Walk-in · book now",
@@ -13520,7 +13525,109 @@
             "payHint": "Or take it now, right after booking",
             "bookNow": "Book {name} · {time}",
             "close": "Close",
-            "withPerson": "{name} · {minutes} min · {amount}"
+            "withPerson": "{name} · {minutes} min · {amount}",
+            "nowAt": "Now · {time}"
+          },
+          "move": {
+            "title": "Move {name}'s booking",
+            "subtitle": "The {time} stays until the new time is confirmed",
+            "days": "Which day",
+            "loading": "Reading the free times...",
+            "withPerson": "{name} · free",
+            "anotherTime": "Another time",
+            "anotherTimeHint": "On the venue's clock ({zone}); the engine refuses a time that is taken.",
+            "new": "New",
+            "newNone": "Pick a time",
+            "price": "Price",
+            "priceUnchanged": "Unchanged · {amount}",
+            "priceNone": "No sale on this booking",
+            "deposit": "Paid so far",
+            "depositStays": "{amount} stays",
+            "depositNone": "Nothing paid yet",
+            "policy": "Policy",
+            "policyOff": "No cancellation rule is set on this workspace",
+            "oldSlot": "Old slot",
+            "oldSlotRule": "Released only after the new one is secured",
+            "keep": "Keep {time}",
+            "moveTo": "Move to {time}",
+            "moveNone": "Move it"
+          },
+          "booking": {
+            "title": "New booking",
+            "subtitleNew": "From the desk",
+            "subtitleNamed": "{name} · from the desk",
+            "step": {
+              "service": "Service",
+              "people": "People & place",
+              "time": "Time",
+              "details": "Details",
+              "review": "Review"
+            },
+            "search": "Search services",
+            "noServices": "No timed service with a person can be booked from this till yet.",
+            "serviceLine": "{minutes} min · {name}",
+            "oneServiceNote": "One service per booking from the desk; a second service is a second booking.",
+            "thisBooking": "This booking",
+            "nothingYet": "Pick a service to start.",
+            "customerTime": "Customer time",
+            "total": "Total",
+            "deposit": "Deposit",
+            "depositNone": "None at the desk · cash at the visit",
+            "continuePeople": "Continue · people & place",
+            "findTimes": "Find times",
+            "chooseTime": "Choose {time}",
+            "chooseTimeNone": "Choose a time",
+            "reviewBooking": "Review booking",
+            "confirm": "Confirm booking · cash at the visit",
+            "back": "Back",
+            "professional": "Professional",
+            "guaranteed": "Guaranteed",
+            "professionalHint": "The service's own person; a booking from the desk cannot pick another.",
+            "where": "Where",
+            "whereHint": "The workspace's venue; rooms and chairs are not assigned to a booking yet.",
+            "needed": "Needed",
+            "neededPeople": "People",
+            "neededPeopleValue": "{name} for the whole service",
+            "neededRooms": "Rooms",
+            "neededRoomsValue": "Not tracked on this workspace",
+            "neededBuffers": "Buffers",
+            "neededBuffersValue": "The person's own booking hours decide them",
+            "days": "Which day",
+            "itinerary": "Itinerary",
+            "itineraryLine": "{start}–{end} · {name}",
+            "itineraryNone": "Pick a time to see the itinerary.",
+            "customer": "Customer",
+            "whoIsItFor": "Who is it for",
+            "whoIsItForValue": "The customer named here",
+            "notes": "Notes",
+            "notesOff": "A note cannot be saved on a booking from the desk yet.",
+            "reminders": "Reminders & consent",
+            "remindersOff": "Reminders follow the workspace's notification settings; nothing is chosen per booking here.",
+            "reviewLines": "Booking",
+            "reviewWhen": "When",
+            "reviewWith": "With",
+            "reviewPay": "Pay",
+            "reviewPayValue": "Cash at the visit, or now at the desk",
+            "reviewNote": "Confirm holds {name}'s time. Nothing is charged until it is collected.",
+            "bookedTitle": "Booked for {when}",
+            "bookedLine": "{name} · {venue} · {pay}",
+            "payDue": "{amount} at the visit",
+            "payNothing": "nothing to collect",
+            "chipConfirmed": "Booking: confirmed",
+            "chipPaid": "Paid",
+            "chipUnpaid": "Balance due",
+            "lives": "Where this now lives",
+            "livesCalendar": "Calendar",
+            "livesCalendarValue": "Today's list, at {time}",
+            "livesSales": "Sales",
+            "livesSalesValue": "A sale with {amount} due",
+            "livesSalesNone": "No sale: nothing to collect",
+            "livesCustomer": "Customer",
+            "livesCustomerValue": "{name}, by the contact given",
+            "confirmationOff": "No confirmation is sent from the till; the website's booking sends its own.",
+            "collectNow": "Collect {amount} now",
+            "done": "Done · back to Today",
+            "another": "Book another"
           }
         }
       },
@@ -14698,7 +14805,9 @@
           }
         },
         "from": "from",
-        "waitlistDoor": "Waitlist"
+        "waitlistDoor": "Waitlist",
+        "templates": "Templates",
+        "templatesOff": "Series templates do not exist yet; a series cannot be created from the workspace."
       }
     },
     "projects": {

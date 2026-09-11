@@ -23,6 +23,7 @@ import { z } from "zod";
 import { userHasCapability } from "@/lib/access";
 import { checkInAppointment } from "@/lib/pos/classes/checkin";
 import { appointmentState } from "@/lib/pos/classes/day";
+import { loadMoveSlots } from "@/lib/pos/classes/move";
 import { bookWalkInAppointment, loadWalkInSlots } from "@/lib/pos/classes/walkin";
 import { addLine, createDraftOrder, loadPosSale } from "@/lib/pos/draft";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
@@ -102,6 +103,38 @@ export async function classesWalkInSlots(input: {
   });
   if (!result.ok) return { ok: false, reason: result.reason };
   return { ok: true, starts: result.starts, timeZone: result.timeZone, emptyReason: result.reason };
+}
+
+export type ClassesMoveSlotsResult =
+  | { ok: true; starts: string[]; timeZone: string; emptyReason: string | null; durationMinutes: number | null; personName: string | null }
+  | Refused;
+
+/** The free times a booking could move to on one venue day (board A09). */
+export async function classesMoveSlots(input: {
+  bookingId: string;
+  dayOffset: number;
+}): Promise<ClassesMoveSlotsResult> {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ bookingId: uuid, dayOffset: z.number().int().min(-14).max(14) }).safeParse(input);
+  if (!parsed.success) return { ok: false, reason: "invalid" };
+  const { timezone } = await resolveTenantTimezone(g.tenantId);
+  const result = await loadMoveSlots(g.admin, {
+    tenantId: g.tenantId,
+    bookingId: parsed.data.bookingId,
+    now: new Date(),
+    timeZone: timezone,
+    dayOffset: parsed.data.dayOffset,
+  });
+  if (!result.ok) return { ok: false, reason: result.reason };
+  return {
+    ok: true,
+    starts: result.starts,
+    timeZone: result.timeZone,
+    emptyReason: result.reason,
+    durationMinutes: result.durationMinutes,
+    personName: result.personName,
+  };
 }
 
 /**
