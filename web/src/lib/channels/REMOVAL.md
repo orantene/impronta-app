@@ -2,6 +2,8 @@
 
 This feature is isolated so a failed test can come out without breaking Messages, POS, or web chat.
 
+The additive migration is on remote Supabase. The kill switch stays off (`workspace_messaging_channels_enabled` defaults false). Turning the feature off does not drop tables.
+
 ## Instant disable (no deploy of deletes)
 
 1. Unset `TULALA_WHATSAPP_DRAWER` if it is set.
@@ -21,7 +23,7 @@ Delete these trees:
 - `web/src/lib/server-actions/admin-platform-messaging-channels.ts`
 - `services/channel-worker/`
 - `web/e2e/cases/channels-whatsapp.spec.ts`
-- `supabase/migrations/20261231231006_channel_connections_outbox.sql` (only if it has not been applied; otherwise leave the additive tables)
+- `supabase/migrations/20261231231006_channel_connections_outbox.sql` (already applied on remote Tulala Digital; leave the additive tables. The flag column stays `false`.)
 
 Revert the one-line mounts (search `WhatsAppTopBarButton` / `WhatsAppDrawerHost`):
 
