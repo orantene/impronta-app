@@ -496,7 +496,9 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   const customerId = (customerRow as { id: string } | null)?.id;
   expect(customerId, "the cash sale must have created a customer to look up").toBeTruthy();
 
-  await page.goto(`/admin/clients/${customerId}`);
+  // W41: the purchases table is the record's fourth tab; the header, the
+  // Due-now card and its sentence are on every tab.
+  await page.goto(`/admin/clients/${customerId}?tab=purchases`);
   await expect(page.getByText(buyer)).toBeVisible({ timeout: 30_000 });
   const purchaseRow = page.locator("tbody tr", { hasText: paidOrderId.slice(0, 8) });
   await expect(purchaseRow, "the sale they paid for is on their record").toHaveCount(1);
@@ -564,7 +566,7 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 30_000 });
   const dueBefore = attached.reduce((sum, o) => sum + owedCents(o), 0);
   await expect(
-    figureValue(page, "Still owed by the client"),
+    figureValue(page, "Due now"),
     "the project's Due is the orders desk's answer over the orders attached to it",
   ).toHaveText(money(dueBefore, currency));
   if (dueBefore > 0) {
@@ -619,7 +621,7 @@ test("MONEY: a manager reads Sales and Payments, and a cancelled or draft order 
   await expect(page.locator("body")).toContainText(money(naiveProject, currency));
   // ... and Due is zero, so that total was never inside it.
   await expect(
-    figureValue(page, "Still owed by the client"),
+    figureValue(page, "Due now"),
     "a cancelled order contributes nothing to what is owed",
   ).toHaveText(money(0, currency));
   await expect(

@@ -120,6 +120,100 @@ export type ProjectsModeCopy = {
   readonly milestoneStatus: Readonly<Record<MilestoneStatus, string>>;
   readonly orderStatus: Readonly<Record<OrderStatus, string>>;
   readonly contact: { readonly hint: string; readonly email: string; readonly phone: string };
+  /** The board's own words (O07, POSOffice, O03, O06, POSPaymentLink). */
+  readonly board: ProjectsBoardCopy;
+};
+
+export type ProjectsBoardCopy = {
+  readonly collectTitle: string;
+  readonly collectSubtitle: string;
+  readonly projectsTitle: string;
+  readonly projectsSubtitle: string;
+  readonly receiptsSubtitle: string;
+  readonly linksTitle: string;
+  readonly linksSubtitle: string;
+  readonly linksUnavailable: string;
+  readonly linksNote: string;
+  readonly segmentDueNow: string;
+  readonly segmentLater: string;
+  readonly segmentNeedsApproval: string;
+  readonly searchHint: string;
+  readonly matchesDueFirst: string;
+  readonly onlyAccepted: string;
+  readonly rowAgreement: string;
+  readonly rowRemaining: string;
+  readonly rowNoAgreement: string;
+  readonly rowDue: string;
+  readonly rowReason: Readonly<Record<CollectRefusal, string>>;
+  readonly pickOne: string;
+  readonly closeDetail: string;
+  readonly dueNow: string;
+  readonly dueNowNote: string;
+  readonly dueNowNone: string;
+  readonly agreement: string;
+  readonly total: string;
+  readonly totalDetail: string;
+  readonly remainingAfter: string;
+  readonly refundTerms: string;
+  readonly refundNotRecorded: string;
+  readonly collectFor: string;
+  readonly collectForValue: string;
+  readonly client: string;
+  readonly clientValue: string;
+  readonly receiptEmail: string;
+  readonly receiptPhone: string;
+  readonly receiptNone: string;
+  readonly notCollectable: string;
+  readonly notCollectableValue: string;
+  readonly nothingElse: string;
+  readonly records: string;
+  readonly openWorkspace: string;
+  readonly sendLink: string;
+  readonly sendLinkUnavailable: string;
+  readonly transfer: string;
+  readonly transferUnavailable: string;
+  readonly drawerOpen: string;
+  readonly drawerNone: string;
+  readonly chainInquiry: string;
+  readonly chainOffer: string;
+  readonly chainAgreement: string;
+  readonly chainProject: string;
+  readonly chainReceived: string;
+  readonly chainOpened: string;
+  readonly chainNoInquiry: string;
+  readonly chainSent: string;
+  readonly chainAccepted: string;
+  readonly chainNoOffer: string;
+  readonly chainFrozen: string;
+  readonly chainNoAgreement: string;
+  readonly chainAssigned: string;
+  readonly chainNoneAssigned: string;
+  readonly chainStatusAccepted: string;
+  readonly chainStatusActive: string;
+  readonly chainStatusNone: string;
+  readonly moneyTitle: string;
+  readonly moneyQuoted: string;
+  readonly moneyCollected: string;
+  readonly moneyFees: string;
+  readonly moneyEarned: string;
+  readonly moneyNotRecorded: string;
+  readonly moneyPaidOut: string;
+  readonly moneyNotRead: string;
+  readonly moneyNote: string;
+  readonly amendmentTitle: string;
+  readonly amendmentSubtitle: string;
+  readonly amendmentKept: string;
+  readonly amendmentProposed: string;
+  readonly amendmentIf: string;
+  readonly amendmentCoordinatorFee: string;
+  readonly amendmentNotes: string;
+  readonly amendmentOutstanding: string;
+  readonly amendmentStaysOnFile: string;
+  readonly amendmentSend: string;
+  readonly amendmentDiscard: string;
+  readonly amendmentUnavailable: string;
+  readonly amendmentDraft: string;
+  readonly amendmentSentOn: string;
 };
 
 export function projectsModeCopy(t: Translator): ProjectsModeCopy {
@@ -130,6 +224,8 @@ export function projectsModeCopy(t: Translator): ProjectsModeCopy {
         collect: t("dashboard.pos.projects.rail.collect"),
         projects: t("dashboard.pos.projects.rail.projects"),
         receipts: t("dashboard.pos.projects.rail.receipts"),
+        links: t("dashboard.pos.projects.rail.links"),
+        issues: t("dashboard.pos.counter.rail.issues"),
       },
     },
     title: t("dashboard.pos.projects.title"),
@@ -284,6 +380,103 @@ export function projectsModeCopy(t: Translator): ProjectsModeCopy {
       hint: t("dashboard.pos.contactHint"),
       email: t("dashboard.pos.email"),
       phone: t("dashboard.pos.phone"),
+    },
+    board: {
+      collectTitle: t("dashboard.pos.projects.board.collectTitle"),
+      collectSubtitle: t("dashboard.pos.projects.board.collectSubtitle"),
+      projectsTitle: t("dashboard.pos.projects.board.projectsTitle"),
+      projectsSubtitle: t("dashboard.pos.projects.board.projectsSubtitle"),
+      receiptsSubtitle: t("dashboard.pos.projects.receipts.intro"),
+      linksTitle: t("dashboard.pos.projects.board.linksTitle"),
+      linksSubtitle: t("dashboard.pos.projects.board.linksSubtitle"),
+      linksUnavailable: t("dashboard.pos.projects.board.linksUnavailable"),
+      linksNote: t("dashboard.pos.projects.board.linksNote"),
+      segmentDueNow: t("dashboard.pos.projects.board.segmentDueNow"),
+      segmentLater: t("dashboard.pos.projects.board.segmentLater"),
+      segmentNeedsApproval: t("dashboard.pos.projects.board.segmentNeedsApproval"),
+      searchHint: t("dashboard.pos.projects.board.searchHint"),
+      matchesDueFirst: t("dashboard.pos.projects.board.matchesDueFirst"),
+      onlyAccepted: t("dashboard.pos.projects.board.onlyAccepted"),
+      rowAgreement: t("dashboard.pos.projects.board.rowAgreement"),
+      rowRemaining: t("dashboard.pos.projects.board.rowRemaining"),
+      rowNoAgreement: t("dashboard.pos.projects.board.rowNoAgreement"),
+      rowDue: t("dashboard.pos.projects.board.rowDue"),
+      rowReason: {
+        project_closed: t("dashboard.pos.projects.board.reasonClosed"),
+        agreement_awaiting: t("dashboard.pos.projects.board.reasonAgreement"),
+        milestone_awaiting: t("dashboard.pos.projects.board.reasonMilestone"),
+        nothing_owed: t("dashboard.pos.projects.board.reasonNothing"),
+        mixed_currency: t("dashboard.pos.projects.board.reasonMixed"),
+      },
+      pickOne: t("dashboard.pos.projects.board.pickOne"),
+      closeDetail: t("dashboard.pos.counter.chrome.close"),
+      dueNow: t("dashboard.pos.projects.board.dueNow"),
+      dueNowNote: t("dashboard.pos.projects.board.dueNowNote"),
+      dueNowNone: t("dashboard.pos.projects.board.dueNowNone"),
+      agreement: t("dashboard.pos.projects.board.agreement"),
+      total: t("dashboard.pos.projects.board.total"),
+      totalDetail: t("dashboard.pos.projects.board.totalDetail"),
+      remainingAfter: t("dashboard.pos.projects.board.remainingAfter"),
+      refundTerms: t("dashboard.pos.projects.board.refundTerms"),
+      refundNotRecorded: t("dashboard.pos.projects.board.refundNotRecorded"),
+      collectFor: t("dashboard.pos.projects.board.collectFor"),
+      collectForValue: t("dashboard.pos.projects.board.collectForValue"),
+      client: t("dashboard.pos.projects.detail.client"),
+      clientValue: t("dashboard.pos.projects.board.clientValue"),
+      receiptEmail: t("dashboard.pos.projects.board.receiptEmail"),
+      receiptPhone: t("dashboard.pos.projects.board.receiptPhone"),
+      receiptNone: t("dashboard.pos.projects.board.receiptNone"),
+      notCollectable: t("dashboard.pos.projects.board.notCollectable"),
+      notCollectableValue: t("dashboard.pos.projects.board.notCollectableValue"),
+      nothingElse: t("dashboard.pos.projects.board.nothingElse"),
+      records: t("dashboard.pos.projects.money.rowsTitle"),
+      openWorkspace: t("dashboard.pos.projects.board.openWorkspace"),
+      sendLink: t("dashboard.pos.projects.board.sendLink"),
+      sendLinkUnavailable: t("dashboard.pos.projects.board.sendLinkUnavailable"),
+      transfer: t("dashboard.pos.projects.board.transfer"),
+      transferUnavailable: t("dashboard.pos.projects.board.transferUnavailable"),
+      drawerOpen: t("dashboard.pos.counter.chrome.drawerOpen"),
+      drawerNone: t("dashboard.pos.counter.chrome.drawerNone"),
+      chainInquiry: t("dashboard.pos.projects.board.chainInquiry"),
+      chainOffer: t("dashboard.pos.projects.board.chainOffer"),
+      chainAgreement: t("dashboard.pos.projects.board.chainAgreement"),
+      chainProject: t("dashboard.pos.projects.board.chainProject"),
+      chainReceived: t("dashboard.pos.projects.board.chainReceived"),
+      chainOpened: t("dashboard.pos.projects.board.chainOpened"),
+      chainNoInquiry: t("dashboard.pos.projects.board.chainNoInquiry"),
+      chainSent: t("dashboard.pos.projects.board.chainSent"),
+      chainAccepted: t("dashboard.pos.projects.board.chainAccepted"),
+      chainNoOffer: t("dashboard.pos.projects.board.chainNoOffer"),
+      chainFrozen: t("dashboard.pos.projects.board.chainFrozen"),
+      chainNoAgreement: t("dashboard.pos.projects.board.chainNoAgreement"),
+      chainAssigned: t("dashboard.pos.projects.board.chainAssigned"),
+      chainNoneAssigned: t("dashboard.pos.projects.board.chainNoneAssigned"),
+      chainStatusAccepted: t("dashboard.pos.projects.board.chainStatusAccepted"),
+      chainStatusActive: t("dashboard.pos.projects.board.chainStatusActive"),
+      chainStatusNone: t("dashboard.pos.projects.board.chainStatusNone"),
+      moneyTitle: t("dashboard.pos.projects.board.moneyTitle"),
+      moneyQuoted: t("dashboard.pos.projects.board.moneyQuoted"),
+      moneyCollected: t("dashboard.pos.projects.money.collected"),
+      moneyFees: t("dashboard.pos.projects.board.moneyFees"),
+      moneyEarned: t("dashboard.pos.projects.board.moneyEarned"),
+      moneyNotRecorded: t("dashboard.pos.projects.board.moneyNotRecorded"),
+      moneyPaidOut: t("dashboard.pos.projects.board.moneyPaidOut"),
+      moneyNotRead: t("dashboard.pos.projects.board.moneyNotRead"),
+      moneyNote: t("dashboard.pos.projects.board.moneyNote"),
+      amendmentTitle: t("dashboard.pos.projects.board.amendmentTitle"),
+      amendmentSubtitle: t("dashboard.pos.projects.board.amendmentSubtitle"),
+      amendmentKept: t("dashboard.pos.projects.board.amendmentKept"),
+      amendmentProposed: t("dashboard.pos.projects.board.amendmentProposed"),
+      amendmentIf: t("dashboard.pos.projects.board.amendmentIf"),
+      amendmentCoordinatorFee: t("dashboard.projects.scope.coordinatorFee"),
+      amendmentNotes: t("dashboard.pos.projects.board.amendmentNotes"),
+      amendmentOutstanding: t("dashboard.pos.projects.board.amendmentOutstanding"),
+      amendmentStaysOnFile: t("dashboard.pos.projects.board.amendmentStaysOnFile"),
+      amendmentSend: t("dashboard.pos.projects.board.amendmentSend"),
+      amendmentDiscard: t("dashboard.pos.projects.board.amendmentDiscard"),
+      amendmentUnavailable: t("dashboard.pos.projects.board.amendmentUnavailable"),
+      amendmentDraft: t("dashboard.projects.scope.draft"),
+      amendmentSentOn: t("dashboard.pos.projects.board.amendmentSentOn"),
     },
   };
 }

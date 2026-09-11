@@ -181,3 +181,69 @@ export function collectVerdict(record: ClientRecord): CollectVerdict {
     recordCount: unpaid.length,
   };
 }
+
+// ── The record's header figures (W41) ────────────────────────────────
+
+/** Statuses a booking on the client's record is still going to happen in. */
+const UPCOMING_BOOKING_STATUSES: ReadonlySet<string> = new Set([
+  "draft",
+  "tentative",
+  "confirmed",
+  "in_progress",
+]);
+
+/**
+ * The next booking still ahead at `nowMs`, or null. The clock is an argument:
+ * this module reads none of its own.
+ */
+export function nextBooking(record: ClientRecord, nowMs: number): ClientBookingLink | null {
+  const ahead = record.bookings
+    .filter((b) => b.startsAt !== null && UPCOMING_BOOKING_STATUSES.has(b.status))
+    .filter((b) => new Date(b.startsAt as string).getTime() >= nowMs)
+    .sort((a, b) => ((a.startsAt as string) < (b.startsAt as string) ? -1 : 1));
+  return ahead[0] ?? null;
+}
+
+/** Bookings ordered by start, soonest first; undated last. */
+export function bookingsByStart(record: ClientRecord): ClientBookingLink[] {
+  return record.bookings.slice().sort((a, b) => {
+    if (a.startsAt === b.startsAt) return 0;
+    if (a.startsAt === null) return 1;
+    if (b.startsAt === null) return -1;
+    return a.startsAt < b.startsAt ? -1 : 1;
+  });
+}
+
+const CLOSED_PROJECT_STATUSES: ReadonlySet<string> = new Set(["completed", "cancelled", "archived"]);
+
+export function activeProjects(record: ClientRecord): ClientProjectLink[] {
+  return record.projects.filter((p) => !CLOSED_PROJECT_STATUSES.has(p.status));
+}
+
+export type LifetimeSpend = {
+  readonly currency: string;
+  /** Everything that LANDED: paid transactions, per currency. */
+  readonly collectedCents: number;
+  /** The earliest purchase, so the screen can say "since". */
+  readonly sinceAt: string | null;
+};
+
+/** What this client has actually paid over time, per currency. Never one number. */
+export function lifetimeSpend(record: ClientRecord): LifetimeSpend[] {
+  const byCurrency = new Map<string, { collectedCents: number; sinceAt: string | null }>();
+  for (const p of record.purchases) {
+    const key = (p.currency || "USD").toUpperCase();
+    const acc = byCurrency.get(key) ?? { collectedCents: 0, sinceAt: null };
+    acc.collectedCents += p.collectedCents;
+    if (acc.sinceAt === null || p.createdAt < acc.sinceAt) acc.sinceAt = p.createdAt;
+    byCurrency.set(key, acc);
+  }
+  return [...byCurrency.entries()]
+    .map(([currency, acc]) => ({ currency, ...acc }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+}
+
+/** Purchases newest first, for the activity list. */
+export function purchasesByDate(record: ClientRecord): ClientPurchase[] {
+  return record.purchases.slice().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}

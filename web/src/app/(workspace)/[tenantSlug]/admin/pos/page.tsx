@@ -466,6 +466,12 @@ export default async function PosPage({
     const projectsHost = projectsHdrs.get("x-forwarded-host") ?? projectsHdrs.get("host") ?? "";
     const projectsProto = projectsHdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
     const projectsPath = await currentAdminPath(tenantSlug);
+    // The header's cashier chip and the footer's `Drawer open` are the same
+    // facts the counter reads: the signed-in person and the open shift.
+    const [projectsCashier, projectsShift] = await Promise.all([
+      loadCashierName(admin),
+      currentShift(admin, { tenantId: scope.tenantId }),
+    ]);
     return (
       <>
         <PageRouteSyncer page="pos" />
@@ -476,6 +482,8 @@ export default async function PosPage({
           workspacePath={projectsPath.replace(/\/pos$/, "")}
           receiptOrigin={projectsHost ? `${projectsProto}://${projectsHost}` : ""}
           methods={collectionMethods(tr)}
+          cashierName={projectsCashier}
+          drawerOpen={Boolean(projectsShift.ok && projectsShift.shift)}
           tr={tr}
           search={{ project: q.project, view: q.view }}
         />
