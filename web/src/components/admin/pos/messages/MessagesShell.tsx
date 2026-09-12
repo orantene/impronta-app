@@ -79,6 +79,10 @@ export function MessagesShell(props: MessagesClientProps) {
   const [sheet, setSheet] = useState<MessagingSheetName | null>(preview?.sheet ?? null);
   const [essentials, setEssentials] = useState<Essentials | null>(preview?.essentials ?? null);
   const [focused, setFocused] = useState(Boolean(preview?.focused));
+  // The inbox's own unread total (every filter, the same number the rail
+  // badge shows); counting the loaded rows undercounted under any filter but
+  // "all". Null until the first load answers.
+  const [inboxUnread, setInboxUnread] = useState<number | null>(null);
 
   const draftKey = draftStorageKey(props.tenantId, props.locationSlug, activeId ?? "inbox");
 
@@ -102,6 +106,7 @@ export function MessagesShell(props: MessagesClientProps) {
         ? result.rows.filter((row) => row.channel === "whatsapp")
         : result.rows;
     setRows(next);
+    setInboxUnread(result.unreadCount);
     setLoadState(next.length === 0 ? (search ? "no_results" : "empty") : "ok");
   }, [filter, preview, props.channelFilter, props.locationSlug, search]);
 
@@ -173,32 +178,147 @@ export function MessagesShell(props: MessagesClientProps) {
         ? { title: copy.noResults, body: copy.noResultsBody, action: copy.clearSearch, onAction: () => setSearch("") }
         : { title: copy.empty, body: copy.emptyBody, action: copy.shareBookingLink, onAction: () => setSheet("start") };
 
+  // The sheets are ONE tree for both shapes: the phone used to return
+  // `PhoneMessages` without them, so Actions / Payment link / Cash opened
+  // nothing (live run 2026-09-11, MM02B / MM03). D-row.
+  const sheets = (
+    <MessagingSheets
+      copy={copy}
+      sheet={sheet}
+      mode={props.mode}
+      active={active}
+      onClose={() => setSheet(null)}
+      onOptions={(kind) => {
+        if (!active || preview) {
+          setSheet(null);
+          return;
+        }
+        void messagingSendOptions({ inquiryId: active.id, kind: optionKind(kind), payload: { title: kind } }).then(
+          (result) => {
+            if (!result.ok) setRefusal(copy.refusal(result.reason));
+            else void openThread(active.id);
+            setSheet(null);
+          },
+        );
+      }}
+      onPayment={(kind) => {
+        if (!active) return;
+        const chip = active.recordChips.find((row) => row.kind === "order" || row.kind === "appointment");
+        if (!chip || preview) {
+          if (!chip && !preview) setRefusal(copy.refusal("not_found"));
+          setSheet(null);
+          return;
+        }
+        void messagingRequestPayment({
+          inquiryId: active.id,
+          orderId: chip.recordId,
+          amountKind: kind,
+          // No figure typed on this sheet: the engine reads the order's
+          // total for "full". A deposit with no amount is refused in a
+          // sentence rather than minted at a placeholder (D-row).
+          amountCents: 0,
+          idempotencyKey: `pay-${active.id}-${chip.recordId}`,
+          publicOrigin: window.location.origin,
+          expectedVersion: active.version,
+        }).then((result) => {
+          if (!result.ok) setRefusal(copy.refusal(result.reason));
+          setSheet(null);
+        });
+      }}
+      onLost={(reason) => {
+        if (!active || preview) {
+          setSheet(null);
+          return;
+        }
+        void messagingCloseLost({ inquiryId: active.id, reason, expectedVersion: active.version }).then((result) => {
+          if (!result.ok) setRefusal(copy.refusal(result.reason));
+          setSheet(null);
+          void reload();
+        });
+      }}
+      onStart={(input) => {
+        if (input.channel === "web_chat") {
+          setRefusal(copy.webChatOnlyCustomer);
+          return;
+        }
+        if (preview) {
+          setSheet(null);
+          return;
+        }
+        void messagingStartConversation({
+          name: input.name,
+          email: input.email || null,
+          phone: input.phone || null,
+          channel: input.channel as "email" | "whatsapp" | "sms" | "counter",
+        }).then((result) => {
+          if (!result.ok) setRefusal(copy.refusal(result.reason));
+          setSheet(null);
+          void reload();
+        });
+      }}
+      onAssign={() => {
+        if (!active || preview) {
+          setSheet(null);
+          return;
+        }
+        void messagingAssignOwner({
+          inquiryId: active.id,
+          ownerUserId: null,
+          expectedVersion: active.version,
+        }).then(() => setSheet(null));
+      }}
+      onRecover={() => {
+        if (!active || preview) {
+          setSheet(null);
+          return;
+        }
+        const chip = active.recordChips.find((row) => row.kind === "order");
+        if (!chip) {
+          setRefusal(copy.refusal("not_found"));
+          setSheet(null);
+          return;
+        }
+        void messagingRecoverSnapshot({ snapshotId: `snap-${active.id}`, orderId: chip.recordId }).then((result) => {
+          if (!result.ok) setRefusal(copy.refusal(result.reason));
+          setSheet(null);
+        });
+      }}
+      onSearch={(query) => {
+        setSearch(query);
+        setSheet(null);
+      }}
+    />
+  );
+
   const compact = props.compact || Boolean(preview?.compact);
   if (compact) {
     return (
-      <PhoneMessages
-        copy={copy}
-        rows={rows}
-        active={active}
-        messages={messages}
-        draft={draft}
-        onDraft={setDraft}
-        onOpen={(id) => void openThread(id)}
-        onSend={() => void sendReply()}
-        filter={filter}
-        onFilter={setFilter}
-        onOpenSheet={setSheet}
-        search={search}
-        onSearch={setSearch}
-        toast={toast}
-        onToast={() => setToast(false)}
+      <div className="relative flex h-full min-h-0 flex-1 flex-col" data-pos-messages="compact">
+        <PhoneMessages
+          copy={copy}
+          rows={rows}
+          active={active}
+          messages={messages}
+          draft={draft}
+          onDraft={setDraft}
+          onOpen={(id) => void openThread(id)}
+          onSend={() => void sendReply()}
+          filter={filter}
+          onFilter={setFilter}
+          onOpenSheet={setSheet}
+          search={search}
+          onSearch={setSearch}
+          toast={toast}
+          onToast={() => setToast(false)}
       />
+        {sheets}
+      </div>
     );
   }
 
   const portrait = Boolean(preview?.portrait);
   const openCount = rows.filter((row) => row.conversationState !== "resolved").length;
-  const unreadCount = rows.filter((row) => row.unread).length;
+  const unreadCount = inboxUnread ?? rows.filter((row) => row.unread).length;
   const waitingCount = rows.filter((row) => row.conversationState === "awaiting_customer").length;
 
   return (
@@ -243,7 +363,11 @@ export function MessagesShell(props: MessagesClientProps) {
           </aside>
         ) : (
           <aside className="flex w-[340px] shrink-0 flex-col border-r border-admin-border-soft">
-            <div className="flex flex-nowrap gap-1 overflow-x-auto p-3">
+            {/* Wrapped, as MS02 draws them: a horizontal scroller hid the last
+                three filters at 1194px (the awaiting / resolved rows were off
+                the edge with no hint), and a filter nobody can see is not a
+                filter. */}
+            <div className="flex flex-wrap gap-1.5 p-3">
               {FILTERS.map((id) => (
                 <button
                   key={id}
@@ -328,109 +452,7 @@ export function MessagesShell(props: MessagesClientProps) {
       </div>
       {portrait ? <p className={cn(POS_NOTE, "m-3")}>{copy.disabled.rail}</p> : null}
 
-      <MessagingSheets
-        copy={copy}
-        sheet={sheet}
-        mode={props.mode}
-        active={active}
-        onClose={() => setSheet(null)}
-        onOptions={(kind) => {
-          if (!active || preview) {
-            setSheet(null);
-            return;
-          }
-          void messagingSendOptions({ inquiryId: active.id, kind: optionKind(kind), payload: { title: kind } }).then(
-            (result) => {
-              if (!result.ok) setRefusal(copy.refusal(result.reason));
-              else void openThread(active.id);
-              setSheet(null);
-            },
-          );
-        }}
-        onPayment={(kind) => {
-          if (!active) return;
-          const chip = active.recordChips.find((row) => row.kind === "order" || row.kind === "appointment");
-          if (!chip || preview) {
-            if (!chip && !preview) setRefusal(copy.refusal("not_found"));
-            setSheet(null);
-            return;
-          }
-          void messagingRequestPayment({
-            inquiryId: active.id,
-            orderId: chip.recordId,
-            amountKind: kind,
-            amountCents: kind === "none" ? 0 : 100,
-            idempotencyKey: `pay-${active.id}-${chip.recordId}`,
-            publicOrigin: window.location.origin,
-            expectedVersion: active.version,
-          }).then((result) => {
-            if (!result.ok) setRefusal(copy.refusal(result.reason));
-            setSheet(null);
-          });
-        }}
-        onLost={(reason) => {
-          if (!active || preview) {
-            setSheet(null);
-            return;
-          }
-          void messagingCloseLost({ inquiryId: active.id, reason, expectedVersion: active.version }).then((result) => {
-            if (!result.ok) setRefusal(copy.refusal(result.reason));
-            setSheet(null);
-            void reload();
-          });
-        }}
-        onStart={(input) => {
-          if (input.channel === "web_chat") {
-            setRefusal(copy.webChatOnlyCustomer);
-            return;
-          }
-          if (preview) {
-            setSheet(null);
-            return;
-          }
-          void messagingStartConversation({
-            name: input.name,
-            email: input.email || null,
-            phone: input.phone || null,
-            channel: input.channel as "email" | "whatsapp" | "sms" | "counter",
-          }).then((result) => {
-            if (!result.ok) setRefusal(copy.refusal(result.reason));
-            setSheet(null);
-            void reload();
-          });
-        }}
-        onAssign={() => {
-          if (!active || preview) {
-            setSheet(null);
-            return;
-          }
-          void messagingAssignOwner({
-            inquiryId: active.id,
-            ownerUserId: null,
-            expectedVersion: active.version,
-          }).then(() => setSheet(null));
-        }}
-        onRecover={() => {
-          if (!active || preview) {
-            setSheet(null);
-            return;
-          }
-          const chip = active.recordChips.find((row) => row.kind === "order");
-          if (!chip) {
-            setRefusal(copy.refusal("not_found"));
-            setSheet(null);
-            return;
-          }
-          void messagingRecoverSnapshot({ snapshotId: `snap-${active.id}`, orderId: chip.recordId }).then((result) => {
-            if (!result.ok) setRefusal(copy.refusal(result.reason));
-            setSheet(null);
-          });
-        }}
-        onSearch={(query) => {
-          setSearch(query);
-          setSheet(null);
-        }}
-      />
+      {sheets}
     </div>
   );
 }

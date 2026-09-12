@@ -30,6 +30,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { POS_MESSAGES_DESTINATION, posMessagesHref } from "@/lib/pos/modes";
 
 import {
   ALL_CATEGORIES_ID,
@@ -664,11 +665,11 @@ export function PosClient(props: PosClientProps) {
         mode={props.mode}
         navLabel={copy.frame.navLabel}
         activeDestination={destination === "scan" ? "sell" : destination}
-        onSelectDestination={(id) => {
-          if (isDestination(id)) setDestination(id);
-        }}
+        onSelectDestination={(id) =>
+          id === POS_MESSAGES_DESTINATION ? router.push(posMessagesHref(props.mode, sale?.orderId ?? null)) : isDestination(id) ? setDestination(id) : undefined
+        }
         destinationLabels={copy.frame.destinationLabels}
-        counts={{ orders: held.length }}
+        counts={{ orders: held.length, messages: props.messagesUnread ?? 0 }}
         modeLabel={copy.modeLabel}
         modeEyebrow={copy.chrome.modeEyebrow}
         lock={{ label: copy.chrome.lock, onLock: till.lock }}
@@ -679,7 +680,7 @@ export function PosClient(props: PosClientProps) {
           title={header.title}
           subtitle={header.subtitle}
           alert={!online ? { label: copy.chrome.offlineChip, onSelect: () => setDestination("connection") } : props.readerConfigured ? { label: copy.chrome.readerOffChip, onSelect: () => setDestination("devices") } : null}
-          location={props.workspaceName}
+          location={props.locationName ?? props.workspaceName}
           cashier={{ initials: initialsOf(till.operatorName), label: `${till.operatorName} · ${props.shift ? copy.chrome.drawerOpen : copy.chrome.drawerNone}` }}
           cashierMenuLabel={copy.chrome.cashierMenu}
           cashierMenu={[

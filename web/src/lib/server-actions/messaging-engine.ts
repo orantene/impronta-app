@@ -461,12 +461,29 @@ export async function messagingRequestPayment(input: {
   if (parsed.data.amountKind === "none") {
     return { ok: true as const, amountKind: "none" as const };
   }
+  // `expectedVersion` is the CONVERSATION's version, the one number the
+  // Messages surface holds (a record chip carries no order version). It used
+  // to be compared with the order's version, so every request from the shell
+  // answered `conflict` unless the two counters happened to coincide
+  // (D-row, live run 2026-09-11). The basket snapshot takes the order's own
+  // current version, which is what a later "basket changed" check needs.
+  const { data: inquiry } = await scoped(g.admin, "inquiries", g.tenantId)
+    .select("id, version")
+    .eq("id", parsed.data.inquiryId)
+    .maybeSingle();
+  if (!inquiry) return fail("not_found");
+  if ((inquiry as { version: number }).version !== parsed.data.expectedVersion) return fail("conflict");
   const { data: order } = await scoped(g.admin, "orders", g.tenantId)
-    .select("id, version, status")
+    .select("id, version, status, total_cents")
     .eq("id", parsed.data.orderId)
     .maybeSingle();
   if (!order) return fail("not_found");
-  if ((order as { version: number }).version !== parsed.data.expectedVersion) return fail("conflict");
+  const basketVersion = (order as { version: number }).version;
+  // "Full amount" with no figure from the surface means the order's total;
+  // `createPaymentLink` still refuses anything above what is outstanding.
+  const amountCents =
+    parsed.data.amountCents > 0 ? parsed.data.amountCents : parsed.data.amountKind === "full" ? Number((order as { total_cents: number | string }).total_cents) : 0;
+  if (amountCents <= 0) return fail("invalid");
 
   const { data: existingLink } = await scoped(g.admin, "payment_links", g.tenantId)
     .select("id, code, status")
@@ -485,16 +502,16 @@ export async function messagingRequestPayment(input: {
     .eq("order_id", parsed.data.orderId);
   const snapshot = await scoped(g.admin, "checkout_snapshots", g.tenantId).insert({
     inquiry_id: parsed.data.inquiryId,
-    basket: { lines: lines ?? [], version: parsed.data.expectedVersion },
+    basket: { lines: lines ?? [], version: basketVersion },
     customer: {},
-    basket_version: parsed.data.expectedVersion,
+    basket_version: basketVersion,
   }).select("id").single();
   if (snapshot.error || !snapshot.data) return fail("unavailable");
 
   const minted = await createPaymentLink(g.admin, {
     tenantId: g.tenantId,
     orderId: parsed.data.orderId,
-    amountCents: parsed.data.amountCents,
+    amountCents,
     idempotencyKey: parsed.data.idempotencyKey,
     actorUserId: g.userId,
     publicOrigin: parsed.data.publicOrigin,
@@ -509,7 +526,7 @@ export async function messagingRequestPayment(input: {
     .eq("code", minted.code)
     .maybeSingle();
   await scoped(g.admin, "payment_links", g.tenantId)
-    .update({ inquiry_id: parsed.data.inquiryId, basket_version: parsed.data.expectedVersion })
+    .update({ inquiry_id: parsed.data.inquiryId, basket_version: basketVersion })
     .eq("code", minted.code);
   await scoped(g.admin, "checkout_snapshots", g.tenantId)
     .update({ payment_link_id: (linkRow as { id: string } | null)?.id ?? null })

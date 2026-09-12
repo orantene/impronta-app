@@ -1,0 +1,11 @@
+# Gates on work/wire-messages (rebased on program/fidelity 4b5ef65d9), 2026-09-11, private tsc lane. Real exit codes.
+typecheck exit=0
+lint exit=0
+test:design-system exit=0
+test:tenant-isolation exit=0
+test:size-ratchet exit=0
+test:phase1-i18n exit=0
+test:money exit=0
+test:messaging exit=0
+verify:ui-messages exit=0
+check:ci-lane-parity exit=0

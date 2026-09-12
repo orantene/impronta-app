@@ -60,7 +60,11 @@ export type FloorRefusalKey =
   | "no_offering_configured"
   | "no_contact"
   | "closed"
-  | "too_late_today";
+  | "too_late_today"
+  // The party waitlist (`floorJoinWaitlist` / `floorSeatWaitlist` / `floorNotifyWaitlist`).
+  | "already_seated"
+  | "expired"
+  | "waitlist_no_channel";
 
 export type FloorBoardCopy = {
   readonly railLabel: string;
@@ -202,6 +206,9 @@ export type FloorBoardCopy = {
     /** `Collect {amount}` */
     readonly collect: string;
     readonly sendKitchen: string;
+    readonly fireStarters: string;
+    readonly fireMains: string;
+    readonly fireDessert: string;
     readonly moveOrJoin: string;
     readonly changeServer: string;
     readonly changeServerReason: string;
@@ -287,6 +294,8 @@ export type FloorBoardCopy = {
     readonly seatNow: string;
     readonly offerTable: string;
     readonly offerReason: string;
+    readonly offered: string;
+    readonly notifyNone: string;
     readonly remove: string;
     readonly removeReason: string;
     readonly close: string;
@@ -432,6 +441,7 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       prep: t(`${K}.rail.prep`),
       receipts: t(`${K}.rail.receipts`),
       issues: t(`${K}.rail.issues`),
+      messages: t("dashboard.pos.messages.title"),
     },
     title: t(`${K}.title`),
     titleTimeline: t(`${K}.titleTimeline`),
@@ -542,6 +552,9 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       addItems: t(`${K}.popover.addItems`),
       collect: t(`${K}.popover.collect`),
       sendKitchen: t("dashboard.pos.floor.sendKitchen"),
+      fireStarters: t("dashboard.pos.floor.fireStarters"),
+      fireMains: t("dashboard.pos.floor.fireMains"),
+      fireDessert: t("dashboard.pos.floor.fireDessert"),
       moveOrJoin: t(`${K}.popover.moveOrJoin`),
       changeServer: t(`${K}.popover.changeServer`),
       changeServerReason: t(`${K}.popover.changeServerReason`),
@@ -615,6 +628,8 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       seatNow: t(`${K}.waiting.seatNow`),
       offerTable: t(`${K}.waiting.offerTable`),
       offerReason: t(`${K}.waiting.offerReason`),
+      offered: t(`${K}.waiting.offered`),
+      notifyNone: t(`${K}.waiting.notifyNone`),
       remove: t(`${K}.waiting.remove`),
       removeReason: t(`${K}.waiting.removeReason`),
       close: t(`${K}.waiting.close`),
@@ -758,7 +773,14 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       no_contact: t(`${K}.refusal.noContact`),
       closed: t(`${K}.refusal.closed`),
       too_late_today: t(`${K}.refusal.tooLateToday`),
+      // The engine's table operations (`lines_paid`, and the till's wording for the rest).
       ...floorEngineRefusals(t),
+      // The party waitlist's own sentences win where the venue engine names the code too.
+      already_seated: t("dashboard.venue.engine.refusal.already_seated"),
+      space_occupied: t("dashboard.venue.engine.refusal.space_occupied"),
+      expired: t("dashboard.venue.engine.refusal.expired"),
+      conflict: t("dashboard.venue.engine.refusal.conflict"),
+      waitlist_no_channel: t(`${K}.waiting.notifyNone`),
     },
     engine: floorEngineCopy(t),
   };

@@ -7,6 +7,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { loadAgencyInboxHideSet } from "@/lib/inquiry/agency-inbox-visibility";
+import { inquiryMessagingState, linkedRecordsByInquiry, type InquiryMessagingState } from "./inquiries-messaging-state";
 export { loadInquiryMessages, loadTotalUnreadMessages } from "./inquiry-thread-messages";
 
 /**
@@ -159,6 +160,9 @@ export type WorkspaceInquiryForMessages = {
   lastMessageThreadType: "private" | "group" | null;
   /** Recent real messages across both inquiry threads, chronological. */
   threadMessages: WorkspaceMessage[];
+
+  /** The three messaging state families, never merged (contract seam 4; `inquiries-messaging-state.ts`). */
+  messaging: InquiryMessagingState;
 };
 
 /** Statuses considered "open" for the messages inbox (active surface). */
@@ -301,7 +305,9 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
         next_action_by, priority, trust_level_at_submission,
         source_type, source_channel, source_page, source_workspace_id,
         coordinator_id, coordinator_accepted_at,
-        current_offer_id
+        current_offer_id,
+        conversation_state, opportunity_state, last_customer_message_at, last_staff_message_at,
+        resolved_at, lost_reason
       `)
       .eq("tenant_id", tenantId)
       .in("status", INQUIRY_INBOX_OPEN_STATUSES as unknown as string[])
@@ -337,6 +343,12 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
       coordinator_id: string | null;
       coordinator_accepted_at: string | null;
       current_offer_id: string | null;
+      conversation_state: string | null;
+      opportunity_state: string | null;
+      last_customer_message_at: string | null;
+      last_staff_message_at: string | null;
+      resolved_at: string | null;
+      lost_reason: string | null;
     };
     let inquiryRows = (inquiryRes.data ?? []) as InquiryRow[];
     let inquiryIds = inquiryRows.map((row) => row.id);
@@ -369,6 +381,7 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
       coordinatorsRes,
       flagsRes,
       lastMessagesRes,
+      recordsRes,
     ] = await Promise.all([
       // Read watermarks (per-thread) for current user.
       myUserId
@@ -437,7 +450,17 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
         .in("inquiry_id", inquiryIds)
         .order("created_at", { ascending: false })
         .limit(800),
+
+      // Linked records (seam 4): the third chip family on the row.
+      supabase
+        .from("conversation_records")
+        .select("inquiry_id, record_kind, record_id")
+        .eq("tenant_id", tenantId)
+        .is("unlinked_at", null)
+        .in("inquiry_id", inquiryIds),
     ]);
+
+    const recordsByInquiry = linkedRecordsByInquiry(recordsRes.data);
 
     // ── 3. Build lookup maps ─────────────────────────────────────────────────
 
@@ -755,6 +778,8 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
         lastMessageRole:       lastMsg?.role ?? null,
         lastMessageThreadType: lastMsg?.threadType ?? null,
         threadMessages,
+
+        messaging: inquiryMessagingState(row, upr + ugr > 0, recordsByInquiry.get(row.id) ?? []),
       };
     });
   } catch (err) {

@@ -260,6 +260,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:inquiry-workspace
 
+      - name: tests — messaging
+        if: ${{ !cancelled() }}
+        run: npm run test:messaging
+
       - name: tests — ai-guardrails
         if: ${{ !cancelled() }}
         run: npm run test:ai-guardrails
@@ -334,6 +338,13 @@ jobs:
         # 801 lines and at 8,001 alike. This lane measures the line count.
         if: ${{ !cancelled() }}
         run: npm run test:size-ratchet
+
+      - name: tests — alias guard
+        # scripts/lib/alias-guard.mjs: a custom domain may only be aliased to a
+        # build whose commit the main structural gate passed (2026-09-11
+        # pointer incident). Pure decision, node:test, includes that day's case.
+        if: ${{ !cancelled() }}
+        run: npm run test:alias-guard
 
       - name: tests — media ownership stamps
         # The ownership stamp helpers every media writer now spreads into its

@@ -21,6 +21,7 @@
 
 import { notFound, redirect } from "next/navigation";
 
+import { publicThreadPath } from "@/lib/messaging/thread-token";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 
 import {
@@ -43,6 +44,14 @@ export default async function GuestFullConversationPage({
   params: Promise<{ inquiryId: string }>;
 }) {
   const { inquiryId } = await params;
+
+  // ── 0. A signed POS thread token (`v1.<payload>.<sig>`, `lib/messaging/
+  // thread-token.ts`) is not an inquiry id. Customer cards ship it at
+  // `/c/t/<token>` (D-POS-89); a card that arrives here dispatches there,
+  // and the guest-cookie UUID path below stays as it is (contract seam 6).
+  if (inquiryId.startsWith("v1.")) {
+    redirect(publicThreadPath(inquiryId));
+  }
 
   // ── 1. Check for a signed-in owning client FIRST (before the guest cookie
   // path). getGuestFullThread gates on the guest cookie; a signed-in client

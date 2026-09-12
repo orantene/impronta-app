@@ -129,6 +129,16 @@ export type InboxRow = {
   recordChips: readonly RecordChip[];
 };
 
+/**
+ * The three state families of a thread as a workspace row carries them
+ * (contract seam 4): drawn as three separate chip groups, never one word.
+ */
+export type InquiryMessagingState = {
+  conversation: ConversationState;
+  opportunity: OpportunityState | null;
+  records: Array<{ kind: RecordKind; recordId: string }>;
+};
+
 export type RecordChip = {
   kind: RecordKind;
   recordId: string;

@@ -19,6 +19,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { listPosStaff } from "@/lib/pos/staff";
 import { tenantTimezone } from "@/lib/spaces/venues";
 import { listFloor } from "@/lib/visits/floor";
+import { partyWaitlistList } from "@/lib/venues/party-waitlist";
+import { layoutsList } from "@/lib/venues/layouts";
 import { issuesCopy } from "@/components/admin/pos/pos-copy";
 
 import type { FloorBoardData } from "@/components/admin/floor/floor-types";
@@ -39,16 +41,32 @@ export async function loadFloorBoardData(
   locale: string,
 ): Promise<{ ok: true; data: FloorBoardData } | { ok: false }> {
   const now = new Date();
-  const [floor, timeZone, board, book, staff] = await Promise.all([
+  const [floor, timeZone, board, book, waitlist, layouts, staff] = await Promise.all([
     listFloor(admin, tenantId),
     tenantTimezone(tenantId),
     listBoard(admin, tenantId),
     loadFloorBook(tenantId, now),
+    partyWaitlistList(admin, { tenantId }),
+    layoutsList(admin, { tenantId }),
     // T17: the people a table can be given to. A failed read leaves the
     // change-server sheet saying nobody is listed, never a blank tile.
     listPosStaff(admin, tenantId),
   ]);
   if (!floor.ok) return { ok: false };
+
+  let tables = floor.tables;
+  let layoutCanvas: { w: number; h: number } | null = null;
+  if (layouts.ok) {
+    const active = layouts.layouts.find((row) => row.isActive) ?? null;
+    if (active) {
+      layoutCanvas = active.canvas;
+      const bySpace = new Map(layouts.items.filter((item) => item.layoutId === active.id).map((item) => [item.spaceId, item]));
+      tables = floor.tables.map((table) => {
+        const item = bySpace.get(table.spaceId);
+        return item ? { ...table, layoutRect: { x: item.x, y: item.y, w: item.w, h: item.h, shape: item.shape } } : table;
+      });
+    }
+  }
 
   // A board that cannot be read is not a reason to hide the floor: the cards
   // then read "nothing sent yet", which is the honest fallback for a fact this
@@ -87,8 +105,10 @@ export async function loadFloorBoardData(
       nowIso: now.toISOString(),
       service: book.service,
       defaultTurnMinutes: book.defaultTurnMinutes,
-      tables: floor.tables,
+      tables,
+      layoutCanvas,
       book: book.entries,
+      partyWaitlist: waitlist.ok ? waitlist.rows : [],
       tickets,
       currencies,
       walkinsEnabled: book.walkinsEnabled,
@@ -104,9 +124,12 @@ export async function FloorScreen(props: {
   tenantId: string;
   locale: string;
   workspaceName: string;
+  locationName?: string;
   posPath: string;
   cashierName: string;
   drawerOpen: boolean;
+  /** The Messages inbox's unread count for the rail badge (seam 10). */
+  messagesUnread: number;
 }) {
   const tr = await createTranslator(props.locale);
   const copy = floorCopy(tr);
@@ -125,11 +148,13 @@ export async function FloorScreen(props: {
   return (
     <FloorClient
       workspaceName={props.workspaceName}
+      locationName={props.locationName}
       posPath={props.posPath}
       workspacePath={workspacePath}
       preparationPath={`${workspacePath}/preparation`}
       cashierName={props.cashierName}
       drawerOpen={props.drawerOpen}
+      messagesUnread={props.messagesUnread}
       data={loaded.data}
       copy={copy}
       issuesCopy={issuesCopy(tr)}

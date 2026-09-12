@@ -21,6 +21,8 @@
  */
 
 import { useRouter } from "next/navigation";
+
+import { POS_MESSAGES_DESTINATION, posMessagesHref } from "@/lib/pos/modes";
 import { useMemo, useState } from "react";
 
 import { FloorBoard } from "@/components/admin/floor/FloorBoard";
@@ -31,15 +33,19 @@ import { IssuesScreen, PosFrame, PosHeader, initialsOf, type IssuesCopy } from "
 import { interpolate } from "@/i18n/interpolate";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 
-import { reservationsTakeWalkIn } from "../reservations/actions";
+import { prepFireCourse } from "@/lib/server-actions/venue-engine";
 import { tablesCloseVisit, tablesResetTable, tablesSeatParty, visitChangeServer, visitMergeChecks, visitSplitCheck, visitTransfer } from "../tables/actions";
 import { posLoadSale, posSubmitPrep } from "./actions";
 import { floorCreateReservation, floorLoadReserveTimes } from "./floor-actions";
+import { floorJoinWaitlist, floorLeaveWaitlist, floorNotifyWaitlist, floorSeatWaitlist } from "./floor-waitlist";
 import type { FloorCopy } from "./floor-copy";
 import { kitchenOutcome } from "./floor-kitchen";
 
 export type FloorClientProps = {
   readonly workspaceName: string;
+  /** The Messages inbox's unread count: the rail's `messages` badge (seam 10). */
+  readonly messagesUnread?: number;
+  readonly locationName?: string;
   /** This request's own `/…/admin/pos` path, so links keep the host shape. */
   readonly posPath: string;
   readonly workspacePath: string;
@@ -75,7 +81,18 @@ const FLOOR_ACTIONS: FloorActions = {
   },
   resetTable: (spaceId) => tablesResetTable(spaceId),
   sendToKitchen: async (orderId) => kitchenOutcome(await posSubmitPrep({ orderId, destination: "table" })),
-  takeWalkIn: (input) => reservationsTakeWalkIn(input),
+  fireCourse: async ({ visitId, courseSeq }) => {
+    const r = await prepFireCourse({
+      visitId,
+      courseSeq,
+      operationKey: `fire-${visitId}-${courseSeq}-${Date.now()}`,
+    });
+    return r.ok ? { ok: true } : { ok: false, reason: r.reason };
+  },
+  takeWalkIn: (input) => floorJoinWaitlist(input),
+  notifyWaitlist: (input) => floorNotifyWaitlist(input),
+  seatWaitlist: (input) => floorSeatWaitlist(input),
+  leaveWaitlist: (input) => floorLeaveWaitlist(input),
   loadReserveTimes: (input) => floorLoadReserveTimes(input),
   createReservation: (input) => floorCreateReservation(input),
 };
@@ -145,10 +162,14 @@ export function FloorClient(props: FloorClientProps) {
             router.push(props.preparationPath);
             return;
           }
+          if (id === POS_MESSAGES_DESTINATION) {
+            router.push(posMessagesHref("floor"));
+            return;
+          }
           if (id === "tables" || id === "orders" || id === "receipts" || id === "issues") setDestination(id);
         }}
         destinationLabels={copy.board.rail}
-        counts={{ orders: openChecks, prep: Object.keys(data.tickets).length }}
+        counts={{ orders: openChecks, prep: Object.keys(data.tickets).length, messages: props.messagesUnread ?? 0 }}
         modeLabel={copy.modeLabel}
         modeEyebrow={copy.chrome.modeEyebrow}
         lock={{ label: copy.chrome.lock, disabledReason: copy.chrome.lockUnavailable }}
@@ -158,7 +179,7 @@ export function FloorClient(props: FloorClientProps) {
         <PosHeader
           title={header.title}
           subtitle={header.subtitle}
-          location={props.workspaceName}
+          location={props.locationName ?? props.workspaceName}
           cashier={{
             initials: initialsOf(props.cashierName || props.workspaceName),
             label: `${props.cashierName || props.workspaceName} · ${props.drawerOpen ? copy.chrome.drawerOpen : copy.chrome.drawerNone}`,

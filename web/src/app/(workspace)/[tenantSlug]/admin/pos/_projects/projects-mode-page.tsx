@@ -37,6 +37,7 @@ function asView(raw: unknown): ProjectsModeView {
 export async function ProjectsModePage(props: {
   tenantId: string;
   workspaceName: string;
+  locationName?: string;
   posPath: string;
   workspacePath: string;
   receiptOrigin: string;
@@ -45,6 +46,8 @@ export async function ProjectsModePage(props: {
   cashierName: string;
   /** Whether a cash drawer (shift) is open right now, for the footer line. */
   drawerOpen: boolean;
+  /** The Messages inbox's unread count for the rail badge (seam 10). */
+  messagesUnread: number;
   tr: Translator;
   locale: string;
   search: { project?: string; view?: string };
@@ -69,8 +72,10 @@ export async function ProjectsModePage(props: {
   return (
     <ProjectsModeClient
       workspaceName={props.workspaceName}
+      locationName={props.locationName}
       cashierName={props.cashierName}
       drawerOpen={props.drawerOpen}
+      messagesUnread={props.messagesUnread}
       posPath={props.posPath}
       workspacePath={props.workspacePath}
       receiptOrigin={props.receiptOrigin}

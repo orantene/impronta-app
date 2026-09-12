@@ -330,6 +330,10 @@ export function TulalaIdentityBar() {
 
             <div data-tulala-id-divider className="mx-[4px] h-[22px] w-px bg-admin-border-soft" />
 
+            {/* A talent with no agency has nothing to "act as"; the platform
+                hub is filtered out upstream (loadTalentAgencies). Hide the
+                block rather than show "Your agencies · 0 agencies". */}
+            {!(inTalent && agencyCount === 0) && (
             <button
               type="button"
               onClick={onActingClick}
@@ -357,6 +361,7 @@ export function TulalaIdentityBar() {
                 <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
               </span>
             </button>
+            )}
 
             <div className="flex-1" />
 
@@ -375,7 +380,10 @@ export function TulalaIdentityBar() {
 
             <NotificationsBell />
 
-            {/* Preview public site — opens the agency homepage in a new tab */}
+            {/* Preview public site — opens the agency homepage in a new tab.
+                Not for a talent with no agency: their own page is the
+                sidebar's "Preview profile", and /tulala is not their site. */}
+            {!(inTalent && agencyCount === 0) && (
             <a
               href={tenantSlug ? `/${tenantSlug}` : "/"}
               target="_blank"
@@ -389,6 +397,7 @@ export function TulalaIdentityBar() {
                 <circle cx="12" cy="12" r="3" />
               </svg>
             </a>
+            )}
 
             {/* User identity — avatar-only menu trigger; the full name + email
                 live in the dropdown header, the aria-label, and a tooltip. */}

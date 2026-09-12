@@ -6,8 +6,7 @@
  * status chip (`Offline · cash only`, `Card reader disconnected`), the
  * location chip, and the cashier · drawer chip.
  *
- * The location chip is the workspace's own name until a locations table
- * exists (D-POS-15), so it is drawn as a chip and not a menu. The cashier
+ * The location chip is the default `venue_locations` name (D-POS-76). The cashier
  * chip is the signed-in person and the open drawer; its chevron opens the
  * small menu the caller passes (`Devices`, `Connection`).
  */

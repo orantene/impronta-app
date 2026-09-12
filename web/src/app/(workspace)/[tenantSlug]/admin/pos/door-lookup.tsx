@@ -9,14 +9,16 @@
  * action, `Admit <ref> · <name>`, which is Events' `admitAtDoor` on the first
  * ticket that can still admit. `Change` opens E10 over the order: naming an
  * unnamed ticket writes through `posDoorNameTicket`, cancelling one is the
- * refunds desk's own `refundOrderAtDesk` with `cancel_ticket`; transfer and
- * exchange have no writer and are drawn disabled with their sentence.
- * `Delivery` (E15) draws what this workspace can say about a ticket's
- * delivery, which today is that the code was handed over here (D-POS-55).
+ * refunds desk's own `refundOrderAtDesk` with `cancel_ticket`; transfer is
+ * `ticketTransfer` when the row has a signed code; exchange is
+ * `admissionExchange` to another night of the same event. `Delivery` (E15)
+ * emails or prints through `admissionDeliver`; SMS and wallet stay
+ * unavailable.
  */
 
 import { Search } from "lucide-react";
 import { useCallback, useState, type ReactNode } from "react";
+import { useT } from "@/i18n/use-t";
 
 import { PosSheet } from "@/components/admin/pos";
 import { POS_DANGER_ACTION, POS_EYEBROW, POS_INPUT, POS_OUTLINE_ACTION, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION, POS_SURFACE } from "@/components/admin/pos/pos-classes";
@@ -26,9 +28,15 @@ import { cn } from "@/lib/utils";
 import type { DoorRow } from "@/app/(workspace)/[tenantSlug]/admin/_door-actions";
 import { refundOrderAtDesk } from "@/app/(workspace)/[tenantSlug]/admin/orders/refund-actions";
 
+import { admissionDeliver, admissionExchange, ticketTransfer } from "@/lib/server-actions/venue-engine";
+import { VENUE_ENGINE_REFUSALS, type VenueEngineRefusal } from "@/lib/venues/engine-refusals";
 import { posDoorNameTicket } from "./door-actions";
 import { dateAt, type DoorScreenCopy, type OpenDoor, timeAt } from "./door-shared";
 import { DoorNote, Pill, TicketRow, rowName, rowRef, ticketState } from "./door-ui";
+
+function isRefusal(reason: string): reason is VenueEngineRefusal {
+  return reason in VENUE_ENGINE_REFUSALS;
+}
 
 export type LookupScreenProps = {
   door: OpenDoor;
@@ -161,6 +169,10 @@ export function LookupScreen(props: LookupScreenProps) {
         <ChangeSheet
           row={sheet.row}
           dateLabel={dateLabel}
+          nights={door.nights}
+          sessionId={door.session.id}
+          zone={zone}
+          locale={locale}
           busy={props.busy}
           setBusy={props.setBusy}
           copy={copy}
@@ -182,7 +194,12 @@ export function LookupScreen(props: LookupScreenProps) {
             </button>
           }
         >
-          <DeliveryRows group={sheet.group} copy={copy.door.deliveryPanel} />
+          <DeliveryRows
+            group={sheet.group}
+            copy={copy.door.deliveryPanel}
+            busy={props.busy}
+            setBusy={props.setBusy}
+          />
         </PosSheet>
       )}
     </div>
@@ -191,13 +208,24 @@ export function LookupScreen(props: LookupScreenProps) {
 
 // ── E15 ─────────────────────────────────────────────────────────────────
 
-function DeliveryRows({ group, copy }: { group: LookupGroup<DoorRow>; copy: DoorScreenCopy["door"]["deliveryPanel"] }) {
+function DeliveryRows({
+  group,
+  copy,
+  busy,
+  setBusy,
+}: {
+  group: LookupGroup<DoorRow>;
+  copy: DoorScreenCopy["door"]["deliveryPanel"];
+  busy: boolean;
+  setBusy: (b: boolean) => void;
+}) {
   const email = group.rows.find((r) => r.holderEmail)?.holderEmail ?? null;
+  const first = group.rows[0] ?? null;
   const rows = [
-    { title: email ? interpolate(copy.email, { email }) : copy.emailNone, status: copy.emailStatus, tone: "slate" as const, action: copy.resend, reason: copy.resendReason },
-    { title: copy.sms, status: copy.smsStatus, tone: "slate" as const, action: null, reason: null },
-    { title: copy.printed, status: copy.printedStatus, tone: "slate" as const, action: null, reason: null },
-    { title: copy.wallet, status: copy.walletStatus, tone: "slate" as const, action: null, reason: null },
+    { title: email ? interpolate(copy.email, { email }) : copy.emailNone, status: copy.emailStatus, tone: "slate" as const, action: copy.resend, method: "email" as const },
+    { title: copy.sms, status: copy.smsStatus, tone: "slate" as const, action: null, method: null },
+    { title: copy.printed, status: copy.printedStatus, tone: "slate" as const, action: copy.resend, method: "print" as const },
+    { title: copy.wallet, status: copy.walletStatus, tone: "slate" as const, action: null, method: null },
   ];
   return (
     <div className="flex flex-col gap-3" data-door-delivery-panel>
@@ -208,8 +236,17 @@ function DeliveryRows({ group, copy }: { group: LookupGroup<DoorRow>; copy: Door
               <span className="block truncate text-[16px] font-semibold text-admin-ink">{r.title}</span>
               <span className="block text-[13.5px] text-admin-ink-muted">{r.status}</span>
             </span>
-            {r.action ? (
-              <button type="button" disabled title={r.reason ?? undefined} data-not-wired="true" className={cn(POS_SECONDARY_ACTION, "h-11")}>
+            {r.action && r.method && first ? (
+              <button
+                type="button"
+                disabled={busy || (r.method === "email" && !email)}
+                data-testid={`door-deliver-${r.method}`}
+                onClick={() => {
+                  setBusy(true);
+                  void admissionDeliver({ admissionId: first.id, method: r.method! }).finally(() => setBusy(false));
+                }}
+                className={cn(POS_SECONDARY_ACTION, "h-11")}
+              >
                 {r.action}
               </button>
             ) : (
@@ -228,6 +265,10 @@ function DeliveryRows({ group, copy }: { group: LookupGroup<DoorRow>; copy: Door
 function ChangeSheet({
   row,
   dateLabel,
+  nights,
+  sessionId,
+  zone,
+  locale,
   busy,
   setBusy,
   copy,
@@ -236,6 +277,10 @@ function ChangeSheet({
 }: {
   row: DoorRow;
   dateLabel: string;
+  nights: OpenDoor["nights"];
+  sessionId: string;
+  zone: string;
+  locale: string;
   busy: boolean;
   setBusy: (b: boolean) => void;
   copy: DoorScreenCopy;
@@ -247,10 +292,16 @@ function ChangeSheet({
   const ref = rowRef(row);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
+  const [toName, setToName] = useState(row.holderName ?? "");
+  const [toEmail, setToEmail] = useState(row.holderEmail ?? "");
+  const [toSessionId, setToSessionId] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [note, setNote] = useState<{ tone: "done" | "refused"; text: string } | null>(null);
   const cancellable = row.status === "valid" && row.admittedCount === 0 && row.orderId !== null && row.orderLineId !== null;
   const nameable = row.status === "valid" && !row.holderName;
+  const otherNights = nights.filter((n) => n.id !== sessionId);
+  const t = useT();
+  const sentence = (reason: string) => t(VENUE_ENGINE_REFUSALS[isRefusal(reason) ? reason : "unavailable"]);
 
   const saveName = useCallback(async () => {
     if (!name.trim()) return;
@@ -318,18 +369,86 @@ function ChangeSheet({
         {card(
           ch.transfer,
           ch.transferNote,
-          <button type="button" disabled title={ch.transferReason} data-not-wired="true" className={cn(POS_OUTLINE_ACTION, "w-full")}>
-            {ch.transferAction}
-          </button>,
-          ch.transferReason,
+          row.code ? (
+            <form
+              className="flex flex-col gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!row.code) return;
+                setBusy(true);
+                setNote(null);
+                void ticketTransfer({ code: row.code, toName, toEmail }).then((res) => {
+                  setBusy(false);
+                  if (!res.ok) {
+                    setNote({ tone: "refused", text: sentence(res.reason) });
+                    return;
+                  }
+                  setNote({ tone: "done", text: ch.transferred });
+                  onChanged();
+                });
+              }}
+            >
+              <input value={toName} onChange={(e) => setToName(e.target.value)} placeholder={ch.transferToName} className={cn(POS_INPUT, "h-12")} data-testid="door-transfer-name" />
+              <input value={toEmail} onChange={(e) => setToEmail(e.target.value)} placeholder={ch.transferToEmail} className={cn(POS_INPUT, "h-12")} data-testid="door-transfer-email" />
+              <button type="submit" disabled={busy || !toName.trim() || !toEmail.includes("@")} className={cn(POS_OUTLINE_ACTION, "w-full")} data-testid="door-transfer">
+                {ch.transferAction}
+              </button>
+            </form>
+          ) : (
+            <button type="button" disabled title={ch.transferReason} data-not-wired="true" className={cn(POS_OUTLINE_ACTION, "w-full")}>
+              {ch.transferAction}
+            </button>
+          ),
+          row.code ? undefined : ch.transferReason,
         )}
         {card(
           ch.exchange,
           ch.exchangeNote,
-          <button type="button" disabled title={ch.exchangeReason} data-not-wired="true" className={cn(POS_OUTLINE_ACTION, "w-full")}>
-            {ch.exchangeAction}
-          </button>,
-          ch.exchangeReason,
+          otherNights.length > 0 ? (
+            <form
+              className="flex flex-col gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!toSessionId) return;
+                setBusy(true);
+                setNote(null);
+                void admissionExchange({
+                  admissionId: row.id,
+                  toSessionId,
+                  operationKey: crypto.randomUUID(),
+                  expectedVersion: row.version,
+                }).then((res) => {
+                  setBusy(false);
+                  if (!res.ok) {
+                    setNote({ tone: "refused", text: sentence(res.reason) });
+                    return;
+                  }
+                  setNote({ tone: "done", text: ch.exchanged });
+                  onChanged();
+                });
+              }}
+            >
+              <label className="flex flex-col gap-1 text-[12px] font-semibold text-admin-ink">
+                {ch.exchangeNight}
+                <select value={toSessionId} onChange={(e) => setToSessionId(e.target.value)} className={cn(POS_INPUT, "h-12")} data-testid="door-exchange-night">
+                  <option value="">{ch.exchangeNight}</option>
+                  {otherNights.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {dateAt(n.startsAt, zone, locale)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit" disabled={busy || !toSessionId} className={cn(POS_OUTLINE_ACTION, "w-full")} data-testid="door-exchange">
+                {ch.exchangeAction}
+              </button>
+            </form>
+          ) : (
+            <button type="button" disabled title={ch.noOtherNight} className={cn(POS_OUTLINE_ACTION, "w-full")}>
+              {ch.exchangeAction}
+            </button>
+          ),
+          otherNights.length > 0 ? undefined : ch.noOtherNight,
         )}
         {card(
           ch.cancel,

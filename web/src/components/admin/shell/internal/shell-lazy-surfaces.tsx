@@ -23,5 +23,6 @@
  */
 
 export { MessagesShell } from "./messages";
+export { PhoneWorkspaceMessages } from "./messages/phone-workspace-messages";
 export { TalentSurface } from "./talent";
 export { DrawerSwitch } from "./drawer-switch";

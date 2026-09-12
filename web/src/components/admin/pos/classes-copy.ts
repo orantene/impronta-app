@@ -34,6 +34,7 @@ export function classesRailCopy(t: Translator): ClassesRailCopy {
     sessions: t("dashboard.pos.classes.rail.sessions"),
     walkin: t("dashboard.pos.classes.rail.walkin"),
     waitlist: t("dashboard.pos.classes.rail.waitlist"),
+    messages: t("dashboard.pos.messages.title"),
   };
 }
 

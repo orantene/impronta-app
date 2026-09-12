@@ -121,7 +121,7 @@ export function MessagingSheets(props: {
         <p>{copy.nothingLinked}</p>
         {props.active?.recordChips.map((chip) => (
           <p key={chip.recordId} className="rounded-[12px] bg-admin-surface-alt px-3 py-2">
-            {chip.label}
+            {copy.record[chip.kind]}
           </p>
         ))}
         <button type="button" className={POS_PRIMARY_ACTION} onClick={props.onClose}>

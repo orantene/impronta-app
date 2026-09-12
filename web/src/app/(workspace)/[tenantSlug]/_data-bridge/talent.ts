@@ -3,6 +3,7 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import {
   buildTalentMembershipState,
   type TalentMembershipState,
@@ -737,7 +738,17 @@ export async function loadTalentAgencies(
       agencies: { id: string; display_name: string; slug: string; plan_tier: string | null } | { id: string; display_name: string; slug: string; plan_tier: string | null }[] | null;
     };
 
-    return ((data ?? []) as unknown as RosterRow2[]).map((row) => {
+    // The platform hub is where every Tulala signup is enrolled (see
+    // ensurePlatformHubRoster). It is the platform, not one of the person's
+    // agencies: listing it made the identity bar say "Acting as Tulala ·
+    // Primary agency" and offer "Preview site → /tulala" to a talent with no
+    // agency at all (owner QA 2026-09-10).
+    const hub = await getPlatformHubTenant();
+    const rows = ((data ?? []) as unknown as RosterRow2[]).filter((row) => {
+      const agency = Array.isArray(row.agencies) ? row.agencies[0] : row.agencies;
+      return !hub || agency?.id !== hub.tenantId;
+    });
+    return rows.map((row) => {
       const agency = Array.isArray(row.agencies) ? row.agencies[0] : row.agencies;
       return {
         id: agency?.id ?? row.created_at,

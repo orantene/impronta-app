@@ -4,11 +4,11 @@
  * event-tab-day — W17 (Venue & seating) and W18 (Event day) inside
  * EventDetail.
  *
- * W17: the space, layout, blocked interval and dining-in-the-window fields
- * have no writer on an event (`events.venue_id` is set at creation and
- * nothing edits it; layouts and intervals are Spaces S4-S6, parked), so
- * each is drawn disabled with its sentence; the ticket table below is real
- * (tiers joined to the night's pools).
+ * W17: Change venue stays disabled (`events.venue_id` is set at creation).
+ * Layout save is `eventSeatMapUpsert`. Seat hold is `admissionHoldSeats`
+ * (E03); expired holds are the reaper (E05). Dining and blocked interval
+ * stay disabled. The ticket table below is real (tiers joined to the
+ * night's pools).
  *
  * W18: every gate and box office rule on the board (entrances, scanner
  * devices, re-entry, wrong night, refund requested, refund confirmed,
@@ -18,9 +18,13 @@
  * readiness strip is derived from the rows that exist (D-POS-57).
  */
 
+import { useEffect, useState, useTransition } from "react";
+
 import type { EventListRow } from "@/app/(workspace)/[tenantSlug]/admin/_events-actions";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
+import { admissionComp, admissionHoldSeats, eventSeatMapUpsert, layoutsList } from "@/lib/server-actions/venue-engine";
+import { VENUE_ENGINE_REFUSALS, type VenueEngineRefusal } from "@/lib/venues/engine-refusals";
 
 import { ActionButton, UsedIn } from "../appointments-classes-ui";
 import { CARD, Field, INPUT, ListHead, ListRow, Note, PageHeading } from "../catalog/catalog-ui";
@@ -46,11 +50,58 @@ function OffField({ label, value, reason, quiet }: { label: string; value: strin
   );
 }
 
+function isRefusal(reason: string): reason is VenueEngineRefusal {
+  return reason in VENUE_ENGINE_REFUSALS;
+}
+
 export function EventVenueTab({ event, sessionId, locale }: { event: EventListRow; sessionId: string | null; locale: string }) {
   const t = useT();
   const pools = useSessionPools(sessionId);
   const figures = pools.rows ? nightFigures(pools.rows) : null;
   const noWriter = t("dashboard.events.venue.noWriterReason");
+  const [layoutId, setLayoutId] = useState("");
+  const [layoutOptions, setLayoutOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [seats, setSeats] = useState<Array<{ id: string; label: string }>>([]);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [holdUntil, setHoldUntil] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, start] = useTransition();
+
+  useEffect(() => {
+    void layoutsList().then((res) => {
+      if (!res.ok) return;
+      setLayoutOptions(res.layouts.map((row) => ({ id: row.id, name: row.name })));
+      const active = res.layouts.find((row) => row.isActive) ?? res.layouts[0];
+      if (active) setLayoutId((prev) => prev || active.id);
+      const spaceById = new Map(res.spaces.map((s) => [s.id, s]));
+      const nextSeats = res.items
+        .filter((item) => item.layoutId === (active?.id ?? "") && spaceById.get(item.spaceId)?.kind === "seat")
+        .map((item) => {
+          const space = spaceById.get(item.spaceId);
+          return { id: item.spaceId, label: space?.code || space?.name || item.spaceId };
+        });
+      setSeats(nextSeats);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!layoutId) return;
+    void layoutsList().then((res) => {
+      if (!res.ok) return;
+      const spaceById = new Map(res.spaces.map((s) => [s.id, s]));
+      setSeats(
+        res.items
+          .filter((item) => item.layoutId === layoutId && spaceById.get(item.spaceId)?.kind === "seat")
+          .map((item) => {
+            const space = spaceById.get(item.spaceId);
+            return { id: item.spaceId, label: space?.code || space?.name || item.spaceId };
+          }),
+      );
+    });
+  }, [layoutId]);
+
+  const sentence = (reason: string) => t(VENUE_ENGINE_REFUSALS[isRefusal(reason) ? reason : "unavailable"]);
+
   return (
     <div className="flex flex-col gap-[14px]" data-testid="events-panel-venue">
       <PageHeading
@@ -59,7 +110,19 @@ export function EventVenueTab({ event, sessionId, locale }: { event: EventListRo
         actions={
           <>
             <ActionButton reason={noWriter}>{t("dashboard.events.venue.changeVenue")}</ActionButton>
-            <ActionButton tone="primary" reason={noWriter}>
+            <ActionButton
+              tone="primary"
+              disabled={busy || !sessionId || !layoutId}
+              testId="events-venue-save"
+              onClick={() => {
+                if (!sessionId || !layoutId) return;
+                setNotice(null);
+                start(async () => {
+                  const res = await eventSeatMapUpsert({ sessionId, layoutId });
+                  setNotice(res.ok ? t("dashboard.events.venue.saved") : sentence(res.reason));
+                });
+              }}
+            >
               {t("dashboard.events.venue.save")}
             </ActionButton>
           </>
@@ -75,11 +138,75 @@ export function EventVenueTab({ event, sessionId, locale }: { event: EventListRo
       />
       <div className="grid grid-cols-2 gap-[16px]">
         <OffField label={t("dashboard.events.venue.space")} value={t("dashboard.events.venue.spaceNone")} reason={noWriter} />
-        <OffField label={t("dashboard.events.venue.layout")} value={t("dashboard.events.venue.layoutNone")} reason={t("dashboard.events.venue.layoutReason")} />
+        <Field label={t("dashboard.events.venue.layout")}>
+          <select
+            className={INPUT}
+            aria-label={t("dashboard.events.venue.layout")}
+            value={layoutId}
+            onChange={(e) => setLayoutId(e.target.value)}
+            data-testid="events-venue-layout"
+          >
+            <option value="">{t("dashboard.events.venue.layoutNone")}</option>
+            {layoutOptions.map((row) => (
+              <option key={row.id} value={row.id}>
+                {row.name}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label={t("dashboard.events.venue.blocked")} reason={t("dashboard.events.venue.blockedReason")}>
           <input disabled className={INPUT} value={event.doorsOffsetMinutes > 0 ? interpolate(t("dashboard.events.overview.doorsBefore"), { minutes: event.doorsOffsetMinutes }) : t("dashboard.events.overview.doorsWith")} readOnly />
         </Field>
         <OffField label={t("dashboard.events.venue.dining")} value={t("dashboard.events.venue.diningNone")} reason={t("dashboard.events.venue.diningReason")} />
+      </div>
+      <div className={`${CARD} flex flex-col gap-[10px] p-[16px]`} data-testid="events-seat-map">
+        <div className="font-admin-body text-[13px] font-semibold text-admin-ink">{t("dashboard.events.venue.seats")}</div>
+        {seats.length === 0 ? (
+          <p className="m-0 font-admin-body text-[12.5px] text-admin-ink-muted">{t("dashboard.events.venue.seatsEmpty")}</p>
+        ) : (
+          <div className="flex flex-wrap gap-[8px]">
+            {seats.map((seat) => {
+              const on = picked.includes(seat.id);
+              return (
+                <button
+                  key={seat.id}
+                  type="button"
+                  aria-pressed={on}
+                  data-testid={`events-seat-${seat.id}`}
+                  onClick={() => setPicked((prev) => (on ? prev.filter((id) => id !== seat.id) : [...prev, seat.id]))}
+                  className={`rounded-[8px] border px-[10px] py-[8px] font-admin-body text-[12.5px] ${on ? "border-admin-brand bg-admin-brand-soft font-semibold text-admin-brand" : "border-admin-border bg-admin-card text-admin-ink"}`}
+                >
+                  {seat.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <ActionButton
+          disabled={busy || !sessionId || picked.length === 0}
+          testId="events-hold-seats"
+          onClick={() => {
+            if (!sessionId) return;
+            setNotice(null);
+            start(async () => {
+              const res = await admissionHoldSeats({
+                sessionId,
+                seatIds: picked,
+                operationKey: crypto.randomUUID(),
+              });
+              if (!res.ok) {
+                setNotice(sentence(res.reason));
+                return;
+              }
+              setHoldUntil(res.expiresAt);
+              setNotice(interpolate(t("dashboard.events.venue.heldUntil"), { when: res.expiresAt }));
+            });
+          }}
+        >
+          {t("dashboard.events.venue.holdSeats")}
+        </ActionButton>
+        {holdUntil ? <p className="m-0 font-admin-body text-[12px] text-admin-ink-muted">{interpolate(t("dashboard.events.venue.heldUntil"), { when: holdUntil })}</p> : null}
+        {notice ? <p role="status" className="m-0 font-admin-body text-[12.5px] text-admin-ink">{notice}</p> : null}
       </div>
       <div className={CARD}>
         <ListHead cols={COLS}>
@@ -120,6 +247,12 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
   const t = useT();
   const pools = useSessionPools(sessionId);
   const noColumn = t("dashboard.events.day.noColumnReason");
+  const [compName, setCompName] = useState("");
+  const [compEmail, setCompEmail] = useState("");
+  const [compReason, setCompReason] = useState("");
+  const [compTier, setCompTier] = useState(event.tiers[0]?.id ?? "");
+  const [compNotice, setCompNotice] = useState<string | null>(null);
+  const [compBusy, startComp] = useTransition();
   const readiness = eventDayReadiness(event, pools.rows);
   const readinessLabel = {
     published: t("dashboard.events.day.readyPublished"),
@@ -188,6 +321,52 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
             ))}
           </div>
         </div>
+      </div>
+      <div className={`${CARD} flex flex-col gap-[10px] p-[16px]`} data-testid="events-comp">
+        <div className="font-admin-body text-[13px] font-semibold text-admin-ink">{t("dashboard.events.day.compTitle")}</div>
+        <div className="grid grid-cols-2 gap-[12px]">
+          <Field label={t("dashboard.events.day.compName")}>
+            <input value={compName} onChange={(e) => setCompName(e.target.value)} className={INPUT} data-testid="events-comp-name" />
+          </Field>
+          <Field label={t("dashboard.events.day.compEmail")}>
+            <input value={compEmail} onChange={(e) => setCompEmail(e.target.value)} className={INPUT} data-testid="events-comp-email" />
+          </Field>
+          <Field label={t("dashboard.events.day.compReason")}>
+            <input value={compReason} onChange={(e) => setCompReason(e.target.value)} className={INPUT} data-testid="events-comp-reason" />
+          </Field>
+          <Field label={t("dashboard.events.tickets.colType")}>
+            <select value={compTier} onChange={(e) => setCompTier(e.target.value)} className={INPUT} data-testid="events-comp-tier">
+              {event.tiers.map((tier) => (
+                <option key={tier.id} value={tier.id}>
+                  {tier.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        <ActionButton
+          tone="primary"
+          disabled={compBusy || !sessionId || !compName.trim() || !compReason.trim() || !compTier}
+          testId="events-comp-save"
+          onClick={() => {
+            if (!sessionId) return;
+            setCompNotice(null);
+            startComp(async () => {
+              const res = await admissionComp({
+                sessionId,
+                tierVariantId: compTier,
+                holderName: compName.trim(),
+                holderEmail: compEmail.includes("@") ? compEmail.trim() : null,
+                reason: compReason.trim(),
+                operationKey: crypto.randomUUID(),
+              });
+              setCompNotice(res.ok ? t("dashboard.events.day.compDone") : t(VENUE_ENGINE_REFUSALS[res.reason in VENUE_ENGINE_REFUSALS ? (res.reason as VenueEngineRefusal) : "unavailable"]));
+            });
+          }}
+        >
+          {t("dashboard.events.day.compAction")}
+        </ActionButton>
+        {compNotice ? <p role="status" className="m-0 font-admin-body text-[12.5px] text-admin-ink">{compNotice}</p> : null}
       </div>
       <div className={`${CARD} flex flex-col gap-[10px] p-[16px]`} data-testid="events-day-readiness">
         <div className="font-admin-body text-[11px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted">{t("dashboard.events.day.readiness")}</div>

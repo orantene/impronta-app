@@ -4778,7 +4778,11 @@
           "drawerClosed": "Sin turno abierto · el fondo se fija al abrir un turno",
           "drawerOpen": "Abierta desde las {time} · fondo {float}",
           "readerName": "Lector de tarjetas",
-          "pair": "Vincular un dispositivo"
+          "pair": "Vincular un dispositivo",
+          "pairName": "Nombre del dispositivo",
+          "pairFallback": "Dispositivo",
+          "lastSeen": "Visto {time}",
+          "registryNote": "Los dispositivos vinculados comparten los modos de este local. Sin conexión, el mostrador solo acepta efectivo."
         },
         "tips": {
           "title": "Propinas",
@@ -4810,7 +4814,8 @@
           "never": "Nunca sin conexión",
           "neverValue": "Todo",
           "unsynced": "Trabajo sin sincronizar",
-          "unsyncedValue": "Ninguno · nada se guarda en el dispositivo"
+          "unsyncedValue": "Ninguno · nada se guarda en el dispositivo",
+          "cashOnly": "Cuando este dispositivo está sin conexión, solo se pueden poner en cola ventas en efectivo. Tarjeta y monedero esperan a que vuelva la red."
         }
       },
       "paymentsProviders": {
@@ -5018,11 +5023,33 @@
         "usedInPosList": "Recepción, Mostrador",
         "usedInWeb": "Web",
         "usedInWebList": "Widget de reservas · el reloj de cada hora mostrada",
-        "usedInNote": "una sola ubicación hoy: el local, su reloj y los modos activados para él",
+        "usedInNote": "cada ubicación tiene su reloj y sus modos de POS; las zonas pertenecen a una ubicación",
         "locationsHeading": "Ubicaciones",
         "zonesHeading": "Zonas de servicio · minutos de viaje",
-        "loading": "Leyendo la ubicación…",
+        "loading": "Leyendo las ubicaciones…",
         "retry": "Reintentar",
+        "saving": "Guardando…",
+        "saved": "Guardado",
+        "saveFailed": "No se pudo guardar",
+        "cancel": "Cancelar",
+        "nameLabel": "Nombre",
+        "timezoneLabel": "Zona horaria",
+        "addressLabel": "Dirección",
+        "setDefault": "Usar como ubicación predeterminada",
+        "defaultChip": "predeterminada",
+        "notDefault": "no predeterminada",
+        "noZones": "Esta ubicación todavía no tiene zonas.",
+        "zoneNameLabel": "Nombre de la zona",
+        "zoneKindLabel": "Tipo",
+        "removeZone": "Quitar",
+        "zoneSurcharge": "{pct}%",
+        "kind": {
+          "floor": "Sala",
+          "bar": "Barra",
+          "terrace": "Terraza",
+          "room": "Sala privada",
+          "counter": "Mostrador"
+        },
         "errors": {
           "not_allowed": "No tienes permiso para ver las ubicaciones aquí. Pide ayuda a la persona propietaria.",
           "load_failed": "No pudimos contactar con el servidor, así que la ubicación no se pudo leer."
@@ -5032,19 +5059,145 @@
         "drawerUnreadable": "caja ilegible",
         "oneDrawer": "1 caja",
         "noAddress": "Sin dirección todavía",
-        "editLocation": "Editar esta ubicación",
-        "oneLocationNote": "{workspace} tiene una ubicación. Su dirección y su reloj se editan en Local y espacios.",
+        "editLocation": "Local y espacios",
+        "oneLocationNote": "Los espacios, las mesas y el plano de {workspace} siguen en Local y espacios.",
         "surcharge": "Recargo fuera de las zonas",
         "surchargeHint": "Se muestra antes del presupuesto",
         "professionals": "Profesionales",
         "professionalsValue": "Nadie asignado a una zona",
         "notWired": {
-          "addLocation": "Todavía no existe una tabla de ubicaciones; el espacio de trabajo es su única ubicación.",
-          "addZone": "Las zonas de servicio todavía no están modeladas; nada lee una zona.",
-          "save": "La ubicación se guarda en Local y espacios; aquí no hay nada más que guardar.",
-          "zones": "Sin zonas de servicio todavía: los minutos de viaje no están modelados, así que el widget de reservas nunca comprueba un área de servicio.",
-          "surcharge": "Un recargo fuera de las zonas necesita zonas primero.",
-          "professionals": "Las zonas por profesional necesitan zonas primero."
+          "travel": "Los minutos de viaje entre zonas no se guardan, así que el widget de reservas nunca comprueba un área de servicio.",
+          "surcharge": "Un recargo fuera de todas las zonas todavía no tiene columna; cada zona puede llevar su propio porcentaje.",
+          "professionals": "Las zonas por profesional todavía no se guardan."
+        }
+      },
+      "layouts": {
+        "label": "Planos",
+        "title": "Editor de plano",
+        "subtitle": "Coloca las mismas mesas en un plano. Activar una versión nunca suma asientos.",
+        "add": "Añadir plano",
+        "save": "Guardar borrador",
+        "saving": "Guardando…",
+        "saved": "Guardado",
+        "saveFailed": "No se guardó",
+        "retry": "Reintentar",
+        "cancel": "Cancelar",
+        "loading": "Leyendo los planos…",
+        "empty": "Aún no hay planos. Añade uno y coloca las mesas.",
+        "usedIn": "Se usa en",
+        "usedInPos": "POS",
+        "usedInPosList": "Mesas, Piso en vivo",
+        "usedInWeb": "Web",
+        "usedInWebList": "Bloque de reservas · mapa de asientos",
+        "shareCapacity": "Activar un plano nunca escribe capacidad. Dos versiones de una sala comparten las mismas mesas y los mismos cupos.",
+        "versionsHeading": "Versiones",
+        "canvasHeading": "Plano",
+        "nameLabel": "Nombre",
+        "activeChip": "activo",
+        "draftChip": "borrador",
+        "activate": "Activar este plano",
+        "saveBeforeActivate": "Guarda el borrador antes de activarlo.",
+        "pickLayout": "Elige un plano para colocar mesas.",
+        "canvasHint": "Elige una mesa sin colocar y toca el plano para dejarla. Toca una mesa colocada para quitarla.",
+        "unplacedHeading": "Fuera de este plano",
+        "allPlaced": "Todas las mesas están en este plano.",
+        "placing": "Toca el plano para colocar {name}",
+        "unmapped": "{n} mesas no tienen sitio en este plano.",
+        "shapeHint": "Forma",
+        "shapeRect": "Rectángulo",
+        "notWired": {
+          "shape": "La forma por mesa no se guarda más allá de rectángulo y redondo según el tipo de espacio."
+        },
+        "errors": {
+          "load_failed": "No pudimos contactar con el servidor, así que no se pudieron leer los planos."
+        }
+      },
+      "servicePeriods": {
+        "label": "Periodos de servicio",
+        "title": "Periodos de servicio, ritmo y condiciones",
+        "subtitle": "Reglas que siguen el piso, las reservas y el bloque de reservas del invitado",
+        "add": "Añadir periodo",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "saved": "Guardado",
+        "saveFailed": "No se guardó",
+        "retry": "Reintentar",
+        "loading": "Leyendo los periodos…",
+        "empty": "Aún no hay periodos. Hasta que exista uno, siguen las ventanas de hoy.",
+        "usedIn": "Se usa en",
+        "usedInPos": "POS",
+        "usedInPosList": "Mesas, Espacios",
+        "usedInWeb": "Web",
+        "usedInWebList": "Bloque de reservas",
+        "periodsHeading": "Periodos de servicio",
+        "pacingHeading": "Ritmo y rotación",
+        "moneyHeading": "Condiciones de dinero por tipo",
+        "nameLabel": "Nombre",
+        "startsLabel": "Empieza",
+        "endsLabel": "Termina",
+        "turnLabel": "Minutos de turno",
+        "minutesSuffix": " min",
+        "partiesPer15": "Grupos cada 15 min",
+        "coversPer15": "Cubiertos cada 15 min",
+        "setupCleanup": "Montaje / limpieza",
+        "lateGrace": "Gracia por llegada tarde",
+        "day": {
+          "1": "Lun",
+          "2": "Mar",
+          "3": "Mié",
+          "4": "Jue",
+          "5": "Vie",
+          "6": "Sáb",
+          "7": "Dom"
+        },
+        "notWired": {
+          "pacing": "Grupos cada 15 minutos, cubiertos, montaje y gracia aún no se guardan en un periodo.",
+          "money": "El depósito, el mínimo y el menú prepago siguen en Políticas de reserva. Esta tabla aún no tiene columna por tipo."
+        },
+        "errors": {
+          "load_failed": "No pudimos contactar con el servidor, así que no se pudieron leer los periodos."
+        }
+      },
+      "prepStations": {
+        "label": "Estaciones de preparación",
+        "title": "Estaciones de preparación y enrutado",
+        "subtitle": "A dónde va cada plato cuando el POS o un invitado lo envía",
+        "add": "Añadir estación",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "saved": "Guardado",
+        "saveFailed": "No se guardó",
+        "retry": "Reintentar",
+        "loading": "Leyendo las estaciones…",
+        "empty": "Aún no hay estaciones. Hasta que exista una, cada ticket sigue en cocina.",
+        "usedIn": "Se usa en",
+        "usedInPos": "POS",
+        "usedInPosList": "Mesas, Mostrador, Cocina",
+        "usedInWeb": "Web",
+        "usedInWebList": "QR de mesa, página de recogida",
+        "stationsHeading": "Estaciones",
+        "dispatchHeading": "Reglas de envío",
+        "colStation": "Estación",
+        "colKind": "Tipo",
+        "colCode": "Código",
+        "nameLabel": "Nombre",
+        "codeLabel": "Código",
+        "kindLabel": "Tipo",
+        "remove": "Quitar",
+        "sendChanged": "Enviar solo lo que cambió",
+        "ackRequired": "Hace falta el acuse de la estación",
+        "courseFireNote": "Los tiempos se disparan desde la ficha de la mesa en Mesas. La estación de cocina muestra lo disparado.",
+        "kind": {
+          "kitchen": "Cocina",
+          "bar": "Barra",
+          "pickup": "Recogida",
+          "pass": "Pase"
+        },
+        "notWired": {
+          "dispatch": "Los interruptores de envío, las alertas de retraso y el dispositivo aún no se guardan en una estación."
+        },
+        "errors": {
+          "load_failed": "No pudimos contactar con el servidor, así que no se pudieron leer las estaciones."
         }
       },
       "bookingPolicies": {
@@ -12948,7 +13101,8 @@
           "empty": "No hay ventas en espera.",
           "resume": "Reanudar",
           "heldSince": "En espera desde",
-          "saleLabel": "Venta"
+          "saleLabel": "Venta",
+          "fromMessages": "desde Mensajes"
         },
         "refusal": {
           "balanceChanged": "Alguien ya cobró parte de este saldo. El monto pendiente cambió.",
@@ -13242,6 +13396,7 @@
           "methodUnavailable": "Filtrar por cómo llegó el dinero aún no está disponible aquí.",
           "empty": "Todavía no hay ventas de mostrador pagadas en este rango.",
           "noCode": "Sin código",
+          "fromMessages": "desde Mensajes · pagado por enlace",
           "open": "Abrir recibo"
         },
         "issues": {
@@ -13290,7 +13445,14 @@
           "showTest": "Abrir pantalla",
           "drawerDetail": "A través de la impresora de recibos",
           "openLogged": "Abrir (registrado)",
-          "drawerUnavailable": "No hay ninguna caja conectada a este dispositivo."
+          "drawerUnavailable": "No hay ninguna caja conectada a este dispositivo.",
+          "registryTitle": "Dispositivos vinculados",
+          "registryEmpty": "Aún no hay dispositivos vinculados.",
+          "cashOnlyOffline": "Sin conexión, el mostrador solo acepta efectivo. Tarjeta y monedero esperan a que vuelva la red.",
+          "pairName": "Nombre del dispositivo",
+          "thisTill": "Esta caja",
+          "pairThisTill": "Vincular esta caja",
+          "pairFirst": "Vincula esta caja antes de sincronizar ventas en efectivo en cola."
         },
         "connection": {
           "subtitle": "Este dispositivo · {location}",
@@ -13309,6 +13471,7 @@
           "readerConnected": "Conectado",
           "readerNote": "Los pagos con tarjeta necesitan internet para obtener respuesta del banco; el mostrador aún no puede usar un lector en ningún caso.",
           "nothingQueued": "No se guarda nada en este dispositivo sin conexión. Una venta necesita conexión para guardarse.",
+          "queuedCount": "{count} ventas en efectivo esperando sincronizar.",
           "syncNow": "Sincronizar ahora"
         },
         "lock": {
@@ -14172,7 +14335,13 @@
           "footnote": "Cada cambio invalida la credencial sustituida en cuanto se confirma. El dinero sigue el precio aceptado y la política de reembolsos, nunca el precio de lista actual.",
           "back": "Atrás",
           "transferAction": "Transferir",
-          "exchangeAction": "Cambiar fecha"
+          "transferToName": "Nombre del nuevo titular",
+          "transferToEmail": "Email del nuevo titular",
+          "transferred": "Transferida. El código anterior ya no admite.",
+          "exchangeAction": "Cambiar fecha",
+          "exchangeNight": "Nueva noche",
+          "exchanged": "Pasada a la nueva noche. El código anterior ya no admite.",
+          "noOtherNight": "Este evento no tiene otra noche a la que mover la entrada."
         },
         "delivery": {
           "title": "{code} · entrega",
@@ -14207,6 +14376,9 @@
         "fewerGuests": "Un comensal menos",
         "moreGuests": "Un comensal más",
         "sendKitchen": "Enviar a cocina",
+        "fireStarters": "Disparar entrantes",
+        "fireMains": "Disparar platos",
+        "fireDessert": "Disparar postre",
         "noFreeTables": "Ninguna mesa libre alcanza para este grupo.",
         "markReady": "Marcar lista",
         "kitchenNone": "Todavía no se envió nada a cocina",
@@ -14383,7 +14555,7 @@
             "name": "Nombre",
             "mobile": "Móvil para avisar por mensaje",
             "optional": "Opcional",
-            "mobileReason": "Aún no se envía ningún mensaje; llama al grupo por su nombre.",
+            "mobileReason": "Guardamos el número para la oferta. No se envía un mensaje hasta que exista un remitente.",
             "highChair": "Silla alta",
             "stepFree": "Acceso sin escalones",
             "quietArea": "Zona tranquila",
@@ -14404,9 +14576,11 @@
             "told": "{time} · esperando {n} min",
             "seatNow": "Sentar ahora",
             "offerTable": "Ofrecer mesa",
-            "offerReason": "Ofrecer una mesa por mensaje aún no está construido; sienta al grupo o llámalo por su nombre.",
+            "offerReason": "Registramos la oferta. No se envía un mensaje hasta que exista un remitente.",
+            "offered": "Oferta registrada. No se envió un mensaje.",
+            "notifyNone": "La oferta está en la lista. No se envió un mensaje.",
             "remove": "Quitar",
-            "removeReason": "Quitar un grupo de la lista aún no está construido.",
+            "removeReason": "Quitar a este grupo de la lista de espera.",
             "close": "Cerrar",
             "addParty": "Añadir grupo",
             "empty": "Nadie espera mesa."
@@ -14658,12 +14832,26 @@
         "failedLoad": "No se pudieron cargar las conversaciones.",
         "toastIncoming": "Llego un mensaje nuevo.",
         "backToSale": "Volver a la venta",
+        "backToSaleDetail": {
+          "one": "Volver a la venta {ref} · {total} · 1 línea",
+          "other": "Volver a la venta {ref} · {total} · {count} líneas"
+        },
+        "backTo": "Volver a {screen}",
         "deposit": "Anticipo",
         "full": "Monto completo",
         "none": "Sin pago ahora",
         "webChatOnlyCustomer": "El chat web solo lo puede abrir el cliente.",
         "whatsappNeedsTemplate": "WhatsApp necesita primero una plantilla aprobada.",
         "draftKept": "Tu texto sigue aqui.",
+        "record": {
+          "order": "Pedido",
+          "appointment": "Cita",
+          "reservation": "Reserva",
+          "class_enrolment": "Plaza en clase",
+          "tickets": "Entradas",
+          "project": "Proyecto",
+          "offer": "Oferta"
+        },
         "filter": {
           "all": "Todas",
           "unread": "Sin leer",
@@ -14878,6 +15066,7 @@
       "tabReady": "Listos",
       "recall": "Recuperar",
       "recallReason": "Las comandas entregadas aún no se guardan en el tablero.",
+      "fromMessages": "desde Mensajes · pagado por enlace",
       "subtitle": "{date} · {time} · {preparing} preparando · {queued} en cola · {ready} listos",
       "fired": "Enviada {time}",
       "amendmentBanner": "{code} · comanda modificada · revisión {n} · acéptala de nuevo",
@@ -14930,15 +15119,54 @@
       "server": "Mesero",
       "serverNone": "Pregunta a cualquier persona del equipo",
       "startOrdering": "Empezar a pedir",
-      "orderingReason": "Pedir desde el teléfono aún no está abierto; tu mesero toma el pedido.",
       "chipTableOrder": "QR de mesa",
       "chipNotPayment": "No es un código de pago",
       "yourBill": "Tu cuenta",
       "tableCode": "Mesa {code}",
       "payAll": "Pagar todo · {amount}",
       "payShare": "Pagar mi parte",
-      "payReason": "Pagar desde el teléfono aún no está abierto; la cuenta se salda en la mesa con tu mesero.",
-      "tableLine": "Mesa {code} · tu visita"
+      "tableLine": "Mesa {code} · tu visita",
+      "menu": {
+        "title": "Menú",
+        "tableLine": "Mesa {code}",
+        "viewOrder": "Ver pedido · {n} platos · {amount}",
+        "submit": "Enviar el pedido",
+        "submitted": "El equipo aceptó tu pedido. Si algo se acaba, te lo diremos aquí antes de cambiar nada.",
+        "orderMore": "Pedir más",
+        "askBill": "Pedir la cuenta",
+        "empty": "Aún no hay nada que pedir en esta visita.",
+        "add": "Añadir",
+        "offerTitle": "Hay una sustitución esperando",
+        "acceptOffer": "Aceptar {name}",
+        "back": "Tu mesa"
+      },
+      "ticket": {
+        "title": "Tu entrada",
+        "night": "Noche",
+        "show": "Muestra este código en la puerta.",
+        "transfer": "Ceder esta entrada",
+        "toName": "Nombre del nuevo titular",
+        "toEmail": "Correo del nuevo titular",
+        "transferAction": "Ceder",
+        "resend": "Reenviar por correo",
+        "lookup": "Buscar una entrada",
+        "last4": "Últimos cuatro del recibo",
+        "lookupAction": "Buscar",
+        "found": "Abrir {code}"
+      },
+      "share": {
+        "title": "Pagar mi parte",
+        "tableLine": "Mesa {code} · {amount} en total",
+        "myItems": "Mis platos",
+        "splitEven": "Partir igual",
+        "anAmount": "Un importe",
+        "payCard": "Pagar {amount} con tarjeta",
+        "alreadyPaid": "Esta parte ya está pagada.",
+        "leftover": "Queda para la mesa: {amount}. Otra persona puede pagar a la vez; cada pago bloquea sus platos.",
+        "back": "Tu mesa",
+        "paid": "Pagado",
+        "owed": "Sigue debiendo"
+      }
     },
     "adminSessions": {
       "loading": "Cargando el horario...",
@@ -16692,7 +16920,6 @@
         "spaceNone": "Sin definir",
         "layout": "Diseño",
         "layoutNone": "Sin diseño",
-        "layoutReason": "Los diseños son el trabajo S4-S6 del área Espacios, aparcado.",
         "blocked": "Intervalo bloqueado",
         "blockedReason": "Un evento todavía no bloquea ningún intervalo en un espacio; solo se registra el margen de puertas.",
         "dining": "Reservas de mesa en la ventana",
@@ -16704,7 +16931,12 @@
         "usesTables": "Grupo de mesas (exclusivo)",
         "noPool": "sin plazas",
         "totalNote": "Aforo total {capacity} en {pooled} tipos con plazas esta noche. Un segundo diseño no puede crear el aforo que el espacio no tiene.",
-        "totalNoteNone": "No hay plazas definidas para esta noche, así que todavía no hay aforo que sumar."
+        "totalNoteNone": "No hay plazas definidas para esta noche, así que todavía no hay aforo que sumar.",
+        "saved": "Diseño guardado para esta noche.",
+        "seats": "Asientos",
+        "seatsEmpty": "Este diseño aún no tiene asientos. Añádelos en Espacios y resérvalos aquí.",
+        "holdSeats": "Reservar asientos seleccionados",
+        "heldUntil": "Reserva hasta {when}"
       },
       "day": {
         "title": "Día del evento · {date}",
@@ -16747,7 +16979,13 @@
         "readyPublished": "Publicado",
         "readyTiers": "Tipos de entrada",
         "readyNight": "Noches programadas",
-        "readyPools": "Plazas esta noche"
+        "readyPools": "Plazas esta noche",
+        "compTitle": "Admisión de cortesía",
+        "compName": "Nombre del invitado",
+        "compEmail": "Email del invitado",
+        "compReason": "Motivo",
+        "compAction": "Emitir una entrada de cortesía",
+        "compDone": "Entrada de cortesía emitida."
       },
       "guests": {
         "openDoor": "Abrir la puerta"
@@ -16779,6 +17017,10 @@
         "modelRsvp": "RSVP",
         "modelRegistration": "Inscripción",
         "modelPass": "Pase",
+        "series": "Serie del pase",
+        "seriesHint": "Una serie con nombre. Las noches se programan desde Sesiones.",
+        "seriesReason": "Una serie es para un pase de varios días. Cambia el modelo de venta a Pase.",
+        "seriesPlaceholder": "Pase de fin de semana",
         "organizer": "Organizador",
         "organizerReason": "El espacio es el organizador; un organizador aparte todavía no tiene columna.",
         "format": "Formato del evento",

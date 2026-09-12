@@ -2,18 +2,20 @@
 
 /**
  * EventCreate — the CreateEvent board's Essentials step. The name, the sales
- * model and the doors offset are what `createEvent` writes; every other
- * field on the board (organizer, format, category, summary, venue, images,
- * language, visibility, slug, age, contact, terms, owner) has no column on
- * `events` or no writer and is drawn disabled with its sentence (D-POS-56).
- * Steps 3 to 5 are not built: a night is scheduled from the Sessions page
- * once the draft exists, tickets are added on the event's Tickets tab.
+ * model and the doors offset are what `createEvent` writes. A Pass also
+ * writes `eventSeriesUpsert` (E14). Every other field on the board
+ * (organizer, format, category, summary, venue, images, language,
+ * visibility, slug, age, contact, terms, owner) has no column on `events`
+ * or no writer and is drawn disabled with its sentence (D-POS-56). Steps 3
+ * to 5 are not built: a night is scheduled from the Sessions page once the
+ * draft exists, tickets are added on the event's Tickets tab.
  */
 
 import { useState, useTransition } from "react";
 
 import { createEvent } from "@/app/(workspace)/[tenantSlug]/admin/_events-actions";
 import { useT } from "@/i18n/use-t";
+import { eventSeriesUpsert } from "@/lib/server-actions/venue-engine";
 
 import { ActionButton, Outcome, SectionLabel } from "../appointments-classes-ui";
 import { CARD, Field, INPUT, PageHeading } from "../catalog/catalog-ui";
@@ -27,6 +29,7 @@ export function EventCreate({ nav, onCreated }: { nav: EventsNav; onCreated: () 
   const [title, setTitle] = useState("");
   const [model, setModel] = useState<SalesModel>("ticket");
   const [doors, setDoors] = useState("0");
+  const [seriesName, setSeriesName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
   const noColumn = t("dashboard.events.create.noColumnReason");
@@ -46,6 +49,9 @@ export function EventCreate({ nav, onCreated }: { nav: EventsNav; onCreated: () 
       if (!res.ok) {
         setError(res.error);
         return;
+      }
+      if (model === "pass" && seriesName.trim()) {
+        await eventSeriesUpsert({ name: seriesName.trim() });
       }
       onCreated();
       nav.go({ event: res.eventId, tab: "tickets" });
@@ -111,6 +117,21 @@ export function EventCreate({ nav, onCreated }: { nav: EventsNav; onCreated: () 
             <input id="ev-doors" inputMode="numeric" value={doors} onChange={(e) => setDoors(e.target.value)} disabled={busy} className={INPUT} aria-label={t("dashboard.events.create.doors")} />
           </Field>
         </div>
+        <Field
+          label={t("dashboard.events.create.series")}
+          hint={t("dashboard.events.create.seriesHint")}
+          reason={model === "pass" ? undefined : t("dashboard.events.create.seriesReason")}
+        >
+          <input
+            value={seriesName}
+            onChange={(e) => setSeriesName(e.target.value)}
+            disabled={busy || model !== "pass"}
+            className={INPUT}
+            placeholder={t("dashboard.events.create.seriesPlaceholder")}
+            aria-label={t("dashboard.events.create.series")}
+            data-testid="events-series-name"
+          />
+        </Field>
         <Field label={t("dashboard.events.create.summary")} reason={noColumn}>
           <input disabled className={INPUT} value="" readOnly />
         </Field>

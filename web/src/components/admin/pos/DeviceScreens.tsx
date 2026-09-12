@@ -24,6 +24,7 @@ import { AlertTriangle, CreditCard, Eye, FileText, Flame, Scan, Wallet, type Luc
 import type { ComponentType } from "react";
 
 import { cn } from "@/lib/utils";
+import { DeviceRegistryPanel, OutboxSyncPanel } from "./device-registry-panel";
 import { POS_EYEBROW, POS_OUTLINE_ACTION, POS_PILL, POS_PILL_CORAL, POS_PILL_GREEN, POS_PILL_RED, POS_PILL_SLATE, POS_SECONDARY_ACTION, POS_TOTAL_ROW } from "./pos-classes";
 
 export type DeviceState = "ready" | "off" | "notSetUp" | "closed";
@@ -140,6 +141,7 @@ export function DevicesScreen({ devices, online, linksAvailable, copy }: { reado
         </div>
         <p className="m-0 mt-3 text-[14px] leading-relaxed text-admin-ink-muted">{copy.internetNote}</p>
       </div>
+      <DeviceRegistryPanel />
     </div>
   );
 }
@@ -214,10 +216,7 @@ export function ConnectionScreen({ online, readerReady, onTryAgain, copy }: { re
       </div>
       <div className="rounded-[16px] border-[1.5px] border-admin-border bg-admin-card px-4 py-4">
         <p className={cn(POS_EYEBROW, "m-0 mb-2")}>{copy.waitingToSync}</p>
-        <p className="m-0 text-[14px] leading-relaxed text-admin-ink-muted">{copy.nothingQueued}</p>
-        <button type="button" disabled className={cn(POS_SECONDARY_ACTION, "mt-3")}>
-          {copy.syncNow}
-        </button>
+        <OutboxSyncPanel />
       </div>
     </div>
   );

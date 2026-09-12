@@ -11,7 +11,6 @@ import {
   cashDoneCopy,
   cashDrawerCopy,
   chromeCopy,
-  collectMethodUnavailableCopy,
   collectSheetCopy,
   connectionCopy,
   counterPageCopy,
@@ -35,11 +34,10 @@ import {
   scanScreenCopy,
   sellSurfaceCopy,
 } from "@/components/admin/pos/pos-copy";
-import type { PosBasketLine, PosCollectionMethodState, PosReceiptRow } from "@/components/admin/pos";
+import type { PosBasketLine, PosReceiptRow } from "@/components/admin/pos";
 import { customerDisplayLinkCopy, scanCopy } from "@/components/admin/pos/customer-display-copy";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { isKnownTenantRole } from "@/lib/access";
 import { userHasCapability } from "@/lib/access";
 import { minorUnitDivisor } from "@/lib/orders/money-format";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
@@ -57,7 +55,6 @@ import {
   parsePosMode,
   sellingModesAllowCounter,
   type PosMode,
-  type PosPersonRole,
 } from "@/lib/pos/modes";
 import { loadDoorTonight } from "@/lib/pos/door-tonight";
 import { currentShift } from "@/lib/pos/shift";
@@ -85,110 +82,14 @@ import { loadCounterLinks } from "./counter-reads";
 // asked for (`mode-clients.tsx` says why). The floor and projects modes are
 // server halves (`server-only`); their client halves go through the same file.
 import { ClassesClient, DoorClient, PosClient } from "./mode-clients";
+import { collectionMethods, currentAdminPath, loadCashierName, posRole } from "./page-helpers";
+import { messagesModeView, readMessagesUnread } from "./messages-view";
 import { ProjectsModePage } from "./_projects/projects-mode-page";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
 type Search = Promise<{ order?: string; mode?: string; day?: string; project?: string; view?: string }>;
-
-/**
- * `agency_memberships.role` as the POS mode vocabulary wants it.
- *
- * Fails to `viewer` — the rank with NO modes at all. A role string nobody
- * recognises must not be handed the till: the direction that costs an unknown
- * role a screen it should have had is a support ticket, the other direction is
- * a stranger taking money.
- */
-function posRole(raw: unknown): PosPersonRole {
-  const value = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  return isKnownTenantRole(value) ? value : "viewer";
-}
-
-/**
- * The browser-facing path of THIS request, so a redirect keeps the host shape
- * it arrived on.
- *
- * Middleware sets `x-impronta-original-pathname` before its branded rewrite,
- * so on `improntamodels.com` it reads `/admin/pos` and on the shared app host
- * `/impronta/admin/pos`. Rebuilding the path from the slug instead would hand
- * a custom-domain user `improntamodels.com/impronta/admin/pos`, which is the
- * doubled-prefix bug the admin layout documents.
- */
-async function currentAdminPath(tenantSlug: string): Promise<string> {
-  const hdrs = await headers();
-  const fallback = `/${tenantSlug}/admin/pos`;
-  const raw = hdrs.get("x-impronta-original-pathname") ?? fallback;
-  return raw.split("?")[0] || fallback;
-}
-
-/**
- * The signed-in person, as the cashier chip names them: the profile's own
- * display name, else the account's email up to the `@`, else nothing. Read
- * with the service role by the user's own id (the session says who they
- * are; the profile row is not RLS-readable through the anon client here).
- */
-async function loadCashierName(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>): Promise<string> {
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return "";
-  const auth = await supabase.auth.getUser();
-  if (auth.error) logServerError("pos.page.cashier.auth", auth.error);
-  const user = auth.data.user;
-  if (!user) return "";
-  const profile = await admin
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .maybeSingle<{ display_name: string | null }>();
-  if (profile.error) logServerError("pos.page.cashier", profile.error);
-  const name = profile.data?.display_name?.trim();
-  return name || user.email?.split("@")[0] || "";
-}
-
-/**
- * Which tenders this counter can honestly offer, and the sentence for each one
- * it cannot.
- *
- * Every arm below is a REAL state read on the server, never an optimistic
- * default. The rule from the brief: a method with no provider behind it says
- * so rather than appearing to work.
- *
- *   cash — always. It is the one tender that needs nothing configured.
- *   link — the hosted Checkout path `startCollection` really drives
- *          (`method: "online_card"`). Live exactly when Stripe has a secret
- *          key; without one, `createCheckoutSessionForTransaction` returns a
- *          mock and a cashier would watch a customer "pay" nothing.
- *   card — CARD-PRESENT, a different thing from the link. `pos/actions.ts`
- *          accepts `cash | online_card` only, so no terminal request can be
- *          started from this screen whatever the environment says. It is
- *          therefore never offered as available, and the two reasons are kept
- *          apart: no reader configured at all, versus a reader that exists
- *          and that this surface cannot yet drive. Telling an operator with a
- *          working reader that they have no reader would send them to buy
- *          hardware they already own.
- *   pass — pass credits have NO table. `docs/plans/program/specs/counter.md`
- *          §3 records C20 as blocked for exactly that reason: there is no
- *          credit ledger to debit, so there is nothing to offer.
- */
-function collectionMethods(tr: (key: string) => string): PosCollectionMethodState[] {
-  const unavailable = collectMethodUnavailableCopy(tr);
-  const terminal = reportTerminalAvailability();
-  return [
-    { id: "cash", available: true },
-    // A payment link is minted by `createPaymentLink` whether or not Stripe
-    // has keys: without them `/pay/<code>` is a test page, and the tab's
-    // panel says so (`PaymentLinkPanel`, `providerMock`).
-    { id: "link", available: true },
-    terminal.available
-      ? {
-          id: "card",
-          available: false,
-          unavailableReason: tr("dashboard.pos.counter.collect.cardNotWired"),
-        }
-      : { id: "card", available: false, unavailableReason: unavailable.card },
-    { id: "pass", available: false, unavailableReason: unavailable.pass },
-  ];
-}
 
 export default async function PosPage({
   params,
@@ -286,6 +187,17 @@ export default async function PosPage({
     settings?: unknown;
   } | null;
   const workspaceName = agencyRow?.display_name?.trim() || tenantSlug;
+  const defaultLoc = await admin
+    .from("venue_locations")
+    .select("name")
+    .eq("tenant_id", scope.tenantId)
+    .eq("is_default", true)
+    .maybeSingle();
+  if (defaultLoc.error) logServerError("pos.page.venue_locations", defaultLoc.error);
+  const locationName =
+    (typeof (defaultLoc.data as { name?: string | null } | null)?.name === "string" &&
+      (defaultLoc.data as { name: string }).name.trim()) ||
+    workspaceName;
   const workspaceEnabledModes = enabledPosModesFromSettings(agencyRow?.settings);
   const usableModes = modesForPerson({
     role: posRole(scope.membership.role),
@@ -327,7 +239,10 @@ export default async function PosPage({
     // carrying whatever sale was already open.
     const path = await currentAdminPath(tenantSlug);
     const order = typeof q.order === "string" && q.order ? `&order=${encodeURIComponent(q.order)}` : "";
-    redirect(`${path}?mode=${usableModes[0]}${order}`);
+    // `/admin/pos?view=messages` (the contract's address, MSG-P1) keeps its
+    // view across the mode fill-in; dropping it landed the inbox on Sell.
+    const view = q.view === "messages" ? "&view=messages" : "";
+    redirect(`${path}?mode=${usableModes[0]}${order}${view}`);
   }
 
   const railLabels = railCopy(tr);
@@ -351,6 +266,23 @@ export default async function PosPage({
         </main>
       </>
     );
+  }
+
+  // Messages & Inquiries (contract seams 2 and 10): the rail badge, read
+  // once for whichever mode renders, and the view itself (`messages-view.tsx`).
+  const messagesUnread = await readMessagesUnread(admin, scope.tenantId);
+  if (q.view === "messages") {
+    return messagesModeView({
+      admin,
+      tr,
+      locale,
+      mode,
+      tenantId: scope.tenantId,
+      posPath: await currentAdminPath(tenantSlug),
+      orderId: typeof q.order === "string" ? q.order : null,
+      messagesUnread,
+      railLabels,
+    });
   }
 
   if (mode === "classes") {
@@ -399,8 +331,9 @@ export default async function PosPage({
         <PageRouteSyncer page="pos" />
         <ClassesClient
           tenantId={scope.tenantId}
+          messagesUnread={messagesUnread}
           workspaceName={workspaceName}
-          venueName={venueName}
+          venueName={venueName ?? locationName}
           operatorName={operatorName}
           posPath={classesPath}
           workspacePath={classesPath.replace(/\/pos$/, "")}
@@ -454,7 +387,9 @@ export default async function PosPage({
         <PageRouteSyncer page="pos" />
         <DoorClient
           tenantId={scope.tenantId}
+          messagesUnread={messagesUnread}
           workspaceName={workspaceName}
+          locationName={locationName}
           cashierName={doorCashier}
           drawerOpen={doorShift.ok ? doorShift.shift !== null : false}
           workspacePath={doorPath.replace(/\/pos$/, "")}
@@ -508,9 +443,11 @@ export default async function PosPage({
           tenantId={scope.tenantId}
           locale={locale}
           workspaceName={workspaceName}
+          locationName={locationName}
           posPath={await currentAdminPath(tenantSlug)}
           cashierName={floorCashier}
           drawerOpen={Boolean(floorShift.ok && floorShift.shift)}
+          messagesUnread={messagesUnread}
         />
       </>
     );
@@ -537,12 +474,14 @@ export default async function PosPage({
         <ProjectsModePage
           tenantId={scope.tenantId}
           workspaceName={workspaceName}
+          locationName={locationName}
           posPath={projectsPath}
           workspacePath={projectsPath.replace(/\/pos$/, "")}
           receiptOrigin={projectsHost ? `${projectsProto}://${projectsHost}` : ""}
           methods={collectionMethods(tr)}
           cashierName={projectsCashier}
           drawerOpen={Boolean(projectsShift.ok && projectsShift.shift)}
+          messagesUnread={messagesUnread}
           tr={tr}
           locale={locale}
           search={{ project: q.project, view: q.view }}
@@ -693,7 +632,9 @@ export default async function PosPage({
       <PosClient
         mode={mode}
         tenantId={scope.tenantId}
+        messagesUnread={messagesUnread}
         workspaceName={workspaceName}
+        locationName={locationName}
         cashierName={cashierName}
         locale={locale}
         posPath={adminPath}

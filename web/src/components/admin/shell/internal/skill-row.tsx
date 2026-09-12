@@ -18,6 +18,7 @@ import {
   ProficiencyDotPicker,
   ProficiencyLabel,
 } from "./skill-proficiency";
+import type React from "react";
 import { useDashboardText } from "./dashboard-i18n";
 import { F_BODY, T } from "./skill-tokens";
 
@@ -68,9 +69,14 @@ export function SkillCategoryCard({
         overflow: "hidden",
       }}
     >
-      {/* Header */}
-      <div
-        style={{
+      {/* Header. While the category is "Not set" the whole header is the
+          button that opens the picker: the small "+ Add skill" line under it
+          was the only way in, and people read the header as static text
+          (owner QA 2026-09-10). Once set it is plain again; the add-skill line
+          below handles more skills. */}
+      {(() => {
+        const headerIsButton = !parentName && canAddSkill;
+        const headerStyle: React.CSSProperties = {
           padding: "10px 14px",
           borderBottom:
             skills.length > 0 ? `1px solid ${T.borderSoft}` : "none",
@@ -78,8 +84,14 @@ export function SkillCategoryCard({
           display: "flex",
           alignItems: "center",
           gap: 8,
-        }}
-      >
+          width: "100%",
+          textAlign: "left",
+          border: "none",
+          cursor: headerIsButton ? "pointer" : undefined,
+          fontFamily: F_BODY,
+        };
+        const inner = (
+          <>
         <span className="text-sm">{roleEmoji}</span>
         <div className="flex-1 min-w-0">
           <div
@@ -101,13 +113,22 @@ export function SkillCategoryCard({
               marginTop: 1,
             }}
           >
-            {parentName ?? copy.t("Not set")}
+            {parentName ?? copy.t("Choose a category")}
           </div>
         </div>
         <span style={{ fontSize: 11, color: T.inkMuted }}>
-          {copy.skillCount(skills.length)}
+          {headerIsButton ? "›" : copy.skillCount(skills.length)}
         </span>
-      </div>
+          </>
+        );
+        return headerIsButton ? (
+          <button type="button" onClick={onAddClick} style={headerStyle}>
+            {inner}
+          </button>
+        ) : (
+          <div style={headerStyle}>{inner}</div>
+        );
+      })()}
 
       {/* Skill rows */}
       {skills.length > 0 && (

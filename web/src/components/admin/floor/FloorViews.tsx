@@ -102,11 +102,89 @@ export function FloorLegend({ copy }: { copy: FloorBoardCopy }) {
   );
 }
 
+function TileButton({
+  table,
+  data,
+  copy,
+  selectedId,
+  onSelect,
+  busy,
+  className,
+}: ViewProps & { table: FloorTable; className?: string }) {
+  const tone = tableTone(table);
+  const code = tableCode(table);
+  const active = selectedId === table.spaceId;
+  const booth = table.kind === "booth" || table.kind === "cabana" || Boolean(table.joinedWithSpaceId);
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      disabled={busy}
+      data-floor-table={code}
+      data-floor-state={table.state}
+      data-floor-tone={tone}
+      onClick={(event) => onSelect(table, anchorOf(event))}
+      className={cn(
+        "flex h-[72px] flex-col items-center justify-center gap-0.5 border-2 px-2 text-center text-[15px] font-bold leading-[1.25] transition-shadow disabled:opacity-60",
+        table.layoutRect?.shape === "round" ? "rounded-full" : "rounded-[14px]",
+        booth ? "min-w-[130px]" : "min-w-[96px]",
+        TILE_TONE[tone],
+        active && "ring-2 ring-admin-brand ring-offset-2 ring-offset-admin-card",
+        className,
+      )}
+    >
+      <span>{tableLabel(table, data.tables)}</span>
+      <span className="text-[12.5px] font-semibold opacity-85">{tileLine(table, data, copy)}</span>
+    </button>
+  );
+}
+
 export function FloorTiles({ data, copy, selectedId, onSelect, busy }: ViewProps) {
   const groups = groupTables(data.tables, copy.groups);
   const overrun = data.tables.find((t) => t.state === "occupied" && t.overdue && !t.joinedFromSpaceId) ?? null;
   if (data.tables.length === 0) {
     return <p className="m-0 p-6 text-[15px] text-admin-ink-muted">{copy.emptyFloor}</p>;
+  }
+  const canvas = data.layoutCanvas;
+  const placed = canvas ? data.tables.filter((table) => table.layoutRect) : [];
+  if (canvas && placed.length > 0) {
+    return (
+      <div className="flex min-h-0 flex-1 gap-4 overflow-y-auto">
+        <div className="relative min-h-[420px] min-w-0 flex-1 overflow-hidden rounded-[6px] border-2 border-admin-border-strong bg-admin-card">
+          {placed.map((table) => {
+            const rect = table.layoutRect!;
+            return (
+              <div
+                key={table.spaceId}
+                className="absolute"
+                style={{
+                  left: `${(rect.x / canvas.w) * 100}%`,
+                  top: `${(rect.y / canvas.h) * 100}%`,
+                  width: `${(rect.w / canvas.w) * 100}%`,
+                  height: `${(rect.h / canvas.h) * 100}%`,
+                }}
+              >
+                <TileButton table={table} data={data} copy={copy} selectedId={selectedId} onSelect={onSelect} busy={busy} className="h-full w-full min-w-0" />
+              </div>
+            );
+          })}
+        </div>
+        {overrun && (
+          <aside
+            data-floor-overrun
+            className="hidden w-[170px] shrink-0 self-start rounded-[12px] border-[1.5px] border-admin-coral bg-admin-card px-3 py-2.5 text-[13px] leading-[1.35] xl:block"
+          >
+            <p className="m-0 font-bold text-admin-coral-deep">
+              {interpolate(copy.overrun, {
+                code: tableCode(overrun),
+                n: Math.max(0, (overrun.elapsedMinutes ?? 0) - (overrun.turnMinutes ?? 0)),
+              })}
+            </p>
+            <p className="m-0 mt-0.5 text-admin-ink-muted">{copy.overrunHint}</p>
+          </aside>
+        )}
+      </div>
+    );
   }
   return (
     <div className="flex min-h-0 flex-1 gap-4 overflow-y-auto">

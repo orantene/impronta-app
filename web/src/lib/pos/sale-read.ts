@@ -15,6 +15,20 @@ import { LINE_COLUMNS, ORDER_COLUMNS, num, type Admin, type LineRow, type OrderR
 import type { PosSaleView } from "./commands";
 import { readCustomAmountLimitCents } from "./approval-settings";
 
+
+/**
+ * The channels whose orders the till lists as its own: the counter's, and a
+ * draft the Messages surface opened for a customer (`messagingEnsureSharedDraft`
+ * writes `source_channel = 'messages'`; contract seam 3). Orders / Receipts /
+ * the kitchen ticket read the origin and say "from Messages · paid by link".
+ */
+export const POS_SALE_CHANNELS = ["pos", "messages"] as const;
+export type PosSaleOrigin = (typeof POS_SALE_CHANNELS)[number];
+
+export function saleOrigin(channel: string | null | undefined): PosSaleOrigin {
+  return channel === "messages" ? "messages" : "pos";
+}
+
 export async function loadPosSale(
   admin: Admin,
   input: { tenantId: string; orderId: string },
@@ -142,13 +156,19 @@ export async function loadPosSale(
 export async function listOpenPosSales(
   admin: Admin,
   tenantId: string,
-): Promise<{ ok: true; rows: Array<{ id: string; totalCents: number; createdAt: string | null }> } | { ok: false; reason: "unavailable" }> {
+): Promise<
+  | { ok: true; rows: Array<{ id: string; totalCents: number; createdAt: string | null; origin: PosSaleOrigin }> }
+  | { ok: false; reason: "unavailable" }
+> {
+  // A draft opened from Messages (`source_channel = 'messages'`, seam 3) is
+  // a sale this till can resume and collect like its own, so it is listed
+  // beside the counter's drafts and marked by where it came from.
   const { data, error } = await admin
     .from("orders")
-    .select("id, total_cents, created_at")
+    .select("id, total_cents, created_at, source_channel")
     .eq("tenant_id", tenantId)
     .eq("status", "draft")
-    .eq("source_channel", "pos")
+    .in("source_channel", [...POS_SALE_CHANNELS])
     .order("created_at", { ascending: false });
   if (error) {
     logServerError("pos.listOpen", error);
@@ -156,10 +176,11 @@ export async function listOpenPosSales(
   }
   return {
     ok: true,
-    rows: ((data ?? []) as Array<{ id: string; total_cents: number; created_at: string | null }>).map((r) => ({
+    rows: ((data ?? []) as Array<{ id: string; total_cents: number; created_at: string | null; source_channel: string | null }>).map((r) => ({
       id: r.id,
       totalCents: num(r.total_cents),
       createdAt: r.created_at,
+      origin: saleOrigin(r.source_channel),
     })),
   };
 }
@@ -188,6 +209,8 @@ export async function listPaidPosSales(
         receiptCode: string | null;
         customerName: string | null;
         lineLabels: string[];
+        /** Where the sale was opened: `messages` reads "from Messages · paid by link" on the row (seam 3). */
+        origin: PosSaleOrigin;
       }>;
     }
   | { ok: false; reason: "unavailable" }
@@ -198,15 +221,16 @@ export async function listPaidPosSales(
     currency: string | null;
     updated_at: string | null;
     receipt_code: string | null;
+    source_channel: string | null;
     customers: { display_name: string | null } | { display_name: string | null }[] | null;
     order_lines: Array<{ label: string | null; units: number | string }> | null;
   };
   let query = admin
     .from("orders")
-    .select("id, total_cents, currency, updated_at, receipt_code, customers(display_name), order_lines(label, units)")
+    .select("id, total_cents, currency, updated_at, receipt_code, source_channel, customers(display_name), order_lines(label, units)")
     .eq("tenant_id", input.tenantId)
     .eq("status", "paid")
-    .eq("source_channel", "pos");
+    .in("source_channel", [...POS_SALE_CHANNELS]);
   // The door's Receipts rail shows the door's own sales (`source_page`
   // "door"); the counter's shows every sale through the till.
   if (input.sourcePage) query = query.eq("source_page", input.sourcePage);
@@ -231,6 +255,7 @@ export async function listPaidPosSales(
         paidAt: r.updated_at,
         receiptCode: r.receipt_code,
         customerName: customer?.display_name?.trim() || null,
+        origin: saleOrigin(r.source_channel),
         lineLabels: (r.order_lines ?? []).map((line) =>
           num(line.units) > 1 ? `${num(line.units)} ${line.label ?? ""}`.trim() : (line.label ?? "").trim(),
         ),

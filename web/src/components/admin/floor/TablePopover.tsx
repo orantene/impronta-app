@@ -49,6 +49,7 @@ export type TablePopoverProps = {
   readonly onPartyLeft: () => void;
   readonly onReset: () => void;
   readonly onSendKitchen: () => void;
+  readonly onFireCourse?: (courseSeq: number) => void;
 };
 
 const WIDTH = 320;
@@ -253,6 +254,13 @@ export function TablePopover(props: TablePopoverProps) {
           <ul className="m-0 flex list-none flex-col p-0">
             {props.hasKitchen && table.orderId && (
               <MenuRow icon={Flame} label={p.sendKitchen} onSelect={props.onSendKitchen} busy={busy} testId="send-kitchen" />
+            )}
+            {props.onFireCourse && table.visitId && (
+              <>
+                <MenuRow icon={Flame} label={p.fireStarters} onSelect={() => props.onFireCourse?.(1)} busy={busy} testId="fire-course-1" />
+                <MenuRow icon={Flame} label={p.fireMains} onSelect={() => props.onFireCourse?.(2)} busy={busy} testId="fire-course-2" />
+                <MenuRow icon={Flame} label={p.fireDessert} onSelect={() => props.onFireCourse?.(3)} busy={busy} testId="fire-course-3" />
+              </>
             )}
             <MenuRow icon={ArrowRight} label={p.moveOrJoin} onSelect={joined ? undefined : props.onMoveOrJoin} reason={joined ? copy.refusal.joined_visit : undefined} busy={busy} testId="move-or-join" />
             <MenuRow

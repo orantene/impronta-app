@@ -34,6 +34,8 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { POS_MESSAGES_DESTINATION, posMessagesHref } from "@/lib/pos/modes";
+
 import {
   IssuesScreen,
   PosFrame,
@@ -59,7 +61,10 @@ import { dateAt, timeAt, type DoorScreenCopy, type OpenDoor, type RecentScan } f
 
 export type DoorClientProps = {
   tenantId: string;
+  /** The Messages inbox's unread count: the rail's `messages` badge (seam 10). */
+  messagesUnread?: number;
   workspaceName: string;
+  locationName?: string;
   cashierName: string;
   drawerOpen: boolean;
   workspacePath: string;
@@ -112,7 +117,7 @@ export function DoorClient(props: DoorClientProps) {
         setDoorFailed(true);
         return;
       }
-      setDoor({ session, rows: loaded.rows, counts: loaded.counts, tiers: tiers.ok ? tiers.tiers : [] });
+      setDoor({ session, rows: loaded.rows, counts: loaded.counts, tiers: tiers.ok ? tiers.tiers : [], nights: loaded.nights });
     } finally {
       setBusy(false);
     }
@@ -322,9 +327,14 @@ export function DoorClient(props: DoorClientProps) {
         navLabel={copy.frameNavLabel}
         activeDestination={destination}
         onSelectDestination={(id) => {
+          if (id === POS_MESSAGES_DESTINATION) {
+            router.push(posMessagesHref("door"));
+            return;
+          }
           if (isDestination(id)) setDestination(id);
         }}
         destinationLabels={copy.door.rail}
+        counts={{ messages: props.messagesUnread ?? 0 }}
         modeLabel={copy.modeLabel}
         modeEyebrow={copy.chrome.modeEyebrow}
         lock={{ label: copy.chrome.lock, disabledReason: copy.chrome.lockUnavailable }}
@@ -334,7 +344,7 @@ export function DoorClient(props: DoorClientProps) {
         <PosHeader
           title={header.title}
           subtitle={header.subtitle}
-          location={props.workspaceName}
+          location={props.locationName ?? props.workspaceName}
           cashier={{
             initials: initialsOf(props.cashierName || props.workspaceName),
             label: `${props.cashierName || props.workspaceName} · ${props.drawerOpen ? copy.chrome.drawerOpen : copy.chrome.drawerNone}`,
