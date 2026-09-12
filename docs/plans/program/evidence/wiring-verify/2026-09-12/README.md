@@ -6,9 +6,11 @@ Database: isolated `fxlankepwnvelxjrahwk` only. Production was not read as a tar
 
 ## Verdicts
 
-Could not run the browser suite in this VM: isolated env file and `VERCEL_AUTOMATION_BYPASS_SECRET` are absent. Specs are written; they are not green.
+Could not run the browser suite in this VM: isolated env file and `VERCEL_AUTOMATION_BYPASS_SECRET` are absent. Specs are written against live `data-pos-*` / `data-floor-*` hooks; they are not green.
 
 One attempted run of `WIRE-0-enable-modes.spec.ts` against `https://staging-qa-journeys.tulala.digital` without the bypass header: `/api/dev/signin` answered Vercel SSO `302 Redirecting...` instead of the app's `307`. Log: `logs/WIRE-0-enable-modes.chromium.log`.
+
+Spec pass after the first commit: filled `#pos-custom-what`, floor move/split/server hooks, class waitlist `data-pos-classes-entry`, cash close `#pos-shift-note` + confirm-count, cron routes `/api/cron/messaging-reminders` and `/api/cron/messaging-delivery-retry`, MSG-P1 reply + row insert, MSG-P8 `mode=projects`. Inverted `.catch` refusals removed. Playwright also loads `.env.capacity-isolated.local` when that file is present (it is not in this VM).
 
 | # | Control | Spec | Verdict |
 |---|---|---|---|

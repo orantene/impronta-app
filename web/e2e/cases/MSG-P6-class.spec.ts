@@ -1,14 +1,13 @@
-import { test, expect, prepareJourneysPage, signInJourneysStaff, skipUnlessFixture } from "./_harness";
-import { assertInboxGroundTruth } from "./_wire";
+import { test, expect, prepareJourneysPage, skipUnlessFixture } from "./_harness";
+import { assertInboxGroundTruth, openMessagesSurface, openSendOptions } from "./_wire";
 
 skipUnlessFixture();
 
 test("MSG-P6 class card family is offered from Messages", async ({ page }) => {
   await prepareJourneysPage(page);
-  // One render, not two: the sign-in lands on the Messages view itself. The
-  // counter's own render is 7 to 23 s on a loaded machine and the default
-  // `/admin/pos` hop before the real `goto` spent the 30 s budget on Sell.
-  await signInJourneysStaff(page, "/admin/pos?view=messages");
-  await expect(page.getByText(/inbox|messages/i).first()).toBeVisible({ timeout: 15_000 });
+  await openMessagesSurface(page, "/admin/pos?view=messages");
   await assertInboxGroundTruth();
+  await page.locator("[data-pos-messages] li button").first().click();
+  await openSendOptions(page);
+  await expect(page.getByText(/class|session/i).first()).toBeVisible({ timeout: 15_000 });
 });

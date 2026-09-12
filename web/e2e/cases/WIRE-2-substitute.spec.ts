@@ -22,10 +22,9 @@ test("WIRE-2.2 substitute instructor on a session row", async ({ page }) => {
   test.skip((await row.count()) === 0, "failed-fixture: no session row");
   await row.click();
   const sub = page.getByRole("button", { name: /substitute/i });
-  if ((await sub.count()) === 0) {
-    await expect(page.getByText(/substitute|instructor/i).first()).toBeVisible();
-    return;
-  }
+  await expect(sub, "Substitute control must be on the session panel").toBeVisible({
+    timeout: 20_000,
+  });
   await sub.click();
   const person = page.getByRole("radio").nth(1);
   if ((await person.count()) > 0) await person.click();

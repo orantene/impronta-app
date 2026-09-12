@@ -10,7 +10,7 @@ import {
   skipUnlessFixture,
 } from "./_harness";
 import { isolatedService, JOURNEYS_TENANT_ID } from "./_isolated-db";
-import { WIRE_SENTENCE, assertEnglishRefusal } from "./_wire";
+import { WIRE_SENTENCE } from "./_wire";
 
 skipUnlessFixture();
 
@@ -36,7 +36,9 @@ test("WIRE-2.5 staff cancel on an appointment row", async ({ page }) => {
   expect(data).toBeTruthy();
 
   await cancel.click();
-  await assertEnglishRefusal(page, WIRE_SENTENCE.notCancellable).catch(async () => {
-    await assertEnglishRefusal(page, WIRE_SENTENCE.notReschedulable);
-  });
+  await expect(
+    page
+      .getByText(WIRE_SENTENCE.notCancellable, { exact: true })
+      .or(page.getByText(WIRE_SENTENCE.notReschedulable, { exact: true })),
+  ).toBeVisible({ timeout: 20_000 });
 });

@@ -28,15 +28,18 @@ test("WIRE-1.7 Collect › Link mints one open link and refuses a second over th
   await page.locator("[data-pos-method='link']").click();
   await page.locator("[data-pos-payment-link-create]").click();
   await expect(page.locator("[data-pos-payment-link-url]")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-pos-payment-link-status='open'], [data-pos-payment-link-url]").first()).toBeVisible();
   const orderId = await latestOrderIdByUrl(page);
   const sb = isolatedService();
   const { data: link } = await sb
     .from("payment_links")
-    .select("id, status, code")
+    .select("id, status, code, amount_cents")
     .eq("order_id", orderId)
     .eq("status", "open")
     .maybeSingle();
   expect(link, "payment_links row must be open").toBeTruthy();
+  expect((link as { code: string }).code.length).toBeGreaterThan(0);
+  expect(Number((link as { amount_cents: number }).amount_cents)).toBeGreaterThan(0);
   const { count } = await sb
     .from("order_collection_reservations")
     .select("id", { count: "exact", head: true })

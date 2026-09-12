@@ -28,22 +28,19 @@ test("WIRE-1.3 owner sets a PIN and the custom-amount limit; viewer is refused",
 
   await signInJourneysStaff(page, `/${JOURNEYS_SLUG}/admin/people`, VIEWER_EMAIL);
   const viewerPin = page.locator("[data-people-register-pin]").first();
-  if ((await viewerPin.count()) > 0) {
-    await viewerPin.locator("input").fill(OWNER_PIN);
-    await viewerPin.locator("[data-people-pin-save]").click();
-    await assertEnglishRefusal(page, WIRE_SENTENCE.notManager);
-  } else {
-    await expect(page.getByText(WIRE_SENTENCE.notManager).or(page.getByText(/only a manager/i))).toBeVisible({
-      timeout: 15_000,
-    });
-  }
+  await expect(viewerPin).toBeVisible({ timeout: 30_000 });
+  await viewerPin.locator("input").fill(OWNER_PIN);
+  await viewerPin.locator("[data-people-pin-save]").click();
+  await assertEnglishRefusal(page, WIRE_SENTENCE.notManager);
 
   await signInJourneysStaff(page, `/${JOURNEYS_SLUG}/admin/people`);
   const pinBox = page.locator("[data-people-register-pin]").first();
   await expect(pinBox).toBeVisible({ timeout: 30_000 });
   await pinBox.locator("input").fill(OWNER_PIN);
   await pinBox.locator("[data-people-pin-save]").click();
-  await expect(page.getByRole("status").filter({ hasText: /saved|set/i }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("status").filter({ hasText: /saved|set/i }).first()).toBeVisible({
+    timeout: 20_000,
+  });
   const userId = await ownerUserId();
   expect(await staffPinIsHashed(userId), "PIN must be stored hashed").toBe(true);
 

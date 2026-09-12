@@ -1,6 +1,6 @@
 /**
  * 1.1 POSCustomAmount — custom line under the limit.
- * Refusal: amount 0.
+ * Refusal: amount 0 (Continue stays disabled; no custom line).
  */
 import {
   test,
@@ -11,10 +11,10 @@ import {
   skipUnlessFixture,
 } from "./_harness";
 import {
-  assertEnglishRefusal,
+  fillCustomAmount,
   latestCustomLine,
   latestOrderIdByUrl,
-  pressKeypad,
+  openCustomAmountSheet,
   readCustomAmountLimitCents,
 } from "./_wire";
 
@@ -28,19 +28,20 @@ test("WIRE-1.1 custom amount under the limit writes a custom line", async ({ pag
 
   await openCounter(page);
   await counterStartSale(page);
-  await page.getByRole("button", { name: /custom amount/i }).click();
-  await expect(page.locator("[data-pos-sheet='custom-amount']")).toBeVisible({ timeout: 20_000 });
+  await openCustomAmountSheet(page);
 
-  await pressKeypad(page, "0");
-  await page.locator("[data-pos-custom-continue]").click();
-  await expect(page.getByText(/amount|zero|cannot/i).first()).toBeVisible({ timeout: 15_000 });
-  const beforeUrl = page.url();
-  expect(beforeUrl.includes("order=")).toBeFalsy();
+  await page.locator("#pos-custom-what").fill("WIRE custom under");
+  await expect(page.locator("[data-pos-custom-continue]")).toBeDisabled();
+  expect(page.url().includes("order=")).toBeFalsy();
 
-  await pressKeypad(page, "500");
+  await fillCustomAmount(page, "WIRE custom under", "500");
   await expect(page.locator("[data-pos-custom-limit]")).toHaveAttribute("data-pos-custom-limit", "within");
+  await expect(page.locator("[data-pos-custom-continue]")).toBeEnabled();
   await page.locator("[data-pos-custom-continue]").click();
   await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
+  await expect(page.locator("[data-pos-line]").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-pos-custom-amount], [data-pos-line]").first()).toBeVisible();
+
   const orderId = await latestOrderIdByUrl(page);
   const line = await latestCustomLine(orderId);
   expect(line, "custom line must exist").toBeTruthy();

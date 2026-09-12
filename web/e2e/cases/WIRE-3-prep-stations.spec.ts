@@ -27,7 +27,7 @@ test("WIRE-3.5 prep stations and fire course", async ({ page }) => {
   const del = page.getByRole("button", { name: /delete/i }).first();
   if ((await del.count()) > 0) {
     await del.click();
-    await assertEnglishRefusal(page, WIRE_SENTENCE.stationInUse).catch(() => undefined);
+    await assertEnglishRefusal(page, WIRE_SENTENCE.stationInUse);
   }
 
   await signInJourneysStaff(page, "/admin/pos?mode=floor");

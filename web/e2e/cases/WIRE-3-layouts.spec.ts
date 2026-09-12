@@ -16,9 +16,11 @@ skipUnlessFixture();
 test("WIRE-3.3 Settings › Venue › Layouts keeps one active layout", async ({ page }) => {
   test.setTimeout(180_000);
   await prepareJourneysPage(page);
-  await openSettingsCard(page, "Layouts", "layout-editor-card").catch(async () => {
+  try {
+    await openSettingsCard(page, "Layouts", "layout-editor-card");
+  } catch {
     await openSettingsCard(page, "Venue", "layout-editor-card");
-  });
+  }
   const activate = page.getByRole("button", { name: /activate/i }).first();
   if ((await activate.count()) > 0) await activate.click();
   const sb = isolatedService();

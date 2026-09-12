@@ -24,6 +24,13 @@ test("WIRE-4.4 /admin/messages chips follow inquiry state columns", async ({ pag
     .eq("tenant_id", JOURNEYS_TENANT_ID)
     .limit(5);
   expect((data ?? []).length).toBeGreaterThan(0);
-  const thread = page.locator("[data-pos-messages='thread'], [data-inquiry-row]").first();
-  if ((await thread.count()) > 0) await thread.click();
+  const first = (data ?? [])[0] as { conversation_state: string | null; opportunity_state: string | null };
+  const thread = page.locator("[data-pos-messages='thread'], [data-inquiry-row], [data-pos-messages] li").first();
+  await expect(thread).toBeVisible({ timeout: 20_000 });
+  await thread.click();
+  if (first.conversation_state) {
+    await expect(page.getByText(new RegExp(first.conversation_state.replace(/_/g, "[ _-]"), "i")).first()).toBeVisible({
+      timeout: 20_000,
+    });
+  }
 });

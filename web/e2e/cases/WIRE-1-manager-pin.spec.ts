@@ -16,8 +16,10 @@ import {
   WRONG_PIN,
   assertEnglishRefusal,
   countRows,
+  fillCustomAmount,
   latestCustomLine,
   latestOrderIdByUrl,
+  openCustomAmountSheet,
   pressKeypad,
   readCustomAmountLimitCents,
 } from "./_wire";
@@ -32,9 +34,9 @@ test("WIRE-1.2 over-limit custom amount needs the right manager PIN", async ({ p
 
   await openCounter(page);
   await counterStartSale(page);
-  await page.getByRole("button", { name: /custom amount/i }).click();
+  await openCustomAmountSheet(page);
   const over = String((limit ?? 0) + 500);
-  await pressKeypad(page, over);
+  await fillCustomAmount(page, "WIRE custom over", over);
   await expect(page.locator("[data-pos-custom-limit]")).toHaveAttribute("data-pos-custom-limit", "over");
   await page.locator("[data-pos-custom-continue]").click();
   await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
@@ -42,17 +44,22 @@ test("WIRE-1.2 over-limit custom amount needs the right manager PIN", async ({ p
   const locked = await latestCustomLine(orderId);
   expect(locked?.needsApproval).toBe(true);
 
-  await expect(page.locator("[data-pos-dialog='manager-approval'], [data-pos-approve]").first()).toBeVisible({
-    timeout: 20_000,
-  });
+  const dialog = page.locator("[data-pos-dialog='manager-approval']");
+  await expect(dialog).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-pos-approver]").first()).toBeVisible();
+  await page.locator("[data-pos-approver]").first().click();
+
   const before = await countRows("pos_approvals", { order_id: orderId });
   await pressKeypad(page, WRONG_PIN);
   await page.locator("[data-pos-approve]").click();
   await assertEnglishRefusal(page, WIRE_SENTENCE.pinInvalid);
+  await expect(page.locator("[data-pos-approval-status]")).toBeVisible();
   expect(await countRows("pos_approvals", { order_id: orderId })).toBe(before);
 
   await pressKeypad(page, OWNER_PIN);
   await page.locator("[data-pos-approve]").click();
   await expect(page.locator("[data-pos-line-approval]")).toHaveCount(0, { timeout: 30_000 });
   expect(await countRows("pos_approvals", { order_id: orderId })).toBeGreaterThan(before);
+  const unlocked = await latestCustomLine(orderId);
+  expect(unlocked?.needsApproval).toBe(false);
 });

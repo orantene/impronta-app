@@ -8,6 +8,7 @@ import { expect, JOURNEYS_SLUG, signInJourneysStaff } from "./_harness";
 import { isolatedService, JOURNEYS_TENANT_ID } from "./_isolated-db";
 
 export const WIRE_SENTENCE = {
+  cannotSave: "That cannot be saved.",
   pinInvalid: "That PIN is not right.",
   notManager: "Only a manager can do this.",
   alreadyLinked: "This sale is already linked to a booking.",
@@ -55,6 +56,17 @@ export async function pressKeypad(page: Page, digits: string): Promise<void> {
   for (const d of digits) {
     await pad.getByRole("button", { name: d, exact: true }).click();
   }
+}
+
+export async function openCustomAmountSheet(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /custom amount/i }).click();
+  await expect(page.locator("[data-pos-sheet='custom-amount']")).toBeVisible({ timeout: 20_000 });
+}
+
+/** Description is required — Continue stays disabled until both label and amount are set. */
+export async function fillCustomAmount(page: Page, label: string, digits: string): Promise<void> {
+  await page.locator("#pos-custom-what").fill(label);
+  await pressKeypad(page, digits);
 }
 
 export async function assertEnglishRefusal(page: Page, sentence: string): Promise<void> {
@@ -217,6 +229,35 @@ export async function assertInboxGroundTruth(): Promise<void> {
     .eq("tenant_id", JOURNEYS_TENANT_ID);
   if (error) throw new Error(`assertInboxGroundTruth: ${error.message}`);
   if ((count ?? 0) < 1) throw new Error("failed-fixture: no inquiries for Messages prototypes");
+}
+
+export async function openMessagesSurface(
+  page: Page,
+  path = "/admin/pos?view=messages",
+): Promise<void> {
+  await signInJourneysStaff(page, path);
+  await expect(page.locator("[data-pos-messages=shell], [data-pos-messages=phone]").first()).toBeVisible({
+    timeout: 20_000,
+  });
+}
+
+export async function replyOnFirstThread(page: Page, body: string): Promise<void> {
+  const row = page.locator("[data-pos-messages] li button").first();
+  await expect(row).toBeVisible({ timeout: 20_000 });
+  await row.click();
+  await expect(page.locator("[data-pos-messages='thread'], [data-pos-messages='phone-thread']")).toBeVisible({
+    timeout: 20_000,
+  });
+  const input = page.getByLabel(/reply|message/i).first();
+  await input.fill(body);
+  await page.getByRole("button", { name: /^(reply|send)$/i }).last().click();
+  await expect(page.getByText(body, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+}
+
+export async function openSendOptions(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /actions/i }).click();
+  await page.getByRole("button", { name: /send options/i }).click();
+  await expect(page.locator("[data-pos-sheet='options']")).toBeVisible({ timeout: 20_000 });
 }
 
 export async function ownerUserId(): Promise<string> {

@@ -21,8 +21,8 @@ test("WIRE-3.8 door exchange, event-day comp, delivery", async ({ page }) => {
   const change = page.getByRole("button", { name: /change|exchange/i }).first();
   if ((await change.count()) > 0) {
     await change.click();
-    await page.getByRole("button", { name: /same|tonight/i }).first().click().catch(() => undefined);
-    await assertEnglishRefusal(page, WIRE_SENTENCE.sameSession).catch(() => undefined);
+    await page.getByRole("button", { name: /same|tonight/i }).first().click();
+    await assertEnglishRefusal(page, WIRE_SENTENCE.sameSession);
   }
   const comp = page.getByRole("button", { name: /^comp$/i }).first();
   if ((await comp.count()) > 0) {

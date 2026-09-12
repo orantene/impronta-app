@@ -34,6 +34,6 @@ test("WIRE-3.6 /visit/<token> guest QR order and share pay", async ({ page }) =>
     .limit(1)
     .maybeSingle();
   expect(data).toBeTruthy();
-  await page.goto(`/visit/${token}`);
-  await assertEnglishRefusal(page, WIRE_SENTENCE.visitClosed).catch(() => undefined);
+  await page.goto(`/visit/${token}/bill`);
+  await assertEnglishRefusal(page, WIRE_SENTENCE.visitClosed);
 });

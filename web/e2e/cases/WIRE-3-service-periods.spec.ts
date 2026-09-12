@@ -25,8 +25,7 @@ test("WIRE-3.4 Settings › Venue › Service periods", async ({ page }) => {
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", JOURNEYS_TENANT_ID);
   expect((count ?? 0) >= 0).toBeTruthy();
-  if ((await add.count()) > 0) {
-    await add.click();
-    await assertEnglishRefusal(page, WIRE_SENTENCE.overlap).catch(() => undefined);
-  }
+  await expect(add).toBeVisible();
+  await add.click();
+  await assertEnglishRefusal(page, WIRE_SENTENCE.overlap);
 });

@@ -9,7 +9,7 @@ import {
   skipUnlessFixture,
 } from "./_harness";
 import { isolatedService, JOURNEYS_TENANT_ID } from "./_isolated-db";
-import { WIRE_SENTENCE, assertEnglishRefusal, openSettingsCard } from "./_wire";
+import { WIRE_SENTENCE, openSettingsCard } from "./_wire";
 
 skipUnlessFixture();
 
@@ -28,8 +28,8 @@ test("WIRE-3.1 Settings › Locations lists a default and refuses last/in-use de
   const del = page.getByRole("button", { name: /delete/i }).first();
   if ((await del.count()) > 0) {
     await del.click();
-    await assertEnglishRefusal(page, WIRE_SENTENCE.hasSpaces).catch(async () => {
-      await assertEnglishRefusal(page, WIRE_SENTENCE.lastLocation);
-    });
+    await expect(
+      page.getByText(WIRE_SENTENCE.hasSpaces, { exact: true }).or(page.getByText(WIRE_SENTENCE.lastLocation, { exact: true })),
+    ).toBeVisible({ timeout: 20_000 });
   }
 });

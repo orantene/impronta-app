@@ -35,6 +35,6 @@ test("WIRE-2.11 Catalog package composition and price phases", async ({ page }) 
   if ((await phases.count()) > 0) {
     await phases.click();
     await page.getByRole("button", { name: /add|overlap/i }).first().click();
-    await assertEnglishRefusal(page, WIRE_SENTENCE.overlap).catch(() => undefined);
+    await assertEnglishRefusal(page, WIRE_SENTENCE.overlap);
   }
 });

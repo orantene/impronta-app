@@ -30,15 +30,16 @@ test("WIRE-1.6 basket tip writes tip_cents and refuses after collection", async 
   const orderId = await latestOrderIdByUrl(page);
   const beforePay = await readOrder(orderId);
   expect(beforePay.tipCents).toBeGreaterThan(0);
+  expect(beforePay.totalCents).toBeGreaterThanOrEqual(beforePay.tipCents);
 
   await counterCollectCash(page);
   await expectCounterPaid(page);
-  await page.locator("[data-pos-open-tip]").click({ timeout: 5_000 }).catch(() => undefined);
-  if ((await page.locator("[data-pos-tip-confirm]").count()) > 0) {
-    await page.locator("[data-pos-tip-confirm]").click();
-    await assertEnglishRefusal(page, WIRE_SENTENCE.alreadyCollected);
-  } else {
-    await expect(page.getByText(WIRE_SENTENCE.alreadyCollected).or(page.locator("[data-pos-open-tip]"))).toBeVisible();
-  }
+  const paid = await readOrder(orderId);
+  expect(paid.status).toMatch(/paid|collected|closed/);
+  expect(paid.tipCents).toBe(beforePay.tipCents);
+
+  await page.locator("[data-pos-open-tip]").click();
+  await page.locator("[data-pos-tip-confirm]").click();
+  await assertEnglishRefusal(page, WIRE_SENTENCE.alreadyCollected);
   expect((await readOrder(orderId)).tipCents).toBe(beforePay.tipCents);
 });

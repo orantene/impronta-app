@@ -42,6 +42,6 @@ test("WIRE-3.10 Settings › POS › Devices and Connection sync", async ({ page
   const provider = page.getByRole("button", { name: /provider|stripe|reader/i }).first();
   if ((await provider.count()) > 0) {
     await provider.click();
-    await assertEnglishRefusal(page, WIRE_SENTENCE.notReplayable).catch(() => undefined);
+    await assertEnglishRefusal(page, WIRE_SENTENCE.notReplayable);
   }
 });

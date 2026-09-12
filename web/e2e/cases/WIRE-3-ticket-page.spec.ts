@@ -32,7 +32,7 @@ test("WIRE-3.9 /ticket/<code> transfer, resend, lookup refusals", async ({ page 
     for (let i = 0; i < 8; i += 1) {
       await page.getByRole("button", { name: /look|find|search/i }).first().click();
     }
-    await assertEnglishRefusal(page, WIRE_SENTENCE.tooManyAttempts).catch(() => undefined);
+    await assertEnglishRefusal(page, WIRE_SENTENCE.tooManyAttempts);
   } else {
     test.skip(!code, "failed-fixture: no ticket code and no lookup field");
   }

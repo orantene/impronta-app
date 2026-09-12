@@ -1,14 +1,18 @@
-import { test, expect, prepareJourneysPage, signInJourneysStaff, skipUnlessFixture } from "./_harness";
-import { assertInboxGroundTruth } from "./_wire";
+import { test, expect, prepareJourneysPage, skipUnlessFixture } from "./_harness";
+import { assertInboxGroundTruth, openMessagesSurface } from "./_wire";
 
 skipUnlessFixture();
 
 test("MSG-P11 recovery refusals stay codes on the Messages surface", async ({ page }) => {
   await prepareJourneysPage(page);
-  // One render, not two: the sign-in lands on the Messages view itself. The
-  // counter's own render is 7 to 23 s on a loaded machine and the default
-  // `/admin/pos` hop before the real `goto` spent the 30 s budget on Sell.
-  await signInJourneysStaff(page, "/admin/pos?view=messages");
-  await expect(page.locator("[data-pos-refusal]")).toHaveCount(0);
+  await openMessagesSurface(page, "/admin/pos?view=messages");
   await assertInboxGroundTruth();
+  await page.reload();
+  await expect(page.locator("[data-pos-messages=shell], [data-pos-messages=phone]").first()).toBeVisible({
+    timeout: 20_000,
+  });
+  const refusal = page.locator("[data-pos-refusal]");
+  if ((await refusal.count()) > 0) {
+    await expect(refusal.first()).not.toHaveText(/_/);
+  }
 });

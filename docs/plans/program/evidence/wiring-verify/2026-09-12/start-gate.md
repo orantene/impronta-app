@@ -19,4 +19,6 @@ Blocked in this Cloud Agent VM:
 - `SUPABASE_SERVICE_ROLE_KEY` / `DATABASE_URL` are unset
 - Playwright extra headers therefore cannot send `x-vercel-protection-bypass`
 
+Re-check 2026-09-12 later same day: env file still absent; Vercel MCP HTML fetch of the QA host still SSO `302`. Isolated SQL (MCP, project `fxlankepwnvelxjrahwk` only) still shows tenant A modes `["counter","projects"]`. Modes were not flipped by SQL.
+
 QA HTML fetch without the bypass header returns Vercel SSO (`302` to `vercel.com/sso-api`).
