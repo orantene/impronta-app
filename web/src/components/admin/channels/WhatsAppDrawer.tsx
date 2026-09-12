@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { MessagesShell } from "@/components/admin/pos/messages/MessagesShell";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { loadWhatsAppConnection } from "@/lib/channels/pairing-actions";
@@ -17,6 +16,7 @@ import { AskOwnerPanel } from "./AskOwnerPanel";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { PairingPanel } from "./PairingPanel";
 import { WhatsAppIcon } from "./WhatsAppIcon";
+import { WhatsAppWebFrame } from "./WhatsAppWebFrame";
 import {
   WHATSAPP_DRAWER_OPEN_EVENT,
   WHATSAPP_DRAWER_TOGGLE_EVENT,
@@ -52,8 +52,6 @@ function WhatsAppDrawerPanel() {
   const [enabled, setEnabled] = useState(false);
   const [open, setOpen] = useState(false);
   const [connection, setConnection] = useState<WhatsAppConnectionPublic | null>(null);
-  const [channelFilter, setChannelFilter] = useState<"whatsapp" | "all">("whatsapp");
-  const [focusId, setFocusId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const t = useT();
 
@@ -75,11 +73,7 @@ function WhatsAppDrawerPanel() {
   useEffect(() => {
     if (!enabled) return;
     const onToggle = () => setOpen((value) => !value);
-    const onOpen = (event: Event) => {
-      const inquiryId = (event as CustomEvent<{ inquiryId?: string }>).detail?.inquiryId;
-      if (inquiryId) setFocusId(inquiryId);
-      setOpen(true);
-    };
+    const onOpen = () => setOpen(true);
     const onKey = (event: KeyboardEvent) => {
       if (event.altKey && (event.key === "w" || event.key === "W") && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
@@ -113,7 +107,6 @@ function WhatsAppDrawerPanel() {
   if (!enabled || !connection) return null;
 
   const live = isLiveWhatsAppState(connection.state);
-  const locationSlug = "default";
   const adminBasePath = workspaceAdminBase();
   const titleName = connection.tenantName || connection.displayName || "WhatsApp";
 
@@ -155,23 +148,12 @@ function WhatsAppDrawerPanel() {
           </div>
           <div className="flex items-center gap-2">
             {live ? (
-              <>
-                <button
-                  type="button"
-                  className="hidden text-[12px] font-semibold text-admin-ink-muted md:inline"
-                  onClick={() => setChannelFilter((value) => (value === "all" ? "whatsapp" : "all"))}
-                >
-                  {channelFilter === "all"
-                    ? t("dashboard.channels.drawer.whatsappOnly")
-                    : t("dashboard.channels.drawer.allChannels")}
-                </button>
-                <a
-                  href={`${adminBasePath}/messages`}
-                  className="text-[12px] font-semibold text-admin-brand no-underline"
-                >
-                  {t("dashboard.channels.drawer.openMessages")}
-                </a>
-              </>
+              <a
+                href={`${adminBasePath}/messages`}
+                className="text-[12px] font-semibold text-admin-brand no-underline"
+              >
+                {t("dashboard.channels.drawer.openMessages")}
+              </a>
             ) : null}
             <button
               type="button"
@@ -186,14 +168,7 @@ function WhatsAppDrawerPanel() {
         <ConnectionBanner state={connection.state} />
         <div className="min-h-0 flex-1">
           {live ? (
-            <MessagesShell
-              mode="counter"
-              locationSlug={locationSlug}
-              tenantId={connection.tenantId}
-              adminBasePath={adminBasePath}
-              channelFilter={channelFilter}
-              initialInquiryId={focusId}
-            />
+            <WhatsAppWebFrame viewUrl={connection.webViewUrl} />
           ) : needsPairingWhatsApp(connection.state) || connection.state === "pairing" ? (
             connection.canPair ? (
               <PairingPanel connection={connection} />

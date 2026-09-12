@@ -8,6 +8,7 @@ import {
   type WhatsAppConnectionPublic,
   type WhatsAppConnectionState,
 } from "./types";
+import { whatsappWebViewUrl } from "./web-view-url";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,7 +26,7 @@ type PublicRow = {
   last_error: string | null;
 };
 
-const EMPTY: Omit<WhatsAppConnectionPublic, "canPair" | "ownerFirstName" | "unread" | "tenantName"> = {
+const EMPTY: Omit<WhatsAppConnectionPublic, "canPair" | "ownerFirstName" | "unread" | "tenantName" | "webViewUrl"> = {
   tenantId: "",
   state: "disconnected",
   phoneE164: null,
@@ -145,6 +146,7 @@ export function mapPublicRow(
     canPair: extras.canPair,
     ownerFirstName: extras.ownerFirstName,
     tenantName: extras.tenantName ?? "",
+    webViewUrl: whatsappWebViewUrl(extras.tenantId, process.env.CHANNEL_WORKER_URL),
   };
 }
 

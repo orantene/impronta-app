@@ -24,6 +24,7 @@ function connection(partial: Partial<WhatsAppConnectionPublic> = {}): WhatsAppCo
     canPair: true,
     ownerFirstName: "Oran",
     tenantName: "Casa Nube",
+    webViewUrl: "http://127.0.0.1:8788/view?tenant=t1",
     ...partial,
   };
 }

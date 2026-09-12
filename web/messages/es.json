@@ -12953,8 +12953,11 @@
         "subtitleOff": "Sin vincular",
         "close": "Cerrar WhatsApp",
         "openMessages": "Abrir Mensajes",
-        "allChannels": "Todos los canales",
-        "whatsappOnly": "Solo WhatsApp"
+        "webTitle": "WhatsApp Web",
+        "webBody": "Esta es la sesión de WhatsApp Web vinculada, no la API de Cloud. Los chats que ya estaban en el teléfono siguen en esa ventana.",
+        "webWaiting": "Buscando WhatsApp Web en este equipo…",
+        "webHint": "El sitio en vivo no puede incrustar http://localhost, así que usa Abrir WhatsApp Web. Esa ventana es el mismo vínculo que acabas de escanear.",
+        "webOpen": "Abrir WhatsApp Web"
       },
       "banner": {
         "phoneOffline": "El teléfono está desconectado. Los mensajes esperan hasta que vuelva.",
