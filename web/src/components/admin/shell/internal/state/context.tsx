@@ -857,7 +857,6 @@ const FALLBACK_PROFILE_EDITOR_LAYOUT: ProfileEditorLayout = (() => {
 // back to plain execution on browsers without support (Firefox <125,
 // Safari <18) and is skipped entirely when prefers-reduced-motion is
 // set. Used by openDrawer / closeDrawer to crossfade between drawers.
-//
 // QA 2026-05-13 — same family as the locale-switch bug fixed at
 // b5a3ee970. `startViewTransition` can throw `InvalidStateError:
 // Transition was aborted because of invalid state` if another VT is
@@ -1035,7 +1034,6 @@ export function AdminShellProvider({
   //      route is ambiguous (e.g. the bare /admin entry from a hybrid
   //      user who last left the app on the talent surface).
   //   3. default "workspace"
-  //
   // Earlier this was inverted (pref won over route), which produced the
   // bug where `/talent/today` rendered the workspace shell because the
   // user had once toggled to workspace and the pref was sticky.
@@ -1886,7 +1884,6 @@ export function AdminShellProvider({
 
   // Hybrid-mode toggle. Only meaningful for a user who is BOTH talent and
   // workspace owner. Flips between the two surfaces.
-  //
   // CRITICAL UX RULE: in production (cutover) mode the URL must lead, not
   // follow. Optimistically flipping `state.surface` and then calling
   // `router.push` produces a multi-second window where the URL still
@@ -1895,11 +1892,9 @@ export function AdminShellProvider({
   // bridge mode we navigate FIRST and let the destination layout's
   // `initialSurface` drive the surface change. The destination layout's
   // `loading.tsx` covers the brief render gap.
-  //
   // In standalone prototype mode (no tenantSlug, no bridge) we keep the
   // legacy behavior — flip state inline since there's no real route to
   // navigate to.
-  //
   // Phase 5 — fire-and-forget setPreferredSurface persists the choice.
   const flipMode = useCallback(() => {
     if (!alsoTalent) return; // gated to hybrid users only
