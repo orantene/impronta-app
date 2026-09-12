@@ -204,10 +204,16 @@ export type DoorCopy = {
     transferNote: string;
     transferReason: string;
     transferAction: string;
+    transferToName: string;
+    transferToEmail: string;
+    transferred: string;
     exchange: string;
     exchangeNote: string;
     exchangeReason: string;
     exchangeAction: string;
+    exchangeNight: string;
+    exchanged: string;
+    noOtherNight: string;
     cancel: string;
     cancelNote: string;
     cancelAction: string;
@@ -481,10 +487,16 @@ export function doorCopy(t: Translator): DoorCopy {
       transferNote: t("dashboard.pos.door.change.transferNote"),
       transferReason: t("dashboard.pos.door.change.transferReason"),
       transferAction: t("dashboard.pos.door.change.transferAction"),
+      transferToName: t("dashboard.pos.door.change.transferToName"),
+      transferToEmail: t("dashboard.pos.door.change.transferToEmail"),
+      transferred: t("dashboard.pos.door.change.transferred"),
       exchange: t("dashboard.pos.door.change.exchange"),
       exchangeNote: t("dashboard.pos.door.change.exchangeNote"),
       exchangeReason: t("dashboard.pos.door.change.exchangeReason"),
       exchangeAction: t("dashboard.pos.door.change.exchangeAction"),
+      exchangeNight: t("dashboard.pos.door.change.exchangeNight"),
+      exchanged: t("dashboard.pos.door.change.exchanged"),
+      noOtherNight: t("dashboard.pos.door.change.noOtherNight"),
       cancel: t("dashboard.pos.door.change.cancel"),
       cancelNote: t("dashboard.pos.door.change.cancelNote"),
       cancelAction: t("dashboard.pos.door.change.cancelAction"),

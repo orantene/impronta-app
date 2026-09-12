@@ -76,6 +76,7 @@ import { formatClock } from "./counter-model";
 import { doorCopy } from "./door-copy";
 import { receiptRows } from "./receipt-rows";
 import { FloorScreen } from "./floor-screen";
+import { collectionMethods } from "./counter-collection-methods";
 import { loadCounterLinks } from "./counter-reads";
 // The three client modes this route mounts directly, each behind
 // `next/dynamic` so the register's initial bundle carries only the mode
@@ -187,6 +188,17 @@ export default async function PosPage({
     settings?: unknown;
   } | null;
   const workspaceName = agencyRow?.display_name?.trim() || tenantSlug;
+  const defaultLoc = await admin
+    .from("venue_locations")
+    .select("name")
+    .eq("tenant_id", scope.tenantId)
+    .eq("is_default", true)
+    .maybeSingle();
+  if (defaultLoc.error) logServerError("pos.page.venue_locations", defaultLoc.error);
+  const locationName =
+    (typeof (defaultLoc.data as { name?: string | null } | null)?.name === "string" &&
+      (defaultLoc.data as { name: string }).name.trim()) ||
+    workspaceName;
   const workspaceEnabledModes = enabledPosModesFromSettings(agencyRow?.settings);
   const usableModes = modesForPerson({
     role: posRole(scope.membership.role),
@@ -322,7 +334,7 @@ export default async function PosPage({
           tenantId={scope.tenantId}
           messagesUnread={messagesUnread}
           workspaceName={workspaceName}
-          venueName={venueName}
+          venueName={venueName ?? locationName}
           operatorName={operatorName}
           posPath={classesPath}
           workspacePath={classesPath.replace(/\/pos$/, "")}
@@ -378,6 +390,7 @@ export default async function PosPage({
           tenantId={scope.tenantId}
           messagesUnread={messagesUnread}
           workspaceName={workspaceName}
+          locationName={locationName}
           cashierName={doorCashier}
           drawerOpen={doorShift.ok ? doorShift.shift !== null : false}
           workspacePath={doorPath.replace(/\/pos$/, "")}
@@ -431,6 +444,7 @@ export default async function PosPage({
           tenantId={scope.tenantId}
           locale={locale}
           workspaceName={workspaceName}
+          locationName={locationName}
           posPath={await currentAdminPath(tenantSlug)}
           cashierName={floorCashier}
           drawerOpen={Boolean(floorShift.ok && floorShift.shift)}
@@ -461,6 +475,7 @@ export default async function PosPage({
         <ProjectsModePage
           tenantId={scope.tenantId}
           workspaceName={workspaceName}
+          locationName={locationName}
           posPath={projectsPath}
           workspacePath={projectsPath.replace(/\/pos$/, "")}
           receiptOrigin={projectsHost ? `${projectsProto}://${projectsHost}` : ""}
@@ -620,6 +635,7 @@ export default async function PosPage({
         tenantId={scope.tenantId}
         messagesUnread={messagesUnread}
         workspaceName={workspaceName}
+        locationName={locationName}
         cashierName={cashierName}
         locale={locale}
         posPath={adminPath}

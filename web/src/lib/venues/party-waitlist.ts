@@ -192,6 +192,61 @@ export async function partyWaitlistLeave(
   });
 }
 
+export type PartyWaitlistRow = {
+  id: string;
+  holderName: string;
+  partySize: number;
+  holderPhone: string | null;
+  holderEmail: string | null;
+  quotedMinutes: number | null;
+  status: "waiting" | "notified";
+  joinedAtIso: string;
+  notifiedAtIso: string | null;
+  notifyExpiresAtIso: string | null;
+  position: number;
+  version: number;
+};
+
+export async function partyWaitlistList(
+  admin: Pick<VenueAdmin, "from">,
+  input: { tenantId: string },
+): Promise<{ ok: true; rows: PartyWaitlistRow[] } | { ok: false; reason: "unavailable" }> {
+  try {
+    const read = await admin
+      .from("party_waitlist")
+      .select(
+        "id, holder_name, party_size, holder_phone, holder_email, quoted_minutes, status, joined_at, notified_at, notify_expires_at, position, version",
+      )
+      .eq("tenant_id", input.tenantId)
+      .in("status", ["waiting", "notified"])
+      .order("position", { ascending: true });
+    if (read.error) {
+      logServerError("venues.partyWaitlistList", read.error);
+      return { ok: false, reason: "unavailable" };
+    }
+    return {
+      ok: true,
+      rows: ((read.data ?? []) as Record<string, unknown>[]).map((row) => ({
+        id: String(row.id),
+        holderName: String(row.holder_name ?? ""),
+        partySize: Number(row.party_size ?? 1),
+        holderPhone: row.holder_phone ? String(row.holder_phone) : null,
+        holderEmail: row.holder_email ? String(row.holder_email) : null,
+        quotedMinutes: row.quoted_minutes == null ? null : Number(row.quoted_minutes),
+        status: row.status === "notified" ? "notified" : "waiting",
+        joinedAtIso: String(row.joined_at ?? ""),
+        notifiedAtIso: row.notified_at ? String(row.notified_at) : null,
+        notifyExpiresAtIso: row.notify_expires_at ? String(row.notify_expires_at) : null,
+        position: Number(row.position ?? 0),
+        version: Number(row.version ?? 1),
+      })),
+    };
+  } catch (error) {
+    logServerError("venues.partyWaitlistList", error);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
 export async function reapPartyWaitlist(admin: VenueAdmin): Promise<{ ok: true; expired: number } | { ok: false }> {
   if (typeof admin.rpc !== "function") return { ok: false };
   const { data, error } = await admin.rpc("party_waitlist_reap", {});

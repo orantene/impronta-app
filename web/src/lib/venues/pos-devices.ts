@@ -44,6 +44,44 @@ async function call(
   return { ok: false, reason: mapReason(typeof reply.reason === "string" ? reply.reason : undefined) };
 }
 
+export type PosDeviceRow = {
+  id: string;
+  name: string;
+  kind: string;
+  lastSeenAt: string | null;
+  status: string;
+};
+
+export async function posDevicesList(
+  admin: Pick<VenueAdmin, "from">,
+  input: { tenantId: string },
+): Promise<{ ok: true; devices: PosDeviceRow[] } | { ok: false; reason: "unavailable" }> {
+  try {
+    const { data, error } = await admin
+      .from("pos_devices")
+      .select("id, name, kind, last_seen_at, status")
+      .eq("tenant_id", input.tenantId)
+      .order("name", { ascending: true });
+    if (error) {
+      logServerError("venues.posDevicesList", error);
+      return { ok: false, reason: "unavailable" };
+    }
+    return {
+      ok: true,
+      devices: ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+        id: String(row.id),
+        name: String(row.name),
+        kind: String(row.kind),
+        lastSeenAt: row.last_seen_at ? String(row.last_seen_at) : null,
+        status: String(row.status ?? "active"),
+      })),
+    };
+  } catch (error) {
+    logServerError("venues.posDevicesList", error);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
 export async function posDeviceRegister(
   admin: VenueAdmin,
   input: {

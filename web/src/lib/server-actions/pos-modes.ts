@@ -44,7 +44,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { POS_MODES, POS_MODE_META, parsePosMode, type PosMode } from "@/lib/pos/modes";
-import { readPosModes, writePosModes } from "@/lib/pos/pos-modes-store";
+import { readLocationModes, readPosModes, writeLocationModes, writePosModes } from "@/lib/pos/pos-modes-store";
 // `"use server"` files may export nothing but async functions, so the id list
 // lives in a pure module both this action and its card import.
 import type { PosModesRefusal } from "@/lib/settings/refusals";
@@ -125,6 +125,67 @@ export async function setPosModes(input: { modes: string[] }): Promise<PosModesR
 
   // The POS frame and mobile nav read this off the layout's tenant-identity
   // bridge — same revalidation as setRunsEvents.
+  revalidatePath("/", "layout");
+  return { ok: true, modes: after };
+}
+
+const slugSchema = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9_-]{0,62}$/);
+
+export async function getLocationModes(input: { slug: string }): Promise<PosModesResult> {
+  const auth = await requireWorkspaceStaffAction();
+  if (!auth.ok) {
+    logServerError("pos-modes.getLocationModes.denied", auth.error);
+    return { ok: false, reason: "not_allowed" };
+  }
+  const parsed = slugSchema.safeParse(input.slug);
+  if (!parsed.success) return { ok: false, reason: "invalid_request" };
+  const modes = await readLocationModes(auth.supabase, auth.tenantId, parsed.data);
+  if (modes === null) return { ok: false, reason: "unreadable" };
+  return { ok: true, modes };
+}
+
+export async function setLocationModes(input: { slug: string; modes: string[] }): Promise<PosModesResult> {
+  const auth = await requireWorkspaceStaffAction({ capability: CAPABILITY });
+  if (!auth.ok) {
+    logServerError("pos-modes.setLocationModes.denied", auth.error);
+    return { ok: false, reason: "not_allowed" };
+  }
+  const slugParsed = slugSchema.safeParse(input.slug);
+  const modesParsed = inputSchema.safeParse({ modes: input.modes });
+  if (!slugParsed.success || !modesParsed.success) return { ok: false, reason: "invalid_request" };
+
+  const target: PosMode[] = [];
+  for (const raw of modesParsed.data.modes) {
+    const mode = parsePosMode(raw);
+    if (!mode) return { ok: false, reason: "unknown_mode" };
+    if (!target.includes(mode)) target.push(mode);
+  }
+
+  const before = await readLocationModes(auth.supabase, auth.tenantId, slugParsed.data);
+  if (before === null) return { ok: false, reason: "unreadable" };
+
+  for (const mode of target) {
+    if (!POS_MODE_META[mode].built && !before.includes(mode)) {
+      return { ok: false, reason: "mode_not_built" };
+    }
+  }
+
+  const wrote = await writeLocationModes(auth.supabase, auth.tenantId, slugParsed.data, target);
+  if (!wrote.ok) return { ok: false, reason: "write_failed" };
+
+  const after = await readLocationModes(auth.supabase, auth.tenantId, slugParsed.data);
+  if (after === null) return { ok: false, reason: "write_failed" };
+
+  scheduleWorkspaceAudit({
+    tenantId: auth.tenantId,
+    category: "settings",
+    action: "settings.pos_modes.changed",
+    summary: `Selling modes at ${slugParsed.data} set to: ${after.length > 0 ? after.join(", ") : "none"}`,
+    targetType: "agency",
+    targetId: auth.tenantId,
+    metadata: { slug: slugParsed.data, from: wrote.before, to: after },
+  });
+
   revalidatePath("/", "layout");
   return { ok: true, modes: after };
 }

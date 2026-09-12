@@ -64,6 +64,7 @@ export type DoorClientProps = {
   /** The Messages inbox's unread count: the rail's `messages` badge (seam 10). */
   messagesUnread?: number;
   workspaceName: string;
+  locationName?: string;
   cashierName: string;
   drawerOpen: boolean;
   workspacePath: string;
@@ -116,7 +117,7 @@ export function DoorClient(props: DoorClientProps) {
         setDoorFailed(true);
         return;
       }
-      setDoor({ session, rows: loaded.rows, counts: loaded.counts, tiers: tiers.ok ? tiers.tiers : [] });
+      setDoor({ session, rows: loaded.rows, counts: loaded.counts, tiers: tiers.ok ? tiers.tiers : [], nights: loaded.nights });
     } finally {
       setBusy(false);
     }
@@ -343,7 +344,7 @@ export function DoorClient(props: DoorClientProps) {
         <PosHeader
           title={header.title}
           subtitle={header.subtitle}
-          location={props.workspaceName}
+          location={props.locationName ?? props.workspaceName}
           cashier={{
             initials: initialsOf(props.cashierName || props.workspaceName),
             label: `${props.cashierName || props.workspaceName} · ${props.drawerOpen ? copy.chrome.drawerOpen : copy.chrome.drawerNone}`,

@@ -17,10 +17,20 @@ import {
 import {
   partyWaitlistJoin as joinPartyWaitlist,
   partyWaitlistLeave as leavePartyWaitlist,
+  partyWaitlistList as listPartyWaitlist,
   partyWaitlistNotify as notifyPartyWaitlist,
   partyWaitlistSeat as seatPartyWaitlist,
 } from "@/lib/venues/party-waitlist";
-import { layoutActivate as activateLayout, prepStationDelete as deletePrepStation, servicePeriodUpsert as upsertServicePeriod } from "@/lib/venues/layouts";
+import {
+  layoutActivate as activateLayout,
+  layoutUpsert as upsertLayout,
+  layoutsList as listLayouts,
+  prepStationDelete as deletePrepStation,
+  prepStationUpsert as upsertPrepStation,
+  prepStationsList as listPrepStations,
+  servicePeriodUpsert as upsertServicePeriod,
+  servicePeriodsList as listServicePeriods,
+} from "@/lib/venues/layouts";
 import { prepFireCourse as fireCourse } from "@/lib/venues/prep-fire";
 import {
   guestVisitAddLine as addGuestLine,
@@ -44,6 +54,7 @@ import {
   posDeviceHeartbeat as heartbeatDevice,
   posDeviceRegister as registerDevice,
   posDeviceUpdate as updateDevice,
+  posDevicesList as listPosDevices,
   posOutboxApply as applyOutbox,
 } from "@/lib/venues/pos-devices";
 
@@ -141,6 +152,12 @@ export async function zoneDelete(input: { id: string; expectedVersion?: number }
   return deleteZone(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }
 
+export async function partyWaitlistList() {
+  const g = await staff();
+  if (!g.ok) return g;
+  return listPartyWaitlist(g.admin, { tenantId: g.tenantId });
+}
+
 export async function partyWaitlistJoin(input: {
   locationId?: string | null;
   zoneId?: string | null;
@@ -219,12 +236,60 @@ export async function partyWaitlistLeave(input: { id: string; expectedVersion?: 
   return leavePartyWaitlist(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }
 
+export async function layoutsList() {
+  const g = await staff();
+  if (!g.ok) return g;
+  return listLayouts(g.admin, { tenantId: g.tenantId });
+}
+
+export async function layoutUpsert(input: {
+  id?: string;
+  locationId: string;
+  name: string;
+  canvas?: { w: number; h: number };
+  items?: Array<{ spaceId: string; x: number; y: number; w: number; h: number; rotation?: number; shape?: string }>;
+  expectedVersion?: number;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      id: uuid.optional(),
+      locationId: uuid,
+      name: z.string().trim().min(1).max(80),
+      canvas: z.object({ w: z.number().positive(), h: z.number().positive() }).optional(),
+      items: z
+        .array(
+          z.object({
+            spaceId: uuid,
+            x: z.number(),
+            y: z.number(),
+            w: z.number().positive(),
+            h: z.number().positive(),
+            rotation: z.number().optional(),
+            shape: z.string().trim().min(1).max(24).optional(),
+          }),
+        )
+        .optional(),
+      expectedVersion: z.number().int().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return upsertLayout(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
 export async function layoutActivate(input: { layoutId: string; expectedVersion?: number }) {
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ layoutId: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return activateLayout(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function servicePeriodsList() {
+  const g = await staff();
+  if (!g.ok) return g;
+  return listServicePeriods(g.admin, { tenantId: g.tenantId });
 }
 
 export async function servicePeriodUpsert(input: {
@@ -255,6 +320,36 @@ export async function servicePeriodUpsert(input: {
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return upsertServicePeriod(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function prepStationsList() {
+  const g = await staff();
+  if (!g.ok) return g;
+  return listPrepStations(g.admin, { tenantId: g.tenantId });
+}
+
+export async function prepStationUpsert(input: {
+  id?: string;
+  locationId?: string | null;
+  code: string;
+  name: string;
+  kind: "kitchen" | "bar" | "pickup" | "pass";
+  sortOrder?: number;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      id: uuid.optional(),
+      locationId: uuid.nullable().optional(),
+      code: z.string().trim().min(1).max(32),
+      name: z.string().trim().min(1).max(80),
+      kind: z.enum(["kitchen", "bar", "pickup", "pass"]),
+      sortOrder: z.number().int().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  return upsertPrepStation(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }
 
 export async function prepStationDelete(input: { id: string }) {
@@ -516,6 +611,12 @@ export async function ticketLookup(input: { email: string; last4OfReceipt: strin
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return lookupTicket(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+export async function posDevicesList() {
+  const g = await staff();
+  if (!g.ok) return g;
+  return listPosDevices(g.admin, { tenantId: g.tenantId });
 }
 
 export async function posDeviceRegister(input: {

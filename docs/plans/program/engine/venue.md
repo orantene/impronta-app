@@ -143,11 +143,32 @@ Activating a layout never writes capacity pools. When `service_periods`
 exist for a venue's locations they replace `venue_service_windows` in
 `loadVenueServiceConfig`; otherwise today's windows stay.
 
+### `layoutsList`
+
+Input: `{}` (tenant from the staff guard)
+
+Success: `{ ok: true, layouts, items, spaces }`
+
+### `layoutUpsert`
+
+Input: `{ id?, locationId, name, canvas?, items?, expectedVersion? }`
+
+Success: `{ ok: true, id, version }`
+
+Never sets `is_active` and never writes a capacity pool. Activate is a
+separate call.
+
 ### `layoutActivate`
 
 Input: `{ layoutId, expectedVersion? }`
 
 Success: `{ ok: true, id, version }`
+
+### `servicePeriodsList`
+
+Input: `{}`
+
+Success: `{ ok: true, periods }`
 
 ### `servicePeriodUpsert`
 
@@ -155,6 +176,18 @@ Input: `{ id?, locationId, name, weekdayMask, startsLocal, endsLocal,
 turnMinutes, rules?, expectedVersion? }`
 
 Success: `{ ok: true, id, version }`
+
+### `prepStationsList`
+
+Input: `{}`
+
+Success: `{ ok: true, stations }`
+
+### `prepStationUpsert`
+
+Input: `{ id?, locationId?, code, name, kind, sortOrder? }`
+
+Success: `{ ok: true, id }`
 
 ### `prepStationDelete`
 
