@@ -101,6 +101,12 @@ const COPY: Record<Locale, Record<string, string>> = {
     ageHelp: "Bring ID. Staff check at the door, and a ticket without ID is not admitted.",
     age_gate_unconfirmed: "Please confirm your age to continue.",
     age_gate_below_minimum: "This one has an age limit, so we cannot sell it to you.",
+    seats: "Seats",
+    holdSeats: "Hold seats",
+    holdingSeats: "Holding seats...",
+    heldUntil: "Held until {when}",
+    seat_taken: "That seat was just taken.",
+    hold_expired: "That hold ended. Pick the seats again.",
   },
   es: {
     heading: "Entradas",
@@ -158,6 +164,12 @@ const COPY: Record<Locale, Record<string, string>> = {
     ageHelp: "Traé documento. En la puerta lo revisan, y sin documento no se entra.",
     age_gate_unconfirmed: "Confirmá tu edad para continuar.",
     age_gate_below_minimum: "Esta entrada tiene límite de edad, así que no te la podemos vender.",
+    seats: "Asientos",
+    holdSeats: "Reservar asientos",
+    holdingSeats: "Reservando asientos...",
+    heldUntil: "Reservado hasta {when}",
+    seat_taken: "Ese asiento acaba de ocuparse.",
+    hold_expired: "Esa reserva terminó. Elegí los asientos de nuevo.",
   },
 };
 
@@ -181,6 +193,9 @@ const TP_CSS = `
 [data-ticket-picker] .tp-choice-meta{display:block;margin-top:0.2rem;font-size:0.82rem;line-height:1.35;color:var(--token-color-muted)}
 [data-ticket-picker] .tp-price{font-size:0.92rem;font-weight:600;white-space:nowrap;color:var(--token-color-ink)}
 [data-ticket-picker] .tp-price[data-free="1"]{color:var(--token-color-primary)}
+[data-ticket-picker] .tp-seats{display:flex;flex-wrap:wrap;gap:0.5rem}
+[data-ticket-picker] .tp-seat{min-height:44px;padding:0.55rem 0.85rem;border:1.5px solid var(--token-color-line);border-radius:12px;background:color-mix(in srgb,var(--token-color-ink) 4%,var(--token-color-surface-raised,transparent));font:inherit;font-size:0.9rem;cursor:pointer}
+[data-ticket-picker] .tp-seat[data-on="1"]{border-color:var(--token-color-primary);background:color-mix(in srgb,var(--token-color-primary) 12%,var(--token-color-surface-raised,transparent));font-weight:600}
 [data-ticket-picker] .tp-fields{display:flex;flex-direction:column;gap:0.85rem;margin-top:0.25rem}
 [data-ticket-picker] .tp-field-label{display:block;margin:0 0 0.4rem;font-size:0.82rem;font-weight:600}
 [data-ticket-picker] .tp-help{display:block;margin-top:0.4rem;font-size:0.8rem;line-height:1.4;color:var(--token-color-muted)}
@@ -251,6 +266,8 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
   const [payHow, setPayHow] = useState<"full" | "in_person">("full");
   const [held, setHeld] = useState<{ receiptCode: string | null } | null>(null);
   const [ageOk, setAgeOk] = useState(false);
+  const [pickedSeats, setPickedSeats] = useState<string[]>([]);
+  const [holdUntil, setHoldUntil] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!configured || preload) return;
@@ -264,6 +281,10 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
   useEffect(() => { void load(); }, [load]);
 
   const chosenNight = useMemo(() => data?.nights.find((n) => n.sessionId === night) ?? null, [data, night]);
+  useEffect(() => {
+    setPickedSeats([]);
+    setHoldUntil(null);
+  }, [night]);
   // A tier is offered for a night ONLY when it is on sale AND has a pool on
   // that night. Anything else is not a choice, so it is not a control.
   const offeredTiers = useMemo(
@@ -278,6 +299,31 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
   const ageGate = Math.max(data?.ageGate ?? 0, chosenTier?.ageGate ?? 0) || null;
   const canBuy = Boolean(chosenNight && chosenTier) && (!ageGate || ageOk) && busy === "idle";
   const showQty = Boolean(chosenTier && (chosenTier.minPerOrder !== 1 || chosenTier.maxPerOrder !== 1));
+
+  async function holdSeats() {
+    if (!chosenNight || pickedSeats.length === 0 || busy !== "idle") return;
+    setBusy("holding");
+    setRefusal(null);
+    try {
+      const { holdTicketSeats } = await import("@/app/(public)/_events/ticket-picker-actions");
+      const res = await holdTicketSeats({
+        tenantId,
+        eventId,
+        sessionId: chosenNight.sessionId,
+        seatIds: pickedSeats,
+        operationKey: crypto.randomUUID(),
+      });
+      if (!res.ok) {
+        setRefusal(t(res.reason === "invalid_request" ? "invalid_request" : res.reason));
+        setBusy("idle");
+        return;
+      }
+      setHoldUntil(res.expiresAt);
+    } catch {
+      setRefusal(t("unavailable"));
+    }
+    setBusy("idle");
+  }
 
   async function buy() {
     if (!chosenNight || !chosenTier || busy !== "idle") return;
@@ -431,6 +477,41 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
                 </div>
               </div>
             )
+          ) : null}
+
+          {chosenNight && (chosenNight.seats?.length ?? 0) > 0 ? (
+            <div className="tp-section" data-ticket-picker="seats">
+              <div className="tp-label">{t("seats")}</div>
+              <div className="tp-seats">
+                {chosenNight.seats.map((seat) => {
+                  const on = pickedSeats.includes(seat.id);
+                  return (
+                    <button
+                      key={seat.id}
+                      type="button"
+                      className="tp-seat"
+                      data-on={on ? "1" : undefined}
+                      data-testid={`ticket-seat-${seat.id}`}
+                      aria-pressed={on}
+                      disabled={busy !== "idle"}
+                      onClick={() => setPickedSeats((prev) => (on ? prev.filter((id) => id !== seat.id) : [...prev, seat.id]))}
+                    >
+                      {seat.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="tp-cta"
+                data-testid="ticket-hold-seats"
+                disabled={busy !== "idle" || pickedSeats.length === 0}
+                onClick={() => void holdSeats()}
+              >
+                {busy === "holding" ? t("holdingSeats") : t("holdSeats")}
+              </button>
+              {holdUntil ? <p className="tp-help">{t("heldUntil").replace("{when}", holdUntil)}</p> : null}
+            </div>
           ) : null}
 
           {chosenTier ? (
