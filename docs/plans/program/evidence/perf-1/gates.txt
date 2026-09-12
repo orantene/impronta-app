@@ -16,3 +16,11 @@ tenant-isolation exit 1 once: the shell guard forbids the substring "usePathname
 Playwright (local production build of this branch, next start + local-host-proxy, isolated QA database):
 npx playwright test e2e/cases/POS-counter-cash-sale.spec.ts --project=chromium --workers=1   exit 0, 4 passed
 npx playwright test pos-customer-display --project=chromium --workers=1                       runs 1-2 exit 1 (chip clicked before hydration), run 3 exit 0 after the spec waits for the chip's React handler (no assertion changed)
+
+After the coordinator's CI report (PR #1973, builder lanes red on the split mount), same worktree, merged origin/program/fidelity first:
+npm run test:builder-chrome          exit 0   (# pass 1283, # fail 0; ok 288, ok 289, ok 290)
+npm run test:builder-capabilities    exit 0   (a: # pass 1180; b: # pass 30; ok 268)
+npm run test:builder-fidelity        no such lane in package.json
+npm run typecheck (private lane)     exit 0
+npm run lint                         exit 0
+npm run test:size-ratchet            exit 0
