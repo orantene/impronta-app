@@ -363,16 +363,21 @@ test("a move onto a taken time is refused naming who is busy; a move onto a free
 
 test("a class night for today is created through the interface, a walk-in takes a seat for cash, and attendance is marked", async ({ page }, testInfo) => {
   test.setTimeout(300_000);
+  // The Events page is W16 → CreateEvent → EventDetail (fidelity-door); the
+  // selectors follow that structure, the assertions are the same as before.
   await signInJourneysStaff(page, `${ADMIN_PREFIX}/admin/events`);
-  await page.getByLabel("Title").fill(NIGHT_TITLE);
-  await page.getByRole("button", { name: /create draft/i }).click();
-  await expect(page.getByRole("button", { name: NIGHT_TITLE })).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("events-create").click();
+  await page.getByLabel(/^(event name|nombre del evento|nom de l'événement)$/i).fill(NIGHT_TITLE);
+  await page.getByTestId("events-save-draft").click();
+  await expect(page.getByTestId("events-detail")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tulala-h1]")).toHaveText(NIGHT_TITLE);
+  await page.getByTestId("events-add-tier").click();
   await page.getByLabel("Tier name").fill("Seat");
   await page.getByLabel("Price").fill("5");
-  await page.getByRole("button", { name: /^add$/i }).click();
-  await expect(page.getByText("Seat").first()).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Details" }).click();
-  await page.getByRole("button", { name: /^publish$/i }).click();
+  await page.getByTestId("events-tier-add").click();
+  await expect(page.locator("[data-testid^=events-tier-]").filter({ hasText: "Seat" }).first()).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("events-tab-overview").click();
+  await page.getByTestId("events-publish").click();
   await expect(page.getByText(/\(live\)/)).toBeVisible({ timeout: 30_000 });
 
   const db = isolatedService();
@@ -386,7 +391,13 @@ test("a class night for today is created through the interface, a walk-in takes 
   let form = page.locator("form, div").filter({ hasText: "Schedule a night" }).last();
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await page.goto(`${ADMIN_PREFIX}/admin/appts`);
-    await page.getByTestId("appointments-tab-sessions").click();
+    // The tab is client state; a click before hydration is lost, so it is
+    // repeated until the tab is the selected one.
+    const sessionsTab = page.getByTestId("appointments-tab-sessions");
+    for (let tabAttempt = 0; tabAttempt < 8 && (await sessionsTab.getAttribute("aria-selected")) !== "true"; tabAttempt += 1) {
+      await sessionsTab.click();
+      await page.waitForTimeout(1_500);
+    }
     await expect(page.getByText("Schedule a night")).toBeVisible({ timeout: 30_000 });
     form = page.locator("form, div").filter({ hasText: "Schedule a night" }).last();
     const option = form.getByLabel("Event").locator("option", { hasText: NIGHT_TITLE });

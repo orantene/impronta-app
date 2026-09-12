@@ -47,6 +47,8 @@ export type SessionRow = {
   readonly state: SessionRowState;
   readonly poolKey: string | null;
   readonly poolCount: number;
+  /** Who teaches it (`sessions.instructor_user_id`), or null when nobody is set. */
+  readonly instructorUserId: string | null;
 };
 
 export type SessionDayGroup = {
@@ -63,6 +65,12 @@ export type SeriesRow = {
   readonly localTime: string;
   readonly durationMinutes: number;
   readonly room: string | null;
+  readonly venueId: string | null;
+  readonly instructorUserId: string | null;
+  readonly offeringId: string | null;
+  readonly startsOn: string;
+  readonly endsOn: string | null;
+  readonly isActive: boolean;
   readonly seats: number;
   readonly timeZone: string | null;
   /** The last dated session the sweep has produced, or null with none. */
@@ -138,6 +146,7 @@ export function buildSessionRows(input: {
       state: sessionState(occurrence),
       poolKey: occurrence.poolKey,
       poolCount: occurrence.poolCount,
+      instructorUserId: occurrence.instructorUserId,
     });
   };
 
@@ -186,6 +195,8 @@ export function filterRows(
     view: SessionsView;
     anchorYmd: string;
     room: string | null;
+    /** A staff user id, or null for any. */
+    instructor?: string | null;
     attentionOnly: boolean;
   },
 ): SessionRow[] {
@@ -194,6 +205,7 @@ export function filterRows(
     if (row.ymd < window.from) return false;
     if (window.to !== null && row.ymd >= window.to) return false;
     if (input.room !== null && row.room !== input.room) return false;
+    if (input.instructor && row.instructorUserId !== input.instructor) return false;
     if (input.attentionOnly && !needsAttention(row.state)) return false;
     return true;
   });
@@ -232,6 +244,12 @@ export function buildSeriesRows(series: readonly ScheduleSeries[]): SeriesRow[] 
       localTime: s.localTime,
       durationMinutes: s.durationMinutes,
       room: s.venueName,
+      venueId: s.venueId,
+      instructorUserId: s.instructorUserId,
+      offeringId: s.offeringId,
+      startsOn: s.startsOn,
+      endsOn: s.endsOn,
+      isActive: s.isActive,
       seats: s.seats,
       timeZone: s.timeZone,
       generatedThrough: last ? last.startsAt : null,

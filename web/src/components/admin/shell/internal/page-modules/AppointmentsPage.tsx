@@ -16,11 +16,12 @@
  * queues) and `loadBookingHoursProposals` (the banner). Nothing is mocked; a
  * reader that refuses puts its sentence above the tabs.
  *
- * NOT WIRED, said on the control (D-POS-18): "Generate sessions" (the sweep
- * runs nightly for 90 days; there is no on-demand generator) and "+ New
- * series" (no series writer exists; the one write on this page is the
- * one-off night form on the Sessions tab, which is what the classes journey
- * schedules through).
+ * WIRED THIS PASS (Package 2, D-POS-119): "Generate sessions" opens a card
+ * over the page's series (`generateSessionsForSeriesAction`, idempotent) and
+ * "+ New series" / a series row's Edit open the W10 editor (`SeriesEditor`,
+ * `upsertSessionSeriesAction`) in place of the tab's body. The one-off night
+ * form on the Sessions tab stays: it is what the classes journey schedules
+ * through.
  *
  * NOTHING HERE LOOKS AT A CLOCK for layout: the buckets on each appointment
  * row are decided on the server; the Sessions view's anchor day is the
@@ -43,6 +44,7 @@ import { ScheduleNightForm } from "./ScheduleNightForm";
 import { SessionsTable } from "./SessionsTable";
 import { SessionPanel } from "./SessionPanel";
 import { SeriesTable } from "./SeriesTable";
+import { GenerateSessionsForm, SeriesEditor, draftFromSeries, type CatalogOption } from "./SeriesEditor";
 import { ActionButton, UsedIn } from "./appointments-classes-ui";
 import {
   buildSeriesRows,
@@ -58,7 +60,8 @@ import {
   type WaitlistView,
 } from "@/lib/scheduling/appointments-actions";
 import type { AppointmentRow } from "@/lib/scheduling/appointments-board";
-import { loadSchedule, type ScheduleNight, type ScheduleSeries } from "@/lib/sessions/schedule-actions";
+import { loadSchedule, type ScheduleNight, type ScheduleSeries, type ScheduleVenue } from "@/lib/sessions/schedule-actions";
+import { loadWorkspaceMenuForEditor } from "@/lib/talent/menu-offerings-actions";
 
 const K = "dashboard.adminAppointments";
 const B = "dashboard.adminAppointments.board";
@@ -72,7 +75,7 @@ function viewFromQuery(raw: string | null): AppointmentView {
 }
 
 export function AppointmentsPage() {
-  const { bridgeTenantIdentity, adminBasePath, workspacePosEnabled, workspacePosModes } = useAdminShell();
+  const { bridgeTenantIdentity, adminBasePath, workspacePosEnabled, workspacePosModes, effectiveTeamMembers } = useAdminShell();
   const searchParams = useSearchParams();
   const t = useT();
   const tenantId = bridgeTenantIdentity?.tenantId ?? null;
@@ -81,6 +84,8 @@ export function AppointmentsPage() {
   const [rows, setRows] = useState<AppointmentRow[] | null>(null);
   const [series, setSeries] = useState<ScheduleSeries[] | null>(null);
   const [nights, setNights] = useState<ScheduleNight[]>([]);
+  const [venues, setVenues] = useState<ScheduleVenue[]>([]);
+  const [items, setItems] = useState<CatalogOption[]>([]);
   const [waitlists, setWaitlists] = useState<WaitlistView[] | null>(null);
   const [unreadableSessions, setUnreadableSessions] = useState(0);
   const [checkedAhead, setCheckedAhead] = useState(0);
@@ -95,7 +100,19 @@ export function AppointmentsPage() {
   const [sessionsView, setSessionsView] = useState<SessionsView>("week");
   const [anchorYmd, setAnchorYmd] = useState<string | null>(null);
   const [room, setRoom] = useState<string | null>(null);
+  const [instructor, setInstructor] = useState<string | null>(null);
   const [attentionOnly, setAttentionOnly] = useState(false);
+  // W10: the series editor replaces the tab's body; `null` is closed, a
+  // string is the series being edited, "" a new one. The generate card sits
+  // under the header.
+  const [editor, setEditor] = useState<string | null>(null);
+  // Bumped on every open, so a save that gives a new series its id does not remount the form.
+  const [editorKey, setEditorKey] = useState(0);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const openEditor = (seriesId: string) => {
+    setEditorKey((k) => k + 1);
+    setEditor(seriesId);
+  };
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -136,6 +153,7 @@ export function AppointmentsPage() {
       if (schedule.ok) {
         setSeries(schedule.series);
         setNights(schedule.nights);
+        setVenues(schedule.venues);
       } else {
         setSeries([]);
         setNights([]);
@@ -174,6 +192,21 @@ export function AppointmentsPage() {
     void refresh();
   }, [refresh]);
 
+  // The catalog items a series can sell as: read once, only for the editor's select.
+  useEffect(() => {
+    if (!tenantId) return;
+    let alive = true;
+    loadWorkspaceMenuForEditor(tenantId).then(
+      (r) => {
+        if (alive && r.ok) setItems(r.items.filter((o) => o.kind !== "product").map((o) => ({ id: o.id, title: o.title })));
+      },
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+  }, [tenantId]);
+
   const sessionRows = useMemo(
     () => buildSessionRows({ series: series ?? [], nights, waitlists: waitlists ?? [], fallbackTimeZone: timeZone }),
     [series, nights, waitlists, timeZone],
@@ -182,6 +215,9 @@ export function AppointmentsPage() {
   const selectedSession = sessionRows.find((r) => r.id === selectedSessionId) ?? null;
   const selectedAppointment = (rows ?? []).find((r) => r.id === selectedAppointmentId) ?? null;
   const posOn = workspacePosEnabled && workspacePosModes.includes("classes");
+  const staff = effectiveTeamMembers.filter((m) => m.status === "active").map((m) => ({ id: m.id, name: m.name }));
+  const nameOf = (userId: string | null) => (userId ? (staff.find((m) => m.id === userId)?.name ?? null) : null);
+  const editedSeries = editor ? ((series ?? []).find((s) => s.id === editor) ?? null) : null;
 
   const openWaitlist = (sessionId: string) => {
     setFocusSessionId(sessionId);
@@ -205,9 +241,10 @@ export function AppointmentsPage() {
   };
 
   const panel =
-    view === "sessions" && selectedSession ? (
+    editor !== null ? null : view === "sessions" && selectedSession ? (
       <SessionPanel
         row={selectedSession}
+        rows={sessionRows}
         waitlist={(waitlists ?? []).find((w) => w.sessionId === selectedSession.id) ?? null}
         tenantId={tenantId}
         onChanged={() => void refresh()}
@@ -234,6 +271,25 @@ export function AppointmentsPage() {
         panel ? "grid-cols-[1fr_380px]" : "grid-cols-[1fr]"
       }`}
     >
+      {editor !== null && anchorYmd !== null ? (
+        <SeriesEditor
+          key={editorKey}
+          initial={draftFromSeries(editedSeries, anchorYmd, venues)}
+          series={editedSeries}
+          sessions={sessionRows.filter((r) => r.seriesId === editor)}
+          venues={venues}
+          staff={staff}
+          items={items}
+          posOn={posOn}
+          todayYmd={anchorYmd}
+          onSaved={(seriesId) => {
+            setEditor(seriesId);
+            void refresh();
+          }}
+          onGenerated={() => void refresh()}
+          onClose={() => setEditor(null)}
+        />
+      ) : (
       <div className={`flex min-w-0 flex-col gap-[12px] py-[20px] max-[720px]:border-r-0 max-[720px]:px-[14px] max-[720px]:py-[14px] ${panel ? "border-r border-admin-border px-[24px]" : "px-[28px]"}`}>
         {/* Title, subtitle, the two header actions. W40 titles the tab
             "Series" and offers Templates; W39 titles the page and offers
@@ -245,18 +301,35 @@ export function AppointmentsPage() {
             </h1>
             <p className="m-0 mt-[4px] text-admin-13 leading-[1.2] text-admin-ink-muted max-[720px]:text-admin-12h">{t(`${B}.subtitle.${view}`)}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-[8px] max-[720px]:hidden">
-            {view === "series" ? (
-              <ActionButton reason={t(`${B}.templatesOff`)}>{t(`${B}.templates`)}</ActionButton>
-            ) : (
-              <ActionButton reason={t(`${B}.generateOff`)}>{t(`${B}.generate`)}</ActionButton>
-            )}
-            <ActionButton reason={t(`${B}.newSeriesOff`)} tone="primary">
-              <Icon name="plus" size={14} stroke={1.75} />
-              {t(`${B}.newSeries`)}
-            </ActionButton>
-          </div>
+          {editor === null ? (
+            <div className="flex shrink-0 items-center gap-[8px] max-[720px]:hidden">
+              {view === "series" ? (
+                <ActionButton reason={t(`${B}.templatesOff`)}>{t(`${B}.templates`)}</ActionButton>
+              ) : (
+                <ActionButton
+                  reason={seriesRows.length === 0 ? t(`${B}.generateNoSeries`) : null}
+                  testId="appointments-generate"
+                  onClick={() => setGenerateOpen((v) => !v)}
+                >
+                  {t(`${B}.generate`)}
+                </ActionButton>
+              )}
+              <ActionButton tone="primary" testId="appointments-new-series" onClick={() => openEditor("")}>
+                <Icon name="plus" size={14} stroke={1.75} />
+                {t(`${B}.newSeries`)}
+              </ActionButton>
+            </div>
+          ) : null}
         </div>
+
+        {generateOpen && editor === null && anchorYmd ? (
+          <GenerateSessionsForm
+            seriesOptions={seriesRows.map((r) => ({ id: r.id, title: r.title }))}
+            todayYmd={anchorYmd}
+            onGenerated={() => void refresh()}
+            onClose={() => setGenerateOpen(false)}
+          />
+        ) : null}
 
         {error ? (
           <div role="alert" className="rounded-[12px] border border-admin-border-soft bg-admin-card px-[16px] py-[12px] text-admin-13 text-admin-ink">
@@ -299,11 +372,14 @@ export function AppointmentsPage() {
                 view={sessionsView}
                 anchorYmd={anchorYmd}
                 room={room}
+                instructor={instructor}
+                staff={staff}
                 attentionOnly={attentionOnly}
                 selectedId={selectedSessionId}
                 onView={setSessionsView}
                 onAnchor={setAnchorYmd}
                 onRoom={setRoom}
+                onInstructor={setInstructor}
                 onAttention={setAttentionOnly}
                 onSelect={setSelectedSessionId}
                 onOpenWaitlist={openWaitlist}
@@ -328,6 +404,8 @@ export function AppointmentsPage() {
             <SeriesTable
               rows={seriesRows}
               posOn={posOn}
+              instructorName={nameOf}
+              onEdit={openEditor}
               onShowSessions={(seriesId) => {
                 const first = sessionRows.find((r) => r.seriesId === seriesId);
                 setSessionsView("list");
@@ -372,6 +450,7 @@ export function AppointmentsPage() {
           />
         )}
       </div>
+      )}
 
       {panel ? (
         <>

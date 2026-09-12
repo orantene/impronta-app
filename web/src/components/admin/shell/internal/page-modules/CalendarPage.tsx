@@ -11,17 +11,19 @@ import { COLORS, FONTS, RICH_INQUIRIES, TRANSITION, useAdminShell } from "../sta
 import { parseInquiryDays } from "./InboxPage";
 import { PageHeader } from "./pages-shared";
 import { CalendarListViews } from "@/components/workspace-calendar/CalendarListViews";
+import { CalendarResources } from "./CalendarResources";
 
 
 export function CalendarPage() {
   const t = useT();
-  const { openDrawer, setPage, effectiveCalendarEvents, toast, effectiveTenant } = useAdminShell();
+  const { openDrawer, setPage, effectiveCalendarEvents, toast, effectiveTenant, bridgeTenantIdentity } = useAdminShell();
+  const tenantId = bridgeTenantIdentity?.tenantId ?? null;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const today = new Date();
   const [displayYear, setDisplayYear] = useState(today.getFullYear());
   const [displayMonth, setDisplayMonth] = useState(today.getMonth());
-  const [view, setView] = useState<"month" | "agenda" | "day">("month");
+  const [view, setView] = useState<"month" | "agenda" | "day" | "resources">("month");
   // MW13: the phone opens on the agenda, not a month grid too small to read.
   // Set after mount so the first client render matches the server's.
   useEffect(() => {
@@ -168,13 +170,25 @@ export function CalendarPage() {
             </div>
           </div>
           <div className="flex gap-1">
-            {(["month", "agenda", "day"] as const).map((v) => {
+            {/* WS006: Day · Week · Agenda · Resources. Week is not built and says so. */}
+            <button
+              type="button"
+              disabled
+              title={t("dashboard.adminCalendar.resources.viewWeekOff")}
+              data-not-wired="true"
+              className="cursor-not-allowed rounded-md px-2.5 py-1 text-xs font-semibold text-admin-ink-dim"
+            >
+              {t("dashboard.adminCalendar.resources.viewWeek")}
+            </button>
+            {(["month", "agenda", "day", "resources"] as const).map((v) => {
               const viewLabel =
                 v === "month"
                   ? t("dashboard.adminCalendar.viewMonth")
                   : v === "agenda"
                     ? t("dashboard.adminCalendar.viewAgenda")
-                    : t("dashboard.adminCalendar.viewDay");
+                    : v === "day"
+                      ? t("dashboard.adminCalendar.viewDay")
+                      : t("dashboard.adminCalendar.resources.viewResources");
               return (
                 <button
                   key={v}
@@ -354,7 +368,10 @@ export function CalendarPage() {
         </div>
         </div>
       </div>
-      {view !== "month" && effectiveCalendarEvents != null ? (
+      {view === "resources" && tenantId ? (
+        <CalendarResources tenantId={tenantId} holds={effectiveCalendarEvents ?? []} />
+      ) : null}
+      {view !== "month" && view !== "resources" && effectiveCalendarEvents != null ? (
         <CalendarListViews
           events={effectiveCalendarEvents}
           view={view}

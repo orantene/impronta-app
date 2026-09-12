@@ -24,11 +24,11 @@ import { userHasCapability } from "@/lib/access";
 import { checkInAppointment } from "@/lib/pos/classes/checkin";
 import { appointmentState } from "@/lib/pos/classes/day";
 import { loadMoveSlots } from "@/lib/pos/classes/move";
-import { bookWalkInAppointment, loadWalkInSlots } from "@/lib/pos/classes/walkin";
+import { bookWalkInAppointment, loadWalkInServices, loadWalkInSlots, type WalkInService } from "@/lib/pos/classes/walkin";
 import { addLine, createDraftOrder, loadPosSale } from "@/lib/pos/draft";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { markAttendance } from "@/lib/sessions/attendance";
-import { resolveTenantTimezone } from "@/lib/spaces/venues";
+import { loadDefaultVenue, resolveTenantTimezone } from "@/lib/spaces/venues";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 const uuid = z.string().uuid();
@@ -103,6 +103,28 @@ export async function classesWalkInSlots(input: {
   });
   if (!result.ok) return { ok: false, reason: result.reason };
   return { ok: true, starts: result.starts, timeZone: result.timeZone, emptyReason: result.reason };
+}
+
+export type ClassesServicesResult =
+  | { ok: true; services: WalkInService[]; venueName: string | null; timeZone: string }
+  | Refused;
+
+/**
+ * The bookable services and the venue, for a booking started OUTSIDE the
+ * till (the workspace's New appointment drawer, board WS007). The same read
+ * the Front desk's page runs on the server, so the drawer and the till never
+ * disagree on what can be booked.
+ */
+export async function classesServices(): Promise<ClassesServicesResult> {
+  const g = await staff();
+  if (!g.ok) return g;
+  const [services, venue, { timezone }] = await Promise.all([
+    loadWalkInServices(g.admin, g.tenantId),
+    loadDefaultVenue(g.tenantId),
+    resolveTenantTimezone(g.tenantId),
+  ]);
+  if (!services.ok) return { ok: false, reason: "unavailable" };
+  return { ok: true, services: services.services, venueName: venue?.name ?? null, timeZone: timezone };
 }
 
 export type ClassesMoveSlotsResult =
