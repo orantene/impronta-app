@@ -1,7 +1,7 @@
 /**
  * Client-only cash outbox. The counter may queue only cash_collect commands
- * while offline (D-POS-11). Replay is `posOutboxApply`. CollectSheet is not
- * the writer on this pass: enqueue is here so a later till wire can call it.
+ * while offline (D-POS-11, D-122). Replay is `posOutboxApply`. Provider
+ * commands are not_replayable — this helper never enqueues them.
  */
 
 export const POS_DEVICE_STORAGE_KEY = "tulala.pos.device";
@@ -43,12 +43,28 @@ export function readCashOutbox(): CashOutboxItem[] {
 
 export function enqueueCashCollect(item: CashOutboxItem): void {
   if (item.command.kind !== "cash_collect") return;
-  const next = [...readCashOutbox(), item];
+  const current = readCashOutbox();
+  if (current.some((row) => row.operationKey === item.operationKey)) return;
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(POS_CASH_OUTBOX_KEY, JSON.stringify(next));
+  window.localStorage.setItem(POS_CASH_OUTBOX_KEY, JSON.stringify([...current, item]));
 }
 
 export function writeCashOutbox(items: CashOutboxItem[]): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(POS_CASH_OUTBOX_KEY, JSON.stringify(items));
+}
+
+/** Queue cash when offline. Provider kinds never enter this helper. */
+export function confirmCashOrEnqueue(input: {
+  online: boolean;
+  orderId: string;
+  amountCents: number;
+  operationKey: string;
+}): "queued" | "online" {
+  if (input.online) return "online";
+  enqueueCashCollect({
+    operationKey: input.operationKey,
+    command: { kind: "cash_collect", amountCents: input.amountCents, orderId: input.orderId },
+  });
+  return "queued";
 }
