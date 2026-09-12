@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
@@ -51,7 +52,14 @@ function service() {
 }
 
 /** Fetch the config row for a (tenant, integration). Null if absent/unconfigured. */
-export async function getTenantIntegration(
+/**
+ * Per-request memo: the root layout's analytics resolver and the tracking
+ * head both ask for the same five keys of the same tenant on every request,
+ * which was 14 reads of `tenant_integrations` per admin page. `cache()` keys
+ * on (tenantId, key) for the life of one server render; a write in the same
+ * request still goes through `upsertTenantIntegration` and is not affected.
+ */
+export const getTenantIntegration = cache(async function getTenantIntegration(
   tenantId: string,
   key: string,
 ): Promise<TenantIntegrationRow | null> {
@@ -65,7 +73,7 @@ export async function getTenantIntegration(
     .maybeSingle();
   if (error || !data) return null;
   return data as TenantIntegrationRow;
-}
+});
 
 export type UpsertTenantIntegrationInput = {
   tenantId: string;
