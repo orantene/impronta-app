@@ -4,6 +4,8 @@ import { POS_PILL, POS_PILL_CORAL, POS_PILL_GREEN, POS_PILL_INDIGO, POS_PILL_SLA
 import type { InboxRow } from "@/lib/messaging/types";
 import { cn } from "@/lib/utils";
 
+import { inboxMatchSnippet } from "@/lib/messaging/inbox-search";
+
 import type { messagesCopy } from "./copy";
 import { clockLabel, initials, isVisitorName } from "./format";
 
@@ -17,6 +19,7 @@ export function InboxList(props: {
   readonly copy: ReturnType<typeof messagesCopy>;
   readonly onOpen: (id: string) => void;
   readonly onNextAction?: (row: InboxRow) => void;
+  readonly searchQuery?: string;
 }) {
   if (props.rows.length === 0) {
     return (
@@ -56,7 +59,9 @@ export function InboxList(props: {
                   <span className="shrink-0 text-[12px] text-admin-ink-muted">{clockLabel(row.lastCustomerMessageAt ?? row.updatedAt)}</span>
                 </span>
                 <span className="mt-0.5 block truncate text-[14px] font-medium text-admin-ink">{row.subject}</span>
-                <span className="mt-0.5 block truncate text-[13px] text-admin-ink-muted">{row.lastMessagePreview}</span>
+                <span className="mt-0.5 block truncate text-[13px] text-admin-ink-muted" data-pos-messages-snippet="">
+                  {inboxMatchSnippet(row, props.searchQuery ?? "") ?? row.lastMessagePreview}
+                </span>
                 <span className="mt-2 flex flex-wrap items-center gap-1">
                   {row.unreadCount > 0 ? (
                     <span className={cn(POS_PILL, POS_PILL_CORAL)}>{row.unreadCount}</span>

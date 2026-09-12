@@ -8,13 +8,21 @@ import type { MessagingSheetName } from "@/lib/messaging/fixture";
 import type { InboxRow } from "@/lib/messaging/types";
 import type { PosMode } from "@/lib/pos/modes";
 
+import { messagingActionItems } from "../action-items";
 import type { messagesCopy } from "../copy";
+
+export type MessagingSearchHit = {
+  inquiryId: string;
+  snippet: string;
+  label: string;
+};
 
 export function MessagingSheets(props: {
   readonly copy: ReturnType<typeof messagesCopy>;
   readonly sheet: MessagingSheetName | null;
   readonly mode: PosMode;
   readonly active: InboxRow | null;
+  readonly searchHits?: readonly MessagingSearchHit[];
   readonly onClose: () => void;
   readonly onOptions: (kind: string) => void;
   readonly onPayment: (kind: "deposit" | "full" | "none") => void;
@@ -23,6 +31,9 @@ export function MessagingSheets(props: {
   readonly onAssign: () => void;
   readonly onRecover: () => void;
   readonly onSearch: (query: string) => void;
+  readonly onOpenHit?: (inquiryId: string) => void;
+  readonly onResolve?: () => void;
+  readonly onOpenSheet?: (sheet: MessagingSheetName) => void;
 }) {
   const copy = props.copy;
   return (
@@ -178,7 +189,14 @@ export function MessagingSheets(props: {
         <p>sent · delivered · read · failed</p>
       </Sheet>
       <Sheet name="resolve" title={copy.resolve} sheet={props.sheet} copy={copy} onClose={props.onClose}>
-        <button type="button" className={POS_PRIMARY_ACTION} onClick={props.onClose}>
+        <button
+          type="button"
+          className={POS_PRIMARY_ACTION}
+          onClick={() => {
+            props.onResolve?.();
+            props.onClose();
+          }}
+        >
           {copy.resolve}
         </button>
         <button type="button" className={POS_SECONDARY_ACTION} onClick={props.onClose}>
@@ -194,8 +212,29 @@ export function MessagingSheets(props: {
             props.onSearch(String(data.get("q") ?? ""));
           }}
         >
-          <input className={POS_INPUT} name="q" aria-label={copy.search} />
+          <input className={POS_INPUT} name="q" aria-label={copy.search} defaultValue="" />
         </form>
+        {(props.searchHits ?? []).length > 0 ? (
+          <ul className="space-y-2" data-pos-messages-search-hits="">
+            {props.searchHits?.map((hit) => (
+              <li key={`${hit.inquiryId}-${hit.snippet}`}>
+                <button
+                  type="button"
+                  className="w-full rounded-[12px] bg-admin-surface-alt px-3 py-2 text-left"
+                  onClick={() => {
+                    props.onOpenHit?.(hit.inquiryId);
+                    props.onClose();
+                  }}
+                >
+                  <p className="font-semibold">{hit.label}</p>
+                  <p className="text-[13px] text-admin-ink-muted" data-pos-messages-snippet="">
+                    {hit.snippet}
+                  </p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </Sheet>
       <Sheet name="reminder" title={copy.scheduleReminder} sheet={props.sheet} copy={copy} onClose={props.onClose}>
         <p className={POS_NOTE}>{copy.reminderOne}</p>
@@ -204,7 +243,25 @@ export function MessagingSheets(props: {
         <p className={POS_NOTE}>{copy.retrySameTicket}</p>
       </Sheet>
       <Sheet name="actions" title={copy.actions} sheet={props.sheet} copy={copy} onClose={props.onClose}>
-        <p>{copy.actions}</p>
+        <ul className="space-y-1" data-pos-messages-actions="">
+          {messagingActionItems(copy).map((item) => (
+            <li key={`${item.sheet}-${item.label}`}>
+              <button
+                type="button"
+                className="flex w-full flex-col items-start rounded-[12px] px-3 py-2 text-left hover:bg-admin-surface-alt disabled:opacity-40"
+                disabled={Boolean(item.disabled)}
+                title={item.disabled}
+                onClick={() => {
+                  if (item.disabled) return;
+                  props.onOpenSheet?.(item.sheet);
+                }}
+              >
+                <span className="text-[15px] font-semibold">{item.label}</span>
+                <span className="text-[13px] text-admin-ink-muted">{item.hint}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       </Sheet>
     </>
   );

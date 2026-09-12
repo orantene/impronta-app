@@ -73,6 +73,7 @@ export function PhoneMessages(props: {
           activeId={null}
           emptyLabel={props.copy.empty}
           copy={props.copy}
+          searchQuery={props.search}
           onOpen={props.onOpen}
         />
         <p className={cn(POS_NOTE, "m-3")}>{props.copy.disabled.today}</p>
