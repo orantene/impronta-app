@@ -19,7 +19,7 @@ import {
 import { createTranslator } from "@/i18n/messages";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "../primitives";
-import type { BridgeData, WorkspaceInquiryForMessages, WorkspaceClientRow, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, WorkspaceTeamMember as BridgeTeamMember, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder, RecentActivityItem } from "../data-bridge";
+import type { BridgeData, WorkspaceInquiryForMessages, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder, RecentActivityItem } from "../data-bridge";
 // Type-only — erased at compile time, so importing from the `"use server"`
 // payouts actions module pulls no server runtime into this client bundle.
 import type { PayoutsSurfaceResult } from "@/app/(workspace)/[tenantSlug]/admin/payouts/payouts-surface-actions";
@@ -44,9 +44,9 @@ import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-s
 import type { Client, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
 import { useDevPlanOverride, useOpenUpgradeModal } from "./upgrade-bridge";
-import { slicesForPage, type BridgeSliceName } from "../bridge-slices";
 import { isSpaOnlyAdminSegment } from "../spa-segments";
-import { loadBridgeSlicesAction } from "@/app/(workspace)/[tenantSlug]/admin/_bridge-slice-actions";
+import { useLazyBridgeSlices } from "./use-lazy-bridge-slices";
+import { adaptBridgeClient, adaptBridgeTeamMember } from "./bridge-adapters";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
 import {
   clampWorkspacePage,
@@ -748,38 +748,6 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
     bookingId: null,
     messages,
     seen: w.seen, messaging: w.messaging,
-  };
-}
-
-/** Adapt WorkspaceClientRow → Client (proto shell's client type). */
-function adaptBridgeClient(w: WorkspaceClientRow): Client {
-  return {
-    id: w.id,
-    name: w.company ?? w.name,
-    contact: w.name,
-    bookingsYTD: w.bookingsYTD,
-    status: w.accountStatus === "suspended" ? "dormant" : "active",
-    trust: (w.trustLevel ?? "basic") as ClientTrustLevel,
-  };
-}
-
-/** Adapt BridgeTeamMember → TeamMember (proto shell's team type). */
-function adaptBridgeTeamMember(m: BridgeTeamMember): TeamMember {
-  const words = m.name.trim().split(/\s+/);
-  const initials = words.length >= 2
-    ? (words[0][0] + words[words.length - 1][0]).toUpperCase()
-    : m.name.slice(0, 2).toUpperCase();
-  return {
-    id: m.id,
-    name: m.name,
-    // Email comes from `auth.users` via the bridge loader's service-role
-    // lookup (`public.profiles` carries none) — may still be empty if
-    // the lookup failed.
-    email: m.email ?? "",
-    photoUrl: m.photoUrl,
-    role: (["viewer","editor","manager","admin","owner"].includes(m.role) ? m.role : "viewer") as Role,
-    status: m.status === "pending_acceptance" ? "invited" : "active",
-    initials,
   };
 }
 
@@ -1979,57 +1947,9 @@ export function AdminShellProvider({
     setDrawer({ drawerId: null });
   }, []);
 
-  // ── Lazy bridge slices ────────────────────────────────────────────────────
-  // The layout loads the chrome and THIS page's slices before the first byte;
-  // every other slice is named in `lazySlices` and fetched here, once, in one
-  // server action after hydration (bridge-slices.ts has the why). Until a
-  // slice arrives, `pageSlicesReady` says so and the PageRouter shows the
-  // page's skeleton instead of an empty (or mock) body.
-  const lazySliceNames = initialBridgeData?.lazySlices ?? null;
-  const [lateSlices, setLateSlices] = useState<Partial<BridgeData>>({});
-  const [pendingSlices, setPendingSlices] = useState<ReadonlySet<BridgeSliceName>>(
-    () => new Set(lazySliceNames ?? []),
-  );
-  const lazyFetchStarted = useRef(false);
-  useEffect(() => {
-    if (lazyFetchStarted.current) return;
-    const slug = tenantSlugRef.current;
-    if (!slug || !lazySliceNames || lazySliceNames.length === 0) return;
-    lazyFetchStarted.current = true;
-    let cancelled = false;
-    loadBridgeSlicesAction(slug, lazySliceNames)
-      .then((res) => {
-        if (cancelled) return;
-        if (res.ok) setLateSlices((prev) => ({ ...prev, ...res.slices }));
-        else logServerError("admin-shell.lazySlices", new Error(res.error));
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) logServerError("admin-shell.lazySlices", err);
-      })
-      .finally(() => {
-        // Resolved or refused, the wait is over: a page that reads a slice the
-        // server would not give renders its real empty state, never a
-        // skeleton forever.
-        if (!cancelled) setPendingSlices(new Set());
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [lazySliceNames]);
-  const pageSlicesReady = useCallback(
-    (p: WorkspacePage) => {
-      if (pendingSlices.size === 0) return true;
-      return !slicesForPage(p).some((name) => pendingSlices.has(name));
-    },
-    [pendingSlices],
-  );
-  // The bridge as the shell reads it: what the server sent, with the late
-  // slices merged over it. Slice fields below read from this, never from
-  // `initialBridgeData` directly.
-  const bridge = useMemo<BridgeData | null>(
-    () => (initialBridgeData ? { ...initialBridgeData, ...lateSlices } : null),
-    [initialBridgeData, lateSlices],
-  );
+  // Lazy bridge slices: the layout loaded this page's; the rest arrive in one
+  // server action after hydration (use-lazy-bridge-slices.ts, bridge-slices.ts).
+  const { bridge, pageSlicesReady } = useLazyBridgeSlices(initialBridgeData, tenantSlugRef);
   // Live mode (a real tenant behind the bridge) never falls back to the
   // prototype's mock rows for a slice that has not arrived: an empty list is
   // the honest state, and the page is gated on the slice anyway.

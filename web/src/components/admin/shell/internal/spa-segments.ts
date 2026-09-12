@@ -10,7 +10,7 @@
  * deployed host that was 0.3-3.9 s per rail click for nothing. The native
  * History API integrates with the Next.js router (`usePathname` follows it),
  * so the URL stays the source of truth and Back/Forward keep working through
- * `PathnamePageSync` in admin-shell-client.tsx.
+ * `useUrlPageSync` (use-url-page-sync.ts), called from WorkspaceShell.
  *
  * A segment whose page does real server work (the overview snapshot, POS,
  * orders, sales, settings sub-routes with server pages...) is NOT here and

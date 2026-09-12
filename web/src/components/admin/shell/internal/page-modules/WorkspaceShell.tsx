@@ -37,6 +37,7 @@ import {
   WorkspacePageView,
 } from "./workspace-pages-lazy";
 import { PageSkeleton } from "../primitives/page-skeleton";
+import { useUrlPageSync } from "../use-url-page-sync";
 
 
 /**
@@ -58,6 +59,7 @@ export function HybridShell({ children }: { children: ReactNode }) {
 
 export function WorkspaceShell() {
   const { state, setPage, openDrawer } = useAdminShell();
+  useUrlPageSync();
   const [helpOpen,  setHelpOpen]  = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);

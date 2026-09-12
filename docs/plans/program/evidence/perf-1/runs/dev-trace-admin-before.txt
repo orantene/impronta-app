@@ -1,0 +1,285 @@
+[perf] layout.session 10ms
+[perf] layout.scope 0ms
+[perf] layout.canView 2ms
+[perf] layout.before-fanout @27ms
+[perf] layout.loadProfileEditorLayout 35ms
+[perf] layout.loadClientFieldSource 35ms
+[perf] fetch 238ms GET /rest/v1/settings?select=value&key=eq.site_theme&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 238ms GET /rest/v1/settings?select=value&key=eq.site_theme&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 254ms GET /rest/v1/settings?select=value&key=eq.public_font_preset span=-
+[perf] fetch 254ms GET /rest/v1/settings?select=value&key=eq.public_font_preset span=-
+[perf] fetch 135ms GET /rest/v1/inquiries?select=contact_name%2Cevent_date&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=in.%28booked%2Cconverted%29&eve span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 161ms HEAD /rest/v1/inquiries?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=in.%28draft%29&contact_email=not.like.pending-%25%40gu span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 171ms HEAD /rest/v1/inquiries?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&coordinator_id=is.null&status=in.%28submitted%2Ccoordination% span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 423ms GET /rest/v1/agencies?select=id%2Cslug%2Cdisplay_name%2Cplan_tier%2Ckind%2Cworkspace_type%2Cdefault_coordinator_user_id%2Csettings%2Ctakes_reser span=layout.loadTenantIdentity
+[perf] fetch 428ms GET /rest/v1/profiles?select=display_name&id=eq.33330001-0000-4000-8000-000000000001 span=layout.loadProfileDisplayName
+[perf] layout.loadProfileDisplayName 517ms
+[perf] fetch 432ms GET /rest/v1/pitches?select=id%2Cstatus%2Crecipient_contact%2Csent_at%2Ccreated_at%2Clast_viewed_at%2Cview_count%2Cexpires_at%2Cconverted_inquir span=layout.loadWorkspacePitches
+[perf] layout.loadWorkspacePitches 521ms
+[perf] fetch 417ms GET /rest/v1/ticket_refund_intents?select=id%2Corder_id%2Creason%2Ccreated_at%2Cclaimed_at%2Cexecuted_at%2Cresult%2Cattempts&tenant_id=eq.333333 span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 463ms GET /rest/v1/agencies?select=timezone%2Ctakes_reservations%2Cstripe_account_id%2Cstripe_payouts_enabled%2Cdisplay_name%2Csettings&id=eq.33333333 span=-
+[perf] fetch 544ms GET /rest/v1/settings?select=key%2Cvalue&key=in.%28locale_fallback_mode%2Clocale_public_switcher_mode%2Ctranslation_inventory_version%2Ctranslat span=-
+[perf] fetch 415ms GET /rest/v1/booking_payouts?select=amount_cents%2Ccurrency&status=eq.held&tenant_id=eq.33333333-3333-4333-8333-333333333333&party=in.%28workspa span=layout.loadPayoutsSurface
+[perf] fetch 2ms GET /rest/v1/ticket_refund_intents?select=id%2Corder_id%2Creason%2Ccreated_at%2Cclaimed_at%2Cexecuted_at%2Cresult%2Cattempts&tenant_id=eq.333333 span=-
+[perf] fetch 572ms GET /rest/v1/app_locales?select=code%2Clabel_native%2Clabel_en%2Cenabled_admin%2Cenabled_public%2Csort_order%2Cis_default%2Cfallback_locale%2Car span=-
+[perf] fetch 455ms GET /rest/v1/inquiries?select=created_at&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=not.in.%28draft%2Crejected%2Cexpired%2Cclosed_ span=layout.loadWebsiteData
+[perf] fetch 477ms GET /rest/v1/platform_settings?select=workspace_fab_enabled%2Cworkspace_tour_enabled%2Cworkspace_quick_bar_enabled%2Cworkspace_support_enabled%2 span=layout.loadPlatformWorkspaceUi
+[perf] fetch 479ms GET /rest/v1/agency_business_identity?select=default_locale%2Csupported_locales%2Cshow_language_switcher&tenant_id=eq.33333333-3333-4333-8333-33 span=layout.loadTenantLocaleSettings
+[perf] fetch 459ms GET /rest/v1/agency_business_identity?select=default_locale%2Csupported_locales%2Cshow_language_switcher&tenant_id=eq.33333333-3333-4333-8333-33 span=layout.loadWebsiteData
+[perf] fetch 442ms GET /auth/v1/user span=layout.loadInquiriesForMessages
+[perf] fetch 442ms GET /auth/v1/user span=layout.loadTotalUnreadMessages
+[perf] fetch 441ms GET /auth/v1/user span=layout.loadUserNotifications
+[perf] fetch 439ms GET /rest/v1/workspace_commission_overrides?select=base_reservation_fee_cents%2Cbase_reservation_fee_bps&tenant_id=eq.33333333-3333-4333-8333-33 span=layout.loadPayoutsSurface
+[perf] layout.loadPlatformWorkspaceUi 604ms
+[perf] layout.loadTenantLocaleSettings 605ms
+[perf] fetch 497ms GET /rest/v1/agencies?select=id%2Cdisplay_name%2Cpreferred_currency%2Cstripe_account_id%2Cstripe_account_status%2Cstripe_charges_enabled%2Cstrip span=layout.loadPayoutsSurface
+[perf] fetch 488ms GET /rest/v1/agency_bookings?select=created_at&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=in.%28confirmed%2Ccompleted%29&created_a span=layout.loadWebsiteData
+[perf] fetch 502ms GET /rest/v1/platform_settings?select=operating_currency%2Cmulti_currency_display_enabled&id=eq.true span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 486ms GET /rest/v1/inquiries?select=id%2Cclient_user_id%2Ccreated_at%2Cstatus&tenant_id=eq.33333333-3333-4333-8333-333333333333&client_user_id=not.is. span=layout.loadWorkspaceClients
+[perf] fetch 529ms GET /rest/v1/agency_talent_roster?select=status%2Cagency_visibility%2Ctalent_profile_id%2Ccreated_at%2Ctalent_profiles%21talent_profile_id%28id% span=layout.loadWorkspaceRosterForCurrentTenant
+[perf] fetch 491ms GET /rest/v1/agency_domains?select=hostname&tenant_id=eq.33333333-3333-4333-8333-333333333333&kind=eq.custom&status=in.%28verified%2Cssl_provisi span=layout.loadTenantIdentity
+[perf] fetch 449ms GET /rest/v1/outbox_messages?select=id%2Ctopic%2Cattempt_count%2Ccreated_at%2Clast_error&tenant_id=eq.33333333-3333-4333-8333-333333333333&statu span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 77ms GET /rest/v1/outbox_messages?select=id%2Ctopic%2Cattempt_count%2Ccreated_at%2Clast_error&tenant_id=eq.33333333-3333-4333-8333-333333333333&statu span=-
+[perf] fetch 496ms GET /rest/v1/agency_memberships?select=profile_id%2Crole%2Cstatus%2Caccepted_at%2Ccreated_at%2Cprofiles%3Aprofile_id%28display_name%2Cavatar_url span=layout.loadWorkspaceTeamMembers
+[perf] fetch 510ms GET /rest/v1/agency_branding?select=theme_json%2Caccent_color&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=layout.loadTenantIdentity
+[perf] fetch 467ms GET /rest/v1/booking_transactions?select=id%2Corder_id%2Cgross_amount_cents%2Ccurrency%2Crequested_at%2Ccreated_at&source_tenant_id=eq.33333333- span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 86ms GET /rest/v1/booking_transactions?select=id%2Corder_id%2Cgross_amount_cents%2Ccurrency%2Crequested_at%2Ccreated_at&source_tenant_id=eq.33333333- span=-
+[perf] fetch 479ms GET /rest/v1/booking_transactions?select=paid_at%2Cgross_amount_cents&source_tenant_id=eq.33333333-3333-4333-8333-333333333333&status=in.%28paid span=layout.loadWebsiteData
+[perf] fetch 507ms GET /rest/v1/inquiries?select=id%2Ccontact_name%2Ccompany%2Cevent_date%2Cstatus&tenant_id=eq.33333333-3333-4333-8333-333333333333&event_date=not span=layout.loadCalendarEvents
+[perf] fetch 490ms GET /rest/v1/agency_domains?select=hostname%2Ckind%2Cis_primary%2Cstatus%2Cverification_token%2Cverified_at%2Cfailure_reason%2Cupdated_at&tenant span=layout.loadWebsiteData
+[perf] fetch 485ms GET /rest/v1/agency_talent_roster?select=talent_profile_id&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=eq.removed span=layout.loadWorkspaceMediaBridge
+[perf] fetch 464ms GET /rest/v1/agency_talent_roster?select=talent_profile_id&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=eq.removed span=layout.loadWorkspaceMediaBridge
+[perf] fetch 524ms GET /rest/v1/cms_pages?select=id%2Ctenant_id%2Clocale%2Cslug%2Ctemplate_key%2Csystem_template_key%2Cis_system_owned%2Ctemplate_schema_version%2C span=layout.loadWebsiteData
+[perf] fetch 528ms GET /rest/v1/agencies?select=settings&id=eq.33333333-3333-4333-8333-333333333333 span=layout.loadRosterCardBadges
+[perf] fetch 548ms GET /rest/v1/admissions_mint_shortfall?select=order_line_id%2Corder_id%2Cexpected_rows%2Cminted_rows%2Cmissing_rows%2Corder_updated_at&tenant_id span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 127ms GET /rest/v1/admissions_mint_shortfall?select=order_line_id%2Corder_id%2Cexpected_rows%2Cminted_rows%2Cmissing_rows%2Corder_updated_at&tenant_id span=-
+[perf] fetch 512ms GET /rest/v1/platform_commission_config?select=max_base_fee_cents%2Cmax_base_fee_bps&singleton_key=eq.true span=layout.loadPayoutsSurface
+[perf] fetch 554ms GET /rest/v1/media_folders?select=id%2Cname%2Ccolor%2Cis_private%2Cshare_token%2Cshare_expires_at%2Cshare_view_count%2Ccreated_at%2Cis_collectio span=layout.loadWorkspaceMediaBridge
+[perf] fetch 505ms GET /rest/v1/media_folders?select=id%2Cname%2Ccolor%2Cis_private%2Cshare_token%2Cshare_expires_at%2Cshare_view_count%2Ccreated_at%2Cis_collectio span=layout.loadWorkspaceMediaBridge
+[perf] layout.loadRosterCardBadges 716ms
+[perf] fetch 581ms GET /rest/v1/talent_profiles?select=id%2Cdisplay_name%2Cfirst_name%2Clast_name%2Cworkflow_status%2Cis_publicly_hidden%2Cprofile_code%2Ctalent_pl span=layout.loadTalentSelfProfile
+[perf] layout.loadTalentSelfProfile 721ms
+[perf] fetch 558ms HEAD /rest/v1/analytics_events?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&name=in.%28view_directory%2Cview_talent_card%2Cview_ta span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 562ms GET /rest/v1/failed_engine_effects?select=id%2Cinquiry_id%2Clistener_name%2Cengine_action%2Cpriority%2Cattempt_count%2Ccreated_at%2Cretried_at&t span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 172ms GET /rest/v1/failed_engine_effects?select=id%2Cinquiry_id%2Clistener_name%2Cengine_action%2Cpriority%2Cattempt_count%2Ccreated_at%2Cretried_at&t span=-
+[perf] fetch 590ms GET /rest/v1/agency_talent_roster?select=status%2Ctalent_profiles%21talent_profile_id%28workflow_status%29&tenant_id=eq.33333333-3333-4333-8333- span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 559ms GET /rest/v1/agency_inquiry_coordinators?select=talent_profile_id&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=layout.loadTenantIdentity
+[perf] layout.loadTenantIdentity 736ms
+[perf] layout.loadPayoutsSurface 734ms
+[perf] fetch 193ms GET /rest/v1/spaces?select=id%2Cname%2Ccode%2Ckind%2Cparent_id%2Cmin_spend_cents%2Cparty_min%2Cparty_max%2Cturn_minutes%2Cneeds_reset_at%2Cstatu span=-
+[perf] fetch 194ms GET /rest/v1/preparation_tickets?select=id%2Corder_id%2Cvisit_id%2Cstation%2Cdestination%2Cstatus%2Crevision%2Cpromised_at%2Chanded_off_at%2Csub span=-
+[perf] fetch 556ms GET /rest/v1/agencies?select=settings&id=eq.33333333-3333-4333-8333-333333333333 span=layout.loadWebsiteData
+[perf] fetch 574ms GET /rest/v1/agency_bookings?select=id%2Csource_inquiry_id%2Ctitle%2Cstarts_at%2Cends_at%2Ctimezone%2Cstatus%2Cevent_date%2Ccalendar_lane&tenant span=layout.loadCalendarEvents
+[perf] fetch 204ms GET /rest/v1/venues?select=id%2Ctenant_id%2Cname%2Cslug%2Caddress_line1%2Caddress_line2%2Ccity%2Cregion%2Cpostal_code%2Ccountry_code%2Cgoogle_pl span=-
+[perf] fetch 562ms HEAD /rest/v1/agency_memberships?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=eq.active span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 578ms GET /rest/v1/agency_business_identity?select=tenant_id%2Cpublic_name%2Clegal_name%2Ctagline%2Cfooter_tagline%2Ccontact_email%2Ccontact_phone%2Cw span=layout.loadWebsiteData
+[perf] fetch 207ms GET /rest/v1/agency_bookings?select=id%2Ctitle%2Cstatus%2Cstarts_at%2Cends_at%2Ccontact_name%2Cclient_account_name%2Corder_id&tenant_id=eq.33333 span=-
+[perf] fetch 562ms GET /rest/v1/cms_redirects?select=id%2Cold_path%2Cnew_path%2Cstatus_code%2Cactive%2Cupdated_at&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=layout.loadWebsiteData
+[perf] fetch 572ms GET /rest/v1/command_idempotency?select=id%2Ccommand%2Cattempt_count%2Ccreated_at%2Clease_expires_at&tenant_id=eq.33333333-3333-4333-8333-333333 span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 214ms GET /rest/v1/command_idempotency?select=id%2Ccommand%2Cattempt_count%2Ccreated_at%2Clease_expires_at&tenant_id=eq.33333333-3333-4333-8333-333333 span=-
+[perf] fetch 574ms GET /rest/v1/cms_posts?select=id%2Cslug%2Ctitle%2Cstatus%2Cupdated_at%2Clocale%2Cexcerpt%2Cpublished_at%2Cupdated_by&tenant_id=eq.33333333-3333- span=layout.loadWebsiteData
+[perf] fetch 592ms HEAD /rest/v1/analytics_events?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&name=in.%28view_directory%2Cview_talent_card%2Cview_ta span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 178ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.ga4 span=-
+[perf] fetch 177ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.ga4 span=-
+[perf] fetch 181ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.linkedin_insight span=-
+[perf] fetch 181ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.linkedin_insight span=-
+[perf] fetch 195ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.meta_pixel span=-
+[perf] fetch 194ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.meta_pixel span=-
+[perf] fetch 199ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.gtm span=-
+[perf] fetch 198ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.gtm span=-
+[perf] fetch 202ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.tiktok_pixel span=-
+[perf] fetch 201ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.tiktok_pixel span=-
+[perf] fetch 596ms HEAD /rest/v1/inquiries?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&coordinator_id=not.is.null&next_action_by=in.%28coordinator%2 span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 263ms GET /rest/v1/sessions?select=id%2Ctitle%2Cstarts_at%2Cends_at%2Cstatus%2Coffering_id&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=eq span=-
+[perf] fetch 613ms HEAD /rest/v1/agency_talent_roster?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=eq.pending span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 680ms GET /rest/v1/inquiries?select=id%2Ccontact_name%2Ccompany%2Cevent_date%2Cevent_location%2Cquantity%2Ccreated_at%2Csource_channel%2Cagency_bookin span=layout.loadWorkspaceBookings
+[perf] fetch 613ms GET /rest/v1/inquiries?select=created_at&tenant_id=eq.33333333-3333-4333-8333-333333333333&next_action_by=eq.coordinator&status=not.in.%28reject span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 223ms GET /rest/v1/agencies?select=settings&id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 726ms GET /rest/v1/analytics_events?select=created_at%2Cpath%2Cpayload&tenant_id=eq.33333333-3333-4333-8333-333333333333&name=eq.view_site_page&create span=layout.loadWebsiteData
+[perf] fetch 637ms GET /rest/v1/sessions?select=id%2Ctitle%2Cstarts_at%2Cends_at%2Cstatus%2Cvenue_id%2Cseries_id&tenant_id=eq.33333333-3333-4333-8333-333333333333& span=layout.loadCalendarEvents
+[perf] fetch 633ms HEAD /rest/v1/inquiries?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&next_action_by=eq.client span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 290ms GET /rest/v1/orders?select=id%2Cstatus%2Ccurrency%2Ctotal_cents%2Csource_channel%2Ccreated_at%2Cinquiry_id%2Ccustomer_id&tenant_id=eq.33333333-3 span=-
+[perf] fetch 126ms GET /auth/v1/admin/users/33330001-0000-4000-8000-000000000001 span=layout.loadWorkspaceTeamMembers
+[perf] fetch 244ms GET /rest/v1/inquiries?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=not.in.%28booked%2Crejected%2Cexpired%2Cclosed_lost%2C span=layout.loadTotalUnreadMessages
+[perf] fetch 670ms GET /rest/v1/talent_holds?select=id%2Cinquiry_id%2Ctitle%2Cstarts_at%2Cends_at%2Cexpires_at%2Chold_strength&tenant_id=eq.33333333-3333-4333-8333 span=layout.loadCalendarEvents
+[perf] fetch 168ms GET /auth/v1/admin/users/33330001-0000-4000-8000-000000000002 span=layout.loadWorkspaceTeamMembers
+[perf] fetch 183ms HEAD /rest/v1/media_assets?select=id%2Casset_kind&tenant_id=eq.33333333-3333-4333-8333-333333333333&deleted_at=is.null&approval_state=eq.pending& span=layout.loadWorkspaceMediaBridge
+[perf] fetch 182ms HEAD /rest/v1/media_assets?select=id%2Casset_kind&tenant_id=eq.33333333-3333-4333-8333-333333333333&deleted_at=is.null&approval_state=eq.pending& span=layout.loadWorkspaceMediaBridge
+[perf] fetch 675ms HEAD /rest/v1/inquiries?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=eq.approved span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 182ms HEAD /rest/v1/media_assets?select=id%2Casset_kind&tenant_id=eq.33333333-3333-4333-8333-333333333333&deleted_at=is.null&variant_kind=in.%28card%2C span=layout.loadWorkspaceMediaBridge
+[perf] fetch 717ms HEAD /rest/v1/inquiries?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&event_id=is.null&status=in.%28submitted%2Ccoordination%2Coffe span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 192ms HEAD /rest/v1/media_assets?select=id%2Casset_kind&tenant_id=eq.33333333-3333-4333-8333-333333333333&deleted_at=is.null&or=%28or%28asset_kind.eq.i span=layout.loadWorkspaceMediaBridge
+[perf] fetch 189ms GET /rest/v1/taxonomy_terms?select=id%2Cparent_id%2Cterm_type%2Cslug%2Cname_i18n&term_type=in.%28parent_category%2Ccategory_group%29 span=layout.loadWorkspaceRosterForCurrentTenant
+[perf] fetch 149ms GET /rest/v1/ticket_refund_intents?select=order_line_id&tenant_id=eq.33333333-3333-4333-8333-333333333333&order_line_id=in.%286c296e60-f0b7-4818 span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 149ms GET /rest/v1/ticket_refund_intents?select=order_line_id&tenant_id=eq.33333333-3333-4333-8333-333333333333&order_line_id=in.%286c296e60-f0b7-4818 span=-
+[perf] fetch 768ms GET /rest/v1/inquiry_events?select=id%2Cinquiry_id%2Cevent_type%2Cactor_user_id%2Cactor_role%2Ccreated_at%2Cinquiries%21inner%28contact_name%2Cc span=layout.loadRecentActivity
+[perf] layout.loadWorkspaceTeamMembers 919ms
+[perf] fetch 141ms GET /rest/v1/venue_service_rules?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&venue_id=eq.33330010-0000-4000-8000-000000000001 span=-
+[perf] fetch 142ms GET /rest/v1/venue_service_windows?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&venue_id=eq.33330010-0000-4000-8000-000000000001&o span=-
+[perf] fetch 145ms GET /rest/v1/space_groups?select=id%2Cname%2Cparty_min%2Cparty_max%2Ckind%2Csell_mode&tenant_id=eq.33333333-3333-4333-8333-333333333333&venue_id span=-
+[perf] fetch 132ms GET /rest/v1/agencies?select=id%2Cslug%2Cdisplay_name&kind=eq.hub&plan_tier=eq.network&status=eq.active&order=created_at.asc&limit=1 span=-
+[perf] fetch 8ms GET /rest/v1/agencies?select=settings&id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 461ms GET /rest/v1/inquiries?select=id%2Cstatus%2Ccontact_name%2Ccontact_email%2Ccompany%2Cmessage%2Cevent_date%2Cevent_location%2Cquantity%2Ccreated_ span=layout.loadInquiriesForMessages
+[perf] fetch 463ms GET /rest/v1/user_notifications?select=id%2Ckind%2Csurface%2Ctitle%2Cbody%2Cactor_initials%2Ctarget_drawer%2Ctarget_payload%2Corigin_inquiry_id% span=layout.loadUserNotifications
+[perf] fetch 255ms GET /rest/v1/visits?select=id%2Cspace_id%2Cjoined_space_id%2Cpublic_token%2Cversion%2Cservice_kind%2Copened_at%2Cparty_size%2Cserver_user_id&ten span=-
+[perf] fetch 240ms GET /rest/v1/visits?select=id%2Cspace_id%2Cjoined_space_id%2Cparty_size&id=in.%28f4e7ba9f-615e-4af6-957e-cda1edb5bb10%2C08d5551c-ac46-4135-97bb- span=-
+[perf] fetch 238ms GET /rest/v1/agency_business_identity?select=public_name&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 33ms GET /rest/v1/agency_business_identity?select=public_name&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 225ms GET /rest/v1/orders?select=id%2Cversion%2Ctotal_cents%2Ccurrency%2Cstatus&tenant_id=eq.33333333-3333-4333-8333-333333333333&id=in.%28619724b2-7c span=-
+[perf] fetch 229ms GET /rest/v1/booking_transactions?select=order_id%2Cgross_amount_cents%2Cstatus&order_id=in.%28619724b2-7c46-47a3-b844-7b55ebd7935e%2C878e66c9-f span=-
+[perf] fetch 204ms GET /rest/v1/media_assets?select=id%2Ctenant_id%2Cowner_talent_profile_id%2Cbucket_id%2Cstorage_path%2Cpublic_url%2Cvariant_kind%2Capproval_stat span=layout.loadWorkspaceMediaBridge
+[perf] fetch 214ms GET /rest/v1/media_assets?select=id%2Ctenant_id%2Cowner_talent_profile_id%2Cbucket_id%2Cstorage_path%2Cpublic_url%2Cvariant_kind%2Capproval_stat span=layout.loadWorkspaceMediaBridge
+[perf] layout.loadWorkspaceMediaBridge 1103ms
+[perf] fetch 482ms GET /rest/v1/booking_commission_snapshot?select=booking_id%2Cworkspace_fee_cents%2Ccurrency_code%2Cagency_bookings%21inner%28id%2Cstatus%2Cpayou span=layout.loadWorkspaceOverviewMetrics
+[perf] fetch 423ms GET /rest/v1/customers?select=id%2Cuser_id%2Cemail%2Cdisplay_name%2Clast_seen_at&tenant_id=eq.33333333-3333-4333-8333-333333333333&merged_into_i span=layout.loadWorkspaceClients
+[perf] fetch 127ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.custom_code span=-
+[perf] fetch 127ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.custom_code span=-
+[perf] fetch 127ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.custom_code span=-
+[perf] fetch 44ms GET /rest/v1/tenant_integrations?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&integration_key=eq.custom_code span=-
+[perf] fetch 130ms GET /rest/v1/tenant_registration_settings?select=tenant_id%2Cenabled%2Cmode%2Cdefault_roster_visibility%2Ccta_label&tenant_id=eq.33333333-3333-4 span=-
+[perf] fetch 50ms GET /rest/v1/tenant_registration_settings?select=tenant_id%2Cenabled%2Cmode%2Cdefault_roster_visibility%2Ccta_label&tenant_id=eq.33333333-3333-4 span=-
+[perf] layout.loadWebsiteData 1175ms
+[perf] fetch 321ms GET /rest/v1/booking_transactions?select=*&source_tenant_id=eq.33333333-3333-4333-8333-333333333333&status=not.in.%28%22cancelled%22%2C%22failed span=layout.loadWorkspaceBookings
+[perf] fetch 164ms GET /rest/v1/agency_entitlements?select=custom_css_allowed%2Cwhite_label_email&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 164ms GET /rest/v1/agency_entitlements?select=custom_css_allowed%2Cwhite_label_email&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 164ms GET /rest/v1/agency_entitlements?select=custom_css_allowed%2Cwhite_label_email&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 81ms GET /rest/v1/agency_entitlements?select=custom_css_allowed%2Cwhite_label_email&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 144ms GET /rest/v1/session_series?select=id%2Ctitle%2Ctimezone&id=in.%286c2f3004-a152-463d-84b5-1a4d9fba09df%29 span=layout.loadCalendarEvents
+[perf] layout.loadWorkspaceOverviewMetrics 1236ms
+[perf] layout.loadUserNotifications 1238ms
+[perf] fetch 109ms GET /rest/v1/profiles?select=id%2Cdisplay_name&id=in.%2833330001-0000-4000-8000-000000000001%2C33330001-0000-4000-8000-000000000005%29 span=layout.loadRecentActivity
+[perf] layout.loadRecentActivity 1257ms
+[perf] fetch 124ms GET /rest/v1/inquiry_message_reads?select=inquiry_id%2Cthread_type%2Clast_read_at&tenant_id=eq.33333333-3333-4333-8333-333333333333&user_id=eq.3 span=layout.loadTotalUnreadMessages
+[perf] fetch 101ms GET /rest/v1/venue_service_window_exceptions?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&venue_id=eq.33330010-0000-4000-8000-0000 span=-
+[perf] fetch 102ms GET /rest/v1/spaces?select=id%2Ccode%2Cname&id=in.%2833330011-0000-4000-8000-000000000015%2C33330011-0000-4000-8000-000000000013%29 span=-
+[perf] fetch 107ms GET /rest/v1/order_lines?select=id%2Corder_id%2Cbooking_id%2Clabel%2Cunits%2Ctotal_cents&tenant_id=eq.33333333-3333-4333-8333-333333333333&booki span=-
+[perf] fetch 171ms GET /rest/v1/inquiry_messages?select=inquiry_id%2Cthread_type%2Csender_user_id%2Ccreated_at&tenant_id=eq.33333333-3333-4333-8333-333333333333&de span=layout.loadTotalUnreadMessages
+[perf] layout.loadTotalUnreadMessages 1319ms
+[perf] layout.loadWorkspaceBookings 1327ms
+[perf] fetch 100ms GET /rest/v1/orders?select=id%2Cvisit_id%2Ctotal_cents%2Cstatus%2Ccreated_at&tenant_id=eq.33333333-3333-4333-8333-333333333333&visit_id=in.%281f span=-
+[perf] fetch 94ms GET /rest/v1/venues?select=id%2Ctimezone&id=in.%2833330010-0000-4000-8000-000000000001%29 span=layout.loadCalendarEvents
+[perf] layout.loadCalendarEvents 1339ms
+[perf] fetch 101ms GET /rest/v1/agencies?select=kind&id=eq.33333333-3333-4333-8333-333333333333 span=layout.loadInquiriesForMessages
+[perf] fetch 111ms GET /rest/v1/agency_taxonomy_settings?select=taxonomy_term_id&tenant_id=eq.33333333-3333-4333-8333-333333333333&is_enabled=eq.false span=layout.loadWorkspaceRosterForCurrentTenant
+[perf] fetch 101ms GET /rest/v1/client_trust_state?select=user_id%2Ctrust_level&user_id=in.%287157118c-241f-449a-9093-ecdf80fa472b%2C33330001-0000-4000-8000-000000 span=layout.loadWorkspaceClients
+[perf] fetch 97ms GET /rest/v1/capacity_pools?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&subject_kind=eq.space_group&subject_id=eq.33330014-0000- span=-
+[perf] fetch 110ms GET /rest/v1/client_profiles?select=user_id%2Ccompany_name%2Cprofiles%21inner%28display_name%2Caccount_status%29&user_id=in.%287157118c-241f-449 span=layout.loadWorkspaceClients
+[perf] fetch 95ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.acab518c-6a1c-4bdb-9dc7-ac9733cb3c8e&revision=eq.1 span=-
+[perf] layout.loadWorkspaceClients 1394ms
+[perf] fetch 97ms GET /rest/v1/orders?select=id%2Ccurrency%2Ctotal_cents%2Cstatus&tenant_id=eq.33333333-3333-4333-8333-333333333333&id=in.%28eeca54ea-a570-4f9d-86 span=-
+[perf] fetch 113ms GET /rest/v1/customers?select=id%2Cdisplay_name%2Cemail&id=in.%28f4f7841f-798b-4131-8590-9cae0f021da7%2C74f80ea4-e212-4da5-8cc6-a21874dee80a%2Ce span=-
+[perf] fetch 117ms GET /rest/v1/booking_transactions?select=order_id%2Cgross_amount_cents&order_id=in.%28a74b4c21-28f0-4fbe-8928-fcc4f67dadf3%2C2f197ef8-f9dd-4354- span=-
+[perf] fetch 132ms GET /rest/v1/order_lines?select=order_id&order_id=in.%28a74b4c21-28f0-4fbe-8928-fcc4f67dadf3%2C2f197ef8-f9dd-4354-9e76-a397e32fdf7a%2C7f1a578e-0 span=-
+[perf] fetch 131ms GET /rest/v1/booking_transactions?select=order_id%2Cgross_amount_cents%2Cstatus&order_id=in.%28eeca54ea-a570-4f9d-8688-5811383bd9f5%29 span=-
+[perf] fetch 117ms GET /rest/v1/space_combinations?select=space_id%2Cwith_space_id%2Cparty_min%2Cparty_max&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 1ms GET /rest/v1/venues?select=id%2Ctenant_id%2Cname%2Cslug%2Caddress_line1%2Caddress_line2%2Ccity%2Cregion%2Cpostal_code%2Ccountry_code%2Cgoogle_pl span=-
+[perf] fetch 3ms GET /rest/v1/venue_service_rules?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&venue_id=eq.33330010-0000-4000-8000-000000000001 span=-
+[perf] fetch 3ms GET /rest/v1/venue_service_windows?select=*&tenant_id=eq.33333333-3333-4333-8333-333333333333&venue_id=eq.33330010-0000-4000-8000-000000000001&o span=-
+[perf] fetch 2ms GET /rest/v1/space_groups?select=id%2Cname%2Cparty_min%2Cparty_max%2Ckind%2Csell_mode&tenant_id=eq.33333333-3333-4333-8333-333333333333&venue_id span=-
+[perf] fetch 1ms GET /rest/v1/capacity_pools?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&subject_kind=eq.space_group&subject_id=eq.33330014-0000- span=-
+[perf] fetch 113ms GET /rest/v1/talent_languages?select=talent_profile_id&talent_profile_id=in.%2833330003-0000-4000-8000-000000000001%2C33330003-0000-4000-8000-00 span=layout.loadWorkspaceRosterForCurrentTenant
+[perf] layout.loadWorkspaceRosterForCurrentTenant 1470ms
+[perf] fetch 119ms GET /rest/v1/inquiry_participants?select=inquiry_id%2Cowning_party_type%2Cowning_party_id&tenant_id=eq.33333333-3333-4333-8333-333333333333&role span=layout.loadInquiriesForMessages
+[perf] fetch 100ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.e05fddb3-3492-4fcf-91af-c1b3fdda68d4&revision=eq.1 span=-
+[perf] fetch 109ms GET /rest/v1/venue_locations?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&venue_id=eq.33330010-0000-4000-8000-000000000001 span=-
+[perf] fetch 28ms GET /rest/v1/venue_locations?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&venue_id=eq.33330010-0000-4000-8000-000000000001 span=-
+[perf] fetch 103ms GET /rest/v1/capacity_pools?select=id%2Csubject_id%2Cunits_total%2Cpool_key&tenant_id=eq.33333333-3333-4333-8333-333333333333&subject_kind=eq.se span=-
+[perf] fetch 131ms GET /rest/v1/booking_transactions?select=order_id%2Cgross_amount_cents&order_id=in.%28ec42e1b8-104f-4ec5-83cf-9b92689be59e%2C5e755f63-82a4-4d2d- span=-
+[perf] fetch 122ms GET /rest/v1/customers?select=id%2Cdisplay_name%2Cemail&id=in.%28e984385d-0275-496d-b813-87f814cd8fd1%2C38ad4402-f7ea-47e4-a719-921ad289860f%2C9 span=-
+[perf] fetch 116ms GET /rest/v1/session_waitlist_entries?select=id%2Csession_id%2Ccustomer_name%2Ccustomer_email%2Cparty_size%2Cstatus%2Cjoined_at%2Coffered_at%2Co span=-
+[perf] fetch 123ms GET /rest/v1/order_lines?select=order_id&order_id=in.%28ec42e1b8-104f-4ec5-83cf-9b92689be59e%2C5e755f63-82a4-4d2d-a94e-5053cdef1267%2Cc774620f-b span=-
+[perf] fetch 128ms GET /rest/v1/admissions?select=id%2Csession_id%2Cholder_name%2Cparty_size%2Cadmitted_count%2Cstatus%2Corder_line_id%2Ccreated_at&tenant_id=eq.33 span=-
+[perf] fetch 101ms GET /rest/v1/profiles?select=id%2Cdisplay_name&id=in.%2833330001-0000-4000-8000-000000000001%29 span=layout.loadInquiriesForMessages
+[perf] fetch 110ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.9be1bb51-a398-4a5f-a1d1-71b47fa1a9d7&revision=eq.1 span=-
+[perf] fetch 134ms GET /rest/v1/inquiry_user_flags?select=inquiry_id%2Cpinned%2Cmanually_unread%2Carchived&tenant_id=eq.33333333-3333-4333-8333-333333333333&profil span=layout.loadInquiriesForMessages
+[perf] fetch 121ms GET /rest/v1/service_periods?select=id%2Clocation_id%2Cname%2Cweekday_mask%2Cstarts_local%2Cends_local%2Cturn_minutes&tenant_id=eq.33333333-3333 span=-
+[perf] fetch 120ms GET /rest/v1/service_periods?select=id%2Clocation_id%2Cname%2Cweekday_mask%2Cstarts_local%2Cends_local%2Cturn_minutes&tenant_id=eq.33333333-3333 span=-
+[perf] fetch 160ms GET /rest/v1/inquiry_offers?select=id%2Cstatus%2Ctotal_client_price%2Ccurrency_code&id=in.%2819adfc17-0a39-4d8a-acb5-cb855cdb1b4e%2Cd6691271-3a0 span=layout.loadInquiriesForMessages
+[perf] fetch 174ms GET /rest/v1/inquiry_participants?select=inquiry_id%2Crole%2Cstatus%2Ctalent_profile_id%2Cuser_id%2Ctalent_profiles%3Atalent_profile_id%28displa span=layout.loadInquiriesForMessages
+[perf] fetch 208ms GET /rest/v1/inquiry_messages?select=id%2Cinquiry_id%2Cthread_type%2Csender_user_id%2Cbody%2Ccreated_at%2Cmessage_kind%2Ccard_payload%2Cprofiles span=layout.loadInquiriesForMessages
+[perf] fetch 137ms GET /rest/v1/booking_transactions?select=order_id%2Cgross_amount_cents&order_id=in.%28fce2c1fd-d45a-445e-a23b-af243de30aed%2C03ffbac0-9051-4edb- span=-
+[perf] fetch 122ms GET /rest/v1/order_lines?select=order_id&order_id=in.%28fce2c1fd-d45a-445e-a23b-af243de30aed%2C03ffbac0-9051-4edb-b678-2baae9414df2%2C0ba4dd38-1 span=-
+[perf] fetch 128ms GET /rest/v1/waitlist_offers?select=id%2Cwaitlist_entry_id%2Caccepted_at%2Cdeclined_at%2Cexpires_at&tenant_id=eq.33333333-3333-4333-8333-3333333 span=-
+[perf] fetch 241ms GET /rest/v1/inquiry_messages?select=inquiry_id%2Cthread_type%2Csender_user_id%2Ccreated_at&tenant_id=eq.33333333-3333-4333-8333-333333333333&de span=layout.loadInquiriesForMessages
+[perf] fetch 236ms GET /rest/v1/inquiry_message_reads?select=inquiry_id%2Cthread_type%2Clast_read_at&tenant_id=eq.33333333-3333-4333-8333-333333333333&user_id=eq.3 span=layout.loadInquiriesForMessages
+[perf] fetch 100ms GET /rest/v1/venues?select=timezone&id=eq.33330010-0000-4000-8000-000000000001&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 103ms GET /rest/v1/agencies?select=timezone%2Csettings&id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 103ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.b64610f5-c7f5-4ef2-ba68-33fbc36a4c3b&revision=eq.1 span=-
+[perf] fetch 108ms GET /rest/v1/admissions?select=id%2Cstarts_at%2Cparty_size%2Cadmitted_count%2Cno_show_at%2Ccompleted_at%2Cstatus%2Cholder_name%2Cspace_id&tenant span=-
+[perf] fetch 265ms GET /rest/v1/conversation_records?select=inquiry_id%2Crecord_kind%2Crecord_id&tenant_id=eq.33333333-3333-4333-8333-333333333333&unlinked_at=is.n span=layout.loadInquiriesForMessages
+[perf] fetch 95ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 109ms GET /rest/v1/booking_transactions?select=order_id%2Cgross_amount_cents&order_id=in.%280f5405d0-e721-475e-9efc-9a09a39d484d%2Cbbae6097-775f-4d7d- span=-
+[perf] fetch 113ms GET /rest/v1/order_lines?select=order_id&order_id=in.%280f5405d0-e721-475e-9efc-9a09a39d484d%2Cbbae6097-775f-4d7d-919d-a840d2646717%2Cf90d0b55-0 span=-
+[perf] fetch 91ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.82f05c6d-c01c-4180-bd21-2914eb9b34d9&revision=eq.1 span=-
+[perf] fetch 104ms GET /rest/v1/admissions?select=id%2Cstarts_at%2Cparty_size%2Cadmitted_count%2Cno_show_at%2Ccompleted_at%2Cstatus%2Cholder_name%2Cspace_id%2Cseat span=-
+[perf] fetch 118ms GET /rest/v1/media_assets?select=owner_talent_profile_id%2Cbucket_id%2Cstorage_path%2Csort_order&owner_talent_profile_id=in.%2833330003-0000-400 span=layout.loadInquiriesForMessages
+[perf] fetch 100ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 95ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.47ae921a-d825-4fac-b59e-ba03c3341caa&revision=eq.1 span=-
+[perf] fetch 100ms GET /rest/v1/spaces?select=id%2Ccode%2Cname&tenant_id=eq.33333333-3333-4333-8333-333333333333&id=in.%2833330011-0000-4000-8000-000000000013%2C33 span=-
+[perf] fetch 99ms GET /rest/v1/talent_profile_taxonomy?select=talent_profile_id%2Ctaxonomy_terms%28name_i18n%29&talent_profile_id=in.%2833330003-0000-4000-8000-00 span=layout.loadInquiriesForMessages
+[perf] fetch 95ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 95ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.5467d5d7-ec4a-47fb-ad11-a5127f2fcd42&revision=eq.1 span=-
+[perf] fetch 111ms GET /rest/v1/talent_profiles?select=id%2Crating_avg%2Crating_count&id=in.%2833330003-0000-4000-8000-000000000001%29 span=layout.loadInquiriesForMessages
+[perf] fetch 91ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 97ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.8f86aee3-5eab-4c7e-b79e-9860febcf512&revision=eq.1 span=-
+[perf] fetch 104ms GET /rest/v1/agency_entitlements?select=reviews_enabled&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=layout.loadInquiriesForMessages
+[perf] layout.loadInquiriesForMessages 2198ms
+[perf] layout.after-fanout @2226ms
+[perf] fetch 105ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 95ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.39c7cfc3-f02c-4bdf-9f7d-d33581e9e3e5&revision=eq.1 span=-
+[perf] fetch 97ms HEAD /rest/v1/cms_form_submissions?select=id&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=eq.new span=layout.websiteHealth
+[perf] layout.websiteHealth 100ms
+[perf] layout.render-start @2326ms
+[perf] fetch 648ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 641ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.7d19a238-b41a-43ae-a575-f040b5a24615&revision=eq.1 span=-
+[perf] fetch 489ms GET /rest/v1/agencies?select=display_name%2Cplan_tier%2Ckind&id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 113ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.27b68761-04a9-4adf-936c-39186b0fa275&revision=eq.1 span=-
+[perf] fetch 464ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 98ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.423c1f8d-216b-463e-b72b-b283a937739e&revision=eq.1 span=-
+[perf] fetch 104ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 109ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.c2b702ab-5b89-44a3-a5e4-b6ff48f9ed1b&revision=eq.1 span=-
+[perf] fetch 97ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 102ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.29ecf0ed-21ff-4790-8fdf-38784bc11950&revision=eq.1 span=-
+[perf] fetch 101ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 117ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.ccae4bfc-3227-420b-b8d4-75dd8b6337ff&revision=eq.1 span=-
+[perf] fetch 96ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 98ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.adef87c0-7eab-4d34-ae75-d75d4c512ed5&revision=eq.2 span=-
+[perf] fetch 95ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 106ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.adef87c0-7eab-4d34-ae75-d75d4c512ed5&revision=eq.1 span=-
+[perf] fetch 99ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 102ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 104ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.ff5b6440-a49c-43ff-aa68-dbb905a7491f&revision=eq.1 span=-
+[perf] fetch 94ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 104ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.264f91da-182a-41cf-9ba8-cdcc2807327c&revision=eq.2 span=-
+[perf] fetch 97ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 112ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.264f91da-182a-41cf-9ba8-cdcc2807327c&revision=eq.1 span=-
+[perf] fetch 90ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 108ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.47d7ec41-3744-4ae7-8260-07b491943894&revision=eq.1 span=-
+[perf] fetch 97ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 107ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.1edb4e3e-55ab-4d2e-9549-5fa568c4648f&revision=eq.2 span=-
+[perf] fetch 97ms POST /rest/v1/rpc/capacity_remaining_public span=-
+[perf] fetch 100ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.1edb4e3e-55ab-4d2e-9549-5fa568c4648f&revision=eq.1 span=-
+[perf] fetch 105ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.4fb485a9-fd9a-46c6-aa85-a20ffd4c87fc&revision=eq.1 span=-
+[perf] fetch 116ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.1fdd409b-ae9b-4dc2-9d46-da148d6ffd3f&revision=eq.1 span=-
+[perf] fetch 142ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.ac455cde-356d-4fde-923f-33c6dde59ebf&revision=eq.1 span=-
+[perf] fetch 117ms GET /rest/v1/preparation_ticket_revisions?select=snapshot&ticket_id=eq.d5a5c1da-c787-46f1-88f8-946927e2ac32&revision=eq.1 span=-
+[perf] fetch 101ms GET /rest/v1/orders?select=id%2Cstatus%2Ccurrency%2Ctotal_cents&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=eq.pending_payment&tota span=-
+[perf] fetch 109ms GET /rest/v1/booking_transactions?select=gross_amount_cents%2Ccurrency%2Cprovider%2Cmetadata&source_tenant_id=eq.33333333-3333-4333-8333-3333333 span=-
+[perf] fetch 102ms GET /rest/v1/booking_transactions?select=order_id%2Cgross_amount_cents&order_id=in.%28df4f0c50-897b-4064-b007-ef17103072d7%2Ccbe4b746-233b-43be- span=-
+[perf] fetch 6ms GET /rest/v1/agency_talent_roster?select=status%2Cagency_visibility%2Ctalent_profile_id%2Ccreated_at%2Ctalent_profiles%21talent_profile_id%28id% span=-
+[perf] fetch 4ms GET /rest/v1/agencies?select=settings&id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 4ms GET /rest/v1/agency_memberships?select=profile_id%2Crole%2Cstatus%2Caccepted_at%2Ccreated_at%2Cprofiles%3Aprofile_id%28display_name%2Cavatar_url span=-
+[perf] fetch 9ms GET /auth/v1/admin/users/33330001-0000-4000-8000-000000000001 span=-
+[perf] fetch 9ms GET /auth/v1/admin/users/33330001-0000-4000-8000-000000000002 span=-
+[perf] fetch 8ms GET /rest/v1/taxonomy_terms?select=id%2Cparent_id%2Cterm_type%2Cslug%2Cname_i18n&term_type=in.%28parent_category%2Ccategory_group%29 span=-
+[perf] fetch 1ms GET /rest/v1/agency_taxonomy_settings?select=taxonomy_term_id&tenant_id=eq.33333333-3333-4333-8333-333333333333&is_enabled=eq.false span=-
+[perf] fetch 1ms GET /rest/v1/talent_languages?select=talent_profile_id&talent_profile_id=in.%2833330003-0000-4000-8000-000000000001%2C33330003-0000-4000-8000-00 span=-
+[perf] fetch 103ms GET /rest/v1/team_invite_tokens?select=invited_email%2Credeemed_at%2Crevoked_at%2Cexpires_at&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 113ms GET /rest/v1/talent_offerings?select=title%2Camount_cents%2Ccurrency&tenant_id=eq.33333333-3333-4333-8333-333333333333&owner_kind=eq.workspace&o span=-
+[perf] fetch 105ms HEAD /rest/v1/talent_booking_hours?select=talent_profile_id&tenant_id=eq.33333333-3333-4333-8333-333333333333 span=-
+[perf] fetch 103ms GET /rest/v1/cms_pages?select=title&tenant_id=eq.33333333-3333-4333-8333-333333333333&status=eq.published&limit=1 span=-
+[perf] fetch 114ms GET /rest/v1/agency_talent_roster?select=status%2Cagency_visibility%2Cis_primary%2Cexclusivity_status%2Cdirect_booking_enabled%2Cexternal_bookin span=-
+[perf] fetch 98ms GET /rest/v1/agency_talent_roster?select=talent_profile_id%2Ctenant_id%2Cis_primary%2Cexclusivity_status%2Cexternal_booking_released&talent_prof span=-
+[perf] fetch 107ms GET /rest/v1/talent_offerings?select=id%2Ctalent_profile_id%2Ctitle%2Cprice_display%2Cvisibility%2Cbooking_mode%2Cstatus%2Csort_order&talent_pro span=-
+[perf] fetch 100ms GET /rest/v1/agencies?select=id%2Cplan_tier&id=in.%2800000000-0000-0000-0000-000000000001%2C33333333-3333-4333-8333-333333333333%29 span=-
+[perf] fetch 256ms GET /rest/v1/talent_booking_hours?select=talent_profile_id%2Ctimezone%2Cweekly%2Cexceptions%2Cslot_minutes%2Cbuffer_before_min%2Cbuffer_after_mi span=-

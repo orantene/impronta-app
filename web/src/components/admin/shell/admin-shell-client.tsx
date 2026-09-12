@@ -43,8 +43,6 @@ import { SupportSlotGate } from "./internal/support-slot-gate";
 import { usePathname } from "next/navigation";
 import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
 import { CanonicalRouteChildrenProvider } from "./internal/canonical-route-children";
-import { isSpaOnlyAdminSegment } from "./internal/spa-segments";
-import { resolveWorkspacePageId } from "@/lib/workspace/page-ids";
 import { AdminShellProvider, useAdminShell, COLORS, FONTS, TRANSITION, Z, meetsRole, PAGE_META, TALENT_PAGE_META, FAB_PALETTE_OPEN_EVENT, FAB_PALETTE_CHANGED_EVENT, type FabPaletteChangedDetail } from "./internal/state";
 // FeedbackButton intentionally NOT imported — it was the legacy bottom-right
 // FAB and now lives dormant in _primitives. The new unified BottomActionFab
@@ -177,13 +175,7 @@ function ConditionalAdminShellRoot() {
  * During SSR (pathname == null) we render `children` inline and skip the shell,
  * matching the prior no-flash behavior; the shell mounts on hydration.
  */
-function WorkspaceShellWithCanonicalChildren({
-  children,
-  adminBasePath,
-}: {
-  children?: import("react").ReactNode;
-  adminBasePath: string;
-}) {
+function WorkspaceShellWithCanonicalChildren({ children }: { children?: import("react").ReactNode }) {
   const pathname = usePathname();
   const canonical = pathname != null && pathIsCanonical(pathname);
   return (
@@ -192,7 +184,6 @@ function WorkspaceShellWithCanonicalChildren({
           the route content is hosted inside the shell's <main> via context. */}
       {!canonical && children}
       <RealtimeBridge />
-      <PathnamePageSync adminBasePath={adminBasePath} />
       {pathname != null && <AdminShellRoot />}
     </CanonicalRouteChildrenProvider>
   );
@@ -204,39 +195,6 @@ function WorkspaceShellWithCanonicalChildren({
  * Renders nothing visually; lives inside AdminShellProvider so it can read
  * `bridgeTenantIdentity` via useAdminShell.
  */
-/**
- * Keeps the shell's page in step with the URL when the URL moved WITHOUT a
- * server render: a rail click to a bare-syncer segment is a
- * `history.pushState` (spa-segments.ts), and Back/Forward across those
- * entries restore the router tree the browser already had, so no
- * `PageRouteSyncer` re-runs. `usePathname` follows both; this reads it.
- *
- * Segments with a real server page (POS, orders, the overview snapshot...)
- * still sync through their own `PageRouteSyncer`; this only speaks for the
- * SPA-only segments and the overview when Back lands on `/admin`.
- */
-function PathnamePageSync({ adminBasePath }: { adminBasePath: string }) {
-  const pathname = usePathname();
-  const { syncPage } = useAdminShell();
-  const last = useRef<string | null>(null);
-  useEffect(() => {
-    if (pathname == null) return;
-    if (last.current === null) {
-      // First render: the layout already derived the initial page from this
-      // pathname on the server; nothing to sync.
-      last.current = pathname;
-      return;
-    }
-    if (pathname === last.current) return;
-    last.current = pathname;
-    if (pathname !== adminBasePath && !pathname.startsWith(`${adminBasePath}/`)) return;
-    const segment = pathname.slice(adminBasePath.length).replace(/^\//, "").split("/")[0] ?? "";
-    if (segment && !isSpaOnlyAdminSegment(segment)) return;
-    syncPage(resolveWorkspacePageId(segment || "overview"));
-  }, [pathname, adminBasePath, syncPage]);
-  return null;
-}
-
 function RealtimeBridge() {
   const { bridgeTenantIdentity } = useAdminShell();
   useInquiryRealtime(bridgeTenantIdentity?.tenantId ?? null);
@@ -278,9 +236,7 @@ export function AdminShellClient({
         tenantSlug={tenantSlug}
         brandedHost={brandedHost}
       >
-        <WorkspaceShellWithCanonicalChildren
-          adminBasePath={!tenantSlug || brandedHost ? "/admin" : `/${tenantSlug}/admin`}
-        >
+        <WorkspaceShellWithCanonicalChildren>
           {children}
         </WorkspaceShellWithCanonicalChildren>
         <SupportSlotGate />
