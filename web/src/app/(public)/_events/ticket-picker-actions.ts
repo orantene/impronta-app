@@ -32,6 +32,8 @@ import { checkQuantity, saleWindowState, type Tier } from "@/lib/events/tiers";
 import { buildTicketPurchase, doorOfferState, type DoorOfferState } from "@/lib/events/ticket-purchase";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { uuidWire } from "@/lib/events/uuid-wire";
+import { resolveGuestSessionId } from "@/lib/guest/guest-session";
+import { admissionHoldSeats } from "@/lib/venues/event-holds";
 
 const HORIZON_DAYS = 180;
 
@@ -52,6 +54,8 @@ export type PickerTier = {
   ageGate: number | null;
 };
 
+export type PickerSeat = { id: string; label: string };
+
 export type PickerNight = {
   sessionId: string;
   startsAt: string;
@@ -59,6 +63,8 @@ export type PickerNight = {
   /** Tiers with a pool on THIS night. A tier without one is not on sale for it and is not listed. */
   sellableVariantIds: string[];
   door: DoorOfferState;
+  /** Assigned seats from the night's `event_seat_maps` layout. Empty when the night has no map. */
+  seats: PickerSeat[];
 };
 
 export type TicketPicker =
@@ -138,6 +144,40 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
       poolKeysBySession.set(sid, (poolKeysBySession.get(sid) ?? new Set()).add(p.pool_key as string));
     }
 
+    const seatsBySession = new Map<string, PickerSeat[]>();
+    if (sessionIds.length > 0) {
+      const { data: maps, error: mapErr } = await admin
+        .from("event_seat_maps")
+        .select("session_id, layout_id")
+        .eq("tenant_id", tenantId)
+        .in("session_id", sessionIds);
+      if (mapErr) logServerError("events.picker.seatMaps", mapErr);
+      const layoutIds = [...new Set((maps ?? []).map((row) => row.layout_id as string).filter(Boolean))];
+      if (layoutIds.length > 0) {
+        const [{ data: items, error: itemErr }, { data: spaces, error: spaceErr }] = await Promise.all([
+          admin.from("space_layout_items").select("layout_id, space_id").in("layout_id", layoutIds),
+          admin.from("spaces").select("id, code, name, kind").eq("tenant_id", tenantId).eq("kind", "seat"),
+        ]);
+        if (itemErr) logServerError("events.picker.layoutItems", itemErr);
+        if (spaceErr) logServerError("events.picker.seats", spaceErr);
+        const spaceById = new Map(
+          ((spaces ?? []) as Array<{ id: string; code: string | null; name: string | null }>).map((row) => [row.id, row]),
+        );
+        const seatsByLayout = new Map<string, PickerSeat[]>();
+        for (const item of items ?? []) {
+          const space = spaceById.get(item.space_id as string);
+          if (!space) continue;
+          const layoutId = item.layout_id as string;
+          const next = seatsByLayout.get(layoutId) ?? [];
+          next.push({ id: space.id, label: space.code || space.name || space.id });
+          seatsByLayout.set(layoutId, next);
+        }
+        for (const row of maps ?? []) {
+          seatsBySession.set(row.session_id as string, seatsByLayout.get(row.layout_id as string) ?? []);
+        }
+      }
+    }
+
     const nowIso = now.toISOString();
     const tiers: PickerTier[] = tierRows.map((v) => {
       const t: Tier = {
@@ -165,6 +205,7 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
           allowPayInPerson: offering.allow_pay_in_person === true,
           sessionStartsAt: s.starts_at as string, sessionEndsAt: s.ends_at as string, now,
         }),
+        seats: seatsBySession.get(s.id as string) ?? [],
       };
     });
 
@@ -439,5 +480,62 @@ export async function startTicketCardPayment(input: unknown): Promise<StartCardP
   } catch (err) {
     logServerError("events.pay", err);
     return { ok: false, reason: "engine_error" };
+  }
+}
+
+const holdSeatsSchema = z.object({
+  tenantId: uuidWire,
+  eventId: uuidWire,
+  sessionId: uuidWire,
+  seatIds: z.array(uuidWire).min(1).max(40),
+  operationKey: z.string().trim().min(8).max(80),
+});
+
+export type HoldTicketSeatsResult =
+  | { ok: true; id: string; expiresAt: string; already: boolean }
+  | { ok: false; reason: "invalid_request" | "not_found" | "seat_taken" | "hold_expired" | "unavailable" };
+
+/**
+ * E03 on the public picker: the same `admission_hold_seats` writer Event ›
+ * Venue uses. Tenant + event + session are re-checked here so a guest cannot
+ * hold seats on another workspace's night.
+ */
+export async function holdTicketSeats(input: unknown): Promise<HoldTicketSeatsResult> {
+  const parsed = holdSeatsSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, reason: "invalid_request" };
+  const d = parsed.data;
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, reason: "unavailable" };
+    const { data: session, error: sErr } = await admin
+      .from("sessions")
+      .select("id")
+      .eq("id", d.sessionId)
+      .eq("tenant_id", d.tenantId)
+      .eq("event_id", d.eventId)
+      .maybeSingle();
+    if (sErr) {
+      logServerError("events.hold.session", sErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (!session) return { ok: false, reason: "not_found" };
+    const guestSessionId = await resolveGuestSessionId();
+    const held = await admissionHoldSeats(admin, {
+      tenantId: d.tenantId,
+      sessionId: d.sessionId,
+      seatIds: d.seatIds,
+      guestSessionId,
+      operationKey: d.operationKey,
+    });
+    if (!held.ok) {
+      if (held.reason === "seat_taken" || held.reason === "hold_expired" || held.reason === "not_found") {
+        return { ok: false, reason: held.reason };
+      }
+      return { ok: false, reason: "unavailable" };
+    }
+    return { ok: true, id: held.id, expiresAt: held.expiresAt, already: held.already };
+  } catch (err) {
+    logServerError("events.hold", err);
+    return { ok: false, reason: "unavailable" };
   }
 }

@@ -305,6 +305,15 @@ export function DoorCheckout(props: DoorCheckoutProps) {
             setTenderTouched(true);
           }}
           onConfirmCash={() => void collect()}
+          offlineCash={{
+            orderId: sale.orderId,
+            operationKey: posCollectionKey({
+              orderId: sale.orderId,
+              version: sale.version,
+              method: "cash",
+              amountCents: sale.totalCents,
+            }),
+          }}
           confirmLoading={props.busy}
           onBack={() => setCollectOpen(false)}
           backLabel={att.releaseBack}

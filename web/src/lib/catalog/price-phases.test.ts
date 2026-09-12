@@ -35,6 +35,52 @@ test("livePhasePrice picks the latest started open phase", async () => {
   }
 });
 
+test("livePhasePrice treats +00:00 and Z as the same instant", async () => {
+  const admin = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            lte: async () => ({
+              data: [
+                {
+                  id: "offset",
+                  price_cents: 1800,
+                  starts_at: "2026-10-01T00:00:00+00:00",
+                  ends_at: "2026-10-02T00:00:00+00:00",
+                  variant_id: null,
+                },
+              ],
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    }),
+  };
+  const live = await livePhasePrice(admin, {
+    tenantId: "t1",
+    offeringId: "off-1",
+    nowIso: "2026-10-01T12:00:00.000Z",
+  });
+  assert.equal(live.ok, true);
+  if (live.ok) {
+    assert.equal(live.phaseId, "offset");
+    assert.equal(live.priceCents, 1800);
+  }
+
+  const ended = await livePhasePrice(admin, {
+    tenantId: "t1",
+    offeringId: "off-1",
+    nowIso: "2026-10-02T00:00:00.000Z",
+  });
+  assert.equal(ended.ok, true);
+  if (ended.ok) {
+    assert.equal(ended.phaseId, null);
+    assert.equal(ended.priceCents, null);
+  }
+});
+
 test("an inverted phase window is overlap", async () => {
   const result = await setOfferingPricePhase(
     { from: () => ({}) },
