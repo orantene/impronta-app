@@ -1796,8 +1796,11 @@
         "subtitleOff": "Non lie",
         "close": "Fermer WhatsApp",
         "openMessages": "Ouvrir Messages",
-        "allChannels": "Tous les canaux",
-        "whatsappOnly": "WhatsApp seulement"
+        "webTitle": "WhatsApp Web",
+        "webBody": "Ceci est la session WhatsApp Web liee, pas l'API Cloud. Les discussions deja sur le telephone restent dans cette fenetre.",
+        "webWaiting": "Recherche de WhatsApp Web sur cet ordinateur…",
+        "webHint": "Le site en ligne ne peut pas integrer http://localhost, donc utilisez Ouvrir WhatsApp Web. Cette fenetre est le meme lien que vous venez de scanner.",
+        "webOpen": "Ouvrir WhatsApp Web"
       },
       "banner": {
         "phoneOffline": "Le telephone est hors ligne. Les messages attendent la reconnexion.",
