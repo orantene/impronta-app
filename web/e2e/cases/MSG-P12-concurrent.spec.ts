@@ -1,4 +1,5 @@
 import { test, expect, prepareJourneysPage, signInJourneysStaff, skipUnlessFixture } from "./_harness";
+import { assertInboxGroundTruth } from "./_wire";
 
 skipUnlessFixture();
 
@@ -11,4 +12,5 @@ test("MSG-P12 concurrent edit keeps one Messages shell", async ({ page }) => {
   // The surface is a `next/dynamic` chunk that mounts after hydration; the
   // same wait P2 gives it, because the count is read once the chunk arrives.
   await expect(page.locator("[data-pos-messages=shell], [data-pos-messages=phone]")).toHaveCount(1, { timeout: 15_000 });
+  await assertInboxGroundTruth();
 });

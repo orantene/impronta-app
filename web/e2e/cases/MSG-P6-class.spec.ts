@@ -1,4 +1,5 @@
 import { test, expect, prepareJourneysPage, signInJourneysStaff, skipUnlessFixture } from "./_harness";
+import { assertInboxGroundTruth } from "./_wire";
 
 skipUnlessFixture();
 
@@ -9,4 +10,5 @@ test("MSG-P6 class card family is offered from Messages", async ({ page }) => {
   // `/admin/pos` hop before the real `goto` spent the 30 s budget on Sell.
   await signInJourneysStaff(page, "/admin/pos?view=messages");
   await expect(page.getByText(/inbox|messages/i).first()).toBeVisible({ timeout: 15_000 });
+  await assertInboxGroundTruth();
 });

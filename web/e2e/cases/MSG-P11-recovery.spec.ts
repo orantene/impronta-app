@@ -1,4 +1,5 @@
 import { test, expect, prepareJourneysPage, signInJourneysStaff, skipUnlessFixture } from "./_harness";
+import { assertInboxGroundTruth } from "./_wire";
 
 skipUnlessFixture();
 
@@ -9,4 +10,5 @@ test("MSG-P11 recovery refusals stay codes on the Messages surface", async ({ pa
   // `/admin/pos` hop before the real `goto` spent the 30 s budget on Sell.
   await signInJourneysStaff(page, "/admin/pos?view=messages");
   await expect(page.locator("[data-pos-refusal]")).toHaveCount(0);
+  await assertInboxGroundTruth();
 });

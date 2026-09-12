@@ -250,3 +250,50 @@ evidence dirs). Catalog QA is `C-01`–`C-32`. Full 404 scenario register:
 | C48 | C48-REC | Independent event host or MC | not started | `qa-evidence/C48-REC/` |
 
 Records: **240**. Passed: **0**. Failed: **0**. Blocked on isolated fixture: **240**.
+
+## Wiring
+
+One row per engine control. Status is the 2026-09-12 Cloud Agent run: specs exist; the browser suite did not execute (isolated env + bypass secret missing). Evidence: `docs/plans/program/evidence/wiring-verify/2026-09-12/`.
+
+| Control | Scenario | Title | Status | Evidence |
+|---|---|---|---|---|
+| 1.1 | WIRE-1.1 | Custom amount under limit | could not run | `e2e/cases/WIRE-1-custom-amount.spec.ts` |
+| 1.2 | WIRE-1.2 | Custom amount over limit + PIN | could not run | `e2e/cases/WIRE-1-manager-pin.spec.ts` |
+| 1.3 | WIRE-1.3 | Staff PIN + custom-amount limit | could not run | `e2e/cases/WIRE-1-staff-pin-limit.spec.ts` |
+| 1.4 | WIRE-1.4 | Lock / unlock / switch operator | could not run | `e2e/cases/WIRE-1-lock.spec.ts` |
+| 1.5 | WIRE-1.5 | Link booking | could not run | `e2e/cases/WIRE-1-link-booking.spec.ts` |
+| 1.6 | WIRE-1.6 | Tip | could not run | `e2e/cases/WIRE-1-tip.spec.ts` |
+| 1.7 | WIRE-1.7 | Payment link | could not run | `e2e/cases/WIRE-1-payment-link.spec.ts` |
+| 1.8 | WIRE-1.8 | Table move | could not run | `e2e/cases/WIRE-1-table-move.spec.ts` |
+| 1.9 | WIRE-1.9 | Split / merge / change server | could not run | `e2e/cases/WIRE-1-split-merge-server.spec.ts` |
+| 1.10 | WIRE-1.10 | Class waitlist offer | could not run | `e2e/cases/WIRE-1-class-waitlist.spec.ts` |
+| 1.11 | WIRE-1.11 | Cash movements + close | could not run | `e2e/cases/WIRE-1-cash-movements.spec.ts` |
+| 2.1 | WIRE-2.1 | New series + Generate sessions | could not run | `e2e/cases/WIRE-2-series.spec.ts` |
+| 2.2 | WIRE-2.2 | Substitute instructor | could not run | `e2e/cases/WIRE-2-substitute.spec.ts` |
+| 2.3 | WIRE-2.3 | Move participant | could not run | `e2e/cases/WIRE-2-move-participant.spec.ts` |
+| 2.4 | WIRE-2.4 | Cancel session | could not run | `e2e/cases/WIRE-2-cancel-session.spec.ts` |
+| 2.5 | WIRE-2.5 | Cancel appointment | could not run | `e2e/cases/WIRE-2-cancel-appointment.spec.ts` |
+| 2.6 | WIRE-2.6 | Customer self-manage | could not run | `e2e/cases/WIRE-2-customer-manage.spec.ts` |
+| 2.7 | WIRE-2.7 | Replace talent | could not run | `e2e/cases/WIRE-2-replace-talent.spec.ts` |
+| 2.8 | WIRE-2.8 | Amendment send / discard | could not run | `e2e/cases/WIRE-2-amendment.spec.ts` |
+| 2.9 | WIRE-2.9 | Milestone amount + file | could not run | `e2e/cases/WIRE-2-milestone.spec.ts` |
+| 2.10 | WIRE-2.10 | Archive / reopen project | could not run | `e2e/cases/WIRE-2-archive-project.spec.ts` |
+| 2.11 | WIRE-2.11 | Package + price phases | could not run | `e2e/cases/WIRE-2-package-phases.spec.ts` |
+| 2.12 | WIRE-2.12 | Booking policy overrides | could not run | `e2e/cases/WIRE-2-booking-policy.spec.ts` |
+| 2.13 | WIRE-2.13 | Approval + role limit | could not run | `e2e/cases/WIRE-2-approvals.spec.ts` |
+| 3.1 | WIRE-3.1 | Locations & zones | could not run | `e2e/cases/WIRE-3-locations.spec.ts` |
+| 3.2 | WIRE-3.2 | Party waitlist | could not run | `e2e/cases/WIRE-3-party-waitlist.spec.ts` |
+| 3.3 | WIRE-3.3 | Layout editor | could not run | `e2e/cases/WIRE-3-layouts.spec.ts` |
+| 3.4 | WIRE-3.4 | Service periods | could not run | `e2e/cases/WIRE-3-service-periods.spec.ts` |
+| 3.5 | WIRE-3.5 | Prep stations + fire | could not run | `e2e/cases/WIRE-3-prep-stations.spec.ts` |
+| 3.6 | WIRE-3.6 | Guest QR | could not run | `e2e/cases/WIRE-3-guest-qr.spec.ts` |
+| 3.7 | WIRE-3.7 | Seat hold | could not run | `e2e/cases/WIRE-3-seat-hold.spec.ts` |
+| 3.8 | WIRE-3.8 | Exchange / comp / delivery | could not run | `e2e/cases/WIRE-3-exchange-comp.spec.ts` |
+| 3.9 | WIRE-3.9 | Ticket page | could not run | `e2e/cases/WIRE-3-ticket-page.spec.ts` |
+| 3.10 | WIRE-3.10 | Devices + outbox | could not run | `e2e/cases/WIRE-3-devices.spec.ts` |
+| 4.1 | WIRE-4.1 | Rail unread | could not run | `e2e/cases/WIRE-4-rail-unread.spec.ts` |
+| 4.2 | WIRE-4.2 | MSG-P prototypes | could not run | `e2e/cases/MSG-P1-pizza-counter.spec.ts` |
+| 4.3 | WIRE-4.3 | From Messages origin | could not run | `e2e/cases/WIRE-4-from-messages.spec.ts` |
+| 4.4 | WIRE-4.4 | Workspace chips | could not run | `e2e/cases/WIRE-4-workspace-chips.spec.ts` |
+| 4.5 | WIRE-4.5 | Reminders / delivery cron | could not run | `e2e/cases/WIRE-4-crons.spec.ts` |
+| 4.6 | WIRE-4.6 | Customer thread | could not run | `e2e/cases/WIRE-4-customer-thread.spec.ts` |
