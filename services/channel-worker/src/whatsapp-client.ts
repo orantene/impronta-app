@@ -12,7 +12,16 @@ type ClientHandle = {
   requestPairingCode?: (phone: string) => Promise<string>;
 };
 
+export type WhatsAppPupPage = {
+  createCDPSession: () => Promise<unknown>;
+};
+
 const clients = new Map<string, ClientHandle>();
+const pages = new Map<string, WhatsAppPupPage>();
+
+export function getWhatsAppPage(tenantId: string): WhatsAppPupPage | null {
+  return pages.get(tenantId) ?? null;
+}
 
 function mockOn(): boolean {
   return process.env.WWEBJS_MOCK === "1";
@@ -89,6 +98,8 @@ export async function pairTenant(tenantId: string): Promise<void> {
   client.on("ready", async () => {
     const info = client.info as { wid?: { user?: string }; pushname?: string };
     await persistSession(tenantId, dir);
+    const readyPage = (client as { pupPage?: WhatsAppPupPage }).pupPage;
+    if (readyPage) pages.set(tenantId, readyPage);
     await postWebhook({
       kind: "session",
       tenantId,
@@ -98,6 +109,7 @@ export async function pairTenant(tenantId: string): Promise<void> {
     });
   });
   client.on("disconnected", async () => {
+    pages.delete(tenantId);
     await postWebhook({ kind: "session", tenantId, state: "unlinked" });
     clients.delete(tenantId);
   });
@@ -125,6 +137,8 @@ export async function pairTenant(tenantId: string): Promise<void> {
   });
 
   await client.initialize();
+  const livePage = (client as { pupPage?: WhatsAppPupPage }).pupPage;
+  if (livePage) pages.set(tenantId, livePage);
   clients.set(tenantId, {
     send: async (to, body) => {
       const chatId = `${to.replace(/\D/g, "")}@c.us`;
@@ -134,6 +148,7 @@ export async function pairTenant(tenantId: string): Promise<void> {
     logout: async () => {
       await client.logout();
       await rm(dir, { recursive: true, force: true });
+      pages.delete(tenantId);
       clients.delete(tenantId);
     },
     requestPairingCode: async (phone: string) => {
@@ -152,6 +167,7 @@ export async function pairTenant(tenantId: string): Promise<void> {
 export async function logoutTenant(tenantId: string): Promise<void> {
   const handle = clients.get(tenantId);
   if (handle) await handle.logout();
+  pages.delete(tenantId);
   await postWebhook({ kind: "session", tenantId, state: "unlinked" });
 }
 

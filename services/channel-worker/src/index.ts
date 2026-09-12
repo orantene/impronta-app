@@ -1,6 +1,13 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { tickOutbox } from "./outbox.js";
+import {
+  applyViewInput,
+  isLocalViewer,
+  serveScreencast,
+  serveWhatsAppView,
+  tenantFromUrl,
+} from "./view.js";
 import { logoutTenant, pairingCodeTenant, pairTenant, resumePairedTenants } from "./whatsapp-client.js";
 
 const PORT = Number(process.env.PORT ?? 8788);
@@ -31,6 +38,44 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/healthz") {
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ ok: true, mock: process.env.WWEBJS_MOCK === "1" }));
+    return;
+  }
+  if (url.pathname === "/view" || url.pathname === "/screencast" || url.pathname === "/input") {
+    if (!isLocalViewer(req)) {
+      res.writeHead(403, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: false, reason: "not_allowed" }));
+      return;
+    }
+    const tenantId = tenantFromUrl(url);
+    if (!tenantId) {
+      res.writeHead(400, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: false, reason: "invalid" }));
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/view") {
+      serveWhatsAppView(res, tenantId);
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/screencast") {
+      await serveScreencast(req, res, tenantId);
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/input") {
+      let body: unknown = {};
+      try {
+        body = JSON.parse(await readBody(req)) as unknown;
+      } catch {
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: false, reason: "invalid" }));
+        return;
+      }
+      const ok = await applyViewInput(tenantId, body);
+      res.writeHead(ok ? 200 : 503, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok }));
+      return;
+    }
+    res.writeHead(404);
+    res.end();
     return;
   }
   if (!authorized(req)) {

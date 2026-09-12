@@ -59,4 +59,5 @@ test("mapPublicRow never exposes ciphertext and defaults a missing row", () => {
   assert.equal(live.phoneE164, "+5219981230100");
   assert.equal(live.unread, 3);
   assert.equal(live.canPair, false);
+  assert.equal(live.webViewUrl.endsWith("/view?tenant=t1"), true);
 });

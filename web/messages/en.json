@@ -12953,8 +12953,11 @@
         "subtitleOff": "Not linked",
         "close": "Close WhatsApp",
         "openMessages": "Open Messages",
-        "allChannels": "All channels",
-        "whatsappOnly": "WhatsApp only"
+        "webTitle": "WhatsApp Web",
+        "webBody": "This is the linked WhatsApp Web session, not the Cloud API. Chats that were already on the phone stay in that window.",
+        "webWaiting": "Looking for WhatsApp Web on this computer…",
+        "webHint": "The live site cannot embed http://localhost, so use Open WhatsApp Web. That window is the same link you just scanned.",
+        "webOpen": "Open WhatsApp Web"
       },
       "banner": {
         "phoneOffline": "The phone is offline. Incoming messages wait until it reconnects.",
