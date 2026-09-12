@@ -8,6 +8,8 @@ Database: isolated `fxlankepwnvelxjrahwk` only. Production was not read as a tar
 
 Could not run the browser suite in this VM: isolated env file and `VERCEL_AUTOMATION_BYPASS_SECRET` are absent. Specs are written; they are not green.
 
+One attempted run of `WIRE-0-enable-modes.spec.ts` against `https://staging-qa-journeys.tulala.digital` without the bypass header: `/api/dev/signin` answered Vercel SSO `302 Redirecting...` instead of the app's `307`. Log: `logs/WIRE-0-enable-modes.chromium.log`.
+
 | # | Control | Spec | Verdict |
 |---|---|---|---|
 | 1.1 | Custom amount under limit | `WIRE-1-custom-amount.spec.ts` | could-not-run |
