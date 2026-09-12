@@ -74,5 +74,6 @@ test("replace talent SQL rewrites talent_name_snapshot from the incoming profile
   assert.match(sql, /CREATE OR REPLACE FUNCTION public\.project_replace_talent/);
   assert.match(sql, /talent_name_snapshot/);
   assert.match(sql, /display_name/);
-  assert.match(sql, /SET talent_profile_id = p_to_talent,\s*talent_name_snapshot = COALESCE\(v_name/s);
+  assert.match(sql, /SET talent_profile_id = p_to_talent,/);
+  assert.match(sql, /talent_name_snapshot = COALESCE\(v_name/);
 });

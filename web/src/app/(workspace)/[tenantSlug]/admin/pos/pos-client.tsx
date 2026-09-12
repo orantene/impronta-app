@@ -528,15 +528,7 @@ export function PosClient(props: PosClientProps) {
         setTenderTouched(true);
       }}
       onConfirmCash={() => void collect("cash")}
-      offlineCash={{
-        orderId: sale.orderId,
-        operationKey: posCollectionKey({
-          orderId: sale.orderId,
-          version: sale.version,
-          method: "cash",
-          amountCents: amountDueCents,
-        }),
-      }}
+      offlineCash={{ orderId: sale.orderId, operationKey: posCollectionKey({ orderId: sale.orderId, version: sale.version, method: "cash", amountCents: amountDueCents }) }}
       linkPanel={engine.paymentLinkPanel}
       confirmLoading={working}
       onBack={() => setCollectOpen(false)}
