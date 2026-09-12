@@ -1,4 +1,5 @@
 import "server-only";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
@@ -38,7 +39,9 @@ export async function loadUserNotifications(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // The actor is already verified by the proxy and cached for the request;
+    // a second `auth.getUser()` here was one more auth round trip per load.
+    const { user } = await getCachedActorSession();
     if (!user) return [];
 
     let query = supabase
