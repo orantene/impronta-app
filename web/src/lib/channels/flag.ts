@@ -28,6 +28,31 @@ export async function isMessagingChannelsEnabled(): Promise<boolean> {
   }
 }
 
+/**
+ * Per-workspace gate on top of the platform switch.
+ *
+ * `TULALA_WHATSAPP_TENANTS` = comma-separated tenant ids (agencies.id) or slugs.
+ * When set, ONLY those workspaces see the button, the drawer and Settings ›
+ * Channels, whatever the platform switch says — so one business can pilot the
+ * linked-device route without exposing "Connect WhatsApp" to every workspace.
+ * When unset, the platform switch alone decides (previous behaviour).
+ */
+export async function isMessagingChannelsEnabledForTenant(input: {
+  tenantId: string;
+  tenantSlug?: string | null;
+}): Promise<boolean> {
+  const list = (process.env.TULALA_WHATSAPP_TENANTS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (list.length > 0) {
+    const id = input.tenantId.toLowerCase();
+    const slug = (input.tenantSlug ?? "").toLowerCase();
+    return list.includes(id) || (slug !== "" && list.includes(slug));
+  }
+  return isMessagingChannelsEnabled();
+}
+
 export async function writeMessagingChannelsEnabled(
   updatedBy: string,
   enabled: boolean,

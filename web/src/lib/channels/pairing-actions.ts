@@ -7,7 +7,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { getAdminWorkspaceScope } from "@/lib/saas/admin-workspace-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
-import { isMessagingChannelsEnabled } from "./flag";
+import { isMessagingChannelsEnabledForTenant } from "./flag";
 import { canPairWhatsApp, type WhatsAppConnectionPublic } from "./types";
 import { callChannelWorker } from "./worker-client";
 import {
@@ -41,9 +41,9 @@ export async function loadWhatsAppConnection(): Promise<
   | { ok: true; enabled: false }
   | { ok: false; reason: "not_allowed" | "unavailable" }
 > {
-  if (!(await isMessagingChannelsEnabled())) return { ok: true, enabled: false };
   const g = await staff();
   if (!g.ok) return g;
+  if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId }))) return { ok: true, enabled: false };
   const [row, unread, ownerFirstName] = await Promise.all([
     loadWhatsAppConnectionRow(g.admin, g.tenantId),
     countWhatsAppUnread(g.admin, g.tenantId, g.userId),
@@ -79,9 +79,10 @@ export async function loadWhatsAppConnection(): Promise<
 }
 
 export async function startWhatsAppPairing(input: { consented: boolean }) {
-  if (!(await isMessagingChannelsEnabled())) return { ok: false as const, reason: "unavailable" as const };
   const g = await staff();
   if (!g.ok) return g;
+  if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
+    return { ok: false as const, reason: "unavailable" as const };
   if (!canPairWhatsApp(g.role)) return { ok: false as const, reason: "not_allowed" as const };
   if (!input.consented) return { ok: false as const, reason: "invalid" as const };
   const now = new Date().toISOString();
@@ -105,9 +106,10 @@ export async function startWhatsAppPairing(input: { consented: boolean }) {
 }
 
 export async function requestWhatsAppPairingCode(input: { phone: string }) {
-  if (!(await isMessagingChannelsEnabled())) return { ok: false as const, reason: "unavailable" as const };
   const g = await staff();
   if (!g.ok) return g;
+  if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
+    return { ok: false as const, reason: "unavailable" as const };
   if (!canPairWhatsApp(g.role)) return { ok: false as const, reason: "not_allowed" as const };
   const phone = input.phone.trim();
   if (!/^\+[1-9]\d{6,14}$/.test(phone)) return { ok: false as const, reason: "invalid" as const };
@@ -126,9 +128,10 @@ export async function requestWhatsAppPairingCode(input: { phone: string }) {
 }
 
 export async function unlinkWhatsApp() {
-  if (!(await isMessagingChannelsEnabled())) return { ok: false as const, reason: "unavailable" as const };
   const g = await staff();
   if (!g.ok) return g;
+  if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
+    return { ok: false as const, reason: "unavailable" as const };
   if (!canPairWhatsApp(g.role)) return { ok: false as const, reason: "not_allowed" as const };
   const { error } = await g.admin
     .from("channel_connections")
@@ -148,9 +151,10 @@ export async function unlinkWhatsApp() {
 }
 
 export async function askOwnerToConnectWhatsApp() {
-  if (!(await isMessagingChannelsEnabled())) return { ok: false as const, reason: "unavailable" as const };
   const g = await staff();
   if (!g.ok) return g;
+  if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
+    return { ok: false as const, reason: "unavailable" as const };
   const parsed = z.object({ tenantId: uuid.optional() }).safeParse({});
   void parsed;
   const { data, error } = await g.admin

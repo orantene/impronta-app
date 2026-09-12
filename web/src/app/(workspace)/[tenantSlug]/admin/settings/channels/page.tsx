@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { ChannelsSettingsClient } from "./ChannelsSettingsClient";
-import { isMessagingChannelsEnabled } from "@/lib/channels/flag";
+import { isMessagingChannelsEnabledForTenant } from "@/lib/channels/flag";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +13,8 @@ export default async function ChannelsSettingsPage({
   params: Promise<{ tenantSlug: string }>;
 }) {
   const { tenantSlug } = await params;
-  if (!(await isMessagingChannelsEnabled())) notFound();
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
+  if (!(await isMessagingChannelsEnabledForTenant({ tenantId: scope.tenantId, tenantSlug }))) notFound();
   return <ChannelsSettingsClient />;
 }
