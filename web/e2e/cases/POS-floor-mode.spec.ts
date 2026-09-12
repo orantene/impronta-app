@@ -21,7 +21,7 @@
  *
  * Every refusal is asserted as the sentence, and asserted NOT to be the code.
  */
-import { test, expect, prepareJourneysPage, signInJourneysStaff, skipUnlessFixture, assertWorkspaceIdentity, counterAddItem, counterCollectCash, expectCounterPaid } from "./_harness";
+import { test, expect, prepareJourneysPage, signInJourneysStaff, skipUnlessFixture, assertNotAuthWall, assertWorkspaceIdentity, counterAddItem, counterCollectCash, expectCounterPaid } from "./_harness";
 import {
   FLOOR_T2,
   FLOOR_T3,
@@ -104,7 +104,10 @@ test("POS-FLOOR: seat, send to the kitchen, move, end, mark ready; and the join 
 
   // ── The door: Settings › Selling modes › Tables ─────────────────────────
   await signInJourneysStaff(page, "/admin/settings");
-  await assertWorkspaceIdentity(page);
+  await assertNotAuthWall(page);
+  // Settings after the fidelity pass is a section list, not an h1 workspace
+  // page. The identity check that requires a level-1 heading is for the POS
+  // chrome later in this journey.
   // The settings nav is client state; a click that lands before hydration
   // is a click on nothing, so it is repeated until the section is the one shown.
   const posSection = page.locator('[data-settings-section="pos"]');

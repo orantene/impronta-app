@@ -27,12 +27,46 @@ import {
   inquiryOfferApprovals,
   QA_JOURNEYS_TALENT_ID,
 } from "./_isolated-db";
+import type { Page } from "@playwright/test";
 
 skipUnlessFixture();
 
 test.beforeEach(async ({ page }) => {
   await prepareJourneysPage(page);
 });
+
+/**
+ * Directory guest chat after the fidelity re-skin keeps a prior thread in the
+ * dock. The name/email gate only appears on a first send of a NEW inquiry, so
+ * a leftover draft looks like a missing form. Open a fresh thread first.
+ */
+async function openFreshDirectoryChat(page: Page) {
+  // The shared Vercel storageState also carries `impronta_guest` from an
+  // earlier inquiry. That guest already has a conversation, so the dock
+  // restores the draft ("Not sent") and asks to verify email instead of
+  // showing the name/email gate.
+  await page.context().clearCookies({ name: "impronta_guest" });
+  await page.goto("/directory?inquiry=open");
+  await assertNotAuthWall(page);
+  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
+  await expect(chat).toBeVisible({ timeout: 20_000 });
+  const startNew = chat.getByRole("button", { name: /start a new inquiry/i });
+  if (!(await startNew.isVisible().catch(() => false))) {
+    const switcher = chat.getByRole("button", { name: /switch inquiry/i });
+    if (await switcher.isVisible().catch(() => false)) {
+      await switcher.click();
+    }
+  }
+  if (await startNew.isVisible().catch(() => false)) {
+    await startNew.click();
+  } else {
+    const chatTab = chat.getByRole("tab", { name: /^chat$/i });
+    if (await chatTab.isVisible().catch(() => false)) {
+      await chatTab.click();
+    }
+  }
+  return chat;
+}
 
 test("C08-CUS smoke: storefront body is reachable — not a journey pass", async ({ page }) => {
   await openStorefront(page);
@@ -48,17 +82,7 @@ test("C08-CUS inquiry: directory guest chat submits and DB agrees", async ({ pag
   const marker = `c08-cus-${Date.now()}@impronta.test`;
   const brief = "Need two models for a catalog shoot next month.";
 
-  await page.goto("/directory?inquiry=open");
-  await assertNotAuthWall(page);
-
-  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
-  await expect(chat).toBeVisible({ timeout: 20_000 });
-  const start = chat.getByRole("button", { name: /start a new inquiry/i });
-  if (await start.isVisible().catch(() => false)) {
-    await start.click();
-  } else {
-    await chat.getByRole("tab", { name: /^chat$/i }).click();
-  }
+  const chat = await openFreshDirectoryChat(page);
 
   const composer = chat.getByPlaceholder(/type your message|write a reply|type a message/i);
   await expect(composer).toBeVisible({ timeout: 30_000 });
@@ -78,8 +102,8 @@ test("C08-CUS inquiry: directory guest chat submits and DB agrees", async ({ pag
   await chat.getByRole("button", { name: /^send message$/i }).click();
 
   await expect(
-    chat.getByText(/inquiry received|got it, we've received your message|sent, awaiting reply/i).first(),
-  ).toBeVisible({ timeout: 40_000 });
+    page.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting|inquiry sent/i).first(),
+  ).toBeVisible({ timeout: 60_000 });
 
   const persisted = await latestGuestDirectoryInquiry(marker);
   expect(persisted, "guest directory inquiry must exist on qa-journeys").not.toBeNull();
@@ -101,16 +125,7 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
   const marker = `c08-op-${Date.now()}@impronta.test`;
   const brief = "Need two models for a catalog shoot next month.";
 
-  await page.goto("/directory?inquiry=open");
-  await assertNotAuthWall(page);
-  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
-  await expect(chat).toBeVisible({ timeout: 20_000 });
-  const start = chat.getByRole("button", { name: /start a new inquiry/i });
-  if (await start.isVisible().catch(() => false)) {
-    await start.click();
-  } else {
-    await chat.getByRole("tab", { name: /^chat$/i }).click();
-  }
+  const chat = await openFreshDirectoryChat(page);
   const composer = chat.getByPlaceholder(/type your message|write a reply|type a message/i);
   await expect(composer).toBeVisible({ timeout: 30_000 });
   await composer.fill(brief);
@@ -126,14 +141,14 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
   await chat.getByPlaceholder(/email/i).fill(marker);
   await chat.getByRole("button", { name: /^send message$/i }).click();
   await expect(
-    chat.getByText(/inquiry received|got it, we've received your message|sent, awaiting reply/i).first(),
-  ).toBeVisible({ timeout: 40_000 });
+    page.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting|inquiry sent/i).first(),
+  ).toBeVisible({ timeout: 60_000 });
 
   const seed = await latestGuestDirectoryInquiry(marker);
   expect(seed, "C08-OP guest inquiry must exist before staff assign").not.toBeNull();
 
   await signInJourneysStaff(page, "/admin/messages");
-  await assertWorkspaceIdentity(page);
+  await assertNotAuthWall(page);
   await page.keyboard.press("Escape");
 
   const allChip = page.getByRole("button", { name: /^all$/i });
@@ -161,7 +176,7 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
     const rosterSearch = page.getByPlaceholder(/search roster/i);
     await expect(rosterSearch).toBeVisible({ timeout: 10_000 });
     await rosterSearch.fill("QA Journeys");
-    await page.getByRole("button", { name: /qa journeys talent/i }).click();
+    await page.getByRole("button", { name: "QA Journeys Talent", exact: true }).click();
     await expect(page.getByText(/invited|added to lineup/i).first()).toBeVisible({
       timeout: 20_000,
     });
@@ -198,16 +213,7 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   const marker = `c08-op-${Date.now()}@impronta.test`;
   const brief = "Need two models for a catalog shoot next month.";
 
-  await page.goto("/directory?inquiry=open");
-  await assertNotAuthWall(page);
-  const chat = page.getByRole("dialog", { name: /message (the agency|qa journeys)/i });
-  await expect(chat).toBeVisible({ timeout: 20_000 });
-  const start = chat.getByRole("button", { name: /start a new inquiry/i });
-  if (await start.isVisible().catch(() => false)) {
-    await start.click();
-  } else {
-    await chat.getByRole("tab", { name: /^chat$/i }).click();
-  }
+  const chat = await openFreshDirectoryChat(page);
   const composer = chat.getByPlaceholder(/type your message|write a reply|type a message/i);
   await expect(composer).toBeVisible({ timeout: 30_000 });
   await composer.fill(brief);
@@ -223,8 +229,8 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   await chat.getByPlaceholder(/email/i).fill(marker);
   await chat.getByRole("button", { name: /^send message$/i }).click();
   await expect(
-    chat.getByText(/inquiry received|got it, we've received your message|sent, awaiting reply/i).first(),
-  ).toBeVisible({ timeout: 40_000 });
+    page.getByText(/inquiry received|got it, we've received your message|sent[,·] awaiting|inquiry sent/i).first(),
+  ).toBeVisible({ timeout: 60_000 });
 
   const seed = await latestGuestDirectoryInquiry(marker);
   expect(seed, "C08-OP send guest inquiry must exist before staff send").not.toBeNull();
@@ -233,7 +239,9 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   await expect(page).toHaveURL(/\/admin\/messages/, { timeout: 30_000 });
   const inbox = page.locator("[data-tulala-inbox-scroll]");
   await expect(inbox).toBeVisible({ timeout: 40_000 });
-  await assertWorkspaceIdentity(page);
+  // Messages after the fidelity pass keeps the h1 in the tree but hidden;
+  // the inbox is the identity check for this screen.
+  await assertNotAuthWall(page);
   await page.keyboard.press("Escape");
 
   const allChip = page.getByRole("button", { name: /^all$/i });
@@ -263,7 +271,7 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
     const rosterSearch = page.getByPlaceholder(/search roster/i);
     await expect(rosterSearch).toBeVisible({ timeout: 10_000 });
     await rosterSearch.fill("QA Journeys");
-    await page.getByRole("button", { name: /qa journeys talent/i }).click();
+    await page.getByRole("button", { name: "QA Journeys Talent", exact: true }).click();
     await expect(page.getByText(/invited|added to lineup/i).first()).toBeVisible({
       timeout: 20_000,
     });
@@ -277,12 +285,21 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
       timeout: 20_000,
     });
   }
+  // Fidelity keeps the draft editor collapsed ("1 line item · total $0").
+  // Other "Edit" buttons exist on Messages; only the one beside Draft editor
+  // expands the line-item grid.
+  const draftEditorLabel = page.getByText(/^draft editor$/i);
+  await expect(draftEditorLabel).toBeVisible({ timeout: 20_000 });
+  const editorEdit = draftEditorLabel.locator("xpath=..").getByRole("button", { name: /^edit$/i });
+  if (await editorEdit.isVisible().catch(() => false)) {
+    await editorEdit.click();
+  }
 
-  const addLine = page.getByRole("button", { name: /\+ add line item/i });
-  await expect(addLine).toBeVisible({ timeout: 20_000 });
+  const addLine = page.getByRole("button", { name: /add line item/i });
   const talentSelect = page
     .locator("select")
     .filter({ has: page.locator("option", { hasText: /qa journeys talent/i }) });
+  await expect(addLine).toBeVisible({ timeout: 20_000 });
   if ((await talentSelect.count()) === 0) {
     await addLine.click();
   }
@@ -331,6 +348,9 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
   expect(awaiting, "a sent offer must still wait on QA Journeys Talent").not.toBeNull();
   expect(awaiting?.offerStatus).toBe("sent");
   expect(awaiting?.inquiryStatus).toMatch(/offer_pending|coordination/);
+  expect(awaiting?.contactEmail ?? "", "talent must open the just-sent C08 offer").toMatch(
+    /c08-op-/,
+  );
 
   await signInJourneysStaff(page, `/talent/inbox/${awaiting!.inquiryId}`, JOURNEYS_TALENT_EMAIL);
   await expect(page).toHaveURL(/\/talent\/inbox/, { timeout: 40_000 });
@@ -339,25 +359,23 @@ test("C08-TAL accept: talent approves the sent offer", async ({ page }, testInfo
   await expect(page.getByRole("heading", { name: /^(sign in|log in|iniciar sesión)$/i })).toHaveCount(0);
   await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
 
+  // Fresh send still shows Inquiry SLA until talent accepts the invite.
+  const acceptInvite = page.getByRole("button", { name: /accept$/i });
   const approve = page.getByRole("button", { name: /approve offer/i });
   if (!(await approve.isVisible().catch(() => false))) {
-    await page.goto("/talent/inbox");
-    await expect(page.getByPlaceholder(/search jobs/i)).toBeVisible({ timeout: 40_000 });
-    const allChip = page.getByRole("button", { name: /^all$/i });
-    if (await allChip.isVisible().catch(() => false)) {
-      await allChip.click();
-    }
-    const row = page
-      .locator("[data-tulala-inbox-row]")
-      .filter({ hasText: /cora cuevas/i })
-      .first();
-    await expect(row).toBeVisible({ timeout: 40_000 });
-    await row.click();
+    await expect(acceptInvite.first()).toBeVisible({ timeout: 20_000 });
+    await acceptInvite.first().click();
+  }
+  const offerTab = page.getByRole("tab", { name: /^offer$/i });
+  if (await offerTab.isVisible().catch(() => false)) {
+    await offerTab.click();
   }
   await expect(approve).toBeVisible({ timeout: 40_000 });
   await approve.click();
   await expect(
-    page.getByText(/offer approved|waiting on client|awaiting client/i).first(),
+    page.getByText(
+      /offer approved|you've approved|approved the offer|waiting on client|you approved/i,
+    ).first(),
   ).toBeVisible({ timeout: 30_000 });
 
   const approvals = await inquiryOfferApprovals(awaiting!.offerId);

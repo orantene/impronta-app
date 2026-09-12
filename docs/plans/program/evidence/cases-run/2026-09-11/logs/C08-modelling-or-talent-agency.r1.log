@@ -1,0 +1,230 @@
+=== RERUN C08-modelling-or-talent-agency.spec.ts attempt=1 19:56:40 ===
+
+Running 7 tests using 1 worker
+
+[1A[2K(node:43108) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:43108) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:66:5 › C08-CUS smoke: storefront body is reachable — not a journey pass
+[1A[2K[2/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:70:5 › C08-OP smoke: operator Sales heading is reachable — not a journey pass
+[1A[2K[3/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:75:5 › C08-CUS inquiry: directory guest chat submits and DB agrees
+[1A[2K  1) [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:75:5 › C08-CUS inquiry: directory guest chat submits and DB agrees 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('dialog', { name: /message (the agency|qa journeys)/i }).getByPlaceholder(/^first name$/i)
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for getByRole('dialog', { name: /message (the agency|qa journeys)/i }).getByPlaceholder(/^first name$/i)[22m
+
+
+      91 |   }
+      92 |
+    > 93 |   await expect(chat.getByPlaceholder(/^first name$/i)).toBeVisible({ timeout: 20_000 });
+         |                                                        ^
+      94 |   await chat.getByPlaceholder(/^first name$/i).fill("Cora");
+      95 |   await chat.getByPlaceholder(/^last name$/i).fill("Cuevas");
+      96 |   await chat.getByPlaceholder(/email/i).fill(marker);
+        at /workspace/web/e2e/cases/C08-modelling-or-talent-agency.spec.ts:93:56
+
+    Error Context: test-results/cases-C08-modelling-or-tal-f4796--chat-submits-and-DB-agrees-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C08-modelling-or-tal-f4796--chat-submits-and-DB-agrees-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C08-modelling-or-tal-f4796--chat-submits-and-DB-agrees-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:43215) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:43215) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[4/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:118:5 › C08-OP assign: staff adds talent and drafts offer
+[1A[2K  2) [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:118:5 › C08-OP assign: staff adds talent and drafts offer 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('dialog', { name: /message (the agency|qa journeys)/i }).getByPlaceholder(/^first name$/i)
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for getByRole('dialog', { name: /message (the agency|qa journeys)/i }).getByPlaceholder(/^first name$/i)[22m
+
+
+      131 |     await chat.getByRole("button", { name: /send to agency/i }).click();
+      132 |   }
+    > 133 |   await expect(chat.getByPlaceholder(/^first name$/i)).toBeVisible({ timeout: 20_000 });
+          |                                                        ^
+      134 |   await chat.getByPlaceholder(/^first name$/i).fill("Cora");
+      135 |   await chat.getByPlaceholder(/^last name$/i).fill("Cuevas");
+      136 |   await chat.getByPlaceholder(/email/i).fill(marker);
+        at /workspace/web/e2e/cases/C08-modelling-or-talent-agency.spec.ts:133:56
+
+    Error Context: test-results/cases-C08-modelling-or-tal-2b90e-dds-talent-and-drafts-offer-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C08-modelling-or-tal-2b90e-dds-talent-and-drafts-offer-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C08-modelling-or-tal-2b90e-dds-talent-and-drafts-offer-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:43285) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:43285) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[5/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:206:5 › C08-OP send: staff prices a line and sends the offer
+[1A[2K  3) [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:206:5 › C08-OP send: staff prices a line and sends the offer 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('dialog', { name: /message (the agency|qa journeys)/i }).getByPlaceholder(/^first name$/i)
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for getByRole('dialog', { name: /message (the agency|qa journeys)/i }).getByPlaceholder(/^first name$/i)[22m
+
+
+      219 |     await chat.getByRole("button", { name: /send to agency/i }).click();
+      220 |   }
+    > 221 |   await expect(chat.getByPlaceholder(/^first name$/i)).toBeVisible({ timeout: 20_000 });
+          |                                                        ^
+      222 |   await chat.getByPlaceholder(/^first name$/i).fill("Cora");
+      223 |   await chat.getByPlaceholder(/^last name$/i).fill("Cuevas");
+      224 |   await chat.getByPlaceholder(/email/i).fill(marker);
+        at /workspace/web/e2e/cases/C08-modelling-or-talent-agency.spec.ts:221:56
+
+    Error Context: test-results/cases-C08-modelling-or-tal-659bc--a-line-and-sends-the-offer-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C08-modelling-or-tal-659bc--a-line-and-sends-the-offer-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C08-modelling-or-tal-659bc--a-line-and-sends-the-offer-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:43396) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:43396) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[6/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:329:5 › C08-TAL accept: talent approves the sent offer
+[1A[2K  4) [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:329:5 › C08-TAL accept: talent approves the sent offer 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('button', { name: /approve offer/i })
+    Expected: visible
+    Timeout: 40000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 40000ms[22m
+    [2m  - waiting for getByRole('button', { name: /approve offer/i })[22m
+
+
+      356 |     await row.click();
+      357 |   }
+    > 358 |   await expect(approve).toBeVisible({ timeout: 40_000 });
+          |                         ^
+      359 |   await approve.click();
+      360 |   await expect(
+      361 |     page.getByText(/offer approved|waiting on client|awaiting client/i).first(),
+        at /workspace/web/e2e/cases/C08-modelling-or-talent-agency.spec.ts:358:25
+
+    Error Context: test-results/cases-C08-modelling-or-tal-90bed-ent-approves-the-sent-offer-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C08-modelling-or-tal-90bed-ent-approves-the-sent-offer-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C08-modelling-or-tal-90bed-ent-approves-the-sent-offer-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:43470) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:43470) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[7/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:385:5 › C08-CUS accept: claimed client approves the sent offer
+[1A[2K  5) [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:385:5 › C08-CUS accept: claimed client approves the sent offer 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveCount[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  getByRole('heading', { name: /no client account here/i })
+    Expected: [32m0[39m
+    Received: [31m1[39m
+    Timeout:  5000ms
+
+    Call log:
+    [2m  - Expect "toHaveCount" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('heading', { name: /no client account here/i })[22m
+    [2m    9 × locator resolved to 1 element[22m
+    [2m      - unexpected value "1"[22m
+
+
+      405 |     { timeout: 40_000 },
+      406 |   );
+    > 407 |   await expect(page.getByRole("heading", { name: /no client account here/i })).toHaveCount(0);
+          |                                                                                ^
+      408 |   await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
+      409 |   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
+      410 |
+        at /workspace/web/e2e/cases/C08-modelling-or-talent-agency.spec.ts:407:80
+
+    Error Context: test-results/cases-C08-modelling-or-tal-04f66-ent-approves-the-sent-offer-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C08-modelling-or-tal-04f66-ent-approves-the-sent-offer-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C08-modelling-or-tal-04f66-ent-approves-the-sent-offer-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  5 failed
+    [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:75:5 › C08-CUS inquiry: directory guest chat submits and DB agrees 
+    [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:118:5 › C08-OP assign: staff adds talent and drafts offer 
+    [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:206:5 › C08-OP send: staff prices a line and sends the offer 
+    [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:329:5 › C08-TAL accept: talent approves the sent offer 
+    [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:385:5 › C08-CUS accept: claimed client approves the sent offer 
+  2 passed (2.4m)

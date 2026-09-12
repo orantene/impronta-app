@@ -1,0 +1,72 @@
+{"spec":"C03-independent-massage-therapist.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:44:00Z"}
+{"spec":"C04-tattoo-studio.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:44:17Z"}
+{"spec":"C05-hair-salon.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:44:24Z"}
+{"spec":"C10-photography-studio.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:44:33Z"}
+{"spec":"C11-beach-club.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:44:40Z"}
+{"spec":"C13-coworking-space-with-cafe-rooms-and-workshops.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:44:47Z"}
+{"spec":"C14-beauty-academy.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:44:54Z"}
+{"spec":"C15-cooking-school.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:45:01Z"}
+{"spec":"C16-diving-school.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:45:11Z"}
+{"spec":"C17-padel-club.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:45:18Z"}
+{"spec":"C18-podcast-studio.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:45:26Z"}
+{"spec":"C19-pet-grooming-salon.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:45:33Z"}
+{"spec":"C20-art-gallery.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:45:41Z"}
+{"spec":"C21-wellness-retreat-organiser.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:45:49Z"}
+{"spec":"C22-corporate-training-provider.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:45:56Z"}
+{"spec":"C23-floral-design-studio.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:46:04Z"}
+{"spec":"C24-escape-room.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:46:11Z"}
+{"spec":"C25-sushi-restaurant-with-takeaway.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:46:18Z"}
+{"spec":"C27-laura-social-media-agency.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:46:25Z"}
+{"spec":"C28-eyelash-business-with-five-workers.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:46:33Z"}
+{"spec":"C29-alejandra-immigration-solutions.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:46:41Z"}
+{"spec":"C30-tania-massage-therapist.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:46:50Z"}
+{"spec":"C31-chris-private-chef.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:47:00Z"}
+{"spec":"C32-independent-house-cleaner.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:47:09Z"}
+{"spec":"C33-fabian-handyman.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:47:18Z"}
+{"spec":"C34-evy-solutions-provisional-profile.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:47:26Z"}
+{"spec":"C35-idan-private-tours.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:47:33Z"}
+{"spec":"C36-zvika-custom-jewelry.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:47:40Z"}
+{"spec":"C37-independent-portrait-photographer.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:47:46Z"}
+{"spec":"C38-independent-dj.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:47:54Z"}
+{"spec":"C39-private-language-tutor.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:48:01Z"}
+{"spec":"C40-independent-personal-trainer.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:48:08Z"}
+{"spec":"C41-freelance-makeup-artist.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:48:15Z"}
+{"spec":"C42-freelance-translator.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:48:23Z"}
+{"spec":"C43-independent-dog-walker.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:48:29Z"}
+{"spec":"C44-independent-yoga-instructor.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:48:36Z"}
+{"spec":"C45-voice-over-artist.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:48:44Z"}
+{"spec":"C46-mobile-car-detailing-professional.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:48:50Z"}
+{"spec":"C47-independent-musician.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:48:58Z"}
+{"spec":"C48-independent-event-host-or-mc.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T18:49:05Z"}
+{"spec":"C01-nail-salon.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T18:49:37Z"}
+{"spec":"C02-spa.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:04:58Z"}
+{"spec":"C06-restaurant.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:08:00Z"}
+{"spec":"C07-bar.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:08:20Z"}
+{"spec":"C08-modelling-or-talent-agency.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:12:59Z"}
+{"spec":"C09-yoga-or-fitness-studio.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:18:08Z"}
+{"spec":"C12-event-venue.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:21:00Z"}
+{"spec":"C26-jesus-frozen-pizza-from-home.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:21:41Z"}
+{"spec":"SELL-catalog-events-spaces-discounts.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:22:08Z"}
+{"spec":"PERM-cross-workspace.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:22:36Z"}
+{"spec":"pos-scanner.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:22:40Z"}
+{"spec":"pos-customer-display.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:23:13Z"}
+{"spec":"POS-counter-cash-sale.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:24:37Z"}
+{"spec":"POS-floor-mode.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:24:58Z"}
+{"spec":"POS-projects-collect-a-balance.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:26:01Z"}
+{"spec":"VENUE-join-and-refusal.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:26:24Z"}
+{"spec":"VENUE-table-service.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:38:46Z"}
+{"spec":"VENUE-refusals-in-words.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:39:42Z"}
+{"spec":"MONEY-manager-reads-the-money.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:43:59Z"}
+{"spec":"POS-platform-switch.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:44:35Z"}
+{"spec":"C06-restaurant.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:53:48Z","rerun":true}
+{"spec":"POS-floor-mode.spec.ts","status":"passed","exit":0,"host_commit":"dd74cf00f","at":"2026-09-11T19:55:01Z","rerun":true}
+{"spec":"VENUE-table-service.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T19:56:40Z","rerun":true}
+{"spec":"C08-modelling-or-talent-agency.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T20:03:09Z","rerun":true,"note":"CUS inquiry passed; OP/TAL/CUS-accept still fail"}
+{"spec":"C08-modelling-or-talent-agency.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T20:58:06Z","rerun":8,"note":"5/7 passed: smokes + CUS inquiry + OP assign + OP send. TAL D-114. CUS accept D-113."}
+{"spec":"C01-nail-salon.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"/book Gel manicure visible; deposit persisted; Sales missing instant_book"}
+{"spec":"C02-spa.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"Massage/Couples on /book; couples slot/confirm still fail"}
+{"spec":"C07-bar.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"T1 tab occupied / T1 not free; visits RLS"}
+{"spec":"C09-yoga-or-fitness-studio.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"session_picker booked; Sales missing channel; counter chips missing"}
+{"spec":"POS-projects-collect-a-balance.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"42501 INSERT orders"}
+{"spec":"pos-scanner.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"42501 INSERT links"}
+{"spec":"VENUE-table-service.spec.ts","status":"failed","exit":1,"host_commit":"dd74cf00f","at":"2026-09-11T21:27:00Z","rerun":"fixture-cleanup","note":"360s leaveCounter timeout"}
