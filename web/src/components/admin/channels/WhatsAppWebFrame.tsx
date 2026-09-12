@@ -23,7 +23,7 @@ export function WhatsAppWebFrame({ viewUrl }: { viewUrl: string }) {
   }, [viewUrl]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#111b21]" data-tulala-whatsapp-web>
+    <div className="flex h-full min-h-0 flex-col bg-admin-ink" data-tulala-whatsapp-web>
       {embeddable ? (
         <iframe
           title={t("dashboard.channels.drawer.webTitle")}
@@ -36,19 +36,19 @@ export function WhatsAppWebFrame({ viewUrl }: { viewUrl: string }) {
           <h2 className="m-0 text-[20px] font-semibold text-white">
             {t("dashboard.channels.drawer.webTitle")}
           </h2>
-          <p className="m-0 max-w-[420px] text-[14px] leading-[1.5] text-[#8696a0]">
+          <p className="m-0 max-w-[420px] text-[14px] leading-[1.5] text-admin-ink-muted">
             {embeddable === null
               ? t("dashboard.channels.drawer.webWaiting")
               : t("dashboard.channels.drawer.webBody")}
           </p>
           {embeddable === false ? (
-            <p className="m-0 max-w-[420px] text-[13px] leading-[1.5] text-[#667781]">
+            <p className="m-0 max-w-[420px] text-[13px] leading-[1.5] text-admin-ink-dim">
               {t("dashboard.channels.drawer.webHint")}
             </p>
           ) : null}
           <button
             type="button"
-            className="mt-2 inline-flex h-11 items-center justify-center rounded-[10px] bg-[#00a884] px-5 text-[14px] font-semibold text-white"
+            className="mt-2 inline-flex h-11 items-center justify-center rounded-[10px] bg-admin-success px-5 text-[14px] font-semibold text-white"
             onClick={() => {
               window.open(viewUrl, "tulala-whatsapp-web", "noopener,width=1100,height=800");
             }}
