@@ -63,7 +63,7 @@ import {
 } from "@/lib/site-admin/sections/shared/section-template-starters";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import { upsertSection } from "@/lib/site-admin/server/sections";
-import { homepageTemplate } from "@/lib/site-admin";
+import { homepageTemplate } from "@/lib/site-admin/templates/registry";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { requireSession } from "@/lib/server/action-guards";

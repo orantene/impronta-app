@@ -20,7 +20,10 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { tagFor } from "@/lib/site-admin";
+// Leaf import: the `@/lib/site-admin` barrel re-exports the sections
+// registry (every Editor and Component), and this module sits under the
+// ROOT layout, so the barrel would put the whole builder into every route.
+import { tagFor } from "@/lib/site-admin/cache-tags";
 import { isPostgrestMissingColumnError } from "@/lib/server/safe-error";
 
 import type { IdentityRow } from "./identity";
