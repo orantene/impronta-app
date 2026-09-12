@@ -76,7 +76,6 @@ import { formatClock } from "./counter-model";
 import { doorCopy } from "./door-copy";
 import { receiptRows } from "./receipt-rows";
 import { FloorScreen } from "./floor-screen";
-import { collectionMethods } from "./counter-collection-methods";
 import { loadCounterLinks } from "./counter-reads";
 // The three client modes this route mounts directly, each behind
 // `next/dynamic` so the register's initial bundle carries only the mode
