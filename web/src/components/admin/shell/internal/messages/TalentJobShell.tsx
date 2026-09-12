@@ -24,27 +24,26 @@ export function TalentJobShell() {
   // a row gets clicked (the NEW pill drops, the unseen sort tier loses
   // that conv, and it falls back to its recency rank).
   useSeenSubscription();
-  // Pin-aware initial state — when a caller (talent Today row, booking
-  // row, etc.) pinned a conversation, land in the thread pane directly.
-  const { initialId, fromPin } = (() => {
-    const pending = consumePendingConversation();
-    if (pending && conversations.some(c => c.id === pending)) {
-      return { initialId: pending, fromPin: true };
-    }
-    return { initialId: conversations[0]?.id ?? "", fromPin: false };
-  })();
-  const [activeId, setActiveId] = useState<string>(initialId);
-  // Mark whatever conv we land on as seen — covers both pin-driven
-  // entries and the default first-conv selection so the user never
-  // sees a stale NEW pill on the conv they're currently viewing.
+  // Pin-aware landing happens in an effect. Consuming the pending id
+  // during render made server HTML (empty module slot) disagree with
+  // the client (pinned id) and the talent inbox hydrated into the
+  // wrong thread.
+  const [activeId, setActiveId] = useState<string>(() => conversations[0]?.id ?? "");
+  const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
   useEffect(() => {
-    if (initialId) markConvSeen(initialId);
-    // run once on mount with the initial id
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: initialId is stable for the life of this shell; markConvSeen is a stable external fn
+    const pending = consumePendingConversation();
+    if (pending && conversations.some((c) => c.id === pending)) {
+      setActiveId(pending);
+      setMobilePane("thread");
+      markConvSeen(pending);
+      return;
+    }
+    if (conversations[0]?.id) markConvSeen(conversations[0].id);
+    // mount-only: the pin is a one-shot; markConvSeen is a stable external fn
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<TalentFilter>("all");
-  const [mobilePane, setMobilePane] = useState<"list" | "thread">(fromPin ? "thread" : "list");
   const layout = useResizableInboxLayout("talent");
 
   const filtered = conversations.filter(c => {

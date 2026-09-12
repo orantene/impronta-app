@@ -8,6 +8,10 @@ import {
   shouldAttachAuthDebug,
 } from "@/lib/auth-routing";
 import type { AccessProfile } from "@/lib/auth-flow";
+import {
+  ACCESS_PROFILE_REFRESH_COOKIE,
+  wantsAccessProfileRefresh,
+} from "@/lib/auth/access-profile-refresh";
 import { IMPERSONATION_COOKIE_NAME } from "@/lib/impersonation/constants";
 import { signGuestCookie, verifyGuestCookie } from "@/lib/guest-cookie";
 import { clearImpersonationCookieOnResponse } from "@/lib/impersonation/cookie";
@@ -352,6 +356,11 @@ export async function updateSession(
   // `resolveAuthRoutingDecision`, so a field the router reads (like
   // `home_surface_preference`) must not be silently dropped here.
   let sessionProfile: AccessProfile | null = null;
+  const bustAccessProfile =
+    !!user && wantsAccessProfileRefresh(request.cookies.get(ACCESS_PROFILE_REFRESH_COOKIE)?.value);
+  if (user && bustAccessProfile) {
+    forgetAccessProfileMemo(user.id);
+  }
 
   if (user) {
     sessionProfile = await loadAccessProfileMemo(supabase, user.id);
@@ -434,6 +443,9 @@ export async function updateSession(
   const applyImpersonationCookieClear = (res: NextResponse) => {
     if (clearImpersonationCookie) {
       clearImpersonationCookieOnResponse(res);
+    }
+    if (bustAccessProfile) {
+      res.cookies.set(ACCESS_PROFILE_REFRESH_COOKIE, "", { maxAge: 0, path: "/" });
     }
     return res;
   };
