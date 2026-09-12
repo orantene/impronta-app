@@ -52,6 +52,9 @@ export type MessagesClientProps = {
   readonly returnLabel?: string;
   readonly compact?: boolean;
   readonly preview?: MessagingPreview;
+  /** Experimental WhatsApp drawer. Omit on the live Messages page. */
+  readonly channelFilter?: "whatsapp" | "all";
+  readonly initialInquiryId?: string | null;
 };
 
 const FILTERS: InboxFilter[] = [...INBOX_FILTERS];
@@ -98,10 +101,14 @@ export function MessagesShell(props: MessagesClientProps) {
       setLoadState("failed");
       return;
     }
-    setRows(result.rows);
+    const next =
+      props.channelFilter === "whatsapp"
+        ? result.rows.filter((row) => row.channel === "whatsapp")
+        : result.rows;
+    setRows(next);
     setInboxUnread(result.unreadCount);
-    setLoadState(result.rows.length === 0 ? (search ? "no_results" : "empty") : "ok");
-  }, [filter, preview, props.locationSlug, search]);
+    setLoadState(next.length === 0 ? (search ? "no_results" : "empty") : "ok");
+  }, [filter, preview, props.channelFilter, props.locationSlug, search]);
 
   useEffect(() => {
     void reload();
@@ -121,6 +128,10 @@ export function MessagesShell(props: MessagesClientProps) {
     [preview],
   );
 
+  useEffect(() => {
+    if (props.initialInquiryId) void openThread(props.initialInquiryId);
+  }, [openThread, props.initialInquiryId]);
+
   const active = rows.find((row) => row.id === activeId) ?? null;
 
   async function sendReply() {
@@ -133,6 +144,7 @@ export function MessagesShell(props: MessagesClientProps) {
       inquiryId: active.id,
       body: draft,
       expectedVersion: active.version,
+      channel: active.channel === "counter" ? undefined : active.channel,
     });
     if (!result.ok) {
       setRefusal(copy.refusal(result.reason));

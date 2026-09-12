@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import type { WorkRole } from "@/lib/workspace/destinations";
 import { deriveWorkRole } from "@/lib/workspace/nav-context";
+import { WhatsAppTopBarButton } from "@/components/admin/channels/WhatsAppChrome";
 import { NotificationsBell } from "../notifications-hub";
 import { Icon } from "../primitives";
 import { useAdminShell } from "../state";
@@ -107,6 +108,7 @@ export function MobileTopBar() {
       >
         <Icon name="search" size={16} stroke={1.75} color="currentColor" />
       </button>
+      <WhatsAppTopBarButton size={34} iconOnly />
       <NotificationsBell size="md" />
     </div>
   );
