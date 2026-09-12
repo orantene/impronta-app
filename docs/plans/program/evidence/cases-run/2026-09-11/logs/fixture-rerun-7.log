@@ -1,0 +1,520 @@
+=== RUN 7 failed-fixture specs 2026-09-11T21:13:45Z workers=1 ===
+
+Running 20 tests using 1 worker
+
+[1A[2K(node:58176) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:58176) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/20] [chromium] › e2e/cases/C01-nail-salon.spec.ts:23:5 › C01-CUS smoke: storefront body is reachable — not a journey pass
+[1A[2K[2/20] [chromium] › e2e/cases/C01-nail-salon.spec.ts:27:5 › C01-OP smoke: operator Sales heading is reachable — not a journey pass
+[1A[2K[3/20] [chromium] › e2e/cases/C01-nail-salon.spec.ts:31:5 › C01-CUS deposit: /book Gel manicure → slot → deposit checkout and DB agree
+[1A[2K  1) [chromium] › e2e/cases/C01-nail-salon.spec.ts:31:5 › C01-CUS deposit: /book Gel manicure → slot → deposit checkout and DB agree 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('instant_book').first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText('instant_book').first()[22m
+
+
+      57 |   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
+      58 |   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
+    > 59 |   await expect(page.getByText("instant_book").first()).toBeVisible();
+         |                                                        ^
+      60 |   await expect(page.getByText(/still owed/i).first()).toBeVisible();
+      61 |   await expect(page.getByText("pending_payment").first()).toBeVisible();
+      62 |   await expect(page.getByText("$50.00").first()).toBeVisible();
+        at /workspace/web/e2e/cases/C01-nail-salon.spec.ts:59:56
+
+    Error Context: test-results/cases-C01-nail-salon-C01-C-c6e31-posit-checkout-and-DB-agree-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C01-nail-salon-C01-C-c6e31-posit-checkout-and-DB-agree-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C01-nail-salon-C01-C-c6e31-posit-checkout-and-DB-agree-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:58343) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:58343) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[4/20] [chromium] › e2e/cases/C02-spa.spec.ts:32:5 › C02-CUS smoke: storefront body is reachable — not a journey pass
+[1A[2K[5/20] [chromium] › e2e/cases/C02-spa.spec.ts:36:5 › C02-OP smoke: operator Sales heading is reachable — not a journey pass
+[1A[2K[6/20] [chromium] › e2e/cases/C02-spa.spec.ts:41:5 › C02-CUS last-resource: Massage takes therapist B, competing Couples request refuses the same slot
+[1A[2K  2) [chromium] › e2e/cases/C02-spa.spec.ts:41:5 › C02-CUS last-resource: Massage takes therapist B, competing Couples request refuses the same slot 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-testid=slot-picker] button').filter({ hasText: 'Fri, Sep 11, 3:45 PM' }).first()
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for locator('[data-testid=slot-picker] button').filter({ hasText: 'Fri, Sep 11, 3:45 PM' }).first()[22m
+
+
+      79 |   await page.locator("select").selectOption({ label: "Couples massage" });
+      80 |   const couplesSlot = page.locator("[data-testid=slot-picker] button", { hasText: slotLabel }).first();
+    > 81 |   await expect(couplesSlot).toBeVisible({ timeout: 30_000 });
+         |                             ^
+      82 |   await couplesSlot.click();
+      83 |   await page.getByRole("textbox", { name: /your name/i }).fill("C02 challenger");
+      84 |   await page.getByRole("textbox", { name: /your email/i }).fill(challenger);
+        at /workspace/web/e2e/cases/C02-spa.spec.ts:81:29
+
+    Error Context: test-results/cases-C02-spa-C02-CUS-last-17e8d-quest-refuses-the-same-slot-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C02-spa-C02-CUS-last-17e8d-quest-refuses-the-same-slot-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C02-spa-C02-CUS-last-17e8d-quest-refuses-the-same-slot-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:58469) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:58469) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[7/20] [chromium] › e2e/cases/C02-spa.spec.ts:106:5 › C02-CUS couples set: two therapists and Room A held together
+[1A[2K  3) [chromium] › e2e/cases/C02-spa.spec.ts:106:5 › C02-CUS couples set: two therapists and Room A held together 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: [32m/instant_booked=1|\/c\//[39m
+    Received string:  [31m"https://staging-qa-journeys.tulala.digital/book"[39m
+    Timeout: 45000ms
+
+    Call log:
+    [2m  - Expect "toHaveURL" with timeout 45000ms[22m
+    [2m    48 × unexpected value "https://staging-qa-journeys.tulala.digital/book"[22m
+
+
+      124 |   await page.getByRole("textbox", { name: /your email/i }).fill(marker);
+      125 |   await page.getByRole("button", { name: /confirm this time/i }).click();
+    > 126 |   await expect(page).toHaveURL(/instant_booked=1|\/c\//, { timeout: 45_000 });
+          |                      ^
+      127 |
+      128 |   const booked = await latestCouplesSet(marker);
+      129 |   expect(booked, "couples set must persist on qa-journeys").not.toBeNull();
+        at /workspace/web/e2e/cases/C02-spa.spec.ts:126:22
+
+    Error Context: test-results/cases-C02-spa-C02-CUS-coup-a97e9-ts-and-Room-A-held-together-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C02-spa-C02-CUS-coup-a97e9-ts-and-Room-A-held-together-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C02-spa-C02-CUS-coup-a97e9-ts-and-Room-A-held-together-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:58584) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:58584) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[8/20] [chromium] › e2e/cases/C02-spa.spec.ts:152:5 › C02-DIFF: couples set booked, competing Massage on that window refuses
+[1A[2K  4) [chromium] › e2e/cases/C02-spa.spec.ts:152:5 › C02-DIFF: couples set booked, competing Massage on that window refuses 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('instant_book').first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText('instant_book').first()[22m
+
+
+      212 |   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
+      213 |   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
+    > 214 |   await expect(page.getByText("instant_book").first()).toBeVisible();
+          |                                                        ^
+      215 |   await expect(page.getByText(/overdue/i)).toHaveCount(0);
+      216 |
+      217 |   await page.screenshot({
+        at /workspace/web/e2e/cases/C02-spa.spec.ts:214:56
+
+    Error Context: test-results/cases-C02-spa-C02-DIFF-cou-6c6f0-sage-on-that-window-refuses-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C02-spa-C02-DIFF-cou-6c6f0-sage-on-that-window-refuses-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C02-spa-C02-DIFF-cou-6c6f0-sage-on-that-window-refuses-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:58664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:58664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[9/20] [chromium] › e2e/cases/C07-bar.spec.ts:32:5 › C07-CUS smoke: storefront body is reachable — not a journey pass
+[1A[2K[10/20] [chromium] › e2e/cases/C07-bar.spec.ts:36:5 › C07-OP smoke: operator Sales heading is reachable — not a journey pass
+[1A[2K[11/20] [chromium] › e2e/cases/C07-bar.spec.ts:41:5 › C07-CUS tab: guest reads open check then ended after close
+[1A[2K  5) [chromium] › e2e/cases/C07-bar.spec.ts:41:5 › C07-CUS tab: guest reads open check then ended after close 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('li').filter({ has: locator('strong').filter({ hasText: 'T1' }) }).getByText(/tab\s*·\s*occupied/i)
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for locator('li').filter({ has: locator('strong').filter({ hasText: 'T1' }) }).getByText(/tab\s*·\s*occupied/i)[22m
+
+
+      52 |   await expect(row.getByText(/free/i)).toBeVisible();
+      53 |   await row.getByRole("button", { name: /^open tab$/i }).click();
+    > 54 |   await expect(row.getByText(/tab\s*·\s*occupied/i)).toBeVisible({ timeout: 20_000 });
+         |                                                      ^
+      55 |   await row.getByRole("button", { name: /^open check$/i }).click();
+      56 |   await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
+      57 |   await counterAddItem(page, "House pizza");
+        at /workspace/web/e2e/cases/C07-bar.spec.ts:54:54
+
+    Error Context: test-results/cases-C07-bar-C07-CUS-tab--7ca75-heck-then-ended-after-close-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C07-bar-C07-CUS-tab--7ca75-heck-then-ended-after-close-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C07-bar-C07-CUS-tab--7ca75-heck-then-ended-after-close-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:58775) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:58775) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[12/20] [chromium] › e2e/cases/C07-bar.spec.ts:103:5 › C07-OP tab: Open tab → pizza cash at close and DB agree
+[1A[2K  6) [chromium] › e2e/cases/C07-bar.spec.ts:103:5 › C07-OP tab: Open tab → pizza cash at close and DB agree 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('li').filter({ has: locator('strong').filter({ hasText: 'T1' }) }).getByText(/free/i)
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for locator('li').filter({ has: locator('strong').filter({ hasText: 'T1' }) }).getByText(/free/i)[22m
+
+
+      112 |   const row = page.locator("li").filter({ has: page.locator("strong", { hasText: "T1" }) });
+      113 |   await expect(row).toBeVisible();
+    > 114 |   await expect(row.getByText(/free/i)).toBeVisible();
+          |                                        ^
+      115 |
+      116 |   await row.getByRole("button", { name: /^open visit$/i }).click();
+      117 |   await expect(row.getByText(/table\s*·\s*occupied/i)).toBeVisible({ timeout: 20_000 });
+        at /workspace/web/e2e/cases/C07-bar.spec.ts:114:40
+
+    Error Context: test-results/cases-C07-bar-C07-OP-tab-O-561b9--cash-at-close-and-DB-agree-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C07-bar-C07-OP-tab-O-561b9--cash-at-close-and-DB-agree-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C07-bar-C07-OP-tab-O-561b9--cash-at-close-and-DB-agree-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:58855) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:58855) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[13/20] [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:36:5 › C09-CUS smoke: storefront body is reachable — not a journey pass
+[1A[2K[14/20] [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:40:5 › C09-CUS class register: storefront session_picker → seat → Sales and DB agree
+[1A[2K  7) [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:40:5 › C09-CUS class register: storefront session_picker → seat → Sales and DB agree 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('session_picker').first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText('session_picker').first()[22m
+
+
+      63 |   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
+      64 |   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
+    > 65 |   await expect(page.getByText("session_picker").first()).toBeVisible();
+         |                                                          ^
+      66 |   await expect(page.getByText(/overdue/i)).toHaveCount(0);
+      67 |
+      68 |   const persisted = await latestSessionPickerClass(marker);
+        at /workspace/web/e2e/cases/C09-yoga-or-fitness-studio.spec.ts:65:58
+
+    Error Context: test-results/cases-C09-yoga-or-fitness--feb53-→-seat-→-Sales-and-DB-agree-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C09-yoga-or-fitness--feb53-→-seat-→-Sales-and-DB-agree-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C09-yoga-or-fitness--feb53-→-seat-→-Sales-and-DB-agree-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:58960) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:58960) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[15/20] [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:83:5 › C09-OP smoke: operator Sales heading is reachable — not a journey pass
+[1A[2K[16/20] [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:88:5 › C09-OP walk-in class: New sale → Complimentary class → collect → Sales and DB agree
+[1A[2K  8) [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:88:5 › C09-OP walk-in class: New sale → Complimentary class → collect → Sales and DB agree 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('button', { name: 'Morning class' })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('button', { name: 'Morning class' })[22m
+
+
+       98 |   await openCounter(page);
+       99 |   await expect(page.getByRole("button", { name: "Complimentary class" }).first()).toBeVisible();
+    > 100 |   await expect(page.getByRole("button", { name: "Morning class" })).toBeVisible();
+          |                                                                     ^
+      101 |
+      102 |   await counterStartSale(page);
+      103 |   await counterAddItem(page, "Complimentary class");
+        at /workspace/web/e2e/cases/C09-yoga-or-fitness-studio.spec.ts:100:69
+
+    Error Context: test-results/cases-C09-yoga-or-fitness--013a0-ollect-→-Sales-and-DB-agree-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C09-yoga-or-fitness--013a0-ollect-→-Sales-and-DB-agree-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C09-yoga-or-fitness--013a0-ollect-→-Sales-and-DB-agree-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:59052) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:59052) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[17/20] [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:130:5 › C09-DIFF door: website last seat blocks POS walk-in on the same pool
+[1A[2K  9) [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:130:5 › C09-DIFF door: website last seat blocks POS walk-in on the same pool 
+
+    [31mTest timeout of 180000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 180000ms exceeded.
+    Call log:
+    [2m  - waiting for getByRole('button', { name: 'Last place class' })[22m
+
+
+      167 |   await counterStartSale(page);
+      168 |   // Pick the sold-out session on the tile's chip row before adding the line.
+    > 169 |   await page.getByRole("button", { name: "Last place class" }).click();
+          |                                                                ^
+      170 |   await counterAddItem(page, "Complimentary class");
+      171 |   await counterNameBuyer(page, walkInMarker);
+      172 |   await counterCollectCash(page);
+        at /workspace/web/e2e/cases/C09-yoga-or-fitness-studio.spec.ts:169:64
+
+    Error Context: test-results/cases-C09-yoga-or-fitness--7f182-OS-walk-in-on-the-same-pool-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C09-yoga-or-fitness--7f182-OS-walk-in-on-the-same-pool-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C09-yoga-or-fitness--7f182-OS-walk-in-on-the-same-pool-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:59479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:59479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[18/20] [chromium] › e2e/cases/POS-projects-collect-a-balance.spec.ts:342:5 › POS PROJECTS: find a project, see what is owed with its rows, collect a deposit, and a cancelled order moves nothing
+[1A[2K  10) [chromium] › e2e/cases/POS-projects-collect-a-balance.spec.ts:342:5 › POS PROJECTS: find a project, see what is owed with its rows, collect a deposit, and a cancelled order moves nothing 
+
+    Error: the cancelled order must insert
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeNull[2m()[22m
+
+    Received: [31m{"code": "42501", "details": null, "hint": "Grant the required privileges to the current role with: GRANT INSERT ON public.orders TO authenticated;", "message": "permission denied for table orders"}[39m
+
+      521 |     .select("id")
+      522 |     .single();
+    > 523 |   expect(insErr, "the cancelled order must insert").toBeNull();
+          |                                                     ^
+      524 |   const cancelledId = String((inserted as { id: string }).id);
+      525 |   annotate("inserted", `cancelled order ${cancelledId} (20000 ${currency}) attached to inquiry ${inquiryId}`);
+      526 |
+        at /workspace/web/e2e/cases/POS-projects-collect-a-balance.spec.ts:523:53
+
+    Error Context: test-results/cases-POS-projects-collect-3d74f-ncelled-order-moves-nothing-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-POS-projects-collect-3d74f-ncelled-order-moves-nothing-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-POS-projects-collect-3d74f-ncelled-order-moves-nothing-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:59568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:59568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[19/20] [chromium] › e2e/cases/pos-scanner.spec.ts:50:5 › POS-2.8 scanner: ready chip, link code adds the item, offering id adds again, unknown code refused, typing ignored
+[1A[2K  11) [chromium] › e2e/cases/pos-scanner.spec.ts:50:5 › POS-2.8 scanner: ready chip, link code adds the item, offering id adds again, unknown code refused, typing ignored 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeNull[2m()[22m
+
+    Received: [31m{"code": "42501", "details": null, "hint": null, "message": "new row violates row-level security policy for table \"links\""}[39m
+
+      80 |     .select("id")
+      81 |     .single();
+    > 82 |   expect(link.error).toBeNull();
+         |                      ^
+      83 |   const linkId = String(link.data?.id);
+      84 |
+      85 |   try {
+        at /workspace/web/e2e/cases/pos-scanner.spec.ts:82:22
+
+    Error Context: test-results/cases-pos-scanner-POS-2-8--b2ce3-code-refused-typing-ignored-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-pos-scanner-POS-2-8--b2ce3-code-refused-typing-ignored-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-pos-scanner-POS-2-8--b2ce3-code-refused-typing-ignored-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:59637) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:59637) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[20/20] [chromium] › e2e/cases/VENUE-table-service.spec.ts:153:5 › VENUE-OP: walk-in booked, seated, fed, amended, collected and the table handed back
+[1A[2K  12) [chromium] › e2e/cases/VENUE-table-service.spec.ts:153:5 › VENUE-OP: walk-in booked, seated, fed, amended, collected and the table handed back 
+
+    [31mTest timeout of 360000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 360000ms exceeded.
+    Call log:
+    [2m  - waiting for getByRole('group', { name: /workspace or point of sale/i }).getByRole('button', { name: /^workspace$/i })[22m
+
+
+      120 |     .getByRole("group", { name: /workspace or point of sale/i })
+      121 |     .getByRole("button", { name: /^workspace$/i })
+    > 122 |     .click();
+          |      ^
+      123 |   await expect(page.locator("[data-tulala-app-sidebar]")).toBeVisible({ timeout: 30_000 });
+      124 | }
+      125 |
+        at leaveCounter (/workspace/web/e2e/cases/VENUE-table-service.spec.ts:122:6)
+        at /workspace/web/e2e/cases/VENUE-table-service.spec.ts:282:9
+
+    Error Context: test-results/cases-VENUE-table-service--99b47-d-and-the-table-handed-back-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-VENUE-table-service--99b47-d-and-the-table-handed-back-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-VENUE-table-service--99b47-d-and-the-table-handed-back-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  Slow test file: [chromium] › e2e/cases/VENUE-table-service.spec.ts (6.0m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  12 failed
+    [chromium] › e2e/cases/C01-nail-salon.spec.ts:31:5 › C01-CUS deposit: /book Gel manicure → slot → deposit checkout and DB agree 
+    [chromium] › e2e/cases/C02-spa.spec.ts:41:5 › C02-CUS last-resource: Massage takes therapist B, competing Couples request refuses the same slot 
+    [chromium] › e2e/cases/C02-spa.spec.ts:106:5 › C02-CUS couples set: two therapists and Room A held together 
+    [chromium] › e2e/cases/C02-spa.spec.ts:152:5 › C02-DIFF: couples set booked, competing Massage on that window refuses 
+    [chromium] › e2e/cases/C07-bar.spec.ts:41:5 › C07-CUS tab: guest reads open check then ended after close 
+    [chromium] › e2e/cases/C07-bar.spec.ts:103:5 › C07-OP tab: Open tab → pizza cash at close and DB agree 
+    [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:40:5 › C09-CUS class register: storefront session_picker → seat → Sales and DB agree 
+    [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:88:5 › C09-OP walk-in class: New sale → Complimentary class → collect → Sales and DB agree 
+    [chromium] › e2e/cases/C09-yoga-or-fitness-studio.spec.ts:130:5 › C09-DIFF door: website last seat blocks POS walk-in on the same pool 
+    [chromium] › e2e/cases/POS-projects-collect-a-balance.spec.ts:342:5 › POS PROJECTS: find a project, see what is owed with its rows, collect a deposit, and a cancelled order moves nothing 
+    [chromium] › e2e/cases/pos-scanner.spec.ts:50:5 › POS-2.8 scanner: ready chip, link code adds the item, offering id adds again, unknown code refused, typing ignored 
+    [chromium] › e2e/cases/VENUE-table-service.spec.ts:153:5 › VENUE-OP: walk-in booked, seated, fed, amended, collected and the table handed back 
+  8 passed (13.5m)

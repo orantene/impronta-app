@@ -1,0 +1,19 @@
+=== RERUN C06-restaurant.spec.ts attempt=1 19:52:22 ===
+
+Running 6 tests using 1 worker
+
+[1A[2K(node:42457) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:42457) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/6] [chromium] › e2e/cases/C06-restaurant.spec.ts:45:5 › C06-CUS smoke: storefront body is reachable — not a journey pass
+[1A[2K[2/6] [chromium] › e2e/cases/C06-restaurant.spec.ts:49:5 › C06-CUS public menu: House pizza on storefront → send → Sales and DB agree
+[1A[2K[3/6] [chromium] › e2e/cases/C06-restaurant.spec.ts:119:5 › C06-CUS reservation: storefront reserve_table → hold → Sales and DB agree
+[1A[2K[4/6] [chromium] › e2e/cases/C06-restaurant.spec.ts:178:5 › C06-CUS reserve-then-order: one guest reserves a table then orders pizza
+[1A[2K[5/6] [chromium] › e2e/cases/C06-restaurant.spec.ts:261:5 › C06-OP smoke: operator Sales heading is reachable — not a journey pass
+[1A[2K[6/6] [chromium] › e2e/cases/C06-restaurant.spec.ts:266:5 › C06-OP walk-in cash: New sale → House pizza → collect → Sales and DB agree
+[1A[2K  6 passed (1.3m)

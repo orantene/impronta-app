@@ -520,6 +520,7 @@ export async function latestOpenTable1Visit(): Promise<{
 
 /** Close leftover Table 1 visits so C07 can reopen the floor. */
 export async function releaseTable1Floor(): Promise<void> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
   const admin = isolatedService();
   const now = new Date().toISOString();
   const { error } = await admin
@@ -742,6 +743,7 @@ export async function latestTableReservation(email: string): Promise<TableReserv
  * assertion depends on how many times the suite has run.
  */
 export async function releaseJourneyTableReservations(): Promise<void> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
   const admin = isolatedService();
   const { data: orders, error: orderErr } = await admin
     .from("orders")
@@ -815,6 +817,7 @@ export const LAST_PLACE_CLASS_POOL_ID = "33330020-0000-4000-8000-000000000006";
  * pool's live rows so the spec is re-runnable without touching morning class.
  */
 export async function releaseLastPlaceClassSeat(): Promise<void> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
   const admin = isolatedService();
   const now = new Date().toISOString();
   const { error } = await admin
