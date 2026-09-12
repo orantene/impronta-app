@@ -39,6 +39,8 @@ export function railCopy(t: Translator): Readonly<Record<string, string>> {
     receipts: t(`${K}.rail.receipts`),
     shifts: t(`${K}.rail.shifts`),
     issues: t(`${K}.rail.issues`),
+    // Messages & Inquiries: one row on every mode's rail (seam 1).
+    messages: t("dashboard.pos.messages.title"),
   };
 }
 
@@ -400,6 +402,7 @@ export function heldSalesListCopy(t: Translator): HeldSalesListCopy {
     empty: t(`${K}.held.empty`),
     resume: t(`${K}.held.resume`),
     heldSince: t(`${K}.held.heldSince`),
+    fromMessages: t(`${K}.held.fromMessages`),
   };
 }
 
@@ -479,6 +482,7 @@ export function receiptsCopy(t: Translator): ReceiptsCopy {
     empty: t(`${K}.receipts.empty`),
     noCode: t(`${K}.receipts.noCode`),
     open: t(`${K}.receipts.open`),
+    fromMessages: t(`${K}.receipts.fromMessages`),
   };
 }
 

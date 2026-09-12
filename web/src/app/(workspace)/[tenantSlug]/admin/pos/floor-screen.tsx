@@ -128,6 +128,8 @@ export async function FloorScreen(props: {
   posPath: string;
   cashierName: string;
   drawerOpen: boolean;
+  /** The Messages inbox's unread count for the rail badge (seam 10). */
+  messagesUnread: number;
 }) {
   const tr = await createTranslator(props.locale);
   const copy = floorCopy(tr);
@@ -152,6 +154,7 @@ export async function FloorScreen(props: {
       preparationPath={`${workspacePath}/preparation`}
       cashierName={props.cashierName}
       drawerOpen={props.drawerOpen}
+      messagesUnread={props.messagesUnread}
       data={loaded.data}
       copy={copy}
       issuesCopy={issuesCopy(tr)}

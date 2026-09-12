@@ -261,6 +261,7 @@ export function doorCopy(t: Translator): DoorCopy {
       lookup: t("dashboard.pos.door.rail.lookup"),
       receipts: t("dashboard.pos.door.rail.receipts"),
       issues: t("dashboard.pos.door.rail.issues"),
+      messages: t("dashboard.pos.messages.title"),
     },
     railLabel: t("dashboard.pos.door.rail.label"),
     clock: t("dashboard.pos.door.clock"),

@@ -38,7 +38,6 @@ import type { PosBasketLine, PosReceiptRow } from "@/components/admin/pos";
 import { customerDisplayLinkCopy, scanCopy } from "@/components/admin/pos/customer-display-copy";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { isKnownTenantRole } from "@/lib/access";
 import { userHasCapability } from "@/lib/access";
 import { minorUnitDivisor } from "@/lib/orders/money-format";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
@@ -56,7 +55,6 @@ import {
   parsePosMode,
   sellingModesAllowCounter,
   type PosMode,
-  type PosPersonRole,
 } from "@/lib/pos/modes";
 import { loadDoorTonight } from "@/lib/pos/door-tonight";
 import { currentShift } from "@/lib/pos/shift";
@@ -78,72 +76,20 @@ import { formatClock } from "./counter-model";
 import { doorCopy } from "./door-copy";
 import { receiptRows } from "./receipt-rows";
 import { FloorScreen } from "./floor-screen";
-import { collectionMethods } from "./counter-collection-methods";
 import { loadCounterLinks } from "./counter-reads";
 // The three client modes this route mounts directly, each behind
 // `next/dynamic` so the register's initial bundle carries only the mode
 // asked for (`mode-clients.tsx` says why). The floor and projects modes are
 // server halves (`server-only`); their client halves go through the same file.
 import { ClassesClient, DoorClient, PosClient } from "./mode-clients";
+import { collectionMethods, currentAdminPath, loadCashierName, posRole } from "./page-helpers";
+import { messagesModeView, readMessagesUnread } from "./messages-view";
 import { ProjectsModePage } from "./_projects/projects-mode-page";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
 type Search = Promise<{ order?: string; mode?: string; day?: string; project?: string; view?: string }>;
-
-/**
- * `agency_memberships.role` as the POS mode vocabulary wants it.
- *
- * Fails to `viewer` — the rank with NO modes at all. A role string nobody
- * recognises must not be handed the till: the direction that costs an unknown
- * role a screen it should have had is a support ticket, the other direction is
- * a stranger taking money.
- */
-function posRole(raw: unknown): PosPersonRole {
-  const value = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  return isKnownTenantRole(value) ? value : "viewer";
-}
-
-/**
- * The browser-facing path of THIS request, so a redirect keeps the host shape
- * it arrived on.
- *
- * Middleware sets `x-impronta-original-pathname` before its branded rewrite,
- * so on `improntamodels.com` it reads `/admin/pos` and on the shared app host
- * `/impronta/admin/pos`. Rebuilding the path from the slug instead would hand
- * a custom-domain user `improntamodels.com/impronta/admin/pos`, which is the
- * doubled-prefix bug the admin layout documents.
- */
-async function currentAdminPath(tenantSlug: string): Promise<string> {
-  const hdrs = await headers();
-  const fallback = `/${tenantSlug}/admin/pos`;
-  const raw = hdrs.get("x-impronta-original-pathname") ?? fallback;
-  return raw.split("?")[0] || fallback;
-}
-
-/**
- * The signed-in person, as the cashier chip names them: the profile's own
- * display name, else the account's email up to the `@`, else nothing. Read
- * with the service role by the user's own id (the session says who they
- * are; the profile row is not RLS-readable through the anon client here).
- */
-async function loadCashierName(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>): Promise<string> {
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return "";
-  const auth = await supabase.auth.getUser();
-  if (auth.error) logServerError("pos.page.cashier.auth", auth.error);
-  const user = auth.data.user;
-  if (!user) return "";
-  const profile = await admin
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .maybeSingle<{ display_name: string | null }>();
-  if (profile.error) logServerError("pos.page.cashier", profile.error);
-  const name = profile.data?.display_name?.trim();
-  return name || user.email?.split("@")[0] || "";
-}
 
 export default async function PosPage({
   params,
@@ -293,7 +239,10 @@ export default async function PosPage({
     // carrying whatever sale was already open.
     const path = await currentAdminPath(tenantSlug);
     const order = typeof q.order === "string" && q.order ? `&order=${encodeURIComponent(q.order)}` : "";
-    redirect(`${path}?mode=${usableModes[0]}${order}`);
+    // `/admin/pos?view=messages` (the contract's address, MSG-P1) keeps its
+    // view across the mode fill-in; dropping it landed the inbox on Sell.
+    const view = q.view === "messages" ? "&view=messages" : "";
+    redirect(`${path}?mode=${usableModes[0]}${order}${view}`);
   }
 
   const railLabels = railCopy(tr);
@@ -317,6 +266,23 @@ export default async function PosPage({
         </main>
       </>
     );
+  }
+
+  // Messages & Inquiries (contract seams 2 and 10): the rail badge, read
+  // once for whichever mode renders, and the view itself (`messages-view.tsx`).
+  const messagesUnread = await readMessagesUnread(admin, scope.tenantId);
+  if (q.view === "messages") {
+    return messagesModeView({
+      admin,
+      tr,
+      locale,
+      mode,
+      tenantId: scope.tenantId,
+      posPath: await currentAdminPath(tenantSlug),
+      orderId: typeof q.order === "string" ? q.order : null,
+      messagesUnread,
+      railLabels,
+    });
   }
 
   if (mode === "classes") {
@@ -365,6 +331,7 @@ export default async function PosPage({
         <PageRouteSyncer page="pos" />
         <ClassesClient
           tenantId={scope.tenantId}
+          messagesUnread={messagesUnread}
           workspaceName={workspaceName}
           venueName={venueName ?? locationName}
           operatorName={operatorName}
@@ -420,6 +387,7 @@ export default async function PosPage({
         <PageRouteSyncer page="pos" />
         <DoorClient
           tenantId={scope.tenantId}
+          messagesUnread={messagesUnread}
           workspaceName={workspaceName}
           locationName={locationName}
           cashierName={doorCashier}
@@ -479,6 +447,7 @@ export default async function PosPage({
           posPath={await currentAdminPath(tenantSlug)}
           cashierName={floorCashier}
           drawerOpen={Boolean(floorShift.ok && floorShift.shift)}
+          messagesUnread={messagesUnread}
         />
       </>
     );
@@ -512,6 +481,7 @@ export default async function PosPage({
           methods={collectionMethods(tr)}
           cashierName={projectsCashier}
           drawerOpen={Boolean(projectsShift.ok && projectsShift.shift)}
+          messagesUnread={messagesUnread}
           tr={tr}
           locale={locale}
           search={{ project: q.project, view: q.view }}
@@ -662,6 +632,7 @@ export default async function PosPage({
       <PosClient
         mode={mode}
         tenantId={scope.tenantId}
+        messagesUnread={messagesUnread}
         workspaceName={workspaceName}
         locationName={locationName}
         cashierName={cashierName}

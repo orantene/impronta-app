@@ -441,6 +441,7 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       prep: t(`${K}.rail.prep`),
       receipts: t(`${K}.rail.receipts`),
       issues: t(`${K}.rail.issues`),
+      messages: t("dashboard.pos.messages.title"),
     },
     title: t(`${K}.title`),
     titleTimeline: t(`${K}.titleTimeline`),

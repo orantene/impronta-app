@@ -88,9 +88,9 @@ export function EssentialsPanel(props: {
                 className="w-full rounded-[12px] bg-admin-surface-alt px-3 py-2 text-left"
                 onClick={() => props.onOpenSheet("link")}
               >
-                <p className="font-semibold">{chip.label}</p>
+                <p className="font-semibold">{props.copy.record[chip.kind]}</p>
                 <p className="text-[12px] text-admin-ink-muted">
-                  {chip.kind}
+                  {chip.label !== chip.kind ? chip.label : props.copy.record[chip.kind]}
                   {chip.paymentState ? ` · ${chip.paymentState}` : ""}
                 </p>
               </button>

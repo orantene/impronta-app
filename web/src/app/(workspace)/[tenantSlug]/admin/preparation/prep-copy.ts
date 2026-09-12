@@ -32,6 +32,7 @@ export function preparationCopy(tr: (key: string) => string): PreparationCopy {
     tabReady: tr("dashboard.preparation.tabReady"),
     recall: tr("dashboard.preparation.recall"),
     recallReason: tr("dashboard.preparation.recallReason"),
+    fromMessages: tr("dashboard.preparation.fromMessages"),
     subtitle: tr("dashboard.preparation.subtitle"),
     fired: tr("dashboard.preparation.fired"),
     amendmentBanner: tr("dashboard.preparation.amendmentBanner"),

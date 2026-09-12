@@ -1290,3 +1290,33 @@ phone inbox are implemented. The Today tab itself is seam 5.
 Decided 2026-09-11 (pos-messages fidelity). MS17 shows an exact policy
 check. The package-2 change writer is not mounted here. The control is
 disabled with a sentence in en/es/fr.
+
+## D-POS-116 — the rail badge is a two-query count with the inbox's own rule
+
+Decided 2026-09-11 (wire-messages). Seam 10 names `loadMessagingInbox(…).unreadCount`
+as the rail badge. Every mode of the till asks for that number on every
+load and draws no rows, so `countMessagingUnread` (`lib/messaging/inbox.ts`)
+reads `inquiries` + `inquiry_message_reads` and applies the same `isUnread`
+rule the inbox applies row by row; the inbox header now shows the same
+total instead of counting the loaded (filtered) rows. Seam 1's row sits
+last on every rail; its address is `?mode=<mode>&view=messages`, query-only
+so it keeps the host shape, with the counter's open sale riding along.
+
+## D-POS-117 — the phone's Messages tab is the compact surface, scoped to the bridge tenant
+
+Decided 2026-09-11 (wire-messages). Seam 5. Under the shell's 720px
+breakpoint `WorkspaceMessagesPage` mounts `MessagesShell` with `compact`
+(`PhoneWorkspaceMessages`), reading the bridge's real tenant id; the
+standalone prototype (no tenant on the bridge) keeps the legacy
+three-pane shell. Above the breakpoint nothing changes. The mobile bar
+stays Today · Calendar · Clients · Sales (D-POS-90); Messages is a More
+chip and the fourth tab only where a board is approved for it.
+
+## D-POS-118 — a Messages-origin order is the till's own, marked by origin
+
+Decided 2026-09-11 (wire-messages). Seam 3. `listOpenPosSales` and
+`listPaidPosSales` read `source_channel IN ('pos','messages')`; the held
+list says "from Messages", Receipts and the kitchen ticket say "from
+Messages · paid by link" (`dashboard.pos.counter.held.fromMessages`,
+`…receipts.fromMessages`, `dashboard.preparation.fromMessages`, en/es/fr).
+The door's Receipts rail is unchanged (`source_page = 'door'`).

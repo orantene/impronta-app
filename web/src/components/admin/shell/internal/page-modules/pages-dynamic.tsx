@@ -42,6 +42,13 @@ export const MessagesShell = dynamic(
   { loading: MessagesShellSkeleton },
 );
 
+// The phone's Messages tab (MM01 to MM06): the POS Messages surface in its
+// `compact` shape, through the same single async entry as the shell.
+export const PhoneWorkspaceMessages = dynamic(
+  () => import("../shell-lazy-surfaces").then((m) => ({ default: m.PhoneWorkspaceMessages })),
+  { loading: () => null },
+);
+
 export const TalentSurface = dynamic(
   () => import("../shell-lazy-surfaces").then((m) => ({ default: m.TalentSurface })),
   { loading: () => null },

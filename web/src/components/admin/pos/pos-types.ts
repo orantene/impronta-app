@@ -206,6 +206,8 @@ export type PosHeldSale = {
   readonly totalCents: number;
   readonly currency: string;
   readonly heldAt: string;
+  /** `messages`: a draft the Messages surface opened for a customer (seam 3). */
+  readonly origin?: "pos" | "messages";
 };
 
 // ── Shift ─────────────────────────────────────────────────────────────

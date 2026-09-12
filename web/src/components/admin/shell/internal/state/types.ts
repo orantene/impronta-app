@@ -343,6 +343,7 @@ export type RichInquiry = {
   /** Optional human-readable pitch title — surfaced in PitchOriginCard
    *  header. Falls back to "Pitch" when missing. */
   pitchTitle?: string | null;
+  messaging?: import("@/lib/messaging/types").InquiryMessagingState; // seam 4 chips; absent on fixtures
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1963,7 +1964,6 @@ export type TalentInvite = {
   status: InviteStatus;
   remindersSent: number;
 };
-
 
 export type TaxonomyParent = {
   id: TaxonomyParentId;

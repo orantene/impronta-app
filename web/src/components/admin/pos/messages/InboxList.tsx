@@ -67,7 +67,7 @@ export function InboxList(props: {
                   ) : null}
                   {row.recordChips.map((chip) => (
                     <span key={`${chip.kind}-${chip.recordId}`} className={cn(POS_PILL, POS_PILL_GREEN)}>
-                      {chip.label}
+                      {props.copy.record[chip.kind]}
                     </span>
                   ))}
                   <span className="ml-auto text-[12px] text-admin-ink-muted">{row.ownerLabel ?? props.copy.unassigned}</span>

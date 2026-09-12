@@ -30,6 +30,8 @@ export type PosReceiptRow = {
   readonly totalCents: number;
   readonly currency: string;
   readonly href: string | null;
+  /** `messages`: the sale was opened from a conversation and paid by link (seam 3). */
+  readonly origin?: "pos" | "messages";
 };
 
 export type ReceiptsCopy = {
@@ -50,6 +52,8 @@ export type ReceiptsCopy = {
   readonly empty: string;
   readonly noCode: string;
   readonly open: string;
+  /** "from Messages · paid by link" */
+  readonly fromMessages: string;
 };
 
 export type ReceiptsScreenProps = {
@@ -136,7 +140,14 @@ export function ReceiptsScreen({ rows, day, onDayChange, query, onQueryChange, c
                   {row.code ? `#${row.code.slice(0, 6)}` : copy.noCode}
                 </span>
                 <span className="w-[165px] truncate text-[16px] font-semibold text-admin-ink">{row.customer ?? copy.walkIn}</span>
-                <span className="min-w-0 flex-1 truncate text-[15px] text-admin-ink-muted">{row.summary}</span>
+                <span className="min-w-0 flex-1 truncate text-[15px] text-admin-ink-muted">
+                  {row.summary}
+                  {row.origin === "messages" && (
+                    <span data-pos-sale-origin="messages" className="ml-2 rounded-full bg-admin-brand-soft px-2 py-0.5 text-[11.5px] font-semibold text-admin-brand">
+                      {copy.fromMessages}
+                    </span>
+                  )}
+                </span>
                 <span className={cn("w-[120px] font-mono text-[15px] font-bold text-admin-ink", POS_NUM)}>
                   {formatOrderMoney(row.totalCents, row.currency)}
                 </span>

@@ -11,7 +11,8 @@ import { COLORS, FONTS, INQUIRY_STAGE_LABEL_KEYS, INQUIRY_STAGE_META, RADIUS, RI
 import type { RichInquiry } from "../state";
 import { LoadMore, QuickReplyButtons, SavedViewsBar, downloadCsv } from "../wave2";
 import { useQuickCreateActionsFiltered } from "./WorkspaceTopbar";
-import { MessagesShell } from "./pages-dynamic";
+import { useCompactViewport } from "@/components/admin/pos/messages/use-compact-viewport";
+import { MessagesShell, PhoneWorkspaceMessages } from "./pages-dynamic";
 import { PageHeader } from "./pages-shared";
 
 
@@ -36,6 +37,13 @@ import { PageHeader } from "./pages-shared";
 // Mobile: single-pane stack (list ↔ thread) — toggled via [data-mobile-pane].
 
 export function WorkspaceMessagesPage() {
+  // Seam 5 (messaging contract): under the shell's mobile breakpoint the
+  // Messages tab is the POS Messages surface in its phone shape (MM01 to
+  // MM06), scoped to the bridge's real tenant. The prototype's standalone
+  // mode has no tenant to scope the actions to and keeps the legacy shell.
+  const compact = useCompactViewport();
+  const { bridgeTenantIdentity } = useAdminShell();
+  if (compact && bridgeTenantIdentity) return <PhoneWorkspaceMessages tenantId={bridgeTenantIdentity.tenantId} />;
   return <MessagesShell pov="admin" />;
 }
 

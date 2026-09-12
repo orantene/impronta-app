@@ -29,6 +29,7 @@ export function receiptRows(rows: readonly PaidRow[], requestedAt: Date, locale:
       totalCents: row.totalCents,
       currency: row.currency,
       href: row.receiptCode && receiptOrigin ? `${receiptOrigin}/r/${row.receiptCode}` : null,
+      origin: row.origin,
     };
   });
 }

@@ -252,7 +252,7 @@ export function toCategoryTabs(
  * is a row that can only confuse.
  */
 export function toHeldSales(
-  openSales: readonly { id: string; totalCents: number; createdAt: string | null }[],
+  openSales: readonly { id: string; totalCents: number; createdAt: string | null; origin?: "pos" | "messages" }[],
   currency: string,
   currentOrderId: string | null,
   labelFor: (orderId: string) => string,
@@ -266,6 +266,7 @@ export function toHeldSales(
       totalCents: row.totalCents,
       currency,
       heldAt: clock(row.createdAt),
+      origin: row.origin ?? "pos",
     }));
 }
 

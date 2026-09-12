@@ -58,7 +58,7 @@ export function ThreadPane(props: {
         ) : null}
         {props.row.recordChips.map((chip) => (
           <span key={`${chip.kind}-${chip.recordId}`} className="text-[13px] text-admin-ink-muted">
-            {chip.label}
+            {props.copy.record[chip.kind]}
           </span>
         ))}
         <div className="ml-auto flex flex-wrap gap-2">

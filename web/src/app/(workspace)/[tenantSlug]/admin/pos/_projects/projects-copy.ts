@@ -240,6 +240,7 @@ export function projectsModeCopy(t: Translator): ProjectsModeCopy {
         receipts: t("dashboard.pos.projects.rail.receipts"),
         links: t("dashboard.pos.projects.rail.links"),
         issues: t("dashboard.pos.counter.rail.issues"),
+        messages: t("dashboard.pos.messages.title"),
       },
     },
     title: t("dashboard.pos.projects.title"),

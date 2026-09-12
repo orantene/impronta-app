@@ -129,6 +129,35 @@ export async function loadMessagingInbox(
   return { ok: true, rows, unreadCount };
 }
 
+/**
+ * The rail badge (seam 10): how many threads at this location carry a customer
+ * message this person has not read. The SAME rule `loadMessagingInbox` counts
+ * with (`isUnread`, per-user `inquiry_message_reads`), read with two queries
+ * instead of the inbox's five, because every mode of the till asks for it on
+ * every load and needs no rows, chips or previews to draw one number.
+ */
+export async function countMessagingUnread(
+  admin: Admin,
+  input: { tenantId: string; locationSlug: string; actorUserId: string },
+): Promise<number> {
+  const { data, error } = await admin
+    .from("inquiries")
+    .select("id, location_slug, last_customer_message_at")
+    .eq("tenant_id", input.tenantId)
+    .not("last_customer_message_at", "is", null);
+  if (error) return 0;
+  const rows = (data ?? []) as Pick<InquiryRow, "id" | "location_slug" | "last_customer_message_at">[];
+  const scoped = rows.filter(
+    (row) => input.locationSlug === "all" || (row.location_slug ?? "default") === input.locationSlug,
+  );
+  const reads = await loadReads(admin, input.actorUserId, scoped.map((row) => row.id));
+  let unread = 0;
+  for (const row of scoped) {
+    if (isUnread(row, reads.get(row.id) ?? null)) unread += 1;
+  }
+  return unread;
+}
+
 function matchesFilter(row: InboxRow, filter: InboxFilter, actorUserId: string): boolean {
   if (filter === "all") return true;
   if (filter === "unread") return row.unread;
@@ -166,7 +195,7 @@ function deriveNextAction(input: {
   return null;
 }
 
-function isUnread(row: InquiryRow, lastReadAt: string | null): boolean {
+function isUnread(row: Pick<InquiryRow, "last_customer_message_at">, lastReadAt: string | null): boolean {
   if (!row.last_customer_message_at) return false;
   if (!lastReadAt) return true;
   return row.last_customer_message_at > lastReadAt;

@@ -313,7 +313,7 @@ test("every time on the floor is the VENUE's wall clock, whatever the host proce
 
 test("the door: the mode is built, the rail is the board's, and the route branches to the floor", () => {
   assert.equal(POS_MODE_META.floor.built, true, "the floor must be declared built to be offered");
-  assert.deepEqual([...POS_MODE_META.floor.destinations], ["tables", "orders", "prep", "receipts", "issues"]);
+  assert.deepEqual([...POS_MODE_META.floor.destinations], ["tables", "orders", "prep", "receipts", "issues", "messages"]);
   const page = readFileSync(
     join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx"),
     "utf8",

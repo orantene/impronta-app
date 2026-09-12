@@ -1,0 +1,5 @@
+
+Running 1 test using 1 worker
+
+[1/1] [chromium] › e2e/cases/MSG-P1-pizza-counter.spec.ts:5:5 › MSG-P1 pizza counter: inbox opens and a reply stays on the thread
+  1 passed (30.5s)
