@@ -9,6 +9,55 @@
 import type { Translator } from "./translator";
 
 export type ClassesBookingCopy = {
+  readonly titleBooked: string;
+  readonly titleReview: string;
+  readonly at: string;
+  readonly itineraryEnd: string;
+  readonly subtitleBooked: string;
+  readonly preferred: string;
+  readonly preferredOff: string;
+  readonly personLine: string;
+  readonly filterLabel: string;
+  readonly filterMorning: string;
+  readonly filterAfternoon: string;
+  readonly filterAny: string;
+  readonly slotEnds: string;
+  readonly slotsNote: string;
+  readonly itineraryPick: string;
+  readonly seesNote: string;
+  readonly theCustomer: string;
+  readonly depositNow: string;
+  readonly guaranteedLine: string;
+  readonly intake: string;
+  readonly intakeOff: string;
+  readonly notesStaff: string;
+  readonly notesCustomer: string;
+  readonly remindersSms: string;
+  readonly remindersEmail: string;
+  readonly balanceRow: string;
+  readonly cancelFreeRow: string;
+  readonly cancelFreeNone: string;
+  readonly saveDraft: string;
+  readonly saveDraftOff: string;
+  readonly hold: string;
+  readonly holdOff: string;
+  readonly payHow: string;
+  readonly cardNow: string;
+  readonly cardNowOff: string;
+  readonly paymentLink: string;
+  readonly paymentLinkOff: string;
+  readonly cash: string;
+  readonly cashLine: string;
+  readonly noDeposit: string;
+  readonly noDepositOff: string;
+  readonly confirmFootnote: string;
+  readonly confirmSms: string;
+  readonly alsoEmail: string;
+  readonly livesRecord: string;
+  readonly livesRecordValue: string;
+  readonly livesPersonToday: string;
+  readonly livesPersonTodayValue: string;
+  readonly livesNote: string;
   readonly title: string;
   readonly subtitleNew: string;
   readonly subtitleNamed: string;
@@ -113,6 +162,55 @@ export type ClassesMoveCopy = {
 
 export function bookingCopy(t: Translator): ClassesBookingCopy {
   return {
+    titleBooked: t("dashboard.pos.classes.board.booking.titleBooked"),
+    titleReview: t("dashboard.pos.classes.board.booking.titleReview"),
+    at: t("dashboard.pos.classes.board.booking.at"),
+    itineraryEnd: t("dashboard.pos.classes.board.booking.itineraryEnd"),
+    subtitleBooked: t("dashboard.pos.classes.board.booking.subtitleBooked"),
+    preferred: t("dashboard.pos.classes.board.booking.preferred"),
+    preferredOff: t("dashboard.pos.classes.board.booking.preferredOff"),
+    personLine: t("dashboard.pos.classes.board.booking.personLine"),
+    filterLabel: t("dashboard.pos.classes.board.booking.filterLabel"),
+    filterMorning: t("dashboard.pos.classes.board.booking.filterMorning"),
+    filterAfternoon: t("dashboard.pos.classes.board.booking.filterAfternoon"),
+    filterAny: t("dashboard.pos.classes.board.booking.filterAny"),
+    slotEnds: t("dashboard.pos.classes.board.booking.slotEnds"),
+    slotsNote: t("dashboard.pos.classes.board.booking.slotsNote"),
+    itineraryPick: t("dashboard.pos.classes.board.booking.itineraryPick"),
+    seesNote: t("dashboard.pos.classes.board.booking.seesNote"),
+    theCustomer: t("dashboard.pos.classes.board.booking.theCustomer"),
+    depositNow: t("dashboard.pos.classes.board.booking.depositNow"),
+    guaranteedLine: t("dashboard.pos.classes.board.booking.guaranteedLine"),
+    intake: t("dashboard.pos.classes.board.booking.intake"),
+    intakeOff: t("dashboard.pos.classes.board.booking.intakeOff"),
+    notesStaff: t("dashboard.pos.classes.board.booking.notesStaff"),
+    notesCustomer: t("dashboard.pos.classes.board.booking.notesCustomer"),
+    remindersSms: t("dashboard.pos.classes.board.booking.remindersSms"),
+    remindersEmail: t("dashboard.pos.classes.board.booking.remindersEmail"),
+    balanceRow: t("dashboard.pos.classes.board.booking.balanceRow"),
+    cancelFreeRow: t("dashboard.pos.classes.board.booking.cancelFreeRow"),
+    cancelFreeNone: t("dashboard.pos.classes.board.booking.cancelFreeNone"),
+    saveDraft: t("dashboard.pos.classes.board.booking.saveDraft"),
+    saveDraftOff: t("dashboard.pos.classes.board.booking.saveDraftOff"),
+    hold: t("dashboard.pos.classes.board.booking.hold"),
+    holdOff: t("dashboard.pos.classes.board.booking.holdOff"),
+    payHow: t("dashboard.pos.classes.board.booking.payHow"),
+    cardNow: t("dashboard.pos.classes.board.booking.cardNow"),
+    cardNowOff: t("dashboard.pos.classes.board.booking.cardNowOff"),
+    paymentLink: t("dashboard.pos.classes.board.booking.paymentLink"),
+    paymentLinkOff: t("dashboard.pos.classes.board.booking.paymentLinkOff"),
+    cash: t("dashboard.pos.classes.board.booking.cash"),
+    cashLine: t("dashboard.pos.classes.board.booking.cashLine"),
+    noDeposit: t("dashboard.pos.classes.board.booking.noDeposit"),
+    noDepositOff: t("dashboard.pos.classes.board.booking.noDepositOff"),
+    confirmFootnote: t("dashboard.pos.classes.board.booking.confirmFootnote"),
+    confirmSms: t("dashboard.pos.classes.board.booking.confirmSms"),
+    alsoEmail: t("dashboard.pos.classes.board.booking.alsoEmail"),
+    livesRecord: t("dashboard.pos.classes.board.booking.livesRecord"),
+    livesRecordValue: t("dashboard.pos.classes.board.booking.livesRecordValue"),
+    livesPersonToday: t("dashboard.pos.classes.board.booking.livesPersonToday"),
+    livesPersonTodayValue: t("dashboard.pos.classes.board.booking.livesPersonTodayValue"),
+    livesNote: t("dashboard.pos.classes.board.booking.livesNote"),
     title: t("dashboard.pos.classes.board.booking.title"),
     subtitleNew: t("dashboard.pos.classes.board.booking.subtitleNew"),
     subtitleNamed: t("dashboard.pos.classes.board.booking.subtitleNamed"),

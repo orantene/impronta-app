@@ -1320,3 +1320,57 @@ list says "from Messages", Receipts and the kitchen ticket say "from
 Messages · paid by link" (`dashboard.pos.counter.held.fromMessages`,
 `…receipts.fromMessages`, `dashboard.preparation.fromMessages`, en/es/fr).
 The door's Receipts rail is unchanged (`source_page = 'door'`).
+
+## D-POS-119 — the Appointments & Classes page runs Package 2's five actions; what is still drawn disabled
+
+Decided 2026-09-11 (fid-appts2). The Package 2 wiring spec
+(`docs/plans/program/engine/scheduling-appts-wiring.md`) is applied: Generate
+sessions (`generateSessionsForSeriesAction`, a card under the W39/W40 header
+and the W10 editor's own button, idempotent: "N created, M already existed"),
+New series and a series row's Edit (`upsertSessionSeriesAction` through the
+W10 editor `SeriesEditor.tsx`, the venue's zone never the browser's),
+Substitute instructor (`sessionSetInstructorAction`, the scope segment is the
+engine's `this | future | series`), Move participant
+(`sessionMoveParticipantAction`, `Move…` on a valid ticket in the roster, the
+target is another live session of the same series), Cancel session
+(`sessionCancelAction` with a reason; paid seats queue refunds and the
+`paid_seats_need_refund` sentence is drawn as a note under the done line,
+never as a refusal, D-POS-72), Cancel appointment on the Appointments tab
+(`cancelBookingSetAction`, `by: "staff"`, the refundable amount in the done
+line, `policy_keeps` / `not_cancellable` as sentences) and Copy customer link
+(`signBookingManageTokenAction`, cancel or reschedule, `/manage/<token>`;
+on an environment without `GUEST_COOKIE_SECRET` the button refuses with the
+`unavailable` sentence rather than copying nothing). The instructor on a
+session is `sessions.instructor_user_id` (D-POS-70), named through the
+shell's team list; INSTRUCTOR on both tables and the Instructor filter read
+it. `loadSchedule` returns `venues`, `venueId`, `instructorUserId`,
+`offeringId` for this (additive), and reads the pools' remaining seats in
+one parallel pass instead of one round trip per pool.
+
+Still drawn disabled with a one-sentence reason in en/es/fr, because no
+reader or writer exists: on W10, Equipment positions, Booking window,
+Waitlist hold, Pass eligibility, Attendance rule, Cancellation rule, Edit
+template; on W40, Templates; on W39, the Room filter and Add a service; on
+the Book door (A02 to A06), Preferred professional, a second professional or
+participant, a chair or room, intake forms, notes, per-booking reminders,
+Card now, Payment link at booking, No deposit · manager, Save draft, Hold 15
+min, confirmation by SMS or email; on the New appointment drawer (WS007),
+Time first, Search existing, Add participant, Add-on, Add service, Use
+package credit, another professional, mobile or virtual, Room / station,
+Save draft, Hold 15 min; on the Calendar's Resources view (WS006), the Rooms
+& stations filter, the Processing and Imported busy legends, drag to
+reschedule, and the Week view. "Review" stays the step's name on the Book
+door (the board says "Review & deposit"): the desk takes no deposit, and a
+label that promises one is worse than a shorter one.
+
+## D-POS-120 — the workspace's New booking drawer is the New appointment board on the engine's one booking path
+
+Decided 2026-09-11 (fid-appts2). `NewBookingDrawer` (a manual "log a
+confirmed job" form over `createManualBooking`, no time, no person) is
+replaced by `NewAppointmentDrawer` (board WS007): the same read and write the
+Front desk's Book door runs, `classesServices` (new, the till's
+`loadWalkInServices` plus the default venue), `classesWalkInSlots` and
+`classesBookWalkIn`. One booking path, two doors. The Calendar's Resources
+view (`CalendarResources.tsx`) draws the day's people, places and rooms from
+`loadAppointments` and `loadSchedule` as a table of 15-minute tracks (a
+block is a `colSpan`, never a style), on the venue's clock.

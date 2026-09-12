@@ -12,21 +12,37 @@
  * resolves the RPC's ids to names, so "that time was just taken" becomes
  * "Ana is already booked at that time" whenever the id can be read.
  *
- * NOT WIRED, said on the control: Cancel appointment (no cancel writer on
- * this surface; the booking's own page owns its lifecycle) and Add a service
- * (the Front desk's B02, not built here).
+ * CANCEL WITH THE POLICY (Package 2): `cancelBookingSetAction` cancels the
+ * booking and everything it holds, and answers what is refundable under the
+ * cancellation window; `policy_keeps` and `not_cancellable` come back as
+ * sentences. COPY CUSTOMER LINK signs a manage token (`signBookingManageTokenAction`)
+ * for the public `/manage/<token>` page, cancel or reschedule (A07).
+ *
+ * NOT WIRED, said on the control: Add a service (the Front desk's B02, not
+ * built here).
  */
 
 import { useCallback, useEffect, useState } from "react";
 
 import { useT } from "@/i18n/use-t";
+import { formatOrderMoney } from "@/lib/orders/money-format";
 import { bookingStateKey, parseLocalDateTime, type AppointmentRow } from "@/lib/scheduling/appointments-board";
 import { rescheduleAppointment } from "@/lib/scheduling/appointments-actions";
 import { zonedLocalToUtc } from "@/lib/scheduling/tz";
+import { cancelBookingSetAction, signBookingManageTokenAction } from "@/lib/server-actions/scheduling-engine";
+import { engineRefusalKey } from "./catalog/catalog-model";
 import { ActionButton, BUTTON_PRIMARY, CARD, FactRow, INPUT, Outcome, SectionLabel } from "./appointments-classes-ui";
 import { fill, formatWhen } from "./appointments-format";
 
 const K = "dashboard.adminAppointments";
+const P = "dashboard.adminAppointments.board.panel";
+
+type CancelState = {
+  open: boolean;
+  reason: string;
+  busy: boolean;
+  outcome: { kind: "refused" | "done"; text: string } | null;
+};
 
 type MoveState = {
   value: string;
@@ -55,11 +71,54 @@ export function AppointmentPanel({
 }) {
   const t = useT();
   const [move, setMove] = useState<MoveState>({ value: "", busy: false, message: null, failed: false, done: false });
+  const [cancel, setCancel] = useState<CancelState>({ open: false, reason: "", busy: false, outcome: null });
+  const [linkNote, setLinkNote] = useState<string | null>(null);
   const state = bookingStateKey(row.status);
 
   useEffect(() => {
     setMove({ value: "", busy: false, message: null, failed: false, done: false });
+    setCancel({ open: false, reason: "", busy: false, outcome: null });
+    setLinkNote(null);
   }, [row.id]);
+
+  const submitCancel = async () => {
+    setCancel((c) => ({ ...c, busy: true, outcome: null }));
+    try {
+      const res = await cancelBookingSetAction({
+        bookingId: row.id,
+        operationKey: `cancel-${crypto.randomUUID()}`,
+        reason: cancel.reason.trim().slice(0, 200),
+        by: "staff",
+      });
+      if (res.ok) {
+        const text =
+          res.refundableCents > 0
+            ? fill(t(`${P}.appointmentCancelled`), { amount: formatOrderMoney(res.refundableCents, "USD") })
+            : t(`${P}.appointmentCancelledNothing`);
+        setCancel((c) => ({ ...c, busy: false, outcome: { kind: "done", text } }));
+        onChanged();
+      } else {
+        setCancel((c) => ({ ...c, busy: false, outcome: { kind: "refused", text: t(engineRefusalKey(res.reason)) } }));
+      }
+    } catch {
+      setCancel((c) => ({ ...c, busy: false, outcome: { kind: "refused", text: t(engineRefusalKey("unavailable")) } }));
+    }
+  };
+
+  const copyLink = async (action: "cancel" | "reschedule") => {
+    setLinkNote(null);
+    try {
+      const res = await signBookingManageTokenAction({ bookingId: row.id, action });
+      if (!res.ok) {
+        setLinkNote(t(engineRefusalKey(res.reason)));
+        return;
+      }
+      await navigator.clipboard.writeText(`${window.location.origin}/manage/${res.token}`);
+      setLinkNote(t(`${P}.linkCopied`));
+    } catch {
+      setLinkNote(t(`${P}.linkFailed`));
+    }
+  };
 
   const submit = useCallback(async () => {
     const parsed = parseLocalDateTime(move.value);
@@ -159,10 +218,59 @@ export function AppointmentPanel({
         <ActionButton reason={t(`${K}.board.panel.addServiceOff`)} size="sm">
           {t(`${K}.board.panel.addService`)}
         </ActionButton>
-        <ActionButton reason={t(`${K}.board.panel.cancelAppointmentOff`)} tone="danger" size="sm">
+        <ActionButton
+          reason={state === "cancelled" || state === "completed" ? t(`${K}.reschedule.refusal.notReschedulable`) : null}
+          tone="danger"
+          size="sm"
+          testId="appointment-cancel"
+          onClick={() => setCancel((c) => ({ ...c, open: !c.open, outcome: null }))}
+        >
           {t(`${K}.board.panel.cancelAppointment`)}
         </ActionButton>
       </div>
+
+      {/* A07 / R04: the customer's own cancel or reschedule page, one signed link each. */}
+      <div className="flex flex-wrap items-center gap-[8px] text-[12px] text-admin-ink-muted">
+        <span>{t(`${P}.copyLink`)}:</span>
+        <button type="button" className="cursor-pointer font-semibold text-admin-brand underline underline-offset-2" onClick={() => void copyLink("cancel")}>
+          {t(`${P}.copyLinkCancel`)}
+        </button>
+        <button type="button" className="cursor-pointer font-semibold text-admin-brand underline underline-offset-2" onClick={() => void copyLink("reschedule")}>
+          {t(`${P}.copyLinkReschedule`)}
+        </button>
+      </div>
+      {linkNote ? <Outcome kind="note">{linkNote}</Outcome> : null}
+
+      {cancel.open ? (
+        <form
+          data-testid="appointment-cancel-form"
+          className={`${CARD} flex flex-col gap-[8px] p-[12px]`}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submitCancel();
+          }}
+        >
+          <label className="flex flex-col gap-[4px] text-[12px] text-admin-ink-muted">
+            <span>{t(`${P}.cancelAppointmentReason`)}</span>
+            <input className={INPUT} maxLength={200} value={cancel.reason} onChange={(e) => setCancel((c) => ({ ...c, reason: e.target.value }))} />
+          </label>
+          <div className="flex gap-[8px]">
+            {cancel.outcome?.kind === "done" ? null : (
+              <button type="submit" disabled={cancel.busy} className={`${BUTTON_PRIMARY} border-admin-critical bg-admin-critical hover:bg-admin-critical-deep disabled:opacity-60`}>
+                {cancel.busy ? t(`${P}.working`) : t(`${P}.cancelAppointmentConfirm`)}
+              </button>
+            )}
+            <ActionButton disabled={cancel.busy} onClick={() => setCancel((c) => ({ ...c, open: false }))}>
+              {t(`${P}.close`)}
+            </ActionButton>
+          </div>
+          {cancel.outcome ? (
+            <Outcome kind={cancel.outcome.kind} testId="appointment-cancel-message">
+              {cancel.outcome.text}
+            </Outcome>
+          ) : null}
+        </form>
+      ) : null}
 
       {moveOpen && canMove ? (
         <div data-testid="appointment-reschedule" className={`${CARD} flex flex-col gap-[8px] p-[12px]`}>

@@ -1,0 +1,72 @@
+bookings [
+  '5b4896be-2de6-4f11-a8f3-2da1b92af35a fid-appts2 Laura',
+  '443c80b5-466f-4952-8c55-f306146d1be3 fid-appts2 Laura',
+  '31784215-2874-41ea-a3a8-6b85f057046e fid-appts2 Cancelme',
+  '4db99998-f272-4b1a-b70b-abb143542ce4 fid-appts2 Cancelme2',
+  '5acaae95-808f-409c-bca9-dacfb530e042 fid-appts2 Drawer'
+]
+talent_bookings 5b4896be-2de6-4f11-a8f3-2da1b92af35a ERROR column talent_bookings.booking_id does not exist
+order_lines(booking) 5b4896be-2de6-4f11-a8f3-2da1b92af35a ok 0
+booking_transactions fc42ac51-6cee-48de-a8e9-2848fe81506c ok 0
+order_lines fc42ac51-6cee-48de-a8e9-2848fe81506c ok 1
+agency_bookings 5b4896be-2de6-4f11-a8f3-2da1b92af35a ok 1
+orders fc42ac51-6cee-48de-a8e9-2848fe81506c ok 1
+talent_bookings 443c80b5-466f-4952-8c55-f306146d1be3 ERROR column talent_bookings.booking_id does not exist
+order_lines(booking) 443c80b5-466f-4952-8c55-f306146d1be3 ok 0
+booking_transactions 001fa14c-5d2c-45cb-b644-4cb45f8e2d5e ok 0
+order_lines 001fa14c-5d2c-45cb-b644-4cb45f8e2d5e ok 1
+agency_bookings 443c80b5-466f-4952-8c55-f306146d1be3 ok 1
+orders 001fa14c-5d2c-45cb-b644-4cb45f8e2d5e ok 1
+talent_bookings 31784215-2874-41ea-a3a8-6b85f057046e ERROR column talent_bookings.booking_id does not exist
+order_lines(booking) 31784215-2874-41ea-a3a8-6b85f057046e ok 0
+booking_transactions e88fbd22-2096-4f93-a7f3-c2e87872f4e8 ok 0
+order_lines e88fbd22-2096-4f93-a7f3-c2e87872f4e8 ok 1
+agency_bookings 31784215-2874-41ea-a3a8-6b85f057046e ok 1
+orders e88fbd22-2096-4f93-a7f3-c2e87872f4e8 ok 1
+talent_bookings 4db99998-f272-4b1a-b70b-abb143542ce4 ERROR column talent_bookings.booking_id does not exist
+order_lines(booking) 4db99998-f272-4b1a-b70b-abb143542ce4 ok 0
+booking_transactions 07268b71-7330-4328-981c-2a0d9b65916f ok 0
+order_lines 07268b71-7330-4328-981c-2a0d9b65916f ok 1
+agency_bookings 4db99998-f272-4b1a-b70b-abb143542ce4 ok 1
+orders 07268b71-7330-4328-981c-2a0d9b65916f ok 1
+talent_bookings 5acaae95-808f-409c-bca9-dacfb530e042 ERROR column talent_bookings.booking_id does not exist
+order_lines(booking) 5acaae95-808f-409c-bca9-dacfb530e042 ok 0
+booking_transactions 0ac8a086-85f9-429b-837e-54f28ac846f4 ok 0
+order_lines 0ac8a086-85f9-429b-837e-54f28ac846f4 ok 1
+agency_bookings 5acaae95-808f-409c-bca9-dacfb530e042 ok 1
+orders 0ac8a086-85f9-429b-837e-54f28ac846f4 ok 1
+series 177b3089-fe2a-433c-970e-9f2a09c5e932 fid-appts2 Stretch sessions 8
+order_lines(session) ok 0
+admissions ok 0
+capacity_pools ok 8
+sessions ok 8
+session_series 177b3089-fe2a-433c-970e-9f2a09c5e932 ok 1
+series d30f4410-eae3-4f9f-8f53-75025edd152a fid-appts2 Yoga sessions 4
+order_lines(session) ok 1
+admissions ok 0
+capacity_pools ok 4
+sessions ok 4
+session_series d30f4410-eae3-4f9f-8f53-75025edd152a ok 1
+series 91f69355-7296-4c6b-a411-d83932cb6452 fid-appts2 Boxing sessions 5
+order_lines(session) ok 1
+admissions ok 0
+capacity_pools ok 5
+sessions ok 5
+session_series 91f69355-7296-4c6b-a411-d83932cb6452 ok 1
+drafts [
+  {
+    id: '52f7c02e-30f3-435f-b416-bc49e064c052',
+    status: 'draft',
+    total_cents: 1200,
+    created_at: '2026-09-12T03:40:27.061115+00:00'
+  },
+  {
+    id: 'ae0be2e8-85e6-46b7-b7de-3daff1f7fc36',
+    status: 'draft',
+    total_cents: 0,
+    created_at: '2026-09-12T03:38:08.458417+00:00'
+  }
+]
+52f7c02e-30f3-435f-b416-bc49e064c052 lines 0 order 1
+ae0be2e8-85e6-46b7-b7de-3daff1f7fc36 lines 0 order 1
+left bookings 0 series 0

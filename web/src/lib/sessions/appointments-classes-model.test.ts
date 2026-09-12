@@ -34,6 +34,7 @@ function occurrence(over: Partial<ScheduleOccurrence> = {}): ScheduleOccurrence 
     poolKey: "default",
     poolCount: 1,
     venueName: "Studio A",
+    instructorUserId: null,
     ...over,
   };
 }
@@ -51,6 +52,9 @@ function series(over: Partial<ScheduleSeries> = {}): ScheduleSeries {
     endsOn: null,
     isActive: true,
     venueName: "Studio A",
+    venueId: "venue-1",
+    instructorUserId: null,
+    offeringId: null,
     occurrences: [occurrence(), occurrence({ id: "s2", startsAt: "2026-09-17T16:30:00.000Z", endsAt: "2026-09-17T17:30:00.000Z" })],
     refusalReason: null,
     skipped: [],
