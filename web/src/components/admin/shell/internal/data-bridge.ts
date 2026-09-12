@@ -14,6 +14,7 @@ import {
 } from "@/lib/talent-cards/roster-card-badges";
 import type { ProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-source-types";
+import type { BridgeSliceName } from "./bridge-slices";
 
 // Re-export the workspace-level loaders so layout.tsx has a single import
 // surface for all bridge data. The workspace bridge is tenant-id-explicit;
@@ -150,6 +151,21 @@ import type {
  */
 
 export type BridgeData = {
+  /**
+   * The bridge slices the layout did NOT load for this render (see
+   * `bridge-slices.ts`). The shell fetches them in one server action after
+   * hydration and shows a page's skeleton until the slice it reads arrives.
+   * Absent/empty means everything the server has is already here (the talent
+   * surface, standalone prototype mode).
+   */
+  lazySlices?: BridgeSliceName[];
+  /**
+   * The workspace's domain registry, loaded with the chrome on every admin
+   * page: `effectiveTenant.domain` (the "your site is live at ..." address)
+   * reads it, and it must not wait for the `website` slice.
+   */
+  domainSummary?: import("@/app/(workspace)/[tenantSlug]/_data-bridge/workspace-config").WorkspaceDomainSummary | null;
+
   /**
    * Roster rows for the workspace surface. `null` means "live mode was
    * not requested — fall back to the per-plan mock arrays". An empty
