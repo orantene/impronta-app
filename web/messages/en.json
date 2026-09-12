@@ -4778,7 +4778,11 @@
           "drawerClosed": "No shift open · the float is set when a shift opens",
           "drawerOpen": "Open since {time} · float {float}",
           "readerName": "Card reader",
-          "pair": "Pair a device"
+          "pair": "Pair a device",
+          "pairName": "Device name",
+          "pairFallback": "Device",
+          "lastSeen": "Last seen {time}",
+          "registryNote": "Paired devices share this location's modes. Offline counter stays cash-only."
         },
         "tips": {
           "title": "Tips",
@@ -4810,7 +4814,8 @@
           "never": "Never offline",
           "neverValue": "Everything",
           "unsynced": "Unsynced work",
-          "unsyncedValue": "None · nothing is kept on the device"
+          "unsyncedValue": "None · nothing is kept on the device",
+          "cashOnly": "When this device is offline, only cash sales can be queued. Card and wallet wait until it is back online."
         }
       },
       "paymentsProviders": {
@@ -5018,11 +5023,33 @@
         "usedInPosList": "Front desk, Counter",
         "usedInWeb": "Web",
         "usedInWebList": "Booking widget · the clock on every time shown",
-        "usedInNote": "one location today: the venue, its clock, and the modes switched on for it",
+        "usedInNote": "each location has its own clock and POS modes; zones sit on a location",
         "locationsHeading": "Locations",
         "zonesHeading": "Service zones · travel minutes",
-        "loading": "Reading the location…",
+        "loading": "Reading the locations…",
         "retry": "Try again",
+        "saving": "Saving…",
+        "saved": "Saved",
+        "saveFailed": "Save failed",
+        "cancel": "Cancel",
+        "nameLabel": "Name",
+        "timezoneLabel": "Timezone",
+        "addressLabel": "Address",
+        "setDefault": "Make this the default location",
+        "defaultChip": "default",
+        "notDefault": "not default",
+        "noZones": "No zones on this location yet.",
+        "zoneNameLabel": "Zone name",
+        "zoneKindLabel": "Kind",
+        "removeZone": "Remove",
+        "zoneSurcharge": "{pct}%",
+        "kind": {
+          "floor": "Floor",
+          "bar": "Bar",
+          "terrace": "Terrace",
+          "room": "Room",
+          "counter": "Counter"
+        },
         "errors": {
           "not_allowed": "You do not have permission to see the locations here. Ask a workspace owner.",
           "load_failed": "We could not reach the server, so the location could not be read."
@@ -5032,19 +5059,145 @@
         "drawerUnreadable": "drawer unreadable",
         "oneDrawer": "1 drawer",
         "noAddress": "No address yet",
-        "editLocation": "Edit this location",
-        "oneLocationNote": "{workspace} has one location. Its address and clock are edited under Venue and spaces.",
+        "editLocation": "Venue and spaces",
+        "oneLocationNote": "Spaces, tables and the floor plan for {workspace} still live under Venue and spaces.",
         "surcharge": "Surcharge outside zones",
         "surchargeHint": "Shown before the quote",
         "professionals": "Professionals",
         "professionalsValue": "Nobody assigned to a zone",
         "notWired": {
-          "addLocation": "There is no locations table yet; the workspace is its one location.",
-          "addZone": "Service zones are not modelled yet; nothing reads a zone.",
-          "save": "The location saves under Venue and spaces; there is nothing else here to save.",
-          "zones": "No service zones yet: travel minutes are not modelled, so the booking widget never checks a service area.",
-          "surcharge": "A surcharge outside zones needs zones first.",
-          "professionals": "Zones per professional need zones first."
+          "travel": "Travel minutes between zones are not stored, so the booking widget never checks a service area.",
+          "surcharge": "A surcharge outside every zone has no column yet; each zone can carry its own percent.",
+          "professionals": "Zones per professional are not stored yet."
+        }
+      },
+      "layouts": {
+        "label": "Layouts",
+        "title": "Layout editor",
+        "subtitle": "Place the same tables on a floor plan. Activating a version never adds seats.",
+        "add": "Add layout",
+        "save": "Save draft",
+        "saving": "Saving…",
+        "saved": "Saved",
+        "saveFailed": "Save failed",
+        "retry": "Try again",
+        "cancel": "Cancel",
+        "loading": "Reading the layouts…",
+        "empty": "No layouts yet. Add one and place the tables.",
+        "usedIn": "Used in",
+        "usedInPos": "POS",
+        "usedInPosList": "Tables, Live Floor",
+        "usedInWeb": "Web",
+        "usedInWebList": "Reservation block · seat map",
+        "shareCapacity": "Activating a layout never writes capacity. Two versions of one room share the same tables and the same pools.",
+        "versionsHeading": "Versions",
+        "canvasHeading": "Floor plan",
+        "nameLabel": "Name",
+        "activeChip": "active",
+        "draftChip": "draft",
+        "activate": "Activate this layout",
+        "saveBeforeActivate": "Save the draft before you activate it.",
+        "pickLayout": "Pick a layout to place tables.",
+        "canvasHint": "Choose an unplaced table, then tap the plan to drop it. Tap a placed table to remove it.",
+        "unplacedHeading": "Not on this plan",
+        "allPlaced": "Every table is on this plan.",
+        "placing": "Tap the plan to place {name}",
+        "unmapped": "{n} tables have no place on this plan.",
+        "shapeHint": "Shape",
+        "shapeRect": "Rectangle",
+        "notWired": {
+          "shape": "Per-item shape editing is not stored beyond rect and round from the space kind."
+        },
+        "errors": {
+          "load_failed": "We could not reach the server, so the layouts could not be read."
+        }
+      },
+      "servicePeriods": {
+        "label": "Service periods",
+        "title": "Service periods, pacing and terms",
+        "subtitle": "Rules the floor, reservations and the guest booking block all follow",
+        "add": "Add period",
+        "save": "Save",
+        "saving": "Saving…",
+        "saved": "Saved",
+        "saveFailed": "Save failed",
+        "retry": "Try again",
+        "loading": "Reading the periods…",
+        "empty": "No periods yet. Until one exists, today's venue windows stay.",
+        "usedIn": "Used in",
+        "usedInPos": "POS",
+        "usedInPosList": "Tables, Spaces",
+        "usedInWeb": "Web",
+        "usedInWebList": "Reservation block",
+        "periodsHeading": "Service periods",
+        "pacingHeading": "Pacing and turnover",
+        "moneyHeading": "Money terms by type",
+        "nameLabel": "Name",
+        "startsLabel": "Starts",
+        "endsLabel": "Ends",
+        "turnLabel": "Turn minutes",
+        "minutesSuffix": " min",
+        "partiesPer15": "Parties per 15 min",
+        "coversPer15": "Covers per 15 min",
+        "setupCleanup": "Setup / cleanup",
+        "lateGrace": "Late arrival grace",
+        "day": {
+          "1": "Mon",
+          "2": "Tue",
+          "3": "Wed",
+          "4": "Thu",
+          "5": "Fri",
+          "6": "Sat",
+          "7": "Sun"
+        },
+        "notWired": {
+          "pacing": "Parties per 15 minutes, covers, setup and late grace are not stored on a period yet.",
+          "money": "Deposit, minimum spend and prepaid-menu terms stay on Booking policies. This table has no per-type column yet."
+        },
+        "errors": {
+          "load_failed": "We could not reach the server, so the periods could not be read."
+        }
+      },
+      "prepStations": {
+        "label": "Prep stations",
+        "title": "Preparation stations and routing",
+        "subtitle": "Where each item goes when the POS or a guest sends it",
+        "add": "Add station",
+        "save": "Save",
+        "saving": "Saving…",
+        "saved": "Saved",
+        "saveFailed": "Save failed",
+        "retry": "Try again",
+        "loading": "Reading the stations…",
+        "empty": "No stations yet. Until one exists, every ticket stays on kitchen.",
+        "usedIn": "Used in",
+        "usedInPos": "POS",
+        "usedInPosList": "Tables, Counter, Kitchen",
+        "usedInWeb": "Web",
+        "usedInWebList": "Guest QR, pickup page",
+        "stationsHeading": "Stations",
+        "dispatchHeading": "Dispatch rules",
+        "colStation": "Station",
+        "colKind": "Kind",
+        "colCode": "Code",
+        "nameLabel": "Name",
+        "codeLabel": "Code",
+        "kindLabel": "Kind",
+        "remove": "Remove",
+        "sendChanged": "Send only what changed",
+        "ackRequired": "Station acknowledgement required",
+        "courseFireNote": "Courses fire from the table card on Tables. The kitchen station shows what was fired.",
+        "kind": {
+          "kitchen": "Kitchen",
+          "bar": "Bar",
+          "pickup": "Pickup",
+          "pass": "Pass"
+        },
+        "notWired": {
+          "dispatch": "Dispatch toggles, delay alerts and device routing are not stored on a station yet."
+        },
+        "errors": {
+          "load_failed": "We could not reach the server, so the stations could not be read."
         }
       },
       "bookingPolicies": {
@@ -13225,7 +13378,14 @@
           "showTest": "Open display",
           "drawerDetail": "Via receipt printer",
           "openLogged": "Open (logged)",
-          "drawerUnavailable": "No cash drawer is connected to this device."
+          "drawerUnavailable": "No cash drawer is connected to this device.",
+          "registryTitle": "Paired devices",
+          "registryEmpty": "No devices paired yet.",
+          "cashOnlyOffline": "Offline counter stays cash-only. Card and wallet wait until the device is back online.",
+          "pairName": "Device name",
+          "thisTill": "This till",
+          "pairThisTill": "Pair this till",
+          "pairFirst": "Pair this till before syncing queued cash sales."
         },
         "connection": {
           "subtitle": "This device · {location}",
@@ -13244,6 +13404,7 @@
           "readerConnected": "Connected",
           "readerNote": "Card payments need the internet to get an answer from the bank; the counter cannot drive a reader yet either way.",
           "nothingQueued": "Nothing is kept on this device while offline. A sale needs the connection to be saved.",
+          "queuedCount": "{count} cash sales waiting to sync.",
           "syncNow": "Sync now"
         },
         "lock": {
@@ -14107,7 +14268,13 @@
           "footnote": "Every change invalidates the replaced credential the moment it is confirmed. Money follows the accepted price and the refund policy, never the current list price.",
           "back": "Back",
           "transferAction": "Transfer",
-          "exchangeAction": "Exchange"
+          "transferToName": "New holder name",
+          "transferToEmail": "New holder email",
+          "transferred": "Transferred. The old code no longer admits.",
+          "exchangeAction": "Exchange",
+          "exchangeNight": "New night",
+          "exchanged": "Moved to the new night. The old code no longer admits.",
+          "noOtherNight": "This event has no other night to move the ticket to."
         },
         "delivery": {
           "title": "{code} · delivery",
@@ -14142,6 +14309,9 @@
         "fewerGuests": "One fewer guest",
         "moreGuests": "One more guest",
         "sendKitchen": "Send to kitchen",
+        "fireStarters": "Fire starters",
+        "fireMains": "Fire mains",
+        "fireDessert": "Fire dessert",
         "noFreeTables": "No free table fits this party.",
         "markReady": "Mark ready",
         "kitchenNone": "Nothing sent to the kitchen yet",
@@ -14318,7 +14488,7 @@
             "name": "Name",
             "mobile": "Mobile for a text when ready",
             "optional": "Optional",
-            "mobileReason": "No text is sent yet; call the party by name.",
+            "mobileReason": "We keep the number for the offer. No text is sent until a phone sender exists.",
             "highChair": "High chair",
             "stepFree": "Step-free access",
             "quietArea": "Quiet area",
@@ -14339,9 +14509,11 @@
             "told": "{time} · waiting {n} min",
             "seatNow": "Seat now",
             "offerTable": "Offer table",
-            "offerReason": "Offering a table by text is not built yet; seat the party or call them by name.",
+            "offerReason": "We record the offer. No text is sent until a phone sender exists.",
+            "offered": "Offer recorded. No text was sent.",
+            "notifyNone": "The offer is on the list. No text was sent.",
             "remove": "Remove",
-            "removeReason": "Removing a party from the list is not built yet.",
+            "removeReason": "Remove this party from the waiting list.",
             "close": "Close",
             "addParty": "Add party",
             "empty": "Nobody is waiting for a table."
@@ -14865,15 +15037,54 @@
       "server": "Server",
       "serverNone": "Ask any member of staff",
       "startOrdering": "Start ordering",
-      "orderingReason": "Ordering from your phone is not open yet; your server takes the order.",
       "chipTableOrder": "Table QR",
       "chipNotPayment": "Not a payment code",
       "yourBill": "Your bill",
       "tableCode": "Table {code}",
       "payAll": "Pay all · {amount}",
       "payShare": "Pay my share",
-      "payReason": "Paying from your phone is not open yet; the bill is settled at the table with your server.",
-      "tableLine": "Table {code} · your visit"
+      "tableLine": "Table {code} · your visit",
+      "menu": {
+        "title": "Menu",
+        "tableLine": "Table {code}",
+        "viewOrder": "View order · {n} items · {amount}",
+        "submit": "Send the order",
+        "submitted": "The team accepted your order. If something runs out we will suggest here before we change anything.",
+        "orderMore": "Order more",
+        "askBill": "Ask for the bill",
+        "empty": "Nothing to order on this visit yet.",
+        "add": "Add",
+        "offerTitle": "A substitution is waiting",
+        "acceptOffer": "Accept {name}",
+        "back": "Your table"
+      },
+      "ticket": {
+        "title": "Your ticket",
+        "night": "Night",
+        "show": "Show this code at the door.",
+        "transfer": "Transfer this ticket",
+        "toName": "New holder name",
+        "toEmail": "New holder email",
+        "transferAction": "Transfer",
+        "resend": "Resend by email",
+        "lookup": "Find a ticket",
+        "last4": "Last four of the receipt",
+        "lookupAction": "Look up",
+        "found": "Open {code}"
+      },
+      "share": {
+        "title": "Pay my share",
+        "tableLine": "Table {code} · {amount} total",
+        "myItems": "My items",
+        "splitEven": "Split evenly",
+        "anAmount": "An amount",
+        "payCard": "Pay {amount} by card",
+        "alreadyPaid": "This share is already paid.",
+        "leftover": "Left for the table after this: {amount}. Someone else can pay at the same time; each payment locks its own items.",
+        "back": "Your table",
+        "paid": "Paid",
+        "owed": "Still owed"
+      }
     },
     "adminSessions": {
       "loading": "Loading the schedule...",
@@ -16627,7 +16838,6 @@
         "spaceNone": "Not set",
         "layout": "Layout",
         "layoutNone": "No layout",
-        "layoutReason": "Layouts are the Spaces area's S4-S6 work, parked.",
         "blocked": "Blocked interval",
         "blockedReason": "An event blocks no interval on a space yet; only the doors offset is recorded.",
         "dining": "Dining reservations in the window",
@@ -16639,7 +16849,12 @@
         "usesTables": "Table group (exclusive)",
         "noPool": "no pool",
         "totalNote": "Total attendance capacity {capacity} across {pooled} pooled tiers on this night. A second layout cannot create capacity the space lacks.",
-        "totalNoteNone": "No pool is set for this night, so there is no capacity to add up yet."
+        "totalNoteNone": "No pool is set for this night, so there is no capacity to add up yet.",
+        "saved": "Layout saved for this night.",
+        "seats": "Seats",
+        "seatsEmpty": "This layout has no seats yet. Add seats on Spaces, then hold them here.",
+        "holdSeats": "Hold selected seats",
+        "heldUntil": "Hold until {when}"
       },
       "day": {
         "title": "Event day · {date}",
@@ -16682,7 +16897,13 @@
         "readyPublished": "Published",
         "readyTiers": "Ticket types",
         "readyNight": "Nights scheduled",
-        "readyPools": "Pools on this night"
+        "readyPools": "Pools on this night",
+        "compTitle": "Complimentary admission",
+        "compName": "Guest name",
+        "compEmail": "Guest email",
+        "compReason": "Reason",
+        "compAction": "Issue a complimentary ticket",
+        "compDone": "Complimentary ticket issued."
       },
       "guests": {
         "openDoor": "Open the door"
@@ -16714,6 +16935,10 @@
         "modelRsvp": "RSVP",
         "modelRegistration": "Registration",
         "modelPass": "Pass",
+        "series": "Pass series",
+        "seriesHint": "One named series. Nights are still scheduled from Sessions.",
+        "seriesReason": "A series is for a multi-day pass. Switch the sales model to Pass.",
+        "seriesPlaceholder": "Weekend pass",
         "organizer": "Organizer",
         "organizerReason": "The workspace is the organizer; a separate organizer has no column yet.",
         "format": "Event format",

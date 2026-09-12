@@ -37,6 +37,7 @@ import {
 import { doorCounts, doorTakings, type DoorCounts, type DoorPaidVia, type DoorTakings } from "@/lib/events/summary";
 import { capacityRemaining, commitCapacity, releaseCapacity, reserveCapacityBatch } from "@/lib/capacity";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
+import { signAdmissionToken } from "@/lib/sessions/admission-token";
 import { z } from "zod";
 
 export type DoorRow = {
@@ -60,7 +61,13 @@ export type DoorRow = {
   orderLineId: string | null;
   /** The tier's label as the order line carried it, or null for a walk-up. */
   tierLabel: string | null;
+  version: number;
+  tokenVersion: number;
+  /** Signed door code for `/ticket/[code]` transfer. Null when the secret is missing. */
+  code: string | null;
 };
+
+export type DoorNight = { id: string; startsAt: string };
 
 export type DoorSession = {
   id: string;
@@ -71,7 +78,7 @@ export type DoorSession = {
 };
 
 export type LoadDoorResult =
-  | { ok: true; session: DoorSession; rows: DoorRow[]; counts: DoorCounts }
+  | { ok: true; session: DoorSession; rows: DoorRow[]; counts: DoorCounts; nights: DoorNight[] }
   | { ok: false; error: string };
 
 /**
@@ -116,7 +123,7 @@ export async function loadDoor(sessionId: string): Promise<LoadDoorResult> {
     const { data: admissionRows, error: admErr } = await supabase
       .from("admissions")
       .select(
-        "id, holder_name, holder_email, party_size, admitted_count, status, seated_at, no_show_at, line_seq, order_line_id, door_amount_cents, door_paid_via",
+        "id, holder_name, holder_email, party_size, admitted_count, status, seated_at, no_show_at, line_seq, order_line_id, door_amount_cents, door_paid_via, version, token_version",
       )
       .eq("session_id", sessionId)
       .eq("tenant_id", tenantId)
@@ -145,23 +152,48 @@ export async function loadDoor(sessionId: string): Promise<LoadDoorResult> {
       }
     }
 
-    const rows: DoorRow[] = (admissionRows ?? []).map((a) => ({
-      id: a.id as string,
-      holderName: (a.holder_name as string | null) ?? null,
-      partySize: Number(a.party_size),
-      admittedCount: Number(a.admitted_count),
-      status: a.status as DoorRow["status"],
-      seatedAt: (a.seated_at as string | null) ?? null,
-      noShowAt: (a.no_show_at as string | null) ?? null,
-      lineSeq: (a.line_seq as number | null) ?? null,
-      walkUp: a.order_line_id === null,
-      doorAmountCents: (a.door_amount_cents as number | null) ?? null,
-      doorPaidVia: (a.door_paid_via as DoorPaidVia | null) ?? null,
-      holderEmail: (a.holder_email as string | null) ?? null,
-      orderId: a.order_line_id ? (lineById.get(a.order_line_id as string)?.orderId ?? null) : null,
-      orderLineId: (a.order_line_id as string | null) ?? null,
-      tierLabel: a.order_line_id ? (lineById.get(a.order_line_id as string)?.label ?? null) : null,
-    }));
+    const rows: DoorRow[] = (admissionRows ?? []).map((a) => {
+      const tokenVersion = Number(a.token_version) || 1;
+      return {
+        id: a.id as string,
+        holderName: (a.holder_name as string | null) ?? null,
+        partySize: Number(a.party_size),
+        admittedCount: Number(a.admitted_count),
+        status: a.status as DoorRow["status"],
+        seatedAt: (a.seated_at as string | null) ?? null,
+        noShowAt: (a.no_show_at as string | null) ?? null,
+        lineSeq: (a.line_seq as number | null) ?? null,
+        walkUp: a.order_line_id === null,
+        doorAmountCents: (a.door_amount_cents as number | null) ?? null,
+        doorPaidVia: (a.door_paid_via as DoorPaidVia | null) ?? null,
+        holderEmail: (a.holder_email as string | null) ?? null,
+        orderId: a.order_line_id ? (lineById.get(a.order_line_id as string)?.orderId ?? null) : null,
+        orderLineId: (a.order_line_id as string | null) ?? null,
+        tierLabel: a.order_line_id ? (lineById.get(a.order_line_id as string)?.label ?? null) : null,
+        version: Number(a.version) || 1,
+        tokenVersion,
+        code: signAdmissionToken(a.id as string, tokenVersion),
+      };
+    });
+
+    let nights: DoorNight[] = [
+      { id: session.id as string, startsAt: session.starts_at as string },
+    ];
+    if (session.event_id) {
+      const { data: nightRows, error: nightsErr } = await supabase
+        .from("sessions")
+        .select("id, starts_at")
+        .eq("tenant_id", tenantId)
+        .eq("event_id", session.event_id as string)
+        .order("starts_at", { ascending: true });
+      if (nightsErr) logServerError("door.load/nights", nightsErr);
+      else if (nightRows && nightRows.length > 0) {
+        nights = (nightRows as Array<{ id: string; starts_at: string }>).map((n) => ({
+          id: n.id,
+          startsAt: n.starts_at,
+        }));
+      }
+    }
 
     return {
       ok: true,
@@ -174,6 +206,7 @@ export async function loadDoor(sessionId: string): Promise<LoadDoorResult> {
       },
       rows,
       counts: doorCounts(rows),
+      nights,
     };
   } catch (err) {
     logServerError("door.load", err);

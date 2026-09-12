@@ -31,19 +31,19 @@ so Door and Counter look like one product. Copy is in three languages under
 | `POSBoxOffice` (G06) | `POSBoxOffice.live.png` | matched | Tiles are the session's tiers with `n left` from `capacity_remaining_public`; Recent card is this till's scans; basket is the draft order (`posDoorOpenTicketSale`, `posDoorAddTicketLine`, `posUpdateLine`, `posRemoveLine`, re-read by `posDoorReadSale`); Charge is `Continue · N tickets` because seats are held at cash time (D-POS-55). `Buyer (optional)` opens the attendees step. |
 | `E01_ChooseEvent` | `E01_ChooseEvent.live.png` | matched | Events on sale grouped from tonight's list, dates on the right, Continue · date. "Presale", "RSVP" pills need columns the row lacks; every event reads On sale. |
 | `E02_TicketsQty` | `E02_TicketsQty.live.png` | partially | Quantities are the basket's steppers on the right (G06's layout) rather than on the tier rows; "Early bird / phase ended" needs price phases (not built, D-POS-56). |
-| `E03_Seats` | none | **not wired** | No seat map (Spaces S4-S6). |
+| `E03_Seats` | none | **partial** | Seat chips on Event › Venue (`admissionHoldSeats`). Not the public checkout map. |
 | `E04_Attendees` | `E04_Attendees.live.png` | matched | Buyer card + one row per ticket; names go on the minted rows in line order (`attendeeNames`). The 18+ confirmation has no column. |
-| `E05_HoldExpired` | none | **not wired** | No ten-minute hold exists; `startCollection` reserves at cash time (D-POS-55). |
+| `E05_HoldExpired` | none | **partial** | Hold expiry is returned on `admissionHoldSeats` and reaped in `expire-orders`. No dedicated expired-hold sheet. |
 | `E06_Issued` | `E06_Issued.live.png` | matched | Print / Text / Resend disabled with their sentences (D-POS-55); the signed code is the ticket; receipt link is the real `/r/<code>`. |
 | `E07_IssuePending` | not shot | matched by code | Renders when a paid collect minted no row; `Try issuing again` is `resumeExceptionAction("mint_missing_admissions")` re-read through `posDoorIssuedTickets`. Could not be forced on the fixture without breaking the mint. |
-| `E08_CustomerTicket` (390x844) | none | not in scope | Public customer ticket; the public checkout was not touched. |
+| `E08_CustomerTicket` (390x844) | none | **partial** | Public `/ticket/[code]` (D-POS-77): transfer, resend email, lookup. |
 | `E09_TicketLookup` | `E09_TicketLookup.live.png` | matched | Grouped by order; `Admit <ref> · <name>` is `admitAtDoor`; `Resend all tickets` disabled (D-POS-55). |
-| `E10_Transfer` | `E10_Transfer.live.png` | partially | Drawn as a 600px sheet over the lookup (the board is a full page); Transfer and Exchange disabled with their sentences, `Cancel & refund` is `refundOrderAtDesk(cancel_ticket)` with the desk's own outcome sentences, `Name it` is `posDoorNameTicket` (E13). |
-| `E11_Exchange` | none | **not wired** | No writer moves a ticket to another night (D-POS-55). |
-| `E12_Comp` | none | **not wired** | No comp writer at the till (D-POS-22). |
+| `E10_Transfer` | `E10_Transfer.live.png` | **partial** | Drawn as a 600px sheet over the lookup. Transfer is `ticketTransfer` when the row has a signed code. `Cancel & refund` is `refundOrderAtDesk(cancel_ticket)`. `Name it` is `posDoorNameTicket` (E13). |
+| `E11_Exchange` | none | **partial** | Door Change sheet: `admissionExchange` to another night of the same event. Price-up returns `price_up_needs_payment`. |
+| `E12_Comp` | none | **partial** | Event Day tab: `admissionComp`. Not a till tile. |
 | `E13_NameTicket` (390x844) | in `E10_Transfer.live.png` | matched (as the Name card) | The name form lives on E10's fourth card. |
-| `E14_MultiDay` | none | **not wired** | No pass model (D-POS-55). |
-| `E15_Delivery` | `E15_Delivery.live.png` | matched | Four rows over the one fact the workspace has; every resend disabled with its sentence. |
+| `E14_MultiDay` | none | **partial** | CreateEvent Pass model writes `eventSeriesUpsert`. Nights still come from Sessions. |
+| `E15_Delivery` | `E15_Delivery.live.png` | **partial** | Email and print call `admissionDeliver`. SMS and wallet stay `channel_unavailable`. |
 | Door rail: Receipts / Issues | `Receipts.live.png`, `Issues.live.png` | matched | Receipts are the door's own paid sales (`listPaidPosSales` with `sourcePage: "door"`); Issues is the counter's own sentence (D-POS-28). |
 
 ## Workspace boards (1440x900)
@@ -53,7 +53,7 @@ so Door and Counter look like one product. Copy is in three languages under
 | `W16_EventsList` | `W16_EventsList.live.png` | partially | Heading, segments with counts, List/Calendar, filters, Used-in line and the seven columns match. Venue, Sold, Left and Door alloc. print a dash with the reason (per night; not on the row) (D-POS-56). Templates, Import, Calendar, the filters are disabled with their sentence. |
 | `CreateEvent` | `CreateEvent.live.png` | partially | Essentials step: name, sales model and doors offset write (`createEvent`); every other field has no column and is disabled with its sentence; Dates preview and Readiness say what exists; steps 3 to 5 point at the Sessions page and the event's tabs (D-POS-56). |
 | `EventDetail` | `EventDetail.live.png` | matched | Header with date chips, zone, state, Preview / Share (disabled) / Open event day; ten-row sub-nav; Tickets & Offers with the four figures from the night's pools, the seven-column table, Add ticket type (`addTier`), row menu → inline editor (`updateTier`), Ticket settings, Venue commitment (disabled). Price phases / Packages / Allocations sub-tabs have no column. |
-| `W17_EventVenueSeating` | `W17_EventVenueSeating.live.png` | partially | Layout matched; Space / Layout / Blocked interval / Dining and Change venue / Save disabled with their sentences (no writer after creation); the ticket table and the capacity note are real. |
+| `W17_EventVenueSeating` | `W17_EventVenueSeating.live.png` | **partial** | Layout select and Save are `eventSeatMapUpsert`. Change venue, blocked interval and dining stay disabled. Seat hold is E03 on this tab. |
 | `W18_EventDaySettings` | `W18_EventDaySettings.live.png` | partially | Every rule is drawn disabled with the engine's fixed answer (D-POS-57); Save disabled; `Open POS · Tickets` wired; Readiness derived from rows. |
 
 Not touched: the public checkout (E01-E06 on the tenant site), the canonical
@@ -64,8 +64,8 @@ Tailwind), and the Tables / Reservations / Kitchen files.
 
 - Gate: Redeem meal, Let in anyway · manager, Exchange date · box office; manual admit's Reason and Authorized by (D-POS-54).
 - Box office / issued: Print tickets, Text link, Resend email, Sent by email pill, Give a paper confirmation (D-POS-55).
-- Lookup: Resend all tickets, Transfer, Exchange, every delivery row (D-POS-55).
-- Events: Templates, Import, Calendar view, Venue and Sales filters, Share, Add price phase, Add package, Price phases / Packages / Allocations sub-tabs, Change venue / layout, Block seats, W17's four fields and Save, W18's fourteen rules and Save, CreateEvent's non-essential fields and steps 3-5 (D-POS-56, D-POS-57).
+- Lookup: Resend all tickets. SMS and wallet delivery stay unavailable.
+- Events: Templates, Import, Calendar view, Venue and Sales filters, Share, Add price phase, Add package, Price phases / Packages / Allocations sub-tabs, Change venue, Blocked interval, Dining, W18's fourteen rules and Save, CreateEvent's non-essential fields and steps 3-5 (D-POS-56, D-POS-57).
 
 Extra live shots: `POSGateForged.live.png` (a code that does not check out, the
 red hero), `POSGatePickEvent.live.png` (the night picker before a gate is

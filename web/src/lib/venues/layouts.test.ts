@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { layoutActivate, servicePeriodUpsert } from "./layouts";
+import { layoutActivate, layoutUpsert, prepStationUpsert, servicePeriodUpsert } from "./layouts";
 
 function rpcAdmin(handler: (fn: string, args: Record<string, unknown>) => unknown) {
   return {
@@ -55,4 +55,41 @@ test("layout SQL proves conflict and overlap and does not change capacity", () =
   assert.match(sql, /course_seq/);
   assert.doesNotMatch(sql, /units_total/);
   assert.match(sql, /expected overlap/);
+});
+
+test("layoutUpsert maps conflict", async () => {
+  const result = await layoutUpsert(
+    rpcAdmin((fn) => {
+      assert.equal(fn, "layout_upsert");
+      return { ok: false, reason: "conflict" };
+    }),
+    { tenantId: "t1", locationId: "loc1", name: "Dinner", items: [] },
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.reason, "conflict");
+});
+
+test("prepStationUpsert maps invalid", async () => {
+  const result = await prepStationUpsert(
+    rpcAdmin((fn) => {
+      assert.equal(fn, "prep_station_upsert");
+      return { ok: false, reason: "invalid" };
+    }),
+    { tenantId: "t1", code: "hot-line", name: "Hot line", kind: "kitchen" },
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.reason, "invalid");
+});
+
+test("layout upsert SQL never activates and never writes capacity", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "..", "supabase", "migrations", "20261231233000_layout_prep_upsert.sql"),
+    "utf8",
+  );
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.layout_upsert/);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.prep_station_upsert/);
+  assert.match(sql, /upsert must not activate/);
+  assert.match(sql, /activate wrote capacity/);
 });

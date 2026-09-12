@@ -25,7 +25,7 @@ import { PosSheet } from "../pos/PosSheet";
 import type { FloorBoardCopy } from "./floor-copy";
 import { fits, isSeatable, tableCode, type FloorBookEntry } from "./floor-model";
 import { FLOOR_EYEBROW, OPTION_CARD, OPTION_CARD_ACTIVE, OPTION_CARD_IDLE, OPTION_CARD_OFF } from "./floor-tones";
-import type { FloorBoardData } from "./floor-types";
+import type { FloorBoardData, FloorWaitlistEntry } from "./floor-types";
 
 /** One place a party can be seated: a table alone, or a table with a joined partner. */
 export type SeatOption = {
@@ -47,6 +47,7 @@ export type SeatPartySheetProps = {
   readonly table: FloorTable | null;
   /** The booking being seated, when the sheet came from the Arriving list or a held tile. */
   readonly entry: FloorBookEntry | null;
+  readonly waitlist?: FloorWaitlistEntry | null;
   readonly busy: boolean;
   readonly onClose: () => void;
   readonly onSeat: (input: { spaceId: string; joinedSpaceId?: string; partySize: number; admissionId?: string }) => void;
@@ -104,9 +105,9 @@ export function seatOptions(
 }
 
 export function SeatPartySheet(props: SeatPartySheetProps) {
-  const { data, copy, table, entry, busy } = props;
+  const { data, copy, table, entry, waitlist, busy } = props;
   const s = copy.seat;
-  const bookedFor = entry?.partySize ?? table?.held?.partySize ?? null;
+  const bookedFor = waitlist?.partySize ?? entry?.partySize ?? table?.held?.partySize ?? null;
   const [party, setParty] = useState<number>(bookedFor ?? Math.max(1, table?.partyMin ?? 2));
   const assignedId = table?.spaceId ?? (entry?.spaceCode ? (data.tables.find((t) => tableCode(t) === entry.spaceCode)?.spaceId ?? null) : null);
   const options = useMemo(() => seatOptions(data.tables, assignedId, party, copy, data), [data, assignedId, party, copy]);
@@ -124,7 +125,7 @@ export function SeatPartySheet(props: SeatPartySheetProps) {
   // a party of three is never offered a two-top it did not tap.
   const assigned = options.filter((o) => o.spaceId === assignedId);
   const others = options.filter((o) => o.spaceId !== assignedId && o.fits);
-  const name = entry?.holderName ?? table?.held?.holderName ?? null;
+  const name = waitlist?.holderName ?? entry?.holderName ?? table?.held?.holderName ?? null;
   const admissionId = entry?.admissionId ?? table?.held?.admissionId;
   const code = chosen ? chosen.label.split(" · ")[0] : (table ? tableCode(table) : "");
 

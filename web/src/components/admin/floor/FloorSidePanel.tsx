@@ -15,9 +15,9 @@ import { cn } from "@/lib/utils";
 import { POS_SEGMENT, POS_SEGMENT_ACTIVE, POS_SEGMENT_IDLE, POS_SEGMENT_TRACK } from "../pos/pos-classes";
 
 import type { FloorBoardCopy } from "./floor-copy";
-import { arrivingEntries, bookName, isWaiting, seatedEntryFor, seatedTables, tableCode, tableLabel, waitingEntries, type FloorBookEntry } from "./floor-model";
+import { arrivingEntries, bookName, isWaiting, seatedEntryFor, seatedTables, tableCode, tableLabel, type FloorBookEntry } from "./floor-model";
 import { FLOOR_PILL, PILL_CONFIRMED, PILL_LATE, PILL_SEATED, PILL_WAITING } from "./floor-tones";
-import type { FloorBoardData } from "./floor-types";
+import type { FloorBoardData, FloorWaitlistEntry } from "./floor-types";
 import { moneyFor } from "./FloorViews";
 
 export type PanelTab = "arriving" | "waiting" | "seated";
@@ -29,6 +29,7 @@ export type FloorSidePanelProps = {
   readonly onTabChange: (tab: PanelTab) => void;
   /** A booking row: seat it (Arriving) or offer it a table (Waiting). */
   readonly onPickEntry: (entry: FloorBookEntry) => void;
+  readonly onPickWaitlist: (entry: FloorWaitlistEntry) => void;
   /** A seated row: open that table. */
   readonly onPickTable: (table: FloorTable) => void;
   readonly selectedId: string | null;
@@ -41,12 +42,12 @@ const ROW =
 export function panelCounts(data: FloorBoardData): Record<PanelTab, number> {
   return {
     arriving: arrivingEntries(data.book).length,
-    waiting: waitingEntries(data.book).length,
+    waiting: data.partyWaitlist.length,
     seated: seatedTables(data.tables).length,
   };
 }
 
-export function FloorSidePanel({ data, copy, tab, onTabChange, onPickEntry, onPickTable, selectedId, className }: FloorSidePanelProps) {
+export function FloorSidePanel({ data, copy, tab, onTabChange, onPickEntry, onPickWaitlist, onPickTable, selectedId, className }: FloorSidePanelProps) {
   const nowMs = Date.parse(data.nowIso);
   const counts = panelCounts(data);
   const p = copy.panel;
@@ -119,13 +120,33 @@ export function FloorSidePanel({ data, copy, tab, onTabChange, onPickEntry, onPi
     );
   }
 
+  function waitlistRow(entry: FloorWaitlistEntry) {
+    return (
+      <li key={entry.id}>
+        <button type="button" data-floor-waiting={entry.id} className={ROW} onClick={() => onPickWaitlist(entry)}>
+          <span className="w-11 shrink-0 text-[14px] tabular-nums text-admin-ink-muted">
+            {venueHhmm(entry.joinedAtIso, data.timeZone, data.locale)}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[15px] font-semibold text-admin-ink">
+              {entry.holderName || p.walkIn} · {entry.partySize}
+            </span>
+            <span className="block truncate text-[13.5px] text-admin-ink-muted">
+              {interpolate(p.waitingFor, { n: Math.max(0, Math.round((nowMs - Date.parse(entry.joinedAtIso)) / 60_000)) })}
+            </span>
+          </span>
+          <span className={cn(FLOOR_PILL, PILL_WAITING)}>{p.stateWaiting}</span>
+        </button>
+      </li>
+    );
+  }
+
   const arriving = arrivingEntries(data.book);
-  const waiting = waitingEntries(data.book);
   const seated = seatedTables(data.tables);
   const empty =
     tab === "arriving" ? p.emptyArriving : tab === "waiting" ? p.emptyWaiting : p.emptySeated;
   const rows =
-    tab === "arriving" ? arriving.map(entryRow) : tab === "waiting" ? waiting.map(entryRow) : seated.map(seatedRow);
+    tab === "arriving" ? arriving.map(entryRow) : tab === "waiting" ? data.partyWaitlist.map(waitlistRow) : seated.map(seatedRow);
 
   return (
     <aside data-floor-panel={tab} className={cn("flex min-h-0 w-[320px] shrink-0 flex-col border-r border-admin-border bg-admin-card", className)}>

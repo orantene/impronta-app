@@ -38,7 +38,7 @@ import {
 
 import { floorRefusalText } from "./floor-copy";
 import { isWaiting, tableCode, type FloorBookEntry } from "./floor-model";
-import type { FloorBoardProps, FloorOutcome } from "./floor-types";
+import type { FloorBoardProps, FloorOutcome, FloorWaitlistEntry } from "./floor-types";
 import { FloorDialogsHost } from "./FloorDialogsHost";
 import { FloorLegend, FloorList, FloorTiles, FloorTimeline } from "./FloorViews";
 import { FloorSidePanel, type PanelTab } from "./FloorSidePanel";
@@ -46,7 +46,7 @@ import { TablePopover } from "./TablePopover";
 
 export type FloorOverlay =
   | { kind: "none" }
-  | { kind: "seat"; table: FloorTable | null; entry: FloorBookEntry | null }
+  | { kind: "seat"; table: FloorTable | null; entry: FloorBookEntry | null; waitlist?: FloorWaitlistEntry | null }
   | { kind: "walk-in" }
   | { kind: "waiting" }
   | { kind: "move"; table: FloorTable }
@@ -133,7 +133,12 @@ export function FloorBoard(props: FloorBoardProps) {
   }
 
   async function seat(input: { spaceId: string; joinedSpaceId?: string; partySize: number; admissionId?: string }) {
-    const r = await run(() => actions.seatParty(input));
+    const waitlist = overlay.kind === "seat" ? overlay.waitlist : null;
+    const r = await run(() =>
+      waitlist
+        ? actions.seatWaitlist({ id: waitlist.id, spaceId: input.spaceId, expectedVersion: waitlist.version })
+        : actions.seatParty(input),
+    );
     if (r.ok) {
       setOverlay({ kind: "none" });
       setSelectedId(null);
@@ -151,6 +156,13 @@ export function FloorBoard(props: FloorBoardProps) {
       }
       return r;
     });
+  }
+
+  async function fireCourse(table: FloorTable, courseSeq: number) {
+    if (!table.visitId || !actions.fireCourse) return;
+    const visitId = table.visitId;
+    const fire = actions.fireCourse;
+    await run(() => fire({ visitId, courseSeq }));
   }
 
   const close = useCallback(() => setOverlay({ kind: "none" }), []);
@@ -210,7 +222,17 @@ export function FloorBoard(props: FloorBoardProps) {
       {/* The column belongs to the map (`POSLiveFloor`); the timeline and the
           list run the full width, as their boards draw them. */}
       {view === "floor" && !ordersOnly && (
-        <FloorSidePanel data={data} copy={copy} tab={tab} onTabChange={setTab} onPickEntry={pickEntry} onPickTable={pickTable} selectedId={selectedId} className="max-[900px]:hidden" />
+        <FloorSidePanel
+          data={data}
+          copy={copy}
+          tab={tab}
+          onTabChange={setTab}
+          onPickEntry={pickEntry}
+          onPickWaitlist={(entry) => setOverlay({ kind: "seat", table: null, entry: null, waitlist: entry })}
+          onPickTable={pickTable}
+          selectedId={selectedId}
+          className="max-[900px]:hidden"
+        />
       )}
       <div ref={floorRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 bg-admin-surface px-[22px] pb-3 pt-3">
         {!ordersOnly && (
@@ -246,6 +268,7 @@ export function FloorBoard(props: FloorBoardProps) {
             onPartyLeft={() => setOverlay({ kind: "departed", table: selected })}
             onReset={() => setOverlay({ kind: "reset", table: selected })}
             onSendKitchen={() => void sendToKitchen(selected)}
+            onFireCourse={actions.fireCourse ? (courseSeq) => void fireCourse(selected, courseSeq) : undefined}
           />
         )}
       </div>
@@ -261,6 +284,7 @@ export function FloorBoard(props: FloorBoardProps) {
         onSeat={seat}
         onOpenWalkIn={() => setOverlay({ kind: "walk-in" })}
         onSeatEntry={(entry) => setOverlay({ kind: "seat", table: null, entry })}
+        onSeatWaitlist={(entry) => setOverlay({ kind: "seat", table: null, entry: null, waitlist: entry })}
         onSelect={(spaceId) => {
           setSelectedId(spaceId);
           setAnchor(null);

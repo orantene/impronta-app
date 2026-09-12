@@ -679,7 +679,7 @@ export function PosClient(props: PosClientProps) {
           title={header.title}
           subtitle={header.subtitle}
           alert={!online ? { label: copy.chrome.offlineChip, onSelect: () => setDestination("connection") } : props.readerConfigured ? { label: copy.chrome.readerOffChip, onSelect: () => setDestination("devices") } : null}
-          location={props.workspaceName}
+          location={props.locationName ?? props.workspaceName}
           cashier={{ initials: initialsOf(till.operatorName), label: `${till.operatorName} · ${props.shift ? copy.chrome.drawerOpen : copy.chrome.drawerNone}` }}
           cashierMenuLabel={copy.chrome.cashierMenu}
           cashierMenu={[

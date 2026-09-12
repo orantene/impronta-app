@@ -11,7 +11,6 @@ import {
   cashDoneCopy,
   cashDrawerCopy,
   chromeCopy,
-  collectMethodUnavailableCopy,
   collectSheetCopy,
   connectionCopy,
   counterPageCopy,
@@ -35,7 +34,7 @@ import {
   scanScreenCopy,
   sellSurfaceCopy,
 } from "@/components/admin/pos/pos-copy";
-import type { PosBasketLine, PosCollectionMethodState, PosReceiptRow } from "@/components/admin/pos";
+import type { PosBasketLine, PosReceiptRow } from "@/components/admin/pos";
 import { customerDisplayLinkCopy, scanCopy } from "@/components/admin/pos/customer-display-copy";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -79,6 +78,7 @@ import { formatClock } from "./counter-model";
 import { doorCopy } from "./door-copy";
 import { receiptRows } from "./receipt-rows";
 import { FloorScreen } from "./floor-screen";
+import { collectionMethods } from "./counter-collection-methods";
 import { loadCounterLinks } from "./counter-reads";
 // The three client modes this route mounts directly, each behind
 // `next/dynamic` so the register's initial bundle carries only the mode
@@ -143,51 +143,6 @@ async function loadCashierName(admin: NonNullable<ReturnType<typeof createServic
   if (profile.error) logServerError("pos.page.cashier", profile.error);
   const name = profile.data?.display_name?.trim();
   return name || user.email?.split("@")[0] || "";
-}
-
-/**
- * Which tenders this counter can honestly offer, and the sentence for each one
- * it cannot.
- *
- * Every arm below is a REAL state read on the server, never an optimistic
- * default. The rule from the brief: a method with no provider behind it says
- * so rather than appearing to work.
- *
- *   cash — always. It is the one tender that needs nothing configured.
- *   link — the hosted Checkout path `startCollection` really drives
- *          (`method: "online_card"`). Live exactly when Stripe has a secret
- *          key; without one, `createCheckoutSessionForTransaction` returns a
- *          mock and a cashier would watch a customer "pay" nothing.
- *   card — CARD-PRESENT, a different thing from the link. `pos/actions.ts`
- *          accepts `cash | online_card` only, so no terminal request can be
- *          started from this screen whatever the environment says. It is
- *          therefore never offered as available, and the two reasons are kept
- *          apart: no reader configured at all, versus a reader that exists
- *          and that this surface cannot yet drive. Telling an operator with a
- *          working reader that they have no reader would send them to buy
- *          hardware they already own.
- *   pass — pass credits have NO table. `docs/plans/program/specs/counter.md`
- *          §3 records C20 as blocked for exactly that reason: there is no
- *          credit ledger to debit, so there is nothing to offer.
- */
-function collectionMethods(tr: (key: string) => string): PosCollectionMethodState[] {
-  const unavailable = collectMethodUnavailableCopy(tr);
-  const terminal = reportTerminalAvailability();
-  return [
-    { id: "cash", available: true },
-    // A payment link is minted by `createPaymentLink` whether or not Stripe
-    // has keys: without them `/pay/<code>` is a test page, and the tab's
-    // panel says so (`PaymentLinkPanel`, `providerMock`).
-    { id: "link", available: true },
-    terminal.available
-      ? {
-          id: "card",
-          available: false,
-          unavailableReason: tr("dashboard.pos.counter.collect.cardNotWired"),
-        }
-      : { id: "card", available: false, unavailableReason: unavailable.card },
-    { id: "pass", available: false, unavailableReason: unavailable.pass },
-  ];
 }
 
 export default async function PosPage({
@@ -286,6 +241,17 @@ export default async function PosPage({
     settings?: unknown;
   } | null;
   const workspaceName = agencyRow?.display_name?.trim() || tenantSlug;
+  const defaultLoc = await admin
+    .from("venue_locations")
+    .select("name")
+    .eq("tenant_id", scope.tenantId)
+    .eq("is_default", true)
+    .maybeSingle();
+  if (defaultLoc.error) logServerError("pos.page.venue_locations", defaultLoc.error);
+  const locationName =
+    (typeof (defaultLoc.data as { name?: string | null } | null)?.name === "string" &&
+      (defaultLoc.data as { name: string }).name.trim()) ||
+    workspaceName;
   const workspaceEnabledModes = enabledPosModesFromSettings(agencyRow?.settings);
   const usableModes = modesForPerson({
     role: posRole(scope.membership.role),
@@ -400,7 +366,7 @@ export default async function PosPage({
         <ClassesClient
           tenantId={scope.tenantId}
           workspaceName={workspaceName}
-          venueName={venueName}
+          venueName={venueName ?? locationName}
           operatorName={operatorName}
           posPath={classesPath}
           workspacePath={classesPath.replace(/\/pos$/, "")}
@@ -455,6 +421,7 @@ export default async function PosPage({
         <DoorClient
           tenantId={scope.tenantId}
           workspaceName={workspaceName}
+          locationName={locationName}
           cashierName={doorCashier}
           drawerOpen={doorShift.ok ? doorShift.shift !== null : false}
           workspacePath={doorPath.replace(/\/pos$/, "")}
@@ -508,6 +475,7 @@ export default async function PosPage({
           tenantId={scope.tenantId}
           locale={locale}
           workspaceName={workspaceName}
+          locationName={locationName}
           posPath={await currentAdminPath(tenantSlug)}
           cashierName={floorCashier}
           drawerOpen={Boolean(floorShift.ok && floorShift.shift)}
@@ -537,6 +505,7 @@ export default async function PosPage({
         <ProjectsModePage
           tenantId={scope.tenantId}
           workspaceName={workspaceName}
+          locationName={locationName}
           posPath={projectsPath}
           workspacePath={projectsPath.replace(/\/pos$/, "")}
           receiptOrigin={projectsHost ? `${projectsProto}://${projectsHost}` : ""}
@@ -694,6 +663,7 @@ export default async function PosPage({
         mode={mode}
         tenantId={scope.tenantId}
         workspaceName={workspaceName}
+        locationName={locationName}
         cashierName={cashierName}
         locale={locale}
         posPath={adminPath}
