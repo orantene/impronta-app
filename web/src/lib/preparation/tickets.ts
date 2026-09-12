@@ -143,6 +143,43 @@ export function addedLines(current: SnapshotLines, previous: SnapshotLines | nul
   return current.filter((l) => !before.has(l.id) || (before.get(l.id) ?? 0) < l.units).map((l) => l.id);
 }
 
+/**
+ * The current and previous snapshot of every ticket on the board in ONE read.
+ * The board used to read them one ticket at a time, in series: 27 round trips
+ * for a 14-ticket board, on the overview page of every workspace that has a
+ * kitchen. The map is keyed `ticketId:revision`; a ticket whose current
+ * revision is absent reads as no lines, same as before.
+ */
+async function loadBoardSnapshots(
+  admin: Admin,
+  rows: ReadonlyArray<{ id: string; revision: number }>,
+): Promise<{ ok: true; byKey: Map<string, SnapshotLines> } | { ok: false }> {
+  const byKey = new Map<string, SnapshotLines>();
+  if (rows.length === 0) return { ok: true, byKey };
+  const { data, error } = await admin
+    .from("preparation_ticket_revisions")
+    .select("ticket_id, revision, snapshot")
+    .in(
+      "ticket_id",
+      rows.map((r) => r.id),
+    );
+  if (error) {
+    logServerError("prep.revision", error);
+    return { ok: false };
+  }
+  const wanted = new Set<string>();
+  for (const r of rows) {
+    wanted.add(`${r.id}:${r.revision}`);
+    if (r.revision > 1) wanted.add(`${r.id}:${r.revision - 1}`);
+  }
+  for (const rev of (data ?? []) as Array<{ ticket_id: string; revision: number; snapshot?: { lines?: SnapshotLines } | null }>) {
+    const key = `${rev.ticket_id}:${rev.revision}`;
+    if (!wanted.has(key)) continue;
+    byKey.set(key, rev.snapshot?.lines ?? []);
+  }
+  return { ok: true, byKey };
+}
+
 async function loadSnapshotLines(
   admin: Admin,
   ticketId: string,
@@ -494,13 +531,17 @@ export async function listBoard(
     return { ok: false, reason: "unavailable" };
   }
   const tickets: PrepTicketView[] = [];
-  const rows = (data ?? []) as Array<{ visit_id: string | null }>;
+  const rows = (data ?? []) as Array<{ id: string; revision: number; visit_id: string | null }>;
   const parties = new Map<string, number>();
-  const codes = await tableCodesForVisits(
-    admin,
-    rows.map((r) => r.visit_id).filter((id): id is string => typeof id === "string"),
-    parties,
-  );
+  const [codes, snapshots] = await Promise.all([
+    tableCodesForVisits(
+      admin,
+      rows.map((r) => r.visit_id).filter((id): id is string => typeof id === "string"),
+      parties,
+    ),
+    loadBoardSnapshots(admin, rows),
+  ]);
+  if (!snapshots.ok) return { ok: false, reason: "unavailable" };
   for (const row of (data ?? []) as Array<{
     id: string;
     order_id: string;
@@ -516,12 +557,14 @@ export async function listBoard(
     ready_at: string | null;
     orders: OrderOriginEmbed;
   }>) {
-    const snap = await loadSnapshotLines(admin, row.id, row.revision);
-    if (!snap.ok) return { ok: false, reason: "unavailable" };
+    // A revision row that is absent reads as no lines, exactly as the
+    // one-at-a-time read did (`maybeSingle` → null → `[]`); only a failed
+    // read makes the board unavailable.
+    const lines = snapshots.byKey.get(`${row.id}:${row.revision}`) ?? [];
     // An amendment's previous snapshot, so the card can mark what changed.
     // A revision that cannot be read marks every line new, which is the
     // honest fallback: the cook re-reads the card, never misses a line.
-    const previous = row.revision > 1 ? await loadSnapshotLines(admin, row.id, row.revision - 1) : null;
+    const previousLines = row.revision > 1 ? snapshots.byKey.get(`${row.id}:${row.revision - 1}`) ?? null : null;
     tickets.push({
       id: row.id,
       orderId: row.order_id,
@@ -537,9 +580,9 @@ export async function listBoard(
       submittedAt: row.submitted_at,
       acknowledgedAt: row.acknowledged_at,
       readyAt: row.ready_at,
-      snapshotLines: snap.lines,
+      snapshotLines: lines,
       origin: ticketOrigin(row.orders),
-      addedLineIds: addedLines(snap.lines, previous?.ok ? previous.lines : null),
+      addedLineIds: addedLines(lines, previousLines),
     });
   }
   return { ok: true, tickets };

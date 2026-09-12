@@ -8,6 +8,7 @@ export async function register() {
     await import("../sentry.server.config");
     const { logDeployEnvReadiness } = await import("@/lib/deploy-env");
     logDeployEnvReadiness();
+    await installFetchConnectionCap();
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {
@@ -44,3 +45,24 @@ export const onRequestError = async (
     routeType: context.routeType ?? "unknown",
   });
 };
+
+/**
+ * Optional cap on concurrent connections per origin for server-side `fetch`
+ * (`TULALA_FETCH_CONNECTIONS=<n>`, off when unset).
+ *
+ * An admin page fans out 60-150 Supabase reads in parallel. With Node's
+ * default dispatcher every one of them that finds no idle socket opens a new
+ * TLS connection at once; measured from this codebase against the isolated
+ * project, 60 parallel reads took p50 3.6 s / max 7.2 s unbounded and
+ * p50 0.49 s / max 0.71 s with ten keep-alive connections (the stall is the
+ * burst of handshakes, not the queries: each one answers in ~0.2 s alone).
+ * Kept opt-in because the right number depends on the runtime's concurrency
+ * per process; the evidence README for perf-1 has the measurements.
+ */
+async function installFetchConnectionCap(): Promise<void> {
+  const raw = process.env.TULALA_FETCH_CONNECTIONS;
+  const connections = raw ? Number.parseInt(raw, 10) : 0;
+  if (!Number.isFinite(connections) || connections <= 0) return;
+  const { Agent, setGlobalDispatcher } = await import("undici");
+  setGlobalDispatcher(new Agent({ connections, keepAliveTimeout: 30_000 }));
+}

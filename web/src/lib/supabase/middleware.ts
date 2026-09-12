@@ -78,6 +78,83 @@ export type UpdateSessionResult = {
   requestHeaders: Headers;
 };
 
+/**
+ * The verified actor for this request, WITHOUT a round trip to the Auth
+ * server on every request.
+ *
+ * `getUser()` asks Supabase Auth to validate the token: one network call per
+ * request, per RSC navigation, per server action, before anything else can
+ * start (measured 50-100 ms from Vercel, ~450 ms from a laptop). This project
+ * signs its JWTs with an asymmetric key (ES256, `kid` in the header), so
+ * `getClaims()` verifies the signature locally against the project's JWKS,
+ * which the client fetches once per process and caches. An expired access
+ * token still goes through the normal refresh (getClaims loads the session
+ * first, refreshing when needed), so the cookies written by `setAll` are the
+ * same as before.
+ *
+ * What this trades: a session revoked server-side (ban, sign-out-everywhere)
+ * stays valid until the access token expires (the project's access-token
+ * lifetime), instead of being refused on the very next request. That is the
+ * trade Supabase documents for middleware; the surfaces that must be strict
+ * about it (money, admin) already re-check on the server action.
+ *
+ * Falls back to `getUser()` when local verification is unavailable (a legacy
+ * HS256 project, a missing JWKS), so a project on the old keys loses nothing.
+ */
+async function resolveVerifiedUser(
+  supabase: ReturnType<typeof createServerClient>,
+): Promise<{ id: string; email: string | null } | null> {
+  const claimsResult = await supabase.auth.getClaims().catch(() => null);
+  const claims = claimsResult?.data?.claims;
+  if (claims && !claimsResult.error && typeof claims.sub === "string" && claims.sub) {
+    return {
+      id: claims.sub,
+      email: typeof claims.email === "string" ? claims.email : null,
+    };
+  }
+  if (claimsResult?.error === null && !claims) {
+    // No session at all: nothing to verify, nothing to fall back to.
+    return null;
+  }
+  const userResult = await supabase.auth.getUser().catch(() => null);
+  const user = userResult?.data?.user ?? null;
+  if (!user) return null;
+  return { id: user.id, email: user.email ?? null };
+}
+
+/**
+ * The access profile (`app_role`, `account_status`, onboarding, home surface)
+ * is read through `ensure_profile_for_current_user`, an RPC that upserts the
+ * profile row, on EVERY request. The row changes when a person completes
+ * onboarding or an operator changes their role; neither happens per request.
+ * Memoised per user for 60 s in the process, the same TTL the membership
+ * cache in `lib/saas/tenant.ts` already accepts for the routing decision.
+ */
+const ACCESS_PROFILE_TTL_MS = 60_000;
+const ACCESS_PROFILE_MAX_ENTRIES = 512;
+const accessProfileMemo = new Map<string, { at: number; profile: AccessProfile | null }>();
+
+async function loadAccessProfileMemo(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+): Promise<AccessProfile | null> {
+  const hit = accessProfileMemo.get(userId);
+  if (hit && Date.now() - hit.at < ACCESS_PROFILE_TTL_MS) return hit.profile;
+  const profile = await loadAccessProfile(supabase, userId);
+  accessProfileMemo.set(userId, { at: Date.now(), profile });
+  while (accessProfileMemo.size > ACCESS_PROFILE_MAX_ENTRIES) {
+    const oldest = accessProfileMemo.keys().next().value;
+    if (oldest === undefined) break;
+    accessProfileMemo.delete(oldest);
+  }
+  return profile;
+}
+
+/** Drops a memoised access profile, for the paths that change it in-request. */
+export function forgetAccessProfileMemo(userId: string): void {
+  accessProfileMemo.delete(userId);
+}
+
 export async function updateSession(
   request: NextRequest,
   options?: {
@@ -195,16 +272,10 @@ export async function updateSession(
     },
   });
 
-  // A stale/invalid refresh token makes `getUser()` FAIL (and sometimes throw)
-  // on every request; `.catch` normalizes a throw into the same logged-out
-  // `{ data, error }` shape so the code below treats it as "no user".
-  const authResult = await supabase.auth
-    .getUser()
-    .catch((authThrow: unknown) => ({
-      data: { user: null },
-      error: authThrow,
-    }));
-  const user = authResult.data.user;
+  // A stale/invalid refresh token makes the auth read FAIL (and sometimes
+  // throw) on every request; `.catch` normalizes a throw into the same
+  // logged-out shape so the code below treats it as "no user".
+  const user = await resolveVerifiedUser(supabase).catch(() => null);
 
   // Auth resilience: when the refresh token is UNRECOVERABLE, the stale auth
   // cookie is never removed, so the user gets STUCK — every request fails and
@@ -283,7 +354,7 @@ export async function updateSession(
   let sessionProfile: AccessProfile | null = null;
 
   if (user) {
-    sessionProfile = await loadAccessProfile(supabase, user.id);
+    sessionProfile = await loadAccessProfileMemo(supabase, user.id);
   }
 
   // Sprint 2.1 — write the verified actor onto `forwardedHeaders` so

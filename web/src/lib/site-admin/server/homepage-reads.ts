@@ -21,7 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { tagFor } from "@/lib/site-admin";
+import { tagFor } from "@/lib/site-admin/cache-tags";
 import type { Locale } from "@/lib/site-admin/locales";
 import type { JsonLdDocument } from "@/lib/site-admin/cms-seo";
 import { previewCookieNameFor } from "@/lib/site-admin/preview/cookie";

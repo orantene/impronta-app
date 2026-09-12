@@ -13,6 +13,9 @@
  * nothing. Token classes only; inline styles are frozen under this tree.
  */
 
+// Every Link here points at THIS page with other search params. `prefetch`
+// is off on all of them: a prefetch is a server render of a page the shell
+// already has, and a catalog of nine rows was firing nine of them on landing.
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -64,6 +67,7 @@ export function SegmentLinks({
           <Link
             key={s.id}
             href={s.href}
+            prefetch={false}
             aria-current={s.active ? "page" : undefined}
             className={`rounded-[7px] px-[10px] py-[5px] font-admin-body text-[12px] font-semibold no-underline max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:text-[13px] max-[720px]:shadow-none ${
               s.active
@@ -282,6 +286,7 @@ export function TabStrip({
         <Link
           key={tab.id}
           href={tab.href}
+          prefetch={false}
           replace
           scroll={false}
           aria-current={tab.active ? "page" : undefined}

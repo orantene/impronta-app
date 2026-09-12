@@ -1,0 +1,5 @@
+[perf:app-budget] 304 route(s) in the build.
+✓ Admin workspace (all routes)      8.37 MB  (≤ 9.63 MB; 87 route(s), 89 chunk(s))
+✓ POS register                      6.66 MB  (≤ 9.17 MB; 2 route(s), 51 chunk(s))
+
+✓ App bundle budget OK.

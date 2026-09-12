@@ -59,7 +59,7 @@
     "test:scheduling": "bash scripts/gate-queue.sh test 2 -- NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/scheduling/*.test.ts src/lib/calendar/*.test.ts src/components/public-booking/instant-pay-in-person.test.ts src/lib/bookings/manage-token.test.ts src/lib/bookings/policy-overrides.test.ts src/lib/catalog/packages.test.ts src/lib/catalog/price-phases.test.ts src/lib/projects/project-ops.test.ts src/lib/approvals/requests.test.ts",
     "test:capacity": "bash scripts/gate-queue.sh test 2 -- tsx --test src/lib/capacity/*.test.ts src/lib/resources/*.test.ts",
     "test:commands": "bash scripts/gate-queue.sh test 2 -- NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/commands/*.test.ts src/lib/outbox/*.test.ts src/lib/exceptions/*.test.ts",
-    "test:design-system": "bash scripts/gate-queue.sh test 2 -- tsx --test src/lib/impact/*.test.ts src/lib/picker/*.test.ts src/components/ui/catalog/*.static.test.ts src/components/admin/pos/*.test.ts src/components/admin/pos/*.test.tsx src/components/admin/shell/internal/page-modules/catalog/*.test.ts",
+    "test:design-system": "bash scripts/gate-queue.sh test 2 -- tsx --test src/lib/impact/*.test.ts src/lib/picker/*.test.ts src/components/ui/catalog/*.static.test.ts src/components/admin/pos/*.test.ts src/components/admin/pos/*.test.tsx src/components/admin/shell/internal/page-modules/catalog/*.test.ts src/components/admin/shell/internal/spa-segments.static.test.ts",
     "test:axe": "bash scripts/gate-queue.sh test 2 -- vitest run test/a11y",
     "test:events": "bash scripts/gate-queue.sh test 2 -- tsx --test src/lib/events/*.test.ts",
     "test:sessions": "bash scripts/gate-queue.sh test 2 -- NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/sessions/*.test.ts",
@@ -304,6 +304,7 @@
     "stripe": "^22.1.0",
     "tailwind-merge": "^3.5.0",
     "twilio": "^5.13.1",
+    "undici": "^7.25.0",
     "web-push": "^3.6.7",
     "zod": "^4.3.6"
   },
