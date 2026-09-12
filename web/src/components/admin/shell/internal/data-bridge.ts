@@ -199,6 +199,18 @@ export type BridgeData = {
    */
   talentSelfProfile?: TalentSelfProfile | null;
   /**
+   * The talent's REAL profile completeness, from the same loader the guided
+   * wizard uses (`loadTalentDashboardData`: DB columns + field catalog). The
+   * Today card used to compute its own number from the prototype profile
+   * shape, which carries no identity fields, so it told a person who had just
+   * typed their phone and date of birth that both were missing. `null` = not
+   * loaded; the card then falls back to the old estimate.
+   */
+  talentCompletion?: {
+    percent: number;
+    missing: Array<{ key: string; label: string }>;
+  } | null;
+  /**
    * The talent's OWN page analytics (profile views + inquiry conversion),
    * loaded server-side in the layout and handed down like every other talent
    * surface's data. `null` means "not entitled or not loaded" — a Free talent
@@ -470,6 +482,7 @@ export function createBridgeDataFromRoster(
     teamMembers: null,
     totalUnread: 0,
     talentSelfProfile: null,
+    talentCompletion: null,
     talentPageAnalytics: null,
     talentPayoutSnapshot: null,
     talentPayoutAttention: null,

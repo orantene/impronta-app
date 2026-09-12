@@ -58,7 +58,7 @@ export default async function TalentLocationOnboardingPage({
         className="mx-auto mt-3 max-w-[420px] text-center text-[0.9375rem] leading-[1.55]"
         style={{ color: "var(--plt-muted)" }}
       >
-        Just the essentials — you can complete your portfolio, location and rates from your dashboard.
+        Just the essentials. Photos, location and prices come next, from your dashboard.
       </p>
 
       {/* Card */}

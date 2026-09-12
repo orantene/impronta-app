@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
-
 import { RAIL_ES_TEXT } from "./dashboard-i18n-rail";
 
 function isSpanish(locale: string): boolean {
@@ -534,6 +533,7 @@ const ES_TEXT: Record<string, string> = {
   "Primary category": "Categoría principal",
   "Secondary category": "Categoría secundaria",
   "Not set": "Sin configurar",
+  "Choose a category": "Elige una categoría",
   "skill": "habilidad",
   "skills": "habilidades",
   "Add skill in this category": "Agregar habilidad en esta categoría",
@@ -2580,6 +2580,7 @@ const ES_TEXT: Record<string, string> = {
   "is waiting on you.": "espera tu respuesta.",
   "issues flagged": "problemas señalados",
   "left before you can publish + take bookings.": "restantes para poder publicar y recibir reservas.",
+  "left to finish your profile.": "para terminar tu perfil.",
   "locked": "bloqueado",
   "new messages": "mensajes nuevos",
   "next": "próximo",
@@ -3182,7 +3183,6 @@ const ES_TEXT: Record<string, string> = {
   "Type-specific profile fields for this category.": "Campos del perfil específicos de esta categoría.",
   "No extra fields are configured for this type.": "No hay campos adicionales configurados para este tipo.",
   "Select a talent type in Services to see relevant fields.": "Selecciona un tipo de talento en Servicios para ver los campos relevantes.",
-
 
   // ── Lane S · profile-shell modules: identity editor + locks ──
   "e.g. xe / xem": "p. ej. elle / le",

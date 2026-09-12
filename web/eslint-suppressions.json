@@ -934,7 +934,7 @@
   },
   "src/components/admin/shell/internal/skill-row.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 16
+      "count": 15
     }
   },
   "src/components/admin/shell/internal/skill-slot-panel.tsx": {

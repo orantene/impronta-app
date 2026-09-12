@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getSiteUrl } from "@/lib/auth-flow";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
@@ -17,21 +18,24 @@ export default async function OnboardingLayout({
 }) {
   // The rest of this surface is English-only today, but the legal line was
   // the one string a Spanish visitor still hit from /es signup flows.
-  const locale = await getRequestLocale();
+  const [locale, session] = await Promise.all([getRequestLocale(), getCachedActorSession()]);
   return (
     <div
       className="site-theme-platform flex min-h-full flex-1 flex-col"
       data-platform-surface="marketing"
       style={{ background: "var(--plt-bg)" }}
     >
-      <OnboardingTopBar />
+      <OnboardingTopBar signedIn={Boolean(session.user)} />
       <main className="flex-1">{children}</main>
       <OnboardingFooter legalLine={getMarketingCopy(locale).footer.legalLine} />
     </div>
   );
 }
 
-function OnboardingTopBar() {
+// Every onboarding page sits behind a session (each redirects to /login
+// without one), so "Sign in" in the header was always addressed to someone
+// already signed in. Kept for the rare unauthenticated render of the shell.
+function OnboardingTopBar({ signedIn }: { signedIn: boolean }) {
   return (
     <header
       className="sticky top-0 z-30 backdrop-blur-xl"
@@ -60,13 +64,15 @@ function OnboardingTopBar() {
           </span>
           <span style={{ color: "var(--plt-forest)", fontSize: "1.375rem", fontWeight: 700 }}>.</span>
         </Link>
-        <Link
-          href="/login"
-          className="text-[0.8125rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          Sign in
-        </Link>
+        {signedIn ? null : (
+          <Link
+            href="/login"
+            className="text-[0.8125rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
+            style={{ color: "var(--plt-muted)" }}
+          >
+            Sign in
+          </Link>
+        )}
       </div>
     </header>
   );

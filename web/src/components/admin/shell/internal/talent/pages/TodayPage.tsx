@@ -26,6 +26,7 @@ export function TalentTodayPage() {
   const {
     openDrawer,
     setTalentPage,
+    bridgeTalentCompletion,
     bridgeTalentSelfProfile,
     bridgeTalentPageAnalytics,
     bridgeTalentEarnings,
@@ -176,8 +177,21 @@ export function TalentTodayPage() {
   // drawer section. Only renders when the bridge has provided a real
   // talent profile (skips the prototype demo path).
   const isFreshSelf = !!bridgeTalentSelfProfile && !TALENT_PROFILES_BY_ID[selfTalentId];
+  // Prefer the REAL completeness from the layout bridge (DB columns + field
+  // catalog, the same source as the guided wizard). The estimate below runs
+  // on the prototype profile shape, which has no identity fields, so it told
+  // people who had just typed their phone and date of birth that both were
+  // still missing (owner QA 2026-09-10).
   const onboardingCompleteness = isFreshSelf
-    ? computeProfileCompleteness(profile, [profile.primaryType, ...profile.secondaryTypes])
+    ? bridgeTalentCompletion
+      ? {
+          percent: bridgeTalentCompletion.percent,
+          missing: bridgeTalentCompletion.missing.map((m) => ({
+            id: m.key,
+            label: m.label,
+          })),
+        }
+      : computeProfileCompleteness(profile, [profile.primaryType, ...profile.secondaryTypes])
     : null;
   const onboardingSectionForLabel = (label: string): string => {
     const lower = label.toLowerCase();
@@ -191,7 +205,8 @@ export function TalentTodayPage() {
     if (lower.includes("limit")) return "limits";
     if (lower.includes("verif")) return "verifications";
     if (lower.includes("bio") || lower.includes("about") || lower.includes("tagline")) return "about";
-    if (lower.includes("location") || lower.includes("city") || lower.includes("travel")) return "location";
+    if (lower.includes("location") || lower.includes("city") || lower.includes("travel") || lower.includes("lives") || lower.includes("originally")) return "location";
+    if (lower.includes("media")) return "media";
     if (lower.includes("type") || lower.includes("primary") || lower.includes("category")) return "services";
     return "identity";
   };
@@ -272,7 +287,7 @@ export function TalentTodayPage() {
                 {copy.t("Finish setting up your profile")}
               </div>
               <div className="text-admin-ink-muted text-admin-12h">
-                {onboardingCompleteness.missing.length} {onboardingCompleteness.missing.length === 1 ? copy.t("field") : copy.t("fields")} {copy.t("left before you can publish + take bookings.")}
+                {onboardingCompleteness.missing.length} {onboardingCompleteness.missing.length === 1 ? copy.t("field") : copy.t("fields")} {copy.t("left to finish your profile.")}
               </div>
             </div>
             <div className="flex flex-col items-end gap-1.5">

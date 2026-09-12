@@ -283,8 +283,8 @@ export function PhotoSlot({
           onClick={onClick}
           aria-label={`${copy.t(imageUrl ? "Change" : "Set")} ${label}`}
           style={{
-            width: aspectRatio === "1 / 1" ? 72 : 58,
-            height: 72,
+            width: aspectRatio === "1 / 1" ? 88 : 70,
+            height: 88,
             borderRadius: 8,
             overflow: "hidden",
             border: imageUrl
@@ -338,10 +338,15 @@ export function PhotoSlot({
         )}
       </div>
       <style>{`button:hover .photo-slot-overlay { opacity: 1 !important; }`}</style>
-      <div className="text-center">
+      {/* The caption is a second way in: people tap the words, not just the tile. */}
+      <button
+        type="button"
+        onClick={onClick}
+        className="cursor-pointer border-0 bg-transparent p-0 text-center"
+      >
         <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink">{label}</div>
         <div style={{ fontFamily: FONTS.body, fontSize: 9.5 }} className="text-admin-ink-dim">{hint}</div>
-      </div>
+      </button>
     </div>
   );
 }
