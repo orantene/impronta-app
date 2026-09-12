@@ -133,6 +133,13 @@ export const NOTIFICATION_PAGE_TARGETS: Readonly<Record<string, NotificationPage
   // so it resolves to `/admin/roster/applications` on a branded host and
   // `/<slug>/admin/roster/applications` on the shared app host.
   "roster-applications": { kind: "page", surface: "workspace", path: "/roster/applications" },
+
+  // lib/channels/pairing-actions.ts — "Connect WhatsApp" to owners/admins when
+  // a cashier asks from the drawer (PD00). Settings › Channels is the routed
+  // page that shows the connection state and hosts the pairing panel; the
+  // WhatsApp drawer itself is a chrome overlay, not a DrawerSwitch case, so a
+  // drawer id here would resolve to the stub.
+  whatsapp: { kind: "page", surface: "workspace", path: "/settings/channels" },
 };
 
 /**

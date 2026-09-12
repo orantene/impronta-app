@@ -2,6 +2,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
+import { handleWhatsAppWebhook } from "@/lib/channels/webhook-handler";
+import type { WhatsAppWebhookBody } from "@/lib/channels/types";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -34,39 +36,53 @@ export async function POST(
   if (!verifySignature(channel, raw, signature)) {
     return NextResponse.json({ ok: false, reason: "not_allowed" }, { status: 401 });
   }
-  let body: { inquiryId?: string; tenantId?: string; text?: string; providerRef?: string };
+  let body: WhatsAppWebhookBody;
   try {
-    body = JSON.parse(raw) as { inquiryId?: string; tenantId?: string; text?: string; providerRef?: string };
+    body = JSON.parse(raw) as WhatsAppWebhookBody;
   } catch {
-    return NextResponse.json({ ok: false, reason: "invalid" }, { status: 400 });
-  }
-  if (!body.inquiryId || !body.tenantId || !body.text) {
     return NextResponse.json({ ok: false, reason: "invalid" }, { status: 400 });
   }
   const admin = createServiceRoleClient();
   if (!admin) return NextResponse.json({ ok: false, reason: "unavailable" }, { status: 503 });
+
+  if (channel === "whatsapp") {
+    const result = await handleWhatsAppWebhook(admin, body);
+    if (!result.ok) {
+      const status = result.reason === "invalid" ? 400 : result.reason === "wrong_tenant" ? 403 : 503;
+      return NextResponse.json(result, { status });
+    }
+    return NextResponse.json(result);
+  }
+
+  const legacy = body as { inquiryId?: string; tenantId?: string; text?: string; providerRef?: string };
+  if (!legacy.inquiryId || !legacy.tenantId || !legacy.text) {
+    return NextResponse.json({ ok: false, reason: "invalid" }, { status: 400 });
+  }
   const { data, error } = await admin
     .from("inquiry_messages")
     .insert({
-      inquiry_id: body.inquiryId,
-      tenant_id: body.tenantId,
+      inquiry_id: legacy.inquiryId,
+      tenant_id: legacy.tenantId,
       thread_type: "group",
       message_kind: "text",
-      body: body.text,
+      body: legacy.text,
       sender_user_id: null,
     })
     .select("id")
     .single();
   if (error || !data) return NextResponse.json({ ok: false, reason: "unavailable" }, { status: 503 });
-  if (body.providerRef) {
-    await admin.from("message_delivery").upsert({
-      message_id: (data as { id: string }).id,
-      tenant_id: body.tenantId,
-      channel,
-      state: "delivered",
-      provider_ref: body.providerRef,
-      attempts: 1,
-    }, { onConflict: "message_id,channel" });
+  if (legacy.providerRef) {
+    await admin.from("message_delivery").upsert(
+      {
+        message_id: (data as { id: string }).id,
+        tenant_id: legacy.tenantId,
+        channel,
+        state: "delivered",
+        provider_ref: legacy.providerRef,
+        attempts: 1,
+      },
+      { onConflict: "message_id,channel" },
+    );
   }
   return NextResponse.json({ ok: true, messageId: (data as { id: string }).id });
 }

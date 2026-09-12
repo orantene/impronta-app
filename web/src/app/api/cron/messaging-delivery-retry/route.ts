@@ -40,6 +40,7 @@ export async function GET(request: Request) {
     attempts: number;
     provider_ref: string | null;
   }[]) {
+    if (row.channel === "whatsapp") continue;
     const adapter = messagingChannel(row.channel);
     if (!adapter) continue;
     const sent = await adapter.send({

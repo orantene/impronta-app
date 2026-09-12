@@ -12833,6 +12833,71 @@
         }
       }
     },
+    "channels": {
+      "hq": {
+        "title": "Canales de mensajería (experimental)",
+        "subtitle": "Un interruptor para el cajón de WhatsApp. Apagado por defecto. Apágalo si la prueba falla; Mensajes y POS siguen funcionando.",
+        "label": "Activar el cajón de WhatsApp (dispositivo vinculado)",
+        "hint": "Solo para pruebas. No usa la Cloud API de Meta. Quita TULALA_WHATSAPP_DRAWER y deja esto apagado para ocultar la función al instante."
+      },
+      "button": {
+        "connect": "Conectar WhatsApp",
+        "reconnect": "Reconectar WhatsApp",
+        "whatsapp": "WhatsApp"
+      },
+      "drawer": {
+        "title": "WhatsApp de {name}",
+        "subtitleLive": "{phone} · {unread} sin leer",
+        "subtitleOff": "Sin vincular",
+        "close": "Cerrar WhatsApp",
+        "openMessages": "Abrir Mensajes",
+        "allChannels": "Todos los canales",
+        "whatsappOnly": "Solo WhatsApp"
+      },
+      "banner": {
+        "phoneOffline": "El teléfono está desconectado. Los mensajes esperan hasta que vuelva.",
+        "reconnecting": "Reconectando… intento {n}",
+        "blocked": "WhatsApp bloqueó este vínculo. Vuelve a emparejar desde Ajustes.",
+        "unlinked": "WhatsApp se desvinculó en el teléfono."
+      },
+      "ask": {
+        "title": "Pide al dueño que conecte",
+        "body": "{name} puede vincular el WhatsApp del negocio. Sigues pudiendo responder en Mensajes, email y SMS.",
+        "cta": "Avisar a {name}",
+        "sent": "Solicitud enviada",
+        "otherChannels": "Los demás canales siguen funcionando."
+      },
+      "ownerFallback": "el dueño",
+      "pair": {
+        "title": "Vincular WhatsApp",
+        "lede": "Escanea desde el teléfono del negocio. Es un dispositivo vinculado, no la Cloud API.",
+        "step1": "Abre WhatsApp en el teléfono del negocio.",
+        "step2": "Toca Ajustes y luego Dispositivos vinculados.",
+        "step3": "Toca Vincular un dispositivo y escanea el código.",
+        "waiting": "Esperando al teléfono…",
+        "refresh": "El código se renueva cada 20 segundos.",
+        "useCode": "Usar un código de emparejamiento",
+        "phonePlaceholder": "+34…",
+        "requestCode": "Pedir código",
+        "consentLegal": "Confirmas que este es el WhatsApp del negocio, no un número personal, y que no enviarás difusiones ni mensajes de grupo desde aquí.",
+        "consent": "Lo confirmo. Mostrar el código.",
+        "error": "No se pudo empezar el emparejamiento: {error}"
+      },
+      "settings": {
+        "title": "Canales",
+        "lede": "Vincula un canal para que los mensajes lleguen a Tulala. Esta prueba es solo WhatsApp.",
+        "whatsapp": "WhatsApp",
+        "state": "Estado",
+        "phone": "Teléfono",
+        "paired": "Vinculado",
+        "lastSeen": "Última vez",
+        "loading": "Cargando…",
+        "unlink": "Desvincular WhatsApp",
+        "other": "Otros canales",
+        "otherBody": "Email, SMS y el chat web no cambian. {reply}",
+        "whoCanReply": "Quien puede responder en Mensajes puede responder aquí."
+      }
+    },
     "pos": {
       "pageTitle": "Nueva venta",
       "engine": {

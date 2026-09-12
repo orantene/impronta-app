@@ -91,6 +91,9 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // /<tenant>/admin/settings/discover — A7 Discover benefits + enrollment
   // panel. Standalone (no Settings shell extraction needed).
   (s) => s[0] === "admin" && s[1] === "settings" && s[2] === "discover",
+  // /<tenant>/admin/settings/channels — experimental WhatsApp drawer settings.
+  // Delete with web/src/lib/channels/REMOVAL.md.
+  (s) => s[0] === "admin" && s[1] === "settings" && s[2] === "channels",
   // /<tenant>/talent/trust — T7 Trust signals sub-page. Standalone
   // server component (talent.tsx mega-shell stays untouched). The
   // talent shell now uses ConditionalAdminShellRoot so this yields.

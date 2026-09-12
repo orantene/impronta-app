@@ -1,0 +1,14 @@
+{
+  "name": "tulala-channel-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/index.ts",
+    "start:mock": "WWEBJS_MOCK=1 node --import tsx src/index.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "tsx": "^4.19.3",
+    "whatsapp-web.js": "1.34.7"
+  }
+}

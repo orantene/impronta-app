@@ -12833,6 +12833,71 @@
         }
       }
     },
+    "channels": {
+      "hq": {
+        "title": "Messaging channels (experimental)",
+        "subtitle": "A kill switch for the WhatsApp drawer. Off by default. Turn it off if the test fails; Messages and POS keep working.",
+        "label": "Enable WhatsApp linked-device drawer",
+        "hint": "Testing only. Does not use the Meta Cloud API. Unset TULALA_WHATSAPP_DRAWER and leave this off to hide the feature instantly."
+      },
+      "button": {
+        "connect": "Connect WhatsApp",
+        "reconnect": "Reconnect WhatsApp",
+        "whatsapp": "WhatsApp"
+      },
+      "drawer": {
+        "title": "{name} WhatsApp",
+        "subtitleLive": "{phone} · {unread} unread",
+        "subtitleOff": "Not linked",
+        "close": "Close WhatsApp",
+        "openMessages": "Open Messages",
+        "allChannels": "All channels",
+        "whatsappOnly": "WhatsApp only"
+      },
+      "banner": {
+        "phoneOffline": "The phone is offline. Incoming messages wait until it reconnects.",
+        "reconnecting": "Reconnecting… try {n}",
+        "blocked": "WhatsApp blocked this link. Pair again from Settings.",
+        "unlinked": "WhatsApp was unlinked on the phone."
+      },
+      "ask": {
+        "title": "Ask the owner to connect",
+        "body": "{name} can link the business WhatsApp. You can still reply on Messages, email, and SMS.",
+        "cta": "Ask {name}",
+        "sent": "Request sent",
+        "otherChannels": "Other channels keep working."
+      },
+      "ownerFallback": "the owner",
+      "pair": {
+        "title": "Link WhatsApp",
+        "lede": "Scan from the business phone. This is a linked device, not the Cloud API.",
+        "step1": "Open WhatsApp on the business phone.",
+        "step2": "Tap Settings, then Linked devices.",
+        "step3": "Tap Link a device and scan the code below.",
+        "waiting": "Waiting for the phone…",
+        "refresh": "The code refreshes every 20 seconds.",
+        "useCode": "Use a pairing code instead",
+        "phonePlaceholder": "+34…",
+        "requestCode": "Request code",
+        "consentLegal": "You confirm this is the business WhatsApp, not a personal number, and you will not send broadcasts or group messages from here.",
+        "consent": "I confirm. Show the pairing code.",
+        "error": "Could not start pairing: {error}"
+      },
+      "settings": {
+        "title": "Channels",
+        "lede": "Link a channel so messages arrive in Tulala. This test is WhatsApp only.",
+        "whatsapp": "WhatsApp",
+        "state": "State",
+        "phone": "Phone",
+        "paired": "Paired",
+        "lastSeen": "Last seen",
+        "loading": "Loading…",
+        "unlink": "Unlink WhatsApp",
+        "other": "Other channels",
+        "otherBody": "Email, SMS, and web chat are unchanged. {reply}",
+        "whoCanReply": "Anyone who can reply in Messages can reply here."
+      }
+    },
     "pos": {
       "pageTitle": "New sale",
       "engine": {

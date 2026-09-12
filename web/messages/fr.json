@@ -1778,6 +1778,71 @@
         }
       }
     },
+    "channels": {
+      "hq": {
+        "title": "Canaux de messagerie (experimental)",
+        "subtitle": "Un interrupteur pour le tiroir WhatsApp. Desactive par defaut. Eteignez-le si le test echoue ; Messages et POS continuent de fonctionner.",
+        "label": "Activer le tiroir WhatsApp (appareil lie)",
+        "hint": "Test uniquement. N'utilise pas l'API Cloud Meta. Retirez TULALA_WHATSAPP_DRAWER et laissez ceci desactive pour cacher la fonction tout de suite."
+      },
+      "button": {
+        "connect": "Connecter WhatsApp",
+        "reconnect": "Reconnecter WhatsApp",
+        "whatsapp": "WhatsApp"
+      },
+      "drawer": {
+        "title": "WhatsApp de {name}",
+        "subtitleLive": "{phone} · {unread} non lus",
+        "subtitleOff": "Non lie",
+        "close": "Fermer WhatsApp",
+        "openMessages": "Ouvrir Messages",
+        "allChannels": "Tous les canaux",
+        "whatsappOnly": "WhatsApp seulement"
+      },
+      "banner": {
+        "phoneOffline": "Le telephone est hors ligne. Les messages attendent la reconnexion.",
+        "reconnecting": "Reconnexion… essai {n}",
+        "blocked": "WhatsApp a bloque ce lien. Appariez a nouveau depuis Reglages.",
+        "unlinked": "WhatsApp a ete delie sur le telephone."
+      },
+      "ask": {
+        "title": "Demander au proprietaire de connecter",
+        "body": "{name} peut lier le WhatsApp de l'entreprise. Vous pouvez toujours repondre dans Messages, email et SMS.",
+        "cta": "Demander a {name}",
+        "sent": "Demande envoyee",
+        "otherChannels": "Les autres canaux continuent de fonctionner."
+      },
+      "ownerFallback": "le proprietaire",
+      "pair": {
+        "title": "Lier WhatsApp",
+        "lede": "Scannez depuis le telephone de l'entreprise. C'est un appareil lie, pas l'API Cloud.",
+        "step1": "Ouvrez WhatsApp sur le telephone de l'entreprise.",
+        "step2": "Touchez Reglages, puis Appareils lies.",
+        "step3": "Touchez Lier un appareil et scannez le code.",
+        "waiting": "En attente du telephone…",
+        "refresh": "Le code se renouvelle toutes les 20 secondes.",
+        "useCode": "Utiliser un code d'appariement",
+        "phonePlaceholder": "+34…",
+        "requestCode": "Demander le code",
+        "consentLegal": "Vous confirmez que c'est le WhatsApp de l'entreprise, pas un numero personnel, et que vous n'enverrez pas de diffusions ni de messages de groupe d'ici.",
+        "consent": "Je confirme. Afficher le code.",
+        "error": "Impossible de commencer l'appariement : {error}"
+      },
+      "settings": {
+        "title": "Canaux",
+        "lede": "Liez un canal pour que les messages arrivent dans Tulala. Ce test est WhatsApp seulement.",
+        "whatsapp": "WhatsApp",
+        "state": "Etat",
+        "phone": "Telephone",
+        "paired": "Lie",
+        "lastSeen": "Vu",
+        "loading": "Chargement…",
+        "unlink": "Delier WhatsApp",
+        "other": "Autres canaux",
+        "otherBody": "Email, SMS et le chat web restent inchanges. {reply}",
+        "whoCanReply": "Quiconque peut repondre dans Messages peut repondre ici."
+      }
+    },
     "pos": {
       "pageTitle": "Nouvelle vente",
       "engine": {
