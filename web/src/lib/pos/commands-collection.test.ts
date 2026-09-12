@@ -10,6 +10,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { addLine, createDraftOrder } from "./draft";
+import { admissionHoldersFromDeskContact } from "./admission-holders";
 import { finalizeOrCancel, startCollection, submitToPreparation } from "./collection";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -77,6 +78,14 @@ test("a line whose offering needs attendee names refuses, and says why", async (
   assert.match(r.error, /Gala Dinner/, "the refusal names the offering");
   assert.match(r.error, /name for every attendee/, "the refusal says why");
   assert.equal(store.booking_transactions.length, 0);
+});
+
+test("desk contact becomes mint holders so the ticket is not unnamed", () => {
+  assert.deepEqual(admissionHoldersFromDeskContact({ units: 2, displayName: "Ana Ruiz" }), [
+    { name: "Ana Ruiz", email: null },
+    { name: "Ana Ruiz", email: null },
+  ]);
+  assert.equal(admissionHoldersFromDeskContact({ units: 1, displayName: "  " }), undefined);
 });
 
 test("a named-ticket walk-in collects when the operator typed the attendee name", async () => {

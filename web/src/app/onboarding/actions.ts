@@ -15,6 +15,7 @@ import {
   ACCESS_PROFILE_REFRESH_COOKIE,
   ACCESS_PROFILE_REFRESH_VALUE,
 } from "@/lib/auth/access-profile-refresh";
+import { backfillCartFromClaimedInquiries } from "@/lib/inquiry/cart-selected-ids-projection";
 import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -230,6 +231,7 @@ export async function chooseClientRole(formData?: FormData): Promise<void> {
       userId: user.id,
       verifiedEmail: user.email,
     });
+    await backfillCartFromClaimedInquiries({ admin: claimAdmin, clientUserId: user.id });
   }
   const jar = await cookies();
   jar.set(ACCESS_PROFILE_REFRESH_COOKIE, ACCESS_PROFILE_REFRESH_VALUE, {

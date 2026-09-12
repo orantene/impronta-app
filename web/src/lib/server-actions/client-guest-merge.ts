@@ -128,6 +128,16 @@ export async function mergeGuestActivity(
   }
 
   if (!sessionKey || !guestSessionId) {
+    // Cookie-less new device: the claim above still ran. Rebuild saved_talent
+    // from the claimed inquiry's selected_ids — the guest-session merge below
+    // never runs without a cookie.
+    if (admin) {
+      await backfillCartFromClaimedInquiries({ admin, clientUserId: user.id });
+    }
+    revalidatePath("/client");
+    revalidatePath("/client/favorites");
+    revalidatePath("/client/saved");
+    revalidatePath("/directory");
     return {
       ok: true,
       data: {

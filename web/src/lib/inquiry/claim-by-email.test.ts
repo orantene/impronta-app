@@ -8,11 +8,13 @@ type Row = Record<string, unknown>;
 function makeAdmin(seed: {
   profileId: string | null;
   inquiries: Row[];
-}): ClaimByEmailAdmin & { inserts: Record<string, Row[]>; updates: Record<string, Row[]> } {
+  relationships?: Row[];
+}): ClaimByEmailAdmin & { inserts: Record<string, Row[]>; updates: Record<string, Row[]>; inquiryFilters: string[] } {
   const inserts: Record<string, Row[]> = {};
   const updates: Record<string, Row[]> = {};
+  const inquiryFilters: string[] = [];
   const participants: Row[] = [];
-  const relationships: Row[] = [];
+  const relationships: Row[] = [...(seed.relationships ?? [])];
   const approvals: Row[] = [];
 
   const tableRows = (table: string): Row[] => {
@@ -29,8 +31,10 @@ function makeAdmin(seed: {
   return {
     inserts,
     updates,
+    inquiryFilters,
     from(table: string) {
       const filters: Array<[string, unknown]> = [];
+      const ilikes: Array<[string, string]> = [];
       let orClient: { nullOk: boolean; userId?: string } | null = null;
       const builder = {
         select() {
@@ -42,6 +46,11 @@ function makeAdmin(seed: {
         },
         is(col: string, value: unknown) {
           filters.push([col, value]);
+          return builder;
+        },
+        ilike(col: string, value: unknown) {
+          if (table === "inquiries") inquiryFilters.push(`${col}:${String(value)}`);
+          ilikes.push([col, String(value).toLowerCase()]);
           return builder;
         },
         or(expr: string) {
@@ -59,6 +68,7 @@ function makeAdmin(seed: {
               const uid = row.client_user_id as string | null;
               if (!(orClient.nullOk && uid == null) && uid !== orClient.userId) return false;
             }
+            if (ilikes.some(([col, value]) => String(row[col] ?? "").toLowerCase() !== value)) return false;
             return matches(row, filters);
           });
           return { data: rows[0] ?? null, error: null };
@@ -69,6 +79,7 @@ function makeAdmin(seed: {
               const uid = row.client_user_id as string | null;
               if (!(orClient.nullOk && uid == null) && uid !== orClient.userId) return false;
             }
+            if (ilikes.some(([col, value]) => String(row[col] ?? "").toLowerCase() !== value)) return false;
             return matches(row, filters);
           });
           resolve({ data: rows, error: null });
@@ -135,6 +146,10 @@ test("claim-by-email seats a later-claimed guest on the inquiry and relationship
   assert.equal(admin.inserts.inquiry_participants?.[0]?.user_id, "user-1");
   assert.equal(admin.inserts.agency_client_relationships?.[0]?.client_profile_id, "cp-1");
   assert.equal(admin.inserts.inquiry_approvals?.[0]?.offer_id, "off-1");
+  assert.ok(
+    admin.inquiryFilters.some((entry) => entry.startsWith("contact_email:guest@impronta.test")),
+    "email must be filtered in PostgREST, not after the 1000-row cap",
+  );
 });
 
 test("claim-by-email ignores a different contact email", async () => {
@@ -161,4 +176,42 @@ test("claim-by-email ignores a different contact email", async () => {
 
   assert.equal(result.claimed, 0);
   assert.equal(admin.inserts.inquiry_participants, undefined);
+});
+
+test("already-owned inquiry does not rewrite relationship activity", async () => {
+  const admin = makeAdmin({
+    profileId: "cp-1",
+    inquiries: [
+      {
+        id: "inq-1",
+        tenant_id: "t1",
+        client_user_id: "user-1",
+        contact_email: "guest@impronta.test",
+        origin_domain: "later.test",
+        source_workspace_id: "later",
+        current_offer_id: null,
+      },
+    ],
+    relationships: [
+      {
+        id: "rel-1",
+        tenant_id: "t1",
+        client_profile_id: "cp-1",
+        first_inquiry_id: "inq-old",
+        last_interaction_at: "2026-01-01T00:00:00Z",
+        origin_domain: "original.test",
+        source_workspace_id: "orig",
+      },
+    ],
+  });
+
+  const result = await claimInquiriesByConfirmedEmail({
+    admin,
+    userId: "user-1",
+    verifiedEmail: "guest@impronta.test",
+  });
+
+  assert.equal(result.claimed, 0);
+  assert.equal(result.linkedRelationships, 1);
+  assert.equal(admin.updates.agency_client_relationships, undefined);
 });

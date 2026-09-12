@@ -32,6 +32,11 @@ function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
+/** Exact ILIKE (no wildcard match). `%` / `_` in an address stay literal. */
+function ilikeExact(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/[%_]/g, "\\$&");
+}
+
 export async function claimInquiriesByConfirmedEmail(input: {
   admin: ClaimByEmailAdmin;
   userId: string;
@@ -52,10 +57,13 @@ export async function claimInquiriesByConfirmedEmail(input: {
   }
   const clientProfileId = (profile?.id as string | undefined) ?? null;
 
+  // Email predicate is on the query: PostgREST `max_rows` (1000) would
+  // otherwise page away a matching guest row before JS could see it.
   const { data: inquiryRows, error: inquiryError } = await input.admin
     .from("inquiries")
     .select("id, tenant_id, client_user_id, contact_email, origin_domain, source_workspace_id, current_offer_id")
-    .or(`client_user_id.is.null,client_user_id.eq.${input.userId}`);
+    .or(`client_user_id.is.null,client_user_id.eq.${input.userId}`)
+    .ilike("contact_email", ilikeExact(email));
   if (inquiryError) {
     logServerError("inquiry.claimByEmail.inquiries", inquiryError);
     return empty;
@@ -70,7 +78,8 @@ export async function claimInquiriesByConfirmedEmail(input: {
   let linkedRelationships = 0;
 
   for (const row of matches) {
-    if (!row.client_user_id) {
+    const newlyClaimed = !row.client_user_id;
+    if (newlyClaimed) {
       const { error: updateError } = await input.admin
         .from("inquiries")
         .update({ client_user_id: input.userId })
@@ -99,6 +108,7 @@ export async function claimInquiriesByConfirmedEmail(input: {
         inquiryId: row.id,
         originDomain: row.origin_domain,
         sourceWorkspaceId: row.source_workspace_id,
+        touchActivity: newlyClaimed,
       });
       if (related) linkedRelationships += 1;
     }
@@ -159,6 +169,8 @@ async function ensureClientRelationship(
     inquiryId: string;
     originDomain: string | null;
     sourceWorkspaceId: string | null;
+    /** False on a repair pass for an inquiry this user already owned. */
+    touchActivity: boolean;
   },
 ): Promise<boolean> {
   const now = new Date().toISOString();
@@ -173,6 +185,7 @@ async function ensureClientRelationship(
     return false;
   }
   if (existing?.id) {
+    if (!args.touchActivity) return true;
     const { error: updateError } = await admin
       .from("agency_client_relationships")
       .update({
