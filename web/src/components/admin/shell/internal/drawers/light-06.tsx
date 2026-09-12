@@ -28,7 +28,6 @@ import {
   TextArea,
   TextInput,
   createClientAccount,
-  createManualBooking,
   getClients,
   getInquiries,
   meetsRole,
@@ -352,119 +351,6 @@ export function DayDetailDrawer() {
           })}
         </div>
       )}
-    </DrawerShell>
-  );
-}
-
-
-export function NewBookingDrawer() {
-  const { closeDrawer, toast } = useAdminShell();
-  const copy = useDashboardText();
-  const tt = copy.t;
-  const [title, setTitle] = useState("");
-  const [clientName, setClientName] = useState("");
-  const [eventDate, setEventDate] = useState("");
-  const [location, setLocation] = useState("");
-  const [notes, setNotes] = useState("");
-  const [pending, startTransition] = useTransition();
-
-  const canSave = title.trim().length > 0;
-
-  const handleSubmit = () => {
-    if (!canSave) return;
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set("title", title.trim() || clientName.trim() || "Booking");
-      fd.set("booking_status", "confirmed");
-      fd.set("currency_code", "USD");
-      fd.set("client_account_id", "");
-      fd.set("client_contact_id", "");
-      fd.set("owner_staff_id", "");
-      fd.set("starts_at", eventDate ? `${eventDate}T09:00:00` : "");
-      fd.set("ends_at", eventDate ? `${eventDate}T18:00:00` : "");
-      fd.set("event_date", eventDate);
-      fd.set("venue_name", location.trim());
-      fd.set("venue_location_text", location.trim());
-      fd.set("internal_notes", notes.trim());
-      fd.set("redirect_after_create", "list");
-      // createManualBooking calls redirect() on success, which throws an
-      // error with a specific NEXT_REDIRECT digest. Distinguish that from
-      // real failures so genuine errors aren't silently shown as success.
-      try {
-        await createManualBooking(fd);
-        // If we got here without throwing, the action neither redirected
-        // nor errored — treat as success. (Default codepath returns void.)
-        toast(tt("Booking created"));
-        closeDrawer();
-      } catch (err) {
-        const digest = (err as { digest?: unknown } | null)?.digest;
-        const isNextRedirect =
-          typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
-        if (isNextRedirect) {
-          toast(tt("Booking created"));
-          closeDrawer();
-          throw err; // Re-throw so Next.js can perform the redirect.
-        }
-        const message =
-          err instanceof Error && err.message ? err.message : tt("Could not create booking.");
-        toast(`${tt("Create failed:")} ${message}`);
-      }
-    });
-  };
-
-  return (
-    <DrawerShell
-      open
-      onClose={closeDrawer}
-      title={tt("New booking")}
-      description={tt("Skip the inquiry. Log a confirmed job.")}
-      footer={
-        <StandardFooter
-          onSave={handleSubmit}
-          saveLabel={pending ? tt("Creating…") : tt("Create booking")}
-          disabled={!canSave || pending}
-        />
-      }
-    >
-      <Section title={tt("Details")} framed>
-        <FieldRow label={tt("Job title")}>
-          <TextInput
-            placeholder={tt("Vogue Italia · editorial")}
-            value={title}
-            onChange={(e) => setTitle((e.target as HTMLInputElement).value)}
-          />
-        </FieldRow>
-        <FieldRow label={tt("Client")} optional>
-          <TextInput
-            placeholder="Vogue Italia"
-            value={clientName}
-            onChange={(e) => setClientName((e.target as HTMLInputElement).value)}
-          />
-        </FieldRow>
-        <FieldRow label={tt("Notes")} optional>
-          <TextInput
-            placeholder={tt("Any internal notes…")}
-            value={notes}
-            onChange={(e) => setNotes((e.target as HTMLInputElement).value)}
-          />
-        </FieldRow>
-      </Section>
-      <Section title={tt("When & where")} framed>
-        <FieldRow label={tt("Date")} optional>
-          <TextInput
-            type="date"
-            value={eventDate}
-            onChange={(e) => setEventDate((e.target as HTMLInputElement).value)}
-          />
-        </FieldRow>
-        <FieldRow label={tt("Location")} optional>
-          <TextInput
-            placeholder="Madrid · Studio 5"
-            value={location}
-            onChange={(e) => setLocation((e.target as HTMLInputElement).value)}
-          />
-        </FieldRow>
-      </Section>
     </DrawerShell>
   );
 }
