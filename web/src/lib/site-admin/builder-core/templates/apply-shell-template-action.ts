@@ -30,7 +30,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { tagFor } from "@/lib/site-admin/cache-tags";
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { isLocale, type Locale } from "@/i18n/config";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";

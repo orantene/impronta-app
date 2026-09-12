@@ -578,24 +578,37 @@ export async function loadClassesDay(
     variantsByOffering.set(String(v.offering_id), list);
   }
 
+  // Every session's seats in one wave. The read is the capacity RPC, one call
+  // per pool; in series that was 19 round trips for a night of 19 pools, and
+  // the overview page waited on all of them before its first byte.
+  const seatsBySession = new Map<string, WaitlistSeats[]>();
+  await Promise.all(
+    sessionRows.flatMap((s) => {
+      const id = String(s.id);
+      const pools = poolsBySession.get(id) ?? [];
+      const perPool: WaitlistSeats[] = new Array(pools.length);
+      seatsBySession.set(id, perPool);
+      return pools.map((pool, index) =>
+        readSessionSeats(admin, { id: pool.id, unitsTotal: pool.unitsTotal }, {
+          id,
+          title: text(s.title),
+          starts_at: String(s.starts_at),
+          ends_at: String(s.ends_at),
+          status: String(s.status),
+        }).then((seats) => {
+          perPool[index] = seats;
+        }),
+      );
+    }),
+  );
+
   const sessions: ClassesSession[] = [];
   for (const s of sessionRows) {
     const id = String(s.id);
     const startsAt = String(s.starts_at);
     const endsAt = String(s.ends_at);
     const pools = poolsBySession.get(id) ?? [];
-    const perPool: WaitlistSeats[] = [];
-    for (const pool of pools) {
-      perPool.push(
-        await readSessionSeats(admin, { id: pool.id, unitsTotal: pool.unitsTotal }, {
-          id,
-          title: text(s.title),
-          starts_at: startsAt,
-          ends_at: endsAt,
-          status: String(s.status),
-        }),
-      );
-    }
+    const perPool: WaitlistSeats[] = seatsBySession.get(id) ?? [];
     const mine = (waitlistRead.data ?? []).filter((w) => w.session_id === id);
     const ordered: ClassesWaitlistEntry[] = orderWaitlist(
       mine.map((w) => ({

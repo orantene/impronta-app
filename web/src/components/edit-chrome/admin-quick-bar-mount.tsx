@@ -61,7 +61,11 @@ import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active"
 import { loadTenantSiteLabelForEditChrome } from "@/lib/site-admin/edit-mode/tenant-site-label";
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 
-import { AdminQuickBar } from "./admin-quick-bar";
+import dynamic from "next/dynamic";
+
+// Same boundary as EditChromeMount: the bar is a storefront-only client
+// island and must not ride in the root layout's client graph for every route.
+const AdminQuickBar = dynamic(() => import("./admin-quick-bar").then((m) => m.AdminQuickBar));
 import {
   isNonStorefrontPath,
   normalizeStorefrontPath,

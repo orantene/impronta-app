@@ -41,7 +41,7 @@ import {
 } from "./publish-preflight-layout-rules";
 import { featuredTalentSchemaV1 } from "@/lib/site-admin/sections/featured_talent/schema";
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import {
   isPaidBuilderPlan,
   loadBuilderWorkspacePlan,

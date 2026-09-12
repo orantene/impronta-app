@@ -4,7 +4,7 @@ import { revalidateTag } from "next/cache";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { tagFor } from "@/lib/site-admin";
+import { tagFor } from "@/lib/site-admin/cache-tags";
 
 type IdentitySnapshot = Record<string, unknown> & {
   tenant_id: string;

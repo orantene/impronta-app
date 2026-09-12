@@ -43,7 +43,7 @@ import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { republishSiteShellSnapshot } from "@/lib/site-admin/edit-mode/site-shell-publish";
 import { revalidateTag } from "next/cache";
 import { tagFor } from "@/lib/site-admin/cache-tags";
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { isLocale, type Locale } from "@/i18n/config";
 import type { SiteShellRow } from "./site-shell-adapter-core";
 

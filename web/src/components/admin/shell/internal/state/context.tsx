@@ -19,7 +19,7 @@ import {
 import { createTranslator } from "@/i18n/messages";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "../primitives";
-import type { BridgeData, WorkspaceInquiryForMessages, WorkspaceClientRow, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, WorkspaceTeamMember as BridgeTeamMember, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder, RecentActivityItem } from "../data-bridge";
+import type { BridgeData, WorkspaceInquiryForMessages, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder, RecentActivityItem } from "../data-bridge";
 // Type-only — erased at compile time, so importing from the `"use server"`
 // payouts actions module pulls no server runtime into this client bundle.
 import type { PayoutsSurfaceResult } from "@/app/(workspace)/[tenantSlug]/admin/payouts/payouts-surface-actions";
@@ -44,6 +44,9 @@ import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-s
 import type { Client, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
 import { useDevPlanOverride, useOpenUpgradeModal } from "./upgrade-bridge";
+import { isSpaOnlyAdminSegment } from "../spa-segments";
+import { useLazyBridgeSlices } from "./use-lazy-bridge-slices";
+import { adaptBridgeClient, adaptBridgeTeamMember } from "./bridge-adapters";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
 import {
   clampWorkspacePage,
@@ -549,6 +552,13 @@ type Ctx = {
    * `PayoutsPage` then renders its "couldn't load payout settings" card.
    */
   payoutsSurface: PayoutsSurfaceResult | null;
+  /**
+   * False while a bridge slice this page reads is still on its way from the
+   * post-hydration fetch (bridge-slices.ts). The PageRouter shows the page's
+   * skeleton until it is true; a hard load of the page itself is always true
+   * because the layout loaded that page's slices before the first byte.
+   */
+  pageSlicesReady: (page: WorkspacePage) => boolean;
 
   /**
    * Talent profile-editor sidebar layout (rail group headers + order + each
@@ -740,38 +750,6 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
     bookingId: null,
     messages,
     seen: w.seen, messaging: w.messaging,
-  };
-}
-
-/** Adapt WorkspaceClientRow → Client (proto shell's client type). */
-function adaptBridgeClient(w: WorkspaceClientRow): Client {
-  return {
-    id: w.id,
-    name: w.company ?? w.name,
-    contact: w.name,
-    bookingsYTD: w.bookingsYTD,
-    status: w.accountStatus === "suspended" ? "dormant" : "active",
-    trust: (w.trustLevel ?? "basic") as ClientTrustLevel,
-  };
-}
-
-/** Adapt BridgeTeamMember → TeamMember (proto shell's team type). */
-function adaptBridgeTeamMember(m: BridgeTeamMember): TeamMember {
-  const words = m.name.trim().split(/\s+/);
-  const initials = words.length >= 2
-    ? (words[0][0] + words[words.length - 1][0]).toUpperCase()
-    : m.name.slice(0, 2).toUpperCase();
-  return {
-    id: m.id,
-    name: m.name,
-    // Email comes from `auth.users` via the bridge loader's service-role
-    // lookup (`public.profiles` carries none) — may still be empty if
-    // the lookup failed.
-    email: m.email ?? "",
-    photoUrl: m.photoUrl,
-    role: (["viewer","editor","manager","admin","owner"].includes(m.role) ? m.role : "viewer") as Role,
-    status: m.status === "pending_acceptance" ? "invited" : "active",
-    initials,
   };
 }
 
@@ -1152,7 +1130,14 @@ export function AdminShellProvider({
       // navigation loop when PageRouteSyncer fires setPage on mount while
       // the browser is already at the correct route.
       if (typeof window !== "undefined" && window.location.pathname !== targetHref) {
-        router.push(targetHref);
+        if (segment && isSpaOnlyAdminSegment(segment)) {
+          // The page body is already switched above and the server has
+          // nothing to add for this segment (a bare PageRouteSyncer), so the
+          // URL moves without a server round trip. See spa-segments.ts.
+          window.history.pushState(null, "", targetHref);
+        } else {
+          router.push(targetHref);
+        }
       }
     }
   }, [router, workspaceType]);
@@ -1959,6 +1944,14 @@ export function AdminShellProvider({
     setDrawer({ drawerId: null });
   }, []);
 
+  // Lazy bridge slices: the layout loaded this page's; the rest arrive in one
+  // server action after hydration (use-lazy-bridge-slices.ts, bridge-slices.ts).
+  const { bridge, pageSlicesReady } = useLazyBridgeSlices(initialBridgeData, tenantSlugRef);
+  // Live mode (a real tenant behind the bridge) never falls back to the
+  // prototype's mock rows for a slice that has not arrived: an empty list is
+  // the honest state, and the page is gated on the slice anyway.
+  const live = initialBridgeData != null;
+
   // Phase 1 real-data bridge — pre-fetched payload from `./page.tsx`.
   // `bridgeRoster` is null when the URL did not request live mode (the
   // default); in that case `effectiveRoster` falls back to the mock
@@ -1966,51 +1959,55 @@ export function AdminShellProvider({
   // `bridgeRoster` carries the result of the server-side query and
   // overrides the per-plan mock — even if it's an empty array (which
   // we render as the standard empty state, NOT silent mock fallback).
-  const bridgeRoster = initialBridgeData?.roster ?? null;
+  const bridgeRoster = bridge?.roster ?? null;
   const effectiveRoster = useMemo<TalentProfile[]>(
-    () => bridgeRoster ?? getRoster(plan),
-    [bridgeRoster, plan],
+    () => bridgeRoster ?? (live ? [] : getRoster(plan)),
+    [bridgeRoster, live, plan],
   );
 
   // Phase 3.12 — additional bridge surface fields
-  const bridgeInquiries = initialBridgeData?.inquiries ?? null;
+  const bridgeInquiries = bridge?.inquiries ?? null;
   const effectiveMessagesInquiries = useMemo<RichInquiry[]>(
     () => (bridgeInquiries != null ? bridgeInquiries.map(adaptBridgeInquiry) : tenantSlug ? [] : RICH_INQUIRIES),
     [bridgeInquiries, tenantSlug],
   );
 
-  const bridgeClients = initialBridgeData?.clients ?? null;
+  const bridgeClients = bridge?.clients ?? null;
   const effectiveClients = useMemo<Client[]>(
     () =>
       bridgeClients != null
         ? bridgeClients.map(adaptBridgeClient)
-        : getClients(plan),
-    [bridgeClients, plan],
+        : live
+          ? []
+          : getClients(plan),
+    [bridgeClients, live, plan],
   );
 
-  const effectiveCalendarEvents = initialBridgeData?.calendarEvents ?? null;
+  const effectiveCalendarEvents = bridge?.calendarEvents ?? null;
   const overviewMetrics = initialBridgeData?.overviewMetrics ?? null;
-  const bridgeRecentActivity = initialBridgeData?.recentActivity ?? null;
+  const bridgeRecentActivity = bridge?.recentActivity ?? null;
 
-  const bridgeBookings = initialBridgeData?.bookings ?? null;
+  const bridgeBookings = bridge?.bookings ?? null;
   const effectiveBookings = useMemo<WorkspaceBookingRow[]>(
     () => bridgeBookings ?? [],
     [bridgeBookings],
   );
 
-  const bridgePitches = initialBridgeData?.pitches ?? null;
+  const bridgePitches = bridge?.pitches ?? null;
   const effectivePitches = useMemo<WorkspacePitchRow[]>(
     () => bridgePitches ?? [],
     [bridgePitches],
   );
 
-  const bridgeTeamMembers = initialBridgeData?.teamMembers ?? null;
+  const bridgeTeamMembers = bridge?.teamMembers ?? null;
   const effectiveTeamMembers = useMemo<TeamMember[]>(
     () =>
       bridgeTeamMembers != null
         ? bridgeTeamMembers.map(adaptBridgeTeamMember)
-        : getTeam(plan),
-    [bridgeTeamMembers, plan],
+        : live
+          ? []
+          : getTeam(plan),
+    [bridgeTeamMembers, live, plan],
   );
 
   const totalUnread = initialBridgeData?.totalUnread ?? 0;
@@ -2067,7 +2064,7 @@ export function AdminShellProvider({
   // Computed from the bridge in production; falls back to the TENANT mock
   // in standalone prototype mode. Stable reference (memoised on bridgeTenantIdentity
   // which is itself derived from the stable initialBridgeData prop).
-  const bridgeDomainRegistry = initialBridgeData?.website?.domainSummary ?? null;
+  const bridgeDomainRegistry = bridge?.website?.domainSummary ?? initialBridgeData?.domainSummary ?? null;
   const effectiveTenant = useMemo(() => {
     if (!bridgeTenantIdentity) return TENANT;
     const { displayName, slug, kind, planTier } = bridgeTenantIdentity;
@@ -2143,12 +2140,12 @@ export function AdminShellProvider({
 
   // Media gallery bridge — `null` falls back to MOCK_MEDIA in WorkspaceMediaPage,
   // empty array means "live mode, no photos yet" → renders empty state.
-  const bridgeMediaPhotos = initialBridgeData?.mediaPhotos ?? null;
-  const bridgeMediaFolders: BridgeMediaFolder[] = initialBridgeData?.mediaFolders ?? [];
-  const bridgeMediaErrored = initialBridgeData?.mediaBridgeErrored ?? false;
-  const bridgeMediaTotalCount = initialBridgeData?.mediaTotalCount ?? null;
+  const bridgeMediaPhotos = bridge?.mediaPhotos ?? null;
+  const bridgeMediaFolders: BridgeMediaFolder[] = bridge?.mediaFolders ?? [];
+  const bridgeMediaErrored = bridge?.mediaBridgeErrored ?? false;
+  const bridgeMediaTotalCount = bridge?.mediaTotalCount ?? null;
 
-  const bridgeWebsite = initialBridgeData?.website;
+  const bridgeWebsite = bridge?.website;
   const websiteUsesLiveCms = bridgeWebsite != null;
   const effectiveWebsiteState = useMemo(
     () =>
@@ -2170,7 +2167,7 @@ export function AdminShellProvider({
 
   // Payouts surface — pass-through bridge payload consumed by the in-shell
   // PayoutsPage. `null` falls back to the page-module's error card.
-  const bridgePayoutsSurface = initialBridgeData?.payoutsSurface ?? null;
+  const bridgePayoutsSurface = bridge?.payoutsSurface ?? null;
 
   const value: Ctx = useMemo(
     () => ({
@@ -2299,6 +2296,7 @@ export function AdminShellProvider({
       effectiveWebsiteState,
       websiteUsesLiveCms,
       payoutsSurface: bridgePayoutsSurface,
+      pageSlicesReady,
       profileEditorLayout,
       clientFieldSource,
       // Phase 5
@@ -2423,6 +2421,7 @@ export function AdminShellProvider({
       effectiveWebsiteState,
       websiteUsesLiveCms,
       bridgePayoutsSurface,
+      pageSlicesReady,
       profileEditorLayout,
       clientFieldSource,
       // Phase 5

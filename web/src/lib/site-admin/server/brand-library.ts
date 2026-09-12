@@ -19,7 +19,7 @@ import "server-only";
 
 import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { tagFor } from "@/lib/site-admin";
+import { tagFor } from "@/lib/site-admin/cache-tags";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { BRANDING_FOLDER, ensureSystemFolder } from "@/lib/media/system-folders";
 

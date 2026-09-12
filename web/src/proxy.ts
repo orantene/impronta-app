@@ -61,6 +61,7 @@ import {
 import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
 import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/experiment-visitor-cookie";
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
+import { timed } from "@/lib/server/perf-trace";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -196,7 +197,7 @@ export async function proxy(request: NextRequest) {
     });
   }
 
-  const hostContext = await resolveTenantContext(request, hostHeader);
+  const hostContext = await timed("proxy.resolveTenantContext", resolveTenantContext(request, hostHeader));
 
   if (hostContext.kind === "not_found") {
     // Fail-hard (Plan L37): an unregistered hostname does NOT fall back to
@@ -272,7 +273,7 @@ export async function proxy(request: NextRequest) {
       target.hostname = canonicalHost;
       return NextResponse.redirect(target, 308);
     }
-    const off = await offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM);
+    const off = await timed("proxy.offRoster", offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM));
     if (off) return off;
   }
 
@@ -309,9 +310,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(clean, 302);
   }
 
-  const langSettings = await getLanguageSettingsForMiddleware();
+  const langSettings = await timed("proxy.langSettings", getLanguageSettingsForMiddleware());
   const hostTenantLocaleSettings = isTenantHostContext(hostContext)
-    ? await loadTenantLocaleSettings(hostContext.tenantId)
+    ? await timed("proxy.tenantLocale", loadTenantLocaleSettings(hostContext.tenantId))
     : null;
 
   // Which tenant's URL grammar governs this request. MUST run before the
@@ -324,14 +325,14 @@ export async function proxy(request: NextRequest) {
     effectiveHostContext,
     effectiveTenantLocaleSettings,
     effectiveLangSettings,
-  } = await resolveProxyLocaleContext({
+  } = await timed("proxy.localeContext", resolveProxyLocaleContext({
     request,
     hostHeader,
     pathname,
     hostContext,
     hostTenantLocaleSettings,
     langSettings,
-  });
+  }));
 
   const parts = pathname.split("/");
   if (parts[1]) {
@@ -592,14 +593,14 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const cmsRedirect = await tryCmsRedirectResponse(
+  const cmsRedirect = await timed("proxy.cmsRedirect", tryCmsRedirectResponse(
     request,
     pathBasedTenantContext && pathBasedTenant
       ? pathBasedTenant.pathnameWithoutTenant
       : originalPathname,
     effectiveHostContext.kind === "agency" ? effectiveHostContext.tenantId : null,
     effectiveLangSettings.publicLocales,
-  );
+  ));
   if (cmsRedirect) {
     syncLocaleCookieForPath(cmsRedirect, originalPathname, effectiveLangSettings, request);
     return cmsRedirect;
@@ -726,12 +727,12 @@ export async function proxy(request: NextRequest) {
   // `forwardedRequestHeaders` carries the guest/actor/locale headers updateSession
   // injected; the rewrite below MUST forward them (see UpdateSessionResult).
   const { response: sessionRes, requestHeaders: forwardedRequestHeaders } =
-    await updateSession(innerRequest, {
+    await timed("proxy.updateSession", () => updateSession(innerRequest, {
       pathnameForAuth,
       languageSettings: effectiveLangSettings,
       // Same surface the allow-list ran against: auth routing must not redirect to a path this surface 404s.
       hostKind: effectiveHostContext.kind,
-    });
+    }));
 
   if (sessionRes.headers.get("location")) {
     // Auth ran against the post-rewrite slug path, so `?next=` would send a

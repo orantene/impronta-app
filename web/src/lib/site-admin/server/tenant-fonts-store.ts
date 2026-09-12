@@ -14,7 +14,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { updateTag } from "next/cache";
 
-import { tagFor } from "@/lib/site-admin";
+import { tagFor } from "@/lib/site-admin/cache-tags";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   THEME_JSON_CUSTOM_FONTS_KEY,

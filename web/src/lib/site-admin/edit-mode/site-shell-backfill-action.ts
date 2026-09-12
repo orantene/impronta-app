@@ -44,7 +44,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import {
   getSectionType,
