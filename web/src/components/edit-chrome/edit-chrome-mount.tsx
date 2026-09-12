@@ -46,7 +46,17 @@ import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { HOST_TENANT_SLUG_HEADER, PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
 import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
 import { loadTenantSiteLabelForEditChrome } from "@/lib/site-admin/edit-mode/tenant-site-label";
-import { EditChrome } from "./edit-chrome";
+import dynamic from "next/dynamic";
+
+/**
+ * The editor's client entry, reached through a `next/dynamic` boundary so its
+ * graph (builder adapters, pills, the edit shell's own lazy chunks) is a
+ * separate chunk group loaded only on the storefront renders that reach the
+ * return below. Mounted statically it sat in the ROOT layout's client graph,
+ * i.e. in every route's first paint down to /admin and /offline, for a
+ * component that returns null on all of them.
+ */
+const EditChrome = dynamic(() => import("./edit-chrome").then((m) => m.EditChrome));
 import { resolvePublicSurfaceOwnershipFromPath } from "./edit-path";
 import {
   isNonStorefrontPath,
