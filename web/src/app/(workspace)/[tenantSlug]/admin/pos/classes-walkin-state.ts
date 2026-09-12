@@ -119,8 +119,19 @@ export function useWalkIn(input: {
       }
       return false;
     }
-    setSale({ orderId: r.orderId, version: r.version, outstandingCents: r.outstandingCents, currency: r.currency });
+    const nextSale: WalkInSale = {
+      orderId: r.orderId,
+      version: r.version,
+      outstandingCents: r.outstandingCents,
+      currency: r.currency,
+    };
+    setSale(nextSale);
     setOutcome({ stage: "booked", sentence, outstandingCents: r.outstandingCents, currency: r.currency });
+    // A $0 seat still has to run collect: that is the mint. Closing the
+    // sheet here left the order as draft with no admission.
+    if (kind === "seat" && r.outstandingCents <= 0) {
+      void settleSeat(nextSale);
+    }
     return true;
   };
 
@@ -144,32 +155,37 @@ export function useWalkIn(input: {
     );
   };
 
-  const collect = () => {
-    if (!sale) return;
-    void input.collectCash(sale, { name, email, phone }).then(async (r) => {
+  const settleSeat = (target: WalkInSale) =>
+    input.collectCash(target, { name, email, phone }).then(async (r) => {
       if (r && r.ok) {
         // A seat's ticket carries the name the operator typed, so the roster
         // can call it (the Counter names a buyer only by email or phone).
         if (kind === "seat" && name.trim()) {
           try {
-            await classesNameSeatHolders({ orderId: sale.orderId, name });
+            await classesNameSeatHolders({ orderId: target.orderId, name });
           } catch {
             // The seat is sold and paid; a missing name is not a refusal.
           }
           input.refreshDay();
         }
-        setOutcome({ stage: "collected", sentence: fill(c.walkin.collected, { amount: formatOrderMoney(sale.outstandingCents, sale.currency) }) });
+        setOutcome({
+          stage: "collected",
+          sentence: fill(c.walkin.collected, { amount: formatOrderMoney(target.outstandingCents, target.currency) }),
+        });
       }
     });
+
+  const collect = () => {
+    if (!sale) return;
+    void settleSeat(sale);
   };
 
   /**
-   * A FINISHED WALK-IN IS FINISHED. Once its money is collected (or there was
-   * none to collect) the form is cleared the moment the operator leaves the
-   * sheet; a walk-in that is booked but NOT yet collected is kept, so the
-   * collect button cannot vanish under a stray tap.
+   * A FINISHED WALK-IN IS FINISHED. Money collected (or a $0 seat minted)
+   * is the only done state. A booked $0 draft is not finished: collect
+   * still has to issue the admission.
    */
-  const settled = outcome !== null && (outcome.stage === "collected" || outcome.outstandingCents <= 0);
+  const settled = outcome !== null && outcome.stage === "collected";
 
   const startAgain = () => {
     setOutcome(null);

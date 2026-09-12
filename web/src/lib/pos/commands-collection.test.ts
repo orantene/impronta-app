@@ -79,6 +79,42 @@ test("a line whose offering needs attendee names refuses, and says why", async (
   assert.equal(store.booking_transactions.length, 0);
 });
 
+test("a named-ticket walk-in collects when the operator typed the attendee name", async () => {
+  const store = makeStore();
+  seedOffering(store, {
+    title: "Gala Dinner",
+    requires_identity: true,
+    identity_reason: "attendee_names",
+  });
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  const r = await startCollection(
+    fakeTill(store),
+    {
+      tenantId: "t1",
+      orderId: created.orderId,
+      actorUserId: "u1",
+      method: "cash",
+      contact: { displayName: "Ana Ruiz" },
+      successUrl: "https://app.test/ok",
+      cancelUrl: "https://app.test/no",
+      idempotencyKey: "pos-cash:gala-named",
+    },
+    {
+      holdCapacity: async () => ({ ok: true, allocationIds: [], holdIds: [], skipped: true }),
+    },
+  );
+  assert.equal(r.ok, true, r.ok ? "" : r.error);
+  if (!r.ok) return;
+  assert.equal(store.orders[0].customer_id, null, "a desk name is not a customer row");
+});
+
 test("submitToPreparation writes a ticket instead of returning not_built", async () => {
   const store = makeStore();
   seedOffering(store);

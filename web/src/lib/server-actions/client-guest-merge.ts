@@ -11,6 +11,7 @@ import { verifyGuestCookie } from "@/lib/guest-cookie";
 import { backfillCartFromClaimedInquiries } from "@/lib/inquiry/cart-selected-ids-projection";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { verifiedEmailForGuestClaim } from "@/lib/support/guest-claim-email";
+import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const GUEST_COOKIE = "impronta_guest";
@@ -116,6 +117,14 @@ export async function mergeGuestActivity(
     await claimGuestSupportOnAuth(user.id);
   } catch (err) {
     logServerError("client/mergeGuestActivity/supportClaim", err);
+  }
+
+  if (admin && verifiedEmail) {
+    await claimInquiriesByConfirmedEmail({
+      admin,
+      userId: user.id,
+      verifiedEmail,
+    });
   }
 
   if (!sessionKey || !guestSessionId) {

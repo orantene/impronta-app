@@ -11,6 +11,11 @@ import { applyRegistrationPolicy, ensurePlatformHubRoster } from "@/lib/saas/reg
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifyGuestCookie } from "@/lib/guest-cookie";
+import {
+  ACCESS_PROFILE_REFRESH_COOKIE,
+  ACCESS_PROFILE_REFRESH_VALUE,
+} from "@/lib/auth/access-profile-refresh";
+import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -218,6 +223,21 @@ export async function chooseClientRole(formData?: FormData): Promise<void> {
       p_verified_email: user.email ?? "",
     });
   }
+  const claimAdmin = createServiceRoleClient();
+  if (claimAdmin && user.email) {
+    await claimInquiriesByConfirmedEmail({
+      admin: claimAdmin,
+      userId: user.id,
+      verifiedEmail: user.email,
+    });
+  }
+  const jar = await cookies();
+  jar.set(ACCESS_PROFILE_REFRESH_COOKIE, ACCESS_PROFILE_REFRESH_VALUE, {
+    path: "/",
+    maxAge: 60,
+    httpOnly: true,
+    sameSite: "lax",
+  });
   // Welcome the new client. The copy and template have existed since the
   // notification engine shipped, but nothing ever dispatched them — no catalog
   // entry referenced "client.welcome", so no client has ever been welcomed.

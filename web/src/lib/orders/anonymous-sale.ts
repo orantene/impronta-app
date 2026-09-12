@@ -88,6 +88,7 @@ export async function identityLinesForOrder(
 export async function anonymousSaleVerdict(
   admin: Admin,
   orderId: string,
+  opts?: { attendeeName?: string | null },
 ): Promise<{ ok: true } | { ok: false; reason: "no_contact" | "unavailable"; error: string }> {
   const read = await identityLinesForOrder(admin, orderId);
   if (!read.ok) {
@@ -97,5 +98,9 @@ export async function anonymousSaleVerdict(
   // gates. A Void writes `cancelled` and never asks this question.
   const verdict = identityVerdict({ intoStatus: "paid", hasCustomer: false, lines: read.lines });
   if (verdict.ok) return { ok: true };
+  // Front desk names a seat on `admissions.holder_name`. That is enough for
+  // attendee_names; delivery and entitlement still need an email or a phone.
+  const attendeeName = (opts?.attendeeName ?? "").trim();
+  if (verdict.reason === "attendee_names" && attendeeName.length > 0) return { ok: true };
   return { ok: false, reason: "no_contact", error: verdict.message };
 }

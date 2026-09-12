@@ -283,7 +283,9 @@ export async function startCollection(
   // slice of the balance, even for a TTL it gives back immediately.
   if (!customerId) {
     if (!email && !phone) {
-      const allowed = await anonymousSaleVerdict(admin, row.id);
+      const allowed = await anonymousSaleVerdict(admin, row.id, {
+        attendeeName: input.contact?.displayName,
+      });
       if (!allowed.ok) {
         return { ok: false, reason: allowed.reason, error: allowed.error };
       }
