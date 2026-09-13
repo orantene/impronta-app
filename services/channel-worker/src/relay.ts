@@ -8,6 +8,14 @@ import { postWebhook } from "./webhook-client.js";
  * de-dupes on `providerRef` via message_delivery, so the same message
  * arriving twice (live event + backfill) is free.
  */
+/** The name-bearing fields of a whatsapp-web.js `Contact`. */
+export type RelayContact = {
+  name?: string | null;
+  pushname?: string | null;
+  verifiedName?: string | null;
+  shortName?: string | null;
+};
+
 export type RelayMessage = {
   id: { _serialized: string };
   from: string;
@@ -16,7 +24,7 @@ export type RelayMessage = {
   fromMe: boolean;
   hasMedia: boolean;
   timestamp: number;
-  notifyName?: string;
+  getContact?: () => Promise<RelayContact | null>;
   downloadMedia?: () => Promise<unknown>;
 };
 
@@ -45,6 +53,41 @@ export function isRelayableChatId(chatId: string): boolean {
   return chatId.endsWith("@c.us");
 }
 
+/**
+ * The owner's own address-book entry first, then whatever the customer set as
+ * their WhatsApp name — the order WhatsApp itself displays.
+ */
+export function contactDisplayName(contact: RelayContact | null | undefined): string | null {
+  const candidates = [contact?.name, contact?.pushname, contact?.verifiedName, contact?.shortName];
+  for (const candidate of candidates) {
+    const trimmed = candidate?.trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+}
+
+/**
+ * A `Message` carries no name of its own — the sender's name lives on the
+ * Contact, one round trip away. Only inbound needs it, because the app names
+ * an inquiry when it opens one and only opens one for inbound. Backfill hands
+ * the chat's name in instead, so a history walk never pays for this.
+ */
+export async function resolvePushName(
+  message: RelayMessage,
+  given: string | null | undefined,
+): Promise<string | null> {
+  const explicit = given?.trim();
+  if (explicit) return explicit;
+  if (message.fromMe || !message.getContact) return null;
+  try {
+    return contactDisplayName(await message.getContact());
+  } catch (err) {
+    // A display name is not worth losing the message over.
+    console.warn("[channel-worker] contact lookup failed", message.id._serialized, err);
+    return null;
+  }
+}
+
 export function messageWebhookBody(input: {
   tenantId: string;
   chatId: string;
@@ -57,7 +100,7 @@ export function messageWebhookBody(input: {
     tenantId: input.tenantId,
     chatId: input.chatId,
     from: input.chatId,
-    pushName: input.pushName?.trim() || input.message.notifyName?.trim() || null,
+    pushName: input.pushName?.trim() || null,
     providerRef: input.message.id._serialized,
     text: input.message.body ?? "",
     media: input.media ?? null,
@@ -79,6 +122,7 @@ export async function relayMessage(input: {
   withMedia: boolean;
 }): Promise<boolean> {
   if (!isRelayableChatId(input.chatId)) return false;
+  const pushName = await resolvePushName(input.message, input.pushName);
   let media: StoredMedia | null = null;
   if (input.withMedia && input.message.hasMedia && input.message.downloadMedia) {
     try {
@@ -99,7 +143,7 @@ export async function relayMessage(input: {
       tenantId: input.tenantId,
       chatId: input.chatId,
       message: input.message,
-      pushName: input.pushName ?? null,
+      pushName,
       media,
     }),
   );

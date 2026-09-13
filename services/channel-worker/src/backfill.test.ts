@@ -8,7 +8,13 @@ import {
   shouldDownloadMedia,
 } from "./backfill.js";
 import { decodedByteLength, extensionForMime, mediaObjectPath } from "./media.js";
-import { isRelayableChatId, messageWebhookBody, sentAtIso } from "./relay.js";
+import {
+  contactDisplayName,
+  isRelayableChatId,
+  messageWebhookBody,
+  resolvePushName,
+  sentAtIso,
+} from "./relay.js";
 
 function chat(id: string, timestamp: number, isGroup = false) {
   return { id: { _serialized: id }, isGroup, timestamp };
@@ -86,6 +92,7 @@ test("messageWebhookBody carries direction, timestamp and media", () => {
   const body = messageWebhookBody({
     tenantId: "t1",
     chatId: "5219991234567@c.us",
+    pushName: "Ana",
     message: {
       id: { _serialized: "true_5219991234567@c.us_AAA" },
       from: "5219991234567@c.us",
@@ -93,7 +100,6 @@ test("messageWebhookBody carries direction, timestamp and media", () => {
       fromMe: false,
       hasMedia: true,
       timestamp: 1700000000,
-      notifyName: "Ana",
     },
     media: { url: "t1/whatsapp/abc.jpg", mime: "image/jpeg" },
   });
@@ -107,11 +113,10 @@ test("messageWebhookBody carries direction, timestamp and media", () => {
   assert.deepEqual(body.media, { url: "t1/whatsapp/abc.jpg", mime: "image/jpeg" });
 });
 
-test("messageWebhookBody prefers the chat name over notifyName on backfill", () => {
+test("messageWebhookBody leaves an unnamed sender to the caller", () => {
   const body = messageWebhookBody({
     tenantId: "t1",
     chatId: "5219991234567@c.us",
-    pushName: "Ana Lopez",
     message: {
       id: { _serialized: "x" },
       from: "5219991234567@c.us",
@@ -119,10 +124,56 @@ test("messageWebhookBody prefers the chat name over notifyName on backfill", () 
       fromMe: true,
       hasMedia: false,
       timestamp: 1700000000,
-      notifyName: "Ana",
     },
   });
-  assert.equal(body.pushName, "Ana Lopez");
+  assert.equal(body.pushName, null);
   assert.equal(body.fromMe, true);
   assert.equal(body.media, null);
+});
+
+// whatsapp-web.js 1.34.7 has no name field on Message: `notifyName` exists
+// nowhere in the library. Every candidate below is a real Contact property.
+test("contactDisplayName prefers the saved contact name, then the pushname", () => {
+  assert.equal(contactDisplayName({ name: "Ana Lopez", pushname: "Ani" }), "Ana Lopez");
+  assert.equal(contactDisplayName({ pushname: "Ani" }), "Ani");
+  assert.equal(contactDisplayName({ verifiedName: "Hotel Sol" }), "Hotel Sol");
+  assert.equal(contactDisplayName({ shortName: "Ana" }), "Ana");
+  assert.equal(contactDisplayName({ name: "   ", pushname: "Ani" }), "Ani");
+  assert.equal(contactDisplayName({}), null);
+  assert.equal(contactDisplayName(null), null);
+});
+
+const inbound = {
+  id: { _serialized: "false_5219991234567@c.us_AAA" },
+  from: "5219991234567@c.us",
+  body: "hola",
+  fromMe: false,
+  hasMedia: false,
+  timestamp: 1700000000,
+};
+
+test("resolvePushName asks the contact only when the caller has no name", async () => {
+  let calls = 0;
+  const getContact = async () => {
+    calls += 1;
+    return { pushname: "Ana" };
+  };
+
+  assert.equal(await resolvePushName({ ...inbound, getContact }, "Ana Lopez"), "Ana Lopez");
+  assert.equal(calls, 0, "the backfill's chat name must not cost a round trip");
+
+  assert.equal(await resolvePushName({ ...inbound, getContact }, null), "Ana");
+  assert.equal(calls, 1);
+
+  // Our own reply names nobody: the app only opens an inquiry for inbound.
+  assert.equal(await resolvePushName({ ...inbound, fromMe: true, getContact }, null), null);
+  assert.equal(calls, 1);
+});
+
+test("resolvePushName survives a contact lookup that throws", async () => {
+  const getContact = async () => {
+    throw new Error("puppeteer detached");
+  };
+  assert.equal(await resolvePushName({ ...inbound, getContact }, null), null);
+  assert.equal(await resolvePushName(inbound, null), null);
 });
