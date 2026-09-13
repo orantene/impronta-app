@@ -15,8 +15,19 @@ export function hasStoredMedia(payload: Record<string, unknown> | null | undefin
   return typeof (media as { url?: unknown }).url === "string";
 }
 
+/**
+ * Our side of the conversation. A reply the owner tapped out in WhatsApp on
+ * their own phone has no sender_user_id — no app user sent it — but it is
+ * still ours, and left-aligning it makes the owner's words read as the
+ * customer's.
+ */
+export function isOutbound(message: ThreadMessage): boolean {
+  if (message.senderUserId) return true;
+  return (message.payload as { via?: unknown } | null)?.via === "phone";
+}
+
 export function OperatorCard(props: { readonly message: ThreadMessage; readonly model: CardRenderModel }) {
-  const mine = Boolean(props.message.senderUserId);
+  const mine = isOutbound(props.message);
   const structured = props.model.kind !== "text";
   return (
     <article

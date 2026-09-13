@@ -57,6 +57,14 @@ test("inbound media is rendered from card_payload, never as a bare kind", () => 
   assert.match(card, /<MessageMedia/);
 });
 
+test("a reply sent from the owner's own phone reads as ours, not the customer's", () => {
+  const card = read("components/admin/pos/messages/cards/OperatorCard.tsx");
+  // Relayed phone replies carry no sender_user_id, so alignment cannot rest on
+  // that column alone.
+  assert.match(card, /const mine = isOutbound\(props\.message\)/);
+  assert.match(card, /\.via === "phone"/);
+});
+
 test("the media URL action takes a message id, never a storage path", () => {
   const action = read("lib/server-actions/message-media.ts");
   assert.match(action, /getMessageMediaUrl\(messageId: string\)/);
