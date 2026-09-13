@@ -90,8 +90,8 @@ export async function pairTenant(tenantId: string): Promise<void> {
   // CJS package: Client is named, LocalAuth lives on default under Node ESM.
   const wweb = await import("whatsapp-web.js");
   const Client = wweb.Client;
-  const LocalAuth = (wweb as { default?: { LocalAuth?: unknown } }).default?.LocalAuth ??
-    (wweb as { LocalAuth?: unknown }).LocalAuth;
+  const LocalAuth = ((wweb as { default?: { LocalAuth?: unknown } }).default?.LocalAuth ??
+    (wweb as { LocalAuth?: unknown }).LocalAuth) as typeof wweb.LocalAuth | undefined;
   if (typeof Client !== "function" || typeof LocalAuth !== "function") {
     throw new Error("whatsapp-web.js LocalAuth unavailable");
   }
@@ -100,10 +100,7 @@ export async function pairTenant(tenantId: string): Promise<void> {
   await restoreSession(tenantId, dir);
 
   const client = new Client({
-    authStrategy: new (LocalAuth as new (opts: { dataPath: string; clientId: string }) => unknown)({
-      dataPath: dir,
-      clientId: tenantId,
-    }),
+    authStrategy: new LocalAuth({ dataPath: dir, clientId: tenantId }),
     puppeteer: {
       executablePath: process.env.WWEBJS_CHROME_PATH || undefined,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],

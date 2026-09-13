@@ -44,6 +44,17 @@ curl -s -X POST http://127.0.0.1:8788/backfill \
 
 Inbound photos and documents under 5 MB are uploaded to the private `inquiry-files` Supabase bucket at `{tenantId}/whatsapp/{hash}.{ext}`; the webhook body carries the storage path, and the admin thread resolves a short-lived signed URL on demand. Anything larger keeps its caption and drops the file.
 
+## Checks
+
+```
+npm test          # typecheck, then the unit tests
+npm run typecheck # on its own
+```
+
+`npm run typecheck` borrows the TypeScript already installed under `web/` rather than adding a dependency here, so run it from a checkout where `web/node_modules` exists.
+
+**This worker runs under tsx, which strips types without checking them.** Nothing validates it at build time and no CI workflow runs these tests, so `npm test` before a commit is the only gate it has. `src/wwebjs-contract.ts` is part of that gate: the modules read whatsapp-web.js through their own narrow types, and it asks the compiler whether those types match the real ones — both that a library value can stand in for them, and that they claim no property the library lacks. The second check exists because an optional invented property is still structurally assignable: `RelayMessage.notifyName` was read for the sender's name and exists nowhere in the library, so every new customer would have been filed under their phone number, and fixture tests passed the whole time. Add a field to those types and the contract tells you whether it is real.
+
 ## The screencast viewer
 
 `http://127.0.0.1:$PORT/view?tenant=<agency-id>` (loopback only) is the worker's own WhatsApp Web Chrome session. It is no longer the drawer's main surface — the drawer reads the database and shows a native chat list. The viewer stays as the "Open full WhatsApp Web" link for what a native list cannot do: groups, calls, sending media. Restart this process after pulling viewer changes; the live site cannot update the worker on your machine.

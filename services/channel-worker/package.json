@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node --import tsx src/index.ts",
     "start:mock": "WWEBJS_MOCK=1 node --import tsx src/index.ts",
-    "test": "node --import tsx --test src/view.test.ts src/backfill.test.ts"
+    "typecheck": "node ../../web/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
+    "test": "npm run typecheck && node --import tsx --test src/view.test.ts src/backfill.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
