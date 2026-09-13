@@ -5,6 +5,16 @@ import type { CardRenderModel } from "@/lib/messaging/cards";
 import type { ThreadMessage } from "@/lib/messaging/types";
 import { cn } from "@/lib/utils";
 
+import { MessageMedia } from "./MessageMedia";
+
+/** A file the channel worker stored for this message, if any. */
+export function hasStoredMedia(payload: Record<string, unknown> | null | undefined): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const media = (payload as { media?: unknown }).media;
+  if (!media || typeof media !== "object") return false;
+  return typeof (media as { url?: unknown }).url === "string";
+}
+
 export function OperatorCard(props: { readonly message: ThreadMessage; readonly model: CardRenderModel }) {
   const mine = Boolean(props.message.senderUserId);
   const structured = props.model.kind !== "text";
@@ -21,6 +31,7 @@ export function OperatorCard(props: { readonly message: ThreadMessage; readonly 
       ) : null}
       {structured ? <span className={cn(POS_PILL, POS_PILL_SLATE, "mt-1")}>{props.model.state}</span> : null}
       <CardBody model={props.model} body={props.message.body} />
+      {hasStoredMedia(props.message.payload) ? <MessageMedia messageId={props.message.id} /> : null}
       {props.model.actions.length > 0 ? (
         <p className="mt-2 text-[12px] text-admin-ink-muted">{props.model.actions.join(" · ")}</p>
       ) : null}
@@ -51,5 +62,9 @@ function CardBody(props: { model: CardRenderModel; body: string }) {
       </ul>
     );
   }
-  return <p className="mt-1 whitespace-pre-wrap text-[15px] text-admin-ink">{props.body || props.model.summary}</p>;
+  // A photo sent with no caption has neither body nor summary, and an empty
+  // paragraph is a gap above the image.
+  const text = props.body || props.model.summary;
+  if (!text) return null;
+  return <p className="mt-1 whitespace-pre-wrap text-[15px] text-admin-ink">{text}</p>;
 }

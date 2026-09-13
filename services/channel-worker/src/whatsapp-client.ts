@@ -2,14 +2,17 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { backfillTenant, type BackfillClient } from "./backfill.js";
 import { db } from "./db.js";
 import { decryptSession, encryptSession } from "./crypto.js";
+import { relayMessage, type RelayMessage } from "./relay.js";
 import { postWebhook } from "./webhook-client.js";
 
 type ClientHandle = {
   send: (to: string, body: string) => Promise<string>;
   logout: () => Promise<void>;
   requestPairingCode?: (phone: string) => Promise<string>;
+  backfill?: (options?: { force?: boolean }) => Promise<number>;
 };
 
 export type WhatsAppPupPage = {
@@ -122,33 +125,27 @@ export async function pairTenant(tenantId: string): Promise<void> {
       phone: info.wid?.user ? `+${info.wid.user}` : null,
       displayName: info.pushname ?? null,
     });
+    // Not awaited: the walk takes minutes on a busy account and `ready` must
+    // return so the session can serve live events while history streams in.
+    void backfillTenant(tenantId, client as unknown as BackfillClient).catch(() => {});
   });
   client.on("disconnected", async () => {
     pages.delete(tenantId);
     await postWebhook({ kind: "session", tenantId, state: "unlinked" });
     clients.delete(tenantId);
   });
-  client.on("message", async (msg: {
-    id: { _serialized: string };
-    from: string;
-    body: string;
-    fromMe: boolean;
-    hasMedia: boolean;
-    timestamp: number;
-    notifyName?: string;
-  }) => {
-    if (msg.from.endsWith("@g.us") || msg.from === "status@broadcast") return;
-    await postWebhook({
-      kind: "message",
-      tenantId,
-      chatId: msg.from,
-      from: msg.from,
-      pushName: msg.notifyName ?? null,
-      providerRef: msg.id._serialized,
-      text: msg.body,
-      fromMe: msg.fromMe,
-      sentAt: new Date((msg.timestamp || Date.now() / 1000) * 1000).toISOString(),
-    });
+  client.on("message", async (msg: RelayMessage) => {
+    await relayMessage({ tenantId, chatId: msg.from, message: msg, withMedia: true });
+  });
+  // What the owner types on the phone itself. Without this the drawer showed
+  // the customer's half of the conversation and the app's own replies, but
+  // never the replies tapped out in WhatsApp — a thread with holes in it.
+  // `message_create` fires for both directions, so inbound is left to the
+  // `message` handler above rather than relayed twice.
+  client.on("message_create", async (msg: RelayMessage) => {
+    if (!msg.fromMe) return;
+    const chatId = msg.to ?? msg.from;
+    await relayMessage({ tenantId, chatId, message: msg, withMedia: true });
   });
 
   await client.initialize();
@@ -176,7 +173,16 @@ export async function pairTenant(tenantId: string): Promise<void> {
       });
       return code;
     },
+    backfill: async (options) =>
+      backfillTenant(tenantId, client as unknown as BackfillClient, options),
   });
+}
+
+/** Re-run the history import without re-pairing. Served by POST /backfill. */
+export async function backfillTenantMessages(tenantId: string): Promise<number> {
+  const handle = clients.get(tenantId);
+  if (!handle?.backfill) throw new Error("not_connected");
+  return handle.backfill({ force: true });
 }
 
 export async function logoutTenant(tenantId: string): Promise<void> {
