@@ -125,25 +125,35 @@ async function inputSession(tenantId: string): Promise<CdpSession | null> {
   if (existing) return existing;
   const page = getWhatsAppPage(tenantId);
   if (!page) return null;
-  const cdp = (await page.createCDPSession()) as CdpSession;
-  inputSessions.set(tenantId, cdp);
-  return cdp;
+  try {
+    const cdp = (await page.createCDPSession()) as CdpSession;
+    inputSessions.set(tenantId, cdp);
+    return cdp;
+  } catch {
+    inputSessions.delete(tenantId);
+    return null;
+  }
 }
 
 export async function applyViewInput(tenantId: string, body: unknown): Promise<boolean> {
-  const cdp = await inputSession(tenantId);
-  if (!cdp) return false;
-  if (!body || typeof body !== "object") return false;
-  const input = body as MouseInput | KeyInput;
-  if (input.type === "mouse") {
-    await dispatchMouse(cdp, input);
-    return true;
+  try {
+    const cdp = await inputSession(tenantId);
+    if (!cdp) return false;
+    if (!body || typeof body !== "object") return false;
+    const input = body as MouseInput | KeyInput;
+    if (input.type === "mouse") {
+      await dispatchMouse(cdp, input);
+      return true;
+    }
+    if (input.type === "key") {
+      await dispatchKey(cdp, input);
+      return true;
+    }
+    return false;
+  } catch {
+    inputSessions.delete(tenantId);
+    return false;
   }
-  if (input.type === "key") {
-    await dispatchKey(cdp, input);
-    return true;
-  }
-  return false;
 }
 
 async function dispatchMouse(cdp: CdpSession, input: MouseInput): Promise<void> {

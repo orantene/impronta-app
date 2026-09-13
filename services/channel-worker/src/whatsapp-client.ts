@@ -53,8 +53,13 @@ async function restoreSession(tenantId: string, dir: string): Promise<void> {
     .maybeSingle();
   const b64 = (data as { session_ciphertext?: string | null } | null)?.session_ciphertext;
   if (!b64) return;
-  await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, "session.json"), decryptSession(Buffer.from(b64, "base64")));
+  try {
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "session.json"), decryptSession(Buffer.from(b64, "base64")));
+  } catch (err) {
+    // Wrong CHANNEL_SESSION_KEY or corrupt blob: start a fresh QR pair.
+    console.warn("[channel-worker] session restore skipped", tenantId, err);
+  }
 }
 
 async function mockPair(tenantId: string): Promise<void> {
@@ -79,13 +84,23 @@ export async function pairTenant(tenantId: string): Promise<void> {
     return;
   }
 
-  const { Client, LocalAuth } = await import("whatsapp-web.js");
+  // CJS package: Client is named, LocalAuth lives on default under Node ESM.
+  const wweb = await import("whatsapp-web.js");
+  const Client = wweb.Client;
+  const LocalAuth = (wweb as { default?: { LocalAuth?: unknown } }).default?.LocalAuth ??
+    (wweb as { LocalAuth?: unknown }).LocalAuth;
+  if (typeof Client !== "function" || typeof LocalAuth !== "function") {
+    throw new Error("whatsapp-web.js LocalAuth unavailable");
+  }
   const dir = join(tmpdir(), "tulala-wwebjs", tenantId);
   await mkdir(dir, { recursive: true });
   await restoreSession(tenantId, dir);
 
   const client = new Client({
-    authStrategy: new LocalAuth({ dataPath: dir, clientId: tenantId }),
+    authStrategy: new (LocalAuth as new (opts: { dataPath: string; clientId: string }) => unknown)({
+      dataPath: dir,
+      clientId: tenantId,
+    }),
     puppeteer: {
       executablePath: process.env.WWEBJS_CHROME_PATH || undefined,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
