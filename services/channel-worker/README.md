@@ -17,4 +17,4 @@ Env (worker-only; do not put `CHANNEL_SESSION_KEY` on Vercel):
 - `WWEBJS_CHROME_PATH` — Chromium for real `whatsapp-web.js`
 - `APP_WEBHOOK_URL` + `WHATSAPP_WEBHOOK_SECRET` — HMAC POST back to the existing webhook
 
-After a phone scans the linked-device QR, open `http://127.0.0.1:$PORT/view?tenant=<agency-id>` (loopback only). That page is the worker's WhatsApp Web Chrome session, not the Cloud API and not the Messages inbox. The admin drawer iframes this URL, or opens it in a window when the live site blocks the embed.
+After a phone scans the linked-device QR, open `http://127.0.0.1:$PORT/view?tenant=<agency-id>` (loopback only). That page is the worker's WhatsApp Web Chrome session, not the Cloud API and not the Messages inbox. The admin drawer iframes this URL, or opens it in a window when the live site blocks the embed. Restart this process after pulling viewer changes; the live site cannot update the worker on your machine.

@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "node --import tsx src/index.ts",
-    "start:mock": "WWEBJS_MOCK=1 node --import tsx src/index.ts"
+    "start:mock": "WWEBJS_MOCK=1 node --import tsx src/index.ts",
+    "test": "node --import tsx --test src/view.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
