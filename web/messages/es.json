@@ -16021,7 +16021,9 @@
         "reasonNotArchived": "Solo un proyecto archivado se puede reabrir",
         "reasonAlreadyArchived": "Este proyecto ya está archivado",
         "confirmArchive": "Archivar proyecto",
-        "confirmReopen": "Reabrir proyecto"
+        "confirmReopen": "Reabrir proyecto",
+        "archiveReason": "Por qué se archiva",
+        "archiveReasonHint": "Opcional. Queda en el registro."
       },
       "visibility": {
         "title": "Quien ve que",

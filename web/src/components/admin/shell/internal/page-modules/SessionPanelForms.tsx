@@ -217,7 +217,12 @@ export function MoveParticipantForm({
           <span>{t(`${K}.moveTo`)}</span>
           <select className={SELECT} value={toSessionId} onChange={(e) => setToSessionId(e.target.value)} data-testid="session-move-select">
             {targets.map((r) => (
-              <option key={r.id} value={r.id}>
+              <option
+                key={r.id}
+                value={r.id}
+                data-move-target={r.id}
+                data-move-target-full={r.state === "full" || r.seatsRemaining === 0 ? "" : undefined}
+              >
                 {whenLine(r.startsAt, r.timeZone, locale)}
                 {r.seatsRemaining !== null ? ` · ${r.seatsRemaining}` : ""}
               </option>

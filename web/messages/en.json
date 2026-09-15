@@ -16021,7 +16021,9 @@
         "reasonNotArchived": "Only an archived project can be reopened",
         "reasonAlreadyArchived": "This project is already archived",
         "confirmArchive": "Archive project",
-        "confirmReopen": "Reopen project"
+        "confirmReopen": "Reopen project",
+        "archiveReason": "Why it is being archived",
+        "archiveReasonHint": "Optional. Kept on the record."
       },
       "visibility": {
         "title": "Who sees what",

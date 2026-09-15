@@ -491,6 +491,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
                       type="button"
                       className="tp-seat"
                       data-on={on ? "1" : undefined}
+                      data-seat={seat.id}
                       data-testid={`ticket-seat-${seat.id}`}
                       aria-pressed={on}
                       disabled={busy !== "idle"}

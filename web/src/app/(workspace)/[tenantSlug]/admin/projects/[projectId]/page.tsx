@@ -466,6 +466,8 @@ function closeSheetCopy(tr: Tr) {
     cancelNote: tr("dashboard.projects.close.cancelNote"),
     archive: tr("dashboard.projects.close.archive"),
     archiveBody: tr("dashboard.projects.close.archiveBody"),
+    archiveReason: tr("dashboard.projects.close.archiveReason"),
+    archiveReasonHint: tr("dashboard.projects.close.archiveReasonHint"),
     reopen: tr("dashboard.projects.close.reopen"),
     reopenBody: tr("dashboard.projects.close.reopenBody"),
     reason: {

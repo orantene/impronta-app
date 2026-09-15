@@ -4704,7 +4704,9 @@
         "reasonNotArchived": "Seul un projet archivé peut être rouvert",
         "reasonAlreadyArchived": "Ce projet est déjà archivé",
         "confirmArchive": "Archiver le projet",
-        "confirmReopen": "Rouvrir le projet"
+        "confirmReopen": "Rouvrir le projet",
+        "archiveReason": "Pourquoi il est archivé",
+        "archiveReasonHint": "Facultatif. Conservé dans le dossier."
       },
       "visibility": {
         "title": "Qui voit quoi",
