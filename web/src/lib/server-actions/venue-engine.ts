@@ -55,8 +55,9 @@ import {
   posDeviceRegister as registerDevice,
   posDeviceUpdate as updateDevice,
   posDevicesList as listPosDevices,
-  posOutboxApply as applyOutbox,
 } from "@/lib/venues/pos-devices";
+import { replayCashOutboxItem } from "@/lib/pos/outbox-replay";
+import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 
 const uuid = z.string().uuid();
 const slug = z.string().trim().min(1).max(63);
@@ -682,5 +683,10 @@ export async function posOutboxApply(input: {
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
-  return applyOutbox(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  // Reserve (RPC) → the live cash tender → stamp applied. See lib/pos/outbox-replay.ts.
+  return replayCashOutboxItem(
+    g.admin,
+    { tenantId: g.tenantId, actorUserId: g.userId, ...parsed.data },
+    { onOrderPaid: (ctx) => mintAdmissionsForPaidOrder(g.admin, ctx).then(() => undefined) },
+  );
 }

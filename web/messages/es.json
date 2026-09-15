@@ -13573,7 +13573,8 @@
           "readerNote": "Los pagos con tarjeta necesitan internet para obtener respuesta del banco; el mostrador aún no puede usar un lector en ningún caso.",
           "nothingQueued": "No se guarda nada en este dispositivo sin conexión. Una venta necesita conexión para guardarse.",
           "queuedCount": "{count} ventas en efectivo esperando sincronizar.",
-          "syncNow": "Sincronizar ahora"
+          "syncNow": "Sincronizar ahora",
+          "syncedCount": "{count} ventas en efectivo sincronizadas y registradas."
         },
         "lock": {
           "title": "¿Quién está en la caja?",
@@ -17421,7 +17422,10 @@
           "wrong_tenant": "Ese registro no esta en este espacio.",
           "invalid": "Eso no se puede guardar.",
           "unavailable": "Esto no se pudo completar. Intentalo de nuevo.",
-          "not_allowed": "No puedes hacer esto aqui."
+          "not_allowed": "No puedes hacer esto aqui.",
+          "not_open": "Esa venta ya no está abierta.",
+          "already_collected": "Esa venta ya está cobrada.",
+          "not_settled": "El efectivo aún no se registró. Sincroniza de nuevo."
         }
       }
     }

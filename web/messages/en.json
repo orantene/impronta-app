@@ -13573,7 +13573,8 @@
           "readerNote": "Card payments need the internet to get an answer from the bank; the counter cannot drive a reader yet either way.",
           "nothingQueued": "Nothing is kept on this device while offline. A sale needs the connection to be saved.",
           "queuedCount": "{count} cash sales waiting to sync.",
-          "syncNow": "Sync now"
+          "syncNow": "Sync now",
+          "syncedCount": "{count} cash sales synced and recorded."
         },
         "lock": {
           "title": "Who's on the register?",
@@ -17421,7 +17422,10 @@
           "wrong_tenant": "That record is not in this workspace.",
           "invalid": "That cannot be saved.",
           "unavailable": "This could not be completed. Try again.",
-          "not_allowed": "You cannot do this here."
+          "not_allowed": "You cannot do this here.",
+          "not_open": "That sale is no longer open.",
+          "already_collected": "That sale is already collected.",
+          "not_settled": "The cash was not recorded yet. Sync again."
         }
       }
     }

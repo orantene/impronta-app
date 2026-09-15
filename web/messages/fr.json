@@ -2416,7 +2416,8 @@
           "readerNote": "Les paiements par carte ont besoin d'internet pour obtenir la réponse de la banque ; le comptoir ne peut de toute façon pas encore piloter un lecteur.",
           "nothingQueued": "Rien n'est conservé sur cet appareil hors ligne. Une vente a besoin de la connexion pour être enregistrée.",
           "queuedCount": "{count} ventes en espèces en attente de synchronisation.",
-          "syncNow": "Synchroniser"
+          "syncNow": "Synchroniser",
+          "syncedCount": "{count} ventes en espèces synchronisées et enregistrées."
         },
         "lock": {
           "title": "Qui est à la caisse ?",
@@ -6663,7 +6664,10 @@
           "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
           "invalid": "Cela ne peut pas etre enregistre.",
           "unavailable": "Impossible de terminer. Reessayez.",
-          "not_allowed": "Vous ne pouvez pas faire cela ici."
+          "not_allowed": "Vous ne pouvez pas faire cela ici.",
+          "not_open": "Cette vente n'est plus ouverte.",
+          "already_collected": "Cette vente est déjà encaissée.",
+          "not_settled": "L'argent n'a pas encore été enregistré. Synchronisez à nouveau."
         }
       }
     },

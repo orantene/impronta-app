@@ -109,6 +109,7 @@ export function DeviceRegistryPanel() {
 export function OutboxSyncPanel() {
   const t = useT();
   const [queued, setQueued] = useState(0);
+  const [synced, setSynced] = useState(0);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -124,10 +125,15 @@ export function OutboxSyncPanel() {
           : interpolate(t("dashboard.pos.counter.connection.queuedCount"), { count: queued })}
       </p>
       <p className="m-0 text-[14px] text-admin-ink-muted">{t("dashboard.pos.counter.devices.cashOnlyOffline")}</p>
+      {synced > 0 ? (
+        <p className="m-0 text-[14px] text-admin-success" data-testid="pos-outbox-synced">
+          {interpolate(t("dashboard.pos.counter.connection.syncedCount"), { count: synced })}
+        </p>
+      ) : null}
       <button
         type="button"
         disabled={busy || queued === 0}
-        data-testid="pos-outbox-sync"
+        data-testid="pos-outbox-sync-button"
         className={cn(POS_SECONDARY_ACTION, "mt-1")}
         onClick={() => {
           const paired = readPairedDevice();
@@ -141,18 +147,33 @@ export function OutboxSyncPanel() {
             await posDeviceHeartbeat({ deviceKey: paired.deviceKey });
             const items = readCashOutbox();
             const kept: typeof items = [];
+            let firstRefusal: string | null = null;
+            let synced = 0;
             for (const item of items) {
               const res = await posOutboxApply({
                 deviceId: paired.deviceId,
                 operationKey: item.operationKey,
                 command: item.command,
               });
-              if (!res.ok) kept.push(item);
+              if (res.ok) {
+                synced += 1;
+                continue;
+              }
+              // A terminal refusal (the engine will never take this command)
+              // is dropped so the queue cannot wedge; everything else stays
+              // queued for the next sync and the till hears the real reason.
+              if (res.reason === "not_replayable" || res.reason === "invalid") {
+                firstRefusal ??= res.reason;
+                continue;
+              }
+              kept.push(item);
+              firstRefusal ??= res.reason;
             }
             writeCashOutbox(kept);
             setQueued(kept.length);
+            setSynced(synced);
             setBusy(false);
-            if (kept.length > 0) setNotice(t("dashboard.venue.engine.refusal.not_replayable"));
+            if (firstRefusal) setNotice(say(t, firstRefusal));
           })();
         }}
       >
