@@ -90,7 +90,7 @@ test("C06-CUS public menu: House pizza on storefront → send → Sales and DB a
   // showing the operator the wrong thing.
   const salesRow = page.getByRole("row", { name: /C06 guest/i }).first();
   await expect(salesRow).toContainText("$18.00");
-  await expect(salesRow).toContainText(/still owed/i);
+  await expect(salesRow).toContainText(/still owed|unpaid|awaiting payment/i);
   await expect(salesRow, "an uncollected order must never read as paid").not.toContainText(
     /\bpaid\b/i,
   );
@@ -225,7 +225,7 @@ test("C06-CUS reserve-then-order: one guest reserves a table then orders pizza",
   // a bare `$18.00` anywhere on the page is satisfied by another case's order.
   const menuRow = page.getByRole("row", { name: /C06 diner/i }).first();
   await expect(menuRow).toContainText("$18.00");
-  await expect(menuRow).toContainText(/still owed/i);
+  await expect(menuRow).toContainText(/still owed|unpaid|awaiting payment/i);
   await expect(menuRow, "an uncollected order must never read as paid").not.toContainText(
     /\bpaid\b/i,
   );

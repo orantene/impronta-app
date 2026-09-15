@@ -11,6 +11,7 @@ import { verifyGuestCookie } from "@/lib/guest-cookie";
 import { backfillCartFromClaimedInquiries } from "@/lib/inquiry/cart-selected-ids-projection";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { verifiedEmailForGuestClaim } from "@/lib/support/guest-claim-email";
+import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const GUEST_COOKIE = "impronta_guest";
@@ -118,7 +119,25 @@ export async function mergeGuestActivity(
     logServerError("client/mergeGuestActivity/supportClaim", err);
   }
 
+  if (admin && verifiedEmail) {
+    await claimInquiriesByConfirmedEmail({
+      admin,
+      userId: user.id,
+      verifiedEmail,
+    });
+  }
+
   if (!sessionKey || !guestSessionId) {
+    // Cookie-less new device: the claim above still ran. Rebuild saved_talent
+    // from the claimed inquiry's selected_ids — the guest-session merge below
+    // never runs without a cookie.
+    if (admin) {
+      await backfillCartFromClaimedInquiries({ admin, clientUserId: user.id });
+    }
+    revalidatePath("/client");
+    revalidatePath("/client/favorites");
+    revalidatePath("/client/saved");
+    revalidatePath("/directory");
     return {
       ok: true,
       data: {
