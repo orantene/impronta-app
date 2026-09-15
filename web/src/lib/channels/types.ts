@@ -41,6 +41,8 @@ export type WhatsAppConnectionPublic = {
   ownerFirstName: string | null;
   /** Workspace name for the drawer title. Empty when unknown. */
   tenantName: string;
+  /** Loopback URL for the worker's WhatsApp Web viewer. */
+  webViewUrl: string;
 };
 
 export type WhatsAppBridgeSnapshot = {
