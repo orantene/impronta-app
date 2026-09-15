@@ -68,7 +68,13 @@ export async function setOfferingPricePhase(
 ): Promise<{ ok: true; phaseId: string } | { ok: false; reason: PricePhaseReason }> {
   const label = input.label.trim();
   if (!label || !Number.isInteger(input.priceCents) || input.priceCents < 0) return { ok: false, reason: "invalid" };
-  if (input.endsAt && input.endsAt <= input.startsAt) return { ok: false, reason: "overlap" };
+  // Same instant compare as the reader (D-120): "…Z" and "…+00:00" are one
+  // instant, and a string compare called them ordered. An unparseable bound
+  // is invalid, never silently accepted.
+  const startMs = phaseInstantMs(input.startsAt);
+  const endMs = input.endsAt ? phaseInstantMs(input.endsAt) : null;
+  if (Number.isNaN(startMs) || (endMs !== null && Number.isNaN(endMs))) return { ok: false, reason: "invalid" };
+  if (endMs !== null && endMs <= startMs) return { ok: false, reason: "overlap" };
   const { data, error } = await admin
     .from("offering_price_phases")
     .insert({
