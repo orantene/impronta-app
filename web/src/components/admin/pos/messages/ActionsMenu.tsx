@@ -3,6 +3,7 @@
 import { POS_NOTE, POS_SECONDARY_ACTION } from "@/components/admin/pos/pos-classes";
 import type { MessagingSheetName } from "@/lib/messaging/fixture";
 
+import { messagingActionItems } from "./action-items";
 import type { messagesCopy } from "./copy";
 
 export function ActionsMenu(props: {
@@ -11,14 +12,7 @@ export function ActionsMenu(props: {
   readonly onToggle: () => void;
   readonly onPick: (sheet: MessagingSheetName) => void;
 }) {
-  const items: Array<{ sheet: MessagingSheetName; label: string; hint: string; disabled?: string }> = [
-    { sheet: "options", label: props.copy.sendOptions, hint: props.copy.previewCard },
-    { sheet: "link", label: props.copy.createOrLink, hint: props.copy.nothingLinked },
-    { sheet: "payment", label: props.copy.requestPayment, hint: props.copy.owedNow },
-    { sheet: "note", label: props.copy.attachFile, hint: props.copy.disabled.attach, disabled: props.copy.disabled.attach },
-    { sheet: "note", label: props.copy.note, hint: props.copy.composerNote },
-    { sheet: "reminder", label: props.copy.scheduleReminder, hint: props.copy.reminderOne },
-  ];
+  const items = messagingActionItems(props.copy);
   return (
     <div className="relative">
       <button type="button" className={POS_SECONDARY_ACTION} aria-expanded={props.open} onClick={props.onToggle}>
