@@ -113,6 +113,11 @@ export default defineConfig({
           },
         }
       : {}),
+    // Optional storageState (Playwright cookies) for a share-link session when
+    // the automation bypass secret is not in this environment. Gitignored.
+    ...(process.env.PLAYWRIGHT_STORAGE_STATE
+      ? { storageState: process.env.PLAYWRIGHT_STORAGE_STATE }
+      : {}),
   },
   projects: [
     {

@@ -279,7 +279,7 @@ export function WalkInSheet({
       <PosAction onClick={onStartAgain} disabled={busy}>
         {copy.walkin.startAgain}
       </PosAction>
-      {outcome.stage === "booked" && outcome.outstandingCents > 0 ? (
+      {outcome.stage === "booked" ? (
         <PosAction tone="primary" size="lg" disabled={busy} onClick={onCollect} testAttr={{ "data-pos-classes-collect": "collect" }}>
           {busy ? copy.walkin.collecting : fill(copy.walkin.collect, { amount: formatOrderMoney(outcome.outstandingCents, outcome.currency) })}
         </PosAction>
@@ -313,7 +313,7 @@ export function WalkInSheet({
         <div className="flex flex-col gap-[12px]">
           <ClassesNotice kind="done">{outcome.sentence}</ClassesNotice>
           {outcome.stage === "booked" && outcome.outstandingCents <= 0 ? (
-            <p className="m-0 font-admin-body text-[14px] text-admin-ink-muted">{copy.walkin.nothingToCollect}</p>
+            <p className="m-0 font-admin-body text-[14px] text-admin-ink-muted">{copy.walkin.collecting}</p>
           ) : null}
         </div>
       ) : (

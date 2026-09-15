@@ -1,0 +1,22 @@
+=== RERUN C08-modelling-or-talent-agency.spec.ts attempt=5 20:42:39 ===
+
+Host dd74cf00f. Playwright chromium, workers=1.
+
+4 passed / 3 failed (2.5m). Playwright exit 1.
+
+Passed: C08-CUS smoke, C08-OP smoke, C08-CUS inquiry, C08-OP assign.
+
+Failed:
+- C08-OP send: draft editor stayed collapsed (Edit beside "Draft editor"
+  still visible). `getByRole('button', { name: /^edit$/i }).first()` was
+  not the offer-editor Edit, so "+ Add line item" never appeared.
+  Evidence: traces/cases-C08-modelling-or-tal-659bc--a-line-and-sends-the-offer-chromium.error-context.md
+- C08-TAL: deep-link showed "Coordinator invited you" + Accept, then
+  "Waiting for the coordinator to set up your offer." Inbox fallback used
+  `[data-tulala-inbox-row]` which talent inbox does not stamp. Cora +
+  Offer SLA rows exist as buttons.
+  Evidence: traces/cases-C08-modelling-or-tal-90bed-ent-approves-the-sent-offer-chromium.error-context.md
+- C08-CUS accept: D-113 "No client account here" (unchanged).
+  Evidence: traces/cases-C08-modelling-or-tal-04f66-ent-approves-the-sent-offer-chromium.error-context.md
+
+=== DONE C08 r5 exit=1 2026-09-11T20:45:10Z ===

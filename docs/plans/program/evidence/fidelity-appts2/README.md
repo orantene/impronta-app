@@ -118,14 +118,11 @@ month view, inline styles frozen), drag to reschedule (said on every block).
 
 ## Findings outside this group (not fixed here)
 
-- **A free seat never issues a ticket from the till.** Walk-in › A seat in a
-  session on a $0 series session says "Seat held … Nothing to collect: this
-  one is free" and leaves the order `draft`, no admission, no seat taken.
-- **A paid seat's collection refuses on the named-ticket rule.** The same
-  path on a $12 session (`QA gala ticket` item) says "This item needs the
-  customer's name before it can be sold" although the sheet's name field was
-  filled; the seat stays a draft. Both are the reason Move participant's
-  write is unproven above.
+- **A free seat never issues a ticket from the till.** Closed D-127: Walk-in
+  now auto-runs collect on a $0 seat so mint runs. Re-prove on the QA host.
+- **A paid seat's collection refuses on the named-ticket rule.** Closed
+  D-128: the operator's desk name satisfies `attendee_names`. Re-prove on
+  the QA host. Both were why Move participant's write is unproven above.
 - **The dev server's memory restart leaves it serving 404s.** Twice this
   pass "Server is approaching the used memory threshold, restarting..."
   was followed by every tenant path (`/admin`, `/book`, `/api/dev/signin`)

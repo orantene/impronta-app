@@ -52,7 +52,9 @@ test("C02-CUS last-resource: Massage takes therapist B, competing Couples reques
   await page.locator("select").selectOption({ label: "Massage" });
   await expect(page.getByText(/no open times/i)).toHaveCount(0);
 
-  const slot = page.locator("[data-testid=slot-picker] button").first();
+  // Last listed slot: leftover first-slot holds from sibling specs must
+  // not hide Therapist A's couples time after Massage takes B.
+  const slot = page.locator("[data-testid=slot-picker] button").last();
   await expect(slot).toBeVisible({ timeout: 30_000 });
   const slotLabel = ((await slot.innerText()) ?? "").trim();
   expect(slotLabel.length).toBeGreaterThan(0);
