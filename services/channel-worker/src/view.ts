@@ -31,11 +31,32 @@ type KeyInput = {
   modifiers?: number;
 };
 
+/** Host header without port. `[::1]:8788` stays `::1`, not `[`. */
+export function hostnameFromHostHeader(hostHeader: string): string {
+  const raw = hostHeader.trim().toLowerCase();
+  if (raw.startsWith("[")) {
+    const end = raw.indexOf("]");
+    return end >= 0 ? raw.slice(1, end) : raw;
+  }
+  return raw.split(":")[0] ?? "";
+}
+
+/** Node reports IPv4 localhost on a dual-stack socket as `::ffff:127.0.0.1`. */
+export function normalizeLoopbackAddress(address: string): string {
+  let value = address.trim().toLowerCase();
+  const zone = value.indexOf("%");
+  if (zone >= 0) value = value.slice(0, zone);
+  if (value.startsWith("::ffff:")) value = value.slice("::ffff:".length);
+  return value;
+}
+
+function isLoopbackName(value: string): boolean {
+  return value === "127.0.0.1" || value === "::1" || value === "localhost";
+}
+
 export function isLocalViewer(req: IncomingMessage): boolean {
-  const host = (req.headers.host ?? "").split(":")[0]?.toLowerCase() ?? "";
-  const hostOk = host === "127.0.0.1" || host === "localhost" || host === "[::1]";
-  const remote = req.socket.remoteAddress ?? "";
-  const remoteOk = remote === "127.0.0.1" || remote === "::1" || remote === ":ffff:127.0.0.1";
+  const hostOk = isLoopbackName(hostnameFromHostHeader(req.headers.host ?? ""));
+  const remoteOk = isLoopbackName(normalizeLoopbackAddress(req.socket.remoteAddress ?? ""));
   return hostOk && remoteOk;
 }
 
@@ -104,25 +125,35 @@ async function inputSession(tenantId: string): Promise<CdpSession | null> {
   if (existing) return existing;
   const page = getWhatsAppPage(tenantId);
   if (!page) return null;
-  const cdp = (await page.createCDPSession()) as CdpSession;
-  inputSessions.set(tenantId, cdp);
-  return cdp;
+  try {
+    const cdp = (await page.createCDPSession()) as CdpSession;
+    inputSessions.set(tenantId, cdp);
+    return cdp;
+  } catch {
+    inputSessions.delete(tenantId);
+    return null;
+  }
 }
 
 export async function applyViewInput(tenantId: string, body: unknown): Promise<boolean> {
-  const cdp = await inputSession(tenantId);
-  if (!cdp) return false;
-  if (!body || typeof body !== "object") return false;
-  const input = body as MouseInput | KeyInput;
-  if (input.type === "mouse") {
-    await dispatchMouse(cdp, input);
-    return true;
+  try {
+    const cdp = await inputSession(tenantId);
+    if (!cdp) return false;
+    if (!body || typeof body !== "object") return false;
+    const input = body as MouseInput | KeyInput;
+    if (input.type === "mouse") {
+      await dispatchMouse(cdp, input);
+      return true;
+    }
+    if (input.type === "key") {
+      await dispatchKey(cdp, input);
+      return true;
+    }
+    return false;
+  } catch {
+    inputSessions.delete(tenantId);
+    return false;
   }
-  if (input.type === "key") {
-    await dispatchKey(cdp, input);
-    return true;
-  }
-  return false;
 }
 
 async function dispatchMouse(cdp: CdpSession, input: MouseInput): Promise<void> {

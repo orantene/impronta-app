@@ -12953,10 +12953,6 @@
         "subtitleOff": "Not linked",
         "close": "Close WhatsApp",
         "openMessages": "Open Messages",
-        "webTitle": "WhatsApp Web",
-        "webBody": "This is the linked WhatsApp Web session, not the Cloud API. Chats that were already on the phone stay in that window.",
-        "webWaiting": "Looking for WhatsApp Web on this computer…",
-        "webHint": "The live site cannot embed http://localhost, so use Open WhatsApp Web. That window is the same link you just scanned.",
         "webOpen": "Open WhatsApp Web"
       },
       "banner": {
@@ -15118,6 +15114,12 @@
           "today": "The workspace Today tab is an integrator seam (D-POS-86).",
           "change": "Post-purchase change uses the package-2 policy writer, which is not mounted here (D-POS-87).",
           "whatsapp": "WhatsApp and SMS stay unavailable until those keys exist (D-POS-78)."
+        },
+        "media": {
+          "loading": "Loading attachment…",
+          "failed": "Attachment unavailable.",
+          "file": "Open file",
+          "imageAlt": "Photo sent in this conversation"
         }
       }
     },

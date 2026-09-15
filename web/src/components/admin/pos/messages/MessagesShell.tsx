@@ -66,7 +66,12 @@ export function MessagesShell(props: MessagesClientProps) {
     return messagesCopy(t);
   }, [t]);
   const preview = props.preview;
-  const [filter, setFilter] = useState<InboxFilter>("needs_reply");
+  // The WhatsApp drawer opens on "all": an imported history is mostly threads
+  // whose last word was ours, and "needs_reply" showed the owner an empty list
+  // seconds after a successful import.
+  const [filter, setFilter] = useState<InboxFilter>(
+    props.channelFilter === "whatsapp" ? "all" : "needs_reply",
+  );
   const [rows, setRows] = useState<InboxRow[]>(preview?.rows ?? []);
   const [activeId, setActiveId] = useState<string | null>(preview?.activeId ?? null);
   const [messages, setMessages] = useState<ThreadMessage[]>(preview?.messages ?? []);

@@ -8,7 +8,13 @@ import {
   serveWhatsAppView,
   tenantFromUrl,
 } from "./view.js";
-import { logoutTenant, pairingCodeTenant, pairTenant, resumePairedTenants } from "./whatsapp-client.js";
+import {
+  backfillTenantMessages,
+  logoutTenant,
+  pairingCodeTenant,
+  pairTenant,
+  resumePairedTenants,
+} from "./whatsapp-client.js";
 
 const PORT = Number(process.env.PORT ?? 8788);
 
@@ -103,7 +109,12 @@ const server = createServer(async (req, res) => {
   try {
     if (url.pathname === "/pair") await pairTenant(body.tenantId);
     else if (url.pathname === "/logout") await logoutTenant(body.tenantId);
-    else if (url.pathname === "/pairing-code") {
+    else if (url.pathname === "/backfill") {
+      const relayed = await backfillTenantMessages(body.tenantId);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: true, relayed }));
+      return;
+    } else if (url.pathname === "/pairing-code") {
       if (!body.phone) throw new Error("phone required");
       await pairingCodeTenant(body.tenantId, body.phone);
     } else {

@@ -1796,10 +1796,6 @@
         "subtitleOff": "Non lie",
         "close": "Fermer WhatsApp",
         "openMessages": "Ouvrir Messages",
-        "webTitle": "WhatsApp Web",
-        "webBody": "Ceci est la session WhatsApp Web liee, pas l'API Cloud. Les discussions deja sur le telephone restent dans cette fenetre.",
-        "webWaiting": "Recherche de WhatsApp Web sur cet ordinateur…",
-        "webHint": "Le site en ligne ne peut pas integrer http://localhost, donc utilisez Ouvrir WhatsApp Web. Cette fenetre est le meme lien que vous venez de scanner.",
         "webOpen": "Ouvrir WhatsApp Web"
       },
       "banner": {
@@ -4054,6 +4050,12 @@
           "today": "L onglet Aujourd hui de l espace est une couture integrateur (D-POS-86).",
           "change": "Le changement apres achat utilise l ecrivain de politique du paquet 2, non monte ici (D-POS-87).",
           "whatsapp": "WhatsApp et SMS restent indisponibles tant que ces cles n existent pas (D-POS-78)."
+        },
+        "media": {
+          "loading": "Chargement du fichier…",
+          "failed": "Fichier indisponible.",
+          "file": "Ouvrir le fichier",
+          "imageAlt": "Photo envoyee dans cette conversation"
         }
       }
     },

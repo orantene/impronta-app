@@ -176,6 +176,85 @@ test("fromMe to an unknown chat is ignored; known chat is stored as via phone", 
   assert.deepEqual(admin.messages.at(-1)?.card_payload, { via: "phone" });
 });
 
+test("a photo is a text row carrying card_payload.media, not a 'media' kind", async () => {
+  const admin = mockAdmin({
+    connections: [{ tenant_id: "t1", channel: "whatsapp", phone_e164: "+5219981230100" }],
+  });
+  const result = await handleWhatsAppWebhook(admin, {
+    kind: "message",
+    tenantId: "t1",
+    chatId: "5219981234471@c.us",
+    from: "+5219981234471",
+    pushName: "Marco",
+    providerRef: "wamid.photo",
+    text: "",
+    media: { url: "t1/whatsapp/abc123.jpg", mime: "image/jpeg" },
+    fromMe: false,
+  });
+  assert.equal(result.ok, true);
+  const row = admin.messages.at(-1);
+  // 'media' is absent from inquiry_messages_message_kind_check, so writing it
+  // lost the message to a check_violation.
+  assert.equal(row?.message_kind, "text");
+  // The storage path must not leak into the bubble or the inbox preview.
+  assert.equal(row?.body, "");
+  assert.deepEqual(row?.card_payload, {
+    media: { url: "t1/whatsapp/abc123.jpg", mime: "image/jpeg" },
+  });
+});
+
+test("a caption stays the body and a fromMe photo keeps both payload keys", async () => {
+  const admin = mockAdmin({
+    connections: [{ tenant_id: "t1", channel: "whatsapp", phone_e164: "+5219981230100" }],
+    inquiries: [{ id: "inq-1", tenant_id: "t1", external_thread_ref: "whatsapp:5219981234471@c.us" }],
+  });
+  await handleWhatsAppWebhook(admin, {
+    kind: "message",
+    tenantId: "t1",
+    chatId: "5219981234471@c.us",
+    from: "+5219981234471",
+    providerRef: "wamid.caption",
+    text: "look at this",
+    media: { url: "t1/whatsapp/def.jpg", mime: "image/jpeg" },
+    fromMe: true,
+  });
+  const row = admin.messages.at(-1);
+  assert.equal(row?.body, "look at this");
+  assert.deepEqual(row?.card_payload, {
+    via: "phone",
+    media: { url: "t1/whatsapp/def.jpg", mime: "image/jpeg" },
+  });
+});
+
+test("sentAt becomes created_at so imported history keeps its order", async () => {
+  const admin = mockAdmin({
+    connections: [{ tenant_id: "t1", channel: "whatsapp", phone_e164: "+5219981230100" }],
+  });
+  await handleWhatsAppWebhook(admin, {
+    kind: "message",
+    tenantId: "t1",
+    chatId: "5219981234471@c.us",
+    from: "+5219981234471",
+    providerRef: "wamid.old",
+    text: "sent last year",
+    sentAt: "2025-03-04T10:00:00.000Z",
+    fromMe: false,
+  });
+  assert.equal(admin.messages.at(-1)?.created_at, "2025-03-04T10:00:00.000Z");
+
+  await handleWhatsAppWebhook(admin, {
+    kind: "message",
+    tenantId: "t1",
+    chatId: "5219981234471@c.us",
+    from: "+5219981234471",
+    providerRef: "wamid.live",
+    text: "just now",
+    fromMe: false,
+  });
+  // A live message has no sentAt of its own to insist on; the column default wins.
+  assert.equal("created_at" in (admin.messages.at(-1) ?? {}), false);
+});
+
 test("session webhook writes pairing and clears ciphertext on unlink", async () => {
   const admin = mockAdmin();
   const pairing = await handleWhatsAppWebhook(admin, {

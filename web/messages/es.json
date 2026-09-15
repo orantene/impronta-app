@@ -12953,10 +12953,6 @@
         "subtitleOff": "Sin vincular",
         "close": "Cerrar WhatsApp",
         "openMessages": "Abrir Mensajes",
-        "webTitle": "WhatsApp Web",
-        "webBody": "Esta es la sesión de WhatsApp Web vinculada, no la API de Cloud. Los chats que ya estaban en el teléfono siguen en esa ventana.",
-        "webWaiting": "Buscando WhatsApp Web en este equipo…",
-        "webHint": "El sitio en vivo no puede incrustar http://localhost, así que usa Abrir WhatsApp Web. Esa ventana es el mismo vínculo que acabas de escanear.",
         "webOpen": "Abrir WhatsApp Web"
       },
       "banner": {
@@ -15118,6 +15114,12 @@
           "today": "La pestana Hoy del espacio es una costura del integrador (D-POS-86).",
           "change": "El cambio post-compra usa el escritor de politicas del paquete 2, que no esta montado aqui (D-POS-87).",
           "whatsapp": "WhatsApp y SMS siguen no disponibles hasta que existan esas claves (D-POS-78)."
+        },
+        "media": {
+          "loading": "Cargando archivo…",
+          "failed": "Archivo no disponible.",
+          "file": "Abrir archivo",
+          "imageAlt": "Foto enviada en esta conversación"
         }
       }
     },

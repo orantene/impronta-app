@@ -24,6 +24,25 @@ function threadRef(chatId: string): string {
   return `whatsapp:${chatId}`;
 }
 
+/**
+ * The caption, or nothing. The storage path used to be written here as the
+ * body, which put `tenant/whatsapp/abc.jpg` in the operator's bubble and in
+ * the inbox preview.
+ */
+function bodyText(body: WhatsAppWebhookMessage): string {
+  return body.text ?? "";
+}
+
+function messageCardPayload(
+  body: WhatsAppWebhookMessage,
+  fromMe: boolean,
+): Record<string, unknown> | null {
+  const payload: Record<string, unknown> = {};
+  if (fromMe) payload.via = "phone";
+  if (body.media) payload.media = body.media;
+  return Object.keys(payload).length > 0 ? payload : null;
+}
+
 function e164FromChatId(chatId: string, from?: string | null): string {
   if (from && from.startsWith("+")) return from;
   const digits = chatId.replace(/@c\.us$/, "").replace(/\D/g, "");
@@ -160,21 +179,30 @@ async function handleMessage(admin: Admin, body: WhatsAppWebhookMessage): Promis
       });
   if (!inquiry) return { ok: false, reason: "unavailable" };
 
-  const kind = body.media ? "media" : "text";
   const { data: inserted, error } = await admin
     .from("inquiry_messages")
     .insert({
       inquiry_id: inquiry.id,
       tenant_id: body.tenantId,
       thread_type: "group",
-      message_kind: kind,
-      body: body.text ?? (body.media ? body.media.url : ""),
+      // 'media' is NOT in inquiry_messages_message_kind_check and is not a
+      // CARD_KIND either, so writing it lost the message to a check_violation
+      // and renderCard would have downgraded it to text regardless. The file
+      // lives in card_payload.media, which is where the thread reads it from.
+      message_kind: "text",
+      body: bodyText(body),
       sender_user_id: null,
-      card_payload: fromMe ? { via: "phone" } : body.media ? { media: body.media } : null,
+      card_payload: messageCardPayload(body, fromMe),
+      // Backfilled history would otherwise all default to now() and a decade
+      // of chat would collapse into one timestamp, out of order.
+      ...(body.sentAt ? { created_at: body.sentAt } : null),
     })
     .select("id")
     .single();
-  if (error || !inserted) return { ok: false, reason: "unavailable" };
+  if (error || !inserted) {
+    logServerError("channels.whatsapp.message", error);
+    return { ok: false, reason: "unavailable" };
+  }
 
   await admin.from("message_delivery").upsert(
     {

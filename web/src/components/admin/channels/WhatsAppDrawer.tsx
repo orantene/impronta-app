@@ -12,11 +12,12 @@ import {
 } from "@/lib/channels/types";
 import { cn } from "@/lib/utils";
 
+import { MessagesShell } from "@/components/admin/pos/messages/MessagesShell";
+
 import { AskOwnerPanel } from "./AskOwnerPanel";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { PairingPanel } from "./PairingPanel";
 import { WhatsAppIcon } from "./WhatsAppIcon";
-import { WhatsAppWebFrame } from "./WhatsAppWebFrame";
 import {
   WHATSAPP_DRAWER_OPEN_EVENT,
   WHATSAPP_DRAWER_TOGGLE_EVENT,
@@ -148,12 +149,32 @@ function WhatsAppDrawerPanel() {
           </div>
           <div className="flex items-center gap-2">
             {live ? (
-              <a
-                href={`${adminBasePath}/messages`}
-                className="text-[12px] font-semibold text-admin-brand no-underline"
-              >
-                {t("dashboard.channels.drawer.openMessages")}
-              </a>
+              <>
+                <a
+                  href={`${adminBasePath}/messages`}
+                  className="text-[12px] font-semibold text-admin-brand no-underline"
+                >
+                  {t("dashboard.channels.drawer.openMessages")}
+                </a>
+                {/* The linked-device session itself, for what a native list
+                    cannot do: groups, calls, sending media. A new window
+                    rather than an iframe — the live site is HTTPS and Chrome
+                    blocks both the mixed-content embed and, since 142, the
+                    local-network request the frame would make. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.open(
+                      connection.webViewUrl,
+                      "tulala-whatsapp-web",
+                      "noopener,width=1100,height=800",
+                    );
+                  }}
+                  className="text-[12px] font-semibold text-admin-ink-muted"
+                >
+                  {t("dashboard.channels.drawer.webOpen")}
+                </button>
+              </>
             ) : null}
             <button
               type="button"
@@ -168,7 +189,17 @@ function WhatsAppDrawerPanel() {
         <ConnectionBanner state={connection.state} />
         <div className="min-h-0 flex-1">
           {live ? (
-            <WhatsAppWebFrame viewUrl={connection.webViewUrl} />
+            // The conversations as the database holds them, not a screencast of
+            // the worker's Chrome. `locationSlug` matches what the webhook
+            // writes on an inbound WhatsApp inquiry.
+            <MessagesShell
+              mode="counter"
+              tenantId={connection.tenantId}
+              locationSlug="default"
+              adminBasePath={adminBasePath}
+              channelFilter="whatsapp"
+              compact
+            />
           ) : needsPairingWhatsApp(connection.state) || connection.state === "pairing" ? (
             connection.canPair ? (
               <PairingPanel connection={connection} />
