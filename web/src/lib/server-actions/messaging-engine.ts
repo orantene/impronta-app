@@ -4,9 +4,10 @@ import { z } from "zod";
 
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
-import { sendOffer } from "@/lib/inquiry/inquiry-engine-offers";
+import { reopenOfferForAmendment, sendOffer } from "@/lib/inquiry/inquiry-engine-offers";
+import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { addLine, createDraftOrder } from "@/lib/pos/draft";
-import { createPaymentLink } from "@/lib/payments/links";
+import { cancelPaymentLink, createPaymentLink } from "@/lib/payments/links";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -18,6 +19,14 @@ import { loadMessagingInbox } from "@/lib/messaging/inbox";
 import { matchCustomers } from "@/lib/messaging/match-customers";
 import { fail } from "@/lib/messaging/refusals";
 import { searchMessaging } from "@/lib/messaging/search";
+import { retryDeliveryRow, type DeliveryRetryRow } from "@/lib/messaging/delivery-retry";
+import {
+  loadBasketDiff,
+  loadCheckoutSnapshots,
+  loadHandOverTargets,
+  loadInquiryOffers,
+  loadThreadDelivery,
+} from "@/lib/messaging/sheets";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import { issueVisitorCode, signThreadToken, verifyThreadToken } from "@/lib/messaging/thread-token";
 import type { ActionResult, CardKind, InboxFilter, MessagingChannel, RecordKind } from "@/lib/messaging/types";
@@ -748,4 +757,125 @@ async function recordDelivery(
     last_error: input.lastError,
     updated_at: new Date().toISOString(),
   }, { onConflict: "message_id,channel" });
+}
+
+/* ── Sheet readers and writers (audit E / D-116, 2026-09-15) ─────────────── */
+
+/** Hand over: who can take this thread. */
+export async function messagingLoadHandOverTargets() {
+  const g = await staff();
+  if (!g.ok) return g;
+  return { ok: true as const, targets: await loadHandOverTargets(g.admin, { tenantId: g.tenantId, excludeUserId: g.userId }) };
+}
+
+/** Delivery: every attempt on this thread's messages. */
+export async function messagingLoadDelivery(input: { inquiryId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  return { ok: true as const, rows: await loadThreadDelivery(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId }) };
+}
+
+/** Delivery › Retry: the cron's own resend, for one failed row, now. */
+export async function messagingRetryDelivery(input: { deliveryId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ deliveryId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const { data, error } = await scoped(g.admin, "message_delivery", g.tenantId)
+    .select("id, message_id, tenant_id, channel, state, attempts, provider_ref")
+    .eq("id", parsed.data.deliveryId)
+    .maybeSingle();
+  if (error) return fail("unavailable");
+  if (!data) return fail("not_found");
+  const result = await retryDeliveryRow(g.admin, data as DeliveryRetryRow);
+  if (!result.ok) return fail(result.reason);
+  return { ok: true as const, state: result.state };
+}
+
+/** Recover: the saved checkouts this thread can be recovered from. */
+export async function messagingLoadSnapshots(input: { inquiryId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  return { ok: true as const, snapshots: await loadCheckoutSnapshots(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId }) };
+}
+
+/** Offer: the inquiry's offers, so the sheet acts on a real offer id. */
+export async function messagingLoadOffers(input: { inquiryId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  return { ok: true as const, offers: await loadInquiryOffers(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId }) };
+}
+
+/**
+ * Offer › Revise: package-2 `reopenOfferForAmendment` puts a sent offer back
+ * in draft so the builder (`/admin/messages/<inquiry>`, Offer pill) can
+ * change it. Withdraw has no engine (D-POS-121) and is not here.
+ */
+export async function messagingReviseOffer(input: { inquiryId: string; offerId: string; expectedVersion: number }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid, offerId: uuid, expectedVersion: version }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const result = await reopenOfferForAmendment(g.supabase, {
+    inquiryId: parsed.data.inquiryId,
+    tenantId: g.tenantId,
+    offerId: parsed.data.offerId,
+    actorUserId: g.userId,
+    expectedVersion: parsed.data.expectedVersion,
+  });
+  if (!result.success) {
+    if (result.rateLimited) return fail("rate_limited");
+    if (result.forbidden) return fail("not_allowed");
+    return fail(result.conflict ? "conflict" : "unavailable");
+  }
+  return { ok: true as const };
+}
+
+/** Diff: the open payment page and what moved under it. */
+export async function messagingLoadBasketDiff(input: { inquiryId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const diff = await loadBasketDiff(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId });
+  if (!diff) return fail("not_found");
+  return { ok: true as const, diff };
+}
+
+/** Diff › Take theirs: the open page comes down so the new basket can be requested. */
+export async function messagingCancelPaymentLink(input: { linkId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ linkId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const result = await cancelPaymentLink(g.admin, { tenantId: g.tenantId, linkId: parsed.data.linkId });
+  if (!result.ok) return fail(result.reason);
+  return { ok: true as const, already: result.already };
+}
+
+/**
+ * Change › Cancel: package-2 `cancelBookingSet` with its policy check. The
+ * engine answers `policy_keeps` / `not_cancellable` as a sentence; nothing
+ * is refunded by itself. Reschedule needs a slot and lives on Appointments.
+ */
+export async function messagingCancelBooking(input: { inquiryId: string; bookingId: string; reason: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid, bookingId: uuid, reason: z.string().trim().max(200) }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const result = await cancelBookingSet(g.admin, {
+    tenantId: g.tenantId,
+    bookingId: parsed.data.bookingId,
+    operationKey: `msg-cancel-${parsed.data.inquiryId}-${parsed.data.bookingId}`,
+    reason: parsed.data.reason,
+    by: "staff",
+  });
+  if (!result.ok) return { ok: false as const, reason: result.reason };
+  return { ok: true as const, refundableCents: result.refundableCents, already: result.already === true };
 }

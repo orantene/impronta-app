@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { messagingChannel } from "@/lib/messaging/channels";
+import { retryDeliveryRow, type DeliveryRetryRow } from "@/lib/messaging/delivery-retry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await admin
     .from("message_delivery")
-    .select("id, message_id, tenant_id, channel, attempts, provider_ref")
+    .select("id, message_id, tenant_id, channel, state, attempts, provider_ref")
     .eq("state", "failed")
     .lt("attempts", 2)
     .limit(40);
@@ -31,37 +31,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "unavailable" }, { status: 503 });
   }
 
+  // One retry path for the cron and the Delivery sheet's Retry: lib/messaging/delivery-retry.ts.
   let retried = 0;
-  for (const row of (data ?? []) as {
-    id: string;
-    message_id: string;
-    tenant_id: string;
-    channel: string;
-    attempts: number;
-    provider_ref: string | null;
-  }[]) {
-    if (row.channel === "whatsapp") continue;
-    const adapter = messagingChannel(row.channel);
-    if (!adapter) continue;
-    const sent = await adapter.send({
-      tenantId: row.tenant_id,
-      inquiryId: row.message_id,
-      messageId: row.message_id,
-      body: "",
-      smsText: "",
-      to: null,
-    });
-    await admin
-      .from("message_delivery")
-      .update({
-        state: sent.ok ? "sent" : "failed",
-        attempts: row.attempts + 1,
-        provider_ref: sent.ok ? sent.providerRef : row.provider_ref,
-        last_error: sent.ok ? null : sent.reason,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
-    retried += 1;
+  for (const row of (data ?? []) as DeliveryRetryRow[]) {
+    const result = await retryDeliveryRow(admin, row);
+    if (result.ok) retried += 1;
   }
   return NextResponse.json({ ok: true, retried });
 }
