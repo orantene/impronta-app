@@ -28,6 +28,7 @@ import type { EventStatus } from "@/lib/events/event-policy";
 import { addTierRow, createEventWithOffering, setEventStatusRow } from "@/lib/events/writers";
 import { explainPoolRefusal, poolKeyFor, saleState, type Tier } from "@/lib/events/tiers";
 import { pickTimezone } from "@/lib/spaces/venue-timezone";
+import { buildSessionPoolRows, type SessionPoolPool, type SessionPoolVariant, type SessionPoolRow } from "@/lib/events/session-pools";
 
 export type EventTierRow = {
   id: string;
@@ -472,25 +473,16 @@ export async function updateTier(input: {
   }
 }
 
-export type SessionPoolRow = {
-  poolKey: string;
-  tierLabel: string;
-  /** Null when this night has no pool for the tier: unsellable for the night, and said so. */
-  poolId: string | null;
-  unitsTotal: number | null;
-  overbookUnits: number | null;
-  isActive: boolean | null;
-  /** Capacity's floor: the PEAK of committed units across windows. Null when unreadable. */
-  committedPeak: number | null;
-};
+export type { SessionPoolRow } from "@/lib/events/session-pools";
 
 /**
  * Seats per tier for ONE night, with what is already sold.
  *
- * "Sold" is `capacity_pool_committed_peak(pool_id)` — the same function the
- * shrink refusal checks against — never a sum over allocations. A sum would
- * show 10 sold where the engine accepts 6, and the operator would be told
- * they cannot do what the engine then allows.
+ * "Sold" is `capacity_pool_committed_peak(pool_id)`, read in
+ * `lib/events/session-pools.ts` through the SERVICE-ROLE client: the function
+ * is EXECUTE for `service_role` only, so the user-scoped client answered 42501
+ * on every pool and Event Day showed "—" (D-147). The staff check above and
+ * the tenant-scoped pool read are what make the elevated call safe.
  */
 export async function loadSessionPools(sessionId: string): Promise<{ ok: true; rows: SessionPoolRow[] } | { ok: false; error: string }> {
   const guard = await requireWorkspaceStaffAction();
@@ -512,27 +504,11 @@ export async function loadSessionPools(sessionId: string): Promise<{ ok: true; r
     ]);
     if (vErr) { logServerError("events.sessionPools/variants", vErr); return { ok: false, error: "Could not load ticket tiers." }; }
     if (pErr) { logServerError("events.sessionPools/pools", pErr); return { ok: false, error: "Could not load capacity." }; }
-    const poolByKey = new Map((pools ?? []).map((p) => [p.pool_key as string, p]));
-    const rows: SessionPoolRow[] = [];
-    for (const v of variants ?? []) {
-      if (typeof v.pool_key !== "string" || !v.pool_key) continue;
-      const pool = poolByKey.get(v.pool_key) ?? null;
-      let peak: number | null = null;
-      if (pool) {
-        const { data: pk, error: pkErr } = await supabase.rpc("capacity_pool_committed_peak", { p_pool_id: pool.id as string });
-        if (pkErr) logServerError("events.sessionPools/peak", pkErr);
-        else peak = typeof pk === "number" ? pk : Number(pk);
-      }
-      rows.push({
-        poolKey: v.pool_key,
-        tierLabel: v.label as string,
-        poolId: pool ? (pool.id as string) : null,
-        unitsTotal: pool ? Number(pool.units_total) : null,
-        overbookUnits: pool ? Number(pool.overbook_units) : null,
-        isActive: pool ? Boolean(pool.is_active) : null,
-        committedPeak: peak,
-      });
-    }
+    const rows = await buildSessionPoolRows(
+      createServiceRoleClient(),
+      (variants ?? []) as SessionPoolVariant[],
+      (pools ?? []) as SessionPoolPool[],
+    );
     return { ok: true, rows };
   } catch (err) {
     logServerError("events.sessionPools", err);
