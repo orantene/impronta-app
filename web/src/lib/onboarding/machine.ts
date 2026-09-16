@@ -58,6 +58,10 @@ export type MachineState = {
   linkSlug: string | null;
   linkAvailable: boolean | null;
   linkSuggestions: string[];
+  /** Phase 4: the address a code was sent to; a message for the code screen. */
+  codeEmail: string | null;
+  accountMessage: string | null;
+  accountNotice: string | null;
 };
 
 export type MachineEvent =
@@ -82,7 +86,10 @@ export type MachineEvent =
   | { type: "questionSkipped" }
   | { type: "jumpToQuestion"; questionId: ModuleQuestionId }
   | { type: "linkChecked"; slug: string; available: boolean; suggestions: string[] }
-  | { type: "toStep"; step: ModuleStep };
+  | { type: "toStep"; step: ModuleStep }
+  | { type: "codeSent"; email: string; notice: string | null }
+  | { type: "accountFailed"; message: string }
+  | { type: "authed"; email: string | null };
 
 export function initialMachineState(intent: OnboardingIntent = "unknown"): MachineState {
   return {
@@ -104,6 +111,9 @@ export function initialMachineState(intent: OnboardingIntent = "unknown"): Machi
     linkSlug: null,
     linkAvailable: null,
     linkSuggestions: [],
+    codeEmail: null,
+    accountMessage: null,
+    accountNotice: null,
   };
 }
 
@@ -115,6 +125,8 @@ const BACK: Partial<Record<ModuleStep, ModuleStep>> = {
   fork: "understood",
   question: "understood",
   readyToBuild: "understood",
+  save: "readyToBuild",
+  code: "save",
 };
 
 /** After a question: the next one, or ready to build. */
@@ -180,16 +192,24 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
     }
     case "clearError":
       return { ...state, error: null };
-    case "cardLoaded":
+    case "cardLoaded": {
+      const followUps = event.understanding.followUps;
+      let step: ModuleStep = event.step ?? (event.understanding.tooLittle ? "tooLittle" : state.step === "reading" ? "understood" : state.step);
+      // Resuming mid-questions: the answered ones are no longer missing, so
+      // the remaining list starts at 0; none left means ready to build.
+      const remaining = followUps.filter((q) => q !== "fork");
+      if (step === "question" && remaining.length === 0) step = "readyToBuild";
       return {
         ...state,
         busy: false,
         error: null,
         understanding: event.understanding,
         chip: event.chip,
-        followUps: event.understanding.followUps,
-        step: event.step ?? (event.understanding.tooLittle ? "tooLittle" : state.step === "reading" ? "understood" : state.step),
+        followUps,
+        questionIndex: step === "question" ? 0 : state.questionIndex,
+        step,
       };
+    }
     case "cardFailed":
       return { ...state, busy: false, error: event.code, step: event.code === "ai_off" ? state.step : state.step };
     case "cardAccepted":
@@ -219,7 +239,13 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
     case "linkChecked":
       return { ...state, linkSlug: event.slug, linkAvailable: event.available, linkSuggestions: event.suggestions };
     case "toStep":
-      return { ...state, step: event.step, error: null, busy: false };
+      return { ...state, step: event.step, error: null, busy: false, accountMessage: null };
+    case "codeSent":
+      return { ...state, busy: false, step: "code", codeEmail: event.email, accountMessage: null, accountNotice: event.notice };
+    case "accountFailed":
+      return { ...state, busy: false, accountMessage: event.message, accountNotice: null };
+    case "authed":
+      return { ...state, busy: false, isAuthenticated: true, email: event.email ?? state.email, step: "building", accountMessage: null, accountNotice: null };
     default:
       return state;
   }

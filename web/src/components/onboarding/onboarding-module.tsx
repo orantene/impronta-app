@@ -32,6 +32,7 @@ import {
   type QuestionAnswer,
 } from "@/lib/server-actions/onboarding-module";
 import type { OnboardingPath } from "@/lib/onboarding/module-state";
+import { requestOnboardingCode, verifyOnboardingCode } from "@/lib/server-actions/onboarding-account";
 
 import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
@@ -39,6 +40,8 @@ import { ForkStep } from "./steps/fork-step";
 import { QuestionStep, questionsAfterFork } from "./steps/question-steps";
 import { ReadingStep } from "./steps/reading-step";
 import { ReadyStep } from "./steps/ready-step";
+import { SaveStep } from "./steps/save-step";
+import { CodeStep } from "./steps/code-step";
 import { ResumeCard } from "./steps/resume-card";
 import { TooLittleStep } from "./steps/too-little-step";
 import { UnderstoodStep } from "./steps/understood-step";
@@ -135,7 +138,7 @@ export function OnboardingModule({
 
   const back = useCallback(() => {
     dispatch({ type: "back" });
-    const to = state.step === "confirmWords" || state.step === "tooLittle" ? "entry" : "understood";
+    const to = state.step === "confirmWords" || state.step === "tooLittle" ? "entry" : state.step === "save" ? "readyToBuild" : "understood";
     void saveOnboardingStep({ step: to });
   }, [state.step]);
 
@@ -212,6 +215,33 @@ export function OnboardingModule({
     else dispatch({ type: "cardFailed", code: r.code === "invalid_whatsapp" ? "invalid_whatsapp" : "save_failed" });
   }, [state.questionIndex]);
 
+  // Phase 4 · account. Signed-in people never see the save step.
+  const path: OnboardingPath = state.understanding?.path ?? "talent";
+  const sendCode = useCallback(async (email: string, resend = false) => {
+    dispatch({ type: "sendStarted" });
+    const r = await requestOnboardingCode({ email, locale, resend });
+    if (r.ok) dispatch({ type: "codeSent", email: r.email, notice: resend ? t("public.onboarding.code.resent") : null });
+    else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
+  }, [locale, t]);
+
+  const verifyCode = useCallback(async (code: string) => {
+    if (!state.codeEmail) return;
+    dispatch({ type: "sendStarted" });
+    const r = await verifyOnboardingCode({ email: state.codeEmail, code, locale, path });
+    if (r.ok) {
+      dispatch({ type: "authed", email: r.email });
+      void saveOnboardingStep({ step: "building" });
+    } else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
+  }, [state.codeEmail, locale, path, t]);
+
+  const onGoogleSuccess = useCallback(() => {
+    dispatch({ type: "authed", email: null });
+    void saveOnboardingStep({ step: "building" });
+    void loadOnboardingResume().then((snapshot) => {
+      if (snapshot?.email) dispatch({ type: "authed", email: snapshot.email });
+    });
+  }, []);
+
   const checkLink = useCallback(async (slug: string) => {
     const r = await setOnboardingLink({ slug });
     if (!r.ok) return null;
@@ -220,7 +250,7 @@ export function OnboardingModule({
   }, []);
 
   const stepLabel = t(STEP_LABEL[state.step]);
-  const showBack = state.step === "confirmWords" || state.step === "tooLittle" || state.step === "fork" || state.step === "question" || state.step === "readyToBuild";
+  const showBack = state.step === "confirmWords" || state.step === "tooLittle" || state.step === "fork" || state.step === "question" || state.step === "readyToBuild" || state.step === "save";
   const questions = questionsAfterFork(state.followUps);
 
   let body: React.ReactNode;
@@ -316,14 +346,39 @@ export function OnboardingModule({
         busy={state.busy}
         onCheckLink={checkLink}
         onBuild={() => {
-          dispatch({ type: "toStep", step: "save" });
-          void saveOnboardingStep({ step: "save" });
+          // Already signed in: nothing to save, straight to the build.
+          const next: ModuleStep = state.isAuthenticated ? "building" : "save";
+          dispatch({ type: "toStep", step: next });
+          void saveOnboardingStep({ step: next });
         }}
       />
     );
-  } else if (state.step === "save" || state.step === "code" || state.step === "building" || state.step === "arrival") {
-    // Phase 4 lands these screens; until then the step is recorded and the
-    // reading screen's "next" line says so.
+  } else if (state.step === "save") {
+    body = (
+      <SaveStep
+        t={t}
+        path={path}
+        busy={state.busy}
+        error={state.accountMessage}
+        onEmail={(email) => void sendCode(email)}
+        onGoogleSuccess={onGoogleSuccess}
+      />
+    );
+  } else if (state.step === "code" && state.codeEmail) {
+    body = (
+      <CodeStep
+        t={t}
+        email={state.codeEmail}
+        busy={state.busy}
+        error={state.accountMessage}
+        notice={state.accountNotice}
+        onVerify={(code) => void verifyCode(code)}
+        onResend={() => void sendCode(state.codeEmail!, true)}
+        onChangeEmail={() => dispatch({ type: "toStep", step: "save" })}
+      />
+    );
+  } else if (state.step === "building" || state.step === "arrival") {
+    // Phase 4.2 lands the build and arrival screens.
     body = <ReadingStep t={t} input={state.input} />;
   } else {
     body = <ReadingStep t={t} input={state.input} />;

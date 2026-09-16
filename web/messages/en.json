@@ -1700,6 +1700,31 @@
         "buildTalent": "Save my page",
         "buildBoth": "Save and build",
         "nextPhase": "Next: your account (coming in the next step of this build)."
+      },
+      "save": {
+        "title": "Save it",
+        "titleBusiness": "Save and build",
+        "sub": "So it's yours and you can come back to it. No password: we email you a code.",
+        "google": "Continue with Google",
+        "googleOpening": "Opening Google…",
+        "googleFailed": "Google didn't finish. Try again or use your email.",
+        "popupBlocked": "Your browser blocked the popup. Allow popups or use your email.",
+        "popupClosed": "The Google window closed before finishing. Try again or use your email.",
+        "or": "or",
+        "emailLabel": "Your email",
+        "emailPlaceholder": "you@example.com",
+        "emailCta": "Email me a code",
+        "emailPending": "Sending…",
+        "terms": "By continuing you agree to the Terms and the Privacy Policy."
+      },
+      "code": {
+        "title": "Enter the code",
+        "sub": "We sent an 8-digit code to {email}. It's the same screen for everyone, so check your inbox and spam.",
+        "resend": "Send a new code",
+        "resendIn": "Send a new code in {s}s",
+        "resent": "A new code is on its way.",
+        "changeEmail": "Change email",
+        "verifying": "Checking…"
       }
     }
   },

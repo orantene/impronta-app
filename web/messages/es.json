@@ -1700,6 +1700,31 @@
         "buildTalent": "Guardar mi página",
         "buildBoth": "Guardar y construir",
         "nextPhase": "Siguiente: tu cuenta (llega en el próximo paso de esta construcción)."
+      },
+      "save": {
+        "title": "Guárdalo",
+        "titleBusiness": "Guardar y construir",
+        "sub": "Para que sea tuyo y puedas volver. Sin contraseña: te enviamos un código por correo.",
+        "google": "Continuar con Google",
+        "googleOpening": "Abriendo Google…",
+        "googleFailed": "Google no terminó. Inténtalo de nuevo o usa tu correo.",
+        "popupBlocked": "Tu navegador bloqueó la ventana. Permite ventanas emergentes o usa tu correo.",
+        "popupClosed": "La ventana de Google se cerró antes de terminar. Inténtalo de nuevo o usa tu correo.",
+        "or": "o",
+        "emailLabel": "Tu correo",
+        "emailPlaceholder": "tu@ejemplo.com",
+        "emailCta": "Envíame un código",
+        "emailPending": "Enviando…",
+        "terms": "Al continuar aceptas los Términos y la Política de privacidad."
+      },
+      "code": {
+        "title": "Escribe el código",
+        "sub": "Enviamos un código de 8 dígitos a {email}. Es la misma pantalla para todos, así que revisa tu bandeja y el spam.",
+        "resend": "Enviar un código nuevo",
+        "resendIn": "Enviar un código nuevo en {s}s",
+        "resent": "Un código nuevo va en camino.",
+        "changeEmail": "Cambiar correo",
+        "verifying": "Comprobando…"
       }
     }
   },
