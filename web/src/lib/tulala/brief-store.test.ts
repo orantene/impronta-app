@@ -61,6 +61,7 @@ const brief = (facts: BriefFact[]): Brief => ({
   signupLeadId: null,
   talentProfileId: null,
   tenantId: null,
+  moduleState: {},
   facts,
   updatedAt: null,
 });
@@ -473,4 +474,10 @@ test("redaction keeps provenance so the model can weigh what it is told", () => 
   ]);
   assert.equal(redacted[0]?.source, "ai_inference");
   assert.equal(redacted[0]?.confidence, 0.5);
+});
+
+test("module_state merge: top-level patch wins, null removes, others kept", async () => {
+  const { mergeModuleState } = await import("./brief-module-state.server");
+  const next = mergeModuleState({ step: "entry", path: "talent", build: { status: "building" } }, { step: "understood", build: null });
+  assert.deepEqual(next, { step: "understood", path: "talent" });
 });

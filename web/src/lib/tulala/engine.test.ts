@@ -123,6 +123,7 @@ function briefOf(...specs: FactSpec[]): Brief {
     signupLeadId: null,
     talentProfileId: null,
     tenantId: null,
+    moduleState: {},
     facts,
     updatedAt: null,
   };

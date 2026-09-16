@@ -153,6 +153,15 @@ export const FLAG_GROUPS: ReadonlyArray<FlagGroup> = [
         control: { kind: "toggle" },
       },
       {
+        key: "onboarding_module_enabled",
+        label: "Onboarding module",
+        description:
+          "The shared onboarding overlay behind every Get started CTA (talk, type or paste a link; account; composed site). Off by default: CTAs keep the talent modal and /get-started.",
+        labelKey: "dashboard.platform.operations.flagOnboardingModuleLabel",
+        descriptionKey: "dashboard.platform.operations.flagOnboardingModuleDesc",
+        control: { kind: "toggle" },
+      },
+      {
         key: "ai_search_quality_v2",
         label: "Search quality v2",
         description: "Stronger hybrid merge (RRF) + hybrid continuation cursor.",

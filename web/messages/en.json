@@ -1527,6 +1527,72 @@
       "smsPlain": "Same order and the same secure page, in plain text. This channel cannot show cards.",
       "talentView": "You see the client, the service and the chair notes. Not the conversation or other prices.",
       "payBy": "Pay by this time to keep the slot."
+    },
+    "onboarding": {
+      "chrome": {
+        "close": "Close",
+        "back": "Back",
+        "step1": "1 · Tell us",
+        "step2": "2 · Check",
+        "step3": "3 · Save",
+        "step4": "4 · Build",
+        "step5": "5 · Done",
+        "savedToast": "Saved on this phone. Come back any time.",
+        "signedInAs": "Signed in as {email}",
+        "guest": "Not signed in",
+        "dialogLabel": "Get started with Tulala"
+      },
+      "entry": {
+        "eyebrow": "Your page in two minutes",
+        "title": "Tell us what you do",
+        "sub": "Talk, type or paste a link. One sentence is enough.",
+        "tapToTalk": "Tap to talk",
+        "tapToStop": "Tap when you're done",
+        "listening": "Listening…",
+        "transcribing": "Writing it down…",
+        "typePlaceholder": "Or type it here…",
+        "pasteLink": "Paste my site or Instagram",
+        "linkPlaceholder": "https:// or @yourbusiness",
+        "send": "Send",
+        "forExample": "For example",
+        "micBlocked": "The microphone is blocked. Typing works too.",
+        "micFailed": "Couldn't hear that. Try again or type it.",
+        "micTooShort": "That was very short. Try again or type it.",
+        "noMic": "Type what you do; the microphone isn't available on this browser."
+      },
+      "confirmWords": {
+        "title": "Is this right?",
+        "sub": "Fix a word if you need to, then send.",
+        "sayAgain": "Say it again",
+        "send": "Looks right · Send"
+      },
+      "reading": {
+        "title": "Reading your words…",
+        "titleLink": "Reading your site…",
+        "line1": "What you do",
+        "line2": "Where you are",
+        "line3": "What people can book",
+        "next": "Next: what we understood"
+      },
+      "tooLittle": {
+        "title": "Tell us a little more",
+        "sub": "What you do and where is enough. For example: \"I clean houses in Playa del Carmen.\"",
+        "cta": "Add a few words"
+      },
+      "resume": {
+        "title": "Welcome back",
+        "body": "You were in the middle of this. Your words are kept.",
+        "quote": "\"{text}\"",
+        "continue": "Continue",
+        "fresh": "Start fresh"
+      },
+      "errors": {
+        "tooLong": "That's a lot of text. Keep it to a few sentences.",
+        "offline": "You're offline. Your words are kept on this phone.",
+        "moduleOff": "This isn't available right now. Please try again in a moment.",
+        "saveFailed": "Couldn't save that. Check your connection and try again.",
+        "noOwner": "Couldn't start. Please reload the page and try again."
+      }
     }
   },
   "dashboard": {
@@ -6482,6 +6548,7 @@
         "languages": "Languages",
         "translations": "Translations",
         "builderLab": "Builder Lab",
+        "stock": "Lifestyle stock",
         "settings": "Settings",
         "auditLog": "Audit Log",
         "support": "Support",
@@ -8733,6 +8800,8 @@
         "flagAiSupportDesc": "Grounded in-app support answers with escalation to a human. Off by default.",
         "flagAiTulalaAgentLabel": "Tulala Agent intake",
         "flagAiTulalaAgentDesc": "Conversational signup at /get-started. The only AI surface anonymous visitors reach. Off by default.",
+        "flagOnboardingModuleLabel": "Onboarding module",
+        "flagOnboardingModuleDesc": "The shared onboarding overlay behind every Get started CTA (talk, type or paste a link; account; composed site). Off by default: CTAs keep the talent modal and /get-started.",
         "flagSearchQualityV2Label": "Search quality v2",
         "flagSearchQualityV2Desc": "Stronger hybrid merge (RRF) + hybrid continuation cursor.",
         "flagRefineV2Label": "Refine v2",
@@ -11714,7 +11783,26 @@
       "downloadGotWebSize": "Web-size file.",
       "downloadWatermarkNote": "No watermark on this file. Watermarks are applied only to photos you release to another site with the watermark condition.",
       "errUnsupportedKind": "This page takes photos only. Not uploaded:",
-      "errFileTooLarge": "Too large (max {max} MB), not uploaded:"
+      "errFileTooLarge": "Too large (max {max} MB), not uploaded:",
+      "stock": {
+        "nav": "Lifestyle stock",
+        "title": "Lifestyle stock",
+        "subtitle": "Photos for a {type}, provided by the platform. Use them anywhere on your site; upload your own to replace them.",
+        "loading": "Loading the shelf…",
+        "readOnly": "Shared · read-only",
+        "empty": "No stock photos for this business type yet.",
+        "copyUrl": "Copy address",
+        "copied": "Copied",
+        "role": {
+          "hero": "Hero",
+          "wide": "Wide",
+          "portrait": "Portrait",
+          "gallery": "Gallery",
+          "team": "Team",
+          "detail": "Detail"
+        },
+        "subtitleGeneric": "Photos for your business, provided by the platform. Use them anywhere on your site; upload your own to replace them."
+      }
     },
     "adminPitchCompose": {
       "drawerTitle": "Send pitch",

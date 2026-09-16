@@ -39,6 +39,7 @@ function briefOf(...facts: BriefFact[]): Brief {
     signupLeadId: null,
     talentProfileId: null,
     tenantId: null,
+    moduleState: {},
     facts,
     updatedAt: null,
   };

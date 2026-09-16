@@ -376,6 +376,11 @@
       "count": 17
     }
   },
+  "src/components/admin/shell/internal/keyboard-layer.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 14
+    }
+  },
   "src/components/admin/shell/internal/language-add-search.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 12
@@ -418,7 +423,7 @@
       "count": 2
     },
     "ratchet/no-new-inline-style": {
-      "count": 224
+      "count": 207
     },
     "ratchet/no-raw-file-formdata": {
       "count": 1
@@ -1873,11 +1878,6 @@
   "src/lib/site-admin/tokens/registry.ts": {
     "max-lines": {
       "count": 1
-    }
-  },
-  "src/components/admin/shell/internal/keyboard-layer.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 14
     }
   }
 }

@@ -1527,6 +1527,72 @@
       "smsPlain": "El mismo pedido y la misma pagina segura, en texto. Este canal no muestra tarjetas.",
       "talentView": "Ves al cliente, el servicio y las notas de silla. No la conversacion ni otros precios.",
       "payBy": "Paga a esta hora para guardar el horario."
+    },
+    "onboarding": {
+      "chrome": {
+        "close": "Cerrar",
+        "back": "Atrás",
+        "step1": "1 · Cuéntanos",
+        "step2": "2 · Revisa",
+        "step3": "3 · Guarda",
+        "step4": "4 · Construye",
+        "step5": "5 · Listo",
+        "savedToast": "Guardado en este teléfono. Vuelve cuando quieras.",
+        "signedInAs": "Sesión iniciada como {email}",
+        "guest": "Sin iniciar sesión",
+        "dialogLabel": "Empieza con Tulala"
+      },
+      "entry": {
+        "eyebrow": "Tu página en dos minutos",
+        "title": "Cuéntanos qué haces",
+        "sub": "Habla, escribe o pega un enlace. Con una frase basta.",
+        "tapToTalk": "Toca para hablar",
+        "tapToStop": "Toca cuando termines",
+        "listening": "Escuchando…",
+        "transcribing": "Anotando…",
+        "typePlaceholder": "O escríbelo aquí…",
+        "pasteLink": "Pegar mi sitio o Instagram",
+        "linkPlaceholder": "https:// o @tunegocio",
+        "send": "Enviar",
+        "forExample": "Por ejemplo",
+        "micBlocked": "El micrófono está bloqueado. También puedes escribir.",
+        "micFailed": "No se escuchó bien. Inténtalo de nuevo o escríbelo.",
+        "micTooShort": "Fue muy corto. Inténtalo de nuevo o escríbelo.",
+        "noMic": "Escribe qué haces; el micrófono no está disponible en este navegador."
+      },
+      "confirmWords": {
+        "title": "¿Está bien así?",
+        "sub": "Corrige una palabra si hace falta y envía.",
+        "sayAgain": "Decirlo otra vez",
+        "send": "Está bien · Enviar"
+      },
+      "reading": {
+        "title": "Leyendo tus palabras…",
+        "titleLink": "Leyendo tu sitio…",
+        "line1": "Qué haces",
+        "line2": "Dónde estás",
+        "line3": "Qué se puede reservar",
+        "next": "Siguiente: lo que entendimos"
+      },
+      "tooLittle": {
+        "title": "Cuéntanos un poco más",
+        "sub": "Con qué haces y dónde es suficiente. Por ejemplo: \"Limpio casas en Playa del Carmen.\"",
+        "cta": "Añadir unas palabras"
+      },
+      "resume": {
+        "title": "Bienvenido de nuevo",
+        "body": "Estabas a la mitad. Tus palabras siguen guardadas.",
+        "quote": "\"{text}\"",
+        "continue": "Continuar",
+        "fresh": "Empezar de cero"
+      },
+      "errors": {
+        "tooLong": "Es mucho texto. Con unas pocas frases basta.",
+        "offline": "Sin conexión. Tus palabras se guardan en este teléfono.",
+        "moduleOff": "Esto no está disponible ahora mismo. Inténtalo en un momento.",
+        "saveFailed": "No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.",
+        "noOwner": "No se pudo empezar. Recarga la página e inténtalo de nuevo."
+      }
     }
   },
   "dashboard": {
@@ -6482,6 +6548,7 @@
         "languages": "Idiomas",
         "translations": "Traducciones",
         "builderLab": "Builder Lab",
+        "stock": "Fotos de estilo de vida",
         "settings": "Ajustes",
         "auditLog": "Registro de auditoría",
         "support": "Soporte",
@@ -8733,6 +8800,8 @@
         "flagAiSupportDesc": "Respuestas de soporte en la app, con escalado a una persona. Desactivado por defecto.",
         "flagAiTulalaAgentLabel": "Entrevista con el Agente Tulala",
         "flagAiTulalaAgentDesc": "Registro conversacional en /get-started. La única superficie de IA que alcanza una visita anónima. Desactivado por defecto.",
+        "flagOnboardingModuleLabel": "Módulo de registro",
+        "flagOnboardingModuleDesc": "La ventana de registro compartida detrás de cada botón Empezar (habla, escribe o pega un enlace; cuenta; sitio compuesto). Desactivado por defecto: los botones mantienen la ventana de talento y /get-started.",
         "flagSearchQualityV2Label": "Calidad de búsqueda v2",
         "flagSearchQualityV2Desc": "Combinación híbrida más potente (RRF) + cursor de continuación híbrido.",
         "flagRefineV2Label": "Refinamiento v2",
@@ -11714,7 +11783,26 @@
       "downloadGotWebSize": "Archivo en tamaño web.",
       "downloadWatermarkNote": "Este archivo no lleva marca de agua. Las marcas de agua solo se aplican a las fotos que liberas a otro sitio con esa condición.",
       "errUnsupportedKind": "Esta página solo acepta fotos. No se subió:",
-      "errFileTooLarge": "Demasiado grande (máx. {max} MB), no se subió:"
+      "errFileTooLarge": "Demasiado grande (máx. {max} MB), no se subió:",
+      "stock": {
+        "nav": "Fotos de estilo de vida",
+        "title": "Fotos de estilo de vida",
+        "subtitle": "Fotos para un negocio de tipo {type}, provistas por la plataforma. Úsalas en cualquier parte de tu sitio; sube las tuyas para reemplazarlas.",
+        "loading": "Cargando…",
+        "readOnly": "Compartidas · solo lectura",
+        "empty": "Aún no hay fotos para este tipo de negocio.",
+        "copyUrl": "Copiar dirección",
+        "copied": "Copiado",
+        "role": {
+          "hero": "Portada",
+          "wide": "Panorámica",
+          "portrait": "Retrato",
+          "gallery": "Galería",
+          "team": "Equipo",
+          "detail": "Detalle"
+        },
+        "subtitleGeneric": "Fotos para tu negocio, provistas por la plataforma. Úsalas en cualquier parte de tu sitio; sube las tuyas para reemplazarlas."
+      }
     },
     "adminPitchCompose": {
       "drawerTitle": "Enviar propuesta",

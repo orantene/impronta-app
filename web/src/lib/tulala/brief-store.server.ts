@@ -45,7 +45,7 @@ type FactRow = {
   updated_at: string | null;
 };
 
-type BriefRow = {
+export type BriefRow = {
   id: string;
   status: string;
   locale: string | null;
@@ -56,13 +56,14 @@ type BriefRow = {
   signup_lead_id: string | null;
   talent_profile_id: string | null;
   tenant_id: string | null;
+  module_state?: Record<string, unknown> | null;
   updated_at: string | null;
   tulala_brief_facts?: FactRow[] | null;
 };
 
-const BRIEF_SELECT = `
+export const BRIEF_SELECT = `
   id, status, locale, current_version, engine_version,
-  profile_id, guest_session_id, signup_lead_id, talent_profile_id, tenant_id, updated_at,
+  profile_id, guest_session_id, signup_lead_id, talent_profile_id, tenant_id, module_state, updated_at,
   tulala_brief_facts (
     fact_key, fact_value, source, confidence, status,
     source_excerpt, source_url, question_id, question_version, updated_at
@@ -90,7 +91,11 @@ function mapFact(row: FactRow): BriefFact {
   };
 }
 
-function mapBrief(row: BriefRow): Brief {
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+export function mapBrief(row: BriefRow): Brief {
   return {
     id: row.id,
     status: (row.status as BriefStatus) ?? "discovering",
@@ -102,6 +107,7 @@ function mapBrief(row: BriefRow): Brief {
     signupLeadId: row.signup_lead_id,
     talentProfileId: row.talent_profile_id,
     tenantId: row.tenant_id,
+    moduleState: isPlainObject(row.module_state) ? row.module_state : {},
     facts: (row.tulala_brief_facts ?? []).map(mapFact),
     updatedAt: row.updated_at,
   };

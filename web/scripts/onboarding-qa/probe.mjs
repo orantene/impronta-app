@@ -1,0 +1,20 @@
+import { createClient } from "@supabase/supabase-js";
+const url=process.env.NEXT_PUBLIC_SUPABASE_URL, key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+if(!url.includes("fxlankepwnvelxjrahwk")) { console.error("NOT ISOLATED"); process.exit(2); }
+const s=createClient(url,key,{auth:{persistSession:false}});
+const d=await s.from("agency_domains").select("hostname,kind,status,tenant_id").in("hostname",["marketing.local","app.local","localhost","qa-journeys.local"]);
+console.log("domains", JSON.stringify(d.data), d.error?.message);
+const st=await s.from("settings").select("key,value").in("key",["ai_master_enabled","ai_tulala_agent_enabled","ai_provider","onboarding_module_enabled"]).is("tenant_id",null);
+console.log("settings", JSON.stringify(st.data), st.error?.message);
+const w=await s.from("settings").upsert({key:"onb_probe_write",value:"1",tenant_id:null,updated_at:new Date().toISOString()},{onConflict:"key"});
+console.log("write", w.error?.message ?? "ok");
+await s.from("settings").delete().eq("key","onb_probe_write");
+const email="qa-onb-probe-"+Date.now()+"@impronta.test";
+const r=await s.auth.signInWithOtp({email,options:{shouldCreateUser:true}});
+console.log("signInWithOtp", r.error?.message ?? "ok (email attempted)");
+const g=await s.auth.admin.generateLink({type:"magiclink",email});
+console.log("generateLink", g.error?.message ?? ("ok otp_len="+(g.data?.properties?.email_otp||"").length));
+const u=await s.auth.admin.listUsers({perPage:200});
+const me=u.data?.users?.find(x=>x.email===email); console.log("user", me? ("confirmed="+!!me.email_confirmed_at):"none");
+if(me) await s.auth.admin.deleteUser(me.id);
+const cnt=await s.from("agencies").select("id",{count:"exact",head:true}); console.log("agencies", cnt.count);

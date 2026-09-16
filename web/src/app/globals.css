@@ -1449,6 +1449,16 @@ html[data-public-font-preset="editorial"] {
   animation: mkt-rise 620ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
+/* Onboarding module: the rotating example sentence fades in on each swap. */
+.onb-example-in {
+  display: inline;
+  animation: onb-example-in 360ms ease-out both;
+}
+@keyframes onb-example-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .mkt-rise-delay-1 {
   animation-delay: 80ms;
 }
