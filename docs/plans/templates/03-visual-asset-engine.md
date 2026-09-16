@@ -1,6 +1,6 @@
 # Templates & Imagery — 03 Visual Asset Engine (design)
 
-**Status:** design v3, 2026-09-16 (v3 = owner's same-day revision, decision-imagery §9 on `docs/onboarding-spec-2026-09` commit 68032131e: **seed and grow, not bulk**). Owner decision 5 via the onboarding designer, **revised the same day by the owner's imagery decision** (`docs/plans/onboarding/decision-imagery-2026-09-16.md` on `docs/onboarding-spec-2026-09`, binding; its reasoning is kept there). Code follows after the decision-1 follow-up (handoff §8) and after #1989 merges. Paths under `web/`. Nothing in this file exists unless marked **(exists)**.
+**Status:** design v3, 2026-09-16, **code on `feat/visual-asset-engine`** (migration `20260916095144_visual_asset_engine.sql`, applied) (v3 = owner's same-day revision, decision-imagery §9 on `docs/onboarding-spec-2026-09` commit 68032131e: **seed and grow, not bulk**). Owner decision 5 via the onboarding designer, **revised the same day by the owner's imagery decision** (`docs/plans/onboarding/decision-imagery-2026-09-16.md` on `docs/onboarding-spec-2026-09`, binding; its reasoning is kept there). Code follows after the decision-1 follow-up (handoff §8) and after #1989 merges. Paths under `web/`. Nothing in this file exists unless marked **(exists)**.
 
 ## Principle (owner)
 
@@ -45,7 +45,7 @@ The repo's image path targets `dall-e-3` (`lib/ai/ai-image-generation.ts` defaul
 | `generated_at` | timestamptz | |
 | `measured_cost_usd` | numeric | from usage, not a constant |
 | `provenance` | text check in (`generated`,`licensed`,`unverified`) | the 14 universal photos become `unverified` |
-| `times_placed`, `last_placed_at` | int, timestamptz | usage metadata; `placed_tenant_count` derived from a new `platform_stock_placements(asset_id, tenant_id, site_compose_id, placed_at)` |
+| `times_placed`, `last_placed_at` | int, timestamptz | usage metadata, bumped from `tenant_asset_assignments` (no separate placements table, D-TPL-32) |
 
 **New table `tenant_asset_assignments`** (the stored selection, owner §5): `id, tenant_id, page_role, slot, asset_id (nullable for owner uploads) , src, source check in (owner, tenant_generated, type_pool, family_pool, universal), direction, site_compose_id, selected_at, replaced_by_user_at, replaced_with_asset_id, pending_job_id (uuid null: a per-site generation is in flight for this slot; the builder's "your photos are being made" state, §4b)`. Unique on `(tenant_id, page_role, slot)`. The composer writes it once per compose; the builder's future "Replace image → Upload / Library / Generate for my business" updates it; a retired pool asset is swapped per tenant through it, never globally.
 
@@ -111,10 +111,10 @@ Rerun `scripts/acceptance-run.mts` **(exists)**: the hero assertion must PASS (n
 ## 7. Order of work and rollout (owner §7 + §9: generation never blocks launch; per-site generation first)
 
 1. Model setting + measured cost + request shape ✅ measured (§1b); hero high-vs-medium comparison ✅ done, verdict medium (§2b).
-2. Migration: asset columns (incl. `tags`, `origin_tenant_id`) + `tenant_asset_assignments` (incl. `pending_job_id`) + `tenant_image_jobs` + backfill; reads serve `approved` (+ `qa_passed` for gallery/detail); the 14 marked `unverified`.
-3. Prompt layers: global, 12 families, slots, directions, the §3c per-site filling; type contexts for the active onboarding types first.
-4. Stored assignments in the composer (tag-first selection) + stamp reports the assignment source.
-5. Per-site job: queue, cron runner with pacing, automated QA, assignment swap, builder pending state, spend gate.
-6. Seed batch: heroes ×5 per direction for the active types + family-level set → human review → **Phase 1 gate: every active onboarding type has ≥ 5 approved heroes** → acceptance rerun (hero assertion + "two tenants of one type differ" + per-site cost incl. the tenant job) → continuous curation of approved tenant images into the pool. Builder Replace/Library/Upload (owner Phase 4) is the entry to the same assignment row and is scheduled with the builder work.
+2. ✅ Migration: asset columns (incl. `tags`, `origin_tenant_id`) + `tenant_asset_assignments` (incl. `pending_job_id`) + `tenant_image_jobs` + backfill; reads serve `approved` (+ `qa_passed` for gallery/detail); the 14 marked `unverified`. (`supabase/migrations/20260916095144_visual_asset_engine.sql`, `lib/media/platform-stock.ts`)
+3. ✅ Prompt layers: `site-templates/stock-prompts/layers.ts` (global, 12 families, all 131 type contexts, slots, 5 directions with explicit settings), `facts-from-brief.ts` (§3c), static test `layers.test.ts`.
+4. ✅ Stored assignments in the composer (`lib/media/asset-assignments.server.ts`, tag-first `image-resolver.ts`); stamp `placed.photos.heroSource` + `pendingJobId`.
+5. ✅ Per-site job: `lib/media/tenant-image-jobs.server.ts` (enqueue on `email_confirmed_at`, runner concurrency 2 / 2 s), `/api/cron/tenant-images` every minute, `stock-qa.server.ts` (aspect, blank, dHash duplicates, optional vision), `page-image-swap.server.ts`, builder `PendingImagesWatcher` + `actionListAssetAssignments`, spend gate (`ai_image_daily_cap`, `ai_image_regen_per_tenant` settings). Admin: `/platform/admin/stock` (engine generate, seed-heroes button, settings) + `/platform/admin/stock/review`. Retire = per-tenant swap (`stock-retire.server.ts`).
+6. Seed batch: `scripts/seed-stock-engine.ts` (dry run prints the plan and the cost; `--apply` generates gaps only, sequential, `--max-usd`) → heroes ×5 per direction for the active types + family-level set → human review → **Phase 1 gate: every active onboarding type has ≥ 5 approved heroes** → acceptance rerun (hero assertion + "two tenants of one type differ" + per-site cost incl. the tenant job) → continuous curation of approved tenant images into the pool. Builder Replace/Library/Upload (owner Phase 4) is the entry to the same assignment row and is scheduled with the builder work.
 
 Owner owes: `OPENAI_API_KEY` (+ `OPENAI_IMAGE_MODEL` if it differs from the setting) in Vercel production and locally for the batch; the per-1M-token price from the vendor page for the cost measurement.

@@ -64,4 +64,5 @@ export const ES_MEDIA_TEXT: Record<string, string> = {
   "dashboard.mediaLibrary.unusedBadge": "Sin usar",
   "dashboard.mediaLibrary.unusedBadgeTitle":
     "Todavía ninguna sección usa este archivo",
+  "Your photos are being made": "Estamos preparando tus fotos",
 };

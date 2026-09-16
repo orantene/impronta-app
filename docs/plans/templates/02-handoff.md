@@ -55,7 +55,7 @@ Table `platform_stock_images` (migration `20260916000356`, applied). Bytes stay 
 
 ## 4b. The compose stamp (onboarding v3.2)
 
-`agencies.settings.site_compose` on every outcome: `{ outcome, siteComposeId, lookId, typeId, family, at, pageIds, placed: { photos: { hero, gallery, level }, menuItems, hoursPresent, whatsappPresent, logoPresent }, copySource, notes }`. `photos.hero` is `owner | type | family | universal`; claim photos only on `type` (D-TPL-23). After the logo lands: `rethemeSiteAfterLogo(admin, { tenantId, palette? })` (D-TPL-24). `palette` = 2–3 hexes the onboarding module extracts from the logo client-side; the same `themePatchFromPalette` mapper recolours the stamped Look (demoted, never refused) into `theme_json_draft`, and into `theme_json` when the shell was published. Pages are untouched: the theme is tokens.
+`agencies.settings.site_compose` on every outcome: `{ outcome, siteComposeId, lookId, typeId, family, at, pageIds, placed: { photos: { hero, heroSource, gallery, level, pendingJobId }, menuItems, hoursPresent, whatsappPresent, logoPresent }, copySource, notes }`. `photos.hero` is the pack level `owner | tenant | type | family | universal`; **`photos.heroSource` is the stored assignment's source (`owner | tenant_generated | type_pool | family_pool | universal`) and is what the arrival sentence reads: claim photos for `type_pool` or better** (owner decision-imagery §consequences). `photos.pendingJobId` is set when a per-site generation was enqueued (verified account only, D-TPL-31); the tenant's images swap in over the next minutes without a re-compose. After the logo lands: `rethemeSiteAfterLogo(admin, { tenantId, palette? })` (D-TPL-24). `palette` = 2–3 hexes the onboarding module extracts from the logo client-side; the same `themePatchFromPalette` mapper recolours the stamped Look (demoted, never refused) into `theme_json_draft`, and into `theme_json` when the shell was published. Pages are untouched: the theme is tokens.
 
 ## 5. Acceptance
 
@@ -99,6 +99,17 @@ Harness notes: the run was resumed three times: a dev-server navigation abort, a
 
 Rule: no branding asset gates account, path, workspace, generation or preview; PUBLISH needs brand identity = a logo OR "use my business name as my logo" (the Look wordmark); logo colours are never applied automatically; abuse controls stay separate.
 
-1. Publish preflight `brand_identity` (blocking): satisfied by `placed.logoPresent` / a branding logo asset OR a `settings.brand_identity = "wordmark"` choice. The composer already ships the wordmark header, so this is a flag + copy in the publish checklist.
-2. `candidatePalettesFromHexes(lookPatch, hexes)` (pure, beside `theme-from-palette.ts`): up to three `themePatchFromPalette` results (each extracted hex tried as primary) with their demotions, for swatches; the chosen one goes through `rethemeSiteAfterLogo({ palette })`; "keep current" calls nothing.
-3. `rethemeSiteAfterLogo` is never called from the logo upload path; only from the user's palette choice. (Today nothing calls it automatically; keep it that way.)
+1. Publish preflight `brand_identity` (blocking) + wordmark option: **owned by the onboarding designer (their T4.4)**, not built here.
+2. ✅ `candidatePalettesFromHexes(lookPatch, hexes)` (`theme-from-palette.ts`, exported from the barrel): ≤ 3 candidates, each ≤ 3 swatches, `demotions` in plain words, `primary` the candidate ends with; pure, applies nothing. The chosen candidate's `swatches` go to `rethemeSiteAfterLogo({ palette })`; "keep current" calls nothing.
+3. ✅ `rethemeSiteAfterLogo` has no caller on an upload path (verified: zero call sites outside its module); the module header now states the rule.
+
+## 9. Visual Asset Engine (feat/visual-asset-engine, 03 v3)
+
+Design and status: `03-visual-asset-engine.md §7`. What onboarding needs to know:
+
+- Nothing to call: `composeSiteFromBrief` stores the picks in `tenant_asset_assignments`, enqueues the per-site job itself when the actor's auth user has `email_confirmed_at`, and reports `placed.photos.heroSource` / `pendingJobId` in the stamp.
+- The pool serves `approved` (heroes) and `qa_passed` (gallery/detail) rows only; until the seed heroes are human-approved in `/platform/admin/stock/review`, `heroSource` stays `family_pool` / `universal` and the arrival copy must not claim photos.
+- The builder shows "Your photos are being made" (ES: "Estamos preparando tus fotos") on exactly the pending slots (`PendingImagesWatcher`, polls `actionListAssetAssignments` every 5 s, refreshes the route on swap). Editing is never blocked; a manual replacement wins.
+- Spend: `ai_image_daily_cap` (default 400 images/day across all tenants ≈ $4.3), `ai_image_regen_per_tenant` (default 20, enforced by the future builder Replace); model/prices/QA model are settings on the same page. Cron `/api/cron/tenant-images` every minute (Vercel) needs `CRON_SECRET` (already used by the other crons).
+- Seed batch: `npx tsx --env-file=.env.local scripts/seed-stock-engine.ts` prints the plan and cost; `--apply` runs it. Waits for the owner's go.
+- Live proof on the QA tenant: `evidence/engine/README.md` (15 tenant images, $0.19; home shows the tenant's own sushi images; builder pending state). The two platform admin pages are unclicked: only the owner holds `super_admin`.

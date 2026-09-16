@@ -78,8 +78,12 @@ export interface ResolvedImage {
   alt: { es: string; en: string };
 }
 
-/** Owner media first, stock second. Returns null when nothing honest exists. */
-export type ImageResolver = (slot: ImageSlotKey, role: ImageRole) => ResolvedImage | null;
+/**
+ * Owner media first, stock second. Returns null when nothing honest exists.
+ * `page` is the page role the slot renders on (the walker passes it) so the
+ * pick can be STORED per page × slot (03 §5).
+ */
+export type ImageResolver = (slot: ImageSlotKey, role: ImageRole, page?: string) => ResolvedImage | null;
 
 // ── Copy ────────────────────────────────────────────────────────────────────
 

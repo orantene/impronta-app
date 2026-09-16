@@ -10,10 +10,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import type { ImageEngineSettings } from "@/lib/ai/ai-image-model";
 import type { LifestyleStockPhoto } from "@/lib/media/platform-stock";
 import { IMAGE_ROLES } from "@/lib/site-admin/builder-core/site-templates";
+import { DIRECTION_IDS } from "@/lib/site-admin/builder-core/site-templates/stock-prompts";
+import { IMAGE_SLOT_KEYS } from "@/lib/site-admin/builder-core/site-templates/types";
 
-import { actionGenerateStockImage, actionRetireStockImage, actionUpdateStockManifest, actionUploadStockImage } from "./actions";
+import { actionGenerateStockImage, actionRetireStockImage, actionReviewStockImage, actionSaveImageEngineSettings, actionSeedHeroesForType, actionUpdateStockManifest, actionUploadStockImage } from "./actions";
 
 const field = "rounded border border-white/20 bg-transparent px-2 py-1 text-sm";
 const label = "flex flex-col gap-1 text-xs text-white/60";
@@ -23,11 +26,15 @@ export function StockAdminForms({
   typeId,
   photos,
   typeOptions,
+  settings,
+  todayUsed,
 }: {
   family: string;
   typeId: string | null;
   photos: LifestyleStockPhoto[];
   typeOptions: Array<{ id: string; label: string }>;
+  settings: ImageEngineSettings;
+  todayUsed: number;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -37,14 +44,17 @@ export function StockAdminForms({
   const submit = (fd: FormData) => {
     setMessage(null);
     start(async () => {
-      const res = mode === "upload" ? await actionUploadStockImage(fd) : await actionGenerateStockImage(fd);
-      if (res.ok) {
-        const d = res.data as { bytes: number; costUsd?: number };
-        setMessage(`Saved (${Math.round(d.bytes / 1024)} KB${d.costUsd ? `, $${d.costUsd.toFixed(2)}` : ""}).`);
-        router.refresh();
+      if (mode === "upload") {
+        const res = await actionUploadStockImage(fd);
+        setMessage(res.ok ? `Saved (${Math.round(res.data.bytes / 1024)} KB), approved.` : res.error);
       } else {
-        setMessage(res.error);
+        const res = await actionGenerateStockImage(fd);
+        if (res.ok) {
+          const failed = Object.entries(res.data.qa as Record<string, { verdict: string; detail?: string }>).filter(([, c]) => c.verdict === "fail");
+          setMessage(`Generated, $${res.data.costUsd.toFixed(4)} · ${res.data.approval === "qa_passed" ? "passed automated QA; awaiting review" : `rejected by QA: ${failed.map(([k, c]) => `${k}${c.detail ? ` (${c.detail})` : ""}`).join(", ")}`}`);
+        } else setMessage(res.error);
       }
+      router.refresh();
     });
   };
 
@@ -52,6 +62,28 @@ export function StockAdminForms({
     start(async () => {
       const res = await actionRetireStockImage(id, retired);
       setMessage(res.ok ? (retired ? "Retired." : "Restored.") : res.error);
+      router.refresh();
+    });
+
+  const review = (id: string, decision: "approve" | "reject") =>
+    start(async () => {
+      const note = decision === "reject" ? (window.prompt("Reason (kept for the audit):") ?? "") : "";
+      const res = await actionReviewStockImage(id, decision, note);
+      setMessage(res.ok ? (decision === "approve" ? "Approved; it serves now." : "Rejected.") : res.error);
+      router.refresh();
+    });
+
+  const seedHeroes = () =>
+    start(async () => {
+      const res = await actionSeedHeroesForType(family, typeId);
+      setMessage(res.ok ? `Heroes: ${res.data.generated} generated, ${res.data.passed} passed QA, $${res.data.costUsd.toFixed(3)}${res.data.errors.length ? ` · ${res.data.errors.join("; ")}` : ""}` : res.error);
+      router.refresh();
+    });
+
+  const saveSettings = (fd: FormData) =>
+    start(async () => {
+      const res = await actionSaveImageEngineSettings(fd);
+      setMessage(res.ok ? "Engine settings saved." : res.error);
       router.refresh();
     });
 
@@ -116,34 +148,106 @@ export function StockAdminForms({
           </>
         ) : (
           <>
-            <input type="hidden" name="source" value="generated" />
-            <input type="hidden" name="licence" value="generated-platform" />
             <label className={label}>
-              Subject
-              <textarea name="subject" required rows={3} placeholder="A nail technician finishing a manicure at a bright counter in Playa del Carmen" className={field} />
+              Slot
+              <select name="slot" defaultValue="hero" className={field}>
+                {IMAGE_SLOT_KEYS.map((k) => (
+                  <option key={k} value={k} className="text-black">
+                    {k}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className={label}>
-              Mood
-              <input name="mood" placeholder="Warm, candid, mid-morning light." className={field} />
+              Visual direction
+              <select name="direction" defaultValue="editorial" className={field}>
+                {DIRECTION_IDS.map((d) => (
+                  <option key={d} value={d} className="text-black">
+                    {d}
+                  </option>
+                ))}
+              </select>
             </label>
+            <label className={label}>
+              Quality
+              <select name="quality" defaultValue="medium" className={field}>
+                <option value="medium" className="text-black">
+                  medium (measured ≈ $0.011)
+                </option>
+                <option value="high" className="text-black">
+                  high (≈ 3.8× the cost; per-asset regeneration only)
+                </option>
+              </select>
+            </label>
+            <p className="text-[11px] text-white/50">The prompt is the layered engine (global → family → type → slot → direction); the result goes through automated QA and waits for review.</p>
           </>
         )}
-        <label className={label}>
-          Palette hint (optional)
-          <input name="paletteHint" placeholder="warm neutrals, sage" className={field} />
-        </label>
-        <label className={label}>
-          Alt text · español
-          <input name="altEs" required placeholder="Manicurista terminando un diseño en gel" className={field} />
-        </label>
-        <label className={label}>
-          Alt text · English
-          <input name="altEn" required placeholder="Nail technician finishing a gel design" className={field} />
-        </label>
+        {mode === "upload" ? (
+          <>
+            <label className={label}>
+              Palette hint (optional)
+              <input name="paletteHint" placeholder="warm neutrals, sage" className={field} />
+            </label>
+            <label className={label}>
+              Alt text · español
+              <input name="altEs" required placeholder="Manicurista terminando un diseño en gel" className={field} />
+            </label>
+            <label className={label}>
+              Alt text · English
+              <input name="altEn" required placeholder="Nail technician finishing a gel design" className={field} />
+            </label>
+          </>
+        ) : null}
         <button type="submit" disabled={pending} className="rounded bg-white px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50">
           {pending ? "Working…" : mode === "upload" ? "Add to library" : "Generate and add"}
         </button>
         {message ? <p className="text-xs text-white/70">{message}</p> : null}
+        <button type="button" onClick={seedHeroes} disabled={pending} className="rounded border border-white/30 px-3 py-1.5 text-xs text-white/80 disabled:opacity-50">
+          Seed 5 heroes for {typeId ?? `the ${family} family pack`} (one per direction, medium)
+        </button>
+      </form>
+
+      {/* Engine settings */}
+      <form action={saveSettings} className="flex h-fit flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-4 text-xs lg:col-start-1">
+        <h2 className="text-sm font-medium text-white/80">Image engine</h2>
+        <p className="text-white/50">
+          Today: {todayUsed} / {settings.dailyCap} images. Cost is measured from each reply, never a constant.
+        </p>
+        <label className={label}>
+          Model id
+          <input name="model" defaultValue={settings.model} className={field} />
+        </label>
+        <label className={label}>
+          QA vision model id (empty = text/logo/type checks skipped)
+          <input name="qaModel" defaultValue={settings.qaModel} className={field} />
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+          <label className={label}>
+            $/1M text in
+            <input name="priceTextIn" type="number" step="0.01" min="0" defaultValue={settings.prices.textIn} className={field} />
+          </label>
+          <label className={label}>
+            $/1M image in
+            <input name="priceImageIn" type="number" step="0.01" min="0" defaultValue={settings.prices.imageIn} className={field} />
+          </label>
+          <label className={label}>
+            $/1M output
+            <input name="priceOutput" type="number" step="0.01" min="0" defaultValue={settings.prices.output} className={field} />
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className={label}>
+            Daily image ceiling
+            <input name="dailyCap" type="number" step="1" min="0" defaultValue={settings.dailyCap} className={field} />
+          </label>
+          <label className={label}>
+            Builder regenerations per tenant
+            <input name="regenPerTenant" type="number" step="1" min="0" defaultValue={settings.regenPerTenant} className={field} />
+          </label>
+        </div>
+        <button type="submit" disabled={pending} className="w-fit rounded border border-white/30 px-3 py-1.5">
+          Save settings
+        </button>
       </form>
 
       {/* Existing */}
@@ -161,8 +265,9 @@ export function StockAdminForms({
                 <div className="flex items-center justify-between px-2 py-1 text-[11px] text-white/60">
                   <span>
                     {p.role} · {p.businessType ?? "family"}
+                    {p.direction ? ` · ${p.direction}` : ""}
                   </span>
-                  <span>{p.retiredAt ? "retired" : p.source}</span>
+                  <span>{p.retiredAt ? "retired" : p.approval === "approved" ? p.provenance : p.approval.replace("_", " ")}</span>
                 </div>
               </summary>
               <form action={saveManifest} className="flex flex-col gap-2 p-2 text-xs">
@@ -177,6 +282,16 @@ export function StockAdminForms({
                   <button type="button" onClick={() => retire(p.id, !p.retiredAt)} className="rounded border border-white/30 px-2 py-1 text-white/70">
                     {p.retiredAt ? "Restore" : "Retire"}
                   </button>
+                  {p.approval !== "approved" && !p.retiredAt ? (
+                    <button type="button" onClick={() => review(p.id, "approve")} className="rounded border border-white/30 px-2 py-1 text-white/90">
+                      Approve
+                    </button>
+                  ) : null}
+                  {p.approval !== "rejected" && !p.retiredAt ? (
+                    <button type="button" onClick={() => review(p.id, "reject")} className="rounded border border-white/30 px-2 py-1 text-white/60">
+                      Reject
+                    </button>
+                  ) : null}
                 </div>
               </form>
             </details>
