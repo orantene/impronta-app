@@ -13573,7 +13573,8 @@
           "readerNote": "Card payments need the internet to get an answer from the bank; the counter cannot drive a reader yet either way.",
           "nothingQueued": "Nothing is kept on this device while offline. A sale needs the connection to be saved.",
           "queuedCount": "{count} cash sales waiting to sync.",
-          "syncNow": "Sync now"
+          "syncNow": "Sync now",
+          "syncedCount": "{count} cash sales synced and recorded."
         },
         "lock": {
           "title": "Who's on the register?",
@@ -15104,7 +15105,40 @@
           "nextCollect": "Collect",
           "nextFollow": "Follow up",
           "revise": "Revise",
-          "withdraw": "Withdraw"
+          "withdraw": "Withdraw",
+          "handOverTo": "Hand this conversation to",
+          "handOverNone": "Nobody else is on this workspace yet.",
+          "deliveryNone": "Nothing has been sent from this thread yet.",
+          "deliveryRetry": "Retry",
+          "deliveryRetried": "Sent again.",
+          "deliveryAttempts": "{count} attempts",
+          "recoverNone": "No saved checkout on this thread. Requesting a payment saves one.",
+          "recoverLine": "Saved {when} · {count} lines · basket v{version}",
+          "recoverRecovered": "Already recovered",
+          "recovered": "Recovered onto the order.",
+          "offerNone": "No offer on this thread yet. Build one in the offer builder.",
+          "offerOpenBuilder": "Open the offer builder",
+          "offerSend": "Send this offer",
+          "offerLine": "Offer {status} · v{version}",
+          "offerRemindBody": "A quick reminder about the offer we sent you. Tell us if anything should change.",
+          "offerReminded": "Reminder scheduled for tomorrow.",
+          "offerRevised": "The offer is back in draft. Change it in the builder.",
+          "offerSent": "Offer sent.",
+          "diffNone": "No payment page is open on this thread.",
+          "diffUnchanged": "The basket still matches what was sent.",
+          "diffChanged": "{count} lines moved under the open payment page.",
+          "diffSent": "Sent",
+          "diffNow": "Now",
+          "diffKeepMine": "Keep mine: the page stays as sent",
+          "diffTakeTheirs": "Take theirs: cancel the page and request again",
+          "diffCancelled": "Payment page cancelled. Request the payment again on the new basket.",
+          "changeTitle": "Change this booking",
+          "changeNone": "No booking is linked to this thread.",
+          "changePolicy": "The booking policy decides what is kept. Nothing is refunded by itself.",
+          "changeReason": "Why (optional)",
+          "changeCancel": "Cancel this booking",
+          "changeReschedule": "Reschedule on Appointments",
+          "changeCancelled": "Cancelled. {amount} can be refunded from the record."
         },
         "disabled": {
           "attach": "File attach is not wired in this package yet (D-POS-83).",
@@ -15113,7 +15147,9 @@
           "rail": "The POS rail is an integrator seam. This screen cannot add the unread slot (D-POS-85).",
           "today": "The workspace Today tab is an integrator seam (D-POS-86).",
           "change": "Post-purchase change uses the package-2 policy writer, which is not mounted here (D-POS-87).",
-          "whatsapp": "WhatsApp and SMS stay unavailable until those keys exist (D-POS-78)."
+          "whatsapp": "WhatsApp and SMS stay unavailable until those keys exist (D-POS-78).",
+          "withdraw": "Withdraw has no engine yet (D-POS-121). Revise the offer, or let it expire.",
+          "rescheduleHere": "Rescheduling needs a slot, which Appointments picks (D-POS-122)."
         },
         "media": {
           "loading": "Loading attachment…",
@@ -16020,7 +16056,9 @@
         "reasonNotArchived": "Only an archived project can be reopened",
         "reasonAlreadyArchived": "This project is already archived",
         "confirmArchive": "Archive project",
-        "confirmReopen": "Reopen project"
+        "confirmReopen": "Reopen project",
+        "archiveReason": "Why it is being archived",
+        "archiveReasonHint": "Optional. Kept on the record."
       },
       "visibility": {
         "title": "Who sees what",
@@ -17421,7 +17459,10 @@
           "wrong_tenant": "That record is not in this workspace.",
           "invalid": "That cannot be saved.",
           "unavailable": "This could not be completed. Try again.",
-          "not_allowed": "You cannot do this here."
+          "not_allowed": "You cannot do this here.",
+          "not_open": "That sale is no longer open.",
+          "already_collected": "That sale is already collected.",
+          "not_settled": "The cash was not recorded yet. Sync again."
         }
       }
     }

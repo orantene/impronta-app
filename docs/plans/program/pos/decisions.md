@@ -1374,3 +1374,40 @@ Front desk's Book door runs, `classesServices` (new, the till's
 view (`CalendarResources.tsx`) draws the day's people, places and rooms from
 `loadAppointments` and `loadSchedule` as a table of 15-minute tracks (a
 block is a `colSpan`, never a style), on the venue's clock.
+
+## D-POS-121 — Withdraw an offer has no engine; the sheet says so
+
+Decided 2026-09-15 (audit-gaps). The Messages offer sheet (MS16) now acts on
+the inquiry's real offers: a draft is sent through `messagingSendOffer`
+(package-2 `sendOffer`), a sent offer is reminded through
+`messagingScheduleReminder` (record `offer`, tomorrow) or revised through
+`messagingReviseOffer` (package-2 `reopenOfferForAmendment`, then the
+builder at `/admin/messages/<inquiry>`). Withdraw has no writer in the
+inquiry engine (`clientRejectOffer` is the client's; staff have
+supersede-by-revision only), so the control stays disabled with
+`dashboard.pos.messages.disabled.withdraw` in en/es/fr rather than a
+button that closes the sheet.
+
+## D-POS-122 — post-purchase change: Cancel runs package-2's policy writer here; Reschedule is a door to Appointments
+
+Decided 2026-09-15 (audit-gaps). Supersedes the "disabled" half of
+D-POS-115. The change sheet (MS17) cancels a linked appointment, class
+enrolment or reservation through `messagingCancelBooking` →
+`cancelBookingSet`, and the engine's policy answer (`policy_keeps`,
+`not_cancellable`) is rendered as the scheduling sentence; nothing is
+refunded by itself, the refundable amount is named. Reschedule needs a
+slot, which only the Appointments page picks, so the sheet links there
+(`dashboard.pos.messages.disabled.rescheduleHere` explains when the link
+is not available).
+
+## D-POS-123 — the diff sheet is `diffDraft` over the open payment page; Keep mine writes nothing, Take theirs cancels the page
+
+Decided 2026-09-15 (audit-gaps). MS18: `messagingLoadBasketDiff` finds the
+open payment page on the thread (the newest `checkout_snapshots` row with an
+`open` `payment_links` row) and runs `diffDraft(previous snapshot, order
+now, sent basket)`. Keep mine is the page staying as sent: the customer pays
+what they were shown and nothing is written. Take theirs is
+`messagingCancelPaymentLink` (new `cancelPaymentLink`: status `cancelled`,
+claim released, the reaper's own release) and the payment sheet reopens on
+the new basket. A snapshot carries no offering ids, so "restore my basket
+onto the order" cannot be written and is not offered.

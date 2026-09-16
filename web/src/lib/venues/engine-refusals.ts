@@ -34,6 +34,9 @@ export const VENUE_ENGINE_REFUSAL_CODES = [
   "invalid",
   "unavailable",
   "not_allowed",
+  "not_open",
+  "already_collected",
+  "not_settled",
 ] as const;
 
 export type VenueEngineRefusal = (typeof VENUE_ENGINE_REFUSAL_CODES)[number];
@@ -70,4 +73,7 @@ export const VENUE_ENGINE_REFUSALS: Readonly<Record<VenueEngineRefusal, string>>
   invalid: "dashboard.venue.engine.refusal.invalid",
   unavailable: "dashboard.venue.engine.refusal.unavailable",
   not_allowed: "dashboard.venue.engine.refusal.not_allowed",
+  not_open: "dashboard.venue.engine.refusal.not_open",
+  already_collected: "dashboard.venue.engine.refusal.already_collected",
+  not_settled: "dashboard.venue.engine.refusal.not_settled",
 };

@@ -136,6 +136,14 @@ export async function posDeviceUpdate(
   return { ok: true as const, id: String(r.payload.id ?? input.id), version: Number(r.payload.version) || undefined };
 }
 
+export type OutboxStage = "reserved" | "settled";
+
+/**
+ * Step 1 of a replay: the RPC locks the device, checks the key, and RESERVES
+ * the balance under it (migration 20261231237000). `stage` says whether the
+ * cash still has to be settled ("reserved") or already landed ("settled").
+ * `lib/pos/outbox-replay.ts` is the only caller that finishes the walk.
+ */
 export async function posOutboxApply(
   admin: VenueAdmin,
   input: { tenantId: string; deviceId: string; operationKey: string; command: Record<string, unknown> },
@@ -148,5 +156,47 @@ export async function posOutboxApply(
     p_command: input.command,
   });
   if (!r.ok) return r;
-  return { ok: true as const, id: String(r.payload.id ?? ""), already: r.payload.already === true };
+  const stage: OutboxStage = r.payload.stage === "settled" ? "settled" : "reserved";
+  const amount = Number(r.payload.amount_cents);
+  return {
+    ok: true as const,
+    id: String(r.payload.id ?? ""),
+    already: r.payload.already === true,
+    stage,
+    orderId: typeof r.payload.order_id === "string" ? r.payload.order_id : null,
+    amountCents: Number.isFinite(amount) ? Math.trunc(amount) : null,
+  };
+}
+
+/**
+ * Step 3 of a replay: stamp the outbox row applied. The RPC refuses
+ * `not_settled` unless the reservation under that key is `settled`, so the
+ * row can only say "applied" when SQL says the cash landed.
+ */
+export async function posOutboxSettle(
+  admin: VenueAdmin,
+  input: { tenantId: string; id: string },
+): Promise<
+  | { ok: true; already: boolean; transactionId: string | null }
+  | { ok: false; reason: DeviceReason | "not_settled" }
+> {
+  if (typeof admin.rpc !== "function") return { ok: false, reason: "unavailable" };
+  const { data, error } = await admin.rpc("pos_outbox_settle", {
+    p_tenant_id: input.tenantId,
+    p_id: input.id,
+  });
+  if (error) {
+    logServerError("venues.pos_outbox_settle", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  const reply = (data ?? {}) as Record<string, unknown>;
+  if (reply.ok === true) {
+    return {
+      ok: true,
+      already: reply.already === true,
+      transactionId: typeof reply.transaction_id === "string" ? reply.transaction_id : null,
+    };
+  }
+  if (reply.reason === "not_settled") return { ok: false, reason: "not_settled" };
+  return { ok: false, reason: mapReason(typeof reply.reason === "string" ? reply.reason : undefined) };
 }

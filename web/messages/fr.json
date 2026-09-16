@@ -2416,7 +2416,8 @@
           "readerNote": "Les paiements par carte ont besoin d'internet pour obtenir la réponse de la banque ; le comptoir ne peut de toute façon pas encore piloter un lecteur.",
           "nothingQueued": "Rien n'est conservé sur cet appareil hors ligne. Une vente a besoin de la connexion pour être enregistrée.",
           "queuedCount": "{count} ventes en espèces en attente de synchronisation.",
-          "syncNow": "Synchroniser"
+          "syncNow": "Synchroniser",
+          "syncedCount": "{count} ventes en espèces synchronisées et enregistrées."
         },
         "lock": {
           "title": "Qui est à la caisse ?",
@@ -4040,7 +4041,40 @@
           "nextCollect": "Encaisser",
           "nextFollow": "Suivi",
           "revise": "Reviser",
-          "withdraw": "Retirer"
+          "withdraw": "Retirer",
+          "handOverTo": "Confier cette conversation à",
+          "handOverNone": "Personne d'autre n'est encore sur cet espace de travail.",
+          "deliveryNone": "Rien n'a encore été envoyé depuis ce fil.",
+          "deliveryRetry": "Réessayer",
+          "deliveryRetried": "Renvoyé.",
+          "deliveryAttempts": "{count} tentatives",
+          "recoverNone": "Aucun paiement enregistré sur ce fil. Demander un paiement en enregistre un.",
+          "recoverLine": "Enregistré {when} · {count} lignes · panier v{version}",
+          "recoverRecovered": "Déjà récupéré",
+          "recovered": "Récupéré sur la commande.",
+          "offerNone": "Pas encore d'offre sur ce fil. Créez-en une dans l'éditeur d'offres.",
+          "offerOpenBuilder": "Ouvrir l'éditeur d'offres",
+          "offerSend": "Envoyer cette offre",
+          "offerLine": "Offre {status} · v{version}",
+          "offerRemindBody": "Un petit rappel au sujet de l'offre que nous vous avons envoyée. Dites-nous si quelque chose doit changer.",
+          "offerReminded": "Rappel programmé pour demain.",
+          "offerRevised": "L'offre est de retour en brouillon. Modifiez-la dans l'éditeur.",
+          "offerSent": "Offre envoyée.",
+          "diffNone": "Aucune page de paiement n'est ouverte sur ce fil.",
+          "diffUnchanged": "Le panier correspond toujours à ce qui a été envoyé.",
+          "diffChanged": "{count} lignes ont changé sous la page de paiement ouverte.",
+          "diffSent": "Envoyé",
+          "diffNow": "Maintenant",
+          "diffKeepMine": "Garder la mienne : la page reste telle qu'envoyée",
+          "diffTakeTheirs": "Prendre la leur : annuler la page et redemander",
+          "diffCancelled": "Page de paiement annulée. Redemandez le paiement sur le nouveau panier.",
+          "changeTitle": "Modifier cette réservation",
+          "changeNone": "Aucune réservation n'est liée à ce fil.",
+          "changePolicy": "La politique de réservation décide de ce qui est conservé. Rien n'est remboursé tout seul.",
+          "changeReason": "Motif (facultatif)",
+          "changeCancel": "Annuler cette réservation",
+          "changeReschedule": "Reprogrammer dans Rendez-vous",
+          "changeCancelled": "Annulée. {amount} peut être remboursé depuis le dossier."
         },
         "disabled": {
           "attach": "La piece jointe n est pas encore branchee dans ce paquet (D-POS-83).",
@@ -4049,7 +4083,9 @@
           "rail": "Le rail POS est une couture integrateur. Cet ecran ne peut pas ajouter le compteur (D-POS-85).",
           "today": "L onglet Aujourd hui de l espace est une couture integrateur (D-POS-86).",
           "change": "Le changement apres achat utilise l ecrivain de politique du paquet 2, non monte ici (D-POS-87).",
-          "whatsapp": "WhatsApp et SMS restent indisponibles tant que ces cles n existent pas (D-POS-78)."
+          "whatsapp": "WhatsApp et SMS restent indisponibles tant que ces cles n existent pas (D-POS-78).",
+          "withdraw": "Retirer n'a pas encore de moteur (D-POS-121). Révisez l'offre ou laissez-la expirer.",
+          "rescheduleHere": "Reprogrammer demande un créneau, choisi dans Rendez-vous (D-POS-122)."
         },
         "media": {
           "loading": "Chargement du fichier…",
@@ -4703,7 +4739,9 @@
         "reasonNotArchived": "Seul un projet archivé peut être rouvert",
         "reasonAlreadyArchived": "Ce projet est déjà archivé",
         "confirmArchive": "Archiver le projet",
-        "confirmReopen": "Rouvrir le projet"
+        "confirmReopen": "Rouvrir le projet",
+        "archiveReason": "Pourquoi il est archivé",
+        "archiveReasonHint": "Facultatif. Conservé dans le dossier."
       },
       "visibility": {
         "title": "Qui voit quoi",
@@ -6663,7 +6701,10 @@
           "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
           "invalid": "Cela ne peut pas etre enregistre.",
           "unavailable": "Impossible de terminer. Reessayez.",
-          "not_allowed": "Vous ne pouvez pas faire cela ici."
+          "not_allowed": "Vous ne pouvez pas faire cela ici.",
+          "not_open": "Cette vente n'est plus ouverte.",
+          "already_collected": "Cette vente est déjà encaissée.",
+          "not_settled": "L'argent n'a pas encore été enregistré. Synchronisez à nouveau."
         }
       }
     },

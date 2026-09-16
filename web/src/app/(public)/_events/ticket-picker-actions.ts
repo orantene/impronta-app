@@ -33,7 +33,8 @@ import { buildTicketPurchase, doorOfferState, type DoorOfferState } from "@/lib/
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { uuidWire } from "@/lib/events/uuid-wire";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
-import { admissionHoldSeats } from "@/lib/venues/event-holds";
+import { admissionHoldConsume, admissionHoldSeats } from "@/lib/venues/event-holds";
+import { releaseCapacity } from "@/lib/capacity";
 
 const HORIZON_DAYS = 180;
 
@@ -240,12 +241,20 @@ const buySchema = z.object({
    * which tells a guest nothing and a client nothing either.
    */
   confirmedAge: z.number().int().min(1).max(120).optional(),
+  /**
+   * The seat holds this basket picked (`holdTicketSeats` → `ids`). Consumed
+   * by the purchase through `admission_hold_consume`, so the seat a guest
+   * held is the seat the order owns. Without them the order is a tier
+   * ticket with no seat, which is what every seat purchase was before A5.
+   */
+  holdIds: z.array(uuidWire).max(40).optional(),
 });
 
 export type StartTicketPurchaseResult =
   | { ok: true; orderId: string; transactionId: string | null; receiptCode: string | null; payAtDoor: boolean }
   | { ok: false; reason: "invalid_request" | "not_sellable" | "night_not_on_sale" | "tier_not_on_sale" | "quantity" | "sold_out"
       | "pay_at_door_not_yet" | "pay_at_door_not_offered" | "age_gate_unconfirmed" | "age_gate_below_minimum"
+      | "seat_taken" | "hold_expired"
       | "engine_error"; detail?: string };
 
 /**
@@ -347,6 +356,30 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
       }
       logServerError("events.buy.purchase", result.reason);
       return { ok: false, reason: "engine_error", detail: String(result.reason) };
+    }
+
+    // THE SEATS. Bind the guest's holds to this order before anything else
+    // can happen to it. A refusal here means the basket the guest saw is not
+    // the basket the engine can sell, so the order is unwound the way
+    // `createPurchase` unwinds its own failures: capacity back, order
+    // cancelled, and the guest told which seat went.
+    if (d.holdIds && d.holdIds.length > 0) {
+      const bound = await admissionHoldConsume(admin, { tenantId: d.tenantId, holdIds: d.holdIds, orderId: result.orderId });
+      if (!bound.ok) {
+        if (result.allocationIds.length > 0) await releaseCapacity(result.allocationIds, admin);
+        if (result.transactionId) {
+          const { error: txnErr } = await admin
+            .from("booking_transactions")
+            .update({ status: "failed", failed_at: new Date().toISOString(), failure_reason: `seat hold ${bound.reason}` })
+            .eq("id", result.transactionId);
+          if (txnErr) logServerError("events.buy.holdConsume/unwind/txn", txnErr);
+        }
+        const { error: cancelErr } = await admin.from("orders").update({ status: "cancelled" }).eq("id", result.orderId);
+        if (cancelErr) logServerError("events.buy.holdConsume/unwind/cancel", cancelErr);
+        if (bound.reason === "seat_taken" || bound.reason === "hold_expired") return { ok: false, reason: bound.reason };
+        logServerError("events.buy.holdConsume", bound.reason);
+        return { ok: false, reason: "engine_error", detail: bound.reason };
+      }
     }
 
     const { data: orderRow, error: oErr } = await admin.from("orders").select("receipt_code").eq("id", result.orderId).maybeSingle();
@@ -492,7 +525,7 @@ const holdSeatsSchema = z.object({
 });
 
 export type HoldTicketSeatsResult =
-  | { ok: true; id: string; expiresAt: string; already: boolean }
+  | { ok: true; id: string; ids: string[]; expiresAt: string; already: boolean }
   | { ok: false; reason: "invalid_request" | "not_found" | "seat_taken" | "hold_expired" | "unavailable" };
 
 /**
@@ -533,7 +566,7 @@ export async function holdTicketSeats(input: unknown): Promise<HoldTicketSeatsRe
       }
       return { ok: false, reason: "unavailable" };
     }
-    return { ok: true, id: held.id, expiresAt: held.expiresAt, already: held.already };
+    return { ok: true, id: held.id, ids: held.ids, expiresAt: held.expiresAt, already: held.already };
   } catch (err) {
     logServerError("events.hold", err);
     return { ok: false, reason: "unavailable" };

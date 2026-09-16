@@ -18,9 +18,13 @@ import { filterInboxRows, inboxMatchSnippet } from "@/lib/messaging/inbox-search
 import type { Essentials, InboxFilter, InboxRow, ThreadMessage } from "@/lib/messaging/types";
 import { INBOX_FILTERS } from "@/lib/messaging/types";
 import type { PosMode } from "@/lib/pos/modes";
+import type { BasketDiff, DeliveryRow, HandOverTarget, OfferRow, SnapshotRow } from "@/lib/messaging/sheets";
+import { formatOrderMoney } from "@/lib/orders/money-format";
+import { schedulingEngineSentence, schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
 import {
   messagingAssignOwner,
   messagingCloseLost,
+  messagingHandOver,
   messagingInternalNote,
   messagingLoadEssentials,
   messagingLoadInbox,
@@ -29,10 +33,24 @@ import {
   messagingReply,
   messagingRequestPayment,
   messagingResolve,
+  messagingScheduleReminder,
   messagingSearch,
+  messagingSendOffer,
   messagingSendOptions,
   messagingStartConversation,
 } from "@/lib/server-actions/messaging-engine";
+import {
+  messagingCancelBooking,
+  messagingCancelPaymentLink,
+  messagingLoadBasketDiff,
+  messagingLoadDelivery,
+  messagingLoadHandOverTargets,
+  messagingLoadOffers,
+  messagingLoadSnapshots,
+  messagingRetryDelivery,
+  messagingReviseOffer,
+} from "@/lib/server-actions/messaging-sheets";
+import { interpolate } from "@/i18n/interpolate";
 import { cn } from "@/lib/utils";
 
 import { messagesCopy, pinMessagingKeys } from "./copy";
@@ -91,6 +109,16 @@ export function MessagesShell(props: MessagesClientProps) {
   const [inboxUnread, setInboxUnread] = useState<number | null>(null);
   const [searchHits, setSearchHits] = useState<Array<{ inquiryId: string; snippet: string; label: string }>>([]);
   const seenUnread = useRef<number | null>(null);
+  // What the once-empty sheets draw (audit E / D-116). Loaded when a sheet
+  // opens on a thread; null until then so the sheet can say "loading".
+  const [handOverTargets, setHandOverTargets] = useState<HandOverTarget[] | null>(null);
+  const [deliveryRows, setDeliveryRows] = useState<DeliveryRow[] | null>(null);
+  const [deliveryBusy, setDeliveryBusy] = useState<string | null>(null);
+  const [snapshots, setSnapshots] = useState<SnapshotRow[] | null>(null);
+  const [offers, setOffers] = useState<OfferRow[] | null>(null);
+  const [basketDiff, setBasketDiff] = useState<{ loaded: boolean; diff: BasketDiff | null }>({ loaded: false, diff: null });
+  const [notice, setNotice] = useState<string | null>(null);
+  const schedulingSentences = useMemo(() => schedulingEngineSentences(t), [t]);
 
   const draftKey = draftStorageKey(props.tenantId, props.locationSlug, activeId ?? "inbox");
 
@@ -192,6 +220,28 @@ export function MessagesShell(props: MessagesClientProps) {
     setDraft("");
     await openThread(active.id);
   }
+
+  const activeIdForSheets = active?.id ?? null;
+  useEffect(() => {
+    if (preview || !sheet || !activeIdForSheets) return;
+    const id = activeIdForSheets;
+    if (sheet === "agency") {
+      setHandOverTargets(null);
+      void messagingLoadHandOverTargets().then((r) => setHandOverTargets(r.ok ? r.targets : []));
+    } else if (sheet === "delivery") {
+      setDeliveryRows(null);
+      void messagingLoadDelivery({ inquiryId: id }).then((r) => setDeliveryRows(r.ok ? r.rows : []));
+    } else if (sheet === "recover") {
+      setSnapshots(null);
+      void messagingLoadSnapshots({ inquiryId: id }).then((r) => setSnapshots(r.ok ? r.snapshots : []));
+    } else if (sheet === "offer") {
+      setOffers(null);
+      void messagingLoadOffers({ inquiryId: id }).then((r) => setOffers(r.ok ? r.offers : []));
+    } else if (sheet === "diff") {
+      setBasketDiff({ loaded: false, diff: null });
+      void messagingLoadBasketDiff({ inquiryId: id }).then((r) => setBasketDiff({ loaded: true, diff: r.ok ? r.diff : null }));
+    }
+  }, [sheet, activeIdForSheets, preview]);
 
   const listEmpty = loadState !== "failed" && visibleRows.length === 0;
   const emptyCopy =
@@ -322,20 +372,124 @@ export function MessagesShell(props: MessagesClientProps) {
         }).then(() => setSheet(null));
       }}
       onRecover={() => {
-        if (!active || preview) {
-          setSheet(null);
-          return;
-        }
-        const chip = active.recordChips.find((row) => row.kind === "order");
-        if (!chip) {
-          setRefusal(copy.refusal("not_found"));
-          setSheet(null);
-          return;
-        }
-        void messagingRecoverSnapshot({ snapshotId: `snap-${active.id}`, orderId: chip.recordId }).then((result) => {
-          if (!result.ok) setRefusal(copy.refusal(result.reason));
-          setSheet(null);
-        });
+        // "Retry the kitchen ticket": the preparation ticket is re-submitted
+        // by the till (`submitToPreparation`), not by this surface. Left as
+        // the door it always was: close.
+        setSheet(null);
+      }}
+      data={{
+        handOver: {
+          targets: handOverTargets,
+          onPick: (userId) => {
+            if (!active || preview) return setSheet(null);
+            void messagingHandOver({ inquiryId: active.id, ownerUserId: userId, expectedVersion: active.version }).then((result) => {
+              if (!result.ok) setRefusal(copy.refusal(result.reason));
+              else void reload();
+              setSheet(null);
+            });
+          },
+        },
+        delivery: {
+          rows: deliveryRows,
+          busyId: deliveryBusy,
+          onRetry: (deliveryId) => {
+            if (!active || preview) return;
+            setDeliveryBusy(deliveryId);
+            void messagingRetryDelivery({ deliveryId }).then((result) => {
+              setDeliveryBusy(null);
+              if (!result.ok) setRefusal(copy.refusal(result.reason));
+              else setNotice(copy.deliveryRetried);
+              void messagingLoadDelivery({ inquiryId: active.id }).then((r) => setDeliveryRows(r.ok ? r.rows : []));
+            });
+          },
+        },
+        recover: {
+          snapshots,
+          onRecover: (snapshotId) => {
+            if (!active || preview) return setSheet(null);
+            const chip = active.recordChips.find((row) => row.kind === "order");
+            if (!chip) {
+              setRefusal(copy.refusal("not_found"));
+              setSheet(null);
+              return;
+            }
+            // The engine's own snapshot uuid. `snap-<inquiry>` was refused `invalid` on every tap.
+            void messagingRecoverSnapshot({ snapshotId, orderId: chip.recordId }).then((result) => {
+              if (!result.ok) setRefusal(copy.refusal(result.reason));
+              else setNotice(copy.recovered);
+              setSheet(null);
+            });
+          },
+        },
+        offer: {
+          offers,
+          builderHref: active ? `${props.adminBasePath}/messages/${active.id}` : `${props.adminBasePath}/messages`,
+          onSend: (offerId) => {
+            if (!active || preview) return setSheet(null);
+            void messagingSendOffer({ inquiryId: active.id, offerId }).then((result) => {
+              if (!result.ok) setRefusal(copy.refusal(result.reason));
+              else {
+                setNotice(copy.offerSent);
+                void reload();
+              }
+              setSheet(null);
+            });
+          },
+          onRemind: (offerId) => {
+            if (!active || preview) return setSheet(null);
+            const sendAt = reminderTomorrowIso();
+            void messagingScheduleReminder({ inquiryId: active.id, sendAt, body: copy.offerRemindBody, recordKind: "offer", recordId: offerId }).then(
+              (result) => {
+                if (!result.ok) setRefusal(copy.refusal(result.reason));
+                else setNotice(copy.offerReminded);
+                setSheet(null);
+              },
+            );
+          },
+          onRevise: (offer) => {
+            if (!active || preview) return setSheet(null);
+            void messagingReviseOffer({ inquiryId: active.id, offerId: offer.id, expectedVersion: offer.version }).then((result) => {
+              if (!result.ok) setRefusal(copy.refusal(result.reason));
+              else setNotice(copy.offerRevised);
+              setSheet(null);
+            });
+          },
+        },
+        diff: {
+          diff: basketDiff.diff,
+          loaded: basketDiff.loaded,
+          // Keep mine: the page stays as sent; the customer pays what they were shown. Nothing to write.
+          onKeepMine: () => setSheet(null),
+          onTakeTheirs: (linkId) => {
+            if (!active || preview) return setSheet(null);
+            void messagingCancelPaymentLink({ linkId }).then((result) => {
+              if (!result.ok) {
+                setRefusal(copy.refusal(result.reason));
+                setSheet(null);
+                return;
+              }
+              setNotice(copy.diffCancelled);
+              setSheet("payment");
+            });
+          },
+        },
+        change: {
+          booking:
+            active?.recordChips.find((row) => row.kind === "appointment" || row.kind === "class_enrolment" || row.kind === "reservation") ?? null,
+          rescheduleHref: `${props.adminBasePath}/appointments`,
+          onCancel: (bookingId, reason) => {
+            if (!active || preview) return setSheet(null);
+            void messagingCancelBooking({ inquiryId: active.id, bookingId, reason }).then((result) => {
+              if (!result.ok) {
+                setRefusal(schedulingEngineSentence(result.reason, schedulingSentences));
+                return;
+              }
+              setNotice(interpolate(copy.changeCancelled, { amount: formatOrderMoney(result.refundableCents, "USD") }));
+              setSheet(null);
+              void reload();
+            });
+          },
+        },
       }}
       onSearch={(query) => {
         setSearch(query);
@@ -425,6 +579,11 @@ export function MessagesShell(props: MessagesClientProps) {
         <div className={cn(POS_REFUSAL_BANNER, "mx-4 mt-3")} data-pos-refusal="">
           {refusal}
         </div>
+      ) : null}
+      {notice ? (
+        <p className={cn(POS_NOTE, "mx-4 mt-3")} role="status" data-pos-messages-notice="">
+          {notice}
+        </p>
       ) : null}
       <div className="flex min-h-0 flex-1">
         {focused ? (
@@ -526,3 +685,8 @@ function optionKind(
 }
 
 export { POS_SURFACE };
+
+/** An offer reminder goes out tomorrow at this time (the reminder cron delivers it). */
+function reminderTomorrowIso(): string {
+  return new Date(Date.now() + 24 * 3600_000).toISOString();
+}

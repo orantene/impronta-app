@@ -268,6 +268,8 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
   const [ageOk, setAgeOk] = useState(false);
   const [pickedSeats, setPickedSeats] = useState<string[]>([]);
   const [holdUntil, setHoldUntil] = useState<string | null>(null);
+  /** The hold rows behind `holdUntil`; travel with the purchase (A5). */
+  const [holdIds, setHoldIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     if (!configured || preload) return;
@@ -284,6 +286,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
   useEffect(() => {
     setPickedSeats([]);
     setHoldUntil(null);
+    setHoldIds([]);
   }, [night]);
   // A tier is offered for a night ONLY when it is on sale AND has a pool on
   // that night. Anything else is not a choice, so it is not a control.
@@ -319,6 +322,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
         return;
       }
       setHoldUntil(res.expiresAt);
+      setHoldIds(res.ids);
     } catch {
       setRefusal(t("unavailable"));
     }
@@ -339,9 +343,16 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
         // refuses a gated basket that arrives without it, so an unticked box is
         // a refusal there rather than a silent sale here.
         confirmedAge: ageGate && ageOk ? ageGate : undefined,
+        // The seats this guest holds ride along; the order consumes them.
+        holdIds: holdIds.length > 0 ? holdIds : undefined,
       });
       if (!res.ok) {
         setRefusal(t(res.reason === "quantity" ? "quantity_err" : res.reason));
+        if (res.reason === "seat_taken" || res.reason === "hold_expired") {
+          setHoldUntil(null);
+          setHoldIds([]);
+          setPickedSeats([]);
+        }
         setOrderKey(newOrderKey()); // a NEW cart after a refusal
         void load(); // seats moved under us; the list on screen may now be a lie
         setBusy("idle");
@@ -491,6 +502,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload }
                       type="button"
                       className="tp-seat"
                       data-on={on ? "1" : undefined}
+                      data-seat={seat.id}
                       data-testid={`ticket-seat-${seat.id}`}
                       aria-pressed={on}
                       disabled={busy !== "idle"}

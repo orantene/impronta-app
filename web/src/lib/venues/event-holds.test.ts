@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { admissionComp, admissionDeliver, admissionHoldSeats } from "./event-holds";
+import { admissionComp, admissionDeliver, admissionHoldConsume, admissionHoldSeats } from "./event-holds";
 
 function rpcAdmin(handler: (fn: string, args: Record<string, unknown>) => unknown) {
   return {
@@ -85,4 +85,67 @@ test("event hold SQL uses reserve_resource_set_v2 and proves not_found", () => {
   assert.match(sql, /admissions\.delivery|ADD COLUMN IF NOT EXISTS delivery/);
   assert.match(sql, /REVOKE ALL ON FUNCTION public\.admission_hold_seats/);
   assert.match(sql, /expected not_found/);
+});
+
+/* ── A5: the purchase consumes the holds it was sold with ─────────────────── */
+
+test("hold seats returns every hold id, not just the first", async () => {
+  const result = await admissionHoldSeats(
+    rpcAdmin(() => ({ ok: true, id: "h1", ids: ["h1", "h2"], expires_at: "2026-10-01T00:00:00Z" })),
+    { tenantId: "t1", sessionId: "s1", seatIds: ["seat-1", "seat-2"], operationKey: "hold-key-aa" },
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.ids, ["h1", "h2"]);
+  assert.equal(result.id, "h1");
+});
+
+test("consume binds the holds to the order through admission_hold_consume", async () => {
+  const result = await admissionHoldConsume(
+    rpcAdmin((fn, args) => {
+      assert.equal(fn, "admission_hold_consume");
+      assert.deepEqual(args, { p_tenant_id: "t1", p_hold_ids: ["h1", "h2"], p_order_id: "o1" });
+      return { ok: true, converted: ["h1", "h2"], already: false, expires_at: "2026-10-01T00:30:00Z" };
+    }),
+    { tenantId: "t1", holdIds: ["h1", "h2"], orderId: "o1" },
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.converted, ["h1", "h2"]);
+  assert.equal(result.already, false);
+});
+
+test("consume maps hold_expired, seat_taken and not_open; an empty list never reaches the socket", async () => {
+  for (const reason of ["hold_expired", "seat_taken", "not_open"] as const) {
+    const result = await admissionHoldConsume(rpcAdmin(() => ({ ok: false, reason })), {
+      tenantId: "t1",
+      holdIds: ["h1"],
+      orderId: "o1",
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.reason, reason);
+  }
+  const empty = await admissionHoldConsume(
+    rpcAdmin(() => {
+      throw new Error("must not call");
+    }),
+    { tenantId: "t1", holdIds: [], orderId: "o1" },
+  );
+  assert.deepEqual(empty, { ok: false, reason: "invalid" });
+});
+
+test("20261231238000 consumes holds, keeps a converted seat taken, and frees it with its order", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "..", "supabase", "migrations", "20261231238000_admission_hold_consume.sql"),
+    "utf8",
+  );
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.admission_hold_consume\(/);
+  assert.match(sql, /status = 'converted',\s+order_id = p_order_id/);
+  assert.match(sql, /extend_capacity_hold\(v_allocs, v_ttl\)/);
+  // admission_hold_seats: a converted seat is taken while its order lives.
+  assert.match(sql, /seat_space_id = v_seat AND status = 'converted'/);
+  assert.match(sql, /o\.status IN \('cancelled', 'refunded'\)/);
+  // The reaper never releases a converted seat on its own expiry.
+  assert.match(sql, /WHERE h\.status = 'converted' AND o\.status IN \('cancelled', 'refunded'\)/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.admission_hold_consume\(uuid, uuid\[\], uuid\) FROM PUBLIC, anon, authenticated/);
 });

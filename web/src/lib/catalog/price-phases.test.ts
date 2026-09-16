@@ -97,6 +97,53 @@ test("an inverted phase window is overlap", async () => {
   if (!result.ok) assert.equal(result.reason, "overlap");
 });
 
+test("the writer compares instants, not strings: '+00:00' and 'Z' spellings of one window", async () => {
+  // As strings "2026-10-01T00:00:00+00:00" > "2026-10-01T00:00:00.000Z" (the
+  // '+' sorts after '.'), so the old compare refused a window whose end is
+  // eleven hours AFTER its start (D-120 on the writer side).
+  const written: Record<string, unknown>[] = [];
+  const admin = {
+    from: () => ({
+      insert: (row: Record<string, unknown>) => {
+        written.push(row);
+        return { select: () => ({ maybeSingle: async () => ({ data: { id: "ph-1" }, error: null }) }) };
+      },
+    }),
+  };
+  const result = await setOfferingPricePhase(admin, {
+    tenantId: "t1",
+    offeringId: "off-1",
+    label: "Early",
+    startsAt: "2026-10-01T00:00:00.000Z",
+    endsAt: "2026-10-01T11:00:00+00:00",
+    priceCents: 1000,
+  });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(written.length, 1);
+
+  const equal = await setOfferingPricePhase(admin, {
+    tenantId: "t1",
+    offeringId: "off-1",
+    label: "Early",
+    startsAt: "2026-10-01T00:00:00.000Z",
+    endsAt: "2026-10-01T00:00:00+00:00",
+    priceCents: 1000,
+  });
+  assert.equal(equal.ok, false);
+  if (!equal.ok) assert.equal(equal.reason, "overlap");
+
+  const junk = await setOfferingPricePhase(admin, {
+    tenantId: "t1",
+    offeringId: "off-1",
+    label: "Early",
+    startsAt: "not a date",
+    endsAt: null,
+    priceCents: 1000,
+  });
+  assert.equal(junk.ok, false);
+  if (!junk.ok) assert.equal(junk.reason, "invalid");
+});
+
 test("repriceAndValidate reads livePhasePrice only for unstamped lines", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/pos/draft.ts"), "utf8");
   assert.match(src, /livePhasePrice/);
