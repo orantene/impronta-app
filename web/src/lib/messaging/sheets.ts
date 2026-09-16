@@ -207,18 +207,20 @@ export async function loadBasketDiff(admin: Admin, input: { tenantId: string; in
   if (sErr) return null;
   const list = (snapshots ?? []) as Array<Record<string, unknown>>;
   for (const [index, snap] of list.entries()) {
-    const { data: link } = await admin
+    const { data: link, error: lErr } = await admin
       .from("payment_links")
       .select("id, code, status, order_id, currency")
       .eq("id", snap.payment_link_id as string)
       .eq("tenant_id", input.tenantId)
       .maybeSingle();
+    if (lErr) continue;
     const row = link as { id: string; code: string; status: string; order_id: string | null; currency: string | null } | null;
     if (!row || row.status !== "open" || !row.order_id) continue;
-    const [{ data: order }, { data: lines }] = await Promise.all([
+    const [{ data: order, error: oErr }, { data: lines, error: lnErr }] = await Promise.all([
       admin.from("orders").select("id, version, currency").eq("id", row.order_id).eq("tenant_id", input.tenantId).maybeSingle(),
       admin.from("order_lines").select("id, label, units, unit_cents").eq("order_id", row.order_id),
     ]);
+    if (oErr || lnErr) continue;
     const o = order as { id: string; version: number; currency: string } | null;
     if (!o) continue;
     const basket = (snap.basket ?? {}) as { lines?: SnapshotLine[]; version?: number };

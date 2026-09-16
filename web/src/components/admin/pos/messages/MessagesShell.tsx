@@ -23,31 +23,33 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import { schedulingEngineSentence, schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
 import {
   messagingAssignOwner,
-  messagingCancelBooking,
-  messagingCancelPaymentLink,
   messagingCloseLost,
   messagingHandOver,
   messagingInternalNote,
-  messagingLoadBasketDiff,
-  messagingLoadDelivery,
   messagingLoadEssentials,
-  messagingLoadHandOverTargets,
   messagingLoadInbox,
-  messagingLoadOffers,
-  messagingLoadSnapshots,
   messagingLoadThread,
   messagingRecoverSnapshot,
   messagingReply,
   messagingRequestPayment,
   messagingResolve,
-  messagingRetryDelivery,
-  messagingReviseOffer,
   messagingScheduleReminder,
   messagingSearch,
   messagingSendOffer,
   messagingSendOptions,
   messagingStartConversation,
 } from "@/lib/server-actions/messaging-engine";
+import {
+  messagingCancelBooking,
+  messagingCancelPaymentLink,
+  messagingLoadBasketDiff,
+  messagingLoadDelivery,
+  messagingLoadHandOverTargets,
+  messagingLoadOffers,
+  messagingLoadSnapshots,
+  messagingRetryDelivery,
+  messagingReviseOffer,
+} from "@/lib/server-actions/messaging-sheets";
 import { interpolate } from "@/i18n/interpolate";
 import { cn } from "@/lib/utils";
 
@@ -435,7 +437,7 @@ export function MessagesShell(props: MessagesClientProps) {
           },
           onRemind: (offerId) => {
             if (!active || preview) return setSheet(null);
-            const sendAt = new Date(Date.now() + 24 * 3600_000).toISOString();
+            const sendAt = reminderTomorrowIso();
             void messagingScheduleReminder({ inquiryId: active.id, sendAt, body: copy.offerRemindBody, recordKind: "offer", recordId: offerId }).then(
               (result) => {
                 if (!result.ok) setRefusal(copy.refusal(result.reason));
@@ -683,3 +685,8 @@ function optionKind(
 }
 
 export { POS_SURFACE };
+
+/** An offer reminder goes out tomorrow at this time (the reminder cron delivers it). */
+function reminderTomorrowIso(): string {
+  return new Date(Date.now() + 24 * 3600_000).toISOString();
+}

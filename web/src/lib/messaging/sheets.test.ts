@@ -104,7 +104,7 @@ test("the sheets call the engine: no snap-<id>, real actions behind offer / chan
   const shell = readFileSync(join(root, "MessagesShell.tsx"), "utf8");
   const sheets = readFileSync(join(root, "sheets/MessagingSheets.tsx"), "utf8");
   const items = readFileSync(join(root, "action-items.ts"), "utf8");
-  const engine = readFileSync(join(process.cwd(), "src/lib/server-actions/messaging-engine.ts"), "utf8");
+  const engine = readFileSync(join(process.cwd(), "src/lib/server-actions/messaging-sheets.ts"), "utf8");
 
   // recover: the pre-existing bug. The snapshot id must be the engine's uuid.
   assert.doesNotMatch(shell, /snap-\$\{/);

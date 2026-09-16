@@ -31,35 +31,37 @@ test("WIRE-2.3 move a participant and refuse a full target", async ({ page }) =>
   try {
     await prepareJourneysPage(page);
     await signInJourneysStaff(page, "/admin/appointments?view=sessions");
-    await ensureHydrated(page, "[data-session-row]");
-    await openSession(page, seeded.fromSessionId);
-    await page.getByTestId("session-participant-move").first().click();
-    const select = page.getByTestId("session-move-select");
-    await expect(select).toBeVisible({ timeout: 20_000 });
+    const startMove = async () => {
+      await page.goto("/admin/appointments?view=sessions");
+      await ensureHydrated(page, "[data-session-row]");
+      await openSession(page, seeded.fromSessionId);
+      await page.getByTestId("session-participant-move").first().click();
+      const select = page.getByTestId("session-move-select");
+      await expect(select).toBeVisible({ timeout: 20_000 });
+      return select;
+    };
+    const sb = isolatedService();
+    const sessionOf = async () => {
+      const { data } = await sb.from("admissions").select("session_id").eq("id", seeded.admissionId).maybeSingle();
+      return (data as { session_id: string } | null)?.session_id ?? null;
+    };
+
+    // The full target first: refused in words, nothing moves.
+    let select = await startMove();
     await expect(select.locator(`[data-move-target="${seeded.openSessionId}"]`)).toHaveCount(1);
     const fullOption = select.locator(`[data-move-target="${seeded.fullSessionId}"]`);
     await expect(fullOption).toHaveAttribute("data-move-target-full", "");
-
-    // The full target first: refused in words, nothing moves.
     await select.selectOption(seeded.fullSessionId);
     await page.getByTestId("session-move-form").getByRole("button", { name: /move/i }).last().click();
     await assertEnglishRefusal(page, WIRE_SENTENCE.soldOut);
-    const sb = isolatedService();
-    const before = await sb.from("admissions").select("session_id").eq("id", seeded.admissionId).maybeSingle();
-    expect((before.data as { session_id: string } | null)?.session_id).toBe(seeded.fromSessionId);
+    expect(await sessionOf()).toBe(seeded.fromSessionId);
 
-    // Then the open target lands.
+    // Then the open target lands. A fresh form, so the refused state is not carried.
+    select = await startMove();
     await select.selectOption(seeded.openSessionId);
     await page.getByTestId("session-move-form").getByRole("button", { name: /move/i }).last().click();
-    await expect
-      .poll(
-        async () => {
-          const { data } = await sb.from("admissions").select("session_id").eq("id", seeded.admissionId).maybeSingle();
-          return (data as { session_id: string } | null)?.session_id ?? null;
-        },
-        { timeout: 20_000 },
-      )
-      .toBe(seeded.openSessionId);
+    await expect(page.getByTestId("session-move-message")).toBeVisible({ timeout: 20_000 });
+    await expect.poll(sessionOf, { timeout: 20_000 }).toBe(seeded.openSessionId);
   } finally {
     await seeded.cleanup();
   }
