@@ -17,6 +17,8 @@ import { loadIdentityForStaff } from "@/lib/site-admin/server/reads";
 import type { SiteComposeStamp } from "./compose-site-from-brief.server";
 import { instantiateSite } from "./instantiate-site";
 import { loadLookBySlug } from "./site-looks.server";
+import { themePatchFromPalette } from "./theme-from-palette";
+import { validateThemePatch } from "@/lib/site-admin/tokens/registry";
 import type { SiteIdentity } from "./types";
 import { writeFreeformSiteShell } from "./write-site-shell.server";
 
@@ -24,8 +26,14 @@ export type RethemeOutcome = "rethemed" | "no_stamp" | "no_logo" | "shell_edited
 
 export async function rethemeSiteAfterLogo(
   admin: SupabaseClient,
-  input: { tenantId: string; actorProfileId?: string | null; logoUrl?: string | null },
-): Promise<{ outcome: RethemeOutcome; note?: string }> {
+  input: {
+    tenantId: string;
+    actorProfileId?: string | null;
+    logoUrl?: string | null;
+    /** Hexes extracted from the logo by the caller (onboarding Phase 4); recoloured onto the stamped Look, demoted never refused. */
+    palette?: string[] | null;
+  },
+): Promise<{ outcome: RethemeOutcome; note?: string; paletteDemoted?: string[] }> {
   try {
     const { data: agency, error } = await admin.from("agencies").select("settings, display_name, supported_locales").eq("id", input.tenantId).maybeSingle<{ settings: Record<string, unknown> | null; display_name: string | null; supported_locales: string[] | null }>();
     if (error) return { outcome: "failed", note: error.message };
@@ -42,10 +50,22 @@ export async function rethemeSiteAfterLogo(
         if (a?.storage_path) logoUrl = admin.storage.from(a.bucket_id ?? "media-public").getPublicUrl(a.storage_path).data.publicUrl;
       }
     }
-    if (!logoUrl) return { outcome: "no_logo" };
+    if (!logoUrl && !(input.palette && input.palette.length > 0)) return { outcome: "no_logo" };
 
     const look = await loadLookBySlug(admin, stamp.lookId);
     if (!look) return { outcome: "failed", note: `look ${stamp.lookId} not found` };
+
+    // Palette from the logo: same mapper as the compose, written to the theme
+    // draft (and live when the shell is published). Pages are untouched; the
+    // theme is tokens, so every page recolours without a rewrite.
+    let paletteDemoted: string[] | undefined;
+    if (input.palette && input.palette.length > 0) {
+      const mapped = themePatchFromPalette(look.themePatch, input.palette);
+      const gate = validateThemePatch({ ...mapped.patch });
+      paletteDemoted = mapped.demoted;
+      const { error: themeErr } = await admin.from("agency_branding").upsert({ tenant_id: input.tenantId, theme_json_draft: gate.normalized } as never, { onConflict: "tenant_id" });
+      if (themeErr) return { outcome: "failed", note: `theme: ${themeErr.message}` };
+    }
     const identityRow = await loadIdentityForStaff(admin, input.tenantId);
     const locale: "es" | "en" = (identityRow?.default_locale ?? agency?.supported_locales?.[0]) === "en" ? "en" : "es";
 
@@ -82,7 +102,14 @@ export async function rethemeSiteAfterLogo(
       overwrite: true,
     });
     if (!res.ok) return { outcome: "failed", note: res.error };
-    return { outcome: "rethemed" };
+    if (res.published) {
+      const { error: liveErr } = await admin.from("agency_branding").select("theme_json_draft").eq("tenant_id", input.tenantId).maybeSingle<{ theme_json_draft: Record<string, string> | null }>().then(async (r) => {
+        if (r.error || !r.data?.theme_json_draft || !input.palette?.length) return { error: r.error };
+        return admin.from("agency_branding").update({ theme_json: r.data.theme_json_draft } as never).eq("tenant_id", input.tenantId);
+      });
+      if (liveErr) return { outcome: "failed", note: `theme publish: ${liveErr.message}` };
+    }
+    return { outcome: "rethemed", paletteDemoted };
   } catch (err) {
     logServerError("retheme-after-logo", err);
     return { outcome: "failed", note: err instanceof Error ? err.message : "unknown" };

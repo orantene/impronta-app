@@ -55,7 +55,7 @@ Table `platform_stock_images` (migration `20260916000356`, applied). Bytes stay 
 
 ## 4b. The compose stamp (onboarding v3.2)
 
-`agencies.settings.site_compose` on every outcome: `{ outcome, siteComposeId, lookId, typeId, family, at, pageIds, placed: { photos: { hero, gallery, level }, menuItems, hoursPresent, whatsappPresent, logoPresent }, copySource, notes }`. `photos.hero` is `owner | type | family | universal`; claim photos only on `type` (D-TPL-23). After the logo lands: `rethemeSiteAfterLogo(admin, { tenantId })` (D-TPL-24).
+`agencies.settings.site_compose` on every outcome: `{ outcome, siteComposeId, lookId, typeId, family, at, pageIds, placed: { photos: { hero, gallery, level }, menuItems, hoursPresent, whatsappPresent, logoPresent }, copySource, notes }`. `photos.hero` is `owner | type | family | universal`; claim photos only on `type` (D-TPL-23). After the logo lands: `rethemeSiteAfterLogo(admin, { tenantId, palette? })` (D-TPL-24). `palette` = 2–3 hexes the onboarding module extracts from the logo client-side; the same `themePatchFromPalette` mapper recolours the stamped Look (demoted, never refused) into `theme_json_draft`, and into `theme_json` when the shell was published. Pages are untouched: the theme is tokens.
 
 ## 5. Acceptance
 
@@ -84,7 +84,7 @@ Harness notes: the run was resumed three times: a dev-server navigation abort, a
 2. **Stock coverage.** 14 universal photos, no per-family or per-type packs: no OpenAI key in this environment and no supplier account, so `/platform/admin/stock` "Generate" refuses honestly and licensed supply stops at the owner (D-TPL-7, D-TPL-15). The admin section, manifest and delivery are ready for the day a key or a supplier exists. Provenance of the 14 marketing photos must be confirmed by the owner.
 3. **Super-admin surfaces unclicked by me**: `/platform/admin/stock`, the Lab Looks page (`/platform/admin/builder-lab/looks`) and its import panel. Their reads/writes are the modules the tenant lane, the composer and the tests exercise; the gating fixture (`qa-admin`) is deliberately not a super admin.
 4. **"N new photos" badge** on the tenant Media lane: deferred; the shelf itself refreshes on every open.
-5. **Logo-derived palette**: implemented from `brand.palette` hexes (`theme-from-palette.ts`). Extracting a palette FROM a logo image is not done; intake must supply the hexes.
+5. **Logo-derived palette**: the mapper takes hexes (`theme-from-palette.ts`); extraction from the logo image is the onboarding module's (Phase 4, client-side), handed to `rethemeSiteAfterLogo({ palette })`.
 6. **Copy pass latency**: Sonnet 6–40 s on the same prompt; 40 s race. A timeout ships Look defaults (`fallback_used`) and still counts the cost.
 7. **Provisioning door not exercised through a real signup** in this session (would create a real tenant). It is the same function the acceptance run called 102 times against the QA tenant; the door itself is 20 lines in `onboard-starter-content.ts` and guarded non-fatal. **NV live.**
 8. `es` pages the first compose wrote on `tpl-qa-studio` (before D-TPL-18) remain as published rows in a locale the tenant does not serve; harmless on a QA tenant, delete if you reuse it.
