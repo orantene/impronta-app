@@ -66,6 +66,7 @@ import { useCounterDisplayBeacon } from "./counter-display-beacon";
 import { useCounterCustomer } from "./counter-customer";
 import { CounterDrawer } from "./counter-drawer";
 import { useCounterEngine } from "./counter-engine";
+import { usePendingDraft, useSaleHref, useStartSale } from "./counter-sale-start";
 import { COUNTER_DESTINATIONS, counterHeader, isDestination, type CounterDestination as Destination } from "./counter-header";
 import { useCounterLock } from "./counter-lock";
 import {
@@ -85,7 +86,6 @@ import { CounterSheets, type CounterSheet } from "./counter-sheets";
 import {
   posAddLine,
   posCancelSale,
-  posCreateDraft,
   posRemoveLine,
   posReprice,
   posResolveScanCode,
@@ -121,7 +121,7 @@ export function PosClient(props: PosClientProps) {
   const [pickupAtLocal, setPickupAtLocal] = useState("");
 
   const [sheet, setSheet] = useState<CounterSheet | null>(null);
-  const [discountRefused, setDiscountRefused] = useState<null | "notCombinable" | "refused">(null);
+  const [discountRefused, setDiscountRefused] = useState<null | "notCombinable" | "refused" | "overLimit">(null);
 
   const [collectOpen, setCollectOpen] = useState(false);
   const [method, setMethod] = useState<PosCollectionMethodId>("cash");
@@ -162,7 +162,17 @@ export function PosClient(props: PosClientProps) {
     copy: { custom: copy.custom, booking: copy.booking, tip: copy.tip, paymentLink: copy.paymentLink, refusal: copy.engineRefusal, reload: copy.refusal.reload },
     onWritten: () => {
       setSavedAt(formatClock(new Date().toISOString(), props.locale));
+      // Hold the next command until the re-read delivers the new version.
+      if (sale) setWrittenVersion(sale.version);
       router.refresh();
+    },
+    // The draft under the Custom amount sheet (`counter-sale-start.ts`).
+    ensureSale: () => ensureDraft(),
+    // A line landed on a draft the address has not reached: move to it. A
+    // refresh here re-read the sale-less address and lost the line (D-134).
+    onOpened: (orderId) => {
+      setSavedAt(formatClock(new Date().toISOString(), props.locale));
+      router.push(saleHref(orderId));
     },
     onOpenCustomer: customer.open,
     onCollect: () => {
@@ -173,13 +183,7 @@ export function PosClient(props: PosClientProps) {
     },
   });
 
-  const saleHref = useCallback(
-    (orderId: string | null) =>
-      orderId
-        ? `${props.posPath}?mode=${props.mode}&order=${encodeURIComponent(orderId)}`
-        : `${props.posPath}?mode=${props.mode}`,
-    [props.mode, props.posPath],
-  );
+  const saleHref = useSaleHref(props.posPath, props.mode);
 
   /**
    * Run one command and render whatever it says.
@@ -238,19 +242,8 @@ export function PosClient(props: PosClientProps) {
     customer.reset();
   }, [customer]);
 
-  /** Open a draft. `navigate` pushes to it at once; a caller adding a first line pushes after the line lands. */
-  const startSale = useCallback(
-    async (navigate = true): Promise<{ orderId: string; version: number } | null> => {
-      const result = await run("sale", () => posCreateDraft(), false);
-      if (result.ok && "orderId" in result && typeof result.orderId === "string") {
-        resetForNewSale();
-        if (navigate) router.push(saleHref(result.orderId));
-        return { orderId: result.orderId, version: 1 };
-      }
-      return null;
-    },
-    [resetForNewSale, router, run, saleHref],
-  );
+  const startSale = useStartSale({ run, resetForNewSale, saleHref });
+  const ensureDraft = usePendingDraft({ sale, startSale });
 
   /**
    * A tap on a tile. With no sale open, the tap opens one AND adds the item
@@ -453,7 +446,7 @@ export function PosClient(props: PosClientProps) {
               // The sheet opens at once; with no sale open, one is started
               // underneath it and the write lands on it (`POSEmptySale`).
               engine.openCustom();
-              if (!sale) void startSale();
+              if (!sale) void ensureDraft();
               return;
             }
             if (working) return;
@@ -752,7 +745,8 @@ export function PosClient(props: PosClientProps) {
               if (!sale) return;
               void run("sale", async () => {
                 const result = await posReprice({ orderId: sale.orderId, promoCode: code, expectedVersion: sale.version });
-                setDiscountRefused(result.ok ? null : "reason" in result && result.reason === "promo_refused" ? "notCombinable" : "refused");
+                const reason = !result.ok && "reason" in result ? result.reason : null;
+                setDiscountRefused(result.ok ? null : reason === "promo_refused" ? "notCombinable" : reason === "over_limit" ? "overLimit" : "refused");
                 return result;
               });
             }}

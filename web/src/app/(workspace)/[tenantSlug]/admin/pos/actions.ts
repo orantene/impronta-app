@@ -5,7 +5,9 @@ import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { findTenantMembership } from "@/lib/saas/tenant";
 import { userHasCapability } from "@/lib/access";
+import { enforceRoleLimit } from "@/lib/approvals/enforce";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { sendEmailResult } from "@/lib/email";
 import { orderConfirmationSubject, renderOrderConfirmationEmail } from "@/lib/email/order-confirmation";
@@ -48,6 +50,15 @@ async function staff(capability: PosStaffCapability = "booking.payment.request")
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, error: "unavailable" };
   return { ok: true as const, tenantId: guard.tenantId, userId: guard.user.id, tenantSlug: guard.tenantSlug, admin };
+}
+
+/**
+ * The actor's membership role, for the role limits (D-139). Null for a
+ * caller with no membership row (a platform operator), who is not limited.
+ */
+async function actorRole(tenantId: string): Promise<string | null> {
+  const membership = await findTenantMembership(tenantId);
+  return membership?.role ?? null;
 }
 
 export async function posCreateDraft(context?: string) {
@@ -132,6 +143,7 @@ export async function posReprice(input: { orderId: string; promoCode?: string; e
     expectedVersion: z.number().int().positive().optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
+  const role = parsed.data.promoCode ? await actorRole(g.tenantId) : null;
   return repriceAndValidate(
     g.admin,
     {
@@ -149,6 +161,25 @@ export async function posReprice(input: { orderId: string; promoCode?: string; e
           lines: args.lines,
         });
         if (!resolved.ok) return { ok: false as const, error: "That code could not be applied." };
+        // The role's discount limit, judged on the discount the code resolves
+        // to, BEFORE it is written (D-139). Over it: nothing is written, the
+        // request is filed for the inbox, the sheet reads the over_limit line.
+        const limited = await enforceRoleLimit(g.admin, {
+          tenantId: g.tenantId,
+          role,
+          action: "discount",
+          amountCents: resolved.discountCents,
+          subjectId: parsed.data.orderId,
+          requestedBy: g.userId,
+          operationKey: `discount:${parsed.data.orderId}:${args.code.toLowerCase()}`,
+          reason: `Discount code ${args.code} (${resolved.discountCents} cents)`,
+        });
+        if (!limited.ok) {
+          if (limited.reason === "over_limit") {
+            return { ok: false as const, reason: "over_limit" as const, error: "A manager has to approve this discount." };
+          }
+          return { ok: false as const, error: "Could not check the discount limit." };
+        }
         return { ok: true as const, discountCents: resolved.discountCents, codeId: resolved.codeId };
       },
     },

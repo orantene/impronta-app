@@ -11,13 +11,9 @@ import Link from "next/link";
 import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { guestVisitPayShare } from "@/lib/server-actions/venue-engine";
-import { VENUE_ENGINE_REFUSALS, type VenueEngineRefusal } from "@/lib/venues/engine-refusals";
+import { venueEngineRefusalSentence, type VenueEngineRefusalSentences } from "@/lib/venues/engine-refusals";
 
 export type GuestBillLine = { id: string; label: string; units: number; totalCents: number };
-
-function isRefusal(reason: string): reason is VenueEngineRefusal {
-  return reason in VENUE_ENGINE_REFUSALS;
-}
 
 export function GuestShareClient(props: {
   token: string;
@@ -42,7 +38,7 @@ export function GuestShareClient(props: {
     paid: string;
     owed: string;
   };
-  tRefusal: (key: string) => string;
+  refusals: VenueEngineRefusalSentences;
 }) {
   const [tab, setTab] = useState<"items" | "even" | "amount">("items");
   const [picked, setPicked] = useState<string[]>([]);
@@ -70,12 +66,12 @@ export function GuestShareClient(props: {
         operationKey: `share-${props.token}-${Date.now()}`,
       });
       if (!res.ok) {
-        setRefusal(isRefusal(res.reason) ? props.tRefusal(VENUE_ENGINE_REFUSALS[res.reason]) : props.tRefusal(VENUE_ENGINE_REFUSALS.unavailable));
+        setRefusal(venueEngineRefusalSentence(props.refusals, res.reason));
         return;
       }
       window.location.href = res.url;
     } catch {
-      setRefusal(props.tRefusal(VENUE_ENGINE_REFUSALS.unavailable));
+      setRefusal(props.refusals.unavailable);
     } finally {
       setBusy(false);
     }

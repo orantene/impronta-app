@@ -6,6 +6,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { guestVisitMenu } from "@/lib/visits/guest-order";
 import { loadOpenVisitByToken } from "@/lib/visits/qr";
+import { resolveVenueEngineRefusals } from "@/lib/venues/engine-refusals";
 
 import { GuestMenuClient } from "./menu-client";
 
@@ -70,7 +71,7 @@ export default async function GuestVisitMenuPage({ params }: { params: Promise<{
         acceptOffer: tr("dashboard.visit.menu.acceptOffer"),
         back: tr("dashboard.visit.menu.back"),
       }}
-      tRefusal={(key) => tr(key)}
+      refusals={resolveVenueEngineRefusals(tr)}
     />
   );
 }

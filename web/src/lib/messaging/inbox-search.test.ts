@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { fixtureInbox } from "./fixture";
-import { clipSnippet, filterInboxRows, inboxMatchSnippet, inboxRowMatches } from "./inbox-search";
+import { clipSnippet, filterInboxRows, inboxMatchSnippet, inboxRowMatches, keepActiveRow } from "./inbox-search";
 
 test("empty query leaves every row in place", () => {
   const rows = fixtureInbox();
@@ -40,4 +40,24 @@ test("clipSnippet windows around the hit", () => {
   const clipped = clipSnippet(body, "Cora");
   assert.match(clipped, /^…/);
   assert.match(clipped, /Cora asked about Tuesday/);
+});
+
+// D-143: a reply from "Needs reply" must not close the thread the operator is on.
+test("the active thread stays listed when the filter no longer returns it", () => {
+  const rows = fixtureInbox();
+  const active = rows[0]!;
+  const others = rows.slice(1);
+  const kept = keepActiveRow(others, active.id, rows);
+  assert.equal(kept[0]?.id, active.id);
+  assert.equal(kept.length, others.length + 1);
+  const fresh = { ...active, version: active.version + 1 };
+  const refreshed = keepActiveRow(others, active.id, rows, fresh);
+  assert.equal(refreshed[0]?.version, active.version + 1);
+});
+
+test("nothing is pinned without an active thread, and a listed thread is not doubled", () => {
+  const rows = fixtureInbox();
+  assert.deepEqual(keepActiveRow(rows, null, rows).map((r) => r.id), rows.map((r) => r.id));
+  assert.deepEqual(keepActiveRow(rows, rows[1]!.id, rows).map((r) => r.id), rows.map((r) => r.id));
+  assert.equal(keepActiveRow(rows.slice(1), "no-such-row", rows).length, rows.length - 1);
 });

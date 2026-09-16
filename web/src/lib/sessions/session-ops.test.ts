@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { sessionCancel, sessionMoveParticipant, sessionSetInstructor } from "./session-ops";
@@ -62,4 +62,24 @@ test("session ops SQL never refunds inline", () => {
   assert.match(sql, /ticket_refund_intents/);
   assert.doesNotMatch(sql, /executeBookingRefund|stripe/i);
   assert.match(sql, /reserve_resource_set_v2/);
+});
+
+// D-136: the moved seat used to stay a 15-minute hold that the reaper freed.
+// The LATEST definition of session_move_participant must commit the new
+// allocation in the same transaction, before the old seat is released.
+test("session_move_participant commits the new seat before releasing the old one", () => {
+  const dir = join(process.cwd(), "..", "supabase", "migrations");
+  const latest = readdirSync(dir)
+    .filter((name) => name.endsWith(".sql"))
+    .sort()
+    .reverse()
+    .find((name) => readFileSync(join(dir, name), "utf8").includes("FUNCTION public.session_move_participant("));
+  assert.ok(latest, "some migration defines session_move_participant");
+  const sql = readFileSync(join(dir, latest!), "utf8");
+  const body = sql.slice(sql.indexOf("FUNCTION public.session_move_participant("));
+  const commitAt = body.indexOf("public.commit_capacity(ARRAY[v_alloc]");
+  const releaseOldAt = body.indexOf("public.release_capacity(ARRAY[v_adm.allocation_id])");
+  assert.ok(commitAt > 0, "the new allocation is committed");
+  assert.ok(releaseOldAt > commitAt, "the old seat is released only after the new one is committed");
+  assert.match(body, /v_commit->>'ok'/);
 });

@@ -46,10 +46,11 @@ import { createPaymentLink, posLinkBooking, posSetTip } from "@/lib/server-actio
 import { posAddCustomLine, posApproveCustomAmount, posBookingCandidates } from "./actions";
 import { formatClock, keypadNext } from "./counter-model";
 import type { PosSaleSummary } from "./counter-props";
+import type { SaleTarget } from "./counter-sale-start";
 
 type EngineSheet =
   | { kind: "custom" }
-  | { kind: "approval"; lineId: string; description: string; amountCents: number }
+  | { kind: "approval"; orderId: string; lineId: string; description: string; amountCents: number }
   | { kind: "booking" }
   | { kind: "tip" }
   | null;
@@ -94,6 +95,19 @@ export function useCounterEngine(input: {
   readonly copy: CounterEngineCopy;
   /** Re-read the sale after an accepted write. */
   readonly onWritten: () => void;
+  /**
+   * The sale a write lands on when none is open yet: the draft started
+   * underneath the Custom amount sheet (D-133). Resolves once that draft
+   * exists, or null when it was refused. Null means the sheet writes only
+   * on an open sale.
+   */
+  readonly ensureSale?: () => Promise<SaleTarget | null>;
+  /**
+   * A line landed on a draft the address has not reached yet: the caller
+   * moves the address to it instead of re-reading the current (sale-less)
+   * one, which is what dropped the line (D-134).
+   */
+  readonly onOpened?: (orderId: string) => void;
   readonly onOpenCustomer: () => void;
   /** `Link & pay`: open the collect screen once the link has landed. */
   readonly onCollect: () => void;
@@ -120,12 +134,13 @@ export function useCounterEngine(input: {
 
   /** Run one engine command; a refusal becomes the banner, a success re-reads. */
   const run = useCallback(
-    async <T extends { ok: boolean; reason?: unknown }>(fn: () => Promise<T>): Promise<T> => {
+    async <T extends { ok: boolean; reason?: unknown }>(fn: () => Promise<T>, opened: string | null = null): Promise<T> => {
       setBusy(true);
       setRefusal(null);
       try {
         const r = await fn();
         if (!r.ok) setRefusal(typeof r.reason === "string" ? r.reason : "unavailable");
+        else if (opened && input.onOpened) input.onOpened(opened);
         else input.onWritten();
         return r;
       } finally {
@@ -135,44 +150,68 @@ export function useCounterEngine(input: {
     [input],
   );
 
+  /**
+   * The sale a sheet writes on: the open one, or the draft being started
+   * underneath the sheet. Awaited inside `busy`, so a tap while the draft
+   * is still starting waits for it instead of writing nothing (D-133).
+   */
+  const resolveSale = useCallback(async (): Promise<{ target: SaleTarget; opened: boolean } | null> => {
+    if (sale) return { target: { orderId: sale.orderId, version: sale.version }, opened: false };
+    if (!input.ensureSale) return null;
+    const target = await input.ensureSale();
+    return target ? { target, opened: true } : null;
+  }, [input, sale]);
+
   // ── Custom amount ───────────────────────────────────────────────────
   const submitCustom = () => {
-    if (!sale) return;
+    if (busy) return;
     const label = customWhat.trim();
     const amountCents = customCents;
-    void run(() =>
-      posAddCustomLine({
-        orderId: sale.orderId,
-        label,
-        amountCents,
-        expectedVersion: sale.version,
-        // Under the engine's 80-char cap: the version moves on every write,
-        // so (sale, version, amount) names this attempt without the label.
-        idempotencyKey: `custom:${sale.orderId}:${sale.version}:${amountCents}`,
-      }),
-    ).then((r) => {
-      if (!r.ok) return;
-      setCustomWhat("");
-      setCustomCents(0);
-      if (r.needsApproval && r.lineId) {
-        setPin("");
-        setApprovalStatus(null);
-        setApproverId(approvers[0]?.userId ?? null);
-        setSheet({ kind: "approval", lineId: r.lineId, description: label, amountCents });
-      } else {
-        setSheet(null);
-      }
-    });
+    setBusy(true);
+    setRefusal(null);
+    void resolveSale()
+      .then((resolved) => {
+        if (!resolved) return null;
+        const { target, opened } = resolved;
+        return run(
+          () =>
+            posAddCustomLine({
+              orderId: target.orderId,
+              label,
+              amountCents,
+              expectedVersion: target.version,
+              // Under the engine's 80-char cap: the version moves on every write,
+              // so (sale, version, amount) names this attempt without the label.
+              idempotencyKey: `custom:${target.orderId}:${target.version}:${amountCents}`,
+            }),
+          opened ? target.orderId : null,
+        ).then((r) => {
+          if (!r.ok) return;
+          setCustomWhat("");
+          setCustomCents(0);
+          if (r.needsApproval && r.lineId) {
+            setPin("");
+            setApprovalStatus(null);
+            setApproverId(approvers[0]?.userId ?? null);
+            setSheet({ kind: "approval", orderId: target.orderId, lineId: r.lineId, description: label, amountCents });
+          } else {
+            setSheet(null);
+          }
+        });
+      })
+      .finally(() => setBusy(false));
   };
 
   const approve = () => {
-    if (!sale || sheet?.kind !== "approval" || !approverId) return;
+    // The sale is the one the line was written on, not `props.sale`: the
+    // address may still be moving to a draft started under the sheet (D-134).
+    if (sheet?.kind !== "approval" || !approverId) return;
     const { lineId } = sheet;
     const fullPin = pin;
     setBusy(true);
     setApprovalStatus(null);
     void posApproveCustomAmount({
-      orderId: sale.orderId,
+      orderId: sheet.orderId,
       lineId,
       pin: fullPin,
       operationKey: `approve:${lineId}:${approverId.slice(0, 8)}`,
@@ -389,7 +428,8 @@ export function useCounterEngine(input: {
       setPin("");
       setApprovalStatus(null);
       setApproverId(approvers[0]?.userId ?? null);
-      setSheet({ kind: "approval", lineId, description: line.label, amountCents: line.unitCents * line.units });
+      if (!sale) return;
+      setSheet({ kind: "approval", orderId: sale.orderId, lineId, description: line.label, amountCents: line.unitCents * line.units });
     },
     openBooking,
     openTip: () => setSheet({ kind: "tip" }),

@@ -290,6 +290,26 @@ test("the expected window is passed through so a stale screen can be refused", a
   assert.equal(calls[0].args.p_expected_ends_at, "2026-10-01T11:00:00.000Z");
 });
 
+// D-137: the customer's manage page knows the start it showed and not the end.
+// The RPC treats (start, end) as one check, so a missing end must be the
+// booking's own end, or every customer reschedule reads `conflict`.
+test("an expected start with no expected end matches the start only", async () => {
+  const { admin, calls } = fakeAdmin(baseStore(), { rpcReply: OK_REPLY });
+  await rescheduleBooking(admin as never, {
+    ...INPUT,
+    expectedStartsAt: "2026-10-01T10:00:00.000Z",
+  });
+  assert.equal(calls[0].args.p_expected_starts_at, "2026-10-01T10:00:00.000Z");
+  assert.equal(calls[0].args.p_expected_ends_at, "2026-10-01T11:00:00.000Z");
+});
+
+test("no expected window at all sends no check", async () => {
+  const { admin, calls } = fakeAdmin(baseStore(), { rpcReply: OK_REPLY });
+  await rescheduleBooking(admin as never, { ...INPUT });
+  assert.equal(calls[0].args.p_expected_starts_at, null);
+  assert.equal(calls[0].args.p_expected_ends_at, null);
+});
+
 test("an operation key is always sent, derived from the intent when absent", async () => {
   const { admin, calls } = fakeAdmin(baseStore(), { rpcReply: OK_REPLY });
   await rescheduleBooking(admin as never, INPUT);

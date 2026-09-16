@@ -228,7 +228,10 @@ export function FloorBoard(props: FloorBoardProps) {
           tab={tab}
           onTabChange={setTab}
           onPickEntry={pickEntry}
-          onPickWaitlist={(entry) => setOverlay({ kind: "seat", table: null, entry: null, waitlist: entry })}
+          // D-140: a party row opens the waiting-list sheet (Seat now / Offer
+          // table / Remove), not the Seat sheet alone; Notify and Leave had
+          // no door from the floor when no unassigned reservation was booked.
+          onPickWaitlist={() => setOverlay({ kind: "waiting" })}
           onPickTable={pickTable}
           selectedId={selectedId}
           className="max-[900px]:hidden"

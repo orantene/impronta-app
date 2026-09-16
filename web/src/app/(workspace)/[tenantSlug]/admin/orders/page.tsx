@@ -149,6 +149,7 @@ export default async function OrdersPage({
       no_provider_charge: tr(REFUND_DESK_KEY.no_provider_charge),
       provider_refused: tr(REFUND_DESK_KEY.provider_refused),
       partial_failure: tr(REFUND_DESK_KEY.partial_failure),
+      over_limit: tr(REFUND_DESK_KEY.over_limit),
       unavailable: tr(REFUND_DESK_KEY.unavailable),
     },
   };

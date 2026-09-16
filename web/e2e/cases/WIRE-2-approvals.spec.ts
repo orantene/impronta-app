@@ -4,9 +4,11 @@
  * row decided from the inbox. Refusal: decide twice → the decided row's
  * buttons are gone (disabled-by-design) and the decision does not change.
  *
- * The "discount over the limit creates a request" half has no door on the
- * host (D-139: `assertRoleLimit` has no caller, `requestApprovalAction` no
- * screen), so the request row is SEEDED the way the engine writes it.
+ * The "discount over the limit creates a request" half is proven in the
+ * unit lane (`lib/approvals/enforce.test.ts`: the counter's promo apply and
+ * the desk refund go through `enforceRoleLimit`, which files the request,
+ * D-139); here the request row is SEEDED the way that engine writes it so
+ * the inbox half runs without a priced sale.
  */
 import { test, expect, prepareJourneysPage, skipUnlessFixture } from "./_harness";
 import { isolatedService, JOURNEYS_TENANT_ID } from "./_isolated-db";

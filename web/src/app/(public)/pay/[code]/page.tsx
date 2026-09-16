@@ -70,10 +70,11 @@ export default async function PayByCodePage({
   const expiresAtLabel = venueHhmm(loaded.expiresAt, timezone, "en");
   const holdUntilLabel = orderRow?.hold_expires_at ? venueHhmm(orderRow.hold_expires_at, timezone, "en") : null;
 
-  const threadToken =
-    orderRow?.inquiry_id && loaded.tenantId
-      ? signThreadToken(orderRow.inquiry_id, loaded.tenantId)
-      : null;
+  // The conversation behind the sale: the order's, or the link's own when
+  // the request came from Messages (D-145: that flow left orders.inquiry_id
+  // null, so "Back to the conversation" never appeared).
+  const inquiryId = orderRow?.inquiry_id ?? loaded.inquiryId ?? null;
+  const threadToken = inquiryId && loaded.tenantId ? signThreadToken(inquiryId, loaded.tenantId) : null;
   const threadHref = threadToken ? publicThreadPath(threadToken) : null;
   const receiptHref = orderRow?.receipt_code ? `/r/${orderRow.receipt_code}` : null;
 

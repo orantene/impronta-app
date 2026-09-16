@@ -44,7 +44,7 @@ export type CounterSheetsProps = {
   readonly discountCents: number;
   readonly busy: boolean;
   /** The last discount apply's refusal, or null. Cleared by the page on the next apply. */
-  readonly discountRefused: null | "notCombinable" | "refused";
+  readonly discountRefused: null | "notCombinable" | "refused" | "overLimit";
   readonly onSaveLine: (lineId: string, units: number) => void;
   readonly onDuplicateLine: (lineId: string) => void;
   readonly onRemoveLine: (lineId: string) => void;

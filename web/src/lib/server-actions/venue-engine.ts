@@ -58,6 +58,7 @@ import {
 } from "@/lib/venues/pos-devices";
 import { replayCashOutboxItem } from "@/lib/pos/outbox-replay";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
+import { ensureCustomer } from "@/lib/customers/ensure-customer";
 
 const uuid = z.string().uuid();
 const slug = z.string().trim().min(1).max(63);
@@ -541,7 +542,20 @@ export async function admissionComp(input: {
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
-  return compAdmission(g.admin, { tenantId: g.tenantId, actorRole: "editor", ...parsed.data });
+  // The holder as a customer, when the door has an email to find or make one
+  // by (D-142): the comp's paid order carries the customer; without an email
+  // the order is a guest sale on its receipt code. An unusable email refuses
+  // in words rather than writing a ticket to nobody.
+  let customerId: string | null = null;
+  if (parsed.data.holderEmail) {
+    const ensured = await ensureCustomer(
+      { tenantId: g.tenantId, email: parsed.data.holderEmail, displayName: parsed.data.holderName },
+      { admin: g.admin },
+    );
+    if (!ensured.ok) return { ok: false as const, reason: ensured.reason === "unavailable" ? ("unavailable" as const) : ("invalid" as const) };
+    customerId = ensured.customerId;
+  }
+  return compAdmission(g.admin, { tenantId: g.tenantId, actorRole: "editor", customerId, ...parsed.data });
 }
 
 export async function admissionDeliver(input: {

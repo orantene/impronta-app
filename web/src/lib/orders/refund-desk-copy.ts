@@ -41,6 +41,7 @@ export const REFUND_DESK_OUTCOMES = [
   "no_provider_charge",
   "provider_refused",
   "partial_failure",
+  "over_limit",
   "unavailable",
 ] as const;
 
@@ -81,6 +82,8 @@ const ENGINE_CODE_TO_OUTCOME: Readonly<Record<string, RefundDeskOutcome>> = {
   amount: "exceeds_captured",
   // Money moved and then a leg failed. Never retryable.
   partial_failure: "partial_failure",
+  // The actor's role limit (D-139): nothing moved; a request was filed.
+  over_limit: "over_limit",
   unavailable: "unavailable",
 };
 
@@ -104,6 +107,7 @@ export const REFUND_DESK_KEY: Readonly<Record<RefundDeskOutcome, string>> = {
   no_provider_charge: "dashboard.orders.refundOutcome.noProviderCharge",
   provider_refused: "dashboard.orders.refundOutcome.providerRefused",
   partial_failure: "dashboard.orders.refundOutcome.partialFailure",
+  over_limit: "dashboard.orders.refundOutcome.overLimit",
   unavailable: "dashboard.orders.refundOutcome.unavailable",
 };
 

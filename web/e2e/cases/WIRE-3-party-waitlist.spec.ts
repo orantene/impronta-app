@@ -35,12 +35,22 @@ async function joinWaitlist(page: Page, name: string): Promise<string> {
   return id!;
 }
 
-/** The Waiting tab's row for a party: on this host it opens the Seat sheet for that party. */
+/**
+ * The Waiting tab's row for a party opens the waiting-list sheet (Seat now /
+ * Offer table / Remove, D-140); Seat now on that party's row opens the Seat
+ * sheet for it.
+ */
 async function openSeatForParty(page: Page, entryId: string) {
   await page.getByRole("tab", { name: /^Waiting/ }).click();
   const row = page.locator(`[data-floor-waiting="${entryId}"]`).first();
   await expect(row).toBeVisible({ timeout: 20_000 });
   await row.click();
+  const waitingSheet = page.locator('[data-pos-sheet="waiting"]');
+  await expect(waitingSheet, "a party row opens the waiting-list sheet").toBeVisible({ timeout: 20_000 });
+  const li = waitingSheet.locator(`li[data-floor-waiting="${entryId}"]`);
+  await expect(li.getByRole("button", { name: "Offer table" })).toBeVisible();
+  await expect(li.getByRole("button", { name: "Remove" })).toBeVisible();
+  await li.getByRole("button", { name: "Seat now" }).click();
   const seatSheet = page.locator('[data-pos-sheet="seat-party"]');
   await expect(seatSheet).toBeVisible({ timeout: 20_000 });
   return seatSheet;

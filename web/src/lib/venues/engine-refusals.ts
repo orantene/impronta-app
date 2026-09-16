@@ -77,3 +77,25 @@ export const VENUE_ENGINE_REFUSALS: Readonly<Record<VenueEngineRefusal, string>>
   already_collected: "dashboard.venue.engine.refusal.already_collected",
   not_settled: "dashboard.venue.engine.refusal.not_settled",
 };
+
+/**
+ * The refusal sentences RESOLVED on the server, one string per code, so a
+ * server page can hand them to a client component as plain data. A server
+ * page that passed `(key) => tr(key)` instead was refused by React at render
+ * ("Functions cannot be passed directly to Client Components") and every
+ * guest read a 500 (D-141).
+ */
+export type VenueEngineRefusalSentences = Readonly<Record<VenueEngineRefusal, string>>;
+
+export function resolveVenueEngineRefusals(tr: (key: string) => string): VenueEngineRefusalSentences {
+  const out = {} as Record<VenueEngineRefusal, string>;
+  for (const code of VENUE_ENGINE_REFUSAL_CODES) out[code] = tr(VENUE_ENGINE_REFUSALS[code]);
+  return out;
+}
+
+/** The sentence for a reason word the engine returned; an unknown word reads `unavailable`. */
+export function venueEngineRefusalSentence(sentences: VenueEngineRefusalSentences, reason: string): string {
+  return (VENUE_ENGINE_REFUSAL_CODES as readonly string[]).includes(reason)
+    ? sentences[reason as VenueEngineRefusal]
+    : sentences.unavailable;
+}

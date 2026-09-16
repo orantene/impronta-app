@@ -14,7 +14,7 @@ import {
 } from "@/components/admin/pos/pos-classes";
 import { useT } from "@/i18n/use-t";
 import type { MessagingPreview, MessagingSheetName } from "@/lib/messaging/fixture";
-import { filterInboxRows, inboxMatchSnippet } from "@/lib/messaging/inbox-search";
+import { filterInboxRows, inboxMatchSnippet, keepActiveRow } from "@/lib/messaging/inbox-search";
 import type { Essentials, InboxFilter, InboxRow, ThreadMessage } from "@/lib/messaging/types";
 import { INBOX_FILTERS } from "@/lib/messaging/types";
 import type { PosMode } from "@/lib/pos/modes";
@@ -137,18 +137,28 @@ export function MessagesShell(props: MessagesClientProps) {
       setLoadState("failed");
       return;
     }
-    const next =
+    const listed =
       props.channelFilter === "whatsapp"
         ? result.rows.filter((row) => row.channel === "whatsapp")
         : result.rows;
-    setRows(next);
+    // The thread the operator is on stays listed when the filter no longer
+    // returns it (D-143: a reply from "Needs reply" answered it, the reload
+    // dropped it, and the pane read "No conversations yet"). Its row is
+    // re-read from the unfiltered inbox so the version the next reply sends
+    // is the one the reply moved it to.
+    let fresh: InboxRow | null = null;
+    if (activeId && filter !== "all" && !listed.some((row) => row.id === activeId)) {
+      const all = await messagingLoadInbox({ locationSlug: props.locationSlug, filter: "all" });
+      if (all.ok) fresh = all.rows.find((row) => row.id === activeId) ?? null;
+    }
+    setRows((previous) => keepActiveRow(listed, activeId, previous, fresh));
     setInboxUnread(result.unreadCount);
     if (seenUnread.current !== null && result.unreadCount > seenUnread.current) {
       setToast(true);
     }
     seenUnread.current = result.unreadCount;
-    setLoadState(next.length === 0 ? "empty" : "ok");
-  }, [filter, preview, props.channelFilter, props.locationSlug]);
+    setLoadState(listed.length === 0 && !fresh ? "empty" : "ok");
+  }, [activeId, filter, preview, props.channelFilter, props.locationSlug]);
 
   useEffect(() => {
     void reload();

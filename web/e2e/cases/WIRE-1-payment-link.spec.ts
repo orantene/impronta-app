@@ -73,4 +73,23 @@ test("WIRE-1.7 Collect › Link mints one open link and refuses a second over th
   expect((settled as { status: string } | null)?.status).toBe("paid");
   const { data: order } = await sb.from("orders").select("status").eq("id", orderId).maybeSingle();
   expect((order as { status: string } | null)?.status).toBe("paid");
+  // D-135: the paid link is a tender on the sale, so the money row exists and
+  // the reservation closed against it (not a bare "settled" with no transaction).
+  const { data: money } = await sb
+    .from("booking_transactions")
+    .select("id, status, gross_amount_cents")
+    .eq("order_id", orderId)
+    .eq("status", "paid");
+  expect((money ?? []).length).toBeGreaterThan(0);
+  expect(Number((money as { gross_amount_cents: number }[])[0].gross_amount_cents)).toBe(
+    Number((link as { amount_cents: number }).amount_cents),
+  );
+  const { data: reservation } = await sb
+    .from("order_collection_reservations")
+    .select("state, transaction_id")
+    .eq("order_id", orderId)
+    .eq("method", "link")
+    .maybeSingle();
+  expect((reservation as { state: string } | null)?.state).toBe("settled");
+  expect((reservation as { transaction_id: string | null } | null)?.transaction_id).toBeTruthy();
 });

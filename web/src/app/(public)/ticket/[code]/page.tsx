@@ -5,6 +5,7 @@ import { createTranslator } from "@/i18n/messages";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadTicketByCode } from "@/lib/venues/ticket-self";
+import { resolveVenueEngineRefusals } from "@/lib/venues/engine-refusals";
 
 import { TicketSelfClient } from "./ticket-client";
 
@@ -41,7 +42,7 @@ export default async function TicketSelfPage({ params }: { params: Promise<{ cod
         lookupAction: tr("dashboard.visit.ticket.lookupAction"),
         found: tr("dashboard.visit.ticket.found"),
       }}
-      tRefusal={(key) => tr(key)}
+      refusals={resolveVenueEngineRefusals(tr)}
     />
   );
 }

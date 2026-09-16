@@ -40,3 +40,25 @@ export function clipSnippet(body: string, query: string): string {
   const start = Math.max(0, at - 40);
   return `${start > 0 ? "…" : ""}${body.slice(start, start + 140)}`;
 }
+
+/**
+ * The inbox rows with the ACTIVE thread kept in place (D-143).
+ *
+ * A reply from the "Needs reply" inbox answered the thread, the reload
+ * dropped it from the filtered rows, `active` resolved to null and the main
+ * pane read "No conversations yet": the operator's own reply never showed.
+ * The row the operator is on stays listed until they leave it; `fresh` is
+ * that row as the unfiltered inbox now reports it (its version moved with
+ * the reply), and it wins over the stale copy.
+ */
+export function keepActiveRow(
+  next: readonly InboxRow[],
+  activeId: string | null,
+  previous: readonly InboxRow[],
+  fresh: InboxRow | null = null,
+): InboxRow[] {
+  if (!activeId || next.some((row) => row.id === activeId)) return [...next];
+  const kept = fresh ?? previous.find((row) => row.id === activeId) ?? null;
+  if (!kept) return [...next];
+  return [kept, ...next];
+}

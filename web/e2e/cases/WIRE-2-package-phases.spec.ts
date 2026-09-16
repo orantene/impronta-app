@@ -113,10 +113,9 @@ test("WIRE-2.11 package composition writes components and refuses a duplicate; a
       )
       .toBe(1550);
 
-    // The counter: a line added now takes the list price; the phase is read
-    // by `repriceAndValidate` (draft.ts), which stamps `price_phase_id` on the
-    // first reprice and never rewrites a stamped line. The basket's Discount
-    // sheet › Remove code is the plain reprice door.
+    // The counter: the phase prices the line ON THE ADD (D-138): the first
+    // price is the add, and `addLine` (draft.ts) stamps `price_phase_id`
+    // there. `repriceAndValidate` never rewrites a stamped line.
     await openCounter(page);
     await counterStartSale(page);
     await counterAddItem(page, "House pizza");
@@ -125,6 +124,8 @@ test("WIRE-2.11 package composition writes components and refuses a duplicate; a
       const { data } = await sb.from("order_lines").select("unit_cents, price_phase_id").eq("order_id", orderId).eq("offering_id", PIZZA).maybeSingle();
       return data as { unit_cents: number; price_phase_id: string | null } | null;
     };
+    await expect.poll(async () => (await readLine())?.price_phase_id ?? null, { timeout: 30_000 }).toBe(phaseId);
+    expect(Number((await readLine())?.unit_cents)).toBe(1550);
     // The only reprice door on the counter is the Discount sheet's Apply;
     // `repriceAndValidate` writes the phase to the lines before it looks at
     // the code, so an unknown code still reprices (and is then refused).

@@ -474,11 +474,12 @@ export async function messagingRequestPayment(input: {
   if (!inquiry) return fail("not_found");
   if ((inquiry as { version: number }).version !== parsed.data.expectedVersion) return fail("conflict");
   const { data: order } = await scoped(g.admin, "orders", g.tenantId)
-    .select("id, version, status, total_cents")
+    .select("id, version, status, total_cents, inquiry_id")
     .eq("id", parsed.data.orderId)
     .maybeSingle();
   if (!order) return fail("not_found");
   const basketVersion = (order as { version: number }).version;
+  const orderInquiryId = (order as { inquiry_id: string | null }).inquiry_id ?? null;
   // "Full amount" with no figure from the surface means the order's total;
   // `createPaymentLink` still refuses anything above what is outstanding.
   const amountCents =
@@ -528,6 +529,16 @@ export async function messagingRequestPayment(input: {
   await scoped(g.admin, "payment_links", g.tenantId)
     .update({ inquiry_id: parsed.data.inquiryId, basket_version: basketVersion })
     .eq("code", minted.code);
+  // The order names its conversation (D-145): the pay page derives "Back to
+  // the conversation" from orders.inquiry_id, which this flow left null, so
+  // a customer paying from a card could not get back to the thread. An order
+  // that already belongs to another conversation is left alone.
+  if (!orderInquiryId) {
+    await scoped(g.admin, "orders", g.tenantId)
+      .update({ inquiry_id: parsed.data.inquiryId })
+      .eq("id", parsed.data.orderId)
+      .is("inquiry_id", null);
+  }
   await scoped(g.admin, "checkout_snapshots", g.tenantId)
     .update({ payment_link_id: (linkRow as { id: string } | null)?.id ?? null })
     .eq("id", (snapshot.data as { id: string }).id);

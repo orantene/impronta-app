@@ -322,20 +322,23 @@ export async function replyOnFirstThread(page: Page, body: string): Promise<void
 }
 
 /**
- * Actions › Send options. The menu opens upward and its top rows sit above
- * the viewport (D-144), so a real click cannot land on "Send options"; the
- * row's own handler is dispatched instead so the sheet behind the door can
- * still be verified. The door itself is recorded as failed-app.
+ * Actions › Send options. The menu is bound to the viewport and scrolls
+ * (D-144), so the row is reached with a REAL click: no dispatched handler,
+ * because a row a person cannot click is the defect this door proves fixed.
  */
 export async function openSendOptions(page: Page): Promise<void> {
   await page.getByRole("button", { name: /actions/i }).click();
+  const menu = page.locator("[data-pos-actions-menu]");
+  await expect(menu).toBeVisible({ timeout: 20_000 });
+  const box = await menu.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box, "the menu is drawn").toBeTruthy();
+  expect(box!.y, "the menu's top edge is on screen").toBeGreaterThanOrEqual(0);
+  if (viewport) expect(box!.y + box!.height, "the menu's bottom edge is on screen").toBeLessThanOrEqual(viewport.height);
   const row = page.getByRole("button", { name: /send options/i });
   await expect(row).toBeAttached({ timeout: 20_000 });
-  try {
-    await row.click({ timeout: 5_000 });
-  } catch {
-    await row.dispatchEvent("click");
-  }
+  await row.scrollIntoViewIfNeeded();
+  await row.click({ timeout: 10_000 });
   await expect(page.locator("[data-pos-sheet='messages-options']")).toBeVisible({ timeout: 20_000 });
 }
 

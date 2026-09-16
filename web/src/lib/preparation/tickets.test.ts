@@ -73,6 +73,8 @@ function fakeAdmin(store: ReturnType<typeof makeStore>) {
         preds.push((row) => vals.includes(row[k]));
         return api;
       },
+      // `addLine`'s price-phase read (D-138); no phases are seeded here.
+      lte: () => api,
       order: () => api,
       maybeSingle: async () => {
         apply();

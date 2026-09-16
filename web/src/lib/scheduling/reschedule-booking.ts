@@ -60,6 +60,13 @@ export type RescheduleBookingInput = {
   operationKey?: string | null;
   /** The window the operator was looking at. A mismatch is `conflict`. */
   expectedStartsAt?: string | null;
+  /**
+   * Left out (undefined) with an expected start: "match the start only".
+   * The RPC reads the pair as ONE stale-screen check, so a caller that knows
+   * the start and not the end (the customer's manage page shows a start) was
+   * refused `conflict` on every attempt (D-137). The booking's own end is
+   * sent in its place.
+   */
   expectedEndsAt?: string | null;
 };
 
@@ -385,7 +392,12 @@ export async function rescheduleBooking(
     p_buffer_before_seconds: buffers.beforeSeconds,
     p_buffer_after_seconds: buffers.afterSeconds,
     p_expected_starts_at: input.expectedStartsAt ?? null,
-    p_expected_ends_at: input.expectedEndsAt ?? null,
+    p_expected_ends_at:
+      input.expectedEndsAt !== undefined
+        ? input.expectedEndsAt
+        : input.expectedStartsAt != null
+          ? booking.ends_at
+          : null,
   });
   if (error) {
     logServerError("scheduling.rescheduleBooking/rpc", error);
