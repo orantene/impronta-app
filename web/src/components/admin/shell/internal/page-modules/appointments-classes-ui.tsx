@@ -235,7 +235,7 @@ export function SectionLabel({ children }: { children: ReactNode }) {
 }
 
 /** The "Used in · N" footer line the boards draw under a table. */
-export function UsedIn({ count, label, parts }: { count: number; label: string; parts: ReadonlyArray<{ where: string; what: string }> }) {
+export function UsedIn({ count, label, parts, note }: { count: number; label: string; parts: ReadonlyArray<{ where: string; what: string }>; note?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-[8px] font-admin-body text-[11.5px] leading-[1.2] text-admin-ink-muted">
       <span className="inline-flex items-center gap-[6px] rounded-full border border-admin-border bg-admin-card px-[10px] py-[3px] font-semibold text-admin-ink">
@@ -249,6 +249,7 @@ export function UsedIn({ count, label, parts }: { count: number; label: string; 
             <b className="font-semibold text-admin-ink">{p.where}</b> {p.what}
           </span>
         ))}
+        {note ? <span className="text-admin-ink-dim"> {note}</span> : null}
       </span>
     </div>
   );
