@@ -95,6 +95,15 @@ export const PAGE_DESIGN_SUMMARIES: ReadonlyArray<PageDesignSummary> = [
     thumbnailUrl: "/marketing/photos/mk-models-party.jpg",
   },
   {
+    id: "event-launch",
+    label: "Launch party",
+    description:
+      "A one-scroll launch-party page sold from a phone: full-bleed hero, programme timeline, image card grid, show bands, tickets, a VIP table card, the venue and a FAQ. Gold on black.",
+    archetype: "festival",
+    target: "both",
+    thumbnailUrl: "/marketing/photos/event-night-beams.jpg",
+  },
+  {
     id: "studio",
     label: "Creative studio",
     description:

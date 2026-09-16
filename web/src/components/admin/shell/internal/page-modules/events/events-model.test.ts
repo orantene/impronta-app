@@ -108,11 +108,21 @@ test("nightFigures: capacity is the pools' sum, sold their committed peak, and n
     { poolKey: "table", tierLabel: "Table", poolId: "p2", unitsTotal: 2, overbookUnits: null, isActive: true, committedPeak: 1 },
     { poolKey: "child", tierLabel: "Child", poolId: null, unitsTotal: null, overbookUnits: null, isActive: null, committedPeak: null },
   ];
-  assert.deepEqual(nightFigures(pools), { capacity: 14, sold: 9, remaining: 5, pooled: 2, tiers: 3 });
-  assert.deepEqual(nightFigures([pools[2]!]), { capacity: null, sold: null, remaining: null, pooled: 0, tiers: 1 });
+  assert.deepEqual(nightFigures(pools), { capacity: 14, sold: 9, remaining: 5, pooled: 2, tiers: 3, unknownPools: 0 });
+  assert.deepEqual(nightFigures([pools[2]!]), { capacity: null, sold: null, remaining: null, pooled: 0, tiers: 1, unknownPools: 0 });
+  // Every pool unreadable: nothing to sum, so null, never 0.
   const unknown = nightFigures([{ ...pools[0]!, committedPeak: null }]);
   assert.equal(unknown.sold, null);
   assert.equal(unknown.remaining, null);
+  assert.equal(unknown.unknownPools, 1);
+});
+
+test("nightFigures (D-147): one unreadable pool gives a floor over the rest, not a blank night", () => {
+  const pools: SessionPoolRow[] = [
+    { poolKey: "ga", tierLabel: "GA", poolId: "p1", unitsTotal: 3000, overbookUnits: 0, isActive: true, committedPeak: 2 },
+    { poolKey: "table", tierLabel: "Table", poolId: "p2", unitsTotal: 20, overbookUnits: 0, isActive: true, committedPeak: null },
+  ];
+  assert.deepEqual(nightFigures(pools), { capacity: 3020, sold: 2, remaining: 3018, pooled: 2, tiers: 2, unknownPools: 1 });
 });
 
 test("eventDayReadiness says what the engine can vouch for", () => {

@@ -484,6 +484,38 @@ export type { SessionPoolRow } from "@/lib/events/session-pools";
  * on every pool and Event Day showed "—" (D-147). The staff check above and
  * the tenant-scoped pool read are what make the elevated call safe.
  */
+/**
+ * The comps issued for one night: valid admissions whose order was minted by
+ * `admission_comp`. Before this the Day tab printed a hardcoded "None" under
+ * "Comps", whatever had been given out.
+ */
+export async function loadSessionComps(sessionId: string): Promise<{ ok: true; count: number; names: string[] } | { ok: false; error: string }> {
+  const guard = await requireWorkspaceStaffAction();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { supabase, tenantId } = guard;
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return { ok: false, error: "That is not a session." };
+  try {
+    const { data: orders, error: oErr } = await supabase
+      .from("orders").select("id").eq("tenant_id", tenantId).eq("session_id", sessionId).eq("source_channel", "admission_comp").limit(500);
+    if (oErr) { logServerError("events.sessionComps/orders", oErr); return { ok: false, error: "Could not load comps." }; }
+    const orderIds = (orders ?? []).map((o) => o.id as string);
+    if (orderIds.length === 0) return { ok: true, count: 0, names: [] };
+    const { data: lines, error: lErr } = await supabase
+      .from("order_lines").select("id").eq("tenant_id", tenantId).in("order_id", orderIds);
+    if (lErr) { logServerError("events.sessionComps/lines", lErr); return { ok: false, error: "Could not load comps." }; }
+    const lineIds = (lines ?? []).map((l) => l.id as string);
+    if (lineIds.length === 0) return { ok: true, count: 0, names: [] };
+    const { data: adms, error: aErr } = await supabase
+      .from("admissions").select("holder_name").eq("tenant_id", tenantId).eq("session_id", sessionId).eq("status", "valid").in("order_line_id", lineIds);
+    if (aErr) { logServerError("events.sessionComps/admissions", aErr); return { ok: false, error: "Could not load comps." }; }
+    const rows = (adms ?? []) as Array<{ holder_name: string | null }>;
+    return { ok: true, count: rows.length, names: rows.map((r) => (r.holder_name ?? "").trim()).filter(Boolean).slice(0, 5) };
+  } catch (err) {
+    logServerError("events.sessionComps", err);
+    return { ok: false, error: "Could not load comps." };
+  }
+}
+
 export async function loadSessionPools(sessionId: string): Promise<{ ok: true; rows: SessionPoolRow[] } | { ok: false; error: string }> {
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false, error: guard.error };

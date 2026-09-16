@@ -634,7 +634,7 @@ export async function settleHeldOrderAtDoor(input: z.infer<typeof settleSchema>)
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, error: "unavailable" };
 
-  const { mintAdmissionsForPaidOrder } = await import("@/lib/events/mint-on-paid");
+  const { mintAndDeliverForPaidOrder } = await import("@/lib/events/mint-and-deliver");
   const { settleAtDoor } = await import("@/lib/orders/settle-at-door");
   return settleAtDoor(
     admin,
@@ -647,7 +647,7 @@ export async function settleHeldOrderAtDoor(input: z.infer<typeof settleSchema>)
       currency: parsed.data.currency,
       idempotencyKey: parsed.data.idempotencyKey,
     },
-    { onOrderPaid: (ctx) => mintAdmissionsForPaidOrder(admin, ctx).then(() => undefined) },
+    { onOrderPaid: (ctx) => mintAndDeliverForPaidOrder(admin, ctx) },
   );
 }
 

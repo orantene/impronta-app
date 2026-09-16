@@ -19,7 +19,9 @@
 
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
-import { listLinksForTenant, type LinkSummary } from "@/lib/links/link-store";
+import { createLink, listLinksForTenant, type LinkSummary } from "@/lib/links/link-store";
+
+import { mintLink, type MintLinkResult } from "./mint-link";
 
 export type LinkPickerResult =
   | { ok: true; links: LinkSummary[] }
@@ -39,4 +41,23 @@ export async function listLinksForPickerAction(): Promise<LinkPickerResult> {
     logServerError("links:listLinksForPickerAction", error);
     return { ok: false, error: "Could not load your links." };
   }
+}
+
+/**
+ * Create a readable short link for a path on this site (the `qr_code`
+ * inspector's "Create a link"). Same guard and capability as the picker: the
+ * tenant is the workspace surface's, never an input. See `mint-link.ts`.
+ */
+export async function mintLinkAction(input: unknown): Promise<MintLinkResult> {
+  return mintLink(input, {
+    guard: async () => {
+      const guard = await requireWorkspaceStaffAction({
+        capability: "agency.site_admin.pages.edit",
+      });
+      return guard.ok
+        ? { ok: true, tenantId: guard.tenantId, userId: guard.user?.id ?? null }
+        : { ok: false, error: guard.error };
+    },
+    createLink,
+  });
 }

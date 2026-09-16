@@ -41,6 +41,7 @@ import {
   createSaasProductPreset,
   createPrintStorePreset,
   createLiveEventPreset,
+  createLaunchPartyPreset,
 } from "./composition-preset-factories-page";
 
 export type BuilderNodeCompositionPresetId =
@@ -66,6 +67,7 @@ export type BuilderNodeCompositionPresetId =
   | "saas-product"
   | "print-store"
   | "live-event"
+  | "launch-party"
   | "marquee-ticker"
   | "footer-editorial"
   | "featured-faces-board"
@@ -319,6 +321,17 @@ export const BUILDER_NODE_COMPOSITION_PRESETS: ReadonlyArray<BuilderNodeComposit
     sectionCount: 6,
   },
   {
+    id: "launch-party",
+    label: "Launch party",
+    description:
+      "Full page — a one-scroll launch-party page for phones: full-bleed hero, programme timeline with hour badges, image card grid, show bands, a late-entry promo, tickets, a VIP table card, the venue and a FAQ.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["page", "full page", "template", "event", "party", "launch", "night", "club", "tickets", "vip", "fiesta", "lanzamiento"],
+    sectionCount: 10,
+  },
+  {
     id: "marquee-ticker",
     label: "Disciplines marquee",
     description:
@@ -469,6 +482,8 @@ export function createBuilderNodeCompositionPreset(
       return createPrintStorePreset();
     case "live-event":
       return createLiveEventPreset();
+    case "launch-party":
+      return createLaunchPartyPreset();
     case "marquee-ticker":
       return createMarqueeTickerPreset();
     case "footer-editorial":

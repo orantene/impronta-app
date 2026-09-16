@@ -27,6 +27,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
 import { scanAdmission } from "@/lib/sessions/door-actions";
 import { doorAdmits, type DoorOutcome } from "@/lib/sessions/door";
 import {
@@ -49,41 +51,47 @@ function money(cents: number): string {
   return (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function outcomeLabel(o: DoorOutcome): { text: string; tone: "green" | "red" | "amber" } {
+type T = (key: string) => string;
+
+/**
+ * The verdict the door reads out, in the operator's language. Keys are the
+ * POS door's (`dashboard.pos.door.gate.headline/detail.*`): the two door
+ * screens must say the same thing for the same scan, and "Admitido" is what
+ * a Spanish-speaking door sees, not "In".
+ */
+function outcomeLabel(o: DoorOutcome, t: T): { text: string; tone: "green" | "red" | "amber" } {
+  const h = (k: string) => t(`dashboard.pos.door.gate.headline.${k}`);
+  const d = (k: string, vars: Record<string, string | number> = {}) => interpolate(t(`dashboard.pos.door.gate.detail.${k}`), vars);
   switch (o.kind) {
-    case "admitted":
-      return {
-        text:
-          o.partySize > 1
-            ? `In — ${o.admittedCount} of ${o.partySize}${o.wasMarkedNoShow ? " (was marked no-show)" : ""}`
-            : `In${o.wasMarkedNoShow ? " (was marked no-show)" : ""}`,
-        tone: "green",
-      };
+    case "admitted": {
+      const k = o.wasMarkedNoShow ? "admittedWasNoShow" : o.partySize > 1 ? "admittedParty" : "admitted";
+      return { text: `${h(k)}. ${d(k, { admitted: o.admittedCount, party: o.partySize })}`, tone: "green" };
+    }
     case "already_in":
-      return { text: `Already scanned — ${o.admittedCount} of ${o.partySize} in`, tone: "red" };
+      return { text: `${h("alreadyIn")}. ${d("alreadyIn", { admitted: o.admittedCount, party: o.partySize })}`, tone: "red" };
     case "superseded":
-      return { text: "Old ticket — this one was re-issued", tone: "red" };
+      return { text: `${h("superseded")}. ${d("superseded")}`, tone: "red" };
     case "not_valid":
-      return { text: o.status === "refunded" ? "Refunded" : "Cancelled", tone: "red" };
+      return { text: o.status === "refunded" ? `${h("refunded")}. ${d("refunded")}` : `${h("cancelled")}. ${d("cancelled")}`, tone: "red" };
     case "forged":
-      return { text: "Not a valid ticket", tone: "red" };
+      return { text: `${h("forged")}. ${d("forged")}`, tone: "red" };
     case "unknown_ticket":
-      return { text: "Not found for this event", tone: "red" };
+      return { text: `${h("unknown")}. ${d("unknown")}`, tone: "red" };
     case "wrong_session":
       // The date, when the row has one. "Wrong night" alone starts an argument
       // that "wrong night — this is for Fri 9 Oct" ends.
       return {
         text: o.ticketStartsAt
-          ? `Wrong night — this ticket is for ${dateLabel(o.ticketStartsAt)}`
-          : "Not for tonight — this ticket is not on this door's list",
+          ? `${h("wrongNightDated")}. ${d("wrongNightDated", { date: dateLabel(o.ticketStartsAt) })}`
+          : `${h("wrongNight")}. ${d("wrongNight")}`,
         tone: "red",
       };
     case "too_many":
-      return { text: `Only ${o.remaining} left on this ticket`, tone: "amber" };
+      return { text: `${h("tooMany")}. ${d("tooMany", { remaining: o.remaining })}`, tone: "amber" };
     case "door_misconfigured":
-      return { text: "Door not set up — tell the venue, not the guest", tone: "amber" };
+      return { text: `${h("misconfigured")}. ${d("misconfigured")}`, tone: "amber" };
     case "engine_error":
-      return { text: "Could not reach the door — try again", tone: "amber" };
+      return { text: `${h("engineError")}. ${d("engineError")}`, tone: "amber" };
   }
 }
 
@@ -100,6 +108,7 @@ function dateLabel(iso: string): string {
 }
 
 export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; tenantId: string }) {
+  const t = useT();
   const [door, setDoor] = useState<
     | { kind: "idle" }
     | { kind: "loading" }
@@ -283,7 +292,7 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
     );
   }
 
-  const lastLabel = last ? outcomeLabel(last.outcome) : null;
+  const lastLabel = last ? outcomeLabel(last.outcome, t) : null;
   const toneClass =
     lastLabel?.tone === "green"
       ? "bg-emerald-600 text-white"
@@ -337,7 +346,7 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
           inputMode="text"
           disabled={busy}
           className="mt-1 w-full rounded-lg border border-black/20 px-3 py-3 font-mono text-sm"
-          placeholder="Point the scanner here"
+          placeholder={t("dashboard.pos.door.gate.scanPlaceholder")}
         />
       </form>
 
@@ -348,7 +357,7 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
         data-door-verdict=""
         className={`rounded-xl px-4 py-5 text-center text-lg font-semibold ${toneClass}`}
       >
-        {lastLabel ? lastLabel.text : "Ready"}
+        {lastLabel ? lastLabel.text : t("dashboard.pos.door.gate.ready")}
       </div>
 
       {/* Sell at the door — one unit of a tier, held on its pool, then admitted */}
@@ -439,7 +448,7 @@ export function DoorClient({ sessionId, tenantId }: { sessionId: string | null; 
       </section>
 
       <section className="rounded-xl border border-black/10 p-3">
-        <div className="text-sm font-medium">Pay at the door — held seats</div>
+        <div className="text-sm font-medium">Pay at the door: held seats</div>
         {held === null ? (
           <p className="mt-2 text-xs text-black/50">Loading held orders…</p>
         ) : held.length === 0 ? (

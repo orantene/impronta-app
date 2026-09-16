@@ -532,7 +532,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     id: "conn-ticket-picker-native",
     label: "Buy tickets",
     description:
-      "A guest picks a night and a ticket for one of your events and pays by card; a seat past capacity is refused.",
+      "Tier cards with what each includes, a quantity bar with a live total, one details sheet, then card checkout. Optional sticky Buy button that opens a bottom sheet on phones. A seat past capacity is refused.",
     category: "booking",
     icon: "booking",
     insertMethod: "nativeNode",
@@ -547,6 +547,11 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
       "buy",
       "checkout",
       "door",
+      "tiers",
+      "vip",
+      "table",
+      "mesa",
+      "sheet",
     ],
   }),
   connected({

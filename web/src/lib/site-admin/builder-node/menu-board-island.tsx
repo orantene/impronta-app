@@ -145,6 +145,46 @@ function formatMenuMoney(amountCents: number, currency: string): string {
   }
 }
 
+/**
+ * The board's own stylesheet, injected once per island the way the ticket
+ * picker ships `TP_CSS`. Every rule reads the tenant's projected tokens and
+ * nothing else, so the same block is gold-on-black on Impronta and ink-on-
+ * cream on a bakery. Mobile first: one column, 44px steppers, the stepper row
+ * widens into two columns from 640px. No hex literals (the token-ground gate).
+ */
+const MB_CSS = `
+.site-builder-node--menu-board-island{display:grid;gap:1.35rem;color:var(--token-color-ink);font:inherit}
+.site-builder-node--menu-board-stepper-group{display:grid;gap:0.7rem}
+.site-builder-node--menu-board-stepper-row{display:grid;grid-template-columns:1fr;gap:0.75rem;padding:0.95rem 1rem;border:1px solid var(--token-color-line);border-radius:14px;background:color-mix(in srgb,var(--token-color-ink) 4%,var(--token-color-surface-raised,transparent))}
+@media (min-width:640px){.site-builder-node--menu-board-stepper-row{grid-template-columns:1fr auto;align-items:center}}
+.site-builder-node--menu-board-stepper-copy{min-width:0}
+.site-builder-node--menu-board-stepper-title{display:block;font-weight:600;line-height:1.3}
+.site-builder-node--menu-board-stepper-description{margin:0.3rem 0 0;font-size:0.85rem;line-height:1.45;color:var(--token-color-muted)}
+.site-builder-node--menu-board-stepper-controls{display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem 0.75rem}
+.site-builder-node--menu-board-stepper-controls>button{width:2.75rem;height:2.75rem;border:1px solid var(--token-color-line);border-radius:999px;background:transparent;color:var(--token-color-ink);font:inherit;font-size:1.2rem;line-height:1;cursor:pointer;transition:background-color 160ms ease,border-color 160ms ease}
+.site-builder-node--menu-board-stepper-controls>button:not(:disabled):hover{border-color:var(--token-color-primary);background:color-mix(in srgb,var(--token-color-primary) 16%,transparent)}
+.site-builder-node--menu-board-stepper-controls>button:disabled{opacity:0.35;cursor:not-allowed}
+.site-builder-node--menu-board-stepper-controls>output{min-width:1.6rem;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+.site-builder-node--menu-board-stepper-price{margin-left:auto;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.site-builder-node--menu-board-stepper-stock{flex-basis:100%;font-size:0.78rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--token-color-primary)}
+@media (min-width:640px){.site-builder-node--menu-board-stepper-stock{flex-basis:auto}}
+.site-builder-node--menu-board-stepper-stock[data-sold-out="true"]{color:var(--token-color-muted);text-decoration:line-through}
+.site-builder-node--menu-board-form{display:grid;gap:0.9rem;padding:1.15rem 1.2rem;border:1px solid var(--token-color-line);border-radius:18px;background:color-mix(in srgb,var(--token-color-ink) 4%,var(--token-color-surface-raised,transparent))}
+@media (min-width:640px){.site-builder-node--menu-board-form{grid-template-columns:repeat(3,1fr);align-items:end}.site-builder-node--menu-board-form-head,.site-builder-node--menu-board-form-error,.site-builder-node--menu-board-form-status,.site-builder-node--menu-board-form-note,.site-builder-node--menu-board-submit{grid-column:1/-1}}
+.site-builder-node--menu-board-form-head{display:grid;gap:0.2rem}
+.site-builder-node--menu-board-form-title{margin:0;font-weight:600;font-size:1.05rem}
+.site-builder-node--menu-board-form-meta{margin:0;font-size:0.85rem;color:var(--token-color-muted)}
+.site-builder-node--menu-board-field{display:grid;gap:0.4rem;font-size:0.82rem;font-weight:600}
+.site-builder-node--menu-board-field>input{width:100%;box-sizing:border-box;font:inherit;font-size:16px;font-weight:400;line-height:1.45;color:var(--token-color-ink);background:color-mix(in srgb,var(--token-color-ink) 8%,var(--token-color-surface-raised,transparent));border:1px solid color-mix(in srgb,var(--token-color-ink) 28%,transparent);border-radius:12px;padding:0.8rem 0.95rem;outline:none;transition:border-color 160ms ease,box-shadow 160ms ease}
+.site-builder-node--menu-board-field>input:focus-visible{border-color:var(--token-color-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--token-color-primary) 26%,transparent)}
+.site-builder-node--menu-board-form-error{margin:0;padding:0.75rem 0.9rem;border-radius:12px;background:color-mix(in srgb,var(--token-color-primary) 12%,transparent);font-size:0.9rem;line-height:1.4}
+.site-builder-node--menu-board-form-status{margin:0;font-size:0.9rem;font-weight:600;color:var(--token-color-primary)}
+.site-builder-node--menu-board-form-note{margin:0;font-size:0.85rem;color:var(--token-color-muted)}
+.site-builder-node--menu-board-submit{display:block;width:100%;border:0;border-radius:999px;padding:0.9rem 1.6rem;font:inherit;font-size:0.95rem;font-weight:600;letter-spacing:0.02em;background:var(--token-color-primary);color:var(--token-color-primary-on,var(--primary-foreground));cursor:pointer;transition:filter 160ms ease}
+.site-builder-node--menu-board-submit:not(:disabled):hover{filter:brightness(1.06)}
+.site-builder-node--menu-board-submit:disabled{opacity:0.55;cursor:not-allowed}
+`;
+
 export function MenuBoardIsland({
   tenantId,
   offerings: rendered,
@@ -187,6 +227,22 @@ export function MenuBoardIsland({
 
   const lastRefreshAt = useRef(0);
   const refreshing = useRef(false);
+
+  /**
+   * The renderer emits the menu twice on purpose: a plain server list (what a
+   * restaurant is indexed on, and what a no-JS reader sees) and this island's
+   * stepper rows. Once the island is on screen the server list is a duplicate,
+   * so mark the section and let the renderer sheet visually hide it. The
+   * attribute is set after mount, never rendered, so hydration sees the same
+   * markup the server sent.
+   */
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const section = rootRef.current?.closest(".site-builder-node--menu-board");
+    if (!section) return;
+    section.setAttribute("data-menu-board-live", "1");
+    return () => section.removeAttribute("data-menu-board-live");
+  }, []);
 
   /**
    * Re-read prices and stock, and reconcile the cart against the answer.
@@ -344,7 +400,8 @@ export function MenuBoardIsland({
   }
 
   return (
-    <div className="site-builder-node--menu-board-island">
+    <div ref={rootRef} className="site-builder-node--menu-board-island">
+      <style>{MB_CSS}</style>
       <div className="site-builder-node--menu-board-stepper-group" aria-label={copy.selectQuantities}>
         {offerings.map((offering) => {
           const quantity = clampQty(quantities[offering.id] ?? 0);
@@ -476,26 +533,6 @@ export function MenuBoardIsland({
           type="submit"
           className="site-builder-node--menu-board-submit"
           disabled={isPending || selectedCount === 0}
-          // A real button on the tenant primary, like the header's Reserve.
-          // No stylesheet ever styled this class, so the browser default
-          // rendered: muted text on a transparent box, a ghost that computed as
-          // rgb(115,115,115) on nothing and failed contrast on a live
-          // restaurant. The pair is the projected tenant primary and its
-          // derived foreground (`--token-color-primary-on`, #1771), so it
-          // moves with the tenant's brand. Disabled keeps the fill and drops
-          // opacity: still a button, still readable, visibly not yet armed.
-          style={{
-            background: "var(--token-color-primary, var(--primary, #111111))",
-            color: "var(--token-color-primary-on, var(--primary-foreground, #ffffff))",
-            border: "0",
-            borderRadius: "999px",
-            padding: "14px 28px",
-            fontSize: "15px",
-            fontWeight: 600,
-            letterSpacing: "0.02em",
-            cursor: isPending || selectedCount === 0 ? "not-allowed" : "pointer",
-            opacity: isPending || selectedCount === 0 ? 0.6 : 1,
-          }}
         >
           {isPending ? copy.sending : copy.submit}
         </button>

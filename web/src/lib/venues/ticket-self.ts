@@ -1,7 +1,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
-import { sendEmailResult } from "@/lib/email";
+import { deliverTicketForAdmission } from "@/lib/events/ticket-delivery";
 import { signAdmissionToken, verifyAdmissionToken } from "@/lib/sessions/admission-token";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import type { VenueAdmin } from "./locations";
@@ -103,14 +103,14 @@ export async function ticketResend(
 ): Promise<{ ok: true } | { ok: false; reason: TicketSelfReason }> {
   const loaded = await loadTicketByCode(admin, input);
   if (!loaded.ok) return loaded;
-  const email = loaded.holderEmail?.trim();
-  if (!email) return { ok: false, reason: "channel_unavailable" };
-  const sent = await sendEmailResult({
-    to: email,
-    subject: "Your ticket",
-    html: `<p>Your ticket code: ${loaded.code}</p>`,
+  // The same mail a purchase sends (QR, code, /ticket link), forced past the
+  // once-only claim because a resend is the guest asking for it again.
+  const delivered = await deliverTicketForAdmission(admin, {
+    tenantId: input.tenantId,
+    admissionId: loaded.admissionId,
+    force: true,
   });
-  if (sent.status !== "sent") return { ok: false, reason: "channel_unavailable" };
+  if (!delivered.ok) return { ok: false, reason: "channel_unavailable" };
   return { ok: true };
 }
 

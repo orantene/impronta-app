@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>LUMINA · Mockup</title>
+<meta name="description" content="Mockup of the /lumina landing page for Impronta Models: mobile first, dark and gold, with the stepped ticket flow." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Raleway:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#0a0a0a; --surface:#0f0f0f; --raised:#151310; --ink:#f4eee2; --muted:#9a927f; --line:#26221a;
+  --gold:#c9a227; --gold-on:#1a1407; --gold-soft:rgba(201,162,39,.16);
+  --head:"Cinzel",ui-serif,serif; --body:"Raleway",ui-sans-serif,system-ui,sans-serif;
+  --r:14px; --r-lg:20px; --gutter:16px; --max:1120px;
+}
+*{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);line-height:1.5;-webkit-font-smoothing:antialiased}
+img{display:block;max-width:100%} a{color:inherit}
+h1,h2,h3{font-family:var(--head);font-weight:400;letter-spacing:.03em;margin:0}
+.wrap{width:100%;max-width:var(--max);margin:0 auto;padding:0 var(--gutter)}
+.eyebrow{font-family:var(--head);font-size:.7rem;letter-spacing:.28em;text-transform:uppercase;color:var(--gold)}
+.section{padding:56px 0} @media(min-width:1024px){.section{padding:96px 0}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:48px;padding:0 26px;border-radius:2px;font-weight:700;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;border:1px solid transparent;cursor:pointer;font-family:var(--body)}
+.btn-gold{background:var(--gold);color:var(--gold-on)} .btn-ghost{border-color:rgba(244,238,226,.32);color:var(--ink);background:transparent}
+.btn-block{width:100%}
+
+/* ANNOUNCEMENT */
+.bar{background:var(--gold);color:var(--gold-on);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;text-align:center;padding:9px var(--gutter);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* NAV (site shell, mock) */
+.nav{display:flex;align-items:center;justify-content:space-between;padding:14px var(--gutter);border-bottom:1px solid var(--line);background:rgba(10,10,10,.85);backdrop-filter:blur(8px);position:sticky;top:0;z-index:20}
+.brand{font-family:var(--head);font-size:1.15rem;letter-spacing:.14em;color:var(--gold)}
+.nav ul{display:none;gap:26px;list-style:none;margin:0;padding:0;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase} @media(min-width:1024px){.nav ul{display:flex}}
+.nav ul .active{color:var(--gold)}
+
+/* HERO */
+.hero{position:relative;min-height:92svh;display:grid;align-items:end;overflow:hidden;isolation:isolate}
+.hero video,.hero .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}
+.hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(10,10,10,.15) 0%,rgba(10,10,10,.55) 55%,var(--bg) 100%)}
+.hero .wrap{padding-bottom:96px;padding-top:120px} @media(min-width:1024px){.hero .wrap{padding-bottom:64px}}
+.hero h1{font-size:clamp(2.9rem,12vw,7.5rem);line-height:.95;letter-spacing:.12em;color:var(--ink)}
+.hero h1 em{font-style:normal;color:var(--gold)}
+.hero .date{display:flex;flex-wrap:wrap;gap:8px 18px;margin:18px 0 26px;font-size:.8rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.hero .date b{color:var(--ink);font-weight:600}
+.hero .ctas{display:flex;flex-direction:column;gap:10px} @media(min-width:640px){.hero .ctas{flex-direction:row}}
+.video-tag{position:absolute;top:84px;right:var(--gutter);display:flex;align-items:center;gap:8px;font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:rgba(10,10,10,.5)}
+.video-tag i{width:8px;height:8px;border-radius:50%;background:#e0483a;box-shadow:0 0 12px #e0483a}
+
+/* MARQUEE */
+.marquee{overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;white-space:nowrap}
+.marquee span{display:inline-block;padding:0 22px;font-family:var(--head);font-size:.78rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
+.marquee span b{color:var(--gold);font-weight:400}
+
+/* TIMELINE */
+.tl{list-style:none;margin:32px 0 0;padding:0;position:relative}
+.tl::before{content:"";position:absolute;left:52px;top:8px;bottom:8px;width:1px;background:linear-gradient(var(--gold),var(--line))}
+.tl li{display:grid;grid-template-columns:44px 1fr;gap:22px;padding:14px 0;align-items:start}
+.tl time{font-family:var(--head);font-size:.82rem;color:var(--gold);letter-spacing:.06em;text-align:right;padding-top:6px;position:relative}
+.tl time::after{content:"";position:absolute;right:-13px;top:12px;width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px var(--bg)}
+.tl h3{font-family:var(--body);font-weight:600;font-size:1.02rem}
+.tl p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+.tl .big{padding:18px 20px;border:1px solid var(--line);border-radius:var(--r);background:var(--raised)}
+.tl .big h3{font-family:var(--head);font-size:1.25rem;font-weight:400}
+@media(min-width:1024px){.tl{display:grid;grid-template-columns:1fr 1fr;gap:0 48px}.tl::before{left:calc(50% - 1px)}.tl li{grid-template-columns:1fr}.tl time{text-align:left}.tl time::after{display:none}}
+
+/* GRID */
+.grid{display:grid;gap:14px;grid-template-columns:1fr 1fr;margin-top:28px} @media(min-width:1024px){.grid{grid-template-columns:repeat(3,1fr);gap:18px}}
+.card{position:relative;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--raised);min-height:150px}
+.card img{aspect-ratio:4/3;object-fit:cover;width:100%}
+.card .ph{aspect-ratio:4/3;background:radial-gradient(120% 80% at 50% 100%,var(--gold-soft),transparent),var(--surface);display:grid;place-items:center;color:var(--gold);font-family:var(--head);font-size:2rem}
+.card figcaption{padding:12px 14px} .card b{display:block;font-weight:600;font-size:.95rem} .card small{color:var(--muted);font-size:.8rem}
+.card.wide{grid-column:1/-1}
+
+/* BAND */
+.band{position:relative;border-radius:var(--r-lg);overflow:hidden;min-height:260px;display:grid;align-items:end;isolation:isolate;margin-top:18px}
+.band img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}
+.band::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,transparent 30%,rgba(10,10,10,.92))}
+.band .in{padding:22px} .band h3{font-size:1.5rem} .band p{margin:6px 0 14px;color:var(--muted);max-width:52ch}
+@media(min-width:1024px){.band{min-height:420px}.band .in{padding:36px}.band h3{font-size:2.2rem}}
+.two{display:grid;gap:14px} @media(min-width:1024px){.two{grid-template-columns:1fr 1fr;gap:18px}}
+
+/* GALLERY */
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:22px} .gal img,.gal .ph{aspect-ratio:1;object-fit:cover;width:100%;border-radius:8px}
+.gal .ph{background:var(--raised);border:1px dashed var(--line);display:grid;place-items:center;color:var(--muted);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase}
+.gal .tall{grid-row:span 2} .gal .tall img{aspect-ratio:1/2;height:100%}
+
+/* TICKETS (block v2 mock) */
+.tickets{padding:56px 0 96px} .tp-steps{display:flex;gap:8px;list-style:none;padding:0;margin:20px 0 18px;font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.tp-steps li{flex:1;padding-top:10px;border-top:2px solid var(--line)} .tp-steps li[aria-current]{color:var(--gold);border-color:var(--gold)}
+.tiers{display:grid;gap:12px} @media(min-width:1024px){.tiers{grid-template-columns:repeat(3,1fr);gap:16px}}
+.tier{display:grid;grid-template-columns:96px 1fr;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--raised);cursor:pointer;text-align:left;padding:0;color:inherit;font:inherit;position:relative}
+.tier img,.tier .ph{width:96px;height:100%;min-height:104px;object-fit:cover} .tier .ph{background:radial-gradient(80% 80% at 50% 50%,var(--gold-soft),var(--surface));display:grid;place-items:center;font-family:var(--head);color:var(--gold);font-size:1.6rem}
+.tier .in{padding:14px 14px 14px 16px;display:grid;gap:4px}
+.tier b{font-weight:600;font-size:1rem} .tier .price{font-family:var(--head);color:var(--gold);font-size:1.05rem}
+.tier ul{margin:4px 0 0;padding:0;list-style:none;color:var(--muted);font-size:.82rem} .tier ul li::before{content:"· ";color:var(--gold)}
+.tier .badge{position:absolute;top:10px;left:10px;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;background:var(--gold);color:var(--gold-on);padding:4px 8px;border-radius:999px;font-weight:700}
+.tier[aria-checked="true"]{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-soft)}
+@media(min-width:1024px){.tier{grid-template-columns:1fr}.tier img,.tier .ph{width:100%;height:150px}}
+.note{margin:14px 0 0;color:var(--muted);font-size:.85rem}
+/* qty bar (fixed on mobile) */
+.bar-qty{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(10,10,10,.96);border-top:1px solid var(--line);padding:12px var(--gutter) calc(12px + env(safe-area-inset-bottom));display:none;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
+.bar-qty.on{display:grid} .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px}
+.stepper button{width:40px;height:40px;border:0;background:transparent;color:var(--ink);font-size:1.3rem;border-radius:999px;cursor:pointer} .stepper output{min-width:28px;text-align:center;font-weight:600}
+.total{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)} .total b{display:block;font-family:var(--head);font-size:1.1rem;color:var(--ink);letter-spacing:.04em}
+@media(min-width:1024px){.bar-qty{position:sticky;top:90px;border:1px solid var(--line);border-radius:var(--r-lg);margin-top:18px}}
+/* sticky cta (mobile) */
+.sticky-cta{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:12px var(--gutter) calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(10,10,10,.9) 30%)}
+@media(min-width:1024px){.sticky-cta{display:none}}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40;display:none} .scrim.on{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-height:88svh;overflow:auto;background:var(--surface);border-top:1px solid var(--line);border-radius:22px 22px 0 0;padding:18px var(--gutter) calc(20px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .28s ease}
+.sheet.on{transform:none} .sheet h3{font-size:1.2rem;margin-bottom:4px} .grab{width:44px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+@media(min-width:1024px){.sheet{left:auto;top:0;bottom:0;width:440px;max-height:none;border-radius:0;border-left:1px solid var(--line);transform:translateX(105%)}.sheet.on{transform:none}}
+.f{display:grid;gap:6px;margin-top:12px;font-size:.8rem;font-weight:600} .f input{font:inherit;font-size:16px;font-weight:400;color:var(--ink);background:rgba(244,238,226,.06);border:1px solid rgba(244,238,226,.22);border-radius:12px;padding:13px 14px;outline:0} .f input:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-soft)}
+.f small{color:var(--muted);font-weight:400}
+.summary{display:flex;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:16px;font-size:.9rem} .summary b{font-family:var(--head);color:var(--gold)}
+.done{text-align:center;padding:24px 0} .done .qr{width:160px;height:160px;margin:16px auto;background:#fff;border-radius:10px;display:grid;place-items:center;color:#000;font-size:.6rem}
+
+/* VIP */
+.vip{display:grid;gap:0;border:1px solid var(--gold);border-radius:var(--r-lg);overflow:hidden;margin-top:24px} .vip img{aspect-ratio:16/10;object-fit:cover;width:100%}
+.vip .in{padding:22px} .vip h3{font-size:1.6rem} .vip .rule{display:grid;gap:8px;margin:14px 0 18px;font-size:.92rem} .vip .rule div{display:flex;gap:10px} .vip .rule div::before{content:"◆";color:var(--gold);font-size:.7rem;padding-top:5px}
+@media(min-width:1024px){.vip{grid-template-columns:1.1fr 1fr}.vip img{height:100%;aspect-ratio:auto}.vip .in{padding:40px}}
+
+/* VENUE */
+.venue{display:grid;gap:16px;margin-top:22px} @media(min-width:1024px){.venue{grid-template-columns:1fr 1fr}}
+.map{aspect-ratio:16/10;border-radius:var(--r-lg);border:1px solid var(--line);background:radial-gradient(60% 60% at 60% 40%,var(--gold-soft),transparent),repeating-linear-gradient(0deg,transparent 0 28px,var(--line) 28px 29px),repeating-linear-gradient(90deg,transparent 0 28px,var(--line) 28px 29px),var(--raised);display:grid;place-items:center;color:var(--gold);font-family:var(--head);letter-spacing:.2em}
+.kv{display:grid;gap:10px} .kv div{display:grid;grid-template-columns:110px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:.92rem} .kv span{color:var(--muted);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;padding-top:3px}
+
+/* FAQ */
+details{border-bottom:1px solid var(--line)} summary{cursor:pointer;list-style:none;padding:16px 0;font-weight:600;display:flex;justify-content:space-between;gap:12px} summary::after{content:"+";color:var(--gold);font-family:var(--head)} details[open] summary::after{content:"–"}
+details p{margin:0 0 16px;color:var(--muted);font-size:.92rem;max-width:64ch}
+
+/* FOOTER */
+footer{border-top:1px solid var(--line);padding:40px 0 120px;color:var(--muted);font-size:.85rem} footer .brand{display:block;margin-bottom:10px}
+footer .cols{display:grid;gap:22px;margin-top:22px} @media(min-width:1024px){footer .cols{grid-template-columns:repeat(4,1fr)}} footer h4{font-family:var(--head);font-weight:400;color:var(--gold);font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;margin:0 0 10px} footer a{display:block;text-decoration:none;margin:4px 0}
+
+/* frames toggle for the review */
+.frames{position:fixed;bottom:100px;left:10px;z-index:99;opacity:.85;display:flex;gap:6px} .frames button{font:600 11px var(--body);letter-spacing:.1em;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(10,10,10,.8);color:var(--muted);cursor:pointer} .frames button.on{color:var(--gold);border-color:var(--gold)}
+</style>
+</head>
+<body>
+
+<div class="bar">Sáb 3 oct · Cancún · Fiesta de lanzamiento LUMINA · Entradas disponibles</div>
+<nav class="nav"><span class="brand">IMPRONTA</span><ul><li>Home</li><li>Our talents</li><li>For clients</li><li class="active">LUMINA</li><li>Contact</li></ul><a class="btn btn-gold" href="#entradas" style="min-height:40px;padding:0 16px">Entradas</a></nav>
+
+<header class="hero">
+  <img class="poster" src="img/hero-beams.jpg" alt="Haces de luz dorada atravesando la bruma sobre el escenario de LUMINA" />
+  <div class="video-tag"><i></i> Teaser en loop · placeholder de video</div>
+  <div class="wrap">
+    <p class="eyebrow">Impronta Models presenta</p>
+    <h1>LU<em>MI</em>NA</h1>
+    <p style="font-family:var(--head);font-size:1.05rem;letter-spacing:.14em;margin:10px 0 0;color:var(--ink)">Fiesta de lanzamiento</p>
+    <div class="date"><b>Sábado 3 de octubre</b><span>18:00 h → 3:00 am</span><span>Cancún · Quintana Roo</span></div>
+    <div class="ctas"><a class="btn btn-gold" href="#entradas">Comprar entradas</a><a class="btn btn-ghost" href="#programa">Ver el programa</a></div>
+  </div>
+</header>
+
+<div class="marquee"><span>7 DJs</span><span><b>◆</b></span><span>Desfile de moda</span><span><b>◆</b></span><span>Show de fuego</span><span><b>◆</b></span><span>Parrilla gourmet</span><span><b>◆</b></span><span>Telas y aros</span><span><b>◆</b></span><span>Feria artesanal</span><span><b>◆</b></span><span>Apertura 23:00</span><span><b>◆</b></span><span>7 DJs</span><span><b>◆</b></span><span>Desfile de moda</span></div>
+
+<section class="section" id="programa"><div class="wrap">
+  <p class="eyebrow">La noche</p><h2 style="font-size:clamp(1.8rem,6vw,3rem);margin-top:8px">El programa</h2>
+  <ol class="tl">
+    <li><time>18:00</time><div><h3>Arranca LUMINA</h3><p>Abren las puertas. Puesto de hidratación y feria artesanal desde el inicio.</p></div></li>
+    <li><time>18–20</time><div><h3>Juegos de kermés</h3><p>Dos horas de juegos, premios y parrilla encendida.</p></div></li>
+    <li><time>20:00</time><div><h3>Show de magia + malabares</h3></div></li>
+    <li><time>21:00</time><div class="big"><h3>Desfile de moda</h3><p>La pasarela Impronta: nuestro roster en vivo.</p></div></li>
+    <li><time>22:30</time><div class="big"><h3>Show premium "Mi corazón se apaga"</h3></div></li>
+    <li><time>23:00</time><div class="big" style="border-color:var(--gold)"><h3 style="color:var(--gold)">Apertura LUMINA</h3><p>Entrada después de las 23 h: $500 con un trago.</p></div></li>
+    <li><time>1:30</time><div><h3>Show de fuego 🔥</h3></div></li>
+    <li><time>3:00</time><div><h3>Show de telas + aros</h3><p>Cierre aéreo.</p></div></li>
+  </ol>
+</div></section>
+
+<section class="section" style="padding-top:0"><div class="wrap">
+  <p class="eyebrow">Lo que te espera</p><h2 style="font-size:clamp(1.8rem,6vw,3rem);margin-top:8px">Nos acompañan</h2>
+  <div class="grid">
+    <figure class="card wide" style="margin:0"><img src="img/runway.jpg" alt="Silueta de una modelo caminando la pasarela bajo luz dorada" /><figcaption><b>7 DJs estratégicamente seleccionados</b><small>Toda la noche, cabina a cabina.</small></figcaption></figure>
+    <figure class="card" style="margin:0"><div class="ph">🔥</div><figcaption><b>Parrilla gourmet</b><small>Brasas desde las 18 h</small></figcaption></figure>
+    <figure class="card" style="margin:0"><div class="ph">🍕</div><figcaption><b>Pizza gourmet</b><small>Horno a la vista</small></figcaption></figure>
+    <figure class="card" style="margin:0"><div class="ph">🍨</div><figcaption><b>Puesto de helados</b></figcaption></figure>
+    <figure class="card" style="margin:0"><div class="ph">✦</div><figcaption><b>Mini feria artesanal</b><small>Diseño local</small></figcaption></figure>
+    <figure class="card wide" style="margin:0"><div class="ph" style="aspect-ratio:16/6">💧</div><figcaption><b>Puesto de hidratación</b><small>Agua libre toda la noche.</small></figcaption></figure>
+  </div>
+</div></section>
+
+<section class="section" style="padding-top:0"><div class="wrap">
+  <p class="eyebrow">Desfile &amp; shows</p>
+  <div class="two">
+    <div class="band"><img src="img/fire.jpg" alt="Artista de fuego girando poi encendidos contra el cielo nocturno" /><div class="in"><h3>Show de fuego · 1:30 am</h3><p>Cuando la pista está llena, el fuego sale al patio.</p></div></div>
+    <div class="band"><img src="img/silks.jpg" alt="Acróbata en telas aéreas doradas suspendida sobre el escenario" /><div class="in"><h3>Telas + aros · 3:00 am</h3><p>El cierre, en el aire.</p></div></div>
+  </div>
+  <div class="gal">
+    <img src="img/runway.jpg" alt="Pasarela iluminada en dorado" /><img src="img/hero-beams.jpg" alt="Luces del escenario" /><div class="ph">Foto</div>
+    <img src="img/fire.jpg" alt="Show de fuego" /><div class="ph">Foto</div><img src="img/silks.jpg" alt="Telas aéreas" />
+  </div>
+</div></section>
+
+<section class="section" style="padding-top:0"><div class="wrap">
+  <div class="band" style="min-height:200px;border:1px solid var(--gold)"><div class="in" style="display:grid;gap:8px"><p class="eyebrow">Después de las 23 h</p><h3>Entrada $500 · incluye 1 trago</h3><p>Llegas para la apertura LUMINA. Compra ahora y entra directo.</p><a class="btn btn-ghost" href="#entradas" style="width:fit-content">Elegir esta entrada</a></div></div>
+</div></section>
+
+<section class="tickets" id="entradas"><div class="wrap">
+  <p class="eyebrow">Entradas</p><h2 style="font-size:clamp(1.8rem,6vw,3rem);margin-top:8px">Elegí tu entrada</h2>
+  <ol class="tp-steps"><li aria-current="step" id="s1">1 · Entrada</li><li id="s2">2 · Cantidad</li><li id="s3">3 · Tus datos</li></ol>
+  <div class="tiers" role="radiogroup" aria-label="Tipo de entrada">
+    <button class="tier" role="radio" aria-checked="false" data-price="1000" data-label="Entrada general"><img src="img/hero-beams.jpg" alt="" /><span class="in"><b>Entrada general</b><span class="price">MX$1,000</span><ul><li>Incluye copa de vino</li><li>Acceso desde las 18:00</li></ul></span></button>
+    <button class="tier" role="radio" aria-checked="false" data-price="500" data-label="Después de las 23 h"><span class="badge">Desde 23 h</span><span class="ph">23</span><span class="in"><b>Entrada después de las 23 h</b><span class="price">MX$500</span><ul><li>Incluye 1 trago</li><li>Acceso desde la apertura</li></ul></span></button>
+    <button class="tier" role="radio" aria-checked="false" data-price="15000" data-label="Mesa para 10"><span class="badge">VIP</span><img src="img/silks.jpg" alt="" /><span class="in"><b>Mesa para 10</b><span class="price">MX$15,000</span><ul><li>Hasta 10 personas</li><li>$10,000 en consumo</li><li>Mesa reservada toda la noche</li></ul></span></button>
+  </div>
+  <p class="note">Cortesía: solo por invitación. Si recibiste un enlace, tu entrada aparece aquí automáticamente.</p>
+
+  <div class="bar-qty" id="qty"><div class="stepper"><button id="minus" aria-label="Menos">−</button><output id="q">1</output><button id="plus" aria-label="Más">+</button></div><div class="total">Total <b id="tot">MX$1,000</b></div><button class="btn btn-gold" id="cont">Continuar</button></div>
+
+  <div class="vip"><img src="img/silks.jpg" alt="Mesa VIP con copas doradas bajo luz cálida" /><div class="in"><p class="eyebrow">Mesa VIP</p><h3>Tu mesa, toda la noche</h3><div class="rule"><div>Hasta 10 personas por mesa</div><div>$10,000 MXN en consumo incluidos</div><div>Ubicación preferente frente a la pasarela</div><div>Solo 20 mesas</div></div><a class="btn btn-gold" href="#entradas" data-pick="Mesa para 10">Reservar mesa · MX$15,000</a></div></div>
+</div></section>
+
+<section class="section" style="padding-top:0"><div class="wrap">
+  <p class="eyebrow">Dónde</p><h2 style="font-size:clamp(1.8rem,6vw,3rem);margin-top:8px">El lugar</h2>
+  <div class="venue"><div class="map">MAPA</div><div class="kv"><div><span>Lugar</span><div>Impronta Studio · Cancún <br><small style="color:var(--muted)">Dirección exacta al confirmar tu entrada</small></div></div><div><span>Puertas</span><div>18:00 h</div></div><div><span>Apertura</span><div>23:00 h · LUMINA</div></div><div><span>Cierre</span><div>3:00 am</div></div><div><span>Llegar</span><div>Estacionamiento y zona de taxis en la entrada</div></div></div></div>
+</div></section>
+
+<section class="section" style="padding-top:0"><div class="wrap">
+  <p class="eyebrow">Preguntas</p><h2 style="font-size:clamp(1.8rem,6vw,3rem);margin:8px 0 12px">FAQ</h2>
+  <details><summary>¿Qué incluye cada entrada?</summary><p>General: copa de vino. Después de las 23 h: un trago. Mesa para 10: la mesa toda la noche y $10,000 MXN en consumo.</p></details>
+  <details><summary>Dress code</summary><p>Elegante nocturno. Dorado y negro son bienvenidos.</p></details>
+  <details><summary>Edad mínima</summary><p>Mayores de 18 años con identificación.</p></details>
+  <details><summary>Reembolsos y transferencias</summary><p>Puedes transferir tu entrada a otra persona desde el enlace de tu ticket. No hay reembolsos después del 1 de octubre.</p></details>
+  <details><summary>¿Cómo entro?</summary><p>Recibes un e-mail con tu QR. Lo muestras en la puerta desde el teléfono; no hace falta imprimir.</p></details>
+</div></section>
+
+<footer><div class="wrap"><span class="brand">IMPRONTA</span>Casting across the Riviera Maya<div class="cols"><div><h4>Explore</h4><a href="#">Home</a><a href="#">Our talents</a><a href="#">LUMINA</a></div><div><h4>Divisions</h4><a href="#">Women</a><a href="#">Men</a><a href="#">Kids</a></div><div><h4>For talent</h4><a href="#">Apply</a><a href="#">Sign in</a></div><div><h4>Contacto</h4><a href="#">+52 984 317 0818</a><a href="#">hola@improntamodels.com</a><a href="#">@improntamodels</a></div></div></div></footer>
+
+<div class="sticky-cta" id="sticky"><a class="btn btn-gold btn-block" href="#entradas">Comprar entradas</a></div>
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+  <div class="grab"></div>
+  <div id="sheet-form">
+    <h3 id="sh-t">Tus datos</h3><p style="margin:0;color:var(--muted);font-size:.88rem">Tu entrada llega a este e-mail. Si no lo abres, te buscamos por nombre en la puerta.</p>
+    <label class="f">E-mail<input type="email" placeholder="tu@email.com" inputmode="email" autocomplete="email" /></label>
+    <label class="f">Nombre<input type="text" placeholder="Tu nombre" autocomplete="name" /></label>
+    <label class="f">Código promocional <small>(opcional)</small><input type="text" placeholder="Si tienes uno" /></label>
+    <div class="summary"><span id="sum-l">1 × Entrada general</span><b id="sum-t">MX$1,000</b></div>
+    <button class="btn btn-gold btn-block" style="margin-top:16px" id="pay">Pagar con tarjeta</button>
+    <p style="margin:10px 0 0;text-align:center;color:var(--muted);font-size:.76rem">Pago seguro con Stripe · Recibes tu QR por e-mail</p>
+  </div>
+  <div id="sheet-done" class="done" hidden><p class="eyebrow">Listo</p><h3>Tu entrada está en camino</h3><div class="qr">QR</div><p style="color:var(--muted);font-size:.9rem;margin:0">Te enviamos el QR a tu e-mail. También puedes verlo, reenviarlo o transferirlo desde <b style="color:var(--gold)">/ticket/…</b></p><button class="btn btn-ghost" style="margin-top:16px" id="close">Cerrar</button></div>
+</aside>
+
+<div class="frames"><button class="on" data-w="">Fluido</button><button data-w="390">390</button><button data-w="1440">1440</button></div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let tier=null, qty=1; const fmt=n=>"MX$"+n.toLocaleString("en-US");
+function paint(){ if(!tier) return; const t=tier.dataset; $("#tot").textContent=fmt(+t.price*qty); $("#sum-l").textContent=`${qty} × ${t.label}`; $("#sum-t").textContent=fmt(+t.price*qty); }
+$$(".tier").forEach(b=>b.addEventListener("click",()=>{ $$(".tier").forEach(x=>x.setAttribute("aria-checked","false")); b.setAttribute("aria-checked","true"); tier=b; qty=1; $("#q").textContent=1; paint(); $("#qty").classList.add("on"); $("#sticky").style.display="none"; $("#s1").removeAttribute("aria-current"); $("#s2").setAttribute("aria-current","step"); }));
+$("#minus").onclick=()=>{qty=Math.max(1,qty-1);$("#q").textContent=qty;paint()}; $("#plus").onclick=()=>{qty=Math.min(10,qty+1);$("#q").textContent=qty;paint()};
+function openSheet(){ $("#scrim").classList.add("on"); $("#sheet").classList.add("on"); document.body.style.overflow="hidden"; $("#s2").removeAttribute("aria-current"); $("#s3").setAttribute("aria-current","step"); $("#sheet input").focus(); }
+function closeSheet(){ $("#scrim").classList.remove("on"); $("#sheet").classList.remove("on"); document.body.style.overflow=""; }
+$("#cont").onclick=openSheet; $("#scrim").onclick=closeSheet; $("#close").onclick=closeSheet; document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
+$("#pay").onclick=()=>{ $("#sheet-form").hidden=true; $("#sheet-done").hidden=false; };
+$$("[data-pick]").forEach(a=>a.addEventListener("click",()=>{ const b=$$(".tier").find(x=>x.dataset.label===a.dataset.pick); b&&b.click(); }));
+$$(".frames button").forEach(b=>b.onclick=()=>{ $$(".frames button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); const w=b.dataset.w; document.documentElement.style.maxWidth=w?w+"px":""; document.documentElement.style.margin=w?"0 auto":""; document.documentElement.style.borderLeft=document.documentElement.style.borderRight=w?"1px solid #333":""; });
+</script>
+</body>
+</html>

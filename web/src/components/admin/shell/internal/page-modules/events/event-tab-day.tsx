@@ -18,9 +18,9 @@
  * readiness strip is derived from the rows that exist (D-POS-57).
  */
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 
-import type { EventListRow } from "@/app/(workspace)/[tenantSlug]/admin/_events-actions";
+import { loadSessionComps, type EventListRow } from "@/app/(workspace)/[tenantSlug]/admin/_events-actions";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { admissionComp, admissionHoldSeats, eventSeatMapUpsert, layoutsList } from "@/lib/server-actions/venue-engine";
@@ -252,6 +252,12 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
   const [compReason, setCompReason] = useState("");
   const [compTier, setCompTier] = useState(event.tiers[0]?.id ?? "");
   const [compNotice, setCompNotice] = useState<string | null>(null);
+  const [comps, setComps] = useState<{ count: number; names: string[] } | null>(null);
+  const refreshComps = useCallback(() => {
+    if (!sessionId) { setComps(null); return; }
+    void loadSessionComps(sessionId).then((r) => setComps(r.ok ? { count: r.count, names: r.names } : null));
+  }, [sessionId]);
+  useEffect(refreshComps, [refreshComps]);
   const [compBusy, startComp] = useTransition();
   const readiness = eventDayReadiness(event, pools.rows);
   const readinessLabel = {
@@ -274,7 +280,12 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
     [t("dashboard.events.day.device"), t("dashboard.events.day.deviceValue")],
     [t("dashboard.events.day.doorPrice"), t("dashboard.events.day.doorPriceValue")],
     [t("dashboard.events.day.names"), t("dashboard.events.day.namesValue")],
-    [t("dashboard.events.day.comps"), t("dashboard.events.day.compsValue")],
+    [
+      t("dashboard.events.day.comps"),
+      comps && comps.count > 0
+        ? interpolate(t("dashboard.events.day.compsCount"), { count: comps.count, names: comps.names.join(", ") + (comps.count > comps.names.length ? ` +${comps.count - comps.names.length}` : "") })
+        : t("dashboard.events.day.compsValue"),
+    ],
     [t("dashboard.events.day.meals"), t("dashboard.events.day.mealsValue")],
     [t("dashboard.events.day.staff"), t("dashboard.events.day.staffValue")],
   ];
@@ -361,6 +372,7 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
                 operationKey: crypto.randomUUID(),
               });
               setCompNotice(res.ok ? t("dashboard.events.day.compDone") : t(VENUE_ENGINE_REFUSALS[res.reason in VENUE_ENGINE_REFUSALS ? (res.reason as VenueEngineRefusal) : "unavailable"]));
+              if (res.ok) refreshComps();
             });
           }}
         >

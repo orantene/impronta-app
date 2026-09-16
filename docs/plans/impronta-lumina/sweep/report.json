@@ -1,0 +1,330 @@
+[
+ {
+  "path": "/",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": true,
+  "title": "Impronta | International Model & Talent Agency, Riviera Maya · Tulala",
+  "errors": []
+ },
+ {
+  "path": "/",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": true,
+  "title": "Impronta | International Model & Talent Agency, Riviera Maya · Tulala",
+  "errors": []
+ },
+ {
+  "path": "/es",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": true,
+  "title": "Impronta | Agencia boutique de modelos y talento en Tulum, Riviera Maya · Tulala",
+  "errors": []
+ },
+ {
+  "path": "/es",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": true,
+  "title": "Impronta | Agencia boutique de modelos y talento en Tulum, Riviera Maya · Tulala",
+  "errors": []
+ },
+ {
+  "path": "/about",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "About Impronta | Boutique Talent Agency, Tulum & Playa del Carmen · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/about",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "About Impronta | Boutique Talent Agency, Tulum & Playa del Carmen · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/studio",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Book a photo session at the Impronta studio | Riviera Maya · Impronta",
+  "errors": [
+   "Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-mi"
+  ]
+ },
+ {
+  "path": "/studio",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Book a photo session at the Impronta studio | Riviera Maya · Impronta",
+  "errors": [
+   "Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-mi"
+  ]
+ },
+ {
+  "path": "/for-clients",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Book Talent in Tulum & Riviera Maya | Impronta for Clients · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/for-clients",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Book Talent in Tulum & Riviera Maya | Impronta for Clients · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/become-a-model",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Become a Model or Represented Talent | Impronta, Tulum · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/become-a-model",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Become a Model or Represented Talent | Impronta, Tulum · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/faq",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "FAQ | Booking Talent & Joining the Roster | Impronta · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/faq",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "FAQ | Booking Talent & Joining the Roster | Impronta · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/contact",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Contact Impronta | Book Talent in Tulum & the Riviera Maya · Impronta",
+  "errors": [
+   "Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-mi"
+  ]
+ },
+ {
+  "path": "/contact",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Contact Impronta | Book Talent in Tulum & the Riviera Maya · Impronta",
+  "errors": [
+   "Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-mi"
+  ]
+ },
+ {
+  "path": "/performers",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Performers & Entertainment in Tulum & Riviera Maya | Impronta · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/performers",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Performers & Entertainment in Tulum & Riviera Maya | Impronta · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/music-djs",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "DJs & Live Music in Tulum & Riviera Maya | Impronta · Impronta",
+  "errors": [
+   "Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-mi"
+  ]
+ },
+ {
+  "path": "/music-djs",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "DJs & Live Music in Tulum & Riviera Maya | Impronta · Impronta",
+  "errors": [
+   "Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-mi"
+  ]
+ },
+ {
+  "path": "/hosts-promoters",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Event Hosts, Hostesses & Brand Ambassadors in Tulum | Impronta · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/hosts-promoters",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Event Hosts, Hostesses & Brand Ambassadors in Tulum | Impronta · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/our-fashion-models",
+  "tag": "390",
+  "status": 0,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Our Fashion Models · Impronta",
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 ()",
+   "Failed to load resource: the server responded with a status of 404 ()",
+   "Failed to load resource: the server responded with a status of 404 ()"
+  ]
+ },
+ {
+  "path": "/our-fashion-models",
+  "tag": "1440",
+  "status": 0,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Our Fashion Models · Impronta",
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 ()",
+   "Failed to load resource: the server responded with a status of 404 ()",
+   "Failed to load resource: the server responded with a status of 404 ()"
+  ]
+ },
+ {
+  "path": "/faces-of-fall-26",
+  "tag": "390",
+  "status": 0,
+  "overflow": 0,
+  "imgs": 4,
+  "unstyledMenu": false,
+  "title": "Faces of Fall '26 · Impronta",
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 ()",
+   "Failed to load resource: the server responded with a status of 404 ()",
+   "Failed to load resource: the server responded with a status of 404 ()"
+  ]
+ },
+ {
+  "path": "/faces-of-fall-26",
+  "tag": "1440",
+  "status": 0,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Faces of Fall '26 · Impronta",
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 ()",
+   "Failed to load resource: the server responded with a status of 404 ()",
+   "Failed to load resource: the server responded with a status of 404 ()"
+  ]
+ },
+ {
+  "path": "/events/fiesta-de-lanzamiento-lumina",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Fiesta de lanzamiento LUMINA · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/events/fiesta-de-lanzamiento-lumina",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Fiesta de lanzamiento LUMINA · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/es/events/fiesta-de-lanzamiento-lumina",
+  "tag": "390",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Fiesta de lanzamiento LUMINA · Impronta",
+  "errors": []
+ },
+ {
+  "path": "/es/events/fiesta-de-lanzamiento-lumina",
+  "tag": "1440",
+  "status": 200,
+  "overflow": 0,
+  "imgs": 0,
+  "unstyledMenu": false,
+  "title": "Fiesta de lanzamiento LUMINA · Impronta",
+  "errors": []
+ }
+]

@@ -14,6 +14,7 @@ import { ES_HEADER_TASKS_TEXT } from "./editor-i18n-es-header-tasks";
 import { ES_INSPECTOR_TEXT } from "./editor-i18n-es-inspectors";
 import { ES_ICON_TEXT } from "./editor-i18n-es-icons";
 import { ES_INSPECTOR_TEXT_2 } from "./editor-i18n-es-inspectors-2";
+import { ES_INSPECTOR_TEXT_3 } from "./editor-i18n-es-inspectors-3";
 import { ES_BUILDER_2027_TEXT } from "./editor-i18n-es-builder-2027";
 import { ES_CAROUSEL_TEXT } from "./editor-i18n-es-carousel";
 import { ES_MEDIA_TEXT } from "./editor-i18n-es-media";
@@ -36,9 +37,8 @@ export const ES_TEXT: Record<string, string> = {
   ...ES_SHORTCUT_TEXT,
   // WAVE 4.4 (deep inspectors: style, layout, motion, data, site header).
   ...ES_INSPECTOR_TEXT,
-  // Inspector Reset P3 (2026-08-16) — overflow split of ES_INSPECTOR_TEXT
-  // above; see that file's header for why.
-  ...ES_INSPECTOR_TEXT_2,
+  // Overflow splits of ES_INSPECTOR_TEXT (P3 2026-08-16; LUMINA 2026-09-16).
+  ...ES_INSPECTOR_TEXT_2, ...ES_INSPECTOR_TEXT_3,
   ...ES_BUILDER_2027_TEXT, // BUILDER 2027 · P2A native kinds
   ...ES_ICON_TEXT,
   // ── Animation tab (2026-08-20 rebuild of the entrance-motion surface) ──

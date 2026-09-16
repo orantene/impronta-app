@@ -268,6 +268,14 @@ export const AGENCY_API_PREFIXES = [
   "/api/ai",
 ] as const;
 
+/**
+ * The ticket QR image (`/api/tickets/<signed-token>/qr.png`) the ticket
+ * e-mail embeds. Gated exactly like `/ticket/<code>` (agency + hub hosts):
+ * the token is the whole authorization; the route resolves the tenant from
+ * the host and 404s on any mismatch.
+ */
+export const CANONICAL_TICKET_API_PREFIX = "/api/tickets" as const;
+
 export const APP_WORKSPACE_PREFIXES = [
   "/admin",
   "/client",

@@ -1162,8 +1162,24 @@ export interface BuilderTicketPickerNode extends BuilderNodeBase {
   props: {
     eventId: string;
     title?: string;
+    /** v2: image cards + three steps; default "list" keeps the v1 single screen. */
+    layout?: "cards" | "list";
+    /** v2: sticky "Buy tickets" bar opening a bottom sheet / side panel. */
+    presentation?: "inline" | "sheet";
+    tiers?: TicketPickerTierPresentation[];
+    showNightPicker?: "auto" | "always";
+    ctaLabel?: string;
     style?: BuilderNodeStyle;
   };
+}
+
+export interface TicketPickerTierPresentation {
+  variantId: string;
+  includes?: string;
+  imageSrc?: string;
+  imageMediaId?: string;
+  badge?: string;
+  hidden?: boolean;
 }
 
 // QR code block. FORK (b): a pure inline render (see qr-code-block.tsx). Stores

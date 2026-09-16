@@ -144,6 +144,21 @@ const KIND_BY_RENDERER_CSS_TOKEN: Readonly<Record<string, BuilderNodeKind>> = {
   // WS7 Phase 0 — the two NATIVE data blocks + every sub-element token they
   // emit. Unmapped tokens are treated as base (always kept), so a miss here is
   // only a size regression, never a broken block.
+  // Menu board: the server half (title, list, item, price) and the category
+  // strip. The island's own rules ship inside the island.
+  "menu-board": "menu_board",
+  "menu-board-title": "menu_board",
+  "menu-board-subtitle": "menu_board",
+  "menu-board-empty": "menu_board",
+  "menu-board-empty-message": "menu_board",
+  "menu-board-list": "menu_board",
+  "menu-board-item": "menu_board",
+  "menu-board-item-copy": "menu_board",
+  "menu-board-item-title": "menu_board",
+  "menu-board-item-price": "menu_board",
+  "menu-board-catnav": "menu_board",
+  "menu-board-group": "menu_board",
+  "menu-board-group-title": "menu_board",
   "hero-search": "hero_search",
   "hero-search-inner": "hero_search",
   "hero-search-eyebrow": "hero_search",
@@ -724,7 +739,14 @@ export function stripCssComments(sheet: string): string {
     }
     out += ch;
   }
-  return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+  // Indentation and blank lines are for the author, not the wire: nested
+  // `@media` / `@container` blocks are written indented in the source, and
+  // that indentation shipped on every page (~1 KB). Strings were handled
+  // above, so nothing inside a quoted value is touched here.
+  return out
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{2,}/g, "\n");
 }
 
 export function buildScopedRendererCss(

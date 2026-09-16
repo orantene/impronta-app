@@ -15,7 +15,7 @@ import {
   reservationIdFromMetadata,
   settleCollectionReservation,
 } from "@/lib/pos/collection-reservations";
-import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
+import { mintAndDeliverForPaidOrder } from "@/lib/events/mint-and-deliver";
 import { improntaLog } from "@/lib/server/structured-log";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import "server-only";
@@ -886,7 +886,7 @@ export async function markPaid(
         // row a cron finds, instead of a person at a door with a receipt and no
         // ticket.
         const settled = await completeOrderForTransaction(sbOrders, result.data.id, {
-          onOrderPaid: (ctx) => mintAdmissionsForPaidOrder(sbOrders, ctx).then(() => undefined),
+          onOrderPaid: (ctx) => mintAndDeliverForPaidOrder(sbOrders, ctx),
         });
         if (!settled.ok && settled.reason !== "no_order") {
           logServerError(
