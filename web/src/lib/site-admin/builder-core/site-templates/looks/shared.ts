@@ -297,7 +297,7 @@ function navNode(style: Style = {}): BuilderNode {
       menu: { ctaLabel: copy("action.primary"), ctaHref: HREF.transaction, showSocial: false },
       // Links inherit colour; pin them to the theme ink so a light Look on a
       // dark host (or the reverse) never paints an invisible nav.
-      style: { textColor: "token:color.ink", width: "auto", flexGrow: 1, flexShrink: 1, ...style },
+      style: { textColor: "token:color.ink", width: "auto", flexGrow: 1, flexShrink: 1, whiteSpace: "nowrap", ...style },
     },
   };
 }
@@ -305,7 +305,7 @@ function navNode(style: Style = {}): BuilderNode {
 /** Header rows stay rows on a phone (brand left, menu button right). */
 function headerRow(children: BuilderNode[], style: Style = {}): BuilderNode {
   const node = row(children, { justifyContent: "space-between", flexWrap: "nowrap", ...style }, { gap: "m" });
-  node.props = { ...node.props, responsive: { mobile: { layout: "row" } } };
+  (node as { props: Record<string, unknown> }).props = { ...node.props, responsive: { mobile: { layout: "row" } } };
   return node;
 }
 /** The header's call to action; on a phone the drawer carries it instead. */
@@ -320,10 +320,19 @@ function header(r: LookRecipe): BuilderNode[] {
   switch (r.header) {
     case "left-nav":
       return [headerRow([brand(r), navNode({ justifyContent: "flex-end" }), headerCta()], gutter)];
-    case "centered":
-      return [headerRow([navNode({ justifyContent: "flex-start" }), brand(r, "center"), headerCta()], gutter)];
+    case "centered": {
+      // Desktop: wordmark above a centred nav. Phone: one row, brand + menu.
+      const node = stack([brand(r, "center"), navNode({ justifyContent: "center", flexGrow: 0 })], { ...gutter, alignItems: "center" }, { gap: "s", align: "center" });
+      (node as { props: Record<string, unknown> }).props = { ...node.props, responsive: { mobile: { layout: "row", align: "center" } } };
+      return [node];
+    }
     case "split":
-      return [headerRow([navNode({ justifyContent: "flex-start" }), brand(r, "center"), ctas([headerCta()], "end")], gutter)];
+    {
+      // Equal flex on both wings keeps the wordmark truly centred.
+      const wing = ctas([headerCta()], "end");
+      (wing as { props: Record<string, unknown> }).props = { ...wing.props, style: { flexGrow: 1, flexBasis: "0%", width: "auto" } };
+      return [headerRow([navNode({ justifyContent: "flex-start", flexGrow: 1, flexBasis: "0%" }), brand(r, "center"), wing], gutter)];
+    }
     case "minimal":
       return [headerRow([brand(r), navNode({ justifyContent: "flex-end" })], gutter)];
   }
