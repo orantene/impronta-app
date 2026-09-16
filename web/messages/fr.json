@@ -1543,7 +1543,8 @@
     },
     "platform": {
       "nav": {
-        "support": "Support"
+        "support": "Support",
+        "stock": "Photos lifestyle"
       },
       "settings": {
         "workspaceUiSupportLabel": "Lanceur de support in-app",

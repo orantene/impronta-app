@@ -10,6 +10,7 @@ import {
   COLORS, FONTS, meetsPlan, useAdminShell,
 } from "./state";
 import { PrimaryButton, SecondaryButton } from "./primitives";
+import { AnalyticsView, fmtDate, formatBytes, formatDim, variantLabel } from "@/components/admin/media/media-analytics-view";
 import {
   actionDeleteMediaAssets,
   actionUploadToStagingStorage,
@@ -60,6 +61,7 @@ import { MediaOwnershipChip } from "@/components/admin/media/media-ownership-chi
 import { MediaDownloadRow } from "@/components/admin/media/media-download-row";
 import { collectionNavLabel, splitFolderCollections } from "@/lib/media/collections";
 import { MediaReleaseRequestsPanel } from "@/components/admin/media/media-release-requests-panel";
+import { MediaStockLane } from "@/components/admin/media/media-stock-lane";
 import { TalentMediaQuotaLine } from "@/components/talent/media-quota-line";
 import type {
   WorkspaceMediaPhoto as BridgeMediaPhoto,
@@ -82,6 +84,10 @@ type ActiveView =
   | { kind: "by-kind" }
   | { kind: "pending" }
   | { kind: "brand" }
+  // Templates & Imagery — the read-only platform lifestyle stock shelf for this
+  // workspace's business type (virtual folder, D-TPL-6). Lives in
+  // components/admin/media/media-stock-lane.tsx.
+  | { kind: "stock" }
   // Plan §6 "Shared by talent" lane — release requests from talents who want
   // to use photos this workspace owns somewhere else (media-ownership phase 3).
   | { kind: "releases" }
@@ -145,46 +151,6 @@ function rejectionMessage(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatBytes(bytes: number | null): string {
-  if (!bytes) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function formatDim(w: number | null, h: number | null) {
-  if (!w || !h) return "—";
-  return `${w} × ${h}`;
-}
-
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
-
-// English values are the non-UI fallback; UI renders `t(VARIANT_LABEL_KEYS[k])`.
-const VARIANT_LABELS: Record<string, string> = {
-  card: "Profile", hero: "Cover", gallery: "Gallery",
-  lightbox: "Lightbox", polaroid: "Polaroid", reel: "Reel",
-  public_watermarked: "Public WM", watermarked: "Watermarked",
-};
-
-const VARIANT_LABEL_KEYS: Record<string, string> = {
-  card: "dashboard.adminMedia.variant.card",
-  hero: "dashboard.adminMedia.variant.hero",
-  gallery: "dashboard.adminMedia.variant.gallery",
-  lightbox: "dashboard.adminMedia.variant.lightbox",
-  polaroid: "dashboard.adminMedia.variant.polaroid",
-  reel: "dashboard.adminMedia.variant.reel",
-  public_watermarked: "dashboard.adminMedia.variant.publicWatermarked",
-  watermarked: "dashboard.adminMedia.variant.watermarked",
-};
-
-/** Localized variant label; falls back to the English map, then the raw key. */
-function variantLabel(t: (key: string) => string, kind: string): string {
-  const key = VARIANT_LABEL_KEYS[kind];
-  return key ? t(key) : (VARIANT_LABELS[kind] ?? kind);
-}
-
 // Card pill colors per variant/status — single slot, priority order.
 // "Profile" = 1:1 headshot (variantKind=card)
 // "Cover"   = 16:9 banner  (variantKind=hero)
@@ -241,16 +207,6 @@ function MetaRow({ label, value }: { label: string; value: string }) {
     <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
       <div style={{ fontFamily: FONTS.body, fontSize: 11, color: "rgba(255,255,255,0.5)", width: 78, flexShrink: 0 }}>{label}</div>
       <div style={{ fontFamily: FONTS.body, fontSize: 12, color: "rgba(255,255,255,0.92)", flex: 1, wordBreak: "break-all" }}>{value}</div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
-  return (
-    <div style={{ padding: "16px 18px", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, background: "#fff" }}>
-      <div style={{ fontFamily: FONTS.body, fontSize: 12, marginBottom: 4 }} className="text-admin-ink-muted">{label}</div>
-      <div style={{ fontFamily: FONTS.body, fontSize: 22, fontWeight: 700 }} className="text-admin-ink">{value}</div>
-      {sub && <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{sub}</div>}
     </div>
   );
 }
@@ -330,6 +286,7 @@ function MediaSidebar({
         active={isActive({ kind: "releases" })}
         onClick={() => setView({ kind: "releases" })}
       />
+      <NavRow label={t("dashboard.adminMedia.stock.nav")} active={isActive({ kind: "stock" })} onClick={() => setView({ kind: "stock" })} />
 
 
       {settings.showFolders && collections.length > 0 && (
@@ -1359,75 +1316,6 @@ function UploadModal({
 
 // ─── Analytics View ───────────────────────────────────────────────────────────
 
-function AnalyticsView({ photos, folders }: { photos: MediaPhoto[]; folders: MediaFolder[] }) {
-  const t = useT();
-  // Q5: previously two separate useMemo calls (byTalent + byKind) with the
-  // same `[photos]` dep, plus an unmemoized `totalBytes` reduce. React
-  // Compiler bailed on preserving the second useMemo
-  // (preserve-manual-memoization at L1180). Folded all three into one
-  // useMemo with the same single dep — Compiler can preserve a single
-  // computed object cleanly, and `totalBytes` is now memoized too.
-  const { byTalent, byKind, totalBytes } = useMemo(() => {
-    const talentMap = new Map<string, { count: number; pending: number; bytes: number }>();
-    const kindMap = new Map<string, number>();
-    let total = 0;
-    for (const p of photos) {
-      const cur = talentMap.get(p.talentName) ?? { count: 0, pending: 0, bytes: 0 };
-      talentMap.set(p.talentName, {
-        count: cur.count + 1,
-        pending: cur.pending + (p.approvalState === "pending" ? 1 : 0),
-        bytes: cur.bytes + (p.fileSizeBytes ?? 0),
-      });
-      kindMap.set(p.variantKind, (kindMap.get(p.variantKind) ?? 0) + 1);
-      total += p.fileSizeBytes ?? 0;
-    }
-    return {
-      byTalent: Array.from(talentMap.entries()).sort((a, b) => b[1].count - a[1].count),
-      byKind: Array.from(kindMap.entries()).sort((a, b) => b[1] - a[1]),
-      totalBytes: total,
-    };
-  }, [photos]);
-
-  return (
-    <div style={{ padding: "24px 28px", overflowY: "auto", flex: 1 }}>
-      <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700, marginBottom: 20 }} className="text-admin-ink">{t("dashboard.adminMedia.navAnalytics")}</div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 28 }}>
-        <StatCard label={t("dashboard.adminMedia.statTotalPhotos")} value={photos.length} />
-        <StatCard label={t("dashboard.adminMedia.statTotalStorage")} value={formatBytes(totalBytes)} />
-        <StatCard label={t("dashboard.adminMedia.sectionFolders")} value={folders.length} />
-        <StatCard label={t("dashboard.adminMedia.navPendingReview")} value={photos.filter((p) => p.approvalState === "pending").length} />
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, marginBottom: 12 }} className="text-admin-ink">{t("dashboard.adminMedia.navByTalent")}</div>
-          <div className="flex flex-col gap-1.5">
-            {byTalent.slice(0, 10).map(([name, stats]) => (
-              <div key={name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1, fontFamily: FONTS.body, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{name}</div>
-                <div style={{ fontFamily: FONTS.body, fontSize: 12, whiteSpace: "nowrap" }} className="text-admin-ink-muted">{stats.count} · {formatBytes(stats.bytes)}</div>
-                {stats.pending > 0 && <span style={{ background: COLORS.amber, color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 800, padding: "1px 5px" }}>{stats.pending}</span>}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, marginBottom: 12 }} className="text-admin-ink">{t("dashboard.adminMedia.byVariantKind")}</div>
-          <div className="flex flex-col gap-1.5">
-            {byKind.map(([kind, count]) => (
-              <div key={kind} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">{variantLabel(t, kind)}</div>
-                <div style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">{count}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Photo Card ───────────────────────────────────────────────────────────────
 
 function PhotoCard({
@@ -2227,6 +2115,7 @@ export function WorkspaceMediaPage() {
         </div>
       );
     }
+    if (view.kind === "stock") return <MediaStockLane />;
 
     const showGroupedByTalent = view.kind === "by-talent";
     const showGroupedByKind = view.kind === "by-kind";

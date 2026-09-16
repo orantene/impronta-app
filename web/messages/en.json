@@ -6482,6 +6482,7 @@
         "languages": "Languages",
         "translations": "Translations",
         "builderLab": "Builder Lab",
+        "stock": "Lifestyle stock",
         "settings": "Settings",
         "auditLog": "Audit Log",
         "support": "Support",
@@ -11714,7 +11715,26 @@
       "downloadGotWebSize": "Web-size file.",
       "downloadWatermarkNote": "No watermark on this file. Watermarks are applied only to photos you release to another site with the watermark condition.",
       "errUnsupportedKind": "This page takes photos only. Not uploaded:",
-      "errFileTooLarge": "Too large (max {max} MB), not uploaded:"
+      "errFileTooLarge": "Too large (max {max} MB), not uploaded:",
+      "stock": {
+        "nav": "Lifestyle stock",
+        "title": "Lifestyle stock",
+        "subtitle": "Photos for a {type} ({family}) business, provided by the platform. Use them anywhere on your site; upload your own to replace them.",
+        "loading": "Loading the shelf…",
+        "readOnly": "Shared · read-only",
+        "empty": "No stock photos for this business type yet.",
+        "familyPack": "Family pack",
+        "copyUrl": "Copy address",
+        "copied": "Copied",
+        "role": {
+          "hero": "Hero",
+          "wide": "Wide",
+          "portrait": "Portrait",
+          "gallery": "Gallery",
+          "team": "Team",
+          "detail": "Detail"
+        }
+      }
     },
     "adminPitchCompose": {
       "drawerTitle": "Send pitch",

@@ -23,7 +23,11 @@ import {
   resolveComponentsForType,
   type SitePageRole,
 } from "@/lib/site-admin/builder-core/site-templates";
+import { listSiteLooks } from "@/lib/site-admin/builder-core/site-templates/site-looks.server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { BUSINESS_TYPES } from "@/lib/words/business-types";
+
+import { LookImportPanel } from "./look-import-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +47,9 @@ export default async function BuilderLabLooksPage({
   const page: SitePageRole = (SITE_PAGE_ROLES as readonly string[]).includes(sp.page ?? "") ? (sp.page as SitePageRole) : "home";
   const locale = sp.locale === "en" ? "en" : "es";
   const width = WIDTHS.includes(Number(sp.width) as (typeof WIDTHS)[number]) ? Number(sp.width) : 1440;
+
+  const admin = createServiceRoleClient();
+  const storedLooks = admin ? await listSiteLooks(admin) : [];
 
   const previewHref = `/template-preview/${look.id}?kind=look&type=${encodeURIComponent(typeId)}&page=${page}&locale=${locale}&bare=1`;
   const components = resolveComponentsForType(typeId);
@@ -148,6 +155,8 @@ export default async function BuilderLabLooksPage({
           style={{ width, height: 900, border: 0, background: "white", display: "block", margin: "0 auto" }}
         />
       </div>
+
+      <LookImportPanel rows={storedLooks} />
     </div>
   );
 }

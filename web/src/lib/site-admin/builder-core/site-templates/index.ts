@@ -24,3 +24,6 @@ export {
 export { instantiateSite, resolveIdentityTemplate, type InstantiateSiteInput, type InstantiateSiteResult } from "./instantiate-site";
 export { LOOK_COPY_DEFAULTS, COMPONENT_EMPTY_STATES, COMPONENT_LABELS } from "./copy";
 export { exampleContext, fixtureImageResolver, emptyImageResolver, EXAMPLE_IDENTITY } from "./examples";
+export { buildImageResolver, type CandidateImage } from "./image-resolver";
+export { resolveTenantBusinessType, type ResolvedBusinessType } from "./tenant-business-type";
+export { toPortableLook, parsePortableLook, type PortableLook } from "./portable-look";
