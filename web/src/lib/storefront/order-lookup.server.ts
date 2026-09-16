@@ -5,6 +5,7 @@
 import { signAdmissionToken } from "@/lib/sessions/admission-token";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import type { VenueAdmin } from "@/lib/venues/locations";
 import { loadTicketByCode, ticketLookup, ticketResend, ticketTransfer } from "@/lib/venues/ticket-self";
 
 import { actOrderLookupCore, readOrderLookupCore, type OrderLookupDeps } from "./order-lookup.core";
@@ -18,10 +19,11 @@ async function bind(locale: string | null | undefined): Promise<OrderLookupDeps 
   return {
     admin,
     locale: await storefrontLocale(locale),
-    ticketLookup,
-    loadTicketByCode,
-    ticketResend,
-    ticketTransfer,
+    // The service-role client satisfies VenueAdmin; the seam types its client loosely for the fakes.
+    ticketLookup: (client, input) => ticketLookup(client as VenueAdmin, input),
+    loadTicketByCode: (client, input) => loadTicketByCode(client as VenueAdmin, input),
+    ticketResend: (client, input) => ticketResend(client as VenueAdmin, input),
+    ticketTransfer: (client, input) => ticketTransfer(client as VenueAdmin, input),
     signAdmissionToken,
   };
 }

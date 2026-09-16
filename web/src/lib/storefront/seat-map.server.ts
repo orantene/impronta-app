@@ -7,6 +7,7 @@ import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { admissionHoldSeats } from "@/lib/venues/event-holds";
+import type { VenueAdmin } from "@/lib/venues/locations";
 
 import { mapEngineRefusal } from "./refusals";
 import { resolveStorefrontIdentity, storefrontLocale } from "./request-context";
@@ -22,7 +23,7 @@ async function bind(locale: string | null | undefined): Promise<SeatMapDeps | nu
     identity,
     guestSessionRowId,
     locale: lang,
-    holdSeats: (client, input) => admissionHoldSeats(client, input),
+    holdSeats: (client, input) => admissionHoldSeats(client as VenueAdmin, input),
     releaseCapacity: (ids, client) => releaseCapacity(ids, client as Parameters<typeof releaseCapacity>[1]),
   };
 }
