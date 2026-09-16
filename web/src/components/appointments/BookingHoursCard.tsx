@@ -5,7 +5,7 @@
  * Lives OUTSIDE components/admin/shell.
  */
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   acceptBookingHoursProposal,
   listBookingHoursTargets,
@@ -54,14 +54,23 @@ function inputToMin(raw: string): number | null {
   return h * 60 + min;
 }
 
+export type BookingHoursSnapshot = { weekly: WeeklyHours; timezone: string };
+
 export function BookingHoursCard({
   talentProfileId,
   showTalentPicker = false,
   showTalentOptIn = false,
+  onHoursChange,
 }: {
   talentProfileId?: string | null;
   showTalentPicker?: boolean;
   showTalentOptIn?: boolean;
+  /**
+   * What the editor holds after a load, a save or an accepted proposal, for
+   * a caller that draws the same hours read-only beside it (the People
+   * sheet's W11 table). Never fired with a value the server did not return.
+   */
+  onHoursChange?: (hours: BookingHoursSnapshot) => void;
 }) {
   const t = useT();
   const [targets, setTargets] = useState<HoursTarget[]>([]);
@@ -87,6 +96,11 @@ export function BookingHoursCard({
   const [accepting, setAccepting] = useState(false);
   const [acceptedOk, setAcceptedOk] = useState(false);
   const [, startTransition] = useTransition();
+  // The latest callback, read inside the load effect without re-running it.
+  const onHoursChangeRef = useRef(onHoursChange);
+  useEffect(() => {
+    onHoursChangeRef.current = onHoursChange;
+  }, [onHoursChange]);
 
   const filteredTargets = useMemo(() => {
     const q = pickerQuery.trim().toLowerCase();
@@ -127,6 +141,7 @@ export function BookingHoursCard({
         setResolvedDefault(res.defaultTimezone);
         setTimezone(res.hours?.timezone ?? res.defaultTimezone);
         setWeekly(res.hours?.weekly ?? emptyWeekly());
+        onHoursChangeRef.current?.({ weekly: res.hours?.weekly ?? emptyWeekly(), timezone: res.hours?.timezone ?? res.defaultTimezone });
         setSlotMinutes(res.hours?.slotMinutes ?? DEFAULT_APPOINTMENT_DEFAULTS.slotMinutes);
         setOptIn(res.directBookingOptIn);
         setCanEditHours(res.canEditHours);
@@ -166,6 +181,7 @@ export function BookingHoursCard({
         setWeekly(res.hours.weekly);
         setTimezone(res.hours.timezone);
         setSlotMinutes(res.hours.slotMinutes);
+        onHoursChange?.({ weekly: res.hours.weekly, timezone: res.hours.timezone });
         setSavedOk(true);
         setTimeout(() => setSavedOk(false), 2000);
       } else {
@@ -187,6 +203,7 @@ export function BookingHoursCard({
         setWeekly(res.hours.weekly);
         setTimezone(res.hours.timezone);
         setSlotMinutes(res.hours.slotMinutes);
+        onHoursChange?.({ weekly: res.hours.weekly, timezone: res.hours.timezone });
         setProposal(null);
         setAcceptedOk(true);
         setTimeout(() => setAcceptedOk(false), 2000);
