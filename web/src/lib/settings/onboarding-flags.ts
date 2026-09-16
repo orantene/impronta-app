@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 /**
@@ -28,7 +30,8 @@ export function parseOnboardingFlagRows(
   };
 }
 
-export async function getOnboardingFlags(): Promise<OnboardingFlags> {
+/** Cached per request: the shell and every server action share one read. */
+export const getOnboardingFlags = cache(async (): Promise<OnboardingFlags> => {
   const supabase = createServiceRoleClient();
   if (!supabase) return { ...DEFAULT_FLAGS };
   const { data, error } = await supabase
@@ -38,7 +41,7 @@ export async function getOnboardingFlags(): Promise<OnboardingFlags> {
     .is("tenant_id", null);
   if (error || !data) return { ...DEFAULT_FLAGS };
   return parseOnboardingFlagRows(data);
-}
+});
 
 function asFlag(value: unknown): boolean {
   if (typeof value === "boolean") return value;

@@ -10,13 +10,27 @@
 import { useEffect, useState } from "react";
 import { TalentRegisterModal, TALENT_MODAL_EVENT } from "./talent-register-modal";
 import { LoginModal, LOGIN_MODAL_EVENT } from "./login-modal";
+import { OnboardingModuleHost } from "@/components/onboarding/onboarding-module-host";
 
-export function MarketingModalHost({ locale = "en" }: { locale?: string }) {
+export function MarketingModalHost({
+  locale = "en",
+  onboardingModule = false,
+}: {
+  locale?: string;
+  /**
+   * `onboarding_module_enabled`: when true the shared onboarding module owns
+   * every "Get started" CTA (including the talent event), so the talent modal
+   * is not opened here. Read once per request in `MarketingShell`.
+   */
+  onboardingModule?: boolean;
+}) {
   const [talentOpen, setTalentOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
 
   useEffect(() => {
-    const openTalent = () => setTalentOpen(true);
+    const openTalent = () => {
+      if (!onboardingModule) setTalentOpen(true);
+    };
     const openLogin = () => setLoginOpen(true);
     window.addEventListener(TALENT_MODAL_EVENT, openTalent);
     window.addEventListener(LOGIN_MODAL_EVENT, openLogin);
@@ -24,10 +38,11 @@ export function MarketingModalHost({ locale = "en" }: { locale?: string }) {
       window.removeEventListener(TALENT_MODAL_EVENT, openTalent);
       window.removeEventListener(LOGIN_MODAL_EVENT, openLogin);
     };
-  }, []);
+  }, [onboardingModule]);
 
   return (
     <>
+      {onboardingModule ? <OnboardingModuleHost locale={locale === "es" ? "es" : "en"} /> : null}
       {talentOpen ? (
         <TalentRegisterModal locale={locale} onClose={() => setTalentOpen(false)} />
       ) : null}

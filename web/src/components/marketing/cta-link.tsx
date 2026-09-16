@@ -106,7 +106,7 @@ export function MarketingCta({
   }
 
   return (
-    <Link href={resolvedHref} className={classes} onClick={handleClick}>
+    <Link href={resolvedHref} className={classes} onClick={handleClick} data-intent={eventIntent}>
       {content}
     </Link>
   );

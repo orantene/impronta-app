@@ -152,5 +152,12 @@ export default defineConfig({
       testMatch: /cases\/.*\.spec\.ts/,
       use: { ...devices["iPhone 14"] },
     },
+    // Onboarding module: phone-first, so every onboarding spec also runs on an
+    // iPhone 14 (390 px). The chromium project above covers the desktop overlay.
+    {
+      name: "mobile-onboarding",
+      testMatch: /onboarding\/.*\.spec\.ts/,
+      use: { ...devices["iPhone 14"] },
+    },
   ],
 });
