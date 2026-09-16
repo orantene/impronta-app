@@ -17,17 +17,31 @@ import { translatorFor } from "@/i18n/use-t";
 import { initialMachineState, reduceMachine, type MachineErrorCode } from "@/lib/onboarding/machine";
 import type { ModuleStep, OnboardingIntent } from "@/lib/onboarding/module-state";
 import {
+  acceptUnderstoodCard,
+  answerModuleQuestion,
+  chooseOnboardingPath,
+  editUnderstoodFact,
+  loadOnboardingCard,
   loadOnboardingResume,
   resetOnboardingDraft,
   saveOnboardingStep,
+  setOnboardingLink,
   submitOnboardingInput,
+  understandOnboardingInput,
+  type CardResult,
+  type QuestionAnswer,
 } from "@/lib/server-actions/onboarding-module";
+import type { OnboardingPath } from "@/lib/onboarding/module-state";
 
 import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
+import { ForkStep } from "./steps/fork-step";
+import { QuestionStep, questionsAfterFork } from "./steps/question-steps";
 import { ReadingStep } from "./steps/reading-step";
+import { ReadyStep } from "./steps/ready-step";
 import { ResumeCard } from "./steps/resume-card";
 import { TooLittleStep } from "./steps/too-little-step";
+import { UnderstoodStep } from "./steps/understood-step";
 
 // Full keys, not composed at runtime, so the dead-key guard can see them.
 const STEP_LABEL: Record<ModuleStep, string> = {
@@ -121,11 +135,93 @@ export function OnboardingModule({
 
   const back = useCallback(() => {
     dispatch({ type: "back" });
-    void saveOnboardingStep({ step: "entry" });
+    const to = state.step === "confirmWords" || state.step === "tooLittle" ? "entry" : "understood";
+    void saveOnboardingStep({ step: to });
+  }, [state.step]);
+
+  // Phase 3 · the card. Runs the understand step once the words are sent
+  // (reading screen), or reloads the card from the brief on resume.
+  const applyCard = useCallback((result: CardResult, opts: { step?: ModuleStep } = {}) => {
+    if (result.ok) {
+      dispatch({ type: "cardLoaded", understanding: result.card.understanding, chip: result.card.chip, step: opts.step });
+      return true;
+    }
+    const code: MachineErrorCode = result.code === "ai" ? (result.understandCode as MachineErrorCode) : (result.code as MachineErrorCode);
+    dispatch({ type: "cardFailed", code });
+    return false;
+  }, []);
+
+  // One understand call per entry into "reading" (a ref, not `busy`, guards
+  // it: `sendStarted` changes `busy`, and an effect keyed on it would cancel
+  // its own in-flight promise).
+  const understandingForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (state.step !== "reading" || state.understanding) return;
+    const key = `${state.briefId ?? ""}:${state.input?.value ?? ""}`;
+    if (understandingForRef.current === key) return;
+    understandingForRef.current = key;
+    dispatch({ type: "sendStarted" });
+    void understandOnboardingInput().then((result) => {
+      if (result.ok) {
+        applyCard(result, { step: result.card.understanding.tooLittle ? "tooLittle" : "understood" });
+        return;
+      }
+      // Nothing read: show the card with everything missing so the person
+      // can still answer the short questions, and say why.
+      const code: MachineErrorCode = result.code === "ai" ? (result.understandCode as MachineErrorCode) : (result.code as MachineErrorCode);
+      void loadOnboardingCard().then((fallback) => {
+        if (fallback.ok) dispatch({ type: "cardLoaded", understanding: fallback.card.understanding, chip: fallback.card.chip, step: "understood" });
+        dispatch({ type: "cardFailed", code });
+      });
+    });
+  }, [state.step, state.understanding, state.briefId, state.input, applyCard]);
+
+  // Resume at a Phase 3 step: the card is recomputed from the brief.
+  const cardLoadRef = useRef(false);
+  useEffect(() => {
+    const phase3 = state.step === "understood" || state.step === "fork" || state.step === "question" || state.step === "readyToBuild";
+    if (!phase3 || state.understanding || cardLoadRef.current) return;
+    cardLoadRef.current = true;
+    dispatch({ type: "sendStarted" });
+    void loadOnboardingCard().then((result) => {
+      cardLoadRef.current = false;
+      applyCard(result, { step: state.step });
+    });
+  }, [state.step, state.understanding, applyCard]);
+
+  const accept = useCallback(async () => {
+    dispatch({ type: "sendStarted" });
+    const r = await acceptUnderstoodCard();
+    if (r.ok) dispatch({ type: "cardAccepted", nextStep: r.nextStep, followUps: r.followUps });
+    else dispatch({ type: "cardFailed", code: "save_failed" });
+  }, []);
+
+  const choosePath = useCallback(async (path: OnboardingPath) => {
+    dispatch({ type: "sendStarted" });
+    const r = await chooseOnboardingPath({ path });
+    if (r.ok) {
+      dispatch({ type: "pathChosen", understanding: r.card.understanding, chip: r.card.chip, path });
+      void saveOnboardingStep({ step: r.card.understanding.followUps.filter((q) => q !== "fork").length ? "question" : "readyToBuild" });
+    } else dispatch({ type: "cardFailed", code: "save_failed" });
+  }, []);
+
+  const answer = useCallback(async (a: QuestionAnswer) => {
+    dispatch({ type: "sendStarted" });
+    const r = await answerModuleQuestion({ answer: a, questionIndex: state.questionIndex });
+    if (r.ok) dispatch({ type: "questionAnswered", understanding: r.card.understanding, chip: r.card.chip });
+    else dispatch({ type: "cardFailed", code: r.code === "invalid_whatsapp" ? "invalid_whatsapp" : "save_failed" });
+  }, [state.questionIndex]);
+
+  const checkLink = useCallback(async (slug: string) => {
+    const r = await setOnboardingLink({ slug });
+    if (!r.ok) return null;
+    dispatch({ type: "linkChecked", slug: r.link.slug, available: r.link.available, suggestions: r.link.suggestions ?? [] });
+    return r.link;
   }, []);
 
   const stepLabel = t(STEP_LABEL[state.step]);
-  const showBack = state.step === "confirmWords" || state.step === "tooLittle";
+  const showBack = state.step === "confirmWords" || state.step === "tooLittle" || state.step === "fork" || state.step === "question" || state.step === "readyToBuild";
+  const questions = questionsAfterFork(state.followUps);
 
   let body: React.ReactNode;
   if (state.resume) {
@@ -168,9 +264,68 @@ export function OnboardingModule({
     );
   } else if (state.step === "tooLittle") {
     body = <TooLittleStep t={t} onBack={() => dispatch({ type: "back" })} />;
+  } else if (state.step === "understood" && state.understanding) {
+    body = (
+      <UnderstoodStep
+        t={t}
+        understanding={state.understanding}
+        fromLink={state.input?.kind === "url"}
+        busy={state.busy}
+        error={state.error}
+        onEdit={async (factKey, value) => {
+          const r = await editUnderstoodFact({ factKey, value });
+          applyCard(r, { step: "understood" });
+        }}
+        onAskMe={(questionId) => {
+          void accept().then(() => dispatch({ type: "jumpToQuestion", questionId }));
+        }}
+        onAccept={() => void accept()}
+        onChangePath={() => dispatch({ type: "toStep", step: "fork" })}
+      />
+    );
+  } else if (state.step === "fork") {
+    body = <ForkStep t={t} busy={state.busy} onChoose={(path) => void choosePath(path)} />;
+  } else if (state.step === "question" && state.understanding && questions[state.questionIndex]) {
+    body = (
+      <QuestionStep
+        t={t}
+        locale={locale}
+        questionId={questions[state.questionIndex]}
+        index={state.questionIndex}
+        total={questions.length}
+        understanding={state.understanding}
+        chip={state.chip}
+        busy={state.busy}
+        error={state.error}
+        onAnswer={(a) => void answer(a)}
+        onSkip={() => {
+          dispatch({ type: "questionSkipped" });
+          void saveOnboardingStep({ step: state.questionIndex + 1 < questions.length ? "question" : "readyToBuild" });
+        }}
+      />
+    );
+  } else if (state.step === "readyToBuild" && state.understanding) {
+    body = (
+      <ReadyStep
+        t={t}
+        understanding={state.understanding}
+        path={state.understanding.path}
+        linkSlug={state.linkSlug}
+        linkAvailable={state.linkAvailable}
+        linkSuggestions={state.linkSuggestions}
+        busy={state.busy}
+        onCheckLink={checkLink}
+        onBuild={() => {
+          dispatch({ type: "toStep", step: "save" });
+          void saveOnboardingStep({ step: "save" });
+        }}
+      />
+    );
+  } else if (state.step === "save" || state.step === "code" || state.step === "building" || state.step === "arrival") {
+    // Phase 4 lands these screens; until then the step is recorded and the
+    // reading screen's "next" line says so.
+    body = <ReadingStep t={t} input={state.input} />;
   } else {
-    // reading and every later step (understood, fork, …) render the reading
-    // screen until their phase lands; resume brings people here too.
     body = <ReadingStep t={t} input={state.input} />;
   }
 

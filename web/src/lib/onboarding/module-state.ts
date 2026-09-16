@@ -54,6 +54,12 @@ export type PersistedModuleState = {
   path?: OnboardingPath | null;
   questionIndex?: number;
   locale?: "en" | "es";
+  /** The chip the person tapped (business type id or talent type slug). */
+  typeChoice?: { kind: "business" | "talent"; id: string; slug: string } | null;
+  /** The link name chosen at "Ready to build" (checked for availability). */
+  linkSlug?: string | null;
+  /** "Looks right" tapped: assumed lines were accepted as they stand. */
+  cardAccepted?: boolean;
   updatedAt?: string;
 };
 
@@ -99,6 +105,14 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
     out.questionIndex = r.questionIndex;
   }
   if (r.locale === "en" || r.locale === "es") out.locale = r.locale;
+  if (r.typeChoice && typeof r.typeChoice === "object") {
+    const c = r.typeChoice as Record<string, unknown>;
+    if ((c.kind === "business" || c.kind === "talent") && typeof c.id === "string" && typeof c.slug === "string") {
+      out.typeChoice = { kind: c.kind, id: c.id, slug: c.slug };
+    }
+  }
+  if (typeof r.linkSlug === "string") out.linkSlug = r.linkSlug;
+  if (typeof r.cardAccepted === "boolean") out.cardAccepted = r.cardAccepted;
   if (typeof r.updatedAt === "string") out.updatedAt = r.updatedAt;
   return out;
 }

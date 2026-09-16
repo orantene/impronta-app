@@ -413,6 +413,17 @@ export const FACT_KEYS: readonly FactKeyDef[] = [
     label: "Brand colours",
   },
   {
+    // Inferred only, never asked: style words the person used ("luxury",
+    // "family", "on the beach") read as one of the image engine's visual
+    // directions. Low confidence by construction; the direction layer of the
+    // Visual Asset Engine is the consumer (decision-imagery 2026-09-16 §9).
+    key: "brand.visual_direction",
+    type: "string",
+    category: "brand",
+    label: "Visual direction",
+    allowed: ["editorial", "service", "result", "lifestyle", "minimal"],
+  },
+  {
     key: "menu.categories",
     type: "string_list",
     category: "business",

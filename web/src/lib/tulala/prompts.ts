@@ -75,6 +75,7 @@ export function buildExtractionPrompt(
     "- 'I do nails at home' does NOT mean they have a business. Do not set business.exists.",
     "- Someone mentioning colleagues does NOT mean they employ them. Leave the arrangement unset until they say.",
     "- A number of people means total headcount only if they say 'including me'. Otherwise record what they said and let the follow-up settle it.",
+    "- brand.visual_direction only from style words they used ('luxury', 'family', 'on the beach', 'minimal'); never from the trade or the name, and never above 0.6.",
     "",
     ...(options.pack
       ? [

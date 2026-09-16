@@ -28,14 +28,8 @@ import { streamOrFallback } from "@/lib/ai/stream";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 import { logServerError } from "@/lib/server/safe-error";
 
-import { loadBrief, recordFacts, type BriefOwner } from "./brief-store.server";
-import { EXTRACTION_SCHEMA, parseExtraction } from "./extraction";
-import {
-  buildExtractionMessage,
-  buildExtractionPrompt,
-  buildReplyMessage,
-  buildReplyPrompt,
-} from "./prompts";
+import { loadBrief, type BriefOwner } from "./brief-store.server";
+import { buildReplyMessage, buildReplyPrompt } from "./prompts";
 import {
   admitTurn,
   decideNextMove,
@@ -47,8 +41,8 @@ import {
 } from "./conversation";
 import { questionById, type Question } from "./questions";
 import { packForBrief } from "./pack-for-brief";
-import type { IndustryPack } from "./industry-packs";
 import { sanitizeAgentReply } from "./agent-guardrails";
+import { extractAndRecord } from "./extract-and-record.server";
 import {
   logIntakeAbandoned,
   logQuestionUnanswerable,
@@ -59,10 +53,6 @@ import type { Brief } from "./brief-store";
 
 /** Tokens for a reply. Two or three sentences needs nothing like this much. */
 const REPLY_MAX_TOKENS = 400;
-const EXTRACTION_MAX_TOKENS = 1200;
-
-/** Wall clock per model call. Past this the visitor has given up anyway. */
-const MODEL_TIMEOUT_MS = 20_000;
 
 export type TurnRequest = {
   owner: BriefOwner;
@@ -102,20 +92,6 @@ export type TurnEvent =
  * platform's own timeout kills it, because at that point the client has no error
  * to render and the user sees a frozen chat.
  */
-async function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: T): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      p,
-      new Promise<T>((resolve) => {
-        timer = setTimeout(() => resolve(onTimeout), ms);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
 /**
  * Run a turn, yielding events as they happen.
  *
@@ -332,75 +308,6 @@ function fallbackReply(move: NextMove, locale: "en" | "es"): string {
   return move.kind === "recommend"
     ? "I have what I need. Here is what I would suggest."
     : "Tell me a little more about how your work is organised.";
-}
-
-// ─── Extraction step ──────────────────────────────────────────────────────────
-
-type LearnedFact = { factKey: string; value: unknown; confidence: number };
-
-async function extractAndRecord(input: {
-  adapter: Awaited<ReturnType<typeof resolveAiChatAdapter>>;
-  brief: Brief;
-  userMessage: string;
-  question: Question | null;
-  pack: IndustryPack | null;
-}): Promise<LearnedFact[]> {
-  try {
-    const completion = await withTimeout(
-      input.adapter.chatCompletion({
-        systemPrompt: buildExtractionPrompt({ pack: input.pack }),
-        userMessage: buildExtractionMessage({
-          userMessage: input.userMessage,
-          brief: input.brief,
-          question: input.question,
-        }),
-        jsonSchema: EXTRACTION_SCHEMA,
-        maxTokens: EXTRACTION_MAX_TOKENS,
-        temperature: 0,
-      }),
-      MODEL_TIMEOUT_MS,
-      { ok: false as const, code: "timeout", message: "Extraction timed out." },
-    );
-
-    if (!completion.ok) {
-      logServerError("tulala.extract", new Error(completion.code));
-      return [];
-    }
-
-    const parsed = parseExtraction(completion.text, {
-      questionId: input.question?.id ?? null,
-      questionVersion: input.question?.version ?? null,
-      // Belt and braces on the physical-attribute rule. The prompt withholds
-      // those keys, but a model that produces one anyway — from its own priors,
-      // or because a previous turn's context leaked — must still be refused.
-      // Two independent barriers, because the failure is unrecoverable: nobody
-      // can un-store a description of somebody's body.
-      allowPhysicalAttributes: input.pack?.id === "model",
-    });
-
-    if (parsed.parseFailed) {
-      // Worth a log line: a malformed payload is a prompt or model problem, and
-      // it is silent from the outside because the turn still completes.
-      logServerError("tulala.extract.parse", new Error("unparseable extraction payload"));
-      return [];
-    }
-    if (parsed.facts.length === 0) return [];
-
-    const result = await recordFacts(input.brief.id, parsed.facts);
-    const written = new Set(result.written);
-    return parsed.facts
-      .filter((f) => written.has(f.factKey))
-      .map((f) => ({
-        factKey: f.factKey,
-        value: f.value,
-        confidence: f.confidence ?? 0.5,
-      }));
-  } catch (err) {
-    // A failed extraction costs one question's worth of progress. Failing the
-    // whole turn over it would cost the customer.
-    logServerError("tulala.extract.unexpected", err);
-    return [];
-  }
 }
 
 // ─── Abandonment ──────────────────────────────────────────────────────────────
