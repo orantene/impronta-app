@@ -344,3 +344,19 @@ test("the door: the mode is built, the rail is the board's, and the route branch
     assert.doesNotMatch(readFileSync(join(process.cwd(), file), "utf8"), /#[0-9a-fA-F]{3,8}\b/, `${file}: no hex colour literal on an admin surface`);
   }
 });
+
+// D-140: a party row on the side panel's Waiting tab opens the waiting-list
+// sheet (Seat now / Offer table / Remove), not the Seat sheet alone. The Seat
+// sheet opened straight away, so Notify and Leave had no door from the floor
+// unless an unassigned reservation happened to be booked.
+test("the Waiting tab's party row opens the waiting-list sheet, where Seat, Offer and Remove all live", () => {
+  const board = readFileSync(join(process.cwd(), "src/components/admin/floor/FloorBoard.tsx"), "utf8");
+  const pick = board.match(/onPickWaitlist=\{[^}]*\}/)?.[0] ?? "";
+  assert.match(pick, /kind: "waiting"/, pick || "onPickWaitlist is not wired");
+  assert.doesNotMatch(pick, /kind: "seat"/);
+  const host = readFileSync(join(process.cwd(), "src/components/admin/floor/FloorDialogsHost.tsx"), "utf8");
+  const waiting = host.slice(host.indexOf("<WaitingSheet"), host.indexOf("/>", host.indexOf("<WaitingSheet")));
+  assert.match(waiting, /onSeat=\{props\.onSeatWaitlist\}/);
+  assert.match(waiting, /onOffer=/);
+  assert.match(waiting, /onRemove=/);
+});
