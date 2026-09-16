@@ -51,7 +51,7 @@ Backfill in the same migration: existing rows → `approval='approved'`, `proven
 
 | Role | Alternatives | Quality |
 |---|---|---|
-| hero | 5, one per visual direction | high, only if the 10–20 image comparison shows a meaningful difference; else medium |
+| hero | 5, one per visual direction | **medium** (comparison 2026-09-16, `evidence/cost-measurement/hero-quality/`: high = 3.84× cost, no meaningful difference after delivery re-encode; D-TPL-27). `high` remains the admin's per-asset regeneration option |
 | wide | 2 | medium |
 | portrait / about | 2 | medium |
 | gallery 1–4 | 2 each (8) | medium |
@@ -69,13 +69,13 @@ Reads (`queryLifestyleStockForType`) add `approval = 'approved'`; the fallback c
 
 ### 3b. Visual directions
 
-Five per family, named, e.g. beauty: `editorial` (styled interior) · `service` (the work being done, hands not faces) · `result` (finished result close-up) · `lifestyle` (a client's moment) · `minimal` (tools and product composition). Heroes are generated one per direction; the other roles cycle directions so two assets of a slot never share one. The direction is stored on the asset and on the assignment; later the intake's inferred `brand.visual_direction` (onboarding's fact, optional) steers the pick.
+Five per family, named, e.g. beauty: `editorial` (styled interior) · `service` (the work being done, hands not faces) · `result` (finished result close-up) · `lifestyle` (a client's moment) · `minimal` (tools and product composition). Heroes are generated one per direction; the other roles cycle directions so two assets of a slot never share one. Each direction also fixes a *setting* (interior/exterior, coastal/urban, time of day): the comparison run showed the model collapses to one Tulum beach-room vocabulary when the setting is left implicit. The direction is stored on the asset and on the assignment; later the intake's inferred `brand.visual_direction` (onboarding's fact, optional) steers the pick.
 
 Shared rules layer (`global.ts`, applied to every prompt, versioned separately): composition and crop per role (hero 3:2 with clear negative space on the left OR right third for a headline, gallery 1:1, portrait 3:4, wide 3:1 band, team 4:3, detail 1:1 close-up), photographic realism (natural light, no HDR, no illustration), and hard restrictions: no logos, brand marks, readable text or signage, watermarks, recognisable faces of real people, minors; culturally appropriate to Mexico's Riviera Maya market first. The exact prompt string sent is stored on the asset (`prompt`) with `prompt_version`, so a prompt change never rewrites history. A static test asserts every id in `business-types.ts` resolves to a prompt (type or family).
 
 ## 4. Pipeline: generated → automated QA → human approved (owner §4)
 
-1. **Generate** (batch API for the bulk pool, sync only for admin regeneration / on-demand): `platform_stock_jobs` rows (type, slot, direction, n, quality, mode, status, measured cost) processed in cron chunks; every result lands as `generated` with prompt, layer versions, model/size/quality, measured cost.
+1. **Generate** (batch API for the bulk pool, sync only for admin regeneration / on-demand): `platform_stock_jobs` rows (type, slot, direction, n, quality, mode, status, measured cost) processed in cron chunks; every result lands as `generated` with prompt, layer versions, model/size/quality, measured cost. Provider refusals are job states: `moderation_blocked` → one automatic reword retry then terminal `blocked` with the reason; `rate_limit_exceeded` → paced retry (batch mode avoids it).
 2. **Automated QA** (`stock-qa.ts`, versioned, verdicts in `qa_json`): aspect ratio vs slot; visible text/signage and logo/brand detection (vision call, cheap model, admin setting); inappropriate content; obvious type mismatch (vision: "is this a <type>?"); duplicate and near-duplicate (perceptual hash across the type's pool); low quality (blur/blank/artefact heuristics + vision score). Pass → `qa_passed`; fail → `rejected` with the reason (kept for audit, never served).
 3. **Human review** in `/platform/admin/stock` **(exists)**: an "Images needing review" queue ordered heroes first, side-by-side per slot × direction, approve / reject with reason / regenerate. Heroes: 100 % human before they serve. Wide/about/team: where practical. Gallery/detail: `qa_passed` may serve (soft launch) while curation continues.
 4. Coverage table: approved (and qa_passed) / target per slot; heroes red until 5 approved.
@@ -90,7 +90,7 @@ Rerun `scripts/acceptance-run.mts` **(exists)**: the hero assertion must PASS (n
 
 ## 7. Order of work and rollout (owner §7: generation never blocks launch)
 
-1. Model setting + measured cost + request shape ✅ measured (§1b); the hero high-vs-medium comparison on 10–20 images decides hero quality (`evidence/cost-measurement/hero-quality/`).
+1. Model setting + measured cost + request shape ✅ measured (§1b); hero high-vs-medium comparison ✅ done, verdict medium (§2b).
 2. Migration: asset columns + `tenant_asset_assignments` + backfill; reads serve `approved` (+ `qa_passed` for gallery/detail); the 14 marked `unverified`.
 3. Prompt layers: global, 12 families, slots, directions; type contexts for the 48 case types first, the rest as one block each.
 4. Jobs + batch mode + automated QA + review queue.
