@@ -12,7 +12,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { ProjectRecord } from "@/lib/projects/project-record";
 import type { ReplacementCandidatesLoad } from "@/lib/projects/projects-reader";
 import { schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
-import { BTN_ROW, BTN_SECONDARY, Card, Notice, SectionTitle, dayLabel } from "../_shared";
+import { BTN_ROW, BTN_SECONDARY, Card, SectionTitle, dayLabel } from "../_shared";
 import { TeamRows } from "./team-replace";
 
 type Tr = (key: string) => string;
@@ -81,6 +81,7 @@ export function TeamTab({
               replacement: tr("dashboard.projects.team.replacement"),
               replacementPick: tr("dashboard.projects.team.replacementPick"),
               replacementNone: candidates.ok ? tr("dashboard.projects.team.replacementNone") : tr("dashboard.projects.team.replacementUnavailable"),
+              replacementHint: tr("dashboard.projects.team.replacementHint"),
               impact: tr("dashboard.projects.team.impact"),
               schedule: tr("dashboard.projects.team.impactSchedule"),
               scheduleValue: when,
@@ -92,14 +93,13 @@ export function TeamTab({
               client: tr("dashboard.projects.team.impactClient"),
               clientValue: tr("dashboard.projects.team.impactClientValue"),
               note: tr("dashboard.projects.team.replaceNote"),
-              cancel: tr("dashboard.projects.close.back"),
+              cancel: tr("dashboard.projects.close.cancelSheet"),
               confirm: tr("dashboard.projects.team.replaceConfirm"),
               engine: schedulingEngineSentences(tr),
             }}
           />
         )}
       </Card>
-      <Notice>{tr("dashboard.projects.team.marginNote")}</Notice>
       <p className="m-0 text-[13px]">
         <Link href={visibilityHref} className="text-admin-ink underline underline-offset-4">
           {tr("dashboard.projects.visibility.title")}

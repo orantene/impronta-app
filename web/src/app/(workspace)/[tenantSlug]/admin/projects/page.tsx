@@ -99,7 +99,7 @@ const STATUSES: readonly ProjectStatus[] = [
   "archived",
 ];
 
-const COLS = "grid-cols-[1.6fr_1.1fr_90px_150px_150px_100px_110px_24px]";
+const COLS = "grid-cols-[minmax(0,1.6fr)_minmax(0,1.1fr)_90px_150px_150px_100px_110px_24px]";
 
 type Tr = (key: string) => string;
 
@@ -308,7 +308,7 @@ function ProjectsTable({
                 <Link href={`/${tenantSlug}/admin/projects/${row.id}`} className="text-admin-ink no-underline hover:underline">
                   {row.title || shortId(row.id)}
                 </Link>
-                <span className="font-normal text-admin-ink-muted"> · {shortId(row.id)}</span>
+                <span> · {shortId(row.id)}</span>
               </span>
               <span className="min-w-0 truncate">
                 {/* The client record's door from this surface. It opens
@@ -327,9 +327,7 @@ function ProjectsTable({
               <span className="text-admin-ink-dim" title={tr("dashboard.projects.filterOwnerUnavailable")}>
                 —
               </span>
-              <span>
-                <StatusPill row={row} tr={tr} />
-              </span>
+              <StatusPill row={row} tr={tr} block />
               <span className="min-w-0 truncate text-admin-ink-muted">
                 {row.nextDeadline
                   ? `${row.nextDeadline.title} · ${dayLabel(row.nextDeadline.at, row.timeZone, locale, noDate)}`
@@ -357,7 +355,7 @@ function ProjectsTable({
         ))}
       </ul>
       {/* Which clock these dates are on. */}
-      <p className="m-0 border-t border-admin-border-soft px-4 py-2 text-[11.5px] text-admin-ink-muted max-[720px]:hidden">
+      <p className="sr-only">
         {tr("dashboard.projects.timezoneEach")}
         {" · "}
         {interpolate(tr("dashboard.projects.count"), { count: rows.length })}
@@ -367,14 +365,16 @@ function ProjectsTable({
   );
 }
 
-function StatusPill({ row, tr }: { row: ProjectListRow; tr: Tr }) {
+function StatusPill({ row, tr, block }: { row: ProjectListRow; tr: Tr; block?: boolean }) {
   const badge = row.badge;
-  if (badge.kind === "awaiting_approval") return <Pill tone="coral">{tr("dashboard.projects.badgeAwaitingApproval")}</Pill>;
+  if (badge.kind === "awaiting_approval") {
+    return <Pill tone="coral" block={block}>{tr("dashboard.projects.badgeAwaitingApproval")}</Pill>;
+  }
   if (badge.kind === "overdue") {
-    return <Pill tone="red">{interpolate(tr("dashboard.projects.badgeOverdue"), { days: badge.days })}</Pill>;
+    return <Pill tone="red" block={block}>{interpolate(tr("dashboard.projects.badgeOverdue"), { days: badge.days })}</Pill>;
   }
   if (badge.kind === "offer_sent") {
-    return <Pill tone="slate">{interpolate(tr("dashboard.projects.badgeOfferSent"), { n: badge.version })}</Pill>;
+    return <Pill tone="slate" block={block}>{interpolate(tr("dashboard.projects.badgeOfferSent"), { n: badge.version })}</Pill>;
   }
   const tone =
     badge.status === "in_progress"
@@ -384,5 +384,5 @@ function StatusPill({ row, tr }: { row: ProjectListRow; tr: Tr }) {
         : badge.status === "cancelled"
           ? "red"
           : "slate";
-  return <Pill tone={tone}>{tr(STATUS_KEY[badge.status])}</Pill>;
+  return <Pill tone={tone} block={block}>{tr(STATUS_KEY[badge.status])}</Pill>;
 }

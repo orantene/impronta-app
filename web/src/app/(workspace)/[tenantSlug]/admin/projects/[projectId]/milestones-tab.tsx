@@ -99,7 +99,10 @@ export function MilestonesTab({ project, locale, tr }: { project: ProjectRecord;
           />
         )}
       </Card>
-      <Notice>{tr("dashboard.projects.milestones.passthroughNote")}</Notice>
+      {/* The passthrough sentence only when a row is one; the board draws none otherwise. */}
+      {project.milestones.some((m) => m.kind === "passthrough_budget") ? (
+        <Notice>{tr("dashboard.projects.milestones.passthroughNote")}</Notice>
+      ) : null}
     </>
   );
 }

@@ -21,6 +21,7 @@
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { TriangleAlert } from "lucide-react";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requestNowMs } from "@/lib/projects/request-clock";
 import { schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
@@ -162,7 +163,7 @@ export default async function ProjectRecordPage({
       <header className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="m-0 text-[24px]! font-semibold leading-tight tracking-[-0.02em] text-admin-ink max-[720px]:text-[20px]!">
+            <h1 className="m-0 text-[26px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink max-[720px]:text-[20px]!">
               {project.title || shortId(project.id)}
             </h1>
             <Pill tone={statusTone(project)}>{tr(STATUS_KEY[project.status])}</Pill>
@@ -299,14 +300,12 @@ export default async function ProjectRecordPage({
 
       {awaiting.length > 0 ? (
         <div className="flex items-center gap-3.5 rounded-[12px] border border-admin-brand bg-admin-brand-soft px-4 py-3.5 max-[720px]:flex-wrap max-[720px]:gap-2.5 max-[720px]:px-3.5 max-[720px]:py-3" data-project-banner="approval">
-          <span aria-hidden className="text-admin-brand">
-            !
-          </span>
+          <TriangleAlert aria-hidden size={18} strokeWidth={1.75} className="shrink-0 text-admin-brand" />
           <div className="flex-1">
-            <p className="m-0 text-[14px] font-semibold text-admin-brand">
+            <p className="m-0 text-[15px] font-semibold leading-[1.25] text-admin-brand">
               {interpolate(tr("dashboard.projects.bannerApprovalTitle"), { title: awaiting[0]!.title })}
             </p>
-            <p className="m-0 mt-0.5 text-[12.5px] text-admin-ink-muted">
+            <p className="m-0 mt-1 text-[12.5px] leading-[1.35] text-admin-ink-muted">
               {tr("dashboard.projects.bannerApprovalBody")}
               {action.suppressed === "collect_blocked_by_approval" ? ` ${tr("dashboard.projects.collectSuppressed")}` : ""}
             </p>
@@ -349,7 +348,7 @@ export default async function ProjectRecordPage({
       {tab === "scope" ? <ScopeTab project={project} locale={locale} tenantSlug={tenantSlug} tr={tr} /> : null}
       {tab === "milestones" ? <MilestonesTab project={project} locale={locale} tr={tr} /> : null}
       {tab === "team" ? <TeamTab project={project} candidates={candidates} locale={locale} visibilityHref={tabHref("visibility")} conversationHref={project.inquiryId ? `/${tenantSlug}/admin/messages/${project.inquiryId}` : null} tr={tr} /> : null}
-      {tab === "money" ? <MoneyTab project={project} tenantSlug={tenantSlug} tr={tr} /> : null}
+      {tab === "money" ? <MoneyTab project={project} tenantSlug={tenantSlug} locale={locale} tr={tr} /> : null}
       {tab === "activity" ? <ActivityTab project={project} activity={activity} locale={locale} tr={tr} /> : null}
       {tab === "visibility" ? <VisibilityTab tr={tr} /> : null}
       {/* MW10/MW11: the phone's one decisive action rides the fixed bar. */}

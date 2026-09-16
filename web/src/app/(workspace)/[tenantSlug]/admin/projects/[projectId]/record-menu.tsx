@@ -194,7 +194,9 @@ function CloseSheet({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [choice, setChoice] = useState<CloseOption | null>(null);
+  // The board's footer names the one closure that is possible before a
+  // radio is touched, so the first available choice starts selected.
+  const [choice, setChoice] = useState<CloseOption | null>(() => closeOptions(project).find((v) => v.ok)?.option ?? null);
   const [archiveReason, setArchiveReason] = useState("");
   const [refusal, setRefusal] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -275,8 +277,9 @@ function CloseSheet({
       }
     >
       <Eyebrow>{copy.outstanding}</Eyebrow>
-      <div className="rounded-[12px] border border-admin-border bg-admin-card px-4 py-3">
+      <div className="rounded-[12px] border border-admin-border bg-admin-card px-4 py-1">
         <KeyValue
+          tall
           label={copy.clientMoney}
           value={
             money.dueCents > 0
@@ -286,8 +289,9 @@ function CloseSheet({
                 : copy.nothingOwed
           }
         />
-        <KeyValue label={copy.work} value={openWork > 0 ? copy.milestonesOpen.replace("{count}", String(openWork)) : copy.allDelivered} />
+        <KeyValue tall label={copy.work} value={openWork > 0 ? copy.milestonesOpen.replace("{count}", String(openWork)) : copy.allDelivered} />
         <KeyValue
+          tall
           label={copy.talent}
           value={
             project.assignments.length > 0
@@ -312,7 +316,7 @@ function CloseSheet({
               onClick={() => setChoice(row.option)}
               data-project-close-option={row.option}
               className={cn(
-                "rounded-[12px] border px-3.5 py-3 text-left disabled:cursor-not-allowed",
+                "rounded-[12px] border px-3.5 py-[11px] text-left leading-[1.2] disabled:cursor-not-allowed",
                 enabled ? "border-admin-border bg-admin-card" : "border-admin-border-soft bg-admin-surface-alt opacity-70",
                 active && "border-admin-brand",
               )}
@@ -327,8 +331,9 @@ function CloseSheet({
                 />
                 <b className="text-[13.5px] text-admin-ink">{row.title}</b>
               </span>
-              <span className="ml-6 block text-[12.5px] text-admin-ink-muted">{row.body}</span>
-              <span className="ml-6 block text-[12px] text-admin-ink-dim">{row.foot || "—"}</span>
+              <span className="ml-6 mt-0.5 block text-[12.5px] leading-[1.3] text-admin-ink-muted">{row.body}</span>
+              {/* A reason that only repeats the body ("Only for closed projects") is the board's dash. */}
+              <span className="ml-6 mt-0.5 block text-[12px] leading-[1.3] text-admin-ink-dim">{row.foot && row.foot !== row.body ? row.foot : "—"}</span>
             </button>
           );
         })}

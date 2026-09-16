@@ -25,7 +25,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { cn } from "@/lib/utils";
 import { ProjectsLinkPanel } from "../../pos/_projects/projects-link-panel";
-import { BTN_PRIMARY, BTN_SECONDARY, Eyebrow, KeyValue, ListRow, dayLabel } from "../../projects/_shared";
+import { BTN_PRIMARY, BTN_SECONDARY, Eyebrow, KeyValue, ListRow, SheetNote, dayLabel } from "../../projects/_shared";
 import { RecordSheet } from "../../projects/_sheet";
 
 export type CollectRecordView = {
@@ -58,6 +58,7 @@ export type CollectSheetCopy = {
   sendLinkUnavailable: string;
   /** MW08: `Payment link sent · expires {when} · you will be notified when paid` */
   linkSent: string;
+  selectedRecordOne: string;
   continueTo: string;
   oneAtATime: string;
   nothingSelected: string;
@@ -166,25 +167,24 @@ export function ClientCollect({
                   </span>
                   <b className={on ? "text-admin-ink" : "text-admin-ink-muted"}>{r.title}</b>
                 </label>
-                <span className="text-admin-ink-muted max-[720px]:order-3 max-[720px]:col-span-2 max-[720px]:text-[12.5px]">{r.detail}</span>
-                <span className="text-[15px] font-semibold tracking-[-0.02em] tabular-nums">{formatOrderMoney(r.owedCents, r.currency)}</span>
+                <span className="text-[12.5px] leading-[1.3] text-admin-ink-muted max-[720px]:order-3 max-[720px]:col-span-2">{r.detail}</span>
+                <span className={cn("text-[15px] font-semibold tracking-[-0.02em] tabular-nums", !on && "text-admin-ink-dim")}>{formatOrderMoney(r.owedCents, r.currency)}</span>
               </ListRow>
             );
           })}
         </div>
         <Eyebrow>{copy.allocation}</Eyebrow>
-        <div className="rounded-[12px] border border-admin-border bg-admin-card px-4 py-3">
+        <div className="rounded-[12px] border border-admin-border bg-admin-card px-4 py-1">
           <KeyValue
+            tall
             label={copy.selected}
-            value={`${formatOrderMoney(selectedCents, currency)} · ${copy.selectedRecords.replace("{count}", String(chosen.length))}`}
+            value={`${formatOrderMoney(selectedCents, currency)} · ${chosen.length === 1 ? copy.selectedRecordOne : copy.selectedRecords.replace("{count}", String(chosen.length))}`}
           />
-          <KeyValue label={copy.tip} value={copy.tipValue} dim />
-          <KeyValue label={copy.pass} value={copy.passValue} dim />
-          <KeyValue label={copy.receipt} value={copy.receiptValue} />
+          <KeyValue tall label={copy.tip} value={copy.tipValue} dim />
+          <KeyValue tall label={copy.pass} value={copy.passValue} dim />
+          <KeyValue tall label={copy.receipt} value={copy.receiptValue} />
         </div>
-        <p className="m-0 rounded-[10px] bg-admin-surface-alt px-3 py-2.5 text-[12.5px] text-admin-ink-muted">
-          {chosen.length > 1 ? copy.oneAtATime : copy.note}
-        </p>
+        <SheetNote>{chosen.length > 1 ? copy.oneAtATime : copy.note}</SheetNote>
         {linkOpen && one && (
           <>
             <Eyebrow>{copy.sendLink}</Eyebrow>

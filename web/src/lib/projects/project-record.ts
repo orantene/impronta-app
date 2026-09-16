@@ -145,6 +145,8 @@ export type ProjectBalance = {
   readonly currency: string;
   readonly totalCents: number;
   readonly collectedCents: number;
+  /** When the order was opened; the W49 row's date column. Optional so a test row needs no clock. */
+  readonly createdAt?: string | null;
 };
 
 /**

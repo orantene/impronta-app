@@ -296,6 +296,7 @@ async function loadProjectsFor(
       currency: o.currency.toUpperCase(),
       totalCents: o.totalCents,
       collectedCents: o.collectedCents,
+      createdAt: o.createdAt || null,
     };
     balancesByOrderId.set(o.id, balance);
     if (o.inquiryId) {
