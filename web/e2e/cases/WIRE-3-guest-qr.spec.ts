@@ -27,7 +27,13 @@ test("WIRE-3.6 guest QR: bill and the closed-visit refusal; then browse, add, su
 
     // Browse and add on the phone menu (Q02–Q04), then submit.
     await page.goto(`/visit/${visit.token}/menu`);
-    const add = page.locator('[data-testid^="guest-add-"]').first();
+    // A priced item: the fixture carries $0.00 offerings that sort first and
+    // a $0.00 share cannot be paid (the button is disabled by design).
+    const add = page
+      .locator("li")
+      .filter({ hasNot: page.getByText("$0.00", { exact: true }) })
+      .locator('[data-testid^="guest-add-"]')
+      .first();
     await expect(add, "the guest menu must render (D-141: the page is a 500)").toBeVisible({ timeout: 30_000 });
     await add.click();
     await page.getByTestId("guest-submit").click();
