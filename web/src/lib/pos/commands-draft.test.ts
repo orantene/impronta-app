@@ -13,7 +13,7 @@ import { POS_COMMANDS, isPosCommand, posGuestSessionId } from "./commands";
 import { addLine, createDraftOrder, repriceAndValidate, updateLine } from "./draft";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fakeAdmin, makeStore, seedOffering } from "./__fixtures__/commands-store";
+import { fakeAdmin, makeStore, seedOffering, type Row } from "./__fixtures__/commands-store";
 
 test("POS command names are the L53 set", () => {
   assert.deepEqual([...POS_COMMANDS], [
@@ -263,3 +263,62 @@ test("pos_mutate_draft_line RPC conflict is not a silent overwrite", async () =>
   assert.equal(store.orders[0].version, 2);
 });
 
+
+// D-138: a live price phase must price the line ON THE ADD. Before, only
+// repriceAndValidate read phases (on the counter: only from the Discount
+// sheet), so a plain sale added and collected at the list price.
+test("a live price phase prices the add and stamps the line", async () => {
+  const store = makeStore() as ReturnType<typeof makeStore> & { offering_price_phases: Row[] };
+  seedOffering(store);
+  store.offering_price_phases = [
+    {
+      id: "phase-early",
+      tenant_id: "t1",
+      offering_id: "off-1",
+      variant_id: null,
+      price_cents: 1550,
+      starts_at: "2000-01-01T00:00:00.000Z",
+      ends_at: null,
+    },
+  ];
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const added = await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  assert.equal(added.ok, true);
+  assert.equal(store.order_lines.length, 1);
+  assert.equal(store.order_lines[0].unit_cents, 1550);
+  assert.equal(store.order_lines[0].total_cents, 1550);
+  assert.equal(store.order_lines[0].price_phase_id, "phase-early");
+  assert.equal(store.orders[0].total_cents, 1550);
+});
+
+test("without a live phase the add keeps the list price and no phase id", async () => {
+  const store = makeStore() as ReturnType<typeof makeStore> & { offering_price_phases: Row[] };
+  seedOffering(store);
+  store.offering_price_phases = [
+    {
+      id: "phase-later",
+      tenant_id: "t1",
+      offering_id: "off-1",
+      variant_id: null,
+      price_cents: 1550,
+      starts_at: "2999-01-01T00:00:00.000Z",
+      ends_at: null,
+    },
+  ];
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  if (!created.ok) throw new Error("draft");
+  const added = await addLine(fakeAdmin(store), {
+    tenantId: "t1",
+    orderId: created.orderId,
+    line: { offeringId: "off-1", units: 1 },
+  });
+  assert.equal(added.ok, true);
+  assert.equal(store.order_lines[0].unit_cents, 5000);
+  assert.equal(store.order_lines[0].price_phase_id ?? null, null);
+});

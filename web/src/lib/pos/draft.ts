@@ -189,7 +189,7 @@ async function mutateDraftLine(
     logServerError("pos.mutateDraftLine.rpc", error);
     return { ok: false, reason: "unavailable", error: "Could not save the sale." };
   }
-  const reply = (data ?? {}) as { ok?: boolean; reason?: string };
+  const reply = (data ?? {}) as { ok?: boolean; reason?: string; line_id?: string | null };
   if (reply.ok !== true) {
     const reason =
       reply.reason === "conflict"
@@ -209,11 +209,11 @@ async function mutateDraftLine(
       error: reason === "conflict" ? "This sale was just changed. Reload." : "Could not save the sale.",
     };
   }
-  return { ok: true, orderId: input.orderId };
+  return { ok: true, orderId: input.orderId, lineId: typeof reply.line_id === "string" ? reply.line_id : null };
 }
 
 export type MutateLineResult =
-  | { ok: true; orderId: string }
+  | { ok: true; orderId: string; lineId?: string | null }
   | { ok: false; reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid" | "conflict"; error: string };
 
 export async function addLine(
@@ -308,6 +308,21 @@ export async function addLine(
     if (v.label) label = `${label} · ${v.label}`;
   }
 
+  // The live price phase, on FIRST price (D-138). The contract stamps the
+  // phase id when the line is first priced; on the counter that is the add.
+  // Only `repriceAndValidate` read phases before, and the counter runs it
+  // only from the Discount sheet, so a live phase never priced a plain sale.
+  // Same rule as the reprice: the phase's price replaces the list price and
+  // the id is stamped so later phases do not rewrite the price that sold.
+  const phase = await livePhasePrice(admin, {
+    tenantId: input.tenantId,
+    offeringId: off.id,
+    variantId: input.line.variantId ?? null,
+  });
+  if (!phase.ok) return { ok: false, reason: "unavailable", error: "Could not read the price." };
+  const pricePhaseId = phase.priceCents != null ? phase.phaseId : null;
+  if (phase.priceCents != null) unitCents = Math.max(0, Math.trunc(phase.priceCents));
+
   // The extras, priced. Before the line is written, because a refused add-on
   // must leave the sale untouched rather than add a mispriced line and then
   // report an error the operator reads after the item is already on screen.
@@ -342,9 +357,22 @@ export async function addLine(
       owner_tenant_id: talentId ? null : input.tenantId,
       talent_cost_cents: talentId ? unitCents : 0,
       sort_order: loaded.lines.length,
+      price_phase_id: pricePhaseId,
     },
   });
-  if (viaRpc !== "fallback") return viaRpc;
+  if (viaRpc !== "fallback") {
+    // The RPC does not carry the phase column; the stamp is a second write
+    // on the line it made. The price it wrote is already the phase's.
+    if (viaRpc.ok && pricePhaseId && viaRpc.lineId) {
+      const { error: stampErr } = await admin
+        .from("order_lines")
+        .update({ price_phase_id: pricePhaseId })
+        .eq("id", viaRpc.lineId)
+        .eq("tenant_id", input.tenantId);
+      if (stampErr) logServerError("pos.addLine.pricePhase", stampErr);
+    }
+    return viaRpc;
+  }
 
   const { error: insErr } = await admin.from("order_lines").insert({
     order_id: input.orderId,
@@ -361,6 +389,7 @@ export async function addLine(
     owner_tenant_id: talentId ? null : input.tenantId,
     talent_cost_cents: talentId ? unitCents : 0,
     sort_order: loaded.lines.length,
+    price_phase_id: pricePhaseId,
   });
   if (insErr) {
     logServerError("pos.addLine.insert", insErr);
