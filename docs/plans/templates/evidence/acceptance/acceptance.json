@@ -15,7 +15,7 @@
     "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
     "durationMs": 24425,
     "costUsd": 0.021013999999999998,
-    "calls": 0,
+    "calls": 1,
     "failed": 0,
     "notes": [
       "locale en (tenant default en)",
@@ -28,6 +28,3082 @@
       "C01--nail-salon--editorial/home-390.jpg",
       "C01--nail-salon--editorial/inner-1440.jpg",
       "C01--nail-salon--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C01",
+    "type": "nail-salon",
+    "family": "beauty",
+    "look": "bold",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 24747,
+    "costUsd": 0.020998,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "bde5d3db-a289-467e-ae17-a030ae8d2db6",
+    "shots": [
+      "C01--nail-salon--bold/home-1440.jpg",
+      "C01--nail-salon--bold/home-390.jpg",
+      "C01--nail-salon--bold/inner-1440.jpg",
+      "C01--nail-salon--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C02",
+    "type": "spa",
+    "family": "wellness",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25907,
+    "costUsd": 0.021002,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "34dc814a-92be-4959-8f99-d6d0872e1e35",
+    "shots": [
+      "C02--spa--coastal/home-1440.jpg",
+      "C02--spa--coastal/home-390.jpg",
+      "C02--spa--coastal/inner-1440.jpg",
+      "C02--spa--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C02",
+    "type": "spa",
+    "family": "wellness",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 16543,
+    "costUsd": 0.013436,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "ae8272d7-e08d-417a-8619-db5acb1163f0",
+    "shots": [
+      "C02--spa--classic/home-1440.jpg",
+      "C02--spa--classic/home-390.jpg",
+      "C02--spa--classic/inner-1440.jpg",
+      "C02--spa--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C03",
+    "type": "massage-therapist",
+    "family": "wellness",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25826,
+    "costUsd": 0.021019999999999997,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "e1f9e7ce-450e-4d83-a103-1c2c3eeeb239",
+    "shots": [
+      "C03--massage-therapist--coastal/home-1440.jpg",
+      "C03--massage-therapist--coastal/home-390.jpg",
+      "C03--massage-therapist--coastal/inner-1440.jpg",
+      "C03--massage-therapist--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C03",
+    "type": "massage-therapist",
+    "family": "wellness",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23619,
+    "costUsd": 0.021013999999999998,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "9ff439b7-0e87-456b-b339-b0f543969f75",
+    "shots": [
+      "C03--massage-therapist--classic/home-1440.jpg",
+      "C03--massage-therapist--classic/home-390.jpg",
+      "C03--massage-therapist--classic/inner-1440.jpg",
+      "C03--massage-therapist--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C04",
+    "type": "tattoo-studio",
+    "family": "wellness",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 22631,
+    "costUsd": 0.019913999999999998,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "6008038d-3f53-4857-893b-f4865a2e29cf",
+    "shots": [
+      "C04--tattoo-studio--coastal/home-1440.jpg",
+      "C04--tattoo-studio--coastal/home-390.jpg",
+      "C04--tattoo-studio--coastal/inner-1440.jpg",
+      "C04--tattoo-studio--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C04",
+    "type": "tattoo-studio",
+    "family": "wellness",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 19147,
+    "costUsd": 0.015618,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "b29e476d-c2e9-4002-8fa9-aa7530fa4048",
+    "shots": [
+      "C04--tattoo-studio--classic/home-1440.jpg",
+      "C04--tattoo-studio--classic/home-390.jpg",
+      "C04--tattoo-studio--classic/inner-1440.jpg",
+      "C04--tattoo-studio--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C05",
+    "type": "hair-salon",
+    "family": "beauty",
+    "look": "editorial",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 19121,
+    "costUsd": 0.013042,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "19bfc350-5e24-4129-b7b1-8f4c6284f753",
+    "shots": [
+      "C05--hair-salon--editorial/home-1440.jpg",
+      "C05--hair-salon--editorial/home-390.jpg",
+      "C05--hair-salon--editorial/inner-1440.jpg",
+      "C05--hair-salon--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C05",
+    "type": "hair-salon",
+    "family": "beauty",
+    "look": "bold",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 26828,
+    "costUsd": 0.017566,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "32866a03-7894-46a3-8aa8-014c691f9b03",
+    "shots": [
+      "C05--hair-salon--bold/home-1440.jpg",
+      "C05--hair-salon--bold/home-390.jpg",
+      "C05--hair-salon--bold/inner-1440.jpg",
+      "C05--hair-salon--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C06",
+    "type": "restaurant",
+    "family": "dining",
+    "look": "warm",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 17,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25647,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "212db5a8-c1d3-4920-b919-7cffc31639f4",
+    "shots": [
+      "C06--restaurant--warm/home-1440.jpg",
+      "C06--restaurant--warm/home-390.jpg",
+      "C06--restaurant--warm/inner-1440.jpg",
+      "C06--restaurant--warm/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C06",
+    "type": "restaurant",
+    "family": "dining",
+    "look": "minimal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23259,
+    "costUsd": 0.020933999999999998,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "74ba5295-e9c1-4517-9bdc-7f01620a94ce",
+    "shots": [
+      "C06--restaurant--minimal/home-1440.jpg",
+      "C06--restaurant--minimal/home-390.jpg",
+      "C06--restaurant--minimal/inner-1440.jpg",
+      "C06--restaurant--minimal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C07",
+    "type": "bar",
+    "family": "dining",
+    "look": "warm",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 17,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 16419,
+    "costUsd": 0.012653999999999999,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "c46ebe65-6940-4da2-a79a-0dd9cc9a98ea",
+    "shots": [
+      "C07--bar--warm/home-1440.jpg",
+      "C07--bar--warm/home-390.jpg",
+      "C07--bar--warm/inner-1440.jpg",
+      "C07--bar--warm/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C07",
+    "type": "bar",
+    "family": "dining",
+    "look": "minimal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 17695,
+    "costUsd": 0.013419999999999998,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "b66368ca-a3cb-4533-bbe1-03f2b5779b43",
+    "shots": [
+      "C07--bar--minimal/home-1440.jpg",
+      "C07--bar--minimal/home-390.jpg",
+      "C07--bar--minimal/inner-1440.jpg",
+      "C07--bar--minimal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C08",
+    "type": "talent-agency",
+    "family": "agency",
+    "look": "editorial",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 19363,
+    "costUsd": 0.01383,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "c5cc8def-215c-4ca3-925f-08eb6b1471e1",
+    "shots": [
+      "C08--talent-agency--editorial/home-1440.jpg",
+      "C08--talent-agency--editorial/home-390.jpg",
+      "C08--talent-agency--editorial/inner-1440.jpg",
+      "C08--talent-agency--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C08",
+    "type": "talent-agency",
+    "family": "agency",
+    "look": "bold",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 26981,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "9f98655d-ca23-4759-acbf-3967edf8157d",
+    "shots": [
+      "C08--talent-agency--bold/home-1440.jpg",
+      "C08--talent-agency--bold/home-390.jpg",
+      "C08--talent-agency--bold/inner-1440.jpg",
+      "C08--talent-agency--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C09",
+    "type": "yoga-studio",
+    "family": "fitness",
+    "look": "bold",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23406,
+    "costUsd": 0.020989999999999998,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "595fd108-6038-4311-9165-0d55649be3ae",
+    "shots": [
+      "C09--yoga-studio--bold/home-1440.jpg",
+      "C09--yoga-studio--bold/home-390.jpg",
+      "C09--yoga-studio--bold/inner-1440.jpg",
+      "C09--yoga-studio--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C09",
+    "type": "yoga-studio",
+    "family": "fitness",
+    "look": "studio",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 13433,
+    "costUsd": 0.008558,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "9ae2334d-87bc-4dad-9a2f-046b9f8c2338",
+    "shots": [
+      "C09--yoga-studio--studio/home-1440.jpg",
+      "C09--yoga-studio--studio/home-390.jpg",
+      "C09--yoga-studio--studio/inner-1440.jpg",
+      "C09--yoga-studio--studio/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C10",
+    "type": "photography-studio",
+    "family": "agency",
+    "look": "editorial",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23656,
+    "costUsd": 0.019784,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "58a850be-3a9b-4dec-aba9-1753ff1b3e39",
+    "shots": [
+      "C10--photography-studio--editorial/home-1440.jpg",
+      "C10--photography-studio--editorial/home-390.jpg",
+      "C10--photography-studio--editorial/inner-1440.jpg",
+      "C10--photography-studio--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C10",
+    "type": "photography-studio",
+    "family": "agency",
+    "look": "bold",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 28265,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "b8bc6a85-00ab-412b-b0c5-dadbdfb3aa90",
+    "shots": [
+      "C10--photography-studio--bold/home-1440.jpg",
+      "C10--photography-studio--bold/home-390.jpg",
+      "C10--photography-studio--bold/inner-1440.jpg",
+      "C10--photography-studio--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C11",
+    "type": "beach-club",
+    "family": "dining",
+    "look": "warm",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 17,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 15887,
+    "costUsd": 0.010812,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "36c81b37-9259-408d-85e6-2a0a7f0d9a13",
+    "shots": [
+      "C11--beach-club--warm/home-1440.jpg",
+      "C11--beach-club--warm/home-390.jpg",
+      "C11--beach-club--warm/inner-1440.jpg",
+      "C11--beach-club--warm/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C11",
+    "type": "beach-club",
+    "family": "dining",
+    "look": "minimal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 19627,
+    "costUsd": 0.014538,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "8ea5c0dc-ad4f-4ca3-9bb5-247d5e8cb11c",
+    "shots": [
+      "C11--beach-club--minimal/home-1440.jpg",
+      "C11--beach-club--minimal/home-390.jpg",
+      "C11--beach-club--minimal/inner-1440.jpg",
+      "C11--beach-club--minimal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C12",
+    "type": "event-venue",
+    "family": "events",
+    "look": "night",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 17715,
+    "costUsd": 0.013441999999999999,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "74944247-7288-411e-9747-85439e9c9a22",
+    "shots": [
+      "C12--event-venue--night/home-1440.jpg",
+      "C12--event-venue--night/home-390.jpg",
+      "C12--event-venue--night/inner-1440.jpg",
+      "C12--event-venue--night/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C12",
+    "type": "event-venue",
+    "family": "events",
+    "look": "dark",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 18996,
+    "costUsd": 0.015162,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "60e90d4a-12b8-42cd-b84a-1d2d7bb9af44",
+    "shots": [
+      "C12--event-venue--dark/home-1440.jpg",
+      "C12--event-venue--dark/home-390.jpg",
+      "C12--event-venue--dark/inner-1440.jpg",
+      "C12--event-venue--dark/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C13",
+    "type": "coworking",
+    "family": "hospitality",
+    "look": "studio",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 20370,
+    "costUsd": 0.01685,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "f688815f-fb06-42b7-8fdb-11f791512127",
+    "shots": [
+      "C13--coworking--studio/home-1440.jpg",
+      "C13--coworking--studio/home-390.jpg",
+      "C13--coworking--studio/inner-1440.jpg",
+      "C13--coworking--studio/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C13",
+    "type": "coworking",
+    "family": "hospitality",
+    "look": "editorial",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 18227,
+    "costUsd": 0.013838,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "3ed7d2ce-373a-49a5-a6c3-bfda9f13829d",
+    "shots": [
+      "C13--coworking--editorial/home-1440.jpg",
+      "C13--coworking--editorial/home-390.jpg",
+      "C13--coworking--editorial/inner-1440.jpg",
+      "C13--coworking--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C14",
+    "type": "beauty-academy",
+    "family": "education",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 17,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 20821,
+    "costUsd": 0.017782,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "11ed47f2-ddfc-4652-a3b9-54e537fa9d60",
+    "shots": [
+      "C14--beauty-academy--playful/home-1440.jpg",
+      "C14--beauty-academy--playful/home-390.jpg",
+      "C14--beauty-academy--playful/inner-1440.jpg",
+      "C14--beauty-academy--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C14",
+    "type": "beauty-academy",
+    "family": "education",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 31207,
+    "costUsd": 0.020384,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "37c84455-4729-45d0-ad30-ecf21957d58d",
+    "shots": [
+      "C14--beauty-academy--coastal/home-1440.jpg",
+      "C14--beauty-academy--coastal/home-390.jpg",
+      "C14--beauty-academy--coastal/inner-1440.jpg",
+      "C14--beauty-academy--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C15",
+    "type": "cooking-school",
+    "family": "education",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 17,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23589,
+    "costUsd": 0.020746,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "9e321189-807b-4e0d-a023-2018aa645d28",
+    "shots": [
+      "C15--cooking-school--playful/home-1440.jpg",
+      "C15--cooking-school--playful/home-390.jpg",
+      "C15--cooking-school--playful/inner-1440.jpg",
+      "C15--cooking-school--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C15",
+    "type": "cooking-school",
+    "family": "education",
+    "look": "coastal",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23783,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "33d0be5d-23b2-453a-a6bc-b8167797b200",
+    "shots": [
+      "C15--cooking-school--coastal/home-1440.jpg",
+      "C15--cooking-school--coastal/home-390.jpg",
+      "C15--cooking-school--coastal/inner-1440.jpg",
+      "C15--cooking-school--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C16",
+    "type": "diving-school",
+    "family": "education",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 17,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 16110,
+    "costUsd": 0.01147,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: home.offer.body (es claim)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "0598dc85-1df8-4e5e-8001-516f6de2a5a2",
+    "shots": [
+      "C16--diving-school--playful/home-1440.jpg",
+      "C16--diving-school--playful/home-390.jpg",
+      "C16--diving-school--playful/inner-1440.jpg",
+      "C16--diving-school--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C16",
+    "type": "diving-school",
+    "family": "education",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 19700,
+    "costUsd": 0.015972,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "467130f2-b02a-4a8d-897c-eac665dd4617",
+    "shots": [
+      "C16--diving-school--coastal/home-1440.jpg",
+      "C16--diving-school--coastal/home-390.jpg",
+      "C16--diving-school--coastal/inner-1440.jpg",
+      "C16--diving-school--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C17",
+    "type": "padel-club",
+    "family": "fitness",
+    "look": "bold",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 26630,
+    "costUsd": 0.020916,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "8b922a09-8e3b-436c-ba01-703a8d52c695",
+    "shots": [
+      "C17--padel-club--bold/home-1440.jpg",
+      "C17--padel-club--bold/home-390.jpg",
+      "C17--padel-club--bold/inner-1440.jpg",
+      "C17--padel-club--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C17",
+    "type": "padel-club",
+    "family": "fitness",
+    "look": "studio",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25168,
+    "costUsd": 0.014183999999999999,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "6d938b2d-6fc8-4aa3-adec-6413cb70cb11",
+    "shots": [
+      "C17--padel-club--studio/home-1440.jpg",
+      "C17--padel-club--studio/home-390.jpg",
+      "C17--padel-club--studio/inner-1440.jpg",
+      "C17--padel-club--studio/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C18",
+    "type": "podcast-studio",
+    "family": "hospitality",
+    "look": "studio",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 24080,
+    "costUsd": 0.020998,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "21232a0d-cd8b-4907-a7a6-70789d604370",
+    "shots": [
+      "C18--podcast-studio--studio/home-1440.jpg",
+      "C18--podcast-studio--studio/home-390.jpg",
+      "C18--podcast-studio--studio/inner-1440.jpg",
+      "C18--podcast-studio--studio/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C18",
+    "type": "podcast-studio",
+    "family": "hospitality",
+    "look": "editorial",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25843,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "825a301a-e91c-4f14-8200-ea4df3c0c442",
+    "shots": [
+      "C18--podcast-studio--editorial/home-1440.jpg",
+      "C18--podcast-studio--editorial/home-390.jpg",
+      "C18--podcast-studio--editorial/inner-1440.jpg",
+      "C18--podcast-studio--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C19",
+    "type": "pet-grooming",
+    "family": "beauty",
+    "look": "editorial",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 20095,
+    "costUsd": 0.016968,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "9745b5f5-8054-4d28-803e-c47e2cb10fd0",
+    "shots": [
+      "C19--pet-grooming--editorial/home-1440.jpg",
+      "C19--pet-grooming--editorial/home-390.jpg",
+      "C19--pet-grooming--editorial/inner-1440.jpg",
+      "C19--pet-grooming--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C19",
+    "type": "pet-grooming",
+    "family": "beauty",
+    "look": "bold",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 16250,
+    "costUsd": 0.013902000000000001,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "f1e5a021-48de-4ad7-9e0c-14352b07e9d6",
+    "shots": [
+      "C19--pet-grooming--bold/home-1440.jpg",
+      "C19--pet-grooming--bold/home-390.jpg",
+      "C19--pet-grooming--bold/inner-1440.jpg",
+      "C19--pet-grooming--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C20",
+    "type": "art-gallery",
+    "family": "events",
+    "look": "night",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 14536,
+    "costUsd": 0.010266,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "f9fdde7a-67bc-488b-906a-c21c1520b793",
+    "shots": [
+      "C20--art-gallery--night/home-1440.jpg",
+      "C20--art-gallery--night/home-390.jpg",
+      "C20--art-gallery--night/inner-1440.jpg",
+      "C20--art-gallery--night/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C20",
+    "type": "art-gallery",
+    "family": "events",
+    "look": "dark",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 14843,
+    "costUsd": 0.011546,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "96a91bb1-f4ce-4ce9-9157-da54f9a4f7c9",
+    "shots": [
+      "C20--art-gallery--dark/home-1440.jpg",
+      "C20--art-gallery--dark/home-390.jpg",
+      "C20--art-gallery--dark/inner-1440.jpg",
+      "C20--art-gallery--dark/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C21",
+    "type": "wellness-retreat",
+    "family": "wellness",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 14367,
+    "costUsd": 0.011608,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "8ca01730-0bcf-4c4c-9d01-b4bc26e91a26",
+    "shots": [
+      "C21--wellness-retreat--coastal/home-1440.jpg",
+      "C21--wellness-retreat--coastal/home-390.jpg",
+      "C21--wellness-retreat--coastal/inner-1440.jpg",
+      "C21--wellness-retreat--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C21",
+    "type": "wellness-retreat",
+    "family": "wellness",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23880,
+    "costUsd": 0.021002,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "4c610b12-0de2-4168-92ee-f7c6fc934307",
+    "shots": [
+      "C21--wellness-retreat--classic/home-1440.jpg",
+      "C21--wellness-retreat--classic/home-390.jpg",
+      "C21--wellness-retreat--classic/inner-1440.jpg",
+      "C21--wellness-retreat--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C22",
+    "type": "corporate-training",
+    "family": "education",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 17,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 18573,
+    "costUsd": 0.014024,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "20bc9760-4719-4872-b693-617ecba7c1c4",
+    "shots": [
+      "C22--corporate-training--playful/home-1440.jpg",
+      "C22--corporate-training--playful/home-390.jpg",
+      "C22--corporate-training--playful/inner-1440.jpg",
+      "C22--corporate-training--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C22",
+    "type": "corporate-training",
+    "family": "education",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23944,
+    "costUsd": 0.021005999999999997,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "4299d7b4-d362-406f-b6a4-4432f8d5bcba",
+    "shots": [
+      "C22--corporate-training--coastal/home-1440.jpg",
+      "C22--corporate-training--coastal/home-390.jpg",
+      "C22--corporate-training--coastal/inner-1440.jpg",
+      "C22--corporate-training--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C23",
+    "type": "floral-studio",
+    "family": "craft",
+    "look": "warm",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25901,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "3266c5b8-cb57-4f39-a43d-62ad84640f9f",
+    "shots": [
+      "C23--floral-studio--warm/home-1440.jpg",
+      "C23--floral-studio--warm/home-390.jpg",
+      "C23--floral-studio--warm/inner-1440.jpg",
+      "C23--floral-studio--warm/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C23",
+    "type": "floral-studio",
+    "family": "craft",
+    "look": "minimal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 17156,
+    "costUsd": 0.014511999999999999,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "edb04dce-3177-40e2-afec-5559eb1872ba",
+    "shots": [
+      "C23--floral-studio--minimal/home-1440.jpg",
+      "C23--floral-studio--minimal/home-390.jpg",
+      "C23--floral-studio--minimal/inner-1440.jpg",
+      "C23--floral-studio--minimal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C24",
+    "type": "escape-room",
+    "family": "craft",
+    "look": "warm",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 24188,
+    "costUsd": 0.020994,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "34d27d71-9d35-4de3-9124-7dbfb892697a",
+    "shots": [
+      "C24--escape-room--warm/home-1440.jpg",
+      "C24--escape-room--warm/home-390.jpg",
+      "C24--escape-room--warm/inner-1440.jpg",
+      "C24--escape-room--warm/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C24",
+    "type": "escape-room",
+    "family": "craft",
+    "look": "minimal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 21389,
+    "costUsd": 0.01674,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "2eb96bf5-a62e-4a07-9b61-43f8486e98c6",
+    "shots": [
+      "C24--escape-room--minimal/home-1440.jpg",
+      "C24--escape-room--minimal/home-390.jpg",
+      "C24--escape-room--minimal/inner-1440.jpg",
+      "C24--escape-room--minimal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C25",
+    "type": "sushi-restaurant",
+    "family": "dining",
+    "look": "warm",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 17,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 17897,
+    "costUsd": 0.013062,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "67fbe8b3-daad-413f-8fa7-71912421f00d",
+    "shots": [
+      "C25--sushi-restaurant--warm/home-1440.jpg",
+      "C25--sushi-restaurant--warm/home-390.jpg",
+      "C25--sushi-restaurant--warm/inner-1440.jpg",
+      "C25--sushi-restaurant--warm/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C25",
+    "type": "sushi-restaurant",
+    "family": "dining",
+    "look": "minimal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 13714,
+    "costUsd": 0.011628,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "632d22b6-7766-49fa-a365-10ebf2f0d2f9",
+    "shots": [
+      "C25--sushi-restaurant--minimal/home-1440.jpg",
+      "C25--sushi-restaurant--minimal/home-390.jpg",
+      "C25--sushi-restaurant--minimal/inner-1440.jpg",
+      "C25--sushi-restaurant--minimal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C26",
+    "type": "home-takeaway",
+    "family": "dining",
+    "look": "warm",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 15535,
+    "costUsd": 0.012416,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "32e9e265-dd4c-4400-92c6-540658d6484d",
+    "shots": [
+      "C26--home-takeaway--warm/home-1440.jpg",
+      "C26--home-takeaway--warm/home-390.jpg",
+      "C26--home-takeaway--warm/inner-1440.jpg",
+      "C26--home-takeaway--warm/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C26",
+    "type": "home-takeaway",
+    "family": "dining",
+    "look": "minimal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23056,
+    "costUsd": 0.013522000000000001,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "dca9da6f-e1d7-4af5-8384-81d287183e9c",
+    "shots": [
+      "C26--home-takeaway--minimal/home-1440.jpg",
+      "C26--home-takeaway--minimal/home-390.jpg",
+      "C26--home-takeaway--minimal/inner-1440.jpg",
+      "C26--home-takeaway--minimal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C27",
+    "type": "social-media-agency",
+    "family": "agency",
+    "look": "editorial",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 27973,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "09de8e7c-cfe1-4547-adf9-22199a5edb2b",
+    "shots": [
+      "C27--social-media-agency--editorial/home-1440.jpg",
+      "C27--social-media-agency--editorial/home-390.jpg",
+      "C27--social-media-agency--editorial/inner-1440.jpg",
+      "C27--social-media-agency--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C27",
+    "type": "social-media-agency",
+    "family": "agency",
+    "look": "bold",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 26740,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "bcc321c6-8f3b-4cbf-a764-150c189eab16",
+    "shots": [
+      "C27--social-media-agency--bold/home-1440.jpg",
+      "C27--social-media-agency--bold/home-390.jpg",
+      "C27--social-media-agency--bold/inner-1440.jpg",
+      "C27--social-media-agency--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C28",
+    "type": "eyelash-studio",
+    "family": "beauty",
+    "look": "editorial",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 28930,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "4b60b3c9-07d1-49a3-abc6-0bb7e50867f4",
+    "shots": [
+      "C28--eyelash-studio--editorial/home-1440.jpg",
+      "C28--eyelash-studio--editorial/home-390.jpg",
+      "C28--eyelash-studio--editorial/inner-1440.jpg",
+      "C28--eyelash-studio--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C28",
+    "type": "eyelash-studio",
+    "family": "beauty",
+    "look": "bold",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 17219,
+    "costUsd": 0.013062,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "0424ee55-fc1b-4377-a4fb-f78b0d563bac",
+    "shots": [
+      "C28--eyelash-studio--bold/home-1440.jpg",
+      "C28--eyelash-studio--bold/home-390.jpg",
+      "C28--eyelash-studio--bold/inner-1440.jpg",
+      "C28--eyelash-studio--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C29",
+    "type": "immigration-practice",
+    "family": "professional",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 24374,
+    "costUsd": 0.021013999999999998,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "4db109c3-795d-4f93-86eb-822d3cc5bed0",
+    "shots": [
+      "C29--immigration-practice--classic/home-1440.jpg",
+      "C29--immigration-practice--classic/home-390.jpg",
+      "C29--immigration-practice--classic/inner-1440.jpg",
+      "C29--immigration-practice--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C29",
+    "type": "immigration-practice",
+    "family": "professional",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23806,
+    "costUsd": 0.021008,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "89d434d0-f07b-4b5e-8b56-b96fa51b743b",
+    "shots": [
+      "C29--immigration-practice--playful/home-1440.jpg",
+      "C29--immigration-practice--playful/home-390.jpg",
+      "C29--immigration-practice--playful/inner-1440.jpg",
+      "C29--immigration-practice--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C30",
+    "type": "massage-therapist",
+    "family": "wellness",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 19154,
+    "costUsd": 0.014726000000000001,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "dce58399-25b0-48f7-b144-c3a3e8b4ed76",
+    "shots": [
+      "C30--massage-therapist--coastal/home-1440.jpg",
+      "C30--massage-therapist--coastal/home-390.jpg",
+      "C30--massage-therapist--coastal/inner-1440.jpg",
+      "C30--massage-therapist--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C30",
+    "type": "massage-therapist",
+    "family": "wellness",
+    "look": "classic",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 27171,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "509d3c84-1cb0-4688-bf03-4702093fcba3",
+    "shots": [
+      "C30--massage-therapist--classic/home-1440.jpg",
+      "C30--massage-therapist--classic/home-390.jpg",
+      "C30--massage-therapist--classic/inner-1440.jpg",
+      "C30--massage-therapist--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C31",
+    "type": "private-chef",
+    "family": "professional",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 15356,
+    "costUsd": 0.011618,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "c041da34-99be-41ec-8156-f1316781edd8",
+    "shots": [
+      "C31--private-chef--classic/home-1440.jpg",
+      "C31--private-chef--classic/home-390.jpg",
+      "C31--private-chef--classic/inner-1440.jpg",
+      "C31--private-chef--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C31",
+    "type": "private-chef",
+    "family": "professional",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23190,
+    "costUsd": 0.018022,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "dee9d53a-ff1d-4728-b320-c8421b7ca706",
+    "shots": [
+      "C31--private-chef--playful/home-1440.jpg",
+      "C31--private-chef--playful/home-390.jpg",
+      "C31--private-chef--playful/inner-1440.jpg",
+      "C31--private-chef--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C32",
+    "type": "house-cleaner",
+    "family": "professional",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25383,
+    "costUsd": 0.020995999999999997,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "bd5e510a-fbb4-42eb-8f35-40104701ac66",
+    "shots": [
+      "C32--house-cleaner--classic/home-1440.jpg",
+      "C32--house-cleaner--classic/home-390.jpg",
+      "C32--house-cleaner--classic/inner-1440.jpg",
+      "C32--house-cleaner--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C32",
+    "type": "house-cleaner",
+    "family": "professional",
+    "look": "playful",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 24543,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "0c53f6b7-0dcb-4fc9-82f6-4afcae50a079",
+    "shots": [
+      "C32--house-cleaner--playful/home-1440.jpg",
+      "C32--house-cleaner--playful/home-390.jpg",
+      "C32--house-cleaner--playful/inner-1440.jpg",
+      "C32--house-cleaner--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C33",
+    "type": "handyman",
+    "family": "professional",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 19497,
+    "costUsd": 0.015808,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "86209f9f-4602-4984-bad4-d973b060719b",
+    "shots": [
+      "C33--handyman--classic/home-1440.jpg",
+      "C33--handyman--classic/home-390.jpg",
+      "C33--handyman--classic/inner-1440.jpg",
+      "C33--handyman--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C33",
+    "type": "handyman",
+    "family": "professional",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 24305,
+    "costUsd": 0.021002,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "57947e72-d711-4aaa-90e1-d18d66915b33",
+    "shots": [
+      "C33--handyman--playful/home-1440.jpg",
+      "C33--handyman--playful/home-390.jpg",
+      "C33--handyman--playful/inner-1440.jpg",
+      "C33--handyman--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C34",
+    "type": "provisional-service",
+    "family": "agency",
+    "look": "editorial",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 27237,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "9f13b84c-f49a-4a6b-bbf8-42e7796ba885",
+    "shots": [
+      "C34--provisional-service--editorial/home-1440.jpg",
+      "C34--provisional-service--editorial/home-390.jpg",
+      "C34--provisional-service--editorial/inner-1440.jpg",
+      "C34--provisional-service--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C34",
+    "type": "provisional-service",
+    "family": "agency",
+    "look": "bold",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25517,
+    "costUsd": 0.02096,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "ee8ccf24-15b0-4afb-beb1-3c38971d4f72",
+    "shots": [
+      "C34--provisional-service--bold/home-1440.jpg",
+      "C34--provisional-service--bold/home-390.jpg",
+      "C34--provisional-service--bold/inner-1440.jpg",
+      "C34--provisional-service--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C35",
+    "type": "private-tours",
+    "family": "tours",
+    "look": "coastal",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25374,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "dd19bad1-879a-4ad1-bd63-0dfc3b1d4c59",
+    "shots": [
+      "C35--private-tours--coastal/home-1440.jpg",
+      "C35--private-tours--coastal/home-390.jpg",
+      "C35--private-tours--coastal/inner-1440.jpg",
+      "C35--private-tours--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C35",
+    "type": "private-tours",
+    "family": "tours",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 26599,
+    "costUsd": 0.021004,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "5217e82b-2c9b-4087-853f-bb3aea529dad",
+    "shots": [
+      "C35--private-tours--classic/home-1440.jpg",
+      "C35--private-tours--classic/home-390.jpg",
+      "C35--private-tours--classic/inner-1440.jpg",
+      "C35--private-tours--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C36",
+    "type": "custom-jewelry",
+    "family": "craft",
+    "look": "warm",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 15641,
+    "costUsd": 0.012347999999999998,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "230f6b37-5fc6-44e9-84d9-9f9011087142",
+    "shots": [
+      "C36--custom-jewelry--warm/home-1440.jpg",
+      "C36--custom-jewelry--warm/home-390.jpg",
+      "C36--custom-jewelry--warm/inner-1440.jpg",
+      "C36--custom-jewelry--warm/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C36",
+    "type": "custom-jewelry",
+    "family": "craft",
+    "look": "minimal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 22333,
+    "costUsd": 0.017624,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "73628794-ee16-42e6-964b-18066ec33497",
+    "shots": [
+      "C36--custom-jewelry--minimal/home-1440.jpg",
+      "C36--custom-jewelry--minimal/home-390.jpg",
+      "C36--custom-jewelry--minimal/inner-1440.jpg",
+      "C36--custom-jewelry--minimal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C37",
+    "type": "portrait-photographer",
+    "family": "craft",
+    "look": "warm",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 20281,
+    "costUsd": 0.015399999999999999,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "759baea2-6722-4ac3-85c8-65ba4f4ae5f9",
+    "shots": [
+      "C37--portrait-photographer--warm/home-1440.jpg",
+      "C37--portrait-photographer--warm/home-390.jpg",
+      "C37--portrait-photographer--warm/inner-1440.jpg",
+      "C37--portrait-photographer--warm/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C37",
+    "type": "portrait-photographer",
+    "family": "craft",
+    "look": "minimal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 21851,
+    "costUsd": 0.018636,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "33e74e15-2b89-4190-bd96-551ffb02ab14",
+    "shots": [
+      "C37--portrait-photographer--minimal/home-1440.jpg",
+      "C37--portrait-photographer--minimal/home-390.jpg",
+      "C37--portrait-photographer--minimal/inner-1440.jpg",
+      "C37--portrait-photographer--minimal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C38",
+    "type": "independent-dj",
+    "family": "events",
+    "look": "night",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 14291,
+    "costUsd": 0.008629999999999999,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "1d04738a-3c12-47d0-badf-b1e84e925aa8",
+    "shots": [
+      "C38--independent-dj--night/home-1440.jpg",
+      "C38--independent-dj--night/home-390.jpg",
+      "C38--independent-dj--night/inner-1440.jpg",
+      "C38--independent-dj--night/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C38",
+    "type": "independent-dj",
+    "family": "events",
+    "look": "dark",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 21281,
+    "costUsd": 0.01713,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "69b53146-3726-4a1a-9ba4-1c75e3a87c7b",
+    "shots": [
+      "C38--independent-dj--dark/home-1440.jpg",
+      "C38--independent-dj--dark/home-390.jpg",
+      "C38--independent-dj--dark/inner-1440.jpg",
+      "C38--independent-dj--dark/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C39",
+    "type": "language-tutor",
+    "family": "education",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 26006,
+    "costUsd": 0.020991999999999997,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "ccb2ee36-2411-471d-8f38-53e22aa2c7d0",
+    "shots": [
+      "C39--language-tutor--playful/home-1440.jpg",
+      "C39--language-tutor--playful/home-390.jpg",
+      "C39--language-tutor--playful/inner-1440.jpg",
+      "C39--language-tutor--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C39",
+    "type": "language-tutor",
+    "family": "education",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 26970,
+    "costUsd": 0.021004,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "53bd7b15-f4a7-4833-892b-5a8878cf2800",
+    "shots": [
+      "C39--language-tutor--coastal/home-1440.jpg",
+      "C39--language-tutor--coastal/home-390.jpg",
+      "C39--language-tutor--coastal/inner-1440.jpg",
+      "C39--language-tutor--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C40",
+    "type": "personal-trainer",
+    "family": "fitness",
+    "look": "bold",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 27641,
+    "costUsd": 0.020994,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "167380e8-c2b8-42d0-9675-a2570fd95ae3",
+    "shots": [
+      "C40--personal-trainer--bold/home-1440.jpg",
+      "C40--personal-trainer--bold/home-390.jpg",
+      "C40--personal-trainer--bold/inner-1440.jpg",
+      "C40--personal-trainer--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C40",
+    "type": "personal-trainer",
+    "family": "fitness",
+    "look": "studio",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 13684,
+    "costUsd": 0.009622,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "4fb6fadf-dbe9-43ab-83f0-741b17d1e157",
+    "shots": [
+      "C40--personal-trainer--studio/home-1440.jpg",
+      "C40--personal-trainer--studio/home-390.jpg",
+      "C40--personal-trainer--studio/inner-1440.jpg",
+      "C40--personal-trainer--studio/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C41",
+    "type": "makeup-artist",
+    "family": "beauty",
+    "look": "editorial",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 27254,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "25657961-42ab-441e-9360-e5fa9fca4ed9",
+    "shots": [
+      "C41--makeup-artist--editorial/home-1440.jpg",
+      "C41--makeup-artist--editorial/home-390.jpg",
+      "C41--makeup-artist--editorial/inner-1440.jpg",
+      "C41--makeup-artist--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C41",
+    "type": "makeup-artist",
+    "family": "beauty",
+    "look": "bold",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 28605,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "5abf9932-da82-47cf-a23e-7a6464e5a502",
+    "shots": [
+      "C41--makeup-artist--bold/home-1440.jpg",
+      "C41--makeup-artist--bold/home-390.jpg",
+      "C41--makeup-artist--bold/inner-1440.jpg",
+      "C41--makeup-artist--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C42",
+    "type": "translator",
+    "family": "professional",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23751,
+    "costUsd": 0.02098,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "f6d7afe5-c3d7-4f47-ade6-90aba241382b",
+    "shots": [
+      "C42--translator--classic/home-1440.jpg",
+      "C42--translator--classic/home-390.jpg",
+      "C42--translator--classic/inner-1440.jpg",
+      "C42--translator--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C42",
+    "type": "translator",
+    "family": "professional",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 15709,
+    "costUsd": 0.012303999999999999,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "3691e6f1-ffca-4fc1-a8d1-df4dc51d69c5",
+    "shots": [
+      "C42--translator--playful/home-1440.jpg",
+      "C42--translator--playful/home-390.jpg",
+      "C42--translator--playful/inner-1440.jpg",
+      "C42--translator--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C43",
+    "type": "dog-walker",
+    "family": "professional",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 23331,
+    "costUsd": 0.021004,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "e1b26162-8b9c-41e4-b023-ebea6d9eaec8",
+    "shots": [
+      "C43--dog-walker--classic/home-1440.jpg",
+      "C43--dog-walker--classic/home-390.jpg",
+      "C43--dog-walker--classic/inner-1440.jpg",
+      "C43--dog-walker--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C43",
+    "type": "dog-walker",
+    "family": "professional",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 18903,
+    "costUsd": 0.014957999999999999,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "2e7d8c6d-2fc2-418f-8c5e-566bc12b5019",
+    "shots": [
+      "C43--dog-walker--playful/home-1440.jpg",
+      "C43--dog-walker--playful/home-390.jpg",
+      "C43--dog-walker--playful/inner-1440.jpg",
+      "C43--dog-walker--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C44",
+    "type": "yoga-instructor",
+    "family": "education",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 15970,
+    "costUsd": 0.012704,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "710c9384-7d4a-4d95-a199-7283e5c2c5d3",
+    "shots": [
+      "C44--yoga-instructor--playful/home-1440.jpg",
+      "C44--yoga-instructor--playful/home-390.jpg",
+      "C44--yoga-instructor--playful/inner-1440.jpg",
+      "C44--yoga-instructor--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C44",
+    "type": "yoga-instructor",
+    "family": "education",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 15941,
+    "costUsd": 0.012496,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "8f65b9e7-b74b-4cfb-83e6-4ee993b8c5e9",
+    "shots": [
+      "C44--yoga-instructor--coastal/home-1440.jpg",
+      "C44--yoga-instructor--coastal/home-390.jpg",
+      "C44--yoga-instructor--coastal/inner-1440.jpg",
+      "C44--yoga-instructor--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C45",
+    "type": "voice-over",
+    "family": "professional",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 13914,
+    "costUsd": 0.009736,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "273775e6-a557-4e31-b62f-2b448a74c369",
+    "shots": [
+      "C45--voice-over--classic/home-1440.jpg",
+      "C45--voice-over--classic/home-390.jpg",
+      "C45--voice-over--classic/inner-1440.jpg",
+      "C45--voice-over--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C45",
+    "type": "voice-over",
+    "family": "professional",
+    "look": "playful",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 21447,
+    "costUsd": 0.01308,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "52111aca-aa64-458c-b0f8-1b50d9e41a5e",
+    "shots": [
+      "C45--voice-over--playful/home-1440.jpg",
+      "C45--voice-over--playful/home-390.jpg",
+      "C45--voice-over--playful/inner-1440.jpg",
+      "C45--voice-over--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C46",
+    "type": "car-detailing",
+    "family": "professional",
+    "look": "classic",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 26333,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "d676f0ee-1241-481c-891b-4aabd5ebe9ce",
+    "shots": [
+      "C46--car-detailing--classic/home-1440.jpg",
+      "C46--car-detailing--classic/home-390.jpg",
+      "C46--car-detailing--classic/inner-1440.jpg",
+      "C46--car-detailing--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C46",
+    "type": "car-detailing",
+    "family": "professional",
+    "look": "playful",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25057,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "bfcff85e-98bc-4984-92d1-539e04e9642c",
+    "shots": [
+      "C46--car-detailing--playful/home-1440.jpg",
+      "C46--car-detailing--playful/home-390.jpg",
+      "C46--car-detailing--playful/inner-1440.jpg",
+      "C46--car-detailing--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C47",
+    "type": "independent-musician",
+    "family": "events",
+    "look": "night",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25634,
+    "costUsd": 0.020988,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "b949d09f-044d-4a03-aabc-b8b31b40b94a",
+    "shots": [
+      "C47--independent-musician--night/home-1440.jpg",
+      "C47--independent-musician--night/home-390.jpg",
+      "C47--independent-musician--night/inner-1440.jpg",
+      "C47--independent-musician--night/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C47",
+    "type": "independent-musician",
+    "family": "events",
+    "look": "dark",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 24818,
+    "costUsd": 0.014248,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "ceb852f9-ab92-48f4-add1-8b0cf5e66fff",
+    "shots": [
+      "C47--independent-musician--dark/home-1440.jpg",
+      "C47--independent-musician--dark/home-390.jpg",
+      "C47--independent-musician--dark/inner-1440.jpg",
+      "C47--independent-musician--dark/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C48",
+    "type": "event-host",
+    "family": "events",
+    "look": "night",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 26164,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "ba1b4898-7a3b-4d6d-b1e7-bfe9a749d492",
+    "shots": [
+      "C48--event-host--night/home-1440.jpg",
+      "C48--event-host--night/home-390.jpg",
+      "C48--event-host--night/inner-1440.jpg",
+      "C48--event-host--night/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C48",
+    "type": "event-host",
+    "family": "events",
+    "look": "dark",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25618,
+    "costUsd": 0.020978,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "d9d85960-7b00-4982-a971-fa559651f99b",
+    "shots": [
+      "C48--event-host--dark/home-1440.jpg",
+      "C48--event-host--dark/home-390.jpg",
+      "C48--event-host--dark/inner-1440.jpg",
+      "C48--event-host--dark/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "F1",
+    "type": "house-cleaner",
+    "family": "professional",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 22744,
+    "costUsd": 0.020981999999999997,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "86c38596-d929-4c5a-be0f-f6fc9c2c54fd",
+    "shots": [
+      "F1--house-cleaner--classic/home-1440.jpg",
+      "F1--house-cleaner--classic/home-390.jpg",
+      "F1--house-cleaner--classic/inner-1440.jpg",
+      "F1--house-cleaner--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "F1",
+    "type": "house-cleaner",
+    "family": "professional",
+    "look": "playful",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25759,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "319b1906-4bcd-4953-ba02-a4911d495f07",
+    "shots": [
+      "F1--house-cleaner--playful/home-1440.jpg",
+      "F1--house-cleaner--playful/home-390.jpg",
+      "F1--house-cleaner--playful/inner-1440.jpg",
+      "F1--house-cleaner--playful/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "F2",
+    "type": "nail-salon",
+    "family": "beauty",
+    "look": "editorial",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 19381,
+    "costUsd": 0.014542000000000001,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "9158a572-cacd-4cbd-9310-345d4d4a909f",
+    "shots": [
+      "F2--nail-salon--editorial/home-1440.jpg",
+      "F2--nail-salon--editorial/home-390.jpg",
+      "F2--nail-salon--editorial/inner-1440.jpg",
+      "F2--nail-salon--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "F2",
+    "type": "nail-salon",
+    "family": "beauty",
+    "look": "bold",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 25709,
+    "costUsd": 0,
+    "calls": 1,
+    "failed": 1,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "a1343f22-e67d-4545-9250-88e7f28dc3f7",
+    "shots": [
+      "F2--nail-salon--bold/home-1440.jpg",
+      "F2--nail-salon--bold/home-390.jpg",
+      "F2--nail-salon--bold/inner-1440.jpg",
+      "F2--nail-salon--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "F3",
+    "type": "restaurant",
+    "family": "dining",
+    "look": "warm",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 16,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 14497,
+    "costUsd": 0.011686,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "29d0cf56-3bb8-4e19-9dc2-4a48655ed8ed",
+    "shots": [
+      "F3--restaurant--warm/home-1440.jpg",
+      "F3--restaurant--warm/home-390.jpg",
+      "F3--restaurant--warm/inner-1440.jpg",
+      "F3--restaurant--warm/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "F3",
+    "type": "restaurant",
+    "family": "dining",
+    "look": "minimal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 24072,
+    "costUsd": 0.020912,
+    "calls": 1,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "09449a8b-e058-4f8c-859f-a42cc421119b",
+    "shots": [
+      "F3--restaurant--minimal/home-1440.jpg",
+      "F3--restaurant--minimal/home-390.jpg",
+      "F3--restaurant--minimal/inner-1440.jpg",
+      "F3--restaurant--minimal/inner-390.jpg"
     ]
   }
 ]

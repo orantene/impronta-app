@@ -61,7 +61,19 @@ Table `platform_stock_images` (migration `20260916000356`, applied). Bytes stay 
 
 `docs/plans/templates/evidence/acceptance/index.md` (+ `acceptance.json`, JPEGs per site). Harness: `scripts/acceptance-run.mts` over `scripts/acceptance-cases.json` (48 cases + F1 home cleaner Cancún, F2 nail salon 4-person team Playa, F3 Parrilla El Paisa with only the two facts the live brief holds). Tenant: `tpl-qa-studio` (created by `scripts/seed-templates-qa-tenant.mjs`, owner qa-admin; never a real tenant).
 
-RESULTS_PLACEHOLDER
+**Results (run of 2026-09-16, 102 sites = 51 businesses × 2 Looks, `evidence/acceptance/index.md`):**
+
+| Measure | Value |
+|---|---|
+| Sites composed (site written, six pages + shell) | **102 / 102** — `missing_logo` 82 (= composed, no logo in the fixture), `fallback_used` 20, `failed` 0 |
+| Model copy survived screening | 82 / 102; the 20 fallbacks were the provider returning `ok:false` (not a timeout); Look defaults shipped |
+| Image slots empty | 0 / 102 sites (every slot filled; all from the universal pack) |
+| **Hero assertion** (no two types share a hero; hero from the type pack) | **FAIL — 1 distinct hero asset across 47 types, 0/102 from a type pack.** This is the imagery gap the owner must unblock (image key or licensed packs); the harness will pass the day type packs exist. |
+| Time per site (composer only, incl. copy pass) | mean 21.9 s · p90 27.0 s · max 31.2 s (copy race set to 40 s) |
+| Cost per site (`cms_ai_usage_log` by `site_compose_id`, failed calls included) | mean **$0.0132** · max $0.0210 · run total $1.348 (102 calls, 20 failed at $0) |
+| Screenshots | `evidence/acceptance/<case>--<type>--<look>/{home,inner}-{1440,390}.jpg` (JPEG q55; 17 MB) |
+
+Harness notes: the run was resumed three times: a dev-server navigation abort, a dropped fetch, and twice the dev server's route table lost `/api/dev/compose-site` until restart (a local Turbopack glitch, not app code); the harness now retries both calls and screenshots and resumes from `acceptance.json`.
 
 ## 6. What is still missing (honest)
 

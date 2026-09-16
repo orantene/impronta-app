@@ -56,9 +56,20 @@ const HREF: Record<string, string> = { dining: "/menu", fitness: "/clases", educ
 
 async function shot(page: Page, url: string, file: string, width: number, fullPage: boolean) {
   await page.setViewportSize({ width, height: width > 1000 ? 900 : 844 });
-  await page.goto(url, { waitUntil: "networkidle", timeout: 120_000 });
-  await page.waitForTimeout(600);
-  await page.screenshot({ path: file, type: "jpeg", quality: 55, fullPage });
+  // A dev server mid-recompile aborts the odd navigation; retry before giving up.
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.goto(url, { waitUntil: "networkidle", timeout: 120_000 });
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: file, type: "jpeg", quality: 55, fullPage });
+      return;
+    } catch (err) {
+      lastErr = err;
+      await page.waitForTimeout(2000);
+    }
+  }
+  throw lastErr;
 }
 
 mkdirSync(out, { recursive: true });
@@ -79,20 +90,32 @@ for (const c of cases) {
   for (const look of looks) {
     if (done.has(`${c.id}|${look}`)) continue;
     const started = Date.now();
-    const res = await page.evaluate(
-      async ({ body }) => {
-        const r = await fetch("/api/dev/compose-site", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-        return { status: r.status, json: await r.json().catch(() => null) };
-      },
-      { body: { tenantSlug: tenant, lookId: look, publish: true, overwrite: true, resetFacts: true, facts: factsFor(c) } },
-    );
+    // The dev server occasionally drops a connection mid-recompile; retry the compose call.
+    let res: { status: number; json: unknown } = { status: 0, json: null };
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        res = await page.evaluate(
+          async ({ body }) => {
+            const r = await fetch("/api/dev/compose-site", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+            return { status: r.status, json: await r.json().catch(() => null) };
+          },
+          { body: { tenantSlug: tenant, lookId: look, publish: true, overwrite: true, resetFacts: true, facts: factsFor(c) } },
+        );
+        break;
+      } catch (err) {
+        res = { status: 0, json: { notes: [`compose call failed: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`] } };
+        await page.waitForTimeout(3000);
+      }
+    }
     const j = (res.json ?? {}) as { outcome?: string; copySource?: string; imagePicks?: Row["picks"]; durationMs?: number; costUsd?: number; notes?: string[]; siteComposeId?: string; family?: string; placed?: { photos?: { hero?: string | null } } };
     let heroSrc = "";
     const dir = join(out, `${c.id}--${c.type}--${look}`);
     mkdirSync(dir, { recursive: true });
     const shots: string[] = [];
+    let shotError = "";
     if (res.status === 200 && j.outcome && j.outcome !== "failed") {
       const inner = HREF[family] ?? "/servicios";
+      try {
       for (const [label, path, full] of [["home", `/${tenant}`, false], ["inner", `/${tenant}${inner}`, true]] as const) {
         for (const w of [1440, 390] as const) {
           const file = join(dir, `${label}-${w}.jpg`);
@@ -105,8 +128,11 @@ for (const c of cases) {
           }
         }
       }
+      } catch (err) {
+        shotError = `screenshot failed: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`;
+      }
     }
-    rows.push({ id: c.id, type: c.type, family: j.family ?? family, look, outcome: res.status === 200 ? (j.outcome ?? "failed") : `http ${res.status}`, copySource: j.copySource ?? "-", picks: j.imagePicks ?? { owner: 0, stock: 0, none: 0 }, heroLevel: j.placed?.photos?.hero ?? "-", heroSrc, durationMs: j.durationMs ?? Date.now() - started, costUsd: j.costUsd ?? 0, calls: 0, failed: 0, notes: j.notes ?? [], siteComposeId: j.siteComposeId ?? "", shots });
+    rows.push({ id: c.id, type: c.type, family: j.family ?? family, look, outcome: res.status === 200 ? (j.outcome ?? "failed") : `http ${res.status}`, copySource: j.copySource ?? "-", picks: j.imagePicks ?? { owner: 0, stock: 0, none: 0 }, heroLevel: j.placed?.photos?.hero ?? "-", heroSrc, durationMs: j.durationMs ?? Date.now() - started, costUsd: j.costUsd ?? 0, calls: 0, failed: 0, notes: [...(j.notes ?? []), ...(shotError ? [shotError] : [])], siteComposeId: j.siteComposeId ?? "", shots });
     console.log(`${c.id} ${c.type} ${look}: ${rows[rows.length - 1].outcome} ${j.copySource ?? ""} ${j.durationMs ?? "?"}ms $${(j.costUsd ?? 0).toFixed(4)}`);
     writeFileSync(join(out, "acceptance.json"), JSON.stringify(rows, null, 2));
   }
@@ -114,7 +140,20 @@ for (const c of cases) {
 
 // Cost roll-up after the run, so timed-out copy calls that landed late are counted.
 const ids = rows.map((r) => r.siteComposeId).filter(Boolean);
-const costs = (await page.evaluate(async (list) => (await fetch(`/api/dev/compose-site?ids=${list.join(",")}`)).json(), ids)) as Record<string, { calls: number; failed: number; costUsd: number }>;
+const costs: Record<string, { calls: number; failed: number; costUsd: number }> = {};
+for (let i = 0; i < ids.length; i += 20) {
+  const batch = ids.slice(i, i + 20);
+  const part = (await page.evaluate(async (list) => {
+    const r = await fetch(`/api/dev/compose-site?ids=${list.join(",")}`);
+    const text = await r.text();
+    try {
+      return JSON.parse(text) as Record<string, { calls: number; failed: number; costUsd: number }>;
+    } catch {
+      return {} as Record<string, { calls: number; failed: number; costUsd: number }>;
+    }
+  }, batch)) as Record<string, { calls: number; failed: number; costUsd: number }>;
+  Object.assign(costs, part);
+}
 for (const r of rows) {
   const c = costs[r.siteComposeId];
   if (c) {

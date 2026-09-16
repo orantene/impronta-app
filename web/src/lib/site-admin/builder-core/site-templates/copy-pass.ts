@@ -60,7 +60,9 @@ export const COPY_PASS_JSON_SCHEMA = {
   },
 } as const;
 
-export const COPY_PASS_MAX_TOKENS = 1_800;
+// 16 keys × 2 languages × ~40 tokens ≈ 1.3k of JSON; 1.8k truncated real
+// replies (they came back "not json"), so the ceiling is generous.
+export const COPY_PASS_MAX_TOKENS = 3_500;
 export const COPY_PASS_TIMEOUT_MS = 40_000;
 
 /** Keys a compose lets the model rewrite; everything else stays deterministic. */

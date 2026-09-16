@@ -457,10 +457,11 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
       if (result?.ok) {
         const screened = screenCopyReply(result.text, { facts: copyFacts, defaults: look.copy, keys: COPY_PASS_KEYS, primaryLocale: locale });
         copyOverrides = { ...copyOverrides, ...screened.copy };
-        copySource = Object.keys(copyOverrides).length > 0 ? "model" : "defaults";
+        copySource = Object.keys(screened.copy).length > 0 ? "model" : "defaults";
+        if (Object.keys(screened.copy).length === 0) notes.push("copy pass returned nothing usable; defaults used");
         if (screened.dropped.length > 0) notes.push(`copy lines dropped: ${screened.dropped.map((d) => `${d.key} (${d.reason})`).join(", ")}`);
       } else {
-        notes.push(result === null ? "copy pass timed out; defaults used" : "copy pass failed; defaults used");
+        notes.push(result === null ? "copy pass timed out; defaults used" : `copy pass failed (${result.code}: ${result.message.slice(0, 120)}); defaults used`);
       }
     } else {
       notes.push(configured ? "AI not allowed for this tenant; defaults used" : "AI provider not configured; defaults used");
