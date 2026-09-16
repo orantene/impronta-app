@@ -154,7 +154,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
           id: shortId(p.orderId),
           date: dayLabel(p.createdAt, tz, locale, none),
         }),
-        detail: `${orderStatusLabel(p.status, tr)} · ${interpolate(tr("dashboard.clientRecord.lines"), { count: p.lineCount })} · ${formatOrderMoney(p.totalCents, p.currency)}`,
+        detail: `${orderStatusLabel(p.status, tr)} · ${interpolate(tr(p.lineCount === 1 ? "dashboard.clientRecord.lineOne" : "dashboard.clientRecord.lines"), { count: p.lineCount })} · ${formatOrderMoney(p.totalCents, p.currency)}`,
         owedCents: purchaseOwedCents(p),
         currency: p.currency,
       }))}
@@ -192,6 +192,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
         sendLink: tr("dashboard.projects.money.sendLink"),
         sendLinkUnavailable: tr("dashboard.clientRecord.oneAtATime"),
         linkSent: tr("dashboard.clientRecord.linkSent"),
+        selectedRecordOne: tr("dashboard.clientRecord.selectedRecordOne"),
         continueTo: tr("dashboard.clientRecord.continueToPayment"),
         oneAtATime: tr("dashboard.clientRecord.oneAtATime"),
         nothingSelected: tr("dashboard.clientRecord.nothingSelected"),
@@ -216,7 +217,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
         <Initials name={name} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="m-0 text-[24px]! font-semibold leading-tight tracking-[-0.02em] text-admin-ink max-[720px]:text-[20px]!">{name}</h1>
+            <h1 className="m-0 text-[26px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink max-[720px]:text-[20px]!">{name}</h1>
             <Pill tone="slate">{tr("dashboard.clientRecord.person")}</Pill>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] text-admin-ink-muted">
@@ -281,7 +282,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
           value={verdict.ok ? formatOrderMoney(verdict.owedCents, verdict.currency) : balances.length > 0 ? formatOrderMoney(0, balances[0]!.currency) : "—"}
           note={
             verdict.ok
-              ? interpolate(tr("dashboard.clientRecord.collectSummary"), { count: verdict.recordCount, amount: formatOrderMoney(verdict.owedCents, verdict.currency) })
+              ? interpolate(tr(verdict.recordCount === 1 ? "dashboard.clientRecord.collectSummaryOne" : "dashboard.clientRecord.collectSummary"), { count: verdict.recordCount, amount: formatOrderMoney(verdict.owedCents, verdict.currency) })
               : verdict.reason === "mixed_currency"
                 ? tr("dashboard.clientRecord.collectMixedCurrency")
                 : tr("dashboard.clientRecord.collectNothingOwed")
@@ -339,7 +340,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
             )}
             <p className="m-0 mt-2 text-[12.5px] text-admin-ink-muted">
               {verdict.ok
-                ? interpolate(tr("dashboard.clientRecord.collectSummary"), { count: verdict.recordCount, amount: formatOrderMoney(verdict.owedCents, verdict.currency) })
+                ? interpolate(tr(verdict.recordCount === 1 ? "dashboard.clientRecord.collectSummaryOne" : "dashboard.clientRecord.collectSummary"), { count: verdict.recordCount, amount: formatOrderMoney(verdict.owedCents, verdict.currency) })
                 : verdict.reason === "mixed_currency"
                   ? tr("dashboard.clientRecord.collectMixedCurrency")
                   : tr("dashboard.clientRecord.collectNothingOwed")}
@@ -360,7 +361,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
     <>
       <Eyebrow wide>{tr("dashboard.clientRecord.sideContacts")}</Eyebrow>
       <Card>
-        <div className="flex flex-col gap-2 px-3.5 py-3 text-[13px] text-admin-ink">
+        <div className="flex flex-col gap-2 px-4 py-3.5 text-[13px] leading-[1.25] text-admin-ink">
           <div>
             <b>{name}</b> · {tr("dashboard.clientRecord.paysSelf")}
           </div>
@@ -369,21 +370,22 @@ export default async function ClientRecordPage({ params, searchParams }: { param
       </Card>
       <Eyebrow wide>{tr("dashboard.clientRecord.sidePreferences")}</Eyebrow>
       <Card>
-        <div className="px-3.5 py-3 text-[13px]">
-          <KeyValue label={tr("dashboard.clientRecord.prefProfessional")} value={tr("dashboard.clientRecord.prefNotRecorded")} dim />
-          <KeyValue label={tr("dashboard.clientRecord.prefTimes")} value={tr("dashboard.clientRecord.prefNotRecorded")} dim />
+        <div className="px-4 py-1 text-[13px]">
+          <KeyValue tall label={tr("dashboard.clientRecord.prefProfessional")} value={tr("dashboard.clientRecord.prefNotRecorded")} dim />
+          <KeyValue tall label={tr("dashboard.clientRecord.prefTimes")} value={tr("dashboard.clientRecord.prefNotRecorded")} dim />
           <KeyValue
+            tall
             label={tr("dashboard.clientRecord.prefReceipts")}
             value={record.email ? tr("dashboard.clientRecord.prefEmail") : record.phoneE164 ? tr("dashboard.clientRecord.prefPhone") : tr("dashboard.clientRecord.prefNotRecorded")}
             dim={!record.email && !record.phoneE164}
           />
-          <KeyValue label={tr("dashboard.clientRecord.prefMarketing")} value={tr("dashboard.clientRecord.prefNotRecorded")} dim />
+          <KeyValue tall label={tr("dashboard.clientRecord.prefMarketing")} value={tr("dashboard.clientRecord.prefNotRecorded")} dim />
         </div>
       </Card>
       <Eyebrow wide>{tr("dashboard.clientRecord.sideIntake")}</Eyebrow>
       <Card>
-        <div className="px-3.5 py-3 text-[13px]">
-          {record.tags.length > 0 ? <KeyValue label={tr("dashboard.clientRecord.tags")} value={record.tags.join(" · ")} /> : null}
+        <div className="px-4 py-3.5 text-[13px] leading-[1.25]">
+          {record.tags.length > 0 ? <KeyValue tall label={tr("dashboard.clientRecord.tags")} value={record.tags.join(" · ")} /> : null}
           {record.notes ? (
             <p className="m-0 whitespace-pre-line text-admin-ink">{record.notes}</p>
           ) : (
@@ -427,13 +429,11 @@ function BookingsList({ record, locale, nowMs, tr, all }: { record: ClientRecord
               detail={b.timeZone !== record.timeZone ? b.timeZone : undefined}
               trailing={<Pill tone={BOOKING_TONE[b.status] ?? "slate"}>{tr(STATUS_KEY[bookingStatus(b.status)])}</Pill>}
             />
-            <ListRow cols="grid-cols-[130px_1.4fr_1.4fr_110px]" className="border-t max-[720px]:hidden">
+            <ListRow cols="grid-cols-[122px_minmax(0,1.4fr)_minmax(0,1.4fr)_110px]" className="border-t max-[720px]:hidden">
               <b>{dayLabel(b.startsAt, b.timeZone, locale, none, { weekday: true, time: true })}</b>
               <span>{b.title || shortId(b.bookingId)}</span>
               <span className="text-admin-ink-muted">{b.timeZone !== record.timeZone ? b.timeZone : ""}</span>
-              <span>
-                <Pill tone={BOOKING_TONE[b.status] ?? "slate"}>{tr(STATUS_KEY[bookingStatus(b.status)])}</Pill>
-              </span>
+              <Pill tone={BOOKING_TONE[b.status] ?? "slate"} block>{tr(STATUS_KEY[bookingStatus(b.status)])}</Pill>
             </ListRow>
             </React.Fragment>
           ))
@@ -466,15 +466,15 @@ function ActivityList({ record, locale, tr, limit }: { record: ClientRecord; loc
             return (
               <React.Fragment key={p.orderId}>
               <MobileListRow
-                title={`${interpolate(tr("dashboard.clientRecord.recordShort"), { id: shortId(p.orderId) })} · ${interpolate(tr("dashboard.clientRecord.lines"), { count: p.lineCount })}`}
+                title={`${interpolate(tr("dashboard.clientRecord.recordShort"), { id: shortId(p.orderId) })} · ${interpolate(tr(p.lineCount === 1 ? "dashboard.clientRecord.lineOne" : "dashboard.clientRecord.lines"), { count: p.lineCount })}`}
                 detail={`${dayLabel(p.createdAt, record.timeZone, locale, none, { weekday: true })} · ${formatOrderMoney(p.totalCents, p.currency)} · ${orderStatusLabel(p.status, tr)}${owed > 0 ? ` · ${formatOrderMoney(owed, p.currency)} ${tr("dashboard.clientRecord.owedSuffix")}` : ""}`}
               />
-              <ListRow cols="grid-cols-[110px_1fr_auto]" className="border-t max-[720px]:hidden">
+              <ListRow cols="grid-cols-[122px_minmax(0,1fr)_auto]" className="border-t max-[720px]:hidden">
                 <span className="text-admin-ink-muted">{dayLabel(p.createdAt, record.timeZone, locale, none, { weekday: true })}</span>
                 <span>
                   {interpolate(tr("dashboard.clientRecord.recordShort"), { id: shortId(p.orderId) })}
                   {" · "}
-                  {interpolate(tr("dashboard.clientRecord.lines"), { count: p.lineCount })}
+                  {interpolate(tr(p.lineCount === 1 ? "dashboard.clientRecord.lineOne" : "dashboard.clientRecord.lines"), { count: p.lineCount })}
                 </span>
                 <span className="text-right text-admin-ink-muted">
                   {formatOrderMoney(p.totalCents, p.currency)} · {orderStatusLabel(p.status, tr)}
@@ -500,7 +500,7 @@ function ProjectsList({ record, locale, tenantSlug, tr }: { record: ClientRecord
           <p className="m-0 px-4 py-3 text-[13px] text-admin-ink-muted">{tr("dashboard.clientRecord.projectsNone")}</p>
         ) : (
           record.projects.map((p) => (
-            <ListRow key={p.projectId} cols="grid-cols-[1.6fr_1fr_110px]" className="border-t">
+            <ListRow key={p.projectId} cols="grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_110px]" className="border-t">
               <Link href={`/${tenantSlug}/admin/projects/${p.projectId}`} className="font-semibold text-admin-ink no-underline hover:underline">
                 {p.title || shortId(p.projectId)}
               </Link>
@@ -508,9 +508,7 @@ function ProjectsList({ record, locale, tenantSlug, tr }: { record: ClientRecord
                 {dayLabel(p.startsAt, p.timeZone, locale, none, { weekday: true })}
                 {p.timeZone !== record.timeZone ? ` · ${p.timeZone}` : ""}
               </span>
-              <span>
-                <Pill tone={BOOKING_TONE[p.status] ?? "slate"}>{tr(STATUS_KEY[bookingStatus(p.status)])}</Pill>
-              </span>
+              <Pill tone={BOOKING_TONE[p.status] ?? "slate"} block>{tr(STATUS_KEY[bookingStatus(p.status)])}</Pill>
             </ListRow>
           ))
         )}

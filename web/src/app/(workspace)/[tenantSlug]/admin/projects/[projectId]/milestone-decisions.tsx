@@ -77,7 +77,7 @@ function sentenceFor(result: Extract<MilestoneDecisionResult, { ok: false }>, co
   }
 }
 
-const COLS = "grid-cols-[1.3fr_1.2fr_80px_190px_1.4fr]";
+const COLS = "grid-cols-[minmax(0,1.3fr)_minmax(0,1.2fr)_80px_190px_minmax(0,1.4fr)]";
 
 export function MilestoneDecisions({
   milestones,
@@ -128,7 +128,8 @@ export function MilestoneDecisions({
               <span>
                 <b>{m.title}</b>
                 {m.kind === "passthrough_budget" ? <span className="block text-[12px] text-admin-ink-muted">{copy.passthrough}</span> : null}
-                <span className="block text-[12px] text-admin-ink-muted">{m.revisionsLabel}</span>
+                {/* Revisions are told once one has been used; the board's row is one line until then. */}
+                {m.revision > 0 ? <span className="block text-[12px] text-admin-ink-muted">{m.revisionsLabel}</span> : null}
                 {note ? (
                   <span role="status" className="mt-1 block text-[12px] text-admin-red">
                     {note}
@@ -143,9 +144,7 @@ export function MilestoneDecisions({
                 editable={m.status !== "approved" && m.status !== "cancelled"}
                 copy={copy.moneyFile}
               />
-              <span>
-                <Pill tone={m.statusTone}>{m.statusLabel}</Pill>
-              </span>
+              <Pill tone={m.statusTone} block>{m.statusLabel}</Pill>
               <span className="flex flex-wrap items-center justify-end gap-1.5">
                 {decidable ? (
                   <>

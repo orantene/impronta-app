@@ -27,8 +27,15 @@ export type ListControlsCopy = {
   readonly search: string;
 };
 
+/** The board's filter chip: a 26px white pill with no border, `Status: any ⌄`. */
 const CHIP =
-  "inline-flex h-[28px] items-center gap-1.5 rounded-full border border-admin-border bg-admin-card px-2.5 text-[12px] text-admin-ink";
+  "relative inline-flex h-[26px] items-center gap-1 rounded-full bg-admin-card px-[10px] text-[12.5px] leading-none text-admin-ink";
+/** The search box: a 28px white pill with a hairline. */
+const SEARCH =
+  "inline-flex h-[28px] items-center gap-1.5 rounded-full border border-admin-border bg-admin-card px-[10px] text-[12.5px] leading-none text-admin-ink";
+/** A native select drawn as the chip's own words: no box, no native arrow. */
+const SELECT =
+  "cursor-pointer appearance-none bg-transparent pr-[14px] text-[12.5px] leading-none text-admin-ink focus:outline-none";
 
 export function ListControls({
   filter,
@@ -68,11 +75,7 @@ export function ListControls({
       </button>
       <label className={cn(CHIP, "max-[720px]:hidden")}>
         <span>{copy.status}</span>
-        <select
-          value={status}
-          onChange={(e) => push({ status: e.target.value })}
-          className="bg-transparent text-[12px] text-admin-ink focus:outline-none"
-        >
+        <select value={status} onChange={(e) => push({ status: e.target.value })} className={SELECT}>
           <option value="any">{copy.statusAny}</option>
           {copy.statuses.map((s) => (
             <option key={s.id} value={s.id}>
@@ -80,21 +83,19 @@ export function ListControls({
             </option>
           ))}
         </select>
+        <ChevronDown aria-hidden size={12} strokeWidth={1.75} className="pointer-events-none absolute right-[9px] text-admin-ink-dim" />
       </label>
       <label className={cn(CHIP, "max-[720px]:hidden")}>
         <span>{copy.deadline}</span>
-        <select
-          value={deadline}
-          onChange={(e) => push({ deadline: e.target.value })}
-          className="bg-transparent text-[12px] text-admin-ink focus:outline-none"
-        >
+        <select value={deadline} onChange={(e) => push({ deadline: e.target.value })} className={SELECT}>
           <option value="any">{copy.deadlineAny}</option>
           <option value="this_month">{copy.deadlineThisMonth}</option>
           <option value="overdue">{copy.deadlineOverdue}</option>
         </select>
+        <ChevronDown aria-hidden size={12} strokeWidth={1.75} className="pointer-events-none absolute right-[9px] text-admin-ink-dim" />
       </label>
       <form
-        className={cn(CHIP, "w-[220px] gap-1.5 max-[720px]:h-[44px] max-[720px]:w-full max-[720px]:rounded-[12px]")}
+        className={cn(SEARCH, "w-[220px] max-[720px]:h-[44px] max-[720px]:w-full max-[720px]:rounded-[12px]")}
         onSubmit={(e) => {
           e.preventDefault();
           push({ q });
@@ -110,7 +111,7 @@ export function ListControls({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={copy.search}
-          className="min-w-0 flex-1 bg-transparent text-[12px] text-admin-ink placeholder:text-admin-ink-dim focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent text-[12.5px] leading-none text-admin-ink placeholder:text-admin-ink-dim focus:outline-none"
         />
       </form>
     </div>

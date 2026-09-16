@@ -2679,7 +2679,8 @@
           "linkResend": "Renvoyer",
           "linkReceipt": "Voir le reçu",
           "linkNew": "Envoyer un nouveau lien",
-          "linksUnavailable": "Aucune table n'enregistre encore un lien de paiement envoyé ; il n'y a donc rien à lister ni à renvoyer ici."
+          "linksUnavailable": "Aucune table n'enregistre encore un lien de paiement envoyé ; il n'y a donc rien à lister ni à renvoyer ici.",
+          "totalDetailOne": "{amount} · 1 jalon"
         }
       },
       "classes": {
@@ -4049,6 +4050,12 @@
           "deliveryRetry": "Réessayer",
           "deliveryRetried": "Renvoyé.",
           "deliveryAttempts": "{count} tentatives",
+          "newThreadLinkTitle": "Lien du client",
+          "newThreadLinkCopy": "Copier le lien",
+          "newThreadLinkCopied": "Copié",
+          "newThreadLinkSend": "Envoyer via WhatsApp",
+          "newThreadLinkDismiss": "Ignorer",
+          "newThreadLinkUnavailable": "Cette conversation a été créée, mais son lien n'a pas pu être signé.",
           "recoverNone": "Aucun paiement enregistré sur ce fil. Demander un paiement en enregistre un.",
           "recoverLine": "Enregistré {when} · {count} lignes · panier v{version}",
           "recoverRecovered": "Déjà récupéré",
@@ -4527,7 +4534,7 @@
     },
     "projects": {
       "pageTitle": "Projets",
-      "pageIntro": "Travail sur commande : l'accord, ce qui est du, ce qui a ete livre et qui y participe. Une vente au comptoir est une commande, pas un projet.",
+      "pageIntro": "Travail sur commande, de la demande à la clôture",
       "unavailable": "Nous n'avons pas pu charger vos projets. Rien n'a ete modifie. Reessayez dans un instant.",
       "empty": "Aucun projet sur commande pour le moment.",
       "emptyHint": "Un projet apparait ici lorsqu'un client accepte une offre sur une demande. Les ventes prises au comptoir restent dans Commandes.",
@@ -4575,7 +4582,7 @@
       "scope": {
         "none": "Aucun accord n'a encore ete redige. L'offre se redige dans la conversation dont vient ce projet.",
         "noInquiry": "Ce projet ne vient pas d'une conversation, il n'a donc aucune offre a montrer. Les versions de l'accord vivent sur la demande.",
-        "version": "Version {n}",
+        "version": "v{n}",
         "history": "Versions precedentes",
         "historyNone": "Aucune version precedente. C'est la premiere.",
         "coordinatorFee": "Honoraires du coordinateur",
@@ -4603,7 +4610,8 @@
         "priorKept": "v{n} (envoyée le {date}, {amount}) est conservée telle quelle pour l'historique.",
         "sendVersion": "Envoyer la v{n}",
         "discardProposal": "Abandonner la proposition",
-        "refusalNoLock": "La conversation n'a pas pu être lue. Rechargez et réessayez."
+        "refusalNoLock": "La conversation n'a pas pu être lue. Rechargez et réessayez.",
+        "valueDetailOne": "{amount} · 1 jalon"
       },
       "milestones": {
         "title": "Jalons et livrables",
@@ -4629,7 +4637,7 @@
         "refusalUnavailable": "Nous n'avons pas pu atteindre l'enregistrement. Rien n'a ete modifie.",
         "refusalNotAllowed": "Vous n'avez pas le droit de statuer sur les livrables de cet espace de travail.",
         "refusalInvalid": "Cette demande ne designait aucun livrable sur lequel agir.",
-        "sumTitle": "Jalons et livrables",
+        "sumTitle": "Jalons · somme de l'accord",
         "add": "Ajouter un jalon",
         "onDelivery": "À la livraison · {date}",
         "requestChanges": "Demander des modifications",
@@ -4650,8 +4658,7 @@
         "noneHint": "L'affectation est creee a l'acceptation d'une offre comportant des lignes. Chaque professionnel affecte a sa propre ligne.",
         "colRole": "Role",
         "unnamed": "Nom non enregistre",
-        "replaceNote": "Remplacer une personne conserve le nom sortant sur la ligne, pour que l'histoire de qui a fait le travail survive au changement. Le remplacement ne se modifie pas encore depuis cet ecran.",
-        "marginNote": "Les honoraires et la facturation figurent ensemble parce que c'est la vue de l'espace de travail. Un professionnel affecte ne voit que ses propres honoraires.",
+        "replaceNote": "Le remplaçant prend la ligne à la confirmation. S'il n'est pas disponible ou si le travail a déjà commencé, le moteur refuse et dit pourquoi.",
         "assignments": "Assignations",
         "assign": "Assigner depuis Personnes › Réservable",
         "assigned": "Assigné",
@@ -4670,10 +4677,11 @@
         "impactOutgoingValue": "Conservé sur la ligne pour l'historique · rien de gagné",
         "impactClient": "Client",
         "impactClientValue": "Non prévenu d'ici · aucune approbation requise",
-        "replaceConfirm": "Remplacer et inviter",
+        "replaceConfirm": "Remplacer et inviter {name}",
         "replaceNoProfile": "Cette personne a été saisie sur l'offre et n'a pas de profil à remplacer.",
         "replacementPick": "Choisir une personne",
-        "replacementNone": "Personne d'autre n'est encore dans l'équipe."
+        "replacementNone": "Personne d'autre n'est encore dans l'équipe.",
+        "replacementHint": "Toute l'équipe de l'espace de travail est listée ; la disponibilité est vérifiée à la confirmation."
       },
       "money": {
         "quotedNotAgreed": "Aucune version n'a ete acceptee : il n'y a donc pas encore de prix convenu.",
@@ -4742,13 +4750,15 @@
         "confirmArchive": "Archiver le projet",
         "confirmReopen": "Rouvrir le projet",
         "archiveReason": "Pourquoi il est archivé",
-        "archiveReasonHint": "Facultatif. Conservé dans le dossier."
+        "archiveReasonHint": "Facultatif. Conservé dans le dossier.",
+        "cancelSheet": "Annuler",
+        "milestonesOpenOne": "1 jalon ouvert"
       },
       "visibility": {
-        "title": "Qui voit quoi",
-        "audienceStaff": "Personnel de l'espace de travail",
-        "audienceProfessional": "Professionnel affecte",
-        "audienceClient": "Client",
+        "title": "Qui voit quoi sur ce projet",
+        "audienceStaff": "Propriétaire · gestionnaire",
+        "audienceProfessional": "Talent affecté",
+        "audienceClient": "Client (portail)",
         "note": "Il n'existe aucune table de visibilite par projet. L'acces du personnel vient du modele d'acces de l'espace de travail, et celui du professionnel affecte est un droit limite a sa propre ligne d'affectation. Cet ecran enonce la regle que produisent ces deux sources ; il n'offre pas d'exception par projet, car il n'en existe pas.",
         "colItem": "Élément",
         "never": "Jamais",
@@ -4901,7 +4911,8 @@
       "dateStarts": "Début",
       "dateEnds": "Fin",
       "dateMilestoneDue": "{title} dû",
-      "filesNone": "Aucun fichier n'est encore joint à un jalon."
+      "filesNone": "Aucun fichier n'est encore joint à un jalon.",
+      "kpiCollectedNoteOne": "1 enregistrement payé"
     },
     "clientRecord": {
       "title": "Client",
@@ -5002,7 +5013,10 @@
       "tabProjects": "Projets",
       "tabDetails": "Détails",
       "cancel": "Annuler",
-      "linkSent": "Lien de paiement envoyé · expire {when} · vous serez prévenu au paiement"
+      "linkSent": "Lien de paiement envoyé · expire {when} · vous serez prévenu au paiement",
+      "selectedRecordOne": "1 enregistrement",
+      "collectSummaryOne": "1 enregistrement impayé, {amount} à encaisser",
+      "lineOne": "1 ligne"
     },
     "tables": {
       "pageTitle": "Tables",

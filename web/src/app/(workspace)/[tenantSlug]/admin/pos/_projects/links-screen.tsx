@@ -14,7 +14,7 @@
 import { Check, Copy, Link2 } from "lucide-react";
 import { useState } from "react";
 
-import { POS_NOTE_INFO, POS_PILL, POS_PILL_CORAL, POS_PILL_GREEN, POS_PILL_SLATE, POS_SECONDARY_ACTION, POS_SURFACE } from "@/components/admin/pos/pos-classes";
+import { POS_NOTE_INFO, POS_OUTLINE_ACTION, POS_PILL, POS_PILL_CORAL, POS_PILL_GREEN, POS_PILL_SLATE, POS_SECONDARY_ACTION, POS_SURFACE } from "@/components/admin/pos/pos-classes";
 import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { cn } from "@/lib/utils";
@@ -56,10 +56,10 @@ export function LinksScreen({ copy, rows, saleHref }: { copy: ProjectsModeCopy; 
             const state = pill(row.status);
             const who = [row.customerName, row.title].filter((x): x is string => Boolean(x)).join(" · ") || interpolate(b.linkSale, { id: row.orderId.slice(0, 8) });
             return (
-              <li key={row.code} className="flex flex-wrap items-center gap-3 px-4 py-3.5" data-pos-link-row={row.status}>
+              <li key={row.code} className="flex flex-wrap items-center gap-4 px-4 py-4 leading-[1.2]" data-pos-link-row={row.status}>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[16px] font-semibold text-admin-ink">{who}</span>
-                  <span className="block text-[13.5px] tabular-nums text-admin-ink-muted">
+                  <span className="block truncate text-[16.5px] font-semibold text-admin-ink">{who}</span>
+                  <span className="mt-1 block text-[13.5px] tabular-nums text-admin-ink-muted">
                     {formatOrderMoney(row.amountCents, row.currency)} · {interpolate(b.linkSent, { when: row.sentAt })}
                     {row.status === "open" ? ` · ${interpolate(b.linkExpires, { when: row.expiresAt })}` : ""}
                   </span>
@@ -69,7 +69,7 @@ export function LinksScreen({ copy, rows, saleHref }: { copy: ProjectsModeCopy; 
                   <button
                     type="button"
                     data-pos-link-copy={row.code}
-                    className={POS_SECONDARY_ACTION}
+                    className={POS_OUTLINE_ACTION}
                     onClick={() => {
                       void navigator.clipboard?.writeText(row.url).then(
                         () => setCopied(row.code),
@@ -94,7 +94,10 @@ export function LinksScreen({ copy, rows, saleHref }: { copy: ProjectsModeCopy; 
           })}
         </ul>
       )}
-      <p className={cn(POS_NOTE_INFO, "m-0")}>{b.linksNote}</p>
+      <p className={cn(POS_NOTE_INFO, "m-0")}>
+        <Check aria-hidden size={16} strokeWidth={2} className="mt-px shrink-0" />
+        <span>{b.linksNote}</span>
+      </p>
     </div>
   );
 }
