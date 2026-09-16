@@ -479,7 +479,7 @@ const eventLaunchTree: BuilderNode[] = [
               headline: "Impronta Studio · Cancún",
               subheadline: "Puertas 18:00 h · Apertura LUMINA 23:00 h · Cierre 3:00 am. Estacionamiento y zona de taxis en la entrada.",
               source: "manual",
-              items: [{ label: "Impronta Studio", region: "Cancún, Quintana Roo", href: "#", featured: true, status: "active" }],
+              items: [{ label: "Impronta Studio", region: "Cancún, Quintana Roo", href: "?inquiry=open", featured: true, status: "active" }],
               showMap: true,
               mapStyle: "editorial",
               style: { fontFamily: RALEWAY, textColor: INK },
