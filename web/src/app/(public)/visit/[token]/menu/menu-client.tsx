@@ -16,14 +16,10 @@ import {
   guestVisitSubmit,
   guestVisitSubstituteAccept,
 } from "@/lib/server-actions/venue-engine";
-import { VENUE_ENGINE_REFUSALS, type VenueEngineRefusal } from "@/lib/venues/engine-refusals";
+import { venueEngineRefusalSentence, type VenueEngineRefusalSentences } from "@/lib/venues/engine-refusals";
 
 export type GuestMenuItem = { id: string; title: string; amountCents: number };
 export type GuestOffer = { lineId: string; offeringId: string; label: string };
-
-function isRefusal(reason: string): reason is VenueEngineRefusal {
-  return reason in VENUE_ENGINE_REFUSALS;
-}
 
 export function GuestMenuClient(props: {
   token: string;
@@ -46,7 +42,7 @@ export function GuestMenuClient(props: {
     acceptOffer: string;
     back: string;
   };
-  tRefusal: (key: string) => string;
+  refusals: VenueEngineRefusalSentences;
 }) {
   const router = useRouter();
   const [qty, setQty] = useState<Record<string, number>>({});
@@ -66,13 +62,13 @@ export function GuestMenuClient(props: {
     try {
       const res = await work();
       if (!res.ok) {
-        setRefusal(isRefusal(res.reason) ? props.tRefusal(VENUE_ENGINE_REFUSALS[res.reason]) : props.tRefusal(VENUE_ENGINE_REFUSALS.unavailable));
+        setRefusal(venueEngineRefusalSentence(props.refusals, res.reason));
         return false;
       }
       router.refresh();
       return true;
     } catch {
-      setRefusal(props.tRefusal(VENUE_ENGINE_REFUSALS.unavailable));
+      setRefusal(props.refusals.unavailable);
       return false;
     } finally {
       setBusy(false);

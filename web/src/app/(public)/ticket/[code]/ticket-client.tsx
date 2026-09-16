@@ -5,11 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { interpolate } from "@/i18n/interpolate";
 import { ticketLookup, ticketResend, ticketTransfer } from "@/lib/server-actions/venue-engine";
-import { VENUE_ENGINE_REFUSALS, type VenueEngineRefusal } from "@/lib/venues/engine-refusals";
-
-function isRefusal(reason: string): reason is VenueEngineRefusal {
-  return reason in VENUE_ENGINE_REFUSALS;
-}
+import { venueEngineRefusalSentence, type VenueEngineRefusalSentences } from "@/lib/venues/engine-refusals";
 
 export function TicketSelfClient(props: {
   code: string;
@@ -29,7 +25,7 @@ export function TicketSelfClient(props: {
     lookupAction: string;
     found: string;
   };
-  tRefusal: (key: string) => string;
+  refusals: VenueEngineRefusalSentences;
 }) {
   const router = useRouter();
   const [toName, setToName] = useState("");
@@ -42,7 +38,7 @@ export function TicketSelfClient(props: {
   const [refusal, setRefusal] = useState<string | null>(null);
 
   function say(reason: string) {
-    return isRefusal(reason) ? props.tRefusal(VENUE_ENGINE_REFUSALS[reason]) : props.tRefusal(VENUE_ENGINE_REFUSALS.unavailable);
+    return venueEngineRefusalSentence(props.refusals, reason);
   }
 
   return (

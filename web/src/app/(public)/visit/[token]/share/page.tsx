@@ -6,6 +6,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { guestVisitBill } from "@/lib/visits/guest-order";
 import { loadOpenVisitByToken } from "@/lib/visits/qr";
+import { resolveVenueEngineRefusals } from "@/lib/venues/engine-refusals";
 
 import { GuestShareClient } from "./share-client";
 
@@ -49,7 +50,7 @@ export default async function GuestVisitSharePage({ params }: { params: Promise<
         paid: tr("dashboard.visit.share.paid"),
         owed: tr("dashboard.visit.share.owed"),
       }}
-      tRefusal={(key) => tr(key)}
+      refusals={resolveVenueEngineRefusals(tr)}
     />
   );
 }
