@@ -14,9 +14,9 @@
  */
 
 import { useState } from "react";
+import { Briefcase, CalendarDays, Coffee, CreditCard, Gift, Layers, LayoutPanelLeft, Tag, Ticket, type LucideIcon } from "lucide-react";
 
 import { useT } from "@/i18n/use-t";
-import { Icon } from "../../primitives";
 import type { OfferingsEditor } from "@/components/talent/services/use-offerings-editor";
 import { ActionButton } from "../appointments-classes-ui";
 import { NEW_ITEM, type CatalogNav } from "./CatalogPage";
@@ -35,16 +35,17 @@ const CARD_KEY: Record<CreateTypeCard["id"], { title: string; note: string; sold
   gift: { title: "dashboard.catalog.create.gift.title", note: "dashboard.catalog.create.gift.note", sold: "dashboard.catalog.create.gift.sold" },
 };
 
-const CARD_ICON: Record<CreateTypeCard["id"], "archive" | "calendar" | "team" | "star" | "map-pin" | "pencil" | "layers" | "credit" | "sparkle"> = {
-  product: "archive",
-  service: "calendar",
-  class: "team",
-  ticket: "star",
-  space: "map-pin",
-  custom: "pencil",
-  package: "layers",
-  pass: "credit",
-  gift: "sparkle",
+/** The board's nine glyphs: a tag, a calendar, a cup, a ticket, a floor plan, a briefcase, a gift, layers, a card. */
+const CARD_ICON: Record<CreateTypeCard["id"], LucideIcon> = {
+  product: Tag,
+  service: CalendarDays,
+  class: Coffee,
+  ticket: Ticket,
+  space: LayoutPanelLeft,
+  custom: Briefcase,
+  package: Gift,
+  pass: Layers,
+  gift: CreditCard,
 };
 
 export function CatalogCreateType({ editor, nav }: { editor: OfferingsEditor; nav: CatalogNav }) {
@@ -62,12 +63,13 @@ export function CatalogCreateType({ editor, nav }: { editor: OfferingsEditor; na
   }
 
   return (
-    <div className="flex flex-col gap-[16px]" data-testid="catalog-create-type">
+    <div className="flex flex-col gap-[16px] leading-[1.2]" data-testid="catalog-create-type">
       <PageHeading title={t("dashboard.catalog.create.title")} intro={t("dashboard.catalog.create.intro")} />
-      <div role="radiogroup" aria-label={t("dashboard.catalog.create.title")} className="grid grid-cols-3 gap-[12px]">
+      <div role="radiogroup" aria-label={t("dashboard.catalog.create.title")} className="grid grid-cols-3 gap-[14px]">
         {CREATE_TYPE_CARDS.map((c) => {
           const active = c.id === picked;
           const off = !c.seed && !c.destination;
+          const Glyph = CARD_ICON[c.id];
           return (
             <button
               key={c.id}
@@ -78,16 +80,16 @@ export function CatalogCreateType({ editor, nav }: { editor: OfferingsEditor; na
               data-not-wired={off ? "true" : undefined}
               title={off ? t("dashboard.catalog.passes.reason") : undefined}
               onClick={() => setPicked(c.id)}
-              className={`flex cursor-pointer flex-col gap-[8px] rounded-[14px] border-[1.5px] p-[16px] text-left font-admin-body ${
+              className={`flex min-h-[156px] cursor-pointer flex-col rounded-[14px] border-[1.5px] p-[16px] text-left font-admin-body leading-[1.2] ${
                 active ? "border-admin-brand bg-admin-brand-soft" : "border-admin-border bg-admin-card hover:border-admin-border-strong"
               } ${off ? "opacity-60" : ""}`}
             >
               <span className="inline-flex h-[36px] w-[36px] items-center justify-center rounded-[10px] bg-admin-surface-alt text-admin-ink">
-                <Icon name={CARD_ICON[c.id]} size={18} stroke={1.75} />
+                <Glyph size={18} strokeWidth={1.75} aria-hidden />
               </span>
-              <span className="text-[14px] font-semibold text-admin-ink">{t(CARD_KEY[c.id].title)}</span>
-              <span className="flex-1 text-[12px] leading-[1.45] text-admin-ink-muted">{t(CARD_KEY[c.id].note)}</span>
-              <span className="text-[11px] font-semibold text-admin-brand">{t(CARD_KEY[c.id].sold)}</span>
+              <span className="mt-[10px] text-[14px] font-semibold text-admin-ink">{t(CARD_KEY[c.id].title)}</span>
+              <span className="mt-[5px] flex-1 text-[12px] leading-[1.45] text-admin-ink-muted">{t(CARD_KEY[c.id].note)}</span>
+              <span className="mt-[8px] text-[11px] font-semibold text-admin-brand">{t(CARD_KEY[c.id].sold)}</span>
             </button>
           );
         })}
