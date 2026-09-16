@@ -2,6 +2,8 @@
 
 Builds on `00-investigation.md`. Paths under `web/` unless noted. Nothing in this file exists yet unless marked **(exists)**.
 
+> **Status 2026-09-16:** built on `feat/templates-looks-stock`. Deviations from this plan are recorded in `decisions.md` (D-TPL-9 module path, D-TPL-14 one PR, D-TPL-15 universal stock pack, D-TPL-17 page-less fallback order, D-TPL-18 tenant locale). Results in `02-handoff.md`.
+
 ## 0. Shape of the work
 
 Three layers, one composer, one door.

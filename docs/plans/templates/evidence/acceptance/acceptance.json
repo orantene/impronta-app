@@ -1,0 +1,230 @@
+[
+  {
+    "id": "C01",
+    "type": "nail-salon",
+    "family": "beauty",
+    "look": "editorial",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "durationMs": 26132,
+    "costUsd": 0,
+    "calls": 0,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "3fd31bc9-64a4-4e0d-bbfe-7bdba64a2d64",
+    "shots": [
+      "C01--nail-salon--editorial/home-1440.jpg",
+      "C01--nail-salon--editorial/home-390.jpg",
+      "C01--nail-salon--editorial/inner-1440.jpg",
+      "C01--nail-salon--editorial/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C01",
+    "type": "nail-salon",
+    "family": "beauty",
+    "look": "bold",
+    "outcome": "fallback_used",
+    "copySource": "defaults",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "durationMs": 27108,
+    "costUsd": 0,
+    "calls": 0,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy pass failed; defaults used",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "e1686f1b-cddc-47b3-a38f-400060af98d3",
+    "shots": [
+      "C01--nail-salon--bold/home-1440.jpg",
+      "C01--nail-salon--bold/home-390.jpg",
+      "C01--nail-salon--bold/inner-1440.jpg",
+      "C01--nail-salon--bold/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C02",
+    "type": "spa",
+    "family": "wellness",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "durationMs": 24353,
+    "costUsd": 0.020022,
+    "calls": 0,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "12ac4703-a0fc-4cda-85e1-304ad27066bb",
+    "shots": [
+      "C02--spa--coastal/home-1440.jpg",
+      "C02--spa--coastal/home-390.jpg",
+      "C02--spa--coastal/inner-1440.jpg",
+      "C02--spa--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C02",
+    "type": "spa",
+    "family": "wellness",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "durationMs": 21192,
+    "costUsd": 0.018156,
+    "calls": 0,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "98260b40-ef8e-435a-90df-c829bc033ac7",
+    "shots": [
+      "C02--spa--classic/home-1440.jpg",
+      "C02--spa--classic/home-390.jpg",
+      "C02--spa--classic/inner-1440.jpg",
+      "C02--spa--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C03",
+    "type": "massage-therapist",
+    "family": "wellness",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "durationMs": 15355,
+    "costUsd": 0.01292,
+    "calls": 0,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "b8a4e5e8-09ed-4b28-a4f3-07ab2c4473fe",
+    "shots": [
+      "C03--massage-therapist--coastal/home-1440.jpg",
+      "C03--massage-therapist--coastal/home-390.jpg",
+      "C03--massage-therapist--coastal/inner-1440.jpg",
+      "C03--massage-therapist--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C03",
+    "type": "massage-therapist",
+    "family": "wellness",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 14,
+      "none": 0
+    },
+    "durationMs": 16700,
+    "costUsd": 0.013824,
+    "calls": 0,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "553cb889-9b41-41ef-81ce-9950148c44be",
+    "shots": [
+      "C03--massage-therapist--classic/home-1440.jpg",
+      "C03--massage-therapist--classic/home-390.jpg",
+      "C03--massage-therapist--classic/inner-1440.jpg",
+      "C03--massage-therapist--classic/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C04",
+    "type": "tattoo-studio",
+    "family": "wellness",
+    "look": "coastal",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "durationMs": 25496,
+    "costUsd": 0.021023999999999998,
+    "calls": 0,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "be6c8e9a-9b3d-4f24-92e4-a1ef9428e3bb",
+    "shots": [
+      "C04--tattoo-studio--coastal/home-1440.jpg",
+      "C04--tattoo-studio--coastal/home-390.jpg",
+      "C04--tattoo-studio--coastal/inner-1440.jpg",
+      "C04--tattoo-studio--coastal/inner-390.jpg"
+    ]
+  },
+  {
+    "id": "C04",
+    "type": "tattoo-studio",
+    "family": "wellness",
+    "look": "classic",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "durationMs": 25917,
+    "costUsd": 0.021018,
+    "calls": 0,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "d56e7828-604d-450a-8dc6-4c5a779cb2eb",
+    "shots": [
+      "C04--tattoo-studio--classic/home-1440.jpg",
+      "C04--tattoo-studio--classic/home-390.jpg",
+      "C04--tattoo-studio--classic/inner-1440.jpg",
+      "C04--tattoo-studio--classic/inner-390.jpg"
+    ]
+  }
+]
