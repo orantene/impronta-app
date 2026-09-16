@@ -39,11 +39,12 @@ export async function retryDeliveryRow(admin: Admin, row: DeliveryRetryRow): Pro
   if (verdict) return verdict;
   const adapter = messagingChannel(row.channel);
   if (!adapter) return { ok: false, reason: "channel_unavailable" };
-  const { data: message } = await admin
+  const { data: message, error: mErr } = await admin
     .from("inquiry_messages")
     .select("inquiry_id, body")
     .eq("id", row.message_id)
     .maybeSingle();
+  if (mErr) return { ok: false, reason: "unavailable" };
   const msg = (message ?? {}) as { inquiry_id?: string; body?: string | null };
   const body = msg.body ?? "";
   const sent = await adapter.send({
