@@ -3,9 +3,10 @@
  *
  * Endpoint: GET /api/cron/tenant-images  (CRON_SECRET bearer auth)
  * Schedule: every minute (vercel.json). Each run drains for ≤ 50 s at
- * concurrency 2 with a pause between calls; a job that runs past the budget
- * goes back to `queued` with its finished slots kept, so a signup burst
- * becomes a longer wait, never a failure.
+ * concurrency 2, paced under the organisation's 5-images-per-minute limit;
+ * a job that runs past the budget (or meets the limit) goes back to `queued`
+ * with its finished slots kept, so a signup burst becomes a longer wait,
+ * never a failure.
  */
 
 import { NextResponse } from "next/server";

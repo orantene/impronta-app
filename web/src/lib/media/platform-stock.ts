@@ -248,7 +248,10 @@ export async function queryLifestyleStockForType(
     }
     const rows = ((manifest ?? []) as ManifestRow[]).filter(
       (r) =>
+        // A tenant's own images were generated for ONE type; they never carry
+        // over when the business is re-composed as another type.
         (r.business_type === null || r.business_type === input.businessType) &&
+        (r.origin_tenant_id === null || r.origin_tenant_id !== input.forTenantId || r.business_type === input.businessType) &&
         // Another tenant's generated image serves the pool only once approved;
         // the originating tenant sees its own from qa_passed on.
         (r.origin_tenant_id === null || r.origin_tenant_id === input.forTenantId || r.approval === "approved") &&
