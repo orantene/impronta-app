@@ -12,6 +12,7 @@ import { MarketingFooter } from "./footer";
 import { AttributionCapture } from "./attribution-capture";
 import { MarketingModalHost } from "./marketing-modal-host";
 import { MarketingSupportLauncherMount } from "./support/MarketingSupportLauncherMount";
+import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 
 /**
  * The outer layout for every platform marketing surface (homepage + sub-pages).
@@ -36,6 +37,9 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
   // scoped, so the marketing host can read them), the top-right shows the
   // signed-in account menu instead of the logged-out CTAs.
   const actor = await getCachedActorSession();
+  // One settings read per request (cached below the request boundary): with the
+  // module off, every CTA keeps today's behaviour.
+  const onboardingFlags = await getOnboardingFlags();
   let account: MarketingAccount | undefined;
   if (actor.user) {
     const link = resolveAccountHref(true, actor.profile);
@@ -101,7 +105,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       <main className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">{children}</main>
       <MarketingFooter />
       <MarketingSupportLauncherMount />
-      <MarketingModalHost locale={locale} />
+      <MarketingModalHost locale={locale} onboardingModule={onboardingFlags.onboarding_module_enabled} />
     </div>
   );
 }

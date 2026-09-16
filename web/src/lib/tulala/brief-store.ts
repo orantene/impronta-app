@@ -54,6 +54,8 @@ export type Brief = {
   signupLeadId: string | null;
   talentProfileId: string | null;
   tenantId: string | null;
+  /** Onboarding module progress (resume + build record); `{}` when untouched. */
+  moduleState: Record<string, unknown>;
   facts: BriefFact[];
   updatedAt: string | null;
 };
