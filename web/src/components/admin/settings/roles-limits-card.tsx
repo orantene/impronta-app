@@ -90,17 +90,21 @@ export function RolesLimitsCard({
   const tPlural = useTPlural();
   const membersByRole = groupMembersByRole(members);
 
-  const modesFor = (role: TenantRoleKey) =>
-    modesForPerson({ role, workspaceEnabledModes: workspacePosModes })
-      .filter((mode) => POS_MODE_META[mode].built)
-      .map((m) => t(`dashboard.adminWorkspace.posModes.modes.${m}.label`));
+  // The built modes this workspace has on; a role that reaches every one of
+  // them reads "All", the board's word, instead of the list.
+  const builtOn = workspacePosModes.filter((mode) => POS_MODE_META[mode].built);
+  const modesFor = (role: TenantRoleKey) => {
+    const modes = modesForPerson({ role, workspaceEnabledModes: workspacePosModes }).filter((mode) => POS_MODE_META[mode].built);
+    if (modes.length > 0 && modes.length === builtOn.length) return "all" as const;
+    return modes.map((m) => t(`dashboard.adminWorkspace.posModes.modes.${m}.label`));
+  };
 
   return (
-    <div data-testid="roles-limits-card" className="mb-2 flex flex-col gap-[14px] font-admin-body">
+    <div data-testid="roles-limits-card" className="mb-2 flex flex-col gap-[16px] font-admin-body leading-[1.2]">
       <div className="flex items-start justify-between gap-[12px]">
         <div>
-          <div className="text-[18px] font-semibold tracking-[-0.02em] text-admin-ink">{t(`${K}.rolesHeading`)}</div>
-          <div className="mt-[2px] text-[12.5px] text-admin-ink-muted">{t(`${K}.rolesDesc`)}</div>
+          <div className="text-[20px] font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t(`${K}.rolesHeading`)}</div>
+          <div className="mt-[4px] text-[12.5px] leading-[1.3] text-admin-ink-muted">{t(`${K}.rolesDesc`)}</div>
         </div>
         <div className="flex shrink-0 items-center gap-[8px]">
           {onInvite ? (
@@ -132,19 +136,22 @@ export function RolesLimitsCard({
         </div>
       )}
 
+      {/* The matrix: a 33px head, 34px rows, the role names alone in the head (who holds each role is the strip under the facts) */}
       <div className="overflow-x-auto rounded-[14px] border border-admin-border bg-admin-card">
-        <table className="w-full border-collapse text-[12.5px]">
+        <table className="w-full border-collapse text-[12.5px] leading-[1.2]">
           <thead>
             <tr>
-              <th scope="col" className="border-b border-admin-border px-[14px] py-[10px] text-left text-admin-11 font-semibold uppercase tracking-[0.05em] text-admin-ink-muted">
+              <th scope="col" className="border-b border-admin-border px-[14px] py-[10px] text-left text-admin-11 font-semibold uppercase leading-[1.2] tracking-[0.05em] text-admin-ink-muted">
                 {t(`${K}.col.action`)}
               </th>
               {COLUMNS.map((role) => (
-                <th key={role} scope="col" className="border-b border-admin-border px-[14px] py-[10px] text-left text-admin-11 font-semibold uppercase tracking-[0.05em] text-admin-ink-muted">
+                <th
+                  key={role}
+                  scope="col"
+                  title={tPlural(`${K}.memberCount`, membersByRole.get(role)?.active.length ?? 0)}
+                  className="border-b border-admin-border px-[14px] py-[10px] text-left text-admin-11 font-semibold uppercase leading-[1.2] tracking-[0.05em] text-admin-ink-muted"
+                >
                   {t(`${K}.roleNames.${role}`)}
-                  <span className="block font-medium normal-case tracking-normal text-admin-ink-dim">
-                    {tPlural(`${K}.memberCount`, membersByRole.get(role)?.active.length ?? 0)}
-                  </span>
                 </th>
               ))}
             </tr>
@@ -152,9 +159,11 @@ export function RolesLimitsCard({
           <tbody>
             {ROWS.map((row) => (
               <tr key={row.id} data-testid={`roles-limits-row-${row.id}`} data-not-wired={row.kind === "notTracked" ? "true" : undefined}>
-                <td className="whitespace-nowrap border-b border-admin-border-soft px-[14px] py-[9px] font-semibold text-admin-ink">
+                <td
+                  title={row.kind === "notTracked" ? t(`${K}.notTracked`) : undefined}
+                  className={`whitespace-nowrap border-b border-admin-border-soft px-[14px] py-[9px] font-semibold ${row.kind === "notTracked" ? "text-admin-ink-muted" : "text-admin-ink"}`}
+                >
                   {t(`${K}.actions.${row.id}`)}
-                  {row.kind === "notTracked" ? <span className="block text-[11px] font-normal text-admin-ink-dim">{t(`${K}.notTracked`)}</span> : null}
                 </td>
                 {COLUMNS.map((role) => (
                   <td key={role} className="border-b border-admin-border-soft px-[14px] py-[9px]">
@@ -165,6 +174,10 @@ export function RolesLimitsCard({
             ))}
           </tbody>
         </table>
+        {/* The dimmed rows, said once: the board draws a rule there that the engine does not enforce yet */}
+        <p className="m-0 border-t border-admin-border-soft px-[14px] py-[8px] text-[11.5px] text-admin-ink-muted" data-testid="roles-limits-untracked-note">
+          {t(`${K}.cell.untracked`)} · {t(`${K}.notTracked`)} · {t(`${K}.limitsGap`)}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-[16px]">
@@ -187,7 +200,9 @@ export function RolesLimitsCard({
           const invited = membersByRole.get(role)?.invited ?? [];
           return (
             <div key={role} className="rounded-[10px] border border-admin-border-soft bg-admin-surface px-[10px] py-[8px]">
-              <div className="text-[12px] font-semibold text-admin-ink">{t(`${K}.roleNames.${role}`)}</div>
+              <div className="text-[12px] font-semibold text-admin-ink">
+                {t(`${K}.roleNames.${role}`)} <span className="font-normal text-admin-ink-muted">· {tPlural(`${K}.memberCount`, active.length)}</span>
+              </div>
               <div className="mt-[2px] text-[11px] leading-[1.4] text-admin-ink-muted">{t(`${K}.roleDescriptions.${role}`)}</div>
               {active.length > 0 && (
                 <div className="mt-[6px] flex flex-wrap gap-[4px]">
@@ -225,10 +240,11 @@ export function RolesLimitsCard({
   );
 }
 
-function Cell({ row, role, modesFor }: { row: ActionRow; role: TenantRoleKey; modesFor: (role: TenantRoleKey) => string[] }) {
+function Cell({ row, role, modesFor }: { row: ActionRow; role: TenantRoleKey; modesFor: (role: TenantRoleKey) => string[] | "all" }) {
   const t = useT();
   if (row.kind === "modes") {
     const modes = modesFor(role);
+    if (modes === "all") return <span className="text-admin-ink">{t(`${K}.cell.all`)}</span>;
     return modes.length > 0 ? <span className="text-admin-ink">{modes.join(" · ")}</span> : <span className="text-admin-ink-dim">{t(`${K}.cell.none`)}</span>;
   }
   if (row.kind === "capability") {
@@ -247,9 +263,9 @@ function Cell({ row, role, modesFor }: { row: ActionRow; role: TenantRoleKey; mo
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-[12px] border-b border-admin-border-soft py-[6px] text-admin-13 last:border-b-0">
+    <div className="flex items-baseline justify-between gap-[12px] border-b border-admin-border-soft py-[7px] text-admin-13 leading-[1.2] last:border-b-0">
       <span className="shrink-0 text-admin-ink-muted">{label}</span>
-      <span className="text-right font-medium text-admin-ink">{value}</span>
+      <span className="text-right font-semibold text-admin-ink">{value}</span>
     </div>
   );
 }
