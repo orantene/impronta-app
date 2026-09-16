@@ -1678,6 +1678,20 @@ body[data-edit-preview="1"] [data-edit-affordance] {
   display: none !important;
 }
 
+/* Per-site image job (Visual Asset Engine): a canvas image whose slot is
+ * still being generated for this business is dimmed and pulses quietly;
+ * PendingImagesWatcher sets and clears the attribute (only while editing;
+ * the canvas sits outside the chrome wrapper, so no ancestor scope). */
+img[data-image-pending="true"] {
+  opacity: 0.72;
+  animation: builder-image-pending 2.4s ease-in-out infinite;
+}
+@keyframes builder-image-pending {
+  50% {
+    opacity: 0.55;
+  }
+}
+
 /* ---------------------------------------------------------------------------
  * Builder selector chrome — keep template/section selectors sharp-cornered.
  * Scope only to edit-chrome template surfaces so storefront content is

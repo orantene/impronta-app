@@ -28,7 +28,8 @@ export { buildImageResolver, type CandidateImage } from "./image-resolver";
 export { resolveTenantBusinessType, type ResolvedBusinessType } from "./tenant-business-type";
 export { toPortableLook, parsePortableLook, type PortableLook } from "./portable-look";
 export { DEFAULT_LOOK_BY_FAMILY } from "./look-defaults";
-export { themePatchFromPalette } from "./theme-from-palette";
+export { candidatePalettesFromHexes, themePatchFromPalette, type CandidatePalette } from "./theme-from-palette";
+export { DIRECTION_IDS, resolveStockPrompt, directionForIndex, type DirectionId, type ResolvedStockPrompt, type StockPromptFacts } from "./stock-prompts";
 export { buildCopyPassPrompt, screenCopyReply, screenCopyValue, COPY_PASS_KEYS } from "./copy-pass";
 // Server-only modules (composer, shell writer, logo re-theme, site_looks) are
 // NOT re-exported here: this barrel is imported by client components.

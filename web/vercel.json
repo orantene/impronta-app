@@ -262,6 +262,10 @@
     {
       "path": "/api/cron/messaging-delivery-retry",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/tenant-images",
+      "schedule": "* * * * *"
     }
   ]
 }
