@@ -294,6 +294,13 @@ const locationHours: BusinessComponent = {
     const city = ctx.identity.city?.trim();
     const items = city ? [{ label: city, featured: true }] : [];
     const overlayHours = hours.length > 0 ? hours.join(" · ").slice(0, 280) : undefined;
+    const hoursNodes: BuilderNode[] =
+      hours.length > 0
+        ? [band([heading(3, label("hours"), ctx), ...hours.map((l) => p(l))], { paddingY: "l", maxWidth: "reading", gap: "s" })]
+        : empty("location_hours", ctx);
+    // No city and no address → no map at all (its empty state speaks of a
+    // roster, which this business is not); the hours band still renders.
+    if (items.length === 0 && !ctx.identity.address?.trim()) return hoursNodes;
     const map: BuilderNode = {
       id: tplId("location_map"),
       kind: "location_map",
@@ -309,13 +316,10 @@ const locationHours: BusinessComponent = {
         overlaySide: "card-right",
         ratio: "16/9",
         layout: "list",
+        emptyStateText: COMPONENT_EMPTY_STATES.location_hours[ctx.locale],
         style: {},
       },
     };
-    const hoursNodes: BuilderNode[] =
-      hours.length > 0
-        ? [band([heading(3, label("hours"), ctx), ...hours.map((l) => p(l))], { paddingY: "l", maxWidth: "reading", gap: "s" })]
-        : empty("location_hours", ctx);
     return [map, ...hoursNodes];
   },
 };

@@ -45,6 +45,8 @@ import {
   saveHomepageDraftComposition,
 } from "./homepage";
 import { resolveSignupStarterTreeForOnboard } from "./signup-ai-draft-serve";
+import { composeSiteFromBrief } from "@/lib/site-admin/builder-core/site-templates/compose-site-from-brief.server";
+import { loadBriefForTenant } from "@/lib/tulala/brief-store-tenant.server";
 import { buildFreeStarterEntries } from "./onboard-starter-content-entries";
 import type { StarterAudience } from "./onboard-starter-content-entries";
 import { ensureDirectoryPageIfRosterActive } from "./onboard-directory-page";
@@ -681,6 +683,37 @@ export async function onboardStarterContent(
         "onboardStarterContent.ensureSeededNavigation (non-fatal)",
         new Error(navResult.error),
       );
+    }
+
+    // ── TEMPLATES & IMAGERY DOOR ─────────────────────────────────────────
+    // When provisioning stamped a brief on this tenant, compose the full site
+    // (Look + business components + stock + owner identity) and PUBLISH it
+    // over the single-page starter above. Runs last so the starter is always
+    // there first: a compose that reports `failed` leaves the starter in
+    // place, so a new business never lands on a blank site. Non-fatal by
+    // design; the outcome is logged, never thrown.
+    if (seeded.seeded) {
+      try {
+        const brief = await loadBriefForTenant({ tenantId: input.tenantId });
+        if (brief) {
+          const composed = await composeSiteFromBrief({
+            tenantId: input.tenantId,
+            briefId: brief.id,
+            locale: locale === "en" ? "en" : "es",
+            actorProfileId,
+            publish: true,
+            overwrite: true,
+          });
+          if (composed.outcome === "failed") {
+            logServerError(
+              "onboardStarterContent.composeSiteFromBrief (starter kept)",
+              new Error(composed.notes.join(" | ")),
+            );
+          }
+        }
+      } catch (error) {
+        logServerError("onboardStarterContent.composeSiteFromBrief (threw; starter kept)", error);
+      }
     }
 
     return {

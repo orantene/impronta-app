@@ -76,8 +76,8 @@ export const LOOK_COPY_DEFAULTS: Readonly<Record<string, Bilingual>> = {
   "contact.eyebrow": { es: "Contacto", en: "Contact" },
   "contact.headline": { es: "Ven a vernos o escríbenos", en: "Visit us or write to us" },
   "contact.intro": {
-    es: "Estamos[[ en {{business.city}}]] y respondemos en persona.",
-    en: "We are[[ in {{business.city}}]] and a real person answers.",
+    es: "Escríbenos[[ o visítanos en {{business.city}}]]. Te responde una persona.",
+    en: "Write to us[[ or visit us in {{business.city}}]]. A real person answers.",
   },
   "contact.hours.title": { es: "Horario", en: "Hours" },
   "contact.map.title": { es: "Cómo llegar", en: "How to get here" },

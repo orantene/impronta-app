@@ -29,6 +29,8 @@ import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import type { AiUsage } from "@/lib/ai/provider";
 import { backgroundModeToPolarity } from "@/lib/site-admin/tokens/polarity";
 import { resolveTenantThemeGenerationContext } from "@/lib/site-admin/server/tenant-theme-polarity";
+import { resolveGenerationContext } from "@/lib/site-admin/builder-core/site-templates/generation-context.server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import {
   generateBuilderNodes,
@@ -238,9 +240,14 @@ export async function generateBuilderNodesAction(input: {
     // Accumulate usage across the (1 + optional retry) model calls, recorded once
     // below so a corrective retry doesn't double-count the user's monthly request.
     const usageSink: UsageEntry[] = [];
+    // Templates & Imagery: the tenant's family + name set the voice and forbid
+    // an invented name; its own media then lifestyle stock fill image roles.
+    const serviceClient = createServiceRoleClient();
+    const generationContext = serviceClient ? await resolveGenerationContext(serviceClient, tenantId) : null;
     const generated = await generateBuilderNodes({
       brief: input.brief,
       scope: input.scope,
+      ...(generationContext ? { business: generationContext.business, imageForRole: generationContext.imageForRole } : {}),
       // Copy is written in the surface's locale (AIQ-3).
       locale: input.locale,
       themePolarity,

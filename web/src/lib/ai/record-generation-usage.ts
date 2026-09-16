@@ -29,6 +29,8 @@ export async function recordAiGenerationUsage(input: {
   scope: string;
   latencyMs?: number | null;
   tenantId?: string | null;
+  /** Extra `context_jsonb` keys (e.g. `site_compose_id`) for per-site cost roll-ups. */
+  context?: Record<string, unknown>;
 }): Promise<void> {
   const tenantId = input.tenantId || DEFAULT_AI_TENANT_ID;
   try {
@@ -53,6 +55,7 @@ export async function recordAiGenerationUsage(input: {
         feature: "builder_generate",
         scope: input.scope,
         cost_usd: costUsd,
+        ...(input.context ?? {}),
       },
     });
     // Also roll the spend into ai_usage_monthly so the tenant spend-cap gate

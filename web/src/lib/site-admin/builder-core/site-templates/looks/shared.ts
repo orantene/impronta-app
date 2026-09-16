@@ -235,7 +235,7 @@ function contact(r: LookRecipe): BuilderNode[] {
     section(r, [stack([eye(r, "contact.eyebrow"), title(r, "contact.headline", 1), body(r, "contact.intro", { size: "lg" }), ctas([primary()])], { maxWidth: "reading" }, { gap: "s" })], { paddingY: "l" }),
     slot("whatsapp"),
     slot("map"),
-    section(r, [row([stack([h(3, copy("contact.socials.title"), r.headingStyle), socials()], {}, { gap: "s" }), picture(r, "detail", "1:1", { maxWidth: "narrow" })], {}, { align: "start" })], { paddingY: "l" }),
+    section(r, [stack([h(3, copy("contact.socials.title"), r.headingStyle), socials()], {}, { gap: "s" })], { paddingY: "l" }),
   ];
 }
 

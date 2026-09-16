@@ -217,8 +217,11 @@ function resolveImage(input: BuilderNode, ctx: WalkCtx): BuilderNode | null {
   return tight({ ...node, props });
 }
 
+const TEXT_ONLY_KINDS: ReadonlySet<string> = new Set(["heading", "paragraph", "divider", "spacer"]);
+
 function walkNodes(nodes: ReadonlyArray<BuilderNode>, ctx: WalkCtx): BuilderNode[] {
   const out: BuilderNode[] = [];
+  let droppedSocial = false;
   for (const original of nodes) {
     const node = loose(original);
     const slot = isSlotNode(original);
@@ -245,7 +248,10 @@ function walkNodes(nodes: ReadonlyArray<BuilderNode>, ctx: WalkCtx): BuilderNode
       const kept = links
         .map((l) => ({ ...l, href: typeof l.href === "string" ? resolveIdentityTemplate(l.href, ctx.input.identity) : "" }))
         .filter((l) => typeof l.href === "string" && l.href.length > 0);
-      if (kept.length === 0) continue;
+      if (kept.length === 0) {
+        droppedSocial = true;
+        continue;
+      }
       out.push(tight({ ...node, props: { ...props, links: kept } }));
       continue;
     }
@@ -289,6 +295,9 @@ function walkNodes(nodes: ReadonlyArray<BuilderNode>, ctx: WalkCtx): BuilderNode
     }
     out.push(tight({ ...node, props, ...(children ? { children } : {}) }));
   }
+  // "Follow us" over nothing: when the social row fell away and only text is
+  // left beside it, the text goes too.
+  if (droppedSocial && out.length > 0 && out.every((n) => TEXT_ONLY_KINDS.has(n.kind))) return [];
   return out;
 }
 
