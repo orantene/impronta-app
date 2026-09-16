@@ -8,10 +8,10 @@
  *
  * Every row is a `session_series` row through `loadSchedule`; "generated
  * through" is the last dated session the nightly sweep produced and how
- * many, or the sweep's own refusal when it produced none. The row menu opens
- * the series' sessions on the Sessions tab, which is the one thing this
- * page can do with a series: no series editor or on-demand generator exists
- * (D-POS-18), and the board's W10 "Generate sessions" view is not built.
+ * many, or the sweep's own refusal when it produced none. The row's Edit
+ * opens the W10 editor (`SeriesEditor`), the row menu opens the series'
+ * sessions on the Sessions tab. INSTRUCTOR is the series' own
+ * `instructor_user_id`, named through the shell's team list.
  */
 
 import { useT } from "@/i18n/use-t";
@@ -30,7 +30,7 @@ const STATE_TONE: Record<SeriesRowState, PillTone> = {
   needsAttention: "coral",
 };
 
-const ROW_GRID = "grid grid-cols-[1.5fr_1.2fr_110px_120px_120px_1.2fr_130px_24px] items-center gap-[10px] px-[16px] *:min-w-0";
+const ROW_GRID = "grid grid-cols-[1.5fr_1.2fr_110px_120px_120px_1.2fr_130px_52px] items-center gap-[10px] px-[16px] *:min-w-0";
 
 function cadence(row: SeriesRow, t: (k: string) => string): string {
   const days = row.weekdays
@@ -45,10 +45,14 @@ function cadence(row: SeriesRow, t: (k: string) => string): string {
 export function SeriesTable({
   rows,
   posOn,
+  instructorName,
+  onEdit,
   onShowSessions,
 }: {
   rows: readonly SeriesRow[];
   posOn: boolean;
+  instructorName: (userId: string | null) => string | null;
+  onEdit: (seriesId: string) => void;
   onShowSessions: (seriesId: string) => void;
 }) {
   const t = useT();
@@ -93,21 +97,33 @@ export function SeriesTable({
               <span className="font-semibold text-admin-ink">{row.title}</span>
               <span className="text-admin-ink-muted">{cadence(row, t)}</span>
               <span className="truncate text-admin-ink-muted">{row.room ?? "—"}</span>
-              <span className="text-admin-ink-muted">—</span>
+              <span className="truncate text-admin-ink-muted">{instructorName(row.instructorUserId) ?? "—"}</span>
               <span className="tabular-nums text-admin-ink">{row.seats}</span>
               <span className="line-clamp-2 text-admin-ink-muted" title={generated(row)}>{generated(row)}</span>
               <StatePill tone={STATE_TONE[row.state]} state={row.state} className="justify-start">
                 {t(`${K}.state.${row.state}`)}
               </StatePill>
-              <button
-                type="button"
-                aria-label={t(`${K}.showSessions`)}
-                title={t(`${K}.showSessions`)}
-                className="inline-flex h-[20px] w-[20px] cursor-pointer items-center justify-center rounded-[6px] text-admin-ink-dim hover:bg-admin-surface-alt hover:text-admin-ink"
-                onClick={() => onShowSessions(row.id)}
-              >
-                <Icon name="ellipsis" size={13} stroke={1.75} />
-              </button>
+              <span className="flex items-center justify-end gap-[4px]">
+                <button
+                  type="button"
+                  aria-label={t(`${K}.edit`)}
+                  title={t(`${K}.edit`)}
+                  data-testid="series-edit"
+                  className="inline-flex h-[20px] w-[20px] cursor-pointer items-center justify-center rounded-[6px] text-admin-ink-dim hover:bg-admin-surface-alt hover:text-admin-ink"
+                  onClick={() => onEdit(row.id)}
+                >
+                  <Icon name="pencil" size={13} stroke={1.75} />
+                </button>
+                <button
+                  type="button"
+                  aria-label={t(`${K}.showSessions`)}
+                  title={t(`${K}.showSessions`)}
+                  className="inline-flex h-[20px] w-[20px] cursor-pointer items-center justify-center rounded-[6px] text-admin-ink-dim hover:bg-admin-surface-alt hover:text-admin-ink"
+                  onClick={() => onShowSessions(row.id)}
+                >
+                  <Icon name="ellipsis" size={13} stroke={1.75} />
+                </button>
+              </span>
             </div>
           ))
         )}

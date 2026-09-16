@@ -1,0 +1,9 @@
+lint exit=0
+test:design-system exit=0
+test:size-ratchet exit=0
+test:phase1-i18n exit=0
+verify:ui-messages exit=0
+verify:server-actions exit=0
+test:tenant-isolation exit=0
+unit(classes-copy, model) exit=0
+typecheck exit=0

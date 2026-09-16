@@ -58,6 +58,8 @@ export type CloseSheetCopy = {
   cancelNote: string;
   archive: string;
   archiveBody: string;
+  archiveReason: string;
+  archiveReasonHint: string;
   reopen: string;
   reopenBody: string;
   reason: Record<CloseOptionRefusal, string>;
@@ -193,6 +195,7 @@ function CloseSheet({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [choice, setChoice] = useState<CloseOption | null>(null);
+  const [archiveReason, setArchiveReason] = useState("");
   const [refusal, setRefusal] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
@@ -208,7 +211,7 @@ function CloseSheet({
       if (choice === "archive" || choice === "reopen") {
         const result =
           choice === "archive"
-            ? await projectArchiveAction({ bookingId: project.id, reason: "" })
+            ? await projectArchiveAction({ bookingId: project.id, reason: archiveReason.trim().slice(0, 200) })
             : await projectReopenAction({ bookingId: project.id, reason: "" });
         if (!result.ok) {
           setRefusal(schedulingEngineSentence(result.reason, copy.engine));
@@ -330,6 +333,25 @@ function CloseSheet({
           );
         })}
       </div>
+      {choice === "archive" && !done ? (
+        <div>
+          <label htmlFor="project-archive-reason" className="mb-1.5 block text-[12px] font-semibold text-admin-ink">
+            {copy.archiveReason}
+          </label>
+          {/* W50: the reason travels to `project_archive` (`cancelled_reason`). Optional, 200 chars. */}
+          <textarea
+            id="project-archive-reason"
+            value={archiveReason}
+            maxLength={200}
+            rows={2}
+            disabled={pending}
+            onChange={(e) => setArchiveReason(e.target.value)}
+            placeholder={copy.archiveReasonHint}
+            data-archive-reason
+            className="w-full resize-none rounded-[9px] border border-admin-border bg-admin-card px-3 py-2 text-[13px] text-admin-ink placeholder:text-admin-ink-dim"
+          />
+        </div>
+      ) : null}
       {refusal ? (
         <p role="alert" className="m-0 rounded-[10px] bg-admin-critical-soft px-3 py-2.5 text-[12.5px] text-admin-red">
           {refusal}

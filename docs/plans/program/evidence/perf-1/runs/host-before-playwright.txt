@@ -1,0 +1,22 @@
+== host-before (https://staging-qa-journeys.tulala.digital)
+route | warm | TTFB ms | LCP ms | DCL ms | HTML KB | JS KB xfer (decoded) | JS files | RSC | actions
+/admin | cold | 93 | 10844 | 10626 | 84 | 2199 (7356) | 58 | 0 | 0
+/admin | warm | 88 | 3720 | 3714 | 84 | 0 (7356) | 58 | 0 | 0
+/admin/catalog | cold | 91 | 3392 | 2191 | 79 | 29 (7454) | 59 | 8 | 1
+/admin/catalog | warm | 90 | 3792 | 2877 | 79 | 0 (7454) | 59 | 9 | 1
+/admin/catalog?create=1 | cold | 89 | 2404 | 1879 | 79 | 0 (7454) | 59 | 0 | 1
+/admin/catalog?create=1 | warm | 92 | 2092 | 1658 | 79 | 0 (7454) | 59 | 0 | 1
+/admin/pos?mode=counter | cold | 94 | 1952 | 2064 | 96 | 51 (7523) | 61 | 0 | 1
+/admin/pos?mode=counter | warm | 89 | 2048 | 1973 | 96 | 0 (7523) | 61 | 0 | 1
+/admin/messages | cold | 90 | 1980 | 2169 | 90 | 635 (9922) | 66 | 0 | 2
+/admin/messages | warm | 91 | 1996 | 1789 | 89 | 0 (9922) | 66 | 0 | 2
+/admin/appts | cold | 90 | 6404 | 1801 | 80 | 19 (7407) | 59 | 0 | 1
+/admin/appts | warm | 91 | 6020 | 2177 | 80 | 0 (7407) | 59 | 0 | 2
+click | ms to settle | RSC round trips | server actions | action ms | rsc ms
+catalog: Create (list -> type chooser) | 433 | 0 | 0 | 0 | 0
+catalog: Continue (type chooser -> new item editor) | 29 | 0 | 0 | 0 | 0
+catalog: Cancel back to list | 20 | 0 | 0 | 0 | 0
+rail: Overview -> Catalog | 6125 | 8 | 1 | 844 | 2379
+rail: Catalog -> Messages | 4015 | 0 | 1 | 381 | 0
+rail: Messages -> Appts | 6299 | 0 | 2 | 1235 | 0
+rail: Appts -> Overview | 3346 | 0 | 0 | 0 | 0

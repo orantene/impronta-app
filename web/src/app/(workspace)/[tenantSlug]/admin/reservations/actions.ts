@@ -104,6 +104,7 @@ const walkInInput = z.object({
 
 export type DeskWalkInResult = { ok: true; admissionId: string } | { ok: false; reason: string };
 
+// Live door walk-in is floor seat (Package 3). This action has no callers (D-124).
 export async function reservationsTakeWalkIn(input: {
   holderName: string;
   partySize: number;

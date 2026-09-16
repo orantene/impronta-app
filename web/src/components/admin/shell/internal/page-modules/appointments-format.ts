@@ -51,3 +51,22 @@ export function fill(template: string, params: Readonly<Record<string, string>>)
   }
   return out;
 }
+
+/** "Tue 15 Sep 11:30", the board's order whatever the locale's default is, on the venue's clock. */
+export function whenLine(iso: string, timeZone: string | null, locale: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat(locale, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      ...(timeZone ? { timeZone } : {}),
+    }).formatToParts(new Date(iso));
+    const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    return `${part("weekday")} ${part("day")} ${part("month").replace(/\.$/, "")} ${part("hour")}:${part("minute")}`;
+  } catch {
+    return iso;
+  }
+}

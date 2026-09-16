@@ -35,7 +35,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { tagFor } from "@/lib/site-admin";
+import { tagFor } from "@/lib/site-admin/cache-tags";
 
 import type { SectionRevisionRow, SectionRow } from "./sections";
 

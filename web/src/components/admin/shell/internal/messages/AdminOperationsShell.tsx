@@ -404,6 +404,8 @@ export function AdminInquiryRow({
       type="button"
       onClick={onClick}
       data-tulala-inbox-row
+      data-inquiry-row={inquiry.id}
+      aria-current={active ? "true" : undefined}
       style={{
         display: "flex", alignItems: "flex-start", gap: 10,
         width: "100%", padding: "12px 14px",

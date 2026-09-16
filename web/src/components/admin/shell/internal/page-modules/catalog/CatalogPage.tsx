@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import { useAdminShell } from "../../state";
 import { useT } from "@/i18n/use-t";
@@ -66,7 +66,6 @@ function buildHref(base: string, q: { view?: CatalogView; item?: string | null; 
 export function CatalogPage() {
   const { bridgeTenantIdentity, adminBasePath } = useAdminShell();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const t = useT();
   const tenantId = bridgeTenantIdentity?.tenantId ?? null;
 
@@ -81,9 +80,14 @@ export function CatalogPage() {
   );
   const go = useCallback(
     (next: Parameters<CatalogNav["go"]>[0]) => {
-      router.replace(buildHref(adminBasePath, next), { scroll: false });
+      // Same page, other search params: the URL moves through the native
+      // History API (which `useSearchParams` follows) and NOT `router.replace`,
+      // which would ask the server to render a page that is a bare
+      // PageRouteSyncer. One click, no round trip; the editor's own state
+      // (the draft, the loaded items) is unaffected either way.
+      window.history.replaceState(null, "", buildHref(adminBasePath, next));
     },
-    [router, adminBasePath],
+    [adminBasePath],
   );
   const nav = useMemo<CatalogNav>(
     () => ({ base: adminBasePath, view, itemId, tab, creating, go, href }),

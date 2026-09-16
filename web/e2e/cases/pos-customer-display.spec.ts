@@ -68,6 +68,17 @@ test("POS-CD customer display: idle, review, confirm, paid, receipt sent, cleare
   // The door: the cashier chip's menu carries the link (the rail is the
   // board's five destinations, Lock and Workspace), and it opens a new
   // window so a second screen can show it.
+  // A click before React has attached the chip's handler is a click on
+  // nothing (the menu never opens, the link never appears); same wait the
+  // counter harness makes before its first tile tap.
+  await page.waitForFunction(
+    () => {
+      const chip = document.querySelector("[data-pos-cashier]");
+      return Boolean(chip && Object.keys(chip).some((key) => key.startsWith("__react")));
+    },
+    undefined,
+    { timeout: 60_000 },
+  );
   await page.locator("[data-pos-cashier]").click();
   const link = page.locator("[data-pos-frame-link='display']");
   await expect(link, "the cashier menu must offer the customer display").toBeVisible({ timeout: 30_000 });

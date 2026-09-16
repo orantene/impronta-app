@@ -35,7 +35,7 @@ import { userHasCapability } from "@/lib/access";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tagFor } from "@/lib/site-admin/cache-tags";
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import {
   resolveSnapshotBuilderTreeForPublish,

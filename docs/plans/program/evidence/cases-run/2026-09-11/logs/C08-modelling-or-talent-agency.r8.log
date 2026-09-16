@@ -1,0 +1,102 @@
+=== RERUN C08-modelling-or-talent-agency.spec.ts attempt=8 20:55:42 ===
+
+Running 7 tests using 1 worker
+
+[1A[2K(node:54747) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:54747) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:71:5 › C08-CUS smoke: storefront body is reachable — not a journey pass
+[1A[2K[2/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:75:5 › C08-OP smoke: operator Sales heading is reachable — not a journey pass
+[1A[2K[3/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:80:5 › C08-CUS inquiry: directory guest chat submits and DB agrees
+[1A[2K[4/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:123:5 › C08-OP assign: staff adds talent and drafts offer
+[1A[2K[5/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:211:5 › C08-OP send: staff prices a line and sends the offer
+[1A[2K[6/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:345:5 › C08-TAL accept: talent approves the sent offer
+[1A[2K  1) [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:345:5 › C08-TAL accept: talent approves the sent offer 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('button', { name: /approve offer/i })
+    Expected: visible
+    Timeout: 40000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 40000ms[22m
+    [2m  - waiting for getByRole('button', { name: /approve offer/i })[22m
+
+
+      371 |     await offerTab.click();
+      372 |   }
+    > 373 |   await expect(approve).toBeVisible({ timeout: 40_000 });
+          |                         ^
+      374 |   await approve.click();
+      375 |   await expect(
+      376 |     page.getByText(
+        at /workspace/web/e2e/cases/C08-modelling-or-talent-agency.spec.ts:373:25
+
+    Error Context: test-results/cases-C08-modelling-or-tal-90bed-ent-approves-the-sent-offer-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C08-modelling-or-tal-90bed-ent-approves-the-sent-offer-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C08-modelling-or-tal-90bed-ent-approves-the-sent-offer-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:54919) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:54919) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[7/7] [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:402:5 › C08-CUS accept: claimed client approves the sent offer
+[1A[2K  2) [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:402:5 › C08-CUS accept: claimed client approves the sent offer 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveCount[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  getByRole('heading', { name: /no client account here/i })
+    Expected: [32m0[39m
+    Received: [31m1[39m
+    Timeout:  5000ms
+
+    Call log:
+    [2m  - Expect "toHaveCount" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('heading', { name: /no client account here/i })[22m
+    [2m    9 × locator resolved to 1 element[22m
+    [2m      - unexpected value "1"[22m
+
+
+      422 |     { timeout: 40_000 },
+      423 |   );
+    > 424 |   await expect(page.getByRole("heading", { name: /no client account here/i })).toHaveCount(0);
+          |                                                                                ^
+      425 |   await expect(page.getByRole("heading", { name: /this page is no longer here/i })).toHaveCount(0);
+      426 |   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
+      427 |
+        at /workspace/web/e2e/cases/C08-modelling-or-talent-agency.spec.ts:424:80
+
+    Error Context: test-results/cases-C08-modelling-or-tal-04f66-ent-approves-the-sent-offer-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/cases-C08-modelling-or-tal-04f66-ent-approves-the-sent-offer-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/cases-C08-modelling-or-tal-04f66-ent-approves-the-sent-offer-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  2 failed
+    [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:345:5 › C08-TAL accept: talent approves the sent offer 
+    [chromium] › e2e/cases/C08-modelling-or-talent-agency.spec.ts:402:5 › C08-CUS accept: claimed client approves the sent offer 
+  5 passed (2.4m)
+=== DONE C08 r8 exit=1 2026-09-11T20:58:06Z ===

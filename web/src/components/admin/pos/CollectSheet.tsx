@@ -29,6 +29,7 @@ import type { ComponentType, ReactNode } from "react";
 
 import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import { confirmCashOrEnqueue } from "@/lib/pos/cash-outbox";
 import { cn } from "@/lib/utils";
 import { changeDueCents, tenderIsShort } from "./pos-math";
 import { PosKeypad } from "./PosKeypad";
@@ -88,6 +89,8 @@ export type CollectSheetProps = {
   /** Quick tender: replaces the tendered figure outright. */
   readonly onTender?: (cents: number) => void;
   readonly onConfirmCash: () => void;
+  /** When the till is offline, cash confirm queues Package 3 `cash_collect` (D-122). */
+  readonly offlineCash?: { orderId: string; operationKey: string };
   /**
    * Start the payment-link collection. Optional: a caller with no provider
    * behind the link tab passes nothing and the panel stays a statement of
@@ -135,6 +138,7 @@ export function CollectSheet({
   onKeypadPress,
   onTender,
   onConfirmCash,
+  offlineCash,
   onConfirmLink,
   linkPanel,
   confirmLoading,
@@ -308,7 +312,24 @@ export function CollectSheet({
                 </button>
               </div>
             ) : (
-              <button type="button" data-pos-confirm-cash disabled={confirmLoading} onClick={onConfirmCash} className={cn(POS_PRIMARY_ACTION, "w-full")}>
+              <button
+                type="button"
+                data-pos-confirm-cash
+                disabled={confirmLoading}
+                onClick={() => {
+                  if (offlineCash) {
+                    const queued = confirmCashOrEnqueue({
+                      online: typeof navigator === "undefined" ? true : navigator.onLine,
+                      orderId: offlineCash.orderId,
+                      amountCents: amountDueCents,
+                      operationKey: offlineCash.operationKey,
+                    });
+                    if (queued === "queued") return;
+                  }
+                  onConfirmCash();
+                }}
+                className={cn(POS_PRIMARY_ACTION, "w-full")}
+              >
                 {change > 0 ? interpolate(copy.confirmCashChange, { amount: formatOrderMoney(change, currency) }) : copy.confirmCashExact}
               </button>
             )}

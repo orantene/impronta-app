@@ -81,12 +81,14 @@ export function TeamRows({
   const [toTalentId, setToTalentId] = useState("");
   const [opKey, setOpKey] = useState(operationKey);
   const [note, setNote] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const open = (row: TeamRowView) => {
     setReplacing(row);
     setToTalentId("");
     setNote(null);
+    setRefusal(null);
     setOpKey(operationKey());
   };
   const close = () => setReplacing(null);
@@ -96,6 +98,7 @@ export function TeamRows({
   const confirm = () => {
     if (!replacing?.talentProfileId || !replacement) return;
     setNote(null);
+    setRefusal(null);
     startTransition(async () => {
       const result = await projectReplaceTalentAction({
         bookingId,
@@ -104,6 +107,7 @@ export function TeamRows({
         operationKey: opKey,
       });
       if (!result.ok) {
+        setRefusal(result.reason);
         setNote(schedulingEngineSentence(result.reason, copy.engine));
         return;
       }
@@ -190,7 +194,12 @@ export function TeamRows({
             </div>
             <p className="m-0 rounded-[10px] bg-admin-surface-alt px-3 py-2.5 text-[12.5px] text-admin-ink-muted">{copy.note}</p>
             {note ? (
-              <p role="alert" className="m-0 rounded-[10px] bg-admin-critical-soft px-3 py-2.5 text-[12.5px] text-admin-red">
+              <p
+                role="alert"
+                data-team-replace-refusal={refusal ?? ""}
+                data-talent-unavailable={refusal === "talent_unavailable" ? "" : undefined}
+                className="m-0 rounded-[10px] bg-admin-critical-soft px-3 py-2.5 text-[12.5px] text-admin-red"
+              >
                 {note}
               </p>
             ) : null}

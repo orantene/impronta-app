@@ -4,7 +4,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { logServerError } from "@/lib/server/safe-error";
 import { tagFor } from "@/lib/site-admin/cache-tags";

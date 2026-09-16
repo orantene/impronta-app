@@ -23,7 +23,7 @@ import { unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { tagFor } from "@/lib/site-admin";
+import { tagFor } from "@/lib/site-admin/cache-tags";
 import type { Locale } from "@/lib/site-admin/locales";
 
 import type { PageRevisionRow, PageRow } from "./pages";

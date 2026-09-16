@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   POS_CHIP,
@@ -14,12 +14,17 @@ import {
 } from "@/components/admin/pos/pos-classes";
 import { useT } from "@/i18n/use-t";
 import type { MessagingPreview, MessagingSheetName } from "@/lib/messaging/fixture";
+import { filterInboxRows, inboxMatchSnippet } from "@/lib/messaging/inbox-search";
 import type { Essentials, InboxFilter, InboxRow, ThreadMessage } from "@/lib/messaging/types";
 import { INBOX_FILTERS } from "@/lib/messaging/types";
 import type { PosMode } from "@/lib/pos/modes";
+import type { BasketDiff, DeliveryRow, HandOverTarget, OfferRow, SnapshotRow } from "@/lib/messaging/sheets";
+import { formatOrderMoney } from "@/lib/orders/money-format";
+import { schedulingEngineSentence, schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
 import {
   messagingAssignOwner,
   messagingCloseLost,
+  messagingHandOver,
   messagingInternalNote,
   messagingLoadEssentials,
   messagingLoadInbox,
@@ -28,10 +33,24 @@ import {
   messagingReply,
   messagingRequestPayment,
   messagingResolve,
+  messagingScheduleReminder,
   messagingSearch,
+  messagingSendOffer,
   messagingSendOptions,
   messagingStartConversation,
 } from "@/lib/server-actions/messaging-engine";
+import {
+  messagingCancelBooking,
+  messagingCancelPaymentLink,
+  messagingLoadBasketDiff,
+  messagingLoadDelivery,
+  messagingLoadHandOverTargets,
+  messagingLoadOffers,
+  messagingLoadSnapshots,
+  messagingRetryDelivery,
+  messagingReviseOffer,
+} from "@/lib/server-actions/messaging-sheets";
+import { interpolate } from "@/i18n/interpolate";
 import { cn } from "@/lib/utils";
 
 import { messagesCopy, pinMessagingKeys } from "./copy";
@@ -52,6 +71,9 @@ export type MessagesClientProps = {
   readonly returnLabel?: string;
   readonly compact?: boolean;
   readonly preview?: MessagingPreview;
+  /** Experimental WhatsApp drawer. Omit on the live Messages page. */
+  readonly channelFilter?: "whatsapp" | "all";
+  readonly initialInquiryId?: string | null;
 };
 
 const FILTERS: InboxFilter[] = [...INBOX_FILTERS];
@@ -63,7 +85,12 @@ export function MessagesShell(props: MessagesClientProps) {
     return messagesCopy(t);
   }, [t]);
   const preview = props.preview;
-  const [filter, setFilter] = useState<InboxFilter>("needs_reply");
+  // The WhatsApp drawer opens on "all": an imported history is mostly threads
+  // whose last word was ours, and "needs_reply" showed the owner an empty list
+  // seconds after a successful import.
+  const [filter, setFilter] = useState<InboxFilter>(
+    props.channelFilter === "whatsapp" ? "all" : "needs_reply",
+  );
   const [rows, setRows] = useState<InboxRow[]>(preview?.rows ?? []);
   const [activeId, setActiveId] = useState<string | null>(preview?.activeId ?? null);
   const [messages, setMessages] = useState<ThreadMessage[]>(preview?.messages ?? []);
@@ -80,6 +107,18 @@ export function MessagesShell(props: MessagesClientProps) {
   // badge shows); counting the loaded rows undercounted under any filter but
   // "all". Null until the first load answers.
   const [inboxUnread, setInboxUnread] = useState<number | null>(null);
+  const [searchHits, setSearchHits] = useState<Array<{ inquiryId: string; snippet: string; label: string }>>([]);
+  const seenUnread = useRef<number | null>(null);
+  // What the once-empty sheets draw (audit E / D-116). Loaded when a sheet
+  // opens on a thread; null until then so the sheet can say "loading".
+  const [handOverTargets, setHandOverTargets] = useState<HandOverTarget[] | null>(null);
+  const [deliveryRows, setDeliveryRows] = useState<DeliveryRow[] | null>(null);
+  const [deliveryBusy, setDeliveryBusy] = useState<string | null>(null);
+  const [snapshots, setSnapshots] = useState<SnapshotRow[] | null>(null);
+  const [offers, setOffers] = useState<OfferRow[] | null>(null);
+  const [basketDiff, setBasketDiff] = useState<{ loaded: boolean; diff: BasketDiff | null }>({ loaded: false, diff: null });
+  const [notice, setNotice] = useState<string | null>(null);
+  const schedulingSentences = useMemo(() => schedulingEngineSentences(t), [t]);
 
   const draftKey = draftStorageKey(props.tenantId, props.locationSlug, activeId ?? "inbox");
 
@@ -98,14 +137,30 @@ export function MessagesShell(props: MessagesClientProps) {
       setLoadState("failed");
       return;
     }
-    setRows(result.rows);
+    const next =
+      props.channelFilter === "whatsapp"
+        ? result.rows.filter((row) => row.channel === "whatsapp")
+        : result.rows;
+    setRows(next);
     setInboxUnread(result.unreadCount);
-    setLoadState(result.rows.length === 0 ? (search ? "no_results" : "empty") : "ok");
-  }, [filter, preview, props.locationSlug, search]);
+    if (seenUnread.current !== null && result.unreadCount > seenUnread.current) {
+      setToast(true);
+    }
+    seenUnread.current = result.unreadCount;
+    setLoadState(next.length === 0 ? "empty" : "ok");
+  }, [filter, preview, props.channelFilter, props.locationSlug]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (preview) return;
+    const timer = window.setInterval(() => {
+      void reload();
+    }, 12_000);
+    return () => window.clearInterval(timer);
+  }, [preview, reload]);
 
   const openThread = useCallback(
     async (id: string) => {
@@ -121,7 +176,13 @@ export function MessagesShell(props: MessagesClientProps) {
     [preview],
   );
 
-  const active = rows.find((row) => row.id === activeId) ?? null;
+  useEffect(() => {
+    if (props.initialInquiryId) void openThread(props.initialInquiryId);
+  }, [openThread, props.initialInquiryId]);
+
+  const visibleRows = useMemo(() => filterInboxRows(rows, search), [rows, search]);
+  // Keep a thread that the current filter/search no longer lists (D-118).
+  const active = visibleRows.find((row) => row.id === activeId) ?? rows.find((row) => row.id === activeId) ?? null;
 
   async function sendReply() {
     if (!active || draft.trim() === "") return;
@@ -133,6 +194,7 @@ export function MessagesShell(props: MessagesClientProps) {
       inquiryId: active.id,
       body: draft,
       expectedVersion: active.version,
+      channel: active.channel === "counter" ? undefined : active.channel,
     });
     if (!result.ok) {
       setRefusal(copy.refusal(result.reason));
@@ -159,12 +221,66 @@ export function MessagesShell(props: MessagesClientProps) {
     await openThread(active.id);
   }
 
+  const activeIdForSheets = active?.id ?? null;
+  useEffect(() => {
+    if (preview || !sheet || !activeIdForSheets) return;
+    const id = activeIdForSheets;
+    if (sheet === "agency") {
+      setHandOverTargets(null);
+      void messagingLoadHandOverTargets().then((r) => setHandOverTargets(r.ok ? r.targets : []));
+    } else if (sheet === "delivery") {
+      setDeliveryRows(null);
+      void messagingLoadDelivery({ inquiryId: id }).then((r) => setDeliveryRows(r.ok ? r.rows : []));
+    } else if (sheet === "recover") {
+      setSnapshots(null);
+      void messagingLoadSnapshots({ inquiryId: id }).then((r) => setSnapshots(r.ok ? r.snapshots : []));
+    } else if (sheet === "offer") {
+      setOffers(null);
+      void messagingLoadOffers({ inquiryId: id }).then((r) => setOffers(r.ok ? r.offers : []));
+    } else if (sheet === "diff") {
+      setBasketDiff({ loaded: false, diff: null });
+      void messagingLoadBasketDiff({ inquiryId: id }).then((r) => setBasketDiff({ loaded: true, diff: r.ok ? r.diff : null }));
+    }
+  }, [sheet, activeIdForSheets, preview]);
+
+  const listEmpty = loadState !== "failed" && visibleRows.length === 0;
   const emptyCopy =
     loadState === "failed"
       ? { title: copy.failedLoad, body: copy.failedBody, action: copy.tryAgain, onAction: () => void reload() }
-      : loadState === "no_results" || search
+      : listEmpty && search.trim()
         ? { title: copy.noResults, body: copy.noResultsBody, action: copy.clearSearch, onAction: () => setSearch("") }
         : { title: copy.empty, body: copy.emptyBody, action: copy.shareBookingLink, onAction: () => setSheet("start") };
+
+  function resolveActive() {
+    if (!active || preview) return;
+    void messagingResolve({ inquiryId: active.id, expectedVersion: active.version }).then((result) => {
+      if (!result.ok) setRefusal(copy.refusal(result.reason));
+      else void reload();
+    });
+  }
+
+  function applySearchHits(query: string) {
+    const local = filterInboxRows(rows, query).map((row) => ({
+      inquiryId: row.id,
+      snippet: inboxMatchSnippet(row, query) ?? row.lastMessagePreview,
+      label: row.contactName,
+    }));
+    setSearchHits(local);
+    if (preview || query.trim().length < 2) return;
+    void messagingSearch({ query }).then((result) => {
+      if (!result.ok) return;
+      const fromServer = result.hits.map((hit) => {
+        const row = rows.find((entry) => entry.id === hit.inquiryId);
+        return {
+          inquiryId: hit.inquiryId,
+          snippet: hit.snippet,
+          label: row?.contactName ?? hit.inquiryId,
+        };
+      });
+      const extra = fromServer.filter((hit) => !local.some((row) => row.inquiryId === hit.inquiryId));
+      setSearchHits([...local, ...extra]);
+    });
+  }
 
   // The sheets are ONE tree for both shapes: the phone used to return
   // `PhoneMessages` without them, so Actions / Payment link / Cash opened
@@ -256,25 +372,133 @@ export function MessagesShell(props: MessagesClientProps) {
         }).then(() => setSheet(null));
       }}
       onRecover={() => {
-        if (!active || preview) {
-          setSheet(null);
-          return;
-        }
-        const chip = active.recordChips.find((row) => row.kind === "order");
-        if (!chip) {
-          setRefusal(copy.refusal("not_found"));
-          setSheet(null);
-          return;
-        }
-        void messagingRecoverSnapshot({ snapshotId: `snap-${active.id}`, orderId: chip.recordId }).then((result) => {
-          if (!result.ok) setRefusal(copy.refusal(result.reason));
-          setSheet(null);
-        });
+        // "Retry the kitchen ticket": the preparation ticket is re-submitted
+        // by the till (`submitToPreparation`), not by this surface. Left as
+        // the door it always was: close.
+        setSheet(null);
+      }}
+      data={{
+        handOver: {
+          targets: handOverTargets,
+          onPick: (userId) => {
+            if (!active || preview) return setSheet(null);
+            void messagingHandOver({ inquiryId: active.id, ownerUserId: userId, expectedVersion: active.version }).then((result) => {
+              if (!result.ok) setRefusal(copy.refusal(result.reason));
+              else void reload();
+              setSheet(null);
+            });
+          },
+        },
+        delivery: {
+          rows: deliveryRows,
+          busyId: deliveryBusy,
+          onRetry: (deliveryId) => {
+            if (!active || preview) return;
+            setDeliveryBusy(deliveryId);
+            void messagingRetryDelivery({ deliveryId }).then((result) => {
+              setDeliveryBusy(null);
+              if (!result.ok) setRefusal(copy.refusal(result.reason));
+              else setNotice(copy.deliveryRetried);
+              void messagingLoadDelivery({ inquiryId: active.id }).then((r) => setDeliveryRows(r.ok ? r.rows : []));
+            });
+          },
+        },
+        recover: {
+          snapshots,
+          onRecover: (snapshotId) => {
+            if (!active || preview) return setSheet(null);
+            const chip = active.recordChips.find((row) => row.kind === "order");
+            if (!chip) {
+              setRefusal(copy.refusal("not_found"));
+              setSheet(null);
+              return;
+            }
+            // The engine's own snapshot uuid. `snap-<inquiry>` was refused `invalid` on every tap.
+            void messagingRecoverSnapshot({ snapshotId, orderId: chip.recordId }).then((result) => {
+              if (!result.ok) setRefusal(copy.refusal(result.reason));
+              else setNotice(copy.recovered);
+              setSheet(null);
+            });
+          },
+        },
+        offer: {
+          offers,
+          builderHref: active ? `${props.adminBasePath}/messages/${active.id}` : `${props.adminBasePath}/messages`,
+          onSend: (offerId) => {
+            if (!active || preview) return setSheet(null);
+            void messagingSendOffer({ inquiryId: active.id, offerId }).then((result) => {
+              if (!result.ok) setRefusal(copy.refusal(result.reason));
+              else {
+                setNotice(copy.offerSent);
+                void reload();
+              }
+              setSheet(null);
+            });
+          },
+          onRemind: (offerId) => {
+            if (!active || preview) return setSheet(null);
+            const sendAt = reminderTomorrowIso();
+            void messagingScheduleReminder({ inquiryId: active.id, sendAt, body: copy.offerRemindBody, recordKind: "offer", recordId: offerId }).then(
+              (result) => {
+                if (!result.ok) setRefusal(copy.refusal(result.reason));
+                else setNotice(copy.offerReminded);
+                setSheet(null);
+              },
+            );
+          },
+          onRevise: (offer) => {
+            if (!active || preview) return setSheet(null);
+            void messagingReviseOffer({ inquiryId: active.id, offerId: offer.id, expectedVersion: offer.version }).then((result) => {
+              if (!result.ok) setRefusal(copy.refusal(result.reason));
+              else setNotice(copy.offerRevised);
+              setSheet(null);
+            });
+          },
+        },
+        diff: {
+          diff: basketDiff.diff,
+          loaded: basketDiff.loaded,
+          // Keep mine: the page stays as sent; the customer pays what they were shown. Nothing to write.
+          onKeepMine: () => setSheet(null),
+          onTakeTheirs: (linkId) => {
+            if (!active || preview) return setSheet(null);
+            void messagingCancelPaymentLink({ linkId }).then((result) => {
+              if (!result.ok) {
+                setRefusal(copy.refusal(result.reason));
+                setSheet(null);
+                return;
+              }
+              setNotice(copy.diffCancelled);
+              setSheet("payment");
+            });
+          },
+        },
+        change: {
+          booking:
+            active?.recordChips.find((row) => row.kind === "appointment" || row.kind === "class_enrolment" || row.kind === "reservation") ?? null,
+          rescheduleHref: `${props.adminBasePath}/appointments`,
+          onCancel: (bookingId, reason) => {
+            if (!active || preview) return setSheet(null);
+            void messagingCancelBooking({ inquiryId: active.id, bookingId, reason }).then((result) => {
+              if (!result.ok) {
+                setRefusal(schedulingEngineSentence(result.reason, schedulingSentences));
+                return;
+              }
+              setNotice(interpolate(copy.changeCancelled, { amount: formatOrderMoney(result.refundableCents, "USD") }));
+              setSheet(null);
+              void reload();
+            });
+          },
+        },
       }}
       onSearch={(query) => {
         setSearch(query);
-        setSheet(null);
+        applySearchHits(query);
       }}
+      onOpenHit={(id) => void openThread(id)}
+      onResolve={() => resolveActive()}
+      onOpenSheet={setSheet}
+      searchHits={searchHits}
     />
   );
 
@@ -284,7 +508,7 @@ export function MessagesShell(props: MessagesClientProps) {
       <div className="relative flex h-full min-h-0 flex-1 flex-col" data-pos-messages="compact">
         <PhoneMessages
           copy={copy}
-          rows={rows}
+          rows={visibleRows}
           active={active}
           messages={messages}
           draft={draft}
@@ -297,7 +521,11 @@ export function MessagesShell(props: MessagesClientProps) {
           search={search}
           onSearch={setSearch}
           toast={toast}
-          onToast={() => setToast(false)}
+          onToast={() => {
+            setToast(false);
+            const incoming = rows.find((row) => row.unread && row.id !== activeId);
+            if (incoming) void openThread(incoming.id);
+          }}
       />
         {sheets}
       </div>
@@ -337,11 +565,25 @@ export function MessagesShell(props: MessagesClientProps) {
           </button>
         </div>
       </header>
-      <IncomingToast copy={copy} visible={toast} onOpen={() => setToast(false)} onLater={() => setToast(false)} />
+      <IncomingToast
+        copy={copy}
+        visible={toast}
+        onOpen={() => {
+          setToast(false);
+          const incoming = rows.find((row) => row.unread && row.id !== activeId);
+          if (incoming) void openThread(incoming.id);
+        }}
+        onLater={() => setToast(false)}
+      />
       {refusal ? (
         <div className={cn(POS_REFUSAL_BANNER, "mx-4 mt-3")} data-pos-refusal="">
           {refusal}
         </div>
+      ) : null}
+      {notice ? (
+        <p className={cn(POS_NOTE, "mx-4 mt-3")} role="status" data-pos-messages-notice="">
+          {notice}
+        </p>
       ) : null}
       <div className="flex min-h-0 flex-1">
         {focused ? (
@@ -371,14 +613,8 @@ export function MessagesShell(props: MessagesClientProps) {
               className="px-3 pb-2"
               onSubmit={(event) => {
                 event.preventDefault();
+                applySearchHits(search);
                 setSheet("search");
-                if (preview) {
-                  setLoadState(search ? "no_results" : "ok");
-                  return;
-                }
-                void messagingSearch({ query: search }).then((result) => {
-                  if (result.ok && result.hits[0]) void openThread(result.hits[0].inquiryId);
-                });
               }}
             >
               <input
@@ -390,13 +626,14 @@ export function MessagesShell(props: MessagesClientProps) {
               />
             </form>
             <InboxList
-              rows={loadState === "ok" ? rows : []}
+              rows={loadState === "failed" ? [] : visibleRows}
               activeId={activeId}
               emptyLabel={emptyCopy.title}
               emptyBody={emptyCopy.body}
               emptyAction={emptyCopy.action}
               onEmptyAction={emptyCopy.onAction}
               copy={copy}
+              searchQuery={search}
               onOpen={(id) => void openThread(id)}
               onNextAction={(row) => {
                 void openThread(row.id);
@@ -419,14 +656,7 @@ export function MessagesShell(props: MessagesClientProps) {
           onToggleFocus={() => setFocused((value) => !value)}
           onOpenSheet={setSheet}
           onAssign={() => setSheet("assign")}
-          onResolve={() => {
-            if (!active) return;
-            if (preview) return;
-            void messagingResolve({ inquiryId: active.id, expectedVersion: active.version }).then((result) => {
-              if (!result.ok) setRefusal(copy.refusal(result.reason));
-              else void reload();
-            });
-          }}
+          onResolve={() => setSheet("resolve")}
         />
         <EssentialsPanel
           copy={copy}
@@ -455,3 +685,8 @@ function optionKind(
 }
 
 export { POS_SURFACE };
+
+/** An offer reminder goes out tomorrow at this time (the reminder cron delivers it). */
+function reminderTomorrowIso(): string {
+  return new Date(Date.now() + 24 * 3600_000).toISOString();
+}

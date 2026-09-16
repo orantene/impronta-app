@@ -1,0 +1,22 @@
+== local-after (http://localhost:3311)
+route | warm | TTFB ms | LCP ms | DCL ms | HTML KB | JS KB xfer (decoded) | JS files | RSC | actions
+/admin | cold | 760 | 2860 | 2832 | 63 | 2159 (7343) | 57 | 0 | 1
+/admin | warm | 566 | 2476 | 2456 | 466 | 1 (7343) | 57 | 0 | 0
+/admin/catalog | cold | 704 | 2232 | 723 | 421 | 1 (7440) | 58 | 0 | 1
+/admin/catalog | warm | 645 | 2452 | 665 | 421 | 1 (7440) | 58 | 0 | 1
+/admin/catalog?create=1 | cold | 783 | 2224 | 801 | 421 | 1 (7440) | 58 | 0 | 1
+/admin/catalog?create=1 | warm | 648 | 2220 | 666 | 421 | 1 (7440) | 58 | 0 | 1
+/admin/pos?mode=counter | cold | 633 | 1148 | 1123 | 372 | 1 (7509) | 60 | 0 | 1
+/admin/pos?mode=counter | warm | 738 | 1096 | 1084 | 372 | 1 (7509) | 60 | 0 | 1
+/admin/messages | cold | 1266 | 1640 | 1319 | 1061 | 1 (9908) | 65 | 0 | 2
+/admin/messages | warm | 1303 | 1356 | 1363 | 1061 | 1 (9908) | 65 | 0 | 2
+/admin/appts | cold | 645 | 7620 | 666 | 434 | 1 (7393) | 58 | 0 | 4
+/admin/appts | warm | 613 | 7888 | 632 | 434 | 1 (7393) | 58 | 0 | 4
+click | ms to settle | RSC round trips | server actions | action ms | rsc ms
+catalog: Create (list -> type chooser) | 99 | 0 | 0 | 0 | 0
+catalog: Continue (type chooser -> new item editor) | 42 | 0 | 0 | 0 | 0
+catalog: browser Back (editor -> list) | 64688 | 0 | 3 | 4294 | 0
+rail: Overview -> Catalog | 864 | 0 | 1 | 311 | 0
+rail: Catalog -> Messages | 57 | 0 | 0 | 0 | 0
+rail: Messages -> Appts | 37 | 0 | 0 | 0 | 0
+rail: Appts -> Overview | 29 | 0 | 0 | 0 | 0

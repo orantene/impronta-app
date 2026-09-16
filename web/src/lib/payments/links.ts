@@ -235,6 +235,43 @@ export async function markPaymentLinkPaid(
   return { ok: true };
 }
 
+/**
+ * Take an open payment page down on purpose (MS18: the basket moved under
+ * it and the operator chose "take theirs"). Same release the reaper does:
+ * the claim on the balance goes back so the new basket can be requested.
+ */
+export async function cancelPaymentLink(
+  admin: Admin,
+  input: { tenantId: string; linkId: string },
+): Promise<{ ok: true; already: boolean } | { ok: false; reason: "not_found" | "already_paid" | "unavailable" }> {
+  const { data, error } = await admin
+    .from("payment_links")
+    .select("id, tenant_id, status, reservation_id")
+    .eq("id", input.linkId)
+    .maybeSingle();
+  if (error) {
+    logServerError("payments.cancelPaymentLink", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  const row = data as { id: string; tenant_id: string; status: string; reservation_id: string | null } | null;
+  if (!row || row.tenant_id !== input.tenantId) return { ok: false, reason: "not_found" };
+  if (row.status === "paid") return { ok: false, reason: "already_paid" };
+  if (row.status !== "open") return { ok: true, already: true };
+  const { error: updErr } = await admin.from("payment_links").update({ status: "cancelled" }).eq("id", row.id).eq("status", "open");
+  if (updErr) {
+    logServerError("payments.cancelPaymentLink.update", updErr);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (row.reservation_id && typeof admin.rpc === "function") {
+    await admin.rpc("pos_settle_collection_reservation", {
+      p_reservation_id: row.reservation_id,
+      p_transaction_id: null,
+      p_state: "released",
+    });
+  }
+  return { ok: true, already: false };
+}
+
 export async function reapPaymentLinks(admin: Admin, limit = 50): Promise<{ ok: true; expired: number } | { ok: false }> {
   if (typeof admin.rpc !== "function") return { ok: false };
   const { data, error } = await admin.rpc("reap_payment_links", { p_limit: limit });

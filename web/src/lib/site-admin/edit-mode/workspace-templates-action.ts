@@ -27,7 +27,7 @@ import { randomBytes } from "node:crypto";
 import { requireSession, requireStaff } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import {
   getSectionType,

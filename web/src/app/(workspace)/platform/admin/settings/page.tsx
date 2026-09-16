@@ -6,7 +6,9 @@ import { loadPlatformSuperAdmins } from "../../platform-data";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { loadPlatformCommercialDefaults } from "@/lib/platform/commercial-defaults";
 import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
+import { isMessagingChannelsEnabled } from "@/lib/channels/flag";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
+import { PlatformMessagingChannelsCard } from "./PlatformMessagingChannelsCard";
 import { loadPrivateMediaAccessState } from "@/lib/platform/gated-media";
 import { GATED_MEDIA_CDN_MAX_AGE_SECONDS } from "@/lib/media/private-access";
 import { PlatformWorkspaceUiCard } from "./PlatformWorkspaceUiCard";
@@ -130,6 +132,7 @@ export default async function PlatformSettingsPage() {
   const commercialDefaults = await loadPlatformCommercialDefaults();
   const activePayoutSystem = await loadActivePayoutSystem();
   const workspaceUi = await loadPlatformWorkspaceUi();
+  const messagingChannelsEnabled = await isMessagingChannelsEnabled();
   const gatedMedia = await loadPrivateMediaAccessState();
   // Rounded up: the card promises "within about N minutes", and rounding a
   // 5-minute lag down to 4 would understate it.
@@ -215,6 +218,14 @@ export default async function PlatformSettingsPage() {
           iconId="features"
         >
           <PlatformWorkspaceUiCard current={workspaceUi} />
+        </HqCard>
+
+        <HqCard
+          title={t("dashboard.channels.hq.title")}
+          subtitle={t("dashboard.channels.hq.subtitle")}
+          iconId="features"
+        >
+          <PlatformMessagingChannelsCard current={messagingChannelsEnabled} />
         </HqCard>
 
         {/* Photo access — public storage URLs vs the permission-checked route */}

@@ -121,11 +121,15 @@ export async function messagingReply(input: {
       tenantId: g.tenantId,
       messageId: inserted.messageId,
       channel: channelId,
-      state: sent.ok ? "sent" : "failed",
+      state: sent.ok ? (channelId === "whatsapp" ? "queued" : "sent") : sent.reason === "rate_limited" ? "queued" : "failed",
       providerRef: sent.ok ? sent.providerRef : null,
-      lastError: sent.ok ? null : sent.reason,
+      lastError: sent.ok || sent.reason === "rate_limited" ? null : sent.reason,
     });
-    if (!sent.ok && channelId !== "web_chat") return { ok: false as const, reason: sent.reason };
+    // WhatsApp is an experimental outbox: a send miss must not fail the
+    // stored reply. Drop the adapter and this branch is the original path.
+    if (!sent.ok && channelId !== "web_chat" && channelId !== "whatsapp" && sent.reason !== "rate_limited") {
+      return { ok: false as const, reason: sent.reason };
+    }
   }
   return { ok: true as const, messageId: inserted.messageId };
 }

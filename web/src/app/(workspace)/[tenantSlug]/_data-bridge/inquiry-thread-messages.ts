@@ -1,4 +1,5 @@
 import "server-only";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -17,7 +18,7 @@ export async function loadTotalUnreadMessages(tenantId: string): Promise<number>
     const supabase = await createSupabaseServerClient();
     if (!supabase) return 0;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { user } = await getCachedActorSession();
     const myUserId = user?.id ?? null;
     if (!myUserId) return 0;
 

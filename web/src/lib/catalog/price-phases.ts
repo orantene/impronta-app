@@ -10,11 +10,18 @@ type Admin = {
 
 export type PricePhaseReason = "overlap" | "invalid" | "not_found" | "unavailable";
 
+/** Instant compare. ISO `Z` vs `+00:00` disagrees as strings (D-120). */
+export function phaseInstantMs(iso: string): number {
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : Number.NaN;
+}
+
 export async function livePhasePrice(
   admin: Admin,
   input: { tenantId: string; offeringId: string; variantId?: string | null; nowIso?: string },
 ): Promise<{ ok: true; priceCents: number | null; phaseId: string | null } | { ok: false; reason: "unavailable" }> {
   const now = input.nowIso ?? new Date().toISOString();
+  const nowMs = phaseInstantMs(now);
   const { data, error } = await admin
     .from("offering_price_phases")
     .select("id, price_cents, starts_at, ends_at, variant_id")
@@ -32,12 +39,16 @@ export async function livePhasePrice(
     ends_at: string | null;
     variant_id: string | null;
   }>).filter((row) => {
-    if (row.starts_at > now) return false;
-    if (row.ends_at && row.ends_at <= now) return false;
+    const startMs = phaseInstantMs(row.starts_at);
+    if (!Number.isFinite(startMs) || !Number.isFinite(nowMs) || startMs > nowMs) return false;
+    if (row.ends_at) {
+      const endMs = phaseInstantMs(row.ends_at);
+      if (!Number.isFinite(endMs) || endMs <= nowMs) return false;
+    }
     if (input.variantId) return row.variant_id === input.variantId || row.variant_id == null;
     return row.variant_id == null;
   });
-  rows.sort((a, b) => (a.starts_at < b.starts_at ? 1 : -1));
+  rows.sort((a, b) => phaseInstantMs(b.starts_at) - phaseInstantMs(a.starts_at));
   const hit = rows[0];
   if (!hit) return { ok: true, priceCents: null, phaseId: null };
   return { ok: true, priceCents: num(hit.price_cents), phaseId: hit.id };
@@ -57,7 +68,13 @@ export async function setOfferingPricePhase(
 ): Promise<{ ok: true; phaseId: string } | { ok: false; reason: PricePhaseReason }> {
   const label = input.label.trim();
   if (!label || !Number.isInteger(input.priceCents) || input.priceCents < 0) return { ok: false, reason: "invalid" };
-  if (input.endsAt && input.endsAt <= input.startsAt) return { ok: false, reason: "overlap" };
+  // Same instant compare as the reader (D-120): "…Z" and "…+00:00" are one
+  // instant, and a string compare called them ordered. An unparseable bound
+  // is invalid, never silently accepted.
+  const startMs = phaseInstantMs(input.startsAt);
+  const endMs = input.endsAt ? phaseInstantMs(input.endsAt) : null;
+  if (Number.isNaN(startMs) || (endMs !== null && Number.isNaN(endMs))) return { ok: false, reason: "invalid" };
+  if (endMs !== null && endMs <= startMs) return { ok: false, reason: "overlap" };
   const { data, error } = await admin
     .from("offering_price_phases")
     .insert({

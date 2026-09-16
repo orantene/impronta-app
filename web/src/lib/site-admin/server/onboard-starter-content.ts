@@ -25,7 +25,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { getLibraryDefault } from "@/lib/site-admin/sections/shared/default-content";

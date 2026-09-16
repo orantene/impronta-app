@@ -14,11 +14,18 @@ import { getPublicFontPreset } from "@/lib/site-font-preset";
 import { getSiteTheme } from "@/lib/site-theme";
 import { backgroundModeToPolarity } from "@/lib/site-admin/tokens/polarity";
 import { getPublicTenantScope } from "@/lib/saas/scope";
+// The three token helpers from their leaf, NOT the `@/lib/site-admin` barrel:
+// the barrel re-exports the sections registry, which imports every section's
+// Editor and Component, which put the whole website builder (its editors,
+// the builder-node islands, the directory and home client pieces) into the
+// ROOT layout's client graph, i.e. into every route's first paint down to
+// /admin and /offline. Measured on this build: 5.77 MB of client chunks on
+// /offline, 63 section modules among them.
 import {
   designTokensToCssVars,
   designTokensToDataAttrs,
   resolveDesignTokens,
-} from "@/lib/site-admin";
+} from "@/lib/site-admin/tokens/resolve";
 import { loadPublicBranding } from "@/lib/site-admin/server/reads";
 import { resolveTenantAnalytics } from "@/lib/integrations/analytics-resolver";
 import {

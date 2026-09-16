@@ -37,7 +37,7 @@ import { unstable_cache } from "next/cache";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { improntaLog } from "@/lib/server/structured-log";
-import { tagFor } from "@/lib/site-admin";
+import { tagFor } from "@/lib/site-admin/cache-tags";
 
 import { resolveWords, type WordsLookup } from "./resolve";
 import { wordsInputFromSettings } from "./settings";

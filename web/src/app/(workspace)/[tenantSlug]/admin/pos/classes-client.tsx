@@ -602,15 +602,27 @@ export function ClassesClient(props: ClassesClientProps) {
   const startsLine = minutes >= 0 ? fill(b.checkin.startsIn, { minutes }) : fill(b.checkin.startedAgo, { minutes: -minutes });
   // A01 to A06: the Book door is its own screen, not a sheet over the list.
   const bookingOpen = destination === "walkin" && walkIn.intent === "book";
+  const [bookingStep, setBookingStep] = useState<string>("service");
+  // A02 to A06: the subtitle accumulates what the flow has settled (the
+  // customer, the time, the person), as the boards' header lines do.
+  const bookingService = props.services.find((s) => s.offeringId === walkIn.serviceId) ?? null;
+  const bookingWhen = walkIn.slotIso ? formatWhen(walkIn.slotIso, day.timeZone, props.locale) : null;
+  const bookingName = walkIn.name.trim();
   const headerTitle = bookingOpen
-    ? b.booking.title
+    ? walkIn.outcome && bookingName
+      ? fill(b.booking.titleBooked, { name: bookingName })
+      : bookingStep === "review"
+        ? b.booking.titleReview
+        : b.booking.title
     : checkinOpen && selectedSession
       ? `${selectedSession.title} · ${formatClock(selectedSession.startsAt, day.timeZone, props.locale)}`
       : c.title;
   const headerSubtitle = bookingOpen
-    ? walkIn.name.trim()
-      ? fill(b.booking.subtitleNamed, { name: walkIn.name.trim() })
-      : b.booking.subtitleNew
+    ? walkIn.outcome && bookingWhen && bookingService
+      ? fill(b.booking.subtitleBooked, { when: bookingWhen, name: bookingService.personName })
+      : [bookingName || b.booking.subtitleNew, bookingWhen, bookingService?.personName ?? null, bookingService ? (props.venueName ?? props.workspaceName) : null]
+          .filter((part): part is string => Boolean(part))
+          .join(" · ")
     : checkinOpen
       ? `${props.venueName ?? props.workspaceName} · ${startsLine}`
       : null;
@@ -678,6 +690,7 @@ export function ClassesClient(props: ClassesClientProps) {
           ) : null}
           {bookingOpen ? (
             <BookingFlow
+              onStep={setBookingStep}
               day={day}
               venueName={props.venueName ?? props.workspaceName}
               services={props.services}

@@ -1,0 +1,49 @@
+
+Running 6 tests using 1 worker
+
+[1A[2K[1/6] [chromium] › e2e/journeys/pos-classes.spec.ts:176:5 › the owner switches Front desk on in Settings and enters it from the top bar switch
+[1A[2K[2/6] [chromium] › e2e/journeys/pos-classes.spec.ts:219:5 › a walk-in is booked onto a free time and pays cash at the till
+[1A[2K[3/6] [chromium] › e2e/journeys/pos-classes.spec.ts:272:5 › the customer is checked in; a stale desk is refused in words
+[1A[2K[4/6] [chromium] › e2e/journeys/pos-classes.spec.ts:302:5 › a move onto a taken time is refused naming who is busy; a move onto a free time moves person and booking together
+[1A[2K[5/6] [chromium] › e2e/journeys/pos-classes.spec.ts:364:5 › a class night for today is created through the interface, a walk-in takes a seat for cash, and attendance is marked
+[1A[2K  1) [chromium] › e2e/journeys/pos-classes.spec.ts:364:5 › a class night for today is created through the interface, a walk-in takes a seat for cash, and attendance is marked 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-pos-classes-session="22552f16-6f9e-472d-8254-01d528f2a5b6"]')
+    Expected: visible
+    Timeout: 45000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 45000ms[22m
+    [2m  - waiting for locator('[data-pos-classes-session="22552f16-6f9e-472d-8254-01d528f2a5b6"]')[22m
+
+
+      91 | async function openSession(page: Page, sessionId: string) {
+      92 |   const card = page.locator(`[data-pos-classes-session="${sessionId}"]`);
+    > 93 |   await expect(card).toBeVisible({ timeout: 45_000 });
+         |                      ^
+      94 |   const checkin = page.locator(`[data-pos-classes-checkin="${sessionId}"]`);
+      95 |   for (let attempt = 0; attempt < 8 && !(await checkin.isVisible()); attempt += 1) {
+      96 |     await card.click();
+        at openSession (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-appts2/web/e2e/journeys/pos-classes.spec.ts:93:22)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-fid-appts2/web/e2e/journeys/pos-classes.spec.ts:431:35
+
+    Error Context: ../../fid-appts2-pw-out/journeys-pos-classes-a-cla-b8a68-sh-and-attendance-is-marked-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../fid-appts2-pw-out/journeys-pos-classes-a-cla-b8a68-sh-and-attendance-is-marked-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../fid-appts2-pw-out/journeys-pos-classes-a-cla-b8a68-sh-and-attendance-is-marked-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K[6/6] [chromium] › e2e/journeys/pos-classes.spec.ts:480:5 › the night fills, somebody joins its list, a place that does not exist is refused, a seat is opened, the place is offered and taken
+[1A[2K  1 failed
+    [chromium] › e2e/journeys/pos-classes.spec.ts:364:5 › a class night for today is created through the interface, a walk-in takes a seat for cash, and attendance is marked 
+  1 did not run
+  4 passed (5.2m)
+PW EXIT 1

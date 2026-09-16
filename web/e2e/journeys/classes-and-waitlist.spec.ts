@@ -44,7 +44,9 @@ function venueLocalValue(at: Date): string {
     hour12: false,
   }).formatToParts(at);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+  // en-CA prints midnight as "24" with hour12:false; a datetime-local refuses it.
+  const hour = get("hour") === "24" ? "00" : get("hour");
+  return `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}`;
 }
 
 /** The one night this file is about, once the schedule form has created it. */
@@ -128,17 +130,22 @@ test("an operator creates a class night through the interface, and it is on the 
   test.setTimeout(240_000);
 
   // ── The event, with one free tier, published. Events page, as an operator.
+  // The Events page is W16 → CreateEvent → EventDetail (fidelity-door); the
+  // selectors follow that structure, the assertions are the same as before.
   await signInJourneysStaff(page, `${ADMIN_PREFIX}/admin/events`);
-  await page.getByLabel("Title").fill(TITLE);
-  await page.getByRole("button", { name: /create draft/i }).click();
-  await expect(page.getByRole("button", { name: TITLE })).toBeVisible({ timeout: 30_000 });
-  // Creating lands on Tickets. One tier, free.
+  await page.getByTestId("events-create").click();
+  await page.getByLabel(/^(event name|nombre del evento|nom de l'événement)$/i).fill(TITLE);
+  await page.getByTestId("events-save-draft").click();
+  await expect(page.getByTestId("events-detail")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tulala-h1]")).toHaveText(TITLE);
+  // One tier, free.
+  await page.getByTestId("events-add-tier").click();
   await page.getByLabel("Tier name").fill("Seat");
   await page.getByLabel("Price").fill("0");
-  await page.getByRole("button", { name: /^add$/i }).click();
-  await expect(page.getByText("Seat").first()).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Details" }).click();
-  await page.getByRole("button", { name: /^publish$/i }).click();
+  await page.getByTestId("events-tier-add").click();
+  await expect(page.locator("[data-testid^=events-tier-]").filter({ hasText: "Seat" }).first()).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("events-tab-overview").click();
+  await page.getByTestId("events-publish").click();
   await expect(page.getByText(/\(live\)/)).toBeVisible({ timeout: 30_000 });
 
   const db = isolatedService();
@@ -155,7 +162,14 @@ test("an operator creates a class night through the interface, and it is on the 
 
   // ── The night, from the Appointments page's own Schedule view.
   await page.goto(`${ADMIN_PREFIX}/admin/appts`);
-  await page.getByTestId("appointments-tab-sessions").click();
+  // The tab is client state; a click that lands before hydration is a click
+  // on nothing (the lesson the settings nav records), so it is repeated
+  // until the tab is the selected one.
+  const sessionsTab = page.getByTestId("appointments-tab-sessions");
+  for (let attempt = 0; attempt < 8 && (await sessionsTab.getAttribute("aria-selected")) !== "true"; attempt += 1) {
+    await sessionsTab.click();
+    await page.waitForTimeout(1_500);
+  }
   await expect(page.getByText("Schedule a night")).toBeVisible({ timeout: 30_000 });
   const form = page.locator("form, div").filter({ hasText: "Schedule a night" }).last();
   await form.getByLabel("Event").selectOption({ label: TITLE });
@@ -306,9 +320,12 @@ test("a seat is freed, offered, taken, and the accepted place holds a real seat"
   // ── FREE A SEAT: open one more on the night, from the Events page. The only
   // interface that gives a seat back on a $0 night is the night's own seat
   // count; a free ticket has no refund to go through.
+  // The Events page is W16 → EventDetail (fidelity-door): the row opens by
+  // its own door, the night's seats live under Details & Schedule.
   await signInJourneysStaff(page, `${ADMIN_PREFIX}/admin/events`);
-  await page.getByRole("button", { name: TITLE }).click();
-  await page.getByRole("button", { name: "Sessions", exact: true }).click();
+  await page.getByTestId(`events-open-${n.eventId}`).click();
+  await expect(page.getByTestId("events-detail")).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("events-tab-schedule").click();
   const seatsBox = page.getByLabel("Seats for Seat");
   await expect(seatsBox).toHaveValue("2", { timeout: 30_000 });
   await seatsBox.fill("3");

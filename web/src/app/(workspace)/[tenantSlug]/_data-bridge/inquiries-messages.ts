@@ -1,4 +1,5 @@
 import { loadOrdersForThread, orderIdsFromMessages } from "@/lib/orders/orders-for-thread";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import "server-only";
 
 import { cache } from "react";
@@ -292,7 +293,8 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // Verified once by the proxy and cached per request; not re-fetched here.
+    const { user } = await getCachedActorSession();
     const myUserId = user?.id ?? null;
 
     // ── 1. Inquiries ─────────────────────────────────────────────────────────

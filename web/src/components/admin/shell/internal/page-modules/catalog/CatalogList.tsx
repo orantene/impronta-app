@@ -237,6 +237,7 @@ function CatalogRow({
     {/* MW21: the phone's row — the item, then type · price · availability · channels, the status as a pill. */}
     <Link
       href={nav.href({ item: o.id })}
+      prefetch={false}
       className="hidden items-center gap-[10px] border-t border-admin-border-soft px-[14px] py-[12px] no-underline max-[720px]:flex"
       data-testid="catalog-row-phone"
     >
@@ -253,7 +254,7 @@ function CatalogRow({
       </StatePill>
     </Link>
     <ListRow cols={COLS} testId="catalog-row" className="relative max-[720px]:hidden">
-      <Link href={nav.href({ item: o.id })} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
+      <Link href={nav.href({ item: o.id })} prefetch={false} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
         {o.title || t("dashboard.catalog.untitled")}
       </Link>
       <span>

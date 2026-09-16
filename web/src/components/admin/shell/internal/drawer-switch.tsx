@@ -34,7 +34,8 @@ import { TalentApprovalsDrawer, BrandingDrawer, WatermarkEditorDrawer } from "./
 import { IdentityDrawer, WorkspaceSettingsDrawer, TalentProfileDrawer, MyProfileDrawer } from "./drawers/light-05";
 import { WorkspaceDomainDrawer } from "./drawers/domain-drawer";
 import { GuestChatSettingsDrawer } from "./drawers/guest-chat-settings";
-import { InquiryPeekDrawer, NewInquiryDrawer, DayDetailDrawer, NewBookingDrawer, ClientProfileDrawer } from "./drawers/light-06";
+import { InquiryPeekDrawer, NewInquiryDrawer, DayDetailDrawer, ClientProfileDrawer } from "./drawers/light-06";
+import { NewAppointmentDrawer } from "./drawers/new-appointment-drawer";
 import { TodayPulseDrawer, PipelineDrawer, PipelineFilterDrawer, NotificationsDrawer, ActivityFeedDrawer, MyActivityDrawer } from "./drawers/light-07";
 import { PagesDrawer, PostsDrawer, NavigationDrawer, MediaDrawer, SeoDrawer } from "./drawers/light-08";
 import { FieldCatalogDrawer, FieldPrivacyDrawer } from "./drawers/light-10";
@@ -101,7 +102,7 @@ export function DrawerSwitch({ id }: { id: DrawerId }) {
     case "new-inquiry":
       return <NewInquiryDrawer />;
     case "new-booking":
-      return <NewBookingDrawer />;
+      return <NewAppointmentDrawer />;
     case "day-detail":
       return <DayDetailDrawer />;
     case "client-profile":

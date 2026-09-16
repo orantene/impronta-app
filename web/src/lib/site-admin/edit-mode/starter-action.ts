@@ -53,7 +53,7 @@ import {
 } from "@/lib/site-admin/edit-mode/starter-selection";
 import { applyThemePreset } from "@/lib/site-admin/server/design";
 import { buildFreeStarterEntries } from "@/lib/site-admin/server/onboard-starter-content";
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import {
   DEFAULT_FREE_STARTER_SLUG,
   loadBuilderWorkspacePlan,

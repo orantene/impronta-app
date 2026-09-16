@@ -68,6 +68,7 @@ function night(overrides: Partial<PickerNight> = {}): PickerNight {
     endsAt: "2026-09-13T03:00:00.000Z",
     sellableVariantIds: [DAY_PASS],
     door: { offered: false, reason: "opens_closer_to_date" } as PickerNight["door"],
+    seats: [],
     ...overrides,
   };
 }
@@ -202,6 +203,30 @@ test("an age gate that IS set is asked for, and holds the buy until it is answer
         confirm.click();
       });
       assert.equal(buy.disabled, false, "confirming the age did not release the buy");
+    },
+  );
+});
+
+test("a night with a seat map offers hold through the same seats control", () => {
+  const seatId = "55555555-5555-4555-8555-555555555555";
+  mount(
+    <TicketPickerIsland
+      tenantId={TENANT}
+      eventId={EVENT}
+      preload={preload({ nights: [night({ seats: [{ id: seatId, label: "A1" }] })] })}
+    />,
+    (host) => {
+      pickNightAndTier(host);
+      const seat = host.querySelector<HTMLButtonElement>(`[data-testid="ticket-seat-${seatId}"]`);
+      assert.ok(seat, "the public picker offered no seat chip");
+      assert.match(seat.textContent ?? "", /A1/);
+      const hold = host.querySelector<HTMLButtonElement>('[data-testid="ticket-hold-seats"]');
+      assert.ok(hold, "the public picker offered no hold control");
+      assert.equal(hold.disabled, true, "hold was live before a seat was picked");
+      act(() => {
+        seat.click();
+      });
+      assert.equal(hold.disabled, false, "picking a seat did not release hold");
     },
   );
 });

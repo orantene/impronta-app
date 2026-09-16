@@ -54,6 +54,9 @@ web/scripts/_sandbox/
 # Supabase CLI cache
 supabase/.temp/
 
+# whatsapp-web.js / Puppeteer runtime cache, written wherever the worker runs
+services/channel-worker/.wwebjs_cache/
+
 # Throwaway dev artifacts
 tmp-*
 *.tmp

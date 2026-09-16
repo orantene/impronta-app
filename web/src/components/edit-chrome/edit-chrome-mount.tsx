@@ -35,9 +35,6 @@ import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { type CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
-import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
-import { createBoundCmsPageAdapter } from "@/lib/site-admin/builder-core/adapters/cms-page-adapter";
-import { createBoundSiteShellAdapter } from "@/lib/site-admin/builder-core/adapters/site-shell-adapter";
 import { shouldRouteSiteShellSurface } from "@/lib/site-admin/site-shell-flag";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
@@ -46,7 +43,17 @@ import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { HOST_TENANT_SLUG_HEADER, PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
 import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
 import { loadTenantSiteLabelForEditChrome } from "@/lib/site-admin/edit-mode/tenant-site-label";
-import { EditChrome } from "./edit-chrome";
+import dynamic from "next/dynamic";
+
+/**
+ * The editor's client entry, reached through a `next/dynamic` boundary so its
+ * graph (builder adapters, pills, the edit shell's own lazy chunks) is a
+ * separate chunk group loaded only on the storefront renders that reach the
+ * return below. Mounted statically it sat in the ROOT layout's client graph,
+ * i.e. in every route's first paint down to /admin and /offline, for a
+ * component that returns null on all of them.
+ */
+const EditChrome = dynamic(() => import("./edit-chrome").then((m) => m.EditChrome));
 import { resolvePublicSurfaceOwnershipFromPath } from "./edit-path";
 import {
   isNonStorefrontPath,
@@ -272,6 +279,20 @@ export async function EditChromeMount() {
   let initialComposition: CompositionData | null = null;
   if (editActive) {
     try {
+      // The three adapters reach the composition actions and, through them,
+      // the sections registry (every section's Editor and Component) and the
+      // builder-node islands. Imported HERE, at runtime, only on a storefront
+      // request with edit mode active: mounted from the root layout, a static
+      // import put that whole graph into every route's module graph (5.77 MB
+      // of client chunks on /offline). The gates above (storefront path,
+      // tenant host, membership of THIS host's tenant, edit cookie) all ran
+      // before this line.
+      const [{ homepageAdapter }, { createBoundCmsPageAdapter }, { createBoundSiteShellAdapter }] =
+        await Promise.all([
+          import("@/lib/site-admin/builder-core/adapters/homepage-adapter"),
+          import("@/lib/site-admin/builder-core/adapters/cms-page-adapter"),
+          import("@/lib/site-admin/builder-core/adapters/site-shell-adapter"),
+        ]);
       // WS-A A2 — the shell surface prefetches via the A1 site_shell adapter
       // (cms_pages.blocks draft, falling back to the published snapshot tree).
       // It is keyed by locale; pageSlug is ignored by the adapter. Only reachable

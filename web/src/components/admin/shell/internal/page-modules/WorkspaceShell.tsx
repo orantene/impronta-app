@@ -15,6 +15,8 @@ import { useCanonicalRouteChildren } from "../canonical-route-children";
 import { resolveDestination } from "@/lib/workspace/destinations";
 import { TulalaWordmark } from "@/components/brand/tulala-logo";
 import { TulalaIdentityBar } from "./IdentityBar-1";
+// EXPERIMENTAL. Renders nothing when the flag is off. Delete with REMOVAL.md.
+import { WhatsAppDrawerHost } from "@/components/admin/channels/WhatsAppChrome";
 import { GLOBAL_SEARCH_OPEN_EVENT, GlobalSearchOverlay } from "./GlobalSearchOverlay";
 import { PosRailModeMenuProvider } from "./PosRailModeMenu";
 // Every SPA page is a `next/dynamic` boundary (workspace-pages-lazy.tsx says
@@ -36,6 +38,8 @@ import {
   WorkspaceMessagesPage,
   WorkspacePageView,
 } from "./workspace-pages-lazy";
+import { PageSkeleton } from "../primitives/page-skeleton";
+import { useUrlPageSync } from "../use-url-page-sync";
 
 
 /**
@@ -57,6 +61,7 @@ export function HybridShell({ children }: { children: ReactNode }) {
 
 export function WorkspaceShell() {
   const { state, setPage, openDrawer } = useAdminShell();
+  useUrlPageSync();
   const [helpOpen,  setHelpOpen]  = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -114,6 +119,7 @@ export function WorkspaceShell() {
       {/* WS-7.5 Shortcut help overlay */}
       <ShortcutHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       <GlobalSearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <WhatsAppDrawerHost />
     </>
   );
 }
@@ -478,9 +484,16 @@ function PageRouter({ page }: { page: WorkspacePage }) {
   // The route content flows through the SAME animated wrapper as SPA bodies
   // (below) so it reuses the existing styling rather than adding a new one.
   const canonicalChildren = useCanonicalRouteChildren();
+  // A bridge slice this page reads is still on its way (the layout loads only
+  // the URL's page before the first byte; the rest arrive in one server
+  // action after hydration). The skeleton is the honest state: never an empty
+  // list that reads as "you have no messages" for the second it takes.
+  const { pageSlicesReady } = useAdminShell();
   let body: React.ReactNode = null;
   if (canonicalChildren != null) {
     body = canonicalChildren;
+  } else if (!pageSlicesReady(page)) {
+    body = <PageSkeleton />;
   } else
   switch (page) {
     case "overview":

@@ -41,7 +41,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidateTag } from "next/cache";
 
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { logServerError } from "@/lib/server/safe-error";
 import { normalizeWorkspaceType, rosterEnabled } from "@/lib/saas/workspace-type";

@@ -76,6 +76,15 @@ export type ScheduleOccurrence = {
   poolKey: string | null;
   poolCount: number;
   venueName: string | null;
+  /** `sessions.instructor_user_id` (D-POS-70); null when nobody is set. */
+  instructorUserId: string | null;
+};
+
+/** A venue the workspace can put a series in: the Room select's options. */
+export type ScheduleVenue = {
+  id: string;
+  name: string;
+  timeZone: string;
 };
 
 export type ScheduleSeries = {
@@ -90,6 +99,11 @@ export type ScheduleSeries = {
   endsOn: string | null;
   isActive: boolean;
   venueName: string | null;
+  venueId: string | null;
+  /** `session_series.instructor_user_id`; the series editor's Instructor select. */
+  instructorUserId: string | null;
+  /** The catalog item the series sells as, or null. */
+  offeringId: string | null;
   occurrences: ScheduleOccurrence[];
   /**
    * What the sweep would refuse for this series right now. A timezone refusal
@@ -124,7 +138,7 @@ export type ScheduleNight = ScheduleOccurrence & {
 };
 
 export type ScheduleResult =
-  | { ok: true; series: ScheduleSeries[]; nights: ScheduleNight[] }
+  | { ok: true; series: ScheduleSeries[]; nights: ScheduleNight[]; venues: ScheduleVenue[] }
   | { ok: false; error: string };
 
 function timeToHhmm(value: unknown): string {
@@ -164,7 +178,7 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
     const { data: seriesRows, error: seriesError } = await admin
       .from("session_series")
       .select(
-        "id, tenant_id, venue_id, title, local_time, timezone, duration_minutes, weekdays, seats, starts_on, ends_on, is_active",
+        "id, tenant_id, venue_id, title, local_time, timezone, duration_minutes, weekdays, seats, starts_on, ends_on, is_active, instructor_user_id, offering_id",
       )
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: true });
@@ -183,7 +197,7 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
 
     const { data: sessionRows, error: sessionError } = await admin
       .from("sessions")
-      .select("id, series_id, venue_id, title, starts_at, ends_at, status")
+      .select("id, series_id, venue_id, title, starts_at, ends_at, status, instructor_user_id")
       .eq("tenant_id", tenantId)
       .gte("starts_at", now.toISOString())
       .lte("starts_at", horizonIso)
@@ -230,6 +244,24 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
     // a row, so this surface cannot become a way to enumerate who holds what.
     // A night with several tiers is several pools; the row shows their sum,
     // and names no single pool (a capacity change is per tier there).
+    //
+    // ONE ROUND TRIP PER POOL, ALL AT ONCE. Read one after another, a window
+    // of fifty sessions was fifty sequential trips to the database and the
+    // page's every refresh waited on them (fid-appts2, 2026-09-11).
+    const remainingByPool = new Map<string, number>();
+    await Promise.all(
+      sessions.flatMap((s) =>
+        (poolsBySession.get(String(s.id)) ?? []).map(async (pool) => {
+          const { data: rem, error: remError } = await admin.rpc("capacity_remaining_public", {
+            p_pool_id: pool.id,
+            p_starts_at: String(s.starts_at),
+            p_ends_at: String(s.ends_at),
+          });
+          if (remError) logServerError("sessions.loadSchedule.remaining", remError);
+          else if (typeof rem === "number") remainingByPool.set(pool.id, rem);
+        }),
+      ),
+    );
     const occurrenceById = new Map<string, ScheduleOccurrence>();
     for (const s of sessions) {
       const pools = poolsBySession.get(String(s.id)) ?? [];
@@ -237,13 +269,8 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
       let total: number | null = null;
       for (const pool of pools) {
         total = (total ?? 0) + pool.unitsTotal;
-        const { data: rem, error: remError } = await admin.rpc("capacity_remaining_public", {
-          p_pool_id: pool.id,
-          p_starts_at: String(s.starts_at),
-          p_ends_at: String(s.ends_at),
-        });
-        if (remError) logServerError("sessions.loadSchedule.remaining", remError);
-        else if (typeof rem === "number") remaining = (remaining ?? 0) + rem;
+        const rem = remainingByPool.get(pool.id);
+        if (rem !== undefined) remaining = (remaining ?? 0) + rem;
       }
       occurrenceById.set(String(s.id), {
         id: String(s.id),
@@ -255,25 +282,29 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
         poolKey: pools.length === 1 ? (pools[0]?.poolKey ?? null) : null,
         poolCount: pools.length,
         venueName: null,
+        instructorUserId: typeof s.instructor_user_id === "string" ? s.instructor_user_id : null,
       });
     }
 
-    const venueIds = [
-      ...new Set(
-        [
-          ...rows.map((r) => r.venue_id),
-          ...sessions.map((s) => s.venue_id),
-        ].filter((v): v is string => typeof v === "string"),
-      ),
-    ];
+    // EVERY venue of the workspace, not only the ones in use: the series
+    // editor's Room select offers a room a series does not sit in yet, and a
+    // name for a room a session names is the same read.
     const venueNames = new Map<string, string>();
-    if (venueIds.length > 0) {
+    const venues: ScheduleVenue[] = [];
+    {
       const { data: venueRows, error: venueError } = await admin
         .from("venues")
-        .select("id, name")
-        .in("id", venueIds);
+        .select("id, name, timezone, status")
+        .eq("tenant_id", tenantId)
+        .order("is_default", { ascending: false })
+        .order("name", { ascending: true });
       if (venueError) logServerError("sessions.loadSchedule.venues", venueError);
-      for (const v of venueRows ?? []) venueNames.set(String(v.id), String(v.name));
+      for (const v of venueRows ?? []) {
+        venueNames.set(String(v.id), String(v.name));
+        if (String(v.status) !== "closed") {
+          venues.push({ id: String(v.id), name: String(v.name), timeZone: String(v.timezone) });
+        }
+      }
     }
     for (const s of sessions) {
       const occurrence = occurrenceById.get(String(s.id));
@@ -348,6 +379,9 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
         endsOn: series.endsOn ?? null,
         isActive: series.isActive,
         venueName: row.venue_id ? venueNames.get(String(row.venue_id)) ?? null : null,
+        venueId: typeof row.venue_id === "string" ? row.venue_id : null,
+        instructorUserId: typeof row.instructor_user_id === "string" ? row.instructor_user_id : null,
+        offeringId: typeof row.offering_id === "string" ? row.offering_id : null,
         occurrences,
         refusalReason: decision.ok ? null : decision.reason,
         skipped: decision.ok ? decision.skipped : [],
@@ -369,7 +403,7 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
       })
       .filter((n): n is ScheduleNight => n !== null);
 
-    return { ok: true, series: out, nights };
+    return { ok: true, series: out, nights, venues };
   } catch (error) {
     logServerError("sessions.loadSchedule", error);
     return { ok: false, error: "Could not load the schedule." };

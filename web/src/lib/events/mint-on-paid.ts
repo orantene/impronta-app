@@ -208,6 +208,8 @@ export async function mintAdmissionsForPaidOrder(
 
   outcome.rowsInserted = count ?? 0;
 
+  await stampConsumedSeats(admin, ctx, ticketLines.map((l) => l.id));
+
   if (outcome.skipped.length > 0) {
     logServerError(
       "events.mintOnPaid/skippedLines",
@@ -217,4 +219,62 @@ export async function mintAdmissionsForPaidOrder(
   }
 
   return outcome;
+}
+
+/**
+ * A5: the seats this order CONSUMED (`admission_hold_consume`) become the
+ * admissions' seats. One converted hold, one admission on the same night,
+ * in mint order; an admission that already carries a seat keeps it (a
+ * webhook retry re-runs this and must not reshuffle). A hold with no free
+ * admission is left as it is and logged: the seat is still the order's.
+ */
+async function stampConsumedSeats(
+  admin: SupabaseClient,
+  ctx: { tenantId: string; orderId: string },
+  lineIds: string[],
+): Promise<void> {
+  if (lineIds.length === 0) return;
+  const { data: holds, error: holdErr } = await admin
+    .from("admission_holds")
+    .select("id, session_id, seat_space_id")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("order_id", ctx.orderId)
+    .eq("status", "converted")
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
+  if (holdErr) {
+    logServerError("events.mintOnPaid/seatHolds", holdErr);
+    return;
+  }
+  const seatHolds = (holds ?? []) as Array<{ id: string; session_id: string; seat_space_id: string }>;
+  if (seatHolds.length === 0) return;
+
+  const { data: minted, error: mintedErr } = await admin
+    .from("admissions")
+    .select("id, session_id, space_id, order_line_id, line_seq")
+    .eq("tenant_id", ctx.tenantId)
+    .in("order_line_id", lineIds)
+    .order("order_line_id", { ascending: true })
+    .order("line_seq", { ascending: true });
+  if (mintedErr) {
+    logServerError("events.mintOnPaid/seatAdmissions", mintedErr);
+    return;
+  }
+  const rows = (minted ?? []) as Array<{ id: string; session_id: string | null; space_id: string | null }>;
+  const taken = new Set(rows.map((r) => r.space_id).filter((x): x is string => Boolean(x)));
+  for (const hold of seatHolds) {
+    if (taken.has(hold.seat_space_id)) continue;
+    const free = rows.find((r) => r.session_id === hold.session_id && !r.space_id);
+    if (!free) {
+      logServerError("events.mintOnPaid/seatUnplaced", `order ${ctx.orderId}: seat ${hold.seat_space_id} has no admission to sit on`);
+      continue;
+    }
+    const { error } = await admin.from("admissions").update({ space_id: hold.seat_space_id }).eq("id", free.id).is("space_id", null);
+    if (error) {
+      logServerError("events.mintOnPaid/seatStamp", error);
+      continue;
+    }
+    free.space_id = hold.seat_space_id;
+    taken.add(hold.seat_space_id);
+  }
 }

@@ -78,8 +78,27 @@ export async function GET(request: NextRequest) {
     if (!admin) {
       return new NextResponse("service-role not configured", { status: 503 });
     }
-    const { data: linkData, error: linkError } =
+    let { data: linkData, error: linkError } =
       await admin.auth.admin.generateLink({ type: "magiclink", email });
+    if (linkError || !linkData?.properties?.hashed_token) {
+      const { error: createError } = await admin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+      });
+      const already =
+        createError &&
+        /already|registered|exists/i.test(createError.message ?? "");
+      if (createError && !already) {
+        return new NextResponse(
+          `Failed to create fixture user: ${createError.message}`,
+          { status: 500 },
+        );
+      }
+      ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+        type: "magiclink",
+        email,
+      }));
+    }
     if (linkError || !linkData?.properties?.hashed_token) {
       return new NextResponse(
         `Failed to generate sign-in link: ${linkError?.message ?? "no hashed_token"}`,

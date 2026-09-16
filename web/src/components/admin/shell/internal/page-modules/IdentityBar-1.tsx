@@ -18,6 +18,7 @@ import { TulalaBrandLockup } from "@/components/brand/tulala-logo";
 import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./IdentityBar-2";
+import { WhatsAppTopBarButton } from "@/components/admin/channels/WhatsAppChrome";
 import { CreateMenu } from "./CreateMenu";
 import { GLOBAL_SEARCH_OPEN_EVENT } from "./GlobalSearchOverlay";
 import { MobileChromeStyles } from "./MobileChromeStyles";
@@ -281,6 +282,7 @@ export function TulalaIdentityBar() {
               >
                 <Icon name="search" size={15} stroke={1.75} color="currentColor" />
               </button>
+              <WhatsAppTopBarButton size={32} />
               <CreateMenu />
               <NotificationsBell />
               <span

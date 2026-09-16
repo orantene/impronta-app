@@ -12,13 +12,14 @@
  * plus the accepted places from the waitlist desk. The POS door opens the
  * Front desk mode when the workspace has it on.
  *
- * NOT WIRED, said on the control (D-POS-18): Substitute instructor (no
- * instructor is stored on a session), Move participant (no move between
- * sessions exists; a refund and a new ticket is the engine's path), Cancel
- * session (no session cancel writer), the Future sessions / Entire series
- * scopes (the series edit plan exists, `planSeriesEdit`, but no writer applies
- * it). Equipment positions and cancellation rules are not modelled, and the
- * facts card says so rather than inventing a value.
+ * WIRED THIS PASS (Package 2, D-POS-119): Substitute instructor
+ * (`sessionSetInstructorAction`, the session's `instructor_user_id`), Move
+ * participant (`sessionMoveParticipantAction`, seated through the target's
+ * pool), Cancel session (`sessionCancelAction`; paid seats queue refunds and
+ * the note says so), and the three scopes This session / Future sessions /
+ * Entire series, which are the engine's own `scope`. The forms live in
+ * `SessionPanelForms.tsx`. Equipment positions and cancellation rules are not
+ * modelled, and the facts card says so rather than inventing a value.
  */
 
 import { useEffect, useState } from "react";
@@ -34,38 +35,24 @@ import type { WaitlistView } from "@/lib/scheduling/waitlist-desk";
 import { useAdminShell } from "../state";
 import type { SessionRow } from "./appointments-classes-model";
 import { ActionButton, BUTTON_PRIMARY, CARD, FactRow, INPUT, Outcome, SectionLabel, Segmented } from "./appointments-classes-ui";
+import { whenLine } from "./appointments-format";
+import { CancelSessionForm, MoveParticipantForm, SubstituteForm, type Scope, type StaffOption } from "./SessionPanelForms";
 
 const K = "dashboard.adminAppointments.board.panel";
 
-type Scope = "this" | "future" | "series";
-
-/** "Tue 15 Sep 11:30", the board's order, on the venue's clock. */
-function whenLine(row: SessionRow, locale: string): string {
-  try {
-    const parts = new Intl.DateTimeFormat(locale, {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZone: row.timeZone,
-    }).formatToParts(new Date(row.startsAt));
-    const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-    return `${part("weekday")} ${part("day")} ${part("month").replace(/\.$/, "")} ${part("hour")}:${part("minute")}`;
-  } catch {
-    return row.startsAt;
-  }
-}
+type OpenForm = "capacity" | "substitute" | "move" | "cancel" | null;
 
 export function SessionPanel({
   row,
+  rows,
   waitlist,
   tenantId,
   onChanged,
   onOpenWaitlist,
 }: {
   row: SessionRow;
+  /** Every session row the page holds: the move form offers this series' other sessions. */
+  rows: readonly SessionRow[];
   waitlist: WaitlistView | null;
   tenantId: string;
   onChanged: () => void;
@@ -73,13 +60,16 @@ export function SessionPanel({
 }) {
   const t = useT();
   const locale = useDashboardLocale();
-  const { workspacePosEnabled, workspacePosModes, adminBasePath } = useAdminShell();
+  const { workspacePosEnabled, workspacePosModes, adminBasePath, effectiveTeamMembers } = useAdminShell();
+  const staff: StaffOption[] = effectiveTeamMembers.filter((m) => m.status === "active").map((m) => ({ id: m.id, name: m.name }));
+  const instructorName = row.instructorUserId ? (staff.find((s) => s.id === row.instructorUserId)?.name ?? null) : null;
 
   const [participants, setParticipants] = useState<AdmissionRosterEntry[] | null>(null);
   const [participantsError, setParticipantsError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [scope, setScope] = useState<Scope>("this");
-  const [capacityOpen, setCapacityOpen] = useState(false);
+  const [open, setOpen] = useState<OpenForm>(null);
+  const [moveAdmission, setMoveAdmission] = useState<{ id: string; name: string } | null>(null);
   const [capacityValue, setCapacityValue] = useState("");
   const [capacityBusy, setCapacityBusy] = useState(false);
   const [capacityOutcome, setCapacityOutcome] = useState<{ kind: "refused" | "done"; text: string } | null>(null);
@@ -89,7 +79,8 @@ export function SessionPanel({
     setParticipants(null);
     setParticipantsError(null);
     setShowAll(false);
-    setCapacityOpen(false);
+    setOpen(null);
+    setMoveAdmission(null);
     setCapacityOutcome(null);
     setCapacityValue(row.seatsTotal === null ? "" : String(row.seatsTotal));
     loadSessionParticipants(tenantId, row.id).then(
@@ -113,9 +104,10 @@ export function SessionPanel({
   }, [row.id, row.seatsTotal, t, tenantId]);
 
   const accepted = (waitlist?.entries ?? []).filter((e) => e.state === "accepted");
-  const people: Array<{ id: string; name: string; note: string }> = [
+  const people: Array<{ id: string; name: string; note: string; admissionId: string | null }> = [
     ...(participants ?? []).map((p) => ({
       id: p.admissionId,
+      admissionId: p.status === "valid" ? p.admissionId : null,
       name: p.name ?? t(`${K}.unnamedTicket`),
       note:
         p.status !== "valid"
@@ -126,7 +118,7 @@ export function SessionPanel({
               ? interpolate(t(`${K}.ticketParty`), { count: p.partySize })
               : t(`${K}.ticketBooked`),
     })),
-    ...accepted.map((e) => ({ id: e.id, name: e.customerName, note: t(`${K}.fromWaitlist`) })),
+    ...accepted.map((e) => ({ id: e.id, admissionId: null, name: e.customerName, note: t(`${K}.fromWaitlist`) })),
   ];
   const shown = showAll ? people : people.slice(0, 4);
   const hidden = people.length - shown.length;
@@ -134,8 +126,13 @@ export function SessionPanel({
   const posOn = workspacePosEnabled && workspacePosModes.includes("classes");
   const posHref = `${adminBasePath}/pos?mode=classes`;
 
+  const closed = row.state === "cancelled" || row.state === "completed";
+  const toggle = (form: OpenForm) => {
+    setOpen((v) => (v === form ? null : form));
+    setCapacityOutcome(null);
+  };
   const capacityReason =
-    row.state === "cancelled" || row.state === "completed"
+    closed
       ? t(`${K}.capacityOffState`)
       : row.poolCount === 0
         ? t(`${K}.capacityOffNoPool`)
@@ -176,7 +173,7 @@ export function SessionPanel({
     <div data-testid="session-panel" className="flex h-full flex-col gap-[12px] font-admin-body">
       <div>
         <div className="text-[14px] font-semibold text-admin-ink">
-          {row.title || t("dashboard.adminSessions.nights.untitled")} · {whenLine(row, locale)}
+          {row.title || t("dashboard.adminSessions.nights.untitled")} · {whenLine(row.startsAt, row.timeZone, locale)}
         </div>
         <div className="text-[12px] text-admin-ink-muted">
           {row.seriesTitle
@@ -192,6 +189,9 @@ export function SessionPanel({
 
       <div className={`${CARD} px-[14px] py-[12px]`}>
         <FactRow label={t(`${K}.places`)}>{placesLine}</FactRow>
+        <FactRow label={t(`${K}.instructor`)} muted={!instructorName}>
+          {instructorName ?? t(`${K}.instructorUnknown`)}
+        </FactRow>
         <FactRow label={t(`${K}.equipment`)} muted>
           {t(`${K}.equipmentOff`)}
         </FactRow>
@@ -218,9 +218,22 @@ export function SessionPanel({
           </div>
         ) : (
           shown.map((p) => (
-            <div key={p.id} className="flex items-center gap-[8px] rounded-[9px] border border-admin-border bg-admin-card px-[10px] py-[6px] text-[12px]">
+            <div key={p.id} className="flex items-center gap-[8px] rounded-[9px] border border-admin-border bg-admin-card px-[10px] py-[6px] text-[12px]" data-testid="session-participant">
               <span className="flex-1 font-semibold text-admin-ink">{p.name}</span>
               <span className="text-admin-ink-muted">{p.note}</span>
+              {p.admissionId && !closed && row.seriesId ? (
+                <button
+                  type="button"
+                  className="cursor-pointer font-semibold text-admin-brand underline underline-offset-2 hover:text-admin-brand-deep"
+                  data-testid="session-participant-move"
+                  onClick={() => {
+                    setMoveAdmission({ id: p.admissionId!, name: p.name });
+                    setOpen("move");
+                  }}
+                >
+                  {t(`${K}.move`)}
+                </button>
+              ) : null}
             </div>
           ))
         )}
@@ -251,35 +264,50 @@ export function SessionPanel({
         onChange={setScope}
         options={[
           { id: "this", label: t(`${K}.scope.this`) },
-          { id: "future", label: t(`${K}.scope.future`), reason: t(`${K}.scopeOff`) },
-          { id: "series", label: t(`${K}.scope.series`), reason: t(`${K}.scopeOff`) },
+          { id: "future", label: t(`${K}.scope.future`), reason: row.seriesId ? null : t(`${K}.oneOff`) },
+          { id: "series", label: t(`${K}.scope.series`), reason: row.seriesId ? null : t(`${K}.oneOff`) },
         ]}
       />
 
       <div className="grid grid-cols-2 gap-[8px]">
-        <ActionButton reason={t(`${K}.substituteOff`)} size="sm">
+        <ActionButton reason={closed ? t(`${K}.capacityOffState`) : null} size="sm" testId="session-substitute" onClick={() => toggle("substitute")}>
           {t(`${K}.substitute`)}
         </ActionButton>
-        <ActionButton
-          reason={capacityReason}
-          size="sm"
-          testId="session-change-capacity"
-          onClick={() => {
-            setCapacityOpen((v) => !v);
-            setCapacityOutcome(null);
-          }}
-        >
+        <ActionButton reason={capacityReason} size="sm" testId="session-change-capacity" onClick={() => toggle("capacity")}>
           {t(`${K}.changeCapacity`)}
         </ActionButton>
-        <ActionButton reason={t(`${K}.moveOff`)} size="sm">
+        <ActionButton
+          reason={closed ? t(`${K}.capacityOffState`) : !row.seriesId ? t(`${K}.oneOff`) : null}
+          size="sm"
+          testId="session-move-participant"
+          onClick={() => toggle("move")}
+        >
           {t(`${K}.moveParticipant`)}
         </ActionButton>
-        <ActionButton reason={t(`${K}.cancelOff`)} tone="danger" size="sm">
+        <ActionButton reason={closed ? t(`${K}.capacityOffState`) : null} tone="danger" size="sm" testId="session-cancel" onClick={() => toggle("cancel")}>
           {t(`${K}.cancelSession`)}
         </ActionButton>
       </div>
 
-      {capacityOpen && !capacityReason ? (
+      {open === "substitute" ? (
+        <SubstituteForm row={row} scope={scope} staff={staff} onDone={onChanged} onClose={() => setOpen(null)} />
+      ) : null}
+      {open === "move" ? (
+        <MoveParticipantForm
+          row={row}
+          admissionId={moveAdmission?.id ?? null}
+          participantName={moveAdmission?.name ?? null}
+          siblings={rows}
+          onDone={() => {
+            setMoveAdmission(null);
+            onChanged();
+          }}
+          onClose={() => setOpen(null)}
+        />
+      ) : null}
+      {open === "cancel" ? <CancelSessionForm row={row} scope={scope} onDone={onChanged} onClose={() => setOpen(null)} /> : null}
+
+      {open === "capacity" && !capacityReason ? (
         <form
           data-testid="session-capacity-form"
           className={`${CARD} flex flex-col gap-[8px] p-[12px]`}
@@ -305,7 +333,7 @@ export function SessionPanel({
             <button type="submit" disabled={capacityBusy} className={`${BUTTON_PRIMARY} disabled:opacity-60`}>
               {capacityBusy ? t(`${K}.capacitySaving`) : t(`${K}.capacitySave`)}
             </button>
-            <ActionButton onClick={() => setCapacityOpen(false)} disabled={capacityBusy}>
+            <ActionButton onClick={() => setOpen(null)} disabled={capacityBusy}>
               {t(`${K}.capacityClose`)}
             </ActionButton>
           </div>

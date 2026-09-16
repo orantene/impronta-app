@@ -14,6 +14,7 @@ export type EventHoldReason =
   | "conflict"
   | "not_found"
   | "wrong_tenant"
+  | "not_open"
   | "invalid"
   | "unavailable";
 
@@ -27,6 +28,7 @@ const REASONS = new Set<EventHoldReason>([
   "conflict",
   "not_found",
   "wrong_tenant",
+  "not_open",
   "invalid",
 ]);
 
@@ -74,11 +76,41 @@ export async function admissionHoldSeats(
     p_operation_key: input.operationKey.trim(),
   });
   if (!r.ok) return r;
+  const ids = Array.isArray(r.payload.ids) ? (r.payload.ids as unknown[]).map(String) : [];
   return {
     ok: true as const,
-    id: String(r.payload.id ?? ""),
+    id: String(r.payload.id ?? ids[0] ?? ""),
+    /** Every hold row this call owns, one per seat. The purchase consumes them all. */
+    ids: ids.length > 0 ? ids : [String(r.payload.id ?? "")].filter(Boolean),
     expiresAt: String(r.payload.expires_at ?? ""),
     already: r.payload.already === true,
+  };
+}
+
+/**
+ * Bind live seat holds to the purchase that pays for them (migration
+ * 20261231238000). Refuses `hold_expired` when any hold lapsed, `seat_taken`
+ * when another order already owns one, `not_open` when the order is closed.
+ * All or nothing: a refusal binds no seat.
+ */
+export async function admissionHoldConsume(
+  admin: VenueAdmin,
+  input: { tenantId: string; holdIds: string[]; orderId: string },
+) {
+  if (input.holdIds.length < 1 || input.holdIds.length > 40) {
+    return { ok: false as const, reason: "invalid" as const };
+  }
+  const r = await call(admin, "admission_hold_consume", {
+    p_tenant_id: input.tenantId,
+    p_hold_ids: input.holdIds,
+    p_order_id: input.orderId,
+  });
+  if (!r.ok) return r;
+  return {
+    ok: true as const,
+    converted: Array.isArray(r.payload.converted) ? (r.payload.converted as unknown[]).map(String) : [],
+    already: r.payload.already === true,
+    expiresAt: typeof r.payload.expires_at === "string" ? r.payload.expires_at : null,
   };
 }
 

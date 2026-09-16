@@ -1,4 +1,7 @@
 {
+  "regions": [
+    "cle1"
+  ],
   "functions": {
     "src/app/api/cron/domain-verification/route.ts": {
       "maxDuration": 60

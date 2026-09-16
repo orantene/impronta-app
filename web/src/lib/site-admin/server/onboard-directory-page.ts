@@ -19,7 +19,7 @@
  * row is a no-op (returns the existing id). Safe to re-run / backfill.
  */
 
-import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import {
   getSectionType,

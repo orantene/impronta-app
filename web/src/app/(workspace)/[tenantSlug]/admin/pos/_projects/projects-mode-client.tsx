@@ -329,6 +329,15 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
             onKeypadPress={(key) => { setTenderedCents((current) => tenderAfterKey(current, tenderTouched, key)); setTenderTouched(true); }}
             onTender={(cents) => { setTenderedCents(cents); setTenderTouched(true); }}
             onConfirmCash={() => void collect("cash")}
+            offlineCash={{
+              orderId: verdict.orderId,
+              operationKey: posCollectionKey({
+                orderId: verdict.orderId,
+                version: orderFacts.find((o) => o.orderId === verdict.orderId)?.version ?? 0,
+                method: "cash",
+                amountCents: amountDueCents,
+              }),
+            }}
             linkPanel={
               <ProjectsLinkPanel
                 orderId={verdict.orderId}

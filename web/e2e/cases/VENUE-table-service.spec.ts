@@ -190,6 +190,14 @@ test("VENUE-OP: walk-in booked, seated, fed, amended, collected and the table ha
   await expect(walkInSheet.locator('[data-floor-walkin-fit="T2"]'), "a two-top must not be offered to a party of three").toHaveCount(0);
   await expect(walkInSheet.locator('[data-floor-walkin-fit="T4"]')).toBeVisible();
   await walkInSheet.locator("[data-floor-walkin-waitlist]").click();
+  // After the fidelity re-skin the walk-in sheet leaves a POS overlay up;
+  // the Waiting tab is in the page behind it and cannot be clicked until
+  // the overlay is dismissed. Same end state: the party on tonight's book.
+  const overlayClose = page.locator('[data-pos-overlay] [aria-label="Close"]');
+  if (await overlayClose.isVisible().catch(() => false)) {
+    await overlayClose.click();
+  }
+  await expect(walkInSheet).toHaveCount(0, { timeout: 20_000 });
 
   // The party lands on tonight's book: on the Waiting list (here, no table yet).
   await page.getByRole("tab", { name: /^waiting/i }).click();

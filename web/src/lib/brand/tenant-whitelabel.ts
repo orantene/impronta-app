@@ -3,7 +3,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { tagFor } from "@/lib/site-admin";
+import { tagFor } from "@/lib/site-admin/cache-tags";
 import { logServerError } from "@/lib/server/safe-error";
 import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 

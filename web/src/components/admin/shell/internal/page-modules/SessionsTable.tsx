@@ -13,9 +13,10 @@
  * `session-open-waitlist` door in its seats cell ("N waiting"), because this
  * is where somebody notices a class is full.
  *
- * NOT WIRED, said on the control: the Room and Instructor chips are drawn
- * disabled when the engine has nothing to filter by (no instructor is stored
- * on a session; rooms come from the sessions' own venues).
+ * INSTRUCTOR is `sessions.instructor_user_id`, named through the shell's team
+ * list, and the Instructor chip filters by it. NOT WIRED, said on the
+ * control: the Room chip (rooms are not stored on a session; sessions carry a
+ * venue, which the Location chip reads).
  */
 
 import type { ReactNode } from "react";
@@ -99,11 +100,14 @@ export function SessionsTable({
   view,
   anchorYmd,
   room,
+  instructor,
+  staff,
   attentionOnly,
   selectedId,
   onView,
   onAnchor,
   onRoom,
+  onInstructor,
   onAttention,
   onSelect,
   onOpenWaitlist,
@@ -113,11 +117,15 @@ export function SessionsTable({
   view: SessionsView;
   anchorYmd: string;
   room: string | null;
+  /** A staff user id, or null for any. */
+  instructor: string | null;
+  staff: ReadonlyArray<{ id: string; name: string }>;
   attentionOnly: boolean;
   selectedId: string | null;
   onView: (v: SessionsView) => void;
   onAnchor: (ymd: string) => void;
   onRoom: (room: string | null) => void;
+  onInstructor: (userId: string | null) => void;
   onAttention: (on: boolean) => void;
   onSelect: (id: string) => void;
   onOpenWaitlist: (id: string) => void;
@@ -125,7 +133,9 @@ export function SessionsTable({
   const t = useT();
   const locale = useDashboardLocale();
   const rooms = roomsOf(rows);
-  const visible = filterRows(rows, { view, anchorYmd, room, attentionOnly });
+  const nameOf = (userId: string | null) => (userId ? (staff.find((m) => m.id === userId)?.name ?? null) : null);
+  const instructorIds = [...new Set(rows.map((r) => r.instructorUserId).filter((id): id is string => id !== null))];
+  const visible = filterRows(rows, { view, anchorYmd, room, instructor, attentionOnly });
   const groups = groupByDay(visible);
   const step = view === "day" ? 1 : 7;
 
@@ -210,10 +220,10 @@ export function SessionsTable({
         />
         <FilterChip
           label={t(`${K}.filter.instructor`)}
-          value="any"
-          onChange={() => undefined}
-          options={[{ id: "any", label: t(`${K}.filter.any`) }]}
-          reason={t(`${K}.filter.instructorOff`)}
+          value={instructor ?? "any"}
+          onChange={(id) => onInstructor(id === "any" ? null : id)}
+          options={[{ id: "any", label: t(`${K}.filter.any`) }, ...instructorIds.map((id) => ({ id, label: nameOf(id) ?? id.slice(0, 8) }))]}
+          reason={instructorIds.length === 0 ? t(`${K}.filter.instructorNone`) : null}
         />
         <ToggleChip label={t(`${K}.filter.attention`)} on={attentionOnly} onChange={onAttention} />
       </div>
@@ -268,6 +278,7 @@ export function SessionsTable({
                   seatsCell={seatsCell}
                   stateLabel={(s) => t(`${K}.state.${s}`)}
                   menuLabel={t(`${K}.rowMenu`)}
+                  instructorOf={(row) => nameOf(row.instructorUserId) ?? "—"}
                   sessionLine={(row) =>
                     row.seriesIndex !== null && row.seriesCount !== null
                       ? interpolate(t(`${K}.sessionOf`), { title: row.title, n: row.seriesIndex, of: row.seriesCount })
@@ -292,6 +303,7 @@ function DayGroup({
   seatsCell,
   stateLabel,
   menuLabel,
+  instructorOf,
   sessionLine,
 }: {
   heading: string;
@@ -302,6 +314,7 @@ function DayGroup({
   seatsCell: (row: SessionRow) => ReactNode;
   stateLabel: (s: SessionRowState) => string;
   menuLabel: string;
+  instructorOf: (row: SessionRow) => string;
   sessionLine: (row: SessionRow) => string;
 }) {
   return (
@@ -327,7 +340,7 @@ function DayGroup({
                 <span className="font-mono text-admin-ink-muted">{clock(row.startsAt, row.timeZone, locale)}</span>
                 <span className="font-semibold text-admin-ink [overflow-wrap:anywhere]">{sessionLine(row)}</span>
                 <span className="truncate text-admin-ink-muted">{row.room ?? "—"}</span>
-                <span className="text-admin-ink-muted">—</span>
+                <span className="truncate text-admin-ink-muted">{instructorOf(row)}</span>
                 <span className="text-admin-ink">{seatsCell(row)}</span>
                 {/* A grid cell, so the pill stretches to the column as the board draws it. */}
                 <StatePill tone={STATE_TONE[row.state]} state={row.state} className="justify-start">

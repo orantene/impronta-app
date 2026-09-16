@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
-import { tagFor } from "@/lib/site-admin";
+import { tagFor } from "@/lib/site-admin/cache-tags";
 import { readTenantPageRoles, writeTenantPageRole } from "@/lib/site-admin/server/page-roles";
 import type { PageRole, TenantPageRoles } from "@/lib/site-admin/server/page-roles-shape";
 import { EMPTY_PAGE_ROLES, PAGE_ROLES } from "@/lib/site-admin/server/page-roles-shape";

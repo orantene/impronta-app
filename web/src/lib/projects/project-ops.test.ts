@@ -65,3 +65,15 @@ test("project ops SQL stamps amount_cents and file_path", () => {
   assert.match(sql, /file_path/);
   assert.match(sql, /project_archive/);
 });
+
+test("replace talent SQL rewrites talent_name_snapshot from the incoming profile", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "..", "supabase", "migrations", "20261231234000_project_replace_talent_name_snapshot.sql"),
+    "utf8",
+  );
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.project_replace_talent/);
+  assert.match(sql, /talent_name_snapshot/);
+  assert.match(sql, /display_name/);
+  assert.match(sql, /SET talent_profile_id = p_to_talent,/);
+  assert.match(sql, /talent_name_snapshot = COALESCE\(v_name/);
+});
