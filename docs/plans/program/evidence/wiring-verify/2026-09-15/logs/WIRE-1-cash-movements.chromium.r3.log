@@ -1,0 +1,51 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:26:5 › WIRE-1.11 Cash paid in/out/drop and close note
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:26:5 › WIRE-1.11 Cash paid in/out/drop and close note 
+
+    [31mTest timeout of 240000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 240000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('[data-pos-movement-confirm]')[22m
+    [2m    - locator resolved to <button disabled type="button" data-pos-movement-confirm="true" class="inline-flex h-14 items-center justify-center gap-2 whitespace-nowrap rounded-[14px] border-[1.5px] border-admin-brand bg-admin-brand px-6 text-[17px] font-semibold text-admin-card transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand focus-visible:ring-offset-2 focus-visible:ring-offset-admin-surface disabled:cursor-not-allowed disabled:opacity-40">Record $10.00</button>[22m
+    [2m  - attempting click action[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    452 × waiting for element to be visible, enabled and stable[22m
+    [2m        - element is not enabled[22m
+    [2m      - retrying click action[22m
+    [2m        - waiting 500ms[22m
+
+
+      18 |   await page.locator(`[data-pos-movement='${kind}']`).click();
+      19 |   await pressKeypad(page, digits);
+    > 20 |   await page.locator("[data-pos-movement-confirm]").click();
+         |                                                     ^
+      21 |   await expect(page.locator(`[data-pos-movement-row='${kind}']`).first()).toBeVisible({
+      22 |     timeout: 20_000,
+      23 |   });
+        at recordMovement (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-cash-movements.spec.ts:20:53)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-cash-movements.spec.ts:32:3
+
+    Error Context: ../../pw-out/WIRE-1-cash-movements.chromium.r3/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-cash-movements.chromium.r3/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-cash-movements.chromium.r3/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:26:5 › WIRE-1.11 Cash paid in/out/drop and close note 
+exit=1

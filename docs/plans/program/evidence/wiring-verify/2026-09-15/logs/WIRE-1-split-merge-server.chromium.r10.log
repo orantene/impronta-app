@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check
+[1A[2K  1 passed (41.5s)
+exit=0

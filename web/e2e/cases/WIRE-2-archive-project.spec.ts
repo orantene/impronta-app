@@ -47,6 +47,26 @@ test("WIRE-2.10 Project › Close archives with a reason and refuses a live reop
       )
       .toBe("archived:WIRE-2.10");
 
+    // Reopen the archived one: status transitions back to confirmed (project_reopen).
+    await page.goto(`/admin/projects/${done.bookingId}`);
+    await openCloseSheet(page);
+    const reopenDone = page.locator("[data-project-close-option='reopen']");
+    await expect(reopenDone).toBeVisible({ timeout: 20_000 });
+    await expect(reopenDone).toBeEnabled();
+    await reopenDone.click();
+    const reopenReason = page.locator("textarea").first();
+    if (await reopenReason.isVisible().catch(() => false)) await reopenReason.fill("WIRE-2.10 reopened");
+    await page.locator("[data-project-close-confirm='reopen']").click();
+    await expect
+      .poll(
+        async () => {
+          const { data } = await sb.from("agency_bookings").select("status").eq("id", done.bookingId).maybeSingle();
+          return (data as { status: string } | null)?.status ?? null;
+        },
+        { timeout: 20_000 },
+      )
+      .toBe("confirmed");
+
     // A live project cannot be reopened: the option is refused, in words.
     await page.goto(`/admin/projects/${live.bookingId}`);
     await openCloseSheet(page);

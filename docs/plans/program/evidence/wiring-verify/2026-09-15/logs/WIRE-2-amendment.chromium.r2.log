@@ -1,0 +1,32 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-amendment.spec.ts:61:5 › WIRE-2.8 Agreement: a stale send is refused, a fresh send goes out, a draft can be discarded
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-amendment.spec.ts:61:5 › WIRE-2.8 Agreement: a stale send is refused, a fresh send goes out, a draft can be discarded 
+
+    Error: seedDraft: duplicate key value violates unique constraint "inquiry_offers_one_active_offer"
+
+      55 |     .select("id")
+      56 |     .single();
+    > 57 |   if (error || !data) throw new Error(`seedDraft: ${error?.message ?? "none"}`);
+         |                             ^
+      58 |   return (data as { id: string }).id;
+      59 | }
+      60 |
+        at seedDraft (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-amendment.spec.ts:57:29)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-amendment.spec.ts:66:18
+
+    Error Context: ../../pw-out/WIRE-2-amendment.chromium.r2/cases-WIRE-2-amendment-WIR-e9160-ut-a-draft-can-be-discarded-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-amendment.chromium.r2/cases-WIRE-2-amendment-WIR-e9160-ut-a-draft-can-be-discarded-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-amendment.chromium.r2/cases-WIRE-2-amendment-WIR-e9160-ut-a-draft-can-be-discarded-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-amendment.spec.ts:61:5 › WIRE-2.8 Agreement: a stale send is refused, a fresh send goes out, a draft can be discarded 
+exit=1

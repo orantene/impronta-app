@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-milestone.spec.ts:15:5 › WIRE-2.9 Milestones: the amount lands as cents and a file lands as file_path
+[1A[2K  1 passed (15.3s)
+exit=0

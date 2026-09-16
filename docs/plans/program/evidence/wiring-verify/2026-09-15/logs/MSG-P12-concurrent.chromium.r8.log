@@ -1,0 +1,59 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell
+[1A[2K  1) [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell 
+
+    [31mTest timeout of 240000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 240000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('[data-pos-messages] li button').nth(2)[22m
+    [2m    - locator resolved to <button type="button" class="flex min-w-0 flex-1 gap-3 text-left">…</button>[22m
+    [2m  - attempting click action[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is visible, enabled and stable[22m
+    [2m      - scrolling into view if needed[22m
+    [2m      - done scrolling[22m
+    [2m      - <button type="button" tabindex="-1" aria-label="Cancel" class="absolute inset-0 bg-admin-ink/45"></button> from <div data-pos-overlay="true" class="absolute inset-0 z-20 flex justify-end">…</div> subtree intercepts pointer events[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is visible, enabled and stable[22m
+    [2m      - scrolling into view if needed[22m
+    [2m      - done scrolling[22m
+    [2m      - <button type="button" tabindex="-1" aria-label="Cancel" class="absolute inset-0 bg-admin-ink/45"></button> from <div data-pos-overlay="true" class="absolute inset-0 z-20 flex justify-end">…</div> subtree intercepts pointer events[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    336 × waiting for element to be visible, enabled and stable[22m
+    [2m        - element is visible, enabled and stable[22m
+    [2m        - scrolling into view if needed[22m
+    [2m        - done scrolling[22m
+    [2m        - <button type="button" tabindex="-1" aria-label="Cancel" class="absolute inset-0 bg-admin-ink/45"></button> from <div data-pos-overlay="true" class="absolute inset-0 z-20 flex justify-end">…</div> subtree intercepts pointer events[22m
+    [2m      - retrying click action[22m
+    [2m        - waiting 500ms[22m
+
+
+      29 |     const row = other.locator("[data-pos-messages] li button").nth(i);
+      30 |     if ((await row.count()) === 0) break;
+    > 31 |     await row.click();
+         |               ^
+      32 |     await expect(other.locator("[data-pos-messages='thread']")).toBeVisible({ timeout: 20_000 });
+      33 |     found = await other
+      34 |       .getByText(marker, { exact: true })
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/MSG-P12-concurrent.spec.ts:31:15
+
+    Error Context: ../../pw-out/MSG-P12-concurrent.chromium.r8/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/MSG-P12-concurrent.chromium.r8/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/MSG-P12-concurrent.chromium.r8/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell 
+exit=1

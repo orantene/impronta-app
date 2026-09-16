@@ -1,0 +1,50 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-amendment.spec.ts:17:5 › WIRE-2.8 Project › Agreement send and discard
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-amendment.spec.ts:17:5 › WIRE-2.8 Project › Agreement send and discard 
+
+    [31mTest timeout of 240000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 240000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('a[href*=\'/admin/projects/\']').first()[22m
+    [2m    - locator resolved to <a href="/qa-journeys/admin/projects/1fc363a2-fa19-4bdd-aa80-a2e73315e73e" class="hidden w-full items-center gap-2.5 border-admin-border-soft px-3.5 py-3 text-left no-underline max-[720px]:flex border-t first:border-t">…</a>[22m
+    [2m  - attempting click action[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not visible[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not visible[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    453 × waiting for element to be visible, enabled and stable[22m
+    [2m        - element is not visible[22m
+    [2m      - retrying click action[22m
+    [2m        - waiting 500ms[22m
+
+
+      21 |   const project = page.locator("a[href*='/admin/projects/']").first();
+      22 |   test.skip((await project.count()) === 0, "failed-fixture: no project");
+    > 23 |   await project.click();
+         |                 ^
+      24 |   const send = page.getByRole("button", { name: /send/i }).first();
+      25 |   const discard = page.getByRole("button", { name: /discard/i }).first();
+      26 |   test.skip((await send.count()) + (await discard.count()) === 0, "failed-fixture: no amendment controls");
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-amendment.spec.ts:23:17
+
+    Error Context: ../../pw-out/WIRE-2-amendment.chromium.r1/cases-WIRE-2-amendment-WIR-5e1ca--Agreement-send-and-discard-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-amendment.chromium.r1/cases-WIRE-2-amendment-WIR-5e1ca--Agreement-send-and-discard-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-amendment.chromium.r1/cases-WIRE-2-amendment-WIR-5e1ca--Agreement-send-and-discard-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-amendment.spec.ts:17:5 › WIRE-2.8 Project › Agreement send and discard 
+exit=1

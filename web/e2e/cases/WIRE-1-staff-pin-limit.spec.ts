@@ -15,8 +15,11 @@ import {
   VIEWER_EMAIL,
   WIRE_SENTENCE,
   assertEnglishRefusal,
+  clickSettingsNav,
+  openPersonPinBox,
   ownerUserId,
   readCustomAmountLimitCents,
+  readStaffPinHashes,
   staffPinIsHashed,
 } from "./_wire";
 
@@ -27,15 +30,17 @@ test("WIRE-1.3 owner sets a PIN and the custom-amount limit; viewer is refused",
   await prepareJourneysPage(page);
 
   await signInJourneysStaff(page, `/${JOURNEYS_SLUG}/admin/people`, VIEWER_EMAIL);
-  const viewerPin = page.locator("[data-people-register-pin]").first();
-  await expect(viewerPin).toBeVisible({ timeout: 30_000 });
+  const pinsBefore = await readStaffPinHashes();
+  const viewerPin = await openPersonPinBox(page, /QA Journeys Owner/);
   await viewerPin.locator("input").fill(OWNER_PIN);
   await viewerPin.locator("[data-people-pin-save]").click();
-  await assertEnglishRefusal(page, WIRE_SENTENCE.notManager);
+  // A viewer is stopped at the capability gate (`not_allowed`), before the
+  // engine's `not_manager`; the contract says only "Owner/manager only".
+  await assertEnglishRefusal(page, WIRE_SENTENCE.notAllowed);
+  expect(await readStaffPinHashes(), "a refused PIN must not change any hash").toEqual(pinsBefore);
 
   await signInJourneysStaff(page, `/${JOURNEYS_SLUG}/admin/people`);
-  const pinBox = page.locator("[data-people-register-pin]").first();
-  await expect(pinBox).toBeVisible({ timeout: 30_000 });
+  const pinBox = await openPersonPinBox(page, /QA Journeys Owner/);
   await pinBox.locator("input").fill(OWNER_PIN);
   await pinBox.locator("[data-people-pin-save]").click();
   await expect(page.getByRole("status").filter({ hasText: /saved|set/i }).first()).toBeVisible({
@@ -45,9 +50,8 @@ test("WIRE-1.3 owner sets a PIN and the custom-amount limit; viewer is refused",
   expect(await staffPinIsHashed(userId), "PIN must be stored hashed").toBe(true);
 
   await signInJourneysStaff(page, `/${JOURNEYS_SLUG}/admin/settings`);
-  await page.getByRole("button", { name: /roles & limits/i }).click();
   const limit = page.getByTestId("custom-amount-limit");
-  await expect(limit).toBeVisible({ timeout: 20_000 });
+  await clickSettingsNav(page, "Roles & limits", limit);
   await limit.locator("#custom-amount-limit").fill("50");
   await limit.getByTestId("custom-amount-limit-save").click();
   await expect(limit.getByText(/saved|current/i).first()).toBeVisible({ timeout: 20_000 });

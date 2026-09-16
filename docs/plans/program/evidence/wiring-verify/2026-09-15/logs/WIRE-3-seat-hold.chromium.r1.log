@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-seat-hold.spec.ts:19:5 › WIRE-3.7 event seat hold and seat_taken
+[1A[2K  1 passed (10.3s)
+exit=0

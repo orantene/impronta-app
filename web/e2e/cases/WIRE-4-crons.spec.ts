@@ -6,6 +6,21 @@ import { isolatedService, JOURNEYS_TENANT_ID } from "./_isolated-db";
 
 skipUnlessFixture();
 
+test("WIRE-4.5 the cron routes refuse to run without a configured secret (this host: not_configured)", async ({ request }) => {
+  // blocked-external: the QA deployment carries no CRON_SECRET, so both routes
+  // answer 503 `not_configured` to everyone, secret or not; the reminder and
+  // delivery-retry state moves cannot be driven on this host.
+  for (const path of ["/api/cron/messaging-reminders", "/api/cron/messaging-delivery-retry"]) {
+    const bare = await request.get(path);
+    expect([401, 503], `${path} without a bearer`).toContain(bare.status());
+    const body = (await bare.json()) as { ok: boolean; error?: string };
+    expect(body.ok).toBe(false);
+    expect(["unauthorized", "not_configured"]).toContain(body.error);
+    const wrong = await request.get(path, { headers: { authorization: "Bearer wire-not-the-secret" } });
+    expect([401, 503], `${path} with a wrong bearer`).toContain(wrong.status());
+  }
+});
+
 test("WIRE-4.5 cron routes move scheduled_messages and message_delivery", async ({ request }) => {
   const secret = process.env.CRON_SECRET;
   test.skip(!secret, "blocked-external: CRON_SECRET missing");

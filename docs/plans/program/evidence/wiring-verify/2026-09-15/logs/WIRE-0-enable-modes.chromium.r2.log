@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-0-enable-modes.spec.ts:14:5 › WIRE-0: every POS mode is on for the fixture
+[1A[2K  1 passed (12.6s)
+exit=0

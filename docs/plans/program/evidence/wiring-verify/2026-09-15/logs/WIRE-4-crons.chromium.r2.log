@@ -1,0 +1,38 @@
+
+Running 2 tests using 1 worker
+
+[1A[2K[1/2] [chromium] › e2e/cases/WIRE-4-crons.spec.ts:9:5 › WIRE-4.5 the cron routes refuse a missing or wrong bearer
+[1A[2K  1) [chromium] › e2e/cases/WIRE-4-crons.spec.ts:9:5 › WIRE-4.5 the cron routes refuse a missing or wrong bearer 
+
+    Error: /api/cron/messaging-reminders without a bearer
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoContain[2m([22m[32mexpected[39m[2m) // indexOf[22m
+
+    Expected value: [32m503[39m
+    Received array: [31m[401, 403][39m
+
+      10 |   for (const path of ["/api/cron/messaging-reminders", "/api/cron/messaging-delivery-retry"]) {
+      11 |     const bare = await request.get(path);
+    > 12 |     expect([401, 403], `${path} without a bearer`).toContain(bare.status());
+         |                                                    ^
+      13 |     const wrong = await request.get(path, { headers: { authorization: "Bearer wire-not-the-secret" } });
+      14 |     expect([401, 403], `${path} with a wrong bearer`).toContain(wrong.status());
+      15 |   }
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-4-crons.spec.ts:12:52
+
+    Error Context: ../../pw-out/WIRE-4-crons.chromium.r2/cases-WIRE-4-crons-WIRE-4--d4651-e-a-missing-or-wrong-bearer-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-4-crons.chromium.r2/cases-WIRE-4-crons-WIRE-4--d4651-e-a-missing-or-wrong-bearer-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-4-crons.chromium.r2/cases-WIRE-4-crons-WIRE-4--d4651-e-a-missing-or-wrong-bearer-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K[2/2] [chromium] › e2e/cases/WIRE-4-crons.spec.ts:18:5 › WIRE-4.5 cron routes move scheduled_messages and message_delivery
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-4-crons.spec.ts:9:5 › WIRE-4.5 the cron routes refuse a missing or wrong bearer 
+  1 skipped
+exit=1

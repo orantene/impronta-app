@@ -1,0 +1,42 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-party-waitlist.spec.ts:46:5 › WIRE-3.2 waiting list: join, offer, seat on T5, refuse a taken table, leave
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-party-waitlist.spec.ts:46:5 › WIRE-3.2 waiting list: join, offer, seat on T5, refuse a taken table, leave 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-floor-waiting="8b873730-615c-4f1b-80c2-7bf60da91a96"]').first()
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for locator('[data-floor-waiting="8b873730-615c-4f1b-80c2-7bf60da91a96"]').first()[22m
+
+
+      38 | async function openWaitingSheet(page: Page, entryId: string) {
+      39 |   const row = page.locator(`[data-floor-waiting="${entryId}"]`).first();
+    > 40 |   await expect(row).toBeVisible({ timeout: 20_000 });
+         |                     ^
+      41 |   await row.click();
+      42 |   await expect(page.locator('[data-pos-sheet="waiting"]')).toBeVisible({ timeout: 20_000 });
+      43 |   return page.locator(`[data-pos-sheet="waiting"] li[data-floor-waiting="${entryId}"]`);
+        at openWaitingSheet (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-party-waitlist.spec.ts:40:21)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-party-waitlist.spec.ts:65:20
+
+    Error Context: ../../pw-out/WIRE-3-party-waitlist.chromium.r2/cases-WIRE-3-party-waitlis-597ae--refuse-a-taken-table-leave-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-party-waitlist.chromium.r2/cases-WIRE-3-party-waitlis-597ae--refuse-a-taken-table-leave-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-party-waitlist.chromium.r2/cases-WIRE-3-party-waitlis-597ae--refuse-a-taken-table-leave-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-3-party-waitlist.spec.ts:46:5 › WIRE-3.2 waiting list: join, offer, seat on T5, refuse a taken table, leave 
+exit=1

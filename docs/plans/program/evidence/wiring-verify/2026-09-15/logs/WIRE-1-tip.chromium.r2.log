@@ -1,0 +1,36 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-tip.spec.ts:20:5 › WIRE-1.6 basket tip writes tip_cents and refuses after collection
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-tip.spec.ts:20:5 › WIRE-1.6 basket tip writes tip_cents and refuses after collection 
+
+    [31mTest timeout of 240000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 240000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('[data-pos-open-tip]')[22m
+
+
+      45 |   expect(paid.tipCents).toBe(beforePay.tipCents);
+      46 |
+    > 47 |   await page.locator("[data-pos-open-tip]").click();
+         |                                             ^
+      48 |   await page.locator("[data-pos-tip-confirm]").click();
+      49 |   await assertEnglishRefusal(page, WIRE_SENTENCE.alreadyCollected);
+      50 |   expect((await readOrder(orderId)).tipCents).toBe(beforePay.tipCents);
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-tip.spec.ts:47:45
+
+    Error Context: ../../pw-out/WIRE-1-tip.chromium.r2/cases-WIRE-1-tip-WIRE-1-6--9e04a-nd-refuses-after-collection-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-tip.chromium.r2/cases-WIRE-1-tip-WIRE-1-6--9e04a-nd-refuses-after-collection-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-tip.chromium.r2/cases-WIRE-1-tip-WIRE-1-6--9e04a-nd-refuses-after-collection-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-tip.spec.ts:20:5 › WIRE-1.6 basket tip writes tip_cents and refuses after collection 
+exit=1

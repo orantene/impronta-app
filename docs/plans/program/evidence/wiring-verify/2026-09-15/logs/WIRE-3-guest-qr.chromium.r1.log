@@ -1,0 +1,35 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-guest-qr.spec.ts:16:5 › WIRE-3.6 /visit/<token>/bill shows the bill, then refuses once the visit is closed
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-guest-qr.spec.ts:16:5 › WIRE-3.6 /visit/<token>/bill shows the bill, then refuses once the visit is closed 
+
+    Error: seedVisit/visits: duplicate key value violates unique constraint "visits_one_open_per_space"
+
+       at cases/_wire-seed.ts:48
+
+      46 |
+      47 | function must<T>(label: string, r: { data: T | null; error: { message: string } | null }): T {
+    > 48 |   if (r.error) throw new Error(`${label}: ${r.error.message}`);
+         |                      ^
+      49 |   if (r.data == null) throw new Error(`${label}: no row`);
+      50 |   return r.data;
+      51 | }
+        at must (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire-seed.ts:48:22)
+        at seedVisit (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire-seed.ts:328:15)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-guest-qr.spec.ts:18:17
+
+    Error Context: ../../pw-out/WIRE-3-guest-qr.chromium.r1/cases-WIRE-3-guest-qr-WIRE-60cda-es-once-the-visit-is-closed-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-guest-qr.chromium.r1/cases-WIRE-3-guest-qr-WIRE-60cda-es-once-the-visit-is-closed-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-guest-qr.chromium.r1/cases-WIRE-3-guest-qr-WIRE-60cda-es-once-the-visit-is-closed-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-3-guest-qr.spec.ts:16:5 › WIRE-3.6 /visit/<token>/bill shows the bill, then refuses once the visit is closed 
+exit=1

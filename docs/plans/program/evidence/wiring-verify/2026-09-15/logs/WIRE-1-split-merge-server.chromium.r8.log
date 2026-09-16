@@ -1,0 +1,35 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check 
+
+    Error: booking_transactions: invalid status transition from draft to paid
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeNull[2m()[22m
+
+    Received: [31m{"code": "P0001", "details": null, "hint": null, "message": "booking_transactions: invalid status transition from draft to paid"}[39m
+
+      172 |     .update({ status: "paid", paid_at: new Date().toISOString() })
+      173 |     .eq("id", partialId);
+    > 174 |   expect(paidPartial.error, paidPartial.error?.message).toBeNull();
+          |                                                         ^
+      175 |
+      176 |   try {
+      177 |     await page.goto("/admin/pos?mode=floor");
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-split-merge-server.spec.ts:174:57
+
+    Error Context: ../../pw-out/WIRE-1-split-merge-server.chromium.r8/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-split-merge-server.chromium.r8/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-split-merge-server.chromium.r8/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check 
+exit=1

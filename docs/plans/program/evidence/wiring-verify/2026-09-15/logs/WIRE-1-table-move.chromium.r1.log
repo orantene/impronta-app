@@ -1,0 +1,52 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-table-move.spec.ts:35:5 › WIRE-1.8 Tables › Move changes visits.space_id and refuses a stale version
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-table-move.spec.ts:35:5 › WIRE-1.8 Tables › Move changes visits.space_id and refuses a stale version 
+
+    [31mTest timeout of 300000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 300000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('[data-floor-move-to="T4"]')[22m
+    [2m    - locator resolved to <button disabled role="radio" type="button" aria-checked="false" data-floor-move-to="T4" class="flex min-h-[82px] w-full flex-col items-center justify-center gap-0.5 rounded-[14px] border-[1.5px] px-2 text-center transition-colors disabled:cursor-not-allowed border-admin-border bg-admin-card text-admin-ink-dim">…</button>[22m
+    [2m  - attempting click action[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    555 × waiting for element to be visible, enabled and stable[22m
+    [2m        - element is not enabled[22m
+    [2m      - retrying click action[22m
+    [2m        - waiting 500ms[22m
+
+
+      79 |   await page.locator('[data-floor-change="move"] button').click();
+      80 |   await expect(page.locator('[data-pos-sheet="move-party"]')).toBeVisible();
+    > 81 |   await page.locator('[data-floor-move-to="T4"]').click();
+         |                                                   ^
+      82 |   await page.locator("[data-floor-move-confirm]").click();
+      83 |   const refusal = page.locator("[data-floor-refusal]");
+      84 |   if ((await refusal.count()) > 0) {
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-table-move.spec.ts:81:51
+
+    Error Context: ../../pw-out/WIRE-1-table-move.chromium.r1/cases-WIRE-1-table-move-WI-2c440-and-refuses-a-stale-version-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-table-move.chromium.r1/cases-WIRE-1-table-move-WI-2c440-and-refuses-a-stale-version-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-table-move.chromium.r1/cases-WIRE-1-table-move-WI-2c440-and-refuses-a-stale-version-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  Slow test file: [chromium] › e2e/cases/WIRE-1-table-move.spec.ts (5.0m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 failed
+    [chromium] › e2e/cases/WIRE-1-table-move.spec.ts:35:5 › WIRE-1.8 Tables › Move changes visits.space_id and refuses a stale version 
+exit=1

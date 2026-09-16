@@ -1,0 +1,44 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-devices.spec.ts:16:5 › WIRE-3.10 Settings › POS › Devices and Connection sync
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-devices.spec.ts:16:5 › WIRE-3.10 Settings › POS › Devices and Connection sync 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('That command cannot be saved offline.', { exact: true }).first()
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for getByText('That command cannot be saved offline.', { exact: true }).first()[22m
+
+
+       at cases/_wire.ts:104
+
+      102 |
+      103 | export async function assertEnglishRefusal(page: Page, sentence: string): Promise<void> {
+    > 104 |   await expect(page.getByText(sentence, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+          |                                                                   ^
+      105 | }
+      106 |
+      107 | /**
+        at assertEnglishRefusal (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire.ts:104:67)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-devices.spec.ts:45:31
+
+    Error Context: ../../pw-out/WIRE-3-devices.chromium.r1/cases-WIRE-3-devices-WIRE--c06fd-Devices-and-Connection-sync-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-devices.chromium.r1/cases-WIRE-3-devices-WIRE--c06fd-Devices-and-Connection-sync-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-devices.chromium.r1/cases-WIRE-3-devices-WIRE--c06fd-Devices-and-Connection-sync-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-3-devices.spec.ts:16:5 › WIRE-3.10 Settings › POS › Devices and Connection sync 
+exit=1

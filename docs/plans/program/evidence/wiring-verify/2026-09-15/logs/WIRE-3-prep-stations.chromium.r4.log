@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-prep-stations.spec.ts:34:5 › WIRE-3.5 a station is written and refuses deletion while a ticket is live; Fire starters tickets only course 1
+[1A[2K  1 passed (27.7s)
+exit=0

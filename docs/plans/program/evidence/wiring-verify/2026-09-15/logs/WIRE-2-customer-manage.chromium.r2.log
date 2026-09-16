@@ -1,0 +1,24 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-customer-manage.spec.ts:51:5 › WIRE-2.6 /manage/<token> cancels once and reschedules once; a used link shows the closed booking
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-customer-manage.spec.ts:51:5 › WIRE-2.6 /manage/<token> cancels once and reschedules once; a used link shows the closed booking 
+
+    [31mTest timeout of 300000ms exceeded.[39m
+
+    Error Context: ../../pw-out/WIRE-2-customer-manage.chromium.r2/cases-WIRE-2-customer-mana-af338-nk-shows-the-closed-booking-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-customer-manage.chromium.r2/cases-WIRE-2-customer-mana-af338-nk-shows-the-closed-booking-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-customer-manage.chromium.r2/cases-WIRE-2-customer-mana-af338-nk-shows-the-closed-booking-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  Slow test file: [chromium] › e2e/cases/WIRE-2-customer-manage.spec.ts (5.0m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 failed
+    [chromium] › e2e/cases/WIRE-2-customer-manage.spec.ts:51:5 › WIRE-2.6 /manage/<token> cancels once and reschedules once; a used link shows the closed booking 
+exit=1

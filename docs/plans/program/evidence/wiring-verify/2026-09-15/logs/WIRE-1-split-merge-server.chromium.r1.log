@@ -1,0 +1,46 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveCount[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  locator('[data-pos-line]')
+    Expected: [32m2[39m
+    Received: [31m1[39m
+    Timeout:  30000ms
+
+    Call log:
+    [2m  - Expect "toHaveCount" with timeout 30000ms[22m
+    [2m  - waiting for locator('[data-pos-line]')[22m
+    [2m    34 × locator resolved to 1 element[22m
+    [2m       - unexpected value "1"[22m
+
+
+       at cases/_harness.ts:254
+
+      252 |   await tile.click();
+      253 |   await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
+    > 254 |   await expect(page.locator("[data-pos-line]")).toHaveCount(before + 1, { timeout: 30_000 });
+          |                                                 ^
+      255 | }
+      256 |
+      257 | /**
+        at counterAddItem (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_harness.ts:254:49)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-split-merge-server.spec.ts:60:3
+
+    Error Context: ../../pw-out/WIRE-1-split-merge-server.chromium.r1/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-split-merge-server.chromium.r1/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-split-merge-server.chromium.r1/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check 
+exit=1

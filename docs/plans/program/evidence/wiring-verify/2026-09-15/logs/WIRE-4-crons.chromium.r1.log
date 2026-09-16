@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-4-crons.spec.ts:9:5 › WIRE-4.5 cron routes move scheduled_messages and message_delivery
+[1A[2K  1 skipped
+exit=0

@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-substitute.spec.ts:17:5 › WIRE-2.2 substitute instructor on a session row
+[1A[2K  1 skipped
+exit=0

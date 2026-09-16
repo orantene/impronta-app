@@ -62,6 +62,14 @@ test("WIRE-2.3 move a participant and refuse a full target", async ({ page }) =>
     await page.getByTestId("session-move-form").getByRole("button", { name: /move/i }).last().click();
     await expect(page.getByTestId("session-move-message")).toBeVisible({ timeout: 20_000 });
     await expect.poll(sessionOf, { timeout: 20_000 }).toBe(seeded.openSessionId);
+    // The seat is taken on the new session's pool (a committed allocation).
+    const { data: moved } = await sb.from("admissions").select("allocation_id").eq("id", seeded.admissionId).maybeSingle();
+    const allocationId = (moved as { allocation_id: string | null } | null)?.allocation_id;
+    expect(allocationId, "admission carries its new allocation").toBeTruthy();
+    const { data: alloc } = await sb.from("capacity_allocations").select("state, pool_id").eq("id", allocationId!).maybeSingle();
+    expect((alloc as { state: string } | null)?.state).toBe("committed");
+    const { data: pool } = await sb.from("capacity_pools").select("subject_id").eq("id", (alloc as { pool_id: string }).pool_id).maybeSingle();
+    expect((pool as { subject_id: string } | null)?.subject_id).toBe(seeded.openSessionId);
   } finally {
     await seeded.cleanup();
   }

@@ -78,7 +78,11 @@ test("WIRE-1.8 Tables › Move changes visits.space_id and refuses a stale versi
   await expect(page.locator('[data-pos-sheet="table-change"]')).toBeVisible();
   await page.locator('[data-floor-change="move"] button').click();
   await expect(page.locator('[data-pos-sheet="move-party"]')).toBeVisible();
-  await page.locator('[data-floor-move-to="T4"]').click();
+  // T4 reads "Needs reset" once vacated (a floor rule, not a target); any
+  // free table proves the stale version the same way.
+  const freeTarget = page.locator("[data-floor-move-to]:not([disabled])").first();
+  await expect(freeTarget).toBeVisible({ timeout: 20_000 });
+  await freeTarget.click();
   await page.locator("[data-floor-move-confirm]").click();
   const refusal = page.locator("[data-floor-refusal]");
   if ((await refusal.count()) > 0) {

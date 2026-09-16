@@ -1,0 +1,50 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-service-periods.spec.ts:16:5 › WIRE-3.4 Settings › Venue › Service periods
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-service-periods.spec.ts:16:5 › WIRE-3.4 Settings › Venue › Service periods 
+
+    [31mTest timeout of 180000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 180000ms exceeded.
+    Call log:
+    [2m  - waiting for getByRole('button', { name: /add|new/i }).first()[22m
+    [2m    - locator resolved to <button disabled type="button" aria-disabled="true" data-testid="periods-add" class="inline-flex h-[34px] items-center justify-center gap-[6px] whitespace-nowrap rounded-[9px] border px-[14px] font-admin-body font-semibold leading-[1.2] [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)] cursor-pointer border-admin-border bg-admin-card hover:border-admin-border-strong text-admin-13 text-admin-ink disabled:cursor-not-allowed disabled:opacity-50 ">+ Add period</button>[22m
+    [2m  - attempting click action[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    342 × waiting for element to be visible, enabled and stable[22m
+    [2m        - element is not enabled[22m
+    [2m      - retrying click action[22m
+    [2m        - waiting 500ms[22m
+
+
+      27 |   expect((count ?? 0) >= 0).toBeTruthy();
+      28 |   await expect(add).toBeVisible();
+    > 29 |   await add.click();
+         |             ^
+      30 |   await assertEnglishRefusal(page, WIRE_SENTENCE.overlap);
+      31 | });
+      32 |
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-service-periods.spec.ts:29:13
+
+    Error Context: ../../pw-out/WIRE-3-service-periods.chromium.r1/cases-WIRE-3-service-perio-a140c-s-›-Venue-›-Service-periods-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-service-periods.chromium.r1/cases-WIRE-3-service-perio-a140c-s-›-Venue-›-Service-periods-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-service-periods.chromium.r1/cases-WIRE-3-service-perio-a140c-s-›-Venue-›-Service-periods-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-3-service-periods.spec.ts:16:5 › WIRE-3.4 Settings › Venue › Service periods 
+exit=1

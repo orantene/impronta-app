@@ -1,0 +1,33 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-party-waitlist.spec.ts:17:5 › WIRE-3.2 Tables waiting list join, notify, seat, leave
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-party-waitlist.spec.ts:17:5 › WIRE-3.2 Tables waiting list join, notify, seat, leave 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeTruthy[2m()[22m
+
+    Received: [31mnull[39m
+
+      30 |     .limit(1)
+      31 |     .maybeSingle();
+    > 32 |   expect(entry).toBeTruthy();
+         |                 ^
+      33 |
+      34 |   const waiting = page.locator("[data-floor-waiting]").first();
+      35 |   if ((await waiting.count()) > 0) {
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-party-waitlist.spec.ts:32:17
+
+    Error Context: ../../pw-out/WIRE-3-party-waitlist.chromium.r1/cases-WIRE-3-party-waitlis-bac9d-list-join-notify-seat-leave-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-party-waitlist.chromium.r1/cases-WIRE-3-party-waitlis-bac9d-list-join-notify-seat-leave-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-party-waitlist.chromium.r1/cases-WIRE-3-party-waitlis-bac9d-list-join-notify-seat-leave-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-3-party-waitlist.spec.ts:17:5 › WIRE-3.2 Tables waiting list join, notify, seat, leave 
+exit=1

@@ -1,0 +1,42 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell
+[1A[2K  1) [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('WIRE-P12 1789550182910', { exact: true }).first()
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for getByText('WIRE-P12 1789550182910', { exact: true }).first()[22m
+
+
+      23 |   await other.locator("[data-pos-messages] li button").first().click();
+      24 |   await expect(other.locator("[data-pos-messages='thread']")).toBeVisible({ timeout: 20_000 });
+    > 25 |   await expect(other.getByText(marker, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+         |                                                                  ^
+      26 |   await other.close();
+      27 | });
+      28 |
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/MSG-P12-concurrent.spec.ts:25:66
+
+    Error Context: ../../pw-out/MSG-P12-concurrent.chromium.r3/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/MSG-P12-concurrent.chromium.r3/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/MSG-P12-concurrent.chromium.r3/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell 
+exit=1

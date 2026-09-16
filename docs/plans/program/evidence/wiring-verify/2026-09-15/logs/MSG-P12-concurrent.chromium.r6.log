@@ -1,0 +1,36 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell
+[1A[2K  1) [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell 
+
+    Error: the other session reads the reply on the thread
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32mtrue[39m
+    Received: [31mfalse[39m
+
+      36 |       .catch(() => false);
+      37 |   }
+    > 38 |   expect(found, "the other session reads the reply on the thread").toBe(true);
+         |                                                                    ^
+      39 |   await other.close();
+      40 | });
+      41 |
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/MSG-P12-concurrent.spec.ts:38:68
+
+    Error Context: ../../pw-out/MSG-P12-concurrent.chromium.r6/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/MSG-P12-concurrent.chromium.r6/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/MSG-P12-concurrent.chromium.r6/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell 
+exit=1

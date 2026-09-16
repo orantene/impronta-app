@@ -1,0 +1,34 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-move-participant.spec.ts:28:5 › WIRE-2.3 move a participant and refuse a full target
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-move-participant.spec.ts:28:5 › WIRE-2.3 move a participant and refuse a full target 
+
+    Error: seedSeriesMove: the fixture series needs three future sessions
+
+       at cases/_wire-seed.ts:375
+
+      373 |   ) as Array<{ id: string; series_id: string }>;
+      374 |   if (sessions.length < 3 || new Set(sessions.map((s) => s.series_id)).size !== 1) {
+    > 375 |     throw new Error("seedSeriesMove: the fixture series needs three future sessions");
+          |           ^
+      376 |   }
+      377 |   const [from, open, full] = sessions;
+      378 |   const pool = must(
+        at seedSeriesMove (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire-seed.ts:375:11)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-move-participant.spec.ts:30:18
+
+    Error Context: ../../pw-out/WIRE-2-move-participant.chromium.r1/cases-WIRE-2-move-particip-bb75d-nt-and-refuse-a-full-target-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-move-participant.chromium.r1/cases-WIRE-2-move-particip-bb75d-nt-and-refuse-a-full-target-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-move-participant.chromium.r1/cases-WIRE-2-move-particip-bb75d-nt-and-refuse-a-full-target-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-move-participant.spec.ts:28:5 › WIRE-2.3 move a participant and refuse a full target 
+exit=1

@@ -1,0 +1,43 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-amendment.spec.ts:69:5 › WIRE-2.8 Agreement: a stale send is refused, a fresh send goes out, a draft can be discarded
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-amendment.spec.ts:69:5 › WIRE-2.8 Agreement: a stale send is refused, a fresh send goes out, a draft can be discarded 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  locator('[data-project-amendment="a1297917-6961-445d-a8ae-107c588615e0"]').getByRole('status')
+    Expected: [32m"This [7mjust changed. Reload and t[27mry again."[39m
+    Received: [31m"This [7mcould not be completed. T[27mry again."[39m
+    Timeout:  30000ms
+
+    Call log:
+    [2m  - Expect "toHaveText" with timeout 30000ms[22m
+    [2m  - waiting for locator('[data-project-amendment="a1297917-6961-445d-a8ae-107c588615e0"]').getByRole('status')[22m
+    [2m    28 × locator resolved to <span role="status" class="text-[12px] text-admin-red">This could not be completed. Try again.</span>[22m
+    [2m       - unexpected value "This could not be completed. Try again."[22m
+
+
+      89 |     expect(bump.error, bump.error?.message).toBeNull();
+      90 |     await block.locator("[data-amendment-send]").click();
+    > 91 |     await expect(block.getByRole("status")).toHaveText(WIRE_SENTENCE.conflict, { timeout: 30_000 });
+         |                                             ^
+      92 |     expect((await offerStatus(draftA))?.status).toBe("draft");
+      93 |
+      94 |     // Fresh: reload, then send.
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-amendment.spec.ts:91:45
+
+    Error Context: ../../pw-out/WIRE-2-amendment.chromium.r3/cases-WIRE-2-amendment-WIR-e9160-ut-a-draft-can-be-discarded-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-amendment.chromium.r3/cases-WIRE-2-amendment-WIR-e9160-ut-a-draft-can-be-discarded-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-amendment.chromium.r3/cases-WIRE-2-amendment-WIR-e9160-ut-a-draft-can-be-discarded-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-amendment.spec.ts:69:5 › WIRE-2.8 Agreement: a stale send is refused, a fresh send goes out, a draft can be discarded 
+exit=1

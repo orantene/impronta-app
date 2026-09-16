@@ -1,0 +1,34 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-tip.spec.ts:20:5 › WIRE-1.6 basket tip writes tip_cents and refuses after collection
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-tip.spec.ts:20:5 › WIRE-1.6 basket tip writes tip_cents and refuses after collection 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeGreaterThan[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: > [32m0[39m
+    Received:   [31m0[39m
+
+      30 |   const orderId = await latestOrderIdByUrl(page);
+      31 |   const beforePay = await readOrder(orderId);
+    > 32 |   expect(beforePay.tipCents).toBeGreaterThan(0);
+         |                              ^
+      33 |   expect(beforePay.totalCents).toBeGreaterThanOrEqual(beforePay.tipCents);
+      34 |   // The basket's own confirmation: the tip row carries the amount and Charge
+      35 |   // names the tipped total (until the refresh lands it still says the old one).
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-tip.spec.ts:32:30
+
+    Error Context: ../../pw-out/WIRE-1-tip.chromium.r3/cases-WIRE-1-tip-WIRE-1-6--9e04a-nd-refuses-after-collection-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-tip.chromium.r3/cases-WIRE-1-tip-WIRE-1-6--9e04a-nd-refuses-after-collection-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-tip.chromium.r3/cases-WIRE-1-tip-WIRE-1-6--9e04a-nd-refuses-after-collection-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-tip.spec.ts:20:5 › WIRE-1.6 basket tip writes tip_cents and refuses after collection 
+exit=1

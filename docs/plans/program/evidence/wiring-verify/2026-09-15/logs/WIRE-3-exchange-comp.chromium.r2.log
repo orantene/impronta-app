@@ -1,0 +1,43 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-exchange-comp.spec.ts:26:5 › WIRE-3.8 comp a ticket on Event Day, exchange it to another night at the door, deliver by print
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-exchange-comp.spec.ts:26:5 › WIRE-3.8 comp a ticket on Event Day, exchange it to another night at the door, deliver by print 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  getByTestId('events-comp').getByRole('status')
+    Expected: [32m"[7mComplimentary ticket issued[27m."[39m
+    Received: [31m"[7mThis could not be completed. Try again[27m."[39m
+    Timeout:  30000ms
+
+    Call log:
+    [2m  - Expect "toHaveText" with timeout 30000ms[22m
+    [2m  - waiting for getByTestId('events-comp').getByRole('status')[22m
+    [2m    31 × locator resolved to <p role="status" class="m-0 font-admin-body text-[12.5px] text-admin-ink">This could not be completed. Try again.</p>[22m
+    [2m       - unexpected value "This could not be completed. Try again."[22m
+
+
+      50 |     await tierSelect.selectOption(tiers[0]);
+      51 |     await comp.getByTestId("events-comp-save").click();
+    > 52 |     await expect(comp.getByRole("status")).toHaveText("Complimentary ticket issued.", { timeout: 30_000 });
+         |                                            ^
+      53 |     await expect
+      54 |       .poll(
+      55 |         async () => {
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-exchange-comp.spec.ts:52:44
+
+    Error Context: ../../pw-out/WIRE-3-exchange-comp.chromium.r2/cases-WIRE-3-exchange-comp-205be-t-the-door-deliver-by-print-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-exchange-comp.chromium.r2/cases-WIRE-3-exchange-comp-205be-t-the-door-deliver-by-print-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-exchange-comp.chromium.r2/cases-WIRE-3-exchange-comp-205be-t-the-door-deliver-by-print-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-3-exchange-comp.spec.ts:26:5 › WIRE-3.8 comp a ticket on Event Day, exchange it to another night at the door, deliver by print 
+exit=1

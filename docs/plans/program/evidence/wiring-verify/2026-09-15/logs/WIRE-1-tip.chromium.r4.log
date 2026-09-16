@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-tip.spec.ts:20:5 › WIRE-1.6 basket tip writes tip_cents and refuses after collection
+[1A[2K  1 passed (13.6s)
+exit=0

@@ -1,0 +1,22 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-devices.spec.ts:18:5 › WIRE-3.10 pair a device, heartbeat, replay once, provider command refused
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-devices.spec.ts:18:5 › WIRE-3.10 pair a device, heartbeat, replay once, provider command refused 
+
+    [31mTest timeout of 240000ms exceeded.[39m
+
+    Error Context: ../../pw-out/WIRE-3-devices.chromium.r3/cases-WIRE-3-devices-WIRE--31075-ce-provider-command-refused-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-devices.chromium.r3/cases-WIRE-3-devices-WIRE--31075-ce-provider-command-refused-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-devices.chromium.r3/cases-WIRE-3-devices-WIRE--31075-ce-provider-command-refused-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-3-devices.spec.ts:18:5 › WIRE-3.10 pair a device, heartbeat, replay once, provider command refused 
+exit=1

@@ -1,0 +1,36 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-series.spec.ts:42:5 › WIRE-2.1 new series generates sessions once; a second series in the same room is refused
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-series.spec.ts:42:5 › WIRE-2.1 new series generates sessions once; a second series in the same room is refused 
+
+    Error: first generate must create sessions: 1 sessions created, 0 already existed.
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeGreaterThan[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: > [32m0[39m
+    Received:   [31m-1[39m
+
+      73 |     const first = (await page.getByTestId("series-editor-message").textContent()) ?? "";
+      74 |     const created = Number(/(\d+)\s*created/i.exec(first)?.[1] ?? "-1");
+    > 75 |     expect(created, `first generate must create sessions: ${first}`).toBeGreaterThan(0);
+         |                                                                      ^
+      76 |     const countSessions = async () => {
+      77 |       const { count } = await sb.from("sessions").select("id", { count: "exact", head: true }).eq("series_id", seriesId);
+      78 |       return count ?? 0;
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-series.spec.ts:75:70
+
+    Error Context: ../../pw-out/WIRE-2-series.chromium.r3/cases-WIRE-2-series-WIRE-2-ea231-in-the-same-room-is-refused-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-series.chromium.r3/cases-WIRE-2-series-WIRE-2-ea231-in-the-same-room-is-refused-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-series.chromium.r3/cases-WIRE-2-series-WIRE-2-ea231-in-the-same-room-is-refused-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-series.spec.ts:42:5 › WIRE-2.1 new series generates sessions once; a second series in the same room is refused 
+exit=1

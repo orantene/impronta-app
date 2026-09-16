@@ -20,7 +20,7 @@ import {
 
 skipUnlessFixture();
 
-test("WIRE-1.1 custom amount under the limit writes a custom line", async ({ page }) => {
+test("WIRE-1.1 custom amount under the limit writes a custom line (sale started underneath the sheet)", async ({ page }) => {
   test.setTimeout(240_000);
   await prepareJourneysPage(page);
   const limit = await readCustomAmountLimitCents();
@@ -43,6 +43,41 @@ test("WIRE-1.1 custom amount under the limit writes a custom line", async ({ pag
   await expect(page.locator("[data-pos-custom-amount], [data-pos-line]").first()).toBeVisible();
 
   const orderId = await latestOrderIdByUrl(page);
+  const line = await latestCustomLine(orderId);
+  expect(line, "custom line must exist").toBeTruthy();
+  expect(line!.kind).toBe("custom");
+  expect(line!.amountCents).toBe(500);
+  expect(line!.needsApproval).toBe(false);
+});
+
+/**
+ * The same control after the sale underneath has started: the board's slow
+ * path. Kept separate so the fast path above stays an honest assertion.
+ */
+test("WIRE-1.1 custom amount under the limit writes a custom line (sale already open); amount 0 is refused", async ({ page }) => {
+  test.setTimeout(240_000);
+  await prepareJourneysPage(page);
+  const limit = await readCustomAmountLimitCents();
+  test.skip(limit == null || limit <= 0, "failed-fixture: set a custom-amount limit first (1.3)");
+
+  await openCounter(page);
+  await counterStartSale(page);
+  await openCustomAmountSheet(page);
+  await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
+  const orderId = await latestOrderIdByUrl(page);
+
+  // Refusal: amount 0 cannot be added — the door stays shut, and no line exists.
+  await page.locator("#pos-custom-what").fill("WIRE custom zero");
+  await expect(page.locator("[data-pos-custom-continue]")).toBeDisabled();
+  expect(await latestCustomLine(orderId), "no custom line before Continue").toBeNull();
+
+  await fillCustomAmount(page, "WIRE custom under", "500");
+  await expect(page.locator("[data-pos-custom-limit]")).toHaveAttribute("data-pos-custom-limit", "within");
+  await expect(page.locator("[data-pos-custom-continue]")).toBeEnabled();
+  await page.locator("[data-pos-custom-continue]").click();
+  await expect(page.locator("[data-pos-sheet='custom-amount']")).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.locator("[data-pos-line]").first()).toBeVisible({ timeout: 20_000 });
+
   const line = await latestCustomLine(orderId);
   expect(line, "custom line must exist").toBeTruthy();
   expect(line!.kind).toBe("custom");

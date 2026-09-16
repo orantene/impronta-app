@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-move-participant.spec.ts:28:5 › WIRE-2.3 move a participant and refuse a full target
+[1A[2K  1 passed (21.5s)
+exit=0

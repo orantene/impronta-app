@@ -1,0 +1,43 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-service-periods.spec.ts:14:5 › WIRE-3.4 a service period is written; an overlapping one is refused
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-service-periods.spec.ts:14:5 › WIRE-3.4 a service period is written; an overlapping one is refused 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByTestId('periods-save-state')
+    Expected substring: [32m"[7mThose item[27ms overlap."[39m
+    Received string:    [31m"[7mSave failed · Those service period[27ms overlap."[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 5000ms[22m
+    [2m  - waiting for getByTestId('periods-save-state')[22m
+    [2m    9 × locator resolved to <span role="alert" data-save-state="failed" data-testid="periods-save-state" class="inline-flex items-center gap-[8px]">…</span>[22m
+    [2m      - unexpected value "Save failed · Those service periods overlap."[22m
+
+
+      44 |     await addPeriod(`WIRE clash ${stamp}`, "15:00", "19:00");
+      45 |     await expect(page.getByTestId("periods-save-state")).toHaveAttribute("data-save-state", "failed", { timeout: 30_000 });
+    > 46 |     await expect(page.getByTestId("periods-save-state")).toContainText(WIRE_SENTENCE.overlap);
+         |                                                          ^
+      47 |     expect((await rows()).length).toBe(1);
+      48 |   } finally {
+      49 |     const mine = (await rows()).map((r) => r.id);
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-service-periods.spec.ts:46:58
+
+    Error Context: ../../pw-out/WIRE-3-service-periods.chromium.r2/cases-WIRE-3-service-perio-b00f5--overlapping-one-is-refused-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-service-periods.chromium.r2/cases-WIRE-3-service-perio-b00f5--overlapping-one-is-refused-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-service-periods.chromium.r2/cases-WIRE-3-service-perio-b00f5--overlapping-one-is-refused-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-3-service-periods.spec.ts:14:5 › WIRE-3.4 a service period is written; an overlapping one is refused 
+exit=1

@@ -1,0 +1,41 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-4-from-messages.spec.ts:15:5 › WIRE-4.3 Orders and Receipts render source_channel=messages
+[1A[2K  1) [chromium] › e2e/cases/WIRE-4-from-messages.spec.ts:15:5 › WIRE-4.3 Orders and Receipts render source_channel=messages 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-pos-sale-origin=\'messages\']').first()
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for locator('[data-pos-sale-origin=\'messages\']').first()[22m
+
+
+      26 |   test.skip(!data, "failed-fixture: no orders.source_channel=messages row");
+      27 |   await signInJourneysStaff(page, "/admin/pos?mode=counter&view=orders");
+    > 28 |   await expect(page.locator("[data-pos-sale-origin='messages']").first()).toBeVisible({ timeout: 30_000 });
+         |                                                                           ^
+      29 |   await signInJourneysStaff(page, "/admin/pos?mode=counter&view=receipts");
+      30 |   await expect(page.locator("[data-pos-sale-origin='messages']").first()).toBeVisible({ timeout: 30_000 });
+      31 | });
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-4-from-messages.spec.ts:28:75
+
+    Error Context: ../../pw-out/WIRE-4-from-messages.chromium.r1/cases-WIRE-4-from-messages-000e3-der-source-channel-messages-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-4-from-messages.chromium.r1/cases-WIRE-4-from-messages-000e3-der-source-channel-messages-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-4-from-messages.chromium.r1/cases-WIRE-4-from-messages-000e3-der-source-channel-messages-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-4-from-messages.spec.ts:15:5 › WIRE-4.3 Orders and Receipts render source_channel=messages 
+exit=1

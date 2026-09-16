@@ -1,0 +1,41 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-approvals.spec.ts:18:5 › WIRE-2.13 Roles & limits writes a role limit; the inbox decides a request once
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-approvals.spec.ts:18:5 › WIRE-2.13 Roles & limits writes a role limit; the inbox decides a request once 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-approval-request="51cb6a95-87a7-402c-b891-b90e80cabedd"]').getByText('Approved', { exact: true })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for locator('[data-approval-request="51cb6a95-87a7-402c-b891-b90e80cabedd"]').getByText('Approved', { exact: true })[22m
+
+
+      69 |     await expect(row.locator("[data-approval-approve]")).toHaveCount(0);
+      70 |     await expect(row.locator("[data-approval-deny]")).toHaveCount(0);
+    > 71 |     await expect(row.getByText("Approved", { exact: true })).toBeVisible();
+         |                                                              ^
+      72 |     const { data: again } = await sb.from("approval_requests").select("decision, decided_at").eq("id", requestId).maybeSingle();
+      73 |     expect((again as { decided_at: string }).decided_at).toBe((decided as { decided_at: string }).decided_at);
+      74 |   } finally {
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-approvals.spec.ts:71:62
+
+    Error Context: ../../pw-out/WIRE-2-approvals.chromium.r2/cases-WIRE-2-approvals-WIR-69f17-nbox-decides-a-request-once-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-approvals.chromium.r2/cases-WIRE-2-approvals-WIR-69f17-nbox-decides-a-request-once-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-approvals.chromium.r2/cases-WIRE-2-approvals-WIR-69f17-nbox-decides-a-request-once-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-approvals.spec.ts:18:5 › WIRE-2.13 Roles & limits writes a role limit; the inbox decides a request once 
+exit=1

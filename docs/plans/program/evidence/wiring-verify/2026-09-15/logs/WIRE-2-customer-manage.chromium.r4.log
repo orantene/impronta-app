@@ -1,0 +1,41 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-customer-manage.spec.ts:51:5 › WIRE-2.6 /manage/<token> cancels once and reschedules once; a used link shows the closed booking
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-customer-manage.spec.ts:51:5 › WIRE-2.6 /manage/<token> cancels once and reschedules once; a used link shows the closed booking 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-manage-done=\'rescheduled\']')
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for locator('[data-manage-done=\'rescheduled\']')[22m
+
+
+      90 |     await page.locator("[data-manage-new-time]").fill(local);
+      91 |     await page.locator("[data-manage-reschedule-confirm]").click();
+    > 92 |     await expect(page.locator("[data-manage-done='rescheduled']")).toBeVisible({ timeout: 30_000 });
+         |                                                                    ^
+      93 |     const { data: moved } = await sb.from("agency_bookings").select("starts_at").eq("id", toMove.id).maybeSingle();
+      94 |     expect((moved as { starts_at: string } | null)?.starts_at).not.toBe(toMove.starts_at);
+      95 |     expect(new Date((moved as { starts_at: string }).starts_at).toISOString().slice(0, 10)).toBe(newStart.toISOString().slice(0, 10));
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-customer-manage.spec.ts:92:68
+
+    Error Context: ../../pw-out/WIRE-2-customer-manage.chromium.r4/cases-WIRE-2-customer-mana-af338-nk-shows-the-closed-booking-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-customer-manage.chromium.r4/cases-WIRE-2-customer-mana-af338-nk-shows-the-closed-booking-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-customer-manage.chromium.r4/cases-WIRE-2-customer-mana-af338-nk-shows-the-closed-booking-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-customer-manage.spec.ts:51:5 › WIRE-2.6 /manage/<token> cancels once and reschedules once; a used link shows the closed booking 
+exit=1

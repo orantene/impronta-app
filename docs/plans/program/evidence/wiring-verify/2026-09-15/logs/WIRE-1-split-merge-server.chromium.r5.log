@@ -1,0 +1,35 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check 
+
+    Error: booking_transactions: booking <NULL> not found or has no tenant_id
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeNull[2m()[22m
+
+    Received: [31m{"code": "P0001", "details": null, "hint": null, "message": "booking_transactions: booking <NULL> not found or has no tenant_id"}[39m
+
+      140 |     .select("id")
+      141 |     .single();
+    > 142 |   expect(partial.error, partial.error?.message).toBeNull();
+          |                                                 ^
+      143 |   const partialId = (partial.data as { id: string }).id;
+      144 |
+      145 |   try {
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-split-merge-server.spec.ts:142:49
+
+    Error Context: ../../pw-out/WIRE-1-split-merge-server.chromium.r5/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-split-merge-server.chromium.r5/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-split-merge-server.chromium.r5/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check 
+exit=1

@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-table-move.spec.ts:35:5 › WIRE-1.8 Tables › Move changes visits.space_id and refuses a stale version
+[1A[2K  1 passed (15.3s)
+exit=0

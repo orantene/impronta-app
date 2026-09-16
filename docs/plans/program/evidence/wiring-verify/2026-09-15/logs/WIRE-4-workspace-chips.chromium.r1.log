@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-4-workspace-chips.spec.ts:15:5 › WIRE-4.4 /admin/messages chips follow inquiry state columns
+[1A[2K  1 passed (6.2s)
+exit=0

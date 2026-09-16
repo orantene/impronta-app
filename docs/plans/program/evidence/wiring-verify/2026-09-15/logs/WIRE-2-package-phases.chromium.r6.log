@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-package-phases.spec.ts:18:5 › WIRE-2.11 package composition writes components and refuses a duplicate; a price phase prices the counter line
+[1A[2K  1 passed (26.3s)
+exit=0

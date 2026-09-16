@@ -263,50 +263,51 @@ Records: **240**. Passed: **0**. Failed: **0**. Blocked on isolated fixture: **2
 
 ## Wiring
 
-One row per engine control. Status is the 2026-09-12 Cloud Agent run: specs exist; the browser suite did not execute (isolated env + bypass secret missing). Evidence: `docs/plans/program/evidence/wiring-verify/2026-09-12/`.
+One row per engine control. Status is the 2026-09-15 run against `staging-qa-journeys.tulala.digital` (host commit `a43445d9e` = `origin/main`), one Playwright process, isolated database only. Evidence: `docs/plans/program/evidence/wiring-verify/2026-09-15/` (README with the full table, per-run logs, failure frames). Of 40 controls: passed 27 · failed-app 12 · blocked-external 1; defects D-133 … D-145.
 
 | Control | Scenario | Title | Status | Evidence |
 |---|---|---|---|---|
-| 1.1 | WIRE-1.1 | Custom amount under limit | could not run | `e2e/cases/WIRE-1-custom-amount.spec.ts` |
-| 1.2 | WIRE-1.2 | Custom amount over limit + PIN | could not run | `e2e/cases/WIRE-1-manager-pin.spec.ts` |
-| 1.3 | WIRE-1.3 | Staff PIN + custom-amount limit | could not run | `e2e/cases/WIRE-1-staff-pin-limit.spec.ts` |
-| 1.4 | WIRE-1.4 | Lock / unlock / switch operator | could not run | `e2e/cases/WIRE-1-lock.spec.ts` |
-| 1.5 | WIRE-1.5 | Link booking | could not run | `e2e/cases/WIRE-1-link-booking.spec.ts` |
-| 1.6 | WIRE-1.6 | Tip | could not run | `e2e/cases/WIRE-1-tip.spec.ts` |
-| 1.7 | WIRE-1.7 | Payment link | could not run | `e2e/cases/WIRE-1-payment-link.spec.ts` |
-| 1.8 | WIRE-1.8 | Table move | could not run | `e2e/cases/WIRE-1-table-move.spec.ts` |
-| 1.9 | WIRE-1.9 | Split / merge / change server | could not run | `e2e/cases/WIRE-1-split-merge-server.spec.ts` |
-| 1.10 | WIRE-1.10 | Class waitlist offer | could not run | `e2e/cases/WIRE-1-class-waitlist.spec.ts` |
-| 1.11 | WIRE-1.11 | Cash movements + close | could not run | `e2e/cases/WIRE-1-cash-movements.spec.ts` |
-| 2.1 | WIRE-2.1 | New series + Generate sessions | could not run | `e2e/cases/WIRE-2-series.spec.ts` |
-| 2.2 | WIRE-2.2 | Substitute instructor | could not run | `e2e/cases/WIRE-2-substitute.spec.ts` |
-| 2.3 | WIRE-2.3 | Move participant | could not run | `e2e/cases/WIRE-2-move-participant.spec.ts` |
-| 2.4 | WIRE-2.4 | Cancel session | could not run | `e2e/cases/WIRE-2-cancel-session.spec.ts` |
-| 2.5 | WIRE-2.5 | Cancel appointment | could not run | `e2e/cases/WIRE-2-cancel-appointment.spec.ts` |
-| 2.6 | WIRE-2.6 | Customer self-manage | could not run | `e2e/cases/WIRE-2-customer-manage.spec.ts` |
-| 2.7 | WIRE-2.7 | Replace talent | could not run | `e2e/cases/WIRE-2-replace-talent.spec.ts` |
-| 2.8 | WIRE-2.8 | Amendment send / discard | could not run | `e2e/cases/WIRE-2-amendment.spec.ts` |
-| 2.9 | WIRE-2.9 | Milestone amount + file | could not run | `e2e/cases/WIRE-2-milestone.spec.ts` |
-| 2.10 | WIRE-2.10 | Archive / reopen project | could not run | `e2e/cases/WIRE-2-archive-project.spec.ts` |
-| 2.11 | WIRE-2.11 | Package + price phases | could not run | `e2e/cases/WIRE-2-package-phases.spec.ts` |
-| 2.12 | WIRE-2.12 | Booking policy overrides | could not run | `e2e/cases/WIRE-2-booking-policy.spec.ts` |
-| 2.13 | WIRE-2.13 | Approval + role limit | could not run | `e2e/cases/WIRE-2-approvals.spec.ts` |
-| 3.1 | WIRE-3.1 | Locations & zones | could not run | `e2e/cases/WIRE-3-locations.spec.ts` |
-| 3.2 | WIRE-3.2 | Party waitlist | could not run | `e2e/cases/WIRE-3-party-waitlist.spec.ts` |
-| 3.3 | WIRE-3.3 | Layout editor | could not run | `e2e/cases/WIRE-3-layouts.spec.ts` |
-| 3.4 | WIRE-3.4 | Service periods | could not run | `e2e/cases/WIRE-3-service-periods.spec.ts` |
-| 3.5 | WIRE-3.5 | Prep stations + fire | could not run | `e2e/cases/WIRE-3-prep-stations.spec.ts` |
-| 3.6 | WIRE-3.6 | Guest QR | could not run | `e2e/cases/WIRE-3-guest-qr.spec.ts` |
-| 3.7 | WIRE-3.7 | Seat hold | could not run | `e2e/cases/WIRE-3-seat-hold.spec.ts` |
-| 3.8 | WIRE-3.8 | Exchange / comp / delivery | could not run | `e2e/cases/WIRE-3-exchange-comp.spec.ts` |
-| 3.9 | WIRE-3.9 | Ticket page | could not run | `e2e/cases/WIRE-3-ticket-page.spec.ts` |
-| 3.10 | WIRE-3.10 | Devices + outbox | could not run | `e2e/cases/WIRE-3-devices.spec.ts` |
-| 4.1 | WIRE-4.1 | Rail unread | could not run | `e2e/cases/WIRE-4-rail-unread.spec.ts` |
-| 4.2 | WIRE-4.2 | MSG-P prototypes | could not run | `e2e/cases/MSG-P1-pizza-counter.spec.ts` |
-| 4.3 | WIRE-4.3 | From Messages origin | could not run | `e2e/cases/WIRE-4-from-messages.spec.ts` |
-| 4.4 | WIRE-4.4 | Workspace chips | could not run | `e2e/cases/WIRE-4-workspace-chips.spec.ts` |
-| 4.5 | WIRE-4.5 | Reminders / delivery cron | could not run | `e2e/cases/WIRE-4-crons.spec.ts` |
-| 4.6 | WIRE-4.6 | Customer thread | could not run | `e2e/cases/WIRE-4-customer-thread.spec.ts` |
+| 1.1 | WIRE-1.1 | Custom amount under the limit | failed-app (D-133, D-134) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-custom-amount.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 1.2 | WIRE-1.2 | Custom amount over the limit + manager PIN | failed-app (D-134) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-manager-pin.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 1.3 | WIRE-1.3 | Staff PIN + custom-amount limit | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-staff-pin-limit.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 1.4 | WIRE-1.4 | Lock / unlock / switch operator | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-lock.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 1.5 | WIRE-1.5 | Link a booking to a sale | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-link-booking.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 1.6 | WIRE-1.6 | Tip | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-tip.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 1.7 | WIRE-1.7 | Payment link | failed-app (D-135) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-payment-link.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 1.8 | WIRE-1.8 | Table move with expected version | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-table-move.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 1.9 | WIRE-1.9 | Split / merge / change server | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-split-merge-server.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 1.10 | WIRE-1.10 | Class waitlist offer → accept / decline | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-class-waitlist.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 1.11 | WIRE-1.11 | Cash movements + close / hand-over | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-1-cash-movements.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.1 | WIRE-2.1 | New series + Generate sessions | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-series.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.2 | WIRE-2.2 | Substitute instructor (scope) | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-substitute.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.3 | WIRE-2.3 | Move participant | failed-app (D-136) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-move-participant.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.4 | WIRE-2.4 | Cancel session with scope + paid seats | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-cancel-session.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.5 | WIRE-2.5 | Cancel appointment (staff) | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-cancel-appointment.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.6 | WIRE-2.6 | Customer self-manage /manage/<token> | failed-app (D-137) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-customer-manage.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.7 | WIRE-2.7 | Replace talent on a project | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-replace-talent.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.8 | WIRE-2.8 | Amendment send / discard | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-amendment.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.9 | WIRE-2.9 | Milestone amount + file | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-milestone.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.10 | WIRE-2.10 | Archive / reopen project | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-archive-project.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.11 | WIRE-2.11 | Package components + price phases | passed (D-138 (normal)) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-package-phases.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.12 | WIRE-2.12 | Booking policy overrides | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-booking-policy.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 2.13 | WIRE-2.13 | Approval request + role limit | failed-app (D-139) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-2-approvals.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 3.1 | WIRE-3.1 | Locations & zones, till chip, per-location modes | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-3-locations.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 3.2 | WIRE-3.2 | Party waitlist join → notify → seat → leave | failed-app (D-140) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-3-party-waitlist.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 3.3 | WIRE-3.3 | Layout editor + activate | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-3-layouts.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 3.4 | WIRE-3.4 | Service periods | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-3-service-periods.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 3.5 | WIRE-3.5 | Prep stations + fire by course | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-3-prep-stations.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 3.6 | WIRE-3.6 | Guest QR browse / add / submit / share / bill | failed-app (D-141) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-3-guest-qr.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 3.7 | WIRE-3.7 | Seat map + hold timer | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-3-seat-hold.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 3.8 | WIRE-3.8 | Exchange / comp / multi-day / delivery | failed-app (D-142) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-3-exchange-comp.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 3.9 | WIRE-3.9 | Ticket page transfer / resend / lookup | failed-app (D-141) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-3-ticket-page.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 3.10 | WIRE-3.10 | Devices + heartbeat; offline outbox replay | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-3-devices.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 4.1 | WIRE-4.1 | Rail row + unread badge in every mode | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-4-rail-unread.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 4.2 | WIRE-4.2 | MSG-P1…P8, P11, P12 prototypes | failed-app (D-143 (intermittent), D-144) — 2026-09-15, host a43445d9e | `e2e/cases/MSG-P*.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 4.3 | WIRE-4.3 | From Messages origin | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-4-from-messages.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 4.4 | WIRE-4.4 | Workspace Messages chips | passed — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-4-workspace-chips.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 4.5 | WIRE-4.5 | Reminders cron + delivery retry cron | blocked-external — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-4-crons.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+| 4.6 | WIRE-4.6 | Customer thread /c/t/<token> | failed-app (D-145) — 2026-09-15, host a43445d9e | `e2e/cases/WIRE-4-customer-thread.spec.ts` · `docs/plans/program/evidence/wiring-verify/2026-09-15/logs/` |
+
 ## Program specs (not the CS-01–48 role grid)
 
 | Spec | Status | Evidence |

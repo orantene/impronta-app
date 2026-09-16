@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:27:5 › WIRE-1.11 Cash paid in/out/drop and close note
+[1A[2K  1 passed (13.1s)
+exit=0

@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-devices.spec.ts:18:5 › WIRE-3.10 pair a device, heartbeat, replay once, provider command refused
+[1A[2K  1 passed (23.9s)
+exit=0

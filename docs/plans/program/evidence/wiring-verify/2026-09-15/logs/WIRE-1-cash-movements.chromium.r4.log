@@ -1,0 +1,50 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:27:5 › WIRE-1.11 Cash paid in/out/drop and close note
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:27:5 › WIRE-1.11 Cash paid in/out/drop and close note 
+
+    [31mTest timeout of 240000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 240000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('[data-pos-movement=\'float_add\']')[22m
+    [2m    - locator resolved to <button disabled type="button" data-pos-movement="float_add" class="flex min-h-[74px] items-center gap-3.5 rounded-[14px] border-[1.5px] border-admin-border bg-admin-card px-4 py-3 text-left disabled:cursor-not-allowed disabled:opacity-60">…</button>[22m
+    [2m  - attempting click action[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    444 × waiting for element to be visible, enabled and stable[22m
+    [2m        - element is not enabled[22m
+    [2m      - retrying click action[22m
+    [2m        - waiting 500ms[22m
+
+
+      68 |   expect((closed as { close_note: string | null } | null)?.close_note).toContain("WIRE-1.11");
+      69 |
+    > 70 |   await page.locator("[data-pos-movement='float_add']").click();
+         |                                                         ^
+      71 |   await pressKeypad(page, "100");
+      72 |   await page.getByLabel(/^Reason/).fill("WIRE-1.11 after close");
+      73 |   await page.locator("[data-pos-movement-confirm]").click();
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-cash-movements.spec.ts:70:57
+
+    Error Context: ../../pw-out/WIRE-1-cash-movements.chromium.r4/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-cash-movements.chromium.r4/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-cash-movements.chromium.r4/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:27:5 › WIRE-1.11 Cash paid in/out/drop and close note 
+exit=1

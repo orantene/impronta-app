@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-series.spec.ts:42:5 › WIRE-2.1 new series generates sessions once; a second series in the same room is refused
+[1A[2K  1 passed (13.5s)
+exit=0

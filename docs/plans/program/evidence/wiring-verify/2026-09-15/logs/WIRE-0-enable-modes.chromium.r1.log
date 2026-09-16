@@ -1,0 +1,45 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-0-enable-modes.spec.ts:14:5 › WIRE-0: every POS mode is on for the fixture
+[1A[2K  1) [chromium] › e2e/cases/WIRE-0-enable-modes.spec.ts:14:5 › WIRE-0: every POS mode is on for the fixture 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByTestId('pos-modes-card')
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for getByTestId('pos-modes-card')[22m
+
+
+       at cases/_wire.ts:79
+
+      77 |   await signInJourneysStaff(page, `/${JOURNEYS_SLUG}/admin/settings`);
+      78 |   await page.getByRole("button", { name: section, exact: true }).click();
+    > 79 |   await expect(page.getByTestId(testId)).toBeVisible({ timeout: 30_000 });
+         |                                          ^
+      80 | }
+      81 |
+      82 | export async function enableAllPosModes(page: Page): Promise<void> {
+        at openSettingsCard (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire.ts:79:42)
+        at enableAllPosModes (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire.ts:83:3)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-0-enable-modes.spec.ts:17:3
+
+    Error Context: ../../pw-out/WIRE-0-enable-modes.chromium.r1/cases-WIRE-0-enable-modes--c5d8a--mode-is-on-for-the-fixture-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-0-enable-modes.chromium.r1/cases-WIRE-0-enable-modes--c5d8a--mode-is-on-for-the-fixture-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-0-enable-modes.chromium.r1/cases-WIRE-0-enable-modes--c5d8a--mode-is-on-for-the-fixture-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-0-enable-modes.spec.ts:14:5 › WIRE-0: every POS mode is on for the fixture 
+exit=1

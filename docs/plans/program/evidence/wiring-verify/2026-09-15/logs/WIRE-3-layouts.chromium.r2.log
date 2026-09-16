@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-layouts.spec.ts:16:5 › WIRE-3.3 two layouts, one active at a time, pools untouched
+[1A[2K  1 passed (15.4s)
+exit=0

@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-prep-stations.spec.ts:17:5 › WIRE-3.5 prep stations and fire course
+[1A[2K  1 passed (6.2s)
+exit=0

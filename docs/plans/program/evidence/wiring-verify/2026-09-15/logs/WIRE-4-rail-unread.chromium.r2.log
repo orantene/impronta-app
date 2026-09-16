@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-4-rail-unread.spec.ts:16:5 › WIRE-4.1 every mode rail has Messages and the unread count matches the gap
+[1A[2K  1 passed (15.6s)
+exit=0

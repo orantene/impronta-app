@@ -1,0 +1,44 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/MSG-P1-pizza-counter.spec.ts:7:5 › MSG-P1 pizza counter: inbox opens and a reply stays on the thread
+[1A[2K  1) [chromium] › e2e/cases/MSG-P1-pizza-counter.spec.ts:7:5 › MSG-P1 pizza counter: inbox opens and a reply stays on the thread 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('WIRE-P1 1789549518547', { exact: true }).first()
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for getByText('WIRE-P1 1789549518547', { exact: true }).first()[22m
+
+
+       at cases/_wire.ts:311
+
+      309 |   await input.fill(body);
+      310 |   await page.getByRole("button", { name: "Reply", exact: true }).last().click();
+    > 311 |   await expect(page.getByText(body, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+          |                                                               ^
+      312 | }
+      313 |
+      314 | export async function openSendOptions(page: Page): Promise<void> {
+        at replyOnFirstThread (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire.ts:311:63)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/MSG-P1-pizza-counter.spec.ts:18:3
+
+    Error Context: ../../pw-out/MSG-P1-pizza-counter.chromium.r2/cases-MSG-P1-pizza-counter-e37a9-a-reply-stays-on-the-thread-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/MSG-P1-pizza-counter.chromium.r2/cases-MSG-P1-pizza-counter-e37a9-a-reply-stays-on-the-thread-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/MSG-P1-pizza-counter.chromium.r2/cases-MSG-P1-pizza-counter-e37a9-a-reply-stays-on-the-thread-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/MSG-P1-pizza-counter.spec.ts:7:5 › MSG-P1 pizza counter: inbox opens and a reply stays on the thread 
+exit=1

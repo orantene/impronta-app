@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-staff-pin-limit.spec.ts:28:5 › WIRE-1.3 owner sets a PIN and the custom-amount limit; viewer is refused
+[1A[2K  1 passed (24.9s)
+exit=0

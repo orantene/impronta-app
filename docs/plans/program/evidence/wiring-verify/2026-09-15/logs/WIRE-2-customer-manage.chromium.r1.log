@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-customer-manage.spec.ts:16:5 › WIRE-2.6 /manage/<token> moves or cancels once, then refuses reuse
+[1A[2K  1 skipped
+exit=0
