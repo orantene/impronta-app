@@ -4,6 +4,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { reserveCollection, reservationTtlSeconds } from "@/lib/pos/collection-reservations";
 import type { Admin } from "@/lib/pos/sale-rows";
+import { settleAtDoor } from "@/lib/orders/settle-at-door";
+import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 
 export type CreatePaymentLinkResult =
   | { ok: true; code: string; url: string; amountCents: number; expiresAt: string; already?: boolean }
@@ -196,13 +198,32 @@ export async function listPaymentLinks(
   };
 }
 
+export type MarkPaymentLinkPaidDeps = {
+  settle?: typeof settleAtDoor;
+};
+
+/**
+ * The provider says the customer paid: COLLECT THE SALE, then close the link.
+ *
+ * D-135: this used to flip `payment_links.status` to `paid` and settle the
+ * reservation with no transaction, and stop. The customer read "Paid", the
+ * order stayed `draft`, no money row existed, and the till still showed the
+ * sale open. The link is one more tender on the order, so it takes the same
+ * road Collect › Cash takes (`settleAtDoor` with the reservation the link
+ * holds): the money row, the order completion, the admissions, and the
+ * reservation closed against that transaction. The link flips to `paid`
+ * only after the sale has actually been collected; a settle that fails
+ * leaves the link open, so the next confirmation resumes the same key
+ * instead of a paid page over an uncollected sale.
+ */
 export async function markPaymentLinkPaid(
   admin: Admin,
   input: { code: string; tenantId?: string },
+  deps: MarkPaymentLinkPaidDeps = {},
 ): Promise<{ ok: true } | { ok: false; reason: "not_found" | "expired" | "unavailable" }> {
   const { data, error } = await admin
     .from("payment_links")
-    .select("id, tenant_id, status, expires_at, reservation_id")
+    .select("id, tenant_id, order_id, amount_cents, currency, created_by, operation_key, status, expires_at, reservation_id")
     .eq("code", input.code)
     .maybeSingle();
   if (error) {
@@ -213,6 +234,11 @@ export async function markPaymentLinkPaid(
   const row = data as {
     id: string;
     tenant_id: string;
+    order_id: string;
+    amount_cents: number;
+    currency: string | null;
+    created_by: string | null;
+    operation_key: string | null;
     status: string;
     expires_at: string;
     reservation_id: string | null;
@@ -220,17 +246,33 @@ export async function markPaymentLinkPaid(
   if (input.tenantId && row.tenant_id !== input.tenantId) return { ok: false, reason: "not_found" };
   if (row.status === "paid") return { ok: true };
   if (row.status !== "open" || Date.parse(row.expires_at) <= Date.now()) return { ok: false, reason: "expired" };
+
+  const settle = deps.settle ?? settleAtDoor;
+  const settled = await settle(
+    admin as never,
+    {
+      tenantId: row.tenant_id,
+      orderId: row.order_id,
+      actorUserId: row.created_by ?? "payment-link",
+      paidVia: "card",
+      amountCents: Number(row.amount_cents),
+      currency: row.currency ?? "usd",
+      // The link's own operation key: a second confirmation of the same
+      // link resumes this collection rather than recording a second one.
+      idempotencyKey: row.operation_key ?? `paylink:${row.id}`,
+      reservationId: row.reservation_id,
+    },
+    { onOrderPaid: (ctx) => mintAdmissionsForPaidOrder(admin as never, ctx).then(() => undefined) },
+  );
+  if (!settled.ok) {
+    logServerError("payments.markPaymentLinkPaid.settle", `link ${row.id}: ${settled.reason}`);
+    return { ok: false, reason: "unavailable" };
+  }
+
   const { error: updErr } = await admin.from("payment_links").update({ status: "paid" }).eq("id", row.id).eq("status", "open");
   if (updErr) {
     logServerError("payments.markPaymentLinkPaid.update", updErr);
     return { ok: false, reason: "unavailable" };
-  }
-  if (row.reservation_id && typeof admin.rpc === "function") {
-    await admin.rpc("pos_settle_collection_reservation", {
-      p_reservation_id: row.reservation_id,
-      p_transaction_id: null,
-      p_state: "settled",
-    });
   }
   return { ok: true };
 }
