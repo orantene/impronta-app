@@ -62,9 +62,16 @@ export function CheckoutView(props: CheckoutViewProps) {
   }
 
   if (phase === "expired") {
+    // The conversation is where a fresh request is asked for (D-150): the
+    // page hands the thread over; this view used to drop it on the floor.
     return (
       <Shell>
         <h1 className="text-[22px] font-semibold">{t("public.thread.expired")}</h1>
+        {props.threadHref ? (
+          <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
+            {t("public.thread.backToThread")}
+          </a>
+        ) : null}
       </Shell>
     );
   }
