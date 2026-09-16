@@ -181,9 +181,16 @@ function resolveText(raw: string, ctx: WalkCtx): { primary: string; other: strin
   return { primary: raw, other: raw, wasMarker: false };
 }
 
-/** Resolve copy markers nested inside arrays/objects (nav links, form fields…). */
+/** Resolve copy markers nested inside arrays/objects (nav links, form fields…), and image markers in nested urls (hero slides, sticky_scroll imageUrl). */
 function resolveNested(value: unknown, ctx: WalkCtx): unknown {
   if (typeof value === "string") {
+    if (value.startsWith(IMAGE_MARKER_PREFIX)) {
+      const key = value.slice(IMAGE_MARKER_PREFIX.length) as ImageSlotKey;
+      if (!(IMAGE_SLOT_KEYS as readonly string[]).includes(key)) return "";
+      const resolved = ctx.input.images(key, imageRoleForSlot(key), ctx.page);
+      if (!resolved) ctx.issues.push(`${ctx.page}: image slot "${key}" unresolved`);
+      return resolved ? resolved.src : "";
+    }
     const r = resolveText(value, ctx);
     return r ? r.primary : "";
   }
@@ -284,10 +291,18 @@ function walkNodes(nodes: ReadonlyArray<BuilderNode>, ctx: WalkCtx): BuilderNode
     for (const [k, v] of Object.entries(props)) {
       if ((TEXT_PROPS as readonly string[]).includes(k) || k === "style" || k === "i18n") continue;
       if (typeof v === "string") {
-        if (v.includes("{{")) props[k] = resolveNested(v, ctx);
+        if (v.includes("{{") || v.startsWith(IMAGE_MARKER_PREFIX)) props[k] = resolveNested(v, ctx);
       } else if (v && typeof v === "object") {
         props[k] = resolveNested(v, ctx);
       }
+    }
+    // A picture-led node whose picture did not resolve is dropped, never rendered as a blank frame (D-TPL-4).
+    if (node.kind === "sticky_scroll" && props.imageUrl === "") continue;
+    if (node.kind === "before_after" && (props.beforeUrl === "" || props.afterUrl === "")) continue;
+    if (node.kind === "marquee") {
+      const items = (Array.isArray(props.items) ? props.items : []).filter((it) => it && typeof (it as { text?: unknown }).text === "string" && ((it as { text: string }).text).length > 0);
+      if (items.length === 0) continue;
+      props.items = items;
     }
     if (Object.keys(overlay).length > 0) {
       const existing = (props.i18n as Record<string, Record<string, string>> | undefined) ?? {};
