@@ -28,7 +28,7 @@
  * `useSyncExternalStore` over the browser's own connectivity events.)
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { POS_MESSAGES_DESTINATION, posMessagesHref } from "@/lib/pos/modes";
 
@@ -146,6 +146,19 @@ export function PosClient(props: PosClientProps) {
     peopleHref: `${props.workspacePath}/people`,
     copy: { ...copy.lock, refusal: copy.engineRefusal },
   });
+  /**
+   * The draft started underneath the Custom amount sheet (D-133/D-134): one
+   * promise for the whole sheet, so the tile tap and an "Add to sale" before
+   * it has landed wait on the same draft. Cleared once the address carries a
+   * sale (the draft, or any later one), and when a start is refused.
+   */
+  const pendingDraft = useRef<Promise<{ orderId: string; version: number } | null> | null>(null);
+  const saleOrderId = sale?.orderId ?? null;
+  useEffect(() => {
+    if (saleOrderId) pendingDraft.current = null;
+  }, [saleOrderId]);
+  const ensureDraftRef = useRef<() => Promise<{ orderId: string; version: number } | null>>(async () => null);
+  const ensureDraft = useCallback(() => ensureDraftRef.current(), []);
   const engine = useCounterEngine({
     sale,
     lines: props.basketLines,
@@ -162,7 +175,18 @@ export function PosClient(props: PosClientProps) {
     copy: { custom: copy.custom, booking: copy.booking, tip: copy.tip, paymentLink: copy.paymentLink, refusal: copy.engineRefusal, reload: copy.refusal.reload },
     onWritten: () => {
       setSavedAt(formatClock(new Date().toISOString(), props.locale));
+      // The write moved the sale past the version on screen; hold the next
+      // command until the re-read delivers it (`settling`), as `run` does.
+      if (sale) setWrittenVersion(sale.version);
       router.refresh();
+    },
+    ensureSale: () => ensureDraft(),
+    onOpened: (orderId) => {
+      // The line landed on a draft the address has not reached yet: move
+      // to it. A refresh here re-read the sale-less address and painted
+      // the line away (D-134).
+      setSavedAt(formatClock(new Date().toISOString(), props.locale));
+      router.push(saleHref(orderId));
     },
     onOpenCustomer: customer.open,
     onCollect: () => {
@@ -251,6 +275,17 @@ export function PosClient(props: PosClientProps) {
     },
     [resetForNewSale, router, run, saleHref],
   );
+
+  ensureDraftRef.current = async () => {
+    if (sale) return { orderId: sale.orderId, version: sale.version };
+    // Starts and pushes at once, as the tile tap does; the sheet stays open
+    // across the push, and a write before it lands goes to this draft.
+    if (!pendingDraft.current) pendingDraft.current = startSale();
+    const opened = await pendingDraft.current;
+    // A refused start does not stay pending: the next tap tries again.
+    if (!opened) pendingDraft.current = null;
+    return opened;
+  };
 
   /**
    * A tap on a tile. With no sale open, the tap opens one AND adds the item
@@ -453,7 +488,7 @@ export function PosClient(props: PosClientProps) {
               // The sheet opens at once; with no sale open, one is started
               // underneath it and the write lands on it (`POSEmptySale`).
               engine.openCustom();
-              if (!sale) void startSale();
+              if (!sale) void ensureDraft();
               return;
             }
             if (working) return;

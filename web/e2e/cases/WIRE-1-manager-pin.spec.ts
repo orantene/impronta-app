@@ -44,11 +44,13 @@ test("WIRE-1.2 over-limit custom amount needs the right manager PIN (sale starte
   await page.locator("[data-pos-custom-continue]").click();
   await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
   const orderId = await latestOrderIdByUrl(page);
-  const locked = await latestCustomLine(orderId);
-  expect(locked?.needsApproval).toBe(true);
 
+  // The write is asynchronous: the dialog opening is the screen's word that
+  // the line landed (the product-first test below reads in the same order).
   const dialog = page.locator("[data-pos-dialog='manager-approval']");
   await expect(dialog).toBeVisible({ timeout: 20_000 });
+  const locked = await latestCustomLine(orderId);
+  expect(locked?.needsApproval).toBe(true);
   await expect(page.locator("[data-pos-approver]").first()).toBeVisible();
   await page.locator("[data-pos-approver]").first().click();
 
