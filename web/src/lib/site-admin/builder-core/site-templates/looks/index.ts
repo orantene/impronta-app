@@ -10,14 +10,18 @@ import { coastalLook } from "./coastal";
 import { darkLook } from "./dark";
 import { editorialLook } from "./editorial";
 import { emberLook } from "./ember";
+import { luxeLook } from "./luxe";
 import { minimalLook } from "./minimal";
 import { nightLook } from "./night";
 import { playfulLook } from "./playful";
 import { studioLook } from "./studio";
+import { tideLook } from "./tide";
 import { warmLook } from "./warm";
 
 export const LOOKS: ReadonlyArray<Look> = [
   emberLook,
+  luxeLook,
+  tideLook,
   editorialLook,
   warmLook,
   boldLook,

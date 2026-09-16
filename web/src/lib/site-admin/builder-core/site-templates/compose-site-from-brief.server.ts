@@ -47,6 +47,8 @@ import { buildCopyPassPrompt, COPY_PASS_JSON_SCHEMA, COPY_PASS_KEYS, COPY_PASS_M
 import { assignmentSourceForLevel, buildImageResolver, type AssignmentSource, type CandidateImage } from "./image-resolver";
 import { stockFactsFromBrief } from "./stock-prompts";
 import { writeAssignments } from "@/lib/media/asset-assignments.server";
+import { tagFor } from "@/lib/site-admin/cache-tags";
+import { updateTag } from "next/cache";
 import { enqueueTenantImageJob } from "@/lib/media/tenant-image-jobs.server";
 import { instantiateSite } from "./instantiate-site";
 import { DEFAULT_LOOK_BY_FAMILY } from "./look-defaults";
@@ -354,6 +356,15 @@ async function writeStamp(admin: SupabaseClient, tenantId: string, stamp: SiteCo
   }
 }
 
+/** The public theme is served from the `branding` cache tag (reads.ts); a new Look must reach the page now, not after a restart. */
+function bustBrandingCache(tenantId: string): void {
+  try {
+    updateTag(tagFor(tenantId, "branding"));
+  } catch {
+    /* outside a request scope (scripts, tests): nothing to bust */
+  }
+}
+
 const EMPTY_PLACED: SiteComposePlaced = { photos: { hero: null, heroSource: null, gallery: 0, level: null, pendingJobId: null }, menuItems: 0, hoursPresent: false, whatsappPresent: false, logoPresent: false };
 
 // ── Main ────────────────────────────────────────────────────────────────────
@@ -641,6 +652,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
 
   const { error: themeErr } = await admin.from("agency_branding").upsert({ tenant_id: input.tenantId, theme_json_draft: themePatch, ...(input.publish ? { theme_json: themePatch } : {}) } as never, { onConflict: "tenant_id" });
   if (themeErr) notes.push(`theme draft not written: ${themeErr.message}`);
+  else bustBrandingCache(input.tenantId);
 
   const home = await ensureHomepageRow(admin, { tenantId: input.tenantId, locale: writeLocale });
   if (!home.ok) return fail(`homepage row: ${home.code ?? "ensure failed"}`, { lookId: look.id, typeId, family });

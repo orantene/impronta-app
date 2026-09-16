@@ -14,6 +14,30 @@ import { logServerError } from "@/lib/server/safe-error";
 
 type Node = { props?: Record<string, unknown>; children?: unknown[] } & Record<string, unknown>;
 
+/** Every prop a Look may put a picture URL in: image src, sticky/before-after urls, hero slide urls, video poster. */
+const URL_KEYS = ["src", "imageUrl", "beforeUrl", "afterUrl", "poster"] as const;
+
+function holdsSrc(props: Record<string, unknown>, src: string): boolean {
+  if (URL_KEYS.some((k) => props[k] === src)) return true;
+  const media = props.backgroundMedia as { slides?: Array<{ url?: string }>; src?: string; poster?: string } | undefined;
+  return !!media && (media.src === src || media.poster === src || (media.slides ?? []).some((sl) => sl?.url === src));
+}
+
+function replaceSrc(props: Record<string, unknown>, from: string, to: string): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...props };
+  for (const k of URL_KEYS) if (out[k] === from) out[k] = to;
+  const media = out.backgroundMedia as { slides?: Array<{ url?: string }>; src?: string; poster?: string } | undefined;
+  if (media) {
+    out.backgroundMedia = {
+      ...media,
+      ...(media.src === from ? { src: to } : {}),
+      ...(media.poster === from ? { poster: to } : {}),
+      ...(media.slides ? { slides: media.slides.map((sl) => (sl?.url === from ? { ...sl, url: to } : sl)) } : {}),
+    };
+  }
+  return out;
+}
+
 /** Pure: returns a new tree and how many nodes changed. */
 export function swapImageSrcInTree(
   tree: unknown,
@@ -29,9 +53,9 @@ export function swapImageSrcInTree(
     if (!value || typeof value !== "object") return value;
     const node = value as Node;
     let next: Node = node;
-    if (changed < maxNodes && node.props && typeof node.props === "object" && node.props.src === fromSrc) {
+    if (changed < maxNodes && node.props && typeof node.props === "object" && holdsSrc(node.props, fromSrc)) {
       changed += 1;
-      const props: Record<string, unknown> = { ...node.props, src: toSrc };
+      const props: Record<string, unknown> = replaceSrc(node.props, fromSrc, toSrc);
       if (toAlt?.es || toAlt?.en) {
         if (typeof props.alt === "string") props.alt = toAlt.es ?? toAlt.en ?? props.alt;
         const i18n = props.i18n && typeof props.i18n === "object" ? { ...(props.i18n as Record<string, Record<string, string>>) } : null;

@@ -16,6 +16,8 @@ import type { SiteComposeStamp } from "./compose-site-from-brief.server";
 import { instantiateSite } from "./instantiate-site";
 import { loadLookBySlug } from "./site-looks.server";
 import { themePatchFromPalette } from "./theme-from-palette";
+import { tagFor } from "@/lib/site-admin/cache-tags";
+import { updateTag } from "next/cache";
 import { validateThemePatch } from "@/lib/site-admin/tokens/registry";
 import type { SiteIdentity } from "./types";
 import { writeFreeformSiteShell } from "./write-site-shell.server";
@@ -106,6 +108,11 @@ export async function rethemeSiteAfterLogo(
         return admin.from("agency_branding").update({ theme_json: r.data.theme_json_draft } as never).eq("tenant_id", input.tenantId);
       });
       if (liveErr) return { outcome: "failed", note: `theme publish: ${liveErr.message}` };
+    }
+    try {
+      updateTag(tagFor(input.tenantId, "branding"));
+    } catch {
+      /* outside a request scope */
     }
     return { outcome: "rethemed", paletteDemoted };
   } catch (err) {
