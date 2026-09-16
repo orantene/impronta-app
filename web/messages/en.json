@@ -17011,7 +17011,9 @@
         "groupsReason": "Two groups exist today (pick one, extras); free-form groups have no writer yet.",
         "prepNotes": "Notes for preparation",
         "allergy": "Allergy field",
-        "prepReason": "Preparation prompts are not recorded on an item yet."
+        "prepReason": "Preparation prompts are not recorded on an item yet.",
+        "groupMenu": "Group menu",
+        "reorderReason": "Rows sell in this order; reordering has no writer here yet."
       },
       "fulfillment": {
         "title": "Fulfillment & preparation",
@@ -17044,8 +17046,7 @@
         "privateLinkNote": "Unlisted URL for a campaign",
         "priceOverride": "Price override",
         "reason": "This channel has no flag on the item yet; the two that exist are the website and the counter.",
-        "overrideReason": "A per-channel price has no column yet; every channel sells the base price.",
-        "rule": "Turning a channel off never cancels sales already made through it."
+        "overrideReason": "A per-channel price has no column yet; every channel sells the base price."
       },
       "policies": {
         "title": "Policies · accepted version is kept on every sale",
@@ -17121,7 +17122,7 @@
         "sectionsReason": "Sections and courses for the tables menu have no table yet; the tables mode sells the same catalog.",
         "qrOrdering": "Guests can order from the QR",
         "qrOrderingNote": "Staff accept before dispatch",
-        "backToItems": "Back to items"
+        "reorderReason": "The counter shows this order; reordering has no writer here yet."
       },
       "priceLists": {
         "title": "Price lists",
@@ -17172,7 +17173,8 @@
           "partial": "Partial use",
           "concurrent": "Concurrent use",
           "reporting": "Reporting"
-        }
+        },
+        "usedNote": "redeemed at Collect (Pass or credit) and at class check-in"
       },
       "package": {
         "title": "Composition",
@@ -17195,7 +17197,17 @@
         "save": "Save composition",
         "saved": "Composition saved.",
         "allocationNote": "Allocation is proportional to each component's list price; the rounding remainder goes to the last row, so the parts always sum to the package price.",
-        "dependenciesReason": "Dependencies between components, manual amounts and the guest preview are not recorded yet; a required component that is unavailable refuses the whole package at the till."
+        "dependenciesReason": "Dependencies between components and manual amounts are not recorded yet; a required component that is unavailable refuses the whole package at the till.",
+        "dependencies": "Dependencies",
+        "allocationMethod": "Allocation method",
+        "proportional": "Proportional to component list price",
+        "proportionalNote": "Rounding remainder goes to the last row",
+        "manual": "Manual amounts",
+        "manualNote": "Must sum to the accepted package price",
+        "manualReason": "Manual amounts are not recorded yet; every package splits proportionally.",
+        "guestPreview": "Guest preview · Configure",
+        "total": "Total",
+        "holdsNote": "Holds all required components together or offers a truthful alternative."
       },
       "phases": {
         "title": "Price phases",

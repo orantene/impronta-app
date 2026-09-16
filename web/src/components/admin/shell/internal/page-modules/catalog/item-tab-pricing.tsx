@@ -27,7 +27,7 @@ import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 import { StatePill } from "../appointments-classes-ui";
 import type { TabProps } from "./CatalogItemEditor";
 import { exampleTotals } from "./catalog-model";
-import { BUTTON_SMALL, CARD, Eyebrow, Field, INPUT, SectionHead, TotalRow } from "./catalog-ui";
+import { AddPill, CARD, Eyebrow, Field, INPUT, SectionHead, SELECT, SelectShell, TotalRow } from "./catalog-ui";
 import { PricePhases } from "./item-tab-pricing-phases";
 
 const UNITS: ReadonlyArray<{ value: ServicePricingType; key: string }> = [
@@ -81,30 +81,30 @@ export function PricingTab({ item, patch, saving, isDraft }: TabProps) {
           />
         </Field>
         <Field label={t("dashboard.catalog.pricing.soldBy")} hint={t("dashboard.catalog.pricing.soldByHint")}>
-          <select
+          <SelectShell><select
             value={item.priceType}
             disabled={saving}
             data-testid="catalog-field-unit"
             onChange={(e) => patch({ priceType: e.target.value as ServicePricingType })}
-            className={INPUT}
+            className={SELECT}
           >
             {UNITS.map((u) => (
               <option key={u.value} value={u.value}>
                 {t(u.key)}
               </option>
             ))}
-          </select>
+          </select></SelectShell>
         </Field>
         <Field label={t("dashboard.catalog.pricing.taxCategory")} reason={t("dashboard.catalog.pricing.taxReason")}>
-          <select disabled className={INPUT} data-testid="catalog-field-tax">
+          <SelectShell><select disabled className={SELECT} data-testid="catalog-field-tax">
             <option>{t("dashboard.catalog.pricing.taxUnset")}</option>
-          </select>
+          </select></SelectShell>
         </Field>
         <Field label={t("dashboard.catalog.pricing.cost")} reason={t("dashboard.catalog.pricing.costReason")}>
           <input type="number" disabled className={INPUT} data-testid="catalog-field-cost" />
         </Field>
         <Field label={t("dashboard.catalog.pricing.shownAs")} hint={t("dashboard.catalog.pricing.shownAsHint")}>
-          <select
+          <SelectShell><select
             value={item.priceDisplay}
             disabled={saving}
             data-testid="catalog-field-display"
@@ -114,45 +114,42 @@ export function PricingTab({ item, patch, saving, isDraft }: TabProps) {
               else if (mode === "from") patch({ priceDisplay: "from", bookingMode: "request" });
               else patch({ priceDisplay: "exact" });
             }}
-            className={INPUT}
+            className={SELECT}
           >
             <option value="exact">{t("dashboard.catalog.pricing.display.exact")}</option>
             <option value="from">{t("dashboard.catalog.pricing.display.from")}</option>
             <option value="quote">{t("dashboard.catalog.pricing.display.quote")}</option>
-          </select>
+          </select></SelectShell>
         </Field>
         <Field label={t("dashboard.catalog.pricing.currency")}>
-          <select
+          <SelectShell><select
             value={(DEFAULT_CURRENCY_OPTIONS as readonly string[]).includes(item.currency) ? item.currency : DEFAULT_CURRENCY_OPTIONS[0]}
             disabled={saving}
             onChange={(e) => patch({ currency: e.target.value })}
-            className={INPUT}
+            className={SELECT}
           >
             {DEFAULT_CURRENCY_OPTIONS.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
-          </select>
+          </select></SelectShell>
         </Field>
       </div>
 
       <SectionHead title={t("dashboard.catalog.pricing.listsTitle")} intro={t("dashboard.catalog.pricing.listsIntro")} />
       <div className={CARD} data-testid="catalog-price-lists" title={t("dashboard.catalog.pricing.listsReason")}>
-        <div className="flex items-center gap-[12px] px-[16px] py-[11px] font-admin-body text-[12.5px]">
+        <div className="flex items-center gap-[12px] px-[16px] py-[12px] font-admin-body text-[12.5px] leading-[1.2]">
           <span className="flex-1 font-semibold text-admin-ink">{t("dashboard.catalog.pricing.defaultList")}</span>
-          <span className="w-[200px] text-admin-ink-muted">{t("dashboard.catalog.pricing.always")}</span>
-          <span className="w-[60px] font-semibold tabular-nums text-admin-ink">{priceText}</span>
+          <span className="w-[270px] text-admin-ink-muted">{t("dashboard.catalog.pricing.always")}</span>
+          <span className="w-[60px] text-right font-semibold tabular-nums text-admin-ink">{priceText}</span>
           <span className="inline-flex h-[16px] w-[16px] items-center justify-center rounded-[4px] border-[1.5px] border-admin-brand bg-admin-brand text-white">
             <Icon name="check" size={11} stroke={2.5} />
           </span>
         </div>
-        <div className="border-t border-admin-border-soft px-[16px] py-[10px]">
-          <button type="button" disabled title={t("dashboard.catalog.pricing.listsReason")} data-not-wired="true" className={BUTTON_SMALL}>
-            <Icon name="plus" size={12} stroke={1.75} />
-            {t("dashboard.catalog.pricing.addRule")}
-          </button>
-          <span className="ml-[10px] font-admin-body text-[11.5px] text-admin-ink-dim">{t("dashboard.catalog.pricing.listsReason")}</span>
+        <div className="flex items-center gap-[10px] border-t border-admin-border-soft px-[16px] py-[11px]">
+          <AddPill reason={t("dashboard.catalog.pricing.listsReason")}>{t("dashboard.catalog.pricing.addRule")}</AddPill>
+          <span className="font-admin-body text-[11.5px] leading-[1.2] text-admin-ink-dim">{t("dashboard.catalog.pricing.listsReason")}</span>
         </div>
       </div>
 
@@ -176,21 +173,21 @@ function DepositFields({ item, patch, saving }: Pick<TabProps, "item" | "patch" 
         label={t("dashboard.catalog.pricing.howBooked")}
         hint={instantAllowed ? t("dashboard.catalog.pricing.howBookedHint") : t("dashboard.catalog.pricing.instantNeedsPrice")}
       >
-        <select
+        <SelectShell><select
           value={item.bookingMode}
           disabled={saving}
           data-testid="catalog-field-booking-mode"
           onChange={(e) => patch({ bookingMode: e.target.value === "instant" ? "instant" : "request" })}
-          className={INPUT}
+          className={SELECT}
         >
           <option value="request">{t("dashboard.catalog.pricing.booking.request")}</option>
           <option value="instant" disabled={!instantAllowed}>
             {t("dashboard.catalog.pricing.booking.instant")}
           </option>
-        </select>
+        </select></SelectShell>
       </Field>
       <Field label={t("dashboard.catalog.pricing.collectUpFront")} hint={item.bookingMode === "instant" ? null : t("dashboard.catalog.pricing.collectHint")}>
-        <select
+        <SelectShell><select
           value={item.reserveMode}
           disabled={saving || item.bookingMode !== "instant"}
           data-testid="catalog-field-reserve-mode"
@@ -198,12 +195,12 @@ function DepositFields({ item, patch, saving }: Pick<TabProps, "item" | "patch" 
             const v = e.target.value as OfferingReserveMode;
             patch({ reserveMode: v, depositPct: v === "deposit" ? (item.depositPct ?? 30) : null });
           }}
-          className={INPUT}
+          className={SELECT}
         >
           <option value="full">{t("dashboard.catalog.pricing.reserve.full")}</option>
           <option value="deposit">{t("dashboard.catalog.pricing.reserve.deposit")}</option>
           <option value="free">{t("dashboard.catalog.pricing.reserve.free")}</option>
-        </select>
+        </select></SelectShell>
       </Field>
       {item.bookingMode === "instant" && item.reserveMode === "deposit" ? (
         <Field label={t("dashboard.catalog.pricing.depositPct")}>
@@ -252,15 +249,15 @@ export function PricingSide({ item, price, blockers }: { item: TalentOffering; p
   return (
     <>
       <Eyebrow>{t("dashboard.catalog.side.onCounterTile")}</Eyebrow>
-      <div className="flex h-[84px] flex-col justify-between rounded-[14px] border-[1.5px] border-admin-border bg-admin-card p-[12px]" data-testid="catalog-side-tile">
-        <div className="font-admin-body text-admin-13 font-semibold text-admin-ink">{item.title || t("dashboard.catalog.untitled")}</div>
+      <div className="flex h-[82px] flex-col justify-between rounded-[14px] border border-admin-border bg-admin-card px-[14px] py-[13px] leading-[1.2]" data-testid="catalog-side-tile">
+        <div className="font-admin-body text-[14px] font-semibold text-admin-ink">{item.title || t("dashboard.catalog.untitled")}</div>
         <div className="flex items-center gap-[6px]">
-          <span className="font-admin-body text-admin-13 font-bold tabular-nums text-admin-ink">{price}</span>
+          <span className="font-admin-body text-[14px] font-bold tabular-nums text-admin-ink">{price}</span>
           {hasOptions ? <StatePill tone="slate">{t("dashboard.catalog.side.optionsPill")}</StatePill> : null}
         </div>
       </div>
       <Eyebrow>{t("dashboard.catalog.side.exampleTotals")}</Eyebrow>
-      <div className={`${CARD} px-[16px] py-[12px]`}>
+      <div className={`${CARD} px-[16px] py-[4px]`}>
         <TotalRow label={t("dashboard.catalog.side.base")} value={money(totals.baseCents)} />
         <TotalRow
           label={totals.extraLabel ?? t("dashboard.catalog.side.noExtras")}
@@ -272,7 +269,7 @@ export function PricingSide({ item, price, blockers }: { item: TalentOffering; p
       </div>
       <Eyebrow>{t("dashboard.catalog.side.beforePublish")}</Eyebrow>
       {blockers.length === 0 ? (
-        <div className="flex items-center gap-[6px] font-admin-body text-[12.5px] text-admin-green" data-testid="catalog-before-publish" data-state="ready">
+        <div className="flex items-center gap-[6px] font-admin-body text-[12.5px] leading-[1.2] text-admin-green" data-testid="catalog-before-publish" data-state="ready">
           <Icon name="check" size={14} stroke={2} />
           {t("dashboard.catalog.side.readyToPublish")}
         </div>

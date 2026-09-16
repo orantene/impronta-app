@@ -27,6 +27,7 @@ import { TabStrip } from "./catalog-ui";
 import { DetailsTab } from "./item-tab-details";
 import { PricingTab, PricingSide } from "./item-tab-pricing";
 import { OptionsTab, OptionsSide } from "./item-tab-options";
+import { PackageSide } from "./item-tab-package";
 import { AvailabilityTab, AvailabilitySide, FulfillmentTab } from "./item-tab-availability";
 import { ChannelsTab, ChannelsSide, PoliciesTab } from "./item-tab-channels";
 import { WhoPerforms } from "@/components/admin/people/WhoPerforms";
@@ -152,21 +153,25 @@ export function CatalogItemEditor({
     case "details":
     default:
       body = <DetailsTab {...tabProps} />;
-      side = <PricingSide item={item} price={price} blockers={blockers} />;
+      // PackageEditor: the right column is the guest's Configure preview over the composition the Details tab holds.
+      side = item.kind === "package" && !isDraft ? <PackageSide item={item} editor={editor} price={price} /> : <PricingSide item={item} price={price} blockers={blockers} />;
   }
 
   return (
-    <div className="-mx-[28px] -mt-[24px] grid min-w-0 grid-cols-[minmax(0,1fr)_340px] max-[720px]:-mx-[14px] max-[720px]:-mt-[14px] max-[720px]:grid-cols-[minmax(0,1fr)]" data-testid="catalog-item-editor">
+    <div
+      className="-mx-[28px] -mb-[24px] -mt-[24px] grid min-h-[calc(100vh-56px)] min-w-0 grid-cols-[minmax(0,1fr)_342px] bg-admin-card leading-[1.2] max-[720px]:-mx-[14px] max-[720px]:-mt-[14px] max-[720px]:min-h-0 max-[720px]:grid-cols-[minmax(0,1fr)] max-[720px]:bg-transparent"
+      data-testid="catalog-item-editor"
+    >
       {/* MW22: the phone's back header reads the item over "Catalog · type". */}
       <MobileDetailHeaderSyncer title={item.title || t("dashboard.catalog.untitled")} subtitle={meta} backHref={nav.href({})} />
       <div className="flex min-w-0 flex-col">
-        <div className="flex flex-col gap-[12px] px-[28px] pt-[18px] max-[720px]:px-[14px] max-[720px]:pt-[14px]">
+        <div className="flex flex-col gap-[14px] px-[28px] pt-[16px] max-[720px]:px-[14px] max-[720px]:pt-[14px]">
           <header className="flex items-center justify-between gap-[12px] max-[720px]:flex-wrap">
             <div className="min-w-0">
-              <h1 className="m-0 truncate font-admin-body text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink max-[720px]:text-[20px]!" data-testid="catalog-item-title">
+              <h1 className="m-0 truncate font-admin-body text-[26px]! font-semibold leading-[1.2] tracking-[-0.02em] text-admin-ink max-[720px]:text-[20px]!" data-testid="catalog-item-title">
                 {item.title || t("dashboard.catalog.untitled")}
               </h1>
-              <p className="m-0 mt-[4px] font-admin-body text-admin-13 text-admin-ink-muted max-[720px]:text-admin-12h">{meta}</p>
+              <p className="m-0 mt-[3px] font-admin-body text-admin-13 leading-[1.2] text-admin-ink-muted max-[720px]:text-admin-12h">{meta}</p>
             </div>
             <div className="flex shrink-0 items-center gap-[8px] max-[720px]:hidden">
               {item.status !== "published" ? <StatePill tone="coral">{t("dashboard.catalog.editor.draftChanges")}</StatePill> : null}
@@ -202,7 +207,7 @@ export function CatalogItemEditor({
           />
           <TabStrip label={t("dashboard.catalog.tab.label")} tabs={tabs} />
         </div>
-        <div className="flex flex-col gap-[16px] px-[28px] py-[18px] max-[720px]:gap-[12px] max-[720px]:px-[14px] max-[720px]:py-[12px]">{body}</div>
+        <div className="flex flex-col gap-[16px] px-[28px] pb-[18px] pt-[22px] max-[720px]:gap-[12px] max-[720px]:px-[14px] max-[720px]:py-[12px]">{body}</div>
         <div className="min-h-[16px] px-[28px] pb-[12px] font-admin-body text-[11px] max-[720px]:px-[14px]">
           {editor.saving ? <span className="text-admin-ink-muted">{t("dashboard.catalog.saving")}</span> : null}
           {editor.savedOk && !editor.saving ? <span className="text-admin-green">{t("dashboard.catalog.saved")}</span> : null}
@@ -251,7 +256,7 @@ export function CatalogItemEditor({
           )}
         </div>
       </div>
-      <aside className="flex min-w-0 flex-col gap-[12px] border-l border-admin-border bg-admin-surface p-[18px] max-[720px]:hidden" data-testid="catalog-item-side">
+      <aside className="flex min-w-0 flex-col gap-[12px] border-l border-admin-border bg-admin-surface px-[18px] pb-[18px] pt-[20px] max-[720px]:hidden" data-testid="catalog-item-side">
         {side}
       </aside>
     </div>
