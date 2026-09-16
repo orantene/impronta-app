@@ -12,9 +12,13 @@ import {
   type ModuleInput,
   type ModuleStep,
   type OnboardingIntent,
+  type OnboardingPath,
   type PersistedModuleState,
   type ResumeSnapshot,
 } from "./module-state";
+import type { ModuleQuestionId } from "./module-questions";
+import type { TypeChipProposal } from "./type-chip";
+import type { Understanding } from "./understanding";
 
 export type MachineErrorCode =
   | "too_short"
@@ -23,7 +27,12 @@ export type MachineErrorCode =
   | "module_off"
   | "save_failed"
   | "no_owner"
-  | "no_brief";
+  | "no_brief"
+  | "ai_off"
+  | "rate_limit"
+  | "import_failed"
+  | "failed"
+  | "invalid_whatsapp";
 
 export type MachineState = {
   intent: OnboardingIntent;
@@ -41,6 +50,14 @@ export type MachineState = {
   dictating: boolean;
   isAuthenticated: boolean;
   email: string | null;
+  /** Phase 3: the understood card and the follow-up cursor. */
+  understanding: Understanding | null;
+  chip: TypeChipProposal | null;
+  followUps: ModuleQuestionId[];
+  questionIndex: number;
+  linkSlug: string | null;
+  linkAvailable: boolean | null;
+  linkSuggestions: string[];
 };
 
 export type MachineEvent =
@@ -56,7 +73,16 @@ export type MachineEvent =
   | { type: "sendAccepted"; briefId: string; input: ModuleInput }
   | { type: "sendFailed"; code: MachineErrorCode }
   | { type: "back" }
-  | { type: "clearError" };
+  | { type: "clearError" }
+  | { type: "cardLoaded"; understanding: Understanding; chip: TypeChipProposal | null; step?: ModuleStep }
+  | { type: "cardFailed"; code: MachineErrorCode }
+  | { type: "cardAccepted"; nextStep: ModuleStep; followUps: ModuleQuestionId[] }
+  | { type: "pathChosen"; understanding: Understanding; chip: TypeChipProposal | null; path: OnboardingPath }
+  | { type: "questionAnswered"; understanding: Understanding; chip: TypeChipProposal | null }
+  | { type: "questionSkipped" }
+  | { type: "jumpToQuestion"; questionId: ModuleQuestionId }
+  | { type: "linkChecked"; slug: string; available: boolean; suggestions: string[] }
+  | { type: "toStep"; step: ModuleStep };
 
 export function initialMachineState(intent: OnboardingIntent = "unknown"): MachineState {
   return {
@@ -71,6 +97,13 @@ export function initialMachineState(intent: OnboardingIntent = "unknown"): Machi
     dictating: false,
     isAuthenticated: false,
     email: null,
+    understanding: null,
+    chip: null,
+    followUps: [],
+    questionIndex: 0,
+    linkSlug: null,
+    linkAvailable: null,
+    linkSuggestions: [],
   };
 }
 
@@ -79,7 +112,18 @@ const BACK: Partial<Record<ModuleStep, ModuleStep>> = {
   confirmWords: "entry",
   reading: "confirmWords",
   tooLittle: "entry",
+  fork: "understood",
+  question: "understood",
+  readyToBuild: "understood",
 };
+
+/** After a question: the next one, or ready to build. */
+function afterQuestion(state: MachineState): MachineState {
+  const next = state.questionIndex + 1;
+  const remaining = state.followUps.filter((q) => q !== "fork");
+  if (next < remaining.length) return { ...state, questionIndex: next, step: "question", busy: false, error: null };
+  return { ...state, questionIndex: next, step: "readyToBuild", busy: false, error: null };
+}
 
 export function reduceMachine(state: MachineState, event: MachineEvent): MachineState {
   switch (event.type) {
@@ -107,6 +151,8 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
         input: s.input ?? null,
         text: s.input?.value ?? "",
         step: s.step ?? "entry",
+        questionIndex: s.questionIndex ?? 0,
+        linkSlug: s.linkSlug ?? null,
       };
     }
     case "resumeFresh":
@@ -126,11 +172,54 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
     case "sendFailed":
       return { ...state, busy: false, error: event.code, step: event.code === "too_short" ? "tooLittle" : state.step };
     case "back": {
+      if (state.step === "question" && state.questionIndex > 0) {
+        return { ...state, questionIndex: state.questionIndex - 1, error: null };
+      }
       const to = BACK[state.step];
-      return to ? { ...state, step: to, error: null } : state;
+      return to ? { ...state, step: to, error: null, questionIndex: 0 } : state;
     }
     case "clearError":
       return { ...state, error: null };
+    case "cardLoaded":
+      return {
+        ...state,
+        busy: false,
+        error: null,
+        understanding: event.understanding,
+        chip: event.chip,
+        followUps: event.understanding.followUps,
+        step: event.step ?? (event.understanding.tooLittle ? "tooLittle" : state.step === "reading" ? "understood" : state.step),
+      };
+    case "cardFailed":
+      return { ...state, busy: false, error: event.code, step: event.code === "ai_off" ? state.step : state.step };
+    case "cardAccepted":
+      return { ...state, busy: false, followUps: event.followUps, questionIndex: 0, step: event.nextStep };
+    case "pathChosen": {
+      const followUps = event.understanding.followUps.filter((q) => q !== "fork");
+      return {
+        ...state,
+        busy: false,
+        understanding: event.understanding,
+        chip: event.chip,
+        followUps,
+        questionIndex: 0,
+        step: followUps.length ? "question" : "readyToBuild",
+      };
+    }
+    case "questionAnswered":
+      return afterQuestion({ ...state, understanding: event.understanding, chip: event.chip });
+    case "questionSkipped":
+      return afterQuestion(state);
+    case "jumpToQuestion": {
+      const remaining: ModuleQuestionId[] = state.followUps.filter((q) => q !== "fork");
+      const idx = remaining.indexOf(event.questionId);
+      if (idx < 0) return state;
+      return { ...state, step: "question", questionIndex: idx, error: null };
+    }
+    case "linkChecked":
+      return { ...state, linkSlug: event.slug, linkAvailable: event.available, linkSuggestions: event.suggestions };
+    case "toStep":
+      return { ...state, step: event.step, error: null, busy: false };
     default:
       return state;
   }

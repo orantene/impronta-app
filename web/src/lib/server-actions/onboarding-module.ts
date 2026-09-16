@@ -16,7 +16,7 @@
  */
 
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
-import { archiveBrief, ensureBrief, loadBrief } from "@/lib/tulala/brief-store.server";
+import { archiveBrief, ensureBrief, loadBrief, recordFacts } from "@/lib/tulala/brief-store.server";
 import { updateBriefModuleState } from "@/lib/tulala/brief-module-state.server";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -32,6 +32,19 @@ import {
   type ResumeSnapshot,
 } from "@/lib/onboarding/module-state";
 import { detectLink } from "@/lib/tulala/detect-url";
+import { understandBrief, understandingFor, type UnderstandResult } from "@/lib/onboarding/understand.server";
+import {
+  hoursFromPreset,
+  normalizeWhatsapp,
+  type HoursPresetId,
+  type ModuleQuestionId,
+} from "@/lib/onboarding/module-questions";
+import type { TypeChipProposal } from "@/lib/onboarding/type-chip";
+import type { Understanding } from "@/lib/onboarding/understanding";
+import { checkSubdomainAvailability } from "@/app/(marketing)/get-started/actions";
+import { normalizeWorkspaceSlugCandidate } from "@/lib/saas/workspace-signup";
+import { validateFactValue } from "@/lib/tulala/fact-keys";
+import type { OnboardingPath } from "@/lib/onboarding/module-state";
 
 export type ModuleActionError = {
   ok: false;
@@ -127,4 +140,179 @@ export async function resetOnboardingDraft(): Promise<{ ok: boolean }> {
   if (!brief) return { ok: true };
   const archived = await archiveBrief(brief.id);
   return { ok: archived.ok };
+}
+
+// ─── Phase 3 · understanding, edits, questions, link ──────────────────────────
+
+
+export type CardPayload = {
+  briefId: string;
+  understanding: Understanding;
+  chip: TypeChipProposal | null;
+  state: PersistedModuleState;
+};
+
+export type CardResult =
+  | { ok: true; card: CardPayload }
+  | ModuleActionError
+  | { ok: false; code: "ai"; message: string; understandCode: Extract<UnderstandResult, { ok: false }>["code"] };
+
+type Owned =
+  | { error: ModuleActionError; resolved?: undefined; brief?: undefined; state?: undefined }
+  | { error?: undefined; resolved: NonNullable<Awaited<ReturnType<typeof resolveBriefOwner>>>; brief: NonNullable<Awaited<ReturnType<typeof loadBrief>>>; state: PersistedModuleState };
+
+async function ownedBrief(): Promise<Owned> {
+  if (!(await moduleOn())) return { error: { ok: false, code: "module_off" } };
+  const resolved = await resolveBriefOwner();
+  if (!resolved) return { error: { ok: false, code: "no_owner" } };
+  const brief = await loadBrief(resolved.owner);
+  if (!brief) return { error: { ok: false, code: "no_brief" } };
+  return { resolved, brief, state: parsePersistedModuleState(brief.moduleState) };
+}
+
+async function cardFor(briefId: string, state: PersistedModuleState, brief: Parameters<typeof understandingFor>[0]["brief"]): Promise<CardPayload> {
+  const { understanding, chip } = await understandingFor({
+    brief,
+    intent: state.intent ?? "unknown",
+    userPath: state.path ?? null,
+  });
+  return { briefId, understanding, chip, state };
+}
+
+/**
+ * Runs the understand step on the stored input (sentence or link), records
+ * the facts and returns the card. Idempotent: calling it again re-reads the
+ * words (a second model call) only when the card has no facts yet.
+ */
+export async function understandOnboardingInput(): Promise<CardResult> {
+  const got = await ownedBrief();
+  if (got.error) return got.error;
+  const { resolved, brief, state } = got;
+  const input = state.input;
+  if (!input) return { ok: false, code: "no_brief" };
+
+  if (brief.facts.length === 0) {
+    const session = await getCachedActorSession();
+    const result = await understandBrief({
+      owner: resolved.owner,
+      brief,
+      intent: state.intent ?? "unknown",
+      userPath: state.path ?? null,
+      locale: state.locale ?? "en",
+      text: input.kind === "text" ? input.value : undefined,
+      url: input.kind === "url" ? input.value : undefined,
+      scope: { sessionId: session.user?.id ?? resolved.guestSessionId ?? brief.id, userId: session.user?.id ?? null },
+    });
+    if (!result.ok) return { ok: false, code: "ai", message: result.message, understandCode: result.code };
+    const nextStep: ModuleStep = result.understanding.tooLittle ? "tooLittle" : "understood";
+    await updateBriefModuleState(brief.id, { step: nextStep, updatedAt: new Date().toISOString() });
+    return { ok: true, card: { briefId: brief.id, understanding: result.understanding, chip: result.chip, state: { ...state, step: nextStep } } };
+  }
+  return { ok: true, card: await cardFor(brief.id, state, brief) };
+}
+
+/** The card as it stands (resume, after edits). No model call. */
+export async function loadOnboardingCard(): Promise<CardResult> {
+  const got = await ownedBrief();
+  if (got.error) return got.error;
+  return { ok: true, card: await cardFor(got.brief.id, got.state, got.brief) };
+}
+
+/** An inline edit on the card: the person's own words, confirmed. */
+export async function editUnderstoodFact(input: { factKey: string; value: string | string[] }): Promise<CardResult> {
+  const got = await ownedBrief();
+  if (got.error) return got.error;
+  const check = validateFactValue(input.factKey, input.value);
+  if (!check.ok) return { ok: false, code: "save_failed" };
+  await recordFacts(got.brief.id, [{ factKey: input.factKey, value: check.value, source: "user_stated", status: "confirmed", confidence: 1 }]);
+  const brief = (await loadBrief(got.resolved.owner)) ?? got.brief;
+  return { ok: true, card: await cardFor(brief.id, got.state, brief) };
+}
+
+/** The fork: for you / the business / both. A choice, not a fact. */
+export async function chooseOnboardingPath(input: { path: OnboardingPath }): Promise<CardResult> {
+  const got = await ownedBrief();
+  if (got.error) return got.error;
+  const saved = await updateBriefModuleState(got.brief.id, { path: input.path, updatedAt: new Date().toISOString() });
+  const state = { ...got.state, path: input.path };
+  if (!saved.ok) return { ok: false, code: "save_failed" };
+  return { ok: true, card: await cardFor(got.brief.id, state, got.brief) };
+}
+
+export type QuestionAnswer =
+  | { questionId: "basics"; what: string; city: string }
+  | { questionId: "name"; name: string }
+  | { questionId: "services"; services: string[] }
+  | { questionId: "kind_of_business"; kind: "business" | "talent"; id: string; slug: string; label: string }
+  | { questionId: "two_quick_things"; hoursPreset?: HoursPresetId | null; hoursCustom?: string[] | null; whatsapp?: string | null }
+  | { questionId: "link_confirm"; confirmed: boolean };
+
+export async function answerModuleQuestion(input: {
+  answer: QuestionAnswer;
+  questionIndex: number;
+}): Promise<CardResult | { ok: false; code: "invalid_whatsapp" }> {
+  const got = await ownedBrief();
+  if (got.error) return got.error;
+  const locale = got.state.locale ?? "en";
+  const facts: Parameters<typeof recordFacts>[1] = [];
+  const statePatch: PersistedModuleState = { questionIndex: input.questionIndex + 1, updatedAt: new Date().toISOString() };
+  const a = input.answer;
+  if (a.questionId === "basics") {
+    const what = a.what.trim();
+    const city = a.city.trim();
+    const business = (got.state.path ?? "talent") !== "talent";
+    if (what) facts.push({ factKey: business ? "work.industry" : "work.discipline", value: what, source: "user_stated", status: "confirmed", confidence: 1 });
+    if (city) facts.push({ factKey: "person.city", value: city, source: "user_stated", status: "confirmed", confidence: 1 });
+  } else if (a.questionId === "name") {
+    const name = a.name.trim();
+    if (name) facts.push({ factKey: "person.professional_name", value: name, source: "user_stated", status: "confirmed", confidence: 1 });
+  } else if (a.questionId === "services") {
+    const list = a.services.map((s) => s.trim()).filter(Boolean).slice(0, 12);
+    if (list.length) facts.push({ factKey: "work.services", value: list, source: "user_stated", status: "confirmed", confidence: 1 });
+  } else if (a.questionId === "kind_of_business") {
+    statePatch.typeChoice = { kind: a.kind, id: a.id, slug: a.slug };
+    if (a.label.trim()) facts.push({ factKey: "work.industry", value: a.label.trim(), source: "user_stated", status: "confirmed", confidence: 1 });
+  } else if (a.questionId === "two_quick_things") {
+    if (a.hoursPreset) facts.push({ factKey: "business.hours", value: hoursFromPreset(a.hoursPreset, locale), source: "user_stated", status: "confirmed", confidence: 1 });
+    else if (a.hoursCustom && a.hoursCustom.length) facts.push({ factKey: "business.hours", value: a.hoursCustom.map((l) => l.trim()).filter(Boolean), source: "user_stated", status: "confirmed", confidence: 1 });
+    if (a.whatsapp && a.whatsapp.trim()) {
+      const normalized = normalizeWhatsapp(a.whatsapp);
+      if (!normalized) return { ok: false, code: "invalid_whatsapp" };
+      facts.push({ factKey: "presence.whatsapp", value: normalized, source: "user_stated", status: "confirmed", confidence: 1 });
+    }
+  } else if (a.questionId === "link_confirm") {
+    if (a.confirmed) {
+      const name = got.brief.facts.find((f) => f.factKey === "business.name");
+      if (name) facts.push({ factKey: "business.name", value: name.value, source: "user_stated", status: "confirmed", confidence: 1 });
+    }
+  }
+  if (facts.length) await recordFacts(got.brief.id, facts);
+  const saved = await updateBriefModuleState(got.brief.id, statePatch as Record<string, unknown>);
+  if (!saved.ok) return { ok: false, code: "save_failed" };
+  const brief = (await loadBrief(got.resolved.owner)) ?? got.brief;
+  return { ok: true, card: await cardFor(brief.id, { ...got.state, ...statePatch }, brief) };
+}
+
+/** "Looks right": accept the assumed lines as they stand and move on. */
+export async function acceptUnderstoodCard(): Promise<{ ok: boolean; nextStep: ModuleStep; followUps: ModuleQuestionId[] }> {
+  const got = await ownedBrief();
+  if (got.error) return { ok: false, nextStep: "understood", followUps: [] };
+  const card = await cardFor(got.brief.id, got.state, got.brief);
+  const followUps = card.understanding.followUps;
+  const nextStep: ModuleStep = followUps[0] === "fork" ? "fork" : followUps.length ? "question" : "readyToBuild";
+  const saved = await updateBriefModuleState(got.brief.id, { step: nextStep, cardAccepted: true, questionIndex: 0, updatedAt: new Date().toISOString() });
+  return { ok: saved.ok, nextStep, followUps };
+}
+
+export type LinkCheck = { slug: string; available: boolean; reason?: string; suggestions?: string[] };
+
+/** The link name at "Ready to build": normalised, checked, remembered. */
+export async function setOnboardingLink(input: { slug: string }): Promise<{ ok: true; link: LinkCheck } | ModuleActionError> {
+  const got = await ownedBrief();
+  if (got.error) return got.error;
+  const slug = normalizeWorkspaceSlugCandidate(input.slug);
+  if (!slug) return { ok: true, link: { slug: "", available: false, reason: "empty" } };
+  const check = await checkSubdomainAvailability(slug);
+  if (check.available) await updateBriefModuleState(got.brief.id, { linkSlug: slug, updatedAt: new Date().toISOString() });
+  return { ok: true, link: { slug, ...check } };
 }
