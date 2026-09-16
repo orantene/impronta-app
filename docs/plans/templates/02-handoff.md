@@ -94,3 +94,11 @@ Harness notes: the run was resumed three times: a dev-server navigation abort, a
 - A page that renders empty: `instantiateSite(...).issues` (the compose `notes`); an image slot with no source is dropped, a copy key with no text is dropped, a slot with no component is removed.
 - A page that 404s: check the slug the composer chose (`pageHrefsFor`) against `reserved-routes.ts` and the tenant locale.
 - Cost: `select context_jsonb->>'site_compose_id', sum((context_jsonb->>'cost_usd')::numeric), bool_or(not ok) from cms_ai_usage_log where context_jsonb ? 'site_compose_id' group by 1;`
+
+## 8. Owed after #1989 merges (owner's logo rule, 2026-09-16)
+
+Rule: no branding asset gates account, path, workspace, generation or preview; PUBLISH needs brand identity = a logo OR "use my business name as my logo" (the Look wordmark); logo colours are never applied automatically; abuse controls stay separate.
+
+1. Publish preflight `brand_identity` (blocking): satisfied by `placed.logoPresent` / a branding logo asset OR a `settings.brand_identity = "wordmark"` choice. The composer already ships the wordmark header, so this is a flag + copy in the publish checklist.
+2. `candidatePalettesFromHexes(lookPatch, hexes)` (pure, beside `theme-from-palette.ts`): up to three `themePatchFromPalette` results (each extracted hex tried as primary) with their demotions, for swatches; the chosen one goes through `rethemeSiteAfterLogo({ palette })`; "keep current" calls nothing.
+3. `rethemeSiteAfterLogo` is never called from the logo upload path; only from the user's palette choice. (Today nothing calls it automatically; keep it that way.)
