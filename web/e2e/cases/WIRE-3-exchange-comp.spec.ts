@@ -64,8 +64,13 @@ test("WIRE-3.8 comp a ticket on Event Day (E12)", async ({ page }) => {
     const { data: line } = await sb.from("order_lines").select("order_id, total_cents").eq("id", (adm as { order_line_id: string }).order_line_id).maybeSingle();
     orderId = (line as { order_id: string }).order_id;
     expect(Number((line as { total_cents: number }).total_cents), "a comp line is zero-priced").toBe(0);
-    const { data: order } = await sb.from("orders").select("total_cents, status").eq("id", orderId).maybeSingle();
+    const { data: order } = await sb.from("orders").select("total_cents, status, customer_id, receipt_code").eq("id", orderId).maybeSingle();
     expect(Number((order as { total_cents: number }).total_cents)).toBe(0);
+    // D-142: the paid comp order is reachable: the holder's customer (from
+    // the email) and a receipt code, so orders_identified_before_payment holds.
+    expect((order as { status: string }).status).toBe("paid");
+    expect((order as { customer_id: string | null }).customer_id, "the holder is the order's customer").toBeTruthy();
+    expect(((order as { receipt_code: string | null }).receipt_code ?? "").length).toBeGreaterThanOrEqual(16);
     const versionBefore = Number((adm as { token_version: number }).token_version ?? 0);
 
   } finally {

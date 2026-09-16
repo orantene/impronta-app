@@ -149,3 +149,48 @@ test("20261231238000 consumes holds, keeps a converted seat taken, and frees it 
   assert.match(sql, /WHERE h\.status = 'converted' AND o\.status IN \('cancelled', 'refunded'\)/);
   assert.match(sql, /REVOKE ALL ON FUNCTION public\.admission_hold_consume\(uuid, uuid\[\], uuid\) FROM PUBLIC, anon, authenticated/);
 });
+
+// D-142: the comp's paid order needs an identity (orders_identified_before_payment).
+// The holder's customer travels to the RPC; the RPC itself mints the receipt code
+// for a guest comp (asserted on the migration text below).
+test("comp hands the holder's customer to the RPC and reads the receipt code back", async () => {
+  const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
+  const result = await admissionComp(
+    rpcAdmin((fn, args) => {
+      calls.push({ fn, args });
+      return { ok: true, id: "adm-1", order_id: "ord-1", line_id: "line-1", receipt_code: "cmp0123456789abcdef0123" };
+    }),
+    {
+      tenantId: "t1",
+      sessionId: "s1",
+      tierVariantId: "v1",
+      holderName: "Ada",
+      holderEmail: "ada@example.com",
+      reason: "press",
+      operationKey: "comp-key-aa",
+      customerId: "cust-1",
+    },
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.receiptCode, "cmp0123456789abcdef0123");
+  assert.equal(calls[0].fn, "admission_comp");
+  assert.equal(calls[0].args.p_customer_id, "cust-1");
+});
+
+test("admission_comp SQL writes an identity the paid-order constraint accepts", () => {
+  const { readdirSync, readFileSync } = require("node:fs") as typeof import("node:fs");
+  const { join } = require("node:path") as typeof import("node:path");
+  const dir = join(process.cwd(), "..", "supabase", "migrations");
+  const latest = readdirSync(dir)
+    .filter((name) => name.endsWith(".sql"))
+    .sort()
+    .reverse()
+    .find((name) => readFileSync(join(dir, name), "utf8").includes("FUNCTION public.admission_comp("));
+  assert.ok(latest);
+  const sql = readFileSync(join(dir, latest!), "utf8");
+  const body = sql.slice(sql.indexOf("FUNCTION public.admission_comp("));
+  assert.match(body, /p_customer_id uuid DEFAULT NULL/);
+  assert.match(body, /customer_id, guest_session_id, receipt_code, session_id/);
+  assert.match(body, /v_receipt := 'cmp' \|\| replace\(gen_random_uuid\(\)::text, '-', ''\)/);
+});

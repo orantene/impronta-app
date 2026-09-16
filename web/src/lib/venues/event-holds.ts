@@ -156,6 +156,12 @@ export async function admissionComp(
     approver?: string | null;
     actorRole?: string | null;
     operationKey: string;
+    /**
+     * The holder as a customer of this workspace, when the door resolved one
+     * from the email (D-142). The comp's paid order carries it; without one
+     * the order is a guest sale with its receipt code.
+     */
+    customerId?: string | null;
   },
 ) {
   if (input.operationKey.trim().length < 8 || input.holderName.trim().length < 1) {
@@ -171,12 +177,14 @@ export async function admissionComp(
     p_approver: input.approver ?? null,
     p_actor_role: input.actorRole ?? "editor",
     p_operation_key: input.operationKey.trim(),
+    p_customer_id: input.customerId ?? null,
   });
   if (!r.ok) return r;
   return {
     ok: true as const,
     id: String(r.payload.id ?? ""),
     orderId: String(r.payload.order_id ?? ""),
+    receiptCode: typeof r.payload.receipt_code === "string" ? r.payload.receipt_code : null,
   };
 }
 
