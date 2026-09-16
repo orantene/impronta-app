@@ -32,9 +32,9 @@ import { resolve } from "node:path";
 
 import { defineConfig, devices } from "@playwright/test";
 
-/** Load `web/.env.local` into `process.env` so Playwright picks up `TEST_ADMIN_*` without shell exports. */
-function loadEnvLocal(): void {
-  const p = resolve(process.cwd(), ".env.local");
+/** Load dotenv files into `process.env` without overwriting a value already set. */
+function loadEnvFile(relativePath: string): void {
+  const p = resolve(process.cwd(), relativePath);
   if (!existsSync(p)) return;
   for (const line of readFileSync(p, "utf8").split("\n")) {
     const trimmed = line.trim();
@@ -55,7 +55,8 @@ function loadEnvLocal(): void {
   }
 }
 
-loadEnvLocal();
+loadEnvFile(".env.local");
+loadEnvFile(".env.capacity-isolated.local");
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://app.local:3102";
 
