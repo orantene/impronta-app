@@ -1,6 +1,6 @@
 # Templates & Imagery — 02 Handoff to the onboarding designer
 
-**Branch:** `feat/templates-looks-stock` (one PR, commits per deliverable, D-TPL-14). **Worktree:** `/Users/oranpersonal/Desktop/impronta-templates`.
+**Branch:** `feat/templates-looks-stock` → PR [#1989](https://github.com/orantene/impronta-app/pull/1989) (one PR, commits per deliverable, D-TPL-14). **Worktree:** `/Users/oranpersonal/Desktop/impronta-templates`.
 **Read with:** `00-investigation.md` (what existed), `01-plan.md` (what was decided), `decisions.md` (D-TPL-1..24), `evidence/` (every screenshot named below).
 Everything below is verified unless marked **NV**. Paths under `web/`.
 
