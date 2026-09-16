@@ -48,11 +48,12 @@ export async function readPortalEntryCore(
       path: `/c/${encodeURIComponent(b.id)}`,
     }));
 
-    const { data: customers } = await deps.admin.from("customers").select("id").eq("tenant_id", tenantId).eq("user_id", deps.identity.userId);
+    const { data: customers, error: cErr } = await deps.admin.from("customers").select("id").eq("tenant_id", tenantId).eq("user_id", deps.identity.userId);
+    if (cErr) return { ok: false, reason: "unavailable" };
     const customerIds = ((customers ?? []) as Array<{ id: string }>).map((c) => c.id);
     let orders: Extract<PortalEntryData, { signedIn: true }>["orders"] = [];
     if (customerIds.length > 0) {
-      const { data } = await deps.admin
+      const { data, error: oErr } = await deps.admin
         .from("orders")
         .select("id, receipt_code, status, total_cents, currency, created_at")
         .eq("tenant_id", tenantId)
@@ -60,6 +61,7 @@ export async function readPortalEntryCore(
         .in("status", ["pending_payment", "paid", "fulfilled", "partially_refunded", "refunded"])
         .order("created_at", { ascending: false })
         .limit(20);
+      if (oErr) return { ok: false, reason: "unavailable" };
       orders = ((data ?? []) as Array<{ id: string; receipt_code: string | null; status: string; total_cents: number | string; currency: string; created_at: string }>).map((o) => ({
         id: o.id,
         receiptCode: o.receipt_code,
@@ -74,13 +76,14 @@ export async function readPortalEntryCore(
     const tickets: PortalTicket[] = [];
     const email = deps.identity.email?.trim().toLowerCase();
     if (email) {
-      const { data } = await deps.admin
+      const { data, error: aErr } = await deps.admin
         .from("admissions")
         .select("id, token_version, holder_name, holder_email, session_id, starts_at, status")
         .eq("tenant_id", tenantId)
         .eq("holder_email", email)
         .order("starts_at", { ascending: false })
         .limit(20);
+      if (aErr) return { ok: false, reason: "unavailable" };
       for (const a of (data ?? []) as Array<{ id: string; token_version: number; holder_name: string | null; session_id: string | null; starts_at: string | null; status: string }>) {
         const code = deps.signAdmissionToken(a.id, Number(a.token_version));
         if (!code) continue;

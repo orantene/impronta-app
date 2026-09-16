@@ -113,15 +113,17 @@ function modeOf(channel: string | null | undefined): FulfilmentMode | null {
 }
 
 /** The signed-in customer's row on this tenant, when there is one. */
+/** A failed read throws: a customer we could not look up is not "no customer". */
 async function customerIdFor(deps: CartCheckoutDeps, tenantId: string): Promise<string | null> {
   if (!deps.identity.userId) return null;
-  const { data } = await deps.admin
+  const { data, error } = await deps.admin
     .from("customers")
     .select("id")
     .eq("tenant_id", tenantId)
     .eq("user_id", deps.identity.userId)
     .limit(1)
     .maybeSingle();
+  if (error) throw new Error("customers read failed");
   return data && typeof data.id === "string" ? data.id : null;
 }
 
@@ -157,19 +159,22 @@ async function findOwnDraft(deps: CartCheckoutDeps, tenantId: string): Promise<O
   if (!guestKey && !customerId) return null;
   let q = deps.admin.from("orders").select(ORDER_COLUMNS).eq("tenant_id", tenantId).eq("status", "draft");
   q = customerId ? q.eq("customer_id", customerId) : q.eq("guest_session_id", guestKey);
-  const { data } = await q.order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data, error } = await q.order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) throw new Error("orders read failed");
   return (data as OrderRow | null) ?? null;
 }
 
 async function shape(deps: CartCheckoutDeps, order: OrderRow, lines: LineRow[]): Promise<NonNullable<CartData["order"]>> {
   let promo: { code: string; discountCents: number } | null = null;
   if (order.promo_code_id) {
-    const { data } = await deps.admin.from("tenant_promo_codes").select("id, code").eq("id", order.promo_code_id).maybeSingle();
+    const { data, error } = await deps.admin.from("tenant_promo_codes").select("id, code").eq("id", order.promo_code_id).maybeSingle();
+    if (error) throw new Error("promo read failed");
     if (data && typeof data.code === "string") promo = { code: data.code, discountCents: num(order.discount_cents) };
   }
   let customer: NonNullable<CartData["order"]>["customer"] = null;
   if (order.customer_id) {
-    const { data } = await deps.admin.from("customers").select("id, display_name, email, phone_e164").eq("id", order.customer_id).maybeSingle();
+    const { data, error } = await deps.admin.from("customers").select("id, display_name, email, phone_e164").eq("id", order.customer_id).maybeSingle();
+    if (error) throw new Error("customer read failed");
     if (data) {
       customer = {
         name: typeof data.display_name === "string" ? data.display_name : null,
@@ -391,7 +396,8 @@ export async function actCartCheckoutCore(
 }
 
 async function versionOf(deps: CartCheckoutDeps, orderId: string): Promise<number> {
-  const { data } = await deps.admin.from("orders").select("id, version").eq("id", orderId).maybeSingle();
+  const { data, error } = await deps.admin.from("orders").select("id, version").eq("id", orderId).maybeSingle();
+  if (error) throw new Error("orders version read failed");
   return num(data?.version) || 1;
 }
 
@@ -421,14 +427,17 @@ async function startPayment(
 
       let contact: PurchaseInput["contact"] = {};
       if (order.customer_id) {
-        const { data } = await deps.admin.from("customers").select("id, display_name, email, phone_e164").eq("id", order.customer_id).maybeSingle();
+        const { data, error } = await deps.admin.from("customers").select("id, display_name, email, phone_e164").eq("id", order.customer_id).maybeSingle();
+        if (error) return mapEngineRefusal("unavailable", deps.locale);
         if (data) contact = { email: data.email ?? null, phone: data.phone_e164 ?? null, displayName: data.display_name ?? null };
       }
       // Money does not need a name; a product may. The pipeline decides
       // (`no_contact` → identity_required) from the offerings' own rows.
       let promoCode: string | null = null;
       if (order.promo_code_id) {
-        const { data } = await deps.admin.from("tenant_promo_codes").select("id, code").eq("id", order.promo_code_id).maybeSingle();
+        const { data, error } = await deps.admin.from("tenant_promo_codes").select("id, code").eq("id", order.promo_code_id).maybeSingle();
+        // A code the person applied must be honoured or the purchase refused; never silently dropped.
+        if (error) return mapEngineRefusal("unavailable", deps.locale);
         if (data && typeof data.code === "string") promoCode = data.code;
       }
       const purchase = await deps.createPurchase(deps.admin, {
@@ -458,7 +467,9 @@ async function startPayment(
       // stale tab; a failure to close is logged by the caller, never fatal.
       await deps.admin.from("orders").update({ status: "cancelled" }).eq("id", order.id).eq("status", "draft");
 
-      const { data: sale } = await deps.admin.from("orders").select("id, receipt_code, currency").eq("id", purchase.orderId).maybeSingle();
+      const { data: saleRow, error: saleErr } = await deps.admin.from("orders").select("id, receipt_code, currency").eq("id", purchase.orderId).maybeSingle();
+      // The sale exists; a failed read of its receipt code only loses the link, never the sale.
+      const sale = saleErr ? null : saleRow;
       const receiptCode = sale && typeof sale.receipt_code === "string" ? sale.receipt_code : null;
       const receiptUrl = receiptCode && deps.origin ? `${deps.origin}/r/${receiptCode}` : null;
       let checkoutUrl: string | null = null;

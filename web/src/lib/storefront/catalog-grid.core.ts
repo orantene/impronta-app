@@ -60,11 +60,12 @@ export async function readCatalogGridCore(
     const components = new Map<string, Array<{ offeringId: string; title: string; qty: number; required: boolean }>>();
     let images = new Map<string, string[]>();
     if (ids.length > 0) {
-      const [{ data: vRows }, { data: aRows }, { data: cRows }] = await Promise.all([
+      const [{ data: vRows, error: vErr }, { data: aRows, error: aErr }, { data: cRows, error: cErr }] = await Promise.all([
         deps.admin.from("talent_offering_variants").select("id, offering_id, label, amount_cents, sort_order").in("offering_id", ids).order("sort_order", { ascending: true }),
         deps.admin.from("talent_offering_addons").select("id, offering_id, label, amount_cents, sort_order").in("offering_id", ids).order("sort_order", { ascending: true }),
         deps.admin.from("offering_components").select("offering_id, component_offering_id, qty, required").eq("tenant_id", tenantId).in("offering_id", ids),
       ]);
+      if (vErr || aErr || cErr) return { ok: false, reason: "unavailable" };
       for (const v of (vRows ?? []) as Array<Record<string, unknown>>) {
         const list = variants.get(String(v.offering_id)) ?? [];
         list.push({ id: String(v.id), label: String(v.label), amountCents: v.amount_cents == null ? null : Number(v.amount_cents) });
@@ -80,7 +81,8 @@ export async function readCatalogGridCore(
       for (const { offering } of offerings) titles.set(offering.id, offering.title);
       const missing = componentIds.filter((id) => !titles.has(id));
       if (missing.length > 0) {
-        const { data: extra } = await deps.admin.from("talent_offerings").select("id, title").in("id", missing);
+        const { data: extra, error: extraErr } = await deps.admin.from("talent_offerings").select("id, title").in("id", missing);
+        if (extraErr) return { ok: false, reason: "unavailable" };
         for (const e of (extra ?? []) as Array<Record<string, unknown>>) titles.set(String(e.id), String(e.title ?? ""));
       }
       for (const c of (cRows ?? []) as Array<Record<string, unknown>>) {
@@ -143,7 +145,8 @@ export async function readCatalogGridCore(
 
     const phaseIds = items.map((i) => i.phase?.id).filter((x): x is string => !!x);
     if (phaseIds.length > 0) {
-      const { data: phases } = await deps.admin.from("offering_price_phases").select("id, label").in("id", phaseIds);
+      const { data: phases, error: phaseErr } = await deps.admin.from("offering_price_phases").select("id, label").in("id", phaseIds);
+      if (phaseErr) return { ok: false, reason: "unavailable" };
       for (const p of (phases ?? []) as Array<Record<string, unknown>>) phaseLabels.set(String(p.id), String(p.label ?? ""));
       for (const it of items) if (it.phase) it.phase.label = phaseLabels.get(it.phase.id) ?? "";
     }

@@ -48,14 +48,18 @@ export async function readOrderLookupCore(
     if (orderRow) {
       let buyerEmail: string | null = null;
       if (orderRow.customer_id) {
-        const { data: customer } = await deps.admin.from("customers").select("id, email").eq("id", orderRow.customer_id).maybeSingle();
+        const { data: customer, error: cErr } = await deps.admin.from("customers").select("id, email").eq("id", orderRow.customer_id).maybeSingle();
+        // The buyer's e-mail is the PROOF; an unreadable proof refuses rather than denies.
+        if (cErr) return { ok: false, reason: "unavailable" };
         buyerEmail = customer && typeof customer.email === "string" ? customer.email.toLowerCase() : null;
       }
-      const { data: lineRows } = await deps.admin.from("order_lines").select("id, label, units, total_cents").eq("order_id", orderRow.id).order("sort_order", { ascending: true });
+      const { data: lineRows, error: lErr } = await deps.admin.from("order_lines").select("id, label, units, total_cents").eq("order_id", orderRow.id).order("sort_order", { ascending: true });
+      if (lErr) return { ok: false, reason: "unavailable" };
       const lineIds = ((lineRows ?? []) as Array<{ id: string }>).map((l) => l.id);
-      const { data: admissions } = lineIds.length
+      const { data: admissions, error: aErr } = lineIds.length
         ? await deps.admin.from("admissions").select("id, token_version, holder_name, holder_email, session_id, starts_at, status").eq("tenant_id", tenantId).in("order_line_id", lineIds)
-        : { data: [] };
+        : { data: [], error: null };
+      if (aErr) return { ok: false, reason: "unavailable" };
       const held = ((admissions ?? []) as Array<{ id: string; token_version: number; holder_name: string | null; holder_email: string | null; session_id: string | null; starts_at: string | null; status: string }>)
         .filter((a) => (a.holder_email ?? "").toLowerCase() === email);
       // Proof: the buyer's e-mail, or a ticket in this order held by this e-mail.

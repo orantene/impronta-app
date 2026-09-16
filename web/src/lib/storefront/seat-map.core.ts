@@ -64,7 +64,9 @@ async function seatStates(
   const orderIds = [...new Set(holds.filter((h) => h.status === "converted" && h.order_id).map((h) => h.order_id as string))];
   const deadOrders = new Set<string>();
   if (orderIds.length > 0) {
-    const { data: orders } = await deps.admin.from("orders").select("id, status").in("id", orderIds);
+    const { data: orders, error: oErr } = await deps.admin.from("orders").select("id, status").in("id", orderIds);
+    // Unreadable order states leave every converted seat "sold": the safe direction.
+    if (oErr) return { ok: false };
     for (const o of (orders ?? []) as Array<{ id: string; status: string }>) {
       if (o.status === "cancelled" || o.status === "refunded") deadOrders.add(o.id);
     }
@@ -118,7 +120,8 @@ export async function readSeatMapCore(
     let timezone: string | null = null;
     const venueId = session.venue_id ?? event.venue_id ?? null;
     if (venueId) {
-      const { data: venue } = await deps.admin.from("venues").select("id, timezone").eq("id", venueId).maybeSingle();
+      const { data: venue, error: vErr } = await deps.admin.from("venues").select("id, timezone").eq("id", venueId).maybeSingle();
+      if (vErr) return { ok: false, reason: "unavailable" };
       if (venue && typeof venue.timezone === "string") timezone = venue.timezone;
     }
 
@@ -134,13 +137,13 @@ export async function readSeatMapCore(
     const seats: SeatMapSeat[] = [];
     let hold: SeatMapData["hold"] = null;
     if (map?.layout_id) {
-      const [{ data: layoutRow }, { data: items, error: iErr }, { data: spaces, error: spErr }, states] = await Promise.all([
+      const [{ data: layoutRow, error: lErr }, { data: items, error: iErr }, { data: spaces, error: spErr }, states] = await Promise.all([
         deps.admin.from("space_layouts").select("id, name, canvas").eq("id", map.layout_id).maybeSingle(),
         deps.admin.from("space_layout_items").select("layout_id, space_id, x, y, w, h, rotation, shape").eq("layout_id", map.layout_id),
         deps.admin.from("spaces").select("id, code, name, kind").eq("tenant_id", tenantId).eq("kind", "seat"),
         seatStates(deps, tenantId, session.id, now),
       ]);
-      if (iErr || spErr || !states.ok) return { ok: false, reason: "unavailable" };
+      if (lErr || iErr || spErr || !states.ok) return { ok: false, reason: "unavailable" };
       const canvas = (layoutRow?.canvas ?? {}) as { w?: number; h?: number };
       layout = layoutRow
         ? { id: String(layoutRow.id), name: String(layoutRow.name ?? ""), canvas: { w: Number(canvas.w ?? 0), h: Number(canvas.h ?? 0) } }

@@ -155,7 +155,9 @@ export async function readClassTimetableCore(
       }
       const seriesIds = [...new Set(sessions.map((s) => s.series_id).filter((v): v is string => !!v))];
       if (seriesIds.length > 0) {
-        const { data: series } = await deps.admin.from("session_series").select("id, title, timezone").in("id", seriesIds);
+        const { data: series, error: seriesErr } = await deps.admin.from("session_series").select("id, title, timezone").in("id", seriesIds);
+        // A series carries the fallback ZONE, not only a title, so a failed read is a refusal.
+        if (seriesErr) return { ok: false, reason: "unavailable" };
         for (const s of (series ?? []) as Array<Record<string, unknown>>) {
           seriesTitles.set(String(s.id), {
             title: String(s.title ?? "Session"),
@@ -169,12 +171,13 @@ export async function readClassTimetableCore(
     const waiting = new Map<string, number>();
     const mine = new Map<string, ClassSession["waitlist"]["mine"]>();
     if (props.waitlist !== false && ids.length > 0) {
-      const { data: entries } = await deps.admin
+      const { data: entries, error: entriesErr } = await deps.admin
         .from("session_waitlist_entries")
         .select("id, session_id, status, customer_email, offer_expires_at")
         .eq("tenant_id", tenantId)
         .in("session_id", ids)
         .in("status", ["waiting", "offered", "accepted"]);
+      if (entriesErr) return { ok: false, reason: "unavailable" };
       const email = props.email?.trim().toLowerCase() || null;
       for (const e of (entries ?? []) as Array<Record<string, unknown>>) {
         const sid = String(e.session_id);
@@ -303,6 +306,14 @@ async function bookSeat(
       if (session.status !== "scheduled" || !session.offering_id) return mapEngineRefusal("not_open", deps.locale);
       if (Date.parse(session.ends_at) <= now.getTime()) return mapEngineRefusal("session_already_ended", deps.locale);
 
+      // The zone BEFORE the money: a session the reader would not list (no
+      // resolvable zone) is not sold either, and a failed zone read refuses
+      // here rather than confirming a time in the wrong zone afterwards.
+      const zoneRead = await zoneFor(deps, session);
+      if (!zoneRead.ok) return mapEngineRefusal("unavailable", deps.locale);
+      if (!zoneRead.zone) return mapEngineRefusal("not_open", deps.locale);
+      const zone = zoneRead.zone;
+
       const { data: pool, error: poolErr } = await deps.admin
         .from("capacity_pools")
         .select("id")
@@ -343,11 +354,13 @@ async function bookSeat(
       });
       if (!result.ok) return mapEngineRefusal(result, deps.locale);
 
-      const { data: orderRow } = await deps.admin
+      const { data: orderData, error: orderErr } = await deps.admin
         .from("orders")
         .select("id, receipt_code, currency")
         .eq("id", result.orderId)
         .maybeSingle();
+      // The seat is booked; a failed receipt read only loses the return link.
+      const orderRow = orderErr ? null : orderData;
       const receiptCode = typeof orderRow?.receipt_code === "string" ? orderRow.receipt_code : null;
 
       let checkoutUrl: string | null = null;
@@ -366,7 +379,6 @@ async function bookSeat(
         });
         if (session2.ok) checkoutUrl = session2.url;
       }
-      const zone = await zoneFor(deps, session);
       const done: ClassTimetableDone = {
         ok: true,
         op: "book",
@@ -379,7 +391,7 @@ async function bookSeat(
           title: session.title ?? "Session",
           startsAtIso: new Date(session.starts_at).toISOString(),
           endsAtIso: new Date(session.ends_at).toISOString(),
-          timezone: zone ?? "UTC",
+          timezone: zone,
         },
         replayed: false,
       };
@@ -400,16 +412,21 @@ async function bookSeat(
   }
 }
 
-async function zoneFor(deps: ClassTimetableDeps, session: SessionRow): Promise<string | null> {
+async function zoneFor(
+  deps: ClassTimetableDeps,
+  session: SessionRow,
+): Promise<{ ok: true; zone: string | null } | { ok: false }> {
   if (session.venue_id) {
-    const { data } = await deps.admin.from("venues").select("id, timezone").eq("id", session.venue_id).maybeSingle();
-    if (data && typeof data.timezone === "string") return data.timezone;
+    const { data, error } = await deps.admin.from("venues").select("id, timezone").eq("id", session.venue_id).maybeSingle();
+    if (error) return { ok: false };
+    if (data && typeof data.timezone === "string") return { ok: true, zone: data.timezone };
   }
   if (session.series_id) {
-    const { data } = await deps.admin.from("session_series").select("id, timezone").eq("id", session.series_id).maybeSingle();
-    if (data && typeof data.timezone === "string" && data.timezone.trim()) return data.timezone.trim();
+    const { data, error } = await deps.admin.from("session_series").select("id, timezone").eq("id", session.series_id).maybeSingle();
+    if (error) return { ok: false };
+    if (data && typeof data.timezone === "string" && data.timezone.trim()) return { ok: true, zone: data.timezone.trim() };
   }
-  return null;
+  return { ok: true, zone: null };
 }
 
 async function joinQueue(
@@ -429,7 +446,7 @@ async function joinQueue(
   // Idempotent by (session, e-mail): the partial unique index is the key, and
   // a second tap hands back the SAME entry rather than a refusal.
   if (joined.refusalKey === "alreadyWaiting") {
-    const { data } = await deps.admin
+    const { data, error } = await deps.admin
       .from("session_waitlist_entries")
       .select("id, status, customer_email")
       .eq("tenant_id", input.tenantId)
@@ -438,6 +455,7 @@ async function joinQueue(
       .in("status", ["waiting", "offered"])
       .limit(1)
       .maybeSingle();
+    if (error) return mapEngineRefusal("unavailable", deps.locale);
     if (data && typeof data.id === "string") return { ok: true, op: "join_waitlist", entryId: data.id, already: true };
   }
   return mapEngineRefusal(joined, deps.locale);

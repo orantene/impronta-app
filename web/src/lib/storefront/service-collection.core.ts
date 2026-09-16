@@ -29,10 +29,12 @@ export async function readServiceCollectionCore(
     );
     const lowest = new Map<string, number>();
     if (offerings.length > 0) {
-      const { data } = await deps.admin
+      const { data, error } = await deps.admin
         .from("talent_offering_variants")
         .select("offering_id, amount_cents")
         .in("offering_id", offerings.map((o) => o.id));
+      // A failed options read would print the base price as "from": refuse instead.
+      if (error) return { ok: false, reason: "unavailable" };
       for (const v of (data ?? []) as Array<{ offering_id: string; amount_cents: number | null }>) {
         if (v.amount_cents == null) continue;
         const cur = lowest.get(v.offering_id);

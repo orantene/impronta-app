@@ -50,7 +50,8 @@ export async function readPackageSelectorCore(
     const titles = new Map<string, string>();
     const compIds = [...new Set(comps.map((c) => c.component_offering_id))];
     if (compIds.length > 0) {
-      const { data } = await deps.admin.from("talent_offerings").select("id, title").in("id", compIds);
+      const { data, error: tErr } = await deps.admin.from("talent_offerings").select("id, title").in("id", compIds);
+      if (tErr) return { ok: false, reason: "unavailable" };
       for (const t of (data ?? []) as Array<{ id: string; title: string | null }>) titles.set(t.id, t.title ?? "");
     }
     const packages: PackageCard[] = [];
@@ -109,7 +110,9 @@ export async function actPackageSelectorCore(deps: PackageSelectorDeps, input: P
         openThread: true,
       });
       if (!purchase.ok) return mapEngineRefusal(purchase, deps.locale);
-      const { data: sale } = await deps.admin.from("orders").select("id, receipt_code").eq("id", purchase.orderId).maybeSingle();
+      const { data: saleRow, error: saleErr } = await deps.admin.from("orders").select("id, receipt_code").eq("id", purchase.orderId).maybeSingle();
+      // The sale exists; a failed receipt read only loses the link, never the sale.
+      const sale = saleErr ? null : saleRow;
       const receiptCode = sale && typeof sale.receipt_code === "string" ? sale.receipt_code : null;
       const receiptUrl = receiptCode && deps.origin ? `${deps.origin}/r/${receiptCode}` : null;
       let checkoutUrl: string | null = null;

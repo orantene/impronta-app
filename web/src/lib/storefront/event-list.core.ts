@@ -35,7 +35,9 @@ export async function readEventListCore(
       (async () => {
         const venueIds = [...new Set(rows.map((e) => e.venue_id).filter((v): v is string => !!v))];
         if (venueIds.length === 0) return new Map<string, string>();
-        const { data } = await deps.admin.from("venues").select("id, timezone").in("id", venueIds);
+        const { data, error } = await deps.admin.from("venues").select("id, timezone").in("id", venueIds);
+        // A failed zone read is NOT "no zone"; the card would show the wrong hour.
+        if (error) throw new Error("venues read failed");
         return new Map(((data ?? []) as Array<{ id: string; timezone: string }>).map((v) => [v.id, v.timezone]));
       })(),
     ]);
