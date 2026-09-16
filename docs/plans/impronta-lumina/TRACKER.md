@@ -3,12 +3,7 @@
 | # | Item | Status | Evidence / PR |
 |---|---|---|---|
 | A | Mockup (390 + 1440) + stepped flow, sent to owner | done 15:20 | docs/plans/impronta-lumina/mockup/ |
-| PR-1 | menu_board CSS for every tenant | code + tests green; tsc running | |
-| PR-2 | mintLinkAction + "Create a link" in qr_code inspector | code + tests green; tsc pending | |
-| PR-3 | Ticket e-mail with hosted QR + /ticket QR + resend/deliver reuse | code + 27 tests green | |
-| PR-4 | ticket_picker v2 (steps, sheet, tier cards, ?tier=) + inspector + event select | code + 13 tests green | |
-| PR-5 | Door i18n "Admitido" (reuses pos.door.gate keys) + Day-tab comps count + D-147 UI + stale "no ticket email" copy | code green, messages aligned | |
-| PR-6 | Reusable "Launch party" page design (`page-designs/event-launch.ts`, gallery preset `launch-party`, fidelity-registered, 4 night photos as platform assets) composed from existing kinds; tenant swaps the tickets placeholder for the v2 picker | code + tests green; rendered through the engine at 390/1440 | docs/plans/impronta-lumina/mockup/preset/ |
+| PR #2002 | ONE PR: menu_board CSS + link minting + ticket e-mail/QR + ticket_picker v2 + Launch party design + door i18n + comps count + D-147 UI | OPEN 22:50, tsc+lint green, awaiting 4 checks → program session merges | https://github.com/orantene/impronta-app/pull/2002 | |
 | D-146 | admission_comp payee column (program session) | message delivered 15:40, awaiting answer | |
 | B1 | Page /lumina built in the builder on production | todo (needs PR-1/2/4 deployed) | |
 | B2 | Nav "LUMINA" + home announcement bar | todo | |
