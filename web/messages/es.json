@@ -1749,6 +1749,70 @@
         "buildTalent": "Guardar mi página",
         "buildBoth": "Guardar y construir",
         "nextPhase": "Siguiente: tu cuenta (llega en el próximo paso de esta construcción)."
+      },
+      "save": {
+        "title": "Guárdalo",
+        "titleBusiness": "Guardar y construir",
+        "sub": "Para que sea tuyo y puedas volver. Sin contraseña: te enviamos un código por correo.",
+        "google": "Continuar con Google",
+        "googleOpening": "Abriendo Google…",
+        "googleFailed": "Google no terminó. Inténtalo de nuevo o usa tu correo.",
+        "popupBlocked": "Tu navegador bloqueó la ventana. Permite ventanas emergentes o usa tu correo.",
+        "popupClosed": "La ventana de Google se cerró antes de terminar. Inténtalo de nuevo o usa tu correo.",
+        "or": "o",
+        "emailLabel": "Tu correo",
+        "emailPlaceholder": "tu@ejemplo.com",
+        "emailCta": "Envíame un código",
+        "emailPending": "Enviando…",
+        "terms": "Al continuar aceptas los Términos y la Política de privacidad."
+      },
+      "code": {
+        "title": "Escribe el código",
+        "sub": "Enviamos un código de 8 dígitos a {email}. Es la misma pantalla para todos, así que revisa tu bandeja y el spam.",
+        "resend": "Enviar un código nuevo",
+        "resendIn": "Enviar un código nuevo en {s}s",
+        "resent": "Un código nuevo va en camino.",
+        "changeEmail": "Cambiar correo",
+        "verifying": "Comprobando…"
+      },
+      "building": {
+        "title": "Construyéndolo",
+        "titleTalent": "Guardando tu página",
+        "sub": "Normalmente menos de medio minuto, hasta uno. Puedes cerrar esto; sigue construyéndose.",
+        "steps": {
+          "account": "Tu cuenta",
+          "workspace": "Tu espacio de trabajo",
+          "site": "Tu sitio con su estilo",
+          "photos": "Fotos para tu tipo de negocio",
+          "menu": "Tu menú",
+          "profile": "Tu página"
+        }
+      },
+      "arrival": {
+        "youreIn": "Ya estás dentro",
+        "youreInName": "Ya estás dentro, {name}",
+        "talentSub": "Tu página está guardada con lo que nos contaste. Añade tres fotos y se publica.",
+        "businessSub": "{business} ya tiene sitio. Ábrelo para verlo y cambiar lo que quieras.",
+        "bothSub": "{business} ya tiene sitio. Tu propia página está en borrador y te espera en el espacio de trabajo.",
+        "fallbackSub": "Tu espacio de trabajo está listo. El texto del sitio necesitó otra pasada, así que abre con los valores del estilo; todo lo que nos contaste está guardado.",
+        "existingSub": "Ya tienes un espacio de trabajo gratuito. Ábrelo; no se creó nada nuevo.",
+        "factServices": "{n} servicios",
+        "factCity": "en {city}",
+        "factLogo": "tu logo",
+        "factHours": "tu horario",
+        "factWhatsapp": "WhatsApp",
+        "factMenu": "{n} platos",
+        "factPhotos": "fotos para tu tipo de negocio",
+        "finishMyPage": "Terminar mi página",
+        "openMyWebsite": "Abrir mi sitio",
+        "openMyWorkspace": "Abrir mi espacio",
+        "ownPageDrafted": "Tu propia página está en borrador en el espacio de trabajo.",
+        "link": "Tu enlace",
+        "failedTitle": "Eso no terminó",
+        "failedSub": "Todo lo que nos contaste está guardado. Inténtalo de nuevo o vuelve después desde este mismo teléfono.",
+        "retry": "Intentar de nuevo",
+        "fallbackCopySub": "Tu espacio de trabajo está listo. El texto del sitio necesitó otra pasada, así que abre con los valores del estilo; todo lo que nos contaste está guardado.",
+        "fallbackPhotosSub": "{business} ya tiene sitio con tus palabras. Las fotos todavía son genéricas; ábrelo para añadir las tuyas o elegir de la biblioteca."
       }
     }
   },

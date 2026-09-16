@@ -104,6 +104,10 @@ export const SHARED_API_PREFIXES = [
   // KV namespaces, own SSRF guard, own fail-closed gate. Not under `/api/ai`
   // because that prefix would also open directory search on the marketing host.
   "/api/tulala",
+  // Onboarding module build: runs on the marketing host where the module
+  // lives (a route handler, so the 20–60 s provisioning + compose is not
+  // cut by the server-action budget). Session + claimed brief required.
+  "/api/onboarding",
   // Social connection OAuth. The provider redirects the operator back to the
   // callback on whatever host the app registered, and `start` is opened from
   // whichever surface the operator was on. Each route resolves its own tenant

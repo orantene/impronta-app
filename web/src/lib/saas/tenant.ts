@@ -73,6 +73,18 @@ const MEMBERSHIP_SELECT =
 const _membershipCache = new Map<string, { data: TenantMembership[]; ts: number }>();
 const MEMBERSHIP_CACHE_TTL = 30_000;
 
+/**
+ * Forget the process-level membership list for one user. Call it after a
+ * membership row is written in the same process: a workspace provisioned
+ * seconds after the marketing shell listed this user's tenants would
+ * otherwise fail its own capability checks (`no_membership`) for up to 30 s.
+ * The React `cache()` layer is per request and cannot be cleared; callers
+ * that need the fresh list inside the same request read it explicitly.
+ */
+export function forgetUserTenantMemberships(userId: string): void {
+  _membershipCache.delete(userId);
+}
+
 async function fetchMemberships(
   supabase: SupabaseClient,
   userId: string,

@@ -300,7 +300,9 @@ export async function acceptUnderstoodCard(): Promise<{ ok: boolean; nextStep: M
   const card = await cardFor(got.brief.id, got.state, got.brief);
   const followUps = card.understanding.followUps;
   const nextStep: ModuleStep = followUps[0] === "fork" ? "fork" : followUps.length ? "question" : "readyToBuild";
-  const saved = await updateBriefModuleState(got.brief.id, { step: nextStep, cardAccepted: true, questionIndex: 0, updatedAt: new Date().toISOString() });
+  // The path the card showed is the path we build, unless a fork follows.
+  const pathPatch = nextStep === "fork" ? {} : { path: card.understanding.path };
+  const saved = await updateBriefModuleState(got.brief.id, { step: nextStep, cardAccepted: true, questionIndex: 0, ...pathPatch, updatedAt: new Date().toISOString() });
   return { ok: saved.ok, nextStep, followUps };
 }
 
@@ -315,4 +317,11 @@ export async function setOnboardingLink(input: { slug: string }): Promise<{ ok: 
   const check = await checkSubdomainAvailability(slug);
   if (check.available) await updateBriefModuleState(got.brief.id, { linkSlug: slug, updatedAt: new Date().toISOString() });
   return { ok: true, link: { slug, ...check } };
+}
+
+/** The stored build record (resume on the building / arrival screens). */
+export async function getOnboardingBuildStatus(): Promise<{ ok: true; build: Record<string, unknown> | null } | ModuleActionError> {
+  const got = await ownedBrief();
+  if (got.error) return got.error;
+  return { ok: true, build: got.state.build ?? null };
 }

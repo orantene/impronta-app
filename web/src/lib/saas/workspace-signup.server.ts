@@ -41,6 +41,7 @@ import {
 } from "./workspace-signup";
 import { trackSignupCompleted } from "@/lib/analytics/conversion-events";
 import { pickSignupPreset } from "@/lib/words/signup-preset";
+import { forgetUserTenantMemberships } from "@/lib/saas/tenant";
 
 type MarketingLeadRow = {
   id: string;
@@ -689,6 +690,9 @@ export async function provisionWorkspaceFromLead(params: {
       message: "The workspace was created, but owner access could not be attached yet. Please try again in a minute.",
     };
   }
+  // The scaffold below runs capability checks as this user against the new
+  // tenant; a membership list cached before this insert would deny them.
+  forgetUserTenantMemberships(params.userId);
 
   const profilePatch: Record<string, unknown> = {
     account_status: "active",

@@ -310,6 +310,27 @@ export function TalentTodayPage() {
               </Link>
             </div>
           </div>
+          {/* Photos first (onboarding module, Phase 5): a page built from the
+              person's words needs three photos to go live, and the phone is
+              where they are. Shown until the floor is met; then the chips
+              below carry whatever else is missing. */}
+          {portfolioCount < 3 && (
+            <button
+              type="button"
+              onClick={() => openSection("polaroids")}
+              data-testid="today-photos-first"
+              className="flex w-full items-center justify-between gap-3 rounded-[12px] border border-admin-border-soft bg-white px-3.5 py-3 text-left"
+            >
+              <span className="min-w-0">
+                <span className="block text-admin-ink text-[14px] font-semibold">
+                  {copy.t("Photos")} · {portfolioCount} {copy.t("of")} 3
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-admin-accent px-3 py-1.5 text-admin-12h font-semibold text-white">
+                {copy.t("Add photos")}
+              </span>
+            </button>
+          )}
           {onboardingCompleteness.missing.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {onboardingCompleteness.missing.slice(0, 8).map((m) => (
