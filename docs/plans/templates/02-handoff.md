@@ -73,6 +73,8 @@ Table `platform_stock_images` (migration `20260916000356`, applied). Bytes stay 
 | Cost per site (`cms_ai_usage_log` by `site_compose_id`, failed calls included) | mean **$0.0132** · max $0.0210 · run total $1.348 (102 calls, 20 failed at $0) |
 | Screenshots | `evidence/acceptance/<case>--<type>--<look>/{home,inner}-{1440,390}.jpg` (JPEG q55; 17 MB) |
 
+After the run, the 20 `ok:false` copy passes were traced to the reply hitting the 1.8k-token ceiling (the adapter reports a truncated reply as a failure, and a shorter one as "not json"). Fix in the final tree: the pass rewrites the eleven most-read lines instead of sixteen, with a 2.6k ceiling. Re-measured four times on F1 (house cleaner, playful): 4/4 model copy, 14.6–23.7 s, $0.016–0.025 per site. Expect the mean cost per site to sit near $0.02 rather than the $0.013 above, because more copy now survives.
+
 Harness notes: the run was resumed three times: a dev-server navigation abort, a dropped fetch, and twice the dev server's route table lost `/api/dev/compose-site` until restart (a local Turbopack glitch, not app code); the harness now retries both calls and screenshots and resumes from `acceptance.json`.
 
 ## 6. What is still missing (honest)

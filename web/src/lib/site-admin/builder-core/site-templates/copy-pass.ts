@@ -62,27 +62,24 @@ export const COPY_PASS_JSON_SCHEMA = {
 
 // 16 keys × 2 languages × ~40 tokens ≈ 1.3k of JSON; 1.8k truncated real
 // replies (they came back "not json"), so the ceiling is generous.
-export const COPY_PASS_MAX_TOKENS = 3_500;
+export const COPY_PASS_MAX_TOKENS = 2_600;
 export const COPY_PASS_TIMEOUT_MS = 40_000;
 
 /** Keys a compose lets the model rewrite; everything else stays deterministic. */
+// The eleven lines a visitor actually reads first; the rest keep the Look's
+// defaults (fewer keys = a shorter, faster, cheaper reply).
 export const COPY_PASS_KEYS = [
   "home.hero.sub",
-  "home.offer.eyebrow",
   "home.offer.headline",
   "home.offer.body",
   "home.closing.headline",
   "home.closing.body",
   "catalogue.headline",
   "catalogue.intro",
-  "transaction.headline",
   "transaction.intro",
   "about.headline",
   "about.body",
-  "about.body2",
-  "contact.headline",
   "contact.intro",
-  "gallery.headline",
 ] as const;
 
 const MAX_LEN: Record<string, number> = { "home.hero.sub": 120, "home.offer.headline": 70, "home.closing.headline": 60, "catalogue.headline": 60, "transaction.headline": 60, "about.headline": 80, "contact.headline": 80, "gallery.headline": 80 };
