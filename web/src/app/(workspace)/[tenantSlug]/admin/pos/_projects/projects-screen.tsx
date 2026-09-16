@@ -40,9 +40,9 @@ import {
   nextProjectAction,
   priorAgreements,
   projectMoney,
-  zonedDate,
   type ProjectRecord,
 } from "@/lib/projects/project-record";
+import { dayLabel } from "../../projects/_shared";
 
 import type { ProjectsModeCopy } from "./projects-copy";
 import type { CollectVerdict, ProjectsModeRow } from "./projects-mode-model";
@@ -100,24 +100,24 @@ export function ProjectsList({
 
 function Step({ n, title, line1, line2, pill, tone }: { n: number; title: string; line1: string; line2: string; pill: string; tone: string }) {
   return (
-    <div className={cn(POS_SURFACE, "flex min-w-0 flex-col gap-2 p-4")}>
-      <div className="flex items-center gap-2">
-        <span className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full bg-admin-brand-soft text-[13px] font-bold text-admin-brand">{n}</span>
-        <span className="text-[16px] font-bold text-admin-ink">{title}</span>
+    <div className={cn(POS_SURFACE, "flex min-w-0 flex-col gap-2 p-4 leading-[1.25]")}>
+      <div className="flex items-center gap-2.5">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-admin-brand-soft text-[12.5px] font-bold text-admin-brand">{n}</span>
+        <span className="text-[17px] font-semibold text-admin-ink">{title}</span>
       </div>
       <p className="m-0 text-[14px] text-admin-ink-muted">{line1}</p>
       <p className="m-0 text-[14px] text-admin-ink">{line2}</p>
       <span className="flex-1" />
-      <span className={cn(POS_PILL, "self-start text-[13px]", tone)}>{pill}</span>
+      <span className={cn(POS_PILL, "mt-2 block w-full rounded-[8px] px-3 py-1 text-left text-[13px]", tone)}>{pill}</span>
     </div>
   );
 }
 
 function Tile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[12px] bg-admin-surface-alt p-3">
+    <div className="rounded-[12px] bg-admin-surface-alt p-3 leading-[1.25]">
       <p className="m-0 text-[12.5px] text-admin-ink-muted">{label}</p>
-      <p className={cn("m-0 text-[18px] font-bold text-admin-ink", POS_NUM)}>{value}</p>
+      <p className={cn("m-0 mt-0.5 text-[18px] font-semibold text-admin-ink", POS_NUM)}>{value}</p>
     </div>
   );
 }
@@ -135,6 +135,7 @@ export function ProjectDetail({
   copy,
   project,
   verdict,
+  locale,
   workspacePath,
   onClose,
   onCollect,
@@ -142,6 +143,7 @@ export function ProjectDetail({
   copy: ProjectsModeCopy;
   project: ProjectRecord;
   verdict: CollectVerdict;
+  locale: string;
   workspacePath: string;
   onClose: () => void;
   /** `Collect $X`: takes the operator to the Collect destination on this project. */
@@ -161,6 +163,8 @@ export function ProjectDetail({
   const currency = project.currency;
   const noDate = copy.detail.noDate;
   const tz = project.timeZone;
+  // The boards print a day as "22 Aug", never as an ISO date.
+  const zonedDate = (value: string | null, fallback: string) => dayLabel(value, tz, locale, fallback);
   const names = project.assignments.map((a) => a.name).filter(Boolean);
   const conversation = project.inquiryId ? `${workspacePath}/messages/${project.inquiryId}` : null;
 
@@ -169,8 +173,8 @@ export function ProjectDetail({
       ? sent
           .map((a) =>
             a.status === "accepted"
-              ? interpolate(b.chainAccepted, { n: a.version, date: zonedDate(a.acceptedAt, tz, noDate) })
-              : interpolate(b.chainSent, { n: a.version, date: zonedDate(a.sentAt, tz, noDate) }),
+              ? interpolate(b.chainAccepted, { n: a.version, date: zonedDate(a.acceptedAt, noDate) })
+              : interpolate(b.chainSent, { n: a.version, date: zonedDate(a.sentAt, noDate) }),
           )
           .join(" · ")
       : b.chainNoOffer;
@@ -221,7 +225,7 @@ export function ProjectDetail({
                   <Row label={b.total} value={`${formatOrderMoney(kept.totalClientCents, currency)} → ${formatOrderMoney(proposed.totalClientCents, currency)}`} />
                   <Row label={b.amendmentCoordinatorFee} value={`${formatOrderMoney(kept.coordinatorFeeCents, currency)} → ${formatOrderMoney(proposed.coordinatorFeeCents, currency)}`} />
                   <Row label={b.amendmentNotes} value={proposed.notes ?? "—"} dim={!proposed.notes} />
-                  <Row label={copy.list.colNext} value={proposed.status === "draft" ? b.amendmentDraft : interpolate(b.amendmentSentOn, { date: zonedDate(proposed.sentAt, tz, noDate) })} />
+                  <Row label={copy.list.colNext} value={proposed.status === "draft" ? b.amendmentDraft : interpolate(b.amendmentSentOn, { date: zonedDate(proposed.sentAt, noDate) })} />
                 </div>
               </div>
               <div className="rounded-[12px] bg-admin-surface-alt p-3.5">
@@ -243,6 +247,11 @@ export function ProjectDetail({
                       {copy.detail.openWorkspace}
                     </a>
                   ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-4">
           <Step
@@ -263,7 +272,7 @@ export function ProjectDetail({
                 ? interpolate(b.chainStatusAccepted, { n: accepted.version })
                 : live
                   ? live.status === "sent"
-                    ? interpolate(b.chainSent, { n: live.version, date: zonedDate(live.sentAt, tz, noDate) })
+                    ? interpolate(b.chainSent, { n: live.version, date: zonedDate(live.sentAt, noDate) })
                     : b.amendmentDraft
                   : b.chainStatusNone
             }
@@ -306,12 +315,6 @@ export function ProjectDetail({
           <p className="m-0 mt-2.5 text-[13.5px] text-admin-ink-muted">{b.moneyNote}</p>
         </div>
 
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
         <div className={cn(POS_SURFACE, "px-4 py-3.5")} data-pos-projects-milestones>
           <p className={cn("m-0 mb-1", POS_EYEBROW, "tracking-[0.08em]")}>{copy.milestones.title}</p>
           {project.milestones.length === 0 ? (
@@ -323,7 +326,7 @@ export function ProjectDetail({
                   <span className="min-w-0">
                     <span className="font-semibold text-admin-ink">{m.title}</span>
                     <span className="block text-[13px] text-admin-ink-muted">
-                      {zonedDate(m.dueAt, tz, copy.milestones.noDue)} · {interpolate(copy.milestones.revisionsUsed, { used: m.revision, limit: m.revisionLimit })}
+                      {zonedDate(m.dueAt, copy.milestones.noDue)} · {interpolate(copy.milestones.revisionsUsed, { used: m.revision, limit: m.revisionLimit })}
                     </span>
                   </span>
                   <span className={cn(POS_PILL, "text-[13px]", m.status === "submitted" ? POS_PILL_CORAL : m.status === "approved" ? POS_PILL_GREEN : POS_PILL_SLATE)}>

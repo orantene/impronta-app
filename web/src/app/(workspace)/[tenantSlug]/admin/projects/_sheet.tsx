@@ -4,7 +4,9 @@
  * RecordSheet — the 640px panel the record boards open on the right (W44
  * Collect, W48 Replace, W50 Close): a dimmed page, a header with title and
  * subtitle and a close button, a scrolling body, and a footer with the
- * quiet action on the left and the decisive ones on the right.
+ * quiet action on the left and the decisive ones on the right. It hangs
+ * under the shell's 56px top bar, as the boards draw it, and fills the
+ * phone.
  *
  * `role="dialog"` with `aria-modal`, closes on Escape, focus lands on the
  * close button when it opens. Renders nothing when closed so the page under
@@ -49,7 +51,7 @@ export function RecordSheet({
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[200] flex justify-end" data-record-overlay>
+    <div className="fixed inset-0 top-[56px] z-[200] flex justify-end max-[720px]:top-0" data-record-overlay>
       <button type="button" aria-label={closeLabel} tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-admin-ink/30" />
       <aside
         role="dialog"
@@ -58,12 +60,12 @@ export function RecordSheet({
         data-record-sheet={name}
         className="relative flex h-full w-[640px] max-w-full flex-col bg-admin-card shadow-admin-hover"
       >
-        <div className="flex items-start gap-3 border-b border-admin-border-soft px-[22px] py-[18px]">
+        <div className="flex items-start gap-3 border-b border-admin-border-soft px-[22px] py-[20px] leading-[1.2]">
           <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="m-0 text-[16px]! font-semibold text-admin-ink">
+            <h2 id={titleId} className="m-0 text-[17px]! font-semibold leading-[1.2] text-admin-ink">
               {title}
             </h2>
-            {subtitle ? <p className="m-0 mt-0.5 text-[12.5px] text-admin-ink-muted">{subtitle}</p> : null}
+            {subtitle ? <p className="m-0 mt-1 text-[12.5px] text-admin-ink-muted">{subtitle}</p> : null}
           </div>
           <button
             ref={closeRef}
@@ -75,9 +77,9 @@ export function RecordSheet({
             <X aria-hidden size={16} strokeWidth={1.75} />
           </button>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-[22px] py-[18px]">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-[22px] py-[20px] leading-[1.2]">{children}</div>
         {footerStart || footerEnd ? (
-          <div data-record-sheet-footer className="flex items-center gap-2 border-t border-admin-border-soft px-[22px] py-3.5">
+          <div data-record-sheet-footer className="flex items-center gap-2 border-t border-admin-border-soft px-[22px] py-[14px]">
             {footerStart}
             <span className="flex-1" />
             {footerEnd}

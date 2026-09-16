@@ -14032,7 +14032,8 @@
           "linkResend": "Reenviar",
           "linkReceipt": "Ver recibo",
           "linkNew": "Enviar enlace nuevo",
-          "linksUnavailable": "Todavía ninguna tabla registra un enlace de pago enviado, así que no hay nada que listar ni reenviar aquí."
+          "linksUnavailable": "Todavía ninguna tabla registra un enlace de pago enviado, así que no hay nada que listar ni reenviar aquí.",
+          "totalDetailOne": "{amount} · 1 hito"
         }
       },
       "classes": {
@@ -16046,7 +16047,7 @@
     },
     "projects": {
       "pageTitle": "Proyectos",
-      "pageIntro": "Trabajo por encargo: el acuerdo, lo que se debe, lo entregado y quien participa. Una venta en el mostrador es un pedido, no un proyecto.",
+      "pageIntro": "Trabajo por encargo, de la consulta al cierre",
       "unavailable": "No pudimos cargar tus proyectos. No se cambio nada. Intenta de nuevo en un momento.",
       "empty": "Todavia no hay proyectos por encargo.",
       "emptyHint": "Un proyecto aparece aqui cuando un cliente acepta una oferta en una consulta. Las ventas del mostrador siguen en Pedidos.",
@@ -16094,7 +16095,7 @@
       "scope": {
         "none": "Todavia no se ha redactado ningun acuerdo. La oferta se redacta en la conversacion de la que salio este proyecto.",
         "noInquiry": "Este proyecto no salio de una conversacion, asi que no tiene oferta que mostrar. Las versiones del acuerdo viven en la consulta.",
-        "version": "Version {n}",
+        "version": "v{n}",
         "history": "Versiones anteriores",
         "historyNone": "No hay versiones anteriores. Esta es la primera.",
         "coordinatorFee": "Comision del coordinador",
@@ -16122,7 +16123,8 @@
         "priorKept": "v{n} (enviada el {date}, {amount}) se conserva sin cambios para el registro.",
         "sendVersion": "Enviar v{n}",
         "discardProposal": "Descartar propuesta",
-        "refusalNoLock": "No se pudo leer la conversación. Recarga e inténtalo de nuevo."
+        "refusalNoLock": "No se pudo leer la conversación. Recarga e inténtalo de nuevo.",
+        "valueDetailOne": "{amount} · 1 hito"
       },
       "milestones": {
         "title": "Hitos y entregas",
@@ -16148,7 +16150,7 @@
         "refusalUnavailable": "No pudimos acceder al registro. No se cambio nada.",
         "refusalNotAllowed": "No tienes permiso para decidir sobre entregas en este espacio de trabajo.",
         "refusalInvalid": "Esa solicitud no indico una entrega sobre la que pudieramos actuar.",
-        "sumTitle": "Hitos y entregables",
+        "sumTitle": "Hitos · suman el acuerdo",
         "add": "Añadir hito",
         "onDelivery": "A la entrega · {date}",
         "requestChanges": "Pedir cambios",
@@ -16169,8 +16171,7 @@
         "noneHint": "La asignacion se crea al aceptar una oferta con lineas. Cada profesional asignado tiene su propia linea.",
         "colRole": "Rol",
         "unnamed": "Nombre no registrado",
-        "replaceNote": "Al reemplazar a una persona se conserva el nombre saliente en la linea, para que la historia de quien hizo el trabajo sobreviva al cambio. El reemplazo todavia no se edita desde esta pantalla.",
-        "marginNote": "El honorario y el cargo se muestran juntos porque esta es la vista del espacio de trabajo. Un profesional asignado solo ve su propio honorario.",
+        "replaceNote": "El reemplazo toma la línea al confirmar. Si no está disponible o el trabajo ya empezó, el motor lo rechaza y dice por qué.",
         "assignments": "Asignaciones",
         "assign": "Asignar desde Personas › Reservable",
         "assigned": "Asignado",
@@ -16189,10 +16190,11 @@
         "impactOutgoingValue": "Se conserva en la línea para el registro · nada ganado",
         "impactClient": "Cliente",
         "impactClientValue": "No se avisa desde aquí · no requiere aprobación",
-        "replaceConfirm": "Sustituir e invitar",
+        "replaceConfirm": "Sustituir e invitar a {name}",
         "replaceNoProfile": "Esta persona se escribió en la oferta y no tiene perfil que sustituir.",
         "replacementPick": "Elige a una persona",
-        "replacementNone": "Todavía no hay nadie más en el equipo."
+        "replacementNone": "Todavía no hay nadie más en el equipo.",
+        "replacementHint": "Se lista a todo el elenco del espacio de trabajo; la disponibilidad se comprueba al confirmar."
       },
       "money": {
         "quotedNotAgreed": "No se ha aceptado ninguna version, asi que todavia no hay precio acordado.",
@@ -16261,13 +16263,15 @@
         "confirmArchive": "Archivar proyecto",
         "confirmReopen": "Reabrir proyecto",
         "archiveReason": "Por qué se archiva",
-        "archiveReasonHint": "Opcional. Queda en el registro."
+        "archiveReasonHint": "Opcional. Queda en el registro.",
+        "cancelSheet": "Cancelar",
+        "milestonesOpenOne": "1 hito abierto"
       },
       "visibility": {
-        "title": "Quien ve que",
-        "audienceStaff": "Personal del espacio de trabajo",
-        "audienceProfessional": "Profesional asignado",
-        "audienceClient": "Cliente",
+        "title": "Quién ve qué en este proyecto",
+        "audienceStaff": "Titular · gestor",
+        "audienceProfessional": "Talento asignado",
+        "audienceClient": "Cliente (portal)",
         "note": "No existe una tabla de visibilidad por proyecto. El acceso del personal viene del modelo de acceso del espacio de trabajo, y el del profesional asignado es un permiso acotado a su propia linea de asignacion. Esta pantalla enuncia la regla que producen esos dos; no ofrece una excepcion por proyecto, porque no existe.",
         "colItem": "Elemento",
         "never": "Nunca",
@@ -16420,7 +16424,8 @@
       "dateStarts": "Empieza",
       "dateEnds": "Termina",
       "dateMilestoneDue": "{title} vence",
-      "filesNone": "Todavía no hay ningún archivo adjunto a un hito."
+      "filesNone": "Todavía no hay ningún archivo adjunto a un hito.",
+      "kpiCollectedNoteOne": "1 registro pagado"
     },
     "clientRecord": {
       "title": "Cliente",
@@ -16521,7 +16526,10 @@
       "tabProjects": "Proyectos",
       "tabDetails": "Detalles",
       "cancel": "Cancelar",
-      "linkSent": "Enlace de pago enviado · caduca {when} · te avisaremos cuando se pague"
+      "linkSent": "Enlace de pago enviado · caduca {when} · te avisaremos cuando se pague",
+      "selectedRecordOne": "1 registro",
+      "collectSummaryOne": "1 registro pendiente, {amount} por cobrar",
+      "lineOne": "1 línea"
     },
     "issues": {
       "eyebrow": "Incidencias",

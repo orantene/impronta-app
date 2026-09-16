@@ -14032,7 +14032,8 @@
           "linkResend": "Resend",
           "linkReceipt": "View receipt",
           "linkNew": "Send new link",
-          "linksUnavailable": "No table records a sent payment link yet, so there is nothing to list or resend here."
+          "linksUnavailable": "No table records a sent payment link yet, so there is nothing to list or resend here.",
+          "totalDetailOne": "{amount} · 1 milestone"
         }
       },
       "classes": {
@@ -16046,7 +16047,7 @@
     },
     "projects": {
       "pageTitle": "Projects",
-      "pageIntro": "Commissioned work: the agreement, what is owed, what has been delivered, and who is on it. A counter sale is an order, not a project.",
+      "pageIntro": "Commissioned work from inquiry to closure",
       "unavailable": "We could not load your projects. Nothing was changed. Try again in a moment.",
       "empty": "No commissioned projects yet.",
       "emptyHint": "A project appears here when a client accepts an offer on an inquiry. Sales taken at the counter stay on Orders.",
@@ -16066,8 +16067,8 @@
       "openClient": "Open the client record",
       "openInquiry": "Open the conversation",
       "collectSuppressed": "Collect is not offered while a deliverable is waiting on the client. They are being asked to pay for work they have not been shown.",
-      "tabScope": "Scope and agreement",
-      "tabMilestones": "Milestones and deliverables",
+      "tabScope": "Scope & agreement",
+      "tabMilestones": "Milestones & deliverables",
       "tabTeam": "Team",
       "tabMoney": "Money",
       "tabVisibility": "Who sees what",
@@ -16094,7 +16095,7 @@
       "scope": {
         "none": "No agreement has been drafted yet. An offer is drafted on the conversation this project came from.",
         "noInquiry": "This project did not come from a conversation, so it has no offer to show. Agreement versions live on the inquiry.",
-        "version": "Version {n}",
+        "version": "v{n}",
         "history": "Previous versions",
         "historyNone": "No previous versions. This is the first.",
         "coordinatorFee": "Coordinator fee",
@@ -16122,7 +16123,8 @@
         "priorKept": "v{n} (sent {date}, {amount}) is kept unchanged for the record.",
         "sendVersion": "Send v{n}",
         "discardProposal": "Discard proposal",
-        "refusalNoLock": "The conversation could not be read. Reload and try again."
+        "refusalNoLock": "The conversation could not be read. Reload and try again.",
+        "valueDetailOne": "{amount} · 1 milestone"
       },
       "milestones": {
         "title": "Milestones and deliverables",
@@ -16148,7 +16150,7 @@
         "refusalUnavailable": "We could not reach the record. Nothing was changed.",
         "refusalNotAllowed": "You do not have permission to decide on deliverables in this workspace.",
         "refusalInvalid": "That request did not name a deliverable we could act on.",
-        "sumTitle": "Milestones & deliverables",
+        "sumTitle": "Milestones · sum to the agreement",
         "add": "Add milestone",
         "onDelivery": "On delivery · {date}",
         "requestChanges": "Request changes",
@@ -16169,8 +16171,7 @@
         "noneHint": "An assignment is created when an offer with line items is accepted. Each assigned professional gets their own line.",
         "colRole": "Role",
         "unnamed": "Name not recorded",
-        "replaceNote": "Replacing a person keeps the outgoing name on the line, so the history of who did the work survives the swap. The replacement itself is not editable from this screen yet.",
-        "marginNote": "Fee and charge are shown together because this is the workspace view. An assigned professional sees only their own fee.",
+        "replaceNote": "The replacement takes the line when you confirm. If they are unavailable or the work has already started, the engine refuses and says why.",
         "assignments": "Assignments",
         "assign": "Assign from People › Bookable",
         "assigned": "Assigned",
@@ -16189,10 +16190,11 @@
         "impactOutgoingValue": "Kept on the line for the record · nothing earned",
         "impactClient": "Client",
         "impactClientValue": "Not notified from here · no approval required",
-        "replaceConfirm": "Replace and invite",
+        "replaceConfirm": "Replace and invite {name}",
         "replaceNoProfile": "This person was typed on the offer and has no profile to replace.",
         "replacementPick": "Choose a person",
-        "replacementNone": "Nobody else is on the roster yet."
+        "replacementNone": "Nobody else is on the roster yet.",
+        "replacementHint": "Everyone on the workspace's roster is listed; availability is checked when you confirm."
       },
       "money": {
         "quotedNotAgreed": "No version has been accepted, so there is no agreed price yet.",
@@ -16261,13 +16263,15 @@
         "confirmArchive": "Archive project",
         "confirmReopen": "Reopen project",
         "archiveReason": "Why it is being archived",
-        "archiveReasonHint": "Optional. Kept on the record."
+        "archiveReasonHint": "Optional. Kept on the record.",
+        "cancelSheet": "Cancel",
+        "milestonesOpenOne": "1 milestone open"
       },
       "visibility": {
-        "title": "Who sees what",
-        "audienceStaff": "Workspace staff",
-        "audienceProfessional": "Assigned professional",
-        "audienceClient": "Client",
+        "title": "Who sees what on this project",
+        "audienceStaff": "Owner · manager",
+        "audienceProfessional": "Assigned talent",
+        "audienceClient": "Client (portal)",
         "note": "There is no per project visibility table. Staff access comes from the workspace access model, and an assigned professional's access is a scoped grant off their own assignment line. This screen states the rule those two produce; it does not offer a per project override, because none exists.",
         "colItem": "Item",
         "never": "Never",
@@ -16420,7 +16424,8 @@
       "dateStarts": "Starts",
       "dateEnds": "Ends",
       "dateMilestoneDue": "{title} due",
-      "filesNone": "No file is attached to a milestone yet."
+      "filesNone": "No file is attached to a milestone yet.",
+      "kpiCollectedNoteOne": "1 record paid"
     },
     "clientRecord": {
       "title": "Client",
@@ -16521,7 +16526,10 @@
       "tabProjects": "Projects",
       "tabDetails": "Details",
       "cancel": "Cancel",
-      "linkSent": "Payment link sent · expires {when} · you will be notified when paid"
+      "linkSent": "Payment link sent · expires {when} · you will be notified when paid",
+      "selectedRecordOne": "1 record",
+      "collectSummaryOne": "1 unpaid record, {amount} outstanding",
+      "lineOne": "1 line"
     },
     "issues": {
       "eyebrow": "Issues",

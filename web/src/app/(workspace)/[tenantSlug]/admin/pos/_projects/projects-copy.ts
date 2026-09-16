@@ -167,6 +167,7 @@ export type ProjectsBoardCopy = {
   readonly agreement: string;
   readonly total: string;
   readonly totalDetail: string;
+  readonly totalDetailOne: string;
   readonly remainingAfter: string;
   readonly refundTerms: string;
   readonly refundNotRecorded: string;
@@ -442,6 +443,7 @@ export function projectsModeCopy(t: Translator): ProjectsModeCopy {
       agreement: t("dashboard.pos.projects.board.agreement"),
       total: t("dashboard.pos.projects.board.total"),
       totalDetail: t("dashboard.pos.projects.board.totalDetail"),
+      totalDetailOne: t("dashboard.pos.projects.board.totalDetailOne"),
       remainingAfter: t("dashboard.pos.projects.board.remainingAfter"),
       refundTerms: t("dashboard.pos.projects.board.refundTerms"),
       refundNotRecorded: t("dashboard.pos.projects.board.refundNotRecorded"),

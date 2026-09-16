@@ -16,11 +16,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { projectReplaceTalentAction } from "@/lib/server-actions/scheduling-engine";
 import { schedulingEngineSentence, type SchedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
-import { BTN_PRIMARY, BTN_ROW, BTN_SECONDARY, Eyebrow, KeyValue, ListRow, Pill } from "../_shared";
+import { BTN_PRIMARY, BTN_ROW, BTN_SECONDARY, Eyebrow, KeyValue, ListRow, Pill, SheetNote } from "../_shared";
 import { RecordSheet } from "../_sheet";
 
 export type TeamRowView = {
@@ -43,6 +44,7 @@ export type TeamReplaceCopy = {
   replacement: string;
   replacementPick: string;
   replacementNone: string;
+  replacementHint: string;
   impact: string;
   schedule: string;
   scheduleValue: string;
@@ -168,13 +170,14 @@ export function TeamRows({
               <label htmlFor="team-replacement" className="mb-1.5 block text-[12px] font-semibold text-admin-ink">
                 {copy.replacement}
               </label>
+              <span className="relative block">
               <select
                 id="team-replacement"
                 value={toTalentId}
                 disabled={pending || options.length === 0}
                 onChange={(e) => setToTalentId(e.target.value)}
                 data-team-replacement
-                className="h-9 w-full rounded-[9px] border border-admin-border bg-admin-card px-3 text-[13px] text-admin-ink disabled:cursor-not-allowed disabled:text-admin-ink-dim"
+                className="h-[34px] w-full appearance-none rounded-[8px] border border-admin-border bg-admin-card pl-3 pr-9 text-[13px] text-admin-ink disabled:cursor-not-allowed disabled:text-admin-ink-dim"
               >
                 <option value="">{options.length === 0 ? copy.replacementNone : copy.replacementPick}</option>
                 {options.map((c) => (
@@ -183,16 +186,19 @@ export function TeamRows({
                   </option>
                 ))}
               </select>
+              <ChevronDown aria-hidden size={14} strokeWidth={1.75} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-admin-ink-dim" />
+              </span>
+              <p className="m-0 mt-1.5 text-[11.5px] text-admin-ink-dim">{copy.replacementHint}</p>
             </div>
             <Eyebrow>{copy.impact}</Eyebrow>
-            <div className="rounded-[12px] border border-admin-border bg-admin-card px-4 py-3">
-              <KeyValue label={copy.schedule} value={copy.scheduleValue} />
-              <KeyValue label={copy.fee} value={replacing.feeLine} />
-              <KeyValue label={copy.clientMoney} value={copy.clientMoneyValue} />
-              <KeyValue label={replacing.name} value={copy.outgoingValue} />
-              <KeyValue label={copy.client} value={copy.clientValue} />
+            <div className="rounded-[12px] border border-admin-border bg-admin-card px-4 py-1">
+              <KeyValue tall label={copy.schedule} value={copy.scheduleValue} />
+              <KeyValue tall label={copy.fee} value={replacing.feeLine} />
+              <KeyValue tall label={copy.clientMoney} value={copy.clientMoneyValue} />
+              <KeyValue tall label={replacing.name} value={copy.outgoingValue} />
+              <KeyValue tall label={copy.client} value={copy.clientValue} />
             </div>
-            <p className="m-0 rounded-[10px] bg-admin-surface-alt px-3 py-2.5 text-[12.5px] text-admin-ink-muted">{copy.note}</p>
+            <SheetNote>{copy.note}</SheetNote>
             {note ? (
               <p
                 role="alert"

@@ -8,9 +8,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { BTN_PRIMARY, BTN_ROW, BTN_SECONDARY } from "../_shared";
+import { BTN_GHOST, BTN_PRIMARY, BTN_ROW, BTN_SECONDARY } from "../_shared";
 import { addProjectMilestone } from "./actions";
 import type { MilestoneRefusalCopy } from "./milestone-decisions";
 
@@ -30,7 +31,8 @@ export function AddMilestone({
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className={cn(BTN_SECONDARY, BTN_ROW)} data-milestone-add>
+      <button type="button" onClick={() => setOpen(true)} className={cn(BTN_GHOST, BTN_ROW)} data-milestone-add>
+        <Plus aria-hidden size={13} strokeWidth={2} />
         {copy.add}
       </button>
     );

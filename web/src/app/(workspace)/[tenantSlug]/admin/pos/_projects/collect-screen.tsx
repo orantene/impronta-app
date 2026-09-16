@@ -17,7 +17,7 @@
  * URL.
  */
 
-import { Search, X } from "lucide-react";
+import { Search, TriangleAlert, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { POS_CLOSE_ACTION, POS_EYEBROW, POS_NOTE, POS_NUM, POS_OUTLINE_ACTION, POS_PRIMARY_ACTION, POS_REFUSAL_BANNER, POS_SECONDARY_ACTION, POS_SEGMENT, POS_SEGMENT_ACTIVE, POS_SEGMENT_IDLE, POS_SEGMENT_TRACK, POS_SURFACE } from "@/components/admin/pos/pos-classes";
@@ -62,8 +62,8 @@ export function CollectList({ copy, list, rows, query, onQuery, segment, onSegme
   const visible = query.trim() ? rows : rows.filter((r) => r.segment === segment);
   return (
     <div className="flex w-[520px] shrink-0 flex-col gap-3.5 overflow-y-auto border-r border-admin-border px-5 py-[18px] max-[1100px]:w-[420px]" data-pos-collect-list>
-      <label className={cn("flex h-[60px] items-center gap-2.5 rounded-[14px] border-[1.5px] bg-admin-card px-4", query ? "border-admin-brand" : "border-admin-border")}>
-        <Search aria-hidden size={20} strokeWidth={1.75} className="shrink-0 text-admin-ink-muted" />
+      <label className={cn("flex h-[56px] shrink-0 items-center gap-2.5 rounded-[14px] border-[1.5px] bg-admin-card px-4", query ? "border-admin-brand" : "border-admin-border")}>
+        <Search aria-hidden size={18} strokeWidth={1.75} className="shrink-0 text-admin-ink-muted" />
         <span className="sr-only">{copy.search.label}</span>
         <input
           type="search"
@@ -72,7 +72,7 @@ export function CollectList({ copy, list, rows, query, onQuery, segment, onSegme
           onChange={(event) => onQuery(event.target.value)}
           placeholder={copy.search.placeholder}
           aria-label={copy.search.label}
-          className="min-w-0 flex-1 bg-transparent text-[18px] text-admin-ink placeholder:text-admin-ink-dim focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent text-[16px] text-admin-ink placeholder:text-admin-ink-dim focus:outline-none"
         />
         <span className="shrink-0 text-[12.5px] font-semibold text-admin-ink-muted">{b.searchHint}</span>
       </label>
@@ -103,7 +103,7 @@ export function CollectList({ copy, list, rows, query, onQuery, segment, onSegme
       ) : visible.length === 0 ? (
         <p className="m-0 px-1 text-[15px] text-admin-ink-muted">{copy.search.empty}</p>
       ) : (
-        <ul className="m-0 flex list-none flex-col gap-2.5 p-0" data-pos-projects-list>
+        <ul className="m-0 flex list-none flex-col gap-4 p-0" data-pos-projects-list>
           {visible.map((row) => (
             <li key={row.id}>
               <CollectRow row={row} copy={copy} active={row.id === activeId} onOpen={() => onOpen(row.id)} />
@@ -112,11 +112,9 @@ export function CollectList({ copy, list, rows, query, onQuery, segment, onSegme
         </ul>
       )}
 
-      <p className={cn(POS_NOTE, "m-0 mt-auto")}>
-        <span aria-hidden className="shrink-0 font-bold">
-          !
-        </span>
-        {b.onlyAccepted}
+      <p className={cn(POS_NOTE, "m-0 mt-auto text-[13.5px] leading-[1.35]")}>
+        <TriangleAlert aria-hidden size={16} strokeWidth={1.75} className="mt-px shrink-0" />
+        <span>{b.onlyAccepted}</span>
       </p>
     </div>
   );
@@ -146,13 +144,13 @@ function CollectRow({ row, copy, active, onOpen }: { row: ProjectsModeRow; copy:
       aria-current={active ? "true" : undefined}
       data-pos-project-row={row.id}
       className={cn(
-        "flex w-full items-center gap-3 rounded-[14px] border-[1.5px] px-4 py-3.5 text-left transition-colors",
+        "flex w-full items-center gap-3 rounded-[14px] border-[1.5px] px-4 py-3 text-left leading-[1.2] transition-colors",
         active ? "border-admin-brand bg-admin-brand-soft" : "border-admin-border bg-admin-card hover:bg-admin-surface-alt",
       )}
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[16px] font-semibold text-admin-ink">{title}</span>
-        <span className="mt-0.5 block text-[13.5px] text-admin-ink-muted">{subtitle}</span>
+        <span className="mt-1 block text-[13px] text-admin-ink-muted">{subtitle}</span>
       </span>
       <span className="shrink-0 text-right">
         <span
@@ -234,7 +232,7 @@ export function CollectDetail(props: CollectDetailProps) {
             </div>
             <div className={cn(POS_SURFACE, "p-4")}>
               <p className={cn("m-0", POS_EYEBROW, "tracking-[0.08em]")}>{b.agreement}</p>
-              <Row label={b.total} value={accepted ? interpolate(b.totalDetail, { amount: formatOrderMoney(accepted.totalClientCents, currency), count: project.milestones.length }) : copy.money.agreedNone} />
+              <Row label={b.total} value={accepted ? interpolate(project.milestones.length === 1 ? b.totalDetailOne : b.totalDetail, { amount: formatOrderMoney(accepted.totalClientCents, currency), count: project.milestones.length }) : copy.money.agreedNone} />
               <Row label={copy.money.collected} value={<span data-pos-projects-collected-total>{formatOrderMoney(money.collectedCents, currency)}</span>} />
               <Row label={b.remainingAfter} value={remainingAfter === null ? "—" : formatOrderMoney(remainingAfter, currency)} />
               <Row label={b.refundTerms} value={b.refundNotRecorded} dim />
@@ -290,13 +288,13 @@ export function CollectDetail(props: CollectDetailProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <a href={`${props.workspacePath}/projects/${project.id}`} className={cn(POS_SECONDARY_ACTION, "h-14")}>
+            <a href={`${props.workspacePath}/projects/${project.id}`} className={POS_SECONDARY_ACTION}>
               {b.openWorkspace}
             </a>
-            <button type="button" disabled title={b.sendLinkUnavailable} className={cn(POS_OUTLINE_ACTION, "h-14")}>
+            <button type="button" disabled title={b.sendLinkUnavailable} className={POS_OUTLINE_ACTION}>
               {b.sendLink}
             </button>
-            <button type="button" disabled title={b.transferUnavailable} className={cn(POS_SECONDARY_ACTION, "h-14")}>
+            <button type="button" disabled title={b.transferUnavailable} className={POS_SECONDARY_ACTION}>
               {b.transfer}
             </button>
           </div>

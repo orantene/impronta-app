@@ -31,7 +31,7 @@ export function RecordSide({
     <>
       <Eyebrow wide>{tr("dashboard.projects.sideClient")}</Eyebrow>
       <Card>
-        <div className="flex flex-col gap-2 px-3.5 py-3 text-[13px] text-admin-ink">
+        <div className="flex flex-col gap-2 px-4 py-3.5 text-[13px] leading-[1.25] text-admin-ink">
           {project.clientName ? (
             <div>
               <b>{project.clientName}</b>
@@ -58,7 +58,7 @@ export function RecordSide({
 
       <Eyebrow wide>{tr("dashboard.projects.sideTeam")}</Eyebrow>
       <Card>
-        <div className="flex flex-col px-3.5 py-3 text-[13px]">
+        <div className="flex flex-col px-4 py-2 text-[13px]">
           {project.assignments.length === 0 ? (
             <span className="text-admin-ink-muted">{tr("dashboard.projects.team.none")}</span>
           ) : (
@@ -75,7 +75,7 @@ export function RecordSide({
 
       <Eyebrow wide>{tr("dashboard.projects.sideDates")}</Eyebrow>
       <Card>
-        <div className="px-3.5 py-3 text-[13px]">
+        <div className="px-4 py-2 text-[13px]">
           <KeyValue
             label={tr("dashboard.projects.dateStarts")}
             value={dayLabel(project.startsAt, tz, locale, noDate, { weekday: true, time: true })}
