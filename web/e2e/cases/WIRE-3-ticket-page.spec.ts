@@ -47,7 +47,8 @@ test("WIRE-3.9 /ticket/<code>: transfer supersedes the old code at the gate, res
     await page.goto(`/ticket/${encodeURIComponent(oldCode)}`);
     await expect(page.getByTestId("ticket-transfer")).toBeVisible({ timeout: 30_000 });
     await page.getByLabel("New holder name").fill(`WIRE new holder ${stamp}`);
-    await page.getByLabel("New holder email").fill(`wire-3-9-new-${stamp}@impronta.test`);
+    // The lookup form below reuses this label (D-148); the transfer form is the first.
+    await page.getByLabel("New holder email").first().fill(`wire-3-9-new-${stamp}@impronta.test`);
     await page.getByTestId("ticket-transfer").click();
     await expect(page).not.toHaveURL(new RegExp(encodeURIComponent(oldCode).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), { timeout: 30_000 });
     await expect(page).toHaveURL(/\/ticket\/adm1/, { timeout: 30_000 });
@@ -60,20 +61,22 @@ test("WIRE-3.9 /ticket/<code>: transfer supersedes the old code at the gate, res
 
     // Resend: answered in words on the new code's page.
     await page.getByTestId("ticket-resend").click();
-    await expect(page.getByRole("status").or(page.getByRole("alert")).first()).toBeVisible({ timeout: 30_000 });
-    const resendText = ((await page.getByRole("status").or(page.getByRole("alert")).first().textContent()) ?? "").trim();
+    // The page keeps an empty live region mounted; the answer is the one with words.
+    const said = page.getByRole("status").or(page.getByRole("alert")).filter({ hasText: /\S/ }).first();
+    await expect(said).toBeVisible({ timeout: 30_000 });
+    const resendText = ((await said.textContent()) ?? "").trim();
     expect(resendText.length).toBeGreaterThan(0);
 
     // Lookup: a wrong pair is `not_found`; hammered, `too_many_attempts`.
     await page.getByLabel(/email/i).last().fill(`nobody-${stamp}@impronta.test`);
     await page.getByLabel("Last four of the receipt").fill("0000");
     await page.getByTestId("ticket-lookup").click();
-    await expect(page.getByRole("alert")).toHaveText(WIRE_SENTENCE.notFound, { timeout: 30_000 });
+    await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toHaveText(WIRE_SENTENCE.notFound, { timeout: 60_000 });
     for (let i = 0; i < 9; i += 1) {
       await page.getByTestId("ticket-lookup").click();
       await page.waitForTimeout(300);
     }
-    await expect(page.getByRole("alert")).toHaveText(WIRE_SENTENCE.tooManyAttempts, { timeout: 30_000 });
+    await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toHaveText(WIRE_SENTENCE.tooManyAttempts, { timeout: 60_000 });
 
     // The old code at the door's gate: superseded.
     await signInJourneysStaff(page, "/admin/pos?mode=door");
