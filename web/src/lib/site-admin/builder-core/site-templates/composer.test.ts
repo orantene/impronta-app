@@ -46,7 +46,8 @@ test("copy prompt carries the ban list and the facts, never a personal field", (
 });
 
 test("palette: saturated colour with contrast becomes primary; a weak one is demoted to accent; result validates", () => {
-  const base = LOOKS.find((l) => l.id === "warm")!.themePatch;
+  // A light canvas: `luxe` (porcelain). On a dark Look the same navy would rightly be demoted and the yellow promoted.
+  const base = LOOKS.find((l) => l.id === "luxe")!.themePatch;
   const r = themePatchFromPalette(base, ["#f6f1ea", "#1e3a5f", "#ffcc00"]);
   assert.equal(r.patch["color.primary"], "#1e3a5f");
   assert.equal(r.patch["color.background"], base["color.background"], "the canvas stays the Look's own");
