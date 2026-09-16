@@ -15539,6 +15539,7 @@
         "transferAction": "Transfer",
         "resend": "Resend by email",
         "lookup": "Find a ticket",
+        "lookupEmail": "Your email",
         "last4": "Last four of the receipt",
         "lookupAction": "Look up",
         "found": "Open {code}"

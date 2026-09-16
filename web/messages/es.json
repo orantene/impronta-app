@@ -15539,6 +15539,7 @@
         "transferAction": "Ceder",
         "resend": "Reenviar por correo",
         "lookup": "Buscar una entrada",
+        "lookupEmail": "Tu correo",
         "last4": "Últimos cuatro del recibo",
         "lookupAction": "Buscar",
         "found": "Abrir {code}"
