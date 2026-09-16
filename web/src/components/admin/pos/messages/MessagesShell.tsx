@@ -14,7 +14,7 @@ import {
 } from "@/components/admin/pos/pos-classes";
 import { useT } from "@/i18n/use-t";
 import type { MessagingPreview, MessagingSheetName } from "@/lib/messaging/fixture";
-import { filterInboxRows, inboxMatchSnippet } from "@/lib/messaging/inbox-search";
+import { filterInboxRows, inboxMatchSnippet, keepActiveRow } from "@/lib/messaging/inbox-search";
 import type { Essentials, InboxFilter, InboxRow, ThreadMessage } from "@/lib/messaging/types";
 import { INBOX_FILTERS } from "@/lib/messaging/types";
 import type { PosMode } from "@/lib/pos/modes";
@@ -92,6 +92,7 @@ export function MessagesShell(props: MessagesClientProps) {
     props.channelFilter === "whatsapp" ? "all" : "needs_reply",
   );
   const [rows, setRows] = useState<InboxRow[]>(preview?.rows ?? []);
+  const rowsRef = useRef<InboxRow[]>(preview?.rows ?? []);
   const [activeId, setActiveId] = useState<string | null>(preview?.activeId ?? null);
   const [messages, setMessages] = useState<ThreadMessage[]>(preview?.messages ?? []);
   const [draft, setDraft] = useState("");
@@ -130,6 +131,9 @@ export function MessagesShell(props: MessagesClientProps) {
     writeDraft(draftKey, draft);
   }, [draft, draftKey]);
 
+  const activeIdRef = useRef<string | null>(activeId);
+  activeIdRef.current = activeId;
+
   const reload = useCallback(async () => {
     if (preview) return;
     const result = await messagingLoadInbox({ locationSlug: props.locationSlug, filter });
@@ -137,10 +141,23 @@ export function MessagesShell(props: MessagesClientProps) {
       setLoadState("failed");
       return;
     }
-    const next =
+    const listed =
       props.channelFilter === "whatsapp"
         ? result.rows.filter((row) => row.channel === "whatsapp")
         : result.rows;
+    // The thread the operator is on stays listed when the filter no longer
+    // returns it (D-143: a reply from "Needs reply" answered it, the reload
+    // dropped it, and the pane read "No conversations yet"). Its row is
+    // re-read from the unfiltered inbox so the version the next reply sends
+    // is the one the reply moved it to.
+    const activeNow = activeIdRef.current;
+    let fresh: InboxRow | null = null;
+    if (activeNow && filter !== "all" && !listed.some((row) => row.id === activeNow)) {
+      const all = await messagingLoadInbox({ locationSlug: props.locationSlug, filter: "all" });
+      if (all.ok) fresh = all.rows.find((row) => row.id === activeNow) ?? null;
+    }
+    const next = keepActiveRow(listed, activeNow, rowsRef.current, fresh);
+    rowsRef.current = next;
     setRows(next);
     setInboxUnread(result.unreadCount);
     if (seenUnread.current !== null && result.unreadCount > seenUnread.current) {
