@@ -30,4 +30,10 @@ test("the pay page leads back to the link's conversation when the order names no
   const expired = src.slice(src.indexOf('loaded.reason === "expired"'), src.indexOf("if (!loaded.ok) notFound();"));
   assert.match(expired, /threadHref=\{expiredHref\}/);
   assert.doesNotMatch(expired, /threadHref=\{null\}/);
+  // ...and the view renders what it is handed: the expired branch itself
+  // carries the link (the page computed it and the view dropped it).
+  const view = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/CheckoutView.tsx"), "utf8");
+  const expiredView = view.slice(view.indexOf('phase === "expired"'), view.indexOf('phase === "cancelled"'));
+  assert.match(expiredView, /props\.threadHref/);
+  assert.match(expiredView, /public\.thread\.backToThread/);
 });
