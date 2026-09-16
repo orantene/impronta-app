@@ -236,6 +236,8 @@ export function discountSheetCopy(t: Translator): DiscountSheetCopy {
     after: t(`${K}.discount.after`),
     notCombinable: t(`${K}.basket.discountNotCombinable`),
     refused: t(`${K}.refusal.discountRefused`),
+    // D-139: the role's discount limit refused the code; the request is filed.
+    overLimit: t("dashboard.pos.engine.refusal.over_limit"),
     cancel: t(`${K}.cancel`),
     apply: t(`${K}.basket.applyDiscount`),
     remove: t(`${K}.discount.remove`),

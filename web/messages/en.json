@@ -12660,6 +12660,7 @@
         "noProviderCharge": "This payment came in off the platform, as cash or a transfer, so there is no card charge to reverse. Hand the money back the way it arrived and record it as an off-platform refund.",
         "providerRefused": "The payment provider refused the refund. Nothing was refunded and nothing was charged. Try again, or check the payment at the provider.",
         "partialFailure": "Part of this refund went through and part did not. Do not try again: the refunds that landed are real. Somebody has to finish the rest by hand.",
+        "overLimit": "That refund is over the limit for your role. A request has been sent to a manager; nothing was refunded.",
         "unavailable": "The refund could not be recorded. Nothing was refunded. Try again in a moment."
       },
       "refundComponentShare": "Split by component share"

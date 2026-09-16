@@ -5472,6 +5472,7 @@
         "noProviderCharge": "Ce paiement est arrivé hors plateforme, en espèces ou par virement, il n'y a donc aucun paiement par carte à annuler. Rendez l'argent par le même moyen et enregistrez-le comme remboursement hors plateforme.",
         "providerRefused": "Le prestataire de paiement a refusé le remboursement. Rien n'a été remboursé et rien n'a été débité. Réessayez, ou vérifiez le paiement chez le prestataire.",
         "partialFailure": "Une partie de ce remboursement est passée, l'autre non. Ne réessayez pas : les remboursements effectués sont réels. Quelqu'un doit terminer le reste à la main.",
+        "overLimit": "Ce remboursement dépasse la limite de votre rôle. Une demande a été envoyée à un responsable ; rien n'a été remboursé.",
         "unavailable": "Le remboursement n'a pas pu être enregistré. Rien n'a été remboursé. Réessayez dans un instant."
       },
       "refundComponentShare": "Répartition par composant"

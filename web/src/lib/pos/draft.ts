@@ -536,7 +536,11 @@ export async function repriceAndValidate(
       code: string;
       customerId: string;
       lines: Array<{ id: string; totalCents: number; variantId: string | null; eventId: null }>;
-    }) => Promise<{ ok: true; discountCents: number; codeId: string } | { ok: false; error: string }>;
+    }) => Promise<
+      | { ok: true; discountCents: number; codeId: string }
+      /** `over_limit`: the discount is real but the actor's role may not apply it (D-139). */
+      | { ok: false; error: string; reason?: "over_limit" }
+    >;
   } = {},
 ): Promise<RepriceResult> {
   const loaded = await loadDraft(admin, input.tenantId, input.orderId);
@@ -642,7 +646,7 @@ export async function repriceAndValidate(
         eventId: null,
       })),
     });
-    if (!resolved.ok) return { ok: false, reason: "promo_refused", error: resolved.error };
+    if (!resolved.ok) return { ok: false, reason: resolved.reason ?? "promo_refused", error: resolved.error };
     discountCents = resolved.discountCents;
     promoCodeId = resolved.codeId;
   }

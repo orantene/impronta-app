@@ -59,6 +59,7 @@ export type DiscountSheetCopy = {
   readonly after: string;
   readonly notCombinable: string;
   readonly refused: string;
+  readonly overLimit: string;
   readonly cancel: string;
   /** `Apply {amount}` / plain `Apply` */
   readonly apply: string;
@@ -80,7 +81,7 @@ export type DiscountSheetProps = {
   readonly onRemoveCode: () => void;
   readonly applying?: boolean;
   /** The last apply was refused: `notCombinable` says why when the engine did. */
-  readonly refused: null | "notCombinable" | "refused";
+  readonly refused: null | "notCombinable" | "refused" | "overLimit";
   readonly copy: DiscountSheetCopy;
 };
 
@@ -203,7 +204,7 @@ export function DiscountSheet(props: DiscountSheetProps) {
       {props.refused && (
         <p role="alert" data-pos-discount-refused={props.refused} className={cn(POS_NOTE_WARN, "mt-4")}>
           <AlertTriangle aria-hidden size={16} strokeWidth={1.75} className="mt-0.5 shrink-0" />
-          <span>{props.refused === "notCombinable" ? copy.notCombinable : copy.refused}</span>
+          <span>{props.refused === "notCombinable" ? copy.notCombinable : props.refused === "overLimit" ? copy.overLimit : copy.refused}</span>
         </p>
       )}
     </PosSheet>

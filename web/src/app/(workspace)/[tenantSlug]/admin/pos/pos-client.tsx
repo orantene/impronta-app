@@ -121,7 +121,7 @@ export function PosClient(props: PosClientProps) {
   const [pickupAtLocal, setPickupAtLocal] = useState("");
 
   const [sheet, setSheet] = useState<CounterSheet | null>(null);
-  const [discountRefused, setDiscountRefused] = useState<null | "notCombinable" | "refused">(null);
+  const [discountRefused, setDiscountRefused] = useState<null | "notCombinable" | "refused" | "overLimit">(null);
 
   const [collectOpen, setCollectOpen] = useState(false);
   const [method, setMethod] = useState<PosCollectionMethodId>("cash");
@@ -787,7 +787,8 @@ export function PosClient(props: PosClientProps) {
               if (!sale) return;
               void run("sale", async () => {
                 const result = await posReprice({ orderId: sale.orderId, promoCode: code, expectedVersion: sale.version });
-                setDiscountRefused(result.ok ? null : "reason" in result && result.reason === "promo_refused" ? "notCombinable" : "refused");
+                const reason = !result.ok && "reason" in result ? result.reason : null;
+                setDiscountRefused(result.ok ? null : reason === "promo_refused" ? "notCombinable" : reason === "over_limit" ? "overLimit" : "refused");
                 return result;
               });
             }}

@@ -3,7 +3,9 @@
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { findTenantMembership } from "@/lib/saas/tenant";
 import { userHasCapability } from "@/lib/access";
+import { enforceRoleLimit } from "@/lib/approvals/enforce";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
 import { cancelHybridComponents } from "@/lib/orders/hybrid-package";
 import { isRefundEffect, refundReasonForEffect } from "@/lib/orders/refund-effects";
@@ -165,6 +167,32 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<
   if (!order || (order as { tenant_id: string }).tenant_id !== guard.tenantId) {
     return { ok: false, outcome: "not_found" };
   }
+
+  // The role's refund limit, judged on what the picked lines would give back,
+  // BEFORE any money moves (D-139). Over it: nothing is refunded and the
+  // request is filed for the approvals inbox.
+  const { data: picked, error: pickedErr } = await admin
+    .from("order_lines")
+    .select("id, total_cents, refunded_cents")
+    .eq("order_id", parsed.data.orderId)
+    .in("id", parsed.data.lineIds);
+  if (pickedErr) return { ok: false, outcome: "unavailable" };
+  const refundCents = ((picked ?? []) as Array<{ total_cents: number; refunded_cents: number | null }>).reduce(
+    (sum, line) => sum + Math.max(0, Number(line.total_cents) - Number(line.refunded_cents ?? 0)),
+    0,
+  );
+  const membership = await findTenantMembership(guard.tenantId);
+  const limited = await enforceRoleLimit(admin, {
+    tenantId: guard.tenantId,
+    role: membership?.role ?? null,
+    action: "refund",
+    amountCents: refundCents,
+    subjectId: parsed.data.orderId,
+    requestedBy: guard.user.id,
+    operationKey: `refund:${parsed.data.orderId}:${[...parsed.data.lineIds].sort().join(",").slice(0, 60)}`,
+    reason: `Refund at the desk (${refundCents} cents, ${parsed.data.effect})`,
+  });
+  if (!limited.ok) return { ok: false, outcome: limited.reason === "over_limit" ? "over_limit" : "unavailable" };
 
   if (parsed.data.effect === "refund_hybrid_component") {
     const hybrid = await cancelHybridComponents(admin, {

@@ -12660,6 +12660,7 @@
         "noProviderCharge": "Este pago entró fuera de la plataforma, en efectivo o por transferencia, así que no hay ningún cargo de tarjeta que revertir. Devuelve el dinero por la misma vía y regístralo como reembolso fuera de la plataforma.",
         "providerRefused": "El proveedor de pagos rechazó el reembolso. No se reembolsó nada y no se cobró nada. Inténtalo otra vez o revisa el pago en el proveedor.",
         "partialFailure": "Una parte de este reembolso salió y otra no. No lo intentes otra vez: los reembolsos que salieron son reales. Alguien tiene que terminar el resto a mano.",
+        "overLimit": "Ese reembolso supera el límite de tu rol. Se envió una solicitud a un gerente; no se reembolsó nada.",
         "unavailable": "No se pudo registrar el reembolso. No se reembolsó nada. Inténtalo de nuevo en un momento."
       },
       "refundComponentShare": "Reparto por componente"
