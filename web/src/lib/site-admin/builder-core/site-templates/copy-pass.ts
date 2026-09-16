@@ -61,7 +61,7 @@ export const COPY_PASS_JSON_SCHEMA = {
 } as const;
 
 export const COPY_PASS_MAX_TOKENS = 1_800;
-export const COPY_PASS_TIMEOUT_MS = 25_000;
+export const COPY_PASS_TIMEOUT_MS = 40_000;
 
 /** Keys a compose lets the model rewrite; everything else stays deterministic. */
 export const COPY_PASS_KEYS = [

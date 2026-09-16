@@ -100,7 +100,10 @@ async function main() {
       display_name: WORKSPACE_DISPLAY_NAME,
       kind: "agency",
       workspace_type: "business",
-      settings: { industry_preset: "salon_barber", business_type_id: "nail-salon" },
+      // No business_type_id on purpose: the composer must resolve the type
+      // from each case's brief (settings.business_type_id would win, as a
+      // human choice should).
+      settings: { industry_preset: "custom" },
       status: "active",
       template_key: "default",
       supported_locales: ["en"],

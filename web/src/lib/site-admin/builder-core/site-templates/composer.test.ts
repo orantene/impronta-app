@@ -68,3 +68,11 @@ test("generator prompt: agency register by default, local-business register with
   assert.match(salon, /Do NOT use hero_search or talent_type_grid/);
   assert.doesNotMatch(salon, /Live agency data/);
 });
+
+test("industry text resolves to a business type, whole phrase then words", async () => {
+  const { businessTypeFromIndustry } = await import("./compose-site-from-brief.server");
+  assert.equal(businessTypeFromIndustry("nail-salon")?.id, "nail-salon");
+  assert.equal(businessTypeFromIndustry("food and restaurant")?.id, "restaurant");
+  assert.equal(businessTypeFromIndustry("salón de uñas")?.id, "nail-salon");
+  assert.equal(businessTypeFromIndustry("zzzz"), null);
+});

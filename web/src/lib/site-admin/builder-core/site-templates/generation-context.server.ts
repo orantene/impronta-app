@@ -27,10 +27,12 @@ export async function resolveGenerationContext(
     if (error) throw error;
     const type = resolveTenantBusinessType(agency?.settings ?? null);
     const typeRow = businessTypeById(type.typeId);
-    const [{ data: owner }, stock] = await Promise.all([
+    const [ownerRes, stock] = await Promise.all([
       admin.from("media_assets").select("storage_path, bucket_id, width, height, alt").eq("tenant_id", tenantId).is("deleted_at", null).is("owner_talent_profile_id", null).order("created_at", { ascending: false }).limit(24),
       queryLifestyleStockForType(admin, { businessType: type.typeId, family: type.family }),
     ]);
+    if (ownerRes.error) throw ownerRes.error;
+    const owner = ownerRes.data;
     const candidates: CandidateImage[] = [
       ...((owner ?? []) as Array<{ storage_path: string | null; bucket_id: string | null; width: number | null; height: number | null; alt: string | null }>)
         .filter((r) => !!r.storage_path)

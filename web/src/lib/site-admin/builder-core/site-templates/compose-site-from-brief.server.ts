@@ -82,11 +82,43 @@ export interface ComposeSiteResult {
   durationMs: number;
 }
 
+/** Nav labels per family: what the catalogue and the transaction ARE for this kind of business. */
+export const FAMILY_NAV_LABELS: Readonly<Record<BusinessFamilyId, { catalogue: Bilingual; transaction: Bilingual }>> = {
+  dining: { catalogue: { es: "Menú", en: "Menu" }, transaction: { es: "Reservar", en: "Reserve" } },
+  beauty: { catalogue: { es: "Servicios", en: "Services" }, transaction: { es: "Agendar", en: "Book" } },
+  wellness: { catalogue: { es: "Servicios", en: "Services" }, transaction: { es: "Agendar", en: "Book" } },
+  fitness: { catalogue: { es: "Clases", en: "Classes" }, transaction: { es: "Reservar lugar", en: "Book a spot" } },
+  events: { catalogue: { es: "Espacios", en: "Spaces" }, transaction: { es: "Reservar", en: "Reserve" } },
+  agency: { catalogue: { es: "Servicios", en: "Services" }, transaction: { es: "Solicitar", en: "Inquire" } },
+  professional: { catalogue: { es: "Servicios", en: "Services" }, transaction: { es: "Agendar", en: "Book" } },
+  education: { catalogue: { es: "Clases", en: "Classes" }, transaction: { es: "Inscribirse", en: "Enrol" } },
+  hospitality: { catalogue: { es: "Espacios", en: "Spaces" }, transaction: { es: "Reservar", en: "Reserve" } },
+  craft: { catalogue: { es: "Trabajos", en: "Work" }, transaction: { es: "Encargar", en: "Commission" } },
+  tours: { catalogue: { es: "Tours", en: "Tours" }, transaction: { es: "Reservar", en: "Book" } },
+  custom: { catalogue: { es: "Servicios", en: "Services" }, transaction: { es: "Agendar", en: "Book" } },
+};
+
 /** Public slugs per family: the catalogue is what the type sells. */
 function pageHrefsFor(family: BusinessFamilyId): Record<SitePageRole, string> {
   const catalogue = family === "dining" ? "/menu" : family === "fitness" || family === "education" ? "/clases" : family === "events" || family === "hospitality" ? "/espacios" : family === "tours" ? "/tours" : "/servicios";
   const transaction = family === "dining" || family === "events" || family === "hospitality" ? "/reservar" : "/agendar";
   return { home: "/", catalogue, transaction, about: "/nosotros", contact: "/contacto", gallery: "/galeria" };
+}
+
+/**
+ * `work.industry` is free text ("food and restaurant", "salón de uñas"). Try
+ * the whole phrase, then its words longest-first, so the live El Paisa brief
+ * resolves to `restaurant` instead of falling through to the tenant default.
+ */
+export function businessTypeFromIndustry(industry: string): { id: string; family: BusinessFamilyId } | null {
+  const whole = searchBusinessTypes(industry)[0];
+  if (whole) return { id: whole.id, family: whole.family };
+  const words = industry.split(/[^\p{L}]+/u).filter((w) => w.length >= 4).sort((a, b) => b.length - a.length);
+  for (const w of words) {
+    const hit = searchBusinessTypes(w)[0];
+    if (hit) return { id: hit.id, family: hit.family };
+  }
+  return null;
 }
 
 /** First non-empty string; an empty identity column is "missing", not a value. */
@@ -253,7 +285,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
     typeId = fromSettings.typeId;
     family = fromSettings.family;
   } else if (industry) {
-    const hit = searchBusinessTypes(industry)[0] ?? null;
+    const hit = businessTypeFromIndustry(industry);
     if (hit) {
       typeId = hit.id;
       family = hit.family;
@@ -279,7 +311,9 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   const identity: SiteIdentity = {
     businessName,
     tagline: pick(identityRow?.tagline),
-    city: pick(identityRow?.address_city, facts ? stringFact(facts, "business.works_from") : null),
+    // `person.city` is "Where you work" (fact-keys.ts); `business.works_from` is a
+    // premises kind, not a place.
+    city: pick(identityRow?.address_city, facts ? stringFact(facts, "person.city") : null),
     whatsapp: pick(facts ? stringFact(facts, "presence.whatsapp") : null, identityRow?.whatsapp),
     instagram: normalizeHandle(pick(facts ? stringFact(facts, "presence.instagram_handle") : null, identityRow?.social_instagram), "https://instagram.com/"),
     facebook: normalizeHandle(pick(facts ? stringFact(facts, "presence.facebook_url") : null, identityRow?.social_facebook), "https://facebook.com/"),
@@ -316,8 +350,10 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
     rosterActive: family === "agency",
   });
 
-  // 8. One bounded copy pass.
-  let copyOverrides: Record<string, Bilingual> = {};
+  // 8. One bounded copy pass. Nav labels are deterministic per family and
+  // never the model's to change.
+  const navLabels = FAMILY_NAV_LABELS[family];
+  let copyOverrides: Record<string, Bilingual> = { "nav.catalogue": navLabels.catalogue, "nav.transaction": navLabels.transaction };
   let copySource: ComposeSiteResult["copySource"] = "defaults";
   try {
     const configured = await isResolvedAiChatConfigured();
@@ -359,7 +395,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
         .catch((err) => logServerError("compose.copyPass.usage", err));
       if (result?.ok) {
         const screened = screenCopyReply(result.text, { facts: copyFacts, defaults: look.copy, keys: COPY_PASS_KEYS, primaryLocale: locale });
-        copyOverrides = screened.copy;
+        copyOverrides = { ...copyOverrides, ...screened.copy };
         copySource = Object.keys(copyOverrides).length > 0 ? "model" : "defaults";
         if (screened.dropped.length > 0) notes.push(`copy lines dropped: ${screened.dropped.map((d) => `${d.key} (${d.reason})`).join(", ")}`);
       } else {
@@ -408,8 +444,8 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   }
 
   const titles: Record<Exclude<SitePageRole, "home">, Bilingual> = {
-    catalogue: look.copy["nav.catalogue"],
-    transaction: look.copy["nav.transaction"],
+    catalogue: navLabels.catalogue,
+    transaction: navLabels.transaction,
     about: look.copy["nav.about"],
     contact: look.copy["nav.contact"],
     gallery: look.copy["nav.gallery"],
@@ -444,7 +480,8 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   // 11. Cost for this compose (success and failure rows both carry the id).
   let costUsd = 0;
   try {
-    const { data: usage } = await admin.from("cms_ai_usage_log").select("context_jsonb").eq("tenant_id", input.tenantId).contains("context_jsonb", { site_compose_id: siteComposeId });
+    const { data: usage, error: usageErr } = await admin.from("cms_ai_usage_log").select("context_jsonb").eq("tenant_id", input.tenantId).contains("context_jsonb", { site_compose_id: siteComposeId });
+    if (usageErr) notes.push(`cost not read: ${usageErr.message}`);
     for (const row of (usage ?? []) as Array<{ context_jsonb: { cost_usd?: number } | null }>) costUsd += Number(row.context_jsonb?.cost_usd ?? 0);
   } catch {
     /* cost is informational */
