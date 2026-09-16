@@ -6,6 +6,8 @@ combinations and recovery paths. It used to be three separate document sets writ
 three different people at three different times. This file, `ledger.md` and `defects.md`
 are the single merged version. Read this file first.
 
+**Current integrator handover (2026-09-12 stop):** [`HANDOVER-2026-09-12.md`](HANDOVER-2026-09-12.md) — who/how, what is on production, open defects, in-flight work, leftover order, owner-only decisions, week's lessons. Read that file before dispatching work.
+
 ## The three sources this reconciles
 
 1. **The fired developer's program docs.** Written on the branch that became
@@ -25,6 +27,7 @@ are the single merged version. Read this file first.
 
 | Question | Canonical file | Source |
 |---|---|---|
+| Integrator stop-state 2026-09-12 (machine, release/schema, in-flight, leftover order) | [`HANDOVER-2026-09-12.md`](HANDOVER-2026-09-12.md) | this session |
 | Case status: is C06 done, is C01 done, what is the honest 0/48 count | [`START-HERE.md`](START-HERE.md) | developer |
 | Open defects, their real text and disposition | [`defects.md`](defects.md) | developer, plus D-100–D-103 added this session |
 | Evidence a specific scenario ran and what it proved | [`evidence/`](evidence/), `qa-evidence/` (referenced from `START-HERE.md`) | developer |
