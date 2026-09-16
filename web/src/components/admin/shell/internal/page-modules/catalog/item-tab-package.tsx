@@ -14,8 +14,11 @@
  * (`packageRefundShare`: qty x list price over the sum), so what the
  * operator reads here is what a refund would split.
  *
- * Dependencies, manual amounts and the guest preview need rules the engine
- * does not record; they are drawn as one sentence (D-POS-53 keeps them).
+ * Dependencies and manual amounts need rules the engine does not record;
+ * the board's two cards under the table say so (Dependencies as one
+ * sentence, `Manual amounts` disabled with its reason) (D-POS-53 keeps
+ * them). The right column is the board's `Guest preview · Configure`, drawn
+ * from the same rows: a required component locked, an optional one a box.
  */
 
 import { useEffect, useState } from "react";
@@ -23,15 +26,19 @@ import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { Icon } from "../../primitives";
+import type { OfferingsEditor } from "@/components/talent/services/use-offerings-editor";
 import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
 import { loadOfferingComponentsAction, type OfferingComponentRow } from "@/lib/server-actions/catalog-engine-reads";
 import { setOfferingComponentsAction } from "@/lib/server-actions/scheduling-engine";
-import { ActionButton, Outcome, StatePill } from "../appointments-classes-ui";
+import { ActionButton, Outcome } from "../appointments-classes-ui";
 import type { TabProps } from "./CatalogItemEditor";
 import { engineRefusalKey, packageAllocation } from "./catalog-model";
-import { BUTTON_SMALL, CARD, INPUT, ListHead, ListRow, Note, SectionHead } from "./catalog-ui";
+import { AddPill, BlockPill, CARD, DragHandle, Eyebrow, INPUT, ListHead, ListRow, ModeCard, Note, SectionHead, SELECT, SelectShell } from "./catalog-ui";
 
-const COLS = "grid-cols-[1.6fr_110px_80px_1fr_110px_28px]";
+const COLS = "grid-cols-[12px_1.6fr_110px_80px_1fr_110px_22px]";
+
+/** The composition card tells the right column it saved, so the guest preview re-reads the same rows. */
+const SAVED_EVENT = "catalog:package-saved";
 
 const KIND_KEY: Record<TalentOffering["kind"], string> = {
   product: "dashboard.catalog.type.product",
@@ -102,6 +109,7 @@ export function PackageComposition({ item, editor, isDraft, saving }: TabProps) 
       }
       setDirty(false);
       setOutcome({ kind: "done", text: t("dashboard.catalog.package.saved") });
+      window.dispatchEvent(new CustomEvent(SAVED_EVENT, { detail: item.id }));
     } finally {
       setBusy(false);
     }
@@ -122,6 +130,7 @@ export function PackageComposition({ item, editor, isDraft, saving }: TabProps) 
       ) : null}
       <div className={CARD} data-testid="catalog-package-composition">
         <ListHead cols={COLS}>
+          <span />
           <span>{t("dashboard.catalog.package.col.component")}</span>
           <span>{t("dashboard.catalog.package.col.included")}</span>
           <span>{t("dashboard.catalog.package.col.qty")}</span>
@@ -139,12 +148,13 @@ export function PackageComposition({ item, editor, isDraft, saving }: TabProps) 
           const component = byId.get(row.componentOfferingId) ?? null;
           return (
             <ListRow key={`${row.componentOfferingId}-${i}`} cols={COLS} testId={`catalog-package-row-${i}`}>
-              <select
+              <DragHandle reason={t("dashboard.catalog.options.reorderReason")} />
+              <SelectShell><select
                 value={row.componentOfferingId}
                 disabled={off}
                 aria-label={t("dashboard.catalog.package.col.component")}
                 onChange={(e) => update(i, { componentOfferingId: e.target.value })}
-                className={INPUT}
+                className={SELECT}
               >
                 <option value="">{t("dashboard.catalog.package.pick")}</option>
                 {catalog.map((o) => (
@@ -152,17 +162,17 @@ export function PackageComposition({ item, editor, isDraft, saving }: TabProps) 
                     {o.title || t("dashboard.catalog.untitled")}
                   </option>
                 ))}
-              </select>
+              </select></SelectShell>
               <button
                 type="button"
                 disabled={off}
                 onClick={() => update(i, { required: !row.required })}
                 aria-pressed={row.required}
-                className="inline-flex cursor-pointer items-center border-0 bg-transparent p-0 disabled:cursor-not-allowed"
+                className="flex w-full cursor-pointer items-center border-0 bg-transparent p-0 disabled:cursor-not-allowed"
               >
-                <StatePill tone={row.required ? "indigo" : "slate"}>
+                <BlockPill tone={row.required ? "green" : "slate"}>
                   {row.required ? t("dashboard.catalog.package.required") : t("dashboard.catalog.package.optional")}
-                </StatePill>
+                </BlockPill>
               </button>
               <input
                 type="number"
@@ -190,29 +200,26 @@ export function PackageComposition({ item, editor, isDraft, saving }: TabProps) 
                   setDirty(true);
                   setOutcome(null);
                 }}
-                className="inline-flex h-[24px] w-[24px] cursor-pointer items-center justify-center rounded-[6px] border-0 bg-transparent text-admin-ink-muted hover:bg-admin-surface-alt disabled:cursor-not-allowed"
+                className="inline-flex h-[18px] w-[22px] cursor-pointer items-center justify-center rounded-[5px] border-0 bg-transparent text-admin-ink-muted hover:bg-admin-surface-alt disabled:cursor-not-allowed"
               >
                 <Icon name="x" size={12} stroke={1.75} />
               </button>
             </ListRow>
           );
         })}
-        <div className="flex items-center gap-[10px] border-t border-admin-border-soft px-[16px] py-[10px]">
-          <button
-            type="button"
+        <div className="flex items-center gap-[10px] border-t border-admin-border-soft px-[16px] py-[11px]">
+          <AddPill
             disabled={off || catalog.length === 0}
-            data-testid="catalog-package-add"
+            testId="catalog-package-add"
             onClick={() => {
               setRows((cur) => [...(cur ?? []), { componentOfferingId: "", qty: 1, required: true }]);
               setDirty(true);
               setOutcome(null);
             }}
-            className={BUTTON_SMALL}
           >
-            <Icon name="plus" size={12} stroke={1.75} />
             {t("dashboard.catalog.package.add")}
-          </button>
-          <span className="flex-1 font-admin-body text-[11.5px] text-admin-ink-dim">
+          </AddPill>
+          <span className="flex-1 font-admin-body text-[11.5px] leading-[1.2] text-admin-ink-dim">
             {catalog.length === 0 ? t("dashboard.catalog.package.emptyCatalog") : t("dashboard.catalog.package.addHint")}
           </span>
           <ActionButton
@@ -225,8 +232,89 @@ export function PackageComposition({ item, editor, isDraft, saving }: TabProps) 
           </ActionButton>
         </div>
       </div>
-      <Note>{t("dashboard.catalog.package.allocationNote")}</Note>
-      <Note tone="warn">{t("dashboard.catalog.package.dependenciesReason")}</Note>
+      {/* The board's two cards under the table: Dependencies (not recorded) and Allocation method (proportional is the engine's rule). */}
+      <div className="grid grid-cols-2 gap-[16px]">
+        <div className={`${CARD} px-[16px] py-[14px]`} data-testid="catalog-package-dependencies" title={t("dashboard.catalog.package.dependenciesReason")}>
+          <h3 className="m-0 font-admin-body text-[13.5px]! font-semibold leading-[1.2] text-admin-ink">{t("dashboard.catalog.package.dependencies")}</h3>
+          <p className="m-0 mt-[10px] font-admin-body text-[12.5px] leading-[1.4] text-admin-ink-muted">{t("dashboard.catalog.package.dependenciesReason")}</p>
+        </div>
+        <div className={`${CARD} px-[16px] py-[14px]`} data-testid="catalog-package-allocation">
+          <h3 className="m-0 font-admin-body text-[13.5px]! font-semibold leading-[1.2] text-admin-ink">{t("dashboard.catalog.package.allocationMethod")}</h3>
+          <div role="radiogroup" aria-label={t("dashboard.catalog.package.allocationMethod")} className="mt-[12px] flex flex-col gap-[8px]">
+            <ModeCard title={t("dashboard.catalog.package.proportional")} note={t("dashboard.catalog.package.proportionalNote")} active onSelect={() => undefined} />
+            <ModeCard title={t("dashboard.catalog.package.manual")} note={t("dashboard.catalog.package.manualNote")} active={false} reason={t("dashboard.catalog.package.manualReason")} />
+          </div>
+          <p className="m-0 mt-[12px] font-admin-body text-[12px] leading-[1.35] text-admin-ink-muted">
+            {shares.length > 0 && shares.every((c) => c != null)
+              ? `${shares.map((c) => money(c)).join(" + ")} = ${money(item.amountCents)} ✓ · `
+              : ""}
+            {t("dashboard.catalog.package.allocationNote")}
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** The PackageEditor board's right column: what the guest configures, drawn from the saved rows. */
+export function PackageSide({ item, editor, price }: { item: TalentOffering; editor: OfferingsEditor; price: string }) {
+  const t = useT();
+  const locale = useDashboardLocale();
+  const [rows, setRows] = useState<OfferingComponentRow[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      void loadOfferingComponentsAction(item.id).then((res) => {
+        if (!cancelled && res.ok) setRows(res.components);
+      });
+    load();
+    const onSaved = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === item.id) load();
+    };
+    window.addEventListener(SAVED_EVENT, onSaved);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(SAVED_EVENT, onSaved);
+    };
+  }, [item.id]);
+  const byId = new Map<string, TalentOffering>(editor.items.map((o) => [o.id, o]));
+  const money = (c: number | null) => (c == null ? t("dashboard.catalog.dash") : formatOfferingPrice(c, item.currency, locale));
+  return (
+    <>
+      <Eyebrow>{t("dashboard.catalog.package.guestPreview")}</Eyebrow>
+      <div className={`${CARD} flex flex-col gap-[8px] px-[16px] py-[16px] leading-[1.2]`} data-testid="catalog-side-package">
+        <div className="mb-[4px] font-admin-body text-[15px] font-semibold text-admin-ink">{item.title || t("dashboard.catalog.untitled")}</div>
+        {rows.length === 0 ? <p className="m-0 font-admin-body text-[12px] text-admin-ink-muted">{t("dashboard.catalog.package.none")}</p> : null}
+        {rows.map((r, i) => {
+          const c = byId.get(r.componentOfferingId) ?? null;
+          return (
+            <div key={`${r.componentOfferingId}-${i}`} className="flex items-center gap-[10px] rounded-[10px] border border-admin-border px-[12px] py-[9px]">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-admin-body text-[13px] font-semibold text-admin-ink">
+                  {c?.title || t("dashboard.catalog.untitled")}
+                  {r.qty > 1 ? ` × ${r.qty}` : ""}
+                </span>
+                <span className="mt-[2px] block truncate font-admin-body text-[11.5px] text-admin-ink-muted">
+                  {c ? `${t(KIND_KEY[c.kind])} · ${money(c.amountCents)}` : t("dashboard.catalog.dash")}
+                </span>
+              </span>
+              {r.required ? (
+                <span className="text-admin-ink-dim" title={t("dashboard.catalog.package.required")} aria-label={t("dashboard.catalog.package.required")}>
+                  <Icon name="lock" size={13} stroke={1.75} />
+                </span>
+              ) : (
+                <span aria-label={t("dashboard.catalog.package.optional")} className="inline-flex h-[16px] w-[16px] items-center justify-center rounded-[4px] border-[1.5px] border-admin-border-strong bg-admin-card" />
+              )}
+            </div>
+          );
+        })}
+        <div className="mt-[4px] flex items-center justify-between border-t border-admin-border-soft pt-[10px] font-admin-body text-[13px]">
+          <span className="text-admin-ink-muted">{t("dashboard.catalog.package.total")}</span>
+          <span className="font-bold tabular-nums text-admin-ink">{price}</span>
+        </div>
+        <p className="m-0 font-admin-body text-[11.5px] leading-[1.3] text-admin-ink-dim">{t("dashboard.catalog.package.holdsNote")}</p>
+      </div>
+      <Note>{t("dashboard.catalog.package.dependenciesReason")}</Note>
     </>
   );
 }
