@@ -8734,6 +8734,8 @@
         "flagAiSupportDesc": "Respuestas de soporte en la app, con escalado a una persona. Desactivado por defecto.",
         "flagAiTulalaAgentLabel": "Entrevista con el Agente Tulala",
         "flagAiTulalaAgentDesc": "Registro conversacional en /get-started. La única superficie de IA que alcanza una visita anónima. Desactivado por defecto.",
+        "flagOnboardingModuleLabel": "Módulo de registro",
+        "flagOnboardingModuleDesc": "La ventana de registro compartida detrás de cada botón Empezar (habla, escribe o pega un enlace; cuenta; sitio compuesto). Desactivado por defecto: los botones mantienen la ventana de talento y /get-started.",
         "flagSearchQualityV2Label": "Calidad de búsqueda v2",
         "flagSearchQualityV2Desc": "Combinación híbrida más potente (RRF) + cursor de continuación híbrido.",
         "flagRefineV2Label": "Refinamiento v2",
