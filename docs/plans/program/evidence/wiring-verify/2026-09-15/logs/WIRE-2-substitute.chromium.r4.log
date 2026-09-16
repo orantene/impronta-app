@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-substitute.spec.ts:21:5 › WIRE-2.2 substitute with scope Future changes exactly the later scheduled sessions; a cancelled one is refused
+[1A[2K  1 passed (18.1s)
+exit=0

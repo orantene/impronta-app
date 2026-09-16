@@ -1,0 +1,45 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/MSG-P6-class.spec.ts:6:5 › MSG-P6 class card family is offered from Messages
+[1A[2K  1) [chromium] › e2e/cases/MSG-P6-class.spec.ts:6:5 › MSG-P6 class card family is offered from Messages 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-pos-sheet=\'options\']')
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for locator('[data-pos-sheet=\'options\']')[22m
+
+
+       at cases/_wire.ts:329
+
+      327 |     await row.dispatchEvent("click");
+      328 |   }
+    > 329 |   await expect(page.locator("[data-pos-sheet='options']")).toBeVisible({ timeout: 20_000 });
+          |                                                            ^
+      330 | }
+      331 |
+      332 | export async function ownerUserId(): Promise<string> {
+        at openSendOptions (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire.ts:329:60)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/MSG-P6-class.spec.ts:11:3
+
+    Error Context: ../../pw-out/MSG-P6-class.chromium.r3/cases-MSG-P6-class-MSG-P6--6cd72-ly-is-offered-from-Messages-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/MSG-P6-class.chromium.r3/cases-MSG-P6-class-MSG-P6--6cd72-ly-is-offered-from-Messages-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/MSG-P6-class.chromium.r3/cases-MSG-P6-class-MSG-P6--6cd72-ly-is-offered-from-Messages-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/MSG-P6-class.spec.ts:6:5 › MSG-P6 class card family is offered from Messages 
+exit=1

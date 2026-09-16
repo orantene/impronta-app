@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-cancel-appointment.spec.ts:38:5 › WIRE-2.5 staff cancels an appointment with a reason; a completed one is closed at the door
+[1A[2K  1 passed (14.2s)
+exit=0

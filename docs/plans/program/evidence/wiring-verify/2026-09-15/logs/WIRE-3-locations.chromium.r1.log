@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-locations.spec.ts:16:5 › WIRE-3.1 Settings › Locations lists a default and refuses last/in-use deletes
+[1A[2K  1 passed (5.4s)
+exit=0

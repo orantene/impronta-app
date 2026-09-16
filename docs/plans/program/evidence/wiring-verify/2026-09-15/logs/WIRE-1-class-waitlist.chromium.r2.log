@@ -1,0 +1,43 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-class-waitlist.spec.ts:18:5 › WIRE-1.10 Front desk waitlist offer, accept, and expired refusal
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-class-waitlist.spec.ts:18:5 › WIRE-1.10 Front desk waitlist offer, accept, and expired refusal 
+
+    Error: the seeded waiting person is on the desk
+
+    [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-pos-classes-entry="a1eb82b6-75b6-4510-83a4-56b4e44d047c"]')
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - the seeded waiting person is on the desk with timeout 30000ms[22m
+    [2m  - waiting for locator('[data-pos-classes-entry="a1eb82b6-75b6-4510-83a4-56b4e44d047c"]')[22m
+
+
+      24 |     await signInJourneysStaff(page, `/admin/pos?mode=classes&view=waitlist&day=${seed.dayOffset}`);
+      25 |     const entry = page.locator(`[data-pos-classes-entry="${seed.entryIds[0]}"]`);
+    > 26 |     await expect(entry, "the seeded waiting person is on the desk").toBeVisible({ timeout: 30_000 });
+         |                                                                     ^
+      27 |     await expect(entry).toHaveAttribute("data-pos-classes-entry-state", "waiting");
+      28 |
+      29 |     await entry.getByRole("button", { name: "Offer the place" }).click();
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-class-waitlist.spec.ts:26:69
+
+    Error Context: ../../pw-out/WIRE-1-class-waitlist.chromium.r2/cases-WIRE-1-class-waitlis-e056a--accept-and-expired-refusal-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-class-waitlist.chromium.r2/cases-WIRE-1-class-waitlis-e056a--accept-and-expired-refusal-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-class-waitlist.chromium.r2/cases-WIRE-1-class-waitlis-e056a--accept-and-expired-refusal-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-class-waitlist.spec.ts:18:5 › WIRE-1.10 Front desk waitlist offer, accept, and expired refusal 
+exit=1

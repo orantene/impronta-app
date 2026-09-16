@@ -2,7 +2,7 @@
  * Shared doors and ground-truth reads for the wiring verification suite.
  * Specs stay one control each; this file only names affordances and SQL.
  */
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { expect, JOURNEYS_SLUG, signInJourneysStaff } from "./_harness";
 import { isolatedService, JOURNEYS_TENANT_ID } from "./_isolated-db";
@@ -11,6 +11,7 @@ export const WIRE_SENTENCE = {
   cannotSave: "That cannot be saved.",
   pinInvalid: "That PIN is not right.",
   notManager: "Only a manager can do this.",
+  notAllowed: "You do not have permission to do this.",
   alreadyLinked: "This sale is already linked to a booking.",
   alreadyCollected: "This sale is already collected.",
   exceedsOutstanding: "That is more than what is still owed.",
@@ -34,6 +35,8 @@ export const WIRE_SENTENCE = {
   overlap: "Those items overlap.",
   stationInUse: "That station still has tickets or items.",
   visitClosed: "This table visit has ended.",
+  venueExpired: "That waitlist place has expired.",
+  periodsOverlap: "Those service periods overlap.",
   seatTaken: "That seat is already taken.",
   sameSession: "That ticket is already for this night.",
   channelUnavailable: "That delivery channel is not available.",
@@ -59,8 +62,16 @@ export async function pressKeypad(page: Page, digits: string): Promise<void> {
 }
 
 export async function openCustomAmountSheet(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /custom amount/i }).click();
-  await expect(page.locator("[data-pos-sheet='custom-amount']")).toBeVisible({ timeout: 20_000 });
+  await clickUntil(page.getByRole("button", { name: /custom amount/i }), page.locator("[data-pos-sheet='custom-amount']"));
+}
+
+/** Click a door until its target shows; the target is still the assertion. */
+export async function clickUntil(door: Locator, target: Locator, timeout = 60_000): Promise<void> {
+  await expect(door.first()).toBeVisible({ timeout: 30_000 });
+  await expect(async () => {
+    await door.first().click();
+    await expect(target.first()).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout, intervals: [500, 1_000, 2_000] });
 }
 
 /** Description is required — Continue stays disabled until both label and amount are set. */
@@ -69,14 +80,48 @@ export async function fillCustomAmount(page: Page, label: string, digits: string
   await pressKeypad(page, digits);
 }
 
+/**
+ * People › Access › a person's row › hats panel › "Register PIN". The PIN box
+ * only renders inside the panel of a person who has the Access hat.
+ */
+export async function openPersonPinBox(page: Page, personName: RegExp): Promise<Locator> {
+  const accessTab = page.getByRole("navigation", { name: "People" }).getByRole("button", { name: /^Access/ });
+  await expect(accessTab).toBeVisible({ timeout: 30_000 });
+  const table = page.getByTestId("people-access-table");
+  await expect(async () => {
+    await accessTab.click();
+    await expect(table).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 60_000, intervals: [500, 1_000, 2_000] });
+  const row = table.locator("tr[data-people-row]").filter({ hasText: personName }).first();
+  await expect(row).toBeVisible({ timeout: 20_000 });
+  await row.getByRole("button").first().click();
+  const box = page.locator("aside [data-people-register-pin]").first();
+  await expect(box).toBeVisible({ timeout: 20_000 });
+  return box;
+}
+
 export async function assertEnglishRefusal(page: Page, sentence: string): Promise<void> {
   await expect(page.getByText(sentence, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
 }
 
+/**
+ * The settings nav is a React `onClick`; a click that lands before hydration
+ * only focuses the button and switches nothing (seen 2026-09-15 on the QA
+ * host: nav read `[active]`, pane stayed on Account). Click until the pane
+ * shows the card — the card itself is still the assertion.
+ */
 export async function openSettingsCard(page: Page, section: string, testId: string): Promise<void> {
   await signInJourneysStaff(page, `/${JOURNEYS_SLUG}/admin/settings`);
-  await page.getByRole("button", { name: section, exact: true }).click();
-  await expect(page.getByTestId(testId)).toBeVisible({ timeout: 30_000 });
+  await clickSettingsNav(page, section, page.getByTestId(testId));
+}
+
+export async function clickSettingsNav(page: Page, section: string, target: Locator): Promise<void> {
+  const nav = page.getByRole("button", { name: section, exact: true });
+  await expect(nav).toBeVisible({ timeout: 30_000 });
+  await expect(async () => {
+    await nav.click();
+    await expect(target.first()).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 60_000, intervals: [500, 1_000, 2_000] });
 }
 
 export async function enableAllPosModes(page: Page): Promise<void> {
@@ -126,6 +171,19 @@ export async function readCustomAmountLimitCents(): Promise<number | null> {
   return typeof raw === "number" ? raw : raw == null ? null : Number(raw);
 }
 
+export async function readStaffPinHashes(): Promise<Record<string, unknown>> {
+  const sb = isolatedService();
+  const { data, error } = await sb
+    .from("agencies")
+    .select("settings")
+    .eq("id", JOURNEYS_TENANT_ID)
+    .maybeSingle();
+  if (error) throw new Error(`readStaffPinHashes: ${error.message}`);
+  const settings = (data?.settings ?? {}) as Record<string, unknown>;
+  const people = (settings.people ?? {}) as Record<string, unknown>;
+  return { ...((people.pins ?? {}) as Record<string, unknown>) };
+}
+
 export async function staffPinIsHashed(userId: string): Promise<boolean> {
   const sb = isolatedService();
   const { data, error } = await sb
@@ -148,16 +206,21 @@ export async function latestOrderIdByUrl(page: Page): Promise<string> {
   return match[1];
 }
 
+/**
+ * Ground truth for a custom line. `order_lines` has no approval column: a
+ * line "needs approval" when its amount is over the workspace limit and
+ * `pos_approvals` has no row for it (`lockedCustomLineIds`, custom-line.ts).
+ */
 export async function latestCustomLine(orderId: string): Promise<{
   id: string;
   kind: string | null;
   amountCents: number;
-  needsApproval: boolean | null;
+  needsApproval: boolean;
 } | null> {
   const sb = isolatedService();
   const { data, error } = await sb
     .from("order_lines")
-    .select("id, kind, amount_cents, needs_approval")
+    .select("id, kind, unit_cents, total_cents")
     .eq("order_id", orderId)
     .eq("kind", "custom")
     .order("created_at", { ascending: false })
@@ -165,18 +228,11 @@ export async function latestCustomLine(orderId: string): Promise<{
     .maybeSingle();
   if (error) throw new Error(`latestCustomLine: ${error.message}`);
   if (!data) return null;
-  const row = data as {
-    id: string;
-    kind: string | null;
-    amount_cents: number | string;
-    needs_approval: boolean | null;
-  };
-  return {
-    id: row.id,
-    kind: row.kind,
-    amountCents: Number(row.amount_cents ?? 0),
-    needsApproval: row.needs_approval,
-  };
+  const row = data as { id: string; kind: string | null; unit_cents: number | string; total_cents: number | string };
+  const amountCents = Number(row.unit_cents ?? 0);
+  const limit = (await readCustomAmountLimitCents()) ?? 0;
+  const approvals = await countRows("pos_approvals", { line_id: row.id });
+  return { id: row.id, kind: row.kind, amountCents, needsApproval: amountCents > limit && approvals === 0 };
 }
 
 export async function countRows(
@@ -248,16 +304,39 @@ export async function replyOnFirstThread(page: Page, body: string): Promise<void
   await expect(page.locator("[data-pos-messages='thread'], [data-pos-messages='phone-thread']")).toBeVisible({
     timeout: 20_000,
   });
-  const input = page.getByLabel(/reply|message/i).first();
+  const input = page.getByRole("textbox", { name: "Reply", exact: true });
+  await expect(input).toBeVisible({ timeout: 20_000 });
   await input.fill(body);
-  await page.getByRole("button", { name: /^(reply|send)$/i }).last().click();
-  await expect(page.getByText(body, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Reply", exact: true }).last().click();
+  // The write is the specs' own assertion (row in `inquiry_messages`); the
+  // screen's confirmation is asserted by each prototype.
+  await expect
+    .poll(
+      async () => {
+        const { count } = await isolatedService().from("inquiry_messages").select("id", { count: "exact", head: true }).eq("tenant_id", JOURNEYS_TENANT_ID).eq("body", body);
+        return count ?? 0;
+      },
+      { timeout: 20_000, message: "the reply row lands" },
+    )
+    .toBe(1);
 }
 
+/**
+ * Actions › Send options. The menu opens upward and its top rows sit above
+ * the viewport (D-144), so a real click cannot land on "Send options"; the
+ * row's own handler is dispatched instead so the sheet behind the door can
+ * still be verified. The door itself is recorded as failed-app.
+ */
 export async function openSendOptions(page: Page): Promise<void> {
   await page.getByRole("button", { name: /actions/i }).click();
-  await page.getByRole("button", { name: /send options/i }).click();
-  await expect(page.locator("[data-pos-sheet='options']")).toBeVisible({ timeout: 20_000 });
+  const row = page.getByRole("button", { name: /send options/i });
+  await expect(row).toBeAttached({ timeout: 20_000 });
+  try {
+    await row.click({ timeout: 5_000 });
+  } catch {
+    await row.dispatchEvent("click");
+  }
+  await expect(page.locator("[data-pos-sheet='messages-options']")).toBeVisible({ timeout: 20_000 });
 }
 
 export async function ownerUserId(): Promise<string> {

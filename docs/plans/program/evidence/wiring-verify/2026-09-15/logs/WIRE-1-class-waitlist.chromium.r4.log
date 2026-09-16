@@ -1,0 +1,39 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-class-waitlist.spec.ts:18:5 › WIRE-1.10 Front desk waitlist offer, accept, and expired refusal
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-class-waitlist.spec.ts:18:5 › WIRE-1.10 Front desk waitlist offer, accept, and expired refusal 
+
+    Error: accepted offer carries accepted_at and a confirmed allocation
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m"co[7mnfirm[27med"[39m
+    Received: [31m"co[7mmmitt[27med"[39m
+
+    Call Log:
+    - Timeout 20000ms exceeded while waiting on the predicate
+
+      64 |     await next.getByRole("button", { name: "They took it" }).click();
+      65 |     await expect(next).toHaveAttribute("data-pos-classes-entry-state", /accepted|seated/, { timeout: 20_000 });
+    > 66 |     await expect
+         |     ^
+      67 |       .poll(
+      68 |         async () => {
+      69 |           const { data: accepted } = await sb
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-class-waitlist.spec.ts:66:5
+
+    Error Context: ../../pw-out/WIRE-1-class-waitlist.chromium.r4/cases-WIRE-1-class-waitlis-e056a--accept-and-expired-refusal-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-class-waitlist.chromium.r4/cases-WIRE-1-class-waitlis-e056a--accept-and-expired-refusal-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-class-waitlist.chromium.r4/cases-WIRE-1-class-waitlis-e056a--accept-and-expired-refusal-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-class-waitlist.spec.ts:18:5 › WIRE-1.10 Front desk waitlist offer, accept, and expired refusal 
+exit=1

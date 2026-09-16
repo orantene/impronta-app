@@ -21,4 +21,8 @@ test("MSG-P1 pizza counter: inbox opens and a reply stays on the thread", async 
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", JOURNEYS_TENANT_ID);
   expect(after ?? 0).toBeGreaterThan(before ?? 0);
+  // The prototype's claim: the reply stays on the thread (D-143: the inbox
+  // reloads on its Needs-reply filter and the thread pane empties instead).
+  await expect(page.locator("[data-pos-messages='thread']")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(body, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
 });

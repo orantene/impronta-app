@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-link-booking.spec.ts:30:5 › WIRE-1.5 basket Booking links once and refuses a second link
+[1A[2K  1 passed (11.5s)
+exit=0

@@ -1,0 +1,22 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-booking-policy.spec.ts:16:5 › WIRE-2.12 Overrides: typed cells land as booking_policy_overrides and a cleared cell clears the column
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-booking-policy.spec.ts:16:5 › WIRE-2.12 Overrides: typed cells land as booking_policy_overrides and a cleared cell clears the column 
+
+    [31mTest timeout of 240000ms exceeded.[39m
+
+    Error Context: ../../pw-out/WIRE-2-booking-policy.chromium.r2/cases-WIRE-2-booking-polic-52b6d-ared-cell-clears-the-column-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-booking-policy.chromium.r2/cases-WIRE-2-booking-polic-52b6d-ared-cell-clears-the-column-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-booking-policy.chromium.r2/cases-WIRE-2-booking-polic-52b6d-ared-cell-clears-the-column-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-booking-policy.spec.ts:16:5 › WIRE-2.12 Overrides: typed cells land as booking_policy_overrides and a cleared cell clears the column 
+exit=1

@@ -1,0 +1,33 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-class-waitlist.spec.ts:18:5 › WIRE-1.10 Front desk waitlist offer, accept, and expired refusal
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-class-waitlist.spec.ts:18:5 › WIRE-1.10 Front desk waitlist offer, accept, and expired refusal 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeFalsy[2m()[22m
+
+    Received: [31m"bcb0b4d3-6d3d-43ea-b85e-b682599b81f7"[39m
+
+      49 |     const { data: afterExpired } = await sb.from("waitlist_offers").select("accepted_at, allocation_id").eq("id", offerId).maybeSingle();
+      50 |     expect((afterExpired as { accepted_at: string | null } | null)?.accepted_at).toBeFalsy();
+    > 51 |     expect((afterExpired as { allocation_id: string | null } | null)?.allocation_id).toBeFalsy();
+         |                                                                                      ^
+      52 |
+      53 |     // Accept: the second person, offered and taken inside the timer.
+      54 |     const next = page.locator(`[data-pos-classes-entry="${seed.entryIds[1]}"]`);
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-class-waitlist.spec.ts:51:86
+
+    Error Context: ../../pw-out/WIRE-1-class-waitlist.chromium.r3/cases-WIRE-1-class-waitlis-e056a--accept-and-expired-refusal-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-class-waitlist.chromium.r3/cases-WIRE-1-class-waitlis-e056a--accept-and-expired-refusal-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-class-waitlist.chromium.r3/cases-WIRE-1-class-waitlis-e056a--accept-and-expired-refusal-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-class-waitlist.spec.ts:18:5 › WIRE-1.10 Front desk waitlist offer, accept, and expired refusal 
+exit=1

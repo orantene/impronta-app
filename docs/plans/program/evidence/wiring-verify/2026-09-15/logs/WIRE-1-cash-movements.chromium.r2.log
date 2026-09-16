@@ -1,0 +1,47 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:26:5 › WIRE-1.11 Cash paid in/out/drop and close note
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:26:5 › WIRE-1.11 Cash paid in/out/drop and close note 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-pos-movement=\'paid_in\']').first()
+    Expected: visible
+    Timeout: 4000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 4000ms[22m
+    [2m  - waiting for locator('[data-pos-movement=\'paid_in\']').first()[22m
+
+
+    Call Log:
+    - Timeout 60000ms exceeded while waiting on the predicate
+
+       at cases/_wire.ts:72
+
+      70 |     await door.first().click();
+      71 |     await expect(target.first()).toBeVisible({ timeout: 4_000 });
+    > 72 |   }).toPass({ timeout, intervals: [500, 1_000, 2_000] });
+         |      ^
+      73 | }
+      74 |
+      75 | /** Description is required — Continue stays disabled until both label and amount are set. */
+        at clickUntil (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire.ts:72:6)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-cash-movements.spec.ts:31:3
+
+    Error Context: ../../pw-out/WIRE-1-cash-movements.chromium.r2/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-cash-movements.chromium.r2/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-cash-movements.chromium.r2/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:26:5 › WIRE-1.11 Cash paid in/out/drop and close note 
+exit=1

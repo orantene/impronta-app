@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-booking-policy.spec.ts:16:5 › WIRE-2.12 Overrides: typed cells land as booking_policy_overrides and a cleared cell clears the column
+[1A[2K  1 passed (11.5s)
+exit=0

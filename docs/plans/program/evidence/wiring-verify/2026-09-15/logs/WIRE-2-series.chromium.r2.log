@@ -1,0 +1,37 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-series.spec.ts:42:5 › WIRE-2.1 new series generates sessions once; a second series in the same room is refused
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-series.spec.ts:42:5 › WIRE-2.1 new series generates sessions once; a second series in the same room is refused 
+
+    [31mTest timeout of 300000ms exceeded.[39m
+
+    Error: locator.selectOption: Target page, context or browser has been closed
+
+      28 |   await editor.locator('input[type="time"]').fill(input.time);
+      29 |   await editor.getByTestId("series-room").selectOption({ index: 1 }).catch(async () => {
+    > 30 |     await editor.getByTestId("series-room").selectOption({ index: 0 });
+         |                                             ^
+      31 |   });
+      32 |   const room = await editor.getByTestId("series-room").inputValue();
+      33 |   if (!room) await editor.getByTestId("series-room").selectOption({ index: 0 });
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-series.spec.ts:30:45
+        at fillSeries (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-series.spec.ts:29:3)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-series.spec.ts:59:5
+
+    Error Context: ../../pw-out/WIRE-2-series.chromium.r2/cases-WIRE-2-series-WIRE-2-ea231-in-the-same-room-is-refused-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-series.chromium.r2/cases-WIRE-2-series-WIRE-2-ea231-in-the-same-room-is-refused-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-series.chromium.r2/cases-WIRE-2-series-WIRE-2-ea231-in-the-same-room-is-refused-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  Slow test file: [chromium] › e2e/cases/WIRE-2-series.spec.ts (5.0m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 failed
+    [chromium] › e2e/cases/WIRE-2-series.spec.ts:42:5 › WIRE-2.1 new series generates sessions once; a second series in the same room is refused 
+exit=1

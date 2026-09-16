@@ -1,0 +1,44 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-tip.spec.ts:20:5 › WIRE-1.6 basket tip writes tip_cents and refuses after collection
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-tip.spec.ts:20:5 › WIRE-1.6 basket tip writes tip_cents and refuses after collection 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-pos-dialog=\'cash-done\']')
+    Expected: visible
+    Timeout: 40000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 40000ms[22m
+    [2m  - waiting for locator('[data-pos-dialog=\'cash-done\']')[22m
+
+
+       at cases/_harness.ts:288
+
+      286 |   await expect(page.getByRole("tab", { name: /^cash$/i })).toBeVisible({ timeout: 20_000 });
+      287 |   await page.locator("[data-pos-confirm-cash]").click();
+    > 288 |   await expect(page.locator("[data-pos-dialog='cash-done']")).toBeVisible({ timeout: 40_000 });
+          |                                                               ^
+      289 |   await page.locator("[data-pos-cash-done]").click();
+      290 | }
+      291 |
+        at counterCollectCash (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_harness.ts:288:63)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-tip.spec.ts:35:3
+
+    Error Context: ../../pw-out/WIRE-1-tip.chromium.r1/cases-WIRE-1-tip-WIRE-1-6--9e04a-nd-refuses-after-collection-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-tip.chromium.r1/cases-WIRE-1-tip-WIRE-1-6--9e04a-nd-refuses-after-collection-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-tip.chromium.r1/cases-WIRE-1-tip-WIRE-1-6--9e04a-nd-refuses-after-collection-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-tip.spec.ts:20:5 › WIRE-1.6 basket tip writes tip_cents and refuses after collection 
+exit=1

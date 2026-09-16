@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-archive-project.spec.ts:24:5 › WIRE-2.10 Project › Close archives with a reason and refuses a live reopen
+[1A[2K  1 passed (9.1s)
+exit=0

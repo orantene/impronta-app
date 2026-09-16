@@ -1,0 +1,36 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check 
+
+    Error: split writes a second draft on the visit
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeGreaterThanOrEqual[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: >= [32m2[39m
+    Received:    [31m1[39m
+
+      76 |     .eq("visit_id", seated!.id)
+      77 |     .eq("status", "draft");
+    > 78 |   expect(draftCount ?? 0, "split writes a second draft on the visit").toBeGreaterThanOrEqual(2);
+         |                                                                       ^
+      79 |
+      80 |   await tapTable(page, "T4");
+      81 |   await sheet(page, "T4").locator('[data-floor-action="change-server"]').click();
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-split-merge-server.spec.ts:78:71
+
+    Error Context: ../../pw-out/WIRE-1-split-merge-server.chromium.r7/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-split-merge-server.chromium.r7/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-split-merge-server.chromium.r7/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check 
+exit=1

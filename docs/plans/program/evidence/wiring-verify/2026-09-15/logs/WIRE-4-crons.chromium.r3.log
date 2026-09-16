@@ -1,0 +1,8 @@
+
+Running 2 tests using 1 worker
+
+[1A[2K[1/2] [chromium] › e2e/cases/WIRE-4-crons.spec.ts:9:5 › WIRE-4.5 the cron routes refuse to run without a configured secret (this host: not_configured)
+[1A[2K[2/2] [chromium] › e2e/cases/WIRE-4-crons.spec.ts:24:5 › WIRE-4.5 cron routes move scheduled_messages and message_delivery
+[1A[2K  1 skipped
+  1 passed (1.4s)
+exit=0

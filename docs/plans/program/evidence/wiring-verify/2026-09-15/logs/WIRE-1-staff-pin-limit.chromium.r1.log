@@ -1,0 +1,41 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-staff-pin-limit.spec.ts:25:5 › WIRE-1.3 owner sets a PIN and the custom-amount limit; viewer is refused
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-staff-pin-limit.spec.ts:25:5 › WIRE-1.3 owner sets a PIN and the custom-amount limit; viewer is refused 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-people-register-pin]').first()
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for locator('[data-people-register-pin]').first()[22m
+
+
+      29 |   await signInJourneysStaff(page, `/${JOURNEYS_SLUG}/admin/people`, VIEWER_EMAIL);
+      30 |   const viewerPin = page.locator("[data-people-register-pin]").first();
+    > 31 |   await expect(viewerPin).toBeVisible({ timeout: 30_000 });
+         |                           ^
+      32 |   await viewerPin.locator("input").fill(OWNER_PIN);
+      33 |   await viewerPin.locator("[data-people-pin-save]").click();
+      34 |   await assertEnglishRefusal(page, WIRE_SENTENCE.notManager);
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-staff-pin-limit.spec.ts:31:27
+
+    Error Context: ../../pw-out/WIRE-1-staff-pin-limit.chromium.r1/cases-WIRE-1-staff-pin-lim-9869a-unt-limit-viewer-is-refused-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-staff-pin-limit.chromium.r1/cases-WIRE-1-staff-pin-lim-9869a-unt-limit-viewer-is-refused-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-staff-pin-limit.chromium.r1/cases-WIRE-1-staff-pin-lim-9869a-unt-limit-viewer-is-refused-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-staff-pin-limit.spec.ts:25:5 › WIRE-1.3 owner sets a PIN and the custom-amount limit; viewer is refused 
+exit=1

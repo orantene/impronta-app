@@ -1,0 +1,43 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-4-rail-unread.spec.ts:16:5 › WIRE-4.1 every mode rail has Messages and the unread count matches the gap
+[1A[2K  1) [chromium] › e2e/cases/WIRE-4-rail-unread.spec.ts:16:5 › WIRE-4.1 every mode rail has Messages and the unread count matches the gap 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: locator('[data-pos-rail-count=\'messages\'], [data-pos-frame-link=\'messages\']').first()
+    Expected substring: [32m"326"[39m
+    Received string:    [31m"27"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 5000ms[22m
+    [2m  - waiting for locator('[data-pos-rail-count=\'messages\'], [data-pos-frame-link=\'messages\']').first()[22m
+    [2m    9 × locator resolved to <span data-pos-rail-count="messages" class="absolute right-[9px] top-[7px] inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[5px] text-[10.5px] font-bold text-admin-card bg-admin-coral">27</span>[22m
+    [2m      - unexpected value "27"[22m
+
+
+      33 |     await expect(row, `messages rail in ${mode}`).toBeVisible({ timeout: 30_000 });
+      34 |     if (gap > 0) {
+    > 35 |       await expect(row).toContainText(String(gap));
+         |                         ^
+      36 |     }
+      37 |   }
+      38 | });
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-4-rail-unread.spec.ts:35:25
+
+    Error Context: ../../pw-out/WIRE-4-rail-unread.chromium.r1/cases-WIRE-4-rail-unread-W-b4b1e-nread-count-matches-the-gap-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-4-rail-unread.chromium.r1/cases-WIRE-4-rail-unread-W-b4b1e-nread-count-matches-the-gap-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-4-rail-unread.chromium.r1/cases-WIRE-4-rail-unread-W-b4b1e-nread-count-matches-the-gap-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-4-rail-unread.spec.ts:16:5 › WIRE-4.1 every mode rail has Messages and the unread count matches the gap 
+exit=1

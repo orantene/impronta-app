@@ -1,0 +1,77 @@
+
+Running 2 tests using 1 worker
+
+[1A[2K[1/2] [chromium] › e2e/cases/WIRE-1-custom-amount.spec.ts:23:5 › WIRE-1.1 custom amount under the limit writes a custom line (sale started underneath the sheet)
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-custom-amount.spec.ts:23:5 › WIRE-1.1 custom amount under the limit writes a custom line (sale started underneath the sheet) 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-pos-line]').first()
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for locator('[data-pos-line]').first()[22m
+
+
+      40 |   await page.locator("[data-pos-custom-continue]").click();
+      41 |   await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
+    > 42 |   await expect(page.locator("[data-pos-line]").first()).toBeVisible({ timeout: 20_000 });
+         |                                                         ^
+      43 |   await expect(page.locator("[data-pos-custom-amount], [data-pos-line]").first()).toBeVisible();
+      44 |
+      45 |   const orderId = await latestOrderIdByUrl(page);
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-custom-amount.spec.ts:42:57
+
+    Error Context: ../../pw-out/WIRE-1-custom-amount.chromium.r4/cases-WIRE-1-custom-amount-969bb-arted-underneath-the-sheet--chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-custom-amount.chromium.r4/cases-WIRE-1-custom-amount-969bb-arted-underneath-the-sheet--chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-custom-amount.chromium.r4/cases-WIRE-1-custom-amount-969bb-arted-underneath-the-sheet--chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K[2/2] [chromium] › e2e/cases/WIRE-1-custom-amount.spec.ts:57:5 › WIRE-1.1 custom amount under the limit writes a custom line (sale already open); amount 0 is refused
+[1A[2K  2) [chromium] › e2e/cases/WIRE-1-custom-amount.spec.ts:57:5 › WIRE-1.1 custom amount under the limit writes a custom line (sale already open); amount 0 is refused 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-pos-line]').first()
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for locator('[data-pos-line]').first()[22m
+
+
+      77 |   await page.locator("[data-pos-custom-continue]").click();
+      78 |   await expect(page.locator("[data-pos-sheet='custom-amount']")).toHaveCount(0, { timeout: 30_000 });
+    > 79 |   await expect(page.locator("[data-pos-line]").first()).toBeVisible({ timeout: 20_000 });
+         |                                                         ^
+      80 |
+      81 |   const line = await latestCustomLine(orderId);
+      82 |   expect(line, "custom line must exist").toBeTruthy();
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-custom-amount.spec.ts:79:57
+
+    Error Context: ../../pw-out/WIRE-1-custom-amount.chromium.r4/cases-WIRE-1-custom-amount-302ab-dy-open-amount-0-is-refused-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-custom-amount.chromium.r4/cases-WIRE-1-custom-amount-302ab-dy-open-amount-0-is-refused-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-custom-amount.chromium.r4/cases-WIRE-1-custom-amount-302ab-dy-open-amount-0-is-refused-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  2 failed
+    [chromium] › e2e/cases/WIRE-1-custom-amount.spec.ts:23:5 › WIRE-1.1 custom amount under the limit writes a custom line (sale started underneath the sheet) 
+    [chromium] › e2e/cases/WIRE-1-custom-amount.spec.ts:57:5 › WIRE-1.1 custom amount under the limit writes a custom line (sale already open); amount 0 is refused 
+exit=1

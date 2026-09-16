@@ -1,0 +1,36 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-payment-link.spec.ts:19:5 › WIRE-1.7 Collect › Link mints one open link and refuses a second over the outstanding
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-payment-link.spec.ts:19:5 › WIRE-1.7 Collect › Link mints one open link and refuses a second over the outstanding 
+
+    [31mTest timeout of 240000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 240000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('[data-pos-payment-link-create]')[22m
+
+
+      47 |   expect(count ?? 0).toBeGreaterThan(0);
+      48 |
+    > 49 |   await page.locator("[data-pos-payment-link-create]").click();
+         |                                                        ^
+      50 |   await assertEnglishRefusal(page, WIRE_SENTENCE.exceedsOutstanding);
+      51 |
+      52 |   const href = await page.locator("[data-pos-payment-link-url]").getAttribute("href");
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-payment-link.spec.ts:49:56
+
+    Error Context: ../../pw-out/WIRE-1-payment-link.chromium.r1/cases-WIRE-1-payment-link--2b5b2-second-over-the-outstanding-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-payment-link.chromium.r1/cases-WIRE-1-payment-link--2b5b2-second-over-the-outstanding-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-payment-link.chromium.r1/cases-WIRE-1-payment-link--2b5b2-second-over-the-outstanding-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-payment-link.spec.ts:19:5 › WIRE-1.7 Collect › Link mints one open link and refuses a second over the outstanding 
+exit=1

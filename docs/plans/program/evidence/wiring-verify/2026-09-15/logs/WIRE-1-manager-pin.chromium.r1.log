@@ -1,0 +1,44 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-manager-pin.spec.ts:29:5 › WIRE-1.2 over-limit custom amount needs the right manager PIN
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-manager-pin.spec.ts:29:5 › WIRE-1.2 over-limit custom amount needs the right manager PIN 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('That PIN is not right.', { exact: true }).first()
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 20000ms[22m
+    [2m  - waiting for getByText('That PIN is not right.', { exact: true }).first()[22m
+
+
+       at cases/_wire.ts:102
+
+      100 |
+      101 | export async function assertEnglishRefusal(page: Page, sentence: string): Promise<void> {
+    > 102 |   await expect(page.getByText(sentence, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+          |                                                                   ^
+      103 | }
+      104 |
+      105 | /**
+        at assertEnglishRefusal (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire.ts:102:67)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-manager-pin.spec.ts:57:29
+
+    Error Context: ../../pw-out/WIRE-1-manager-pin.chromium.r1/cases-WIRE-1-manager-pin-W-f6580-needs-the-right-manager-PIN-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-manager-pin.chromium.r1/cases-WIRE-1-manager-pin-W-f6580-needs-the-right-manager-PIN-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-manager-pin.chromium.r1/cases-WIRE-1-manager-pin-W-f6580-needs-the-right-manager-PIN-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-manager-pin.spec.ts:29:5 › WIRE-1.2 over-limit custom amount needs the right manager PIN 
+exit=1

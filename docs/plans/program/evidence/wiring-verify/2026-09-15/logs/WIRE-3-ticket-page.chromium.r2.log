@@ -1,0 +1,41 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-ticket-page.spec.ts:18:5 › WIRE-3.9 /ticket/<code>: transfer supersedes the old code at the gate, resend answers, lookup refuses then rate-limits
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-ticket-page.spec.ts:18:5 › WIRE-3.9 /ticket/<code>: transfer supersedes the old code at the gate, resend answers, lookup refuses then rate-limits 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByTestId('ticket-transfer')
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for getByTestId('ticket-transfer')[22m
+
+
+      46 |     // Transfer: a new code opens, the row's version moved.
+      47 |     await page.goto(`/ticket/${encodeURIComponent(oldCode)}`);
+    > 48 |     await expect(page.getByTestId("ticket-transfer")).toBeVisible({ timeout: 30_000 });
+         |                                                       ^
+      49 |     await page.getByLabel("New holder name").fill(`WIRE new holder ${stamp}`);
+      50 |     await page.getByLabel("New holder email").fill(`wire-3-9-new-${stamp}@impronta.test`);
+      51 |     await page.getByTestId("ticket-transfer").click();
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-ticket-page.spec.ts:48:55
+
+    Error Context: ../../pw-out/WIRE-3-ticket-page.chromium.r2/cases-WIRE-3-ticket-page-W-ad2e8-up-refuses-then-rate-limits-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-ticket-page.chromium.r2/cases-WIRE-3-ticket-page-W-ad2e8-up-refuses-then-rate-limits-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-ticket-page.chromium.r2/cases-WIRE-3-ticket-page-W-ad2e8-up-refuses-then-rate-limits-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-3-ticket-page.spec.ts:18:5 › WIRE-3.9 /ticket/<code>: transfer supersedes the old code at the gate, resend answers, lookup refuses then rate-limits 
+exit=1

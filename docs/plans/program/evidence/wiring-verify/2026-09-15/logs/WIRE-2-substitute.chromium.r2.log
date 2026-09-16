@@ -1,0 +1,35 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-substitute.spec.ts:21:5 › WIRE-2.2 substitute with scope Future changes exactly the later scheduled sessions; a cancelled one is refused
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-substitute.spec.ts:21:5 › WIRE-2.2 substitute with scope Future changes exactly the later scheduled sessions; a cancelled one is refused 
+
+    Error: seedSeries/sessions: Could not find the 'user_id' column of 'sessions' in the schema cache
+
+       at cases/_wire-seed.ts:48
+
+      46 |
+      47 | function must<T>(label: string, r: { data: T | null; error: { message: string } | null }): T {
+    > 48 |   if (r.error) throw new Error(`${label}: ${r.error.message}`);
+         |                      ^
+      49 |   if (r.data == null) throw new Error(`${label}: no row`);
+      50 |   return r.data;
+      51 | }
+        at must (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire-seed.ts:48:22)
+        at seedSeries (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire-seed.ts:587:3)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-substitute.spec.ts:25:16
+
+    Error Context: ../../pw-out/WIRE-2-substitute.chromium.r2/cases-WIRE-2-substitute-WI-63b85--a-cancelled-one-is-refused-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-substitute.chromium.r2/cases-WIRE-2-substitute-WI-63b85--a-cancelled-one-is-refused-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-substitute.chromium.r2/cases-WIRE-2-substitute-WI-63b85--a-cancelled-one-is-refused-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-substitute.spec.ts:21:5 › WIRE-2.2 substitute with scope Future changes exactly the later scheduled sessions; a cancelled one is refused 
+exit=1

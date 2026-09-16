@@ -1,0 +1,62 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [tablet-pos] › e2e/cases/MSG-P7-event.spec.ts:6:5 › MSG-P7 tickets card family is offered from Messages
+[1A[2K  1) [tablet-pos] › e2e/cases/MSG-P7-event.spec.ts:6:5 › MSG-P7 tickets card family is offered from Messages 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+    [2m  - waiting for getByRole('button', { name: /send options/i })[22m
+    [2m    - locator resolved to <button type="button" class="flex w-full flex-col items-start rounded-[12px] px-3 py-2 text-left hover:bg-admin-surface-alt disabled:opacity-40">…</button>[22m
+    [2m  - attempting click action[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is visible, enabled and stable[22m
+    [2m      - scrolling into view if needed[22m
+    [2m      - done scrolling[22m
+    [2m      - element is outside of the viewport[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is visible, enabled and stable[22m
+    [2m      - scrolling into view if needed[22m
+    [2m      - done scrolling[22m
+    [2m      - element is outside of the viewport[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    47 × waiting for element to be visible, enabled and stable[22m
+    [2m       - element is visible, enabled and stable[22m
+    [2m       - scrolling into view if needed[22m
+    [2m       - done scrolling[22m
+    [2m       - element is outside of the viewport[22m
+    [2m     - retrying click action[22m
+    [2m       - waiting 500ms[22m
+
+
+       at cases/_wire.ts:316
+
+      314 | export async function openSendOptions(page: Page): Promise<void> {
+      315 |   await page.getByRole("button", { name: /actions/i }).click();
+    > 316 |   await page.getByRole("button", { name: /send options/i }).click();
+          |                                                             ^
+      317 |   await expect(page.locator("[data-pos-sheet='options']")).toBeVisible({ timeout: 20_000 });
+      318 | }
+      319 |
+        at openSendOptions (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_wire.ts:316:61)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/MSG-P7-event.spec.ts:11:3
+
+    Error Context: ../../pw-out/MSG-P7-event.tablet-pos.r1/cases-MSG-P7-event-MSG-P7--038d1-ly-is-offered-from-Messages-tablet-pos/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/MSG-P7-event.tablet-pos.r1/cases-MSG-P7-event-MSG-P7--038d1-ly-is-offered-from-Messages-tablet-pos/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/MSG-P7-event.tablet-pos.r1/cases-MSG-P7-event-MSG-P7--038d1-ly-is-offered-from-Messages-tablet-pos/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [tablet-pos] › e2e/cases/MSG-P7-event.spec.ts:6:5 › MSG-P7 tickets card family is offered from Messages 
+exit=1

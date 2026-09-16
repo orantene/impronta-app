@@ -1,0 +1,43 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-series.spec.ts:15:5 › WIRE-2.1 series generate door shows its reason when disabled by design
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-series.spec.ts:15:5 › WIRE-2.1 series generate door shows its reason when disabled by design 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeDisabled[2m([22m[2m)[22m failed
+
+    Locator:  getByRole('button', { name: /new series/i })
+    Expected: disabled
+    Received: enabled
+    Timeout:  5000ms
+
+    Call log:
+    [2m  - Expect "toBeDisabled" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('button', { name: /new series/i })[22m
+    [2m    9 × locator resolved to <button type="button" data-testid="appointments-new-series" class="inline-flex h-[34px] items-center justify-center gap-[6px] whitespace-nowrap rounded-[9px] border px-[14px] font-admin-body font-semibold leading-[1.2] [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)] cursor-pointer border-admin-brand bg-admin-brand text-white hover:bg-admin-brand-deep text-admin-13 disabled:cursor-not-allowed disabled:opacity-50 ">…</button>[22m
+    [2m      - unexpected value "enabled"[22m
+
+
+      26 |   }
+      27 |   if (await create.count()) {
+    > 28 |     await expect(create).toBeDisabled();
+         |                          ^
+      29 |     await expect(create).toHaveAttribute("title", /.+/);
+      30 |   }
+      31 | });
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-series.spec.ts:28:26
+
+    Error Context: ../../pw-out/WIRE-2-series.chromium.r1/cases-WIRE-2-series-WIRE-2-a8b75-son-when-disabled-by-design-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-series.chromium.r1/cases-WIRE-2-series-WIRE-2-a8b75-son-when-disabled-by-design-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-series.chromium.r1/cases-WIRE-2-series-WIRE-2-a8b75-son-when-disabled-by-design-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-series.spec.ts:15:5 › WIRE-2.1 series generate door shows its reason when disabled by design 
+exit=1

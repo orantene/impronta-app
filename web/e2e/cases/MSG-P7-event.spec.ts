@@ -5,9 +5,10 @@ skipUnlessFixture();
 
 test("MSG-P7 tickets card family is offered from Messages", async ({ page }) => {
   await prepareJourneysPage(page);
-  await openMessagesSurface(page, "/admin/pos?view=messages");
+  await openMessagesSurface(page, "/admin/pos?mode=door&view=messages");
   await assertInboxGroundTruth();
   await page.locator("[data-pos-messages] li button").first().click();
   await openSendOptions(page);
-  await expect(page.getByText(/ticket|event/i).first()).toBeVisible({ timeout: 15_000 });
+  const sheet = page.locator("[data-pos-sheet='messages-options']");
+  await expect(sheet.getByText("tickets card", { exact: true })).toBeVisible({ timeout: 15_000 });
 });

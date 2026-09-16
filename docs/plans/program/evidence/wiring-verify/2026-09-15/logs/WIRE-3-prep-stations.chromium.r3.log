@@ -1,0 +1,24 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-prep-stations.spec.ts:34:5 › WIRE-3.5 a station is written and refuses deletion while a ticket is live; Fire starters tickets only course 1
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-prep-stations.spec.ts:34:5 › WIRE-3.5 a station is written and refuses deletion while a ticket is live; Fire starters tickets only course 1 
+
+    [31mTest timeout of 360000ms exceeded.[39m
+
+    Error Context: ../../pw-out/WIRE-3-prep-stations.chromium.r3/cases-WIRE-3-prep-stations-09887-rters-tickets-only-course-1-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-prep-stations.chromium.r3/cases-WIRE-3-prep-stations-09887-rters-tickets-only-course-1-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-prep-stations.chromium.r3/cases-WIRE-3-prep-stations-09887-rters-tickets-only-course-1-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  Slow test file: [chromium] › e2e/cases/WIRE-3-prep-stations.spec.ts (6.0m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 failed
+    [chromium] › e2e/cases/WIRE-3-prep-stations.spec.ts:34:5 › WIRE-3.5 a station is written and refuses deletion while a ticket is live; Fire starters tickets only course 1 
+exit=1

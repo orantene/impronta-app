@@ -1,0 +1,41 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-3-guest-qr.spec.ts:17:5 › WIRE-3.6 guest QR: browse, add, submit, pay my share, bill; the last share cannot be paid twice; a closed visit refuses
+[1A[2K  1) [chromium] › e2e/cases/WIRE-3-guest-qr.spec.ts:17:5 › WIRE-3.6 guest QR: browse, add, submit, pay my share, bill; the last share cannot be paid twice; a closed visit refuses 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-testid^="guest-add-"]').first()
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for locator('[data-testid^="guest-add-"]').first()[22m
+
+
+      24 |     await page.goto(`/visit/${visit.token}/menu`);
+      25 |     const add = page.locator('[data-testid^="guest-add-"]').first();
+    > 26 |     await expect(add).toBeVisible({ timeout: 30_000 });
+         |                       ^
+      27 |     await add.click();
+      28 |     await page.getByTestId("guest-submit").click();
+      29 |     await expect(page.getByText("The team accepted your order. If something runs out we will suggest here before we change anything.", { exact: true })).toBeVisible({ timeout: 30_000 });
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-guest-qr.spec.ts:26:23
+
+    Error Context: ../../pw-out/WIRE-3-guest-qr.chromium.r3/cases-WIRE-3-guest-qr-WIRE-d4728-wice-a-closed-visit-refuses-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-guest-qr.chromium.r3/cases-WIRE-3-guest-qr-WIRE-d4728-wice-a-closed-visit-refuses-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-guest-qr.chromium.r3/cases-WIRE-3-guest-qr-WIRE-d4728-wice-a-closed-visit-refuses-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-3-guest-qr.spec.ts:17:5 › WIRE-3.6 guest QR: browse, add, submit, pay my share, bill; the last share cannot be paid twice; a closed visit refuses 
+exit=1

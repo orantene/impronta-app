@@ -1,0 +1,34 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check 
+
+    Error: JSON object requested, multiple (or no) rows returned
+
+       at cases/_floor-db.ts:98
+
+       96 |     .eq("visit_id", visitId)
+       97 |     .maybeSingle();
+    >  98 |   if (error) throw new Error(error.message);
+          |                    ^
+       99 |   if (!data) return null;
+      100 |   return {
+      101 |     id: String(data.id),
+        at orderForVisit (/private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/_floor-db.ts:98:20)
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-split-merge-server.spec.ts:105:16
+
+    Error Context: ../../pw-out/WIRE-1-split-merge-server.chromium.r3/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-split-merge-server.chromium.r3/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-split-merge-server.chromium.r3/cases-WIRE-1-split-merge-s-fc3db-refuse-merging-a-paid-check-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-split-merge-server.spec.ts:38:5 › WIRE-1.9 split, change server, and refuse merging a paid check 
+exit=1

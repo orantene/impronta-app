@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-lock.spec.ts:17:5 › WIRE-1.4 lock, refuse a wrong PIN, unlock, then switch operator
+[1A[2K  1 passed (10.8s)
+exit=0

@@ -12,7 +12,7 @@ import {
   skipUnlessFixture,
 } from "./_harness";
 import { isolatedService } from "./_isolated-db";
-import { WIRE_SENTENCE, assertEnglishRefusal, latestOrderIdByUrl } from "./_wire";
+import { latestOrderIdByUrl } from "./_wire";
 
 skipUnlessFixture();
 
@@ -46,9 +46,31 @@ test("WIRE-1.7 Collect › Link mints one open link and refuses a second over th
     .eq("order_id", orderId);
   expect(count ?? 0).toBeGreaterThan(0);
 
-  await page.locator("[data-pos-payment-link-create]").click();
-  await assertEnglishRefusal(page, WIRE_SENTENCE.exceedsOutstanding);
+  // A second link over the outstanding: disabled-by-design. With an open link
+  // the panel offers no Create and says why; the engine's `exceeds_outstanding`
+  // is unreachable from the screen. Exactly one open link exists.
+  await expect(page.locator("[data-pos-payment-link-create]")).toHaveCount(0);
+  await expect(
+    page.getByText("Sending the same link again never creates a second charge. A link collects nothing until it is paid.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const { count: openLinks } = await sb
+    .from("payment_links")
+    .select("id", { count: "exact", head: true })
+    .eq("order_id", orderId)
+    .eq("status", "open");
+  expect(openLinks).toBe(1);
 
   const href = await page.locator("[data-pos-payment-link-url]").getAttribute("href");
   expect(href).toMatch(/\/pay\//);
+
+  // `/pay/<code>` on the mock provider: Pay securely settles the link and the sale.
+  await page.goto(href!);
+  await page.getByRole("link", { name: "Pay securely" }).click();
+  await expect(page.getByRole("heading", { name: "Paid" })).toBeVisible({ timeout: 30_000 });
+  const { data: settled } = await sb.from("payment_links").select("status").eq("id", (link as { id: string }).id).maybeSingle();
+  expect((settled as { status: string } | null)?.status).toBe("paid");
+  const { data: order } = await sb.from("orders").select("status").eq("id", orderId).maybeSingle();
+  expect((order as { status: string } | null)?.status).toBe("paid");
 });

@@ -223,10 +223,11 @@ export async function seedSeatMap(input: { sessionId: string }): Promise<{
  * days out, with the same tier pools as the event's existing night so the
  * picker offers it. Returns the event's slug for the public page.
  */
-export async function seedEventNight(): Promise<{
+export async function seedEventNight(input: { daysOut?: number; hour?: number } = {}): Promise<{
   eventId: string;
   slug: string;
   sessionId: string;
+  startsAt: string;
   cleanup: () => Promise<void>;
 }> {
   const sb = isolatedService();
@@ -260,8 +261,8 @@ export async function seedEventNight(): Promise<{
     break;
   }
   if (!picked) throw new Error("seedEventNight: no published event with a pooled night to clone");
-  const startsAt = new Date(Date.now() + 2 * 24 * 3600_000);
-  startsAt.setUTCMinutes(0, 0, 0);
+  const startsAt = new Date(Date.now() + (input.daysOut ?? 2) * 24 * 3600_000);
+  startsAt.setUTCHours(input.hour ?? 20, 0, 0, 0);
   const endsAt = new Date(startsAt.getTime() + 2 * 3600_000);
   const session = must(
     "seedEventNight/sessions",
@@ -310,7 +311,9 @@ export async function seedEventNight(): Promise<{
     eventId: picked.eventId,
     slug: picked.slug,
     sessionId: session.id,
+    startsAt: startsAt.toISOString(),
     cleanup: async () => {
+      await sb.from("capacity_allocations").delete().in("pool_id", inserted.map((r) => r.id));
       await sb.from("capacity_pools").delete().in("id", inserted.map((r) => r.id));
       await sb.from("sessions").delete().eq("id", session.id);
     },
@@ -320,10 +323,16 @@ export async function seedEventNight(): Promise<{
 /** An open table visit (Q01/Q05). `close()` ends it the way the floor does. */
 export async function seedVisit(): Promise<{ id: string; token: string; close: () => Promise<void>; cleanup: () => Promise<void> }> {
   const sb = isolatedService();
-  const space = must(
+  // A table with no open visit (`visits_one_open_per_space`); T1 has carried
+  // a fixture visit since 2026-09-11.
+  const { data: open } = await sb.from("visits").select("space_id").eq("tenant_id", T).eq("status", "open");
+  const busy = new Set(((open ?? []) as { space_id: string }[]).map((v) => v.space_id));
+  const tables = must(
     "seedVisit/space",
-    await sb.from("spaces").select("id").eq("tenant_id", T).eq("kind", "table").eq("status", "active").limit(1).maybeSingle(),
-  ) as { id: string };
+    await sb.from("spaces").select("id").eq("tenant_id", T).eq("kind", "table").eq("status", "active").order("code", { ascending: false }).limit(20),
+  ) as { id: string }[];
+  const space = tables.find((t) => !busy.has(t.id));
+  if (!space) throw new Error("seedVisit: every table has an open visit");
   const token = `wire${randomUUID().replace(/-/g, "").slice(0, 16)}`;
   const row = must(
     "seedVisit/visits",
@@ -347,9 +356,9 @@ export async function seedVisit(): Promise<{ id: string; token: string; close: (
 }
 
 /**
- * A valid admission on one future session of the fixture Pilates series, and
- * a sibling session whose pool is set to zero seats so it reads `full`.
- * Restores the sibling's seats on cleanup.
+ * A valid admission on the first of three seeded sessions (its own series,
+ * `seedSeries`), and a sibling whose pool is set to zero seats so it reads
+ * `full`. The series and everything on it go on cleanup.
  */
 export async function seedSeriesMove(): Promise<{
   admissionId: string;
@@ -359,22 +368,8 @@ export async function seedSeriesMove(): Promise<{
   cleanup: () => Promise<void>;
 }> {
   const sb = isolatedService();
-  const sessions = must(
-    "seedSeriesMove/sessions",
-    await sb
-      .from("sessions")
-      .select("id, series_id, starts_at")
-      .eq("tenant_id", T)
-      .not("series_id", "is", null)
-      .eq("status", "scheduled")
-      .gt("starts_at", new Date(Date.now() + 36 * 3600_000).toISOString())
-      .order("starts_at", { ascending: true })
-      .limit(3),
-  ) as Array<{ id: string; series_id: string }>;
-  if (sessions.length < 3 || new Set(sessions.map((s) => s.series_id)).size !== 1) {
-    throw new Error("seedSeriesMove: the fixture series needs three future sessions");
-  }
-  const [from, open, full] = sessions;
+  const series = await seedSeries({ title: `WIRE move ${Date.now()}`, statuses: ["scheduled", "scheduled", "scheduled"], seats: 2 });
+  const [from, open, full] = series.sessionIds;
   const pool = must(
     "seedSeriesMove/pool",
     await sb
@@ -382,7 +377,7 @@ export async function seedSeriesMove(): Promise<{
       .select("id, units_total")
       .eq("tenant_id", T)
       .eq("subject_kind", "session_tier")
-      .eq("subject_id", full.id)
+      .eq("subject_id", full)
       .eq("is_active", true)
       .limit(1)
       .maybeSingle(),
@@ -391,7 +386,7 @@ export async function seedSeriesMove(): Promise<{
     "seedSeriesMove/admission",
     await sb
       .from("admissions")
-      .insert({ tenant_id: T, session_id: from.id, status: "valid", party_size: 1, holder_name: "WIRE mover" })
+      .insert({ tenant_id: T, session_id: from, status: "valid", party_size: 1, holder_name: "WIRE mover" })
       .select("id")
       .single(),
   ) as { id: string };
@@ -399,15 +394,214 @@ export async function seedSeriesMove(): Promise<{
   if (fullErr) throw new Error(`seedSeriesMove/full: ${fullErr.message}`);
   return {
     admissionId: admission.id,
-    fromSessionId: from.id,
-    openSessionId: open.id,
-    fullSessionId: full.id,
+    fromSessionId: from,
+    openSessionId: open,
+    fullSessionId: full,
     cleanup: async () => {
-      await sb.from("capacity_pools").update({ units_total: pool.units_total }).eq("id", pool.id);
-      const { data: adm } = await sb.from("admissions").select("allocation_id").eq("id", admission.id).maybeSingle();
-      await sb.from("admissions").delete().eq("id", admission.id);
-      const alloc = (adm as { allocation_id: string | null } | null)?.allocation_id;
-      if (alloc) await sb.from("capacity_allocations").delete().eq("id", alloc);
+      await series.cleanup();
+    },
+  };
+}
+
+/**
+ * A named customer with a confirmed appointment tomorrow that still owes its
+ * full price (1.5 `POSLinkBooking`). The candidate list matches the booking
+ * through the customer's own order (`booking-candidates.ts`), so the seed is
+ * three rows: `customers`, an `orders` row for that customer, and the
+ * `agency_bookings` row pointing at the order.
+ */
+export async function seedBookingWithBalance(input: { email: string; revenue?: number }): Promise<{
+  customerId: string;
+  bookingId: string;
+  orderId: string;
+  cleanup: () => Promise<void>;
+}> {
+  const sb = isolatedService();
+  const revenue = input.revenue ?? 120;
+  const customer = must(
+    "seedBookingWithBalance/customers",
+    await sb
+      .from("customers")
+      .insert({ tenant_id: T, email: input.email, display_name: input.email.split("@")[0] })
+      .select("id")
+      .single(),
+  ) as { id: string };
+  const order = must(
+    "seedBookingWithBalance/orders",
+    await sb
+      .from("orders")
+      .insert({ tenant_id: T, customer_id: customer.id, status: "paid", source_channel: "instant_book", currency: "USD", subtotal_cents: 0, total_cents: 0 })
+      .select("id")
+      .single(),
+  ) as { id: string };
+  const startsAt = new Date(Date.now() + 24 * 3600_000);
+  startsAt.setUTCMinutes(0, 0, 0);
+  const endsAt = new Date(startsAt.getTime() + 3600_000);
+  const booking = must(
+    "seedBookingWithBalance/agency_bookings",
+    await sb
+      .from("agency_bookings")
+      .insert({
+        tenant_id: T,
+        title: "WIRE link seed",
+        status: "confirmed",
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+        currency_code: "USD",
+        total_client_revenue: revenue,
+        contact_name: input.email.split("@")[0],
+        contact_email: input.email,
+        order_id: order.id,
+      })
+      .select("id")
+      .single(),
+  ) as { id: string };
+  return {
+    customerId: customer.id,
+    bookingId: booking.id,
+    orderId: order.id,
+    cleanup: async () => {
+      await sb.from("agency_bookings").delete().eq("id", booking.id);
+      await sb.from("orders").delete().eq("id", order.id);
+      await sb.from("customers").delete().eq("id", customer.id);
+    },
+  };
+}
+
+/**
+ * Two people waiting on the fixture's next class (1.10 Front desk waitlist).
+ * Returns the session, its Front-desk day offset (the desk pages by `day=<n>`
+ * from today in the venue's zone), and the entry ids in joined order.
+ */
+export async function seedClassWaitlist(input: { count: number }): Promise<{
+  sessionId: string;
+  dayOffset: number;
+  entryIds: string[];
+  cleanup: () => Promise<void>;
+}> {
+  const sb = isolatedService();
+  const nowIso = new Date().toISOString();
+  const { data: session, error: sessionError } = await sb
+    .from("sessions")
+    .select("id, starts_at")
+    .eq("tenant_id", T)
+    .eq("status", "scheduled")
+    .gt("starts_at", nowIso)
+    .order("starts_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (sessionError || !session) throw new Error(`failed-fixture: no upcoming class session (${sessionError?.message ?? "none"})`);
+  const s = session as { id: string; starts_at: string };
+  const { data: tz } = await sb.from("agencies").select("timezone").eq("id", T).maybeSingle();
+  const timeZone = (tz as { timezone: string | null } | null)?.timezone || "UTC";
+  const ymd = (iso: string) => {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+    return Date.UTC(Number(parts.slice(0, 4)), Number(parts.slice(5, 7)) - 1, Number(parts.slice(8, 10)));
+  };
+  const dayOffset = Math.round((ymd(s.starts_at) - ymd(nowIso)) / 86_400_000);
+  const stamp = Date.now();
+  const rows = Array.from({ length: input.count }, (_, i) => ({
+    tenant_id: T,
+    session_id: s.id,
+    customer_name: `WIRE wait ${i + 1} ${stamp}`,
+    customer_email: `wire-wait-${i + 1}-${stamp}@impronta.test`,
+    party_size: 1,
+    status: "waiting",
+    joined_at: new Date(stamp + i * 1000).toISOString(),
+  }));
+  const inserted = must("seedClassWaitlist/session_waitlist_entries", await sb.from("session_waitlist_entries").insert(rows).select("id")) as { id: string }[];
+  const entryIds = inserted.map((r) => r.id);
+  return {
+    sessionId: s.id,
+    dayOffset,
+    entryIds,
+    cleanup: async () => {
+      await sb.from("waitlist_offers").delete().in("waitlist_entry_id", entryIds);
+      await sb.from("session_waitlist_entries").delete().in("id", entryIds);
+    },
+  };
+}
+
+export const QA_OWNER_USER = "33330001-0000-4000-8000-000000000001";
+export const QA_VIEWER_USER = "33330001-0000-4000-8000-000000000002";
+export const QA_VENUE = "33330010-0000-4000-8000-000000000001";
+
+/**
+ * A series with sessions on the next days (2.2 / 2.4 scopes). `statuses`
+ * lists one status per session, in day order starting tomorrow 06:15Z; a
+ * `seats` value also gives each scheduled session a pool (2.3 / 2.4 seats).
+ */
+export async function seedSeries(input: {
+  title: string;
+  statuses: ("scheduled" | "cancelled")[];
+  seats?: number;
+  instructorUserId?: string | null;
+}): Promise<{ seriesId: string; sessionIds: string[]; poolIds: string[]; cleanup: () => Promise<void> }> {
+  const sb = isolatedService();
+  const series = must(
+    "seedSeries/session_series",
+    await sb
+      .from("session_series")
+      .insert({
+        tenant_id: T,
+        venue_id: QA_VENUE,
+        title: input.title,
+        local_time: "06:15",
+        timezone: "UTC",
+        duration_minutes: 60,
+        weekdays: [1, 2, 3, 4, 5, 6, 7],
+        seats: input.seats ?? 4,
+        starts_on: new Date().toISOString().slice(0, 10),
+        is_active: true,
+        instructor_user_id: input.instructorUserId ?? QA_OWNER_USER,
+      })
+      .select("id")
+      .single(),
+  ) as { id: string };
+  const base = new Date();
+  base.setUTCHours(6, 15, 0, 0);
+  const rows = input.statuses.map((status, i) => {
+    const starts = new Date(base.getTime() + (i + 1) * 86_400_000);
+    return {
+      id: randomUUID(),
+      tenant_id: T,
+      series_id: series.id,
+      venue_id: QA_VENUE,
+      title: `${input.title} ${i + 1}`,
+      starts_at: starts.toISOString(),
+      ends_at: new Date(starts.getTime() + 3600_000).toISOString(),
+      status,
+      instructor_user_id: input.instructorUserId ?? QA_OWNER_USER,
+    };
+  });
+  must("seedSeries/sessions", await sb.from("sessions").insert(rows).select("id"));
+  const sessionIds = rows.map((r) => r.id);
+  const poolIds: string[] = [];
+  if (input.seats) {
+    for (const r of rows) {
+      if (r.status !== "scheduled") continue;
+      const poolId = randomUUID();
+      const pool = must(
+        "seedSeries/capacity_pools",
+        await sb
+          .from("capacity_pools")
+          .insert({ id: poolId, tenant_id: T, subject_kind: "session_tier", subject_id: r.id, pool_key: "seat", pool_path: [poolId], units_total: input.seats, unit_label: "seat", is_active: true })
+          .select("id")
+          .single(),
+      ) as { id: string };
+      poolIds.push(pool.id);
+    }
+  }
+  return {
+    seriesId: series.id,
+    sessionIds,
+    poolIds,
+    cleanup: async () => {
+      await sb.from("admissions").delete().in("session_id", sessionIds);
+      await sb.from("capacity_allocations").delete().in("pool_id", poolIds);
+      await sb.from("capacity_pools").delete().in("subject_id", sessionIds);
+      await sb.from("sessions").delete().in("id", sessionIds);
+      await sb.from("session_series").delete().eq("id", series.id);
     },
   };
 }

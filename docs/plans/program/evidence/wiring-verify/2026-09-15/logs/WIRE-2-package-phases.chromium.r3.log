@@ -1,0 +1,41 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-package-phases.spec.ts:18:5 › WIRE-2.11 package composition writes components and refuses a duplicate; a price phase prices the counter line
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-package-phases.spec.ts:18:5 › WIRE-2.11 package composition writes components and refuses a duplicate; a price phase prices the counter line 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByTestId('catalog-package-composition').getByTestId('catalog-package-outcome')
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for getByTestId('catalog-package-composition').getByTestId('catalog-package-outcome')[22m
+
+
+      69 |     await card.getByLabel(/qty/i).nth(1).fill("2");
+      70 |     await card.getByTestId("catalog-package-save").click();
+    > 71 |     await expect(card.getByTestId("catalog-package-outcome")).toBeVisible({ timeout: 30_000 });
+         |                                                               ^
+      72 |     await expect.poll(async () => (await componentRows()).map((r) => `${r.component_offering_id}:${r.qty}`).sort().join(","), { timeout: 20_000 }).toBe(
+      73 |       [`${PIZZA}:1`, `${GARLIC}:2`].sort().join(","),
+      74 |     );
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-package-phases.spec.ts:71:63
+
+    Error Context: ../../pw-out/WIRE-2-package-phases.chromium.r3/cases-WIRE-2-package-phase-f6acb-ase-prices-the-counter-line-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-package-phases.chromium.r3/cases-WIRE-2-package-phase-f6acb-ase-prices-the-counter-line-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-package-phases.chromium.r3/cases-WIRE-2-package-phase-f6acb-ase-prices-the-counter-line-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-package-phases.spec.ts:18:5 › WIRE-2.11 package composition writes components and refuses a duplicate; a price phase prices the counter line 
+exit=1

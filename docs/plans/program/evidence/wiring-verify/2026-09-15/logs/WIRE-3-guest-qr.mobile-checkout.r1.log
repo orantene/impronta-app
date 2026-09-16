@@ -1,0 +1,45 @@
+
+Running 2 tests using 1 worker
+
+[1A[2K[1/2] [mobile-checkout] › e2e/cases/WIRE-3-guest-qr.spec.ts:17:5 › WIRE-3.6 guest QR: bill and the closed-visit refusal; then browse, add, submit, pay my share on the phone pages
+[1A[2K  1) [mobile-checkout] › e2e/cases/WIRE-3-guest-qr.spec.ts:17:5 › WIRE-3.6 guest QR: bill and the closed-visit refusal; then browse, add, submit, pay my share on the phone pages 
+
+    Error: the guest menu must render (D-141: the page is a 500)
+
+    [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-testid^="guest-add-"]').first()
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - the guest menu must render (D-141: the page is a 500) with timeout 30000ms[22m
+    [2m  - waiting for locator('[data-testid^="guest-add-"]').first()[22m
+
+
+      29 |     await page.goto(`/visit/${visit.token}/menu`);
+      30 |     const add = page.locator('[data-testid^="guest-add-"]').first();
+    > 31 |     await expect(add, "the guest menu must render (D-141: the page is a 500)").toBeVisible({ timeout: 30_000 });
+         |                                                                                ^
+      32 |     await add.click();
+      33 |     await page.getByTestId("guest-submit").click();
+      34 |     await expect(page.getByText("The team accepted your order. If something runs out we will suggest here before we change anything.", { exact: true })).toBeVisible({ timeout: 30_000 });
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-3-guest-qr.spec.ts:31:80
+
+    Error Context: ../../pw-out/WIRE-3-guest-qr.mobile-checkout.r1/cases-WIRE-3-guest-qr-WIRE-86d4c-my-share-on-the-phone-pages-mobile-checkout/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-3-guest-qr.mobile-checkout.r1/cases-WIRE-3-guest-qr-WIRE-86d4c-my-share-on-the-phone-pages-mobile-checkout/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-3-guest-qr.mobile-checkout.r1/cases-WIRE-3-guest-qr-WIRE-86d4c-my-share-on-the-phone-pages-mobile-checkout/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K[2/2] [mobile-checkout] › e2e/cases/WIRE-3-guest-qr.spec.ts:70:5 › WIRE-3.6 a closed visit's bill answers with the engine's sentence
+[1A[2K  1 failed
+    [mobile-checkout] › e2e/cases/WIRE-3-guest-qr.spec.ts:17:5 › WIRE-3.6 guest QR: bill and the closed-visit refusal; then browse, add, submit, pay my share on the phone pages 
+  1 passed (40.3s)
+exit=1

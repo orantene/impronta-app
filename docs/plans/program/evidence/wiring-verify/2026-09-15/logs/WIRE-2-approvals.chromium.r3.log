@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-approvals.spec.ts:18:5 › WIRE-2.13 Roles & limits writes a role limit; the inbox decides a request once
+[1A[2K  1 passed (9.9s)
+exit=0

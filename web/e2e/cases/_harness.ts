@@ -147,6 +147,31 @@ export async function signInJourneysStaff(
   await adoptSetCookies(page, setCookies);
   await page.goto(nextPath);
   await assertNotAuthWall(page);
+  await awaitHydrated(page);
+}
+
+/**
+ * A click that lands before React has attached its handlers only focuses the
+ * element (2026-09-15, QA host: the Settings nav read `[active]` and the pane
+ * never switched; the Counter's "Custom amount" tile did the same). Wait for
+ * the first button on the page to carry a React fiber before any door is
+ * used. Tolerant: a page with no client button is left to its own assertion.
+ */
+export async function awaitHydrated(page: Page): Promise<void> {
+  await page
+    .waitForFunction(
+      () => {
+        // Suspense boundaries hydrate one by one, so one hydrated element
+        // says nothing about the tile or nav row about to be clicked: every
+        // button on the surface has to carry a fiber.
+        const els = Array.from(document.querySelectorAll("main button"));
+        if (els.length === 0) return false;
+        return els.every((el) => Object.keys(el).some((key) => key.startsWith("__react")));
+      },
+      undefined,
+      { timeout: 30_000 },
+    )
+    .catch(() => {});
 }
 
 /** Parse `Set-Cookie` headers from a non-followed response into the context. */

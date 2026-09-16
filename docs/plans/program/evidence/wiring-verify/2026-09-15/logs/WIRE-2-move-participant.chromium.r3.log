@@ -1,0 +1,34 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-move-participant.spec.ts:28:5 › WIRE-2.3 move a participant and refuse a full target
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-move-participant.spec.ts:28:5 › WIRE-2.3 move a participant and refuse a full target 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m"[7mcommitte[27md"[39m
+    Received: [31m"[7mhol[27md"[39m
+
+      68 |     expect(allocationId, "admission carries its new allocation").toBeTruthy();
+      69 |     const { data: alloc } = await sb.from("capacity_allocations").select("state, pool_id").eq("id", allocationId!).maybeSingle();
+    > 70 |     expect((alloc as { state: string } | null)?.state).toBe("committed");
+         |                                                        ^
+      71 |     const { data: pool } = await sb.from("capacity_pools").select("subject_id").eq("id", (alloc as { pool_id: string }).pool_id).maybeSingle();
+      72 |     expect((pool as { subject_id: string } | null)?.subject_id).toBe(seeded.openSessionId);
+      73 |   } finally {
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-move-participant.spec.ts:70:56
+
+    Error Context: ../../pw-out/WIRE-2-move-participant.chromium.r3/cases-WIRE-2-move-particip-bb75d-nt-and-refuse-a-full-target-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-move-participant.chromium.r3/cases-WIRE-2-move-particip-bb75d-nt-and-refuse-a-full-target-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-move-participant.chromium.r3/cases-WIRE-2-move-particip-bb75d-nt-and-refuse-a-full-target-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-move-participant.spec.ts:28:5 › WIRE-2.3 move a participant and refuse a full target 
+exit=1

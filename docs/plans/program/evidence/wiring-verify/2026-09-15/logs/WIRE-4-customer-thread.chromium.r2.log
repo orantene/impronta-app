@@ -1,0 +1,43 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-4-customer-thread.spec.ts:16:5 › WIRE-4.6 /pay/<code> leads to /c/t/<token>; the cards and their states match the conversation
+[1A[2K  1) [chromium] › e2e/cases/WIRE-4-customer-thread.spec.ts:16:5 › WIRE-4.6 /pay/<code> leads to /c/t/<token>; the cards and their states match the conversation 
+
+    Error: the pay page links back to the conversation
+
+    [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('link', { name: 'Back to the conversation' })
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - the pay page links back to the conversation with timeout 30000ms[22m
+    [2m  - waiting for getByRole('link', { name: 'Back to the conversation' })[22m
+
+
+      33 |   await page.goto(`/pay/${code}`);
+      34 |   const back = page.getByRole("link", { name: "Back to the conversation" });
+    > 35 |   await expect(back, "the pay page links back to the conversation").toBeVisible({ timeout: 30_000 });
+         |                                                                     ^
+      36 |   const href = await back.getAttribute("href");
+      37 |   expect(href).toMatch(/^\/c\/t\/v1\./);
+      38 |   await page.goto(href!);
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-4-customer-thread.spec.ts:35:69
+
+    Error Context: ../../pw-out/WIRE-4-customer-thread.chromium.r2/cases-WIRE-4-customer-thre-8eb2f-ates-match-the-conversation-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-4-customer-thread.chromium.r2/cases-WIRE-4-customer-thre-8eb2f-ates-match-the-conversation-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-4-customer-thread.chromium.r2/cases-WIRE-4-customer-thre-8eb2f-ates-match-the-conversation-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-4-customer-thread.spec.ts:16:5 › WIRE-4.6 /pay/<code> leads to /c/t/<token>; the cards and their states match the conversation 
+exit=1

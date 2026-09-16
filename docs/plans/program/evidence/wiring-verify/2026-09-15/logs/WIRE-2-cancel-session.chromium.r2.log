@@ -1,0 +1,35 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-2-cancel-session.spec.ts:22:5 › WIRE-2.4 cancel with scope Future cancels the later sessions, voids seats, queues refunds; a cancelled one is closed
+[1A[2K  1) [chromium] › e2e/cases/WIRE-2-cancel-session.spec.ts:22:5 › WIRE-2.4 cancel with scope Future cancels the later sessions, voids seats, queues refunds; a cancelled one is closed 
+
+    Error: new row for relation "orders" violates check constraint "orders_draft_has_an_identity"
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeNull[2m()[22m
+
+    Received: [31m{"code": "23514", "details": "Failing row contains (3ec54f52-7c7e-4329-808b-f40279c8409b, 33333333-3333-4333-8333-333333333333, null, null, paid, 1, USD, 1500, 0, 0, 1500, pos, null, null, null, immediate, null, null, 2026-09-16 07:15:11.460334+00, 2026-09-16 07:15:11.460334+00, null, null, null, null, null, null, null, 0).", "hint": null, "message": "new row for relation \"orders\" violates check constraint \"orders_draft_has_an_identity\""}[39m
+
+      39 |     .select("id")
+      40 |     .single();
+    > 41 |   expect(orderErr, orderErr?.message).toBeNull();
+         |                                       ^
+      42 |   const orderId = (order as { id: string }).id;
+      43 |   const { data: line, error: lineErr } = await sb
+      44 |     .from("order_lines")
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-2-cancel-session.spec.ts:41:39
+
+    Error Context: ../../pw-out/WIRE-2-cancel-session.chromium.r2/cases-WIRE-2-cancel-sessio-ef803-s-a-cancelled-one-is-closed-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-2-cancel-session.chromium.r2/cases-WIRE-2-cancel-sessio-ef803-s-a-cancelled-one-is-closed-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-2-cancel-session.chromium.r2/cases-WIRE-2-cancel-sessio-ef803-s-a-cancelled-one-is-closed-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-2-cancel-session.spec.ts:22:5 › WIRE-2.4 cancel with scope Future cancels the later sessions, voids seats, queues refunds; a cancelled one is closed 
+exit=1

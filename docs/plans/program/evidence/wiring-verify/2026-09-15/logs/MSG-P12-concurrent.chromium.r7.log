@@ -1,0 +1,33 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell
+[1A[2K  1) [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: locator.count: Target page, context or browser has been closed
+
+      27 |   for (let i = 0; i < 8 && !found; i += 1) {
+      28 |     const row = other.locator("[data-pos-messages] li button").nth(i);
+    > 29 |     if ((await row.count()) === 0) break;
+         |                    ^
+      30 |     await row.click();
+      31 |     await expect(other.locator("[data-pos-messages='thread']")).toBeVisible({ timeout: 20_000 });
+      32 |     found = await other
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/MSG-P12-concurrent.spec.ts:29:20
+
+    Error Context: ../../pw-out/MSG-P12-concurrent.chromium.r7/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/MSG-P12-concurrent.chromium.r7/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/MSG-P12-concurrent.chromium.r7/cases-MSG-P12-concurrent-M-c7ef8-it-keeps-one-Messages-shell-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/MSG-P12-concurrent.spec.ts:6:5 › MSG-P12 concurrent edit keeps one Messages shell 
+exit=1

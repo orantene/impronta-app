@@ -1,0 +1,36 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:26:5 › WIRE-1.11 Cash paid in/out/drop and close note
+[1A[2K  1) [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:26:5 › WIRE-1.11 Cash paid in/out/drop and close note 
+
+    [31mTest timeout of 240000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 240000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('[data-pos-frame-link=\'shifts\'], [data-pos-rail-count=\'shifts\']').first()[22m
+
+
+      28 |   await prepareJourneysPage(page);
+      29 |   await openCounter(page);
+    > 30 |   await page.locator("[data-pos-frame-link='shifts'], [data-pos-rail-count='shifts']").first().click();
+         |                                                                                                ^
+      31 |   await recordMovement(page, "paid_in", "1000");
+      32 |   await recordMovement(page, "paid_out", "200");
+      33 |   await recordMovement(page, "drop", "300");
+        at /private/tmp/claude-505/-Users-oranpersonal-Desktop-impronta-app/e30ce090-ce88-474f-861f-a6f78cb4f718/scratchpad/wt-verify/web/e2e/cases/WIRE-1-cash-movements.spec.ts:30:96
+
+    Error Context: ../../pw-out/WIRE-1-cash-movements.chromium.r1/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../pw-out/WIRE-1-cash-movements.chromium.r1/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../pw-out/WIRE-1-cash-movements.chromium.r1/cases-WIRE-1-cash-movement-271cb--in-out-drop-and-close-note-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/cases/WIRE-1-cash-movements.spec.ts:26:5 › WIRE-1.11 Cash paid in/out/drop and close note 
+exit=1
