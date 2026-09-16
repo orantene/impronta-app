@@ -50,6 +50,12 @@ export function fakeAdmin(store: ReturnType<typeof makeStore>) {
           if (v && typeof v === "object" && v !== null && "__in" in v) {
             return (v as { __in: unknown[] }).__in.includes(row[k]);
           }
+          if (v && typeof v === "object" && v !== null && "__lte" in v) {
+            return String(row[k]) <= String((v as { __lte: unknown }).__lte);
+          }
+          if (v && typeof v === "object" && v !== null && "__gte" in v) {
+            return String(row[k]) >= String((v as { __gte: unknown }).__gte);
+          }
           return row[k] === v;
         }),
       );
@@ -103,6 +109,17 @@ export function fakeAdmin(store: ReturnType<typeof makeStore>) {
       },
       not: (k: string, op: string, v: unknown) => {
         if (op === "is" && v === null) eqs.push([k, { __neq: null }]);
+        return api;
+      },
+      // `addLine` reads `offering_price_phases` bounded by `starts_at` (D-138);
+      // the fixture never seeds phases, so the bound filters nothing and the
+      // line prices at the list price as these tests have always assumed.
+      lte: (k: string, v: unknown) => {
+        eqs.push([k, { __lte: v }]);
+        return api;
+      },
+      gte: (k: string, v: unknown) => {
+        eqs.push([k, { __gte: v }]);
         return api;
       },
       order: () => api,

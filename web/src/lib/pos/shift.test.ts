@@ -77,6 +77,9 @@ function fakeAdmin(store: ReturnType<typeof makeStore>) {
         eqs.push([k, { __in: vals }]);
         return api;
       },
+      // `addLine`'s price-phase read (D-138); no phases are seeded, so the
+      // bound is a no-op and lines price at the list price.
+      lte: () => api,
       not: (k: string, op: string, v: unknown) => {
         if (op === "is" && v === null) eqs.push([k, { __neq: null }]);
         return api;
