@@ -1,6 +1,10 @@
 # Templates & Imagery — 03 Visual Asset Engine (design)
 
-**Status:** design, 2026-09-16. Owner decision 5 via the onboarding designer. Code follows after the decision-1 follow-up (handoff §8) and after #1989 merges. Paths under `web/`. Nothing in this file exists unless marked **(exists)**.
+**Status:** design v2, 2026-09-16. Owner decision 5 via the onboarding designer, **revised the same day by the owner's imagery decision** (`docs/plans/onboarding/decision-imagery-2026-09-16.md` on `docs/onboarding-spec-2026-09`, binding; its reasoning is kept there). Code follows after the decision-1 follow-up (handoff §8) and after #1989 merges. Paths under `web/`. Nothing in this file exists unless marked **(exists)**.
+
+## Principle (owner)
+
+The pool is Tulala's **base visual library**, not the personalisation layer. Hierarchy: **customer's own images → tenant-generated personalised images → type pool → family pool → universal fallback.** Everything below is the foundation of that hierarchy: every assigned image must be replaceable later by library choice, customer upload or tenant-specific generation (§5).
 
 ## 0. What the engine is
 
@@ -15,6 +19,10 @@ The repo's image path targets `dall-e-3` (`lib/ai/ai-image-generation.ts` defaul
 - **Cost is measured, not assumed**: `measureImageCost()` generates ONE image at the chosen size/quality, reads the reply's usage (`output_tokens` when present) and the account's per-token price from a second admin setting `ai_image_price_per_1m_tokens` (owner enters it from the vendor's pricing page), stores the measured USD on the asset and in `cms_ai_usage_log`, and the admin page shows it before the batch button enables. No `IMAGE_GENERATION_COST_USD` constant is used for new assets.
 - The owner supplies `OPENAI_API_KEY` in Vercel production (and locally for the batch run). Until then every generate action returns "Image provider not configured" **(exists behaviour)**.
 
+## 1b. Measured (2026-09-16)
+
+`gpt-image-2.5-flare` · 1536×1024 · medium · 433 tokens · **$0.01074 per image** ($0.00537 batch); full pool at the owner's allocation (§2b) ≈ 131 × 17 = 2,227 images ≈ $24 sync / $12 batch before the high-quality hero uplift; the cap is $100/month. Record: `evidence/cost-measurement/`.
+
 ## 2. Schema deltas (additive migration, one timestamp minted at start of work)
 
 `platform_stock_images` gains:
@@ -22,7 +30,10 @@ The repo's image path targets `dall-e-3` (`lib/ai/ai-image-generation.ts` defaul
 | Column | Type | Meaning |
 |---|---|---|
 | `slot` | text | `hero` ×n, `wide`, `portrait`, `gallery-1..4`, `team`, `detail`; the role stays for reads |
-| `approval` | text check in (`candidate`,`approved`,`rejected`,`retired`) default `candidate` | only `approved` is served |
+| `approval` | text check in (`generated`,`qa_passed`,`approved`,`rejected`,`retired`) default `generated` | three-status review (§4): `approved` serves everywhere; `qa_passed` serves for gallery/detail (soft launch); heroes serve only `approved` |
+| `direction` | text | the visual direction within the type (§3b), e.g. `editorial`, `service`, `result`, `lifestyle`, `minimal` |
+| `qa_json` | jsonb | automated QA verdicts (aspect, text/logo detection, duplicate hash, quality score, type match) with the checker version |
+| `layer_versions` | jsonb | `{ global, family, type, slot, direction }` prompt layer versions that produced the asset |
 | `review_note` | text | reason on reject / retire |
 | `reviewed_by`, `reviewed_at` | uuid, timestamptz | |
 | `model`, `model_size`, `model_quality` | text | what generated it |
@@ -32,42 +43,58 @@ The repo's image path targets `dall-e-3` (`lib/ai/ai-image-generation.ts` defaul
 | `provenance` | text check in (`generated`,`licensed`,`unverified`) | the 14 universal photos become `unverified` |
 | `times_placed`, `last_placed_at` | int, timestamptz | usage metadata; `placed_tenant_count` derived from a new `platform_stock_placements(asset_id, tenant_id, site_compose_id, placed_at)` |
 
-Backfill in the same migration: existing rows → `approval='approved'`, `provenance='unverified'`, `slot = role` (gallery rows spread `gallery-1..4` by sort_order).
+**New table `tenant_asset_assignments`** (the stored selection, owner §5): `id, tenant_id, page_role, slot, asset_id (nullable for owner uploads) , src, source check in (owner, tenant_generated, type_pool, family_pool, universal), direction, site_compose_id, selected_at, replaced_by_user_at, replaced_with_asset_id`. Unique on `(tenant_id, page_role, slot)`. The composer writes it once per compose; the builder's future "Replace image → Upload / Library / Generate for my business" updates it; a retired pool asset is swapped per tenant through it, never globally.
+
+Backfill in the same migration: existing rows → `approval='approved'`, `provenance='unverified'`, `slot = role` (gallery rows spread `gallery-1..4` by sort_order), `direction = null`.
+
+### 2b. Allocation per type (owner §1; no role with a single image)
+
+| Role | Alternatives | Quality |
+|---|---|---|
+| hero | 5, one per visual direction | high, only if the 10–20 image comparison shows a meaningful difference; else medium |
+| wide | 2 | medium |
+| portrait / about | 2 | medium |
+| gallery 1–4 | 2 each (8) | medium |
+| team | 2 | medium |
+| detail | 2 | medium |
+| **per type** | **21** | |
+
+The coverage table shows approved / target per slot with these targets.
 
 Reads (`queryLifestyleStockForType`) add `approval = 'approved'`; the fallback chain stays type → family → universal. `placed.photos.level` and "photos placed" in the compose stamp already exclude `universal` (D-TPL-23); `provenance = 'unverified'` is additionally excluded from every count.
 
-## 3. Prompt registry (code, versioned)
+## 3. Prompt engine as layers (owner §3), not 131 hand-written sets
 
-`site-templates/stock-prompts/` — `families/<family>.ts` and `types/<type-id>.ts` (optional; family fallback), each exporting
+`site-templates/stock-prompts/`: **global** (`global.ts`, photographic rules + hard restrictions) → **family art direction** (`families/<family>.ts`: light, palette, mood, people policy) → **business-type context** (`types/<type-id>.ts`: the place, the work, the objects; optional, family fallback) → **slot composition** (`slots.ts`: crop, negative space, distance per role) → **visual direction** (`directions.ts`: per family a set of 5 named directions with their modifiers, overridable per type) = the resolved prompt. `resolvePrompt({ typeId, slot, direction })` returns the string plus `{ global, family, type, slot, direction }` versions, both stored on the asset. Adding type #132 = one type-context block; everything else is inherited. A static test asserts every id in `business-types.ts` resolves for every slot × direction.
 
-```ts
-{ version: "v1", subject: { es: "...", en: "..." }, setting: "...", people: "staff at work, no faces recognisable" | "no people", palette: "warm neutrals", perRole: { hero: {...}, gallery: {...}, … } }
-```
+### 3b. Visual directions
 
-Shared rules layer (`rules.ts`, applied to every prompt, versioned separately): composition and crop per role (hero 3:2 with clear negative space on the left OR right third for a headline, gallery 1:1, portrait 3:4, wide 3:1 band, team 4:3, detail 1:1 close-up), photographic realism (natural light, no HDR, no illustration), and hard restrictions: no logos, brand marks, readable text or signage, watermarks, recognisable faces of real people, minors; culturally appropriate to Mexico's Riviera Maya market first. The exact prompt string sent is stored on the asset (`prompt`) with `prompt_version`, so a prompt change never rewrites history. A static test asserts every id in `business-types.ts` resolves to a prompt (type or family).
+Five per family, named, e.g. beauty: `editorial` (styled interior) · `service` (the work being done, hands not faces) · `result` (finished result close-up) · `lifestyle` (a client's moment) · `minimal` (tools and product composition). Heroes are generated one per direction; the other roles cycle directions so two assets of a slot never share one. The direction is stored on the asset and on the assignment; later the intake's inferred `brand.visual_direction` (onboarding's fact, optional) steers the pick.
 
-## 4. Pipeline and admin review
+Shared rules layer (`global.ts`, applied to every prompt, versioned separately): composition and crop per role (hero 3:2 with clear negative space on the left OR right third for a headline, gallery 1:1, portrait 3:4, wide 3:1 band, team 4:3, detail 1:1 close-up), photographic realism (natural light, no HDR, no illustration), and hard restrictions: no logos, brand marks, readable text or signage, watermarks, recognisable faces of real people, minors; culturally appropriate to Mexico's Riviera Maya market first. The exact prompt string sent is stored on the asset (`prompt`) with `prompt_version`, so a prompt change never rewrites history. A static test asserts every id in `business-types.ts` resolves to a prompt (type or family).
 
-`/platform/admin/stock` **(exists)** grows three panels:
-1. **Coverage** (exists) → per slot: approved / target (heroes target 3, gallery ×4 target 2 each, others 1) with red cells.
-2. **Generate candidates**: pick type (or family), slot, n; runs `generateLifestyleStockBytes` n times with the registry prompt; each result is stored as `candidate` (never served). Batch mode across types is a queued job (`platform_stock_jobs` table: type, slot, n, status, cost) processed by a cron route in chunks so a 131-type run survives function timeouts.
-3. **Review**: side-by-side candidates per slot; approve / reject with a reason / regenerate; approved assets enter the pool immediately (the tenant lane and the composer read `approved` only). Rejected rows stay for the audit; retire works as today.
+## 4. Pipeline: generated → automated QA → human approved (owner §4)
 
-## 5. Selection rule (composer)
+1. **Generate** (batch API for the bulk pool, sync only for admin regeneration / on-demand): `platform_stock_jobs` rows (type, slot, direction, n, quality, mode, status, measured cost) processed in cron chunks; every result lands as `generated` with prompt, layer versions, model/size/quality, measured cost.
+2. **Automated QA** (`stock-qa.ts`, versioned, verdicts in `qa_json`): aspect ratio vs slot; visible text/signage and logo/brand detection (vision call, cheap model, admin setting); inappropriate content; obvious type mismatch (vision: "is this a <type>?"); duplicate and near-duplicate (perceptual hash across the type's pool); low quality (blur/blank/artefact heuristics + vision score). Pass → `qa_passed`; fail → `rejected` with the reason (kept for audit, never served).
+3. **Human review** in `/platform/admin/stock` **(exists)**: an "Images needing review" queue ordered heroes first, side-by-side per slot × direction, approve / reject with reason / regenerate. Heroes: 100 % human before they serve. Wide/about/team: where practical. Gallery/detail: `qa_passed` may serve (soft launch) while curation continues.
+4. Coverage table: approved (and qa_passed) / target per slot; heroes red until 5 approved.
 
-`buildImageResolver` **(exists)** receives the approved pool per slot. Choice among alternatives is deterministic per tenant: `index = hash(tenantId + slot) % pool.length`, so a re-compose keeps its pick while two tenants of one type differ. Owner media still outranks everything; the pack order type → family → universal is unchanged. Each placement writes a `platform_stock_placements` row and bumps `times_placed` (fire-and-forget).
+## 5. Selection is stored, not recomputed (owner §5)
+
+At compose the resolver picks per slot with the same owner → tenant_generated → type_pool → family_pool → universal order, spreading directions and alternatives across tenants (the pick may still use a deterministic hash to choose, but the CHOICE IS WRITTEN to `tenant_asset_assignments` and never recomputed at render). Pages carry the chosen `src` as today; the assignment row is the record that lets the builder replace one image per tenant, lets a retired asset be swapped for the tenants that hold it, and feeds `times_placed`. `placed.photos.hero` in the compose stamp reports the assignment `source`; onboarding claims photos only for `type_pool` or better.
 
 ## 6. Acceptance for the engine
 
 Rerun `scripts/acceptance-run.mts` **(exists)**: the hero assertion must PASS (no two types share a hero; every hero from a type pack); add "two sites of the same type differ in hero" (compose C01 twice on two QA tenants). Report cost per type (sum of measured costs of its approved + rejected assets) and cost per site (unchanged: `cms_ai_usage_log` by `site_compose_id`, now including the compose's image placements at \$0 because pool assets are pre-paid).
 
-## 7. Order of work
+## 7. Order of work and rollout (owner §7: generation never blocks launch)
 
-1. Model setting + measured cost + request shape (small; unblocks everything; needs the key to test the measurement).
-2. Migration + reads (`approved` only) + `unverified` flag on the 14.
-3. Prompt registry for the 12 families, then type prompts for the 48 case types.
-4. Admin generate/review panels + job table + cron chunking.
-5. Deterministic selection + placements.
-6. Batch: heroes ×3 for all 131 types, then gallery ×4, wide, portrait, team, detail; review; acceptance rerun; cost report.
+1. Model setting + measured cost + request shape ✅ measured (§1b); the hero high-vs-medium comparison on 10–20 images decides hero quality (`evidence/cost-measurement/hero-quality/`).
+2. Migration: asset columns + `tenant_asset_assignments` + backfill; reads serve `approved` (+ `qa_passed` for gallery/detail); the 14 marked `unverified`.
+3. Prompt layers: global, 12 families, slots, directions; type contexts for the 48 case types first, the rest as one block each.
+4. Jobs + batch mode + automated QA + review queue.
+5. Stored assignments in the composer; stamp reports the assignment source.
+6. Batch heroes ×5 per direction for all active types → human review → **Phase 1 launch gate: every active onboarding type has ≥ 5 approved heroes** → supporting roles (QA-passed may serve) → acceptance rerun (hero assertion + "two tenants of one type differ" + per-type/per-site cost) → continuous curation. Phases 4–5 (builder Replace/Library/Upload, tenant-specific generation) build on the assignments table and are not in this program.
 
 Owner owes: `OPENAI_API_KEY` (+ `OPENAI_IMAGE_MODEL` if it differs from the setting) in Vercel production and locally for the batch; the per-1M-token price from the vendor page for the cost measurement.
