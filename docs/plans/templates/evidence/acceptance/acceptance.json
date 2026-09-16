@@ -1,0 +1,33 @@
+[
+  {
+    "id": "C01",
+    "type": "nail-salon",
+    "family": "beauty",
+    "look": "editorial",
+    "outcome": "missing_logo",
+    "copySource": "model",
+    "picks": {
+      "owner": 0,
+      "stock": 15,
+      "none": 0
+    },
+    "heroLevel": "universal",
+    "heroSrc": "86d3cfd2-ba53-4f13-a243-45a24546919a.jpg",
+    "durationMs": 24425,
+    "costUsd": 0.021013999999999998,
+    "calls": 0,
+    "failed": 0,
+    "notes": [
+      "locale en (tenant default en)",
+      "copy lines dropped: * (not json)",
+      "no logo; the wordmark carries the header"
+    ],
+    "siteComposeId": "19e39d04-f1d7-4a6b-af55-efabf1beea64",
+    "shots": [
+      "C01--nail-salon--editorial/home-1440.jpg",
+      "C01--nail-salon--editorial/home-390.jpg",
+      "C01--nail-salon--editorial/inner-1440.jpg",
+      "C01--nail-salon--editorial/inner-390.jpg"
+    ]
+  }
+]

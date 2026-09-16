@@ -1,7 +1,7 @@
 # Templates & Imagery — 02 Handoff to the onboarding designer
 
 **Branch:** `feat/templates-looks-stock` (one PR, commits per deliverable, D-TPL-14). **Worktree:** `/Users/oranpersonal/Desktop/impronta-templates`.
-**Read with:** `00-investigation.md` (what existed), `01-plan.md` (what was decided), `decisions.md` (D-TPL-1..20), `evidence/` (every screenshot named below).
+**Read with:** `00-investigation.md` (what existed), `01-plan.md` (what was decided), `decisions.md` (D-TPL-1..24), `evidence/` (every screenshot named below).
 Everything below is verified unless marked **NV**. Paths under `web/`.
 
 ---
@@ -53,6 +53,10 @@ Dev/QA helper (dev + preview only, staff of that workspace): `POST /api/dev/comp
 
 Table `platform_stock_images` (migration `20260916000356`, applied). Bytes stay on `media_assets` rows of the `tulala` tenant (so no tenant cap is touched). Read: `lib/media/platform-stock.ts` `queryLifestyleStockForType` (type → family → universal pack `custom`). Write: `lib/media/platform-stock-admin.server.ts` (≤ 300 KB via sharp, row-first, soft retire). Admin: `/platform/admin/stock`. Tenant view: Media page → "Lifestyle stock / Fotos de estilo de vida" (virtual, read-only). Manifest in git: `docs/plans/templates/stock-manifest.json` (`scripts/export-stock-manifest.ts`). Seeded today: **14 photos, universal pack only** (`scripts/seed-stock-universal-pack.ts`), licence line "platform-owned marketing asset; provenance not recorded in repo (owner to confirm)".
 
+## 4b. The compose stamp (onboarding v3.2)
+
+`agencies.settings.site_compose` on every outcome: `{ outcome, siteComposeId, lookId, typeId, family, at, pageIds, placed: { photos: { hero, gallery, level }, menuItems, hoursPresent, whatsappPresent, logoPresent }, copySource, notes }`. `photos.hero` is `owner | type | family | universal`; claim photos only on `type` (D-TPL-23). After the logo lands: `rethemeSiteAfterLogo(admin, { tenantId })` (D-TPL-24).
+
 ## 5. Acceptance
 
 `docs/plans/templates/evidence/acceptance/index.md` (+ `acceptance.json`, JPEGs per site). Harness: `scripts/acceptance-run.mts` over `scripts/acceptance-cases.json` (48 cases + F1 home cleaner Cancún, F2 nail salon 4-person team Playa, F3 Parrilla El Paisa with only the two facts the live brief holds). Tenant: `tpl-qa-studio` (created by `scripts/seed-templates-qa-tenant.mjs`, owner qa-admin; never a real tenant).
@@ -61,7 +65,8 @@ RESULTS_PLACEHOLDER
 
 ## 6. What is still missing (honest)
 
-1. **Shell render flag.** A composed shell renders only where `ENABLE_SITE_SHELL` / `SITE_SHELL_TENANT_IDS` admit the tenant (code launch list = Impronta only). Elsewhere the legacy TULALA header shows over the Look pages. Owner's switch; not changed (D-TPL-20).
+0. **LAUNCH PREREQUISITE — shell render flag.** New tenants see the Look header only where `ENABLE_SITE_SHELL=all` (or `tenants` + `SITE_SHELL_TENANT_IDS`) admits them; today production admits only the code launch list (Impronta). Owner's production switch; not changed by this program (D-TPL-20).
+1. **Front Door dependency**: `src/app/(public)/_chat/AgencyChatLauncherMount.tsx:107` falls back to the literal "the agency" when `agency_business_identity.public_name` is missing; the composer now seeds that row, but the literal belongs to Front Door's preset-voice work.
 2. **Stock coverage.** 14 universal photos, no per-family or per-type packs: no OpenAI key in this environment and no supplier account, so `/platform/admin/stock` "Generate" refuses honestly and licensed supply stops at the owner (D-TPL-7, D-TPL-15). The admin section, manifest and delivery are ready for the day a key or a supplier exists. Provenance of the 14 marketing photos must be confirmed by the owner.
 3. **Super-admin surfaces unclicked by me**: `/platform/admin/stock`, the Lab Looks page (`/platform/admin/builder-lab/looks`) and its import panel. Their reads/writes are the modules the tenant lane, the composer and the tests exercise; the gating fixture (`qa-admin`) is deliberately not a super admin.
 4. **"N new photos" badge** on the tenant Media lane: deferred; the shelf itself refreshes on every open.
