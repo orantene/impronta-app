@@ -56,7 +56,7 @@ test("loadSessionPools hands the SERVICE-ROLE client to the peak read after the 
   );
   const fn = src.slice(src.indexOf("export async function loadSessionPools("), src.indexOf("export async function setSessionPoolUnits("));
   assert.match(fn, /requireWorkspaceStaffAction\(\)/);
-  assert.match(fn, /buildSessionPoolRows\(\s*createServiceRoleClient\(\)/);
+  assert.match(fn, /const admin = createServiceRoleClient\(\);[\s\S]*?buildSessionPoolRows\(\s*admin,/);
   assert.doesNotMatch(fn, /supabase\.rpc\("capacity_pool_committed_peak"/);
   // The elevated call is safe because the pools it reads are the tenant's.
   assert.match(fn, /from\("capacity_pools"\)[^\n]*\.eq\("tenant_id", tenantId\)/);

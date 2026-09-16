@@ -504,8 +504,10 @@ export async function loadSessionPools(sessionId: string): Promise<{ ok: true; r
     ]);
     if (vErr) { logServerError("events.sessionPools/variants", vErr); return { ok: false, error: "Could not load ticket tiers." }; }
     if (pErr) { logServerError("events.sessionPools/pools", pErr); return { ok: false, error: "Could not load capacity." }; }
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Could not load capacity for this night." };
     const rows = await buildSessionPoolRows(
-      createServiceRoleClient(),
+      admin,
       (variants ?? []) as SessionPoolVariant[],
       (pools ?? []) as SessionPoolPool[],
     );
