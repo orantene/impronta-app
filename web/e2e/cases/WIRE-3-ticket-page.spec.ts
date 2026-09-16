@@ -71,12 +71,12 @@ test("WIRE-3.9 /ticket/<code>: transfer supersedes the old code at the gate, res
     await page.getByLabel(/email/i).last().fill(`nobody-${stamp}@impronta.test`);
     await page.getByLabel("Last four of the receipt").fill("0000");
     await page.getByTestId("ticket-lookup").click();
-    await expect(page.getByRole("alert")).toHaveText(WIRE_SENTENCE.notFound, { timeout: 60_000 });
+    await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toHaveText(WIRE_SENTENCE.notFound, { timeout: 60_000 });
     for (let i = 0; i < 9; i += 1) {
       await page.getByTestId("ticket-lookup").click();
       await page.waitForTimeout(300);
     }
-    await expect(page.getByRole("alert")).toHaveText(WIRE_SENTENCE.tooManyAttempts, { timeout: 60_000 });
+    await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toHaveText(WIRE_SENTENCE.tooManyAttempts, { timeout: 60_000 });
 
     // The old code at the door's gate: superseded.
     await signInJourneysStaff(page, "/admin/pos?mode=door");
