@@ -5216,6 +5216,7 @@
           "yes": "Sí",
           "no": "No",
           "none": "Ninguno",
+          "all": "Todos",
           "untracked": "–"
         },
         "actions": {
@@ -16890,6 +16891,7 @@
         "details": "Detalles",
         "pricing": "Precios",
         "options": "Opciones",
+        "who": "Quién lo realiza",
         "availability": "Disponibilidad",
         "fulfillment": "Entrega",
         "channels": "Canales",
@@ -18652,7 +18654,7 @@
           "removed": "Retirado",
           "noContact": "Sin correo registrado",
           "pinSet": "Configurado",
-          "pinNone": "Sin PIN",
+          "pinNone": "Sin definir",
           "pinWhy": "el punto de venta no tiene PIN"
         },
         "empty": {
@@ -18958,6 +18960,25 @@
         "posTitle": "Permisos del POS",
         "posSub": "Se aplican cuando {name} abre nuestro POS desde el enlace de profesional · no hace falta rol en el espacio",
         "posOff": "Los permisos del punto de venta por persona todavía no se guardan; el rol de Acceso decide lo que permite el POS.",
+        "nav": {
+          "status": "Estado",
+          "services": "Servicios aquí",
+          "hours": "Horario y ubicaciones",
+          "requirements": "Requisitos",
+          "limits": "Límites del brief",
+          "pos": "Permisos del POS",
+          "pay": "Pago",
+          "editor": "Editor del perfil",
+          "role": "Rol e inicio de sesión"
+        },
+        "hoursTable": {
+          "day": "Día",
+          "hours": "Horario",
+          "breaks": "Pausas",
+          "off": "Cerrado",
+          "edit": "Editar horario",
+          "breaksWhy": "Las pausas no se guardan; toda la ventana es reservable."
+        },
         "pos": {
           "completeOwn": "Puede completar sus propios trabajos",
           "completeOwnHelp": "Marcar hecho, añadir extras acordados",

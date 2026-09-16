@@ -8,12 +8,12 @@
  * whose title says what is not tracked, never an invented value.
  */
 
-import { StatePill, UsedIn } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
+import { UsedIn } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { personNameOr } from "@/lib/people/display-name";
 import type { PersonRecord } from "@/lib/people/hats";
-import { Callout, FactsCard, HatChip, MutedChip, PersonCell, RowMenuButton, TD, TD_MUTED, Table } from "./people-ui";
+import { BlockPill, Callout, FactsCard, HatChip, MutedChip, PersonCell, RowMenuButton, TD, TD_MUTED, Table } from "./people-ui";
 import { describeOpenDays, hatsWorn } from "./people-views";
 
 const K = "admin.people";
@@ -38,7 +38,8 @@ function NotTracked({ why }: { why: string }) {
 function OtherHats({ person, except }: { person: PersonRecord; except: readonly string[] }) {
   const t = useT();
   const hats = hatsWorn(person).filter((h) => !except.includes(h));
-  if (hats.length === 0) return <MutedChip>{t(`${B}.cell.accessOnly`)}</MutedChip>;
+  // The board writes "Access only" as plain muted words, not a chip: it is the absence of a hat.
+  if (hats.length === 0) return <span className="text-admin-ink-muted">{t(`${B}.cell.accessOnly`)}</span>;
   return (
     <span className="flex flex-wrap gap-[4px]">
       {hats.map((h) => (
@@ -48,14 +49,15 @@ function OtherHats({ person, except }: { person: PersonRecord; except: readonly 
   );
 }
 
+/** The board's status cell: the block pill that fills its column. */
 function StatusCell({ person }: { person: PersonRecord }) {
   const t = useT();
   const status = person.facts.membershipStatus;
-  if (status === "active") return <StatePill tone="green">{t(`${B}.cell.active`)}</StatePill>;
-  if (status === "invited" || status === "pending_acceptance") return <StatePill tone="coral">{t(`${B}.cell.invited`)}</StatePill>;
-  if (status === "suspended") return <StatePill tone="critical">{t(`${B}.cell.suspended`)}</StatePill>;
-  if (status === "removed") return <StatePill tone="slate">{t(`${B}.cell.removed`)}</StatePill>;
-  return <StatePill tone="slate">{t(`${K}.off`)}</StatePill>;
+  if (status === "active") return <BlockPill tone="green">{t(`${B}.cell.active`)}</BlockPill>;
+  if (status === "invited" || status === "pending_acceptance") return <BlockPill tone="coral">{t(`${B}.cell.invited`)}</BlockPill>;
+  if (status === "suspended") return <BlockPill tone="critical">{t(`${B}.cell.suspended`)}</BlockPill>;
+  if (status === "removed") return <BlockPill tone="slate">{t(`${B}.cell.removed`)}</BlockPill>;
+  return <BlockPill tone="slate">{t(`${K}.off`)}</BlockPill>;
 }
 
 export function EveryoneTable({ people, selectedKey, onOpen }: TableProps) {
@@ -155,7 +157,7 @@ export function BookableTable({ people, selectedKey, onOpen }: TableProps) {
                 <td className={TD}>
                   <NotTracked why={t(`${B}.cell.payWhy`)} />
                 </td>
-                <td className={`${TD} w-[40px] text-right`}>
+                <td className={`${TD} w-[36px] text-right`}>
                   <RowMenuButton label={interpolate(t(`${B}.actions.rowMenu`), { name })} onClick={() => onOpen(p.key)} />
                 </td>
               </tr>
@@ -214,19 +216,20 @@ export function AccessTable({ people, selectedKey, onOpen, registerPinUserIds = 
                   <OtherHats person={p} except={["access"]} />
                 </td>
                 <td className={TD} data-people-pin={p.accountId && registerPinUserIds.includes(p.accountId) ? "set" : "none"}>
+                  {/* The board's words, "Set" / "Not set", as plain text in the row's ink. */}
                   {p.accountId && registerPinUserIds.includes(p.accountId) ? (
-                    <StatePill tone="green">{t(`${B}.cell.pinSet`)}</StatePill>
+                    <span>{t(`${B}.cell.pinSet`)}</span>
                   ) : (
-                    <span className="text-admin-ink-dim">{t(`${B}.cell.pinNone`)}</span>
+                    <span className="text-admin-ink-muted">{t(`${B}.cell.pinNone`)}</span>
                   )}
                 </td>
                 <td className={TD}>
                   <NotTracked why={t(`${B}.cell.drawerWhy`)} />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} w-[132px]`}>
                   <StatusCell person={p} />
                 </td>
-                <td className={`${TD} w-[40px] text-right`}>
+                <td className={`${TD} w-[36px] text-right`}>
                   <RowMenuButton label={interpolate(t(`${B}.actions.rowMenu`), { name })} onClick={() => onOpen(p.key)} />
                 </td>
               </tr>

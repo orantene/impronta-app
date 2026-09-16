@@ -1167,6 +1167,7 @@
           "yes": "Oui",
           "no": "Non",
           "none": "Aucun",
+          "all": "Tous",
           "untracked": "–"
         },
         "actions": {
@@ -5808,6 +5809,7 @@
         "details": "Détails",
         "pricing": "Tarifs",
         "options": "Options",
+        "who": "Qui l'exécute",
         "availability": "Disponibilité",
         "fulfillment": "Exécution",
         "channels": "Canaux",
@@ -7039,7 +7041,7 @@
           "removed": "Retiré",
           "noContact": "Pas d'e-mail enregistré",
           "pinSet": "Défini",
-          "pinNone": "Aucun",
+          "pinNone": "Non défini",
           "pinWhy": "le point de vente n'a pas de PIN"
         },
         "empty": {
@@ -7345,6 +7347,25 @@
         "posTitle": "Permissions POS",
         "posSub": "S'appliquent quand {name} ouvre notre POS depuis le lien professionnel · aucun rôle dans l'espace requis",
         "posOff": "Les permissions du point de vente par personne ne sont pas encore enregistrées ; le rôle d'Accès décide de ce que le POS autorise.",
+        "nav": {
+          "status": "Statut",
+          "services": "Services ici",
+          "hours": "Horaires et lieux",
+          "requirements": "Exigences",
+          "limits": "Limites du brief",
+          "pos": "Permissions POS",
+          "pay": "Rémunération",
+          "editor": "Éditeur du profil",
+          "role": "Rôle et connexion"
+        },
+        "hoursTable": {
+          "day": "Jour",
+          "hours": "Horaires",
+          "breaks": "Pauses",
+          "off": "Fermé",
+          "edit": "Modifier les horaires",
+          "breaksWhy": "Les pauses ne sont pas enregistrées ; toute la plage est réservable."
+        },
         "pos": {
           "completeOwn": "Peut terminer ses propres missions",
           "completeOwnHelp": "Marquer terminé, ajouter les extras convenus",
