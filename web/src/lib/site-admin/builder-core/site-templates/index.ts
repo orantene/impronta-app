@@ -30,3 +30,6 @@ export { toPortableLook, parsePortableLook, type PortableLook } from "./portable
 export { DEFAULT_LOOK_BY_FAMILY } from "./look-defaults";
 export { themePatchFromPalette } from "./theme-from-palette";
 export { buildCopyPassPrompt, screenCopyReply, screenCopyValue, COPY_PASS_KEYS } from "./copy-pass";
+// Server-only modules (composer, shell writer, logo re-theme, site_looks) are
+// NOT re-exported here: this barrel is imported by client components.
+export type { ComposeSiteInput, ComposeSiteResult, ComposeOutcome, SiteComposeStamp, SiteComposePlaced } from "./compose-site-from-brief.server";

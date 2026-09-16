@@ -67,7 +67,7 @@ const page = await browser.newPage();
 await page.goto(`${base}/api/dev/signin?email=${encodeURIComponent(email)}&next=/`, { waitUntil: "commit", timeout: 120_000 });
 await page.waitForLoadState("domcontentloaded", { timeout: 120_000 });
 
-type Row = { id: string; type: string; family: string; look: string; outcome: string; copySource: string; picks: { owner: number; stock: number; none: number }; durationMs: number; costUsd: number; calls: number; failed: number; notes: string[]; siteComposeId: string; shots: string[] };
+type Row = { id: string; type: string; family: string; look: string; outcome: string; copySource: string; picks: { owner: number; stock: number; none: number }; heroLevel: string; heroSrc: string; durationMs: number; costUsd: number; calls: number; failed: number; notes: string[]; siteComposeId: string; shots: string[] };
 // Resume: a run that died keeps its finished rows (the harness is ~50 min for 102 sites).
 const previous = existsSync(join(out, "acceptance.json")) ? (JSON.parse(readFileSync(join(out, "acceptance.json"), "utf8")) as Row[]) : [];
 const rows: Row[] = previous.filter((r) => r.outcome !== "failed" && !r.outcome.startsWith("http") && r.shots.length === 4);
@@ -86,7 +86,8 @@ for (const c of cases) {
       },
       { body: { tenantSlug: tenant, lookId: look, publish: true, overwrite: true, resetFacts: true, facts: factsFor(c) } },
     );
-    const j = (res.json ?? {}) as { outcome?: string; copySource?: string; imagePicks?: Row["picks"]; durationMs?: number; costUsd?: number; notes?: string[]; siteComposeId?: string; family?: string };
+    const j = (res.json ?? {}) as { outcome?: string; copySource?: string; imagePicks?: Row["picks"]; durationMs?: number; costUsd?: number; notes?: string[]; siteComposeId?: string; family?: string; placed?: { photos?: { hero?: string | null } } };
+    let heroSrc = "";
     const dir = join(out, `${c.id}--${c.type}--${look}`);
     mkdirSync(dir, { recursive: true });
     const shots: string[] = [];
@@ -97,10 +98,15 @@ for (const c of cases) {
           const file = join(dir, `${label}-${w}.jpg`);
           await shot(page, `${base}${path}`, file, w, full);
           shots.push(`${c.id}--${c.type}--${look}/${label}-${w}.jpg`);
+          if (label === "home" && !heroSrc) {
+            // The first image in <main> is the hero; its underlying asset identifies the stock photo.
+            const raw = (await page.locator("main img").first().getAttribute("src").catch(() => null)) ?? "";
+            heroSrc = decodeURIComponent(raw.match(/url=([^&]+)/)?.[1] ?? raw).replace(/^.*\/stock\//, "");
+          }
         }
       }
     }
-    rows.push({ id: c.id, type: c.type, family: j.family ?? family, look, outcome: res.status === 200 ? (j.outcome ?? "failed") : `http ${res.status}`, copySource: j.copySource ?? "-", picks: j.imagePicks ?? { owner: 0, stock: 0, none: 0 }, durationMs: j.durationMs ?? Date.now() - started, costUsd: j.costUsd ?? 0, calls: 0, failed: 0, notes: j.notes ?? [], siteComposeId: j.siteComposeId ?? "", shots });
+    rows.push({ id: c.id, type: c.type, family: j.family ?? family, look, outcome: res.status === 200 ? (j.outcome ?? "failed") : `http ${res.status}`, copySource: j.copySource ?? "-", picks: j.imagePicks ?? { owner: 0, stock: 0, none: 0 }, heroLevel: j.placed?.photos?.hero ?? "-", heroSrc, durationMs: j.durationMs ?? Date.now() - started, costUsd: j.costUsd ?? 0, calls: 0, failed: 0, notes: j.notes ?? [], siteComposeId: j.siteComposeId ?? "", shots });
     console.log(`${c.id} ${c.type} ${look}: ${rows[rows.length - 1].outcome} ${j.copySource ?? ""} ${j.durationMs ?? "?"}ms $${(j.costUsd ?? 0).toFixed(4)}`);
     writeFileSync(join(out, "acceptance.json"), JSON.stringify(rows, null, 2));
   }
@@ -120,6 +126,13 @@ for (const r of rows) {
 writeFileSync(join(out, "acceptance.json"), JSON.stringify(rows, null, 2));
 
 const total = rows.reduce((n, r) => n + r.costUsd, 0);
+// Per-type hero distinctness (the onboarding designer's assertion): a hero
+// shared by two TYPES is a generic photo, not "theirs".
+const heroByType = new Map<string, Set<string>>();
+for (const r of rows) if (r.heroSrc) heroByType.set(r.heroSrc, new Set([...(heroByType.get(r.heroSrc) ?? []), r.type]));
+const types = new Set(rows.map((r) => r.type));
+const sharedHeroes = [...heroByType.entries()].filter(([, t]) => t.size > 1);
+const heroFromTypePack = rows.filter((r) => r.heroLevel === "type").length;
 const byOutcome = rows.reduce<Record<string, number>>((m, r) => ({ ...m, [r.outcome]: (m[r.outcome] ?? 0) + 1 }), {});
 const md = [
   "# Acceptance run",
@@ -128,9 +141,11 @@ const md = [
   "",
   `Outcomes: ${Object.entries(byOutcome).map(([k, v]) => `${k} ${v}`).join(" · ")} · model copy ${rows.filter((r) => r.copySource === "model").length}/${rows.length} · total cost $${total.toFixed(4)} · mean $${(total / Math.max(1, rows.length)).toFixed(4)} · mean ${Math.round(rows.reduce((n, r) => n + r.durationMs, 0) / Math.max(1, rows.length))} ms · max ${Math.max(...rows.map((r) => r.durationMs))} ms`,
   "",
-  "| Case | Type | Look | Outcome | Copy | Images (owner/stock/none) | ms | Calls (failed) | Cost $ | Notes |",
-  "|---|---|---|---|---|---|---|---|---|---|",
-  ...rows.map((r) => `| ${r.id} | ${r.type} | ${r.look} | ${r.outcome} | ${r.copySource} | ${r.picks.owner}/${r.picks.stock}/${r.picks.none} | ${r.durationMs} | ${r.calls} (${r.failed}) | ${r.costUsd.toFixed(4)} | ${r.notes.filter((n) => !/^locale /.test(n)).join("; ")} |`),
+  `Hero assertion (no two types share a hero asset; hero from the TYPE pack): ${sharedHeroes.length === 0 && heroFromTypePack === rows.length ? "PASS" : "FAIL"} · distinct hero assets ${heroByType.size} across ${types.size} types · hero from type pack ${heroFromTypePack}/${rows.length}${sharedHeroes.length ? ` · shared: ${sharedHeroes.map(([src, t]) => `${src.slice(0, 8)}… (${t.size} types)`).join(", ")}` : ""}`,
+  "",
+  "| Case | Type | Look | Outcome | Copy | Images (owner/stock/none) | Hero level | ms | Calls (failed) | Cost $ | Notes |",
+  "|---|---|---|---|---|---|---|---|---|---|---|",
+  ...rows.map((r) => `| ${r.id} | ${r.type} | ${r.look} | ${r.outcome} | ${r.copySource} | ${r.picks.owner}/${r.picks.stock}/${r.picks.none} | ${r.heroLevel} | ${r.durationMs} | ${r.calls} (${r.failed}) | ${r.costUsd.toFixed(4)} | ${r.notes.filter((n) => !/^locale /.test(n)).join("; ")} |`),
   "",
   "Screenshots: `<case>--<type>--<look>/home-{1440,390}.jpg` (header + hero, viewport) and `inner-{1440,390}.jpg` (catalogue page, full).",
 ];

@@ -106,12 +106,14 @@ function hero(r: LookRecipe): BuilderNode[] {
       { gap: "m", align },
     );
   switch (r.hero) {
+    // Boxed heroes take their height from their content: a min-height with
+    // vertical centring left a ~200px void under the header at 1440.
     case "left":
-      return [section(r, [copyStack("start"), picture(r, "hero", "21:9", {}, true)], { background: r.heroBand, style: { minHeight: r.heroMinHeight } })];
+      return [section(r, [copyStack("start"), picture(r, "hero", "21:9", {}, true)], { background: r.heroBand })];
     case "centered":
-      return [section(r, [copyStack("center"), picture(r, "hero", "16:9", {}, true)], { background: r.heroBand, align: "center", style: { minHeight: r.heroMinHeight } })];
+      return [section(r, [copyStack("center"), picture(r, "hero", "16:9", {}, true)], { background: r.heroBand, align: "center" })];
     case "split":
-      return [section(r, [split(copyStack("start"), picture(r, "hero", "1:1", {}, true), "50-50")], { background: r.heroBand, style: { minHeight: r.heroMinHeight } })];
+      return [section(r, [split(copyStack("start"), picture(r, "hero", "1:1", {}, true), "50-50")], { background: r.heroBand })];
     case "fullbleed":
       return [
         {

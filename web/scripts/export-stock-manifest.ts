@@ -38,6 +38,9 @@ async function main() {
     exportedAt: new Date().toISOString(),
     total: rows.length,
     live: rows.filter((r) => !(r as { retired_at: string | null }).retired_at).length,
+    /** Flat list, one row per photo (the shape a reader expects first). */
+    rows,
+    /** The same rows grouped `family/business_type` (`_family` = the family pack). */
     packs: Object.fromEntries([...byType.entries()]),
   };
   const dest = resolve("../docs/plans/templates/stock-manifest.json");

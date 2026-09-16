@@ -21,7 +21,11 @@ export interface CandidateImage {
   role?: ImageRole | null;
   /** Owner uploads outrank stock regardless of fit. */
   owner: boolean;
+  /** Which pack a stock photo came from; "owner" for the tenant's own media. */
+  level?: "owner" | "type" | "family" | "universal";
 }
+
+export type ImagePickLevel = "owner" | "type" | "family" | "universal";
 
 function fitScore(c: CandidateImage, role: ImageRole): number {
   if (c.role === role) return 3;
@@ -46,10 +50,10 @@ function fitScore(c: CandidateImage, role: ImageRole): number {
  */
 export function buildImageResolver(candidates: ReadonlyArray<CandidateImage>): {
   resolve: ImageResolver;
-  picks: Array<{ slot: ImageSlotKey; source: "owner" | "stock" | "none"; src: string | null }>;
+  picks: Array<{ slot: ImageSlotKey; source: "owner" | "stock" | "none"; level: ImagePickLevel | null; src: string | null }>;
 } {
   const used = new Set<string>();
-  const picks: Array<{ slot: ImageSlotKey; source: "owner" | "stock" | "none"; src: string | null }> = [];
+  const picks: Array<{ slot: ImageSlotKey; source: "owner" | "stock" | "none"; level: ImagePickLevel | null; src: string | null }> = [];
   const resolve: ImageResolver = (slot, role) => {
     const ranked = [...candidates]
       // Unused owner > unused stock > a photo already placed (an owner's one
@@ -58,11 +62,11 @@ export function buildImageResolver(candidates: ReadonlyArray<CandidateImage>): {
       .sort((a, b) => b.score - a.score);
     const best = ranked[0]?.c ?? null;
     if (!best) {
-      picks.push({ slot, source: "none", src: null });
+      picks.push({ slot, source: "none", level: null, src: null });
       return null;
     }
     used.add(best.src);
-    picks.push({ slot, source: best.owner ? "owner" : "stock", src: best.src });
+    picks.push({ slot, source: best.owner ? "owner" : "stock", level: best.owner ? "owner" : (best.level ?? "universal"), src: best.src });
     const out: ResolvedImage = { src: best.src, alt: best.alt };
     return out;
   };

@@ -14,6 +14,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { queryLifestyleStockForType, type LifestyleStockPhoto } from "@/lib/media/platform-stock";
 import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-templates/tenant-business-type";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { businessTypeById } from "@/lib/words/business-types";
 import { logServerError } from "@/lib/server/safe-error";
 
 type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -22,6 +23,8 @@ export interface LifestyleStockShelf {
   typeId: string;
   family: string;
   source: "business_type_id" | "industry_preset" | "default";
+  /** Human label in the dashboard locale, or null when the type is unset (never an id). */
+  typeLabel: string | null;
   photos: LifestyleStockPhoto[];
 }
 
@@ -42,5 +45,7 @@ export async function actionListLifestyleStock(): Promise<ActionResult<Lifestyle
   }
   const type = resolveTenantBusinessType(agency?.settings ?? null);
   const photos = await queryLifestyleStockForType(admin, { businessType: type.typeId, family: type.family });
-  return { ok: true, data: { typeId: type.typeId, family: type.family, source: type.source, photos } };
+  const row = type.source === "default" ? null : businessTypeById(type.typeId);
+  const typeLabel = row ? row.label.es : null;
+  return { ok: true, data: { typeId: type.typeId, family: type.family, source: type.source, typeLabel, photos } };
 }

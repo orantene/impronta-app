@@ -161,8 +161,17 @@ function resolveText(raw: string, ctx: WalkCtx): { primary: string; other: strin
       ctx.issues.push(`${ctx.page}: copy key "${m[1]}" has no text`);
       return null;
     }
-    const primary = resolveIdentityTemplate(pair[locale], identity);
-    const other = resolveIdentityTemplate(pair[OTHER_LOCALE[locale]], identity);
+    let primary = resolveIdentityTemplate(pair[locale], identity);
+    let other = resolveIdentityTemplate(pair[OTHER_LOCALE[locale]], identity);
+    if (!primary) {
+      // A slot whose optional fact is missing ships its `.fallback` line (a
+      // neutral sentence, never a fact) instead of an empty node.
+      const fb = lookupCopy(`${m[1]}.fallback`, look, copyOverrides);
+      if (fb) {
+        primary = resolveIdentityTemplate(fb[locale], identity);
+        other = resolveIdentityTemplate(fb[OTHER_LOCALE[locale]], identity);
+      }
+    }
     return primary ? { primary, other, wasMarker: true } : null;
   }
   if (raw.includes("{{")) {

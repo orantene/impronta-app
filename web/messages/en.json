@@ -11719,7 +11719,7 @@
       "stock": {
         "nav": "Lifestyle stock",
         "title": "Lifestyle stock",
-        "subtitle": "Photos for a {type} ({family}) business, provided by the platform. Use them anywhere on your site; upload your own to replace them.",
+        "subtitle": "Photos for a {type}, provided by the platform. Use them anywhere on your site; upload your own to replace them.",
         "loading": "Loading the shelf…",
         "readOnly": "Shared · read-only",
         "empty": "No stock photos for this business type yet.",
@@ -11733,7 +11733,8 @@
           "gallery": "Gallery",
           "team": "Team",
           "detail": "Detail"
-        }
+        },
+        "subtitleGeneric": "Photos for your business, provided by the platform. Use them anywhere on your site; upload your own to replace them."
       }
     },
     "adminPitchCompose": {

@@ -11719,7 +11719,7 @@
       "stock": {
         "nav": "Fotos de estilo de vida",
         "title": "Fotos de estilo de vida",
-        "subtitle": "Fotos para un negocio de tipo {type} ({family}), provistas por la plataforma. Úsalas en cualquier parte de tu sitio; sube las tuyas para reemplazarlas.",
+        "subtitle": "Fotos para un negocio de tipo {type}, provistas por la plataforma. Úsalas en cualquier parte de tu sitio; sube las tuyas para reemplazarlas.",
         "loading": "Cargando…",
         "readOnly": "Compartidas · solo lectura",
         "empty": "Aún no hay fotos para este tipo de negocio.",
@@ -11733,7 +11733,8 @@
           "gallery": "Galería",
           "team": "Equipo",
           "detail": "Detalle"
-        }
+        },
+        "subtitleGeneric": "Fotos para tu negocio, provistas por la plataforma. Úsalas en cualquier parte de tu sitio; sube las tuyas para reemplazarlas."
       }
     },
     "adminPitchCompose": {

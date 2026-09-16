@@ -76,10 +76,34 @@ export interface ComposeSiteResult {
   shellPageId: string | null;
   copySource: "model" | "defaults";
   imagePicks: { owner: number; stock: number; none: number };
+  /** What the arrival screen may claim (onboarding v3.2): only what was really placed. */
+  placed: SiteComposePlaced;
   /** Everything that made this less than `composed`, in plain words. */
   notes: string[];
   costUsd: number;
   durationMs: number;
+}
+
+export interface SiteComposePlaced {
+  photos: { hero: "owner" | "type" | "family" | "universal" | null; gallery: number; level: "owner" | "type" | "family" | "universal" | null };
+  menuItems: number;
+  hoursPresent: boolean;
+  whatsappPresent: boolean;
+  logoPresent: boolean;
+}
+
+/** The stamp written to `agencies.settings.site_compose` on every outcome. */
+export interface SiteComposeStamp {
+  outcome: ComposeOutcome;
+  siteComposeId: string;
+  lookId: string;
+  typeId: string;
+  family: string;
+  at: string;
+  pageIds: Partial<Record<SitePageRole, string>>;
+  placed: SiteComposePlaced;
+  copySource: "model" | "defaults";
+  notes: string[];
 }
 
 /** Nav labels per family: what the catalogue and the transaction ARE for this kind of business. */
@@ -235,34 +259,54 @@ async function ensureNav(admin: SupabaseClient, input: { tenantId: string; local
   await admin.from("cms_navigation_items").insert(input.items.map((it, i) => ({ tenant_id: input.tenantId, locale: input.locale, zone: "header", label: it.label, href: it.href, sort_order: i, visible: true })));
 }
 
+async function writeStamp(admin: SupabaseClient, tenantId: string, stamp: SiteComposeStamp): Promise<void> {
+  try {
+    const { data, error } = await admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle<{ settings: unknown }>();
+    if (error) throw error;
+    const settings = (data?.settings && typeof data.settings === "object" ? data.settings : {}) as Record<string, unknown>;
+    const { error: upErr } = await admin.from("agencies").update({ settings: { ...settings, site_compose: stamp } }).eq("id", tenantId);
+    if (upErr) throw upErr;
+  } catch (error) {
+    logServerError("compose.stamp", error);
+  }
+}
+
+const EMPTY_PLACED: SiteComposePlaced = { photos: { hero: null, gallery: 0, level: null }, menuItems: 0, hoursPresent: false, whatsappPresent: false, logoPresent: false };
+
 // ── Main ────────────────────────────────────────────────────────────────────
 
 export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<ComposeSiteResult> {
   const started = Date.now();
   const siteComposeId = randomUUID();
   const notes: string[] = [];
-  const fail = (why: string, partial: Partial<ComposeSiteResult> = {}): ComposeSiteResult => ({
-    outcome: "failed",
-    siteComposeId,
-    lookId: partial.lookId ?? "",
-    typeId: partial.typeId ?? "custom",
-    family: partial.family ?? "custom",
-    pageIds: partial.pageIds ?? {},
-    shellPageId: partial.shellPageId ?? null,
-    copySource: partial.copySource ?? "defaults",
-    imagePicks: partial.imagePicks ?? { owner: 0, stock: 0, none: 0 },
-    notes: [...notes, why],
-    costUsd: 0,
-    durationMs: Date.now() - started,
-  });
-
   const admin = createServiceRoleClient();
+  const fail = (why: string, partial: Partial<ComposeSiteResult> = {}): ComposeSiteResult => {
+    const result: ComposeSiteResult = {
+      outcome: "failed",
+      siteComposeId,
+      lookId: partial.lookId ?? "",
+      typeId: partial.typeId ?? "custom",
+      family: partial.family ?? "custom",
+      pageIds: partial.pageIds ?? {},
+      shellPageId: partial.shellPageId ?? null,
+      copySource: partial.copySource ?? "defaults",
+      imagePicks: partial.imagePicks ?? { owner: 0, stock: 0, none: 0 },
+      placed: partial.placed ?? EMPTY_PLACED,
+      notes: [...notes, why],
+      costUsd: 0,
+      durationMs: Date.now() - started,
+    };
+    // The stamp is written on EVERY outcome so the arrival screen and the
+    // workspace card can read it without re-calling (onboarding v3.2).
+    if (admin) void writeStamp(admin, input.tenantId, { outcome: "failed", siteComposeId, lookId: result.lookId, typeId: result.typeId, family: result.family, at: new Date().toISOString(), pageIds: result.pageIds, placed: result.placed, copySource: result.copySource, notes: result.notes });
+    return result;
+  };
   if (!admin) return fail("service role client unavailable");
 
   // 1. Who is this business.
   const { data: agency, error: agencyErr } = await admin.from("agencies").select("id, slug, display_name, settings, workspace_type, supported_locales").eq("id", input.tenantId).maybeSingle<{ id: string; slug: string; display_name: string | null; settings: unknown; workspace_type: string | null; supported_locales: string[] | null }>();
   if (agencyErr || !agency) return fail(`tenant not found: ${agencyErr?.message ?? input.tenantId}`);
-  const identityRow = await loadIdentityForStaff(admin, input.tenantId);
+  let identityRow = await loadIdentityForStaff(admin, input.tenantId);
   // The site is written in the tenant's own default locale: a home written in
   // a locale the storefront never requests is a home nobody sees.
   const tenantLocale = identityRow?.default_locale ?? agency.supported_locales?.[0] ?? null;
@@ -306,6 +350,15 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
 
   // 4. Identity (facts first, then the identity row, then the agency row).
   const businessName = (facts ? stringFact(facts, "business.name") : null)?.trim() || identityRow?.public_name?.trim() || agency.display_name?.trim() || agency.slug;
+  // The chat launcher, the shell and the SEO title all read
+  // `agency_business_identity.public_name`; a tenant provisioned without one
+  // would greet visitors as "the agency". Seed it with the name we are about
+  // to put on the site (never overwriting a row that exists).
+  if (!identityRow) {
+    const { error: idErr } = await admin.from("agency_business_identity").upsert({ tenant_id: input.tenantId, public_name: businessName }, { onConflict: "tenant_id", ignoreDuplicates: true });
+    if (idErr) notes.push(`identity row not seeded: ${idErr.message}`);
+    identityRow = await loadIdentityForStaff(admin, input.tenantId);
+  }
   const logoUrl = await resolveLogoUrl(admin, input.tenantId, facts);
   const hrefs = pageHrefsFor(family);
   const identity: SiteIdentity = {
@@ -332,8 +385,16 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   // 6. Images: owner media, then stock for the type.
   const [owner, stock] = await Promise.all([loadOwnerImages(admin, input.tenantId), queryLifestyleStockForType(admin, { businessType: typeId, family })]);
   const { resolve: images, picks } = buildImageResolver([
-    ...owner,
-    ...stock.map<CandidateImage>((s) => ({ src: s.url, width: s.width, height: s.height, alt: s.alt, role: s.role, owner: false })),
+    ...owner.map((o) => ({ ...o, level: "owner" as const })),
+    ...stock.map<CandidateImage>((s) => ({
+      src: s.url,
+      width: s.width,
+      height: s.height,
+      alt: s.alt,
+      role: s.role,
+      owner: false,
+      level: s.businessType ? "type" : s.family === family ? "family" : "universal",
+    })),
   ]);
   if (stock.length === 0 && owner.length === 0) notes.push("no owner media and no stock for this type");
 
@@ -492,5 +553,18 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   const outcome: ComposeOutcome = degraded ? "fallback_used" : !logoUrl ? "missing_logo" : "composed";
   if (!logoUrl) notes.push("no logo; the wordmark carries the header");
 
-  return { outcome, siteComposeId, lookId: look.id, typeId, family, pageIds, shellPageId: shell.ok ? shell.pageId : null, copySource, imagePicks, notes, costUsd, durationMs: Date.now() - started };
+  // What was REALLY placed, so the arrival copy claims nothing more.
+  const heroPick = picks.find((p) => p.slot === "hero");
+  const levelRank = { owner: 0, type: 1, family: 2, universal: 3 } as const;
+  const worst = picks.filter((p) => p.level).map((p) => p.level as keyof typeof levelRank).sort((a, b) => levelRank[b] - levelRank[a])[0] ?? null;
+  const placed: SiteComposePlaced = {
+    photos: { hero: heroPick?.level ?? null, gallery: picks.filter((p) => p.slot.startsWith("gallery") && p.source !== "none").length, level: worst },
+    menuItems: 0, // the menu board reads live offerings; intake's import writes them, not the composer
+    hoursPresent: (identity.hours ?? []).length > 0,
+    whatsappPresent: !!identity.whatsapp && identity.whatsapp.replace(/\D/g, "").length >= 8,
+    logoPresent: !!logoUrl,
+  };
+  await writeStamp(admin, input.tenantId, { outcome, siteComposeId, lookId: look.id, typeId, family, at: new Date().toISOString(), pageIds, placed, copySource, notes });
+
+  return { outcome, siteComposeId, lookId: look.id, typeId, family, pageIds, shellPageId: shell.ok ? shell.pageId : null, copySource, imagePicks, placed, notes, costUsd, durationMs: Date.now() - started };
 }

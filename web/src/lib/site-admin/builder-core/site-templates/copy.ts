@@ -35,6 +35,8 @@ export const LOOK_COPY_DEFAULTS: Readonly<Record<string, Bilingual>> = {
   "home.hero.eyebrow": { es: "[[{{business.city}}]]", en: "[[{{business.city}}]]" },
   "home.hero.headline": { es: "{{business.name}}", en: "{{business.name}}" },
   "home.hero.sub": { es: "[[{{business.tagline}}]]", en: "[[{{business.tagline}}]]" },
+  // Ships when there is no tagline: an invitation, not a claim.
+  "home.hero.sub.fallback": { es: "Con gusto te atendemos. Escríbenos o ven a vernos.", en: "We would be glad to see you. Write to us or come by." },
   "home.offer.eyebrow": { es: "Lo que hacemos", en: "What we do" },
   "home.offer.headline": { es: "Hecho con cuidado, para ti", en: "Done with care, for you" },
   "home.offer.body": {

@@ -80,7 +80,7 @@ export function MediaStockLane() {
         <div>
           <h2 className="text-admin-ink text-base font-semibold">{t("dashboard.adminMedia.stock.title")}</h2>
           <p className="text-admin-ink-muted text-xs">
-            {shelf ? interpolate(t("dashboard.adminMedia.stock.subtitle"), { type: shelf.typeId, family: shelf.family }) : t("dashboard.adminMedia.stock.loading")}
+            {shelf ? (shelf.typeLabel ? interpolate(t("dashboard.adminMedia.stock.subtitle"), { type: shelf.typeLabel }) : t("dashboard.adminMedia.stock.subtitleGeneric")) : t("dashboard.adminMedia.stock.loading")}
           </p>
         </div>
         <span className="text-admin-ink-muted rounded-full border border-admin-border-soft px-2 py-0.5 text-[11px]">{t("dashboard.adminMedia.stock.readOnly")}</span>
