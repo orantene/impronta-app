@@ -232,7 +232,11 @@ export async function guestVisitPayShare(
 ): Promise<{ ok: true; url: string } | GuestFail> {
   const visit = await openVisit(admin, input.tenantId, input.token);
   if (!visit.ok) return visit;
-  let actorUserId = input.actorUserId;
+  // D-149: the guest has no user of their own. The actor on the collection is
+  // the operator who opened the table (`visits.opened_by`), and when the visit
+  // names nobody it is NULL: an empty string is an invalid uuid, not an absent
+  // one, and Postgres refused the reservation with 22P02 for every share.
+  let actorUserId: string | null = input.actorUserId.trim() || null;
   if (!actorUserId) {
     const { data: visitRow, error: visitErr } = await admin
       .from("visits")
@@ -240,9 +244,9 @@ export async function guestVisitPayShare(
       .eq("id", visit.visitId)
       .maybeSingle();
     if (visitErr) return { ok: false, reason: "unavailable" };
-    actorUserId = String((visitRow as { opened_by?: string } | null)?.opened_by ?? "");
+    const openedBy = (visitRow as { opened_by?: string | null } | null)?.opened_by;
+    actorUserId = typeof openedBy === "string" && openedBy.trim() ? openedBy : null;
   }
-  if (!actorUserId) return { ok: false, reason: "unavailable" };
   const { data: orders, error } = await admin
     .from("orders")
     .select("id, total_cents")
@@ -267,7 +271,7 @@ export async function guestVisitPayShare(
     orderId: order.id,
     amountCents: amount,
     idempotencyKey: input.operationKey,
-    actorUserId: input.actorUserId,
+    actorUserId,
     publicOrigin: input.publicOrigin,
   });
   if (!minted.ok) {

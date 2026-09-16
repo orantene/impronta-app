@@ -38,6 +38,7 @@ export default async function TicketSelfPage({ params }: { params: Promise<{ cod
         transferAction: tr("dashboard.visit.ticket.transferAction"),
         resend: tr("dashboard.visit.ticket.resend"),
         lookup: tr("dashboard.visit.ticket.lookup"),
+        lookupEmail: tr("dashboard.visit.ticket.lookupEmail"),
         last4: tr("dashboard.visit.ticket.last4"),
         lookupAction: tr("dashboard.visit.ticket.lookupAction"),
         found: tr("dashboard.visit.ticket.found"),

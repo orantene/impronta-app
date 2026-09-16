@@ -6599,6 +6599,7 @@
         "transferAction": "Céder",
         "resend": "Renvoyer par email",
         "lookup": "Retrouver un billet",
+        "lookupEmail": "Votre e-mail",
         "last4": "Quatre derniers du reçu",
         "lookupAction": "Chercher",
         "found": "Ouvrir {code}"
