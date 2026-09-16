@@ -111,6 +111,12 @@ export function fakeAdmin(store: ReturnType<typeof makeStore>) {
         if (op === "is" && v === null) eqs.push([k, { __neq: null }]);
         return api;
       },
+      // `attachPaymentLinkInquiry` stamps a conversation only where the row
+      // names none (`.is("inquiry_id", null)`, D-150); a seeded null matches.
+      is: (k: string, v: unknown) => {
+        eqs.push([k, v]);
+        return api;
+      },
       // `addLine` reads `offering_price_phases` bounded by `starts_at` (D-138);
       // the fixture never seeds phases, so the bound filters nothing and the
       // line prices at the list price as these tests have always assumed.

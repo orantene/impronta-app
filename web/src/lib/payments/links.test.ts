@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createPaymentLink, loadPaymentLinkByCode, markPaymentLinkPaid } from "./links";
+import { fakeAdmin, makeStore, type Row } from "@/lib/pos/__fixtures__/pos-store";
 
 test("createPaymentLink refuses a non-positive amount without reserving", async () => {
   let reserved = false;
@@ -155,4 +156,61 @@ test("loadPaymentLinkByCode reads the link's inquiry", async () => {
   assert.equal(loaded.ok, true);
   if (!loaded.ok) return;
   assert.equal(loaded.inquiryId, "inq-1");
+});
+
+test("a Messages payment request names its conversation on the link AND the order at mint time (D-150)", async () => {
+  const store = makeStore();
+  store.orders.push({ id: "o1", tenant_id: "t1", status: "pending_payment", currency: "USD", total_cents: 5000, version: 1, inquiry_id: null });
+  const admin = fakeAdmin(store);
+  const minted = await createPaymentLink(admin, {
+    tenantId: "t1",
+    orderId: "o1",
+    amountCents: 2500,
+    idempotencyKey: "msg-request-1",
+    actorUserId: "0f3c6b7a-2d1e-4c5b-9a8f-7e6d5c4b3a21",
+    publicOrigin: "https://elpaisa.example",
+    inquiryId: "inq-1",
+  });
+  assert.equal(minted.ok, true, JSON.stringify(minted));
+  if (!minted.ok) return;
+  const link = ((store as Record<string, Row[]>).payment_links ?? []).find((l) => l.code === minted.code);
+  assert.equal(link?.inquiry_id, "inq-1");
+  assert.equal(store.orders[0].inquiry_id, "inq-1");
+
+  // The loader exposes it while the link is open...
+  const open = await loadPaymentLinkByCode(admin, minted.code);
+  assert.equal(open.ok, true);
+  if (open.ok) assert.equal(open.inquiryId, "inq-1");
+
+  // ...and still once it has lapsed: the expired pay view leads back to the thread.
+  link!.expires_at = new Date(Date.now() - 1000).toISOString();
+  const lapsed = await loadPaymentLinkByCode(admin, minted.code);
+  assert.equal(lapsed.ok, false);
+  if (!lapsed.ok) {
+    assert.equal(lapsed.reason, "expired");
+    if (lapsed.reason === "expired") {
+      assert.equal(lapsed.inquiryId, "inq-1");
+      assert.equal(lapsed.orderId, "o1");
+      assert.equal(lapsed.tenantId, "t1");
+    }
+  }
+});
+
+test("the mint leaves an order that already belongs to another conversation alone", async () => {
+  const store = makeStore();
+  store.orders.push({ id: "o1", tenant_id: "t1", status: "pending_payment", currency: "USD", total_cents: 5000, version: 1, inquiry_id: "inq-older" });
+  const admin = fakeAdmin(store);
+  const minted = await createPaymentLink(admin, {
+    tenantId: "t1",
+    orderId: "o1",
+    amountCents: 2500,
+    idempotencyKey: "msg-request-2",
+    actorUserId: "0f3c6b7a-2d1e-4c5b-9a8f-7e6d5c4b3a21",
+    publicOrigin: "https://elpaisa.example",
+    inquiryId: "inq-new",
+  });
+  assert.equal(minted.ok, true, JSON.stringify(minted));
+  assert.equal(store.orders[0].inquiry_id, "inq-older");
+  const link = ((store as Record<string, Row[]>).payment_links ?? [])[0];
+  assert.equal(link?.inquiry_id, "inq-new");
 });

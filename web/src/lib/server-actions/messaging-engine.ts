@@ -6,7 +6,7 @@ import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { sendOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { addLine, createDraftOrder } from "@/lib/pos/draft";
-import { createPaymentLink } from "@/lib/payments/links";
+import { attachPaymentLinkInquiry, createPaymentLink } from "@/lib/payments/links";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -474,12 +474,11 @@ export async function messagingRequestPayment(input: {
   if (!inquiry) return fail("not_found");
   if ((inquiry as { version: number }).version !== parsed.data.expectedVersion) return fail("conflict");
   const { data: order } = await scoped(g.admin, "orders", g.tenantId)
-    .select("id, version, status, total_cents, inquiry_id")
+    .select("id, version, status, total_cents")
     .eq("id", parsed.data.orderId)
     .maybeSingle();
   if (!order) return fail("not_found");
   const basketVersion = (order as { version: number }).version;
-  const orderInquiryId = (order as { inquiry_id: string | null }).inquiry_id ?? null;
   // "Full amount" with no figure from the surface means the order's total;
   // `createPaymentLink` still refuses anything above what is outstanding.
   const amountCents =
@@ -491,6 +490,14 @@ export async function messagingRequestPayment(input: {
     .eq("operation_key", parsed.data.idempotencyKey)
     .maybeSingle();
   if (existingLink && (existingLink as { status: string }).status === "open") {
+    // A link minted before the order named its conversation still gets one
+    // (D-150): the pay page's "Back to the conversation" reads it.
+    await attachPaymentLinkInquiry(g.admin, {
+      tenantId: g.tenantId,
+      code: (existingLink as { code: string }).code,
+      orderId: parsed.data.orderId,
+      inquiryId: parsed.data.inquiryId,
+    });
     return {
       ok: true as const,
       code: (existingLink as { code: string }).code,
@@ -516,6 +523,9 @@ export async function messagingRequestPayment(input: {
     idempotencyKey: parsed.data.idempotencyKey,
     actorUserId: g.userId,
     publicOrigin: parsed.data.publicOrigin,
+    // The mint itself names the conversation on the link and on the order
+    // (D-145, D-150); nothing here has to remember to do it afterwards.
+    inquiryId: parsed.data.inquiryId,
   });
   if (!minted.ok) {
     if (minted.reason === "exceeds_outstanding") return fail("invalid");
@@ -527,18 +537,8 @@ export async function messagingRequestPayment(input: {
     .eq("code", minted.code)
     .maybeSingle();
   await scoped(g.admin, "payment_links", g.tenantId)
-    .update({ inquiry_id: parsed.data.inquiryId, basket_version: basketVersion })
+    .update({ basket_version: basketVersion })
     .eq("code", minted.code);
-  // The order names its conversation (D-145): the pay page derives "Back to
-  // the conversation" from orders.inquiry_id, which this flow left null, so
-  // a customer paying from a card could not get back to the thread. An order
-  // that already belongs to another conversation is left alone.
-  if (!orderInquiryId) {
-    await scoped(g.admin, "orders", g.tenantId)
-      .update({ inquiry_id: parsed.data.inquiryId })
-      .eq("id", parsed.data.orderId)
-      .is("inquiry_id", null);
-  }
   await scoped(g.admin, "checkout_snapshots", g.tenantId)
     .update({ payment_link_id: (linkRow as { id: string } | null)?.id ?? null })
     .eq("id", (snapshot.data as { id: string }).id);

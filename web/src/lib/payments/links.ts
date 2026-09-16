@@ -32,6 +32,13 @@ export async function createPaymentLink(
     /** Who minted the link; null for a flow with no signed-in operator (a guest paying their share). */
     actorUserId: string | null;
     publicOrigin: string;
+    /**
+     * The conversation the request was made from (a Messages payment request).
+     * Written to `payment_links.inquiry_id` at mint time and stamped onto the
+     * order when it names no conversation yet, so `/pay/<code>` can always
+     * hand the customer "Back to the conversation" (D-145, D-150).
+     */
+    inquiryId?: string | null;
   },
 ): Promise<CreatePaymentLinkResult> {
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) return { ok: false, reason: "invalid" };
@@ -53,6 +60,9 @@ export async function createPaymentLink(
   if (existing) {
     const row = existing as { code: string; amount_cents: number; expires_at: string; status: string };
     if (row.status === "expired" || row.status === "cancelled") return { ok: false, reason: "expired" };
+    if (input.inquiryId) {
+      await attachPaymentLinkInquiry(admin, { tenantId: input.tenantId, code: row.code, orderId: input.orderId, inquiryId: input.inquiryId });
+    }
     return {
       ok: true,
       code: row.code,
@@ -109,10 +119,14 @@ export async function createPaymentLink(
     created_by: actorUserId,
     operation_key: input.idempotencyKey.trim(),
     reservation_id: claimed.reservationId,
+    inquiry_id: input.inquiryId ?? null,
   });
   if (insErr) {
     logServerError("payments.createPaymentLink.insert", insErr);
     return { ok: false, reason: "unavailable" };
+  }
+  if (input.inquiryId) {
+    await attachPaymentLinkInquiry(admin, { tenantId: input.tenantId, code, orderId: input.orderId, inquiryId: input.inquiryId });
   }
   return {
     ok: true,
@@ -121,6 +135,32 @@ export async function createPaymentLink(
     amountCents: claimed.amountCents,
     expiresAt,
   };
+}
+
+/**
+ * Name the conversation on a link and on its order. The order is stamped only
+ * when it names no conversation yet: an order that already belongs to another
+ * thread is left alone. Both writes are idempotent, so a reused link (same
+ * operation key) can be attached again without harm.
+ */
+export async function attachPaymentLinkInquiry(
+  admin: Admin,
+  input: { tenantId: string; code: string; orderId: string; inquiryId: string },
+): Promise<void> {
+  const { error: linkErr } = await admin
+    .from("payment_links")
+    .update({ inquiry_id: input.inquiryId })
+    .eq("tenant_id", input.tenantId)
+    .eq("code", input.code)
+    .is("inquiry_id", null);
+  if (linkErr) logServerError("payments.attachPaymentLinkInquiry.link", linkErr);
+  const { error: orderErr } = await admin
+    .from("orders")
+    .update({ inquiry_id: input.inquiryId })
+    .eq("tenant_id", input.tenantId)
+    .eq("id", input.orderId)
+    .is("inquiry_id", null);
+  if (orderErr) logServerError("payments.attachPaymentLinkInquiry.order", orderErr);
 }
 
 export async function loadPaymentLinkByCode(
@@ -138,7 +178,15 @@ export async function loadPaymentLinkByCode(
       /** The conversation the link was requested from (a Messages payment request), when any. */
       inquiryId: string | null;
     }
-  | { ok: false; reason: "not_found" | "expired" | "unavailable" }
+  | {
+      ok: false;
+      reason: "expired";
+      /** An expired link still knows its sale and its conversation: that is where the customer asks for a fresh request (D-150). */
+      tenantId: string;
+      orderId: string;
+      inquiryId: string | null;
+    }
+  | { ok: false; reason: "not_found" | "unavailable" }
 > {
   const { data, error } = await admin
     .from("payment_links")
@@ -160,7 +208,7 @@ export async function loadPaymentLinkByCode(
     inquiry_id?: string | null;
   };
   if (row.status === "expired" || Date.parse(row.expires_at) <= Date.now()) {
-    return { ok: false, reason: "expired" };
+    return { ok: false, reason: "expired", tenantId: row.tenant_id, orderId: row.order_id, inquiryId: row.inquiry_id ?? null };
   }
   return {
     ok: true,
