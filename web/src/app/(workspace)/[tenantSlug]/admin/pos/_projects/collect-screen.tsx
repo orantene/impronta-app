@@ -232,7 +232,7 @@ export function CollectDetail(props: CollectDetailProps) {
             </div>
             <div className={cn(POS_SURFACE, "p-4")}>
               <p className={cn("m-0", POS_EYEBROW, "tracking-[0.08em]")}>{b.agreement}</p>
-              <Row label={b.total} value={accepted ? interpolate(b.totalDetail, { amount: formatOrderMoney(accepted.totalClientCents, currency), count: project.milestones.length }) : copy.money.agreedNone} />
+              <Row label={b.total} value={accepted ? interpolate(project.milestones.length === 1 ? b.totalDetailOne : b.totalDetail, { amount: formatOrderMoney(accepted.totalClientCents, currency), count: project.milestones.length }) : copy.money.agreedNone} />
               <Row label={copy.money.collected} value={<span data-pos-projects-collected-total>{formatOrderMoney(money.collectedCents, currency)}</span>} />
               <Row label={b.remainingAfter} value={remainingAfter === null ? "—" : formatOrderMoney(remainingAfter, currency)} />
               <Row label={b.refundTerms} value={b.refundNotRecorded} dim />

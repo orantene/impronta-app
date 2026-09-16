@@ -13923,7 +13923,8 @@
           "linkResend": "Reenviar",
           "linkReceipt": "Ver recibo",
           "linkNew": "Enviar enlace nuevo",
-          "linksUnavailable": "Todavía ninguna tabla registra un enlace de pago enviado, así que no hay nada que listar ni reenviar aquí."
+          "linksUnavailable": "Todavía ninguna tabla registra un enlace de pago enviado, así que no hay nada que listar ni reenviar aquí.",
+          "totalDetailOne": "{amount} · 1 hito"
         }
       },
       "classes": {
@@ -16007,7 +16008,8 @@
         "priorKept": "v{n} (enviada el {date}, {amount}) se conserva sin cambios para el registro.",
         "sendVersion": "Enviar v{n}",
         "discardProposal": "Descartar propuesta",
-        "refusalNoLock": "No se pudo leer la conversación. Recarga e inténtalo de nuevo."
+        "refusalNoLock": "No se pudo leer la conversación. Recarga e inténtalo de nuevo.",
+        "valueDetailOne": "{amount} · 1 hito"
       },
       "milestones": {
         "title": "Hitos y entregas",
@@ -16055,7 +16057,6 @@
         "colRole": "Rol",
         "unnamed": "Nombre no registrado",
         "replaceNote": "El reemplazo toma la línea al confirmar. Si no está disponible o el trabajo ya empezó, el motor lo rechaza y dice por qué.",
-        "marginNote": "El honorario y el cargo se muestran juntos porque esta es la vista del espacio de trabajo. Un profesional asignado solo ve su propio honorario.",
         "assignments": "Asignaciones",
         "assign": "Asignar desde Personas › Reservable",
         "assigned": "Asignado",
@@ -16148,7 +16149,8 @@
         "confirmReopen": "Reabrir proyecto",
         "archiveReason": "Por qué se archiva",
         "archiveReasonHint": "Opcional. Queda en el registro.",
-        "cancelSheet": "Cancelar"
+        "cancelSheet": "Cancelar",
+        "milestonesOpenOne": "1 hito abierto"
       },
       "visibility": {
         "title": "Quién ve qué en este proyecto",
@@ -16307,7 +16309,8 @@
       "dateStarts": "Empieza",
       "dateEnds": "Termina",
       "dateMilestoneDue": "{title} vence",
-      "filesNone": "Todavía no hay ningún archivo adjunto a un hito."
+      "filesNone": "Todavía no hay ningún archivo adjunto a un hito.",
+      "kpiCollectedNoteOne": "1 registro pagado"
     },
     "clientRecord": {
       "title": "Cliente",
@@ -16409,7 +16412,9 @@
       "tabDetails": "Detalles",
       "cancel": "Cancelar",
       "linkSent": "Enlace de pago enviado · caduca {when} · te avisaremos cuando se pague",
-      "selectedRecordOne": "1 registro"
+      "selectedRecordOne": "1 registro",
+      "collectSummaryOne": "1 registro pendiente, {amount} por cobrar",
+      "lineOne": "1 línea"
     },
     "issues": {
       "eyebrow": "Incidencias",

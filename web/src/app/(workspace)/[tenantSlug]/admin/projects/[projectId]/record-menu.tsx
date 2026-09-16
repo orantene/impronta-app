@@ -47,6 +47,7 @@ export type CloseSheetCopy = {
   remaining: string;
   nothingOwed: string;
   milestonesOpen: string;
+  milestonesOpenOne: string;
   allDelivered: string;
   assigned: string;
   nobodyAssigned: string;
@@ -289,7 +290,7 @@ function CloseSheet({
                 : copy.nothingOwed
           }
         />
-        <KeyValue tall label={copy.work} value={openWork > 0 ? copy.milestonesOpen.replace("{count}", String(openWork)) : copy.allDelivered} />
+        <KeyValue tall label={copy.work} value={openWork === 1 ? copy.milestonesOpenOne : openWork > 0 ? copy.milestonesOpen.replace("{count}", String(openWork)) : copy.allDelivered} />
         <KeyValue
           tall
           label={copy.talent}

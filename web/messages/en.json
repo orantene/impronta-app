@@ -13923,7 +13923,8 @@
           "linkResend": "Resend",
           "linkReceipt": "View receipt",
           "linkNew": "Send new link",
-          "linksUnavailable": "No table records a sent payment link yet, so there is nothing to list or resend here."
+          "linksUnavailable": "No table records a sent payment link yet, so there is nothing to list or resend here.",
+          "totalDetailOne": "{amount} · 1 milestone"
         }
       },
       "classes": {
@@ -16007,7 +16008,8 @@
         "priorKept": "v{n} (sent {date}, {amount}) is kept unchanged for the record.",
         "sendVersion": "Send v{n}",
         "discardProposal": "Discard proposal",
-        "refusalNoLock": "The conversation could not be read. Reload and try again."
+        "refusalNoLock": "The conversation could not be read. Reload and try again.",
+        "valueDetailOne": "{amount} · 1 milestone"
       },
       "milestones": {
         "title": "Milestones and deliverables",
@@ -16055,7 +16057,6 @@
         "colRole": "Role",
         "unnamed": "Name not recorded",
         "replaceNote": "The replacement takes the line when you confirm. If they are unavailable or the work has already started, the engine refuses and says why.",
-        "marginNote": "Fee and charge are shown together because this is the workspace view. An assigned professional sees only their own fee.",
         "assignments": "Assignments",
         "assign": "Assign from People › Bookable",
         "assigned": "Assigned",
@@ -16148,7 +16149,8 @@
         "confirmReopen": "Reopen project",
         "archiveReason": "Why it is being archived",
         "archiveReasonHint": "Optional. Kept on the record.",
-        "cancelSheet": "Cancel"
+        "cancelSheet": "Cancel",
+        "milestonesOpenOne": "1 milestone open"
       },
       "visibility": {
         "title": "Who sees what on this project",
@@ -16307,7 +16309,8 @@
       "dateStarts": "Starts",
       "dateEnds": "Ends",
       "dateMilestoneDue": "{title} due",
-      "filesNone": "No file is attached to a milestone yet."
+      "filesNone": "No file is attached to a milestone yet.",
+      "kpiCollectedNoteOne": "1 record paid"
     },
     "clientRecord": {
       "title": "Client",
@@ -16409,7 +16412,9 @@
       "tabDetails": "Details",
       "cancel": "Cancel",
       "linkSent": "Payment link sent · expires {when} · you will be notified when paid",
-      "selectedRecordOne": "1 record"
+      "selectedRecordOne": "1 record",
+      "collectSummaryOne": "1 unpaid record, {amount} outstanding",
+      "lineOne": "1 line"
     },
     "issues": {
       "eyebrow": "Issues",

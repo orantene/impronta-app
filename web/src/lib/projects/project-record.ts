@@ -145,13 +145,11 @@ export type ProjectBalance = {
   readonly currency: string;
   readonly totalCents: number;
   readonly collectedCents: number;
-  /** When the order was opened; the W49 row's date column. Optional so a test row needs no clock. */
-  readonly createdAt?: string | null;
+  readonly createdAt?: string | null; // when the order was opened (W49's date column)
 };
 
 /**
  * Money owed on ONE attached order, by the orders desk's own rule.
- *
  * `isMoneyOwed` is the desk's: only an order awaiting payment is money owed.
  * A draft or a quote is not owed YET, a cancelled order is not a sale, and a
  * refunded one has already been unwound — its charge transitions `paid` ->

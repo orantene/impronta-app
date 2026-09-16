@@ -247,6 +247,11 @@ export function ProjectDetail({
                       {copy.detail.openWorkspace}
                     </a>
                   ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-4">
           <Step
@@ -309,12 +314,6 @@ export function ProjectDetail({
           </div>
           <p className="m-0 mt-2.5 text-[13.5px] text-admin-ink-muted">{b.moneyNote}</p>
         </div>
-
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
 
         <div className={cn(POS_SURFACE, "px-4 py-3.5")} data-pos-projects-milestones>
           <p className={cn("m-0 mb-1", POS_EYEBROW, "tracking-[0.08em]")}>{copy.milestones.title}</p>

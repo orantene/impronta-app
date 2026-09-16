@@ -28,7 +28,6 @@ import {
   type ProjectRecord,
 } from "@/lib/projects/project-record";
 import {
-  BTN_PRIMARY,
   BTN_ROW,
   BTN_SECONDARY,
   Card,
@@ -381,7 +380,7 @@ export function ScopeTab({
               <div>
                 <KeyValue
                   label={tr("dashboard.projects.scope.value")}
-                  value={interpolate(tr("dashboard.projects.scope.valueDetail"), {
+                  value={interpolate(tr(project.milestones.length === 1 ? "dashboard.projects.scope.valueDetailOne" : "dashboard.projects.scope.valueDetail"), {
                     amount: formatOrderMoney(accepted.totalClientCents, accepted.currency),
                     count: project.milestones.length,
                   })}
@@ -554,11 +553,6 @@ export function MoneyTab({
               {tr("dashboard.projects.money.refund")}
             </button>
           )}
-          {money.dueCents > 0 ? (
-            <Link href={`/${tenantSlug}/admin/pos?mode=projects&view=collect&project=${project.id}`} className={BTN_PRIMARY}>
-              {tr("dashboard.projects.action.collect_balance")} · {formatOrderMoney(money.dueCents, money.currency)}
-            </Link>
-          ) : null}
         </div>
       </div>
       <div className="flex flex-col gap-2.5">

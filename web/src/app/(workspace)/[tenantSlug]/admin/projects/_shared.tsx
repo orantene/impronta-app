@@ -175,7 +175,7 @@ export function ListRow({
   return (
     <div
       className={cn(
-        "grid items-center gap-3 border-t border-admin-border-soft px-4 py-[12px] text-[13px] leading-[1.2] text-admin-ink first:border-t-0",
+        "grid items-center gap-3 border-t border-admin-border-soft px-4 py-[11px] text-[13px] leading-[1.2] text-admin-ink first:border-t-0",
         cols,
         className,
       )}
@@ -296,7 +296,7 @@ export function Pill({
     <span
       className={cn(
         block
-          ? "flex h-[18px] w-full min-w-0 items-center overflow-hidden rounded-[5px] px-2 text-[11.5px] font-semibold leading-none"
+          ? "flex h-[17px] w-full min-w-0 items-center overflow-hidden rounded-[5px] px-2 text-[11.5px] font-semibold leading-none"
           : "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold leading-[1.2]",
         PILL_TONE[tone],
         className,

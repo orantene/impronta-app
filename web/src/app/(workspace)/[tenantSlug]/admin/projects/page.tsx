@@ -346,7 +346,7 @@ function ProjectsTable({
               <Link
                 href={`/${tenantSlug}/admin/projects/${row.id}`}
                 aria-label={interpolate(tr("dashboard.projects.openProject"), { title: row.title || shortId(row.id) })}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-md text-admin-ink-dim hover:bg-admin-surface-alt hover:text-admin-ink"
+                className="inline-flex h-4 w-6 items-center justify-center rounded-md text-admin-ink-dim hover:bg-admin-surface-alt hover:text-admin-ink"
               >
                 <MoreHorizontal aria-hidden size={13} strokeWidth={1.75} />
               </Link>

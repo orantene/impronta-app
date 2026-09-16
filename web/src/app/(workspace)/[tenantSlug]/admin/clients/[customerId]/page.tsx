@@ -154,7 +154,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
           id: shortId(p.orderId),
           date: dayLabel(p.createdAt, tz, locale, none),
         }),
-        detail: `${orderStatusLabel(p.status, tr)} · ${interpolate(tr("dashboard.clientRecord.lines"), { count: p.lineCount })} · ${formatOrderMoney(p.totalCents, p.currency)}`,
+        detail: `${orderStatusLabel(p.status, tr)} · ${interpolate(tr(p.lineCount === 1 ? "dashboard.clientRecord.lineOne" : "dashboard.clientRecord.lines"), { count: p.lineCount })} · ${formatOrderMoney(p.totalCents, p.currency)}`,
         owedCents: purchaseOwedCents(p),
         currency: p.currency,
       }))}
@@ -282,7 +282,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
           value={verdict.ok ? formatOrderMoney(verdict.owedCents, verdict.currency) : balances.length > 0 ? formatOrderMoney(0, balances[0]!.currency) : "—"}
           note={
             verdict.ok
-              ? interpolate(tr("dashboard.clientRecord.collectSummary"), { count: verdict.recordCount, amount: formatOrderMoney(verdict.owedCents, verdict.currency) })
+              ? interpolate(tr(verdict.recordCount === 1 ? "dashboard.clientRecord.collectSummaryOne" : "dashboard.clientRecord.collectSummary"), { count: verdict.recordCount, amount: formatOrderMoney(verdict.owedCents, verdict.currency) })
               : verdict.reason === "mixed_currency"
                 ? tr("dashboard.clientRecord.collectMixedCurrency")
                 : tr("dashboard.clientRecord.collectNothingOwed")
@@ -340,7 +340,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
             )}
             <p className="m-0 mt-2 text-[12.5px] text-admin-ink-muted">
               {verdict.ok
-                ? interpolate(tr("dashboard.clientRecord.collectSummary"), { count: verdict.recordCount, amount: formatOrderMoney(verdict.owedCents, verdict.currency) })
+                ? interpolate(tr(verdict.recordCount === 1 ? "dashboard.clientRecord.collectSummaryOne" : "dashboard.clientRecord.collectSummary"), { count: verdict.recordCount, amount: formatOrderMoney(verdict.owedCents, verdict.currency) })
                 : verdict.reason === "mixed_currency"
                   ? tr("dashboard.clientRecord.collectMixedCurrency")
                   : tr("dashboard.clientRecord.collectNothingOwed")}
@@ -466,7 +466,7 @@ function ActivityList({ record, locale, tr, limit }: { record: ClientRecord; loc
             return (
               <React.Fragment key={p.orderId}>
               <MobileListRow
-                title={`${interpolate(tr("dashboard.clientRecord.recordShort"), { id: shortId(p.orderId) })} · ${interpolate(tr("dashboard.clientRecord.lines"), { count: p.lineCount })}`}
+                title={`${interpolate(tr("dashboard.clientRecord.recordShort"), { id: shortId(p.orderId) })} · ${interpolate(tr(p.lineCount === 1 ? "dashboard.clientRecord.lineOne" : "dashboard.clientRecord.lines"), { count: p.lineCount })}`}
                 detail={`${dayLabel(p.createdAt, record.timeZone, locale, none, { weekday: true })} · ${formatOrderMoney(p.totalCents, p.currency)} · ${orderStatusLabel(p.status, tr)}${owed > 0 ? ` · ${formatOrderMoney(owed, p.currency)} ${tr("dashboard.clientRecord.owedSuffix")}` : ""}`}
               />
               <ListRow cols="grid-cols-[122px_minmax(0,1fr)_auto]" className="border-t max-[720px]:hidden">
@@ -474,7 +474,7 @@ function ActivityList({ record, locale, tr, limit }: { record: ClientRecord; loc
                 <span>
                   {interpolate(tr("dashboard.clientRecord.recordShort"), { id: shortId(p.orderId) })}
                   {" · "}
-                  {interpolate(tr("dashboard.clientRecord.lines"), { count: p.lineCount })}
+                  {interpolate(tr(p.lineCount === 1 ? "dashboard.clientRecord.lineOne" : "dashboard.clientRecord.lines"), { count: p.lineCount })}
                 </span>
                 <span className="text-right text-admin-ink-muted">
                   {formatOrderMoney(p.totalCents, p.currency)} · {orderStatusLabel(p.status, tr)}

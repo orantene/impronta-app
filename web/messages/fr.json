@@ -2679,7 +2679,8 @@
           "linkResend": "Renvoyer",
           "linkReceipt": "Voir le reçu",
           "linkNew": "Envoyer un nouveau lien",
-          "linksUnavailable": "Aucune table n'enregistre encore un lien de paiement envoyé ; il n'y a donc rien à lister ni à renvoyer ici."
+          "linksUnavailable": "Aucune table n'enregistre encore un lien de paiement envoyé ; il n'y a donc rien à lister ni à renvoyer ici.",
+          "totalDetailOne": "{amount} · 1 jalon"
         }
       },
       "classes": {
@@ -4603,7 +4604,8 @@
         "priorKept": "v{n} (envoyée le {date}, {amount}) est conservée telle quelle pour l'historique.",
         "sendVersion": "Envoyer la v{n}",
         "discardProposal": "Abandonner la proposition",
-        "refusalNoLock": "La conversation n'a pas pu être lue. Rechargez et réessayez."
+        "refusalNoLock": "La conversation n'a pas pu être lue. Rechargez et réessayez.",
+        "valueDetailOne": "{amount} · 1 jalon"
       },
       "milestones": {
         "title": "Jalons et livrables",
@@ -4651,7 +4653,6 @@
         "colRole": "Role",
         "unnamed": "Nom non enregistre",
         "replaceNote": "Le remplaçant prend la ligne à la confirmation. S'il n'est pas disponible ou si le travail a déjà commencé, le moteur refuse et dit pourquoi.",
-        "marginNote": "Les honoraires et la facturation figurent ensemble parce que c'est la vue de l'espace de travail. Un professionnel affecte ne voit que ses propres honoraires.",
         "assignments": "Assignations",
         "assign": "Assigner depuis Personnes › Réservable",
         "assigned": "Assigné",
@@ -4744,7 +4745,8 @@
         "confirmReopen": "Rouvrir le projet",
         "archiveReason": "Pourquoi il est archivé",
         "archiveReasonHint": "Facultatif. Conservé dans le dossier.",
-        "cancelSheet": "Annuler"
+        "cancelSheet": "Annuler",
+        "milestonesOpenOne": "1 jalon ouvert"
       },
       "visibility": {
         "title": "Qui voit quoi sur ce projet",
@@ -4903,7 +4905,8 @@
       "dateStarts": "Début",
       "dateEnds": "Fin",
       "dateMilestoneDue": "{title} dû",
-      "filesNone": "Aucun fichier n'est encore joint à un jalon."
+      "filesNone": "Aucun fichier n'est encore joint à un jalon.",
+      "kpiCollectedNoteOne": "1 enregistrement payé"
     },
     "clientRecord": {
       "title": "Client",
@@ -5005,7 +5008,9 @@
       "tabDetails": "Détails",
       "cancel": "Annuler",
       "linkSent": "Lien de paiement envoyé · expire {when} · vous serez prévenu au paiement",
-      "selectedRecordOne": "1 enregistrement"
+      "selectedRecordOne": "1 enregistrement",
+      "collectSummaryOne": "1 enregistrement impayé, {amount} à encaisser",
+      "lineOne": "1 ligne"
     },
     "tables": {
       "pageTitle": "Tables",

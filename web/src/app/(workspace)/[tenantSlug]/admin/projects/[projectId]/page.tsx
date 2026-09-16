@@ -260,9 +260,10 @@ export default async function ProjectRecordPage({
         <KpiCard
           label={tr("dashboard.projects.kpiCollected")}
           value={formatOrderMoney(money.collectedCents, money.currency)}
-          note={interpolate(tr("dashboard.projects.kpiCollectedNote"), {
-            count: project.balances.filter((b) => b.collectedCents > 0).length,
-          })}
+          note={interpolate(
+            tr(project.balances.filter((b) => b.collectedCents > 0).length === 1 ? "dashboard.projects.kpiCollectedNoteOne" : "dashboard.projects.kpiCollectedNote"),
+            { count: project.balances.filter((b) => b.collectedCents > 0).length },
+          )}
           testId="collected"
         />
         <KpiCard
@@ -454,6 +455,7 @@ function closeSheetCopy(tr: Tr) {
     remaining: tr("dashboard.projects.close.remaining"),
     nothingOwed: tr("dashboard.projects.close.nothingOwed"),
     milestonesOpen: tr("dashboard.projects.close.milestonesOpen"),
+    milestonesOpenOne: tr("dashboard.projects.close.milestonesOpenOne"),
     allDelivered: tr("dashboard.projects.close.allDelivered"),
     assigned: tr("dashboard.projects.close.assigned"),
     nobodyAssigned: tr("dashboard.projects.close.nobodyAssigned"),
