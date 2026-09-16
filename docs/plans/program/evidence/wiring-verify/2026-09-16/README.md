@@ -22,3 +22,14 @@ Defects D-133 … D-140 are closed by this run; D-141 is closed for the page ren
 ## Rows the run leaves on the fixture
 
 Orders, visits, payment links, bookings, admissions and messages created by the specs on tenant `33333333-3333-4333-8333-333333333333` (each spec cleans what it can; a fixture re-seed is scheduled after the program's last run).
+
+## Second rerun after #2003 (host `a34c99214`, runs r7/r8)
+
+| Spec | Result |
+|---|---|
+| WIRE-3-guest-qr (3.6) | **passed** (r8): the whole guest flow incl. pay my share and the refused second share (D-149 closed) |
+| WIRE-3-exchange-comp (3.8) | **passed** (r7): comp issues the ticket (D-146 closed) |
+| WIRE-4-customer-thread (4.6) | failed-app: the expired view drops the thread link the page computes → PR #2004 |
+| WIRE-3-ticket-page (3.9) | failed-app: public page passes end to end; the gate renders no verdict for the superseded code → D-153 |
+
+Spec edit: `WIRE-3-guest-qr` reads the refusal from the live region with words (the page keeps an empty one mounted).
