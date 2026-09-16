@@ -6,6 +6,16 @@ import { loadExceptions } from "@/lib/exceptions/read";
 import { logServerError } from "@/lib/server/safe-error";
 import { guardedQuery } from "@/lib/server/guarded-query";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { withTimeout } from "@/lib/tulala/with-timeout";
+
+/**
+ * The financial KPI read joins every commission snapshot to its booking and
+ * has hit the statement timeout on production (57014, 2026-09-09 → 09-16);
+ * the layout awaits this wave on EVERY admin page, so that one query took the
+ * POS down with it. The identity chip's payout line is decoration: past this
+ * budget it reads as unknown and the page paints.
+ */
+const FINANCIAL_KPI_BUDGET_MS = 1_500;
 
 /**
  * _data-bridge/overview-metrics.ts — workspace KPI loader.
@@ -220,7 +230,7 @@ export async function loadWorkspaceOverviewMetrics(
         .order("event_date", { ascending: true })
         .limit(1),
       loadStorefrontViews7d(tenantId),
-      loadWorkspaceFinancialKpis(tenantId),
+      withTimeout(loadWorkspaceFinancialKpis(tenantId), FINANCIAL_KPI_BUDGET_MS, null),
 
       // "Your move" cohorts — positive status filters only (an invalid enum in
       // a NOT-IN filter would error the whole query). Mutually exclusive by status.
