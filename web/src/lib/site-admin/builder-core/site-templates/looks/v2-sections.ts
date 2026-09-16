@@ -25,7 +25,7 @@ type Style = BuilderNodeStyleValue & Record<string, unknown>;
 
 // ── Motion mixins ───────────────────────────────────────────────────────────
 
-export type RevealPreset = "rise" | "fade-in" | "blur-in" | "zoom-in" | "fade-left" | "fade-right" | "slide-up";
+export type RevealPreset = "rise" | "fade-in" | "blur-in" | "zoom-in" | "fade-left" | "fade-right" | "slide-up" | "bounce-in";
 
 /** Entrance on scroll (the Animation lane, which ships its own observer on every page). */
 export function reveal(preset: RevealPreset = "rise", delayMs = 0, durationMs = 700): Style {
