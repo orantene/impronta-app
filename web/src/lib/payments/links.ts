@@ -29,12 +29,16 @@ export async function createPaymentLink(
     orderId: string;
     amountCents: number;
     idempotencyKey: string;
-    actorUserId: string;
+    /** Who minted the link; null for a flow with no signed-in operator (a guest paying their share). */
+    actorUserId: string | null;
     publicOrigin: string;
   },
 ): Promise<CreatePaymentLinkResult> {
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) return { ok: false, reason: "invalid" };
   if (input.idempotencyKey.trim().length < 8) return { ok: false, reason: "invalid" };
+  // The reservation and `payment_links.created_by` are uuid columns: an empty
+  // string is an invalid uuid (22P02), not an absent one. Absent is NULL.
+  const actorUserId = input.actorUserId?.trim() ? input.actorUserId.trim() : null;
 
   const { data: existing, error: existingErr } = await admin
     .from("payment_links")
@@ -78,7 +82,7 @@ export async function createPaymentLink(
     operationKey: input.idempotencyKey.trim(),
     amountCents: input.amountCents,
     method: "link",
-    actorUserId: input.actorUserId,
+    actorUserId,
     ttlSeconds: reservationTtlSeconds("link"),
   });
   if (!claimed.ok) {
@@ -102,7 +106,7 @@ export async function createPaymentLink(
     provider_ref: claimed.reservationId,
     status: "open",
     expires_at: expiresAt,
-    created_by: input.actorUserId,
+    created_by: actorUserId,
     operation_key: input.idempotencyKey.trim(),
     reservation_id: claimed.reservationId,
   });
