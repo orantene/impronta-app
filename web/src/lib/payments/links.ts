@@ -123,12 +123,22 @@ export async function loadPaymentLinkByCode(
   admin: Admin,
   code: string,
 ): Promise<
-  | { ok: true; tenantId: string; orderId: string; amountCents: number; status: string; provider: string; expiresAt: string }
+  | {
+      ok: true;
+      tenantId: string;
+      orderId: string;
+      amountCents: number;
+      status: string;
+      provider: string;
+      expiresAt: string;
+      /** The conversation the link was requested from (a Messages payment request), when any. */
+      inquiryId: string | null;
+    }
   | { ok: false; reason: "not_found" | "expired" | "unavailable" }
 > {
   const { data, error } = await admin
     .from("payment_links")
-    .select("tenant_id, order_id, amount_cents, status, provider, expires_at")
+    .select("tenant_id, order_id, amount_cents, status, provider, expires_at, inquiry_id")
     .eq("code", code)
     .maybeSingle();
   if (error) {
@@ -143,6 +153,7 @@ export async function loadPaymentLinkByCode(
     status: string;
     provider: string;
     expires_at: string;
+    inquiry_id?: string | null;
   };
   if (row.status === "expired" || Date.parse(row.expires_at) <= Date.now()) {
     return { ok: false, reason: "expired" };
@@ -155,6 +166,7 @@ export async function loadPaymentLinkByCode(
     status: row.status,
     provider: row.provider,
     expiresAt: row.expires_at,
+    inquiryId: row.inquiry_id ?? null,
   };
 }
 

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createPaymentLink, markPaymentLinkPaid } from "./links";
+import { createPaymentLink, loadPaymentLinkByCode, markPaymentLinkPaid } from "./links";
 
 test("createPaymentLink refuses a non-positive amount without reserving", async () => {
   let reserved = false;
@@ -125,4 +125,34 @@ test("markPaymentLinkPaid on an already-paid link collects nothing twice", async
   assert.deepEqual(result, { ok: true });
   assert.equal(settles, 0);
   assert.deepEqual(updates, []);
+});
+
+// D-145: the link carries the conversation it was requested from, so the pay
+// page can lead back to it when the order itself does not name one.
+test("loadPaymentLinkByCode reads the link's inquiry", async () => {
+  const admin = {
+    from: () => {
+      const api = {
+        select: () => api,
+        eq: () => api,
+        maybeSingle: async () => ({
+          data: {
+            tenant_id: "t1",
+            order_id: "o1",
+            amount_cents: 1800,
+            status: "open",
+            provider: "mock",
+            expires_at: new Date(Date.now() + 60_000).toISOString(),
+            inquiry_id: "inq-1",
+          },
+          error: null,
+        }),
+      };
+      return api;
+    },
+  };
+  const loaded = await loadPaymentLinkByCode(admin as never, "abcdefgh");
+  assert.equal(loaded.ok, true);
+  if (!loaded.ok) return;
+  assert.equal(loaded.inquiryId, "inq-1");
 });
