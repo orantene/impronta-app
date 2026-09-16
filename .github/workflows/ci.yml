@@ -526,6 +526,15 @@ jobs:
       - name: tests — reservations
         if: ${{ !cancelled() }}
         run: npm run test:reservations
+      # Storefront widget seams: the reader/action pair per page-builder widget
+      # (`lib/storefront/*.server.ts`) over injected engines. Proves each read
+      # returns shaped data, each act refuses without identity, maps every
+      # engine refusal onto the five widget reasons, and replays a key without
+      # a second write. No database: the fakes model the contract, the engines
+      # own the row locks.
+      - name: tests — storefront seams
+        if: ${{ !cancelled() }}
+        run: npm run test:storefront
       # QR & Links Q1: which destination a printed code resolves to, at the
       # hour it is actually scanned. Pure — a wall clock in the venue timezone
       # and a rule list, no database. The rows and the redirect are asserted in
