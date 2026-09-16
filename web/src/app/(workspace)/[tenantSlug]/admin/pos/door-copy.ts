@@ -526,6 +526,7 @@ export function doorCopy(t: Translator): DoorCopy {
       no_provider_charge: t(REFUND_DESK_KEY.no_provider_charge),
       provider_refused: t(REFUND_DESK_KEY.provider_refused),
       partial_failure: t(REFUND_DESK_KEY.partial_failure),
+      over_limit: t(REFUND_DESK_KEY.over_limit),
       unavailable: t(REFUND_DESK_KEY.unavailable),
     },
     deliveryPanel: {
