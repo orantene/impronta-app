@@ -23,6 +23,8 @@ export function TicketSelfClient(props: {
     transferAction: string;
     resend: string;
     lookup: string;
+    /** The reader's own e-mail (not the transfer's "New holder email"). */
+    lookupEmail: string;
     last4: string;
     lookupAction: string;
     found: string;
@@ -127,7 +129,7 @@ export function TicketSelfClient(props: {
         <section className="rounded-[16px] border-[1.5px] border-admin-border bg-admin-card p-4">
           <h2 className="m-0 text-[15px] font-semibold">{props.copy.lookup}</h2>
           <label className="mt-2 flex flex-col gap-1 text-[12px] font-semibold">
-            {props.copy.toEmail}
+            {props.copy.lookupEmail}
             <input value={lookupEmail} onChange={(e) => setLookupEmail(e.target.value)} className="h-11 rounded-[10px] border border-admin-border bg-admin-card px-3 text-[15px]" />
           </label>
           <label className="mt-2 flex flex-col gap-1 text-[12px] font-semibold">

@@ -1528,6 +1528,55 @@
       "talentView": "Ves al cliente, el servicio y las notas de silla. No la conversacion ni otros precios.",
       "payBy": "Paga a esta hora para guardar el horario."
     },
+    "storefront": {
+      "refusal": {
+        "soldOut": "Eso está agotado. Elige otra cosa.",
+        "fullyBooked": "Eso está lleno. Prueba otra hora u otro día.",
+        "slotTaken": "Alguien acaba de tomar ese horario. Elige otro.",
+        "seatTaken": "Alguien acaba de tomar ese asiento. Elige otro.",
+        "noTableThatSize": "No tenemos una mesa de ese tamaño. Escríbenos y vemos qué podemos hacer.",
+        "noSeatsOnSale": "Los lugares para eso no están a la venta en línea.",
+        "past": "Esa hora ya pasó. Elige una posterior.",
+        "notOpen": "Eso no está abierto para reservar ahora mismo.",
+        "notOnSale": "Los boletos para eso todavía no están a la venta.",
+        "timeNotOffered": "Ese horario ya no se ofrece. Elige otro.",
+        "tooLate": "Ya es tarde para reservar eso en línea. Escríbenos y vemos qué podemos hacer.",
+        "closed": "Ese día cerramos. Prueba otra fecha.",
+        "tooFarAhead": "Eso es más adelante de lo que aceptamos reservas.",
+        "holdExpired": "Tu apartado venció. Vuelve a elegir tus asientos.",
+        "offerExpired": "Esa oferta venció.",
+        "conflict": "Esto acaba de cambiar. Recarga y vuelve a mirar.",
+        "inFlight": "Tu primer intento sigue en curso. Dale un momento.",
+        "identityRequired": "Necesitamos tu nombre y un correo o teléfono para continuar.",
+        "promoNeedsName": "Agrega tu nombre y correo antes de aplicar un código.",
+        "signInRequired": "Inicia sesión para reservar esto.",
+        "captchaRequired": "Confirma que no eres un robot e inténtalo de nuevo.",
+        "notAllowed": "Eso no está permitido aquí.",
+        "notOfferedHere": "Esto no se ofrece en línea por ahora. Escríbenos.",
+        "notForSale": "Ese artículo ya no está disponible.",
+        "optionRequired": "Primero elige una opción para ese artículo.",
+        "slotRequired": "Elige un horario antes de reservar.",
+        "paymentOption": "Esa forma de pago no está disponible para esto.",
+        "quantity": "Esa cantidad no está disponible.",
+        "partySize": "No podemos tomar un grupo de ese tamaño en línea. Escríbenos y lo resolvemos.",
+        "emptyOrder": "Tu pedido está vacío.",
+        "promoUnknown": "No reconocemos ese código.",
+        "promoNotStarted": "Ese código todavía no está activo.",
+        "promoExpired": "Ese código venció.",
+        "promoExhausted": "Ese código ya se agotó.",
+        "promoNotApplicable": "Ese código no aplica a este pedido.",
+        "ageGateUnconfirmed": "Confirma tu edad para continuar.",
+        "ageGateBelowMinimum": "Debes ser mayor para reservar esto.",
+        "rateLimited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+        "alreadyWaiting": "Ya estás en la lista de espera para esto.",
+        "seatsAvailable": "Todavía hay lugares. Reserva uno en vez de esperar.",
+        "alreadyDone": "Eso ya se hizo.",
+        "notFound": "No pudimos encontrar eso.",
+        "invalid": "Algo en eso no se veía bien. Revísalo e inténtalo de nuevo.",
+        "channelUnavailable": "No pudimos enviar eso ahora mismo. Inténtalo en un momento.",
+        "unavailable": "No pudimos hacer eso ahora mismo. No se cambió nada. Inténtalo de nuevo."
+      }
+    },
     "onboarding": {
       "chrome": {
         "close": "Cerrar",
@@ -5216,6 +5265,7 @@
           "yes": "Sí",
           "no": "No",
           "none": "Ninguno",
+          "all": "Todos",
           "untracked": "–"
         },
         "actions": {
@@ -14032,7 +14082,8 @@
           "linkResend": "Reenviar",
           "linkReceipt": "Ver recibo",
           "linkNew": "Enviar enlace nuevo",
-          "linksUnavailable": "Todavía ninguna tabla registra un enlace de pago enviado, así que no hay nada que listar ni reenviar aquí."
+          "linksUnavailable": "Todavía ninguna tabla registra un enlace de pago enviado, así que no hay nada que listar ni reenviar aquí.",
+          "totalDetailOne": "{amount} · 1 hito"
         }
       },
       "classes": {
@@ -15309,6 +15360,12 @@
           "deliveryRetry": "Reintentar",
           "deliveryRetried": "Enviado de nuevo.",
           "deliveryAttempts": "{count} intentos",
+          "newThreadLinkTitle": "Enlace del cliente",
+          "newThreadLinkCopy": "Copiar enlace",
+          "newThreadLinkCopied": "Copiado",
+          "newThreadLinkSend": "Enviar por WhatsApp",
+          "newThreadLinkDismiss": "Descartar",
+          "newThreadLinkUnavailable": "Esta conversación se creó, pero no se pudo firmar su enlace.",
           "recoverNone": "No hay ningún checkout guardado en este hilo. Pedir un pago guarda uno.",
           "recoverLine": "Guardado {when} · {count} líneas · cesta v{version}",
           "recoverRecovered": "Ya recuperado",
@@ -15539,6 +15596,7 @@
         "transferAction": "Ceder",
         "resend": "Reenviar por correo",
         "lookup": "Buscar una entrada",
+        "lookupEmail": "Tu correo",
         "last4": "Últimos cuatro del recibo",
         "lookupAction": "Buscar",
         "found": "Abrir {code}"
@@ -16040,7 +16098,7 @@
     },
     "projects": {
       "pageTitle": "Proyectos",
-      "pageIntro": "Trabajo por encargo: el acuerdo, lo que se debe, lo entregado y quien participa. Una venta en el mostrador es un pedido, no un proyecto.",
+      "pageIntro": "Trabajo por encargo, de la consulta al cierre",
       "unavailable": "No pudimos cargar tus proyectos. No se cambio nada. Intenta de nuevo en un momento.",
       "empty": "Todavia no hay proyectos por encargo.",
       "emptyHint": "Un proyecto aparece aqui cuando un cliente acepta una oferta en una consulta. Las ventas del mostrador siguen en Pedidos.",
@@ -16088,7 +16146,7 @@
       "scope": {
         "none": "Todavia no se ha redactado ningun acuerdo. La oferta se redacta en la conversacion de la que salio este proyecto.",
         "noInquiry": "Este proyecto no salio de una conversacion, asi que no tiene oferta que mostrar. Las versiones del acuerdo viven en la consulta.",
-        "version": "Version {n}",
+        "version": "v{n}",
         "history": "Versiones anteriores",
         "historyNone": "No hay versiones anteriores. Esta es la primera.",
         "coordinatorFee": "Comision del coordinador",
@@ -16116,7 +16174,8 @@
         "priorKept": "v{n} (enviada el {date}, {amount}) se conserva sin cambios para el registro.",
         "sendVersion": "Enviar v{n}",
         "discardProposal": "Descartar propuesta",
-        "refusalNoLock": "No se pudo leer la conversación. Recarga e inténtalo de nuevo."
+        "refusalNoLock": "No se pudo leer la conversación. Recarga e inténtalo de nuevo.",
+        "valueDetailOne": "{amount} · 1 hito"
       },
       "milestones": {
         "title": "Hitos y entregas",
@@ -16142,7 +16201,7 @@
         "refusalUnavailable": "No pudimos acceder al registro. No se cambio nada.",
         "refusalNotAllowed": "No tienes permiso para decidir sobre entregas en este espacio de trabajo.",
         "refusalInvalid": "Esa solicitud no indico una entrega sobre la que pudieramos actuar.",
-        "sumTitle": "Hitos y entregables",
+        "sumTitle": "Hitos · suman el acuerdo",
         "add": "Añadir hito",
         "onDelivery": "A la entrega · {date}",
         "requestChanges": "Pedir cambios",
@@ -16163,8 +16222,7 @@
         "noneHint": "La asignacion se crea al aceptar una oferta con lineas. Cada profesional asignado tiene su propia linea.",
         "colRole": "Rol",
         "unnamed": "Nombre no registrado",
-        "replaceNote": "Al reemplazar a una persona se conserva el nombre saliente en la linea, para que la historia de quien hizo el trabajo sobreviva al cambio. El reemplazo todavia no se edita desde esta pantalla.",
-        "marginNote": "El honorario y el cargo se muestran juntos porque esta es la vista del espacio de trabajo. Un profesional asignado solo ve su propio honorario.",
+        "replaceNote": "El reemplazo toma la línea al confirmar. Si no está disponible o el trabajo ya empezó, el motor lo rechaza y dice por qué.",
         "assignments": "Asignaciones",
         "assign": "Asignar desde Personas › Reservable",
         "assigned": "Asignado",
@@ -16183,10 +16241,11 @@
         "impactOutgoingValue": "Se conserva en la línea para el registro · nada ganado",
         "impactClient": "Cliente",
         "impactClientValue": "No se avisa desde aquí · no requiere aprobación",
-        "replaceConfirm": "Sustituir e invitar",
+        "replaceConfirm": "Sustituir e invitar a {name}",
         "replaceNoProfile": "Esta persona se escribió en la oferta y no tiene perfil que sustituir.",
         "replacementPick": "Elige a una persona",
-        "replacementNone": "Todavía no hay nadie más en el equipo."
+        "replacementNone": "Todavía no hay nadie más en el equipo.",
+        "replacementHint": "Se lista a todo el elenco del espacio de trabajo; la disponibilidad se comprueba al confirmar."
       },
       "money": {
         "quotedNotAgreed": "No se ha aceptado ninguna version, asi que todavia no hay precio acordado.",
@@ -16255,13 +16314,15 @@
         "confirmArchive": "Archivar proyecto",
         "confirmReopen": "Reabrir proyecto",
         "archiveReason": "Por qué se archiva",
-        "archiveReasonHint": "Opcional. Queda en el registro."
+        "archiveReasonHint": "Opcional. Queda en el registro.",
+        "cancelSheet": "Cancelar",
+        "milestonesOpenOne": "1 hito abierto"
       },
       "visibility": {
-        "title": "Quien ve que",
-        "audienceStaff": "Personal del espacio de trabajo",
-        "audienceProfessional": "Profesional asignado",
-        "audienceClient": "Cliente",
+        "title": "Quién ve qué en este proyecto",
+        "audienceStaff": "Titular · gestor",
+        "audienceProfessional": "Talento asignado",
+        "audienceClient": "Cliente (portal)",
         "note": "No existe una tabla de visibilidad por proyecto. El acceso del personal viene del modelo de acceso del espacio de trabajo, y el del profesional asignado es un permiso acotado a su propia linea de asignacion. Esta pantalla enuncia la regla que producen esos dos; no ofrece una excepcion por proyecto, porque no existe.",
         "colItem": "Elemento",
         "never": "Nunca",
@@ -16414,7 +16475,8 @@
       "dateStarts": "Empieza",
       "dateEnds": "Termina",
       "dateMilestoneDue": "{title} vence",
-      "filesNone": "Todavía no hay ningún archivo adjunto a un hito."
+      "filesNone": "Todavía no hay ningún archivo adjunto a un hito.",
+      "kpiCollectedNoteOne": "1 registro pagado"
     },
     "clientRecord": {
       "title": "Cliente",
@@ -16515,7 +16577,10 @@
       "tabProjects": "Proyectos",
       "tabDetails": "Detalles",
       "cancel": "Cancelar",
-      "linkSent": "Enlace de pago enviado · caduca {when} · te avisaremos cuando se pague"
+      "linkSent": "Enlace de pago enviado · caduca {when} · te avisaremos cuando se pague",
+      "selectedRecordOne": "1 registro",
+      "collectSummaryOne": "1 registro pendiente, {amount} por cobrar",
+      "lineOne": "1 línea"
     },
     "issues": {
       "eyebrow": "Incidencias",
@@ -16884,6 +16949,7 @@
         "details": "Detalles",
         "pricing": "Precios",
         "options": "Opciones",
+        "who": "Quién lo realiza",
         "availability": "Disponibilidad",
         "fulfillment": "Entrega",
         "channels": "Canales",
@@ -18648,7 +18714,7 @@
           "removed": "Retirado",
           "noContact": "Sin correo registrado",
           "pinSet": "Configurado",
-          "pinNone": "Sin PIN",
+          "pinNone": "Sin definir",
           "pinWhy": "el punto de venta no tiene PIN"
         },
         "empty": {
@@ -18954,6 +19020,25 @@
         "posTitle": "Permisos del POS",
         "posSub": "Se aplican cuando {name} abre nuestro POS desde el enlace de profesional · no hace falta rol en el espacio",
         "posOff": "Los permisos del punto de venta por persona todavía no se guardan; el rol de Acceso decide lo que permite el POS.",
+        "nav": {
+          "status": "Estado",
+          "services": "Servicios aquí",
+          "hours": "Horario y ubicaciones",
+          "requirements": "Requisitos",
+          "limits": "Límites del brief",
+          "pos": "Permisos del POS",
+          "pay": "Pago",
+          "editor": "Editor del perfil",
+          "role": "Rol e inicio de sesión"
+        },
+        "hoursTable": {
+          "day": "Día",
+          "hours": "Horario",
+          "breaks": "Pausas",
+          "off": "Cerrado",
+          "edit": "Editar horario",
+          "breaksWhy": "Las pausas no se guardan; toda la ventana es reservable."
+        },
         "pos": {
           "completeOwn": "Puede completar sus propios trabajos",
           "completeOwnHelp": "Marcar hecho, añadir extras acordados",

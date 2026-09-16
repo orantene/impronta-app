@@ -72,6 +72,7 @@ export async function ProjectsModePage(props: {
   return (
     <ProjectsModeClient
       workspaceName={props.workspaceName}
+      locale={props.locale}
       locationName={props.locationName}
       cashierName={props.cashierName}
       drawerOpen={props.drawerOpen}

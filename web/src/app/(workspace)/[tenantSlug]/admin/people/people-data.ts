@@ -312,6 +312,7 @@ async function loadHoursSummaries(
     out.set(row.talent_profile_id, {
       timezone: parsed.timezone,
       openDays,
+      weekly: parsed.weekly,
       bufferBeforeMin: parsed.bufferBeforeMin,
       minNoticeMin: parsed.minNoticeMin,
     });

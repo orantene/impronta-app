@@ -10,6 +10,26 @@ import { venueHhmm } from "@/lib/spaces/venue-clock";
 import { CheckoutView } from "./CheckoutView";
 
 /**
+ * The signed `/c/t/<token>` path for the conversation behind a sale: the
+ * link's own inquiry, else the order's. Null when neither names one.
+ */
+async function threadHrefFor(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+  orderId: string,
+  linkInquiryId: string | null,
+): Promise<string | null> {
+  let inquiryId = linkInquiryId;
+  if (!inquiryId) {
+    const { data, error } = await admin.from("orders").select("inquiry_id").eq("id", orderId).maybeSingle();
+    if (error) notFound();
+    inquiryId = (data as { inquiry_id: string | null } | null)?.inquiry_id ?? null;
+  }
+  const token = inquiryId && tenantId ? signThreadToken(inquiryId, tenantId) : null;
+  return token ? publicThreadPath(token) : null;
+}
+
+/**
  * `/pay/<code>` — MC15–MC20. The code is the credential.
  */
 export default async function PayByCodePage({
@@ -28,6 +48,10 @@ export default async function PayByCodePage({
 
   const loaded = await loadPaymentLinkByCode(admin, code);
   if (!loaded.ok && loaded.reason === "expired") {
+    // An expired request is exactly when the customer needs the conversation
+    // back: that is where they ask for a fresh one. The link's own inquiry,
+    // else the order's (D-150: this view used to hand over no thread at all).
+    const expiredHref = await threadHrefFor(admin, loaded.tenantId, loaded.orderId, loaded.inquiryId);
     return (
       <CheckoutView
         code={code}
@@ -38,7 +62,7 @@ export default async function PayByCodePage({
         lines={[]}
         holdUntil={null}
         stripeUrl={null}
-        threadHref={null}
+        threadHref={expiredHref}
         receiptHref={null}
       />
     );

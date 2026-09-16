@@ -192,3 +192,22 @@ test("admission_comp SQL writes an identity the paid-order constraint accepts", 
   assert.match(body, /customer_id, guest_session_id, receipt_code, session_id/);
   assert.match(body, /v_receipt := 'cmp' \|\| replace\(gen_random_uuid\(\)::text, '-', ''\)/);
 });
+
+test("admission_comp SQL sets exactly one payee on the $0 line (order_lines_payee_xor, D-146)", () => {
+  const dir = join(process.cwd(), "..", "supabase", "migrations");
+  const latest = readdirSync(dir)
+    .filter((name) => name.endsWith(".sql"))
+    .sort()
+    .reverse()
+    .find((name) => readFileSync(join(dir, name), "utf8").includes("FUNCTION public.admission_comp("));
+  assert.ok(latest);
+  assert.ok(latest! >= "20261231242000_admission_comp_payee.sql", `latest admission_comp body is ${latest}`);
+  const sql = readFileSync(join(dir, latest!), "utf8");
+  const body = sql.slice(sql.indexOf("FUNCTION public.admission_comp("));
+  const lineInsert = body.slice(body.indexOf("INSERT INTO public.order_lines ("), body.indexOf("RETURNING id INTO v_line"));
+  // The line's column list names both payee columns, and the values fill
+  // exactly one of them: the offering's talent, else the workspace.
+  assert.match(lineInsert, /talent_profile_id, owner_tenant_id/);
+  assert.match(lineInsert, /v_offering_talent, CASE WHEN v_offering_talent IS NULL THEN p_tenant_id ELSE NULL END/);
+  assert.match(body, /SELECT o\.talent_profile_id INTO v_offering_talent\s+FROM public\.talent_offerings o/);
+});

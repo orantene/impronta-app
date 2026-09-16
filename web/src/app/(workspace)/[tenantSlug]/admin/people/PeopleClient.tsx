@@ -105,12 +105,13 @@ export function PeopleClient({
   const rosterHref = `${adminBasePath}/roster`;
 
   return (
-    <div data-tulala-people-board className="flex w-full flex-col gap-[16px] font-admin-body">
-      {/* Title, subtitle and the header actions the board names for this view */}
-      <div className="flex items-start justify-between gap-[12px]">
-        <div>
-          <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t(`${B}.title.${view}`)}</h1>
-          <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted">{t(`${B}.subtitle.${view}`)}</p>
+    <div data-tulala-people-board className="flex w-full flex-col gap-[16px] font-admin-body leading-[1.2]">
+      {/* Title, subtitle and the header actions the board names for this view:
+          the 26px title over a 13px line, the actions on the title's row */}
+      <div className="-mb-[6px] flex items-start justify-between gap-[12px]">
+        <div className="min-w-0">
+          <h1 className="m-0 text-[26px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t(`${B}.title.${view}`)}</h1>
+          <p className="m-0 mt-[4px] text-admin-13 leading-[1.3] text-admin-ink-muted">{t(`${B}.subtitle.${view}`)}</p>
         </div>
         <HeaderActions view={view} setView={setView} rosterHref={rosterHref} />
       </div>
@@ -134,8 +135,9 @@ export function PeopleClient({
             label={t(`${K}.title`)}
           />
 
-          {you && tab !== "access" ? (
-            <div data-testid="people-you-too" className="flex items-center gap-[10px] rounded-[10px] bg-admin-surface-alt px-[14px] py-[10px] text-[12.5px] text-admin-ink-muted">
+          {/* W27 draws the "you're on this list too" line; W29 and W30 do not. */}
+          {you && (tab === "talent" || tab === "everyone") ? (
+            <div data-testid="people-you-too" className="flex h-[40px] items-center gap-[10px] rounded-[10px] bg-admin-surface-alt px-[14px] text-[12.5px] leading-[1.2] text-admin-ink-muted">
               <Icon name="user" size={14} stroke={1.75} />
               <span className="flex-1">
                 {interpolate(t(`${B}.youToo`), { hats: hatsWorn(you).map((h) => t(`${K}.hat.${h}`)).join(" + ") })}
@@ -147,7 +149,7 @@ export function PeopleClient({
           ) : null}
 
           {listed.length === 0 && !loadFailed ? (
-            <p data-testid="people-empty" className="rounded-[12px] border border-admin-border-soft bg-admin-card px-[16px] py-[12px] text-admin-13 text-admin-ink">
+            <p data-testid="people-empty" className="m-0 rounded-[12px] border border-admin-border-soft bg-admin-card px-[16px] py-[12px] text-admin-13 leading-[1.3] text-admin-ink">
               {t(`${B}.empty.${tab}`)}
             </p>
           ) : null}

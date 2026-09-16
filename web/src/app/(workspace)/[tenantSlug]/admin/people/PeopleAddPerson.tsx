@@ -16,19 +16,29 @@
 
 import { useMemo, useState, useTransition } from "react";
 
-import { ActionButton, FactRow } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
+import { ActionButton } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { personNameOr } from "@/lib/people/display-name";
 import { PERSON_HATS, type PersonHat, type PersonRecord } from "@/lib/people/hats";
 import { invitePersonAccess, type PeopleActionResult } from "./people-actions";
 import { PEOPLE_INPUT, PEOPLE_NOTE, PEOPLE_REFUSAL } from "./people-classes";
-import { CARD, MutedChip } from "./people-ui";
+import { CARD, KeyValue, MutedChip } from "./people-ui";
 
 const K = "admin.people";
 const A = "admin.people.add";
 
 const COMBOS = ["employee", "frontDesk", "talentBooked", "talentOnly", "contractor", "owner"] as const;
+
+/** The board tints a picked card in its hat's colour: royal, green, brand. */
+const PICKED_CARD: Record<PersonHat, string> = {
+  publicProfile: "border-admin-royal bg-admin-royal-soft",
+  bookable: "border-admin-success bg-admin-success-soft",
+  access: "border-admin-brand bg-admin-brand-soft",
+};
+
+const FIELD_LABEL = "flex flex-col gap-[8px] text-admin-13 font-semibold leading-[1.2] text-admin-ink";
+const FIELD_HELP = "text-[11.5px] font-normal leading-[1.3] text-admin-ink-muted";
 
 export function PeopleAddPerson({
   people,
@@ -90,20 +100,20 @@ export function PeopleAddPerson({
   };
 
   return (
-    <div className="flex flex-col gap-[16px]" data-testid="people-add">
+    <div className="flex flex-col gap-[16px] leading-[1.2]" data-testid="people-add">
       <div className="grid grid-cols-3 gap-[16px]">
-        <label className="flex flex-col gap-[6px] text-[12.5px] font-semibold text-admin-ink">
+        <label className={FIELD_LABEL}>
           <span>
             {t(`${A}.name`)} <span className="text-admin-red">*</span>
           </span>
           <input className={PEOPLE_INPUT} value={name} placeholder={t(`${A}.namePlaceholder`)} onChange={(e) => setName(e.target.value)} />
         </label>
-        <label className="flex flex-col gap-[6px] text-[12.5px] font-semibold text-admin-ink">
+        <label className={FIELD_LABEL}>
           <span>{t(`${A}.emailOrPhone`)}</span>
           <input className={PEOPLE_INPUT} type="email" value={email} placeholder={t(`${A}.emailPlaceholder`)} onChange={(e) => setEmail(e.target.value)} />
-          <span className="text-[11.5px] font-normal text-admin-ink-muted">{t(`${A}.emailHelp`)}</span>
+          <span className={FIELD_HELP}>{t(`${A}.emailHelp`)}</span>
         </label>
-        <div className="flex flex-col gap-[6px] text-[12.5px] font-semibold text-admin-ink">
+        <div className={FIELD_LABEL}>
           <span>{t(`${A}.existing`)}</span>
           <div className={`${PEOPLE_INPUT} flex items-center justify-between font-normal`} data-testid="people-add-existing">
             <span className={existing ? "text-admin-ink" : "text-admin-ink-muted"}>
@@ -115,7 +125,7 @@ export function PeopleAddPerson({
               </button>
             ) : null}
           </div>
-          <span className="text-[11.5px] font-normal text-admin-ink-muted">{t(`${A}.existingHelp`)}</span>
+          <span className={FIELD_HELP}>{t(`${A}.existingHelp`)}</span>
         </div>
       </div>
 
@@ -126,18 +136,16 @@ export function PeopleAddPerson({
             <label
               key={hat}
               data-testid={`people-add-hat-${hat}`}
-              className={`flex cursor-pointer flex-col gap-[8px] rounded-[14px] border p-[16px] ${
-                on ? "border-admin-brand bg-admin-brand-soft" : "border-admin-border bg-admin-card"
-              }`}
+              className={`flex cursor-pointer flex-col gap-[8px] rounded-[12px] border p-[16px] ${on ? PICKED_CARD[hat] : "border-admin-border bg-admin-card"}`}
             >
               <span className="flex items-center gap-[8px]">
                 <input type="checkbox" className="h-[16px] w-[16px] accent-admin-brand" checked={on} onChange={(e) => setHats((h) => ({ ...h, [hat]: e.target.checked }))} />
-                <span className="text-[14px] font-semibold text-admin-ink">{t(`${K}.hat.${hat}`)}</span>
+                <span className="text-[15px] font-semibold text-admin-ink">{t(`${K}.hat.${hat}`)}</span>
                 <span className="flex-1" />
                 <MutedChip>{t(`${A}.hatBadge.${hat}`)}</MutedChip>
               </span>
-              <span className="text-[12.5px] leading-[1.45] text-admin-ink-muted">{t(`${A}.hatWhat.${hat}`)}</span>
-              <span className="text-[11.5px] leading-[1.45] text-admin-ink-muted">
+              <span className="text-[12.5px] leading-[1.35] text-admin-ink-muted">{t(`${A}.hatWhat.${hat}`)}</span>
+              <span className="text-[11.5px] leading-[1.3] text-admin-ink-muted">
                 <b className="font-semibold text-admin-ink">{t(`${A}.asksFor`)}</b> {t(`${A}.asks.${hat}`)}
               </span>
             </label>
@@ -145,12 +153,12 @@ export function PeopleAddPerson({
         })}
       </div>
 
-      <div className={`${CARD} px-[16px] py-[12px]`} data-testid="people-add-combos">
-        <div className="mb-[4px] text-[13px] font-semibold text-admin-ink">{t(`${A}.combosTitle`)}</div>
+      <div className={`${CARD} px-[16px] pb-[6px] pt-[14px]`} data-testid="people-add-combos">
+        <div className="mb-[4px] text-admin-13 font-semibold text-admin-ink">{t(`${A}.combosTitle`)}</div>
         {COMBOS.map((c) => (
-          <FactRow key={c} label={t(`${A}.combos.${c}`)}>
+          <KeyValue key={c} label={t(`${A}.combos.${c}`)} tall>
             {t(`${A}.combos.${c}Hats`)}
-          </FactRow>
+          </KeyValue>
         ))}
       </div>
 
@@ -163,7 +171,7 @@ export function PeopleAddPerson({
       <div className="flex items-center justify-between gap-[12px]">
         <ActionButton onClick={onCancel}>{t(`${A}.cancel`)}</ActionButton>
         <div className="flex items-center gap-[12px]">
-          <span className="text-[12px] text-admin-ink-muted">{nextLine}</span>
+          <span className="text-[12.5px] text-admin-ink-muted">{nextLine}</span>
           <ActionButton tone="primary" reason={reason} disabled={pending} onClick={go} testId="people-add-continue">
             {picked.length === 0 ? t(`${A}.continueBare`) : interpolate(t(`${A}.continue`), { hats: picked.map((h) => t(`${K}.hat.${h}`)).join(" + ") })}
           </ActionButton>

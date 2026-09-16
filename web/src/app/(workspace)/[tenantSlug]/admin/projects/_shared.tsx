@@ -1,7 +1,7 @@
 /**
  * Shared presentation for the Projects and Clients records, as the boards
  * draw them (W41, W42, W45 and their tabs): a full-width page with a 320px
- * right column, 22/28px padding, 14px cards with a hairline border, 11px
+ * right column (the board's 280px, 30px past the main column's rule), 14px cards with a hairline border, 11px
  * uppercase eyebrows, 22px figures in KPI cards, 34px buttons with a 9px
  * radius, and the small status pills.
  *
@@ -15,6 +15,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { TriangleAlert } from "lucide-react";
 import { isOrderStatus } from "@/lib/orders/order-status";
 import { cn } from "@/lib/utils";
 import { ORDER_STATUS_KEY } from "./_keys";
@@ -26,6 +27,8 @@ const BTN =
 export const BTN_PRIMARY = `${BTN} border-admin-brand bg-admin-brand text-admin-card hover:bg-admin-brand-deep`;
 export const BTN_SECONDARY = `${BTN} border-admin-border bg-admin-card text-admin-ink hover:bg-admin-surface-alt`;
 export const BTN_DANGER = `${BTN} border-admin-red/40 bg-admin-card text-admin-red hover:bg-admin-critical-soft`;
+/** The board's quiet section action (`+ Add milestone`, `+ Upload`): a grey pill, no border. */
+export const BTN_GHOST = `${BTN} border-transparent bg-admin-surface-alt text-admin-ink hover:bg-admin-border-soft`;
 /** The 30px variant inside a row (`Remind`, `Edit`). */
 export const BTN_ROW = "h-[30px] px-3 text-[12px]";
 
@@ -36,11 +39,11 @@ export const BTN_ROW = "h-[30px] px-3 text-[12px]";
  * gives the board's 28px sides and 24px top, so these shells add none.
  */
 export function PageShell({ children }: { children: React.ReactNode }) {
-  return <div className="flex w-full flex-col gap-4 max-[720px]:gap-[12px]">{children}</div>;
+  return <div className="flex w-full flex-col gap-4 leading-[1.2] max-[720px]:gap-[12px]">{children}</div>;
 }
 
 /**
- * A record page: the main column and the 320px right column. On the phone
+ * A record page: the main column and the 280px right column. On the phone
  * (MW06, MW10) the right column is folded away unless the page asks for it
  * (`sideOnMobile`, the Details tab), and the main column's blocks sit 12px
  * apart as the boards draw them.
@@ -55,8 +58,8 @@ export function RecordShell({
   sideOnMobile?: boolean;
 }) {
   return (
-    <div className="grid w-full min-w-0 grid-cols-1 gap-x-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="flex min-w-0 flex-col gap-[18px] border-admin-border lg:border-r lg:pr-7 max-[720px]:gap-[12px]">{main}</div>
+    <div className="grid w-full min-w-0 grid-cols-1 gap-x-3 leading-[1.2] lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="flex min-w-0 flex-col gap-[18px] border-admin-border lg:border-r lg:pr-[30px] max-[720px]:gap-[12px]">{main}</div>
       <aside className={cn("flex min-w-0 flex-col gap-4 max-[720px]:mt-[12px]", !sideOnMobile && "max-[720px]:hidden")}>{side}</aside>
     </div>
   );
@@ -81,7 +84,7 @@ export function PageHeading({
     <header className="flex items-center justify-between gap-3 max-[720px]:flex-wrap">
       <div className="flex min-w-0 items-center gap-2">
         <div className="min-w-0">
-          <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">
+          <h1 className="m-0 text-[26px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">
             {title}
           </h1>
           {intro ? <p className="m-0 mt-1 text-[13px] text-admin-ink-muted max-[720px]:hidden">{intro}</p> : null}
@@ -152,7 +155,7 @@ export function Eyebrow({ children, wide }: { children: React.ReactNode; wide?: 
 export function SectionTitle({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2.5">
-      <h2 className="m-0 flex-1 text-[14px]! font-semibold text-admin-ink">{children}</h2>
+      <h2 className="m-0 flex-1 text-[15px]! font-semibold text-admin-ink">{children}</h2>
       {aside}
     </div>
   );
@@ -172,7 +175,7 @@ export function ListRow({
   return (
     <div
       className={cn(
-        "grid items-center gap-3 border-t border-admin-border-soft px-4 py-[11px] text-[13px] text-admin-ink first:border-t-0",
+        "grid items-center gap-3 border-t border-admin-border-soft px-4 py-[11px] text-[13px] leading-[1.2] text-admin-ink first:border-t-0",
         cols,
         className,
       )}
@@ -187,7 +190,7 @@ export function ListHead({ cols, children }: { cols: string; children: React.Rea
   return (
     <div
       className={cn(
-        "grid gap-3 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-admin-ink-muted",
+        "grid items-center gap-3 border-b border-admin-border-soft px-4 py-[10px] text-[11px] font-semibold uppercase leading-[1.2] tracking-[0.05em] text-admin-ink-muted",
         cols,
       )}
     >
@@ -201,14 +204,22 @@ export function KeyValue({
   label,
   value,
   dim,
+  tall,
 }: {
   label: React.ReactNode;
   value: React.ReactNode;
   /** The value is an absence (`—`, `Never`). */
   dim?: boolean;
+  /** The sheets' 35px row (W44, W48, W50) instead of the column's 29px. */
+  tall?: boolean;
 }) {
   return (
-    <div className="flex justify-between gap-3 border-b border-admin-border-soft py-1.5 text-[13px] last:border-b-0">
+    <div
+      className={cn(
+        "flex items-baseline justify-between gap-3 border-b border-admin-border-soft text-[13px] leading-[1.2] last:border-b-0",
+        tall ? "py-[9px]" : "py-[6px]",
+      )}
+    >
       <span className="text-admin-ink-muted">{label}</span>
       <span
         className={cn(
@@ -240,18 +251,18 @@ export function KpiCard({
   desktopOnly?: boolean;
 }) {
   return (
-    <div className={cn("min-w-0 rounded-[12px] border border-admin-border bg-admin-card px-4 py-3.5 max-[720px]:px-3.5 max-[720px]:py-3", desktopOnly && "max-[720px]:hidden")}>
+    <div className={cn("min-w-0 rounded-[12px] border border-admin-border bg-admin-card px-4 py-4 max-[720px]:px-3.5 max-[720px]:py-3", desktopOnly && "max-[720px]:hidden")}>
       <dt className="text-[11px] font-bold uppercase tracking-[0.06em] text-admin-ink-muted">{label}</dt>
       <dd
         data-kpi={testId}
         className={cn(
-          "m-0 mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[22px] font-semibold leading-tight tracking-[-0.02em] tabular-nums max-[720px]:text-[20px]",
+          "m-0 mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[24px] font-semibold leading-tight tracking-[-0.02em] tabular-nums max-[720px]:text-[20px]",
           tone === "coral" ? "text-admin-coral-deep" : tone === "muted" ? "text-admin-ink-muted" : "text-admin-ink",
         )}
       >
         {value}
       </dd>
-      {note ? <p className="m-0 mt-0.5 text-[12px] text-admin-ink-muted">{note}</p> : null}
+      {note ? <p className="m-0 mt-1 text-[12px] leading-[1.3] text-admin-ink-muted">{note}</p> : null}
     </div>
   );
 }
@@ -269,12 +280,26 @@ const PILL_TONE: Record<PillTone, string> = {
   royal: "bg-admin-royal-soft text-admin-royal",
 };
 
-export function Pill({ tone, children }: { tone: PillTone; children: React.ReactNode }) {
+export function Pill({
+  tone,
+  children,
+  block,
+  className,
+}: {
+  tone: PillTone;
+  children: React.ReactNode;
+  /** The board's list-cell pill: a tinted block that fills its column, 18px tall, the label left. */
+  block?: boolean;
+  className?: string;
+}) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold",
+        block
+          ? "flex h-[17px] w-full min-w-0 items-center overflow-hidden rounded-[5px] px-2 text-[11.5px] font-semibold leading-none"
+          : "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold leading-[1.2]",
         PILL_TONE[tone],
+        className,
       )}
     >
       {children}
@@ -344,7 +369,7 @@ export function SegmentLink({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "rounded-[7px] px-2.5 py-[5px] text-[12px] font-semibold no-underline max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:text-[13px] max-[720px]:shadow-none",
+        "rounded-[7px] px-[10px] py-[5px] text-[12.5px] font-semibold leading-[1.2] no-underline max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:text-[13px] max-[720px]:shadow-none",
         active
           ? "bg-admin-card text-admin-ink shadow-admin-rest max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white"
           : "text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card",
@@ -375,7 +400,7 @@ export function TabStrip({
             href={tab.href}
             aria-current={tab.active ? "page" : undefined}
             className={cn(
-              "-mb-px border-b-2 px-3 py-2.5 text-[13px] no-underline max-[720px]:mb-0 max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:font-semibold",
+              "-mb-px border-b-2 px-3 py-[9px] text-[13.5px] leading-[1.2] no-underline max-[720px]:mb-0 max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:font-semibold",
               tab.active
                 ? "border-admin-brand font-semibold text-admin-ink max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white"
                 : "border-transparent font-medium text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card",
@@ -475,6 +500,16 @@ export function MobileActions({ children }: { children: React.ReactNode }) {
 /** The 50px, full-width phone button. */
 export const BTN_MOBILE = "h-[50px]! w-full rounded-[12px]! text-[15px]!";
 
+/** The sheets' grey note under the facts (W44, W48): a warning glyph and one or two sentences. */
+export function SheetNote({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="m-0 flex items-start gap-2.5 rounded-[10px] bg-admin-surface-alt px-3.5 py-3 text-[12.5px] leading-[1.4] text-admin-ink-muted">
+      <TriangleAlert aria-hidden size={15} strokeWidth={1.75} className="mt-px shrink-0" />
+      <span>{children}</span>
+    </p>
+  );
+}
+
 // ── Small helpers ────────────────────────────────────────────────────
 
 /** Short, stable handle for a uuid: what an operator reads off a screen. */
@@ -498,13 +533,20 @@ export function dayLabel(
   const instant = new Date(value);
   if (Number.isNaN(instant.getTime())) return fallback;
   try {
-    return new Intl.DateTimeFormat(locale, {
+    const fmt = new Intl.DateTimeFormat(locale, {
       timeZone,
       day: "numeric",
       month: "short",
       ...(opts.weekday ? { weekday: "short" } : {}),
       ...(opts.time ? { hour: "2-digit", minute: "2-digit", hour12: false } : {}),
-    }).format(instant);
+    });
+    if (!/^en/i.test(locale)) return fmt.format(instant);
+    // English reads day-first as the boards print it: "Fri 12 Sep 08:00",
+    // "5 Sep". en-GB's own short month is "Sept", so the parts are reassembled
+    // rather than the locale swapped.
+    const part = (type: string) => fmt.formatToParts(instant).find((p) => p.type === type)?.value ?? "";
+    const day = `${opts.weekday ? `${part("weekday")} ` : ""}${part("day")} ${part("month")}`;
+    return opts.time ? `${day} ${part("hour")}:${part("minute")}` : day;
   } catch {
     return fallback;
   }

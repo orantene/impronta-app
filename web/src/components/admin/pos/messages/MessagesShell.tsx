@@ -15,6 +15,7 @@ import {
 import { useT } from "@/i18n/use-t";
 import type { MessagingPreview, MessagingSheetName } from "@/lib/messaging/fixture";
 import { filterInboxRows, inboxMatchSnippet, keepActiveRow } from "@/lib/messaging/inbox-search";
+import { customerThreadUrl } from "@/lib/messaging/thread-link";
 import type { Essentials, InboxFilter, InboxRow, ThreadMessage } from "@/lib/messaging/types";
 import { INBOX_FILTERS } from "@/lib/messaging/types";
 import type { PosMode } from "@/lib/pos/modes";
@@ -58,6 +59,7 @@ import { draftStorageKey, readDraft, writeDraft } from "./draft-storage";
 import { EssentialsPanel } from "./EssentialsPanel";
 import { IncomingToast } from "./IncomingToast";
 import { InboxList } from "./InboxList";
+import { NewThreadLinkBanner } from "./NewThreadLinkBanner";
 import { PhoneMessages } from "./phone/PhoneMessages";
 import { MessagingSheets } from "./sheets/MessagingSheets";
 import { ThreadPane } from "./ThreadPane";
@@ -118,6 +120,13 @@ export function MessagesShell(props: MessagesClientProps) {
   const [offers, setOffers] = useState<OfferRow[] | null>(null);
   const [basketDiff, setBasketDiff] = useState<{ loaded: boolean; diff: BasketDiff | null }>({ loaded: false, diff: null });
   const [notice, setNotice] = useState<string | null>(null);
+  // D-145: `messagingStartConversation` mints a customer thread `token`
+  // (`/c/t/<token>`) for the conversation it just created, and nothing on
+  // this screen kept it — the token reached this component and was thrown
+  // away, so no door here could hand a customer their own thread link.
+  // Held until dismissed or the operator opens a different conversation.
+  const [newThreadLink, setNewThreadLink] = useState<{ inquiryId: string; url: string | null } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const schedulingSentences = useMemo(() => schedulingEngineSentences(t), [t]);
 
   const draftKey = draftStorageKey(props.tenantId, props.locationSlug, activeId ?? "inbox");
@@ -175,6 +184,10 @@ export function MessagesShell(props: MessagesClientProps) {
   const openThread = useCallback(
     async (id: string) => {
       setActiveId(id);
+      // The link banner is for the thread it was minted on. Opening a
+      // DIFFERENT conversation clears it rather than following the operator
+      // onto a thread it says nothing about.
+      setNewThreadLink((current) => (current && current.inquiryId !== id ? null : current));
       if (preview) return;
       const [thread, ess] = await Promise.all([
         messagingLoadThread({ inquiryId: id }),
@@ -365,7 +378,16 @@ export function MessagesShell(props: MessagesClientProps) {
           phone: input.phone || null,
           channel: input.channel as "email" | "whatsapp" | "sms" | "counter",
         }).then((result) => {
-          if (!result.ok) setRefusal(copy.refusal(result.reason));
+          if (!result.ok) {
+            setRefusal(copy.refusal(result.reason));
+          } else {
+            // The token IS the customer's own thread link (`/c/t/<token>`) —
+            // the whole point of naming a buyer here. Keep it so the screen
+            // can hand it over instead of discarding it (D-145).
+            setNewThreadLink({ inquiryId: result.inquiryId, url: customerThreadUrl(window.location.origin, result.token) });
+            setLinkCopied(false);
+            void openThread(result.inquiryId);
+          }
           setSheet(null);
           void reload();
         });
@@ -594,6 +616,29 @@ export function MessagesShell(props: MessagesClientProps) {
         <p className={cn(POS_NOTE, "mx-4 mt-3")} role="status" data-pos-messages-notice="">
           {notice}
         </p>
+      ) : null}
+      {newThreadLink ? (
+        <NewThreadLinkBanner
+          url={newThreadLink.url}
+          copied={linkCopied}
+          onCopy={() => {
+            const url = newThreadLink.url;
+            if (!url) return;
+            void navigator.clipboard?.writeText(url).then(
+              () => setLinkCopied(true),
+              () => setLinkCopied(false),
+            );
+          }}
+          onDismiss={() => setNewThreadLink(null)}
+          copy={{
+            title: copy.newThreadLinkTitle,
+            copyLink: copy.newThreadLinkCopy,
+            copied: copy.newThreadLinkCopied,
+            send: copy.newThreadLinkSend,
+            dismiss: copy.newThreadLinkDismiss,
+            unavailable: copy.newThreadLinkUnavailable,
+          }}
+        />
       ) : null}
       <div className="flex min-h-0 flex-1">
         {focused ? (

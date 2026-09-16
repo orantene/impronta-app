@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * WhoPerforms — W31: Service › Who performs, as the block the Catalog page
- * mounts under its items. The rows are `pickAProfessional` over the People
+ * WhoPerforms — W31: Service › Who performs, the item editor's tab
+ * (`CatalogItemEditor`, tab `who`). The catalog re-skin had dropped the
+ * page that mounted this block; the tab is where the board draws it. The rows are `pickAProfessional` over the People
  * reader (`loadWhoPerforms`), the same list the booking page and the POS
  * filter with, so a public profile alone never appears here.
  *
@@ -15,6 +16,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { ChevronDown, Plus } from "lucide-react";
 
 import { loadWhoPerforms, type PerformerRow, type WhoPerformsResult } from "@/app/(workspace)/[tenantSlug]/admin/people/people-actions";
 import { useT } from "@/i18n/use-t";
@@ -29,8 +31,11 @@ const HAT_TONE: Record<PerformerRow["hats"][number], string> = {
   access: "bg-admin-brand-soft text-admin-brand-deep",
 };
 
+/** The board's 34px select under the kit's own chevron; disabled at half opacity, no native arrow. */
 const SELECT =
-  "h-[34px] w-full cursor-not-allowed rounded-[9px] border border-admin-border bg-admin-card px-[10px] font-admin-body text-admin-13 text-admin-ink opacity-50";
+  "h-[34px] w-full cursor-not-allowed appearance-none rounded-[9px] border border-admin-border bg-admin-card pl-[10px] pr-[30px] font-admin-body text-admin-13 leading-[1.2] text-admin-ink opacity-50";
+const TD = "border-b border-admin-border-soft px-[14px] py-[11px] leading-[1.2]";
+const CHIP = "inline-flex items-center rounded-full px-[8px] py-[2px] text-admin-11 font-semibold leading-[1.2]";
 
 export function WhoPerforms({ peopleHref }: { peopleHref: string }) {
   const t = useT();
@@ -47,10 +52,10 @@ export function WhoPerforms({ peopleHref }: { peopleHref: string }) {
   }, []);
 
   return (
-    <section data-testid="who-performs" className="mt-6 flex flex-col gap-[12px] font-admin-body">
+    <section data-testid="who-performs" className="flex flex-col gap-[14px] font-admin-body leading-[1.2]">
       <div>
-        <h2 className="m-0 text-[15px]! font-semibold text-admin-ink">{t(`${K}.title`)}</h2>
-        <p className="m-0 mt-[2px] text-[12px] text-admin-ink-muted">{t(`${K}.subtitle`)}</p>
+        <h2 className="m-0 text-[15px]! font-semibold leading-[1.2] text-admin-ink">{t(`${K}.title`)}</h2>
+        <p className="m-0 mt-[4px] text-[12.5px] leading-[1.3] text-admin-ink-muted">{t(`${K}.subtitle`)}</p>
       </div>
 
       {result === null ? (
@@ -61,11 +66,11 @@ export function WhoPerforms({ peopleHref }: { peopleHref: string }) {
         </p>
       ) : (
         <div className="overflow-x-auto rounded-[14px] border border-admin-border bg-admin-card">
-          <table className="w-full border-collapse text-admin-13">
+          <table className="w-full border-collapse text-admin-13 leading-[1.2]">
             <thead>
               <tr>
                 {["professional", "otherHats", "locations", "guaranteed", "requirement", "pay"].map((col) => (
-                  <th key={col} scope="col" className="whitespace-nowrap border-b border-admin-border px-[14px] py-[10px] text-left text-admin-11 font-semibold uppercase tracking-[0.05em] text-admin-ink-muted">
+                  <th key={col} scope="col" className="whitespace-nowrap border-b border-admin-border px-[14px] py-[10px] text-left text-admin-11 font-semibold uppercase leading-[1.2] tracking-[0.05em] text-admin-ink-muted">
                     {t(`${K}.col.${col}`)}
                   </th>
                 ))}
@@ -84,29 +89,29 @@ export function WhoPerforms({ peopleHref }: { peopleHref: string }) {
               ) : (
                 result.performers.map((p) => (
                   <tr key={p.key} data-testid="who-performs-row">
-                    <td className="border-b border-admin-border-soft px-[14px] py-[9px] font-semibold text-admin-ink">{p.name || t("admin.people.unnamed")}</td>
-                    <td className="border-b border-admin-border-soft px-[14px] py-[9px]">
+                    <td className={`${TD} font-semibold text-admin-ink`}>{p.name || t("admin.people.unnamed")}</td>
+                    <td className={TD}>
                       <span className="flex flex-wrap gap-[4px]">
                         {p.hats
                           .filter((h) => h !== "bookable")
                           .map((h) => (
-                            <span key={h} className={`inline-flex items-center rounded-full px-[8px] py-[2px] text-admin-11 font-semibold ${HAT_TONE[h]}`}>
+                            <span key={h} className={`${CHIP} ${HAT_TONE[h]}`}>
                               {t(`${H}.${h}`)}
                             </span>
                           ))}
-                        {p.hats.length === 1 ? <span className="inline-flex items-center rounded-full bg-admin-surface-alt px-[8px] py-[2px] text-admin-11 font-semibold text-admin-ink-muted">{t(`${K}.bookableOnly`)}</span> : null}
+                        {p.hats.length === 1 ? <span className={`${CHIP} bg-admin-surface-alt text-admin-ink-muted`}>{t(`${K}.bookableOnly`)}</span> : null}
                       </span>
                     </td>
-                    <td className="border-b border-admin-border-soft px-[14px] py-[9px] text-admin-ink-muted" title={t(`${K}.locationsWhy`)}>
+                    <td className={`${TD} text-admin-ink-muted`} title={t(`${K}.locationsWhy`)}>
                       {t(`${K}.allLocations`)}
                     </td>
-                    <td className="border-b border-admin-border-soft px-[14px] py-[9px] text-admin-ink-muted" title={t(`${K}.guaranteedWhy`)}>
+                    <td className={`${TD} text-admin-ink-muted`} title={t(`${K}.guaranteedWhy`)}>
                       {p.hasHours ? t(`${K}.guaranteedAllowed`) : t(`${K}.guaranteedNoHours`)}
                     </td>
-                    <td className="border-b border-admin-border-soft px-[14px] py-[9px] text-admin-ink-dim" title={t(`${K}.requirementWhy`)}>
+                    <td className={`${TD} text-admin-ink-dim`} title={t(`${K}.requirementWhy`)}>
                       {t(`${K}.none`)}
                     </td>
-                    <td className="border-b border-admin-border-soft px-[14px] py-[9px] text-admin-ink-dim" title={t(`${K}.payWhy`)}>
+                    <td className={`${TD} text-admin-ink-dim`} title={t(`${K}.payWhy`)}>
                       {t(`${K}.none`)}
                     </td>
                   </tr>
@@ -121,23 +126,29 @@ export function WhoPerforms({ peopleHref }: { peopleHref: string }) {
               title={t(`${K}.addOff`)}
               data-not-wired="true"
               data-testid="who-performs-add"
-              className="inline-flex h-[30px] cursor-not-allowed items-center rounded-[9px] border border-admin-border bg-admin-card px-[12px] text-[12.5px] font-semibold text-admin-ink opacity-50"
+              className="inline-flex h-[30px] cursor-not-allowed items-center gap-[6px] rounded-full bg-admin-surface-alt px-[12px] text-[12.5px] font-semibold leading-[1.2] text-admin-ink opacity-50"
             >
-              + {t(`${K}.add`)}
+              <Plus aria-hidden size={13} strokeWidth={2} />
+              {t(`${K}.add`)}
             </button>
-            <span className="text-[12px] text-admin-ink-muted">{interpolate(t(`${K}.addNote`), { count: result.performers.length })}</span>
+            <span className="text-[12.5px] text-admin-ink-muted">{interpolate(t(`${K}.addNote`), { count: result.performers.length })}</span>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-3 gap-[12px]" data-testid="who-performs-rules">
         {(["requirement", "customerChoice", "phaseRule"] as const).map((rule) => (
-          <label key={rule} className="flex flex-col gap-[6px] text-[12.5px] font-semibold text-admin-ink">
+          <label key={rule} className="flex flex-col gap-[8px] text-admin-13 font-semibold leading-[1.2] text-admin-ink">
             {t(`${K}.rule.${rule}`)}
-            <select className={SELECT} disabled title={t(`${K}.rule.${rule}Off`)} value="x" onChange={() => undefined} data-not-wired="true">
-              <option value="x">{t(`${K}.rule.${rule}Value`)}</option>
-            </select>
-            <span className="text-[11px] font-normal text-admin-ink-muted">{t(`${K}.rule.${rule}Off`)}</span>
+            <span className="relative block">
+              <select className={SELECT} disabled title={t(`${K}.rule.${rule}Off`)} value="x" onChange={() => undefined} data-not-wired="true">
+                <option value="x">{t(`${K}.rule.${rule}Value`)}</option>
+              </select>
+              <span aria-hidden className="pointer-events-none absolute right-[10px] top-1/2 -translate-y-1/2 text-admin-ink-dim">
+                <ChevronDown size={13} strokeWidth={1.75} />
+              </span>
+            </span>
+            <span className="text-[11.5px] font-normal leading-[1.3] text-admin-ink-muted">{t(`${K}.rule.${rule}Off`)}</span>
           </label>
         ))}
       </div>

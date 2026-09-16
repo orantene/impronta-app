@@ -79,6 +79,8 @@ export type ProjectsModeView = "collect" | "projects" | "links" | "receipts" | "
 
 export type ProjectsModeClientProps = {
   readonly workspaceName: string;
+  /** The reader's locale, for the day labels the boards print ("22 Aug"). */
+  readonly locale: string;
   /** The Messages inbox's unread count: the rail's `messages` badge (seam 10). */
   readonly messagesUnread?: number;
   readonly locationName?: string;
@@ -433,7 +435,7 @@ export function ProjectsModeClient(props: ProjectsModeClientProps) {
         <ProjectsList copy={mode} rows={rows} listOk={props.list.ok} activeId={project?.id ?? null} onOpen={(id) => openProject(id, "projects")} />
       </div>
       {detailError ?? (project && verdict ? (
-        <ProjectDetail copy={mode} project={project} verdict={verdict} workspacePath={props.workspacePath} onClose={closeProject} onCollect={() => openProject(project.id, "collect")} />
+        <ProjectDetail copy={mode} project={project} verdict={verdict} locale={props.locale} workspacePath={props.workspacePath} onClose={closeProject} onCollect={() => openProject(project.id, "collect")} />
       ) : (
         <EmptyDetail copy={mode} />
       ))}

@@ -334,11 +334,17 @@ export async function seedVisit(): Promise<{ id: string; token: string; close: (
   const space = tables.find((t) => !busy.has(t.id));
   if (!space) throw new Error("seedVisit: every table has an open visit");
   const token = `wire${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+  // A visit the floor opened carries `opened_by`; guest lines are written
+  // under that operator (`guestVisitAddLine` refuses a visit nobody opened).
+  const owner = must(
+    "seedVisit/owner",
+    await sb.from("agency_memberships").select("profile_id").eq("tenant_id", T).eq("role", "owner").eq("status", "active").limit(1),
+  ) as { profile_id: string }[];
   const row = must(
     "seedVisit/visits",
     await sb
       .from("visits")
-      .insert({ tenant_id: T, space_id: space.id, public_token: token, status: "open", service_kind: "table", party_size: 2 })
+      .insert({ tenant_id: T, space_id: space.id, public_token: token, status: "open", service_kind: "table", party_size: 2, opened_by: owner[0]?.profile_id ?? null })
       .select("id")
       .single(),
   ) as { id: string };

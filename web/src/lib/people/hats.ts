@@ -251,6 +251,8 @@ export type PersonHoursSummary = {
   readonly timezone: string;
   /** Weekday indexes (0 = Sunday) that carry at least one window. */
   readonly openDays: readonly number[];
+  /** The windows per weekday (0 = Sunday), minutes from midnight, as stored: what the sheet's W11 table prints. */
+  readonly weekly: Readonly<Record<number, ReadonlyArray<{ readonly startMin: number; readonly endMin: number }>>>;
   readonly bufferBeforeMin: number;
   readonly minNoticeMin: number;
 };

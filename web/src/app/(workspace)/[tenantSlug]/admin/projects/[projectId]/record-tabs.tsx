@@ -28,7 +28,6 @@ import {
   type ProjectRecord,
 } from "@/lib/projects/project-record";
 import {
-  BTN_PRIMARY,
   BTN_ROW,
   BTN_SECONDARY,
   Card,
@@ -106,7 +105,7 @@ export function OverviewTab({
           <p className="m-0 px-4 py-3 text-[13px] text-admin-ink-muted">{tr("dashboard.projects.upcomingNone")}</p>
         ) : (
           upcoming.map((m) => (
-            <ListRow key={m.id} cols="grid-cols-[1.3fr_1.6fr_90px_150px]">
+            <ListRow key={m.id} cols="grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_90px_150px]">
               <b>{m.title}</b>
               <span className="text-admin-ink-muted">
                 {tr(MILESTONE_STATUS_KEY[m.status])}
@@ -122,9 +121,7 @@ export function OverviewTab({
               >
                 {m.amountCents === 0 ? "—" : formatOrderMoney(m.amountCents, project.currency)}
               </span>
-              <span>
-                <MilestonePill milestone={m} nowMs={nowMs} tr={tr} />
-              </span>
+              <MilestonePill milestone={m} nowMs={nowMs} tr={tr} block />
             </ListRow>
           ))
         )}
@@ -157,15 +154,25 @@ export function OverviewTab({
   );
 }
 
-export function MilestonePill({ milestone, nowMs, tr }: { milestone: ProjectMilestone; nowMs: number | null; tr: Tr }) {
+export function MilestonePill({
+  milestone,
+  nowMs,
+  tr,
+  block,
+}: {
+  milestone: ProjectMilestone;
+  nowMs: number | null;
+  tr: Tr;
+  block?: boolean;
+}) {
   const late =
     nowMs !== null &&
     milestone.dueAt !== null &&
     milestone.status !== "approved" &&
     milestone.status !== "cancelled" &&
     new Date(milestone.dueAt).getTime() < nowMs;
-  if (late) return <Pill tone="red">{tr("dashboard.projects.milestones.overdue")}</Pill>;
-  return <Pill tone={milestoneTone(milestone.status)}>{tr(MILESTONE_STATUS_KEY[milestone.status])}</Pill>;
+  if (late) return <Pill tone="red" block={block}>{tr("dashboard.projects.milestones.overdue")}</Pill>;
+  return <Pill tone={milestoneTone(milestone.status)} block={block}>{tr(MILESTONE_STATUS_KEY[milestone.status])}</Pill>;
 }
 
 // ── Activity ─────────────────────────────────────────────────────────
@@ -222,7 +229,7 @@ function ActivityCard({
         <p className="m-0 px-4 py-3 text-[13px] text-admin-ink-muted">{tr("dashboard.projects.activityNone")}</p>
       ) : (
         rows.map((row) => (
-          <ListRow key={row.id} cols="grid-cols-[80px_1fr]">
+          <ListRow key={row.id} cols="grid-cols-[92px_1fr]">
             <span className="text-admin-ink-muted">{dayLabel(row.at, project.timeZone, locale, noDate)}</span>
             <span>{activitySentence(row, tr)}</span>
           </ListRow>
@@ -348,7 +355,7 @@ export function ScopeTab({
         <Card>
           <div className="flex flex-col gap-2.5 p-4">
             <div className="flex items-center gap-2">
-              <span className="flex-1 text-[14px] font-semibold text-admin-ink">
+              <span className="flex-1 text-[14.5px] font-semibold text-admin-ink">
                 {interpolate(tr("dashboard.projects.scope.acceptedTitle"), {
                   n: accepted.version,
                   date: dayLabel(accepted.acceptedAt, project.timeZone, locale, noDate),
@@ -373,7 +380,7 @@ export function ScopeTab({
               <div>
                 <KeyValue
                   label={tr("dashboard.projects.scope.value")}
-                  value={interpolate(tr("dashboard.projects.scope.valueDetail"), {
+                  value={interpolate(tr(project.milestones.length === 1 ? "dashboard.projects.scope.valueDetailOne" : "dashboard.projects.scope.valueDetail"), {
                     amount: formatOrderMoney(accepted.totalClientCents, accepted.currency),
                     count: project.milestones.length,
                   })}
@@ -392,7 +399,7 @@ export function ScopeTab({
         <Card>
           <div className="flex flex-col gap-2 p-4">
             <div className="flex items-center gap-2">
-              <span className="flex-1 text-[14px] font-semibold text-admin-ink">
+              <span className="flex-1 text-[14.5px] font-semibold text-admin-ink">
                 {interpolate(tr("dashboard.projects.scope.proposedTitle"), {
                   n: proposed.version,
                   date: dayLabel(proposed.sentAt, project.timeZone, locale, tr("dashboard.projects.scope.notSent")),
@@ -482,10 +489,12 @@ function amendmentRefusal(verdict: ReturnType<typeof amendmentVerdict>, tr: Tr):
 export function MoneyTab({
   project,
   tenantSlug,
+  locale,
   tr,
 }: {
   project: ProjectRecord;
   tenantSlug: string;
+  locale: string;
   tr: Tr;
 }) {
   const money = projectMoney(project);
@@ -493,7 +502,7 @@ export function MoneyTab({
   const remaining = remainingCents(money);
   const paidOne = project.balances.find((b) => b.collectedCents > 0) ?? null;
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+    <div className="grid gap-x-5 gap-y-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
       <div className="flex flex-col gap-2.5">
         <SectionTitle>{tr("dashboard.projects.money.clientMoney")}</SectionTitle>
         <Card>
@@ -503,26 +512,25 @@ export function MoneyTab({
             project.balances.map((b) => {
               const owed = balanceOwedCents(b);
               return (
-                <ListRow key={b.orderId} cols="grid-cols-[1fr_90px_150px]" className="border-t">
-                  <span>
+                <ListRow key={b.orderId} cols="grid-cols-[62px_minmax(0,1fr)_80px_150px]" className="border-t">
+                  <span className="text-admin-ink-muted">{dayLabel(b.createdAt ?? null, project.timeZone, locale, "—")}</span>
+                  <span className="min-w-0">
                     <Link href={`/${tenantSlug}/admin/orders?q=${shortId(b.orderId)}`} className="text-admin-ink no-underline hover:underline">
                       {interpolate(tr("dashboard.projects.money.recordLabel"), { id: shortId(b.orderId) })}
                     </Link>
-                    <span className="block text-[12px] text-admin-ink-muted">
+                    <span className="block text-[12px] leading-[1.3] text-admin-ink-muted">
                       {orderStatusLabel(b.status, tr)}
                       {b.collectedCents > 0 ? ` · ${tr("dashboard.projects.money.collected")} ${formatOrderMoney(b.collectedCents, b.currency)}` : ""}
                     </span>
                   </span>
                   <span className="text-[15px] font-semibold tracking-[-0.02em] tabular-nums">{formatOrderMoney(b.totalCents, b.currency)}</span>
-                  <span>
-                    {owed > 0 ? (
-                      <Pill tone="coral">{`${tr("dashboard.projects.money.owedPill")} ${formatOrderMoney(owed, b.currency)}`}</Pill>
-                    ) : b.status === "paid" || b.status === "fulfilled" ? (
-                      <Pill tone="green">{orderStatusLabel(b.status, tr)}</Pill>
-                    ) : (
-                      <Pill tone="slate">{orderStatusLabel(b.status, tr)}</Pill>
-                    )}
-                  </span>
+                  {owed > 0 ? (
+                    <Pill tone="coral" block>{`${tr("dashboard.projects.money.owedPill")} ${formatOrderMoney(owed, b.currency)}`}</Pill>
+                  ) : b.status === "paid" || b.status === "fulfilled" ? (
+                    <Pill tone="green" block>{orderStatusLabel(b.status, tr)}</Pill>
+                  ) : (
+                    <Pill tone="slate" block>{orderStatusLabel(b.status, tr)}</Pill>
+                  )}
                 </ListRow>
               );
             })
@@ -545,11 +553,6 @@ export function MoneyTab({
               {tr("dashboard.projects.money.refund")}
             </button>
           )}
-          {money.dueCents > 0 ? (
-            <Link href={`/${tenantSlug}/admin/pos?mode=projects&view=collect&project=${project.id}`} className={BTN_PRIMARY}>
-              {tr("dashboard.projects.action.collect_balance")} · {formatOrderMoney(money.dueCents, money.currency)}
-            </Link>
-          ) : null}
         </div>
       </div>
       <div className="flex flex-col gap-2.5">
@@ -577,16 +580,13 @@ export function MoneyTab({
                 <KeyValue
                   key={a.id}
                   label={interpolate(tr("dashboard.projects.money.feeRow"), { name: a.name || tr("dashboard.projects.team.unnamed") })}
-                  value={`— / ${formatOrderMoney(a.talentCostCents, a.currency)} / —`}
+                  value={<span className="whitespace-nowrap">{`— / ${formatOrderMoney(a.talentCostCents, a.currency)} / —`}</span>}
                 />
               ))
             )}
             <p className="m-0 mt-1.5 text-[11.5px] text-admin-ink-muted">{tr("dashboard.projects.money.feesNote")}</p>
           </div>
         </Card>
-        <p className="m-0 text-[11.5px] text-admin-ink-muted">
-          {interpolate(tr("dashboard.projects.timezoneNote"), { zone: project.timeZone })}
-        </p>
       </div>
     </div>
   );
@@ -650,20 +650,20 @@ export function VisibilityTab({ tr }: { tr: Tr }) {
   const never = tr("dashboard.projects.visibility.never");
   const none = tr("dashboard.projects.visibility.noAccess");
   const cell = (value: string) => (
-    <span className={value === none || value === never ? "text-admin-ink-dim" : "text-admin-ink-muted"}>{value}</span>
+    <span className={value === none || value === never ? "text-admin-ink-dim" : "text-admin-ink-muted"}>{value === none ? "—" : value}</span>
   );
   return (
     <>
       <SectionTitle>{tr("dashboard.projects.visibility.title")}</SectionTitle>
       <Card>
-        <ListHead cols="grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <ListHead cols="grid-cols-[1.35fr_1fr_1fr_1fr]">
           <span>{tr("dashboard.projects.visibility.colItem")}</span>
           <span>{tr("dashboard.projects.visibility.audienceStaff")}</span>
           <span>{tr("dashboard.projects.visibility.audienceProfessional")}</span>
           <span>{tr("dashboard.projects.visibility.audienceClient")}</span>
         </ListHead>
         {VISIBILITY_ROWS.map((row) => (
-          <ListRow key={row.item} cols="grid-cols-[1.4fr_1fr_1fr_1fr]" className="border-t">
+          <ListRow key={row.item} cols="grid-cols-[1.35fr_1fr_1fr_1fr]" className="border-t">
             <span className="font-semibold">{tr(row.item)}</span>
             {cell(tr(row.staff))}
             {cell(tr(row.talent))}
