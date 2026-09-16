@@ -122,6 +122,7 @@ export const DEFAULT_PAGE_HREFS: Readonly<Record<SitePageRole, string>> = {
 // ── Look ────────────────────────────────────────────────────────────────────
 
 export const LOOK_IDS = [
+  "ember",
   "editorial",
   "warm",
   "bold",

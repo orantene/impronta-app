@@ -85,8 +85,16 @@ export async function writeAssignments(
       .filter((r) => r.replaced_by_user_at)
       .map((r) => `${r.page_role}|${r.slot}`),
   );
+  // A Look may place one slot twice on a page (a hero slide and a card); the
+  // assignment is per page × slot, so the first placement is the record.
+  const seen = new Set<string>();
   const rows = input.picks
-    .filter((p) => !userOwned.has(`${p.pageRole}|${p.slot}`))
+    .filter((p) => {
+      const key = `${p.pageRole}|${p.slot}`;
+      if (userOwned.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .map((p) => ({
       tenant_id: input.tenantId,
       page_role: p.pageRole,

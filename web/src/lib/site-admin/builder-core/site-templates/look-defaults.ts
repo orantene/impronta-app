@@ -7,7 +7,7 @@
 import type { BusinessFamilyId } from "@/lib/words/business-types";
 
 export const DEFAULT_LOOK_BY_FAMILY: Readonly<Record<BusinessFamilyId, string>> = {
-  dining: "warm",
+  dining: "ember",
   beauty: "editorial",
   wellness: "coastal",
   fitness: "bold",

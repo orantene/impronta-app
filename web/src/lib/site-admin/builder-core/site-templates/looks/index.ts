@@ -9,6 +9,7 @@ import { classicLook } from "./classic";
 import { coastalLook } from "./coastal";
 import { darkLook } from "./dark";
 import { editorialLook } from "./editorial";
+import { emberLook } from "./ember";
 import { minimalLook } from "./minimal";
 import { nightLook } from "./night";
 import { playfulLook } from "./playful";
@@ -16,6 +17,7 @@ import { studioLook } from "./studio";
 import { warmLook } from "./warm";
 
 export const LOOKS: ReadonlyArray<Look> = [
+  emberLook,
   editorialLook,
   warmLook,
   boldLook,

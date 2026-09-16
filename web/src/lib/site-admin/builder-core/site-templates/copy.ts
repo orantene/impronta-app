@@ -46,6 +46,13 @@ export const LOOK_COPY_DEFAULTS: Readonly<Record<string, Bilingual>> = {
   "home.proof.eyebrow": { es: "Por qué nosotros", en: "Why us" },
   "home.gallery.eyebrow": { es: "Un vistazo", en: "A glimpse" },
   "home.gallery.headline": { es: "Así se ve {{business.name}}", en: "This is {{business.name}}" },
+  "home.statement": { es: "Hecho aquí, con las manos y con calma.", en: "Made here, by hand, without hurry." },
+  "home.story.1.title": { es: "El lugar", en: "The place" },
+  "home.story.1.body": { es: "Un espacio pensado para quedarse un rato. Ven a conocerlo.", en: "A space made for staying a while. Come and see it." },
+  "home.story.2.title": { es: "El oficio", en: "The craft" },
+  "home.story.2.body": { es: "Lo que hacemos, lo hacemos con cuidado y a nuestra manera.", en: "What we do, we do with care and in our own way." },
+  "home.story.3.title": { es: "La bienvenida", en: "The welcome" },
+  "home.story.3.body": { es: "Escríbenos y te contamos cómo trabajamos.", en: "Write to us and we will tell you how we work." },
   "home.closing.headline": { es: "¿Hablamos?", en: "Shall we talk?" },
   "home.closing.body": {
     es: "Escríbenos o visítanos[[ en {{business.city}}]]. Te respondemos en persona.",

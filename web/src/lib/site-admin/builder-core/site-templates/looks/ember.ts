@@ -1,0 +1,61 @@
+import { buildLook } from "./shared";
+
+/**
+ * Look `ember` — Looks v2 flagship for dining (D-TPL-36): near-black canvas,
+ * ember primary, full-viewport Ken Burns hero over the tenant's own pictures,
+ * marquee, one oversized statement, sticky story, lifting cards, gallery rail,
+ * every section rising into view. Transparent header over the hero, solid on
+ * scroll. Pill buttons.
+ */
+export const emberLook = buildLook({
+  id: "ember",
+  title: { es: "Brasa", en: "Ember" },
+  axis: { es: "Cine y brasa: pantalla completa, movimiento, oscuro y cálido", en: "Cinema and ember: full-screen, motion, dark and warm" },
+  themePatch: {
+    "color.background": "#0d0b0a",
+    "color.ink": "#f6efe6",
+    "color.neutral": "#f6efe6",
+    "color.primary": "#e8632b",
+    "color.secondary": "#c9a27a",
+    "color.accent": "#f2b04c",
+    "color.muted": "#a89b8f",
+    "color.line": "#2a2421",
+    "color.surface-raised": "#171311",
+    "typography.heading-preset": "display",
+    "typography.body-preset": "refined-sans",
+    "typography.scale-preset": "editorial",
+    "radius.scale-preset": "pill",
+    "shadow.preset": "ambient",
+    "motion.preset": "editorial",
+    "density.section-padding": "airy",
+    "background.mode": "mesh-noir",
+    "shell.header-variant": "editorial-sticky",
+    "shell.footer-variant": "espresso-column",
+  },
+  recipe: {
+    hero: "cinematic",
+    heroBand: "none",
+    heroMinHeight: "100svh",
+    offer: "cards",
+    proofBand: "surface",
+    closing: "accent",
+    gallery: "rail",
+    cardVariant: "elevated",
+    imageRadius: "lg",
+    header: "split",
+    footer: "columns",
+    headingStyle: { fontWeight: 500, letterSpacing: "-0.01em" },
+    displayStyle: { size: "display", fontWeight: 500, letterSpacing: "-0.02em", textWrap: "balance" },
+    eyebrowStyle: { letterSpacing: "0.22em", textTransform: "uppercase" },
+    sectionPadding: "xl",
+    motion: "rise",
+    marquee: true,
+    statement: true,
+    story: "sticky",
+    lift: true,
+  },
+  copyOverrides: {
+    "home.closing.headline": { es: "Ven esta noche", en: "Come tonight" },
+    "home.closing.body": { es: "Escríbenos o ven directo. Siempre hay sitio para una conversación.", en: "Write to us or just come by. There is always room for a conversation." },
+  },
+});
