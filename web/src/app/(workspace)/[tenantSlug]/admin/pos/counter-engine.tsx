@@ -23,8 +23,6 @@
 
 import { useCallback, useState, type ReactElement, type ReactNode } from "react";
 
-export type SaleTarget = { readonly orderId: string; readonly version: number };
-
 import {
   CustomAmountSheet,
   LinkBookingSheet,
@@ -48,6 +46,7 @@ import { createPaymentLink, posLinkBooking, posSetTip } from "@/lib/server-actio
 import { posAddCustomLine, posApproveCustomAmount, posBookingCandidates } from "./actions";
 import { formatClock, keypadNext } from "./counter-model";
 import type { PosSaleSummary } from "./counter-props";
+import type { SaleTarget } from "./counter-sale-start";
 
 type EngineSheet =
   | { kind: "custom" }

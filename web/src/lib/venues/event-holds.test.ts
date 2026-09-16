@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { admissionComp, admissionDeliver, admissionHoldConsume, admissionHoldSeats } from "./event-holds";
 
@@ -179,8 +179,6 @@ test("comp hands the holder's customer to the RPC and reads the receipt code bac
 });
 
 test("admission_comp SQL writes an identity the paid-order constraint accepts", () => {
-  const { readdirSync, readFileSync } = require("node:fs") as typeof import("node:fs");
-  const { join } = require("node:path") as typeof import("node:path");
   const dir = join(process.cwd(), "..", "supabase", "migrations");
   const latest = readdirSync(dir)
     .filter((name) => name.endsWith(".sql"))

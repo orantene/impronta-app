@@ -92,7 +92,6 @@ export function MessagesShell(props: MessagesClientProps) {
     props.channelFilter === "whatsapp" ? "all" : "needs_reply",
   );
   const [rows, setRows] = useState<InboxRow[]>(preview?.rows ?? []);
-  const rowsRef = useRef<InboxRow[]>(preview?.rows ?? []);
   const [activeId, setActiveId] = useState<string | null>(preview?.activeId ?? null);
   const [messages, setMessages] = useState<ThreadMessage[]>(preview?.messages ?? []);
   const [draft, setDraft] = useState("");
@@ -131,9 +130,6 @@ export function MessagesShell(props: MessagesClientProps) {
     writeDraft(draftKey, draft);
   }, [draft, draftKey]);
 
-  const activeIdRef = useRef<string | null>(activeId);
-  activeIdRef.current = activeId;
-
   const reload = useCallback(async () => {
     if (preview) return;
     const result = await messagingLoadInbox({ locationSlug: props.locationSlug, filter });
@@ -150,22 +146,19 @@ export function MessagesShell(props: MessagesClientProps) {
     // dropped it, and the pane read "No conversations yet"). Its row is
     // re-read from the unfiltered inbox so the version the next reply sends
     // is the one the reply moved it to.
-    const activeNow = activeIdRef.current;
     let fresh: InboxRow | null = null;
-    if (activeNow && filter !== "all" && !listed.some((row) => row.id === activeNow)) {
+    if (activeId && filter !== "all" && !listed.some((row) => row.id === activeId)) {
       const all = await messagingLoadInbox({ locationSlug: props.locationSlug, filter: "all" });
-      if (all.ok) fresh = all.rows.find((row) => row.id === activeNow) ?? null;
+      if (all.ok) fresh = all.rows.find((row) => row.id === activeId) ?? null;
     }
-    const next = keepActiveRow(listed, activeNow, rowsRef.current, fresh);
-    rowsRef.current = next;
-    setRows(next);
+    setRows((previous) => keepActiveRow(listed, activeId, previous, fresh));
     setInboxUnread(result.unreadCount);
     if (seenUnread.current !== null && result.unreadCount > seenUnread.current) {
       setToast(true);
     }
     seenUnread.current = result.unreadCount;
-    setLoadState(next.length === 0 ? "empty" : "ok");
-  }, [filter, preview, props.channelFilter, props.locationSlug]);
+    setLoadState(listed.length === 0 && !fresh ? "empty" : "ok");
+  }, [activeId, filter, preview, props.channelFilter, props.locationSlug]);
 
   useEffect(() => {
     void reload();
