@@ -140,7 +140,8 @@ export function exampleTotals(o: Pick<TalentOffering, "amountCents" | "addOns">)
 }
 
 /** The seven editor tabs, in the boards' order. */
-export const ITEM_TABS = ["details", "pricing", "options", "availability", "fulfillment", "channels", "policies"] as const;
+/** W31 adds `who` (Who performs): the People reader's list, the same for every item until a service names a skill. */
+export const ITEM_TABS = ["details", "pricing", "options", "who", "availability", "fulfillment", "channels", "policies"] as const;
 export type ItemTab = (typeof ITEM_TABS)[number];
 
 export function tabFromQuery(raw: string | null): ItemTab {

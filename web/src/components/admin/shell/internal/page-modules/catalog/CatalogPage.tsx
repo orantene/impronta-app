@@ -3,7 +3,7 @@
 /**
  * CatalogPage — the destination the registry calls `catalog`, drawn as the
  * boards: W01 (the list and its segments), W02 (Create item), W03 to W06
- * (one item, seven tabs, the right column), W07 (Menu structure) and W09
+ * (one item, eight tabs, the right column), W07 (Menu structure) and W09
  * (Passes & cards). Promotions (W08) is its own route, `/admin/discounts`,
  * and the segment links there.
  *
