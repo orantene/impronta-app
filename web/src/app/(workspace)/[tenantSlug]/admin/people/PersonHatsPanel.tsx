@@ -140,26 +140,27 @@ export function PersonHatsPanel({
   const state = person.facts.profileState;
 
   return (
-    <div className="fixed inset-0 z-[150]" role="presentation">
+    <div className="fixed inset-0 top-[56px] z-[150] max-[720px]:top-0" role="presentation">
       <button type="button" aria-label={t(`${S}.close`)} className="absolute inset-0 cursor-default bg-admin-ink/30" onClick={onClose} />
       {/* An aside, not a dialog: the profile editor that opens over it IS the
-          dialog, and a test that asks for "the dialog" must find that one. */}
+          dialog, and a test that asks for "the dialog" must find that one.
+          It hangs under the shell's 56px top bar as the boards draw it. */}
       <aside
         aria-label={name}
         data-testid="person-sheet"
-        className="absolute inset-y-0 right-0 flex w-[800px] max-w-[94vw] flex-col bg-admin-surface font-admin-body shadow-[-8px_0_32px_rgba(0,0,0,0.12)]"
+        className="absolute inset-y-0 right-0 flex w-[800px] max-w-[94vw] flex-col bg-admin-card font-admin-body leading-[1.2] shadow-[-8px_0_32px_rgba(0,0,0,0.12)]"
       >
-        {/* Header: name, code, meta, state, close */}
-        <header className="flex items-start gap-[12px] border-b border-admin-border bg-admin-card px-[20px] py-[14px]">
-          <button type="button" aria-label={t(`${S}.close`)} className="mt-[2px] inline-flex h-[28px] w-[28px] shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-admin-ink-muted hover:bg-admin-surface-alt hover:text-admin-ink" onClick={onClose}>
+        {/* Header: close, name + code, meta, state, the roster door */}
+        <header className="flex items-start gap-[12px] border-b border-admin-border bg-admin-card px-[20px] py-[16px]">
+          <button type="button" aria-label={t(`${S}.close`)} className="mt-[1px] inline-flex h-[28px] w-[28px] shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-admin-ink-muted hover:bg-admin-surface-alt hover:text-admin-ink" onClick={onClose}>
             <Icon name="x" size={16} stroke={1.75} />
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline gap-[8px]">
-              <h2 className="m-0 text-[17px]! font-semibold text-admin-ink">{name}</h2>
-              {person.facts.profileCode ? <span className="text-[11px] font-semibold tracking-[0.02em] text-admin-ink-muted">{person.facts.profileCode}</span> : null}
+              <h2 className="m-0 text-[16px]! font-semibold leading-[1.2] text-admin-ink">{name}</h2>
+              {person.facts.profileCode ? <span className="font-mono text-[11px] font-semibold tracking-[0.02em] text-admin-ink-muted">{person.facts.profileCode}</span> : null}
             </div>
-            <p className="m-0 mt-[2px] text-[12px] text-admin-ink-muted">
+            <p className="m-0 mt-[4px] text-[12px] leading-[1.3] text-admin-ink-muted">
               {[person.email, person.facts.isYou ? t(`${S}.meta.ownedByYou`) : null, person.accountId ? t(`${S}.meta.hasAccount`) : t(`${S}.meta.noAccount`)]
                 .filter(Boolean)
                 .join(" · ")}
@@ -177,8 +178,8 @@ export function PersonHatsPanel({
           ) : null}
         </header>
 
-        {/* The hat strip */}
-        <div className="flex items-center gap-[6px] border-b border-admin-border bg-admin-surface-alt px-[20px] py-[8px]" data-testid="person-hat-strip">
+        {/* The hat strip: a lit pill per hat, the dot in the hat's ink */}
+        <div className="flex h-[48px] items-center gap-[6px] border-b border-admin-border bg-admin-surface-alt px-[20px]" data-testid="person-hat-strip">
           {PERSON_HATS.map((hat) => {
             const on = person[hat].on;
             return (
@@ -187,11 +188,11 @@ export function PersonHatsPanel({
                 href={`#hat-${hat}`}
                 data-hat={hat}
                 data-on={on ? "true" : "false"}
-                className={`inline-flex items-center gap-[7px] rounded-full px-[12px] py-[5px] text-[12.5px] font-semibold ${
+                className={`inline-flex h-[28px] items-center gap-[7px] rounded-full px-[12px] text-[12.5px] font-semibold leading-[1.2] no-underline ${
                   on ? "bg-admin-card text-admin-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : "text-admin-ink-muted"
                 }`}
               >
-                <span aria-hidden className={`h-[7px] w-[7px] rounded-full ${on ? "bg-admin-brand" : "bg-admin-ink-dim"}`} />
+                <span aria-hidden className={`h-[7px] w-[7px] rounded-full ${on ? HAT_DOT[hat] : "bg-admin-ink-dim"}`} />
                 {t(`${K}.hat.${hat}`)}
                 {hat === "access" && !on ? <span className="font-normal text-admin-ink-dim">· {t(`${S}.strip.notGranted`)}</span> : null}
               </a>
@@ -201,107 +202,174 @@ export function PersonHatsPanel({
           <span className="text-[11.5px] text-admin-ink-muted">{t(`${S}.strip.note`)}</span>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto px-[20px] py-[16px]">
-          {feedback ? <FeedbackLine feedback={feedback} /> : null}
+        {/* The body: the board's section list on the left, the hats on the right */}
+        <div className="grid min-h-0 flex-1 grid-cols-[168px_minmax(0,1fr)] gap-[24px] overflow-y-auto px-[20px] py-[16px] max-[720px]:grid-cols-1">
+          <SheetNav person={person} />
+          <div className="flex min-w-0 flex-col gap-[20px]">
+            {feedback ? <FeedbackLine feedback={feedback} /> : null}
 
-          {/* ── Public profile hat (W34) ───────────────────────────────── */}
-          <HatBlock id="hat-publicProfile" title={t(`${K}.hat.publicProfile`)} what={t(`${S}.publicWhat`)} state={person.publicProfile}>
-            {person.talentProfileId ? (
-              <div className="flex flex-wrap items-center gap-[8px]">
-                <button type="button" className={PEOPLE_SECONDARY_ACTION} onClick={openProfileEditor}>
-                  {t(`${K}.detail.openProfileEditor`)}
+            {/* ── Public profile hat (W34) ─────────────────────────────── */}
+            <HatBlock id="hat-publicProfile" title={t(`${K}.hat.publicProfile`)} what={t(`${S}.publicWhat`)} state={person.publicProfile}>
+              {person.talentProfileId ? (
+                <div className="flex flex-wrap items-center gap-[8px]">
+                  <button type="button" className={PEOPLE_SECONDARY_ACTION} onClick={openProfileEditor}>
+                    {t(`${K}.detail.openProfileEditor`)}
+                  </button>
+                  <button
+                    type="button"
+                    className={PEOPLE_SECONDARY_ACTION}
+                    disabled={pending}
+                    onClick={() => run(() => setPersonPublicProfile(person.talentProfileId!, !person.publicProfile.on))}
+                  >
+                    {pending ? t(`${K}.detail.working`) : person.publicProfile.on ? t(`${K}.detail.turnOff`) : t(`${K}.detail.turnOn`)}
+                  </button>
+                </div>
+              ) : null}
+              <p className={PEOPLE_MUTED}>{t(`${K}.detail.profileEditorNote`)}</p>
+              {person.publicProfile.on ? <RemovalConsequence person={person} hat="publicProfile" /> : null}
+            </HatBlock>
+
+            {/* ── Bookable hat (W28 / W11) ─────────────────────────────── */}
+            <HatBlock
+              id="hat-bookable"
+              title={t(`${K}.hat.bookable`)}
+              what={t(`${K}.hatWhat.bookable`)}
+              state={person.bookable}
+              // "Only they can say yes, from their own account" is false of a
+              // person who has no account: this workspace answers for them, and
+              // the toggle under the sentence is exactly that answer.
+              reasonKeyFor={(reason) => (reason === "personHasNotOptedIn" && person.accountId == null ? "personHasNotOptedInNoAccount" : reason)}
+            >
+              {person.talentProfileId ? (
+                <PersonBookableHat
+                  person={person}
+                  name={name}
+                  pending={pending}
+                  canToggle
+                  onToggle={() => run(() => setPersonBookable(person.talentProfileId!, !person.bookable.on))}
+                  // NO BUTTON, AND A SENTENCE INSTEAD. PROVEN ON THE QA FIXTURE:
+                  // with the workspace-level switch on, "Turn off" wrote
+                  // `direct_booking_enabled = false`, the panel said "Saved.",
+                  // and the hat stayed On because the engine ORs the two
+                  // switches. The column it wrote is inert here, so the control
+                  // that wrote it is not offered; the switch that governs is named.
+                  blanketRefusal={blanket ? t(`${K}.detail.workspaceBooksEveryone`) : null}
+                />
+              ) : (
+                <p className={PEOPLE_MUTED}>{t(`${K}.reason.noRosterRow`)}</p>
+              )}
+              <p className={PEOPLE_MUTED}>{t(`${K}.detail.moneyNote`)}</p>
+              {person.bookable.on ? <RemovalConsequence person={person} hat="bookable" /> : null}
+            </HatBlock>
+
+            {/* ── Access hat (W29) ─────────────────────────────────────── */}
+            <HatBlock id="hat-access" title={t(`${K}.hat.access`)} what={t(`${S}.accessWhat`)} state={person.access}>
+              <p className={PEOPLE_MUTED}>{`${t(`${K}.detail.roleLabel`)}: ${t(`${K}.role.${person.role ?? "none"}`)}`}</p>
+              <p className={PEOPLE_MUTED}>{holdsMoneyPermissions(person) ? t(`${K}.detail.holdsMoney`) : t(`${K}.detail.noMoney`)}</p>
+
+              {person.access.on && person.accountId ? (
+                <div className="flex flex-wrap items-center gap-[8px]">
+                  <label className="sr-only" htmlFor={`role-${person.key}`}>
+                    {t(`${K}.detail.changeRole`)}
+                  </label>
+                  <select
+                    id={`role-${person.key}`}
+                    className={`${PEOPLE_SELECT} max-w-[12rem]`}
+                    defaultValue={person.role ?? "viewer"}
+                    disabled={pending || person.role === "owner"}
+                    onChange={(e) => run(() => setPersonAccessRole(person.accountId!, e.target.value))}
+                  >
+                    {GRANTABLE_ROLES.map((role) => (
+                      <option key={role} value={role}>
+                        {t(`${K}.role.${role}`)}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" className={PEOPLE_SECONDARY_ACTION} disabled={pending} onClick={() => run(() => revokePersonAccess(person.accountId!))}>
+                    {t(`${K}.detail.revokeAccess`)}
+                  </button>
+                </div>
+              ) : null}
+
+              {person.access.on && person.accountId ? <PersonRegisterPin accountId={person.accountId} hasPin={registerPinUserIds.includes(person.accountId)} /> : null}
+
+              {!person.access.on && person.accountId && person.talentProfileId ? (
+                <button type="button" className={PEOPLE_SECONDARY_ACTION} disabled={pending} onClick={() => run(() => grantPersonAccess(person.talentProfileId!, "viewer"))}>
+                  {t(`${K}.detail.grantAccess`)}
                 </button>
-                <button
-                  type="button"
-                  className={PEOPLE_SECONDARY_ACTION}
-                  disabled={pending}
-                  onClick={() => run(() => setPersonPublicProfile(person.talentProfileId!, !person.publicProfile.on))}
-                >
-                  {pending ? t(`${K}.detail.working`) : person.publicProfile.on ? t(`${K}.detail.turnOff`) : t(`${K}.detail.turnOn`)}
-                </button>
-              </div>
-            ) : null}
-            <p className={PEOPLE_MUTED}>{t(`${K}.detail.profileEditorNote`)}</p>
-            {person.publicProfile.on ? <RemovalConsequence person={person} hat="publicProfile" /> : null}
-          </HatBlock>
+              ) : null}
 
-          {/* ── Bookable hat (W28 / W11) ───────────────────────────────── */}
-          <HatBlock
-            id="hat-bookable"
-            title={t(`${K}.hat.bookable`)}
-            what={t(`${K}.hatWhat.bookable`)}
-            state={person.bookable}
-            // "Only they can say yes, from their own account" is false of a
-            // person who has no account: this workspace answers for them, and
-            // the toggle under the sentence is exactly that answer.
-            reasonKeyFor={(reason) => (reason === "personHasNotOptedIn" && person.accountId == null ? "personHasNotOptedInNoAccount" : reason)}
-          >
-            {person.talentProfileId ? (
-              <PersonBookableHat
-                person={person}
-                name={name}
-                pending={pending}
-                canToggle
-                onToggle={() => run(() => setPersonBookable(person.talentProfileId!, !person.bookable.on))}
-                // NO BUTTON, AND A SENTENCE INSTEAD. PROVEN ON THE QA FIXTURE:
-                // with the workspace-level switch on, "Turn off" wrote
-                // `direct_booking_enabled = false`, the panel said "Saved.",
-                // and the hat stayed On because the engine ORs the two
-                // switches. The column it wrote is inert here, so the control
-                // that wrote it is not offered; the switch that governs is named.
-                blanketRefusal={blanket ? t(`${K}.detail.workspaceBooksEveryone`) : null}
-              />
-            ) : (
-              <p className={PEOPLE_MUTED}>{t(`${K}.reason.noRosterRow`)}</p>
-            )}
-            <p className={PEOPLE_MUTED}>{t(`${K}.detail.moneyNote`)}</p>
-            {person.bookable.on ? <RemovalConsequence person={person} hat="bookable" /> : null}
-          </HatBlock>
+              {!person.access.on && !person.accountId ? <InviteThisPerson person={person} pending={pending} run={run} /> : null}
 
-          {/* ── Access hat (W29) ───────────────────────────────────────── */}
-          <HatBlock id="hat-access" title={t(`${K}.hat.access`)} what={t(`${S}.accessWhat`)} state={person.access}>
-            <p className={PEOPLE_MUTED}>{`${t(`${K}.detail.roleLabel`)}: ${t(`${K}.role.${person.role ?? "none"}`)}`}</p>
-            <p className={PEOPLE_MUTED}>{holdsMoneyPermissions(person) ? t(`${K}.detail.holdsMoney`) : t(`${K}.detail.noMoney`)}</p>
-
-            {person.access.on && person.accountId ? (
-              <div className="flex flex-wrap items-center gap-[8px]">
-                <label className="sr-only" htmlFor={`role-${person.key}`}>
-                  {t(`${K}.detail.changeRole`)}
-                </label>
-                <select
-                  id={`role-${person.key}`}
-                  className={`${PEOPLE_SELECT} max-w-[12rem]`}
-                  defaultValue={person.role ?? "viewer"}
-                  disabled={pending || person.role === "owner"}
-                  onChange={(e) => run(() => setPersonAccessRole(person.accountId!, e.target.value))}
-                >
-                  {GRANTABLE_ROLES.map((role) => (
-                    <option key={role} value={role}>
-                      {t(`${K}.role.${role}`)}
-                    </option>
-                  ))}
-                </select>
-                <button type="button" className={PEOPLE_SECONDARY_ACTION} disabled={pending} onClick={() => run(() => revokePersonAccess(person.accountId!))}>
-                  {t(`${K}.detail.revokeAccess`)}
-                </button>
-              </div>
-            ) : null}
-
-            {person.access.on && person.accountId ? <PersonRegisterPin accountId={person.accountId} hasPin={registerPinUserIds.includes(person.accountId)} /> : null}
-
-            {!person.access.on && person.accountId && person.talentProfileId ? (
-              <button type="button" className={PEOPLE_SECONDARY_ACTION} disabled={pending} onClick={() => run(() => grantPersonAccess(person.talentProfileId!, "viewer"))}>
-                {t(`${K}.detail.grantAccess`)}
-              </button>
-            ) : null}
-
-            {!person.access.on && !person.accountId ? <InviteThisPerson person={person} pending={pending} run={run} /> : null}
-
-            {person.access.on ? <RemovalConsequence person={person} hat="access" /> : null}
-          </HatBlock>
+              {person.access.on ? <RemovalConsequence person={person} hat="access" /> : null}
+            </HatBlock>
+          </div>
         </div>
       </aside>
     </div>
+  );
+}
+
+/** The boards' dot per hat, in the hat's own ink. */
+const HAT_DOT: Record<PersonHat, string> = {
+  publicProfile: "bg-admin-royal",
+  bookable: "bg-admin-success",
+  access: "bg-admin-brand",
+};
+
+/**
+ * The board's left column (W28, W34): the sections of each hat as anchors,
+ * a lit dot where the hat is on, and under them what the Bookable hat reads
+ * from the Public profile. Sticky, so it stays while the hats scroll.
+ */
+function SheetNav({ person }: { person: PersonRecord }) {
+  const t = useT();
+  const { effectiveTenant } = useAdminShell();
+  const groups: ReadonlyArray<{ hat: PersonHat; label: string; items: ReadonlyArray<{ href: string; label: string }> }> = [
+    { hat: "publicProfile", label: t(`${K}.hat.publicProfile`), items: [{ href: "#hat-publicProfile", label: t(`${S}.nav.editor`) }] },
+    {
+      hat: "bookable",
+      label: interpolate(t(`${S}.bookableTitle`), { workspace: effectiveTenant.name }),
+      items: [
+        { href: "#hat-bookable", label: t(`${S}.nav.status`) },
+        { href: "#bk-services", label: t(`${S}.nav.services`) },
+        { href: "#bk-hours", label: t(`${S}.nav.hours`) },
+        { href: "#bk-requirements", label: t(`${S}.nav.requirements`) },
+        { href: "#bk-limits", label: t(`${S}.nav.limits`) },
+        { href: "#bk-pos", label: t(`${S}.nav.pos`) },
+        { href: "#bk-pay", label: t(`${S}.nav.pay`) },
+      ],
+    },
+    { hat: "access", label: t(`${K}.hat.access`), items: [{ href: "#hat-access", label: t(`${S}.nav.role`) }] },
+  ];
+  return (
+    <nav aria-label={t(`${K}.title`)} className="sticky top-0 flex flex-col gap-[16px] self-start max-[720px]:hidden" data-testid="person-sheet-nav">
+      {groups.map((g) => {
+        const on = person[g.hat].on;
+        return (
+          <div key={g.hat} className="flex flex-col gap-[2px]">
+            <div className="mb-[4px] text-[10.5px] font-bold uppercase leading-[1.2] tracking-[0.08em] text-admin-ink-muted">{g.label}</div>
+            {g.items.map((item) => (
+              <a key={item.href} href={item.href} className="flex h-[25px] items-center gap-[8px] rounded-[7px] px-[6px] text-admin-13 font-medium leading-[1.2] text-admin-ink no-underline hover:bg-admin-surface-alt">
+                <span aria-hidden className={`h-[6px] w-[6px] shrink-0 rounded-full ${on ? HAT_DOT[g.hat] : "bg-admin-ink-dim"}`} />
+                <span className="truncate">{item.label}</span>
+              </a>
+            ))}
+          </div>
+        );
+      })}
+      <div className="flex flex-col gap-[4px] border-t border-admin-border-soft pt-[12px]">
+        <div className="mb-[2px] text-[10.5px] font-bold uppercase leading-[1.2] tracking-[0.08em] text-admin-ink-muted">{t(`${S}.readsFrom`)}</div>
+        {t(`${S}.readsFromItems`)
+          .split(" · ")
+          .map((item) => (
+            <span key={item} className="flex items-center gap-[8px] text-[12.5px] leading-[1.3] text-admin-ink-muted">
+              <Icon name="external" size={11} stroke={1.75} />
+              {item}
+            </span>
+          ))}
+      </div>
+    </nav>
   );
 }
 

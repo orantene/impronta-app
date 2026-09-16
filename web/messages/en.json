@@ -5216,6 +5216,7 @@
           "yes": "Yes",
           "no": "No",
           "none": "None",
+          "all": "All",
           "untracked": "–"
         },
         "actions": {
@@ -16898,6 +16899,7 @@
         "details": "Details",
         "pricing": "Pricing",
         "options": "Options",
+        "who": "Who performs",
         "availability": "Availability",
         "fulfillment": "Fulfillment",
         "channels": "Channels",
@@ -18660,7 +18662,7 @@
           "removed": "Removed",
           "noContact": "No email on file",
           "pinSet": "Set",
-          "pinNone": "None",
+          "pinNone": "Not set",
           "pinWhy": "the point of sale has no PIN"
         },
         "empty": {
@@ -18966,6 +18968,25 @@
         "posTitle": "POS permissions",
         "posSub": "Apply when {name} opens our POS from the professional link · no workspace role needed",
         "posOff": "Per-person point-of-sale permissions are not stored yet; the Access role decides what the POS allows.",
+        "nav": {
+          "status": "Status",
+          "services": "Services here",
+          "hours": "Hours & locations",
+          "requirements": "Requirements",
+          "limits": "Limits on the brief",
+          "pos": "POS permissions",
+          "pay": "Pay",
+          "editor": "Profile editor",
+          "role": "Role & sign-in"
+        },
+        "hoursTable": {
+          "day": "Day",
+          "hours": "Hours",
+          "breaks": "Breaks",
+          "off": "Off",
+          "edit": "Edit hours",
+          "breaksWhy": "Breaks are not stored; the whole window is bookable."
+        },
         "pos": {
           "completeOwn": "Can complete own jobs",
           "completeOwnHelp": "Mark done, add agreed extras",

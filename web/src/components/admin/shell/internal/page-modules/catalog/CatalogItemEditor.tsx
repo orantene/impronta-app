@@ -3,7 +3,8 @@
 /**
  * CatalogItemEditor — one item, as boards W03 to W06 draw it: the title with
  * its meta line, `Draft changes`, `Preview on POS` · `Save draft` ·
- * `Publish`, the `Used in` line, the seven tabs, the tab's body on the left
+ * `Publish`, the `Used in` line, the eight tabs (W31's Who performs among
+ * them), the tab's body on the left
  * and the right column (340px) that changes with the tab.
  *
  * A SAVED ITEM WRITES ON BLUR through the shared editor hook (optimistic,
@@ -28,6 +29,8 @@ import { PricingTab, PricingSide } from "./item-tab-pricing";
 import { OptionsTab, OptionsSide } from "./item-tab-options";
 import { AvailabilityTab, AvailabilitySide, FulfillmentTab } from "./item-tab-availability";
 import { ChannelsTab, ChannelsSide, PoliciesTab } from "./item-tab-channels";
+import { WhoPerforms } from "@/components/admin/people/WhoPerforms";
+import { useAdminShell } from "../../state";
 
 export type ItemPatch = (p: Partial<TalentOffering>) => void;
 
@@ -44,6 +47,7 @@ const TAB_KEY: Record<ItemTab, string> = {
   details: "dashboard.catalog.tab.details",
   pricing: "dashboard.catalog.tab.pricing",
   options: "dashboard.catalog.tab.options",
+  who: "dashboard.catalog.tab.who",
   availability: "dashboard.catalog.tab.availability",
   fulfillment: "dashboard.catalog.tab.fulfillment",
   channels: "dashboard.catalog.tab.channels",
@@ -72,6 +76,7 @@ export function CatalogItemEditor({
 }) {
   const t = useT();
   const locale = useDashboardLocale();
+  const { adminBasePath } = useAdminShell();
   const patch: ItemPatch = isDraft
     ? (p) => editor.setDraft((d) => (d ? { ...d, ...p } : d))
     : (p) => editor.patchItem(item.id, p);
@@ -122,6 +127,11 @@ export function CatalogItemEditor({
     case "options":
       body = <OptionsTab {...tabProps} />;
       side = <OptionsSide item={item} />;
+      break;
+    case "who":
+      // W31: the People group's block, over `pickAProfessional`; a Public profile alone never appears.
+      body = <WhoPerforms peopleHref={`${adminBasePath}/people?view=bookable`} />;
+      side = <AvailabilitySide item={item} />;
       break;
     case "availability":
       body = <AvailabilityTab {...tabProps} />;
