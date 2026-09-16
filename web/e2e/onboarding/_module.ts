@@ -21,6 +21,9 @@ export { expect };
 export async function openHome(page: Page, locale: "en" | "es" = "en") {
   await page.goto(`${MARKETING_BASE}/${locale === "es" ? "es" : ""}`);
   await expect(page.locator('[data-platform-surface="marketing"]')).toBeVisible();
+  // Hydrated and listening (the host sets this in its effect). A click before
+  // it would hit a server-rendered button with no handler.
+  await expect(page.locator("html[data-onboarding-ready]")).toHaveCount(1, { timeout: 30_000 });
 }
 
 export const dialog = (page: Page) => page.getByRole("dialog", { name: /Get started with Tulala|Empieza con Tulala/ });

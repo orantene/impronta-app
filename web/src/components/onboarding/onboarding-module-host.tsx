@@ -68,10 +68,14 @@ export function OnboardingModuleHost({ locale }: { locale: "en" | "es" }) {
     window.addEventListener(ONBOARDING_MODULE_EVENT, onModuleEvent);
     window.addEventListener(TALENT_MODAL_EVENT, onTalentEvent);
     document.addEventListener("click", onClick, true);
+    // Hydration marker: a CTA clicked before this effect ran would navigate or
+    // do nothing. Specs wait for it; nothing else reads it.
+    document.documentElement.setAttribute("data-onboarding-ready", "1");
     return () => {
       window.removeEventListener(ONBOARDING_MODULE_EVENT, onModuleEvent);
       window.removeEventListener(TALENT_MODAL_EVENT, onTalentEvent);
       document.removeEventListener("click", onClick, true);
+      document.documentElement.removeAttribute("data-onboarding-ready");
     };
   }, [openWith]);
 

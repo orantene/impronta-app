@@ -40,6 +40,7 @@ test.describe("onboarding module shell", () => {
     await openHome(page);
     await page.getByRole("button", { name: /Sell your work/ }).first().click();
     await sentence(page).fill("hola");
+    await expect(sentence(page)).toHaveValue("hola");
     await page.getByTestId("onb-send").click();
     await expect(page.getByTestId("onb-confirm")).toBeVisible();
     await page.getByTestId("onb-confirm-send").click();
@@ -63,14 +64,17 @@ test.describe("onboarding module shell", () => {
     await expect(page.getByTestId("onb-toast")).toContainText(/Saved on this phone/);
 
     await page.reload();
+    await expect(page.locator("html[data-onboarding-ready]")).toHaveCount(1, { timeout: 30_000 });
     await page.getByRole("button", { name: /Sell your work/ }).first().click();
-    await expect(page.getByTestId("onb-resume")).toContainText(ROSA_EN);
+    // The resume snapshot is one server action after open; allow for a cold dev server.
+    await expect(page.getByTestId("onb-resume")).toContainText(ROSA_EN, { timeout: 15_000 });
     await evidence(page, "05-resume");
     await page.getByTestId("onb-resume-continue").click();
     await expect(page.getByTestId("onb-reading")).toBeVisible();
     await page.getByTestId("onb-close").click();
 
     await page.reload();
+    await expect(page.locator("html[data-onboarding-ready]")).toHaveCount(1, { timeout: 30_000 });
     await page.getByRole("link", { name: /Start a business/ }).first().click();
     await page.getByTestId("onb-resume-fresh").click();
     await expect(page.getByTestId("onb-entry")).toBeVisible();
