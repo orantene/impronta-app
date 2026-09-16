@@ -60,6 +60,8 @@ export type PersistedModuleState = {
   linkSlug?: string | null;
   /** "Looks right" tapped: assumed lines were accepted as they stand. */
   cardAccepted?: boolean;
+  /** The build record (`lib/onboarding/build.server.ts` BuildStatus), opaque here. */
+  build?: Record<string, unknown> | null;
   updatedAt?: string;
 };
 
@@ -113,6 +115,7 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
   }
   if (typeof r.linkSlug === "string") out.linkSlug = r.linkSlug;
   if (typeof r.cardAccepted === "boolean") out.cardAccepted = r.cardAccepted;
+  if (r.build && typeof r.build === "object" && !Array.isArray(r.build)) out.build = r.build as Record<string, unknown>;
   if (typeof r.updatedAt === "string") out.updatedAt = r.updatedAt;
   return out;
 }

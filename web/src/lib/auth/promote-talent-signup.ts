@@ -22,3 +22,24 @@ export async function promoteFreshProfileToTalent(userId: string): Promise<void>
     .eq("account_status", "onboarding");
   if (error) logServerError("auth/promoteFreshProfileToTalent", error);
 }
+
+/**
+ * A fresh profile that just became the owner of a workspace becomes staff.
+ * `ensure_profile_for_current_user` recomputes `account_status` on every
+ * request from the role: a `client` with no client profile is put back to
+ * `onboarding` and bounced to the role chooser, whatever the provisioner
+ * wrote. Owners created through the account-first paths (`/register?intent=
+ * workspace`) arrive as staff already; code-only and OAuth signups arrive as
+ * `client`, so the surface that provisions promotes explicitly.
+ */
+export async function promoteFreshProfileToWorkspaceOwner(userId: string): Promise<void> {
+  const admin = createServiceRoleClient();
+  if (!admin) return;
+  const { error } = await admin
+    .from("profiles")
+    .update({ app_role: "agency_staff" })
+    .eq("id", userId)
+    .eq("app_role", "client")
+    .eq("account_status", "onboarding");
+  if (error) logServerError("auth/promoteFreshProfileToWorkspaceOwner", error);
+}

@@ -1725,6 +1725,45 @@
         "resent": "A new code is on its way.",
         "changeEmail": "Change email",
         "verifying": "Checking…"
+      },
+      "building": {
+        "title": "Building it",
+        "titleTalent": "Saving your page",
+        "sub": "Usually under half a minute, up to one. You can close this; it keeps building.",
+        "steps": {
+          "account": "Your account",
+          "workspace": "Your workspace",
+          "site": "Your site in its Look",
+          "photos": "Photos for your kind of business",
+          "menu": "Your menu",
+          "profile": "Your page"
+        }
+      },
+      "arrival": {
+        "youreIn": "You're in",
+        "youreInName": "You're in, {name}",
+        "talentSub": "Your page is saved with what you told us. Add three photos and it goes live.",
+        "businessSub": "{business} has a site. Open it to see it and change anything.",
+        "bothSub": "{business} has a site. Your own page is drafted and waits in your workspace.",
+        "fallbackSub": "Your workspace is ready. The site copy needed another pass, so it opens with the Look's defaults; everything you told us is saved.",
+        "existingSub": "You already have a free workspace. Open it; nothing new was created.",
+        "factServices": "{n} services",
+        "factCity": "in {city}",
+        "factLogo": "your logo",
+        "factHours": "your hours",
+        "factWhatsapp": "WhatsApp",
+        "factMenu": "{n} menu items",
+        "factPhotos": "photos for your kind of business",
+        "finishMyPage": "Finish my page",
+        "openMyWebsite": "Open my website",
+        "openMyWorkspace": "Open my workspace",
+        "ownPageDrafted": "Your own page is drafted in the workspace.",
+        "link": "Your link",
+        "failedTitle": "That didn't finish",
+        "failedSub": "Everything you told us is saved. Try again, or come back later from this same phone.",
+        "retry": "Try again",
+        "fallbackCopySub": "Your workspace is ready. The site copy needed another pass, so it opens with the Look's defaults; everything you told us is saved.",
+        "fallbackPhotosSub": "{business} has a site with your words in it. The photos are still generic; open it to add yours or pick from the library."
       }
     }
   },

@@ -67,9 +67,22 @@ export async function loadFacts(briefId: string): Promise<Record<string, unknown
 /** Sign in on the app host (cookies are per host, not per port, so they carry to :3105). */
 export async function devSignIn(page: Page, email: string): Promise<void> {
   const params = new URLSearchParams({ email, next: "/" });
-  const res = await page.request.get(`${APP_BASE}/api/dev/signin?${params.toString()}`, { maxRedirects: 0 });
-  if (res.status() !== 307) throw new Error(`dev sign-in ${res.status()}: ${await res.text()}`);
-  const headers = res.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
+  // Turbopack drops `/api/dev/*` for a moment after a rebuild (404), and the
+  // proxy can answer 502/503 while Next restarts: retry those, nothing else
+  // (the journeys harness does the same).
+  let headers: string[] = [];
+  const seen: number[] = [];
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const res = await page.request.get(`${APP_BASE}/api/dev/signin?${params.toString()}`, { maxRedirects: 0 });
+    if (res.status() === 307) {
+      headers = res.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
+      break;
+    }
+    seen.push(res.status());
+    if (![404, 502, 503].includes(res.status())) throw new Error(`dev sign-in ${res.status()}: ${(await res.text()).slice(0, 200)}`);
+    await page.waitForTimeout(500 * attempt);
+  }
+  if (!headers.length) throw new Error(`dev sign-in never answered 307 (${seen.join(", ")})`);
   const origin = new URL(MARKETING_BASE);
   const cookies = headers
     .map((header) => {

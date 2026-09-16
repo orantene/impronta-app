@@ -19,6 +19,7 @@ import {
 import type { ModuleQuestionId } from "./module-questions";
 import type { TypeChipProposal } from "./type-chip";
 import type { Understanding } from "./understanding";
+import type { ArrivalPayload } from "./arrival";
 
 export type MachineErrorCode =
   | "too_short"
@@ -62,6 +63,9 @@ export type MachineState = {
   codeEmail: string | null;
   accountMessage: string | null;
   accountNotice: string | null;
+  /** Phase 4.2: the arrival, or why the build failed. */
+  arrival: ArrivalPayload | null;
+  buildFailed: string | null;
 };
 
 export type MachineEvent =
@@ -89,7 +93,10 @@ export type MachineEvent =
   | { type: "toStep"; step: ModuleStep }
   | { type: "codeSent"; email: string; notice: string | null }
   | { type: "accountFailed"; message: string }
-  | { type: "authed"; email: string | null };
+  | { type: "authed"; email: string | null }
+  | { type: "buildDone"; arrival: ArrivalPayload }
+  | { type: "buildFailed"; message: string }
+  | { type: "buildRetry" };
 
 export function initialMachineState(intent: OnboardingIntent = "unknown"): MachineState {
   return {
@@ -114,6 +121,8 @@ export function initialMachineState(intent: OnboardingIntent = "unknown"): Machi
     codeEmail: null,
     accountMessage: null,
     accountNotice: null,
+    arrival: null,
+    buildFailed: null,
   };
 }
 
@@ -246,6 +255,12 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
       return { ...state, busy: false, accountMessage: event.message, accountNotice: null };
     case "authed":
       return { ...state, busy: false, isAuthenticated: true, email: event.email ?? state.email, step: "building", accountMessage: null, accountNotice: null };
+    case "buildDone":
+      return { ...state, busy: false, step: "arrival", arrival: event.arrival, buildFailed: null };
+    case "buildFailed":
+      return { ...state, busy: false, step: "arrival", arrival: null, buildFailed: event.message };
+    case "buildRetry":
+      return { ...state, busy: false, step: "building", arrival: null, buildFailed: null };
     default:
       return state;
   }

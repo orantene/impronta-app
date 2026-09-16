@@ -205,7 +205,7 @@ export async function approveRecommendation(input: {
  * one person across two leads and break the provisioner's idempotency, which
  * keys on `lead.provisioned_tenant_id`.
  */
-async function upsertLeadForBrief(input: {
+export async function upsertLeadForBrief(input: {
   brief: Brief;
   choice: ApprovedChoice;
   email: string;

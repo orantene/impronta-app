@@ -23,6 +23,15 @@ for (const [key, value] of FLAGS) {
   console.log(`settings.${key}=${value}`, error?.message ?? "ok");
 }
 
+// The platform hub is what `ensurePlatformHubRoster` puts every platform talent
+// on; `getPlatformHubTenant` requires kind=hub + plan_tier=network + active.
+// The isolated fixture's hub row had plan_tier NULL, so no talent could be
+// rostered (taxonomy/languages/offerings need the tenant scope).
+{
+  const { error } = await admin.from("agencies").update({ plan_tier: "network", status: "active" }).eq("kind", "hub").is("plan_tier", null);
+  console.log("hub plan_tier=network", error?.message ?? "ok");
+}
+
 const ADMIN_EMAIL = "qa-onb-admin@impronta.test";
 const users = (await admin.auth.admin.listUsers({ perPage: 500 })).data?.users ?? [];
 let adminUser = users.find((u) => u.email === ADMIN_EMAIL);

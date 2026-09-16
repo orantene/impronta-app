@@ -19,6 +19,7 @@ import type { ModuleStep, OnboardingIntent } from "@/lib/onboarding/module-state
 import {
   acceptUnderstoodCard,
   answerModuleQuestion,
+  getOnboardingBuildStatus,
   chooseOnboardingPath,
   editUnderstoodFact,
   loadOnboardingCard,
@@ -42,6 +43,9 @@ import { ReadingStep } from "./steps/reading-step";
 import { ReadyStep } from "./steps/ready-step";
 import { SaveStep } from "./steps/save-step";
 import { CodeStep } from "./steps/code-step";
+import { BuildingStep } from "./steps/building-step";
+import { ArrivalFailed, ArrivalStep } from "./steps/arrival-step";
+import type { ArrivalPayload } from "@/lib/onboarding/arrival";
 import { ResumeCard } from "./steps/resume-card";
 import { TooLittleStep } from "./steps/too-little-step";
 import { UnderstoodStep } from "./steps/understood-step";
@@ -242,6 +246,48 @@ export function OnboardingModule({
     });
   }, []);
 
+  // Phase 4.2 · the build. One POST per entry into "building"; idempotent on
+  // the server, so a reload or a second tap returns the stored record.
+  const buildStartedRef = useRef(false);
+  useEffect(() => {
+    if (state.step !== "building" || buildStartedRef.current) return;
+    buildStartedRef.current = true;
+    const finish = (build: Record<string, unknown> | null) => {
+      if (build?.status === "done" && build.arrival) dispatch({ type: "buildDone", arrival: build.arrival as ArrivalPayload });
+      else if (build?.status === "failed") dispatch({ type: "buildFailed", message: String(build.message ?? "") });
+      else dispatch({ type: "buildFailed", message: "" });
+    };
+    void (async () => {
+      try {
+        const res = await fetch("/api/onboarding/build", { method: "POST", headers: { "content-type": "application/json" } });
+        const body = (await res.json().catch(() => null)) as { ok?: boolean; build?: Record<string, unknown>; code?: string } | null;
+        if (res.ok && body?.ok) finish(body.build ?? null);
+        else {
+          // The route may have finished after a client-side timeout: read the record.
+          const stored = await getOnboardingBuildStatus();
+          finish(stored.ok ? stored.build : null);
+        }
+      } catch {
+        const stored = await getOnboardingBuildStatus().catch(() => null);
+        finish(stored && stored.ok ? stored.build : null);
+      } finally {
+        buildStartedRef.current = false;
+      }
+    })();
+  }, [state.step]);
+
+  // Resume on the arrival step: the stored record has everything.
+  useEffect(() => {
+    if (state.step !== "arrival" || state.arrival || state.buildFailed !== null) return;
+    void getOnboardingBuildStatus().then((r) => {
+      if (!r.ok) return;
+      const build = r.build;
+      if (build?.status === "done" && build.arrival) dispatch({ type: "buildDone", arrival: build.arrival as ArrivalPayload });
+      else if (build?.status === "failed") dispatch({ type: "buildFailed", message: String(build.message ?? "") });
+      else dispatch({ type: "buildRetry" });
+    });
+  }, [state.step, state.arrival, state.buildFailed]);
+
   const checkLink = useCallback(async (slug: string) => {
     const r = await setOnboardingLink({ slug });
     if (!r.ok) return null;
@@ -377,9 +423,24 @@ export function OnboardingModule({
         onChangeEmail={() => dispatch({ type: "toStep", step: "save" })}
       />
     );
-  } else if (state.step === "building" || state.step === "arrival") {
-    // Phase 4.2 lands the build and arrival screens.
-    body = <ReadingStep t={t} input={state.input} />;
+  } else if (state.step === "building") {
+    body = <BuildingStep t={t} path={path} />;
+  } else if (state.step === "arrival" && state.arrival) {
+    body = <ArrivalStep t={t} arrival={state.arrival} />;
+  } else if (state.step === "arrival" && state.buildFailed !== null) {
+    body = (
+      <ArrivalFailed
+        t={t}
+        message={state.buildFailed}
+        busy={state.busy}
+        onRetry={() => {
+          dispatch({ type: "buildRetry" });
+          void saveOnboardingStep({ step: "building" });
+        }}
+      />
+    );
+  } else if (state.step === "arrival") {
+    body = <BuildingStep t={t} path={path} />;
   } else {
     body = <ReadingStep t={t} input={state.input} />;
   }
