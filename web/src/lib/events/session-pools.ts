@@ -1,5 +1,5 @@
-import "server-only";
-
+// No "server-only" here: this is a pure helper the events test lane runs
+// without the shim; the server action that calls it is the "use server" file.
 import { logServerError } from "@/lib/server/safe-error";
 
 /**

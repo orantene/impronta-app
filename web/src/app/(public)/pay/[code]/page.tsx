@@ -21,7 +21,8 @@ async function threadHrefFor(
 ): Promise<string | null> {
   let inquiryId = linkInquiryId;
   if (!inquiryId) {
-    const { data } = await admin.from("orders").select("inquiry_id").eq("id", orderId).maybeSingle();
+    const { data, error } = await admin.from("orders").select("inquiry_id").eq("id", orderId).maybeSingle();
+    if (error) notFound();
     inquiryId = (data as { inquiry_id: string | null } | null)?.inquiry_id ?? null;
   }
   const token = inquiryId && tenantId ? signThreadToken(inquiryId, tenantId) : null;
