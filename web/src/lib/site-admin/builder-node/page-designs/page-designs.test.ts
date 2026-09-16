@@ -57,10 +57,11 @@ function collectIds(nodes: BuilderNode[]): string[] {
 // design stays single-root; this set names the documented exceptions.
 const MULTI_ROOT_DESIGN_IDS = new Set(["impronta"]);
 
-test("page-designs: fourteen designs with copy (single-root, except documented multi-root)", () => {
+test("page-designs: fifteen designs with copy (single-root, except documented multi-root)", () => {
   // 14th is `services`, the salon/barber/spa/clinic front door: those four had
-  // no keyword row and fell through to the print storefront.
-  assert.equal(PAGE_DESIGNS.length, 14);
+  // no keyword row and fell through to the print storefront. 15th is
+  // `event-launch`, the one-scroll launch-party page (Impronta LUMINA).
+  assert.equal(PAGE_DESIGNS.length, 15);
   for (const design of PAGE_DESIGNS) {
     if (MULTI_ROOT_DESIGN_IDS.has(design.id)) {
       assert.ok(design.tree.length > 1, `${design.id} must be multi-root`);
@@ -119,9 +120,10 @@ test("page-designs: each archetype is a pickable full-page composition preset", 
     (preset) => preset.category === "page",
   );
   // 5 fidelity archetypes + 3 Noir & Or full-page presets (marquee-ticker,
-  // footer-editorial, impronta-noir-home). Each is a single-root `container`
-  // composition preset that bakes to a container — verified below.
-  assert.equal(pagePresets.length, 8);
+  // footer-editorial, impronta-noir-home) + the launch-party page. Each is a
+  // single-root `container` composition preset that bakes to a container —
+  // verified below.
+  assert.equal(pagePresets.length, 9);
   for (const preset of pagePresets) {
     assert.equal(preset.rootKind, "container", `${preset.id} rootKind`);
     const node = createBuilderNodeCompositionPreset(preset.id);

@@ -11,6 +11,7 @@ import {
   bakePageDesignTree,
   editorialDesign,
   festivalDesign,
+  eventLaunchDesign,
   saasDesign,
   storeDesign,
   type PageDesign,
@@ -53,4 +54,8 @@ export function createPrintStorePreset(): NonSectionNode {
 
 export function createLiveEventPreset(): NonSectionNode {
   return bakePageDesignPreset(festivalDesign);
+}
+
+export function createLaunchPartyPreset(): NonSectionNode {
+  return bakePageDesignPreset(eventLaunchDesign);
 }

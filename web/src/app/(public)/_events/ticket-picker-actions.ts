@@ -31,6 +31,7 @@ import { tierReserveRequest } from "@/lib/sessions/tier-pools";
 import { checkQuantity, saleWindowState, type Tier } from "@/lib/events/tiers";
 import { buildTicketPurchase, doorOfferState, type DoorOfferState } from "@/lib/events/ticket-purchase";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
+import { deliverTicketsForOrder } from "@/lib/events/ticket-delivery";
 import { uuidWire } from "@/lib/events/uuid-wire";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { admissionHoldConsume, admissionHoldSeats } from "@/lib/venues/event-holds";
@@ -53,6 +54,8 @@ export type PickerTier = {
    * event's. Null is the ordinary case.
    */
   ageGate: number | null;
+  /** Engine-hidden ("by link"). Listed only when the loader was asked for it by id. */
+  hidden: boolean;
 };
 
 export type PickerSeat = { id: string; label: string };
@@ -86,7 +89,9 @@ export type TicketPicker =
     }
   | { ok: false; reason: "unavailable" | "not_sellable" };
 
-const loadSchema = z.object({ tenantId: uuidWire, eventId: uuidWire });
+// `includeVariantId`: a hidden ("by link") tier the page URL named. The
+// WINDOW is still the gate; hiding only removes a tier from the listing.
+const loadSchema = z.object({ tenantId: uuidWire, eventId: uuidWire, includeVariantId: uuidWire.optional() });
 
 export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
   const parsed = loadSchema.safeParse(input);
@@ -96,7 +101,7 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
     });
     return { ok: false, reason: "unavailable" };
   }
-  const { tenantId, eventId } = parsed.data;
+  const { tenantId, eventId, includeVariantId } = parsed.data;
   try {
     const admin = createServiceRoleClient();
     if (!admin) {
@@ -194,8 +199,9 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
         minPerOrder: t.minPerOrder ?? 1, maxPerOrder: t.maxPerOrder ?? null,
         onSale: st.onSale, saleReason: st.onSale ? null : st.reason,
         ageGate: (v.age_gate as number | null) ?? null,
+        hidden: Boolean(v.is_hidden),
       };
-    }).filter((t) => !tierRows.find((v) => v.id === t.variantId)?.is_hidden);
+    }).filter((t) => !t.hidden || (includeVariantId != null && t.variantId.toLowerCase() === includeVariantId.toLowerCase()));
 
     const nights: PickerNight[] = (sessions ?? []).map((s) => {
       const keys = poolKeysBySession.get(s.id as string) ?? new Set<string>();
@@ -425,6 +431,8 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
               .eq("tenant_id", d.tenantId);
             if (holderErr) logServerError("events.buy.compHolder", holderErr);
           }
+          // The guest bought on a page in `d.locale`; the ticket mail speaks it.
+          await deliverTicketsForOrder(admin, { tenantId: d.tenantId, orderId: result.orderId, locale: d.locale ?? null });
         } catch (mintErr) {
           logServerError("events.buy.compMint", mintErr);
         }

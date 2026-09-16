@@ -1052,9 +1052,26 @@ const sessionPickerPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+// v2 presentation, all optional so every stored node still parses. Per-tier
+// copy and imagery live HERE, keyed by variant id: the tier row in the
+// database carries label, price and limits only.
+const ticketPickerTierSchema = z.object({
+  variantId: z.string().max(200),
+  includes: z.string().max(600).optional(),
+  imageSrc: z.string().max(2000).optional(),
+  imageMediaId: z.string().max(200).optional(),
+  badge: z.string().max(40).optional(),
+  hidden: z.boolean().optional(),
+});
+
 const ticketPickerPropsSchema = z.object({
   eventId: z.string().max(200),
   title: z.string().max(120).optional(),
+  presentation: z.enum(["inline", "sheet"]).optional(),
+  layout: z.enum(["cards", "list"]).optional(),
+  tiers: z.array(ticketPickerTierSchema).max(24).optional(),
+  showNightPicker: z.enum(["auto", "always"]).optional(),
+  ctaLabel: z.string().max(60).optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -1958,7 +1975,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       kind: "ticket_picker",
       label: "Buy tickets",
       description:
-        "A guest picks a night and a ticket for one of your events and pays by card; a seat past capacity is refused. Shows only what can actually be bought.",
+        "Tier cards with what each includes, a quantity bar with a live total, one details step, then card checkout; a seat past capacity is refused. Shows only what can actually be bought.",
       children: { type: "none" },
       propsSchema: ticketPickerPropsSchema,
     },

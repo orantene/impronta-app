@@ -57,6 +57,7 @@ function tier(overrides: Partial<PickerTier> = {}): PickerTier {
     onSale: true,
     saleReason: null,
     ageGate: null,
+    hidden: false,
     ...overrides,
   };
 }
@@ -237,4 +238,69 @@ test("no tenant and no event still says so", () => {
     assert.equal(state, "not_configured");
     assert.match(host.textContent ?? "", /not set up yet/i);
   });
+});
+
+/* ── v2: cards, steps, sheet ─────────────────────────────────────────────── */
+
+test("cards layout implies the one night, shows includes, and steps to the quantity bar with a live total", () => {
+  mount(
+    <TicketPickerIsland
+      tenantId={TENANT}
+      eventId={EVENT}
+      layout="cards"
+      tiers={[{ variantId: DAY_PASS, includes: "Copa de vino\nAcceso 18:00", badge: "VIP" }]}
+      preload={preload()}
+    />,
+    (host) => {
+      assert.equal(host.querySelector('input[name="night"]'), null, "one sellable night must be implied, not asked");
+      const card = host.querySelector<HTMLElement>(`[data-tier-card="${DAY_PASS}"]`);
+      assert.ok(card, "no tier card rendered");
+      assert.match(card.textContent ?? "", /Copa de vino/);
+      assert.match(card.textContent ?? "", /Acceso 18:00/);
+      assert.match(card.textContent ?? "", /VIP/);
+      const radio = card.querySelector<HTMLInputElement>('input[name="tier"]');
+      assert.ok(radio);
+      act(() => { radio.click(); });
+      const bar = host.querySelector<HTMLElement>(".tp-bar");
+      assert.ok(bar, "picking a tier did not open the quantity bar");
+      const plus = bar.querySelector<HTMLButtonElement>('button[aria-label="More"]');
+      assert.ok(plus);
+      assert.match(bar.querySelector(".tp-bar-total")?.textContent ?? "", /89\.00/, "the total did not start at one ticket");
+      act(() => { plus.click(); });
+      assert.match(bar.querySelector(".tp-bar-total")?.textContent ?? "", /178\.00/, "the total did not follow the quantity");
+      const cont = bar.querySelector<HTMLButtonElement>(".tp-cta");
+      assert.ok(cont);
+      act(() => { cont.click(); });
+      assert.ok(host.querySelector('input[type="email"]'), "the details step did not open");
+      assert.ok(buyButton(host), "no final buy control on the details step");
+    },
+  );
+});
+
+test("sheet presentation renders a sticky opener and no dialog until it is opened", () => {
+  mount(
+    <TicketPickerIsland tenantId={TENANT} eventId={EVENT} layout="cards" presentation="sheet" ctaLabel="Comprar entradas" preload={preload()} />,
+    (host) => {
+      const opener = host.querySelector<HTMLButtonElement>('[data-testid="ticket-open-sheet"]');
+      assert.ok(opener, "no sticky opener");
+      assert.equal(opener.textContent, "Comprar entradas");
+      assert.equal(host.querySelector('[role="dialog"]'), null, "a dialog before any click");
+      act(() => { opener.click(); });
+      const dialog = host.querySelector<HTMLElement>('[role="dialog"]');
+      assert.ok(dialog, "opening did not render the sheet");
+      assert.equal(dialog.getAttribute("aria-modal"), "true");
+      assert.ok(dialog.querySelector(`[data-tier-card="${DAY_PASS}"]`), "the sheet does not carry the flow");
+      assert.equal(document.body.style.overflow, "hidden", "body scroll was not locked");
+    },
+  );
+});
+
+test("an operator-hidden tier stays out of the cards", () => {
+  mount(
+    <TicketPickerIsland tenantId={TENANT} eventId={EVENT} layout="cards" tiers={[{ variantId: DAY_PASS, hidden: true }]} preload={preload()} />,
+    (host) => {
+      assert.equal(host.querySelector(`[data-tier-card="${DAY_PASS}"]`), null);
+      assert.equal(host.querySelector('[data-ticket-picker="no_tiers"]') !== null, true);
+    },
+  );
 });

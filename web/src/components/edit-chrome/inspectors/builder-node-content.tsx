@@ -60,6 +60,7 @@ import { DraggableList } from "./kit/draggable-list";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
 import { QrCodeLinkPicker } from "./qr-code-link-picker";
+import { TicketPickerEditor } from "./ticket-picker-editor";
 import { InspectorLabelWithInfo, MediaField, toMediaValue } from "./kit";
 import { AiGenerateImageButton } from "./ai-generate-image-button";
 import { BackgroundMediaCard } from "./background-media-card";
@@ -1700,10 +1701,9 @@ function BuilderNodeContentInspectorBody({
   }
 
   // ── ticket_picker (guest-facing ticket purchase block) ────────────────────
-  // Phase 1 panel: a title and the event this block sells. The event PICKER
-  // (a select over the tenant's published events) is phase 2; for now the id
-  // is entered directly. The island (Events & Ticketing) fetches nights and
-  // tiers and sells the ticket, and shows "not configured" while this is empty.
+  // Copy stays here (it is the localizable field kit); the event select, the
+  // v2 presentation switches and the per-tier cards live in
+  // `ticket-picker-editor.tsx`, which owns the hooks that load them.
   if (node.kind === "ticket_picker") {
     const tp = node.props;
     return (
@@ -1726,20 +1726,34 @@ function BuilderNodeContentInspectorBody({
               patch={commitPatch}
             />
           </div>
-        </BuilderNodeSection>
-        <BuilderNodeSection title="Event">
           <div className={KIT.field}>
-            <label className={KIT.label}>Event ID</label>
-            <input
-              type="text"
+            <label className={KIT.label}>Button label</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="ctaLabel"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={tp.ctaLabel ?? ""}
+              ariaLabel="Button label"
               className={KIT.input}
-              value={tp.eventId ?? ""}
-              placeholder="The event this block sells tickets for"
-              onChange={(event) => {
-                void commitPatch({ eventId: event.currentTarget.value });
-              }}
+              placeholder="Buy tickets"
+              onCommitBase={(next) =>
+                commitTextInput("ctaLabel", tp.ctaLabel ?? "", true)(next)
+              }
+              patch={commitPatch}
             />
           </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Event & presentation">
+          <TicketPickerEditor
+            tenantId={tenantId}
+            eventId={tp.eventId ?? ""}
+            layout={tp.layout}
+            presentation={tp.presentation}
+            showNightPicker={tp.showNightPicker}
+            tiers={tp.tiers}
+            patch={commitPatch}
+          />
         </BuilderNodeSection>
       </BuilderNodeFlatPanel>
     );

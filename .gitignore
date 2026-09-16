@@ -65,3 +65,5 @@ tmp-*
 .claude/
 .codex-artifacts/
 .worktree-owner
+docs/plans/impronta-lumina/sweep/*.png
+docs/plans/impronta-lumina/mockup/preset/preset-*.png

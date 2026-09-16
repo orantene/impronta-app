@@ -9,6 +9,8 @@ import { venueEngineRefusalSentence, type VenueEngineRefusalSentences } from "@/
 
 export function TicketSelfClient(props: {
   code: string;
+  /** Pre-rendered QR of `code` (SVG markup from the server), or null on overflow. */
+  qrSvg: string | null;
   holderName: string | null;
   startsAt: string | null;
   copy: {
@@ -55,6 +57,15 @@ export function TicketSelfClient(props: {
         </header>
         <section className="rounded-[16px] border-[1.5px] border-admin-border bg-admin-card p-4">
           <p className="m-0 text-[13px] text-admin-ink-muted">{props.copy.show}</p>
+          {props.qrSvg ? (
+            <div
+              className="mx-auto mt-3 w-[240px] max-w-full rounded-[12px] bg-white p-3 [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"
+              role="img"
+              aria-label={props.copy.show}
+              data-ticket-qr=""
+              dangerouslySetInnerHTML={{ __html: props.qrSvg }}
+            />
+          ) : null}
           <code className="mt-2 block break-all text-[13px] font-semibold text-admin-ink">{props.code}</code>
         </section>
         {refusal ? <p role="alert" className="m-0 text-[13px] text-admin-red">{refusal}</p> : null}

@@ -120,6 +120,12 @@ const INTENTIONALLY_UNTRANSLATED: ReadonlyMap<string, string> = new Map([
   // the sample studio name is a proper noun that reads identically in Spanish.
   // Translating it would only invent a second fictional agency.
   ["Nova Crew", "sample studio name used as a placeholder; a proper noun"],
+  // ticket_picker inspector samples: the placeholder shows the SHAPE of what
+  // the operator types (a badge word, two "includes" lines, a link name), and
+  // the first tenant authoring it writes Spanish.
+  ["VIP", "sample badge; identical in Spanish"],
+  ["Copa de vino", "sample includes line; already Spanish"],
+  ["Instagram bio", "sample link name; a product name plus a loanword used as-is"],
   ["© Nova Crew", "sample copyright line built from the sample studio name; the glyph and the name are identical in Spanish"],
 ]);
 

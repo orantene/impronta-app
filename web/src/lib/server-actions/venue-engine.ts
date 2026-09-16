@@ -58,6 +58,8 @@ import {
 } from "@/lib/venues/pos-devices";
 import { replayCashOutboxItem } from "@/lib/pos/outbox-replay";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
+import { deliverTicketForAdmission } from "@/lib/events/ticket-delivery";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
 
 const uuid = z.string().uuid();
@@ -555,7 +557,13 @@ export async function admissionComp(input: {
     if (!ensured.ok) return { ok: false as const, reason: ensured.reason === "unavailable" ? ("unavailable" as const) : ("invalid" as const) };
     customerId = ensured.customerId;
   }
-  return compAdmission(g.admin, { tenantId: g.tenantId, actorRole: "editor", customerId, ...parsed.data });
+  const res = await compAdmission(g.admin, { tenantId: g.tenantId, actorRole: "editor", customerId, ...parsed.data });
+  // A comp with an address gets its ticket mail like any sale would, in the
+  // language the desk is working in (a comp has no buyer locale of its own).
+  if (res.ok && parsed.data.holderEmail && res.id) {
+    await deliverTicketForAdmission(g.admin, { tenantId: g.tenantId, admissionId: res.id, locale: await getRequestLocale() });
+  }
+  return res;
 }
 
 export async function admissionDeliver(input: {

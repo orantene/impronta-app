@@ -492,6 +492,38 @@ export type SessionPoolRow = {
  * show 10 sold where the engine accepts 6, and the operator would be told
  * they cannot do what the engine then allows.
  */
+/**
+ * The comps issued for one night: valid admissions whose order was minted by
+ * `admission_comp`. Before this the Day tab printed a hardcoded "None" under
+ * "Comps", whatever had been given out.
+ */
+export async function loadSessionComps(sessionId: string): Promise<{ ok: true; count: number; names: string[] } | { ok: false; error: string }> {
+  const guard = await requireWorkspaceStaffAction();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { supabase, tenantId } = guard;
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return { ok: false, error: "That is not a session." };
+  try {
+    const { data: orders, error: oErr } = await supabase
+      .from("orders").select("id").eq("tenant_id", tenantId).eq("session_id", sessionId).eq("source_channel", "admission_comp").limit(500);
+    if (oErr) { logServerError("events.sessionComps/orders", oErr); return { ok: false, error: "Could not load comps." }; }
+    const orderIds = (orders ?? []).map((o) => o.id as string);
+    if (orderIds.length === 0) return { ok: true, count: 0, names: [] };
+    const { data: lines, error: lErr } = await supabase
+      .from("order_lines").select("id").eq("tenant_id", tenantId).in("order_id", orderIds);
+    if (lErr) { logServerError("events.sessionComps/lines", lErr); return { ok: false, error: "Could not load comps." }; }
+    const lineIds = (lines ?? []).map((l) => l.id as string);
+    if (lineIds.length === 0) return { ok: true, count: 0, names: [] };
+    const { data: adms, error: aErr } = await supabase
+      .from("admissions").select("holder_name").eq("tenant_id", tenantId).eq("session_id", sessionId).eq("status", "valid").in("order_line_id", lineIds);
+    if (aErr) { logServerError("events.sessionComps/admissions", aErr); return { ok: false, error: "Could not load comps." }; }
+    const rows = (adms ?? []) as Array<{ holder_name: string | null }>;
+    return { ok: true, count: rows.length, names: rows.map((r) => (r.holder_name ?? "").trim()).filter(Boolean).slice(0, 5) };
+  } catch (err) {
+    logServerError("events.sessionComps", err);
+    return { ok: false, error: "Could not load comps." };
+  }
+}
+
 export async function loadSessionPools(sessionId: string): Promise<{ ok: true; rows: SessionPoolRow[] } | { ok: false; error: string }> {
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false, error: guard.error };
@@ -520,7 +552,10 @@ export async function loadSessionPools(sessionId: string): Promise<{ ok: true; r
       let peak: number | null = null;
       if (pool) {
         const { data: pk, error: pkErr } = await supabase.rpc("capacity_pool_committed_peak", { p_pool_id: pool.id as string });
-        if (pkErr) logServerError("events.sessionPools/peak", pkErr);
+        // Swallowed on purpose: one unreadable pool must not blank the tab
+        // (D-147). The figure model reports it as a floor; the pool id here
+        // is what makes the log actionable.
+        if (pkErr) logServerError(`events.sessionPools/peak pool=${pool.id as string} key=${v.pool_key}`, pkErr);
         else peak = typeof pk === "number" ? pk : Number(pk);
       }
       rows.push({

@@ -30,6 +30,15 @@ export const PAGE_DESIGN_PHOTOS = {
   studioDesk: "/marketing/photos/agency-workspace-builder.jpg",
   /** ~4:3 portrait — director with a tablet against a moodboard wall. */
   directorPortrait: "/marketing/photos/hub-agency-discovery.jpg",
+  // ── Night event set (generated, no faces, no brands) — the event-launch design.
+  /** 16:9 — gold light beams through haze over a dark stage. Hero. */
+  eventNightBeams: "/marketing/photos/event-night-beams.jpg",
+  /** 16:9 — runway silhouette under gold spotlights. Band / card. */
+  eventNightRunway: "/marketing/photos/event-night-runway.jpg",
+  /** 1:1 — fire performer, long-exposure trails. Card. */
+  eventNightFire: "/marketing/photos/event-night-fire.jpg",
+  /** 4:5 — aerial silks performer in gold fabric. Card / VIP. */
+  eventNightSilks: "/marketing/photos/event-night-silks.jpg",
 } as const;
 
 export type PageDesignPhotoKey = keyof typeof PAGE_DESIGN_PHOTOS;

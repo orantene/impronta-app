@@ -4,6 +4,9 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { encodeQr } from "@/lib/links/qr";
+import { toSvg } from "@/lib/links/qr/render";
+import { logServerError } from "@/lib/server/safe-error";
 import { loadTicketByCode } from "@/lib/venues/ticket-self";
 import { resolveVenueEngineRefusals } from "@/lib/venues/engine-refusals";
 
@@ -23,9 +26,20 @@ export default async function TicketSelfPage({ params }: { params: Promise<{ cod
   const tr = await createTranslator(locale);
   if (!ticket.ok) notFound();
 
+  // The same QR the e-mail carries, so the phone that opened the link can be
+  // scanned without finding the mail. Per the receipt page: an overflow is a
+  // bug about the TOKEN, logged, and the typed code below stays the fallback.
+  let qrSvg: string | null = null;
+  try {
+    qrSvg = toSvg(encodeQr(ticket.code, { ecc: "Q" }).matrix);
+  } catch (err) {
+    logServerError(`ticket.qr/overflow admission=${ticket.admissionId}`, err);
+  }
+
   return (
     <TicketSelfClient
       code={ticket.code}
+      qrSvg={qrSvg}
       holderName={ticket.holderName}
       startsAt={ticket.startsAt}
       copy={{

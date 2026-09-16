@@ -100,25 +100,35 @@ export type NightFigures = {
   /** Pools that exist for this night, over the tiers that could have one. */
   pooled: number;
   tiers: number;
+  /**
+   * Pools whose committed peak could not be read. When > 0, `sold` and
+   * `remaining` are the sum over the pools that COULD be read: a floor, not
+   * the answer. Before D-147 one unreadable pool blanked both figures for
+   * the whole night, and "—" over 3,223 places read as "nothing sold".
+   */
+  unknownPools: number;
 };
 
 export function nightFigures(pools: readonly SessionPoolRow[]): NightFigures {
   const withPool = pools.filter((p) => p.poolId !== null);
-  if (withPool.length === 0) return { capacity: null, sold: null, remaining: null, pooled: 0, tiers: pools.length };
+  if (withPool.length === 0) return { capacity: null, sold: null, remaining: null, pooled: 0, tiers: pools.length, unknownPools: 0 };
   let capacity = 0;
   let sold = 0;
-  let soldKnown = true;
+  let unknownPools = 0;
   for (const p of withPool) {
     capacity += (p.unitsTotal ?? 0) + (p.overbookUnits ?? 0);
-    if (p.committedPeak === null) soldKnown = false;
+    if (p.committedPeak === null) unknownPools += 1;
     else sold += p.committedPeak;
   }
+  // Every pool unreadable → nothing to sum; say so with null, not 0.
+  const soldKnown = unknownPools < withPool.length;
   return {
     capacity,
     sold: soldKnown ? sold : null,
     remaining: soldKnown ? Math.max(0, capacity - sold) : null,
     pooled: withPool.length,
     tiers: pools.length,
+    unknownPools,
   };
 }
 

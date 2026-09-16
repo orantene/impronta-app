@@ -20,6 +20,7 @@ import { saasDesign } from "./saas";
 import { storeDesign } from "./store";
 import { storeOrderableDesign } from "./store-orderable";
 import { festivalDesign } from "./festival";
+import { eventLaunchDesign } from "./event-launch";
 import { studioDesign } from "./studio";
 import { noirDesign } from "./noir";
 import { restaurantDesign } from "./restaurant";
@@ -45,6 +46,7 @@ export {
   storeDesign,
   storeOrderableDesign,
   festivalDesign,
+  eventLaunchDesign,
   studioDesign,
   noirDesign,
   restaurantDesign,
@@ -63,6 +65,7 @@ export const PAGE_DESIGNS: ReadonlyArray<PageDesign> = [
   storeDesign,
   storeOrderableDesign,
   festivalDesign,
+  eventLaunchDesign,
   studioDesign,
   noirDesign,
   restaurantDesign,

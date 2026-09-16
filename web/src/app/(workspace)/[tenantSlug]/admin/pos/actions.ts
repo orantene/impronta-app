@@ -20,7 +20,7 @@ import { addCustomLine } from "@/lib/pos/custom-line";
 import { approveCustomAmount, setCustomAmountLimit, setStaffPin } from "@/lib/pos/approval";
 import { listBookingCandidates } from "@/lib/pos/booking-candidates";
 import { readCustomAmountLimitCents } from "@/lib/pos/approval-settings";
-import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
+import { mintAndDeliverForPaidOrder } from "@/lib/events/mint-and-deliver";
 import { admissionHoldersFromDeskContact } from "@/lib/pos/admission-holders";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
 import { scanTarget } from "@/lib/pos/scan-code";
@@ -242,7 +242,7 @@ export async function posStartCollection(input: {
     {
       ensureCustomer: (c) => ensureCustomer(c, { admin: g.admin }),
       onOrderPaid: (ctx) =>
-        mintAdmissionsForPaidOrder(g.admin, {
+        mintAndDeliverForPaidOrder(g.admin, {
           ...ctx,
           lines: ctx.lines.map((line) => ({
             ...line,
@@ -252,7 +252,7 @@ export async function posStartCollection(input: {
               email: parsed.data.email,
             }),
           })),
-        }).then(() => undefined),
+        }),
     },
   );
 }

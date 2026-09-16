@@ -2,6 +2,7 @@ import type { FidelityDesign } from "./html";
 import { agencyDesign } from "./designs/agency";
 import { editorialDesign } from "./designs/editorial";
 import { festivalDesign } from "./designs/festival";
+import { eventLaunchDesign } from "./designs/event-launch";
 import { improntaDesign } from "./designs/impronta";
 import { saasDesign } from "./designs/saas";
 import { storeDesign } from "./designs/store";
@@ -34,6 +35,7 @@ export const fidelityDesigns: FidelityDesign[] = [
   // rich_text + link, real photography, ≥2 registry faces, and ≥2 motion frames).
   storeDesign,
   festivalDesign,
+  eventLaunchDesign,
   // Wave 2 flagship — the Impronta Models & Image Agency homepage. Scored from
   // captured frames; see ./designs/impronta.ts for the honest harness-gap note
   // (section_embeds + remote imagery). Score reported in the Wave-2 REPORT.

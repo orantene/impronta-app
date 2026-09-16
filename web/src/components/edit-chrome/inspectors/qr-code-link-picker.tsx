@@ -10,11 +10,16 @@
 //     operator choosing what to print must see a paused code.
 //   - A FAILED read is surfaced (an error + a manual-code fallback), never
 //     swallowed into an empty list that reads as an empty workspace.
+//
+// "Create a link" is the first writer the links table ever had from the
+// product: a readable code + a path on this site, minted through
+// `mintLinkAction` (tenant from the session). On success the new link is
+// prepended and selected, so the block renders a working QR at once.
 
 import { useEffect, useState } from "react";
 
 import type { LinkSummary } from "@/lib/links/link-store";
-import { listLinksForPickerAction } from "@/lib/site-admin/links/actions";
+import { listLinksForPickerAction, mintLinkAction } from "@/lib/site-admin/links/actions";
 
 import { KIT } from "./kit/tokens";
 
@@ -90,6 +95,106 @@ export function QrCodeLinkPicker({
           </option>
         ))}
       </select>
+      <CreateLinkDisclosure
+        onCreated={(link) => {
+          setState({ status: "ready", links: [link, ...state.links] });
+          onPick(link.code);
+        }}
+      />
+    </div>
+  );
+}
+
+function CreateLinkDisclosure({ onCreated }: { onCreated: (link: LinkSummary) => void }) {
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [targetPath, setTargetPath] = useState("/");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className={KIT.subtleButton}
+        onClick={() => setOpen(true)}
+        data-testid="qr-create-link-open"
+      >
+        Create a link…
+      </button>
+    );
+  }
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    const result = await mintLinkAction({ code, name: name || code, targetPath });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    onCreated(result.link);
+    setOpen(false);
+    setCode("");
+    setName("");
+    setTargetPath("/");
+  }
+
+  return (
+    <div className={KIT.field} data-testid="qr-create-link">
+      <label className={KIT.label}>
+        Code
+        <input
+          type="text"
+          className={KIT.input}
+          value={code}
+          placeholder="lumina"
+          autoCapitalize="none"
+          onChange={(event) => setCode(event.currentTarget.value.toLowerCase())}
+        />
+      </label>
+      <p className={KIT.hint}>Guests open it at /q/{code || "…"} on this site.</p>
+      <label className={KIT.label}>
+        Name
+        <input
+          type="text"
+          className={KIT.input}
+          value={name}
+          placeholder="Instagram bio"
+          onChange={(event) => setName(event.currentTarget.value)}
+        />
+      </label>
+      <label className={KIT.label}>
+        Sends guests to
+        <input
+          type="text"
+          className={KIT.input}
+          value={targetPath}
+          placeholder="/lumina"
+          onChange={(event) => setTargetPath(event.currentTarget.value)}
+        />
+      </label>
+      {error ? (
+        <p role="alert" style={{ fontSize: 12, color: "#b4231f", margin: 0 }}>
+          {error}
+        </p>
+      ) : null}
+      <div className={KIT.row}>
+        <button
+          type="button"
+          className={KIT.primaryButton}
+          disabled={busy || !code || !targetPath}
+          onClick={() => void submit()}
+          data-testid="qr-create-link-submit"
+        >
+          {busy ? "Creating…" : "Create link"}
+        </button>
+        <button type="button" className={KIT.ghostButton} disabled={busy} onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }

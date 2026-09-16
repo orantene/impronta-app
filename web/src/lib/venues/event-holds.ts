@@ -1,7 +1,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
-import { sendEmailResult } from "@/lib/email";
+import { deliverTicketForAdmission } from "@/lib/events/ticket-delivery";
 import type { VenueAdmin } from "./locations";
 
 export type EventHoldReason =
@@ -213,14 +213,16 @@ export async function admissionDeliver(
   if (input.method === "email") {
     const email = row.holder_email?.trim();
     if (!email) return { ok: false as const, reason: "channel_unavailable" as const };
-    const sent = await sendEmailResult({
-      to: email,
-      subject: "Your ticket",
-      html: "<p>Your ticket is attached to this message. Show it at the door.</p>",
+    // The real ticket mail (QR, code, /ticket link), forced: the desk is
+    // re-sending on purpose. It stamps `delivery` itself.
+    const delivered = await deliverTicketForAdmission(admin, {
+      tenantId: input.tenantId,
+      admissionId: input.admissionId,
+      force: true,
     });
-    if (sent.status !== "sent") return { ok: false as const, reason: "channel_unavailable" as const };
+    if (!delivered.ok) return { ok: false as const, reason: "channel_unavailable" as const };
     sentAt = new Date().toISOString();
-    providerRef = sent.status;
+    providerRef = "email";
   } else {
     sentAt = new Date().toISOString();
   }
