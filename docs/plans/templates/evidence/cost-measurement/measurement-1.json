@@ -1,0 +1,30 @@
+{
+  "measuredAt": "2026-09-16T06:22:51.439Z",
+  "model": "gpt-image-2.5-flare",
+  "size": "1536x1024",
+  "quality": "medium",
+  "latencyMs": 18035,
+  "usage": {
+    "input_tokens": 90,
+    "input_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 90
+    },
+    "output_tokens": 343,
+    "output_tokens_details": {
+      "image_tokens": 343,
+      "text_tokens": 0
+    },
+    "total_tokens": 433
+  },
+  "pricePer1MTokensUsd": {
+    "textIn": 5,
+    "imageIn": 8,
+    "output": 30
+  },
+  "priceSource": "https://developers.openai.com/api/docs/pricing (read 2026-09-16)",
+  "computedCostUsd": 0.01074,
+  "batchCostUsd": 0.00537,
+  "imageBytes": 1857600,
+  "prompt": "Realistic editorial photograph for a small nail salon website in Playa del Carmen, Mexico: a bright counter with nail polish bottles and a technician's hands finishing a manicure, natural morning light, warm neutrals. Composition for a website hero: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors."
+}

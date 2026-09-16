@@ -1,0 +1,52 @@
+import { buildLook } from "./shared";
+
+/** Look `studio` — Grid system: masonry, split heroes, label type. */
+export const studioLook = buildLook({
+  id: "studio",
+  title: { es: "Estudio", en: "Studio" },
+  axis: { es: "Sistema de retícula: mosaico, héroes divididos, etiquetas", en: "Grid system: masonry, split heroes, label type" },
+  themePatch: {
+    "color.background": "#f6f6f4",
+    "color.ink": "#141414",
+    "color.neutral": "#141414",
+    "color.primary": "#141414",
+    "color.secondary": "#5a5a5a",
+    "color.accent": "#2f6f8f",
+    "color.muted": "#707070",
+    "color.line": "#d9d9d5",
+    "color.surface-raised": "#ececea",
+    "typography.heading-preset": "sans",
+    "typography.body-preset": "refined-sans",
+    "typography.scale-preset": "compact",
+    "typography.tracking-preset": "wide",
+    "radius.scale-preset": "sharp",
+    "shadow.preset": "none",
+    "motion.preset": "refined",
+    "density.section-padding": "tight",
+    "density.container-width": "wide",
+    "background.mode": "noise-texture",
+    "shell.header-variant": "minimal",
+    "shell.footer-variant": "classic-minimal",
+  },
+  recipe: {
+    hero: "split",
+    heroBand: "none",
+    heroMinHeight: "66svh",
+    offer: "list",
+    proofBand: "surface",
+    closing: "contrast",
+    gallery: "masonry",
+    cardVariant: "ghost",
+    imageRadius: "none",
+    header: "split",
+    footer: "line",
+    headingStyle: {"fontWeight": 500, "textTransform": "uppercase", "letterSpacing": "0.08em", "size": "md"},
+    displayStyle: {"size": "xl", "fontWeight": 500, "letterSpacing": "-0.01em"},
+    eyebrowStyle: {"letterSpacing": "0.2em"},
+    sectionPadding: "l",
+    rulesBetweenSections: true,
+  },
+  copyOverrides: {
+
+  },
+});

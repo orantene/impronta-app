@@ -70,10 +70,14 @@ import {
 } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { WorkspaceTemplatePreview } from "./workspace-template-preview";
+import { LookPreview, parseSitePageRole } from "./look-preview";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import { isPlatformAdmin } from "@/lib/access/platform-role";
 
 export const dynamic = "force-dynamic";
 
-function parseFamily(raw: string | undefined): TemplatePreviewFamily {
+function parseFamily(raw: string | undefined): TemplatePreviewFamily | "look" {
+  if (raw === "look") return "look";
   if (raw === "max-site") return "max-site";
   if (raw === "talent-site") return "talent-site";
   if (raw === "db-template") return "db-template";
@@ -87,10 +91,39 @@ export default async function TemplatePreviewPage({
   searchParams,
 }: {
   params: Promise<{ key: string }>;
-  searchParams: Promise<{ kind?: string; talent?: string; tenant?: string }>;
+  searchParams: Promise<{
+    kind?: string;
+    talent?: string;
+    tenant?: string;
+    type?: string;
+    page?: string;
+    locale?: string;
+    bare?: string;
+  }>;
 }) {
   const [{ key }, sp] = await Promise.all([params, searchParams]);
   const family = parseFamily(sp.kind);
+
+  if (family === "look") {
+    // Look × business-type preview (Templates & Imagery, Layer 1 + 2). Example
+    // data only, real render pipeline. Gated to a signed-in user rather than
+    // super-admin (D-TPL-13): nothing tenant-private is shown (connected
+    // blocks read the preview tenant's PUBLIC roster), and the Lab page that
+    // embeds it is itself super-admin only. Platform admins pass trivially.
+    const session = await getCachedActorSession();
+    if (!session.user && !isPlatformAdmin(session.profile)) notFound();
+    const tenant = await resolveWorkspacePreviewContext(sp.tenant ?? null);
+    return (
+      <LookPreview
+        lookId={key}
+        typeId={sp.type?.trim() || "custom"}
+        page={parseSitePageRole(sp.page)}
+        locale={sp.locale === "en" ? "en" : "es"}
+        tenant={tenant}
+        bare={sp.bare === "1"}
+      />
+    );
+  }
   const talentProfileId = sp.talent;
 
   // Owner-gated data resolution — real profile only when the session owns it,

@@ -1,0 +1,48 @@
+import { buildLook } from "./shared";
+
+/** Look `warm` — Hospitality: cream canvas, rounded cards, photo first. */
+export const warmLook = buildLook({
+  id: "warm",
+  title: { es: "Cálido", en: "Warm" },
+  axis: { es: "Hospitalidad: lienzo crema, tarjetas redondeadas, foto primero", en: "Hospitality: cream canvas, rounded cards, photo first" },
+  themePatch: {
+    "color.background": "#fbf5ec",
+    "color.ink": "#2b2118",
+    "color.neutral": "#2b2118",
+    "color.primary": "#b4552d",
+    "color.secondary": "#7a5c46",
+    "color.accent": "#d99a5b",
+    "color.muted": "#7a6a5c",
+    "color.line": "#ead9c6",
+    "color.surface-raised": "#f4e9db",
+    "typography.heading-preset": "serif",
+    "typography.body-preset": "sans",
+    "typography.scale-preset": "standard",
+    "radius.scale-preset": "soft",
+    "shadow.preset": "soft",
+    "motion.preset": "refined",
+    "density.section-padding": "standard",
+    "background.mode": "plain",
+    "shell.header-variant": "classic-solid",
+    "shell.footer-variant": "ivory-minimal",
+  },
+  recipe: {
+    hero: "split",
+    heroBand: "surface",
+    heroMinHeight: "64svh",
+    offer: "cards",
+    proofBand: "muted",
+    closing: "accent",
+    gallery: "grid",
+    cardVariant: "elevated",
+    imageRadius: "lg",
+    header: "left-nav",
+    footer: "columns",
+    headingStyle: {"fontWeight": 600},
+    displayStyle: {"size": "xl", "fontWeight": 600, "textWrap": "balance"},
+    sectionPadding: "xl",
+  },
+  copyOverrides: {
+    "home.closing.headline": { es: "Te esperamos", en: "We are expecting you" },
+  },
+});

@@ -34,7 +34,66 @@ import type {
 } from "@/lib/site-admin/builder-node/types";
 import type { JsonSchemaForChat } from "@/lib/ai/provider";
 import { getLocaleMetadata } from "@/i18n/config";
-import { buildFewShotExamples } from "./generation-few-shots";
+import {
+  buildGenerationSystemPrompt,
+  buildGenerationUserMessage,
+  type BuildPromptOpts,
+  type GenerationBusinessContext,
+} from "./generation-prompt";
+export { buildGenerationSystemPrompt, buildGenerationUserMessage };
+export type { BuildPromptOpts, GenerationBusinessContext };
+
+export type GenerateNodesResult =
+  | { ok: true; tree: BuilderNodeTree; nodeCount: number; repaired: boolean }
+  | { ok: false; code: "BRIEF_TOO_SHORT" | "NO_MODEL" | "EMPTY"; error: string };
+
+const MIN_BRIEF_LEN = 3;
+const MAX_BRIEF_LEN = 400;
+const MAX_TOTAL_NODES = 180; // hard DoS/cost cap (depth is BUILDER_MAX_TREE_DEPTH; this is the count cap)
+const MAX_COERCE_DEPTH = BUILDER_MAX_TREE_DEPTH;
+const HEADING_MAX = 240;
+const PARAGRAPH_MAX = 5000;
+const BUTTON_LABEL_MAX = 80;
+const HREF_MAX = 500;
+const ALT_MAX = 240;
+const LABEL_MAX = 120;
+// Headroom for adaptive thinking: thinking tokens + the JSON output both count
+// toward this cap. A full page is ~2-3k output tokens; the extra budget lets the
+// model think without truncating the JSON. Still safe non-streaming (< the ~16k
+// where SDK HTTP timeouts start to matter).
+const GEN_MAX_TOKENS = 16000;
+// AIQ-15: truncation headroom on the corrective pass. Stays inside the SDK's
+// non-streaming HTTP-timeout safety; streaming via .finalMessage() is the
+// documented follow-up if 24k proves insufficient in the eval.
+const GEN_MAX_TOKENS_RETRY = 24000;
+
+// ── Prompt ────────────────────────────────────────────────────────────────
+
+/**
+ * The output envelope handed to the adapter. Anthropic gets this schema appended
+ * to the system prompt (prompt-enforced JSON — BuilderNode is recursive, which
+ * native structured outputs forbid); the real per-kind grammar lives in the
+ * system prompt below and the real gate is `validateBuilderNodeTree`.
+ */
+export const GENERATION_OUTPUT_SCHEMA: JsonSchemaForChat = {
+  name: "builder_sections",
+  // Non-strict: the tree is recursive/open (items are free-form node objects),
+  // which OpenAI's STRICT json_schema mode forbids. Anthropic ignores this flag
+  // (it just stringifies the schema into the prompt); validation is the real gate.
+  strict: false,
+  schema: {
+    type: "object",
+    required: ["sections"],
+    properties: {
+      sections: {
+        type: "array",
+        description: "One or more page sections, each a builder node tree (see the grammar).",
+        items: { type: "object" },
+      },
+    },
+  },
+};
+
 import {
   clampString,
   coerceHeroSearchProps,
@@ -92,167 +151,24 @@ export interface GenerateNodesInput {
   brief: string;
   scope: GenerateScope;
   generateWithModel: ModelGenerateFn;
+  /**
+   * Templates & Imagery: the tenant's business FAMILY (`business-types.ts`)
+   * and its real name. The family sets the voice (the agency family keeps the
+   * roster rules; everyone else gets a plain local-business register) and the
+   * name is the ONLY name the model may use. Absent → the neutral register.
+   */
+  business?: GenerationBusinessContext;
+  /**
+   * Image by role for THIS tenant: owner media first, lifestyle stock second
+   * (`site-templates/image-resolver`). Absent → the marketing photo set.
+   */
+  imageForRole?: (role: string) => string | null;
   /** BCP-47 locale of the surface being edited; copy is written in this language (AIQ-3). */
   locale?: string;
   /** The tenant's active theme polarity, if resolvable server-side (AIQ-12). */
   themePolarity?: ThemePolarity;
   /** Resolved theme swatches to anchor a deliberate colored band (AIQ-12). */
   palette?: GenerationPalette;
-}
-
-/** Options that shape the static system prompt (AIQ-3 locale, AIQ-12 polarity/palette). */
-export interface BuildPromptOpts {
-  locale?: string;
-  themePolarity?: ThemePolarity;
-  palette?: GenerationPalette;
-}
-
-export type GenerateNodesResult =
-  | { ok: true; tree: BuilderNodeTree; nodeCount: number; repaired: boolean }
-  | { ok: false; code: "BRIEF_TOO_SHORT" | "NO_MODEL" | "EMPTY"; error: string };
-
-const MIN_BRIEF_LEN = 3;
-const MAX_BRIEF_LEN = 400;
-const MAX_TOTAL_NODES = 180; // hard DoS/cost cap (depth is BUILDER_MAX_TREE_DEPTH; this is the count cap)
-const MAX_COERCE_DEPTH = BUILDER_MAX_TREE_DEPTH;
-const HEADING_MAX = 240;
-const PARAGRAPH_MAX = 5000;
-const BUTTON_LABEL_MAX = 80;
-const HREF_MAX = 500;
-const ALT_MAX = 240;
-const LABEL_MAX = 120;
-// Headroom for adaptive thinking: thinking tokens + the JSON output both count
-// toward this cap. A full page is ~2-3k output tokens; the extra budget lets the
-// model think without truncating the JSON. Still safe non-streaming (< the ~16k
-// where SDK HTTP timeouts start to matter).
-const GEN_MAX_TOKENS = 16000;
-// AIQ-15: truncation headroom on the corrective pass. Stays inside the SDK's
-// non-streaming HTTP-timeout safety; streaming via .finalMessage() is the
-// documented follow-up if 24k proves insufficient in the eval.
-const GEN_MAX_TOKENS_RETRY = 24000;
-
-// ── Prompt ────────────────────────────────────────────────────────────────
-
-/**
- * The output envelope handed to the adapter. Anthropic gets this schema appended
- * to the system prompt (prompt-enforced JSON — BuilderNode is recursive, which
- * native structured outputs forbid); the real per-kind grammar lives in the
- * system prompt below and the real gate is `validateBuilderNodeTree`.
- */
-export const GENERATION_OUTPUT_SCHEMA: JsonSchemaForChat = {
-  name: "builder_sections",
-  // Non-strict: the tree is recursive/open (items are free-form node objects),
-  // which OpenAI's STRICT json_schema mode forbids. Anthropic ignores this flag
-  // (it just stringifies the schema into the prompt); validation is the real gate.
-  strict: false,
-  schema: {
-    type: "object",
-    required: ["sections"],
-    properties: {
-      sections: {
-        type: "array",
-        description: "One or more page sections, each a builder node tree (see the grammar).",
-        items: { type: "object" },
-      },
-    },
-  },
-};
-
-/**
- * COLOR guidance, adapted to the tenant's resolved theme polarity (AIQ-12).
- * The no-polarity path returns the exact prior wording byte-for-byte, so the
- * default prompt is unchanged; a resolved polarity replaces the "unknown"
- * gamble with a concrete invert-the-band suggestion in the theme's own palette.
- */
-function buildColorGuidance(
-  polarity: ThemePolarity | undefined,
-  palette: GenerationPalette | undefined,
-): string {
-  if (!polarity) {
-    return 'COLOR: the tenant theme already supplies a coherent, readable palette — LEAVE MOST BLOCKS UNCOLORED and let the theme paint them. The theme\'s polarity is unknown to you (a page can be light OR dark), so a hardcoded color is a gamble. Two safe moves only: (1) leave color unset (recommended for nearly every block); (2) to make ONE deliberate colored band, set backgroundColor AND textColor together on the SAME container as a self-consistent pair — e.g. a dark band backgroundColor:"#15120e" with textColor:"#f3ece0", or a cream band backgroundColor:"#f3efe7" with textColor:"#1b1713"; its text children then inherit that color, so leave them uncolored. NEVER set a text color without a matching background on the same block, or a background without its text color — a lone color is DROPPED. Never light-on-light or dark-on-dark.';
-  }
-  const bg = palette?.background ?? (polarity === "dark" ? "#0a0a0a" : "#ffffff");
-  const ink = palette?.ink ?? (polarity === "dark" ? "#f4f4f5" : "#111111");
-  const band =
-    polarity === "dark"
-      ? 'Since this page is DARK, a deliberate band should INVERT to light: backgroundColor:"#f3efe7" with textColor:"#1b1713".'
-      : 'Since this page is LIGHT, a deliberate band should INVERT to dark: backgroundColor:"#15120e" with textColor:"#f3ece0".';
-  const primaryNote = palette?.primary
-    ? ` The theme's primary accent is ${palette.primary}; the theme already paints primary buttons with it, so still do NOT set button colors.`
-    : "";
-  return `COLOR: the tenant theme already supplies a coherent, readable palette — LEAVE MOST BLOCKS UNCOLORED and let the theme paint them. This page's theme polarity is ${polarity.toUpperCase()} (canvas ${bg}, text ${ink}). ${band}${primaryNote} Two safe moves only: (1) leave color unset (recommended for nearly every block); (2) to make ONE deliberate colored band, set backgroundColor AND textColor together on the SAME container as a self-consistent pair; its text children then inherit that color, so leave them uncolored. NEVER set a text color without a matching background on the same block, or a background without its text color — a lone color is DROPPED. Never light-on-light or dark-on-dark.`;
-}
-
-export function buildGenerationSystemPrompt(opts: BuildPromptOpts = {}): string {
-  const languageName = getLocaleMetadata(opts.locale ?? "en").label;
-  return [
-    "You are a website page-builder engine for a talent-agency platform. Given a brief, you output JSON describing page sections built from a fixed set of block types. The user edits every block afterward, so make each block real and specific.",
-    "",
-    'OUTPUT: a single JSON object {"sections": [Section, ...]}. No prose, no markdown fences.',
-    "",
-    "A Section is: {\"kind\":\"section\",\"label\":\"Short name\",\"children\":[block, ...]}.",
-    "",
-    "BLOCK TYPES (a block is {\"kind\":..., \"props\":{...}, \"children\":[...] }):",
-    '- container  props:{layout:"stack"|"row"|"grid", gap:"s"|"m"|"l", columns:1-4 (grid only), align:"start"|"center"|"end"|"stretch"}  children:any blocks. Group vertical content with layout:"stack"; make a card grid with layout:"grid",columns:3.',
-    '- split      props:{ratio:"50-50"|"40-60"|"60-40"|"30-70"|"70-30", gap:"s"|"m"|"l"}  children:[left, right] (exactly two). Use for image-beside-text.',
-    '- card       props:{variant:"elevated"|"outline"|"ghost"}  children: heading, paragraph, button, image ONLY.',
-    '- cta_group  props:{align:"start"|"center"|"end"}  children: button(s) ONLY.',
-    '- heading    props:{text:"...", level:1-4}. One per section, usually level 2.',
-    '- paragraph  props:{text:"..."}.',
-    '- button     props:{label:"...", href:"/inquire", tone:"primary"|"secondary"}.',
-    '- image      props:{role:"hero"|"wide"|"portrait"|"gallery"|"team", alt:"..."}. NEVER a url — pick the closest role; a real photo is filled in.',
-    `- icon       props:{icon:${GENERATION_ICON_NAMES.map((n) => `"${n}"`).join("|")}, size:"sm"|"md"|"lg"|"xl"}.`,
-    '- divider    props:{tone:"default"|"muted"}.',
-    '- spacer     props:{size:"s"|"m"|"l"}.',
-    '- accordion  props:{allowMultiple:true|false}  children:[accordion_item, ...]. A stack of expandable rows — perfect for an FAQ. Do not try to set an open-by-default row.',
-    '- accordion_item  props:{title:"A real question?"}  children:[paragraph, ...]. One row of an accordion; title is the always-visible header, children are the revealed answer. Only valid inside an accordion.',
-    '- form       props:{method:"post", fields:[{name:"email", type:"email"|"text"|"tel"|"textarea"|"submit", label:"...", placeholder:"...", required:true}, ...]}. Use for a contact / inquiry section. 2-6 fields, ending with one type:"submit" field. No children.',
-    '- hero_search  props:{eyebrow:"...", headline:"...", highlight:"...", subheadline:"...", searchPlaceholder:"Search the roster", searchSubmitLabel:"Search", primaryCtaLabel:"...", secondaryCtaLabel:"...", chips:[{label:"Models"}, ...], statSource:"tenant_talent_count", statCountLabel:"represented talent", layout:"centered"|"split"|"minimal"|"editorial"}. A SEARCH-FIRST hero wired to the agency\'s own directory: a real search box, quick-filter chips, and a live count of the agency\'s represented talent. Its headline renders as the page H1, so a page that opens with hero_search must NOT also contain a heading with level:1. No children, no hrefs, no ids.',
-    '- talent_type_grid  props:{eyebrow:"...", headline:"...", subheadline:"...", mode:"dynamic", maxItems:1-18, columns:1-6, showCount:true, seeAllLabel:"View the roster", emptyStateText:"..."}. Discipline cards ("Models", "Voice", "Dancers") derived from the agency\'s OWN roster taxonomy, each linking into the directory. Its headline renders as an H2, so do NOT wrap it in your own eyebrow paragraph + level:2 heading. mode:"dynamic" is right nearly always; only use mode:"manual" with items:[{label:"...", description:"..."}] when the brief names disciplines the agency does not actually represent yet. No children, no hrefs, no ids.',
-    '- pricing_table  props:{tiers:[{name:"...", price:"$49", period:"month", description:"...", highlighted:true, features:[{label:"...", included:true}], ctaLabel:"Choose", ctaHref:"/inquire"}, ...]}. 2-4 tiers; mark the recommended one highlighted:true. Prices are strings ("$49" or "Custom"). No children.',
-    "",
-    "OPTIONAL style object on any block's props (all keys optional — omit unless it earns its place). Only these keys/values survive; anything else is dropped, so do not invent CSS:",
-    '  align:"left"|"center"|"right"',
-    '  size:"sm"|"md"|"lg"|"xl"|"display"      (heading scale)',
-    '  maxWidth:"narrow"|"reading"|"wide"|"full"',
-    '  paddingX,marginTop,marginBottom: "none"|"s"|"m"|"l"',
-    '  paddingY: "none"|"s"|"m"|"l"|"xl"   ("xl" = full section-scale vertical rhythm, ~96px; use it on a section\'s outer container)',
-    '  minHeight: a CSS length like "70svh" or "480px" — set on the hero container so the opening view fills the screen',
-    '  background:"none"|"surface"|"accent"|"muted"   (surface = subtle raised panel; accent = a bold band in the tenant\'s brand color with readable paired text; muted = a soft neutral band. All three are theme-paired: the text stays readable automatically, no color pair needed)',
-    '  radius:"none"|"sm"|"md"|"lg"|"pill"',
-    '  textColor,backgroundColor: a short CSS color — hex like "#1a1a1a" or a keyword, under ~40 chars',
-    "  fontWeight: 100-900",
-    '  textTransform:"none"|"uppercase"|"lowercase"|"capitalize"   fontStyle:"normal"|"italic"   tone:"default"|"muted"|"strong"',
-    '  objectFit:"cover"|"contain"   aspectRatio:"auto"|"1:1"|"4:3"|"3:4"|"16:9"|"21:9"',
-    "",
-    buildColorGuidance(opts.themePolarity, opts.palette),
-    "",
-    "RULES",
-    "- Copy: write real, specific, on-brand copy, never lorem ipsum or placeholder text. Headlines are short and declarative (5-9 words); body is one or two real sentences. Give the business a plausible concrete name and voice.",
-    `- Language: write EVERY piece of user-visible copy (names, headlines, body, eyebrows, button labels, form labels, accordion titles, pricing tiers) in ${languageName}, the language named in the LANGUAGE line of the user message. Never mix languages within the page. Leave hrefs, style tokens, and node kinds unchanged.`,
-    "- Punctuation: NEVER use em dashes or en dashes (— or –) in any copy. Use a comma, period, colon, or the word 'and' instead. This is a strict brand style rule.",
-    "- Brand language: this is a talent agency, not a store. NEVER use buyer, cart, checkout, add to cart, shop, purchase, or 'pay to DM'. Use client, book, inquire, roster, lineup, casting. You BOOK talent, you do not buy it.",
-    "- CTA labels: verb-led and specific (Book talent, Start an inquiry, View the roster, See pricing, Apply as talent). NEVER generic labels like 'Learn more', 'Click here', 'Read more', or 'Submit'.",
-    "- Section openers: every section EXCEPT the hero opens with a SHORT uppercase eyebrow paragraph (style: size:sm, tone:muted, textTransform:uppercase) directly above its level:2 heading, so each section has a clear visual ramp instead of a bare heading. hero_search and talent_type_grid are the exception: they render their own eyebrow and title from their props, so set eyebrow/headline on the block itself and add no paragraph or heading around it.",
-    "- Hierarchy: EXACTLY ONE heading with level:1 on the whole page — it lives in the hero. If the hero is a hero_search block, ITS headline IS that level:1, so do not emit a heading with level:1 anywhere on the page. Every other section opens with a level:2 heading; cards use level:3. Never skip levels.",
-    "- Live agency data: when the brief is a TALENT AGENCY or roster site, the page must show the agency's actual roster, not a description of it. Open the page with a hero_search block (a real directory search plus statSource:\"tenant_talent_count\") instead of a plain heading hero, and include ONE talent_type_grid with mode:\"dynamic\" so the disciplines the agency really represents appear as cards. Both blocks fill themselves in from the agency's own data, so write only the surrounding copy: no roster names, no invented talent counts in your own text, no discipline lists spelled out in a paragraph. Use each block AT MOST ONCE per page. Do NOT use them for a page that is not about a roster (a single photographer's landing page, a pricing page, a contact page, a policy page) or for a section-scope request that did not ask for search or disciplines.",
-    "- Rhythm: prefer 2-4 blocks per section. Alternate texture — a text-led section, then a media or card section — rather than stacking identical card grids.",
-    "- Layout: one idea per section. Do not nest deeper than 3 levels below a section.",
-    '- Rhythm & scale: give each section REAL vertical breathing room — put paddingY:"xl" on the section\'s outer container (paddingY:"l" only for a deliberately tight band), and give the hero container a minHeight of "70svh" to "85svh" so the opening view fills the screen. For a FULL-BLEED colored band, make the section\'s single child a container with style.maxWidth:"full" carrying the backgroundColor+textColor pair, so the color runs edge to edge.',
-    '- Restraint: tasteful, editorial, minimal. Reach for whitespace (paddingY, spacer) before decoration. Use at most ONE deliberate colored band per page (usually the closing CTA): build it by setting background:"accent" (a band in the tenant\'s brand color) or background:"muted" (a soft neutral band) on that section\'s container — these carry their own readable text, so leave the children uncolored. Prefer these over a hand-picked backgroundColor+textColor pair; never use a lone color.',
-    "",
-    ...buildFewShotExamples(opts.locale),
-  ].join("\n");
-}
-
-export function buildGenerationUserMessage(scope: GenerateScope, brief: string, locale?: string): string {
-  const scopeLine =
-    scope === "page"
-      ? "Generate a COMPLETE PAGE: 3 to 6 sections (e.g. hero, features/services, gallery or stats, testimonials, and a closing call-to-action)."
-      : "Generate EXACTLY ONE section for this request.";
-  const languageName = getLocaleMetadata(locale ?? "en").label;
-  const languageLine = `LANGUAGE: Write ALL user-visible copy in ${languageName}. Do not translate the brief; write the page copy in ${languageName}.`;
-  return [scopeLine, "", languageLine, "", `Brief: ${brief}`, "", 'Return only the {"sections": [...]} JSON object.'].join("\n");
 }
 
 // ── Parse ───────────────────────────────────────────────────────────────────
@@ -367,6 +283,7 @@ function defaultAspectForImageRole(role: unknown): string {
 
 interface CoerceCtx {
   count: { n: number };
+  imageForRole?: (role: string) => string | null;
 }
 
 /** Coerce one raw model node into a guaranteed-valid BuilderNode, or null to drop it. */
@@ -490,7 +407,9 @@ function coerceNode(
     }
     case "image": {
       const role = rawProps.role ?? node.role;
-      const src = photoForImageRole(role);
+      // The tenant's own imagery (owner media, then lifestyle stock) when the
+      // action resolved one; the marketing photo set is the last resort.
+      const src = (typeof role === "string" ? ctx.imageForRole?.(role) : null) ?? photoForImageRole(role);
       const alt = clampString(rawProps.alt ?? node.alt, ALT_MAX);
       // Bound the rendered height (AIQ-9): if the model didn't pick an aspectRatio,
       // apply a sensible default per role + object-fit:cover, so a full-width hero
@@ -649,8 +568,8 @@ function normalizeRawSections(parsed: unknown): unknown[] {
  * node that is not itself a section is wrapped in one (root only accepts sections
  * et al.), so no content is lost to a missing wrapper.
  */
-export function coerceToSections(parsed: unknown): BuilderNode[] {
-  const ctx: CoerceCtx = { count: { n: 0 } };
+export function coerceToSections(parsed: unknown, imageForRole?: (role: string) => string | null): BuilderNode[] {
+  const ctx: CoerceCtx = { count: { n: 0 }, imageForRole };
   const rawSections = normalizeRawSections(parsed);
   const out: BuilderNode[] = [];
   for (const rawSection of rawSections) {
@@ -699,7 +618,7 @@ function repairNoteFor(reason: GenFailReason): string | undefined {
     case "no_valid_nodes":
       return 'RETRY: your previous reply had no usable sections. Every top-level item must be {"kind":"section","children":[...]} with at least one valid block child, per the grammar.';
     case "refusal":
-      return "RETRY: rephrase as a neutral, professional talent-agency page. Keep the copy brand-safe and on topic.";
+      return "RETRY: rephrase as a neutral, professional business web page. Keep the copy brand-safe and on topic.";
     default:
       return undefined; // "empty" / "error" / "ok" — a plain resend is the best we can do
   }
@@ -716,6 +635,7 @@ async function runOnce(
       locale: input.locale,
       themePolarity: input.themePolarity,
       palette: input.palette,
+      business: input.business,
     }),
     userMessage: buildGenerationUserMessage(input.scope, brief, input.locale),
     jsonSchema: GENERATION_OUTPUT_SCHEMA,
@@ -727,7 +647,7 @@ async function runOnce(
   // generic parse failure — surface it so the retry can target the real cause.
   if (parsed == null) return { fail: res.reason === "ok" ? "parse_failed" : res.reason };
 
-  const coerced = coerceToSections(parsed);
+  const coerced = coerceToSections(parsed, input.imageForRole);
   if (coerced.length === 0) return { fail: "no_valid_nodes" };
 
   // Re-mint every id (the model's ids may collide/repeat) BEFORE validate, which

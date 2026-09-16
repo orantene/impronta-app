@@ -32,6 +32,7 @@ import { loadTenantWords } from "@/lib/words/server";
 import { getPageDesign } from "@/lib/site-admin/builder-node/page-designs";
 import { bakePageDesignTree } from "@/lib/site-admin/builder-node/page-designs/expand-repeaters";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
+import { resolveLookFallbackHomeTree } from "@/lib/site-admin/builder-core/site-templates/pageless-fallback.server";
 
 export interface ResolvedDefaultStorefront {
   builderTree: BuilderNodeTree;
@@ -207,6 +208,19 @@ export async function resolvePlatformDefaultStorefrontTree(
     // below, so the worst case is exactly today's behaviour rather than a
     // blank page.
     if (tenantId) {
+      // TEMPLATES & IMAGERY (D-TPL-17): the tenant's family Look with its
+      // type's components in their honest empty state and lifestyle stock,
+      // under the owner's own name. Preferred over a page design because a
+      // design carries sample copy and prices that read as the business's
+      // own; a Look carries none. Falls through when the tenant has no name.
+      const lookTree = await resolveLookFallbackHomeTree(supabase, {
+        tenantId,
+        businessName: personalisation.businessName ?? null,
+        tagline: personalisation.businessTagline ?? null,
+        city: personalisation.businessCity ?? null,
+      });
+      if (lookTree && lookTree.length > 0) return { builderTree: lookTree };
+
       const presetTree = await resolvePresetDesignTree(tenantId);
       if (presetTree && presetTree.length > 0) {
         const stampedPreset = personaliseStarterBuilderTree(

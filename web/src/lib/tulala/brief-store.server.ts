@@ -45,7 +45,7 @@ type FactRow = {
   updated_at: string | null;
 };
 
-type BriefRow = {
+export type BriefRow = {
   id: string;
   status: string;
   locale: string | null;
@@ -60,7 +60,7 @@ type BriefRow = {
   tulala_brief_facts?: FactRow[] | null;
 };
 
-const BRIEF_SELECT = `
+export const BRIEF_SELECT = `
   id, status, locale, current_version, engine_version,
   profile_id, guest_session_id, signup_lead_id, talent_profile_id, tenant_id, updated_at,
   tulala_brief_facts (
@@ -90,7 +90,7 @@ function mapFact(row: FactRow): BriefFact {
   };
 }
 
-function mapBrief(row: BriefRow): Brief {
+export function mapBrief(row: BriefRow): Brief {
   return {
     id: row.id,
     status: (row.status as BriefStatus) ?? "discovering",

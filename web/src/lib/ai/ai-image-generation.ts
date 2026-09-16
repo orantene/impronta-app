@@ -57,17 +57,45 @@ function currentMonthKey(): string {
  * taxonomy promo-image generator, but takes a caller subject.
  */
 export async function generateImageBytesFromPrompt(subject: string): Promise<Buffer> {
+  const safeSubject = subject.trim().slice(0, 400) || "an abstract editorial image";
+  return requestOpenAiImage(
+    [
+      "Create a single high-end editorial photograph-style image for a talent-agency website.",
+      "Soft natural light, luxury fashion-magazine mood, tasteful composition.",
+      "No text, no logos, no watermarks. No recognizable real person, face, or celebrity. No nudity.",
+      `Subject (interpret tastefully): "${safeSubject}".`,
+    ].join(" "),
+  );
+}
+
+/**
+ * Lifestyle stock for a BUSINESS TYPE (Templates & Imagery, Layer 3). Same
+ * hardening as above, without the talent-agency framing: the mood line comes
+ * from the caller (the family), and the subject names the place and the
+ * role (hero / portrait / detail…). Returns the exact prompt used so the
+ * manifest can record it.
+ */
+export async function generateLifestyleStockBytes(input: {
+  subject: string;
+  mood: string;
+  role: string;
+}): Promise<{ bytes: Buffer; prompt: string }> {
+  const safeSubject = input.subject.trim().slice(0, 400) || "a small local business at work";
+  const prompt = [
+    "Create a single realistic editorial photograph for a small business website.",
+    `${input.mood.trim().slice(0, 200)} Natural light, honest and warm, no staging clichés.`,
+    `Framing for a ${input.role} image slot.`,
+    "No text, no logos, no watermarks, no brand names. No recognizable real person, face, or celebrity. No nudity.",
+    `Subject: "${safeSubject}".`,
+  ].join(" ");
+  return { bytes: await requestOpenAiImage(prompt), prompt };
+}
+
+async function requestOpenAiImage(prompt: string): Promise<Buffer> {
   const key = (await resolveOpenAiApiKey())?.trim();
   if (!key) throw new Error("OpenAI API key is not configured.");
 
   const model = process.env.OPENAI_IMAGE_MODEL?.trim() || "dall-e-3";
-  const safeSubject = subject.trim().slice(0, 400) || "an abstract editorial image";
-  const prompt = [
-    "Create a single high-end editorial photograph-style image for a talent-agency website.",
-    "Soft natural light, luxury fashion-magazine mood, tasteful composition.",
-    "No text, no logos, no watermarks. No recognizable real person, face, or celebrity. No nudity.",
-    `Subject (interpret tastefully): "${safeSubject}".`,
-  ].join(" ");
 
   const body: Record<string, unknown> = { model, prompt, n: 1 };
   if (model.startsWith("dall-e")) body.size = "1024x1024";

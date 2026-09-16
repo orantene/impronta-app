@@ -1,0 +1,364 @@
+{
+  "model": "gpt-image-2.5-flare",
+  "size": "1536x1024",
+  "pricePer1MTokensUsd": {
+    "textIn": 5,
+    "imageIn": 8,
+    "output": 30
+  },
+  "measuredAt": "2026-09-16T06:40:23.886Z",
+  "results": [
+    {
+      "id": "nail-salon/editorial",
+      "quality": "medium",
+      "file": "nail-salon_editorial__medium.jpg",
+      "latencyMs": 9443,
+      "usage": {
+        "input_tokens": 111,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 111
+        },
+        "output_tokens": 343,
+        "output_tokens_details": {
+          "image_tokens": 343,
+          "text_tokens": 0
+        },
+        "total_tokens": 454
+      },
+      "costUsd": 0.01085,
+      "batchCostUsd": 0.00542,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Warm neutrals, soft daylight, clean surfaces, calm premium mood. Subject: a small nail salon website hero. Editorial: stylish interior, manicure stations and polish wall, nobody at work."
+    },
+    {
+      "id": "nail-salon/editorial",
+      "quality": "high",
+      "file": "nail-salon_editorial__high.jpg",
+      "latencyMs": 18335,
+      "usage": {
+        "input_tokens": 111,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 111
+        },
+        "output_tokens": 1372,
+        "output_tokens_details": {
+          "image_tokens": 1372,
+          "text_tokens": 0
+        },
+        "total_tokens": 1483
+      },
+      "costUsd": 0.04172,
+      "batchCostUsd": 0.02086,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Warm neutrals, soft daylight, clean surfaces, calm premium mood. Subject: a small nail salon website hero. Editorial: stylish interior, manicure stations and polish wall, nobody at work."
+    },
+    {
+      "id": "hair-salon/service",
+      "quality": "medium",
+      "file": "hair-salon_service__medium.jpg",
+      "latencyMs": 8265,
+      "usage": {
+        "input_tokens": 115,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 115
+        },
+        "output_tokens": 343,
+        "output_tokens_details": {
+          "image_tokens": 343,
+          "text_tokens": 0
+        },
+        "total_tokens": 458
+      },
+      "costUsd": 0.01086,
+      "batchCostUsd": 0.00543,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Warm neutrals, soft daylight, clean surfaces, calm premium mood. Subject: a hair salon website hero. Service: a stylist's hands mid-cut or colouring, seen from behind or cropped, no face."
+    },
+    {
+      "id": "hair-salon/service",
+      "quality": "high",
+      "file": "hair-salon_service__high.jpg",
+      "latencyMs": 13307,
+      "usage": {
+        "input_tokens": 115,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 115
+        },
+        "output_tokens": 1372,
+        "output_tokens_details": {
+          "image_tokens": 1372,
+          "text_tokens": 0
+        },
+        "total_tokens": 1487
+      },
+      "costUsd": 0.04174,
+      "batchCostUsd": 0.02087,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Warm neutrals, soft daylight, clean surfaces, calm premium mood. Subject: a hair salon website hero. Service: a stylist's hands mid-cut or colouring, seen from behind or cropped, no face."
+    },
+    {
+      "id": "spa/lifestyle",
+      "quality": "medium",
+      "file": "spa_lifestyle__medium.jpg",
+      "latencyMs": 8931,
+      "usage": {
+        "input_tokens": 114,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 114
+        },
+        "output_tokens": 343,
+        "output_tokens_details": {
+          "image_tokens": 343,
+          "text_tokens": 0
+        },
+        "total_tokens": 457
+      },
+      "costUsd": 0.01086,
+      "batchCostUsd": 0.00543,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Airy, plants and natural materials, soft morning light, unhurried. Subject: a day spa website hero. Lifestyle: a client relaxing under a towel on a massage table, face turned away."
+    },
+    {
+      "id": "yoga-studio/minimal",
+      "quality": "medium",
+      "file": "yoga-studio_minimal__medium.jpg",
+      "latencyMs": 9080,
+      "usage": {
+        "input_tokens": 115,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 115
+        },
+        "output_tokens": 343,
+        "output_tokens_details": {
+          "image_tokens": 343,
+          "text_tokens": 0
+        },
+        "total_tokens": 458
+      },
+      "costUsd": 0.01086,
+      "batchCostUsd": 0.00543,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Airy, plants and natural materials, soft morning light, unhurried. Subject: a yoga studio website hero. Minimal: rolled mats, blocks and a plant on a wooden floor, flat still composition."
+    },
+    {
+      "id": "yoga-studio/minimal",
+      "quality": "high",
+      "file": "yoga-studio_minimal__high.jpg",
+      "latencyMs": 16195,
+      "usage": {
+        "input_tokens": 115,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 115
+        },
+        "output_tokens": 1372,
+        "output_tokens_details": {
+          "image_tokens": 1372,
+          "text_tokens": 0
+        },
+        "total_tokens": 1487
+      },
+      "costUsd": 0.04174,
+      "batchCostUsd": 0.02087,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Airy, plants and natural materials, soft morning light, unhurried. Subject: a yoga studio website hero. Minimal: rolled mats, blocks and a plant on a wooden floor, flat still composition."
+    },
+    {
+      "id": "restaurant/service",
+      "quality": "medium",
+      "file": "restaurant_service__medium.jpg",
+      "latencyMs": 10381,
+      "usage": {
+        "input_tokens": 112,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 112
+        },
+        "output_tokens": 343,
+        "output_tokens_details": {
+          "image_tokens": 343,
+          "text_tokens": 0
+        },
+        "total_tokens": 455
+      },
+      "costUsd": 0.01085,
+      "batchCostUsd": 0.00543,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Warm tungsten and daylight mix, appetising, lived-in, honest textures. Subject: a family Mexican restaurant website hero. Service: a cook's hands plating, steam, cropped at the shoulders."
+    },
+    {
+      "id": "restaurant/service",
+      "quality": "high",
+      "file": "restaurant_service__high.jpg",
+      "latencyMs": 17740,
+      "usage": {
+        "input_tokens": 112,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 112
+        },
+        "output_tokens": 1372,
+        "output_tokens_details": {
+          "image_tokens": 1372,
+          "text_tokens": 0
+        },
+        "total_tokens": 1484
+      },
+      "costUsd": 0.04172,
+      "batchCostUsd": 0.02086,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Warm tungsten and daylight mix, appetising, lived-in, honest textures. Subject: a family Mexican restaurant website hero. Service: a cook's hands plating, steam, cropped at the shoulders."
+    },
+    {
+      "id": "tattoo-studio/result",
+      "quality": "high",
+      "file": "tattoo-studio_result__high.jpg",
+      "latencyMs": 13225,
+      "usage": {
+        "input_tokens": 116,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 116
+        },
+        "output_tokens": 1372,
+        "output_tokens_details": {
+          "image_tokens": 1372,
+          "text_tokens": 0
+        },
+        "total_tokens": 1488
+      },
+      "costUsd": 0.04174,
+      "batchCostUsd": 0.02087,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Moody, high contrast, dark tones with one warm light source. Subject: a tattoo studio website hero. Result: close-up of a freshly finished fine-line tattoo on a forearm, artist's gloved hand."
+    },
+    {
+      "id": "padel-club/lifestyle",
+      "quality": "medium",
+      "file": "padel-club_lifestyle__medium.jpg",
+      "latencyMs": 12374,
+      "usage": {
+        "input_tokens": 113,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 113
+        },
+        "output_tokens": 343,
+        "output_tokens_details": {
+          "image_tokens": 343,
+          "text_tokens": 0
+        },
+        "total_tokens": 456
+      },
+      "costUsd": 0.01086,
+      "batchCostUsd": 0.00543,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Bright outdoor light, energetic, clean lines, saturated but real. Subject: a padel club website hero. Lifestyle: two players mid-rally on a blue court, backs to camera, motion."
+    },
+    {
+      "id": "padel-club/lifestyle",
+      "quality": "high",
+      "file": "padel-club_lifestyle__high.jpg",
+      "latencyMs": 13891,
+      "usage": {
+        "input_tokens": 113,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 113
+        },
+        "output_tokens": 1372,
+        "output_tokens_details": {
+          "image_tokens": 1372,
+          "text_tokens": 0
+        },
+        "total_tokens": 1485
+      },
+      "costUsd": 0.04172,
+      "batchCostUsd": 0.02086,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Bright outdoor light, energetic, clean lines, saturated but real. Subject: a padel club website hero. Lifestyle: two players mid-rally on a blue court, backs to camera, motion."
+    },
+    {
+      "id": "coworking/editorial",
+      "quality": "high",
+      "file": "coworking_editorial__high.jpg",
+      "latencyMs": 13908,
+      "usage": {
+        "input_tokens": 111,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 111
+        },
+        "output_tokens": 1372,
+        "output_tokens_details": {
+          "image_tokens": 1372,
+          "text_tokens": 0
+        },
+        "total_tokens": 1483
+      },
+      "costUsd": 0.04172,
+      "batchCostUsd": 0.02086,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Neutral daylight, wood and white, orderly, quietly modern. Subject: a coworking space website hero. Editorial: a bright open desk area with plants and a meeting glass box, empty."
+    },
+    {
+      "id": "spa/lifestyle",
+      "quality": "high",
+      "file": "spa_lifestyle__high.jpg",
+      "latencyMs": 14050,
+      "usage": {
+        "input_tokens": 120,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 120
+        },
+        "output_tokens": 1372,
+        "output_tokens_details": {
+          "image_tokens": 1372,
+          "text_tokens": 0
+        },
+        "total_tokens": 1492
+      },
+      "costUsd": 0.04176,
+      "batchCostUsd": 0.02088,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Airy, plants and natural materials, soft morning light, unhurried. Subject: a day spa website hero. Lifestyle: a guest in a robe seated by a window with a cup of tea, seen from behind, relaxed."
+    },
+    {
+      "id": "tattoo-studio/result",
+      "quality": "medium",
+      "file": "tattoo-studio_result__medium.jpg",
+      "latencyMs": 9069,
+      "usage": {
+        "input_tokens": 116,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 116
+        },
+        "output_tokens": 343,
+        "output_tokens_details": {
+          "image_tokens": 343,
+          "text_tokens": 0
+        },
+        "total_tokens": 459
+      },
+      "costUsd": 0.01087,
+      "batchCostUsd": 0.00543,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Moody, high contrast, dark tones with one warm light source. Subject: a tattoo studio website hero. Result: close-up of a freshly finished fine-line tattoo on a forearm, artist's gloved hand."
+    },
+    {
+      "id": "coworking/editorial",
+      "quality": "medium",
+      "file": "coworking_editorial__medium.jpg",
+      "latencyMs": 8798,
+      "usage": {
+        "input_tokens": 111,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 111
+        },
+        "output_tokens": 343,
+        "output_tokens_details": {
+          "image_tokens": 343,
+          "text_tokens": 0
+        },
+        "total_tokens": 454
+      },
+      "costUsd": 0.01085,
+      "batchCostUsd": 0.00542,
+      "prompt": "Realistic photograph, natural light, no HDR, not an illustration. Website hero composition 3:2: keep the left third as calm negative space for a headline. No logos, no brand marks, no readable text or signage, no watermarks, no recognisable face, no minors. Riviera Maya, Mexico. Art direction: Neutral daylight, wood and white, orderly, quietly modern. Subject: a coworking space website hero. Editorial: a bright open desk area with plants and a meeting glass box, empty."
+    }
+  ]
+}

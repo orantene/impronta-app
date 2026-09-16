@@ -59,7 +59,7 @@ const ASSET = {
   bucket_id: "media-public",
   width: 1600,
   height: 900,
-  alt_text: "A studio meeting between three people at a table.",
+  alt: "A studio meeting between three people at a table.",
   metadata: { stock_category: "editorial" },
 };
 

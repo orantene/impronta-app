@@ -6482,6 +6482,7 @@
         "languages": "Idiomas",
         "translations": "Traducciones",
         "builderLab": "Builder Lab",
+        "stock": "Fotos de estilo de vida",
         "settings": "Ajustes",
         "auditLog": "Registro de auditoría",
         "support": "Soporte",
@@ -11714,7 +11715,26 @@
       "downloadGotWebSize": "Archivo en tamaño web.",
       "downloadWatermarkNote": "Este archivo no lleva marca de agua. Las marcas de agua solo se aplican a las fotos que liberas a otro sitio con esa condición.",
       "errUnsupportedKind": "Esta página solo acepta fotos. No se subió:",
-      "errFileTooLarge": "Demasiado grande (máx. {max} MB), no se subió:"
+      "errFileTooLarge": "Demasiado grande (máx. {max} MB), no se subió:",
+      "stock": {
+        "nav": "Fotos de estilo de vida",
+        "title": "Fotos de estilo de vida",
+        "subtitle": "Fotos para un negocio de tipo {type}, provistas por la plataforma. Úsalas en cualquier parte de tu sitio; sube las tuyas para reemplazarlas.",
+        "loading": "Cargando…",
+        "readOnly": "Compartidas · solo lectura",
+        "empty": "Aún no hay fotos para este tipo de negocio.",
+        "copyUrl": "Copiar dirección",
+        "copied": "Copiado",
+        "role": {
+          "hero": "Portada",
+          "wide": "Panorámica",
+          "portrait": "Retrato",
+          "gallery": "Galería",
+          "team": "Equipo",
+          "detail": "Detalle"
+        },
+        "subtitleGeneric": "Fotos para tu negocio, provistas por la plataforma. Úsalas en cualquier parte de tu sitio; sube las tuyas para reemplazarlas."
+      }
     },
     "adminPitchCompose": {
       "drawerTitle": "Enviar propuesta",
