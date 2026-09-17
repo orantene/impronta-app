@@ -141,9 +141,11 @@ export function RealThreadStream({
                   </div>
                 )}
                 {(() => {
-                  const voiceMeta = m.messageKind === "voice"
-                    ? readVoiceMetaFromMessageMetadata(m.metadata)
-                    : null;
+                  // Voice notes insert as message_kind="text" with a
+                  // metadata.voice payload ("voice" is not a valid
+                  // inquiry_messages.message_kind CHECK value), so detection
+                  // is metadata-driven rather than kind-driven.
+                  const voiceMeta = readVoiceMetaFromMessageMetadata(m.metadata);
                   if (voiceMeta) {
                     return <VoiceNotePlayer meta={voiceMeta} accent={COLORS.accentDeep} onDark={mine} />;
                   }

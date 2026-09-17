@@ -3032,12 +3032,14 @@ function Bubble({
   const mine = m.is_mine;
   const kind = m.message_kind ?? "text";
   // Voice notes render as an inline player bubble (handled below), never a
-  // money/booking card. Detect from metadata so a tolerant parse wins.
-  const voiceMeta = kind === "voice" ? readVoiceMetaFromMessageMetadata(m.metadata) : null;
-  const card = kind !== "text" && kind !== "voice" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow, t, tenantSlug, inquiryId }) : null;
+  // money/booking card. Voice notes insert as message_kind="text" with a
+  // metadata.voice payload (the "voice" CHECK value never existed on
+  // inquiry_messages), so detection is metadata-driven, not kind-driven.
+  const voiceMeta = kind === "text" || kind === "voice" ? readVoiceMetaFromMessageMetadata(m.metadata) : null;
+  const card = kind !== "text" && kind !== "voice" && !voiceMeta ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow, t, tenantSlug, inquiryId }) : null;
 
   const isOptimistic = m.id.startsWith("tmp-");
-  const canEditOrDelete = mine && !isOptimistic && kind === "text" && tenantSlug && onMessagesChange;
+  const canEditOrDelete = mine && !isOptimistic && kind === "text" && !voiceMeta && tenantSlug && onMessagesChange;
   // Reactions are allowed on any non-optimistic real message — own or others'.
   const canReact = !isOptimistic && tenantSlug && onMessagesChange;
 
