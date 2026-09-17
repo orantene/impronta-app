@@ -227,6 +227,7 @@ function msg(id: string, inquiryId: string, body: string, sender: string | null,
     createdAt,
     editedAt: null,
     deletedAt: null,
+    thread: "private",
     internal: false,
     delivery: sender ? { channel: "web_chat", state: "sent" } : null,
   };

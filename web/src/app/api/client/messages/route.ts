@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
-import { loadInquiryMessages } from "@/app/(workspace)/[tenantSlug]/_data-bridge/inquiries-messages";
+import { loadClientInquiryMessages } from "@/app/(workspace)/[tenantSlug]/_data-bridge/inquiries-messages";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +33,7 @@ export async function GET(req: Request) {
   }
 
   // Private thread — agency + client. Talent fan-out lives on the group thread.
-  const messages = await loadInquiryMessages(inq.tenant_id as string, inquiryId, "private");
+  // D-MSG-2: the client reader also drops staff internal notes.
+  const messages = await loadClientInquiryMessages(inq.tenant_id as string, inquiryId);
   return NextResponse.json({ messages });
 }

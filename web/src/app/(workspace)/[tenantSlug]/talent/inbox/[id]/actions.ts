@@ -331,7 +331,10 @@ export async function loadTalentInquiryThread(
       .eq("inquiry_id", inquiryId)
       .eq("thread_type", threadType)
       .eq("tenant_id", tenantId)
-      .is("deleted_at", null);
+      .is("deleted_at", null)
+      // D-MSG-2: agency internal notes sit on the client thread for staff; a
+      // talent coordinator reading "private" is not staff.
+      .neq("message_kind", "internal_note");
     // "Start fresh" coordinator: hide client-thread messages that predate the
     // assignment (visible_from). Full-history coordinators have null → no filter.
     if (threadType === "private" && privateVisibleFrom) {

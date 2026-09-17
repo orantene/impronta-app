@@ -19,6 +19,7 @@ import { matchCustomers } from "@/lib/messaging/match-customers";
 import { fail } from "@/lib/messaging/refusals";
 import { searchMessaging } from "@/lib/messaging/search";
 import { loadMessagingThread } from "@/lib/messaging/thread";
+import { threadTypeForStaffMessage } from "@/lib/messaging/thread-rule";
 import { issueVisitorCode, signThreadToken, verifyThreadToken } from "@/lib/messaging/thread-token";
 import type { ActionResult, CardKind, InboxFilter, MessagingChannel, RecordKind } from "@/lib/messaging/types";
 
@@ -727,7 +728,9 @@ async function insertMessage(
   const { data, error } = await scoped(admin, "inquiry_messages", input.tenantId)
     .insert({
       inquiry_id: input.inquiryId,
-      thread_type: input.kind === "internal_note" ? "private" : "group",
+      // D-MSG-2: staff replies, cards and internal notes all sit on the client
+      // thread; `message_kind` is what keeps a note from the client.
+      thread_type: threadTypeForStaffMessage(input.kind),
       message_kind: input.kind,
       body: input.body,
       card_payload: input.payload ?? null,

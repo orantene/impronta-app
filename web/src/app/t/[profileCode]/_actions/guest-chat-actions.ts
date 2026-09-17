@@ -556,7 +556,10 @@ async function readGuestVisibleMessages(
     // thread the talent's Client tab and a registered client use. This surfaces
     // the talent-coordinator's replies (which live on 'private'). The GROUP
     // thread is the talent-coordination channel and must NOT reach the guest.
+    // D-MSG-2: staff internal notes sit on the client thread and never reach
+    // the guest either.
     .eq("thread_type", "private")
+    .neq("message_kind", "internal_note")
     .order("created_at", { ascending: true });
 
   if (afterIso) {
