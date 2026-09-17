@@ -32,7 +32,7 @@ test("a comp with an e-mail delivers; resend and the Delivery sheet reuse the sa
 });
 
 test("the QR image route is public, host-scoped, version-checked and rate-limited", () => {
-  const s = src("app/api/tickets/[code]/qr.png/route.ts");
+  const s = src("app/api/tickets/[code]/qr/route.ts");
   assert.match(s, /getPublicHostContext\(\)/);
   assert.match(s, /verifyAdmissionToken\(token\)/);
   assert.match(s, /row\.token_version !== verified\.tokenVersion/);

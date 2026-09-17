@@ -12,7 +12,7 @@
  * `order-confirmation.ts`. Delivery (recipient, locale, idempotency) lives in
  * `lib/events/ticket-delivery.ts`.
  *
- * The QR is a HOSTED image (`/api/tickets/<token>/qr.png`), not a data URI:
+ * The QR is a HOSTED image (`/api/tickets/<token>/qr`), not a data URI:
  * Gmail strips `data:` images. A client that blocks remote images still gets
  * the typed code and the "Ver mi entrada" button, both of which the door can
  * work from.
