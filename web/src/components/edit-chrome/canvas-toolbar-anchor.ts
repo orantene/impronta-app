@@ -37,6 +37,13 @@
  * When chrome on both sides squeezes the bar out entirely, the viewport-only
  * clamp wins — a bar overlapping a panel is still better than one off-screen.
  *
+ * DOCKED (2026-09-17) — the CLICK toolbars (selection chip, multi-selection
+ * bar) no longer use the anchored rules above; they dock to the same bottom
+ * slot as the canvas text toolbar via `resolveDockedToolbarStack`. Owner
+ * ruling: one place for every contextual bar, whatever was clicked. The
+ * anchored path stays for the HOVER pills (inline-hover-pills.tsx), which
+ * follow the cursor target and would be meaningless at the viewport bottom.
+ *
  * ROTATION (#1119): callers anchor off the element's live AABB
  * (getBoundingClientRect of the rotated quad), which IS its visual bounds —
  * NOT the recovered unrotated box the ring/handles use. The bars themselves
@@ -44,7 +51,7 @@
  * tracking a tilted element.
  */
 
-import { EDIT_TOPBAR_H } from "./kit/tokens";
+import { CANVAS_FLOATING_BAR, EDIT_TOPBAR_H } from "./kit/tokens";
 
 export interface AnchorBox {
   top: number;
@@ -66,7 +73,7 @@ export interface AnchorOccluder {
   bottom: number;
 }
 
-export type AnchorPlacement = "above" | "below" | "inside";
+export type AnchorPlacement = "above" | "below" | "inside" | "docked";
 
 /** Breathing room between the selection box and the nearest bar. */
 export const ANCHOR_GAP = 10;
@@ -267,6 +274,50 @@ export function menuShouldOpenUp(input: MenuShouldOpenUpInput): boolean {
   return roomAbove > roomBelow;
 }
 
+export interface DockedToolbarStackInput {
+  /** Bar sizes; `bars[0]` sits lowest, in the text toolbar's slot. */
+  bars: readonly AnchorBarSize[];
+  viewport: { width: number; height: number };
+  occluders?: readonly AnchorOccluder[];
+  stackGap?: number;
+  margin?: number;
+}
+
+/**
+ * Dock every bar to the bottom-centre slot the canvas text toolbar uses
+ * (`CANVAS_FLOATING_BAR.bottom` off the viewport bottom): `bars[0]` takes the
+ * slot, later bars stack upward. Horizontally each bar centres on the
+ * VIEWPORT and clamps clear of chrome the same way an anchored bar does, so
+ * the zoom bar (an occluder in the same band) pushes it right, never under.
+ * The text toolbar and these bars never render together (the chip is not
+ * mounted for a text-toolbar node), so sharing the slot cannot collide.
+ */
+export function resolveDockedToolbarStack(
+  input: DockedToolbarStackInput,
+): AnchoredToolbarStack {
+  const { bars, viewport } = input;
+  if (bars.length === 0) return { placement: "docked", bars: [] };
+  const stackGap = input.stackGap ?? ANCHOR_STACK_GAP;
+  const margin = input.margin ?? ANCHOR_VIEWPORT_MARGIN;
+  const occluders = input.occluders ?? [];
+  let bottom = viewport.height - CANVAS_FLOATING_BAR.bottom;
+  const placed: AnchoredBarPosition[] = [];
+  for (const bar of bars) {
+    const top = Math.max(ANCHOR_TOP_INSET, bottom - bar.height);
+    const left = clampAnchoredBarLeft({
+      idealLeft: (viewport.width - bar.width) / 2,
+      width: bar.width,
+      band: { top, bottom: top + bar.height },
+      viewportWidth: viewport.width,
+      occluders,
+      margin,
+    });
+    placed.push({ top: Math.round(top), left: Math.round(left) });
+    bottom = top - stackGap;
+  }
+  return { placement: "docked", bars: placed };
+}
+
 // ── DOM half ────────────────────────────────────────────────────────────────
 
 /**
@@ -327,6 +378,28 @@ export function positionAnchoredToolbarStack(
     viewport: { width: window.innerWidth, height: window.innerHeight },
     occluders: measureAnchorOccluders(),
   });
+  writeStack(els, placed);
+}
+
+/**
+ * Docked counterpart of `positionAnchoredToolbarStack` for the click
+ * toolbars: same measure-and-write contract, no box — the slot is fixed.
+ */
+export function positionDockedToolbarStack(
+  elements: ReadonlyArray<HTMLElement | null | undefined>,
+): void {
+  if (typeof window === "undefined") return;
+  const els = elements.filter((el): el is HTMLElement => !!el);
+  if (els.length === 0) return;
+  const placed = resolveDockedToolbarStack({
+    bars: els.map((el) => ({ width: el.offsetWidth, height: el.offsetHeight })),
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+    occluders: measureAnchorOccluders(),
+  });
+  writeStack(els, placed);
+}
+
+function writeStack(els: HTMLElement[], placed: AnchoredToolbarStack): void {
   for (let i = 0; i < els.length; i += 1) {
     const pos = placed.bars[i];
     if (!pos) continue;
