@@ -56,7 +56,20 @@ export type PickerTier = {
   ageGate: number | null;
   /** Engine-hidden ("by link"). Listed only when the loader was asked for it by id. */
   hidden: boolean;
+  /**
+   * The tier's pool key (`entrada_general`, `mesa_para_10`): the stable, human
+   * slug a deep link may name (`?tier=<slug>`) instead of the variant UUID.
+   */
+  tierKey: string;
 };
+
+/**
+ * Coarse availability of ONE tier on ONE night, from the pool. Deliberately
+ * three words and never a number (Capacity ruling: no remaining counts on the
+ * public surface): the guest reads "few left" or "sold out" and the reserve at
+ * checkout stays the only answer that binds.
+ */
+export type TierAvailability = "open" | "low" | "sold_out";
 
 export type PickerSeat = { id: string; label: string };
 
@@ -69,6 +82,12 @@ export type PickerNight = {
   door: DoorOfferState;
   /** Assigned seats from the night's `event_seat_maps` layout. Empty when the night has no map. */
   seats: PickerSeat[];
+  /**
+   * Per-tier coarse availability on this night, keyed by variant id. A tier
+   * absent from the map is `open`. Optional on the wire so an older preload
+   * (or a test fixture) reads as "open" rather than "sold out".
+   */
+  availability?: Record<string, TierAvailability>;
 };
 
 export type TicketPicker =
@@ -89,9 +108,19 @@ export type TicketPicker =
     }
   | { ok: false; reason: "unavailable" | "not_sellable" };
 
-// `includeVariantId`: a hidden ("by link") tier the page URL named. The
-// WINDOW is still the gate; hiding only removes a tier from the listing.
-const loadSchema = z.object({ tenantId: uuidWire, eventId: uuidWire, includeVariantId: uuidWire.optional() });
+// `includeVariantId` / `includeTierKey`: a hidden ("by link") tier the page URL
+// named, by variant UUID or by pool key. The WINDOW is still the gate; hiding
+// only removes a tier from the listing.
+const TIER_KEY = /^[a-z0-9][a-z0-9_-]{0,48}$/;
+const loadSchema = z.object({
+  tenantId: uuidWire,
+  eventId: uuidWire,
+  includeVariantId: uuidWire.optional(),
+  includeTierKey: z.string().regex(TIER_KEY).optional(),
+});
+
+/** At or below this many units a tier reads "few left". Never shown as a number. */
+const LOW_AVAILABILITY_UNITS = 5;
 
 export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
   const parsed = loadSchema.safeParse(input);
@@ -101,7 +130,7 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
     });
     return { ok: false, reason: "unavailable" };
   }
-  const { tenantId, eventId, includeVariantId } = parsed.data;
+  const { tenantId, eventId, includeVariantId, includeTierKey } = parsed.data;
   try {
     const admin = createServiceRoleClient();
     if (!admin) {
@@ -140,15 +169,38 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
     const tierRows = (variants ?? []).filter((v) => typeof v.pool_key === "string" && v.pool_key);
     const sessionIds = (sessions ?? []).map((s) => s.id as string);
     const { data: pools, error: pErr } = sessionIds.length
-      ? await admin.from("capacity_pools").select("subject_id, pool_key").eq("tenant_id", tenantId)
+      ? await admin.from("capacity_pools").select("id, subject_id, pool_key").eq("tenant_id", tenantId)
           .eq("subject_kind", "session_tier").in("subject_id", sessionIds).eq("is_active", true)
       : { data: [], error: null };
     if (pErr) { logServerError("events.picker.pools", pErr); return { ok: false, reason: "unavailable" }; }
     const poolKeysBySession = new Map<string, Set<string>>();
+    const poolIdBySessionKey = new Map<string, string>();
     for (const p of pools ?? []) {
       const sid = p.subject_id as string;
       poolKeysBySession.set(sid, (poolKeysBySession.get(sid) ?? new Set()).add(p.pool_key as string));
+      poolIdBySessionKey.set(`${sid}:${p.pool_key as string}`, p.id as string);
     }
+
+    // Coarse availability per (night, tier) from the pool's public remaining
+    // count. The integer never leaves this function: it is folded into three
+    // words here so the wire carries no count (Capacity ruling). A failed read
+    // is `open`; the reserve at checkout is the answer that binds.
+    const availabilityBySession = new Map<string, Record<string, TierAvailability>>();
+    await Promise.all((sessions ?? []).map(async (s) => {
+      const sid = s.id as string;
+      const map: Record<string, TierAvailability> = {};
+      await Promise.all(tierRows.map(async (v) => {
+        const poolId = poolIdBySessionKey.get(`${sid}:${v.pool_key as string}`);
+        if (!poolId) return;
+        const { data: rem, error: remErr } = await admin.rpc("capacity_remaining_public", {
+          p_pool_id: poolId, p_starts_at: String(s.starts_at), p_ends_at: String(s.ends_at),
+        });
+        if (remErr) { logServerError("events.picker.remaining", remErr); return; }
+        if (typeof rem !== "number") return;
+        map[v.id as string] = rem <= 0 ? "sold_out" : rem <= LOW_AVAILABILITY_UNITS ? "low" : "open";
+      }));
+      availabilityBySession.set(sid, map);
+    }));
 
     const seatsBySession = new Map<string, PickerSeat[]>();
     if (sessionIds.length > 0) {
@@ -200,8 +252,12 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
         onSale: st.onSale, saleReason: st.onSale ? null : st.reason,
         ageGate: (v.age_gate as number | null) ?? null,
         hidden: Boolean(v.is_hidden),
+        tierKey: t.poolKey,
       };
-    }).filter((t) => !t.hidden || (includeVariantId != null && t.variantId.toLowerCase() === includeVariantId.toLowerCase()));
+    }).filter((t) =>
+      !t.hidden
+      || (includeVariantId != null && t.variantId.toLowerCase() === includeVariantId.toLowerCase())
+      || (includeTierKey != null && t.tierKey === includeTierKey));
 
     const nights: PickerNight[] = (sessions ?? []).map((s) => {
       const keys = poolKeysBySession.get(s.id as string) ?? new Set<string>();
@@ -213,6 +269,7 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
           sessionStartsAt: s.starts_at as string, sessionEndsAt: s.ends_at as string, now,
         }),
         seats: seatsBySession.get(s.id as string) ?? [],
+        availability: availabilityBySession.get(s.id as string) ?? {},
       };
     });
 
@@ -235,6 +292,8 @@ const buySchema = z.object({
   units: z.number().int().min(1).max(50),
   email: z.string().trim().email().max(254),
   displayName: z.string().trim().max(120).optional(),
+  /** Optional; lands on the order's contact so the door can reach the guest. */
+  phone: z.string().trim().max(40).optional(),
   promoCode: z.string().trim().max(40).optional(),
   clientOrderKey: z.string().min(8).max(80),
   paymentChoice: z.enum(["full", "in_person"]),
@@ -340,7 +399,7 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
       tenantId: d.tenantId, clientOrderKey: d.clientOrderKey, offeringId: ev.offering_id as string,
       variantId: tier.id, sessionId: d.sessionId, poolId: req.poolId,
       sessionStartsAt: req.startsAt ?? (session.starts_at as string), sessionEndsAt: req.endsAt ?? (session.ends_at as string),
-      units: d.units, email: d.email, displayName: d.displayName ?? null, promoCode: d.promoCode ?? null,
+      units: d.units, email: d.email, displayName: d.displayName ?? null, phone: d.phone || null, promoCode: d.promoCode ?? null,
       locale: d.locale ?? null, sourcePage: `/events`,
       confirmedAge: d.confirmedAge ?? null,
     }));

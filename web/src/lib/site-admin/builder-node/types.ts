@@ -1173,9 +1173,17 @@ export interface BuilderTicketPickerNode extends BuilderNodeBase {
   props: {
     eventId: string;
     title?: string;
-    /** v2: image cards + three steps; default "list" keeps the v1 single screen. */
+    /**
+     * v3 "cards": tier cards inline at every width with a stepper each, an
+     * order bar and a checkout sheet / drawer. Default "list" keeps the v1
+     * single screen.
+     */
     layout?: "cards" | "list";
-    /** v2: sticky "Buy tickets" bar opening a bottom sheet / side panel. */
+    /**
+     * Kept for pages that authored it; since v3 both values render the same
+     * (the cards are always inline, the checkout is always the sheet). The
+     * old "sheet" hid every tier behind one pill, which the owner audited.
+     */
     presentation?: "inline" | "sheet";
     tiers?: TicketPickerTierPresentation[];
     showNightPicker?: "auto" | "always";
@@ -1672,6 +1680,12 @@ export interface BuilderLocationMapNode extends BuilderNodeBase {
     }>;
     maxItems?: number;
     showCount?: boolean;
+    /**
+     * Draw the city list under the map. Default true; a manual block with no
+     * `items` renders no list either way (nothing to list is not an empty
+     * state), while roster mode keeps its empty state.
+     */
+    showCities?: boolean;
     /** Draw the map panel at all. Off renders the plain city-card grid. */
     showMap?: boolean;
     /** `editorial` = the token-driven pin map (no external dep); `embed` = an iframe. */

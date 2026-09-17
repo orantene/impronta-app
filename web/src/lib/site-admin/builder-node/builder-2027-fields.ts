@@ -618,6 +618,12 @@ export const BUILDER_2027_INSPECTOR_GROUPS: Readonly<
       title: "The cities",
       fields: [
         {
+          control: "toggle",
+          prop: "showCities",
+          label: "Show the city list",
+          fallback: true,
+        },
+        {
           control: "select",
           prop: "source",
           label: "Source",

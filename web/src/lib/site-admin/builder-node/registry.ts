@@ -1317,6 +1317,7 @@ const locationMapPropsSchema = z.object({
     .optional(),
   maxItems: z.number().int().min(1).max(24).optional(),
   showCount: z.boolean().optional(),
+  showCities: z.boolean().optional(),
   showMap: z.boolean().optional(),
   mapStyle: z.enum(["editorial", "embed"]).optional(),
   mapEmbedUrl: z
