@@ -196,6 +196,17 @@ export interface BuilderNodeStyleValue {
   minWidth?: string;
   maxWidthFree?: string;
   maxHeight?: string;
+  // FULL BLEED (2026-09-17). "Span the viewport edge to edge, whatever my
+  // ancestors clamp." Every `container` / `split` / `card` carries a 1120px
+  // base-class cap, and a child can never be wider than its parent, so a hero
+  // authored `width:100%; maxWidthFree:100%` still rendered inside a centred
+  // 1120px column with gutters on both sides whenever a page root wrapped it
+  // (the Impronta LUMINA launch page, 2026-09-16). This flag is the contract:
+  // the renderer emits `data-builder-full-bleed` and the static sheet breaks
+  // the node out to `100vw` with symmetric negative margins, on EVERY
+  // breakpoint. Inner content keeps its own maxWidthFree + auto margins, so a
+  // 1120px column inside a full-bleed band stays centred.
+  fullBleed?: boolean;
   // Free per-side padding escapes (CSS length strings). Layer after the
   // paddingX/paddingY token block so an exact side wins over the preset.
   paddingTop?: string;
