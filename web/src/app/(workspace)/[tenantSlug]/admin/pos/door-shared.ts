@@ -32,6 +32,16 @@ export type OpenDoor = {
   nights: DoorNight[];
 };
 
+/**
+ * Where the box office is, for the header the client draws over it: E01/E02
+ * keep the box office's own title; E04 is "Who is coming · N tickets · date";
+ * E06 is "Paid · N tickets issued · buyer · amount · cash · time".
+ */
+export type BoxStage =
+  | { kind: "box" }
+  | { kind: "attendees"; count: number }
+  | { kind: "issued"; count: number; buyer: string; amount: string; time: string };
+
 /** One line of the box office's Recent card: what this till just saw at the gate. */
 export type RecentScan = { readonly tone: DoorVerdict["tone"]; readonly text: string; readonly time: string };
 

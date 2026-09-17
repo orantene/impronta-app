@@ -14570,7 +14570,9 @@
           "inChip": "{admitted} de {expected} dentro",
           "leftTonight": "{count} entradas quedan esta noche",
           "sharedWithWebsite": "compartidas con la web",
-          "receiptsSubtitle": "Pagado en esta puerta"
+          "receiptsSubtitle": "Pagado en esta puerta",
+          "boxPickSubtitle": "Elige el evento y la fecha",
+          "leftTonightOne": "1 entrada queda esta noche"
         },
         "pick": {
           "title": "Elige el evento",
@@ -14585,7 +14587,7 @@
           "ready": "Listo para escanear",
           "readyHint": "Acerca la entrada al escáner",
           "scanLabel": "Escanea o escribe el código de la entrada",
-          "scanPlaceholder": "O escribe el código de la entrada",
+          "scanPlaceholder": "Escanea o escribe el código de la entrada",
           "admit": "Admitir",
           "lookupByName": "Buscar por nombre",
           "switchToBox": "Ir a la taquilla",
@@ -14656,10 +14658,14 @@
           "admitTicket": "Admitir {code} · {name}",
           "admitMany": "Admitir {count}",
           "resendAll": "Reenviar todas las entradas",
-          "resendAllReason": "Las entradas se entregan como código en esta caja; todavía no hay email de entradas que reenviar.",
+          "resendAllReason": "Vuelve a enviar el email de la entrada a cada entrada de este pedido que tenga dirección.",
           "note": "Buscar no es admitir. Admitir a mano cuenta una vez y el QR queda usado.",
           "change": "Cambiar",
-          "delivery": "Entrega"
+          "delivery": "Entrega",
+          "orderLineOne": "{code} · 1 entrada · {admitted} admitidas",
+          "ticketsOfOne": "{code} · esta noche · 1 entrada",
+          "resendAllNone": "Ninguna entrada de este pedido tiene email; añade uno desde Cambiar.",
+          "resendAllDone": "Enviado de nuevo · {count} de {total} entradas tenían dirección."
         },
         "manual": {
           "title": "Admitir a mano · {name}",
@@ -14715,7 +14721,9 @@
           "soldChip": "Esta noche · {sold} vendidas · {admitted} dentro",
           "cancelSale": "Cancelar esta venta",
           "back": "Atrás",
-          "eventNights": "{count} noches · desde el {date}"
+          "eventNights": "{count} noches · desde el {date}",
+          "continueTicketOne": "Continuar · 1 entrada",
+          "eventNightOne": "1 noche · {date}"
         },
         "attendees": {
           "title": "Quién viene",
@@ -14732,7 +14740,8 @@
           "attendeeHint": "Nombre · se puede añadir después desde la búsqueda",
           "sameAsBuyer": "Igual que el comprador",
           "review": "Revisar y cobrar {amount}",
-          "releaseBack": "Atrás"
+          "releaseBack": "Atrás",
+          "subtitleOne": "1 entrada · {date}"
         },
         "issued": {
           "title": "Pagado · entrada emitida",
@@ -14752,7 +14761,7 @@
           "text": "Enviar enlace por SMS",
           "textReason": "Los mensajes de texto no están configurados en este espacio.",
           "resend": "Reenviar email",
-          "resendReason": "El reenvío se hace desde la búsqueda de entradas (Entrega).",
+          "resendReason": "Esta venta no tiene email; el código es la entrada. Puedes añadir una dirección desde la búsqueda (Cambiar).",
           "receipt": "Recibo",
           "next": "Siguiente cliente",
           "pendingTitle": "Pagado · entradas aún no emitidas",
@@ -14770,7 +14779,13 @@
           "issue": "Incidencia",
           "issueValue": "Abierta en Incidencias",
           "never": "Nunca",
-          "neverValue": "Reembolsar automáticamente ni revender las plazas"
+          "neverValue": "Reembolsar automáticamente ni revender las plazas",
+          "hero": "{count} entradas emitidas",
+          "heroOne": "1 entrada emitida",
+          "heroDetail": "{date} · {summary} · pedido {code}",
+          "resendDone": "Enviado de nuevo a {email}.",
+          "resendFailed": "No se pudo enviar el email; el código de abajo sigue siendo la entrada.",
+          "sentByEmailNone": "Sin email en esta venta · el código es la entrada"
         },
         "change": {
           "title": "{code} · cambio",
@@ -14810,7 +14825,7 @@
           "title": "{code} · entrega",
           "subtitle": "{name} · {count} entradas · {date}",
           "email": "Email · {email}",
-          "emailNone": "Email · ninguno en el pedido",
+          "emailNone": "Email · el contacto del pedido",
           "emailStatus": "Enviado con el QR al emitir la entrada · Reenviar lo manda otra vez",
           "resend": "Reenviar",
           "resendReason": "Vuelve a enviar el email de la entrada (QR, código y enlace) a esta dirección.",
@@ -14822,7 +14837,10 @@
           "walletStatus": "No ofrecido · integración sin verificar",
           "notAvailable": "No disponible",
           "footnote": "Reenviar nunca crea una credencial nueva. El botón de cartera aparece solo cuando la integración está verificada; hasta entonces no se muestra.",
-          "back": "Atrás"
+          "back": "Atrás",
+          "subtitleOne": "{name} · 1 entrada · {date}",
+          "sent": "Enviado de nuevo.",
+          "notSent": "No enviado: no hay dirección en la entrada ni en el pedido."
         },
         "sell": {
           "cashOnly": "En esta puerta solo se acepta efectivo. Los demás medios de pago se cobran en el mostrador."
@@ -15663,7 +15681,24 @@
         "lookupEmail": "Tu correo",
         "last4": "Últimos cuatro del recibo",
         "lookupAction": "Buscar",
-        "found": "Abrir {code}"
+        "found": "Abrir {code}",
+        "showDoor": "Muéstralo en la puerta · sube el brillo",
+        "valid": "Válida",
+        "used": "Usada",
+        "notValid": "No válida",
+        "name": "Nombre",
+        "when": "Cuándo",
+        "where": "Dónde",
+        "order": "Pedido",
+        "orderTickets": "{code} · {count} entradas",
+        "orderTicketOne": "{code} · 1 entrada",
+        "wallet": "Añadir a Wallet",
+        "walletReason": "Los pases de Wallet todavía no están disponibles.",
+        "transferNote": "El QR anterior deja de funcionar cuando transfieres.",
+        "unnamed": "Sin nombre todavía",
+        "doors": "puertas {time}",
+        "code": "Código de la entrada",
+        "resendDone": "Enviado de nuevo a la dirección de la entrada."
       },
       "share": {
         "title": "Pagar mi parte",

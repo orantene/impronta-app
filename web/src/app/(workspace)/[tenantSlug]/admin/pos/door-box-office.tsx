@@ -18,20 +18,21 @@
  * places" is drawn as "Continue · 3 tickets" and says so under the button.
  */
 
-import { Minus, Plus, ScanLine, Search, User } from "lucide-react";
+import { Banknote, Check, Minus, Plus, ScanLine, Search, Ticket, TriangleAlert, User, X } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { PosRefusalBanner, type PosCollectionMethodState, type PosRefusalReason } from "@/components/admin/pos";
 import { POS_EYEBROW, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION, POS_SURFACE } from "@/components/admin/pos/pos-classes";
 import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import { byCount, tierWord } from "@/lib/pos/door-model";
 import { refusalFromResult } from "@/lib/pos/refusal-reason";
 import { cn } from "@/lib/utils";
 
 import { posRemoveLine, posUpdateLine } from "./actions";
 import { posDoorAddTicketLine, posDoorCancelTicketSale, posDoorOpenTicketSale, posDoorReadSale, type DoorSaleView, type DoorTonightSession } from "./door-actions";
 import { DoorCheckout, type Buyer } from "./door-box-checkout";
-import { dateAt, timeAt, type DoorScreenCopy, type OpenDoor, type RecentScan } from "./door-shared";
+import { dateAt, timeAt, type BoxStage, type DoorScreenCopy, type OpenDoor, type RecentScan } from "./door-shared";
 import { Pill } from "./door-ui";
 
 export type BoxOfficeScreenProps = {
@@ -50,6 +51,8 @@ export type BoxOfficeScreenProps = {
   zone: string;
   locale: string;
   copy: DoorScreenCopy;
+  /** Where the box office is, for the header the client draws over it. */
+  onStage: (stage: BoxStage) => void;
   onScan: () => void;
   onFindOrder: () => void;
 };
@@ -118,6 +121,16 @@ export function BoxOfficeScreen(props: BoxOfficeScreenProps) {
     [door, props.busy, reload, run, sale],
   );
 
+  const ticketCount = sale?.lines.reduce((sum, l) => sum + l.units, 0) ?? 0;
+  const toCheckout = () => {
+    props.onStage({ kind: "attendees", count: ticketCount });
+    setStep("checkout");
+  };
+  const toTiers = () => {
+    props.onStage({ kind: "box" });
+    setStep("tiers");
+  };
+
   const cancelSale = useCallback(async () => {
     if (!sale) return;
     const result = await run(() => posDoorCancelTicketSale(sale.orderId, sale.version));
@@ -157,7 +170,10 @@ export function BoxOfficeScreen(props: BoxOfficeScreenProps) {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[16px] font-semibold text-admin-ink">{e.title}</span>
                   <span className="block truncate text-[13.5px] text-admin-ink-muted">
-                    {interpolate(box.eventNights, { count: props.sessions.filter((s) => s.eventId === e.eventId).length, date: dateAt(e.startsAt, zone, locale) })}
+                    {(() => {
+                      const nights = props.sessions.filter((s) => s.eventId === e.eventId).length;
+                      return interpolate(byCount(nights, box.eventNightOne, box.eventNights), { count: nights, date: dateAt(e.startsAt, zone, locale) });
+                    })()}
                   </span>
                 </span>
                 <Pill tone="green">{box.onSale}</Pill>
@@ -227,12 +243,13 @@ export function BoxOfficeScreen(props: BoxOfficeScreenProps) {
         zone={zone}
         locale={locale}
         copy={copy}
-        onBack={() => setStep("tiers")}
+        onStage={props.onStage}
+        onBack={toTiers}
         onDone={async () => {
           setSale(null);
           setBuyer({ name: "", email: "", phone: "" });
           await props.openDoor(door.session);
-          setStep("tiers");
+          toTiers();
         }}
       />
     );
@@ -241,16 +258,18 @@ export function BoxOfficeScreen(props: BoxOfficeScreenProps) {
   // ── E02 + G06: the tiers and the basket ───────────────────────────────
   const total = sale?.totalCents ?? 0;
   const currency = sale?.currency ?? props.currency;
-  const count = sale?.lines.reduce((sum, l) => sum + l.units, 0) ?? 0;
+  const count = ticketCount;
   const sold = door.rows.filter((r) => r.status === "valid").length;
 
   return (
     <div data-door-box className="flex min-h-0 flex-1 flex-col">
       <div className="flex h-[46px] shrink-0 items-center gap-2 border-b border-admin-border bg-admin-surface px-[22px]">
         <Pill tone="indigo" className="text-[14px]">
+          <Ticket aria-hidden size={15} strokeWidth={1.75} />
           {interpolate(box.soldChip, { sold, admitted: door.counts.arrived })}
         </Pill>
         <Pill tone="slate" className="text-[14px]">
+          <Banknote aria-hidden size={15} strokeWidth={1.75} />
           {props.drawerOpen ? box.drawerOpen : box.drawerNone}
         </Pill>
         <span className="flex-1" />
@@ -313,7 +332,7 @@ export function BoxOfficeScreen(props: BoxOfficeScreenProps) {
                     )}
                     aria-hidden
                   >
-                    {r.tone === "in" ? "✓" : r.tone === "refused" ? "✕" : "!"}
+                    {r.tone === "in" ? <Check size={18} strokeWidth={2.4} /> : r.tone === "refused" ? <X size={18} strokeWidth={2.4} /> : <TriangleAlert size={17} strokeWidth={2} />}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-admin-ink">{r.text}</span>
                   <span className="text-[13px] tabular-nums text-admin-ink-muted">{r.time}</span>
@@ -328,7 +347,7 @@ export function BoxOfficeScreen(props: BoxOfficeScreenProps) {
             <button
               type="button"
               disabled={!sale}
-              onClick={() => setStep("checkout")}
+              onClick={toCheckout}
               className={cn(POS_SECONDARY_ACTION, "h-11 px-3.5 text-[14px]")}
               data-door-buyer
             >
@@ -343,7 +362,7 @@ export function BoxOfficeScreen(props: BoxOfficeScreenProps) {
               <div key={l.id} className="flex items-center gap-3 border-t border-admin-border-soft px-4 py-3" data-door-line={l.id}>
                 <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-admin-surface-alt text-[15px] font-bold tabular-nums text-admin-ink">{l.units}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[16px] font-semibold text-admin-ink">{l.label}</span>
+                  <span className="block truncate text-[16px] font-semibold text-admin-ink">{tierWord(l.label, door.session.title) || l.label}</span>
                   <span className="block truncate text-[14.5px] text-admin-ink-muted">
                     {dateAt(door.session.startsAt, zone, locale)} · {timeAt(door.session.startsAt, zone, locale)}
                   </span>
@@ -371,8 +390,8 @@ export function BoxOfficeScreen(props: BoxOfficeScreenProps) {
                 {formatOrderMoney(total, currency)}
               </span>
             </div>
-            <button type="button" disabled={!sale || props.busy} data-door-continue onClick={() => setStep("checkout")} className={cn(POS_PRIMARY_ACTION, "h-[60px] w-full")}>
-              {interpolate(box.continueTickets, { count })}
+            <button type="button" disabled={!sale || props.busy} data-door-continue onClick={toCheckout} className={cn(POS_PRIMARY_ACTION, "h-[60px] w-full")}>
+              {interpolate(byCount(count, box.continueTicketOne, box.continueTickets), { count })}
             </button>
             <p className="m-0 text-center text-[12.5px] text-admin-ink-muted">{box.continueHint}</p>
             <div className="grid grid-cols-2 gap-2">

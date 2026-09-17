@@ -48,7 +48,7 @@ import {
 } from "@/components/admin/pos";
 import { POS_EYEBROW, POS_SURFACE } from "@/components/admin/pos/pos-classes";
 import { interpolate } from "@/i18n/interpolate";
-import { doorVerdict, splitTonight, venueClock, type DoorVerdict } from "@/lib/pos/door-model";
+import { admissionIdOfCode, byCount, doorVerdict, splitTonight, tierWord, venueClock, type DoorVerdict } from "@/lib/pos/door-model";
 import { scanAdmission } from "@/lib/sessions/door-actions";
 import type { DoorOutcome } from "@/lib/sessions/door";
 import { admitAtDoor, loadDoor, loadDoorTiers, type DoorRow } from "@/app/(workspace)/[tenantSlug]/admin/_door-actions";
@@ -57,7 +57,7 @@ import { BoxOfficeScreen } from "./door-box-office";
 import { GateScreen } from "./door-gate";
 import { LookupScreen } from "./door-lookup";
 import type { DoorTonightSession } from "./door-actions";
-import { dateAt, timeAt, type DoorScreenCopy, type OpenDoor, type RecentScan } from "./door-shared";
+import { dateAt, timeAt, type BoxStage, type DoorScreenCopy, type OpenDoor, type RecentScan } from "./door-shared";
 
 export type DoorClientProps = {
   tenantId: string;
@@ -91,6 +91,12 @@ function isDestination(id: string): id is DoorDestination {
   return DESTINATIONS.some((d) => d === id);
 }
 
+/** "Tomás Navarro · General admission": who a verdict was about, from the row the door holds. */
+function whoIs(row: DoorRow, eventTitle: string): string | null {
+  const parts = [row.holderName, tierWord(row.tierLabel, eventTitle)].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 export function DoorClient(props: DoorClientProps) {
   const router = useRouter();
   const { copy, zone, locale } = props;
@@ -104,6 +110,7 @@ export function DoorClient(props: DoorClientProps) {
   const [lookupQuery, setLookupQuery] = useState("");
   const [receiptsDay, setReceiptsDay] = useState<"today" | "yesterday" | "week">("today");
   const [receiptsQuery, setReceiptsQuery] = useState("");
+  const [boxStage, setBoxStage] = useState<BoxStage>({ kind: "box" });
 
   const dateFor = useCallback((iso: string) => venueClock(iso, zone, locale)?.date ?? null, [locale, zone]);
 
@@ -144,7 +151,9 @@ export function DoorClient(props: DoorClientProps) {
       setBusy(true);
       try {
         const { outcome } = await scanAdmission(props.tenantId, door.session.id, code, 1);
-        const v = showOutcome(outcome, null);
+        const named = admissionIdOfCode(code);
+        const row = named ? (door.rows.find((r) => r.id === named) ?? null) : null;
+        const v = showOutcome(outcome, row ? whoIs(row, door.session.title) : null);
         if (v.tone === "in") await openDoor(door.session);
       } finally {
         setBusy(false);
@@ -159,7 +168,7 @@ export function DoorClient(props: DoorClientProps) {
       setBusy(true);
       try {
         const { outcome } = await admitAtDoor(row.id, door.session.id);
-        const v = showOutcome(outcome, row.holderName ?? row.tierLabel);
+        const v = showOutcome(outcome, whoIs(row, door.session.title));
         if (v.tone === "in") await openDoor(door.session);
       } finally {
         setBusy(false);
@@ -231,15 +240,30 @@ export function DoorClient(props: DoorClientProps) {
 
   const header = (() => {
     switch (destination) {
-      case "tickets":
+      case "tickets": {
+        if (door && boxStage.kind === "attendees") {
+          return {
+            title: copy.door.attendees.title,
+            subtitle: interpolate(byCount(boxStage.count, copy.door.attendees.subtitleOne, copy.door.attendees.subtitle), {
+              count: boxStage.count,
+              date: dateAt(door.session.startsAt, zone, locale),
+            }),
+          };
+        }
+        if (door && boxStage.kind === "issued") {
+          return {
+            title: boxStage.count === 1 ? copy.door.issued.title : interpolate(copy.door.issued.titleMany, { count: boxStage.count }),
+            subtitle: interpolate(copy.door.issued.subtitle, { buyer: boxStage.buyer, amount: boxStage.amount, time: boxStage.time }),
+          };
+        }
+        const left = door ? door.tiers.reduce((sum, t) => sum + (t.remaining ?? 0), 0) : 0;
         return {
           title: eventTitle ? interpolate(copy.door.header.box, { event: eventTitle }) : copy.door.header.boxNoEvent,
           subtitle: door
-            ? `${dateAt(door.session.startsAt, zone, locale)} · ${interpolate(copy.door.header.leftTonight, {
-                count: door.tiers.reduce((sum, t) => sum + (t.remaining ?? 0), 0),
-              })} · ${copy.door.header.sharedWithWebsite}`
-            : sessionSubtitle,
+            ? `${dateAt(door.session.startsAt, zone, locale)} · ${interpolate(byCount(left, copy.door.header.leftTonightOne, copy.door.header.leftTonight), { count: left })} · ${copy.door.header.sharedWithWebsite}`
+            : copy.door.header.boxPickSubtitle,
         };
+      }
       case "lookup":
         return {
           title: copy.door.header.lookup,
@@ -257,9 +281,14 @@ export function DoorClient(props: DoorClientProps) {
     }
   })();
 
+  /** Every move between rails forgets where the box office was: its header is the box office's again on return. */
+  const goTo = (id: DoorDestination) => {
+    setBoxStage({ kind: "box" });
+    setDestination(id);
+  };
   const goLookup = (query: string) => {
     setLookupQuery(query);
-    setDestination("lookup");
+    goTo("lookup");
   };
 
   const body =
@@ -284,7 +313,8 @@ export function DoorClient(props: DoorClientProps) {
         zone={zone}
         locale={locale}
         copy={copy}
-        onScan={() => setDestination("checkin")}
+        onStage={setBoxStage}
+        onScan={() => goTo("checkin")}
         onFindOrder={() => goLookup("")}
       />
     ) : !door ? (
@@ -312,7 +342,7 @@ export function DoorClient(props: DoorClientProps) {
         onAdmitRow={onAdmitRow}
         onNext={() => setVerdict(null)}
         onLookUpOrder={() => goLookup("")}
-        onSwitchToBox={() => setDestination("tickets")}
+        onSwitchToBox={() => goTo("tickets")}
         cashierName={props.cashierName}
         zone={zone}
         locale={locale}
@@ -331,7 +361,7 @@ export function DoorClient(props: DoorClientProps) {
             router.push(posMessagesHref("door"));
             return;
           }
-          if (isDestination(id)) setDestination(id);
+          if (isDestination(id)) goTo(id);
         }}
         destinationLabels={copy.door.rail}
         counts={{ messages: props.messagesUnread ?? 0 }}
@@ -369,7 +399,7 @@ export function DoorClient(props: DoorClientProps) {
             label: copy.modeLabel,
             menuLabel: copy.frameNavLabel,
             items: [
-              ...DESTINATIONS.map((id) => ({ id, label: copy.door.rail[id] ?? id, onSelect: () => setDestination(id) })),
+              ...DESTINATIONS.map((id) => ({ id, label: copy.door.rail[id] ?? id, onSelect: () => goTo(id) })),
               { id: "workspace", label: copy.chrome.workspace, onSelect: () => router.push(props.workspacePath) },
             ],
           }}
