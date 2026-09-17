@@ -17,8 +17,8 @@ export function segmentFromQuery(raw: string | null): EventSegment {
   return EVENT_SEGMENTS.find((s) => s === raw) ?? "upcoming";
 }
 
-export type DetailTab = "overview" | "schedule" | "tickets" | "venue" | "orders" | "guests" | "day" | "page" | "money" | "settings";
-export const DETAIL_TABS: readonly DetailTab[] = ["overview", "schedule", "tickets", "venue", "orders", "guests", "day", "page", "money", "settings"];
+export type DetailTab = "overview" | "schedule" | "tickets" | "program" | "venue" | "orders" | "guests" | "day" | "page" | "money" | "settings";
+export const DETAIL_TABS: readonly DetailTab[] = ["overview", "schedule", "tickets", "program", "venue", "orders", "guests", "day", "page", "money", "settings"];
 
 export function tabFromQuery(raw: string | null): DetailTab {
   return DETAIL_TABS.find((t) => t === raw) ?? "tickets";
