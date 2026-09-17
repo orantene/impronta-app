@@ -4027,7 +4027,8 @@
           "basket_changed": "Le panier a change apres le debut du paiement.",
           "not_allowed": "Vous ne pouvez pas faire cela ici.",
           "expired": "Ce lien ou cette offre a expire.",
-          "already": "C est deja fait."
+          "already": "C est deja fait.",
+          "deposit_required": "Un acompte est du avant de pouvoir confirmer ceci."
         },
         "history": {
           "rename": "{actor} a renommé cette conversation en « {name} »",

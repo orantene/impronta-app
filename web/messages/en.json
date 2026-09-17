@@ -15441,7 +15441,8 @@
           "basket_changed": "The basket changed after checkout started.",
           "not_allowed": "You cannot do that from here.",
           "expired": "This link or offer has expired.",
-          "already": "That is already done."
+          "already": "That is already done.",
+          "deposit_required": "A deposit is due before this can be confirmed."
         },
         "history": {
           "rename": "{actor} renamed this conversation to \"{name}\"",
