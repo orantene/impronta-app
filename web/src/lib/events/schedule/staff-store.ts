@@ -7,20 +7,17 @@ import { logServerError } from "@/lib/server/safe-error";
 import { resolveLineupState } from "@/lib/events/lineup";
 import { resolveTalentMediaForHub } from "@/lib/media/talent-media-for-hub";
 import { uuidWire } from "@/lib/events/uuid-wire";
-import { rankSpaces, readProgramSettings, sortScheduleRows } from "./row-shape";
+import { sortScheduleRows } from "./grouping";
 import {
   EVENT_PROGRAM_COLUMN,
   EVENT_SCHEDULE_ITEMS_TABLE,
-  PROGRAM_GROUP_BY,
   SCHEDULE_ITEM_COLUMNS,
-  SCHEDULE_ITEM_DESCRIPTION_MAX,
-  SCHEDULE_ITEM_GALLERY_MAX,
-  SCHEDULE_ITEM_KINDS,
-  SCHEDULE_ITEM_STATUSES,
-  SCHEDULE_ITEM_VISIBILITIES,
+  eventProgramSettingsSchema,
+  normalizeEventProgramSettings,
+  scheduleItemInputSchema,
   type EventProgramSettings,
-  type ScheduleItemRow,
-} from "./contract";
+  type ScheduleItemInput,
+} from "./model";
 
 /**
  * THE SCHEDULE ITEM WRITERS AND READERS — one implementation, called by the
@@ -64,77 +61,95 @@ const SAVE_FAILED = "Could not save the program item.";
 const NOT_AN_EVENT = "That is not an event in this workspace.";
 const NOT_AN_ITEM = "That is not a program item of this workspace.";
 
-// ─── Input schemas ────────────────────────────────────────────────────────────
+// ─── The row ──────────────────────────────────────────────────────────────────
 
-const trimmed = (max: number) => z.string().trim().max(max);
-const optionalText = (max: number) => trimmed(max).nullable().optional();
-const httpUrl = z.string().trim().url().max(500);
+/**
+ * One `event_schedule_items` row as `SCHEDULE_ITEM_COLUMNS` selects it: the
+ * persisted input (`model.ts`) plus identity and timestamps. This is what the
+ * list action hands the tab, verbatim; readers that want camelCase run
+ * `normalizeScheduleItemRow` on it.
+ */
+export type ScheduleItemRow = Required<ScheduleItemInput> & {
+  id: string;
+  tenant_id: string;
+  event_id: string;
+  created_at: string;
+  updated_at: string;
+};
 
-export const scheduleItemInputSchema = z
-  .object({
-    id: uuidWire.optional(),
-    eventId: uuidWire,
-    sessionId: uuidWire.nullable().optional(),
-    spaceId: uuidWire.nullable().optional(),
-    kind: z.enum(SCHEDULE_ITEM_KINDS),
-    title: trimmed(160).min(1),
-    subtitle: optionalText(160),
-    description: optionalText(SCHEDULE_ITEM_DESCRIPTION_MAX),
-    startsAt: z.string().datetime({ offset: true }).nullable().optional(),
-    endsAt: z.string().datetime({ offset: true }).nullable().optional(),
-    timeTba: z.boolean().optional(),
-    performerTalentProfileId: uuidWire.nullable().optional(),
-    performerName: optionalText(120),
-    performerTba: z.boolean().optional(),
-    coverMediaId: uuidWire.nullable().optional(),
-    media: z
-      .object({
-        galleryMediaIds: z.array(uuidWire).max(SCHEDULE_ITEM_GALLERY_MAX).optional(),
-        videoUrl: httpUrl.optional(),
-      })
-      .optional(),
-    links: z
-      .object({
-        href: httpUrl.optional(),
-        label: trimmed(80).optional(),
-        instagram: trimmed(80).optional(),
-        website: httpUrl.optional(),
-      })
-      .optional(),
-    sponsor: z
-      .object({
-        name: trimmed(120).optional(),
-        logoMediaId: uuidWire.optional(),
-        url: httpUrl.optional(),
-      })
-      .optional(),
-    tags: z.array(trimmed(40).min(1)).max(12).optional(),
-    visibility: z.enum(SCHEDULE_ITEM_VISIBILITIES).optional(),
-    status: z.enum(SCHEDULE_ITEM_STATUSES).optional(),
-    i18n: z
-      .record(
-        z.string().min(2).max(8),
-        z.object({ title: trimmed(160).optional(), subtitle: trimmed(160).optional(), description: trimmed(SCHEDULE_ITEM_DESCRIPTION_MAX).optional() }),
-      )
-      .optional(),
-  })
-  .superRefine((v, ctx) => {
-    if (!v.timeTba && !v.startsAt) ctx.addIssue({ code: "custom", path: ["startsAt"], message: "An item needs a start time, or time TBA." });
-    if (v.startsAt && v.endsAt && new Date(v.endsAt).getTime() <= new Date(v.startsAt).getTime()) {
-      ctx.addIssue({ code: "custom", path: ["endsAt"], message: "The end must be after the start." });
-    }
+// ─── The wire ─────────────────────────────────────────────────────────────────
+
+/**
+ * `saveScheduleItem` speaks camelCase (the sheet's wire, fixed since PR B).
+ * Nothing here judges a value: the wire is renamed column for column and
+ * handed to `scheduleItemInputSchema`, so the ONE rule for what a program item
+ * may hold lives in `model.ts`. Unknown keys are dropped, as the old wire
+ * schema stripped them. Only the two ids the model deliberately refuses
+ * (`eventId`, `id`) are parsed here, and both are checked inside the tenant
+ * before anything is written.
+ */
+const wireIdentitySchema = z.object({ id: uuidWire.optional(), eventId: uuidWire });
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/** `{ a: x, b: undefined }` → `{ a: x }`, so an absent wire key stays absent and the model's default applies. */
+function present(o: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+}
+
+function pick(o: unknown, keys: Record<string, string>): Record<string, unknown> | undefined {
+  if (!isPlainObject(o)) return undefined;
+  return present(Object.fromEntries(Object.entries(keys).map(([wire, column]) => [column, o[wire]])));
+}
+
+const TOP_LEVEL = {
+  sessionId: "session_id",
+  spaceId: "space_id",
+  kind: "kind",
+  title: "title",
+  subtitle: "subtitle",
+  description: "description",
+  startsAt: "starts_at",
+  endsAt: "ends_at",
+  timeTba: "time_tba",
+  performerTalentProfileId: "performer_talent_profile_id",
+  performerName: "performer_name",
+  performerTba: "performer_tba",
+  coverMediaId: "cover_media_id",
+  tags: "tags",
+  visibility: "visibility",
+  status: "status",
+  i18n: "i18n",
+} as const;
+const MEDIA = { galleryMediaIds: "gallery_media_ids", videoUrl: "video_url" } as const;
+const LINKS = { href: "href", label: "label", instagram: "instagram", website: "website" } as const;
+const SPONSOR = { name: "name", logoMediaId: "logo_media_id", url: "url" } as const;
+
+/** The camelCase wire → the snake_case shape `scheduleItemInputSchema` reads. */
+export function scheduleItemWireToInput(raw: unknown): Record<string, unknown> {
+  const w = isPlainObject(raw) ? raw : {};
+  return present({
+    ...pick(w, TOP_LEVEL),
+    media: pick(w.media, MEDIA),
+    links: pick(w.links, LINKS),
+    sponsor: pick(w.sponsor, SPONSOR),
   });
+}
 
-export type ScheduleItemInput = z.infer<typeof scheduleItemInputSchema>;
+type ParsedWire = { id: string | undefined; eventId: string; input: ScheduleItemInput };
 
-export const eventProgramSettingsSchema = z.object({
-  enabled: z.boolean(),
-  heading: trimmed(80).min(1).optional(),
-  headingI18n: z.record(z.string().min(2).max(8), trimmed(80)).optional(),
-  setTimesPublic: z.boolean().optional(),
-  groupBy: z.enum(PROGRAM_GROUP_BY).optional(),
-});
-export type EventProgramSettingsInput = z.infer<typeof eventProgramSettingsSchema>;
+function parseScheduleItemWire(raw: unknown): ParsedWire | Refusal {
+  const ids = wireIdentitySchema.safeParse(raw);
+  if (!ids.success) return refuse(ids.error.issues[0]?.message ?? "That is not a valid program item.");
+  const parsed = scheduleItemInputSchema.safeParse(scheduleItemWireToInput(raw));
+  if (!parsed.success) return refuse(parsed.error.issues[0]?.message ?? "That is not a valid program item.");
+  return { id: ids.data.id, eventId: ids.data.eventId, input: parsed.data };
+}
+
+/** `saveEventProgramSettings` speaks camelCase too; every key but the switch is optional and keeps its stored value. */
+const PROGRAM_SETTINGS = { enabled: "enabled", heading: "heading", headingI18n: "heading_i18n", setTimesPublic: "set_times_public", groupBy: "group_by" } as const;
 
 // ─── Ownership checks ─────────────────────────────────────────────────────────
 
@@ -198,37 +213,37 @@ export async function listScheduleItemRows(admin: SupabaseClient, tenantId: stri
     admin.from(EVENT_SCHEDULE_ITEMS_TABLE).select(SCHEDULE_ITEM_COLUMNS).eq("tenant_id", tenantId).eq("event_id", eventId).order("starts_at", { ascending: true }).order("sort_order", { ascending: true }),
   );
   if (rows === undefined) return refuse(LOAD_FAILED);
-  return { ok: true, items: sortScheduleRows(rows), settings: readProgramSettings(ev.program) };
+  return { ok: true, items: sortScheduleRows(rows), settings: normalizeEventProgramSettings(ev.program) };
 }
 
 // ─── Writers ──────────────────────────────────────────────────────────────────
 
 export type SaveScheduleItemResult = { ok: true; id: string } | Refusal;
 
-function toRowPayload(input: ScheduleItemInput, tenantId: string) {
+function toRowPayload(input: ScheduleItemInput, tenantId: string, eventId: string) {
   return {
     tenant_id: tenantId,
-    event_id: input.eventId,
-    session_id: input.sessionId ?? null,
-    space_id: input.spaceId ?? null,
+    event_id: eventId,
+    session_id: input.session_id ?? null,
+    space_id: input.space_id ?? null,
     kind: input.kind,
     title: input.title,
     subtitle: input.subtitle ?? null,
     description: input.description ?? null,
-    starts_at: input.timeTba ? null : (input.startsAt ?? null),
-    ends_at: input.timeTba ? null : (input.endsAt ?? null),
-    time_tba: input.timeTba === true,
-    performer_talent_profile_id: input.performerTalentProfileId ?? null,
-    performer_name: input.performerName ?? null,
-    performer_tba: input.performerTba === true,
-    cover_media_id: input.coverMediaId ?? null,
-    media: { ...(input.media?.galleryMediaIds ? { gallery_media_ids: input.media.galleryMediaIds } : {}), ...(input.media?.videoUrl ? { video_url: input.media.videoUrl } : {}) },
-    links: { ...(input.links?.href ? { href: input.links.href } : {}), ...(input.links?.label ? { label: input.links.label } : {}), ...(input.links?.instagram ? { instagram: input.links.instagram } : {}), ...(input.links?.website ? { website: input.links.website } : {}) },
-    sponsor: { ...(input.sponsor?.name ? { name: input.sponsor.name } : {}), ...(input.sponsor?.logoMediaId ? { logo_media_id: input.sponsor.logoMediaId } : {}), ...(input.sponsor?.url ? { url: input.sponsor.url } : {}) },
-    tags: input.tags ?? [],
-    visibility: input.visibility ?? "public",
-    status: input.status ?? "draft",
-    i18n: input.i18n ?? {},
+    starts_at: input.time_tba ? null : (input.starts_at ?? null),
+    ends_at: input.time_tba ? null : (input.ends_at ?? null),
+    time_tba: input.time_tba,
+    performer_talent_profile_id: input.performer_talent_profile_id ?? null,
+    performer_name: input.performer_name ?? null,
+    performer_tba: input.performer_tba,
+    cover_media_id: input.cover_media_id ?? null,
+    media: input.media,
+    links: input.links,
+    sponsor: input.sponsor,
+    tags: input.tags,
+    visibility: input.visibility,
+    status: input.status,
+    i18n: input.i18n,
     updated_at: new Date().toISOString(),
   };
 }
@@ -239,45 +254,45 @@ function toRowPayload(input: ScheduleItemInput, tenantId: string) {
  * an update that matches no row is a refusal rather than a silent success.
  */
 export async function saveScheduleItemRow(admin: SupabaseClient, tenantId: string, raw: unknown): Promise<SaveScheduleItemResult> {
-  const parsed = scheduleItemInputSchema.safeParse(raw);
-  if (!parsed.success) return refuse(parsed.error.issues[0]?.message ?? "That is not a valid program item.");
-  const input = parsed.data;
+  const wire = parseScheduleItemWire(raw);
+  if (isRefusal(wire)) return wire;
+  const { id, eventId, input } = wire;
 
-  const ev = await eventInTenant(admin, tenantId, input.eventId);
+  const ev = await eventInTenant(admin, tenantId, eventId);
   if (isRefusal(ev)) return ev;
 
-  if (input.sessionId) {
-    const okSession = await sessionBelongsToEvent(admin, tenantId, input.eventId, input.sessionId);
+  if (input.session_id) {
+    const okSession = await sessionBelongsToEvent(admin, tenantId, eventId, input.session_id);
     if (okSession === undefined) return refuse(LOAD_FAILED);
     if (!okSession) return refuse("That night does not belong to this event.");
   }
-  if (input.spaceId) {
+  if (input.space_id) {
     if (!ev.venue_id) return refuse("This event has no venue, so it has no places to choose from.");
-    const okSpace = await spaceBelongsToVenue(admin, tenantId, ev.venue_id, input.spaceId);
+    const okSpace = await spaceBelongsToVenue(admin, tenantId, ev.venue_id, input.space_id);
     if (okSpace === undefined) return refuse(LOAD_FAILED);
     if (!okSpace) return refuse("That place does not belong to this event's venue.");
   }
-  if (input.performerTalentProfileId) {
-    const okPerformer = await performerIsLinkable(admin, tenantId, input.performerTalentProfileId);
+  if (input.performer_talent_profile_id) {
+    const okPerformer = await performerIsLinkable(admin, tenantId, input.performer_talent_profile_id);
     if (okPerformer === undefined) return refuse(LOAD_FAILED);
     if (!okPerformer) return refuse("That performer is not on the roster and is not a public talent.");
   }
 
-  const payload = toRowPayload(input, tenantId);
+  const payload = toRowPayload(input, tenantId, eventId);
 
-  if (input.id) {
+  if (id) {
     const updated = await many<{ id: string }>(
       "update",
-      admin.from(EVENT_SCHEDULE_ITEMS_TABLE).update(payload).eq("tenant_id", tenantId).eq("event_id", input.eventId).eq("id", input.id).select("id"),
+      admin.from(EVENT_SCHEDULE_ITEMS_TABLE).update(payload).eq("tenant_id", tenantId).eq("event_id", eventId).eq("id", id).select("id"),
     );
     if (updated === undefined) return refuse(SAVE_FAILED);
     if (updated.length === 0) return refuse(NOT_AN_ITEM);
-    return { ok: true, id: input.id };
+    return { ok: true, id };
   }
 
   const last = await many<{ sort_order: number }>(
     "nextSort",
-    admin.from(EVENT_SCHEDULE_ITEMS_TABLE).select("sort_order").eq("tenant_id", tenantId).eq("event_id", input.eventId).order("sort_order", { ascending: false }).limit(1),
+    admin.from(EVENT_SCHEDULE_ITEMS_TABLE).select("sort_order").eq("tenant_id", tenantId).eq("event_id", eventId).order("sort_order", { ascending: false }).limit(1),
   );
   if (last === undefined) return refuse(SAVE_FAILED);
   const sortOrder = (last[0]?.sort_order ?? -1) + 1;
@@ -354,20 +369,21 @@ export async function reorderScheduleItemRows(admin: SupabaseClient, tenantId: s
 
 export type SaveEventProgramSettingsResult = { ok: true; settings: EventProgramSettings } | Refusal;
 
+/**
+ * Partial by design: the switch is the one key the wire must carry; every
+ * other key keeps its stored value. The merged blob is then judged by the
+ * model's `eventProgramSettingsSchema`, the one rule for `events.program`.
+ */
 export async function saveEventProgramSettingsRow(admin: SupabaseClient, tenantId: string, eventId: string, raw: unknown): Promise<SaveEventProgramSettingsResult> {
-  const parsed = eventProgramSettingsSchema.safeParse(raw);
-  if (!parsed.success) return refuse("Those are not valid program settings.");
+  const wire = pick(raw, PROGRAM_SETTINGS);
+  if (!wire || typeof wire.enabled !== "boolean") return refuse("Those are not valid program settings.");
   const ev = await eventInTenant(admin, tenantId, eventId);
   if (isRefusal(ev)) return ev;
-  const current = readProgramSettings(ev.program);
-  const next: EventProgramSettings = {
-    enabled: parsed.data.enabled,
-    heading: parsed.data.heading ?? current.heading,
-    heading_i18n: parsed.data.headingI18n ?? current.heading_i18n,
-    set_times_public: parsed.data.setTimesPublic ?? current.set_times_public,
-    group_by: parsed.data.groupBy ?? current.group_by,
-  };
-  if (!next.heading_i18n) delete next.heading_i18n;
+  const current = normalizeEventProgramSettings(ev.program);
+  const parsed = eventProgramSettingsSchema.safeParse({ ...current, ...wire });
+  if (!parsed.success) return refuse("Those are not valid program settings.");
+  const next: EventProgramSettings = { ...parsed.data };
+  if (!next.heading_i18n || Object.keys(next.heading_i18n).length === 0) delete next.heading_i18n;
   const updated = await many<{ id: string }>(
     "settings",
     admin.from("events").update({ [EVENT_PROGRAM_COLUMN]: next, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", eventId).select("id"),
@@ -517,6 +533,14 @@ export async function searchPerformerRows(admin: SupabaseClient, tenantId: strin
 }
 
 export type SpaceOption = { id: string; name: string; kind: string; code: string | null };
+
+const PROGRAM_SPACE_KINDS_FIRST = ["stage", "room", "area"];
+
+/** Stage / room / area first, then the venue's own order, then the name: the picker's order, not the program's. */
+function rankSpaces<T extends { kind: string; name: string; sort_order?: number }>(rows: T[]): T[] {
+  const rank = (k: string) => { const i = PROGRAM_SPACE_KINDS_FIRST.indexOf(k); return i === -1 ? PROGRAM_SPACE_KINDS_FIRST.length : i; };
+  return [...rows].sort((a, b) => rank(a.kind) - rank(b.kind) || (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+}
 export type ListEventSpacesResult = { ok: true; venueId: string | null; spaces: SpaceOption[] } | Refusal;
 
 /** The active spaces of the event's venue, stage / room / area first. No venue → an empty list, not an error. */

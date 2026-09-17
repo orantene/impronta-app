@@ -94,17 +94,19 @@ export const UNPLACED_GROUP_KEY = "unplaced";
 
 // ── Ordering ───────────────────────────────────────────────────────────────
 
-function startMs(item: ScheduleItem): number | null {
+/** The four fields the order is decided on; a `ScheduleItem` carries them as is, a raw row under its column names. */
+type ScheduleOrderKey = { startsAt: string | null; timeTba: boolean; sortOrder: number; title: string };
+
+/** The same four fields as the `event_schedule_items` columns name them. */
+export type ScheduleRowOrderKey = { starts_at: string | null; time_tba: boolean; sort_order: number; title: string };
+
+function startMs(item: ScheduleOrderKey): number | null {
   if (item.timeTba || !item.startsAt) return null;
   const t = Date.parse(item.startsAt);
   return Number.isNaN(t) ? null : t;
 }
 
-/**
- * `starts_at`, then `sort_order`, TBA last (TBA among themselves by
- * `sort_order`, then title so the order is stable across renders).
- */
-export function compareScheduleItems(a: ScheduleItem, b: ScheduleItem): number {
+function compareOrderKeys(a: ScheduleOrderKey, b: ScheduleOrderKey): number {
   const sa = startMs(a);
   const sb = startMs(b);
   if (sa !== null && sb !== null && sa !== sb) return sa - sb;
@@ -114,8 +116,25 @@ export function compareScheduleItems(a: ScheduleItem, b: ScheduleItem): number {
   return a.title.localeCompare(b.title);
 }
 
+/**
+ * `starts_at`, then `sort_order`, TBA last (TBA among themselves by
+ * `sort_order`, then title so the order is stable across renders).
+ */
+export function compareScheduleItems(a: ScheduleItem, b: ScheduleItem): number {
+  return compareOrderKeys(a, b);
+}
+
 export function sortScheduleItems(items: ReadonlyArray<ScheduleItem>): ScheduleItem[] {
   return [...items].sort(compareScheduleItems);
+}
+
+function rowOrderKey(row: ScheduleRowOrderKey): ScheduleOrderKey {
+  return { startsAt: row.starts_at, timeTba: row.time_tba, sortOrder: row.sort_order, title: row.title };
+}
+
+/** The same order as `sortScheduleItems`, applied to raw rows: the staff list and the public list agree. */
+export function sortScheduleRows<T extends ScheduleRowOrderKey>(rows: ReadonlyArray<T>): T[] {
+  return [...rows].sort((a, b) => compareOrderKeys(rowOrderKey(a), rowOrderKey(b)));
 }
 
 // ── Labels ─────────────────────────────────────────────────────────────────
