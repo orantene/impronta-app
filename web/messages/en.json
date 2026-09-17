@@ -4389,6 +4389,7 @@
         "sessionBlock": "{title} · {booked}/{places}",
         "emptyDay": "Nothing on this day for these filters.",
         "holdExpires": "Hold on {title} at {time}",
+        "holdExpiresAt": "Hold expires {time}",
         "dragOff": "Drag to reschedule is not built; Move it on Appointments & Classes reschedules with the window you saw.",
         "prevDay": "Previous day",
         "nextDay": "Next day"

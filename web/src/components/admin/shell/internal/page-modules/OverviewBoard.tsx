@@ -105,12 +105,16 @@ export function OverviewBoard() {
   })();
   const now = snapshot ? new Date(snapshot.nowIso) : new Date();
   const locale = t("dashboard.adminOverview.dateLocale");
-  const dateLabel = now.toLocaleDateString(locale, {
-    weekday: "long",
+  // The kit's day-first date, "Thu 17 Sep" (MW02 / the Overview board), in
+  // every locale: the parts are reordered rather than trusting the locale's.
+  const dateParts = new Intl.DateTimeFormat(locale, {
+    weekday: "short",
     day: "numeric",
     month: "short",
     ...(snapshot ? { timeZone: snapshot.timeZone } : {}),
-  });
+  }).formatToParts(now);
+  const datePart = (type: string) => dateParts.find((p) => p.type === type)?.value ?? "";
+  const dateLabel = `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim();
   const greeting = interpolate(t(greetingKey(now.getHours())), {
     name: firstName ?? t("dashboard.adminOverview.greetingFallbackName"),
   });

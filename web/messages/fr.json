@@ -6970,6 +6970,7 @@
         "sessionBlock": "{title} · {booked}/{places}",
         "emptyDay": "Rien ce jour avec ces filtres.",
         "holdExpires": "Tenue sur {title} a {time}",
+        "holdExpiresAt": "La tenue expire a {time}",
         "dragOff": "Glisser pour reprogrammer n'est pas construit ; Deplacer dans Rendez-vous et cours reprogramme avec la fenetre vue.",
         "prevDay": "Jour precedent",
         "nextDay": "Jour suivant"

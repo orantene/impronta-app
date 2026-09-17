@@ -19,21 +19,26 @@
  * Token classes only; inline styles are frozen under components/admin/shell.
  * The block's horizontal position is the one thing that must be a number,
  * so it is a table cell spanning 15-minute tracks (`colSpan`), not a style.
+ *
+ * Polish 9: the day, its prev/next and the venue clock are the page header's
+ * (CalendarPage draws the board's `Tue 8 Sep` over `zone · location`); this
+ * view reports the clock it read (`onClock`) and draws the day it is given.
+ * The legend sits on the filter row, the card fills the viewport and the
+ * footer is the board's one line.
  */
 
 import { useEffect, useMemo, useState } from "react";
 
 import { useT } from "@/i18n/use-t";
-import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { loadAppointments } from "@/lib/scheduling/appointments-actions";
 import type { AppointmentRow } from "@/lib/scheduling/appointments-board";
-import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
+import { utcToZonedYmd } from "@/lib/scheduling/tz";
 import { loadSchedule, type ScheduleNight, type ScheduleSeries } from "@/lib/sessions/schedule-actions";
 import type { CalendarEvent } from "@/app/(workspace)/[tenantSlug]/_data-bridge/calendar";
 import { Icon } from "../primitives";
 import { buildSessionRows, type SessionRow } from "./appointments-classes-model";
-import { BUTTON_SECONDARY, CARD, FilterChip, Outcome } from "./appointments-classes-ui";
+import { CARD, FilterChip, Outcome } from "./appointments-classes-ui";
 
 const K = "dashboard.adminCalendar.resources";
 const TRACK_MINUTES = 15;
@@ -56,14 +61,6 @@ function minutesOfDay(iso: string, timeZone: string): number | null {
     return (h === 24 ? 0 : h) * 60 + m;
   } catch {
     return null;
-  }
-}
-
-function dayTitle(ymd: string, locale: string): string {
-  try {
-    return new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${ymd}T12:00:00.000Z`));
-  } catch {
-    return ymd;
   }
 }
 
@@ -103,14 +100,26 @@ const TONE: Record<Block["tone"], string> = {
   other: "border-admin-border bg-admin-surface-alt text-admin-ink-muted",
 };
 
-export function CalendarResources({ tenantId, holds }: { tenantId: string; holds: readonly CalendarEvent[] }) {
+export type CalendarClock = { timeZone: string; todayYmd: string };
+
+export function CalendarResources({
+  tenantId,
+  holds,
+  day: dayProp,
+  onClock,
+}: {
+  tenantId: string;
+  holds: readonly CalendarEvent[];
+  /** The day to draw (venue clock, YYYY-MM-DD); null until the clock is known. */
+  day: string | null;
+  /** Fires once the venue's zone and today are read, so the header can own the day. */
+  onClock?: (clock: CalendarClock) => void;
+}) {
   const t = useT();
-  const locale = useDashboardLocale();
   const [rows, setRows] = useState<AppointmentRow[] | null>(null);
   const [series, setSeries] = useState<ScheduleSeries[]>([]);
   const [nights, setNights] = useState<ScheduleNight[]>([]);
   const [timeZone, setTimeZone] = useState("UTC");
-  const [ymd, setYmd] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [location, setLocation] = useState("any");
   const [person, setPerson] = useState("any");
@@ -125,7 +134,7 @@ export function CalendarResources({ tenantId, holds }: { tenantId: string; holds
         if (board.ok) {
           setRows(board.rows);
           setTimeZone(board.timeZone);
-          setYmd((prev) => prev ?? board.todayYmd);
+          onClock?.({ timeZone: board.timeZone, todayYmd: board.todayYmd });
         } else {
           setRows([]);
           setError(board.error);
@@ -146,11 +155,13 @@ export function CalendarResources({ tenantId, holds }: { tenantId: string; holds
     return () => {
       alive = false;
     };
+    // onClock is the page's setter; the read happens once per tenant.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
   const sessions = useMemo(() => buildSessionRows({ series, nights, waitlists: [], fallbackTimeZone: timeZone }), [series, nights, timeZone]);
 
-  const day = ymd ?? "";
+  const day = dayProp ?? "";
   const dayRows = (rows ?? []).filter((r) => r.startsAt && utcToZonedYmd(new Date(r.startsAt), r.timeZone ?? timeZone) === day);
   const daySessions: SessionRow[] = sessions.filter((s) => s.ymd === day);
   const dayHolds = holds.filter((h) => h.kind === "hold" && h.starts_at && utcToZonedYmd(new Date(h.starts_at), timeZone) === day);
@@ -234,23 +245,15 @@ export function CalendarResources({ tenantId, holds }: { tenantId: string; holds
   const hours = Array.from({ length: toHour - fromHour }, (_, i) => fromHour + i);
   const col = (min: number) => Math.max(1, Math.min(tracks + 1, Math.round((min - fromHour * 60) / TRACK_MINUTES) + 1));
 
-  if (rows === null || ymd === null) {
+  if (rows === null || dayProp === null) {
     return <div className="p-6 font-admin-body text-sm text-admin-ink-muted">{t(`${K}.loading`)}</div>;
   }
 
   return (
-    <div className="flex flex-col gap-[12px] font-admin-body leading-[1.2]" data-testid="calendar-resources">
+    <div className="flex flex-col gap-[16px] font-admin-body leading-[1.2]" data-testid="calendar-resources">
       {error ? <Outcome kind="refused">{error}</Outcome> : null}
-      <div className="flex flex-wrap items-center gap-[8px]">
-        <button type="button" aria-label={t(`${K}.prevDay`)} className={`${BUTTON_SECONDARY} h-[30px] w-[32px] px-0`} onClick={() => setYmd(addUtcDays(day, -1) ?? day)}>
-          <span className="inline-block rotate-180"><Icon name="chevron-right" size={14} stroke={1.75} /></span>
-        </button>
-        <button type="button" aria-label={t(`${K}.nextDay`)} className={`${BUTTON_SECONDARY} h-[30px] w-[32px] px-0`} onClick={() => setYmd(addUtcDays(day, 1) ?? day)}>
-          <Icon name="chevron-right" size={14} stroke={1.75} />
-        </button>
-        <span className="text-admin-13 font-semibold text-admin-ink">{dayTitle(day, locale)}</span>
-        <span className="text-admin-12h text-admin-ink-muted">{timeZone}</span>
-        <span className="flex-1" />
+      {/* The board's one row: the filter chips left, the legend right. */}
+      <div className="flex flex-wrap items-center gap-[8px]" data-testid="calendar-filters">
         <FilterChip label={t(`${K}.filterLocation`)} value={location} onChange={setLocation} options={[{ id: "any", label: t(`${K}.any`) }, ...locations.map((l) => ({ id: l, label: l }))]} />
         <FilterChip label={t(`${K}.filterPeople`)} value={person} onChange={setPerson} options={[{ id: "any", label: t(`${K}.all`) }, ...people.map((p) => ({ id: p, label: p }))]} />
         <FilterChip label={t(`${K}.filterRooms`)} value="any" onChange={() => undefined} options={[{ id: "any", label: t(`${K}.all`) }]} reason={t(`${K}.filterRoomsOff`)} />
@@ -264,15 +267,15 @@ export function CalendarResources({ tenantId, holds }: { tenantId: string; holds
             { id: "confirmed", label: t(`${K}.stateConfirmed`) },
           ]}
         />
-      </div>
-      <div className="flex flex-wrap items-center justify-end gap-[14px] text-admin-11 text-admin-ink-muted">
-        <span className="inline-flex items-center gap-[6px]"><span className={`h-[10px] w-[10px] rounded-[3px] border ${TONE.confirmed}`} />{t(`${K}.legendConfirmed`)}</span>
-        <span className="inline-flex items-center gap-[6px]"><span className={`h-[10px] w-[10px] rounded-[3px] border ${TONE.hold}`} />{t(`${K}.legendHold`)}</span>
-        <span className="inline-flex cursor-not-allowed items-center gap-[6px] opacity-50" title={t(`${K}.legendProcessingOff`)} data-not-wired="true"><span className="h-[10px] w-[10px] rounded-[3px] border border-admin-border bg-admin-surface-alt" />{t(`${K}.legendProcessing`)}</span>
-        <span className="inline-flex cursor-not-allowed items-center gap-[6px] opacity-50" title={t(`${K}.legendImportedOff`)} data-not-wired="true"><span className="h-[10px] w-[10px] rounded-[3px] bg-admin-border" />{t(`${K}.legendImported`)}</span>
+        <span className="ml-auto flex flex-wrap items-center gap-[14px] text-admin-11 text-admin-ink-muted">
+          <span className="inline-flex items-center gap-[6px]"><span className={`h-[10px] w-[10px] rounded-[3px] border ${TONE.confirmed}`} />{t(`${K}.legendConfirmed`)}</span>
+          <span className="inline-flex items-center gap-[6px]"><span className={`h-[10px] w-[10px] rounded-[3px] border ${TONE.hold}`} />{t(`${K}.legendHold`)}</span>
+          <span className="inline-flex cursor-not-allowed items-center gap-[6px] opacity-50" title={t(`${K}.legendProcessingOff`)} data-not-wired="true"><span className="h-[10px] w-[10px] rounded-[3px] border border-admin-border bg-admin-surface-alt" />{t(`${K}.legendProcessing`)}</span>
+          <span className="inline-flex cursor-not-allowed items-center gap-[6px] opacity-50" title={t(`${K}.legendImportedOff`)} data-not-wired="true"><span className="h-[10px] w-[10px] rounded-[3px] bg-admin-border" />{t(`${K}.legendImported`)}</span>
+        </span>
       </div>
 
-      <div className={`${CARD} overflow-x-auto`}>
+      <div className={`${CARD} min-h-[calc(100vh-250px)] overflow-x-auto`}>
         {/* A TABLE OF 15-MINUTE TRACKS. A block is a cell spanning its tracks
             (`colSpan`), so its place on the hour axis is markup, not a style;
             blocks that overlap on one lane fall onto a second sub-row. */}
@@ -340,20 +343,33 @@ export function CalendarResources({ tenantId, holds }: { tenantId: string; holds
         </table>
       </div>
 
-      {dayHolds.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-[8px] text-admin-13 text-admin-ink">
-          <Icon name="alert" size={14} stroke={1.75} color="var(--color-admin-coral)" />
-          {dayHolds.slice(0, 3).map((h) => (
-            <span key={h.id} className="font-semibold text-admin-coral-deep">
-              {interpolate(t(`${K}.holdExpires`), { title: h.contact_name, time: h.starts_at ? clockOf(minutesOfDay(h.starts_at, timeZone) ?? 0) : "" })}
+      {/* The board's footer: "⚠ Hold expires 18:00 · Bridal party … · Drag a
+          block to preview a reschedule". Ours names the hold's expiry on the
+          venue clock and says, truthfully, that drag is not built. */}
+      <div className="flex flex-wrap items-center gap-x-[8px] gap-y-[4px] text-admin-12h leading-[1.2] text-admin-ink-muted" data-testid="calendar-footer">
+        {dayHolds.length > 0 ? <Icon name="alert" size={14} stroke={1.75} color="var(--color-admin-coral)" /> : null}
+        {dayHolds.slice(0, 2).map((h) => {
+          // "Hold expires 18:00 · Bridal party" when the hold has an expiry;
+          // a hold without one is named by its start instead.
+          const expires = h.expires_at ? minutesOfDay(h.expires_at, timeZone) : null;
+          const starts = h.starts_at ? minutesOfDay(h.starts_at, timeZone) : null;
+          return (
+            <span key={h.id} className="inline-flex items-center gap-[8px]">
+              {expires !== null ? (
+                <>
+                  <span className="font-semibold text-admin-coral-deep">{interpolate(t(`${K}.holdExpiresAt`), { time: clockOf(expires) })}</span>
+                  <span className="text-admin-ink">· {h.contact_name}</span>
+                </>
+              ) : (
+                <span className="font-semibold text-admin-coral-deep">{interpolate(t(`${K}.holdExpires`), { title: h.contact_name, time: starts === null ? "" : clockOf(starts) })}</span>
+              )}
+              <span>·</span>
             </span>
-          ))}
-          {dayHolds.length > 3 ? <span className="text-admin-ink-muted">{interpolate(t("dashboard.adminCalendar.moreCount"), { count: dayHolds.length - 3 })}</span> : null}
-          <span className="text-admin-ink-muted">· {t(`${K}.dragOff`)}</span>
-        </div>
-      ) : (
-        <div className="text-admin-12h text-admin-ink-muted">{t(`${K}.dragOff`)}</div>
-      )}
+          );
+        })}
+        {dayHolds.length > 2 ? <span>{interpolate(t("dashboard.adminCalendar.moreCount"), { count: dayHolds.length - 2 })} ·</span> : null}
+        <span>{t(`${K}.dragOff`)}</span>
+      </div>
     </div>
   );
 }

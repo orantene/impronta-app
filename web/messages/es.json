@@ -4389,6 +4389,7 @@
         "sessionBlock": "{title} · {booked}/{places}",
         "emptyDay": "Nada este dia con estos filtros.",
         "holdExpires": "Apartado en {title} a las {time}",
+        "holdExpiresAt": "El apartado vence a las {time}",
         "dragOff": "Arrastrar para reprogramar no esta construido; Moverla en Citas y clases reprograma con la ventana que viste.",
         "prevDay": "Dia anterior",
         "nextDay": "Dia siguiente"
