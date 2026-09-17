@@ -194,25 +194,26 @@ export function FloorBoard(props: FloorBoardProps) {
   const close = useCallback(() => setOverlay({ kind: "none" }), []);
   const closeCard = useCallback(() => select(null, null), [select]);
 
-  const viewProps = { data, copy, selectedId, onSelect: select, busy };
+  const compact = Boolean(props.header);
+  const viewProps = { data, copy, selectedId, onSelect: select, busy, compact };
   const actionsBar = !ordersOnly && (
     <div className={cn("flex flex-wrap items-center gap-2.5", props.header ? "justify-end" : "justify-center pt-1")}>
-      <button type="button" data-floor-walk-in className={cn(POS_PRIMARY_ACTION, "h-12 text-[15px]")} disabled={busy} onClick={() => setOverlay({ kind: "walk-in" })}>
-        <Plus aria-hidden size={18} strokeWidth={1.75} />
+      <button type="button" data-floor-walk-in className={cn(POS_PRIMARY_ACTION, props.header ? "h-9 rounded-[10px] px-4 text-[14px]" : "h-12 text-[15px]")} disabled={busy} onClick={() => setOverlay({ kind: "walk-in" })}>
+        <Plus aria-hidden size={props.header ? 16 : 18} strokeWidth={1.75} />
         {copy.actions.walkIn}
       </button>
       <button
         type="button"
         data-floor-new-reservation
-        className={POS_SECONDARY_ACTION}
+        className={cn(POS_SECONDARY_ACTION, props.header && "h-9 rounded-[10px] px-4 text-[14px]")}
         disabled={busy || !actions.createReservation || !data.bookable}
         title={!actions.createReservation || !data.bookable ? copy.refusal.no_offering_configured : undefined}
         onClick={() => setOverlay({ kind: "reservation" })}
       >
-        <CalendarDays aria-hidden size={18} strokeWidth={1.75} />
+        <CalendarDays aria-hidden size={props.header ? 16 : 18} strokeWidth={1.75} />
         {copy.actions.newReservation}
       </button>
-      <button type="button" className={POS_SECONDARY_ACTION} disabled title={copy.actions.pauseOnlineReason}>
+      <button type="button" className={cn(POS_SECONDARY_ACTION, props.header && "h-9 rounded-[10px] px-4 text-[14px]")} disabled title={copy.actions.pauseOnlineReason}>
         {copy.actions.pauseOnline}
       </button>
     </div>
@@ -254,13 +255,14 @@ export function FloorBoard(props: FloorBoardProps) {
           onPickWaitlist={() => setOverlay({ kind: "waiting" })}
           onPickTable={pickTable}
           selectedId={selectedId}
-          className="max-[900px]:hidden"
+          // `LiveFloor` draws the column 300px; the till's is 320.
+          className={cn("max-[900px]:hidden", compact && "w-[300px]")}
         />
       )}
       <div ref={floorRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 bg-admin-surface px-[22px] pb-3 pt-3">
         {!ordersOnly && (view === "floor" || !props.viewSwitchInHeader) && (
           <div className="flex flex-wrap items-center gap-2.5">
-            {view === "floor" && <FloorLegend copy={copy} />}
+            {view === "floor" && <FloorLegend copy={copy} compact={compact} />}
             <span className="flex-1" />
             <FloorViewSwitch view={view} copy={copy} onViewChange={props.onViewChange} />
           </div>
@@ -318,10 +320,10 @@ export function FloorBoard(props: FloorBoardProps) {
   if (!props.header) return board;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-4 px-7 pb-4 pt-6">
+      <div className="flex flex-wrap items-center gap-4 border-b border-admin-border px-7 pb-3.5 pt-5">
         <div className="min-w-0 flex-1">
-          <h1 className="m-0 text-[26px] font-semibold tracking-[-0.01em] text-admin-ink">{props.header.title}</h1>
-          <p className="m-0 mt-1 text-[14px] text-admin-ink-muted">{props.header.subtitle}</p>
+          <h1 className="m-0 text-[26px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{props.header.title}</h1>
+          <p className="m-0 mt-1 text-[13px] leading-[1.2] text-admin-ink-muted">{props.header.subtitle}</p>
         </div>
         <span className="inline-flex items-center gap-1.5 text-[14px] font-bold text-admin-success">
           <i aria-hidden className="inline-block h-2 w-2 rounded-full bg-admin-success" />

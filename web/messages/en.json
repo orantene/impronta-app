@@ -15004,7 +15004,7 @@
             "guestsHereNow": "Guests here now",
             "of": "of {n}",
             "server": "Server",
-            "serverReason": "A visit does not record its server yet.",
+            "serverReason": "Given from the table's card once the party is seated (Change server).",
             "note": "Seating starts the visit and records the arrival. It does not collect anything.",
             "notHereYet": "Not here yet",
             "noShow": "No-show",

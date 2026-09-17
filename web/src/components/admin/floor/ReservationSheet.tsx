@@ -45,10 +45,13 @@ export type ReservationSheetProps = {
 
 type Done = { orderId: string; admissionId: string; collectCents: number; startsAtIso: string };
 
+/** `Sat 12 Sep`: day first, as the boards print a date (the kit's rule since polish3). */
 function dayLabel(ymd: string, locale: string, timeZone: string): string {
   const at = new Date(`${ymd}T12:00:00Z`);
   try {
-    return new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(at);
+    const parts = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).formatToParts(at);
+    const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    return `${pick("weekday")} ${pick("day")} ${pick("month")}`.replace(/\.$/, "").trim();
   } catch {
     return ymd || timeZone;
   }
@@ -179,7 +182,7 @@ export function ReservationSheet(props: ReservationSheetProps) {
         </div>
       )}
       {/* The board's one row: Date · Time · Duration · Party (`R01_NewReservation`). */}
-      <div className="grid grid-cols-[1.15fr_1fr_1.15fr_1.3fr] gap-3">
+      <div className="grid grid-cols-[1.1fr_1.05fr_1.05fr_1.3fr] gap-3">
         <div>
           <label htmlFor="floor-reserve-date" className={POS_LABEL}>
             {r.date}
@@ -188,7 +191,7 @@ export function ReservationSheet(props: ReservationSheetProps) {
             <select
               id="floor-reserve-date"
               data-floor-reserve-date
-              className={cn(POS_INPUT, "appearance-none pr-9")}
+              className={cn(POS_INPUT, "appearance-none px-3.5 pr-8 text-[15px]")}
               value={onDate ?? ""}
               disabled={busy || dates.length === 0}
               onChange={(e) => pickDate(e.target.value)}
@@ -210,7 +213,7 @@ export function ReservationSheet(props: ReservationSheetProps) {
             <select
               id="floor-reserve-time"
               data-floor-reserve-time
-              className={cn(POS_INPUT, "appearance-none pr-9 tabular-nums")}
+              className={cn(POS_INPUT, "appearance-none px-3.5 pr-8 text-[15px] tabular-nums")}
               value={slot ?? ""}
               disabled={busy || loading || !times?.ok || times.slots.length === 0}
               onChange={(e) => setSlot(e.target.value || null)}
@@ -232,7 +235,7 @@ export function ReservationSheet(props: ReservationSheetProps) {
           <SelectShell muted>
             <input
               aria-labelledby="floor-reserve-duration"
-              className={cn(POS_INPUT, "pr-9")}
+              className={cn(POS_INPUT, "px-3.5 pr-8 text-[15px]")}
               disabled
               readOnly
               value={interpolate(r.durationValue, { time: turnLabel(data.defaultTurnMinutes), n: party })}

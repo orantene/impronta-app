@@ -42,6 +42,13 @@ type ViewProps = {
   readonly selectedId: string | null;
   readonly onSelect: SelectTable;
   readonly busy: boolean;
+  /**
+   * The workspace's Live Floor (`LiveFloor.dc.html`) draws the room denser
+   * than the till: 84x56 tiles with a 14px code, a 12px legend, the groups
+   * on the surface with no frame, and the overrun as a full-width note
+   * under them. The till (`POSLiveFloor`) keeps its 96x72 touch tiles.
+   */
+  readonly compact?: boolean;
 };
 
 /** The one line under a tile's code, from the board's own vocabulary. */
@@ -82,7 +89,7 @@ function anchorOf(event: MouseEvent<HTMLElement>): DOMRect {
 }
 
 /** The six-swatch legend the map carries above itself. */
-export function FloorLegend({ copy }: { copy: FloorBoardCopy }) {
+export function FloorLegend({ copy, compact }: { copy: FloorBoardCopy; compact?: boolean }) {
   const items: Array<[FloorTone, string]> = [
     ["free", copy.legend.free],
     ["arriving", copy.legend.arriving],
@@ -92,10 +99,10 @@ export function FloorLegend({ copy }: { copy: FloorBoardCopy }) {
     ["blocked", copy.legend.blocked],
   ];
   return (
-    <ul className="m-0 flex list-none flex-wrap items-center gap-3.5 p-0 text-[13px] font-medium text-admin-ink-muted">
+    <ul className={cn("m-0 flex list-none flex-wrap items-center p-0 font-medium text-admin-ink-muted", compact ? "gap-3 text-[12px]" : "gap-3.5 text-[13px]")}>
       {items.map(([tone, label]) => (
         <li key={tone} className="flex items-center gap-1.5">
-          <i aria-hidden className={cn("inline-block h-3.5 w-3.5 rounded-[4px] border border-admin-border", SWATCH_TONE[tone])} />
+          <i aria-hidden className={cn("inline-block rounded-[4px] border border-admin-border", compact ? "h-3 w-3" : "h-3.5 w-3.5", SWATCH_TONE[tone])} />
           {label}
         </li>
       ))}
@@ -108,7 +115,18 @@ export function FloorLegend({ copy }: { copy: FloorBoardCopy }) {
  * Suggest R2 after reset"): a clock, the sentence in coral, the hint under
  * it. Drawn at every width the till runs at; the board carries it at 1194.
  */
-function OverrunNote({ table, copy }: { table: FloorTable; copy: FloorBoardCopy }) {
+function OverrunNote({ table, copy, compact }: { table: FloorTable; copy: FloorBoardCopy; compact?: boolean }) {
+  if (compact) {
+    // `LiveFloor`: one full-width coral line under the groups.
+    return (
+      <p data-floor-overrun className="m-0 flex items-start gap-2 rounded-[8px] border border-admin-coral/50 bg-admin-coral-soft px-3 py-2 text-[12.5px] leading-[1.35] text-admin-coral-deep">
+        <Clock aria-hidden size={14} strokeWidth={2} className="mt-[2px] shrink-0" />
+        <span>
+          <strong>{interpolate(copy.overrun, { code: tableCode(table), n: floorDuration(Math.max(0, (table.elapsedMinutes ?? 0) - (table.turnMinutes ?? 0))) })}</strong> · {copy.overrunHint}
+        </span>
+      </p>
+    );
+  }
   return (
     <aside
       data-floor-overrun
@@ -136,6 +154,7 @@ function TileButton({
   onSelect,
   busy,
   className,
+  compact,
 }: ViewProps & { table: FloorTable; className?: string }) {
   const tone = tableTone(table);
   const code = tableCode(table);
@@ -151,21 +170,22 @@ function TileButton({
       data-floor-tone={tone}
       onClick={(event) => onSelect(table, anchorOf(event))}
       className={cn(
-        "flex h-[72px] flex-col items-center justify-center gap-0.5 border-2 px-2 text-center text-[15px] font-bold leading-[1.25] transition-shadow disabled:opacity-60",
-        table.layoutRect?.shape === "round" ? "rounded-full" : "rounded-[14px]",
-        booth ? "min-w-[130px]" : "min-w-[96px]",
+        "flex flex-col items-center justify-center gap-0.5 border-2 px-2 text-center font-bold leading-[1.25] transition-shadow disabled:opacity-60",
+        compact ? "h-[56px] text-[14px]" : "h-[72px] text-[15px]",
+        table.layoutRect?.shape === "round" ? "rounded-full" : compact ? "rounded-[10px]" : "rounded-[14px]",
+        booth ? (compact ? "min-w-[120px]" : "min-w-[130px]") : compact ? "min-w-[84px]" : "min-w-[96px]",
         TILE_TONE[tone],
         active && "ring-2 ring-admin-brand ring-offset-2 ring-offset-admin-card",
         className,
       )}
     >
       <span>{tableLabel(table, data.tables)}</span>
-      <span className="text-[12.5px] font-semibold opacity-85">{tileLine(table, data, copy)}</span>
+      <span className={cn("font-semibold opacity-85", compact ? "text-[12px]" : "text-[12.5px]")}>{tileLine(table, data, copy)}</span>
     </button>
   );
 }
 
-export function FloorTiles({ data, copy, selectedId, onSelect, busy }: ViewProps) {
+export function FloorTiles({ data, copy, selectedId, onSelect, busy, compact }: ViewProps) {
   const groups = groupTables(data.tables, copy.groups);
   const overrun = data.tables.find((t) => t.state === "occupied" && t.overdue && !t.joinedFromSpaceId) ?? null;
   if (data.tables.length === 0) {
@@ -190,56 +210,32 @@ export function FloorTiles({ data, copy, selectedId, onSelect, busy }: ViewProps
                   height: `${(rect.h / canvas.h) * 100}%`,
                 }}
               >
-                <TileButton table={table} data={data} copy={copy} selectedId={selectedId} onSelect={onSelect} busy={busy} className="h-full w-full min-w-0" />
+                <TileButton table={table} data={data} copy={copy} selectedId={selectedId} onSelect={onSelect} busy={busy} compact={compact} className="h-full w-full min-w-0" />
               </div>
             );
           })}
         </div>
-        {overrun && (
-          <OverrunNote table={overrun} copy={copy} />
-        )}
+        {overrun && <OverrunNote table={overrun} copy={copy} compact={compact} />}
       </div>
     );
   }
   return (
-    <div className="flex min-h-0 flex-1 gap-4 overflow-y-auto">
-      <div className="flex min-w-0 flex-1 flex-col gap-5 rounded-[6px] border-2 border-admin-border-strong bg-admin-card p-4">
+    <div className={cn("flex min-h-0 flex-1 overflow-y-auto", compact ? "flex-col gap-4" : "gap-4")}>
+      <div className={cn("flex min-w-0 flex-col", compact ? "gap-4" : "flex-1 gap-5 rounded-[6px] border-2 border-admin-border-strong bg-admin-card p-4")}>
         {groups.map((group) => (
-          <section key={group.id} data-floor-group={group.label} className="flex flex-col gap-3">
+          <section key={group.id} data-floor-group={group.label} className={cn("flex flex-col", compact ? "gap-2.5" : "gap-3")}>
             <p className={cn("m-0", FLOOR_EYEBROW)}>{group.label}</p>
-            <ul className="m-0 flex list-none flex-wrap gap-3.5 p-0">
-              {group.tables.map((table) => {
-                const tone = tableTone(table);
-                const code = tableCode(table);
-                const active = selectedId === table.spaceId;
-                const booth = table.kind === "booth" || table.kind === "cabana" || Boolean(table.joinedWithSpaceId);
-                return (
-                  <li key={table.spaceId} data-floor-table={code} data-floor-state={table.state} data-floor-tone={tone}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
-                      disabled={busy}
-                      onClick={(event) => onSelect(table, anchorOf(event))}
-                      className={cn(
-                        "flex h-[72px] flex-col items-center justify-center gap-0.5 rounded-[14px] border-2 px-2 text-center text-[15px] font-bold leading-[1.25] transition-shadow disabled:opacity-60",
-                        booth ? "min-w-[130px]" : "min-w-[96px]",
-                        TILE_TONE[tone],
-                        active && "ring-2 ring-admin-brand ring-offset-2 ring-offset-admin-card",
-                      )}
-                    >
-                      <span>{tableLabel(table, data.tables)}</span>
-                      <span className="text-[12.5px] font-semibold opacity-85">{tileLine(table, data, copy)}</span>
-                    </button>
-                  </li>
-                );
-              })}
+            <ul className={cn("m-0 flex list-none flex-wrap p-0", compact ? "gap-3" : "gap-3.5")}>
+              {group.tables.map((table) => (
+                <li key={table.spaceId} data-floor-table={tableCode(table)} data-floor-state={table.state} data-floor-tone={tableTone(table)}>
+                  <TileButton table={table} data={data} copy={copy} selectedId={selectedId} onSelect={onSelect} busy={busy} compact={compact} />
+                </li>
+              ))}
             </ul>
           </section>
         ))}
       </div>
-      {overrun && (
-        <OverrunNote table={overrun} copy={copy} />
-      )}
+      {overrun && <OverrunNote table={overrun} copy={copy} compact={compact} />}
     </div>
   );
 }

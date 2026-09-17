@@ -3631,7 +3631,7 @@
             "guestsHereNow": "Couverts présents",
             "of": "sur {n}",
             "server": "Serveur",
-            "serverReason": "Une visite n'enregistre pas encore son serveur.",
+            "serverReason": "Attribué depuis la fiche de la table une fois installés (Changer de serveur).",
             "note": "Installer démarre la visite et enregistre l'arrivée. Rien n'est encaissé.",
             "notHereYet": "Pas encore là",
             "noShow": "Absent",

@@ -15004,7 +15004,7 @@
             "guestsHereNow": "Personas presentes",
             "of": "de {n}",
             "server": "Mesero",
-            "serverReason": "Una visita aún no registra su mesero.",
+            "serverReason": "Se asigna desde la ficha de la mesa una vez sentados (Cambiar mesero).",
             "note": "Sentar inicia la visita y registra la llegada. No cobra nada.",
             "notHereYet": "Aún no llegan",
             "noShow": "No se presentó",
