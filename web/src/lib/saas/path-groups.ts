@@ -269,10 +269,13 @@ export const AGENCY_API_PREFIXES = [
 ] as const;
 
 /**
- * The ticket QR image (`/api/tickets/<signed-token>/qr`, no image extension: the proxy matcher skips `*.png` paths and the route needs the host headers) the ticket
- * e-mail embeds. Gated exactly like `/ticket/<code>` (agency + hub hosts):
- * the token is the whole authorization; the route resolves the tenant from
- * the host and 404s on any mismatch.
+ * The ticket QR image (`/api/tickets/<signed-token>/qr`) the ticket e-mail
+ * embeds, and the ticket PDF download (`/api/tickets/<signed-token>/pdf`) the
+ * mail attaches. NO file extension in either segment: the proxy matcher skips
+ * `*.png`-style paths and these routes need the host headers. Gated exactly
+ * like `/ticket/<code>` (agency + hub hosts): the token is the whole
+ * authorization; the route resolves the tenant from the host and 404s on
+ * any mismatch.
  */
 export const CANONICAL_TICKET_API_PREFIX = "/api/tickets" as const;
 

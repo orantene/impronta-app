@@ -12,7 +12,10 @@ import { test } from "node:test";
  */
 const APP = new URL("../../app/api/", import.meta.url).pathname;
 const GATED = ["tickets"];
-const STATIC_EXT = /\.(svg|png|jpg|jpeg|gif|webp)$/i;
+// `.pdf` is not in the proxy skip-list today, but a `/pdf.pdf` segment would be
+// the same mistake one config change away; a download route says PDF in its
+// content-disposition, never in its path.
+const STATIC_EXT = /\.(svg|png|jpg|jpeg|gif|webp|pdf)$/i;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -22,6 +25,13 @@ function walk(dir: string, out: string[] = []): string[] {
   }
   return out;
 }
+
+test("the guard itself refuses a .pdf segment", () => {
+  assert.ok(STATIC_EXT.test("pdf.pdf"));
+  assert.ok(STATIC_EXT.test("qr.png"));
+  assert.ok(!STATIC_EXT.test("pdf"));
+  assert.ok(!STATIC_EXT.test("qr"));
+});
 
 test("no host-gated API route segment ends in an image extension", () => {
   const proxy = readFileSync(new URL("../../proxy.ts", import.meta.url), "utf8");

@@ -46,6 +46,14 @@ async function writeDevOutbox(input: SendEmailInput): Promise<void> {
     const slug = input.subject.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 48);
     const base = join(dir, `${stamp}_${slug || "email"}`);
     await writeFile(`${base}.html`, input.html, "utf8");
+    // Attachments land next to the .html under their own filename, so a
+    // ticket PDF can be opened from the outbox exactly as a guest would.
+    const attachments: Array<{ filename: string; contentType: string | null; bytes: number }> = [];
+    for (const a of input.attachments ?? []) {
+      const safeName = a.filename.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^\.+/, "") || "attachment";
+      await writeFile(`${base}_${safeName}`, a.content);
+      attachments.push({ filename: a.filename, contentType: a.contentType ?? null, bytes: a.content.byteLength });
+    }
     await writeFile(
       `${base}.json`,
       JSON.stringify(
@@ -55,6 +63,7 @@ async function writeDevOutbox(input: SendEmailInput): Promise<void> {
           replyTo: input.replyTo ?? null,
           headers: input.headers ?? null,
           tenantId: input.tenantId ?? null,
+          attachments,
         },
         null,
         2,
@@ -107,6 +116,19 @@ export type SendEmailInput = {
   tenantId?: string | null;
   /** Optional sender display name (e.g. the agency name) for the branded `from`. */
   tenantName?: string | null;
+  /**
+   * Files to attach (the ticket PDF). Passed to Resend as base64-able
+   * Buffers; written next to the .html in the dev outbox. Keep them small:
+   * Resend caps a message at 40 MB and a ticket PDF is tens of KB.
+   */
+  attachments?: EmailAttachment[];
+};
+
+export type EmailAttachment = {
+  filename: string;
+  content: Uint8Array | Buffer;
+  /** e.g. "application/pdf"; derived from the filename by Resend when omitted. */
+  contentType?: string;
 };
 
 /**
@@ -159,6 +181,15 @@ export async function sendEmailResult(input: SendEmailInput): Promise<SendEmailR
     html: input.html,
     replyTo: input.replyTo,
     headers: input.headers,
+    ...(input.attachments && input.attachments.length > 0
+      ? {
+          attachments: input.attachments.map((a) => ({
+            filename: a.filename,
+            content: Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content),
+            ...(a.contentType ? { contentType: a.contentType } : {}),
+          })),
+        }
+      : {}),
   });
 
   if (error) {

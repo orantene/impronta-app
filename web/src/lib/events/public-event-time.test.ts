@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { resolvePublicZone, timeLabel, whenLabel } from "./public-event-time";
+import { nightLabelWithCity, resolvePublicZone, timeLabel, whenLabel, zoneCity } from "./public-event-time";
 
 // The first real event: "Noche de prueba", El Paisa, session
 // 7c6ecaf8-20ac-4782-84b5-245f27a5e38a — 2026-09-07 21:00 to 23:59 in
@@ -56,4 +56,17 @@ test("the platform rung is refused; venue and workspace rungs are not", () => {
   assert.equal(resolvePublicZone({ venue: ZONE, workspace: "UTC" }), ZONE);
   // The unreadable-row case: both null used to render "September 8, 12:00 AM".
   assert.equal(whenLabel(STARTS, resolvePublicZone({ venue: null, workspace: null })), "Time to be confirmed by the venue");
+});
+
+test("the ticket's night label names the zone as a city, never an abbreviation", () => {
+  assert.equal(nightLabelWithCity("2026-10-03T23:00:00Z", "America/Cancun", "es"), "sábado 3 de octubre, 18:00 h (hora de Cancún)");
+  assert.equal(nightLabelWithCity("2026-10-03T23:00:00Z", "America/Cancun", "en"), "Saturday, October 3, 6:00 PM (Cancún time)");
+  assert.equal(nightLabelWithCity(STARTS, ZONE, "en"), "Monday, September 7, 9:00 PM (Buenos Aires time)");
+  assert.equal(nightLabelWithCity("2026-09-08T09:05:00Z", "America/Cancun", "es"), "martes 8 de septiembre, 04:05 h (hora de Cancún)");
+  // An unknown city falls back to the IANA segment with spaces.
+  assert.match(nightLabelWithCity(STARTS, "America/Port_of_Spain", "en"), /\(Port of Spain time\)$/);
+  // Refusals match whenLabel: no instant, no zone.
+  assert.equal(nightLabelWithCity(null, ZONE, "es"), "Fecha a confirmar");
+  assert.equal(nightLabelWithCity(STARTS, null, "en"), "Time to be confirmed by the venue");
+  assert.equal(zoneCity("America/Mexico_City", "es"), "Ciudad de México");
 });
