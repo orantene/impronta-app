@@ -48,7 +48,8 @@ export type AdminShellIconName =
   | "help-circle"
   | "ellipsis"
   | "target"
-  | "book";
+  | "book"
+  | "ticket";
 
 export function Icon({
   name,
@@ -225,6 +226,13 @@ export function Icon({
           <circle cx="12" cy="12" r="9" />
           <circle cx="12" cy="12" r="5" />
           <circle cx="12" cy="12" r="1" fill={common.stroke} stroke="none" />
+        </svg>
+      );
+    case "ticket":
+      return (
+        <svg {...common}>
+          <path d="M3 9a2 2 0 0 0 2-2V5h14v2a2 2 0 0 0 2 2v6a2 2 0 0 0-2 2v2H5v-2a2 2 0 0 0-2-2z" />
+          <path d="M13 5v14" strokeDasharray="2 2" />
         </svg>
       );
     case "book":

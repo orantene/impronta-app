@@ -20,11 +20,14 @@ import { COLORS } from "./support-tokens";
 
 export function GuideHotspot({
   id,
+  label,
   active,
   onOpen,
   children,
 }: {
   id: string;
+  /** Human label for assistive tech; the node id is not one. */
+  label: string;
   active: boolean;
   onOpen: (nodeId: string) => void;
   children: React.ReactNode;
@@ -39,7 +42,7 @@ export function GuideHotspot({
       <button
         type="button"
         onClick={() => onOpen(id)}
-        aria-label={id}
+        aria-label={label}
         style={{
           position: "absolute",
           inset: -3,

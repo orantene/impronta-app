@@ -43,6 +43,8 @@ export type GuideArticleSections = {
 
 export type GuideArticle = {
   nodeId: string;
+  /** Human title for the header (registry shortTitle or a humanized id). */
+  title: string;
   locale: GuideLocale;
   status: GuideArticleStatus;
   sections: GuideArticleSections;

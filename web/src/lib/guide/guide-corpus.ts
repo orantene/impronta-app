@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { DRAWER_HELP as REGISTRY } from "@/components/admin/shell/internal/help-registry";
 import { ADHOC_GUIDE_NODES } from "./adhoc-nodes";
+import { humanizeNodeId } from "./humanize";
 import type {
   GuideArticle,
   GuideArticleSections,
@@ -68,9 +69,15 @@ function parseSections(bodyMd: string): GuideArticleSections {
   }
 }
 
+function titleFor(nodeId: string): string {
+  const entry = DRAWER_HELP[nodeId as keyof typeof DRAWER_HELP];
+  return entry?.shortTitle ?? humanizeNodeId(nodeId);
+}
+
 function rowToArticle(row: ArticleRow): GuideArticle {
   return {
     nodeId: row.node_id,
+    title: titleFor(row.node_id),
     locale: row.locale as GuideLocale,
     status: row.status as GuideArticleStatus,
     sections: parseSections(row.body_md),
@@ -106,11 +113,15 @@ function registryFallback(nodeId: string, locale: GuideLocale): GuideArticle | n
   const oneSentence = entry.purpose;
   return {
     nodeId,
+    title: entry.shortTitle ?? humanizeNodeId(nodeId),
     locale,
     status: "short-version",
+    // Only what the registry states: the purpose line and the "you can"
+    // list as steps. Repeating the list as prose too read as a duplicate
+    // paragraph in live QA.
     sections: {
       oneSentence,
-      whatItIsFor: entry.youCanHere.join(" "),
+      whatItIsFor: "",
       steps: entry.youCanHere.map((text) => ({ text })),
       example: "",
       related: entry.relatedDrawers ?? [],
@@ -174,7 +185,7 @@ export async function listGuideTopics(locale: GuideLocale): Promise<GuideTopicSu
     out.push({
       nodeId,
       kind: "page",
-      title: entry.shortTitle ?? nodeId,
+      title: entry.shortTitle ?? humanizeNodeId(nodeId),
       oneSentence,
       category: entry.category,
       isShortVersion: !row || row.status === "short-version",

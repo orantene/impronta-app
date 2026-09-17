@@ -54,7 +54,7 @@ function args() {
 function sourceHashFor(entry) {
   return crypto
     .createHash("sha256")
-    .update(JSON.stringify({ purpose: entry.purpose, youCanHere: entry.youCanHere, faqs: entry.faqs ?? [] }))
+    .update(JSON.stringify({ purpose: entry.purpose, youCanHere: entry.youCanHere, faqs: entry.faqs ?? [], related: entry.relatedDrawers ?? [], category: entry.category ?? "" }))
     .digest("hex")
     .slice(0, 16);
 }
@@ -176,7 +176,7 @@ async function callClaude(apiKey, system, user) {
 function shortVersionSections(entry) {
   return {
     oneSentence: entry.purpose,
-    whatItIsFor: entry.youCanHere.join(" "),
+    whatItIsFor: "",
     steps: entry.youCanHere.map((text) => ({ text })),
     example: "",
     related: entry.relatedDrawers ?? [],
@@ -186,19 +186,33 @@ function shortVersionSections(entry) {
 const STRING_FIELDS = ["oneSentence", "whatItIsFor", "example", "whoSeesWhat", "careful"];
 
 /** Remove the critic's unsupported sentences locally — no model call. */
+/**
+ * Returns { draft, matched, unmatched }. A flagged sentence the critic
+ * paraphrased (so it matches nothing) is NOT silently dropped from the
+ * list: the caller treats any unmatched flag as a hard fail, because
+ * with no human reviewer "we could not find it to remove it" must never
+ * become "published as checked".
+ */
 function stripSentences(draft, sentences) {
   const out = JSON.parse(JSON.stringify(draft));
+  const norm = (x) => String(x ?? "").replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/\s+/g, " ").trim();
+  const needles = sentences.map(norm).filter((n) => n.length >= 8);
+  const hit = new Set();
   const clean = (text) => {
-    let t = String(text ?? "");
-    for (const sent of sentences) {
-      const needle = String(sent ?? "").trim();
-      if (needle.length >= 8) t = t.split(needle).join("");
+    let t = norm(text);
+    for (const needle of needles) {
+      const bare = needle.replace(/[.!?]+$/, "");
+      if (t.includes(bare)) {
+        hit.add(needle);
+        t = t.split(bare).join("");
+      }
     }
-    return t.replace(/\s{2,}/g, " ").trim();
+    return t.replace(/\s{2,}/g, " ").replace(/^\s*[.,;:]\s*/, "").trim();
   };
   for (const f of STRING_FIELDS) if (out[f]) out[f] = clean(out[f]) || null;
   out.steps = (out.steps ?? []).map((st) => ({ ...st, text: clean(st.text) })).filter((st) => st.text);
-  return out;
+  const unmatched = needles.filter((n) => !hit.has(n));
+  return { draft: out, matched: hit.size, unmatched };
 }
 
 function structurallySound(draft) {
@@ -224,11 +238,13 @@ async function generateOne(apiKey, nodeId, entry, locale, learnings, sourceArtic
 
   let stripped = 0;
   if (!hardFail(critic) && unsupported(critic).length > 0) {
-    const patched = stripSentences(draft, unsupported(critic));
-    if (structurallySound(patched)) {
-      stripped = unsupported(critic).length;
-      draft = patched;
+    const res = stripSentences(draft, unsupported(critic));
+    if (res.unmatched.length === 0 && structurallySound(res.draft)) {
+      stripped = res.matched;
+      draft = res.draft;
       critic = { ...critic, unsupportedSentences: [] };
+    } else if (res.unmatched.length > 0) {
+      critic = { ...critic, structuralPass: false, notes: `${critic.notes || ""} (could not locate flagged sentence(s) to strip: ${res.unmatched.map((u) => JSON.stringify(u.slice(0, 60))).join(", ")})`.trim() };
     } else {
       critic = { ...critic, structuralPass: false, notes: `${critic.notes || ""} (stripping left the article structurally incomplete)`.trim() };
     }
@@ -238,10 +254,10 @@ async function generateOne(apiKey, nodeId, entry, locale, learnings, sourceArtic
     draft = await callClaude(apiKey, sys, draftUserPrompt(nodeId, entry, locale, critic.notes || "unspecified issue", sourceArticle));
     critic = await callClaude(apiKey, criticSystemPrompt(), criticUserPrompt(entry, nodeId, draft, sourceArticle));
     if (!hardFail(critic) && unsupported(critic).length > 0) {
-      const patched = stripSentences(draft, unsupported(critic));
-      if (structurallySound(patched)) {
-        stripped = unsupported(critic).length;
-        draft = patched;
+      const res = stripSentences(draft, unsupported(critic));
+      if (res.unmatched.length === 0 && structurallySound(res.draft)) {
+        stripped = res.matched;
+        draft = res.draft;
         critic = { ...critic, unsupportedSentences: [] };
       } else {
         critic = { ...critic, structuralPass: false };
@@ -283,7 +299,8 @@ async function loadLearnings(supabase) {
   const out = [];
   for (const row of data ?? []) {
     const n = String(row.critic_notes).trim();
-    if (!n || /stripped before publish/.test(n) || seen.has(n)) continue;
+    if (!n || seen.has(n)) continue;
+    if (/stripped before publish|Second draft still failed verification|structurally incomplete|could not locate flagged/.test(n)) continue;
     seen.add(n);
     out.push(n.slice(0, 220));
     if (out.length >= 15) break;
