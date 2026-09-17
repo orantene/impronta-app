@@ -84,7 +84,7 @@ export function ActionButton({
   );
 }
 
-export type PillTone = "green" | "indigo" | "coral" | "slate" | "critical";
+export type PillTone = "green" | "indigo" | "coral" | "slate" | "critical" | "neutral";
 
 const PILL_TONE: Record<PillTone, string> = {
   green: "bg-admin-success-soft text-admin-green",
@@ -92,6 +92,8 @@ const PILL_TONE: Record<PillTone, string> = {
   coral: "bg-admin-coral-soft text-admin-coral-deep",
   slate: "bg-admin-amber-soft text-admin-amber",
   critical: "bg-admin-critical-soft text-admin-red",
+  /** The boards' grey pill (Off, Closed, Draft): the surface tint with muted ink. */
+  neutral: "bg-admin-surface-alt text-admin-ink-muted",
 };
 
 export function StatePill({
@@ -100,6 +102,7 @@ export function StatePill({
   testId,
   state,
   className = "",
+  block = false,
 }: {
   tone: PillTone;
   children: ReactNode;
@@ -107,12 +110,18 @@ export function StatePill({
   state?: string;
   /** As a grid cell the board's pill stretches to the column; pass nothing to keep it inline. */
   className?: string;
+  /** The boards' list-cell pill (polish3 #4): a tinted block filling its column, 17px tall, the label left. */
+  block?: boolean;
 }) {
   return (
     <span
       data-testid={testId}
       data-state={state}
-      className={`inline-flex items-center gap-[5px] whitespace-nowrap rounded-full px-[8px] py-[2px] font-admin-body text-admin-11 font-semibold leading-[1.2] ${PILL_TONE[tone]} ${className}`}
+      className={`${
+        block
+          ? "flex h-[17px] w-full min-w-0 items-center overflow-hidden whitespace-nowrap rounded-[5px] px-[8px] text-[11.5px] leading-none"
+          : "inline-flex items-center gap-[5px] whitespace-nowrap rounded-full px-[8px] py-[2px] text-admin-11 leading-[1.2]"
+      } font-admin-body font-semibold ${PILL_TONE[tone]} ${className}`}
     >
       {children}
     </span>

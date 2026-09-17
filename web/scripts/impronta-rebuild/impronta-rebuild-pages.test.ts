@@ -153,7 +153,7 @@ test("impronta-rebuild: section structure snapshot", () => {
     ],
     "for-clients": [
       "container:Hero",
-      "container:Occasions",
+      "container:Who we work with",
       "container:Agency-managed",
       "container:Process",
       "container:Editorial plate",
@@ -192,10 +192,13 @@ test("impronta-rebuild: section structure snapshot", () => {
     ],
     show: [
       "container:Hero",
-      "container:The production",
+      "container:What is included",
+      "container:Formats",
+      "container:In numbers",
       "container:For venues",
-      "container:Casting",
+      "container:Book the show",
       "container:Live roster",
+      "container:Casting",
       "container:Closing CTA band",
     ],
   });
@@ -209,11 +212,10 @@ test("impronta-rebuild: SEO metadata is complete and consistent", () => {
     assert.ok(seo.og_title.length > 0, `${page.slug} og_title`);
     assert.ok(seo.og_description.length > 0, `${page.slug} og_description`);
     assert.equal(seo.canonical_url, `/p/${page.slug}`, `${page.slug} canonical`);
-    // Two pages are deliberately not indexable, for different reasons: the 404
-    // never should be, and `show` is an unannounced production the owner wants
-    // reachable (she can send the link to a venue) but not findable until she
-    // says the show is public. Flipping it is one field.
-    if (page.slug === "404" || page.slug === "show") {
+    // The 404 is never indexable. `show` used to sit here too while the
+    // production was unannounced; since 2026-09-17 it is for sale to hotels
+    // and belongs in the index like every other page.
+    if (page.slug === "404") {
       assert.equal(seo.noindex, true, `${page.slug} must be noindex`);
       assert.equal(seo.include_in_sitemap, false, `${page.slug} stays out of the sitemap`);
     } else {
@@ -259,7 +261,10 @@ test("impronta-rebuild: every image is a W5 slot placeholder with alt text", () 
  * SAME page is a real destination, not a dead link. The section id still has to
  * exist - "every in-page anchor resolves" below is what checks that.
  */
-const ALLOWED_HREF = /^(\/directory|\/contact|\/register|\/p\/[a-z0-9-]+|mailto:[^\s]+|tel:\+[0-9]+|#[a-z0-9-]+|\/)$/;
+// A `/p/<slug>` destination may carry a form-prefill query (`?f_<field>=…`,
+// see builder-node/form-prefill.ts) and/or an in-page anchor — that is how a
+// segment card lands a visitor on the contact brief with the topic filled in.
+const ALLOWED_HREF = /^(\/directory|\/contact|\/register|\/p\/[a-z0-9-]+(\?f_[a-z_]+=[^\s#]*)?(#[a-z0-9-]+)?|mailto:[^\s]+|tel:\+[0-9]+|#[a-z0-9-]+|\/)$/;
 
 /**
  * An in-page anchor is only a real destination if the id is really on the page.

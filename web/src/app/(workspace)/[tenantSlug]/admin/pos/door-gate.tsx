@@ -13,13 +13,13 @@
  * exchange) and are drawn disabled with their sentence (D-POS-54).
  */
 
-import { ScanLine, Search, X } from "lucide-react";
+import { Check, ScanLine, Search, TriangleAlert, X } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { POS_EYEBROW, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION, POS_SURFACE } from "@/components/admin/pos/pos-classes";
 import { interpolate } from "@/i18n/interpolate";
 import { cn } from "@/lib/utils";
-import { gateSecondaryAction, groupByOrder, groupMatches, type DoorVerdict } from "@/lib/pos/door-model";
+import { byCount, gateSecondaryAction, groupByOrder, groupMatches, tierWord, type DoorVerdict } from "@/lib/pos/door-model";
 import type { DoorRow } from "@/app/(workspace)/[tenantSlug]/admin/_door-actions";
 
 import type { DoorCopy } from "./door-copy";
@@ -90,7 +90,7 @@ export function GateScreen(props: GateScreenProps) {
 
   const scanForm = (
     <form
-      className="mt-2 flex w-full max-w-[560px] items-center gap-2"
+      className="mt-3 flex w-full max-w-[520px] items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault();
         void submitScan();
@@ -106,9 +106,9 @@ export function GateScreen(props: GateScreenProps) {
         autoComplete="off"
         disabled={props.busy}
         placeholder={gate.scanPlaceholder}
-        className="h-12 min-w-0 flex-1 rounded-[12px] border-[1.5px] border-admin-border bg-admin-card px-4 font-mono text-[15px] text-admin-ink placeholder:text-admin-ink-dim focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand disabled:opacity-60"
+        className="h-11 min-w-0 flex-1 rounded-[11px] border-[1.5px] border-admin-border bg-admin-card px-4 font-mono text-[14px] text-admin-ink placeholder:text-admin-ink-dim focus-visible:border-admin-brand focus-visible:outline-none! disabled:opacity-60"
       />
-      <button type="submit" disabled={props.busy} className={cn(POS_SECONDARY_ACTION, "h-12")}>
+      <button type="submit" disabled={props.busy} className={cn(POS_SECONDARY_ACTION, "h-11 text-[14px]")}>
         {gate.admit}
       </button>
     </form>
@@ -121,9 +121,13 @@ export function GateScreen(props: GateScreenProps) {
     >
       <span className={cn("inline-flex h-[150px] w-[150px] items-center justify-center rounded-[44px]", tone.badge)}>
         {verdict ? (
-          <span aria-hidden className={cn("text-[72px] font-bold leading-none", tone.ink)}>
-            {verdict.tone === "in" ? "✓" : verdict.tone === "refused" ? "✕" : "!"}
-          </span>
+          verdict.tone === "in" ? (
+            <Check aria-hidden size={76} strokeWidth={2.4} className={tone.ink} />
+          ) : verdict.tone === "refused" ? (
+            <X aria-hidden size={72} strokeWidth={2.4} className={tone.ink} />
+          ) : (
+            <TriangleAlert aria-hidden size={72} strokeWidth={2.2} className={tone.ink} />
+          )
         ) : (
           <ScanLine aria-hidden size={72} strokeWidth={1.8} className={tone.ink} />
         )}
@@ -196,7 +200,7 @@ export function GateScreen(props: GateScreenProps) {
             setPicked(null);
           }}
           placeholder={copy.lookup.placeholder}
-          className="min-w-0 flex-1 bg-transparent text-[16px] text-admin-ink outline-none placeholder:text-admin-ink-dim"
+          className="min-w-0 flex-1 bg-transparent text-[16px] text-admin-ink outline-none placeholder:text-admin-ink-dim focus-visible:outline-none!"
         />
         <span className="text-[12.5px] text-admin-ink-muted">{copy.lookup.hint}</span>
       </label>
@@ -215,7 +219,7 @@ export function GateScreen(props: GateScreenProps) {
                     {g.holderName ?? rowName(first, copy.lookup)} · {g.ref}
                   </span>
                   <span className="block truncate text-[13.5px] text-admin-ink-muted">
-                    {interpolate(copy.lookup.orderLine, { code: g.ref, count: g.rows.length, admitted: g.admitted })}
+                    {interpolate(byCount(g.rows.length, copy.lookup.orderLineOne, copy.lookup.orderLine), { code: g.ref, count: g.rows.length, admitted: g.admitted })}
                   </span>
                 </span>
                 <Pill tone={g.admitted === g.rows.length ? "slate" : "green"}>{g.admitted === g.rows.length ? copy.lookup.admitted : copy.lookup.tonight}</Pill>
@@ -230,6 +234,7 @@ export function GateScreen(props: GateScreenProps) {
                         row={row}
                         copy={copy.lookup}
                         timeOf={timeOf}
+                        eventTitle={door.session.title}
                         action={
                           state.admittable ? (
                             <button
@@ -274,7 +279,10 @@ export function GateScreen(props: GateScreenProps) {
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-[22px] py-[18px]">
         <FactCard>
-          <FactRow label={copy.manual.right}>{manualRow.tierLabel ?? copy.lookup.ticket}{manualRow.partySize > 1 ? ` · ${interpolate(copy.lookup.party, { size: manualRow.partySize })}` : ""}</FactRow>
+          <FactRow label={copy.manual.right}>
+            {tierWord(manualRow.tierLabel, door.session.title) || copy.lookup.ticket}
+            {manualRow.partySize > 1 ? ` · ${interpolate(copy.lookup.party, { size: manualRow.partySize })}` : ""}
+          </FactRow>
           <FactRow label={copy.manual.entrance}>{copy.manual.entranceValue}</FactRow>
           <FactRow label={copy.manual.counts}>
             {interpolate(copy.manual.countsValue, {
@@ -289,7 +297,7 @@ export function GateScreen(props: GateScreenProps) {
         <DisabledField label={copy.manual.authorizedBy} value={props.cashierName} reason={copy.manual.authorizedByReason} />
       </div>
       <div className="flex items-center gap-2.5 border-t border-admin-border bg-admin-card px-[22px] py-3.5">
-        <span className="max-w-[160px] text-[14px] leading-[1.3] text-admin-ink-muted">
+        <span className="max-w-[220px] text-[13px] leading-[1.3] text-admin-ink-muted">
           {interpolate(copy.manual.footerNote, { cashier: props.cashierName })}
         </span>
         <span className="flex-1" />

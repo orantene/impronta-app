@@ -39,13 +39,21 @@ export type DoorTonightResult =
   | { ok: false; error: string };
 
 /**
+ * How far ahead the door and its lookup can see. Two weeks was too short:
+ * a night sold three weeks out could not be looked up, named or re-sent
+ * from the door until 14 days before (D-161, Impronta LUMINA 2026-09-17).
+ * Thirty days covers every night a venue is actively selling.
+ */
+export const DOOR_HORIZON_DAYS = 30;
+
+/**
  * Every event session that has not ended (12 hours of grace for a show that
- * runs late) and starts within the next two weeks.
+ * runs late) and starts within the next `DOOR_HORIZON_DAYS`.
  */
 export async function loadDoorTonight(admin: SupabaseClient, tenantId: string): Promise<DoorTonightResult> {
   const now = new Date();
   const from = new Date(now.getTime() - 12 * 60 * 60_000).toISOString();
-  const to = new Date(now.getTime() + 14 * 24 * 60 * 60_000).toISOString();
+  const to = new Date(now.getTime() + DOOR_HORIZON_DAYS * 24 * 60 * 60_000).toISOString();
 
   const [zoneRes, sessionsRes] = await Promise.all([
     admin.from("agencies").select("timezone").eq("id", tenantId).maybeSingle(),

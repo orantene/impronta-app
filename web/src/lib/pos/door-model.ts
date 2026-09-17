@@ -67,12 +67,21 @@ export function venueClock(iso: string, zone: string, locale = "en"): VenueClock
       minute: "2-digit",
       hour12: false,
     }).format(at);
-    const date = new Intl.DateTimeFormat(locale, {
+    const dateFmt = new Intl.DateTimeFormat(locale, {
       timeZone: zone,
       weekday: "short",
       day: "numeric",
       month: "short",
-    }).format(at);
+    });
+    // English reads day-first as the boards print it ("Fri 11 Sep", never
+    // "Fri, Sep 11"). en-GB's own short month is "Sept", so the parts are
+    // reassembled rather than the locale swapped; es/fr keep their own order.
+    const date = /^en/i.test(locale)
+      ? (() => {
+          const dp = dateFmt.formatToParts(at);
+          return `${pick(dp, "weekday")} ${pick(dp, "day")} ${pick(dp, "month")}`;
+        })()
+      : dateFmt.format(at);
     const zoneName = pick(parts(at, zone, "en", { timeZoneName: "short" }), "timeZoneName") || zone;
     return { time, date, zoneName, dayKey };
   } catch {
@@ -248,6 +257,50 @@ export function gateSecondaryAction(key: DoorVerdictKey): { action: GateSecondar
     default:
       return null;
   }
+}
+
+/**
+ * The tier's own word from an order line's label. The engine labels a ticket
+ * line "Event · Night · Tier" (the label the receipt prints); the door's
+ * boards print the tier alone ("General admission #1", "Right · Child
+ * admission"), so the leading segments that repeat the event's or the
+ * night's name are dropped. A label with nothing to drop is returned as is.
+ */
+export function tierWord(label: string | null | undefined, ...contexts: Array<string | null | undefined>): string {
+  if (!label) return "";
+  const drop = contexts.filter((c): c is string => Boolean(c && c.trim())).map((c) => c.trim().toLowerCase());
+  const parts = label.split(" · ").map((p) => p.trim());
+  // A leading segment is the event's or the night's when it IS that name or
+  // begins with it ("QA Night ticket" for the event "QA Night": the offering
+  // the engine names the line after).
+  const isContext = (seg: string) => drop.some((c) => seg.toLowerCase() === c || seg.toLowerCase().startsWith(`${c} `));
+  while (parts.length > 1 && isContext(parts[0]!)) parts.shift();
+  return parts.join(" · ");
+}
+
+/**
+ * The admission id a scanned code NAMES, read off the token's payload
+ * without verifying it. This is for the screen only: after the engine has
+ * answered, the door prints who the verdict was about (the holder and the
+ * tier from the list it already holds). It decides nothing: `check_in`
+ * verifies the signature under its row lock, and a code that names a row
+ * that is not on tonight's list simply prints no name.
+ */
+export function admissionIdOfCode(code: string): string | null {
+  const parts = code.trim().split(".");
+  if (parts.length !== 3 || parts[0] !== "adm1" || !parts[1]) return null;
+  try {
+    const payload = typeof atob === "function" ? atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")) : Buffer.from(parts[1], "base64url").toString("utf8");
+    const id = payload.split(":")[0] ?? "";
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** One of two sentences by count: the boards say "1 ticket", never "1 tickets". */
+export function byCount(count: number, one: string, other: string): string {
+  return count === 1 ? one : other;
 }
 
 /** "#AB12" for an order, "#AB12-2" for its second ticket: the counter's own short reference. */

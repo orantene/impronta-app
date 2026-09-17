@@ -260,4 +260,6 @@ export type UpgradeOffer = {
   currentUsage?: { label: string; current: number; cap: number };
   /** Override the trial / refund line in the pricing block. */
   pricingNote?: string;
+  /** Trial door id (`lib/billing/trial-door.ts`); the modal shows the door card. */
+  door?: string;
 };

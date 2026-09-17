@@ -173,6 +173,8 @@ export const EXPECTED_PAGE_MODULE_FILES: readonly string[] = [
   "chefs-culinary",
   "show",
   "studio",
+  // 2026-09: the experiences & photo-sessions page (owner's product list).
+  "experiences",
 ];
 
 /**

@@ -22,12 +22,12 @@ export const showPageEs: ImprontaRebuildPage = {
   title: "El Show | Impronta",
   seo: {
     ...(source as object),
-    meta_title: "El Show de Impronta | Producción original, Riviera Maya",
+    meta_title: "Show Impronta | Show en vivo para hoteles, resorts y venues, Riviera Maya",
     meta_description:
-      "Impronta está produciendo un show original para resorts, beach clubs y hoteles de la Riviera Maya: una sola compañía, con casting y ensayos a cargo de la agencia. Casting abierto para performers.",
-    og_title: "El Show de Impronta | Producción original, Riviera Maya",
+      "Una producción en vivo completa para hoteles, resorts, beach clubs, casinos y restaurantes de la Riviera Maya: escenografía, vestuario, bailarines, acróbatas y coreografías, entregada como una sola reserva. Solicita el rider y una cotización.",
+    og_title: "Show Impronta | Entretenimiento en vivo para hoteles y venues, Riviera Maya",
     og_description:
-      "Un show original para resorts de la Riviera Maya, con casting y ensayos a cargo de Impronta. Los venues pueden apartar fecha; los performers pueden registrarse al casting.",
+      "Un show, tu escenario. Una producción en vivo terminada, con casting del roster de Impronta, lista para presentarse en tu hotel, club o restaurante. Fechas de temporada abiertas.",
     // Self-canonical: pointing at the English page would tell search engines
     // this one is a duplicate and should not rank.
     canonical_url: "/es/p/show",

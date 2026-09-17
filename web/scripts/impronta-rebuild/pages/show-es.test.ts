@@ -74,11 +74,11 @@ test("both trees validate", () => {
   }
 });
 
-test("an unannounced production stays out of the index, in both languages", () => {
+test("the show is for sale: indexable in both languages", () => {
   for (const page of [showPage, showPageEs]) {
     const seo = page.seo as unknown as Record<string, unknown>;
-    assert.equal(seo.noindex, true, `${page.slug} must be noindex until the owner announces it`);
-    assert.equal(seo.include_in_sitemap, false);
+    assert.equal(seo.noindex, false, `${page.slug} must be indexable now that it is sold`);
+    assert.equal(seo.include_in_sitemap, true);
   }
   assert.equal((showPageEs.seo as unknown as Record<string, unknown>).canonical_url, "/es/p/show");
 });

@@ -29,7 +29,8 @@ import { PersonHatsPanel } from "./PersonHatsPanel";
 import { PeopleAddPerson } from "./PeopleAddPerson";
 import { PeopleModel } from "./PeopleModel";
 import { AccessTable, BookableTable, EveryoneTable } from "./PeopleTables";
-import { PeopleTalentView } from "./PeopleTalentView";
+import { RosterBrowser } from "@/components/admin/shell/internal/page-modules/TalentPage-browser";
+import { PageSkeleton } from "@/components/admin/shell/internal/primitives/page-skeleton";
 import { TabStrip } from "./people-ui";
 import { PEOPLE_REFUSAL } from "./people-classes";
 import {
@@ -63,8 +64,12 @@ export function PeopleClient({
   workspaceType: WorkspaceType;
 }) {
   const t = useT();
-  const { adminBasePath, openDrawer } = useAdminShell();
+  const { adminBasePath, openDrawer, pageSlicesReady } = useAdminShell();
   const router = useRouter();
+  // People › Talent draws the roster's own browser (the grid, the filters,
+  // the cards); "Arrange order" is that browser's mode, toggled here.
+  const [arrangeMode, setArrangeMode] = useState(false);
+  const rosterReady = pageSlicesReady("roster");
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [view, setViewState] = useState<PeopleView>(initialView);
@@ -102,7 +107,6 @@ export function PeopleClient({
   ];
 
   const open = (key: string) => setSelectedKey(key);
-  const rosterHref = `${adminBasePath}/roster`;
 
   return (
     <div data-tulala-people-board className="flex w-full flex-col gap-[16px] font-admin-body leading-[1.2]">
@@ -113,7 +117,15 @@ export function PeopleClient({
           <h1 className="m-0 text-[26px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t(`${B}.title.${view}`)}</h1>
           <p className="m-0 mt-[4px] text-admin-13 leading-[1.3] text-admin-ink-muted">{t(`${B}.subtitle.${view}`)}</p>
         </div>
-        <HeaderActions view={view} setView={setView} rosterHref={rosterHref} />
+        <HeaderActions
+          view={view}
+          setView={setView}
+          arrangeMode={arrangeMode}
+          onToggleArrange={() => {
+            setArrangeMode((v) => !v);
+            if (arrangeMode) router.refresh();
+          }}
+        />
       </div>
 
       {/* A failed read is NOT an empty workspace, and must never look like one. */}
@@ -155,7 +167,19 @@ export function PeopleClient({
           ) : null}
 
           {tab === "everyone" ? <EveryoneTable people={listed} selectedKey={selectedKey} onOpen={open} /> : null}
-          {tab === "talent" ? <PeopleTalentView talent={listed} selectedKey={selectedKey} onOpen={open} /> : null}
+          {/* The roster's own grid, filters and cards (the /admin/roster
+              look), reading the shell's roster slice; a skeleton until that
+              slice has arrived. */}
+          {tab === "talent" ? (
+            rosterReady ? (
+              <RosterBrowser
+                arrangeMode={arrangeMode}
+                onExitArrange={() => { setArrangeMode(false); router.refresh(); }}
+              />
+            ) : (
+              <PageSkeleton rows={6} />
+            )
+          ) : null}
           {tab === "bookable" ? <BookableTable people={listed} selectedKey={selectedKey} onOpen={open} /> : null}
           {tab === "access" ? <AccessTable people={listed} selectedKey={selectedKey} onOpen={open} registerPinUserIds={registerPinUserIds} /> : null}
         </>
@@ -195,18 +219,30 @@ export function PeopleClient({
  * screen (W32), which is where an invitation is sent from; "Arrange order"
  * is the roster grid's own mode, so it is that door.
  */
-function HeaderActions({ view, setView, rosterHref }: { view: PeopleView; setView: (v: PeopleView) => void; rosterHref: string }) {
+function HeaderActions({
+  view,
+  setView,
+  arrangeMode,
+  onToggleArrange,
+}: {
+  view: PeopleView;
+  setView: (v: PeopleView) => void;
+  arrangeMode: boolean;
+  onToggleArrange: () => void;
+}) {
   const t = useT();
-  const { adminBasePath } = useAdminShell();
+  const { adminBasePath, t: st } = useAdminShell();
   // W32 and W26 draw no header actions; Cancel and the rail lead back.
   if (view === "add" || view === "model") return null;
   return (
     <div className="flex shrink-0 items-center gap-[8px]">
       {view === "talent" ? (
         <>
-          <a href={rosterHref} className="inline-flex h-[34px] cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card px-[14px] text-admin-13 font-semibold text-admin-ink hover:border-admin-border-strong">
-            {t(`${B}.actions.arrangeOrder`)}
-          </a>
+          {arrangeMode ? (
+            <ActionButton tone="primary" onClick={onToggleArrange}>{st("admin.roster.arrange.done")}</ActionButton>
+          ) : (
+            <ActionButton onClick={onToggleArrange}>{t(`${B}.actions.arrangeOrder`)}</ActionButton>
+          )}
           <ActionButton onClick={() => setView("model")} className="px-[10px]">
             <span className="sr-only">{t(`${B}.actions.howItFits`)}</span>
             <Icon name="ellipsis" size={14} stroke={1.75} />

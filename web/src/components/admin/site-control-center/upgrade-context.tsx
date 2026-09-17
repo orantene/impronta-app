@@ -31,6 +31,13 @@ export type UpgradeReason = {
   feature?: string;
   /** One-line justification, already translated by the caller. */
   why?: string;
+  /**
+   * Trial door that opened the modal (`lib/billing/trial-door.ts`). When set
+   * the modal shows the one-plan door card instead of the grid, and Checkout
+   * returns to `returnPath` (the spot the door opened from) on success.
+   */
+  door?: string;
+  returnPath?: string;
 };
 
 type Ctx = {

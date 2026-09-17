@@ -24,6 +24,7 @@ import {
   reconcileAppliedDiscount,
   resolveSubscriptionDiscountMirror,
 } from "@/lib/billing/subscription-discounts";
+import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import {
   stripeBillingPortalLocale,
@@ -158,6 +159,8 @@ export async function createTalentCheckoutSession(opts: {
    * request, never a fact.
    */
   promoCode?: string | null;
+  /** Signed return-to-spot token (`lib/billing/checkout-return.ts`). */
+  returnToken?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -195,7 +198,7 @@ export async function createTalentCheckoutSession(opts: {
       customer: customerResult.data,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success`,
+      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success${returnQuery(opts.returnToken)}`,
       cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=cancelled`,
       // Show Checkout in the talent's app language, not their browser's.
       locale: stripeCheckoutLocale(opts.locale),
@@ -220,7 +223,7 @@ export async function createTalentCheckoutSession(opts: {
     },
     // Idempotency: a double submit must not mint a SECOND Checkout session.
     // One subscription per talent profile per plan; a second session risks a second sub.
-    { idempotencyKey: `cs_talent_${opts.talentProfileId}_${opts.planKey}` });
+    { idempotencyKey: `cs_talent_${opts.talentProfileId}_${opts.planKey}${idempotencySuffix(opts.returnToken)}` });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };

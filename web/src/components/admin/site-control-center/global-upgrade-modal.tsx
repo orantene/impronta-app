@@ -11,6 +11,8 @@ import { useAdminWorkspace } from "@/components/admin/workspace-context";
 import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
 import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
+import { trackProductEvent } from "@/lib/analytics/track-client";
+import type { TrialDoorOffer } from "@/lib/server-actions/trial-door";
 
 /**
  * GlobalUpgradeModal — THE upgrade modal. One instance, mounted at the admin
@@ -47,6 +49,32 @@ export function GlobalUpgradeModal({
 
   const activePlan: Plan = activePlanOverride ?? workspace?.plan ?? "free";
   const slug = tenantSlug ?? workspace?.slug;
+
+  // Trial door: one plan, checkout returns to the spot the door opened from.
+  function handleDoorStart(offer: TrialDoorOffer) {
+    if (pending) return;
+    if (!slug) {
+      toast.error("Couldn't identify workspace.");
+      return;
+    }
+    const door = reason?.door;
+    if (!door) return;
+    trackProductEvent("trial_door_started", { door, plan: offer.planKey, trial_days: offer.trialDays });
+    const returnPath =
+      reason?.returnPath ??
+      (typeof window !== "undefined" ? window.location.pathname + window.location.search : undefined);
+    startTransition(async () => {
+      const result = await startWorkspaceUpgrade(offer.planKey, slug, readPromoCodeFromUrl(), {
+        id: door,
+        returnPath: returnPath ?? null,
+      });
+      if (result.ok) {
+        window.location.href = result.redirectUrl;
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
 
   function handleSelect(plan: Plan) {
     if (pending) return;
@@ -97,6 +125,8 @@ export function GlobalUpgradeModal({
       activePlan={activePlan}
       onSelect={handleSelect}
       reason={reason}
+      doorPending={pending}
+      onDoorStart={handleDoorStart}
     />
   );
 }

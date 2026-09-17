@@ -20,12 +20,18 @@
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { computeProviderStatuses, readProviderStatusEnv, type ProviderStatus } from "@/lib/payments/provider-status";
+import { CARD_RESERVATION_TTL_SECONDS } from "@/lib/pos/collection-reservations";
 // `"use server"` files may export nothing but async functions — the id list is
 // in a pure module (see `lib/settings/refusals.ts`).
 import type { PaymentProviderRefusal } from "@/lib/settings/refusals";
 
 export type PaymentProviderStatusResult =
-  | { ok: true; providers: ProviderStatus[] }
+  | {
+      ok: true;
+      providers: ProviderStatus[];
+      /** How long a payment link (WIRE-1.7, `createPaymentLink`) stays open: the checkout hold, said on the card. */
+      linkTtlSeconds: number;
+    }
   | { ok: false; reason: PaymentProviderRefusal };
 
 export async function getPaymentProviderStatus(): Promise<PaymentProviderStatusResult> {
@@ -34,5 +40,5 @@ export async function getPaymentProviderStatus(): Promise<PaymentProviderStatusR
     logServerError("payment-providers.getPaymentProviderStatus.denied", auth.error);
     return { ok: false, reason: "not_allowed" };
   }
-  return { ok: true, providers: computeProviderStatuses(readProviderStatusEnv()) };
+  return { ok: true, providers: computeProviderStatuses(readProviderStatusEnv()), linkTtlSeconds: CARD_RESERVATION_TTL_SECONDS };
 }

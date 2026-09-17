@@ -1080,14 +1080,15 @@
           "refunds": "Remboursements",
           "refundsValue": "Sur la carte d'origine uniquement",
           "links": "Liens de paiement",
-          "linksValue": "Pas encore · pas de table des liens",
+          "linksValue": "Oui",
           "testMode": "Mode test",
           "testModeValue": "Les clés restent sur la plateforme · non affichées ici",
           "reader_ready": "Terminal · prêt",
           "reader_missing_reader": "Terminal · aucun lecteur assigné",
           "reader_missing_secret_key": "Terminal · clé Stripe requise",
           "reader_no_setup_needed": "Terminal · prêt",
-          "reader_not_integrated": "Terminal · non intégré"
+          "reader_not_integrated": "Terminal · non intégré",
+          "linksOff": "Nécessite Stripe · un lien est un paiement en ligne"
         },
         "mercadoPago": {
           "title": "Mercado Pago · Point",
@@ -1113,19 +1114,23 @@
           "cardOnline": "Carte · en ligne",
           "cardOnlineRule": "Paiement et acomptes · Stripe",
           "paymentLink": "Lien de paiement",
-          "paymentLinkRule": "Pas encore · pas de table des liens",
+          "paymentLinkRule": "Envoie · n'encaisse pas",
           "bankTransfer": "Virement · enregistré",
           "bankTransferRule": "Pas encore un moyen que la caisse enregistre",
           "credit": "Carte cadeau / crédit",
           "creditRule": "Les pass s'appliquent comme des droits, pas comme un moyen de paiement",
           "twoMethods": "Deux méthodes",
           "twoMethodsRule": "Espèces d'abord, puis carte · une vente, deux affectations",
-          "colLocation": "Cet emplacement"
+          "colLocation": "Cet emplacement",
+          "paymentLinkOffRule": "S'active quand Stripe est connecté",
+          "rowMenu": "Actions de la ligne"
         },
         "notWired": {
           "save": "Les fournisseurs sont configurés par la plateforme ; il n'y a rien à enregistrer à la main ici.",
-          "connect": "Il n'y a pas encore d'endroit où enregistrer un compte Mercado Pago."
-        }
+          "connect": "Il n'y a pas encore d'endroit où enregistrer un compte Mercado Pago.",
+          "rowMenu": "La règle de chaque méthode est celle du moteur ; rien à modifier par ligne."
+        },
+        "linkExpiry": "expire après {n} min"
       },
       "rolesLimits": {
         "label": "Roles et limites",
@@ -1151,7 +1156,6 @@
           "other": "{count} membres"
         },
         "limitsHeading": "Limites par personne",
-        "limitsGap": "Tulala ne suit pas encore les limites individuelles de remise ou de remboursement. Toute personne eligible a un mode de vente peut utiliser tout ce que ce mode offre.",
         "posOffNotice": "Cet espace de travail a désactivé tous les modes de vente, aucun rôle n'atteint donc le point de vente. Activez-en un dans Point de vente, ci-dessus.",
         "invitedCount": {
           "one": "{count} invitation pas encore acceptée",
@@ -1229,14 +1233,19 @@
           "heading": "Demandes d'approbation",
           "intro": "Ce que quelqu'un a demandé au-dessus de sa limite. Approuver laisse passer cette seule action ; le rôle ne change pas.",
           "none": "Rien n'attend d'approbation.",
-          "title": "{kind} · {ref}",
+          "title": "Approbation demandée · {kind} · {ref}",
           "by": "{who} · {when}",
-          "kindDiscount": "Remise demandée",
-          "kindRefund": "Remboursement demandé",
+          "kindDiscount": "remise",
+          "kindRefund": "remboursement",
           "approve": "Approuver",
           "deny": "Refuser",
           "approved": "Approuvé",
-          "denied": "Refusé"
+          "denied": "Refusé",
+          "factAction": "Action",
+          "factActionValue": "Une {kind} au-dessus de la limite · vente {ref}",
+          "factReason": "Motif",
+          "factScope": "Portée",
+          "factScopeValue": "Cette seule action · le rôle de {who} ne change pas"
         }
       },
       "locations": {
@@ -1460,7 +1469,7 @@
           "tickets": "Billets"
         },
         "tablesLink": "Réglages des réservations →",
-        "depositPlatform": "Valeur de la plateforme · à la réservation",
+        "depositPlatform": "Par défaut · à la réservation",
         "depositNone": "Aucun · paiement à la visite",
         "depositPct": "{pct} % · à la réservation",
         "fullAtBooking": "Intégral · à la réservation",
@@ -1470,16 +1479,16 @@
           "flexible": "48 h avant",
           "strict": "Acompte conservé · 50 % à moins de 30 jours",
           "manual": "La personne propriétaire décide de chaque remboursement",
-          "platform": "Politique par défaut de la plateforme"
+          "platform": "Valeur de la plateforme"
         },
         "noShowNone": "Non facturée · pas encore de règle",
         "noShowSeatKept": "Place libérée · non facturée",
         "tablesElsewhere": "Défini dans Réservations",
         "tablesNoShow": "Marquée au pupitre",
-        "ticketsRefund": "Remboursement au comptoir · par événement",
+        "ticketsRefund": "Par événement · au comptoir",
         "ticketsNoShow": "Le billet reste valable",
         "dash": "—",
-        "noticeCutoff": "Comme le préavis de réservation · {notice}",
+        "noticeCutoff": "Préavis de réservation · {notice}",
         "appointmentsOff": "Les rendez-vous sont désactivés",
         "units": {
           "days": "{n} j",
@@ -1538,8 +1547,10 @@
           "previewImpact": "Un aperçu de l'impact a besoin de versions de politique, qui ne sont pas encore conservées.",
           "publish": "Les politiques s'enregistrent au fil des modifications ; les versions ne sont pas encore conservées.",
           "intake": "Les formulaires d'accueil ne sont pas encore modélisés ; rien ne demande à un client d'en remplir un.",
-          "overrides": "Les dérogations par rôle ne sont pas modélisées ; les règles de capacité refusent déjà tout le monde de la même façon."
-        }
+          "overrides": "Les dérogations par rôle ne sont pas modélisées ; les règles de capacité refusent déjà tout le monde de la même façon.",
+          "rowMenu": "Chaque ligne dit ce que fait le moteur ; une règle se change dans les valeurs par défaut et les exceptions par article ci-dessous."
+        },
+        "rowMenu": "Actions de la ligne"
       }
     },
     "platform": {
@@ -3091,7 +3102,7 @@
           "issues": "Incidents"
         },
         "clock": "Les heures sont celles de l'horloge du lieu ({zone}).",
-        "noSessions": "Aucun événement n'est programmé à cette porte dans les deux prochaines semaines. Programmez une soirée depuis la page Séances et elle apparaîtra ici.",
+        "noSessions": "Aucun événement n'est programmé à cette porte dans les 30 prochains jours. Programmez une soirée depuis la page Séances et elle apparaîtra ici.",
         "loadFailed": "Impossible de charger la porte. Vérifiez la connexion et réessayez.",
         "header": {
           "gate": "Contrôle · {event}",
@@ -3104,7 +3115,9 @@
           "inChip": "{admitted} sur {expected} entrés",
           "leftTonight": "{count} billets restants ce soir",
           "sharedWithWebsite": "partagés avec le site",
-          "receiptsSubtitle": "Payé à cette porte"
+          "receiptsSubtitle": "Payé à cette porte",
+          "boxPickSubtitle": "Choisissez l'événement et la date",
+          "leftTonightOne": "1 billet restant ce soir"
         },
         "pick": {
           "title": "Choisissez l'événement",
@@ -3119,7 +3132,7 @@
           "ready": "Prêt à scanner",
           "readyHint": "Présentez le billet devant le scanner",
           "scanLabel": "Scannez ou saisissez le code du billet",
-          "scanPlaceholder": "Ou saisissez le code du billet",
+          "scanPlaceholder": "Scannez ou saisissez le code du billet",
           "admit": "Admettre",
           "lookupByName": "Rechercher par nom",
           "switchToBox": "Passer à la billetterie",
@@ -3190,10 +3203,14 @@
           "admitTicket": "Admettre {code} · {name}",
           "admitMany": "Admettre {count}",
           "resendAll": "Renvoyer tous les billets",
-          "resendAllReason": "Les billets sont remis sous forme de code à cette caisse ; il n'y a pas encore d'email de billets à renvoyer.",
+          "resendAllReason": "Renvoie l'email du billet à chaque billet de cette commande qui a une adresse.",
           "note": "Rechercher n'est pas admettre. Admettre à la main compte une fois et le QR devient utilisé.",
           "change": "Modifier",
-          "delivery": "Envoi"
+          "delivery": "Envoi",
+          "orderLineOne": "{code} · 1 billet · {admitted} admis",
+          "ticketsOfOne": "{code} · ce soir · 1 billet",
+          "resendAllNone": "Aucun billet de cette commande n'a d'adresse email ; ajoutez-en une depuis Modifier.",
+          "resendAllDone": "Renvoyé · {count} billets sur {total} avaient une adresse."
         },
         "manual": {
           "title": "Admettre à la main · {name}",
@@ -3249,7 +3266,9 @@
           "soldChip": "Ce soir · {sold} vendus · {admitted} entrés",
           "cancelSale": "Annuler cette vente",
           "back": "Retour",
-          "eventNights": "{count} soirées · à partir du {date}"
+          "eventNights": "{count} soirées · à partir du {date}",
+          "continueTicketOne": "Continuer · 1 billet",
+          "eventNightOne": "1 soirée · {date}"
         },
         "attendees": {
           "title": "Qui vient",
@@ -3266,7 +3285,8 @@
           "attendeeHint": "Nom · peut être ajouté plus tard depuis la recherche",
           "sameAsBuyer": "Comme l'acheteur",
           "review": "Vérifier et encaisser {amount}",
-          "releaseBack": "Retour"
+          "releaseBack": "Retour",
+          "subtitleOne": "1 billet · {date}"
         },
         "issued": {
           "title": "Payé · billet émis",
@@ -3286,7 +3306,7 @@
           "text": "Envoyer le lien par SMS",
           "textReason": "Les SMS ne sont pas configurés sur cet espace.",
           "resend": "Renvoyer l'email",
-          "resendReason": "Le renvoi se fait depuis la recherche de billets (Livraison).",
+          "resendReason": "Pas d'email sur cette vente ; le code est le billet. Une adresse peut être ajoutée depuis la recherche (Modifier).",
           "receipt": "Reçu",
           "next": "Client suivant",
           "pendingTitle": "Payé · billets pas encore émis",
@@ -3304,7 +3324,13 @@
           "issue": "Incident",
           "issueValue": "Ouvert dans Incidents",
           "never": "Jamais",
-          "neverValue": "Rembourser automatiquement ou revendre les places"
+          "neverValue": "Rembourser automatiquement ou revendre les places",
+          "hero": "{count} billets émis",
+          "heroOne": "1 billet émis",
+          "heroDetail": "{date} · {summary} · commande {code}",
+          "resendDone": "Renvoyé à {email}.",
+          "resendFailed": "L'email n'a pas pu être envoyé ; le code ci-dessous reste le billet.",
+          "sentByEmailNone": "Pas d'email sur cette vente · le code est le billet"
         },
         "change": {
           "title": "{code} · modification",
@@ -3344,7 +3370,7 @@
           "title": "{code} · envoi",
           "subtitle": "{name} · {count} billets · {date}",
           "email": "Email · {email}",
-          "emailNone": "Email · aucun sur la commande",
+          "emailNone": "Email · le contact de la commande",
           "emailStatus": "Envoyé avec le QR à l'émission du billet · Renvoyer l'envoie à nouveau",
           "resend": "Renvoyer",
           "resendReason": "Renvoie l'e-mail du billet (QR, code et lien) à cette adresse.",
@@ -3356,7 +3382,10 @@
           "walletStatus": "Non proposé · intégration non vérifiée",
           "notAvailable": "Non disponible",
           "footnote": "Renvoyer ne crée jamais un nouveau justificatif. Un bouton portefeuille n'apparaît qu'une fois l'intégration vérifiée ; d'ici là il n'est pas affiché.",
-          "back": "Retour"
+          "back": "Retour",
+          "subtitleOne": "{name} · 1 billet · {date}",
+          "sent": "Renvoyé.",
+          "notSent": "Non envoyé : aucune adresse sur le billet ni sur la commande."
         },
         "sell": {
           "cashOnly": "Seules les espèces sont acceptées à cette porte. Les autres moyens de paiement sont encaissés au comptoir.",
@@ -5200,7 +5229,7 @@
     },
     "sales": {
       "pageTitle": "Ventes",
-      "pageIntro": "Une vue commerciale sur tous les produits · ouvrez une ligne pour atteindre l'enregistrement source",
+      "pageIntro": "Une vue commerciale sur chaque produit · cliquez sur une ligne pour ouvrir l'enregistrement source",
       "openOrders": "Bureau des commandes",
       "openCalendar": "Calendrier",
       "empty": "Pas encore de ventes.",
@@ -5269,11 +5298,12 @@
         "period": "Les ventes ne sont pas encore filtrées par période ; cette liste est constituée des 200 plus récentes de chaque type.",
         "payment": "Les ventes ne sont pas encore filtrées par état de paiement ; la pastille de chaque ligne le dit.",
         "seller": "Cet espace de travail est le seul vendeur ; le filtre par professionnel n'est pas encore modélisé."
-      }
+      },
+      "filterAll": "Tout"
     },
     "payments": {
       "pageTitle": "Paiements",
-      "pageIntro": "Encaissements, remboursements, écarts de caisse, tentatives inconnues et versements · plongez dans l'enregistrement",
+      "pageIntro": "Encaissements, remboursements, écarts de caisse, tentatives inconnues et versements · plongez dans l'enregistrement du POS",
       "unavailableTitle": "Impossible de charger les paiements",
       "unavailableBody": "C'est un problème de notre côté, pas du vôtre. Actualisez dans un instant.",
       "takingsTitle": "Encaissements par méthode",
@@ -6628,7 +6658,24 @@
         "lookupEmail": "Votre e-mail",
         "last4": "Quatre derniers du reçu",
         "lookupAction": "Chercher",
-        "found": "Ouvrir {code}"
+        "found": "Ouvrir {code}",
+        "showDoor": "Montrez ceci à l'entrée · luminosité au maximum",
+        "valid": "Valide",
+        "used": "Utilisé",
+        "notValid": "Non valide",
+        "name": "Nom",
+        "when": "Quand",
+        "where": "Où",
+        "order": "Commande",
+        "orderTickets": "{code} · {count} billets",
+        "orderTicketOne": "{code} · 1 billet",
+        "wallet": "Ajouter au Wallet",
+        "walletReason": "Les pass Wallet ne sont pas encore proposés.",
+        "transferNote": "L'ancien QR cesse de fonctionner quand vous transférez.",
+        "unnamed": "Pas encore nommé",
+        "doors": "portes {time}",
+        "code": "Code du billet",
+        "resendDone": "Renvoyé à l'adresse du billet."
       },
       "share": {
         "title": "Payer ma part",

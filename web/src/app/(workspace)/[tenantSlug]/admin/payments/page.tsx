@@ -33,7 +33,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import { ActionButton } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { loadPaymentsBoard } from "../../_data-bridge/payments-board";
-import { PaymentsTabLink, Tile, clockIn, minutesSince } from "./payments-ui";
+import { PaymentsTabLink, Tile, dateIn, minutesSince } from "./payments-ui";
 import { AttemptsTab, CollectionsTab, DrawersTab, PayoutsTab, ReconciliationTab, RefundsTab, type PaymentsTab } from "./payments-tabs";
 
 export const dynamic = "force-dynamic";
@@ -76,7 +76,7 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
     <div data-tulala-payments-board className="flex w-full flex-col gap-[16px] font-admin-body">
       <div className="flex items-start justify-between gap-[12px]">
         <div className="min-w-0">
-          <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t("pageTitle")}</h1>
+          <h1 className="m-0 text-[26px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t("pageTitle")}</h1>
           <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted">{t("pageIntro")}</p>
         </div>
         <div className="flex shrink-0 items-center gap-[8px]">
@@ -134,7 +134,7 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
           sub={
             board.drawers.ok
               ? latestClosed
-                ? interpolate(tile("varianceSub"), { time: clockIn(latestClosed.closedAt, intlLocale, board.timeZone) })
+                ? interpolate(tile("varianceSub"), { time: dateIn(latestClosed.closedAt, intlLocale, board.timeZone) })
                 : tile("varianceNone")
               : tile("unreadableSub")
           }
@@ -149,7 +149,8 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
         />
       </div>
 
-      <nav aria-label={t("tabsLabel")} className="inline-flex self-start gap-[2px] rounded-[9px] bg-admin-surface-alt p-[3px]">
+      {/* The board's strip runs the full width of the column. */}
+      <nav aria-label={t("tabsLabel")} className="flex w-full gap-[2px] rounded-[9px] bg-admin-surface-alt p-[3px]">
         {TABS.map((id) => (
           <PaymentsTabLink key={id} href={id === "collections" ? base : `${base}?tab=${id}`} active={tab === id}>
             {t(`tabs.${id}`)}

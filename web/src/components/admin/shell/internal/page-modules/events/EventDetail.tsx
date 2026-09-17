@@ -21,6 +21,8 @@ import { useT } from "@/i18n/use-t";
 
 import { ActionButton, FactRow, Outcome, StatePill, type PillTone } from "../appointments-classes-ui";
 import { CARD } from "../catalog/catalog-ui";
+import { ScanLine } from "lucide-react";
+
 import { Icon } from "../../primitives";
 import type { EventsNav } from "./EventsPage";
 import { whenLabel } from "./EventsList";
@@ -186,7 +188,7 @@ export function EventDetail({ event, nav, locale, onChanged }: { event: EventLis
             <Icon name="chevron-right" size={14} stroke={1.75} />
           </span>
         </button>
-        <h1 className="m-0 font-admin-body text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink" data-tulala-h1>
+        <h1 className="m-0 font-admin-body text-[24px]! font-semibold leading-[1.2] tracking-[-0.02em] text-admin-ink" data-tulala-h1>
           {event.title}
         </h1>
         <div role="group" aria-label={t("dashboard.events.detail.dates")} className="inline-flex gap-[2px] rounded-[9px] bg-admin-surface-alt p-[3px]">
@@ -209,13 +211,13 @@ export function EventDetail({ event, nav, locale, onChanged }: { event: EventLis
         </a>
         <ActionButton reason={t("dashboard.events.detail.shareReason")}>{t("dashboard.events.detail.share")}</ActionButton>
         <a href={`${nav.base}/pos?mode=door`} className="inline-flex h-[34px] items-center gap-[6px] rounded-[9px] border border-admin-brand bg-admin-brand px-[14px] font-admin-body text-admin-13 font-semibold text-white no-underline hover:bg-admin-brand-deep" data-testid="events-open-day">
-          <Icon name="bolt" size={13} stroke={2} />
+          <ScanLine aria-hidden size={13} strokeWidth={1.75} />
           {t("dashboard.events.detail.openEventDay")}
         </a>
       </header>
       {/* MW25: on the phone the sections are a chip strip over one column. */}
-      <div className="grid grid-cols-[180px_minmax(0,1fr)] gap-[24px] max-[720px]:grid-cols-[minmax(0,1fr)] max-[720px]:gap-[12px]">
-        <nav aria-label={t("dashboard.events.detail.sections")} className="flex flex-col gap-[2px] border-r border-admin-border pr-[12px] max-[720px]:flex-row max-[720px]:gap-[6px] max-[720px]:overflow-x-auto max-[720px]:border-r-0 max-[720px]:pr-0 max-[720px]:[scrollbar-width:none]">
+      <div className="grid grid-cols-[190px_minmax(0,1fr)] gap-[30px] max-[720px]:grid-cols-[minmax(0,1fr)] max-[720px]:gap-[12px]">
+        <nav aria-label={t("dashboard.events.detail.sections")} className="flex flex-col gap-[2px] border-r border-admin-border pr-[10px] max-[720px]:flex-row max-[720px]:gap-[6px] max-[720px]:overflow-x-auto max-[720px]:border-r-0 max-[720px]:pr-0 max-[720px]:[scrollbar-width:none]">
           {DETAIL_TABS.map((id) => (
             <a
               key={id}
@@ -226,7 +228,7 @@ export function EventDetail({ event, nav, locale, onChanged }: { event: EventLis
                 nav.go({ event: event.id, tab: id });
               }}
               data-testid={`events-tab-${id}`}
-              className={`rounded-[8px] px-[10px] py-[7px] font-admin-body text-admin-13 no-underline max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:font-semibold max-[720px]:shadow-none ${nav.tab === id ? "bg-admin-card font-semibold text-admin-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)] max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white" : "text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card"}`}
+              className={`rounded-[8px] px-[10px] py-[8px] font-admin-body text-admin-13 leading-[1.2] no-underline max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:font-semibold max-[720px]:shadow-none ${nav.tab === id ? "bg-admin-card font-semibold text-admin-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)] max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white" : "text-admin-ink-muted hover:text-admin-ink max-[720px]:border-admin-border max-[720px]:bg-admin-card"}`}
             >
               {tabLabel[id]}
             </a>

@@ -16,6 +16,8 @@ import {
   createTalentBillingPortalSession,
 } from "@/lib/stripe/talent-billing";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
+import { signCheckoutReturn } from "@/lib/billing/checkout-return";
+import { isSafeReturnPath } from "@/lib/billing/trial-door";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { loadTalentSelfProfile } from "../../_data-bridge";
 import { logServerError } from "@/lib/server/safe-error";
@@ -42,6 +44,12 @@ export async function startTalentUpgrade(
    * `resolveCheckoutDiscount` before it can discount anything.
    */
   promoCode?: string | null,
+  /**
+   * Where to land after Checkout: the spot the trial door opened from. A
+   * browser-supplied path, accepted only as a same-origin path inside this
+   * workspace and signed here so only what this action issued can round-trip.
+   */
+  returnPath?: string | null,
 ): Promise<TalentBillingActionResult> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing is not available yet." };
@@ -72,6 +80,9 @@ export async function startTalentUpgrade(
     // Checkout does not fall back to guessing from the browser.
     locale: await getRequestLocale(),
     promoCode: promoCode ?? null,
+    returnToken: isSafeReturnPath(returnPath, tenantSlug)
+      ? signCheckoutReturn({ subjectId: talentProfile.id, path: returnPath })
+      : null,
   });
 
   if (!result.ok) {

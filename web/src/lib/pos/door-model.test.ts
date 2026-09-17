@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { doorVerdict, matchesGuest, splitTonight, venueClock } from "./door-model";
+import { admissionIdOfCode, byCount, doorVerdict, matchesGuest, splitTonight, tierWord, venueClock } from "./door-model";
 
 const ZONE = "America/Mexico_City";
 
@@ -103,4 +103,35 @@ test("matchesGuest finds by name, email or ticket id prefix, and an empty query 
   assert.ok(matchesGuest(row, "abcd12"));
   assert.ok(!matchesGuest(row, "beto"));
   assert.ok(!matchesGuest({ id: "zzz", holderName: null }, "ana"));
+});
+
+test("venueClock prints the date day-first in English and leaves other locales alone", () => {
+  const c = venueClock("2026-09-11T23:00:00.000Z", ZONE, "en");
+  assert.ok(c);
+  assert.match(c.date, /^[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2,3}$/, c.date);
+  assert.doesNotMatch(c.date, /,/);
+  const es = venueClock("2026-09-11T23:00:00.000Z", ZONE, "es");
+  assert.ok(es);
+  assert.match(es.date, /11/);
+});
+
+test("tierWord drops the event and night the engine prefixes a line label with, and nothing else", () => {
+  assert.equal(tierWord("Rooftop Jazz · Fri 11 Sep · General admission", "Rooftop Jazz", "Fri 11 Sep"), "General admission");
+  assert.equal(tierWord("Rooftop Jazz · Rooftop Jazz · Entry", "Rooftop Jazz"), "Entry");
+  assert.equal(tierWord("General admission", "Rooftop Jazz"), "General admission");
+  assert.equal(tierWord("QA Night ticket · General admission", "QA Night"), "General admission");
+  assert.equal(tierWord("Nightly special · Entry", "Night"), "Nightly special · Entry");
+  assert.equal(tierWord("Rooftop Jazz", "Rooftop Jazz"), "Rooftop Jazz");
+  assert.equal(tierWord(null, "x"), "");
+  assert.equal(byCount(1, "1 ticket", "1 tickets"), "1 ticket");
+  assert.equal(byCount(2, "one", "other"), "other");
+});
+
+test("admissionIdOfCode reads the id a code names and refuses anything else", () => {
+  const id = "0b7c2d1e-1111-4222-8333-444455556666";
+  const payload = Buffer.from(`${id}:3`).toString("base64url");
+  assert.equal(admissionIdOfCode(`adm1.${payload}.sig`), id);
+  assert.equal(admissionIdOfCode("adm1.notbase64.sig"), null);
+  assert.equal(admissionIdOfCode("hello"), null);
+  assert.equal(admissionIdOfCode(""), null);
 });

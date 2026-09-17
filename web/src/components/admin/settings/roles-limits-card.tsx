@@ -176,7 +176,7 @@ export function RolesLimitsCard({
         </table>
         {/* The dimmed rows, said once: the board draws a rule there that the engine does not enforce yet */}
         <p className="m-0 border-t border-admin-border-soft px-[14px] py-[8px] text-[11.5px] text-admin-ink-muted" data-testid="roles-limits-untracked-note">
-          {t(`${K}.cell.untracked`)} · {t(`${K}.notTracked`)} · {t(`${K}.limitsGap`)}
+          {t(`${K}.cell.untracked`)} · {t(`${K}.notTracked`)}
         </p>
       </div>
 
@@ -230,10 +230,6 @@ export function RolesLimitsCard({
         })}
       </div>
 
-      <div className="border-t border-admin-border-soft pt-[10px]">
-        <div className="text-[12px] font-semibold text-admin-ink">{t(`${K}.limitsHeading`)}</div>
-        <div className="mt-[2px] text-[11.5px] leading-relaxed text-admin-ink-muted">{t(`${K}.limitsGap`)}</div>
-      </div>
       <CustomAmountLimit />
       <RoleLimitsEditor currency={currency} canEdit={canEditLimits} />
     </div>
@@ -255,7 +251,7 @@ function Cell({ row, role, modesFor }: { row: ActionRow; role: TenantRoleKey; mo
     );
   }
   return (
-    <span className="text-admin-ink-dim" title={t(`${K}.limitsGap`)}>
+    <span className="text-admin-ink-dim" title={t(`${K}.notTracked`)}>
       {t(`${K}.cell.untracked`)}
     </span>
   );

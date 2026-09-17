@@ -15,7 +15,7 @@
 import type { ReactNode } from "react";
 
 import { Icon } from "@/components/admin/shell/internal/primitives";
-import { ActionButton, BUTTON_SECONDARY } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
+import { ActionButton, BUTTON_PRIMARY } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
 
 export { ActionButton, StatePill, FactRow, UsedIn, Segmented, CARD } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
 
@@ -98,7 +98,7 @@ export function SwitchRow({ children, right, testId }: { children: ReactNode; ri
 export function DeviceRow({ name, detail, tone }: { name: string; detail: string; tone: "green" | "coral" | "dim" }) {
   const dot = tone === "green" ? "bg-admin-green" : tone === "coral" ? "bg-admin-coral" : "bg-admin-ink-dim";
   return (
-    <div className="flex items-center gap-[10px] border-t border-admin-border-soft py-[7px] text-admin-12h first:border-t-0">
+    <div className="flex items-center gap-[10px] border-t border-admin-border-soft py-[11px] text-admin-12h leading-[1.2] first:border-t-0">
       <span className="w-[150px] shrink-0 font-semibold text-admin-ink">{name}</span>
       <span className="min-w-0 flex-1 text-admin-ink-muted">{detail}</span>
       <span aria-hidden className={`h-[8px] w-[8px] shrink-0 rounded-full ${dot}`} />
@@ -253,7 +253,7 @@ export function SaveStateChip({
   if (state.kind === "saved") {
     let clock = "";
     try {
-      clock = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(state.at);
+      clock = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone }).format(state.at);
     } catch {
       clock = "";
     }
@@ -270,7 +270,7 @@ export function SaveStateChip({
         {labels.failed} · {state.message}
       </span>
       {onRetry ? (
-        <button type="button" onClick={onRetry} className={`${BUTTON_SECONDARY} h-[28px] px-[10px] text-[12px]`}>
+        <button type="button" onClick={onRetry} className={`${BUTTON_PRIMARY} h-[28px] px-[10px] text-[12px]`}>
           {labels.retry}
         </button>
       ) : null}
@@ -302,12 +302,43 @@ export function LoadingLines({ label }: { label: string }) {
   );
 }
 
+/**
+ * The settings boards' key/value row (W21 providers, W24 holds): 37px on a
+ * hairline, the key muted on the left, the value semibold on the right. The
+ * 29px `FactRow` stays for the record columns; these cards are drawn taller.
+ */
+export function SettingsFactRow({ label, children, muted = false }: { label: string; children: ReactNode; muted?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-[12px] border-b border-admin-border-soft py-[10px] font-admin-body text-admin-13 leading-[1.2] last:border-b-0">
+      <span className="shrink-0 text-admin-ink-muted">{label}</span>
+      <span className={`text-right font-medium tabular-nums ${muted ? "text-admin-ink-dim" : "text-admin-ink"}`}>{children}</span>
+    </div>
+  );
+}
+
+/** The boards' "…" at the end of a table row. With a `reason` it is disabled and says why (D-POS-58). */
+export function RowMenu({ reason, label }: { reason: string; label: string }) {
+  return (
+    <button
+      type="button"
+      disabled
+      aria-disabled="true"
+      aria-label={label}
+      title={reason}
+      data-not-wired="true"
+      className="inline-flex h-[16px] w-[16px] shrink-0 cursor-not-allowed items-center justify-center rounded-[4px] border-0 bg-transparent p-0 text-admin-ink-dim"
+    >
+      <Icon name="ellipsis" size={14} stroke={1.75} />
+    </button>
+  );
+}
+
 /** The uppercase 11px column header row the boards' grid tables open with. */
 export function GridHead({ columns, cols }: { columns: readonly string[]; cols: string }) {
   return (
-    <div className={`grid gap-[10px] px-[16px] py-[8px] text-admin-11 font-semibold uppercase tracking-[0.05em] text-admin-ink-muted ${cols}`}>
-      {columns.map((c) => (
-        <span key={c}>{c}</span>
+    <div className={`grid gap-[10px] px-[16px] py-[10px] text-admin-11 font-semibold uppercase leading-[1.2] tracking-[0.05em] text-admin-ink-muted ${cols}`}>
+      {columns.map((c, i) => (
+        <span key={`${i}-${c}`}>{c}</span>
       ))}
     </div>
   );
@@ -315,7 +346,7 @@ export function GridHead({ columns, cols }: { columns: readonly string[]; cols: 
 
 export function GridRow({ children, cols, testId }: { children: ReactNode; cols: string; testId?: string }) {
   return (
-    <div data-testid={testId} className={`grid items-center gap-[10px] border-t border-admin-border-soft px-[16px] py-[10px] text-admin-12h ${cols}`}>
+    <div data-testid={testId} className={`grid items-center gap-[10px] border-t border-admin-border-soft px-[16px] py-[10px] text-admin-12h leading-[1.2] ${cols}`}>
       {children}
     </div>
   );

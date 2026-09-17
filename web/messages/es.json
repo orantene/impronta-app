@@ -5242,14 +5242,15 @@
           "refunds": "Reembolsos",
           "refundsValue": "Solo a la tarjeta original",
           "links": "Enlaces de pago",
-          "linksValue": "Todavía no · sin tabla de enlaces",
+          "linksValue": "Sí",
           "testMode": "Modo de prueba",
           "testModeValue": "Las claves quedan en la plataforma · no se muestran aquí",
           "reader_ready": "Terminal · listo",
           "reader_missing_reader": "Terminal · sin lector asignado",
           "reader_missing_secret_key": "Terminal · necesita una clave de Stripe",
           "reader_no_setup_needed": "Terminal · listo",
-          "reader_not_integrated": "Terminal · no integrado"
+          "reader_not_integrated": "Terminal · no integrado",
+          "linksOff": "Necesita Stripe · un enlace es un checkout"
         },
         "mercadoPago": {
           "title": "Mercado Pago · Point",
@@ -5275,19 +5276,23 @@
           "cardOnline": "Tarjeta · en línea",
           "cardOnlineRule": "Pago y depósitos · Stripe",
           "paymentLink": "Enlace de pago",
-          "paymentLinkRule": "Todavía no · sin tabla de enlaces",
+          "paymentLinkRule": "Envía · no cobra",
           "bankTransfer": "Transferencia · registrada",
           "bankTransferRule": "Todavía no es un medio que la caja registre",
           "credit": "Tarjeta regalo / crédito",
           "creditRule": "Los pases se aplican como derechos, no como medio de pago",
           "twoMethods": "Dos métodos",
           "twoMethodsRule": "Primero efectivo, luego tarjeta · una venta, dos asignaciones",
-          "colLocation": "Esta ubicación"
+          "colLocation": "Esta ubicación",
+          "paymentLinkOffRule": "Se activa cuando Stripe está conectado",
+          "rowMenu": "Acciones de la fila"
         },
         "notWired": {
           "save": "Los proveedores los configura la plataforma; aquí no hay nada que guardar a mano.",
-          "connect": "Todavía no hay dónde guardar una cuenta de Mercado Pago."
-        }
+          "connect": "Todavía no hay dónde guardar una cuenta de Mercado Pago.",
+          "rowMenu": "La regla de cada método es del motor; no hay nada que editar por fila."
+        },
+        "linkExpiry": "caduca a los {n} min"
       },
       "rolesLimits": {
         "label": "Roles y límites",
@@ -5313,7 +5318,6 @@
           "other": "{count} miembros"
         },
         "limitsHeading": "Límites por persona",
-        "limitsGap": "Tulala todavía no registra límites individuales de descuento o reembolso. Cualquiera que tenga acceso a un modo de venta puede usar todo lo que ese modo ofrece.",
         "posOffNotice": "Este espacio de trabajo tiene todos los modos de venta desactivados, así que ningún rol llega al punto de venta. Activa uno en Punto de venta, arriba.",
         "invitedCount": {
           "one": "{count} invitación sin aceptar todavía",
@@ -5391,14 +5395,19 @@
           "heading": "Solicitudes de aprobación",
           "intro": "Lo que alguien pidió por encima de su límite. Aprobar deja pasar esa única acción; el rol no cambia.",
           "none": "No hay nada pendiente de aprobación.",
-          "title": "{kind} · {ref}",
+          "title": "Aprobación solicitada · {kind} · {ref}",
           "by": "{who} · {when}",
-          "kindDiscount": "Descuento solicitado",
-          "kindRefund": "Reembolso solicitado",
+          "kindDiscount": "descuento",
+          "kindRefund": "reembolso",
           "approve": "Aprobar",
           "deny": "Rechazar",
           "approved": "Aprobado",
-          "denied": "Rechazado"
+          "denied": "Rechazado",
+          "factAction": "Acción",
+          "factActionValue": "Un {kind} por encima del límite · venta {ref}",
+          "factReason": "Motivo",
+          "factScope": "Alcance",
+          "factScopeValue": "Solo esta acción · el rol de {who} no cambia"
         }
       },
       "locations": {
@@ -5622,7 +5631,7 @@
           "tickets": "Entradas"
         },
         "tablesLink": "Ajustes de reservas →",
-        "depositPlatform": "Valor de la plataforma · al reservar",
+        "depositPlatform": "Por defecto · al reservar",
         "depositNone": "Ninguno · se paga en la visita",
         "depositPct": "{pct}% · al reservar",
         "fullAtBooking": "Completo · al reservar",
@@ -5632,16 +5641,16 @@
           "flexible": "48 h antes",
           "strict": "Depósito retenido · 50% con menos de 30 días",
           "manual": "La persona propietaria decide cada reembolso",
-          "platform": "Política por defecto de la plataforma"
+          "platform": "Valor de la plataforma"
         },
         "noShowNone": "No se cobra · sin regla todavía",
         "noShowSeatKept": "Plaza liberada · no se cobra",
         "tablesElsewhere": "Se fija en Reservas",
         "tablesNoShow": "Se marca en el atril",
-        "ticketsRefund": "Reembolso desde el mostrador · por evento",
+        "ticketsRefund": "Por evento · en el mostrador",
         "ticketsNoShow": "La entrada sigue válida",
         "dash": "—",
-        "noticeCutoff": "Igual que el aviso de reserva · {notice}",
+        "noticeCutoff": "Aviso de reserva · {notice}",
         "appointmentsOff": "Las citas están desactivadas",
         "units": {
           "days": "{n} d",
@@ -5700,8 +5709,10 @@
           "previewImpact": "Una vista previa del impacto necesita versiones de política, que todavía no se guardan.",
           "publish": "Las políticas se guardan al cambiarlas; todavía no se guardan versiones.",
           "intake": "Los formularios de ingreso todavía no están modelados; nada pide a un cliente que rellene uno.",
-          "overrides": "Las excepciones por rol no están modeladas; las reglas de aforo ya rechazan a todos por igual."
-        }
+          "overrides": "Las excepciones por rol no están modeladas; las reglas de aforo ya rechazan a todos por igual.",
+          "rowMenu": "Cada fila dice lo que hace el motor; la política se cambia en los valores por defecto y en las excepciones por artículo de abajo."
+        },
+        "rowMenu": "Acciones de la fila"
       }
     },
     "adminBilling": {
@@ -10216,6 +10227,20 @@
         "needsPlan": "{feature} necesita {plan}",
         "recommended": "Recomendado"
       },
+      "trialDoor": {
+        "kicker": "Incluido en un plan de pago",
+        "title": "Prueba {plan}",
+        "loading": "Un momento",
+        "loadingLine": "Revisando qué incluye.",
+        "sentenceTrial": "{plan} es gratis por {days} días, después {price} al mes a partir del {date}. Cancela cuando quieras.",
+        "sentenceNoTrial": "{plan} cuesta {price} al mes, con cargo hoy. Cancela cuando quieras.",
+        "startTrial": "Empezar {days} días gratis",
+        "startPaid": "Obtener {plan}",
+        "opening": "Abriendo el pago",
+        "notNow": "Ahora no",
+        "close": "Cerrar",
+        "footnote": "Nada de lo que hiciste se pierde si paras. Las funciones premium se pausan; tu sitio, tu logo y tus páginas siguen siendo tuyos."
+      },
       "talentUsage": {
         "unlimited": "Talentos ilimitados",
         "counted": {
@@ -12977,7 +13002,7 @@
     },
     "sales": {
       "pageTitle": "Ventas",
-      "pageIntro": "Una vista comercial de todos los productos · abre una fila para llegar al registro de origen",
+      "pageIntro": "Una vista comercial de todos los productos · haz clic en una fila para abrir el registro de origen",
       "empty": "Aún no hay ventas.",
       "emptyTitle": "Aún no hay ventas",
       "colCustomer": "Cliente",
@@ -13037,11 +13062,12 @@
         "period": "Las ventas todavía no se filtran por periodo; esta lista son las 200 más recientes de cada tipo.",
         "payment": "Las ventas todavía no se filtran por estado de pago; la etiqueta de cada fila lo dice.",
         "seller": "Este espacio de trabajo es el único vendedor; el filtro por profesional todavía no está modelado."
-      }
+      },
+      "filterAll": "Todo"
     },
     "payments": {
       "pageTitle": "Pagos",
-      "pageIntro": "Cobros, reembolsos, diferencias de caja, intentos desconocidos y pagos · entra en el registro",
+      "pageIntro": "Cobros, reembolsos, diferencias de caja, intentos desconocidos y pagos · entra en el registro del POS",
       "unavailableTitle": "No pudimos cargar los pagos",
       "unavailableBody": "Es un problema nuestro, no tuyo. Actualiza en un momento.",
       "takingsTitle": "Cobros por método",
@@ -14557,7 +14583,7 @@
           "issues": "Incidencias"
         },
         "clock": "Las horas son las del reloj del local ({zone}).",
-        "noSessions": "No hay ningún evento programado en esta puerta en las próximas dos semanas. Programa una noche desde la página Sesiones y aparecerá aquí.",
+        "noSessions": "No hay ningún evento programado en esta puerta en los próximos 30 días. Programa una noche desde la página Sesiones y aparecerá aquí.",
         "loadFailed": "No se pudo cargar la puerta. Revisa la conexión e inténtalo de nuevo.",
         "header": {
           "gate": "Acceso · {event}",
@@ -14570,7 +14596,9 @@
           "inChip": "{admitted} de {expected} dentro",
           "leftTonight": "{count} entradas quedan esta noche",
           "sharedWithWebsite": "compartidas con la web",
-          "receiptsSubtitle": "Pagado en esta puerta"
+          "receiptsSubtitle": "Pagado en esta puerta",
+          "boxPickSubtitle": "Elige el evento y la fecha",
+          "leftTonightOne": "1 entrada queda esta noche"
         },
         "pick": {
           "title": "Elige el evento",
@@ -14585,7 +14613,7 @@
           "ready": "Listo para escanear",
           "readyHint": "Acerca la entrada al escáner",
           "scanLabel": "Escanea o escribe el código de la entrada",
-          "scanPlaceholder": "O escribe el código de la entrada",
+          "scanPlaceholder": "Escanea o escribe el código de la entrada",
           "admit": "Admitir",
           "lookupByName": "Buscar por nombre",
           "switchToBox": "Ir a la taquilla",
@@ -14656,10 +14684,14 @@
           "admitTicket": "Admitir {code} · {name}",
           "admitMany": "Admitir {count}",
           "resendAll": "Reenviar todas las entradas",
-          "resendAllReason": "Las entradas se entregan como código en esta caja; todavía no hay email de entradas que reenviar.",
+          "resendAllReason": "Vuelve a enviar el email de la entrada a cada entrada de este pedido que tenga dirección.",
           "note": "Buscar no es admitir. Admitir a mano cuenta una vez y el QR queda usado.",
           "change": "Cambiar",
-          "delivery": "Entrega"
+          "delivery": "Entrega",
+          "orderLineOne": "{code} · 1 entrada · {admitted} admitidas",
+          "ticketsOfOne": "{code} · esta noche · 1 entrada",
+          "resendAllNone": "Ninguna entrada de este pedido tiene email; añade uno desde Cambiar.",
+          "resendAllDone": "Enviado de nuevo · {count} de {total} entradas tenían dirección."
         },
         "manual": {
           "title": "Admitir a mano · {name}",
@@ -14715,7 +14747,9 @@
           "soldChip": "Esta noche · {sold} vendidas · {admitted} dentro",
           "cancelSale": "Cancelar esta venta",
           "back": "Atrás",
-          "eventNights": "{count} noches · desde el {date}"
+          "eventNights": "{count} noches · desde el {date}",
+          "continueTicketOne": "Continuar · 1 entrada",
+          "eventNightOne": "1 noche · {date}"
         },
         "attendees": {
           "title": "Quién viene",
@@ -14732,7 +14766,8 @@
           "attendeeHint": "Nombre · se puede añadir después desde la búsqueda",
           "sameAsBuyer": "Igual que el comprador",
           "review": "Revisar y cobrar {amount}",
-          "releaseBack": "Atrás"
+          "releaseBack": "Atrás",
+          "subtitleOne": "1 entrada · {date}"
         },
         "issued": {
           "title": "Pagado · entrada emitida",
@@ -14752,7 +14787,7 @@
           "text": "Enviar enlace por SMS",
           "textReason": "Los mensajes de texto no están configurados en este espacio.",
           "resend": "Reenviar email",
-          "resendReason": "El reenvío se hace desde la búsqueda de entradas (Entrega).",
+          "resendReason": "Esta venta no tiene email; el código es la entrada. Puedes añadir una dirección desde la búsqueda (Cambiar).",
           "receipt": "Recibo",
           "next": "Siguiente cliente",
           "pendingTitle": "Pagado · entradas aún no emitidas",
@@ -14770,7 +14805,13 @@
           "issue": "Incidencia",
           "issueValue": "Abierta en Incidencias",
           "never": "Nunca",
-          "neverValue": "Reembolsar automáticamente ni revender las plazas"
+          "neverValue": "Reembolsar automáticamente ni revender las plazas",
+          "hero": "{count} entradas emitidas",
+          "heroOne": "1 entrada emitida",
+          "heroDetail": "{date} · {summary} · pedido {code}",
+          "resendDone": "Enviado de nuevo a {email}.",
+          "resendFailed": "No se pudo enviar el email; el código de abajo sigue siendo la entrada.",
+          "sentByEmailNone": "Sin email en esta venta · el código es la entrada"
         },
         "change": {
           "title": "{code} · cambio",
@@ -14810,7 +14851,7 @@
           "title": "{code} · entrega",
           "subtitle": "{name} · {count} entradas · {date}",
           "email": "Email · {email}",
-          "emailNone": "Email · ninguno en el pedido",
+          "emailNone": "Email · el contacto del pedido",
           "emailStatus": "Enviado con el QR al emitir la entrada · Reenviar lo manda otra vez",
           "resend": "Reenviar",
           "resendReason": "Vuelve a enviar el email de la entrada (QR, código y enlace) a esta dirección.",
@@ -14822,7 +14863,10 @@
           "walletStatus": "No ofrecido · integración sin verificar",
           "notAvailable": "No disponible",
           "footnote": "Reenviar nunca crea una credencial nueva. El botón de cartera aparece solo cuando la integración está verificada; hasta entonces no se muestra.",
-          "back": "Atrás"
+          "back": "Atrás",
+          "subtitleOne": "{name} · 1 entrada · {date}",
+          "sent": "Enviado de nuevo.",
+          "notSent": "No enviado: no hay dirección en la entrada ni en el pedido."
         },
         "sell": {
           "cashOnly": "En esta puerta solo se acepta efectivo. Los demás medios de pago se cobran en el mostrador."
@@ -15675,7 +15719,24 @@
         "lookupEmail": "Tu correo",
         "last4": "Últimos cuatro del recibo",
         "lookupAction": "Buscar",
-        "found": "Abrir {code}"
+        "found": "Abrir {code}",
+        "showDoor": "Muéstralo en la puerta · sube el brillo",
+        "valid": "Válida",
+        "used": "Usada",
+        "notValid": "No válida",
+        "name": "Nombre",
+        "when": "Cuándo",
+        "where": "Dónde",
+        "order": "Pedido",
+        "orderTickets": "{code} · {count} entradas",
+        "orderTicketOne": "{code} · 1 entrada",
+        "wallet": "Añadir a Wallet",
+        "walletReason": "Los pases de Wallet todavía no están disponibles.",
+        "transferNote": "El QR anterior deja de funcionar cuando transfieres.",
+        "unnamed": "Sin nombre todavía",
+        "doors": "puertas {time}",
+        "code": "Código de la entrada",
+        "resendDone": "Enviado de nuevo a la dirección de la entrada."
       },
       "share": {
         "title": "Pagar mi parte",

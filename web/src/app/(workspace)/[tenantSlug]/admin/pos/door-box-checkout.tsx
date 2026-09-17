@@ -14,21 +14,22 @@
  * success line.
  */
 
-import { AlertTriangle, Check, QrCode } from "lucide-react";
+import { AlertTriangle, Check, FileText, Mail, Phone, QrCode } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { CollectSheet, PosRefusalBanner, initialsOf, type PosCollectionMethodId, type PosCollectionMethodState, type PosRefusalReason } from "@/components/admin/pos";
 import { POS_EYEBROW, POS_INPUT, POS_LABEL, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION, POS_SURFACE } from "@/components/admin/pos/pos-classes";
 import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
-import { orderRef, ticketRef } from "@/lib/pos/door-model";
+import { byCount, orderRef, ticketRef, tierWord } from "@/lib/pos/door-model";
+import { admissionDeliver } from "@/lib/server-actions/venue-engine";
 import { refusalFromResult } from "@/lib/pos/refusal-reason";
 import { cn } from "@/lib/utils";
 import { resumeExceptionAction } from "@/app/(workspace)/[tenantSlug]/admin/_exceptions-actions";
 
 import { posCollectionKey, tenderAfterKey } from "./counter-model";
 import { posDoorCollectTicket, posDoorIssuedTickets, type DoorIssuedTicket, type DoorSaleView } from "./door-actions";
-import { dateAt, timeAt, type DoorScreenCopy, type OpenDoor } from "./door-shared";
+import { dateAt, timeAt, type BoxStage, type DoorScreenCopy, type OpenDoor } from "./door-shared";
 import { FactCard, FactRow, Pill } from "./door-ui";
 
 export type Buyer = { name: string; email: string; phone: string };
@@ -55,21 +56,23 @@ export type DoorCheckoutProps = {
   zone: string;
   locale: string;
   copy: DoorScreenCopy;
+  onStage: (stage: BoxStage) => void;
   onBack: () => void;
   onDone: () => Promise<void>;
 };
 
 /** One slot per ticket, in line order: "General admission #1", "General admission #2", "Workshop #1". */
-function ticketSlots(sale: DoorSaleView): Array<{ key: string; tier: string; n: number }> {
+function ticketSlots(sale: DoorSaleView, eventTitle: string): Array<{ key: string; tier: string; n: number }> {
   const slots: Array<{ key: string; tier: string; n: number }> = [];
-  for (const line of sale.lines) for (let n = 1; n <= line.units; n += 1) slots.push({ key: `${line.id}-${n}`, tier: line.label, n });
+  for (const line of sale.lines) for (let n = 1; n <= line.units; n += 1) slots.push({ key: `${line.id}-${n}`, tier: tierWord(line.label, eventTitle) || line.label, n });
   return slots;
 }
 
 export function DoorCheckout(props: DoorCheckoutProps) {
   const { copy, sale, door, zone, locale, buyer } = props;
   const att = copy.door.attendees;
-  const slots = ticketSlots(sale);
+  const slots = ticketSlots(sale, door.session.title);
+  const tierOf = (label: string) => tierWord(label, door.session.title) || label;
   const [names, setNames] = useState<string[]>(() => slots.map((_, i) => (i === 0 ? buyer.name : "")));
   const [collectOpen, setCollectOpen] = useState(false);
   const [method, setMethod] = useState<PosCollectionMethodId>("cash");
@@ -78,6 +81,7 @@ export function DoorCheckout(props: DoorCheckoutProps) {
   const [refusal, setRefusal] = useState<PosRefusalReason | null>(null);
   const [issued, setIssued] = useState<Issued | null>(null);
   const [resumeNote, setResumeNote] = useState<string | null>(null);
+  const [resendNote, setResendNote] = useState<string | null>(null);
 
   const run = useCallback(
     async <T extends { ok: boolean; reason?: unknown; error?: unknown }>(fn: () => Promise<T>): Promise<T> => {
@@ -113,6 +117,14 @@ export function DoorCheckout(props: DoorCheckoutProps) {
     );
     if (!result.ok || !("tickets" in result)) return;
     setCollectOpen(false);
+    const paidAt = new Date().toISOString();
+    props.onStage({
+      kind: "issued",
+      count: result.tickets.length,
+      buyer: buyer.name.trim() || copy.door.box.buyer,
+      amount: formatOrderMoney(result.amountCents, sale.currency),
+      time: timeAt(paidAt, zone, locale),
+    });
     setIssued({
       orderId: result.orderId,
       amountCents: result.amountCents,
@@ -120,9 +132,23 @@ export function DoorCheckout(props: DoorCheckoutProps) {
       currency: sale.currency,
       receiptCode: result.receiptCode,
       tickets: result.tickets,
-      paidAt: new Date().toISOString(),
+      paidAt,
     });
-  }, [buyer, door.session.id, names, run, sale, tenderedCents]);
+  }, [buyer, copy.door.box.buyer, door.session.id, locale, names, props, run, sale, tenderedCents, zone]);
+
+  /** E06's Resend: the same ticket mail the sale sent, once per ticket, to the buyer's address. */
+  const resendEmail = useCallback(async () => {
+    if (!issued || !buyer.email.trim()) return;
+    props.setBusy(true);
+    setResendNote(null);
+    try {
+      const results = await Promise.all(issued.tickets.map((t) => admissionDeliver({ admissionId: t.admissionId, method: "email" })));
+      const sent = results.filter((r) => r.ok).length;
+      setResendNote(sent > 0 ? interpolate(copy.door.issued.resendDone, { email: buyer.email.trim() }) : copy.door.issued.resendFailed);
+    } finally {
+      props.setBusy(false);
+    }
+  }, [buyer.email, copy.door.issued.resendDone, copy.door.issued.resendFailed, issued, props]);
 
   const tryIssuingAgain = useCallback(async () => {
     if (!issued) return;
@@ -143,14 +169,13 @@ export function DoorCheckout(props: DoorCheckoutProps) {
   }, [issued, props]);
 
   const receiptHref = issued?.receiptCode && props.receiptOrigin ? `${props.receiptOrigin}/r/${issued.receiptCode}` : null;
-  const buyerLabel = buyer.name.trim() || copy.door.box.buyer;
   const summary = (
     <div className={cn(POS_SURFACE, "border-[1px]")}>
       {sale.lines.map((l) => (
         <div key={l.id} className="flex items-center gap-3 border-b border-admin-border-soft px-4 py-3 last:border-b-0">
           <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-admin-surface-alt text-[15px] font-bold tabular-nums text-admin-ink">{l.units}</span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[16px] font-semibold text-admin-ink">{l.label}</span>
+            <span className="block truncate text-[16px] font-semibold text-admin-ink">{tierOf(l.label)}</span>
             <span className="block text-[14.5px] text-admin-ink-muted">{dateAt(door.session.startsAt, zone, locale)}</span>
           </span>
           <span className="text-[16.5px] font-bold tabular-nums text-admin-ink">{formatOrderMoney(l.totalCents, sale.currency)}</span>
@@ -168,29 +193,28 @@ export function DoorCheckout(props: DoorCheckoutProps) {
     const pending = issued.tickets.length === 0;
     const iss = copy.door.issued;
     const ref = orderRef(issued.orderId);
-    const paidTime = timeAt(issued.paidAt, zone, locale);
+    const hasEmail = buyer.email.trim().length > 0;
+    const lineSummary = sale.lines.map((l) => `${l.units} ${tierOf(l.label).toLowerCase()}`).join(" + ");
     return (
       <div data-door-issued={pending ? "pending" : "issued"} className="flex min-h-0 flex-1">
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-6 text-center">
           <span className={cn("inline-flex h-24 w-24 items-center justify-center rounded-[32px]", pending ? "bg-admin-coral-soft text-admin-coral-deep" : "bg-admin-success-soft text-admin-success")}>
             {pending ? <AlertTriangle aria-hidden size={44} strokeWidth={1.8} /> : <Check aria-hidden size={48} strokeWidth={2.2} />}
           </span>
-          <h2 className="m-0 text-[32px] font-bold tracking-[-0.02em] text-admin-ink">
-            {pending ? iss.pendingHeadline : issued.tickets.length === 1 ? iss.title : interpolate(iss.titleMany, { count: issued.tickets.length })}
+          <h2 className="m-0 text-[30px]! font-bold leading-[1.1] tracking-[-0.02em]! text-admin-ink">
+            {pending ? iss.pendingHeadline : interpolate(byCount(issued.tickets.length, iss.heroOne, iss.hero), { count: issued.tickets.length })}
           </h2>
-          <p className="m-0 max-w-[520px] text-[16px] text-admin-ink-muted">
+          <p className="m-0 max-w-[520px] text-[16px] leading-[1.35] text-admin-ink-muted">
             {pending
-              ? interpolate(iss.pendingDetail, { amount: formatOrderMoney(issued.amountCents, issued.currency) })
-              : interpolate(iss.subtitle, { buyer: buyerLabel, amount: formatOrderMoney(issued.amountCents, issued.currency), time: paidTime })}
-            {" · "}
-            {ref}
+              ? `${interpolate(iss.pendingDetail, { amount: formatOrderMoney(issued.amountCents, issued.currency) })} · ${ref}`
+              : interpolate(iss.heroDetail, { date: dateAt(door.session.startsAt, zone, locale), summary: lineSummary, code: ref })}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             <Pill tone="green">{iss.paid}</Pill>
             <Pill tone={pending ? "coral" : "green"}>{pending ? iss.pendingPill : iss.ticketsIssued}</Pill>
             {!pending && (
-              <span title={iss.sentByEmailReason} data-not-wired="true">
-                <Pill tone="slate" className="opacity-60">
+              <span title={hasEmail ? iss.sentByEmailReason : iss.sentByEmailNone}>
+                <Pill tone={hasEmail ? "green" : "slate"} className={hasEmail ? undefined : "opacity-60"}>
                   {iss.sentByEmail}
                 </Pill>
               </span>
@@ -220,15 +244,32 @@ export function DoorCheckout(props: DoorCheckoutProps) {
             <>
               <div className="grid w-full max-w-[520px] grid-cols-3 gap-2.5">
                 {[
-                  { label: iss.print, reason: iss.printReason },
-                  { label: iss.text, reason: iss.textReason },
-                  { label: iss.resend, reason: iss.resendReason },
+                  { label: iss.print, reason: iss.printReason, icon: <FileText aria-hidden size={17} strokeWidth={1.75} /> },
+                  { label: iss.text, reason: iss.textReason, icon: <Phone aria-hidden size={17} strokeWidth={1.75} /> },
                 ].map((b) => (
                   <button key={b.label} type="button" disabled title={b.reason} data-not-wired="true" className={POS_SECONDARY_ACTION}>
+                    {b.icon}
                     {b.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  disabled={!hasEmail || props.busy}
+                  title={hasEmail ? undefined : iss.resendReason}
+                  data-not-wired={hasEmail ? undefined : "true"}
+                  data-door-resend
+                  onClick={() => void resendEmail()}
+                  className={POS_SECONDARY_ACTION}
+                >
+                  <Mail aria-hidden size={17} strokeWidth={1.75} />
+                  {iss.resend}
+                </button>
               </div>
+              {resendNote && (
+                <p role="status" className="m-0 max-w-[520px] text-[14px] text-admin-ink">
+                  {resendNote}
+                </p>
+              )}
               {receiptHref && (
                 <a href={receiptHref} target="_blank" rel="noopener noreferrer" data-pos-receipt-link className="break-all text-[14px] text-admin-ink underline">
                   {iss.receipt}: {receiptHref}
@@ -258,7 +299,7 @@ export function DoorCheckout(props: DoorCheckoutProps) {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[16px] font-semibold text-admin-ink">
-                      {t.tierLabel ?? copy.door.lookup.ticket} · {t.holderName ?? copy.door.lookup.unnamed}
+                      {tierWord(t.tierLabel, door.session.title) || copy.door.lookup.ticket} · {t.holderName ?? copy.door.lookup.unnamed}
                     </span>
                     <span className="block text-[13.5px] text-admin-ink-muted">{t.holderName ? iss.named : iss.unnamed}</span>
                   </span>

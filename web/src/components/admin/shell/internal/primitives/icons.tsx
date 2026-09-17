@@ -45,6 +45,7 @@ export type AdminShellIconName =
   | "briefcase"
   | "chart"
   | "life-buoy"
+  | "help-circle"
   | "ellipsis";
 
 export function Icon({
@@ -320,6 +321,16 @@ export function Icon({
       return (
         <svg {...common}>
           <path d="M8.6 16.5H6.5A3.5 3.5 0 013 13V8.5A3.5 3.5 0 016.5 5h11A3.5 3.5 0 0121 8.5V13a3.5 3.5 0 01-3.5 3.5h-4.7l-3.5 3a.7.7 0 01-1.2-.5v-2.5z" />
+        </svg>
+      );
+    // Support (header button): a circled question mark, the conventional
+    // "help / support" glyph. The speech bubble above reads as chat.
+    case "help-circle":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.4 9.3a2.7 2.7 0 015.2.9c0 1.8-2.6 2.2-2.6 3.8" />
+          <circle cx="12" cy="17.3" r="0.6" fill="currentColor" stroke="none" />
         </svg>
       );
     // Overflow ("More") — the conventional horizontal ellipsis. The
