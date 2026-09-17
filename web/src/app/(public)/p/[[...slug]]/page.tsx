@@ -347,7 +347,12 @@ export default async function CmsPublicPage({
     });
     // The query survives the hop: a `/q/<code>` scan lands here as
     // `/lumina?l=<link>` and the attribution must reach the event URL.
-    if (target) permanentRedirect(`${target}${requestHeaders.get(ORIGINAL_SEARCH_HEADER) ?? ""}`);
+    // EXCEPT the editor: `?edit=1` is the builder opening THIS page, and
+    // the event URL cannot host the editor (it loaded the homepage with an
+    // empty canvas on 2026-09-17, so the linked page could not be edited).
+    const search = requestHeaders.get(ORIGINAL_SEARCH_HEADER) ?? "";
+    const editorRequest = /[?&]edit=1(?:&|$)/.test(search);
+    if (target && !editorRequest) permanentRedirect(`${target}${search}`);
   }
 
   // Wave 4.1 — cms_pages opted into FREEFORM (is_freeform=true). Render the
