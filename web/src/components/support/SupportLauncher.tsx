@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { startDiagnosticsCollector } from "@/lib/support/diagnostics/collector";
 import { useT } from "@/i18n/use-t";
@@ -47,7 +47,9 @@ export function SupportLauncher({
   // launcher renders there as a 32px header button instead of the floating
   // circle. The slot is owned by a sibling tree, so watch for it.
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => {
+  // Layout effect: the slot is in the same commit, so the header button is
+  // in place before the first paint and the floating circle never flashes.
+  useLayoutEffect(() => {
     const find = () => document.querySelector<HTMLElement>("[data-tulala-support-slot]");
     const found = find();
     if (found) { setSlot(found); return; }
@@ -72,7 +74,7 @@ export function SupportLauncher({
           aria-label={t("dashboard.adminSupport.launcherAria")}
           title={t("dashboard.adminSupport.launcherAria")}
           onClick={toggle}
-          className="relative inline-flex h-[32px] w-[32px] cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card text-admin-ink-muted hover:text-admin-ink [transition:color_var(--transition-admin-micro)]"
+          className="relative inline-flex h-[32px] w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card text-admin-ink-muted hover:text-admin-ink [transition:color_var(--transition-admin-micro)]"
         >
           <Icon name="life-buoy" size={15} stroke={1.75} color="currentColor" />
           {unread > 0 ? (

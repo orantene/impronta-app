@@ -64,7 +64,7 @@ export function CreateMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-label={t(`${K}.label`)}
         title={t(`${K}.label`)}
-        className="inline-flex h-[32px] w-[32px] cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card text-admin-ink-muted hover:text-admin-ink [transition:color_var(--transition-admin-micro)]"
+        className="inline-flex h-[32px] w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card text-admin-ink-muted hover:text-admin-ink [transition:color_var(--transition-admin-micro)]"
       >
         {/* Icon only — the same 32px square as the search and language
             buttons beside it. The word lives in the aria-label + tooltip. */}

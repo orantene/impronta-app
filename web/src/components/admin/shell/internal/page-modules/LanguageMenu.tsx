@@ -75,7 +75,7 @@ export function LanguageMenu() {
         aria-label={`${languageWord} · ${getLocaleMetadata(active).label}`}
         title={languageWord}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-[32px] min-w-[32px] cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card px-[7px] font-admin-body text-admin-11h font-semibold uppercase tracking-[0.04em] text-admin-ink-muted hover:text-admin-ink [transition:color_var(--transition-admin-micro)]"
+        className="inline-flex h-[32px] min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card px-[7px] font-admin-body text-admin-11h font-semibold uppercase tracking-[0.04em] text-admin-ink-muted hover:text-admin-ink [transition:color_var(--transition-admin-micro)]"
       >
         {active}
       </button>

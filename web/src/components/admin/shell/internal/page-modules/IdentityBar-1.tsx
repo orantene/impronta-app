@@ -269,7 +269,7 @@ export function TulalaIdentityBar() {
             <PosModeSwitch />
             <div
               data-tulala-topbar-actions
-              className="flex min-w-0 flex-1 items-center justify-end gap-[10px]"
+              className="flex min-w-fit flex-1 shrink-0 items-center justify-end gap-[10px]"
             >
               {/* Global search (W53) — the same target as ⌘K. Hidden on
                   mobile where the bottom FAB is the single command surface. */}
@@ -279,7 +279,7 @@ export function TulalaIdentityBar() {
                 onClick={() => window.dispatchEvent(new Event(GLOBAL_SEARCH_OPEN_EVENT))}
                 aria-label={copy.isSpanish ? "Buscar en el workspace · ⌘K" : "Search workspace · ⌘K"}
                 title="⌘K"
-                className="hidden h-[32px] w-[32px] cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card text-admin-ink-muted hover:text-admin-ink md:inline-flex [transition:color_var(--transition-admin-micro)]"
+                className="hidden h-[32px] w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card text-admin-ink-muted hover:text-admin-ink md:inline-flex [transition:color_var(--transition-admin-micro)]"
               >
                 <Icon name="search" size={15} stroke={1.75} color="currentColor" />
               </button>
@@ -296,7 +296,7 @@ export function TulalaIdentityBar() {
               </span>
               {/* Support — the launcher (mounted by the layout) portals its
                   button in here on desktop instead of floating mid-screen. */}
-              <span data-tulala-support-slot className="hidden items-center md:inline-flex" />
+              <span data-tulala-support-slot className="hidden shrink-0 items-center md:inline-flex" />
               <AccountMenuTrigger userName={userName} userInitials={userInitials} align="right">
                 <Avatar initials={userInitials} size={26} tone="ink" hashSeed={userName} photoUrl={userPhotoUrl} />
               </AccountMenuTrigger>
