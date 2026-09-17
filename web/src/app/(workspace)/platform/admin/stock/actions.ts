@@ -6,6 +6,7 @@
  * actions parse the form, gate, and revalidate the section.
  */
 
+import { resolveOpenAiImageModel } from "@/lib/ai/openai-image-request";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -126,7 +127,7 @@ async function logUsage(admin: NonNullable<ReturnType<typeof createServiceRoleCl
       tenant_id: tenantId,
       action: "generate_section",
       provider: "openai",
-      model: process.env.OPENAI_IMAGE_MODEL?.trim() || "dall-e-3",
+      model: resolveOpenAiImageModel(),
       ok,
       actor_profile_id: userId,
       context_jsonb: { feature: "platform_stock_image", cost_usd: ok ? estimateImageCostUsd() : 0, family, role },

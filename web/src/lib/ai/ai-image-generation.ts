@@ -3,6 +3,10 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
+import {
+  requestOpenAiImageBytes,
+  resolveOpenAiImageModel,
+} from "@/lib/ai/openai-image-request";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
@@ -26,7 +30,7 @@ export * from "@/lib/ai/ai-image-quota";
  *
  * The user's explicit worry was COST, so this module is built cost-first:
  *  - a per-tenant MONTHLY image quota by plan tier (hard ceiling — see
- *    IMAGE_QUOTA_BY_PLAN; even the top tier caps out below ~$10/mo of DALL·E),
+ *    IMAGE_QUOTA_BY_PLAN; even the top tier caps out below ~$10/mo of images),
  *  - the quota is checked BEFORE the paid call, and every generation is logged
  *    to the same ai_usage_monthly counter the spend cap reads, so image spend
  *    also counts against the tenant's monthly cap, and
@@ -94,30 +98,9 @@ export async function generateLifestyleStockBytes(input: {
 async function requestOpenAiImage(prompt: string): Promise<Buffer> {
   const key = (await resolveOpenAiApiKey())?.trim();
   if (!key) throw new Error("OpenAI API key is not configured.");
-
-  const model = process.env.OPENAI_IMAGE_MODEL?.trim() || "dall-e-3";
-
-  const body: Record<string, unknown> = { model, prompt, n: 1 };
-  if (model.startsWith("dall-e")) body.size = "1024x1024";
-
-  const res = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(t.slice(0, 280) || `OpenAI images HTTP ${res.status}`);
-  }
-  const json = (await res.json()) as { data?: { url?: string; b64_json?: string }[] };
-  const first = json.data?.[0];
-  if (first?.b64_json) return Buffer.from(first.b64_json, "base64");
-  if (first?.url) {
-    const img = await fetch(first.url);
-    if (!img.ok) throw new Error("Failed to download generated image.");
-    return Buffer.from(await img.arrayBuffer());
-  }
-  throw new Error("OpenAI returned no image.");
+  // Model default + body shape live in openai-image-request.ts (gpt-image
+  // family; dall-e-3 no longer exists on the API as of 2026-09-17).
+  return requestOpenAiImageBytes(key, { prompt, size: "1024x1024", quality: "high" });
 }
 
 // ── Quota check (DB) ────────────────────────────────────────────────────────
@@ -257,7 +240,7 @@ export async function recordImageGenerationUsage(input: {
       tenant_id: input.tenantId,
       action: "generate_section", // reuse the allowed action value; feature marks images
       provider: "openai",
-      model: process.env.OPENAI_IMAGE_MODEL?.trim() || "dall-e-3",
+      model: resolveOpenAiImageModel(),
       ok: input.ok,
       actor_profile_id: input.userId,
       context_jsonb: { feature: "builder_image", cost_usd: costUsd },
