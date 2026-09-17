@@ -57,3 +57,18 @@ Every page in the sitemap loads (200), no horizontal overflow at either width, n
 - 2026-09-17 02:53Z · Off-app tables: POS Counter sale #D4A8, 2 × Mesa para 10, cash $30,000. "Paid" screen, receipt https://improntamodels.com/r/h52uec7bxdc4anug36ey with two "Party of 10" codes. Tickets & Offers: Sold 2, Mesa para 10 2/20, remaining sellable 3221. Door (session 519e18b6…): 23 expected = 3 comps + 2 × 10.
 - Same minute · Ticket e-mail did not go out: Vercel log `[events.ticketDelivery/payer] column booking_transactions.tenant_id does not exist (42703)`. The sale had no customer attached (POS guest session), so delivery fell through holder → customer → payer and the payer query was wrong. Fix PR #2016. After it deploys: attach the buyer on #D4A8, then Resend from the door Delivery sheet.
 - Overview exception "1 ticket sold and never issued" = order 6C22E25F, a $0 test order from 2026-09-07 with no admission. Ruling: cancel it (Refund lines → "Cancel one ticket" → Confirm). Not the LUMINA sale.
+- 2026-09-17 02:53Z · Off-app tables recorded: POS Counter sale #D4A8, 2 × Mesa para 10, cash $30,000; receipt /r/h52uec7bxdc4anug36ey; Tickets & Offers Sold 2, Mesa 2/20; door 23 expected.
+- 04:xx–05:09Z · D-159 (#2016): ticket e-mail payer fallback read `booking_transactions.tenant_id` (column is `source_tenant_id`); fixed and promoted.
+- 05:xxZ · Home page: white announcement bar removed and published (root cause: preset painted ink + literal #fff; fixed for every tenant in #2021). Spanish header gained the LUMINA link (published).
+- 05:xxZ · POS Door mode enabled for Impronta (Settings → POS → Puerta).
+- 06:12Z · D-161 (#2022): the door only listed nights within 14 days; now 30. LUMINA appears on the POS door and its lookup.
+- 06:40–06:52Z · From the POS door lookup: the two Mesa admissions transferred to the buyer (name + e-mail), then "Reenviar todas las entradas" (2 of 2); comps 1–3 re-sent by e-mail. DB (program session): all five `admissions.delivery` = email. D-162 filed (identical "Reenviar" labels on e-mail and print rows) → #2028.
+- 06:5xZ · Owner opened a ticket mail: QR image broken, copy in English, "EST" zone label. Root cause: the proxy matcher skips `*.png` paths, so `/api/tickets/<code>/qr.png` had no host context → 404 on every host. Fixed in #2030 (route `/api/tickets/<code>/qr`, static guard). Spanish + zone label + PDF ticket in #2031 (D-163).
+- 08:20Z · #2030 live; QR route 200 image/png on improntamodels.com; five tickets re-sent from the door.
+- 08:47Z · #2025 (D-160) live; public /ticket/<code> "Resend by email" renders "Sent again to the address on the ticket." on the custom domain.
+- 09:03Z · #2021 live: "Full bleed" toggled on the LUMINA tree root and published; hero spans the viewport (flow/09 vs flow/08). Home: LUMINA strip re-inserted with the fixed announcement preset, copy "LUMINA · Fiesta de lanzamiento · Sáb 3 oct · Cancún" → Comprar entradas → /lumina, published (flow/06, flow/07).
+- Pending merges (program session's queue): #2028 (D-162), #2023, #2031 (PDF ticket + Spanish mail), #2024 (ticket page + Settings tab). Owner-side: real 500 MXN purchase + refund once #2031/#2024 are live; cancel order 6C22E25F.
+
+## Captures added 2026-09-17
+06 home 1440 with the LUMINA strip · 07 home 390 · 08 LUMINA 1440 before full bleed · 09 after · 10 LUMINA 390 · 11 PDF ticket sample (page 1 of 2) · 12 QR route serving image/png · 13 the broken-QR mail the owner saw before #2030.
+
