@@ -5,8 +5,9 @@
  * chips, zone, status and the three actions; the ten-row sub-nav on the
  * left; the tab on the right. Tickets & Offers (`event-tab-tickets`), Venue
  * & Seating and Event Day (`event-tab-day`) are their own files; Overview
- * and Details & Schedule live here; Orders, Guests, Page & Promotion, Money
- * & Reports and Settings say what they wait on rather than draw a blank.
+ * and Details & Schedule live here; Settings (`event-tab-settings`) writes
+ * what the guest ticket reads; Orders, Guests, Page & Promotion and Money
+ * & Reports say what they wait on rather than draw a blank.
  *
  * `Publish` and `Cancel event` are `setEventStatus`; `Open event day` is the
  * POS Door mode; `Preview` is the public event page. `Share` has no link
@@ -27,6 +28,7 @@ import { Icon } from "../../primitives";
 import type { EventsNav } from "./EventsPage";
 import { whenLabel } from "./EventsList";
 import { EventDayTab, EventVenueTab } from "./event-tab-day";
+import { EventSettingsTab } from "./event-tab-settings";
 import { SessionSeats, TicketsTab } from "./event-tab-tickets";
 import { DETAIL_TABS, eventState, type DetailTab, type EventState } from "./events-model";
 
@@ -176,7 +178,7 @@ export function EventDetail({ event, nav, locale, onChanged }: { event: EventLis
       case "money":
         return notBuilt(t("dashboard.events.tab.money"), t("dashboard.events.notBuilt.money"), "events-panel-money");
       default:
-        return notBuilt(t("dashboard.events.tab.settings"), t("dashboard.events.notBuilt.settings"), "events-panel-settings");
+        return <EventSettingsTab event={event} onChanged={onChanged} />;
     }
   })();
 

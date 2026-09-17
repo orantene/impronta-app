@@ -54,6 +54,12 @@ function row(patch: Partial<EventListRow> = {}): EventListRow {
     timeZone: "America/Mexico_City",
     tiers: [tier],
     sessions: [{ id: "s1", startsAt: "2026-09-18T01:00:00.000Z" }],
+    venueId: "v1",
+    coverMediaId: "m1",
+    description: null,
+    refundsOpen: true,
+    refundPolicyKey: "flexible",
+    refundsCloseAt: null,
     ...patch,
   };
 }
@@ -134,10 +140,15 @@ test("eventDayReadiness says what the engine can vouch for", () => {
       ["tiers", true],
       ["night", true],
       ["pools", true],
+      ["cover", true],
+      ["refunds", true],
     ],
   );
-  const notReady = eventDayReadiness(row({ status: "draft", tiers: [], sessionCount: 0, sessions: [] }), null);
+  const notReady = eventDayReadiness(row({ status: "draft", tiers: [], sessionCount: 0, sessions: [], coverMediaId: null, refundsOpen: false, refundPolicyKey: null }), null);
   assert.equal(notReady.every((r) => !r.ok), true);
+  // An open switch with no policy is NOT ready; a closed switch with a named policy is.
+  assert.equal(eventDayReadiness(row({ refundsOpen: true, refundPolicyKey: null }), null).find((r) => r.key === "refunds")?.ok, false);
+  assert.equal(eventDayReadiness(row({ refundsOpen: false, refundPolicyKey: "strict" }), null).find((r) => r.key === "refunds")?.ok, true);
 });
 
 test("centsFromInput accepts a comma and refuses a word", () => {

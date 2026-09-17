@@ -133,7 +133,7 @@ export function nightFigures(pools: readonly SessionPoolRow[]): NightFigures {
 }
 
 /** W18's readiness strip: what the engine can vouch for tonight. */
-export type Readiness = { key: "tiers" | "night" | "pools" | "published"; ok: boolean; value: string };
+export type Readiness = { key: "tiers" | "night" | "pools" | "published" | "cover" | "refunds"; ok: boolean; value: string };
 
 export function eventDayReadiness(row: EventListRow, pools: readonly SessionPoolRow[] | null): Readiness[] {
   const pooled = pools ? pools.filter((p) => p.poolId !== null).length : 0;
@@ -142,6 +142,12 @@ export function eventDayReadiness(row: EventListRow, pools: readonly SessionPool
     { key: "tiers", ok: row.tiers.length > 0, value: String(row.tiers.length) },
     { key: "night", ok: row.sessionCount > 0, value: String(row.sessionCount) },
     { key: "pools", ok: pools !== null && pooled > 0 && pooled === pools.length, value: pools ? `${pooled} / ${pools.length}` : "0" },
+    // What the guest ticket draws and decides on (the Settings tab writes both).
+    { key: "cover", ok: row.coverMediaId !== null, value: row.coverMediaId ? "set" : "missing" },
+    // A refund policy is set when refunds are open WITH a policy, or explicitly
+    // closed with one named; an open switch with no policy is a button that
+    // promises nothing, and is not ready.
+    { key: "refunds", ok: row.refundPolicyKey !== null, value: row.refundsOpen ? (row.refundPolicyKey ?? "open, no policy") : (row.refundPolicyKey ? `closed · ${row.refundPolicyKey}` : "missing") },
   ];
 }
 

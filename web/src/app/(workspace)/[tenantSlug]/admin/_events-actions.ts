@@ -78,6 +78,18 @@ export type EventListRow = {
   tiers: EventTierRow[];
   /** Scheduled sessions, soonest first — what the Door tab links to. */
   sessions: Array<{ id: string; startsAt: string }>;
+  /** Settings the ticket page reads (the Settings tab writes them). */
+  venueId: string | null;
+  coverMediaId: string | null;
+  description: string | null;
+  /**
+   * The refund switch. FALSE when the three refund columns do not exist yet
+   * (they ship in `…243000_events_refund_settings`): read in a separate
+   * query so an absent column costs the switch, never the event list.
+   */
+  refundsOpen: boolean;
+  refundPolicyKey: string | null;
+  refundsCloseAt: string | null;
 };
 
 export type LoadEventsResult =
@@ -114,7 +126,7 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
     const { data: eventRows, error: eventErr } = await supabase
       .from("events")
       .select(
-        "id, slug, title, status, admission_kind, doors_offset_minutes, refund_cutoff_hours, payout_release_rule, offering_id, venue_id, created_at",
+        "id, slug, title, status, admission_kind, doors_offset_minutes, refund_cutoff_hours, payout_release_rule, offering_id, venue_id, cover_media_id, description, created_at",
       )
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
@@ -128,6 +140,28 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
     if (events.length === 0) return { ok: true, events: [] };
 
     const eventIds = events.map((e) => e.id as string);
+
+    // The refund columns, SEPARATELY. They arrive in a migration the code
+    // must tolerate being absent for one deploy; naming them in the select
+    // above would fail every event over a switch. A failed read here logs
+    // and reads every event as closed, which is also the column default.
+    const refundByEvent = new Map<string, { open: boolean; policy: string | null; closeAt: string | null }>();
+    const { data: refundRows, error: refundErr } = await supabase
+      .from("events")
+      .select("id, refunds_open, refund_policy_key, refunds_close_at")
+      .eq("tenant_id", tenantId)
+      .in("id", eventIds);
+    if (refundErr) {
+      logServerError("events.loadWorkspaceEvents/refundSettings (column absent until …243000 applies?)", refundErr);
+    } else {
+      for (const r of (refundRows ?? []) as Array<Record<string, unknown>>) {
+        refundByEvent.set(r.id as string, {
+          open: r.refunds_open === true,
+          policy: (r.refund_policy_key as string | null) ?? null,
+          closeAt: (r.refunds_close_at as string | null) ?? null,
+        });
+      }
+    }
     const offeringIds = [
       ...new Set(
         events.map((e) => e.offering_id as string | null).filter((v): v is string => Boolean(v)),
@@ -280,6 +314,12 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
           workspace: workspaceZone,
         }).timezone,
         tiers,
+        venueId,
+        coverMediaId: typeof e.cover_media_id === "string" ? e.cover_media_id : null,
+        description: typeof e.description === "string" ? e.description : null,
+        refundsOpen: refundByEvent.get(id)?.open ?? false,
+        refundPolicyKey: refundByEvent.get(id)?.policy ?? null,
+        refundsCloseAt: refundByEvent.get(id)?.closeAt ?? null,
       };
     });
 
@@ -615,5 +655,130 @@ export async function setSessionPoolUnits(input: {
   } catch (err) {
     logServerError("events.setPoolUnits", err);
     return { ok: false, error: "Could not save the seats for this night." };
+  }
+}
+
+// ── Settings tab ─────────────────────────────────────────────────────────────
+//
+// The fields the GUEST TICKET reads and nothing else: cover, doors, venue,
+// refunds, description. Each one the ticket page renders or decides on; a
+// setting with no reader is a promise the page cannot keep.
+
+export type EventSettingsView = {
+  coverUrl: string | null;
+  coverMediaId: string | null;
+  venues: Array<{ id: string; name: string; city: string | null }>;
+};
+
+/** What the Settings tab needs beyond `EventListRow`: the cover's URL and the venue list. */
+export async function loadEventSettings(input: { eventId: string }): Promise<{ ok: true; view: EventSettingsView } | { ok: false; error: string }> {
+  const guard = await requireWorkspaceStaffAction();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { supabase, tenantId } = guard;
+  const parsed = z.object({ eventId: z.string().uuid() }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "That is not an event." };
+  try {
+    const { data: ev, error: evErr } = await supabase
+      .from("events").select("id, cover_media_id").eq("tenant_id", tenantId).eq("id", parsed.data.eventId).maybeSingle();
+    if (evErr) { logServerError("events.loadEventSettings/event", evErr); return { ok: false, error: "Could not load this event." }; }
+    if (!ev) return { ok: false, error: "That is not an event." };
+    const coverMediaId = (ev.cover_media_id as string | null) ?? null;
+    const [{ data: cover, error: coverErr }, { data: venueRows, error: venueErr }] = await Promise.all([
+      coverMediaId
+        ? supabase.from("media_assets").select("public_url").eq("id", coverMediaId).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      supabase.from("venues").select("id, name, city").eq("tenant_id", tenantId).order("is_default", { ascending: false }).order("name", { ascending: true }),
+    ]);
+    if (coverErr) logServerError("events.loadEventSettings/cover", coverErr);
+    if (venueErr) { logServerError("events.loadEventSettings/venues", venueErr); return { ok: false, error: "Could not load venues." }; }
+    return {
+      ok: true,
+      view: {
+        coverUrl: (cover?.public_url as string | null) ?? null,
+        coverMediaId,
+        venues: (venueRows ?? []).map((v) => ({ id: v.id as string, name: v.name as string, city: (v.city as string | null) ?? null })),
+      },
+    };
+  } catch (err) {
+    logServerError("events.loadEventSettings", err);
+    return { ok: false, error: "Could not load this event." };
+  }
+}
+
+const settingsSchema = z.object({
+  eventId: z.string().uuid(),
+  coverMediaId: z.string().uuid().nullable(),
+  doorsOffsetMinutes: z.number().int().min(0).max(24 * 60),
+  venueId: z.string().uuid().nullable(),
+  description: z.string().trim().max(4000).nullable(),
+  refundsOpen: z.boolean(),
+  refundPolicyKey: z.enum(["tiered", "flexible", "strict", "manual"]).nullable(),
+  refundsCloseAt: z.string().datetime({ offset: true }).nullable(),
+});
+
+export type SaveEventSettingsInput = z.infer<typeof settingsSchema>;
+export type SaveEventSettingsResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * One tenant-scoped UPDATE. The refund fields go in a SECOND update so that,
+ * for the one deploy before `…243000` applies, the cover / doors / venue /
+ * description still save and only the switch reports its column is missing.
+ * `refundsOpen` without a policy is refused: an open switch with no promise
+ * behind it is a refund button that says nothing.
+ */
+export async function saveEventSettings(input: SaveEventSettingsInput): Promise<SaveEventSettingsResult> {
+  const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const parsed = settingsSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Check the settings: doors is 0 to 1440 minutes, the close date must be a real date." };
+  const s = parsed.data;
+  if (s.refundsOpen && !s.refundPolicyKey) return { ok: false, error: "Pick a refund policy before opening refunds." };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+  try {
+    if (s.venueId) {
+      const { data: venue, error: vErr } = await admin.from("venues").select("id").eq("tenant_id", guard.tenantId).eq("id", s.venueId).maybeSingle();
+      if (vErr) { logServerError("events.saveEventSettings/venue", vErr); return { ok: false, error: "Could not check the venue." }; }
+      if (!venue) return { ok: false, error: "That venue is not in this workspace." };
+    }
+    if (s.coverMediaId) {
+      const { data: media, error: mErr } = await admin.from("media_assets").select("id").eq("tenant_id", guard.tenantId).eq("id", s.coverMediaId).maybeSingle();
+      if (mErr) { logServerError("events.saveEventSettings/media", mErr); return { ok: false, error: "Could not check the image." }; }
+      if (!media) return { ok: false, error: "That image is not in this workspace's library." };
+    }
+    const { data: base, error: baseErr } = await admin
+      .from("events")
+      .update({
+        cover_media_id: s.coverMediaId,
+        doors_offset_minutes: s.doorsOffsetMinutes,
+        venue_id: s.venueId,
+        description: s.description && s.description.length > 0 ? s.description : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", guard.tenantId)
+      .eq("id", s.eventId)
+      .select("id");
+    if (baseErr) { logServerError("events.saveEventSettings/base", baseErr); return { ok: false, error: "Could not save the event settings." }; }
+    if (!base || base.length === 0) return { ok: false, error: "That is not an event in this workspace." };
+
+    const { error: refundErr } = await admin
+      .from("events")
+      .update({
+        refunds_open: s.refundsOpen,
+        refund_policy_key: s.refundPolicyKey,
+        refunds_close_at: s.refundsCloseAt,
+      })
+      .eq("tenant_id", guard.tenantId)
+      .eq("id", s.eventId);
+    if (refundErr) {
+      logServerError("events.saveEventSettings/refunds (column absent until …243000 applies?)", refundErr);
+      revalidatePath("/", "layout");
+      return { ok: false, error: "Saved the image, doors, venue and description. The refund switch could not be saved yet: its column is not on this database." };
+    }
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("events.saveEventSettings", err);
+    return { ok: false, error: "Could not save the event settings." };
   }
 }

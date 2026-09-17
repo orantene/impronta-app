@@ -272,6 +272,8 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
     tiers: t("dashboard.events.day.readyTiers"),
     night: t("dashboard.events.day.readyNight"),
     pools: t("dashboard.events.day.readyPools"),
+    cover: t("dashboard.events.day.readyCover"),
+    refunds: t("dashboard.events.day.readyRefunds"),
   };
   const gate: Array<[string, string]> = [
     [t("dashboard.events.day.entrances"), t("dashboard.events.day.entrancesValue")],
@@ -343,7 +345,7 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
       </div>
       <div className={`${CARD} flex flex-col gap-[10px] p-[16px]`} data-testid="events-day-readiness">
         <div className="font-admin-body text-[11px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted">{t("dashboard.events.day.readiness")}</div>
-        <div className="grid grid-cols-4 gap-[10px]">
+        <div className="grid grid-cols-3 gap-[10px] max-[720px]:grid-cols-2">
           {readiness.map((r) => (
             <div key={r.key} className={`rounded-[10px] px-[12px] py-[10px] font-admin-body ${r.ok ? "bg-admin-success-soft" : "bg-admin-coral-soft"}`} data-ready={r.ok ? "true" : "false"}>
               <div className={`text-[12.5px] font-semibold ${r.ok ? "text-admin-green" : "text-admin-coral-deep"}`}>{readinessLabel[r.key]}</div>
