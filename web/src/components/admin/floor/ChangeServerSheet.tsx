@@ -46,7 +46,9 @@ export function ChangeServerSheet(props: ChangeServerSheetProps) {
   const party = [entry?.holderName ?? copy.panel.walkIn, size == null ? null : String(size)].filter(Boolean).join(" · ");
   const servers = data.servers ?? [];
   const current = servers.find((p) => p.userId === table.serverUserId) ?? null;
-  const chosen = servers.find((p) => p.userId === choice) ?? null;
+  // The board opens with a hand already picked (`POSChangeServer`: "Give T05
+  // to Ana"): the first person who is not the table's current server.
+  const chosen = servers.find((p) => p.userId === choice) ?? servers.find((p) => p.userId !== table.serverUserId) ?? null;
   const tablesFor = (userId: string) => data.tables.filter((t) => t.state === "occupied" && !t.joinedFromSpaceId && t.serverUserId === userId).length;
 
   return (

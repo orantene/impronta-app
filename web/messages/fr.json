@@ -3571,7 +3571,8 @@
             "stateFree": "Libre",
             "minutes": "{n} min",
             "until": "jusqu'à {time}",
-            "serverNone": "—"
+            "serverNone": "—",
+            "allFree": "Les {n} tables sont toutes libres en ce moment."
           },
           "timeline": {
             "footer": "Ligne du moment à {time} · les dépassements et les réservations se lisent face au prochain engagement de la même ligne.",
@@ -3594,6 +3595,7 @@
             "needsResetPill": "À redresser",
             "blockedPill": "Bloquée",
             "guests": "{n} couverts",
+            "guestsOne": "1 couvert",
             "unpaid": "{amount} à payer",
             "openOrder": "Ouvrir la commande",
             "addItems": "Ajouter des articles",
@@ -3609,6 +3611,7 @@
             "blockReason": "Bloquer une table se fait dans Espaces, pas depuis la caisse.",
             "split": "Partager l'addition",
             "splitReason": "Partager une addition par article ou par part n'est pas encore construit.",
+            "splitNoCheck": "Pas encore d'addition sur cette table ; ajoutez d'abord des articles.",
             "checks": "{n} additions · {amount}",
             "openCheck": "Ouvrir l'addition {letter} · {amount}",
             "servedBy": "Servi par {name}"
@@ -3628,12 +3631,13 @@
             "guestsHereNow": "Couverts présents",
             "of": "sur {n}",
             "server": "Serveur",
-            "serverReason": "Une visite n'enregistre pas encore son serveur.",
+            "serverReason": "Attribué depuis la fiche de la table une fois installés (Changer de serveur).",
             "note": "Installer démarre la visite et enregistre l'arrivée. Rien n'est encaissé.",
             "notHereYet": "Pas encore là",
             "noShow": "Absent",
             "noShowReason": "L'absence est posée par le balayage de grâce, pas à la main, pour que les frais ne soient jamais une supposition.",
             "confirm": "Installer {n} couverts à {code}",
+            "confirmOne": "Installer 1 couvert à {code}",
             "noFit": "Ne convient pas à ce groupe ; le moteur refusera."
           },
           "walkIn": {
@@ -3708,6 +3712,9 @@
             "goesNothing": "Pas encore d'addition",
             "after": "{code} ensuite",
             "afterValue": "À redresser",
+            "nextOn": "Prochain sur {code}",
+            "nextNothingUntil": "Rien avant {time}",
+            "nextNothing": "Rien de réservé",
             "why": "Motif",
             "whyReason": "Le motif n'est pas encore enregistré sur un déplacement.",
             "back": "Retour",
@@ -3747,7 +3754,12 @@
             "date": "Date",
             "time": "Heure",
             "party": "Groupe",
+            "duration": "Durée",
+            "durationValue": "{time} · table de {n}",
+            "durationReason": "La durée vient des règles du lieu.",
             "customer": "Client",
+            "occasion": "Occasion",
+            "occasionReason": "L'occasion n'est pas encore saisie ici.",
             "email": "E-mail",
             "phone": "Téléphone",
             "note": "Note",
@@ -5929,7 +5941,9 @@
         "groupsReason": "Deux groupes existent aujourd'hui (choix unique, extras) ; les groupes libres n'ont pas encore d'écriture.",
         "prepNotes": "Notes pour la préparation",
         "allergy": "Champ allergies",
-        "prepReason": "Les invites de préparation ne sont pas encore enregistrées sur un article."
+        "prepReason": "Les invites de préparation ne sont pas encore enregistrées sur un article.",
+        "groupMenu": "Menu du groupe",
+        "reorderReason": "Les lignes se vendent dans cet ordre ; les réordonner n'a pas encore d'écriture ici."
       },
       "fulfillment": {
         "title": "Exécution et préparation",
@@ -5962,8 +5976,7 @@
         "privateLinkNote": "URL non répertoriée pour une campagne",
         "priceOverride": "Prix spécifique",
         "reason": "Ce canal n'a pas encore d'indicateur sur l'article ; les deux qui existent sont le site web et le comptoir.",
-        "overrideReason": "Un prix par canal n'a pas encore de colonne ; chaque canal vend le prix de base.",
-        "rule": "Désactiver un canal n'annule jamais les ventes déjà faites par ce canal."
+        "overrideReason": "Un prix par canal n'a pas encore de colonne ; chaque canal vend le prix de base."
       },
       "policies": {
         "title": "Règles · la version acceptée est conservée sur chaque vente",
@@ -6039,7 +6052,7 @@
         "sectionsReason": "Les sections et services du menu des tables n'ont pas encore de table ; le mode tables vend le même catalogue.",
         "qrOrdering": "Les clients peuvent commander depuis le QR",
         "qrOrderingNote": "Le personnel accepte avant l'envoi",
-        "backToItems": "Retour aux articles"
+        "reorderReason": "Le comptoir affiche cet ordre ; réordonner n'a pas encore d'écriture ici."
       },
       "priceLists": {
         "title": "Listes de prix",
@@ -6090,7 +6103,8 @@
           "partial": "Utilisation partielle",
           "concurrent": "Utilisation simultanée",
           "reporting": "Reporting"
-        }
+        },
+        "usedNote": "échangé à Encaisser (Pass ou crédit) et à l'enregistrement du cours"
       },
       "package": {
         "title": "Composition",
@@ -6113,7 +6127,17 @@
         "save": "Enregistrer la composition",
         "saved": "Composition enregistrée.",
         "allocationNote": "L'allocation est proportionnelle au prix catalogue de chaque composant ; le reste de l'arrondi va à la dernière ligne, pour que les parts fassent toujours le prix du forfait.",
-        "dependenciesReason": "Les dépendances entre composants, les montants manuels et l'aperçu client ne sont pas encore enregistrés ; un composant obligatoire indisponible refuse tout le forfait en caisse."
+        "dependenciesReason": "Les dépendances entre composants et les montants manuels ne sont pas encore enregistrés ; un composant obligatoire indisponible refuse tout le forfait en caisse.",
+        "dependencies": "Dépendances",
+        "allocationMethod": "Méthode de répartition",
+        "proportional": "Proportionnel au prix catalogue du composant",
+        "proportionalNote": "Le reste de l'arrondi va à la dernière ligne",
+        "manual": "Montants manuels",
+        "manualNote": "Doivent totaliser le prix accepté du forfait",
+        "manualReason": "Les montants manuels ne sont pas encore enregistrés ; chaque forfait se répartit proportionnellement.",
+        "guestPreview": "Aperçu client · Configurer",
+        "total": "Total",
+        "holdsNote": "Réserve tous les composants obligatoires ensemble ou propose une alternative honnête."
       },
       "phases": {
         "title": "Phases de prix",

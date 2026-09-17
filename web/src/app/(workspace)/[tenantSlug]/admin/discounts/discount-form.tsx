@@ -39,9 +39,12 @@ export function DiscountForm({ currency }: { currency: string }) {
         aria-expanded={open}
         data-testid="discounts-new"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-[34px] cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] border border-admin-brand bg-admin-brand px-3.5 text-[13px] font-semibold text-white hover:bg-admin-brand-deep"
+        className="inline-flex h-[34px] cursor-pointer items-center justify-center gap-[6px] whitespace-nowrap rounded-[9px] border border-admin-brand bg-admin-brand px-3.5 text-[13px] font-semibold leading-[1.2] text-white hover:bg-admin-brand-deep"
       >
-        + {t("dashboard.discounts.newPromotion")}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden>
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        {t("dashboard.discounts.newPromotion")}
       </button>
       {open ? (
         <form

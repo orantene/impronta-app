@@ -335,3 +335,27 @@ export function parseCashBox(raw: string, minorUnitDivisor: number): number | nu
   if (!Number.isFinite(value) || value < 0) return null;
   return Math.round(value * minorUnitDivisor);
 }
+
+/**
+ * THE HOLD AFTER A WRITE (D-156).
+ *
+ * After an accepted write the screen is still looking at the sale the
+ * engine has moved past, so the next command is held until the re-read
+ * lands (a tap in between would be refused as a `conflict`). The hold used
+ * to be keyed on the VERSION the write was made against and released only
+ * when a NEWER version arrived, so a write that did not move the version (a
+ * no-op edit, a re-read that raced the write) held the till forever:
+ * "Cobrar" read "Cobrando" with no tender sheet until a reload.
+ *
+ * The hold is now keyed on the sale OBJECT the write was made against.
+ * Every re-read hands the counter a new object (the page builds it per
+ * request), so the arrival of the re-read releases the hold whatever
+ * version it carries; a client re-render without a re-read keeps the same
+ * object and keeps the hold. `WRITE_HOLD_MS` is the ceiling: past it the
+ * hook releases on its own and asks for one more re-read.
+ */
+export const WRITE_HOLD_MS = 4000;
+
+export function writeHoldSettling<T extends object>(held: T | null, current: T | null): boolean {
+  return held !== null && current !== null && current === held;
+}

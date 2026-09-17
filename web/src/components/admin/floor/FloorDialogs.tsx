@@ -27,7 +27,8 @@ import { POS_NOTE_INFO, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "../pos/
 import { PosDialog } from "../pos/PosSheet";
 
 import type { FloorBoardCopy } from "./floor-copy";
-import { tableCode } from "./floor-model";
+import { floorDuration, tableCode } from "./floor-model";
+import { CheckMark, RadioDot } from "./FloorRadio";
 import { OPTION_CARD, OPTION_CARD_ACTIVE, OPTION_CARD_OFF } from "./floor-tones";
 import type { FloorBoardData } from "./floor-types";
 import { moneyFor } from "./FloorViews";
@@ -41,20 +42,6 @@ type DialogProps = {
   readonly onClose: () => void;
   readonly onConfirm: () => void;
 };
-
-function Radio({ active }: { active: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2",
-        active ? "border-admin-brand bg-admin-brand text-admin-card" : "border-admin-border-strong bg-admin-card",
-      )}
-    >
-      {active && <Check size={12} strokeWidth={3} />}
-    </span>
-  );
-}
 
 export function DepartedDialog(props: DialogProps) {
   const { data, copy, table, busy } = props;
@@ -70,8 +57,9 @@ export function DepartedDialog(props: DialogProps) {
     <PosDialog
       open={props.open}
       name="party-left"
+      className="w-[560px]"
       title={interpolate(unpaid ? d.title : d.titlePaid, { code })}
-      subtitle={unpaid ? interpolate(d.subtitle, { amount: unpaid, min: table.elapsedMinutes ?? 0 }) : interpolate(d.subtitlePaid, { min: table.elapsedMinutes ?? 0 })}
+      subtitle={unpaid ? interpolate(d.subtitle, { amount: unpaid, min: floorDuration(table.elapsedMinutes ?? 0) }) : interpolate(d.subtitlePaid, { min: floorDuration(table.elapsedMinutes ?? 0) })}
       closeLabel={copy.popover.close}
       onClose={props.onClose}
       footerStart={
@@ -89,7 +77,7 @@ export function DepartedDialog(props: DialogProps) {
         {options.map((o) => (
           <li key={o.id}>
             <button type="button" role="radio" aria-checked={false} disabled title={o.reason} className={cn(OPTION_CARD, OPTION_CARD_OFF)}>
-              <Radio active={false} />
+              <RadioDot active={false} off />
               <span className="min-w-0 flex-1">
                 <span className="block text-[16px] font-semibold">{o.title}</span>
                 <span className="block text-[14px] text-admin-ink-muted">{o.sub}</span>
@@ -137,7 +125,7 @@ export function ResetDialog(props: DialogProps) {
           <li key={key}>
             <label className={cn(OPTION_CARD, "cursor-pointer border-transparent px-2 py-2", checks[key] && OPTION_CARD_ACTIVE)}>
               <input type="checkbox" className="sr-only" checked={checks[key]} disabled={busy} onChange={() => setChecks((c) => ({ ...c, [key]: !c[key] }))} />
-              <Radio active={checks[key]} />
+              <CheckMark active={checks[key]} />
               <span className="text-[16px] font-medium text-admin-ink">{label}</span>
             </label>
           </li>

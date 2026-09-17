@@ -16,9 +16,9 @@
 
 import { useT } from "@/i18n/use-t";
 import { Icon } from "../../primitives";
-import { ActionButton, FactRow, StatePill, UsedIn } from "../appointments-classes-ui";
+import { ActionButton, StatePill, UsedIn } from "../appointments-classes-ui";
 import type { CatalogNav } from "./CatalogPage";
-import { CARD, PageHeading, SegmentLinks } from "./catalog-ui";
+import { CARD, CardButton, PageHeading } from "./catalog-ui";
 
 const ROW_KEY: Record<string, string> = {
   price: "dashboard.catalog.passes.row.price",
@@ -49,11 +49,11 @@ const CARDS = [
   { id: "gift", title: "dashboard.catalog.passes.gift.title", kind: "dashboard.catalog.passes.gift.kind", rows: ["amounts", "valid", "use", "partial", "concurrent", "reporting"] },
 ] as const;
 
-export function CatalogPasses({ nav }: { nav: CatalogNav }) {
+export function CatalogPasses(_props: { nav: CatalogNav }) {
   const t = useT();
   const reason = t("dashboard.catalog.passes.reason");
   return (
-    <div className="flex flex-col gap-[16px]" data-testid="catalog-passes">
+    <div className="flex flex-col gap-[14px] leading-[1.2]" data-testid="catalog-passes">
       <PageHeading
         title={t("dashboard.catalog.passes.title")}
         intro={t("dashboard.catalog.passes.intro")}
@@ -64,13 +64,6 @@ export function CatalogPasses({ nav }: { nav: CatalogNav }) {
           </ActionButton>
         }
       />
-      <SegmentLinks
-        label={t("dashboard.catalog.segment.label")}
-        items={[
-          { id: "items", label: t("dashboard.catalog.segment.items"), href: nav.href({ view: "items" }), active: false },
-          { id: "passes", label: t("dashboard.catalog.segment.passes"), href: nav.href({ view: "passes" }), active: true },
-        ]}
-      />
       <UsedIn
         count={2}
         label={t("dashboard.catalog.usedIn.label")}
@@ -78,32 +71,33 @@ export function CatalogPasses({ nav }: { nav: CatalogNav }) {
           { where: t("dashboard.catalog.usedIn.pos"), what: t("dashboard.catalog.passes.usedPos") },
           { where: t("dashboard.catalog.usedIn.web"), what: t("dashboard.catalog.passes.usedWeb") },
         ]}
+        note={t("dashboard.catalog.passes.usedNote")}
       />
-      <p role="status" data-testid="catalog-passes-reason" className="m-0 rounded-[10px] bg-admin-coral-soft px-[12px] py-[10px] font-admin-body text-[12.5px] text-admin-coral-deep">
-        {reason}
-      </p>
-      <div className="grid grid-cols-3 gap-[14px]">
+      {/* The board's three cards: the title and its kind on one line, 37px key/value rows, `Edit` across the foot. */}
+      <div className="grid grid-cols-3 items-stretch gap-[16px]">
         {CARDS.map((c) => (
-          <div key={c.id} className={`${CARD} flex flex-col`} data-testid={`catalog-passes-${c.id}`} title={reason}>
-            <div className="flex items-center justify-between gap-[8px] px-[16px] py-[12px]">
-              <span className="font-admin-body text-admin-13 font-semibold text-admin-ink">{t(c.title)}</span>
-              <StatePill tone="slate">{t(c.kind)}</StatePill>
+          <div key={c.id} className={`${CARD} flex flex-col px-[16px] pb-[16px] pt-[14px]`} data-testid={`catalog-passes-${c.id}`} title={reason}>
+            <div className="flex items-center justify-between gap-[8px] pb-[6px]">
+              <span className="font-admin-body text-[14px] font-semibold text-admin-ink">{t(c.title)}</span>
+              <StatePill tone="indigo">{t(c.kind)}</StatePill>
             </div>
-            <div className="flex-1 border-t border-admin-border-soft px-[16px] py-[6px]">
+            <div>
               {c.rows.map((r) => (
-                <FactRow key={r} label={t(ROW_KEY[r] ?? r)} muted>
-                  {t("dashboard.catalog.passes.notDecided")}
-                </FactRow>
+                <div key={r} className="flex h-[37px] items-center justify-between gap-[12px] border-b border-admin-border-soft font-admin-body text-admin-13 leading-[1.2] last:border-b-0">
+                  <span className="text-admin-ink-muted">{t(ROW_KEY[r] ?? r)}</span>
+                  <span className="text-right font-semibold text-admin-ink-dim">{t("dashboard.catalog.passes.notDecided")}</span>
+                </div>
               ))}
             </div>
-            <div className="border-t border-admin-border-soft px-[16px] py-[10px]">
-              <ActionButton reason={reason} className="h-[30px]! px-[12px]! text-[12px]!">
-                {t("dashboard.catalog.passes.edit")}
-              </ActionButton>
+            <div className="pt-[14px]">
+              <CardButton reason={reason}>{t("dashboard.catalog.passes.edit")}</CardButton>
             </div>
           </div>
         ))}
       </div>
+      <p role="status" data-testid="catalog-passes-reason" className="m-0 font-admin-body text-[12px] leading-[1.2] text-admin-ink-muted">
+        {reason}
+      </p>
     </div>
   );
 }

@@ -11,7 +11,7 @@
 import { useT } from "@/i18n/use-t";
 import type { OfferingKind } from "@/lib/talent/offerings-types";
 import type { TabProps } from "./CatalogItemEditor";
-import { Field, INPUT, SectionHead } from "./catalog-ui";
+import { Field, INPUT, SectionHead, SELECT, SelectShell } from "./catalog-ui";
 import { PackageComposition } from "./item-tab-package";
 
 export function DetailsTab(props: TabProps) {
@@ -51,17 +51,17 @@ export function DetailsTab(props: TabProps) {
           />
         </Field>
         <Field label={t("dashboard.catalog.details.type")} hint={t("dashboard.catalog.details.typeHint")}>
-          <select
+          <SelectShell><select
             value={item.kind}
             disabled={saving}
             data-testid="catalog-field-kind"
             onChange={(e) => patch({ kind: e.target.value as OfferingKind })}
-            className={INPUT}
+            className={SELECT}
           >
             <option value="product">{t("dashboard.catalog.type.product")}</option>
             <option value="service">{t("dashboard.catalog.type.service")}</option>
             <option value="package">{t("dashboard.catalog.type.package")}</option>
-          </select>
+          </select></SelectShell>
         </Field>
         <Field label={t("dashboard.catalog.details.category")} hint={t("dashboard.catalog.details.categoryHint")}>
           <input

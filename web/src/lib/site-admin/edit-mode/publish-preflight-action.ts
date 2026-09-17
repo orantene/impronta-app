@@ -18,6 +18,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
+import { logServerError } from "@/lib/server/safe-error";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
@@ -59,6 +60,7 @@ import {
   collectFreePlanPublishNestedViolations,
 } from "@/lib/site-admin/builder-node/free-plan-builder-tree-guard";
 import { collectMobileOverflowPreflightIssues } from "./publish-preflight-mobile-overflow";
+import { BRAND_IDENTITY_MESSAGE, brandIdentityAppliesTo, brandIdentityVerdict } from "./publish-preflight-brand-identity";
 import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder-node/element-library-policy";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
@@ -85,7 +87,8 @@ export interface PreflightIssue {
     | "seo"
     | "layout"
     | "mobile_overflow"
-    | "performance";
+    | "performance"
+    | "brand_identity";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
   /**
@@ -238,6 +241,27 @@ export async function runPublishPreflight(input?: {
     : [];
   const issues: PreflightIssue[] = [];
   const featuredChecks: Array<Promise<void>> = [];
+
+  // Brand identity (owner decision 1): a logo or the wordmark choice before
+  // a COMPOSED site can publish. Scoped to tenants carrying a site_compose
+  // stamp so sites that went live before the rule are never blocked. Read
+  // once; a read failure is reported as "no identity" rather than waved through.
+  if (brandIdentityAppliesTo(input?.surfaceKind)) {
+    const [{ data: branding, error: brandingErr }, { data: agency, error: agencyErr }] = await Promise.all([
+      auth.supabase.from("agency_branding").select("logo_media_asset_id").eq("tenant_id", scope.tenantId).maybeSingle<{ logo_media_asset_id: string | null }>(),
+      auth.supabase.from("agencies").select("settings").eq("id", scope.tenantId).maybeSingle<{ settings: Record<string, unknown> | null }>(),
+    ]);
+    if (brandingErr) logServerError("publish-preflight.brandIdentity.branding", brandingErr);
+    if (agencyErr) logServerError("publish-preflight.brandIdentity.agency", agencyErr);
+    const composed = !agencyErr && !!agency?.settings?.site_compose;
+    const verdict = brandIdentityVerdict({
+      hasLogo: !brandingErr && !!branding?.logo_media_asset_id,
+      wordmarkChosen: !agencyErr && agency?.settings?.brand_identity === "wordmark",
+    });
+    if (composed && !verdict.ok) {
+      issues.push({ severity: "error", category: "brand_identity", message: BRAND_IDENTITY_MESSAGE });
+    }
+  }
 
   // Heading hierarchy
   let h1Count = 0;

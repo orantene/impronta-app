@@ -17,8 +17,8 @@
  * booking), a note (the website's field is not wired here), an occasion.
  */
 
-import { Check } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Check, ChevronDown } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { interpolate } from "@/i18n/interpolate";
 import { formatOrderMoney } from "@/lib/orders/money-format";
@@ -45,13 +45,35 @@ export type ReservationSheetProps = {
 
 type Done = { orderId: string; admissionId: string; collectCents: number; startsAtIso: string };
 
+/** `Sat 12 Sep`: day first, as the boards print a date (the kit's rule since polish3). */
 function dayLabel(ymd: string, locale: string, timeZone: string): string {
   const at = new Date(`${ymd}T12:00:00Z`);
   try {
-    return new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(at);
+    const parts = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).formatToParts(at);
+    const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    return `${pick("weekday")} ${pick("day")} ${pick("month")}`.replace(/\.$/, "").trim();
   } catch {
     return ymd || timeZone;
   }
+}
+
+/** `2 h`, `1 h 30 min`: the venue's turn as the board's Duration reads it. */
+function turnLabel(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  if (h === 0) return `${rest} min`;
+  return rest === 0 ? `${h} h` : `${h} h ${rest} min`;
+}
+
+/** The kit's chevron over a native select or a read-only value. */
+function SelectShell({ children, muted }: { readonly children: ReactNode; readonly muted?: boolean }) {
+  return (
+    <span className="relative block">
+      {children}
+      <ChevronDown aria-hidden size={16} strokeWidth={1.75} className={cn("pointer-events-none absolute right-4 top-1/2 -translate-y-1/2", muted ? "text-admin-ink-dim" : "text-admin-ink-muted")} />
+    </span>
+  );
 }
 
 export function ReservationSheet(props: ReservationSheetProps) {
@@ -159,53 +181,100 @@ export function ReservationSheet(props: ReservationSheetProps) {
           <p className="m-0 flex-1">{refusal}</p>
         </div>
       )}
-      <div>
-        <span className={POS_LABEL}>{r.date}</span>
-        <div className="flex flex-wrap gap-2">
-          {dates.length === 0 && !loading ? (
-            <span className="text-[14px] text-admin-ink-muted">{times && !times.ok ? floorRefusalText(copy, times.reason) : r.loading}</span>
-          ) : (
-            dates.map((d) => (
-              <button
-                key={d}
-                type="button"
-                aria-pressed={onDate === d}
-                disabled={busy}
-                onClick={() => pickDate(d)}
-                className={cn(
-                  "h-11 rounded-[12px] border-[1.5px] px-3.5 text-[15px] font-semibold",
-                  onDate === d ? "border-admin-brand bg-admin-brand-soft text-admin-brand" : "border-admin-border bg-admin-card text-admin-ink hover:bg-admin-surface-alt",
-                )}
-              >
-                {dayLabel(d, data.locale, data.timeZone)}
-              </button>
-            ))
-          )}
+      {/* The board's one row: Date · Time · Duration · Party (`R01_NewReservation`). */}
+      <div className="grid grid-cols-[1.1fr_1.05fr_1.05fr_1.3fr] gap-3">
+        <div>
+          <label htmlFor="floor-reserve-date" className={POS_LABEL}>
+            {r.date}
+          </label>
+          <SelectShell>
+            <select
+              id="floor-reserve-date"
+              data-floor-reserve-date
+              className={cn(POS_INPUT, "appearance-none px-3.5 pr-8 text-[15px]")}
+              value={onDate ?? ""}
+              disabled={busy || dates.length === 0}
+              onChange={(e) => pickDate(e.target.value)}
+            >
+              {dates.length === 0 && <option value="">{loading ? r.loading : times && !times.ok ? floorRefusalText(copy, times.reason) : r.loading}</option>}
+              {dates.map((d) => (
+                <option key={d} value={d}>
+                  {dayLabel(d, data.locale, data.timeZone)}
+                </option>
+              ))}
+            </select>
+          </SelectShell>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="floor-reserve-time" className={POS_LABEL}>
+            {r.time}
+          </label>
+          <SelectShell>
+            <select
+              id="floor-reserve-time"
+              data-floor-reserve-time
+              className={cn(POS_INPUT, "appearance-none px-3.5 pr-8 text-[15px] tabular-nums")}
+              value={slot ?? ""}
+              disabled={busy || loading || !times?.ok || times.slots.length === 0}
+              onChange={(e) => setSlot(e.target.value || null)}
+            >
+              <option value="">{loading ? "…" : times?.ok && times.slots.length > 0 ? r.pickTime : "—"}</option>
+              {(times?.ok ? times.slots : []).map((t) => (
+                <option key={t.startsAtIso} value={t.startsAtIso} data-floor-reserve-slot={t.label}>
+                  {t.label}
+                  {t.isLastSeating ? ` · ${r.lastSeating}` : ""}
+                </option>
+              ))}
+            </select>
+          </SelectShell>
+        </div>
+        <div>
+          <span id="floor-reserve-duration" className={POS_LABEL}>
+            {r.duration}
+          </span>
+          <SelectShell muted>
+            <input
+              aria-labelledby="floor-reserve-duration"
+              className={cn(POS_INPUT, "px-3.5 pr-8 text-[15px]")}
+              disabled
+              readOnly
+              value={interpolate(r.durationValue, { time: turnLabel(data.defaultTurnMinutes), n: party })}
+              title={r.durationReason}
+            />
+          </SelectShell>
+        </div>
         <div>
           <span id="floor-reserve-party" className={POS_LABEL}>
             {r.party}
           </span>
           <div className="flex h-[52px] items-stretch overflow-hidden rounded-[12px] border-[1.5px] border-admin-border bg-admin-card">
-            <button type="button" aria-label={copy.seat.fewer} disabled={busy || party <= 1} onClick={() => pickParty(party - 1)} className="w-[52px] text-[22px] text-admin-ink hover:bg-admin-surface-alt disabled:opacity-40">
+            <button type="button" aria-label={copy.seat.fewer} disabled={busy || party <= 1} onClick={() => pickParty(party - 1)} className="w-[44px] text-[22px] text-admin-ink hover:bg-admin-surface-alt disabled:opacity-40">
               −
             </button>
             <output aria-labelledby="floor-reserve-party" className="flex flex-1 items-center justify-center gap-1.5 border-x border-admin-border text-[18px] font-semibold text-admin-ink">
               {party}
               <span className="text-[13px] font-normal text-admin-ink-muted">{copy.walkIn.guests}</span>
             </output>
-            <button type="button" aria-label={copy.seat.more} disabled={busy} onClick={() => pickParty(party + 1)} className="w-[52px] text-[22px] text-admin-ink hover:bg-admin-surface-alt disabled:opacity-40">
+            <button type="button" aria-label={copy.seat.more} disabled={busy} onClick={() => pickParty(party + 1)} className="w-[44px] text-[22px] text-admin-ink hover:bg-admin-surface-alt disabled:opacity-40">
               +
             </button>
           </div>
         </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="floor-reserve-name" className={POS_LABEL}>
             {r.customer}
           </label>
           <input id="floor-reserve-name" className={POS_INPUT} value={name} disabled={busy} onChange={(e) => setName(e.target.value)} autoComplete="off" />
+        </div>
+        <div>
+          <span id="floor-reserve-occasion" className={POS_LABEL}>
+            {r.occasion}
+          </span>
+          <SelectShell muted>
+            <input aria-labelledby="floor-reserve-occasion" className={cn(POS_INPUT, "pr-9")} disabled readOnly value="—" title={r.occasionReason} />
+          </SelectShell>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -234,22 +303,21 @@ export function ReservationSheet(props: ReservationSheetProps) {
           <p className="m-0 text-[14px] text-admin-ink-muted">{floorRefusalText(copy, "time_not_offered")}</p>
         ) : (
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={r.time}>
-            {(times?.ok ? times.slots : []).map((s) => (
+            {(times?.ok ? times.slots : []).map((t) => (
               <button
-                key={s.startsAtIso}
+                key={t.startsAtIso}
                 type="button"
                 role="radio"
-                aria-checked={slot === s.startsAtIso}
-                data-floor-reserve-slot={s.label}
+                aria-checked={slot === t.startsAtIso}
                 disabled={busy}
-                onClick={() => setSlot(s.startsAtIso)}
+                onClick={() => setSlot(t.startsAtIso)}
                 className={cn(
-                  "h-11 rounded-[12px] border-[1.5px] px-3.5 text-[15px] font-semibold tabular-nums",
-                  slot === s.startsAtIso ? "border-admin-brand bg-admin-brand-soft text-admin-brand" : "border-admin-border bg-admin-card text-admin-ink hover:bg-admin-surface-alt",
+                  "h-9 rounded-[10px] border-[1.5px] px-3 text-[14px] font-semibold tabular-nums",
+                  slot === t.startsAtIso ? "border-admin-brand bg-admin-brand-soft text-admin-brand" : "border-admin-border bg-admin-card text-admin-ink hover:bg-admin-surface-alt",
                 )}
-                title={s.isLastSeating ? r.lastSeating : s.isUpsize ? r.upsize : undefined}
+                title={t.isLastSeating ? r.lastSeating : t.isUpsize ? r.upsize : undefined}
               >
-                {s.label}
+                {t.label}
               </button>
             ))}
           </div>

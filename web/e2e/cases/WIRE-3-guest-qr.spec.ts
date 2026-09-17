@@ -65,7 +65,7 @@ test("WIRE-3.6 guest QR: bill and the closed-visit refusal; then browse, add, su
     await expect(page.locator('[data-testid^="guest-line-"]').first()).toBeVisible({ timeout: 30_000 });
     await page.locator('[data-testid^="guest-line-"]').first().click();
     await page.getByTestId("guest-pay-share").click();
-    await expect(page.getByRole("alert")).toHaveText(/^(That share is already paid\.|That is more than what is still owed\.)$/, { timeout: 30_000 });
+    await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toHaveText(/^(That share is already paid\.|That is more than what is still owed\.)$/, { timeout: 30_000 });
     const { count: links } = await sb.from("payment_links").select("id", { count: "exact", head: true }).eq("order_id", orderId).eq("status", "open");
     expect(links).toBe(1);
   } finally {

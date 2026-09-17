@@ -23,10 +23,10 @@ import {
   type IdentityReason,
   type TalentOffering,
 } from "@/lib/talent/offerings-types";
-import { FactRow } from "../appointments-classes-ui";
+import { Icon } from "../../primitives";
 import type { TabProps } from "./CatalogItemEditor";
 import { itemChannels } from "./catalog-model";
-import { CARD, ChannelRow, Eyebrow, Field, INPUT, Note, SectionHead, Switch } from "./catalog-ui";
+import { CARD, ChannelRow, Eyebrow, Field, INPUT, Note, SectionHead, SELECT, SelectShell, Switch } from "./catalog-ui";
 
 const IDENTITY_KEY: Record<IdentityReason, string> = {
   attendee_names: "dashboard.catalog.policies.identity.attendee_names",
@@ -73,14 +73,45 @@ export function ChannelsTab({ item, patch, saving }: TabProps) {
         <ChannelRow name={t("dashboard.catalog.channels.profile")} note={t("dashboard.catalog.channels.profileNote")} on={false} reason={reason} override={t("dashboard.catalog.dash")} overrideLabel={t("dashboard.catalog.channels.priceOverride")} />
         <ChannelRow name={t("dashboard.catalog.channels.privateLink")} note={t("dashboard.catalog.channels.privateLinkNote")} on={false} reason={reason} override={t("dashboard.catalog.dash")} overrideLabel={t("dashboard.catalog.channels.priceOverride")} />
       </div>
-      <p className="m-0 font-admin-body text-[12px] text-admin-ink-muted">{t("dashboard.catalog.channels.rule")}</p>
+      {/* W06 draws the four policy selects under the channels; the Policies tab holds the wired switches as well. The rule sentence is the right column's note. */}
+      <SectionHead title={t("dashboard.catalog.policies.title")} />
+      <PolicyFields />
     </>
+  );
+}
+
+/** The board's four policy selects (Returns · Refund policy · Discounts · Comp allowed), each disabled with the one sentence (D-POS-51). */
+function PolicyFields() {
+  const t = useT();
+  const reason = t("dashboard.catalog.policies.reason");
+  return (
+    <div className="grid grid-cols-4 gap-[16px]" data-testid="catalog-policy-fields">
+      <Field label={t("dashboard.catalog.policies.returns")} reason={reason}>
+        <SelectShell><select disabled className={SELECT}>
+          <option>{t("dashboard.catalog.dash")}</option>
+        </select></SelectShell>
+      </Field>
+      <Field label={t("dashboard.catalog.policies.refundPolicy")} reason={reason} quiet>
+        <SelectShell><select disabled className={SELECT}>
+          <option>{t("dashboard.catalog.dash")}</option>
+        </select></SelectShell>
+      </Field>
+      <Field label={t("dashboard.catalog.policies.discounts")} reason={reason} quiet>
+        <SelectShell><select disabled className={SELECT}>
+          <option>{t("dashboard.catalog.policies.discountable")}</option>
+        </select></SelectShell>
+      </Field>
+      <Field label={t("dashboard.catalog.policies.comp")} reason={reason} quiet>
+        <SelectShell><select disabled className={SELECT}>
+          <option>{t("dashboard.catalog.dash")}</option>
+        </select></SelectShell>
+      </Field>
+    </div>
   );
 }
 
 export function PoliciesTab({ item, patch, saving }: TabProps) {
   const t = useT();
-  const reason = t("dashboard.catalog.policies.reason");
   return (
     <>
       <SectionHead title={t("dashboard.catalog.policies.title")} intro={t("dashboard.catalog.policies.intro")} />
@@ -101,19 +132,19 @@ export function PoliciesTab({ item, patch, saving }: TabProps) {
           </div>
         </div>
         <Field label={t("dashboard.catalog.policies.why")} hint={item.requiresIdentity ? null : t("dashboard.catalog.policies.whyHint")}>
-          <select
+          <SelectShell><select
             value={item.identityReason ?? "attendee_names"}
             disabled={saving || !item.requiresIdentity}
             data-testid="catalog-field-identity-reason"
             onChange={(e) => patch({ identityReason: e.target.value as IdentityReason })}
-            className={INPUT}
+            className={SELECT}
           >
             {IDENTITY_REASONS.map((r) => (
               <option key={r} value={r}>
                 {t(IDENTITY_KEY[r])}
               </option>
             ))}
-          </select>
+          </select></SelectShell>
         </Field>
         <div className="flex items-center gap-[10px] rounded-[12px] border border-admin-border bg-admin-card px-[14px] py-[12px]">
           <Switch
@@ -141,27 +172,8 @@ export function PoliciesTab({ item, patch, saving }: TabProps) {
             <div className="font-admin-body text-[12px] text-admin-ink-muted">{t("dashboard.catalog.policies.payInPersonNote")}</div>
           </div>
         </div>
-        <Field label={t("dashboard.catalog.policies.returns")} reason={reason}>
-          <select disabled className={INPUT}>
-            <option>{t("dashboard.catalog.dash")}</option>
-          </select>
-        </Field>
-        <Field label={t("dashboard.catalog.policies.refundPolicy")} reason={reason}>
-          <select disabled className={INPUT}>
-            <option>{t("dashboard.catalog.dash")}</option>
-          </select>
-        </Field>
-        <Field label={t("dashboard.catalog.policies.discounts")} reason={reason}>
-          <select disabled className={INPUT}>
-            <option>{t("dashboard.catalog.policies.discountable")}</option>
-          </select>
-        </Field>
-        <Field label={t("dashboard.catalog.policies.comp")} reason={reason}>
-          <select disabled className={INPUT}>
-            <option>{t("dashboard.catalog.dash")}</option>
-          </select>
-        </Field>
       </div>
+      <PolicyFields />
     </>
   );
 }
@@ -174,21 +186,30 @@ export function ChannelsSide({ item }: { item: TalentOffering }) {
   return (
     <>
       <Eyebrow>{t("dashboard.catalog.side.visibleOn")}</Eyebrow>
-      <div className={`${CARD} px-[16px] py-[8px]`} data-testid="catalog-side-visible">
-        <FactRow label={t("dashboard.catalog.side.counterTile")} muted={!channels.includes("pos")}>
-          {channels.includes("pos") ? placement : hidden}
-        </FactRow>
-        <FactRow label={t("dashboard.catalog.side.tablesMenu")} muted>
-          {t("dashboard.catalog.dash")}
-        </FactRow>
-        <FactRow label={t("dashboard.catalog.channels.tableQr")} muted>
-          {t("dashboard.catalog.dash")}
-        </FactRow>
-        <FactRow label={t("dashboard.catalog.channels.website")} muted={!channels.includes("website")}>
-          {channels.includes("website") ? `${t("dashboard.catalog.side.menu")} › ${item.category ?? t("dashboard.catalog.channels.allItems")}` : hidden}
-        </FactRow>
+      {/* The board's four white cards, one per surface, a check where the item shows. */}
+      <div className="flex flex-col gap-[8px]" data-testid="catalog-side-visible">
+        <VisibleCard on={channels.includes("pos")} name={t("dashboard.catalog.side.counterTile")} value={channels.includes("pos") ? placement : hidden} />
+        <VisibleCard on={false} name={t("dashboard.catalog.side.tablesMenu")} value={t("dashboard.catalog.dash")} reason={t("dashboard.catalog.channels.reason")} />
+        <VisibleCard on={false} name={t("dashboard.catalog.channels.tableQr")} value={t("dashboard.catalog.dash")} reason={t("dashboard.catalog.channels.reason")} />
+        <VisibleCard
+          on={channels.includes("website")}
+          name={t("dashboard.catalog.channels.website")}
+          value={channels.includes("website") ? `${t("dashboard.catalog.side.menu")} › ${item.category ?? t("dashboard.catalog.channels.allItems")}` : hidden}
+        />
       </div>
       <Note>{t("dashboard.catalog.side.channelOffNote")}</Note>
     </>
+  );
+}
+
+function VisibleCard({ on, name, value, reason }: { on: boolean; name: string; value: string; reason?: string }) {
+  return (
+    <div className={`${CARD} flex h-[32px] items-center gap-[8px] px-[12px] font-admin-body leading-[1.2]`} title={reason} data-state={on ? "on" : "off"}>
+      <span className={`inline-flex w-[14px] shrink-0 items-center justify-center ${on ? "text-admin-green" : "text-admin-ink-dim"}`} aria-hidden>
+        {on ? <Icon name="check" size={13} stroke={2.25} /> : <span className="block h-[1.5px] w-[9px] bg-current" />}
+      </span>
+      <span className={`min-w-0 flex-1 truncate text-[13px] font-semibold ${on ? "text-admin-ink" : "text-admin-ink-muted"}`}>{name}</span>
+      <span className="shrink-0 text-[12px] text-admin-ink-muted">{value}</span>
+    </div>
   );
 }

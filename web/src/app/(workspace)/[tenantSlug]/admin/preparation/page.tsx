@@ -63,32 +63,35 @@ export default async function PreparationPage({ params }: { params: PageParams }
   const stations = [...new Set(tickets.map((t) => t.station).filter((s) => s && s !== "kitchen"))];
   const title = stations.length > 0 ? `${tr("dashboard.preparation.pageTitle")} · ${stations.join(" · ")}` : tr("dashboard.preparation.pageTitle");
 
+  const subtitle = interpolate(tr("dashboard.preparation.subtitle"), {
+    date: venueDay(now, timeZone, locale),
+    time: venueHhmm(now.toISOString(), timeZone, locale),
+    preparing,
+    queued,
+    ready,
+  });
+
   return (
-    <main className="flex min-h-[calc(100vh-56px)] flex-col bg-admin-surface">
-      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-admin-border bg-admin-card px-6">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-admin-brand-soft text-admin-brand">
-          <Flame aria-hidden size={20} strokeWidth={1.75} />
-        </span>
-        <div className="min-w-0">
-          <h1 className="m-0 truncate text-[19px] font-semibold leading-[1.2] tracking-[-0.01em] text-admin-ink">{title}</h1>
-          <p className="m-0 truncate text-[13px] text-admin-ink-muted">
-            {interpolate(tr("dashboard.preparation.subtitle"), {
-              date: venueDay(now, timeZone, locale),
-              time: venueHhmm(now.toISOString(), timeZone, locale),
-              preparing,
-              queued,
-              ready,
-            })}
-          </p>
-        </div>
-      </header>
-      <div className="flex min-h-0 flex-1 flex-col py-5">
-        {!board.ok ? (
-          <p className="m-0 px-6 text-[15px] text-admin-red">{tr("dashboard.preparation.unavailable")}</p>
-        ) : (
-          <PreparationClient locale={locale} timeZone={timeZone} zoneNote={zoneNote} nowIso={now.toISOString()} tickets={board.tickets} copy={copy} />
-        )}
-      </div>
+    // `data-tulala-pos-chrome`: the station is a till screen (T26); the
+    // attribute binds the POS palette and caps the storefront's unlayered h1
+    // size that otherwise beats the header's 20px (see `globals.css`).
+    <main className="flex min-h-[calc(100vh-56px)] flex-col bg-admin-surface" data-tulala-pos-chrome>
+      {!board.ok ? (
+        <>
+          <header className="flex h-[68px] shrink-0 items-center gap-3 border-b border-admin-border bg-admin-card px-6">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border-[1.5px] border-admin-coral bg-admin-card text-admin-coral-deep">
+              <Flame aria-hidden size={18} strokeWidth={1.75} />
+            </span>
+            <div className="min-w-0">
+              <h1 className="m-0 truncate text-[19px] font-bold leading-[1.2] tracking-[-0.01em] text-admin-ink">{title}</h1>
+              <p className="m-0 truncate text-[13px] leading-[1.2] text-admin-ink-muted">{subtitle}</p>
+            </div>
+          </header>
+          <p className="m-0 px-6 py-5 text-[15px] text-admin-red">{tr("dashboard.preparation.unavailable")}</p>
+        </>
+      ) : (
+        <PreparationClient locale={locale} timeZone={timeZone} zoneNote={zoneNote} nowIso={now.toISOString()} tickets={board.tickets} copy={copy} title={title} subtitle={subtitle} />
+      )}
     </main>
   );
 }

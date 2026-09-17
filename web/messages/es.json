@@ -14944,7 +14944,8 @@
             "stateFree": "Libre",
             "minutes": "{n} min",
             "until": "hasta {time}",
-            "serverNone": "—"
+            "serverNone": "—",
+            "allFree": "Las {n} mesas están libres ahora mismo."
           },
           "timeline": {
             "footer": "Línea de ahora a las {time} · los excesos y las reservas se ven frente al siguiente compromiso de la misma fila.",
@@ -14967,6 +14968,7 @@
             "needsResetPill": "Por preparar",
             "blockedPill": "Bloqueada",
             "guests": "{n} personas",
+            "guestsOne": "1 persona",
             "unpaid": "{amount} pendiente",
             "openOrder": "Abrir pedido",
             "addItems": "Añadir artículos",
@@ -14982,6 +14984,7 @@
             "blockReason": "Bloquear una mesa se hace en Espacios, no desde la caja.",
             "split": "Dividir la cuenta",
             "splitReason": "Dividir una cuenta por artículos o partes aún no está construido.",
+            "splitNoCheck": "Esta mesa aún no tiene cuenta; añade artículos primero.",
             "checks": "{n} cuentas · {amount}",
             "openCheck": "Abrir cuenta {letter} · {amount}",
             "servedBy": "Atiende {name}"
@@ -15001,12 +15004,13 @@
             "guestsHereNow": "Personas presentes",
             "of": "de {n}",
             "server": "Mesero",
-            "serverReason": "Una visita aún no registra su mesero.",
+            "serverReason": "Se asigna desde la ficha de la mesa una vez sentados (Cambiar mesero).",
             "note": "Sentar inicia la visita y registra la llegada. No cobra nada.",
             "notHereYet": "Aún no llegan",
             "noShow": "No se presentó",
             "noShowReason": "La ausencia la marca el barrido de gracia, no a mano, para que el cargo nunca sea una suposición.",
             "confirm": "Sentar a {n} en {code}",
+            "confirmOne": "Sentar a 1 en {code}",
             "noFit": "No cabe este grupo; el motor lo rechazará."
           },
           "walkIn": {
@@ -15081,6 +15085,9 @@
             "goesNothing": "Sin cuenta todavía",
             "after": "{code} después",
             "afterValue": "Por preparar",
+            "nextOn": "Siguiente en {code}",
+            "nextNothingUntil": "Nada hasta las {time}",
+            "nextNothing": "Nada reservado",
             "why": "Motivo",
             "whyReason": "El motivo aún no se registra en un movimiento.",
             "back": "Atrás",
@@ -15120,7 +15127,12 @@
             "date": "Fecha",
             "time": "Hora",
             "party": "Grupo",
+            "duration": "Duración",
+            "durationValue": "{time} · mesa de {n}",
+            "durationReason": "El tiempo de mesa viene de las reglas del local.",
             "customer": "Cliente",
+            "occasion": "Ocasión",
+            "occasionReason": "La ocasión todavía no se registra aquí.",
             "email": "Correo",
             "phone": "Teléfono",
             "note": "Nota",
@@ -17125,7 +17137,9 @@
         "groupsReason": "Hoy existen dos grupos (elige uno, extras); los grupos libres aún no tienen escritor.",
         "prepNotes": "Notas para preparación",
         "allergy": "Campo de alergias",
-        "prepReason": "Los avisos de preparación aún no se registran en un artículo."
+        "prepReason": "Los avisos de preparación aún no se registran en un artículo.",
+        "groupMenu": "Menú del grupo",
+        "reorderReason": "Las filas se venden en este orden; reordenarlas aún no tiene escritor aquí."
       },
       "fulfillment": {
         "title": "Entrega y preparación",
@@ -17158,8 +17172,7 @@
         "privateLinkNote": "URL no listada para una campaña",
         "priceOverride": "Precio especial",
         "reason": "Este canal aún no tiene indicador en el artículo; los dos que existen son el sitio web y el mostrador.",
-        "overrideReason": "Un precio por canal aún no tiene columna; cada canal vende el precio base.",
-        "rule": "Apagar un canal nunca cancela las ventas ya hechas por él."
+        "overrideReason": "Un precio por canal aún no tiene columna; cada canal vende el precio base."
       },
       "policies": {
         "title": "Políticas · la versión aceptada se conserva en cada venta",
@@ -17235,7 +17248,7 @@
         "sectionsReason": "Las secciones y tiempos del menú de mesas aún no tienen tabla; el modo mesas vende el mismo catálogo.",
         "qrOrdering": "Los clientes pueden pedir desde el QR",
         "qrOrderingNote": "El personal acepta antes de enviar",
-        "backToItems": "Volver a los artículos"
+        "reorderReason": "El mostrador muestra este orden; reordenar aún no tiene escritor aquí."
       },
       "priceLists": {
         "title": "Listas de precios",
@@ -17286,7 +17299,8 @@
           "partial": "Uso parcial",
           "concurrent": "Uso simultáneo",
           "reporting": "Informes"
-        }
+        },
+        "usedNote": "se canjea en Cobrar (Pase o crédito) y en el check-in de la clase"
       },
       "package": {
         "title": "Composición",
@@ -17309,7 +17323,17 @@
         "save": "Guardar composición",
         "saved": "Composición guardada.",
         "allocationNote": "La asignación es proporcional al precio de lista de cada componente; el resto del redondeo va a la última fila, así las partes siempre suman el precio del paquete.",
-        "dependenciesReason": "Las dependencias entre componentes, los importes manuales y la vista previa del cliente todavía no se registran; un componente obligatorio no disponible rechaza todo el paquete en caja."
+        "dependenciesReason": "Las dependencias entre componentes y los importes manuales todavía no se registran; un componente obligatorio no disponible rechaza todo el paquete en caja.",
+        "dependencies": "Dependencias",
+        "allocationMethod": "Método de asignación",
+        "proportional": "Proporcional al precio de lista del componente",
+        "proportionalNote": "El resto del redondeo va a la última fila",
+        "manual": "Montos manuales",
+        "manualNote": "Deben sumar el precio aceptado del paquete",
+        "manualReason": "Los montos manuales aún no se registran; todo paquete se reparte proporcionalmente.",
+        "guestPreview": "Vista del cliente · Configurar",
+        "total": "Total",
+        "holdsNote": "Reserva todos los componentes obligatorios juntos u ofrece una alternativa honesta."
       },
       "phases": {
         "title": "Fases de precio",

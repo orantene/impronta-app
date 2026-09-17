@@ -11,7 +11,7 @@
  * over its one sentence (extend time, block).
  */
 
-import { ArrowRight, Check, Clock, CreditCard, Ellipsis, Flame, Plus, ShoppingBag, User, X } from "lucide-react";
+import { ArrowRight, Check, ChevronRight, Clock, CreditCard, Ellipsis, Flame, Plus, ShoppingBag, User, X } from "lucide-react";
 import { useEffect, useRef, type ComponentType } from "react";
 import type { LucideProps } from "lucide-react";
 
@@ -23,7 +23,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import { POS_PILL, POS_PILL_CORAL, POS_PILL_INDIGO, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "../pos/pos-classes";
 
 import type { FloorBoardCopy } from "./floor-copy";
-import { seatedEntryFor, tableCode, tableLabel, tableTone, type FloorTicket } from "./floor-model";
+import { floorDuration, seatedEntryFor, tableCode, tableLabel, tableTone, type FloorTicket } from "./floor-model";
 import { FLOOR_PILL, PILL_TONE } from "./floor-tones";
 import type { FloorBoardData } from "./floor-types";
 import { moneyFor } from "./FloorViews";
@@ -103,7 +103,7 @@ function MenuRow({ icon: Icon, label, reason, onSelect, busy, testId }: RowProps
             </span>
           )}
         </span>
-        {onSelect && <ArrowRight aria-hidden size={16} strokeWidth={1.75} className="shrink-0 text-admin-ink-dim" />}
+        {onSelect && <ChevronRight aria-hidden size={16} strokeWidth={1.75} className="shrink-0 text-admin-ink-dim" />}
       </button>
     </li>
   );
@@ -133,7 +133,7 @@ export function TablePopover(props: TablePopoverProps) {
   }, [onClose]);
 
   const pill = occupied
-    ? interpolate(p.seatedFor, { n: table.elapsedMinutes ?? 0 })
+    ? interpolate(p.seatedFor, { n: floorDuration(table.elapsedMinutes ?? 0) })
     : table.blocked
       ? p.blockedPill
       : table.state === "held"
@@ -145,7 +145,7 @@ export function TablePopover(props: TablePopoverProps) {
   const partySize = table.partySize ?? entry?.partySize ?? null;
   const serverName = table.serverUserId ? (data.servers?.find((s) => s.userId === table.serverUserId)?.name ?? null) : null;
   const who = occupied
-    ? [entry?.holderName ?? copy.panel.walkIn, partySize == null ? null : interpolate(p.guests, { n: partySize }), serverName ? interpolate(copy.engine.popover.servedBy, { name: serverName }) : copy.list.serverNone]
+    ? [entry?.holderName ?? copy.panel.walkIn, partySize == null ? null : partySize === 1 ? p.guestsOne : interpolate(p.guests, { n: partySize }), serverName ? interpolate(copy.engine.popover.servedBy, { name: serverName }) : null]
         .filter((x): x is string => Boolean(x))
         .join(" · ")
     : table.held
@@ -251,7 +251,7 @@ export function TablePopover(props: TablePopoverProps) {
               </div>
             </>
           ) : null}
-          <ul className="m-0 flex list-none flex-col p-0">
+          <ul className="m-0 mt-0.5 flex list-none flex-col border-t border-admin-border-soft p-0 pt-1.5">
             {props.hasKitchen && table.orderId && (
               <MenuRow icon={Flame} label={p.sendKitchen} onSelect={props.onSendKitchen} busy={busy} testId="send-kitchen" />
             )}
@@ -273,7 +273,14 @@ export function TablePopover(props: TablePopoverProps) {
             />
             <MenuRow icon={Clock} label={p.extendTime} reason={p.extendTimeReason} busy={busy} testId="extend-time" />
             <MenuRow icon={Check} label={p.partyLeft} onSelect={props.onPartyLeft} busy={busy} testId="party-left" />
-            <MenuRow icon={Ellipsis} label={p.split} onSelect={table.orderId ? props.onSplit : undefined} reason={props.onSplit && table.orderId ? undefined : p.splitReason} busy={busy} testId="split" />
+            <MenuRow
+              icon={Ellipsis}
+              label={p.split}
+              onSelect={table.orderId ? props.onSplit : undefined}
+              reason={props.onSplit ? (table.orderId ? undefined : p.splitNoCheck) : p.splitReason}
+              busy={busy}
+              testId="split"
+            />
           </ul>
         </>
       ) : (
@@ -284,7 +291,7 @@ export function TablePopover(props: TablePopoverProps) {
               {p.seatParty}
             </button>
           )}
-          <ul className="m-0 flex list-none flex-col p-0">
+          <ul className="m-0 mt-0.5 flex list-none flex-col border-t border-admin-border-soft p-0 pt-1.5">
             {table.needsResetSinceIso && (
               <MenuRow icon={Check} label={p.markReady} onSelect={props.onReset} busy={busy} testId="mark-ready" />
             )}

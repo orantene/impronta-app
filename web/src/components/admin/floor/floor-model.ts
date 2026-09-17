@@ -191,6 +191,17 @@ export function nextBookingFor(
 }
 
 /** Whether a party of `n` fits this table alone. */
+/**
+ * A seated duration the way the boards print one: `18` under an hour,
+ * `2h 10` past it (`POSDeparted`: "2h 10 min"). The "min" word stays with
+ * the sentence that carries it, so `{n} min` reads `18 min` or `2h 10 min`.
+ */
+export function floorDuration(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  if (m < 60) return String(m);
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}`;
+}
+
 export function fits(table: Pick<FloorTable, "partyMin" | "partyMax">, n: number): boolean {
   return n >= table.partyMin && n <= table.partyMax;
 }
