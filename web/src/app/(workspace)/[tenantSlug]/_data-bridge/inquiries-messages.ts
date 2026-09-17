@@ -9,7 +9,7 @@ import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { loadAgencyInboxHideSet } from "@/lib/inquiry/agency-inbox-visibility";
 import { inquiryMessagingState, linkedRecordsByInquiry, type InquiryMessagingState } from "./inquiries-messaging-state";
-export { loadInquiryMessages, loadTotalUnreadMessages } from "./inquiry-thread-messages";
+export { loadClientInquiryMessages, loadInquiryMessages, loadTotalUnreadMessages } from "./inquiry-thread-messages";
 
 /**
  * _data-bridge/inquiries-messages.ts — admin Messages inbox loader.

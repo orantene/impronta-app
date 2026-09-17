@@ -158,6 +158,8 @@ export type ThreadMessage = {
   createdAt: string;
   editedAt: string | null;
   deletedAt: string | null;
+  /** D-MSG-2: "private" is the client thread, "group" the talent thread. */
+  thread: "private" | "group";
   internal: boolean;
   delivery: { channel: string; state: string } | null;
 };

@@ -34,6 +34,8 @@ export function OperatorCard(props: { readonly message: ThreadMessage; readonly 
       className={cn(POS_SURFACE, "max-w-[520px] px-4 py-3", mine ? "ml-auto" : "")}
       data-card-kind={props.model.kind}
       data-card-state={props.model.state}
+      data-thread={props.message.thread}
+      data-internal={props.message.internal ? "" : undefined}
     >
       {props.message.internal ? (
         <p className="text-[12px] font-bold uppercase tracking-[0.06em] text-admin-ink-muted">{props.model.title}</p>
