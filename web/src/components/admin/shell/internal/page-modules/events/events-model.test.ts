@@ -36,6 +36,8 @@ const tier: EventTierRow = {
   salesFrom: null,
   salesUntil: null,
   maxPerOrder: null,
+  presentation: { imageMediaId: null, badge: null, includes: [], description: null },
+  imageUrl: null,
 };
 
 function row(patch: Partial<EventListRow> = {}): EventListRow {

@@ -4,8 +4,10 @@
  * event-tab-tickets — EventDetail's Tickets & Offers tab: the four figures
  * over the table (one night's pools through `loadSessionPools`), the ticket
  * table (Ticket type · entitles to, Price, Active phase, Capacity pool, Sold
- * / pool, Allocation, Channel), `Add ticket type` (`addTier`), the row menu
- * that opens the inline editor (`updateTier`), the Ticket settings card and
+ * / pool, Allocation, Channel, with a thumbnail when the type carries a
+ * featured image), `Add ticket type` (`addTier`), the row menu that opens the
+ * inline editor (`TierEditor` in event-tab-tickets-editor.tsx, the only
+ * caller of `updateTier`), the Ticket settings card and
  * the Venue commitment card. `SessionSeats` (Details & Schedule) is the
  * operator half of the oversell guard: `setSessionPoolUnits`, whose CP015
  * refusal is a sentence here.
@@ -21,9 +23,7 @@ import {
   addTier,
   loadSessionPools,
   setSessionPoolUnits,
-  updateTier,
   type EventListRow,
-  type EventTierRow,
   type SessionPoolRow,
 } from "@/app/(workspace)/[tenantSlug]/admin/_events-actions";
 import { interpolate } from "@/i18n/interpolate";
@@ -32,6 +32,7 @@ import { useT } from "@/i18n/use-t";
 import { ActionButton, BUTTON_PRIMARY, FactRow, Outcome } from "../appointments-classes-ui";
 import { CARD, Field, INPUT, TabStrip } from "../catalog/catalog-ui";
 import { centsFromInput, nightFigures, tierPhase, type TierPhase } from "./events-model";
+import { TierEditor } from "./event-tab-tickets-editor";
 import { BlockPill, DenseHead, DenseRow, EventsNote, RowMenu, Stat } from "./events-ui";
 
 // The board's columns: the drag column, Ticket type · entitles to, Price,
@@ -122,11 +123,20 @@ export function TicketsTab({ event, sessionId, locale, onChanged }: { event: Eve
           return (
             <div key={tier.id}>
               <DenseRow cols={COLS} testId={`events-tier-${tier.id}`}>
-                <span className="min-w-0">
-                  <span className="block truncate font-admin-body text-[13px] font-semibold text-admin-ink">{tier.label}</span>
-                  <span className="mt-[2px] block truncate font-admin-body text-[11.5px] text-admin-ink-muted">
-                    {tier.admitsPerUnit > 1 ? interpolate(t("dashboard.events.tickets.admits"), { count: tier.admitsPerUnit }) : t("dashboard.events.tickets.entry")}
-                    {tier.seatingMode === "space_group" ? ` · ${t("dashboard.events.tickets.tableGroup")}` : ""}
+                <span className="flex min-w-0 items-center gap-[10px]">
+                  {tier.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- tenant media, any host; the row is 32px
+                    <img src={tier.imageUrl} alt="" className="h-[32px] w-[26px] flex-none rounded-[6px] object-cover" data-testid={`events-tier-thumb-${tier.id}`} />
+                  ) : null}
+                  <span className="min-w-0">
+                    <span className="block truncate font-admin-body text-[13px] font-semibold text-admin-ink">
+                      {tier.label}
+                      {tier.presentation.badge ? <span className="ml-[6px] rounded-[999px] bg-admin-surface-alt px-[6px] py-[1px] font-admin-body text-[10px] font-semibold uppercase tracking-[0.08em] text-admin-ink-muted">{tier.presentation.badge}</span> : null}
+                    </span>
+                    <span className="mt-[2px] block truncate font-admin-body text-[11.5px] text-admin-ink-muted">
+                      {tier.admitsPerUnit > 1 ? interpolate(t("dashboard.events.tickets.admits"), { count: tier.admitsPerUnit }) : t("dashboard.events.tickets.entry")}
+                      {tier.seatingMode === "space_group" ? ` · ${t("dashboard.events.tickets.tableGroup")}` : ""}
+                    </span>
                   </span>
                 </span>
                 <span className="font-mono text-[12px] font-semibold tabular-nums text-admin-ink">{money(tier.amountCents)}</span>
@@ -262,80 +272,6 @@ function TierForm({ eventId, onAdded, onCancel }: { eventId: string; onAdded: ()
         <ActionButton onClick={onCancel}>{t("dashboard.events.tickets.cancel")}</ActionButton>
       </div>
       <p className="m-0 font-admin-body text-[11.5px] text-admin-ink-muted">{t("dashboard.events.tickets.tierHint")}</p>
-      {error ? <Outcome kind="refused">{error}</Outcome> : null}
-    </form>
-  );
-}
-
-/**
- * Inline tier editor. Edits label / price / admits / max / hidden and NEVER
- * the pool key, so a rename cannot detach a night's seats. The only caller
- * of `updateTier`.
- */
-function TierEditor({ tier, onSaved, onCancel }: { tier: EventTierRow; onSaved: () => void; onCancel: () => void }) {
-  const t = useT();
-  const [label, setLabel] = useState(tier.label);
-  const [price, setPrice] = useState((tier.amountCents / 100).toFixed(2));
-  const [admits, setAdmits] = useState(String(tier.admitsPerUnit));
-  const [max, setMax] = useState(tier.maxPerOrder === null ? "" : String(tier.maxPerOrder));
-  const [hidden, setHidden] = useState(tier.isHidden);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, start] = useTransition();
-  return (
-    <form
-      className="flex flex-col gap-[8px]"
-      data-testid="events-tier-editor"
-      onSubmit={(e) => {
-        e.preventDefault();
-        setError(null);
-        const amountCents = centsFromInput(price);
-        if (amountCents === null) {
-          setError(t("dashboard.events.tickets.priceInvalid"));
-          return;
-        }
-        start(async () => {
-          const res = await updateTier({
-            tierId: tier.id,
-            label,
-            amountCents,
-            admitsPerUnit: Math.max(1, Math.round(Number(admits) || 1)),
-            maxPerOrder: max.trim() === "" ? null : Math.max(1, Math.round(Number(max))),
-            isHidden: hidden,
-          });
-          if (!res.ok) {
-            setError(res.error);
-            return;
-          }
-          onSaved();
-        });
-      }}
-    >
-      <div className="grid grid-cols-[minmax(0,2fr)_110px_110px_110px_auto] items-end gap-[8px]">
-        <Field label={t("dashboard.events.tickets.tierName")}>
-          <input aria-label="Tier name" value={label} onChange={(e) => setLabel(e.target.value)} disabled={busy} maxLength={80} className={INPUT} />
-        </Field>
-        <Field label={t("dashboard.events.tickets.colPrice")}>
-          <input aria-label="Price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} disabled={busy} className={`${INPUT} font-mono`} />
-        </Field>
-        <Field label={t("dashboard.events.tickets.admitsPerTicket")}>
-          <input aria-label="Admits per ticket" inputMode="numeric" value={admits} onChange={(e) => setAdmits(e.target.value)} disabled={busy} className={`${INPUT} font-mono`} />
-        </Field>
-        <Field label={t("dashboard.events.tickets.perOrder")}>
-          <input aria-label="Max per order" inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value)} disabled={busy} className={`${INPUT} font-mono`} />
-        </Field>
-        <label className="flex h-[36px] items-center gap-[6px] font-admin-body text-[12px] text-admin-ink-muted">
-          <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} disabled={busy} /> {t("dashboard.events.tickets.hiddenByLink")}
-        </label>
-      </div>
-      <p className="m-0 font-admin-body text-[11.5px] text-admin-ink-muted">{t("dashboard.events.tickets.renameHint")}</p>
-      <div className="flex gap-[8px]">
-        <button type="submit" disabled={busy} className={`${BUTTON_PRIMARY} disabled:cursor-not-allowed disabled:opacity-50`} data-testid="events-tier-save">
-          {busy ? t("dashboard.events.tickets.saving") : t("dashboard.events.tickets.save")}
-        </button>
-        <ActionButton onClick={onCancel} disabled={busy}>
-          {t("dashboard.events.tickets.cancel")}
-        </ActionButton>
-      </div>
       {error ? <Outcome kind="refused">{error}</Outcome> : null}
     </form>
   );

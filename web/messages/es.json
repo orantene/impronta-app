@@ -17675,6 +17675,24 @@
         "hiddenByLink": "oculta (se vende por enlace)",
         "renameHint": "Renombrar conserva las plazas y las vendidas de este tipo. Las plazas por noche se editan en Detalles y calendario."
       },
+      "tiers": {
+        "presentation": {
+          "title": "Cómo se muestra este tipo de entrada",
+          "intro": "Se muestra en todas las páginas que venden este tipo de entrada. El editor de una página puede cambiar un campo solo para esa página.",
+          "image": "Imagen destacada",
+          "imageHint": "Opcional. Sin imagen, la entrada se muestra como una tarjeta de texto limpia.",
+          "imageEmpty": "Agregar una imagen",
+          "badge": "Etiqueta",
+          "badgeHint": "Una etiqueta corta junto al nombre, por ejemplo VIP o Preventa.",
+          "badgePlaceholder": "VIP",
+          "includes": "Incluye",
+          "includesHint": "Un elemento por línea; se muestran como viñetas en la entrada.",
+          "includesPlaceholder": "Bebida de bienvenida\nAsientos en primera fila",
+          "description": "Descripción",
+          "descriptionHint": "Una frase corta debajo del precio.",
+          "descriptionPlaceholder": "Todo lo de General, más el after."
+        }
+      },
       "venue": {
         "title": "Lugar y asientos · {date}",
         "intro": "Espacio, diseño y cómo los tipos de entrada se asignan a unidades",
