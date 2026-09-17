@@ -67,7 +67,10 @@ const STYLE_RULES = [
   "Second person (\"you\"), addressed to the workspace owner/staff using the product.",
 ];
 
-function draftSystemPrompt() {
+function draftSystemPrompt(learnings) {
+  const known = learnings.length
+    ? ["", "Known mistakes previous drafts made on this product. Do not repeat them:", ...learnings.map((l) => `- ${l}`)]
+    : [];
   return [
     "You write help articles for Tulala, a website + booking platform for talent agencies, restaurants, salons and similar small businesses.",
     "You will be given the ONLY facts you may state: a short purpose sentence, a list of things the user can do here, optional FAQs, and related topic ids.",
@@ -78,10 +81,11 @@ function draftSystemPrompt() {
     "- careful: at most one or two sentences on a mistake people make, only if it follows from the given facts; otherwise null.",
     ...STYLE_RULES.map((r) => `- ${r}`),
     "Output ONLY the JSON object, no prose before or after.",
+    ...known,
   ].join("\n");
 }
 
-function draftUserPrompt(nodeId, entry, locale, redraftNotes) {
+function draftUserPrompt(nodeId, entry, locale, redraftNotes, sourceArticle) {
   const facts = {
     nodeId,
     purpose: entry.purpose,
@@ -98,6 +102,13 @@ function draftUserPrompt(nodeId, entry, locale, redraftNotes) {
     "FACTS (the only source you may draw from):",
     JSON.stringify(facts, null, 2),
   ];
+  if (sourceArticle) {
+    lines.push(
+      "",
+      "VERIFIED ENGLISH ARTICLE. Write the Spanish version of THIS article: same meaning and structure, natural Mexican Spanish, rewrite the example for a Spanish-speaking reader rather than translating it word for word. You may not add any fact that is not in this article or the FACTS.",
+      JSON.stringify(sourceArticle, null, 2),
+    );
+  }
   if (redraftNotes) {
     lines.push("", "Your previous draft was rejected by a reviewer for these reasons — fix them:", redraftNotes);
   }
@@ -109,16 +120,24 @@ function criticSystemPrompt() {
     "You are an adversarial fact-checker for a help article. You will be given the FACTS the writer was allowed to use, and the DRAFT they produced.",
     "For every sentence in the draft's oneSentence, whatItIsFor, each step's text, example, whoSeesWhat and careful fields, decide: supported (directly follows from the facts), unsupported (plausible-sounding but not stated in the facts), or contradiction (conflicts with the facts).",
     "Also check structure: oneSentence non-empty, whatItIsFor non-empty, at least 1 step, example non-empty and consistent with the facts, related contains only ids that were in the facts' related list, no forbidden words (buyer, cart, em dash character —).",
-    "Output ONLY a JSON object: { unsupportedCount, contradictionCount, structuralPass (boolean), notes (short string explaining any failure, or empty string if clean) }.",
+    "Output ONLY a JSON object: { unsupportedSentences (array of the exact sentence strings you judged unsupported, copied verbatim from the draft), contradictionCount, structuralPass (boolean), notes (short string explaining any failure, or empty string if clean) }.",
   ].join("\n");
 }
 
-function criticUserPrompt(entry, nodeId, draft) {
+function criticUserPrompt(entry, nodeId, draft, sourceArticle) {
   const facts = { nodeId, purpose: entry.purpose, youCanHere: entry.youCanHere, faqs: entry.faqs ?? [], related: entry.relatedDrawers ?? [] };
-  return ["FACTS:", JSON.stringify(facts, null, 2), "", "DRAFT:", JSON.stringify(draft, null, 2)].join("\n");
+  const parts = ["FACTS:", JSON.stringify(facts, null, 2)];
+  if (sourceArticle) {
+    parts.push("", "VERIFIED SOURCE ARTICLE (already fact-checked; the draft may restate anything in it):", JSON.stringify(sourceArticle, null, 2));
+  }
+  parts.push("", "DRAFT:", JSON.stringify(draft, null, 2));
+  return parts.join("\n");
 }
 
+let CALLS = 0;
+
 async function callClaude(apiKey, system, user) {
+  CALLS += 1;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -164,30 +183,112 @@ function shortVersionSections(entry) {
   };
 }
 
-async function generateOne(apiKey, nodeId, entry, locale) {
-  let draft = await callClaude(apiKey, draftSystemPrompt(), draftUserPrompt(nodeId, entry, locale, null));
-  let critic = await callClaude(apiKey, criticSystemPrompt(), criticUserPrompt(entry, nodeId, draft));
+const STRING_FIELDS = ["oneSentence", "whatItIsFor", "example", "whoSeesWhat", "careful"];
 
-  const failed = (c) => c.contradictionCount > 0 || c.unsupportedCount > 0 || c.structuralPass !== true;
+/** Remove the critic's unsupported sentences locally — no model call. */
+function stripSentences(draft, sentences) {
+  const out = JSON.parse(JSON.stringify(draft));
+  const clean = (text) => {
+    let t = String(text ?? "");
+    for (const sent of sentences) {
+      const needle = String(sent ?? "").trim();
+      if (needle.length >= 8) t = t.split(needle).join("");
+    }
+    return t.replace(/\s{2,}/g, " ").trim();
+  };
+  for (const f of STRING_FIELDS) if (out[f]) out[f] = clean(out[f]) || null;
+  out.steps = (out.steps ?? []).map((st) => ({ ...st, text: clean(st.text) })).filter((st) => st.text);
+  return out;
+}
 
-  if (failed(critic)) {
-    draft = await callClaude(apiKey, draftSystemPrompt(), draftUserPrompt(nodeId, entry, locale, critic.notes || "unspecified issue"));
-    critic = await callClaude(apiKey, criticSystemPrompt(), criticUserPrompt(entry, nodeId, draft));
+function structurallySound(draft) {
+  return Boolean(draft.oneSentence) && Boolean(draft.whatItIsFor) && Boolean(draft.example) && (draft.steps ?? []).length > 0;
+}
+
+/**
+ * Draft → critic → publish, spending as few calls as possible (owner ruling
+ * 2026-09-17: credits are an engine, not a faucet):
+ *   - unsupported sentences only  → strip locally, publish. 2 calls.
+ *   - contradiction / structure   → one redraft with notes → critic. 4 calls.
+ *   - still failing               → short version from facts. no extra call.
+ * `sourceArticle` (ES only) is the verified EN article, so Spanish is derived
+ * from something already checked instead of re-derived from raw facts.
+ */
+async function generateOne(apiKey, nodeId, entry, locale, learnings, sourceArticle) {
+  const sys = draftSystemPrompt(learnings);
+  let draft = await callClaude(apiKey, sys, draftUserPrompt(nodeId, entry, locale, null, sourceArticle));
+  let critic = await callClaude(apiKey, criticSystemPrompt(), criticUserPrompt(entry, nodeId, draft, sourceArticle));
+
+  const unsupported = (c) => (Array.isArray(c.unsupportedSentences) ? c.unsupportedSentences : []);
+  const hardFail = (c) => (c.contradictionCount ?? 0) > 0 || c.structuralPass !== true;
+
+  let stripped = 0;
+  if (!hardFail(critic) && unsupported(critic).length > 0) {
+    const patched = stripSentences(draft, unsupported(critic));
+    if (structurallySound(patched)) {
+      stripped = unsupported(critic).length;
+      draft = patched;
+      critic = { ...critic, unsupportedSentences: [] };
+    } else {
+      critic = { ...critic, structuralPass: false, notes: `${critic.notes || ""} (stripping left the article structurally incomplete)`.trim() };
+    }
   }
 
-  if (failed(critic)) {
+  if (hardFail(critic)) {
+    draft = await callClaude(apiKey, sys, draftUserPrompt(nodeId, entry, locale, critic.notes || "unspecified issue", sourceArticle));
+    critic = await callClaude(apiKey, criticSystemPrompt(), criticUserPrompt(entry, nodeId, draft, sourceArticle));
+    if (!hardFail(critic) && unsupported(critic).length > 0) {
+      const patched = stripSentences(draft, unsupported(critic));
+      if (structurallySound(patched)) {
+        stripped = unsupported(critic).length;
+        draft = patched;
+        critic = { ...critic, unsupportedSentences: [] };
+      } else {
+        critic = { ...critic, structuralPass: false };
+      }
+    }
+  }
+
+  const count = unsupported(critic).length;
+  if (hardFail(critic) || count > 0) {
     return {
       status: "short-version",
       sections: shortVersionSections(entry),
-      critic: { unsupportedCount: critic.unsupportedCount, contradictionCount: critic.contradictionCount, structuralPass: critic.structuralPass, notes: critic.notes || "Second draft still failed verification; published the code-derived short version." },
+      critic: { unsupportedCount: count, contradictionCount: critic.contradictionCount ?? null, structuralPass: critic.structuralPass ?? null, notes: critic.notes || "Second draft still failed verification; published the code-derived short version." },
     };
   }
 
   return {
     status: "ai-checked",
     sections: draft,
-    critic: { unsupportedCount: critic.unsupportedCount, contradictionCount: critic.contradictionCount, structuralPass: critic.structuralPass, notes: critic.notes || "" },
+    critic: { unsupportedCount: 0, contradictionCount: critic.contradictionCount ?? 0, structuralPass: true, notes: stripped ? `${stripped} unsupported sentence(s) stripped before publish.` : critic.notes || "" },
   };
+}
+
+/**
+ * The engine that grows: every critic verdict is stored in critic_notes, and
+ * the most recent ones ride along in the next draft prompt as "known
+ * mistakes". No model call to build it; it costs tokens, not calls, and it
+ * pushes the first-pass rate up so redrafts (the expensive path) fall.
+ */
+async function loadLearnings(supabase) {
+  const { data } = await supabase
+    .from("guide_articles")
+    .select("critic_notes")
+    .neq("critic_notes", "")
+    .not("critic_notes", "is", null)
+    .order("critic_ran_at", { ascending: false })
+    .limit(40);
+  const seen = new Set();
+  const out = [];
+  for (const row of data ?? []) {
+    const n = String(row.critic_notes).trim();
+    if (!n || /stripped before publish/.test(n) || seen.has(n)) continue;
+    seen.add(n);
+    out.push(n.slice(0, 220));
+    if (out.length >= 15) break;
+  }
+  return out;
 }
 
 async function main() {
@@ -212,6 +313,8 @@ async function main() {
   let skipped = 0;
   let shortVersions = 0;
   const failures = [];
+  const learnings = await loadLearnings(supabase);
+  console.log(`[learnings] ${learnings.length} prior critic note(s) loaded into the draft prompt`);
 
   for (const nodeId of ids) {
     const entry = registry[nodeId];
@@ -223,6 +326,7 @@ async function main() {
       { onConflict: "id" },
     );
 
+    let enSections = null; // the verified EN article, source for ES
     for (const locale of ["en", "es"]) {
       if (!force) {
         const { data: existing } = await supabase
@@ -234,6 +338,10 @@ async function main() {
         if (existing && existing.source_hash === hash && existing.status !== "draft") {
           console.log(`[skip] ${nodeId} (${locale}) — unchanged`);
           skipped += 1;
+          if (locale === "en" && existing.status === "ai-checked") {
+            const { data: enRow } = await supabase.from("guide_articles").select("body_md").eq("node_id", nodeId).eq("locale", "en").maybeSingle();
+            if (enRow?.body_md) { try { enSections = JSON.parse(enRow.body_md); } catch { enSections = null; } }
+          }
           continue;
         }
       }
@@ -244,13 +352,14 @@ async function main() {
       // response, a rate limit, a network blip) must not abort the whole
       // batch — earlier P0 runs died mid-way on exactly this and left the
       // remaining ~100 nodes unprocessed. One retry, then record and move on.
+      const source = locale === "es" ? enSections : null;
       let result;
       try {
-        result = await generateOne(apiKey, nodeId, entry, locale);
+        result = await generateOne(apiKey, nodeId, entry, locale, learnings, source);
       } catch (err) {
         console.error(`  ! first attempt failed for ${nodeId} (${locale}): ${err.message} — retrying once`);
         try {
-          result = await generateOne(apiKey, nodeId, entry, locale);
+          result = await generateOne(apiKey, nodeId, entry, locale, learnings, source);
         } catch (err2) {
           console.error(`  ✗ giving up on ${nodeId} (${locale}): ${err2.message}`);
           failures.push({ nodeId, locale, error: err2.message });
@@ -260,6 +369,7 @@ async function main() {
 
       if (result.status === "short-version") shortVersions += 1;
       generated += 1;
+      if (locale === "en" && result.status === "ai-checked") enSections = result.sections;
 
       const { error } = await supabase.from("guide_articles").upsert(
         {
@@ -286,7 +396,7 @@ async function main() {
     }
   }
 
-  console.log(`\nDone. generated=${generated} skipped=${skipped} short-versions=${shortVersions} failures=${failures.length}`);
+  console.log(`\nDone. generated=${generated} skipped=${skipped} short-versions=${shortVersions} failures=${failures.length} api-calls=${CALLS} (${generated ? (CALLS / generated).toFixed(1) : "0"} per generated pair; skipped pairs cost 0)`);
   if (failures.length > 0) {
     console.log("Failed (node, locale) pairs — rerun with --nodes=<comma-list> to retry just these:");
     for (const f of failures) console.log(`  - ${f.nodeId} (${f.locale}): ${f.error}`);

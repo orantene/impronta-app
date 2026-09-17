@@ -98,6 +98,14 @@ Two models, two jobs, never the same prompt:
 
 Scoring is mechanical, not a vibe: `unsupported = 0`, `contradiction = 0`, all structural checks true → **publish**. One unsupported sentence → strip it and publish. Any contradiction → redraft once with the critic notes, then verify again. Second failure → publish the **short version** (the sections that are pure code facts: one sentence, what it is for, children, related) and log a gap. A short article that is true beats a long one that is wrong.
 
+**Owner ruling 2026-09-17 (credits):** AI credits are an engine, not a faucet. The pipeline must spend the bare minimum and get cheaper as it runs:
+- Unchanged input = zero calls (content hash; the log proves it with `[skip] … unchanged`).
+- Unsupported sentence → strip locally and publish (2 calls). Only a contradiction or a structural miss earns a redraft (4 calls). Still failing → short version, no extra call.
+- Spanish is derived from the verified English article, never re-derived from raw facts.
+- Every critic verdict is stored and the recent ones ride in the next draft prompt as "known mistakes", so the first-pass rate rises and redrafts fall over time.
+- Every run reports `api-calls=N (x per generated pair; skipped pairs cost 0)`.
+- Never `--all` casually; the gate prints the exact gap list, use `--nodes=`. One process, ever.
+
 Extra guards because nobody reads it before users do:
 
 - **Grounding rule in the draft prompt:** the model may only describe behavior it can point to in the source it was given. If a step is not visible in the code, it writes "check the screen" language, never invents.
