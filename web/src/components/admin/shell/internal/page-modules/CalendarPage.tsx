@@ -8,6 +8,7 @@ import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipelin
 import { pinNextConversation as pinNextConversationP } from "../messages/conversation-pending";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { addUtcDays } from "@/lib/scheduling/tz";
+import { formatDayFirst } from "@/lib/scheduling/day-first";
 import { Icon, StatusStrip } from "../primitives";
 import { COLORS, FONTS, RICH_INQUIRIES, TRANSITION, useAdminShell } from "../state";
 import { parseInquiryDays } from "./InboxPage";
@@ -29,17 +30,6 @@ function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** "Tue 8 Sep": the board's day title, on the venue's clock (the ymd is civil, so UTC keeps it). */
-function dayTitle(ymd: string, locale: string): string {
-  try {
-    const parts = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).formatToParts(new Date(`${ymd}T12:00:00.000Z`));
-    const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-    // Day-first in every locale ("Tue 8 Sep"), the kit's date order.
-    return `${part("weekday")} ${part("day")} ${part("month")}`.replace(/\.\s/g, " ").trim();
-  } catch {
-    return ymd;
-  }
-}
 
 
 export function CalendarPage() {
@@ -179,7 +169,7 @@ export function CalendarPage() {
           )}
           <div className="min-w-0 pl-[6px]">
             <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink" data-testid="calendar-title">
-              {view === "month" ? monthLabel : dayTitle(dayYmd, locale)}
+              {view === "month" ? monthLabel : formatDayFirst(dayYmd, locale)}
             </h1>
             <p className="m-0 mt-[4px] text-admin-13 leading-[1.2] text-admin-ink-muted" title={t("dashboard.adminCalendar.timezoneTip")}>
               {timeZone} · {effectiveTenant.name}
@@ -194,7 +184,7 @@ export function CalendarPage() {
             options={views}
             onChange={(id) => { if (id !== "week") setView(id); }}
           />
-          <button type="button" className={`${BUTTON_PRIMARY} max-[720px]:hidden`} onClick={() => openDrawer("new-booking")} data-testid="calendar-add">
+          <button type="button" title={t("dashboard.adminCalendar.newBooking")} className={`${BUTTON_PRIMARY} max-[720px]:hidden`} onClick={() => openDrawer("new-booking")} data-testid="calendar-add">
             <Icon name="plus" size={14} stroke={1.75} />
             {t(`${R}.add`)}
           </button>

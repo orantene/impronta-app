@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { formatDayFirst } from "@/lib/scheduling/day-first";
 
 export type CalendarListEvent = {
   id: string;
@@ -43,17 +44,6 @@ function eventTimeLabel(ev: CalendarListEvent): string | null {
   }
 }
 
-/** "Thu 17 Sep": the kit's day-first date for the row's second line. */
-function eventDayLabel(ev: CalendarListEvent, locale: string): string {
-  const ymd = eventDayKey(ev);
-  try {
-    const parts = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).formatToParts(new Date(`${ymd}T12:00:00.000Z`));
-    const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-    return `${part("weekday")} ${part("day")} ${part("month")}`.replace(/\.\s/g, " ").trim();
-  } catch {
-    return ymd;
-  }
-}
 
 export function CalendarListViews({
   events,
@@ -155,7 +145,7 @@ export function CalendarListViews({
                   {ev.company ?? ev.contact_name}
                 </span>
                 <span className="mt-0.5 block truncate text-[12.5px] text-admin-ink-muted">
-                  {eventDayLabel(ev, locale)}
+                  {formatDayFirst(eventDayKey(ev), locale)}
                   {" · "}
                   {kindLabel}
                 </span>

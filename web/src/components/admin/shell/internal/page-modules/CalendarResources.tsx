@@ -112,7 +112,7 @@ export function CalendarResources({
   holds: readonly CalendarEvent[];
   /** The day to draw (venue clock, YYYY-MM-DD); null until the clock is known. */
   day: string | null;
-  /** Fires once the venue's zone and today are read, so the header can own the day. */
+  /** Fires once the venue's zone and today are read, so the header can own the day. Pass a stable setter. */
   onClock?: (clock: CalendarClock) => void;
 }) {
   const t = useT();
@@ -125,7 +125,6 @@ export function CalendarResources({
   const [person, setPerson] = useState("any");
   const [service, setService] = useState("any");
   const [state, setState] = useState<"holds" | "confirmed">("holds");
-
   useEffect(() => {
     let alive = true;
     Promise.all([loadAppointments(tenantId), loadSchedule(tenantId)]).then(
@@ -155,9 +154,8 @@ export function CalendarResources({
     return () => {
       alive = false;
     };
-    // onClock is the page's setter; the read happens once per tenant.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId]);
+    // `onClock` is the page's state setter (stable), so the read runs once per tenant.
+  }, [tenantId, onClock]);
 
   const sessions = useMemo(() => buildSessionRows({ series, nights, waitlists: [], fallbackTimeZone: timeZone }), [series, nights, timeZone]);
 
