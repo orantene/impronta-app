@@ -18039,6 +18039,397 @@
         "capReached": "Ya usaste la ayuda de escritura de hoy. Se reinicia mañana.",
         "aiOff": "La ayuda de escritura está apagada por ahora."
       }
+    },
+    "messagesV5": {
+      "state": {
+        "conversation": {
+          "needs_reply": "Necesita respuesta",
+          "awaiting_customer": "Esperando al cliente",
+          "resolved": "Resuelta"
+        },
+        "opportunity": {
+          "gathering": "Reuniendo detalles",
+          "offer_sent": "Oferta enviada",
+          "awaiting_acceptance": "Esperando aceptación",
+          "accepted_awaiting_deposit": "Aceptada · falta el anticipo",
+          "won": "Ganada",
+          "lost": "Perdida"
+        },
+        "noIdentity": "sin identidad"
+      },
+      "identity": {
+        "none": "sin identidad aún",
+        "linked": "vinculado a un cliente",
+        "confirmed": "identidad confirmada",
+        "granted": "acceso concedido"
+      },
+      "record": {
+        "order": "Pedido",
+        "appointment": "Cita",
+        "reservation": "Reserva",
+        "class_enrolment": "Clase",
+        "tickets": "Entradas",
+        "project": "Proyecto",
+        "offer": "Oferta"
+      },
+      "payment": {
+        "requested": "Solicitud enviada",
+        "opened": "Abierto",
+        "paid": "Pagado",
+        "failed": "Fallido",
+        "expired": "Vencido",
+        "refunded": "Reembolsado",
+        "partially_refunded": "Reembolso parcial",
+        "unknown": "Estado del pago desconocido",
+        "unpaid": "Sin pagar",
+        "deposit_paid": "Anticipo pagado"
+      },
+      "fulfilment": {
+        "hold": "En espera",
+        "confirmed": "Confirmado",
+        "preparing": "En preparación",
+        "ready": "Listo",
+        "fulfilled": "Entregado",
+        "seated": "Sentados",
+        "checked_in": "Registrado",
+        "cancelled": "Cancelado"
+      },
+      "channel": {
+        "web_chat": "Chat web",
+        "whatsapp": "WhatsApp",
+        "sms": "SMS",
+        "email": "Correo",
+        "counter": "Mostrador"
+      },
+      "inbox": {
+        "title": "Bandeja",
+        "newConversation": "Nueva",
+        "threads": "{count} conversaciones",
+        "visitor": "Visitante",
+        "unassigned": "sin asignar",
+        "you": "Tú",
+        "search": "Buscar clientes, pedidos, mensajes",
+        "filter": "Filtrar",
+        "segments": {
+          "needs": "Requiere acción",
+          "wait": "En espera",
+          "all": "Todas"
+        },
+        "filters": {
+          "mine": "Mías",
+          "unassigned": "Sin asignar",
+          "unread": "Sin leer",
+          "paymentIssues": "Problemas de pago",
+          "orders": "Pedidos",
+          "offers": "Ofertas",
+          "appointments": "Citas",
+          "reservations": "Reservas",
+          "tickets": "Entradas"
+        },
+        "filterSheet": {
+          "title": "Filtrar",
+          "clear": "Limpiar",
+          "show": "Mostrar {count} conversaciones",
+          "counting": "Contando"
+        },
+        "empty": {
+          "needsTitle": "Nada requiere tu atención",
+          "needsBody": "Todas las conversaciones esperan al cliente o están resueltas.",
+          "needsAction": "Ver En espera",
+          "searchTitle": "Ninguna conversación coincide con \"{query}\"",
+          "searchBody": "La búsqueda cubre nombres, teléfono, números de pedido y texto de mensajes.",
+          "searchAction": "Limpiar búsqueda",
+          "failedTitle": "No se pudieron cargar las conversaciones",
+          "failedBody": "Tus mensajes están a salvo. Revisa la conexión e inténtalo de nuevo.",
+          "failedAction": "Reintentar"
+        },
+        "loading": "Cargando conversaciones"
+      },
+      "thread": {
+        "back": "Volver",
+        "more": "Más",
+        "resolve": "Resolver",
+        "reopen": "Reabrir",
+        "resolving": "Resolviendo",
+        "assign": "Asignar",
+        "details": "Detalles",
+        "nothingOwed": "Nada pendiente"
+      },
+      "stream": {
+        "today": "Hoy",
+        "newCount": "{count} nuevos",
+        "internalNote": "Nota interna",
+        "you": "Tú",
+        "replyingTo": "En respuesta a",
+        "voice": "Mensaje de voz",
+        "transcribed": "transcrito",
+        "edited": "editado",
+        "removed": "Mensaje eliminado",
+        "retry": "Reintentar",
+        "delivery": {
+          "queued": "En cola",
+          "sending": "Enviando",
+          "sent": "Enviado",
+          "delivered": "Entregado",
+          "read": "Leído",
+          "failed": "No enviado"
+        }
+      },
+      "card": {
+        "cat": {
+          "offer": "Oferta",
+          "payment": "Pago",
+          "order": "Pedido",
+          "sharedDraft": "Borrador compartido",
+          "choices": "Opciones",
+          "appointment": "Cita",
+          "booking": "Reserva",
+          "times": "Horarios",
+          "tickets": "Entradas",
+          "table": "Mesa",
+          "change": "Solicitud de cambio",
+          "identity": "Identidad",
+          "closed": "Cerrada",
+          "reminder": "Recordatorio",
+          "file": "Archivo",
+          "voice": "Voz",
+          "note": "Nota",
+          "message": "Mensaje"
+        },
+        "state": {
+          "sent": "Enviado",
+          "viewed": "Visto",
+          "selected": "Seleccionado",
+          "paid": "Pagado",
+          "expired": "Vencido",
+          "unavailable": "Ya no disponible",
+          "price_changed": "Precio cambiado",
+          "cancelled": "Cancelado"
+        },
+        "busy": "Procesando",
+        "loading": "Cargando",
+        "empty": "Todavía no hay nada",
+        "total": "Total",
+        "amount": "Importe"
+      },
+      "offer": {
+        "draft": "Borrador",
+        "sentV": "Enviada · v{version}",
+        "viewedAt": "Vista {time}",
+        "acceptedV": "Aceptada v{version}",
+        "declined": "Rechazada",
+        "expired": "Vencida",
+        "validUntil": "Válida hasta {date}",
+        "forClient": "Para {name}",
+        "affects": "afecta a {names}",
+        "depositLine": "Anticipo {pct} para confirmar · saldo el día",
+        "revise": "Revisar",
+        "requestDeposit": "Solicitar anticipo",
+        "resend": "Reenviar con nueva fecha",
+        "send": "Enviar oferta",
+        "sending": "Enviando oferta"
+      },
+      "pay": {
+        "paidBy": "Pagado por {name}",
+        "foot": {
+          "requested": "Enlace enviado · vence en {hours}h",
+          "opened": "El cliente está en la página de pago",
+          "paid": "Tarjeta · recibo enviado",
+          "failed": "Tarjeta rechazada por el proveedor · no se cobró nada",
+          "expired": "Enlace vencido {date}",
+          "refunded": "{amount} de vuelta a la tarjeta · 5 a 10 días",
+          "partially_refunded": "{amount} reembolsado · el resto sigue pagado",
+          "unknown": "No vuelvas a solicitar · verificando con el proveedor"
+        },
+        "copyLink": "Copiar enlace",
+        "wait": "Esperar",
+        "viewReceipt": "Ver recibo",
+        "newLink": "Enviar un nuevo enlace",
+        "viewRefund": "Ver reembolso",
+        "check": "Verificar pago",
+        "request": "Solicitar pago",
+        "requesting": "Solicitando"
+      },
+      "ladder": {
+        "requested": "Solicitud enviada",
+        "opened": "Abierto",
+        "paid": "Pagado",
+        "draft": "Borrador",
+        "offer": "Oferta",
+        "confirmed": "Confirmado",
+        "booked": "Reservado",
+        "paidInFull": "Pagado por completo",
+        "fulfilled": "Entregado",
+        "delivered": "Realizado",
+        "failed": "Fallido"
+      },
+      "order": {
+        "notYet": "v{version} · todavía no es un pedido",
+        "bothEdit": "{name} y tú editan juntos · no se cobra nada hasta que confirmes",
+        "chose": "{name} eligió",
+        "youAdded": "agregaste",
+        "confirm": "Confirmar pedido",
+        "confirming": "Confirmando",
+        "edit": "Editar",
+        "pickup": "recoger {time}",
+        "markPickedUp": "Marcar como recogido",
+        "receiptSent": "Recibo enviado por {channel}",
+        "kitchen": "Ticket de cocina #{number} · iniciado {time}",
+        "readyAt": "listo ~{time}",
+        "pickedUp": "Recogido",
+        "versionBy": "v{version} por {name} {time}",
+        "rechecked": "disponibilidad verificada"
+      },
+      "appt": {
+        "withName": "con {name}",
+        "balanceOnDay": "Saldo {amount} el día",
+        "reschedule": "Reprogramar",
+        "openCalendar": "Abrir en Calendario",
+        "openProject": "Abrir proyecto",
+        "confirming": "Confirmando",
+        "rechecking": "verificando disponibilidad",
+        "confirmed": "Confirmada",
+        "depositPaid": "Anticipo pagado",
+        "cancelledByClient": "Cancelada por el cliente",
+        "cancelledByStaff": "Cancelada",
+        "freeAgain": "{resources} libres de nuevo · Calendario actualizado",
+        "inEverywhere": "Ya está en Calendario, Proyectos, Clientes y POS",
+        "conflict": "Conflicto",
+        "conflictNotCreated": "No se creó nada. Corrige la línea y confirma de nuevo."
+      },
+      "times": {
+        "sent": "Enviados",
+        "picked": "Elegido",
+        "waiting": "Esperando a que {name} elija",
+        "pickedHeld": "{name} eligió {slot} · reservado {minutes} min · quedan {left}",
+        "holdEnded": "La reserva temporal terminó. Ofrece otro horario.",
+        "offerNew": "Ofrecer nuevos horarios",
+        "confirmTime": "Confirmar horario",
+        "noSlots": "No hay horarios libres ese día"
+      },
+      "change": {
+        "preview": "Vista previa",
+        "from": "De",
+        "to": "A",
+        "policy": "Política",
+        "deposit": "Anticipo",
+        "kept": "se mantiene",
+        "originalStays": "El original se mantiene hasta que {name} confirme",
+        "cancel": "Cancelar",
+        "sendTo": "Enviar a {name}",
+        "sending": "Enviando",
+        "needsReply": "Necesita tu respuesta",
+        "applied": "Aplicado",
+        "declined": "Rechazado",
+        "fromLink": "{name} · desde el enlace de la conversación",
+        "draftNext": "Borrador v{version}",
+        "acceptOpens": "Acepta el cambio y la v{version} se abre prellenada"
+      },
+      "idCapture": {
+        "capture": "Capturar",
+        "neededBeforeHold": "Necesario antes de reservar",
+        "name": "Nombre",
+        "phone": "Teléfono",
+        "email": "Correo",
+        "optional": "opcional",
+        "emailPlaceholder": "nombre@correo",
+        "existing": "{name} · cliente existente",
+        "samePhone": "Mismo teléfono · {visits} visitas · última {date}",
+        "createNew": "Crear un cliente nuevo",
+        "createNewWhy": "Úsalo cuando sea otra persona",
+        "match": "coincide",
+        "save": "Guardar y vincular",
+        "saving": "Guardando",
+        "foot": "Se guarda en el cliente y reemplaza \"Visitante\" en esta conversación",
+        "linked": "Vinculado a {name}",
+        "matching": "Buscando coincidencia",
+        "samePhoneOnly": "Mismo teléfono"
+      },
+      "next": {
+        "label": "Siguiente",
+        "mobileLabel": "Siguiente paso",
+        "otherTasks": "+ {count} tareas más",
+        "nothing": "Nada pendiente",
+        "loading": "Calculando el siguiente paso"
+      },
+      "composer": {
+        "reply": "Responder",
+        "note": "Nota interna",
+        "sendVia": "Enviar por",
+        "via": "Por",
+        "teamOnly": "Solo tu equipo lo ve",
+        "fallback": "respaldo: {channel} si no está",
+        "placeholder": "Escribe una respuesta",
+        "notePlaceholder": "Escribe una nota para el equipo",
+        "more": "Más",
+        "attach": "Adjuntar un archivo",
+        "voice": "Grabar un mensaje de voz",
+        "send": "Enviar",
+        "sending": "Enviando",
+        "failed": "No enviado · sin conexión",
+        "retry": "Reintentar",
+        "offline": "Estás sin conexión · las respuestas se envían al volver",
+        "resolvedLocked": "Esta conversación está resuelta.",
+        "reopen": "Reabrir"
+      },
+      "summary": {
+        "next": "Siguiente",
+        "main": "Principal",
+        "amount": "Importe"
+      },
+      "panel": {
+        "open": "Abrir",
+        "expand": "Expandir",
+        "collapse": "Contraer"
+      },
+      "sheet": {
+        "close": "Cerrar",
+        "cancel": "Cancelar",
+        "dragHandle": "Arrastra para ajustar"
+      },
+      "tray": {
+        "sendToClient": "Enviar al cliente",
+        "thisConversation": "Esta conversación",
+        "coming": "próximamente",
+        "addItems": "Agregar artículos",
+        "addItemsSub": "talento, paquetes, entradas, mesas",
+        "offer": "Oferta",
+        "offerSub": "propuesta con precio para aceptar",
+        "times": "Horarios",
+        "timesSub": "huecos en vivo, se reservan al elegir",
+        "payment": "Solicitar pago",
+        "paymentSub": "anticipo, total o saldo",
+        "file": "Archivo",
+        "fileSub": "brief, contrato, foto",
+        "template": "Plantilla",
+        "templateSub": "respuestas guardadas",
+        "link": "Vincular un registro",
+        "linkSub": "pedido, reserva, proyecto",
+        "reminder": "Recordatorio",
+        "reminderSub": "un aviso que se detiene solo",
+        "handover": "Traspasar",
+        "handoverSub": "a un compañero",
+        "closeLost": "Cerrar como perdida",
+        "closeLostSub": "con un motivo"
+      },
+      "line": {
+        "clientChose": "{name} eligió",
+        "youAdded": "agregaste",
+        "staffAdded": "{name} agregó",
+        "confirmed": "confirmado",
+        "priceSnapshot": "antes {price}",
+        "edited": "editado",
+        "removed": "eliminado por {name} · queda en el historial",
+        "unavailable": "no se puede agregar",
+        "busyOn": "ocupado {date}",
+        "units": "Unidades",
+        "price": "Precio",
+        "more": "Más",
+        "restore": "Restaurar"
+      },
+      "skeleton": {
+        "loading": "Cargando"
+      }
     }
   },
   "admin": {

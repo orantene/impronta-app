@@ -7016,6 +7016,397 @@
         "prevDay": "Jour precedent",
         "nextDay": "Jour suivant"
       }
+    },
+    "messagesV5": {
+      "state": {
+        "conversation": {
+          "needs_reply": "Réponse attendue",
+          "awaiting_customer": "En attente du client",
+          "resolved": "Résolue"
+        },
+        "opportunity": {
+          "gathering": "Collecte des détails",
+          "offer_sent": "Offre envoyée",
+          "awaiting_acceptance": "En attente d'acceptation",
+          "accepted_awaiting_deposit": "Acceptée · acompte dû",
+          "won": "Gagnée",
+          "lost": "Perdue"
+        },
+        "noIdentity": "sans identité"
+      },
+      "identity": {
+        "none": "pas encore d'identité",
+        "linked": "lié à un client",
+        "confirmed": "identité confirmée",
+        "granted": "accès accordé"
+      },
+      "record": {
+        "order": "Commande",
+        "appointment": "Rendez-vous",
+        "reservation": "Réservation",
+        "class_enrolment": "Cours",
+        "tickets": "Billets",
+        "project": "Projet",
+        "offer": "Offre"
+      },
+      "payment": {
+        "requested": "Demande envoyée",
+        "opened": "Ouvert",
+        "paid": "Payé",
+        "failed": "Échoué",
+        "expired": "Expiré",
+        "refunded": "Remboursé",
+        "partially_refunded": "Remboursé en partie",
+        "unknown": "Statut du paiement inconnu",
+        "unpaid": "Non payé",
+        "deposit_paid": "Acompte payé"
+      },
+      "fulfilment": {
+        "hold": "En attente",
+        "confirmed": "Confirmé",
+        "preparing": "En préparation",
+        "ready": "Prêt",
+        "fulfilled": "Livré",
+        "seated": "Installés",
+        "checked_in": "Enregistré",
+        "cancelled": "Annulé"
+      },
+      "channel": {
+        "web_chat": "Chat web",
+        "whatsapp": "WhatsApp",
+        "sms": "SMS",
+        "email": "E-mail",
+        "counter": "Comptoir"
+      },
+      "inbox": {
+        "title": "Boîte de réception",
+        "newConversation": "Nouvelle",
+        "threads": "{count} conversations",
+        "visitor": "Visiteur",
+        "unassigned": "non assignée",
+        "you": "Vous",
+        "search": "Rechercher clients, commandes, messages",
+        "filter": "Filtrer",
+        "segments": {
+          "needs": "À traiter",
+          "wait": "En attente",
+          "all": "Toutes"
+        },
+        "filters": {
+          "mine": "Les miennes",
+          "unassigned": "Non assignées",
+          "unread": "Non lues",
+          "paymentIssues": "Problèmes de paiement",
+          "orders": "Commandes",
+          "offers": "Offres",
+          "appointments": "Rendez-vous",
+          "reservations": "Réservations",
+          "tickets": "Billets"
+        },
+        "filterSheet": {
+          "title": "Filtrer",
+          "clear": "Effacer",
+          "show": "Afficher {count} conversations",
+          "counting": "Comptage"
+        },
+        "empty": {
+          "needsTitle": "Rien à traiter",
+          "needsBody": "Chaque conversation attend un client ou est résolue.",
+          "needsAction": "Voir En attente",
+          "searchTitle": "Aucune conversation ne correspond à \"{query}\"",
+          "searchBody": "La recherche couvre les noms, le téléphone, les numéros de commande et le texte des messages.",
+          "searchAction": "Effacer la recherche",
+          "failedTitle": "Impossible de charger les conversations",
+          "failedBody": "Vos messages sont en sécurité. Vérifiez la connexion et réessayez.",
+          "failedAction": "Réessayer"
+        },
+        "loading": "Chargement des conversations"
+      },
+      "thread": {
+        "back": "Retour",
+        "more": "Plus",
+        "resolve": "Résoudre",
+        "reopen": "Rouvrir",
+        "resolving": "Résolution",
+        "assign": "Assigner",
+        "details": "Détails",
+        "nothingOwed": "Rien à payer"
+      },
+      "stream": {
+        "today": "Aujourd'hui",
+        "newCount": "{count} nouveaux",
+        "internalNote": "Note interne",
+        "you": "Vous",
+        "replyingTo": "En réponse à",
+        "voice": "Message vocal",
+        "transcribed": "transcrit",
+        "edited": "modifié",
+        "removed": "Message supprimé",
+        "retry": "Réessayer",
+        "delivery": {
+          "queued": "En file",
+          "sending": "Envoi",
+          "sent": "Envoyé",
+          "delivered": "Remis",
+          "read": "Lu",
+          "failed": "Non envoyé"
+        }
+      },
+      "card": {
+        "cat": {
+          "offer": "Offre",
+          "payment": "Paiement",
+          "order": "Commande",
+          "sharedDraft": "Brouillon partagé",
+          "choices": "Choix",
+          "appointment": "Rendez-vous",
+          "booking": "Réservation",
+          "times": "Horaires",
+          "tickets": "Billets",
+          "table": "Table",
+          "change": "Demande de changement",
+          "identity": "Identité",
+          "closed": "Fermée",
+          "reminder": "Rappel",
+          "file": "Fichier",
+          "voice": "Voix",
+          "note": "Note",
+          "message": "Message"
+        },
+        "state": {
+          "sent": "Envoyé",
+          "viewed": "Vu",
+          "selected": "Sélectionné",
+          "paid": "Payé",
+          "expired": "Expiré",
+          "unavailable": "Plus disponible",
+          "price_changed": "Prix modifié",
+          "cancelled": "Annulé"
+        },
+        "busy": "En cours",
+        "loading": "Chargement",
+        "empty": "Rien pour le moment",
+        "total": "Total",
+        "amount": "Montant"
+      },
+      "offer": {
+        "draft": "Brouillon",
+        "sentV": "Envoyée · v{version}",
+        "viewedAt": "Vue {time}",
+        "acceptedV": "Acceptée v{version}",
+        "declined": "Refusée",
+        "expired": "Expirée",
+        "validUntil": "Valable jusqu'au {date}",
+        "forClient": "Pour {name}",
+        "affects": "concerne {names}",
+        "depositLine": "Acompte {pct} pour confirmer · solde le jour même",
+        "revise": "Réviser",
+        "requestDeposit": "Demander l'acompte",
+        "resend": "Renvoyer avec une nouvelle date",
+        "send": "Envoyer l'offre",
+        "sending": "Envoi de l'offre"
+      },
+      "pay": {
+        "paidBy": "Payé par {name}",
+        "foot": {
+          "requested": "Lien envoyé · expire dans {hours}h",
+          "opened": "Le client est sur la page de paiement",
+          "paid": "Carte · reçu envoyé",
+          "failed": "Carte refusée par le prestataire · rien n'a été débité",
+          "expired": "Lien expiré le {date}",
+          "refunded": "{amount} recrédité sur la carte · 5 à 10 jours",
+          "partially_refunded": "{amount} remboursé · le reste reste payé",
+          "unknown": "Ne pas redemander · vérification auprès du prestataire"
+        },
+        "copyLink": "Copier le lien",
+        "wait": "Attendre",
+        "viewReceipt": "Voir le reçu",
+        "newLink": "Envoyer un nouveau lien",
+        "viewRefund": "Voir le remboursement",
+        "check": "Vérifier le paiement",
+        "request": "Demander un paiement",
+        "requesting": "Demande en cours"
+      },
+      "ladder": {
+        "requested": "Demande envoyée",
+        "opened": "Ouvert",
+        "paid": "Payé",
+        "draft": "Brouillon",
+        "offer": "Offre",
+        "confirmed": "Confirmé",
+        "booked": "Réservé",
+        "paidInFull": "Payé en totalité",
+        "fulfilled": "Livré",
+        "delivered": "Réalisé",
+        "failed": "Échoué"
+      },
+      "order": {
+        "notYet": "v{version} · pas encore une commande",
+        "bothEdit": "{name} et vous modifiez ensemble · rien n'est débité avant votre confirmation",
+        "chose": "{name} a choisi",
+        "youAdded": "ajouté par vous",
+        "confirm": "Confirmer la commande",
+        "confirming": "Confirmation",
+        "edit": "Modifier",
+        "pickup": "retrait {time}",
+        "markPickedUp": "Marquer comme retiré",
+        "receiptSent": "Reçu envoyé par {channel}",
+        "kitchen": "Ticket cuisine n°{number} · lancé {time}",
+        "readyAt": "prêt vers {time}",
+        "pickedUp": "Retiré",
+        "versionBy": "v{version} par {name} {time}",
+        "rechecked": "disponibilité revérifiée"
+      },
+      "appt": {
+        "withName": "avec {name}",
+        "balanceOnDay": "Solde {amount} le jour même",
+        "reschedule": "Reprogrammer",
+        "openCalendar": "Ouvrir dans le calendrier",
+        "openProject": "Ouvrir le projet",
+        "confirming": "Confirmation",
+        "rechecking": "vérification de la disponibilité",
+        "confirmed": "Confirmé",
+        "depositPaid": "Acompte payé",
+        "cancelledByClient": "Annulé par le client",
+        "cancelledByStaff": "Annulé",
+        "freeAgain": "{resources} de nouveau libres · calendrier mis à jour",
+        "inEverywhere": "Désormais dans Calendrier, Projets, Clients et POS",
+        "conflict": "Conflit",
+        "conflictNotCreated": "Rien n'a été créé. Corrigez la ligne et confirmez à nouveau."
+      },
+      "times": {
+        "sent": "Envoyés",
+        "picked": "Choisi",
+        "waiting": "En attente du choix de {name}",
+        "pickedHeld": "{name} a choisi {slot} · retenu {minutes} min · {left} restantes",
+        "holdEnded": "La retenue est terminée. Proposez un autre horaire.",
+        "offerNew": "Proposer d'autres horaires",
+        "confirmTime": "Confirmer l'horaire",
+        "noSlots": "Aucun créneau libre ce jour-là"
+      },
+      "change": {
+        "preview": "Aperçu",
+        "from": "De",
+        "to": "À",
+        "policy": "Politique",
+        "deposit": "Acompte",
+        "kept": "conservé",
+        "originalStays": "L'original reste jusqu'à la confirmation de {name}",
+        "cancel": "Annuler",
+        "sendTo": "Envoyer à {name}",
+        "sending": "Envoi",
+        "needsReply": "Votre réponse est attendue",
+        "applied": "Appliqué",
+        "declined": "Refusé",
+        "fromLink": "{name} · depuis le lien de la conversation",
+        "draftNext": "Brouillon v{version}",
+        "acceptOpens": "Acceptez le changement et la v{version} s'ouvre préremplie"
+      },
+      "idCapture": {
+        "capture": "Identifier",
+        "neededBeforeHold": "Requis avant une retenue",
+        "name": "Nom",
+        "phone": "Téléphone",
+        "email": "E-mail",
+        "optional": "facultatif",
+        "emailPlaceholder": "nom@email",
+        "existing": "{name} · client existant",
+        "samePhone": "Même téléphone · {visits} visites · dernière {date}",
+        "createNew": "Créer un nouveau client",
+        "createNewWhy": "À utiliser s'il s'agit d'une autre personne",
+        "match": "correspondance",
+        "save": "Enregistrer et lier",
+        "saving": "Enregistrement",
+        "foot": "Enregistré sur le client et remplace \"Visiteur\" dans cette conversation",
+        "linked": "Lié à {name}",
+        "matching": "Recherche d'une correspondance",
+        "samePhoneOnly": "Même téléphone"
+      },
+      "next": {
+        "label": "Suivant",
+        "mobileLabel": "Prochaine étape",
+        "otherTasks": "+ {count} autres tâches",
+        "nothing": "Rien à faire",
+        "loading": "Calcul de la prochaine étape"
+      },
+      "composer": {
+        "reply": "Répondre",
+        "note": "Note interne",
+        "sendVia": "Envoyer par",
+        "via": "Par",
+        "teamOnly": "Visible uniquement par votre équipe",
+        "fallback": "repli : {channel} en cas d'absence",
+        "placeholder": "Écrire une réponse",
+        "notePlaceholder": "Écrire une note pour l'équipe",
+        "more": "Plus",
+        "attach": "Joindre un fichier",
+        "voice": "Enregistrer un message vocal",
+        "send": "Envoyer",
+        "sending": "Envoi",
+        "failed": "Non envoyé · pas de connexion",
+        "retry": "Réessayer",
+        "offline": "Vous êtes hors ligne · les réponses partiront au retour",
+        "resolvedLocked": "Cette conversation est résolue.",
+        "reopen": "Rouvrir"
+      },
+      "summary": {
+        "next": "Suivant",
+        "main": "Principal",
+        "amount": "Montant"
+      },
+      "panel": {
+        "open": "Ouvrir",
+        "expand": "Déplier",
+        "collapse": "Replier"
+      },
+      "sheet": {
+        "close": "Fermer",
+        "cancel": "Annuler",
+        "dragHandle": "Glisser pour redimensionner"
+      },
+      "tray": {
+        "sendToClient": "Envoyer au client",
+        "thisConversation": "Cette conversation",
+        "coming": "bientôt",
+        "addItems": "Ajouter des articles",
+        "addItemsSub": "talents, forfaits, billets, tables",
+        "offer": "Offre",
+        "offerSub": "proposition chiffrée à accepter",
+        "times": "Horaires",
+        "timesSub": "créneaux en direct, retenus au choix",
+        "payment": "Demander un paiement",
+        "paymentSub": "acompte, total ou solde",
+        "file": "Fichier",
+        "fileSub": "brief, contrat, photo",
+        "template": "Modèle",
+        "templateSub": "réponses enregistrées",
+        "link": "Lier un enregistrement",
+        "linkSub": "commande, réservation, projet",
+        "reminder": "Rappel",
+        "reminderSub": "un rappel qui s'arrête seul",
+        "handover": "Transmettre",
+        "handoverSub": "à un collègue",
+        "closeLost": "Clore comme perdue",
+        "closeLostSub": "avec un motif"
+      },
+      "line": {
+        "clientChose": "{name} a choisi",
+        "youAdded": "ajouté par vous",
+        "staffAdded": "ajouté par {name}",
+        "confirmed": "confirmé",
+        "priceSnapshot": "avant {price}",
+        "edited": "modifié",
+        "removed": "retiré par {name} · conservé dans l'historique",
+        "unavailable": "ne peut pas être ajouté",
+        "busyOn": "occupé {date}",
+        "units": "Unités",
+        "price": "Prix",
+        "more": "Plus",
+        "restore": "Restaurer"
+      },
+      "skeleton": {
+        "loading": "Chargement"
+      }
     }
   },
   "client": {
