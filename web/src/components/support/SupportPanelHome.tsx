@@ -8,6 +8,7 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import { ReplayConsent } from "./ReplayConsent";
 import { relTime } from "./support-rel-time";
+import { GuideHotspot } from "./GuideHotspot";
 import type { SupportTicketSummary } from "@/lib/support/support-types";
 
 export function HomeView({
@@ -27,6 +28,8 @@ export function HomeView({
   replayEnabled,
   attachReplay,
   setAttachReplay,
+  helperMode = false,
+  onOpenGuideArticle,
 }: {
   ideaSent: number | null;
   onDismissIdeaSent: () => void;
@@ -44,6 +47,9 @@ export function HomeView({
   replayEnabled: boolean;
   attachReplay: boolean;
   setAttachReplay: (v: boolean) => void;
+  /** Helper mode (plan §3, drawer target icon) — see GuideHotspot. */
+  helperMode?: boolean;
+  onOpenGuideArticle?: (nodeId: string) => void;
 }) {
   const t = useT();
   return (
@@ -91,6 +97,7 @@ export function HomeView({
           </button>
         </div>
       ) : null}
+      <GuideHotspot id="support.live-chat" active={helperMode} onOpen={onOpenGuideArticle ?? (() => {})}>
       <div
         style={{
           display: "flex",
@@ -145,6 +152,7 @@ export function HomeView({
           <Icon name="send" size={14} color={ask.trim() ? "#fff" : COLORS.inkDim} />
         </button>
       </div>
+      </GuideHotspot>
       {error ? (
         <div role="alert" style={{ fontSize: 12, color: COLORS.critical }}>
           {error}
@@ -163,6 +171,7 @@ export function HomeView({
           ))}
         </div>
       ) : null}
+      <GuideHotspot id="support.start-ticket" active={helperMode} onOpen={onOpenGuideArticle ?? (() => {})}>
       <button
         type="button"
         onClick={onStartTicket}
@@ -175,10 +184,12 @@ export function HomeView({
           fontWeight: 600,
           cursor: "pointer",
           color: COLORS.ink,
+          width: "100%",
         }}
       >
         {t("dashboard.adminSupport.startTicket")}
       </button>
+      </GuideHotspot>
       {/* Idea intake: a peer CTA, not a menu item — the owner wants these. */}
       <button
         type="button"

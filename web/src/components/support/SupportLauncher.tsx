@@ -82,15 +82,24 @@ export function SupportLauncher({
               aria-hidden
               style={{
                 position: "absolute",
-                top: -3,
-                right: -3,
-                width: 9,
-                height: 9,
-                borderRadius: "50%",
+                top: -6,
+                right: -6,
+                minWidth: 15,
+                height: 15,
+                padding: "0 3px",
+                boxSizing: "border-box",
+                borderRadius: 8,
                 background: COLORS.coral,
+                color: "#fff",
+                fontSize: 10,
+                fontWeight: 700,
+                lineHeight: "15px",
+                textAlign: "center",
                 boxShadow: `0 0 0 2px ${COLORS.surface}`,
               }}
-            />
+            >
+              {unread > 9 ? "9+" : unread}
+            </span>
           ) : null}
         </button>,
         slot,

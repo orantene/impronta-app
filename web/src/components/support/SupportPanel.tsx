@@ -21,6 +21,7 @@ import { SupportThreadHeader } from "./SupportThreadHeader";
 import { Composer, NewTicketForm } from "./SupportPanelForms";
 import { SupportIdeaForm } from "./SupportIdeaForm";
 import { HomeView, TicketRow } from "./SupportPanelHome";
+import { GuideTab } from "./GuideTab";
 import type { SupportContract } from "./support-contract";
 import { createClient } from "@/lib/supabase/client";
 import { supportFrom } from "@/lib/support/support-from";
@@ -33,7 +34,7 @@ import { keepTicketOpenAction } from "@/lib/support/actions";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { relTime } from "./support-rel-time";
 
-type View = "home" | "tickets" | "thread" | "new" | "idea";
+type View = "home" | "tickets" | "thread" | "new" | "idea" | "guide";
 
 export function SupportPanel({
   open,
@@ -65,8 +66,18 @@ export function SupportPanel({
   const [thinking, setThinking] = useState(false);
   const [attachReplay, setAttachReplay] = useState(false);
   const [ideaSent, setIdeaSent] = useState<number | null>(null);
+  const [helperMode, setHelperMode] = useState(false);
+  const [guideDeepLinkNodeId, setGuideDeepLinkNodeId] = useState<string | null>(null);
   const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
+  const openGuideArticle = useCallback(
+    (nodeId: string) => {
+      setHelperMode(false);
+      setGuideDeepLinkNodeId(nodeId);
+      setView("guide");
+    },
+    [setView],
+  );
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -270,6 +281,26 @@ export function SupportPanel({
         <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, color: COLORS.ink }}>
           {t("dashboard.adminSupport.title")}
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <button
+          type="button"
+          onClick={() => setHelperMode((v) => !v)}
+          aria-label={t("dashboard.adminSupport.helperModeAria")}
+          aria-pressed={helperMode}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 9,
+            border: "none",
+            background: helperMode ? COLORS.royal : "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+          }}
+        >
+          <Icon name="target" size={17} color={helperMode ? "#fff" : COLORS.inkMuted} stroke={1.8} />
+        </button>
         <button
           type="button"
           onClick={onClose}
@@ -286,6 +317,7 @@ export function SupportPanel({
         >
           <Icon name="x" size={16} />
         </button>
+        </div>
       </header>
 
       {view === "thread" ? (
@@ -314,6 +346,8 @@ export function SupportPanel({
             replayEnabled={replay.enabled}
             attachReplay={attachReplay}
             setAttachReplay={setAttachReplay}
+            helperMode={helperMode}
+            onOpenGuideArticle={openGuideArticle}
             onMessageOran={() => {
               void (async () => {
                 setAskError(null);
@@ -405,6 +439,12 @@ export function SupportPanel({
             }}
           />
         )}
+        {view === "guide" && (
+          <GuideTab
+            initialNodeId={guideDeepLinkNodeId}
+            onConsumedDeepLink={() => setGuideDeepLinkNodeId(null)}
+          />
+        )}
       </div>
 
       {view === "thread" ? (
@@ -473,6 +513,11 @@ export function SupportPanel({
           label={t("dashboard.adminSupport.tabTickets")}
           badge={unread}
           onClick={() => setView("tickets")}
+        />
+        <DockTab
+          active={view === "guide"}
+          label={t("dashboard.adminSupport.tabGuide")}
+          onClick={() => setView("guide")}
         />
       </nav>
     </div>
