@@ -155,3 +155,30 @@ test("inside the point of sale the shell drops the sidebar, from server-seeded s
     "the shell must not read the live pathname to decide its own layout",
   );
 });
+
+// D-171: entering the counter from the switch and tapping Open drawer threw
+// the operator back to the Overview with no shift written. Two facts hold
+// it closed: crossing between the two chromes is a DOCUMENT load, and the
+// chrome's WhatsApp poll is a fetch (never a server action riding the
+// router's action queue across a navigation).
+test("entering or leaving the point of sale from the switch is a document load, not a soft push", () => {
+  const src = read(SWITCH);
+  const openMode = src.slice(src.indexOf("const openMode = useCallback("), src.indexOf("const makeDefault"));
+  assert.match(openMode, /if \(onPos\) router\.push\(href\);\s*else window\.location\.assign\(href\);/, "from the back office the switch must load the POS document; mode-to-mode stays a push");
+  const goWorkspace = src.slice(src.indexOf("const goWorkspace = () => {"), src.indexOf("const onMenuClosed"));
+  assert.match(goWorkspace, /window\.location\.assign\(adminBasePath\)/, "back to the workspace must be a document load");
+  assert.ok(!/router\.push\(adminBasePath\)/.test(goWorkspace), "no soft push back into the admin chrome");
+});
+
+test("the chrome's WhatsApp button polls over a fetch to a route, never a server action", () => {
+  const chrome = read("src/components/admin/channels/WhatsAppChrome.tsx");
+  assert.ok(!/import\(["']@\/lib\/channels\/pairing-actions["']\)|from ["']@\/lib\/channels\/pairing-actions["']/.test(chrome), "WhatsAppChrome must not import the server actions");
+  assert.match(chrome, /fetch\(WHATSAPP_CONNECTION_ROUTE/, "the poll is a fetch");
+  assert.match(chrome, /WHATSAPP_CONNECTION_ROUTE = "\/api\/admin\/channels\/whatsapp"/);
+  const route = read("src/app/api/admin/channels/whatsapp/route.ts");
+  assert.match(route, /export async function GET\(/, "the route answers GET");
+  assert.match(route, /loadWhatsAppConnection\(\)/, "the route reads through the same guarded loader");
+  // One poller for every mount, paused while the tab is hidden.
+  assert.match(chrome, /listeners\.size === 1/, "the interval starts with the first subscriber");
+  assert.match(chrome, /visibilityState === "hidden"/, "a hidden tab does not poll");
+});

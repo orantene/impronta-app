@@ -164,9 +164,19 @@ export function usePosModeMenuModel(): PosModeMenuModel {
       // does not re-run; the chosen mode is the address from here on.
       setUrlMode(mode);
       setSavedDefault(false);
-      router.push(`${adminBasePath}/pos?mode=${mode}`);
+      const href = `${adminBasePath}/pos?mode=${mode}`;
+      // ENTERING THE POINT OF SALE IS A DOCUMENT LOAD, NOT A SOFT PUSH (D-171).
+      // The POS replaces the admin chrome; a `router.push` from the back
+      // office kept the whole shell (and every poll it runs) alive under the
+      // counter, and a server action completing across that push had the
+      // router re-apply `/admin` over it: Open drawer landed on the Overview
+      // and wrote no shift. A hard load into `/admin/pos?mode=…` is the path
+      // the counter is proven on. Mode-to-mode moves stay inside one chrome
+      // and keep the soft push.
+      if (onPos) router.push(href);
+      else window.location.assign(href);
     },
-    [adminBasePath, router, tenantSlug],
+    [adminBasePath, onPos, router, tenantSlug],
   );
 
   // Plain functions: the React compiler memoises them itself, and a
@@ -179,7 +189,9 @@ export function usePosModeMenuModel(): PosModeMenuModel {
   };
 
   const goWorkspace = () => {
-    router.push(adminBasePath);
+    // Back into the admin chrome: the same document load, for the same
+    // reason as `openMode` (D-171); the two chromes are two pages.
+    window.location.assign(adminBasePath);
   };
 
   const onMenuClosed = useCallback(() => setSavedDefault(false), []);
