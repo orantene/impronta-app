@@ -37,13 +37,16 @@ import {
 
 /** The product names exactly as they appear in the workspace Menu. */
 export const EXPERIENCE_PRODUCTS = {
-  modelForADay: "Modelo por un día · 27 sep",
-  posing: "Curso de Posing · octubre",
-  selfMakeup: "Taller de automaquillaje",
-  sessionStudio: "Sesión de fotos · estudio + fotógrafo",
-  sessionMakeup: "Sesión de fotos + maquilladora",
-  sessionComplete: "Sesión completa · maquillaje + peinado",
-  sessionVintage: "Fotos de época",
+  // Bilingual on purpose: the same option list serves both language sites
+  // (select options are not per-locale) and the inbox line reads the same
+  // whoever sent it.
+  modelForADay: "Model for a Day / Modelo por un día · 27 Sep",
+  posing: "Posing Course / Curso de Posing · October",
+  selfMakeup: "Self-makeup workshop / Taller de automaquillaje",
+  sessionStudio: "Photo session: studio + photographer / estudio + fotógrafo",
+  sessionMakeup: "Photo session + makeup artist / + maquilladora",
+  sessionComplete: "Complete session / Sesión completa",
+  sessionVintage: "Vintage-era photos / Fotos de época",
   notSure: "Not sure yet / Aún no lo sé",
 } as const;
 
