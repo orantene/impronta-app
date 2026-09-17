@@ -14853,7 +14853,7 @@
           "email": "Email · {email}",
           "emailNone": "Email · the order's contact",
           "emailStatus": "Sent with the QR when the ticket was issued · Resend sends it again",
-          "resend": "Resend",
+          "resend": "Resend by e-mail",
           "resendReason": "Sends the ticket e-mail (QR, code and link) again to this address.",
           "sms": "SMS link",
           "smsStatus": "Not offered · text messages are not set up",
@@ -14866,7 +14866,10 @@
           "back": "Back",
           "subtitleOne": "{name} · 1 ticket · {date}",
           "sent": "Sent again.",
-          "notSent": "Not sent: no address on the ticket or the order."
+          "notSent": "Not sent: no address on the ticket or the order.",
+          "reprint": "Print again",
+          "sentEmail": "Sent by e-mail to {email}.",
+          "sentPrint": "Sent to the printer."
         },
         "sell": {
           "cashOnly": "Only cash is taken at this door. Other tenders are collected at the counter."

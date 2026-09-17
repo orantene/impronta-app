@@ -14853,7 +14853,7 @@
           "email": "Email · {email}",
           "emailNone": "Email · el contacto del pedido",
           "emailStatus": "Enviado con el QR al emitir la entrada · Reenviar lo manda otra vez",
-          "resend": "Reenviar",
+          "resend": "Reenviar por e-mail",
           "resendReason": "Vuelve a enviar el email de la entrada (QR, código y enlace) a esta dirección.",
           "sms": "Enlace por SMS",
           "smsStatus": "No ofrecido · los mensajes de texto no están configurados",
@@ -14866,7 +14866,10 @@
           "back": "Atrás",
           "subtitleOne": "{name} · 1 entrada · {date}",
           "sent": "Enviado de nuevo.",
-          "notSent": "No enviado: no hay dirección en la entrada ni en el pedido."
+          "notSent": "No enviado: no hay dirección en la entrada ni en el pedido.",
+          "reprint": "Imprimir de nuevo",
+          "sentEmail": "Enviado por e-mail a {email}.",
+          "sentPrint": "Enviado a imprimir."
         },
         "sell": {
           "cashOnly": "En esta puerta solo se acepta efectivo. Los demás medios de pago se cobran en el mostrador."

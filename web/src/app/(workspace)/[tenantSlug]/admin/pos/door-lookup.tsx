@@ -268,7 +268,7 @@ function DeliveryRows({
   const rows = [
     { title: email ? interpolate(copy.email, { email }) : copy.emailNone, status: copy.emailStatus, tone: "slate" as const, action: copy.resend, method: "email" as const },
     { title: copy.sms, status: copy.smsStatus, tone: "slate" as const, action: null, method: null },
-    { title: copy.printed, status: copy.printedStatus, tone: "slate" as const, action: copy.resend, method: "print" as const },
+    { title: copy.printed, status: copy.printedStatus, tone: "slate" as const, action: copy.reprint, method: "print" as const },
     { title: copy.wallet, status: copy.walletStatus, tone: "slate" as const, action: null, method: null },
   ];
   return (
@@ -290,7 +290,15 @@ function DeliveryRows({
                   setBusy(true);
                   setNote(null);
                   void admissionDeliver({ admissionId: first.id, method: r.method! })
-                    .then((res) => setNote(res.ok ? copy.sent : copy.notSent))
+                    .then((res) =>
+                      setNote(
+                        !res.ok
+                          ? copy.notSent
+                          : r.method === "email"
+                            ? interpolate(copy.sentEmail, { email: email ?? "" })
+                            : copy.sentPrint,
+                      ),
+                    )
                     .finally(() => setBusy(false));
                 }}
                 className={cn(POS_SECONDARY_ACTION, "h-11")}
