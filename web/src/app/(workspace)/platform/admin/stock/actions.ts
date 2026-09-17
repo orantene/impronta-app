@@ -10,14 +10,15 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { isPlatformAdmin } from "@/lib/access/platform-role";
-import { generateLifestyleStockBytes } from "@/lib/ai/ai-image-generation";
-import { estimateImageCostUsd } from "@/lib/ai/ai-image-quota";
-import { resolveStockTenantId } from "@/lib/media/platform-stock";
+import { setImageEngineSettings } from "@/lib/ai/ai-image-model";
 import { setStockRetired, storeStockImage, updateStockManifest, STOCK_MAX_BYTES } from "@/lib/media/platform-stock-admin.server";
+import { generateStockAsset } from "@/lib/media/stock-engine.server";
+import { retireStockAssetForTenants } from "@/lib/media/stock-retire.server";
+import { DIRECTION_IDS } from "@/lib/site-admin/builder-core/site-templates/stock-prompts";
+import { IMAGE_SLOT_KEYS } from "@/lib/site-admin/builder-core/site-templates/types";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { BUSINESS_FAMILIES, BUSINESS_TYPES } from "@/lib/words/business-types";
+import { BUSINESS_FAMILIES, BUSINESS_TYPES, type BusinessFamilyId } from "@/lib/words/business-types";
 
 const PATH = "/platform/admin/stock";
 
@@ -83,57 +84,91 @@ export async function actionUploadStockImage(fd: FormData): Promise<Result<{ id:
 }
 
 /**
- * Generate one image with the configured provider. Refuses honestly when no
- * key is configured (D-TPL-7). Usage is logged with the cost so the per-site
- * accounting can include library generation.
+ * Generate one image through the ENGINE (03 §3–4): layered prompt for the
+ * type × slot × direction, measured cost, automated QA; the result lands as
+ * `qa_passed` or `rejected`, never approved. Refuses honestly when no key is
+ * configured (D-TPL-7).
  */
-export async function actionGenerateStockImage(fd: FormData): Promise<Result<{ id: string; bytes: number; costUsd: number }>> {
+const generateSchema = z.object({
+  family: z.enum(BUSINESS_FAMILIES),
+  businessType: z
+    .string()
+    .trim()
+    .transform((v) => (v && TYPE_IDS.has(v) ? v : null)),
+  slot: z.enum(IMAGE_SLOT_KEYS),
+  direction: z.enum(DIRECTION_IDS),
+  quality: z.enum(["low", "medium", "high"]).default("medium"),
+});
+
+export async function actionGenerateStockImage(fd: FormData): Promise<Result<{ id: string; approval: "qa_passed" | "rejected"; costUsd: number; qa: Record<string, unknown> }>> {
   const g = await gate();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
-  const parsed = readManifest(fd);
+  const parsed = generateSchema.safeParse({ family: fd.get("family"), businessType: fd.get("businessType") ?? "", slot: fd.get("slot"), direction: fd.get("direction"), quality: fd.get("quality") ?? "medium" });
   if (!parsed.success) return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") };
-  const subject = String(fd.get("subject") ?? "").trim();
-  const mood = String(fd.get("mood") ?? "").trim();
-  if (subject.length < 8) return { ok: false, error: "Describe the subject (at least 8 characters)." };
-
-  let generated: { bytes: Buffer; prompt: string };
-  try {
-    generated = await generateLifestyleStockBytes({ subject, mood, role: parsed.data.role });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Generation failed.";
-    await logUsage(admin, g.userId, false, parsed.data.family, parsed.data.role);
-    return { ok: false, error: /not configured/i.test(message) ? "Image provider not configured. Add the OpenAI key under AI providers, or upload a licensed photo instead." : message };
-  }
-  const stored = await storeStockImage(admin, {
-    bytes: generated.bytes,
-    manifest: { ...parsed.data, source: "generated", prompt: generated.prompt, licence: parsed.data.licence || "generated-platform" },
-    createdBy: g.userId,
-  });
-  await logUsage(admin, g.userId, stored.ok, parsed.data.family, parsed.data.role);
-  if (!stored.ok) return stored;
+  const r = await generateStockAsset(admin, { family: parsed.data.family, typeId: parsed.data.businessType, slot: parsed.data.slot, direction: parsed.data.direction, quality: parsed.data.quality, createdBy: g.userId });
+  if (!r.ok) return { ok: false, error: r.code === "not_configured" ? "Image provider not configured. Add the OpenAI key under AI providers, or upload a licensed photo instead." : `${r.code}: ${r.error}` };
   revalidatePath(PATH);
-  return { ok: true, data: { id: stored.id, bytes: stored.bytes, costUsd: estimateImageCostUsd() } };
+  return { ok: true, data: { id: r.id, approval: r.approval, costUsd: r.costUsd, qa: r.qa } };
 }
 
-/** Library generation is logged against the stock tenant (the log's tenant_id is NOT NULL). */
-async function logUsage(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, userId: string, ok: boolean, family: string, role: string) {
-  try {
-    const tenantId = await resolveStockTenantId(admin);
-    if (!tenantId) return;
-    await admin.from("cms_ai_usage_log").insert({
-      tenant_id: tenantId,
-      action: "generate_section",
-      provider: "openai",
-      model: process.env.OPENAI_IMAGE_MODEL?.trim() || "dall-e-3",
-      ok,
-      actor_profile_id: userId,
-      context_jsonb: { feature: "platform_stock_image", cost_usd: ok ? estimateImageCostUsd() : 0, family, role },
-    } as never);
-  } catch (error) {
-    logServerError("platform-stock.usage", error);
+/** Seed one type's heroes: one per visual direction, medium (03 §2b). Sequential, so a click never trips the rate limit. */
+export async function actionSeedHeroesForType(family: string, businessType: string | null): Promise<Result<{ generated: number; passed: number; costUsd: number; errors: string[] }>> {
+  const g = await gate();
+  if (!g.ok) return g;
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+  if (!(BUSINESS_FAMILIES as readonly string[]).includes(family)) return { ok: false, error: "Unknown family." };
+  const typeId = businessType && TYPE_IDS.has(businessType) ? businessType : null;
+  const out = { generated: 0, passed: 0, costUsd: 0, errors: [] as string[] };
+  for (const direction of DIRECTION_IDS) {
+    const r = await generateStockAsset(admin, { family: family as BusinessFamilyId, typeId, slot: "hero", direction, quality: "medium", createdBy: g.userId });
+    out.costUsd += r.costUsd;
+    if (r.ok) {
+      out.generated += 1;
+      if (r.approval === "qa_passed") out.passed += 1;
+    } else {
+      out.errors.push(`${direction}: ${r.code}`);
+      if (r.code === "not_configured" || r.code === "daily_cap" || r.code === "insufficient_quota") break;
+    }
   }
+  revalidatePath(PATH);
+  return { ok: true, data: out };
+}
+
+/** Human review (03 §4.3): approve serves the pool (tenant images join it, tags kept); reject keeps the row for the audit. */
+export async function actionReviewStockImage(id: string, decision: "approve" | "reject", note: string): Promise<Result> {
+  const g = await gate();
+  if (!g.ok) return g;
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: "Bad id." };
+  const { error } = await admin
+    .from("platform_stock_images")
+    .update({ approval: decision === "approve" ? "approved" : "rejected", review_note: note.trim().slice(0, 300) || null, reviewed_by: g.userId, reviewed_at: new Date().toISOString() })
+    .eq("id", id)
+    .in("approval", ["generated", "qa_passed", "approved", "rejected"]);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PATH);
+  revalidatePath(`${PATH}/review`);
+  return { ok: true, data: null };
+}
+
+export async function actionSaveImageEngineSettings(fd: FormData): Promise<Result> {
+  const g = await gate();
+  if (!g.ok) return g;
+  const num = (k: string) => Number(String(fd.get(k) ?? "").trim());
+  const res = await setImageEngineSettings({
+    model: String(fd.get("model") ?? "").trim(),
+    qaModel: String(fd.get("qaModel") ?? "").trim(),
+    prices: { textIn: num("priceTextIn"), imageIn: num("priceImageIn"), output: num("priceOutput") },
+    dailyCap: num("dailyCap"),
+    regenPerTenant: num("regenPerTenant"),
+  });
+  if (!res.ok) return res;
+  revalidatePath(PATH);
+  return { ok: true, data: null };
 }
 
 export async function actionRetireStockImage(id: string, retired: boolean): Promise<Result> {
@@ -143,6 +178,9 @@ export async function actionRetireStockImage(id: string, retired: boolean): Prom
   if (!admin) return { ok: false, error: "Server configuration error." };
   const res = await setStockRetired(admin, id, retired);
   if (!res.ok) return res;
+  // A retired pool asset is swapped PER TENANT (03 §5): every assignment that
+  // holds it moves to the next pool image and the pages follow.
+  if (retired) await retireStockAssetForTenants(admin, id);
   revalidatePath(PATH);
   return { ok: true, data: null };
 }

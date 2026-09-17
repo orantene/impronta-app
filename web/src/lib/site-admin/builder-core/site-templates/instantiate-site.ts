@@ -214,7 +214,7 @@ function resolveImage(input: BuilderNode, ctx: WalkCtx): BuilderNode | null {
     ctx.issues.push(`${ctx.page}: unknown image slot "${key}"`);
     return null;
   }
-  const resolved = ctx.input.images(key, imageRoleForSlot(key));
+  const resolved = ctx.input.images(key, imageRoleForSlot(key), ctx.page);
   if (!resolved) {
     ctx.issues.push(`${ctx.page}: image slot "${key}" unresolved`);
     return null;

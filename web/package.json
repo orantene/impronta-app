@@ -100,7 +100,7 @@
     "perf:builder-budget": "tsx scripts/fidelity/perf-budget.ts",
     "perf:builder-budget:selftest": "tsx scripts/fidelity/perf-budget.ts --selftest",
     "test:node-presentation": "bash scripts/gate-queue.sh test 2 -- NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/site-admin/sections/shared/node-presentation*.test.ts src/lib/site-admin/sections/node-presentation*.test.ts src/lib/site-admin/sections/section-display-tier*.test.ts",
-    "test:platform-stock": "bash scripts/gate-queue.sh test 2 -- NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/media/platform-stock.test.ts src/lib/media/system-folders.test.ts scripts/import-stock-images.test.ts",
+    "test:platform-stock": "bash scripts/gate-queue.sh test 2 -- NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/media/platform-stock.test.ts src/lib/media/stock-qa.test.ts src/lib/media/system-folders.test.ts scripts/import-stock-images.test.ts",
     "test:impronta-pages": "bash scripts/gate-queue.sh test 2 -- tsx --test scripts/impronta-rebuild/*.test.ts scripts/impronta-rebuild/pages/*.test.ts scripts/impronta-rebuild/shell/*.test.ts",
     "test:publish-preflight": "bash scripts/gate-queue.sh test 2 -- tsx --test src/lib/site-admin/edit-mode/publish-preflight-*.test.ts src/lib/site-admin/edit-mode/publish-diff.test.ts",
     "test:e2e": "bash scripts/gate-queue.sh test 2 -- playwright test",
