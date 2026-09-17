@@ -107,10 +107,10 @@ export const LUMINA_EN: Record<string, string> = {
   "Recibes un e-mail con tu QR. Lo muestras en la puerta desde el teléfono; no hace falta imprimir.": "You receive an e-mail with your QR. Show it at the door from your phone; no need to print.",
 };
 
-const TITLE_EN = "LUMINA Launch Party · 21 November, Cancún"; // the site appends "· Impronta"
-const TITLE_ES = "Fiesta de lanzamiento LUMINA · 21 de noviembre, Cancún";
-const META_EN = "Impronta Models presents LUMINA: fashion show, 7 DJs, fire and aerial shows, gourmet grill and artisan market. Saturday 21 November, Cancún. Tickets and VIP tables.";
-const META_ES = "Impronta Models presenta LUMINA: desfile de moda, 7 DJs, show de fuego y aéreo, parrilla gourmet y feria artesanal. Sábado 21 de noviembre, Cancún. Entradas y mesas VIP.";
+const TITLE_EN = "LUMINA Launch Party · 21 November, Playa del Carmen"; // the site appends "· Impronta"
+const TITLE_ES = "Fiesta de lanzamiento LUMINA · 21 de noviembre, Playa del Carmen";
+const META_EN = "Impronta Models presents LUMINA: fashion show, 7 DJs, fire and aerial shows, gourmet grill and artisan market. Saturday 21 November, Playa del Carmen. Tickets and VIP tables.";
+const META_ES = "Impronta Models presenta LUMINA: desfile de moda, 7 DJs, show de fuego y aéreo, parrilla gourmet y feria artesanal. Sábado 21 de noviembre, Playa del Carmen. Entradas y mesas VIP.";
 
 function setNested(obj: Record<string, unknown>, path: string, value: string): void {
   const parts = path.split(".");
