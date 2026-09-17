@@ -371,6 +371,7 @@ export function CalendarPage() {
   return (
     <>
       <PageHeader
+        guideNodeId="talent-availability"
         title={copy.t("Calendar")}
         subtitle={copy.t("Bookings, holds & availability")}
         actions={

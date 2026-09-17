@@ -5,6 +5,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { CapsLabel, Icon, PrimaryButton, StatusCard } from "../primitives";
 import { COLORS, FONTS } from "../state";
+import { openGuideArticle } from "@/lib/guide/open-guide";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -98,6 +99,7 @@ export function PageHeader({
   subtitle,
   actions,
   onBack,
+  guideNodeId,
 }: {
   eyebrow?: string;
   title: string;
@@ -105,6 +107,12 @@ export function PageHeader({
   actions?: ReactNode;
   /** Mobile-only back arrow (#1). Pass label for the previous context. */
   onBack?: () => void;
+  /**
+   * Guide node this page is the parent of (B-002). Renders the (i) next to
+   * the title; clicking opens the support drawer on that article. The id
+   * must exist in help-registry.ts / adhoc-nodes.ts or the gate lists it.
+   */
+  guideNodeId?: string;
 }) {
   const t = useT();
   return (
@@ -178,20 +186,34 @@ export function PageHeader({
             <CapsLabel>{eyebrow}</CapsLabel>
           </div>
         )}
-        <h1
-          data-tulala-h1
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 24,
-            fontWeight: 600,
-            letterSpacing: -0.4,
-            color: COLORS.ink,
-            margin: 0,
-            lineHeight: 1.15,
-          }}
-        >
-          {title}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1
+            data-tulala-h1
+            {...(guideNodeId ? { "data-guide-id": guideNodeId } : {})}
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 24,
+              fontWeight: 600,
+              letterSpacing: -0.4,
+              color: COLORS.ink,
+              margin: 0,
+              lineHeight: 1.15,
+            }}
+          >
+            {title}
+          </h1>
+          {guideNodeId ? (
+            <button
+              type="button"
+              aria-label={t("dashboard.adminSupport.whatIsThis")}
+              title={t("dashboard.adminSupport.whatIsThis")}
+              onClick={() => openGuideArticle(guideNodeId)}
+              className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-admin-ink-dim hover:text-admin-ink"
+            >
+              <Icon name="info" size={16} stroke={1.8} color="currentColor" />
+            </button>
+          ) : null}
+        </div>
         {subtitle && (
           <p style={{ fontFamily: FONTS.body, fontSize: 13, margin: "4px 0 0", lineHeight: 1.5, maxWidth: 640 }} className="text-admin-ink-muted">
             {subtitle}

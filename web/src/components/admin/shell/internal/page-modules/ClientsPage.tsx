@@ -65,6 +65,7 @@ export function ClientsPage() {
       <>
         <PageHeader
           title={t("dashboard.adminClients.title")}
+        guideNodeId="client-list"
           subtitle={t("dashboard.adminClients.freeSubtitle")}
         />
         <Grid cols="2">

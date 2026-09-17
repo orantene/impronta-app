@@ -43,6 +43,8 @@ export function SupportPanel({
   tickets,
   setTickets,
   deepLinkTicketId = null,
+  guideNodeId = null,
+  onConsumedGuideNode,
 }: {
   open: boolean;
   onClose: () => void;
@@ -52,6 +54,9 @@ export function SupportPanel({
   setTickets: (updater: (prev: SupportTicketSummary[]) => SupportTicketSummary[]) => void;
   /** Ticket to open on mount (email "Reply in app" deep link). */
   deepLinkTicketId?: string | null;
+  /** Guide article to open (the (i) next to a page title). */
+  guideNodeId?: string | null;
+  onConsumedGuideNode?: () => void;
 }) {
   const t = useT();
   const compact = useCompactViewport();
@@ -95,6 +100,12 @@ export function SupportPanel({
   useEffect(() => {
     if (deepLinkTicketId) setView("thread", deepLinkTicketId);
   }, [deepLinkTicketId, setView]);
+
+  useEffect(() => {
+    if (!guideNodeId) return;
+    openGuideArticle(guideNodeId);
+    onConsumedGuideNode?.();
+  }, [guideNodeId, openGuideArticle, onConsumedGuideNode]);
 
   useEffect(() => {
     if (deepLinkTicketId) return;

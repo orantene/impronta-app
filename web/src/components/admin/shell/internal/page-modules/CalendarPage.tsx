@@ -113,6 +113,7 @@ export function CalendarPage() {
     <>
       <PageHeader
         title={t("dashboard.adminCalendar.title")}
+        guideNodeId="day-detail"
         actions={
           <SecondaryButton onClick={() => openDrawer("new-booking")}>
             {t("dashboard.adminCalendar.newBooking")}

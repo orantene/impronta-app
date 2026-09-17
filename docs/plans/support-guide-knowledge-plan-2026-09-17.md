@@ -22,6 +22,28 @@ What we already have and reuse:
 | Release Control (`docs/releases/<v>.md`, calendar versions) | The "What's new" feed and the version stamp on every article |
 | `@anthropic-ai/sdk`, `openai` already installed | Drafting (Claude), TTS (OpenAI) |
 
+
+## Status ledger (kept current in the PR that changes it)
+
+| Item | State | Where |
+|---|---|---|
+| Content model + RLS | shipped | `supabase/migrations/20261231246000_guide_articles.sql` |
+| Draft → critic → publish pipeline | shipped, credit-efficient | `web/scripts/guide/generate-guide-articles.mjs` (`npm run guide:generate`) |
+| Guide tab, search, article, Related | shipped | `web/src/components/support/GuideTab.tsx` |
+| Drawer shell to mockup (full-height, pushes page, top tabs, 3-card Home) | shipped | `SupportPanel.tsx`, `SupportPanelHome.tsx`, `support-panel-geometry.ts` |
+| Helper mode | shipped on the drawer's own controls | `GuideHotspot.tsx` |
+| (i) next to page titles → opens the drawer on that article | shipped on 8 pages | `PageHeader guideNodeId`, `web/src/lib/guide/open-guide.ts` |
+| Was this helpful / open / search signals | shipped (SECURITY DEFINER RPC, no write policy) | `20261231247000_guide_feedback_rpc.sql`, `guide-actions.ts` |
+| Search misses logged | shipped | `guide_search_misses` |
+| Ask support fallback from search + article | shipped (hands the question to the Home ask box) | `GuideTab.tsx` |
+| Listen (OpenAI TTS, pre-rendered, hash-keyed) | shipped | `voice-guide-articles.mjs` (`npm run guide:voice`), public bucket `guide-audio` |
+| Gap radar digest + automatic redraft list | shipped | `guide-digest.mjs` (`npm run guide:digest [--redraft]`) |
+| Coverage gate in `npm run ci` | shipped (skips with notice without DB secrets) | `check-guide-coverage.mjs` |
+| guide-sync on merge + weekly | shipped, dormant until `GUIDE_*` secrets exist | `.github/workflows/guide-sync.yml` |
+| Helper mode on real workspace pages (`data-guide-id` on controls) | next | held for the Messages redesign to land |
+| Component-source grounding, staleness hash from source | next (P1) | |
+| "Inside this" child articles, screenshots, Show-me tours, RAG answers | later (P2) | |
+
 ## 1. Content model
 
 ```

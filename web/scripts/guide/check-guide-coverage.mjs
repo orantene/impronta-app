@@ -30,12 +30,27 @@ function loadAllowlist() {
   return JSON.parse(readFileSync(ALLOWLIST_PATH, "utf8"));
 }
 
+/** Local convenience: `npm run ci` calls this without --env-file; pick up .env.local when present so a dev run is the real check, not the skip. */
+function loadLocalEnv() {
+  const p = path.join(process.cwd(), ".env.local");
+  if (!existsSync(p)) return;
+  for (const line of readFileSync(p, "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (!m || process.env[m[1]]) continue;
+    process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+}
+
 async function main() {
+  loadLocalEnv();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !serviceKey) {
-    console.error("NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing — cannot check DB coverage.");
-    process.exit(1);
+    // Same posture as check:types-fresh: on a runner without DB secrets this
+    // is a notice, not a red. The scheduled guide-sync workflow runs it with
+    // secrets and is where a real gap fails.
+    console.log("[guide-coverage] NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing — skipping DB coverage check.");
+    return;
   }
 
   const registry = await loadRegistry();

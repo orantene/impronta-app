@@ -1,0 +1,90 @@
+name: Guide sync
+
+# The Guide is generated from the product (docs/plans/support-guide-knowledge-plan-2026-09-17.md §3).
+# When the registry that seeds it changes on main, or weekly, draft + verify
+# the delta and publish it. Unchanged nodes cost zero calls (content hash).
+#
+# Secrets required (repo settings → Actions): GUIDE_ANTHROPIC_API_KEY,
+# GUIDE_SUPABASE_URL, GUIDE_SUPABASE_SERVICE_ROLE_KEY, GUIDE_OPENAI_API_KEY
+# (voice). The job is a no-op with a notice until they exist, so adding this
+# file cannot redden main.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/src/components/admin/shell/internal/help-registry.ts"
+      - "web/src/components/admin/shell/internal/help-registry-scheduling.ts"
+      - "web/src/lib/guide/adhoc-nodes.ts"
+      - "web/scripts/guide/**"
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC — the weekly digest + gap redrafts
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Regenerate every node (ignores the content hash). Costs credits; use --nodes normally."
+        required: false
+        default: "false"
+
+concurrency:
+  group: guide-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: web
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.GUIDE_ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.GUIDE_OPENAI_API_KEY }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.GUIDE_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GUIDE_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Check secrets
+        id: secrets
+        working-directory: .
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ] && [ -n "$NEXT_PUBLIC_SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "armed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "armed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=guide-sync::GUIDE_* secrets not set — skipping. Add them to run the pipeline on merge."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.armed == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.armed == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        if: steps.secrets.outputs.armed == 'true'
+        run: npm ci --no-audit --no-fund
+
+      - name: Draft + verify the delta
+        if: steps.secrets.outputs.armed == 'true'
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            node --import tsx scripts/guide/generate-guide-articles.mjs --all --force
+          else
+            node --import tsx scripts/guide/generate-guide-articles.mjs --all
+          fi
+
+      - name: Weekly gap redrafts (scheduled runs only)
+        if: steps.secrets.outputs.armed == 'true' && github.event_name == 'schedule'
+        run: node scripts/guide/guide-digest.mjs --redraft
+
+      - name: Voice the delta
+        if: steps.secrets.outputs.armed == 'true' && env.OPENAI_API_KEY != ''
+        run: node scripts/guide/voice-guide-articles.mjs
+
+      - name: Coverage gate
+        if: steps.secrets.outputs.armed == 'true'
+        run: node --import tsx scripts/guide/check-guide-coverage.mjs
