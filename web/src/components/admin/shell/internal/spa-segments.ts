@@ -46,3 +46,40 @@ const SPA_ONLY = new Set<string>(SPA_ONLY_ADMIN_SEGMENTS);
 export function isSpaOnlyAdminSegment(segment: string): boolean {
   return SPA_ONLY.has(segment);
 }
+
+/**
+ * Whether the route the shell is currently on renders NOTHING of its own:
+ * the admin base itself (the overview page fills a store and draws nothing)
+ * or exactly one SPA-only segment under it. Only then may a rail click move
+ * the URL with `history.pushState`.
+ *
+ * WHY THIS IS A PRECONDITION (D-167). The pushState shortcut skips the server
+ * round trip, so the Next.js route tree keeps the CURRENT page's content;
+ * only `usePathname` moves. That is harmless when the current page is a bare
+ * `PageRouteSyncer`, and wrong when it is a canonical server page such as
+ * /admin/projects: `AdminShellClient` hosts a canonical page inside the
+ * shell's `<main>` by the pathname, so when the pathname stopped matching,
+ * the still-mounted Projects tree fell out of its slot and was re-mounted
+ * inline BEFORE `.tulala-shell`, a ghost list above the header that survived
+ * every SPA-only click after it and only cleared on the next real
+ * `router.push`. Leaving anything else than a bare shell route therefore
+ * goes through the router, which replaces the route content.
+ */
+export function isBareShellPath(pathname: string, adminBase: string): boolean {
+  const path = pathname.replace(/\/+$/, "");
+  if (path === adminBase) return true;
+  if (!path.startsWith(`${adminBase}/`)) return false;
+  const rest = path.slice(adminBase.length + 1);
+  return rest.length > 0 && !rest.includes("/") && SPA_ONLY.has(rest);
+}
+
+/**
+ * The rail's decision (`setPage`, state/context.tsx): a click moves the URL
+ * with `history.pushState` only when the target is SPA-only AND the route
+ * being left is bare. A canonical page (Projects, a record, a thread) left
+ * by pushState keeps its content mounted and outlives the navigation above
+ * the shell (D-167); it goes through `router.push`, which replaces it.
+ */
+export function railMovesWithPushState(currentPathname: string, adminBase: string, segment: string): boolean {
+  return segment.length > 0 && SPA_ONLY.has(segment) && isBareShellPath(currentPathname, adminBase);
+}
