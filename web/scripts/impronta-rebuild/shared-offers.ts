@@ -290,13 +290,13 @@ export function segmentCard(id: string, s: SegmentCardInput): BuilderNode {
   return {
     id,
     kind: "container",
+    // The card id is the deep-link target for the homepage strip and the
+    // header menu (`/p/for-clients#rb-clients-seg-hotels`).
+    anchorId: id,
     props: {
       layout: "stack",
       align: "start",
       layerLabel: s.title,
-      // The card id is the deep-link target for the homepage strip and the
-      // header menu (`/p/for-clients#rb-clients-seg-hotels`).
-      anchorId: id,
       style: {
         width: "100%",
         gap: "10px",

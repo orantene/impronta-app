@@ -23,8 +23,8 @@ export function withRootAnchors(nodes: BuilderNode[]): BuilderNode[] {
   return nodes.map((n) => {
     if (n.kind !== "container") return n;
     const props = n.props as Record<string, unknown>;
-    if (props.anchorId === n.id) return n;
-    return { ...n, props: { ...props, anchorId: n.id } } as BuilderNode;
+    if (n.anchorId === n.id || props.anchorId === n.id) return n;
+    return { ...n, anchorId: n.id };
   });
 }
 

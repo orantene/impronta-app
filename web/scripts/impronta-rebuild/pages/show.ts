@@ -266,7 +266,7 @@ const roster = divisionRosterSection({
     "Performer profiles appear here as acts join the roster.",
 });
 // "See the performers" on the dancers card lands here.
-(roster.props as Record<string, unknown>).anchorId = "rb-show-roster";
+roster.anchorId = "rb-show-roster";
 
 const casting = band(
   "rb-show-casting",
