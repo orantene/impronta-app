@@ -23,12 +23,28 @@ import { CINZEL, RALEWAY } from "./tokens";
  * Tickets: a `pricing_table` placeholder, NOT a `ticket_picker`. A shipped
  * design may not render "not set up yet" (`no-unconfigured-native-block`);
  * the tenant swaps the placeholder for a real `ticket_picker` (Buy tickets
- * card, `layout: "cards"`, `presentation: "sheet"`) once they pick the
- * event, and the picker carries the same tier-card look.
+ * card, `layout: "cards"`) once they pick the event, and the picker carries
+ * the same tier-card look: every tier inline with its price, a stepper on
+ * the card, an order bar, and the checkout in a sheet.
  *
- * Copy is Spanish on purpose: this design's first tenant sells in Mexico,
- * and every string is editable in the builder.
+ * DEEP LINKS. Every call to action that means ONE ticket (the late-entry
+ * promo, the VIP card, the placeholder table's own buttons) links to
+ * `?tier=<pool key>#entradas`, not a bare `#entradas`. The picker reads
+ * `?tier=` (a variant UUID or the tier's pool key), preselects one unit,
+ * scrolls to the section and opens the checkout. The keys are what
+ * `poolKeyFor(label)` mints for these labels; a tenant who relabels a tier
+ * keeps its key, so the links survive the rename.
+ *
+ * Copy is neutral Mexican Spanish on purpose: this design's first tenant
+ * sells in Mexico, and every string is editable in the builder.
  */
+
+/** `?tier=<pool key>#entradas` for the three placeholder tiers (see DEEP LINKS). */
+const TIER_LINK = {
+  general: "?tier=entrada_general#entradas",
+  late: "?tier=despues_de_las_23_h#entradas",
+  mesa: "?tier=mesa_para_10#entradas",
+} as const;
 
 const PHOTO = {
   hero: pageDesignPhoto("eventNightBeams"),
@@ -186,6 +202,18 @@ function textCard(id: string, glyph: string, title: string, note: string): Build
   };
 }
 
+/**
+ * A show band: the photo edge to edge under a vertical fade, copy at the foot.
+ *
+ * The pale vertical strips the owner saw at both edges (390 and 1440) were
+ * not this stack: `event-night-fire.jpg` and `event-night-silks.jpg` shipped
+ * with a 22-32px white frame baked into the file, and `cover` on a wide band
+ * put the frame's left and right columns inside the visible area, where the
+ * 55% dark side gradient turned them grey. The assets are now cropped to
+ * their content box (edges measured at ~1,4,5 RGB), so every consumer of the
+ * two photos (these bands, the image cards, the VIP split) reads dark to the
+ * edge. The side gradient stays as a vignette.
+ */
 function showBand(id: string, src: string, alt: string, title: string, note: string): BuilderNode {
   return {
     id,
@@ -410,7 +438,7 @@ const eventLaunchTree: BuilderNode[] = [
               eyebrow("el-promo-eyebrow", "Después de las 23 h"),
               { id: "el-promo-t", kind: "heading", props: { text: "Entrada $500 · incluye 1 trago", level: 3, style: { fontFamily: CINZEL, fontSize: "26px", fontWeight: 400, letterSpacing: "0.03em", textColor: INK, marginBottomFree: "0px" } } },
               { id: "el-promo-n", kind: "paragraph", props: { text: "Llegas para la apertura LUMINA. Compra ahora y entra directo.", style: { fontFamily: RALEWAY, fontSize: "15px", textColor: MUTE, marginBottomFree: "10px" } } },
-              goldButton("el-promo-cta", "Elegir esta entrada", "#entradas", "secondary"),
+              goldButton("el-promo-cta", "Elegir esta entrada", TIER_LINK.late, "secondary"),
             ],
           },
         ],
@@ -423,20 +451,24 @@ const eventLaunchTree: BuilderNode[] = [
         props: { layout: "stack", align: "start", style: { width: "100%", maxWidthFree: "1120px", paddingBottom: "72px", ...GUTTER, gap: "0px" } },
         children: [
           eyebrow("el-entradas-eyebrow", "Entradas"),
-          sectionTitle("el-entradas-title", "Elegí tu entrada"),
+          sectionTitle("el-entradas-title", "Elige tu entrada"),
           {
             id: "el-entradas-table",
             kind: "pricing_table",
             props: {
               style: { fontFamily: RALEWAY, textColor: INK },
               tiers: [
-                { id: "general", name: "Entrada general", description: "Acceso desde las 18:00", price: "$1,000", period: "MXN", ctaLabel: "Comprar", ctaHref: "#entradas", highlighted: false, features: [{ label: "Incluye copa de vino" }] },
-                { id: "late", name: "Después de las 23 h", description: "Acceso desde la apertura", price: "$500", period: "MXN", ctaLabel: "Comprar", ctaHref: "#entradas", highlighted: false, features: [{ label: "Incluye 1 trago" }] },
-                { id: "mesa", name: "Mesa para 10", description: "Toda la noche", price: "$15,000", period: "MXN", ctaLabel: "Reservar mesa", ctaHref: "#entradas", highlighted: true, features: [{ label: "Hasta 10 personas" }, { label: "$10,000 en consumo" }, { label: "Ubicación preferente" }] },
+                { id: "general", name: "Entrada general", description: "Acceso desde las 18:00", price: "$1,000", period: "MXN", ctaLabel: "Comprar", ctaHref: TIER_LINK.general, highlighted: false, features: [{ label: "Incluye copa de vino" }] },
+                { id: "late", name: "Después de las 23 h", description: "Acceso desde la apertura", price: "$500", period: "MXN", ctaLabel: "Comprar", ctaHref: TIER_LINK.late, highlighted: false, features: [{ label: "Incluye 1 trago" }] },
+                { id: "mesa", name: "Mesa para 10", description: "Toda la noche", price: "$15,000", period: "MXN", ctaLabel: "Reservar mesa", ctaHref: TIER_LINK.mesa, highlighted: true, features: [{ label: "Hasta 10 personas" }, { label: "$10,000 en consumo" }, { label: "Ubicación preferente" }] },
               ],
             },
           },
-          { id: "el-entradas-note", kind: "paragraph", props: { text: "Cortesía: solo por invitación. Si recibiste un enlace, tu entrada aparece aquí automáticamente.", style: { fontFamily: RALEWAY, fontSize: "14px", textColor: MUTE, marginTopFree: "14px" } } },
+          // No "Cortesía: solo por invitación" note here. A link-only tier is
+          // the picker's own business: it shows a "Solo con enlace" mark on
+          // the card only when `?tier=` names that tier, and says nothing to
+          // everybody else. A standing paragraph told every guest about a
+          // ticket they could not buy.
         ],
       },
       // ── VIP table ────────────────────────────────────────────────────────
@@ -450,7 +482,11 @@ const eventLaunchTree: BuilderNode[] = [
             kind: "split",
             props: { ratio: "50-50", gap: "s", collapseOnMobile: true, style: { width: "100%", borderRadius: "20px", borderWidth: "1px", borderColor: GOLD, backgroundColor: RAISED } },
             children: [
-              { id: "el-vip-img", kind: "image", props: { src: PHOTO.silks, alt: "Mesa VIP bajo luz cálida y dorada", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "20px 0 0 20px", responsive: { mobile: { aspectRatio: "16:9", borderRadius: "20px 20px 0 0" } } } } },
+              // At 390 the column stacks: the image goes FIRST with an explicit
+              // 4:5 area (the photo's own ratio) and `height:auto`, so the
+              // desktop `height:100%` (which only means something beside a
+              // sibling column) can never leave a tall empty box above the copy.
+              { id: "el-vip-img", kind: "image", props: { src: PHOTO.silks, alt: "Mesa VIP bajo luz cálida y dorada", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "20px 0 0 20px", responsive: { mobile: { aspectRatioFree: "4 / 5", height: "auto", order: -1, borderRadius: "20px 20px 0 0" } } } } },
               {
                 id: "el-vip-copy",
                 kind: "container",
@@ -462,7 +498,7 @@ const eventLaunchTree: BuilderNode[] = [
                   { id: "el-vip-r2", kind: "paragraph", props: { text: "◆  $10,000 MXN en consumo incluidos", style: { fontFamily: RALEWAY, fontSize: "15px", textColor: INK, marginBottomFree: "0px" } } },
                   { id: "el-vip-r3", kind: "paragraph", props: { text: "◆  Ubicación preferente frente a la pasarela", style: { fontFamily: RALEWAY, fontSize: "15px", textColor: INK, marginBottomFree: "0px" } } },
                   { id: "el-vip-r4", kind: "paragraph", props: { text: "◆  Solo 20 mesas", style: { fontFamily: RALEWAY, fontSize: "15px", textColor: INK, marginBottomFree: "14px" } } },
-                  goldButton("el-vip-cta", "Reservar mesa · $15,000", "#entradas"),
+                  goldButton("el-vip-cta", "Reservar mesa · $15,000", TIER_LINK.mesa),
                 ],
               },
             ],

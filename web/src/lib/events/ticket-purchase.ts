@@ -66,6 +66,8 @@ export type TicketPurchaseArgs = {
   units: number;
   email: string;
   displayName?: string | null;
+  /** Optional contact phone; carried on the order only when the guest typed one. */
+  phone?: string | null;
   promoCode?: string | null;
   locale?: string | null;
   sourcePage?: string | null;
@@ -89,7 +91,7 @@ export function buildTicketPurchase(a: TicketPurchaseArgs): PurchaseInput {
     tenantId: a.tenantId,
     clientOrderKey: a.clientOrderKey,
     actorUserId: null,
-    contact: { email: a.email, displayName: a.displayName ?? null },
+    contact: { email: a.email, displayName: a.displayName ?? null, ...(a.phone ? { phone: a.phone } : {}) },
     lines: [{ offeringId: a.offeringId, variantId: a.variantId, sessionId: a.sessionId, units: a.units }],
     paymentChoice: a.paymentChoice ?? "full",
     sourceChannel: "ticket_picker",
