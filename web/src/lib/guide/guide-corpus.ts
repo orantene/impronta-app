@@ -16,6 +16,7 @@
  * structured so steps can carry a route and "Related" can render as links.
  */
 import { createClient } from "@/lib/supabase/server";
+import { logServerError } from "@/lib/server/safe-error";
 import { DRAWER_HELP as REGISTRY } from "@/components/admin/shell/internal/help-registry";
 import { ADHOC_GUIDE_NODES } from "./adhoc-nodes";
 import type {
@@ -131,7 +132,7 @@ export function registryOnlyIds(): string[] {
 export async function getGuideArticle(nodeId: string, locale: GuideLocale): Promise<GuideArticle | null> {
   const supabase = await createClient();
   if (supabase) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("guide_articles")
       .select(
         "node_id, locale, status, body_md, critic_unsupported_count, critic_contradiction_count, critic_structural_pass, critic_notes, critic_ran_at, audio_url, audio_voice, audio_text_hash, audio_duration_sec, release, helpful_yes, helpful_no, updated_at",
@@ -139,6 +140,11 @@ export async function getGuideArticle(nodeId: string, locale: GuideLocale): Prom
       .eq("node_id", nodeId)
       .eq("locale", locale)
       .maybeSingle();
+    // A denied policy or a missing table arrives as data:null, not a throw.
+    // The registry fallback below is the right user-facing behavior either
+    // way, but the failure must be visible or a broken read looks like
+    // "not generated yet" forever.
+    if (error) logServerError("guide.article.read", error);
     if (data) return rowToArticle(data as ArticleRow);
   }
   return registryFallback(nodeId, locale);
@@ -149,11 +155,12 @@ export async function listGuideTopics(locale: GuideLocale): Promise<GuideTopicSu
   const supabase = await createClient();
   const generated = new Map<string, ArticleRow>();
   if (supabase) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("guide_articles")
       .select("node_id, locale, status, body_md")
       .eq("locale", locale)
       .neq("status", "draft");
+    if (error) logServerError("guide.topics.read", error);
     for (const row of (data ?? []) as ArticleRow[]) {
       generated.set(row.node_id, row);
     }
