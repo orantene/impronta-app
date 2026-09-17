@@ -93,3 +93,54 @@ test("DB trigger keys conversation state on message_kind, so a note never flips 
   const fn = sql.slice(sql.indexOf("messaging_touch_inquiry_from_message"));
   assert.match(fn, /IF NEW\.message_kind = 'internal_note' THEN\s+RETURN NEW;/);
 });
+
+/**
+ * S5 (D-MSG-30): a line's author, confirmation, price snapshot, discount and
+ * tax are staff-side facts. The client sees a label, a quantity and a line
+ * total. Every client-facing line reader selects an explicit column list;
+ * this holds those lists closed against the S5 columns and the older
+ * staff-only money columns.
+ */
+const STAFF_ONLY_LINE_COLUMNS = [
+  "talent_cost",
+  "talent_cost_cents",
+  "coordinator_fee",
+  "discount_cents",
+  "discount_label",
+  "tax_cents",
+  "tax_label",
+  "proposed_by",
+  "confirmed_by",
+  "price_snapshot_cents",
+  "catalog_price_cents_at_add",
+];
+
+function selectArg(text: string, from: string): string {
+  const at = text.indexOf(from);
+  assert.ok(at >= 0, `${from} not found`);
+  const sel = text.indexOf(".select(", at);
+  const close = text.indexOf(")", sel);
+  return text.slice(sel, close + 1);
+}
+
+test("client offer payload: the offer line select carries no staff-only column (S5)", () => {
+  const details = src("app/(workspace)/[tenantSlug]/_data-bridge/client-inquiry-details.ts");
+  const offerSelect = selectArg(details, 'inq.current_offer_id\n        ? readClient\n            .from("inquiry_offers")');
+  assert.match(offerSelect, /inquiry_offer_line_items \(/, "offer select must embed the line items");
+  for (const column of STAFF_ONLY_LINE_COLUMNS) {
+    assert.doesNotMatch(offerSelect, new RegExp(`\\b${column}\\b`), `client offer select must not read ${column}`);
+  }
+  // ...and the mapped payload only carries the client-safe fields.
+  const mapped = details.slice(details.indexOf("lines: (offerRow.inquiry_offer_line_items ?? [])"), details.indexOf("service_name:", details.indexOf("lines: (offerRow.inquiry_offer_line_items ?? [])")));
+  for (const column of STAFF_ONLY_LINE_COLUMNS) {
+    assert.doesNotMatch(mapped, new RegExp(`\\b${column}\\b`), `client offer payload must not carry ${column}`);
+  }
+});
+
+test("pay page and the sent-basket snapshot read label, units and unit price only (S5)", () => {
+  const pay = src("app/(public)/pay/[code]/page.tsx");
+  assert.match(selectArg(pay, '.from("order_lines")'), /\.select\("label, units, unit_cents"\)/);
+  const engine = src("lib/server-actions/messaging-engine.ts");
+  const request = engine.slice(engine.indexOf("export async function messagingRequestPayment"));
+  assert.match(selectArg(request, 'scoped(g.admin, "order_lines", g.tenantId)'), /\.select\("id, label, units, unit_cents"\)/);
+});

@@ -6,7 +6,7 @@
  * tenant. Nothing here writes; the writers are in `messaging-engine.ts`.
  */
 
-import { diffDraft, type DraftDiffLine, type DraftSnapshot } from "./diff-draft";
+import { annotateDiffWithEvents, diffDraft, type DraftDiffLine, type DraftSnapshot, type LineEventRow } from "./diff-draft";
 
 type Admin = {
   // Tests inject a fake PostgREST builder.
@@ -165,7 +165,15 @@ export type BasketDiff = {
   diff: DraftDiffLine[];
 };
 
-type SnapshotLine = { id: string; label?: string | null; units?: number | string | null; unit_cents?: number | string | null };
+type SnapshotLine = {
+  id: string;
+  label?: string | null;
+  units?: number | string | null;
+  unit_cents?: number | string | null;
+  /** S5: on the live `order_lines` read; a basket snapshot taken before S5 has neither. */
+  proposed_by?: string | null;
+  confirmed_at?: string | null;
+};
 
 export function snapshotToDraft(input: { version: number; currency: string; lines: SnapshotLine[] }): DraftSnapshot {
   return {
@@ -176,6 +184,8 @@ export function snapshotToDraft(input: { version: number; currency: string; line
       label: String(l.label ?? ""),
       units: Number(l.units ?? 0),
       unitCents: Number(l.unit_cents ?? 0),
+      proposedBy: l.proposed_by === "client" || l.proposed_by === "staff" || l.proposed_by === "system" ? l.proposed_by : null,
+      confirmedAt: typeof l.confirmed_at === "string" ? l.confirmed_at : null,
     })),
   };
 }
@@ -216,11 +226,22 @@ export async function loadBasketDiff(admin: Admin, input: { tenantId: string; in
     if (lErr) continue;
     const row = link as { id: string; code: string; status: string; order_id: string | null; currency: string | null } | null;
     if (!row || row.status !== "open" || !row.order_id) continue;
-    const [{ data: order, error: oErr }, { data: lines, error: lnErr }] = await Promise.all([
+    const [{ data: order, error: oErr }, { data: lines, error: lnErr }, { data: events, error: evErr }] = await Promise.all([
       admin.from("orders").select("id, version, currency").eq("id", row.order_id).eq("tenant_id", input.tenantId).maybeSingle(),
-      admin.from("order_lines").select("id, label, units, unit_cents").eq("order_id", row.order_id),
+      admin.from("order_lines").select("id, label, units, unit_cents, proposed_by, confirmed_at").eq("order_id", row.order_id),
+      // The line history (S5): who changed what, and every price move. A
+      // missing table (migration not yet applied) leaves the rows unannotated
+      // rather than hiding the diff.
+      admin
+        .from("order_line_events")
+        .select("line_id, actor_kind, created_at, change")
+        .eq("tenant_id", input.tenantId)
+        .eq("order_id", row.order_id)
+        .order("created_at", { ascending: true })
+        .limit(500),
     ]);
     if (oErr || lnErr) continue;
+    const history = evErr ? [] : ((events ?? []) as LineEventRow[]);
     const o = order as { id: string; version: number; currency: string } | null;
     if (!o) continue;
     const basket = (snap.basket ?? {}) as { lines?: SnapshotLine[]; version?: number };
@@ -247,7 +268,7 @@ export async function loadBasketDiff(admin: Admin, input: { tenantId: string; in
       orderId: o.id,
       basketVersion: sent.version,
       orderVersion: o.version,
-      diff: basketDiffFromSnapshot(sent, current, base),
+      diff: annotateDiffWithEvents(basketDiffFromSnapshot(sent, current, base), history),
     };
   }
   return null;
