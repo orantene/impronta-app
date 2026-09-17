@@ -122,6 +122,7 @@ export function ClientsPage() {
     <>
       <PageHeader
         title={t("dashboard.adminClients.title")}
+        guideNodeId="client-list"
         subtitle={interpolate(t("dashboard.adminClients.subtitle"), { count: clients.length })}
         actions={
           <>
