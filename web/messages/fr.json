@@ -5929,7 +5929,9 @@
         "groupsReason": "Deux groupes existent aujourd'hui (choix unique, extras) ; les groupes libres n'ont pas encore d'écriture.",
         "prepNotes": "Notes pour la préparation",
         "allergy": "Champ allergies",
-        "prepReason": "Les invites de préparation ne sont pas encore enregistrées sur un article."
+        "prepReason": "Les invites de préparation ne sont pas encore enregistrées sur un article.",
+        "groupMenu": "Menu du groupe",
+        "reorderReason": "Les lignes se vendent dans cet ordre ; les réordonner n'a pas encore d'écriture ici."
       },
       "fulfillment": {
         "title": "Exécution et préparation",
@@ -5962,8 +5964,7 @@
         "privateLinkNote": "URL non répertoriée pour une campagne",
         "priceOverride": "Prix spécifique",
         "reason": "Ce canal n'a pas encore d'indicateur sur l'article ; les deux qui existent sont le site web et le comptoir.",
-        "overrideReason": "Un prix par canal n'a pas encore de colonne ; chaque canal vend le prix de base.",
-        "rule": "Désactiver un canal n'annule jamais les ventes déjà faites par ce canal."
+        "overrideReason": "Un prix par canal n'a pas encore de colonne ; chaque canal vend le prix de base."
       },
       "policies": {
         "title": "Règles · la version acceptée est conservée sur chaque vente",
@@ -6039,7 +6040,7 @@
         "sectionsReason": "Les sections et services du menu des tables n'ont pas encore de table ; le mode tables vend le même catalogue.",
         "qrOrdering": "Les clients peuvent commander depuis le QR",
         "qrOrderingNote": "Le personnel accepte avant l'envoi",
-        "backToItems": "Retour aux articles"
+        "reorderReason": "Le comptoir affiche cet ordre ; réordonner n'a pas encore d'écriture ici."
       },
       "priceLists": {
         "title": "Listes de prix",
@@ -6090,7 +6091,8 @@
           "partial": "Utilisation partielle",
           "concurrent": "Utilisation simultanée",
           "reporting": "Reporting"
-        }
+        },
+        "usedNote": "échangé à Encaisser (Pass ou crédit) et à l'enregistrement du cours"
       },
       "package": {
         "title": "Composition",
@@ -6113,7 +6115,17 @@
         "save": "Enregistrer la composition",
         "saved": "Composition enregistrée.",
         "allocationNote": "L'allocation est proportionnelle au prix catalogue de chaque composant ; le reste de l'arrondi va à la dernière ligne, pour que les parts fassent toujours le prix du forfait.",
-        "dependenciesReason": "Les dépendances entre composants, les montants manuels et l'aperçu client ne sont pas encore enregistrés ; un composant obligatoire indisponible refuse tout le forfait en caisse."
+        "dependenciesReason": "Les dépendances entre composants et les montants manuels ne sont pas encore enregistrés ; un composant obligatoire indisponible refuse tout le forfait en caisse.",
+        "dependencies": "Dépendances",
+        "allocationMethod": "Méthode de répartition",
+        "proportional": "Proportionnel au prix catalogue du composant",
+        "proportionalNote": "Le reste de l'arrondi va à la dernière ligne",
+        "manual": "Montants manuels",
+        "manualNote": "Doivent totaliser le prix accepté du forfait",
+        "manualReason": "Les montants manuels ne sont pas encore enregistrés ; chaque forfait se répartit proportionnellement.",
+        "guestPreview": "Aperçu client · Configurer",
+        "total": "Total",
+        "holdsNote": "Réserve tous les composants obligatoires ensemble ou propose une alternative honnête."
       },
       "phases": {
         "title": "Phases de prix",

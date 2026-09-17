@@ -19,13 +19,12 @@
 import { useState } from "react";
 
 import { useT } from "@/i18n/use-t";
-import { Icon } from "../../primitives";
 import { setMenuItemStockAction } from "@/lib/talent/menu-offerings-actions";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
-import { FactRow, Outcome } from "../appointments-classes-ui";
+import { Outcome } from "../appointments-classes-ui";
 import type { TabProps } from "./CatalogItemEditor";
 import { itemAvailability } from "./catalog-model";
-import { BUTTON_SMALL, CARD, Eyebrow, Field, INPUT, ListHead, ModeCard, Note, SectionHead } from "./catalog-ui";
+import { AddPill, BUTTON_SMALL, CARD, Eyebrow, Field, INPUT, ListHead, ModeCard, Note, SectionHead, SELECT, SelectShell, TotalRow } from "./catalog-ui";
 
 export function AvailabilityTab({ item, patch, editor, tenantId, isDraft, saving }: TabProps) {
   const t = useT();
@@ -64,7 +63,7 @@ export function AvailabilityTab({ item, patch, editor, tenantId, isDraft, saving
           {refusal}
         </Outcome>
       ) : null}
-      <div role="radiogroup" aria-label={t("dashboard.catalog.availability.title")} className="grid grid-cols-4 gap-[10px]">
+      <div role="radiogroup" aria-label={t("dashboard.catalog.availability.title")} className="grid grid-cols-4 gap-[16px]">
         <ModeCard
           title={t("dashboard.catalog.availability.mode.unlimited")}
           note={t("dashboard.catalog.availability.mode.unlimitedNote")}
@@ -101,7 +100,7 @@ export function AvailabilityTab({ item, patch, editor, tenantId, isDraft, saving
       </div>
 
       {mode === "stock" ? (
-        <div className="grid grid-cols-4 gap-[14px]">
+        <div className="grid grid-cols-4 gap-[16px]">
           <Field
             label={t("dashboard.catalog.availability.availableNow")}
             hint={held != null && held > 0 ? t("dashboard.catalog.availability.held").replace("{n}", String(held)) : t("dashboard.catalog.availability.availableHint")}
@@ -136,28 +135,25 @@ export function AvailabilityTab({ item, patch, editor, tenantId, isDraft, saving
           <span>{t("dashboard.catalog.availability.batch.release")}</span>
           <span />
         </ListHead>
-        <p className="m-0 border-t border-admin-border-soft px-[18px] py-[10px] font-admin-body text-[12px] text-admin-ink-muted">
+        <p className="m-0 border-t border-admin-border-soft px-[18px] py-[10px] font-admin-body text-[12px] leading-[1.2] text-admin-ink-muted">
           {t("dashboard.catalog.availability.batchesReason")}
         </p>
-        <div className="flex items-center gap-[8px] border-t border-admin-border-soft px-[16px] py-[10px]">
-          <button type="button" disabled data-not-wired="true" title={t("dashboard.catalog.availability.batchesReason")} className={BUTTON_SMALL}>
-            <Icon name="plus" size={12} stroke={1.75} />
-            {t("dashboard.catalog.availability.addBatch")}
-          </button>
+        <div className="flex items-center gap-[8px] border-t border-admin-border-soft px-[16px] py-[11px]">
+          <AddPill reason={t("dashboard.catalog.availability.batchesReason")}>{t("dashboard.catalog.availability.addBatch")}</AddPill>
           <button type="button" disabled data-not-wired="true" title={t("dashboard.catalog.availability.batchesReason")} className={BUTTON_SMALL}>
             {t("dashboard.catalog.availability.repeatWeekly")}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-[14px]">
+      <div className="grid grid-cols-4 gap-[16px]">
         <Field label={t("dashboard.catalog.availability.lowStock")} reason={t("dashboard.catalog.availability.lowStockReason")}>
           <input type="number" disabled className={INPUT} />
         </Field>
         <Field label={t("dashboard.catalog.availability.whenSoldOut")} hint={t("dashboard.catalog.availability.whenSoldOutHint")}>
-          <select disabled className={INPUT} data-testid="catalog-field-sold-out">
+          <SelectShell><select disabled className={SELECT} data-testid="catalog-field-sold-out">
             <option>{t("dashboard.catalog.availability.soldOutRule")}</option>
-          </select>
+          </select></SelectShell>
         </Field>
         <Field label={t("dashboard.catalog.availability.leadTime")} reason={t("dashboard.catalog.availability.leadTimeReason")}>
           <input type="text" disabled className={INPUT} />
@@ -180,34 +176,40 @@ export function AvailabilityTab({ item, patch, editor, tenantId, isDraft, saving
           />
         </Field>
       </div>
+      {/* W05 draws `Fulfillment & preparation` under the rules as well as on its own tab; the same four fields, the same sentence. */}
+      <FulfillmentFields />
     </>
   );
 }
 
 export function FulfillmentTab(_props: TabProps) {
+  return <FulfillmentFields intro />;
+}
+
+function FulfillmentFields({ intro = false }: { intro?: boolean }) {
   const t = useT();
   const reason = t("dashboard.catalog.fulfillment.reason");
   return (
     <>
-      <SectionHead title={t("dashboard.catalog.fulfillment.title")} intro={t("dashboard.catalog.fulfillment.intro")} />
-      <div className="grid grid-cols-4 gap-[14px]" data-testid="catalog-fulfillment">
+      <SectionHead title={t("dashboard.catalog.fulfillment.title")} intro={intro ? t("dashboard.catalog.fulfillment.intro") : undefined} />
+      <div className="grid grid-cols-4 gap-[16px]" data-testid="catalog-fulfillment">
         <Field label={t("dashboard.catalog.fulfillment.fulfillment")} reason={reason} hint={t("dashboard.catalog.fulfillment.fulfillmentHint")}>
-          <select disabled className={INPUT}>
+          <SelectShell><select disabled className={SELECT}>
             <option>{t("dashboard.catalog.fulfillment.handoffNow")}</option>
-          </select>
+          </select></SelectShell>
         </Field>
-        <Field label={t("dashboard.catalog.fulfillment.station")} reason={reason}>
-          <select disabled className={INPUT}>
+        <Field label={t("dashboard.catalog.fulfillment.station")} reason={reason} quiet>
+          <SelectShell><select disabled className={SELECT}>
             <option>{t("dashboard.catalog.dash")}</option>
-          </select>
+          </select></SelectShell>
         </Field>
-        <Field label={t("dashboard.catalog.fulfillment.prepTime")} reason={reason}>
+        <Field label={t("dashboard.catalog.fulfillment.prepTime")} reason={reason} quiet>
           <input type="text" disabled className={INPUT} />
         </Field>
-        <Field label={t("dashboard.catalog.fulfillment.course")} reason={reason}>
-          <select disabled className={INPUT}>
+        <Field label={t("dashboard.catalog.fulfillment.course")} reason={reason} quiet>
+          <SelectShell><select disabled className={SELECT}>
             <option>{t("dashboard.catalog.dash")}</option>
-          </select>
+          </select></SelectShell>
         </Field>
       </div>
     </>
@@ -228,17 +230,18 @@ export function AvailabilitySide({ item }: { item: TalentOffering }) {
   return (
     <>
       <Eyebrow>{t("dashboard.catalog.side.posBehaviour")}</Eyebrow>
-      <div className={`${CARD} px-[16px] py-[8px]`} data-testid="catalog-side-pos">
-        <FactRow label={t("dashboard.catalog.side.counterTile")}>{tile}</FactRow>
-        <FactRow label={t("dashboard.catalog.side.soldOutOnCharge")}>{t("dashboard.catalog.side.soldOutOnChargeValue")}</FactRow>
-        <FactRow label={t("dashboard.catalog.availability.cancellation")}>
-          {item.cancellationHours == null
-            ? t("dashboard.catalog.side.cancelFlexible")
-            : t("dashboard.catalog.side.cancelHours").replace("{n}", String(item.cancellationHours))}
-        </FactRow>
-        <FactRow label={t("dashboard.catalog.side.kitchen")} muted>
-          {t("dashboard.catalog.dash")}
-        </FactRow>
+      <div className={`${CARD} px-[16px] py-[4px]`} data-testid="catalog-side-pos">
+        <TotalRow label={t("dashboard.catalog.side.counterTile")} value={`“${tile}”`} />
+        <TotalRow label={t("dashboard.catalog.side.soldOutOnCharge")} value={t("dashboard.catalog.side.soldOutOnChargeValue")} />
+        <TotalRow
+          label={t("dashboard.catalog.availability.cancellation")}
+          value={
+            item.cancellationHours == null
+              ? t("dashboard.catalog.side.cancelFlexible")
+              : t("dashboard.catalog.side.cancelHours").replace("{n}", String(item.cancellationHours))
+          }
+        />
+        <TotalRow label={t("dashboard.catalog.side.kitchen")} value={t("dashboard.catalog.dash")} muted />
       </div>
       <Note>{t("dashboard.catalog.side.poolNote")}</Note>
     </>

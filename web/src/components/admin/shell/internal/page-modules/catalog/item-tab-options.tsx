@@ -26,9 +26,10 @@ import { setWorkspaceMenuItemOptions } from "@/lib/talent/menu-offerings-actions
 import { formatOfferingPrice, type OfferingAddOn, type OfferingVariant, type TalentOffering } from "@/lib/talent/offerings-types";
 import { ActionButton, Outcome, StatePill } from "../appointments-classes-ui";
 import type { TabProps } from "./CatalogItemEditor";
-import { BUTTON_SMALL, CARD, Eyebrow, Field, INPUT, Note, SectionHead } from "./catalog-ui";
+import { AddPill, BUTTON_SMALL, CARD, DragHandle, Eyebrow, Field, INPUT, Note, SectionHead } from "./catalog-ui";
 
-const ROW = "grid grid-cols-[1.4fr_90px_1fr_110px_24px] items-center gap-[10px] px-[16px] py-[8px] font-admin-body text-[12.5px]";
+/** The board's option row: the handle, the name, the price, the station code, the availability pill, the row's control; 34px. */
+const ROW = "grid min-h-[34px] grid-cols-[12px_1fr_100px_1fr_110px_22px] items-center gap-[10px] px-[16px] py-[7px] font-admin-body text-[12.5px] leading-[1.2]";
 
 export function OptionsTab({ item, editor, tenantId, isDraft, saving }: TabProps) {
   const t = useT();
@@ -103,14 +104,13 @@ export function OptionsTab({ item, editor, tenantId, isDraft, saving }: TabProps
         testId="catalog-options-addons"
       />
       <div className="flex items-center gap-[8px]">
-        <button type="button" disabled title={t("dashboard.catalog.options.groupsReason")} data-not-wired="true" className={BUTTON_SMALL} data-testid="catalog-options-add-group">
-          <Icon name="plus" size={12} stroke={1.75} />
+        <AddPill reason={t("dashboard.catalog.options.groupsReason")} testId="catalog-options-add-group">
           {t("dashboard.catalog.options.addGroup")}
-        </button>
+        </AddPill>
         <ActionButton reason={t("dashboard.catalog.options.groupsReason")} className="h-[30px]! px-[12px]! text-[12px]!">
           {t("dashboard.catalog.options.copyGroups")}
         </ActionButton>
-        <span className="font-admin-body text-[11.5px] text-admin-ink-dim">{t("dashboard.catalog.options.groupsReason")}</span>
+        <span className="font-admin-body text-[11.5px] leading-[1.2] text-admin-ink-dim">{t("dashboard.catalog.options.groupsReason")}</span>
       </div>
       <div className="grid grid-cols-2 gap-[14px]">
         <Field label={t("dashboard.catalog.options.prepNotes")} reason={t("dashboard.catalog.options.prepReason")}>
@@ -151,6 +151,7 @@ function GroupCard({
 }) {
   const t = useT();
   const locale = useDashboardLocale();
+  const [adding, setAdding] = useState(false);
   const [label, setLabel] = useState("");
   const [price, setPrice] = useState("");
   const cents = price.trim() === "" ? null : Math.round(Number(price) * 100);
@@ -159,17 +160,28 @@ function GroupCard({
 
   return (
     <div className={CARD} data-testid={testId}>
-      <div className="flex items-center gap-[12px] px-[16px] py-[12px]">
-        <span className="flex-1 font-admin-body text-admin-13 font-semibold text-admin-ink">{name}</span>
+      <div className="flex h-[40px] items-center gap-[12px] px-[16px] leading-[1.2]">
+        <span className="flex-1 font-admin-body text-[13.5px] font-semibold text-admin-ink">{name}</span>
         <StatePill tone={required ? "coral" : "slate"}>{required ? t("dashboard.catalog.options.required") : t("dashboard.catalog.options.optional")}</StatePill>
-        <span className="font-admin-body text-[12px] text-admin-ink-muted">{rule}</span>
-        <span className="font-admin-body text-[12px] text-admin-ink-muted">{t("dashboard.catalog.options.pricePerItem")}</span>
+        <span className="font-admin-body text-[12.5px] text-admin-ink-muted">{rule}</span>
+        <span className="font-admin-body text-[12.5px] text-admin-ink-muted">{t("dashboard.catalog.options.pricePerItem")}</span>
+        <button
+          type="button"
+          disabled
+          aria-label={t("dashboard.catalog.options.groupMenu")}
+          title={t("dashboard.catalog.options.groupsReason")}
+          data-not-wired="true"
+          className="inline-flex h-[18px] w-[22px] cursor-not-allowed items-center justify-center rounded-[5px] text-admin-ink-dim opacity-60"
+        >
+          <Icon name="ellipsis" size={14} stroke={1.75} />
+        </button>
       </div>
       {rows.length === 0 ? (
-        <p className="m-0 border-t border-admin-border-soft px-[16px] py-[10px] font-admin-body text-[12px] text-admin-ink-muted">{t("dashboard.catalog.options.none")}</p>
+        <p className="m-0 border-t border-admin-border-soft px-[16px] py-[10px] font-admin-body text-[12px] leading-[1.2] text-admin-ink-muted">{t("dashboard.catalog.options.none")}</p>
       ) : null}
       {rows.map((r, idx) => (
         <div key={r.id || `${r.label}-${idx}`} className={`${ROW} border-t border-admin-border-soft`} data-testid={`${testId}-row`}>
+          <DragHandle reason={t("dashboard.catalog.options.reorderReason")} />
           <span className="truncate text-admin-ink">{r.label}</span>
           <span className="tabular-nums text-admin-ink">
             {priceOf(r) ?? `+${formatOfferingPrice(r.amountCents ?? 0, item.currency, locale)}`}
@@ -185,13 +197,20 @@ function GroupCard({
             aria-label={t("dashboard.catalog.options.remove")}
             disabled={disabled}
             onClick={() => onRemove(idx)}
-            className="inline-flex h-[24px] w-[24px] cursor-pointer items-center justify-center rounded-[6px] text-admin-ink-dim hover:bg-admin-surface-alt hover:text-admin-red disabled:cursor-not-allowed"
+            className="inline-flex h-[18px] w-[22px] cursor-pointer items-center justify-center rounded-[5px] text-admin-ink-dim hover:bg-admin-surface-alt hover:text-admin-red disabled:cursor-not-allowed"
           >
             <Icon name="x" size={12} stroke={1.75} />
           </button>
         </div>
       ))}
-      <div className="flex items-center gap-[8px] border-t border-admin-border-soft px-[16px] py-[8px]">
+      {/* The board ends the card with `+ Add option`; the inputs open under it on the click. */}
+      <div className="flex items-center gap-[8px] border-t border-admin-border-soft px-[16px] py-[11px]">
+        {!adding ? (
+          <AddPill disabled={disabled} onClick={() => setAdding(true)} testId={`${testId}-open`}>
+            {t("dashboard.catalog.options.addOption")}
+          </AddPill>
+        ) : (
+        <>
         <input
           type="text"
           value={label}
@@ -221,12 +240,27 @@ function GroupCard({
             onAdd(label.trim(), validCents);
             setLabel("");
             setPrice("");
+            setAdding(false);
           }}
           className={`${BUTTON_SMALL} h-[28px]`}
         >
           <Icon name="plus" size={12} stroke={1.75} />
           {t("dashboard.catalog.options.addOption")}
         </button>
+        <button
+          type="button"
+          aria-label={t("dashboard.catalog.create.cancel")}
+          onClick={() => {
+            setAdding(false);
+            setLabel("");
+            setPrice("");
+          }}
+          className="inline-flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-[6px] text-admin-ink-dim hover:bg-admin-surface-alt hover:text-admin-ink"
+        >
+          <Icon name="x" size={12} stroke={1.75} />
+        </button>
+        </>
+        )}
       </div>
     </div>
   );
@@ -239,19 +273,19 @@ export function OptionsSide({ item }: { item: TalentOffering }) {
   return (
     <>
       <Eyebrow>{t("dashboard.catalog.side.cashierSees")}</Eyebrow>
-      <div className={`${CARD} flex flex-col gap-[8px] px-[14px] py-[12px]`} data-testid="catalog-side-cashier">
-        <div className="flex items-center gap-[6px] font-admin-body text-[12px] font-semibold text-admin-ink">
+      <div className={`${CARD} flex flex-col gap-[8px] px-[14px] py-[13px] leading-[1.2]`} data-testid="catalog-side-cashier">
+        <div className="flex items-center gap-[8px] font-admin-body text-[13px] font-semibold text-admin-ink">
           {t("dashboard.catalog.options.groupOptions")}
           <StatePill tone="coral">{t("dashboard.catalog.side.chooseOne")}</StatePill>
         </div>
         {variants.length === 0 ? (
           <p className="m-0 font-admin-body text-[11.5px] text-admin-ink-muted">{t("dashboard.catalog.side.noOptionsYet")}</p>
         ) : (
-          <div className="grid grid-cols-4 gap-[4px]">
+          <div className="grid grid-cols-4 gap-[6px]">
             {variants.slice(0, 8).map((v, i) => (
               <span
                 key={v.id || i}
-                className={`inline-flex h-[34px] items-center justify-center truncate rounded-[8px] border px-[4px] font-admin-body text-[11px] font-semibold ${
+                className={`inline-flex h-[36px] items-center justify-center truncate rounded-[8px] border px-[4px] font-admin-body text-[12px] font-semibold ${
                   i === 0 ? "border-admin-brand bg-admin-brand-soft text-admin-ink" : "border-admin-border bg-admin-card text-admin-ink"
                 }`}
               >
@@ -260,7 +294,7 @@ export function OptionsSide({ item }: { item: TalentOffering }) {
             ))}
           </div>
         )}
-        <div className="flex items-center gap-[6px] font-admin-body text-[12px] font-semibold text-admin-ink">
+        <div className="mt-[2px] flex items-center gap-[8px] font-admin-body text-[13px] font-semibold text-admin-ink">
           {t("dashboard.catalog.options.groupExtras")}
           <StatePill tone="slate">{t("dashboard.catalog.side.upTo").replace("{n}", String(addOns.length))}</StatePill>
         </div>

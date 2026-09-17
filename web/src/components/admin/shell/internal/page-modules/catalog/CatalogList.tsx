@@ -36,9 +36,10 @@ import {
   type CatalogView,
   type ListFilters,
 } from "./catalog-model";
-import { CARD, ListHead, ListRow, Note, PageHeading, RowMenuButton, SegmentLinks } from "./catalog-ui";
+import { BlockPill, CARD, Chip, ListHead, ListRow, Note, PageHeading, RowMenuButton, SegmentLinks, type BlockTone } from "./catalog-ui";
 
-const COLS = "grid-cols-[1.5fr_110px_1.3fr_90px_140px_110px_140px_30px]";
+// The board's columns at 1144: Item 193 · Type 120 · Channels 183 · Price 90 · Availability 150 · Preparation 120 · Status 150 · the menu.
+const COLS = "grid-cols-[1.35fr_120px_1.3fr_90px_150px_120px_150px_24px]";
 
 const TYPE_KEY: Record<CatalogItemType, string> = {
   product: "dashboard.catalog.type.product",
@@ -47,7 +48,7 @@ const TYPE_KEY: Record<CatalogItemType, string> = {
   custom: "dashboard.catalog.type.custom",
 };
 
-const STATUS_TONE: Record<CatalogStatus, PillTone> = { published: "green", draft: "coral", incomplete: "coral" };
+const STATUS_TONE: Record<CatalogStatus, PillTone & BlockTone> = { published: "green", draft: "coral", incomplete: "coral" };
 const STATUS_KEY: Record<CatalogStatus, string> = {
   published: "dashboard.catalog.status.published",
   draft: "dashboard.catalog.status.draft",
@@ -74,7 +75,7 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
   ];
 
   return (
-    <div className="flex flex-col gap-[16px]" data-testid="catalog-list">
+    <div className="flex flex-col gap-[14px] leading-[1.2]" data-testid="catalog-list">
       <PageHeading
         title={t("dashboard.catalog.list.title")}
         intro={t("dashboard.catalog.list.intro")}
@@ -96,7 +97,8 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
       <div className="flex flex-wrap items-center gap-[8px] max-[720px]:flex-col max-[720px]:items-stretch">
         <SegmentLinks label={t("dashboard.catalog.segment.label")} items={segments} />
         <span className="flex-1" />
-        <div className="hidden max-[720px]:contents">
+        {/* `contents` on every width: the phone stacks them under the segments, the desktop keeps them on the strip's row (W01). */}
+        <div className="contents">
         <FilterChip
           label={t("dashboard.catalog.filter.type")}
           value={packagesView ? "package" : filters.type}
@@ -186,7 +188,7 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
           { where: t("dashboard.catalog.usedIn.web"), what: t("dashboard.catalog.usedIn.webParts") },
         ]}
       />
-      <div className="-mt-[8px] font-admin-body text-[11.5px] text-admin-ink-dim">{t("dashboard.catalog.usedIn.rule")}</div>
+      <div className="-mt-[4px] font-admin-body text-[11.5px] text-admin-ink-dim">{t("dashboard.catalog.usedIn.rule")}</div>
 
       <div className="min-h-[16px] font-admin-body text-[11px]">
         {editor.saving ? <span className="text-admin-ink-muted">{t("dashboard.catalog.saving")}</span> : null}
@@ -257,31 +259,21 @@ function CatalogRow({
       <Link href={nav.href({ item: o.id })} prefetch={false} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
         {o.title || t("dashboard.catalog.untitled")}
       </Link>
-      <span>
-        <span className="inline-flex whitespace-nowrap rounded-full bg-admin-surface-alt px-[8px] py-[2px] font-admin-body text-[11px] font-semibold text-admin-ink">
-          {t(TYPE_KEY[type])}
-        </span>
-      </span>
-      <span className="flex flex-wrap items-center gap-[4px]">
+      <BlockPill tone="slate">{t(TYPE_KEY[type])}</BlockPill>
+      <span className="flex flex-wrap items-center gap-x-[6px] gap-y-[4px]">
         {channels.length === 0 ? <span className="text-admin-ink-dim">{t("dashboard.catalog.channel.none")}</span> : null}
-        {channels.includes("website") ? <StatePill tone="slate">{t("dashboard.catalog.channel.website")}</StatePill> : null}
-        {channels.includes("pos") ? (
-          <span className="inline-flex whitespace-nowrap rounded-full bg-admin-brand-soft px-[8px] py-[2px] font-admin-body text-[11px] font-semibold text-admin-brand">
-            {t("dashboard.catalog.channel.posCounter")}
-          </span>
-        ) : null}
+        {channels.includes("website") ? <Chip>{t("dashboard.catalog.channel.website")}</Chip> : null}
+        {channels.includes("pos") ? <Chip tone="brand">{t("dashboard.catalog.channel.posCounter")}</Chip> : null}
       </span>
       <span className="font-semibold tabular-nums">{offeringPriceLabel(o, locale)}</span>
       <span className="text-admin-ink-muted">{availability}</span>
       <span className="text-admin-ink-muted" title={t("dashboard.catalog.preparation.reason")}>
         {t("dashboard.catalog.dash")}
       </span>
-      <span>
-        <StatePill tone={STATUS_TONE[status]} state={status} testId="catalog-row-status">
-          {t(STATUS_KEY[status])}
-        </StatePill>
-      </span>
-      <span className="relative">
+      <BlockPill tone={STATUS_TONE[status]} state={status} testId="catalog-row-status">
+        {t(STATUS_KEY[status])}
+      </BlockPill>
+      <span className="relative flex justify-end">
         <RowMenuButton label={t("dashboard.catalog.rowMenu.label")} onClick={onMenu} testId="catalog-row-menu" />
         {menuOpen ? (
           <div
