@@ -90,14 +90,24 @@ export function TicketSelfClient(props: {
             onClick={() => {
               setBusy(true);
               setRefusal(null);
-              void ticketTransfer({ code: props.code, toName, toEmail }).then((res) => {
-                setBusy(false);
-                if (!res.ok) {
-                  setRefusal(say(res.reason));
-                  return;
-                }
-                router.replace(`/ticket/${encodeURIComponent(res.code)}`);
-              });
+              // Never leave the page unchanged AND silent (D-160): a non-ok
+              // result renders its sentence, and a thrown/rejected action
+              // still clears busy and says something instead of a dead button.
+              void ticketTransfer({ code: props.code, toName, toEmail })
+                .then((res) => {
+                  if (!res.ok) {
+                    setBusy(false);
+                    setRefusal(say(res.reason));
+                    return;
+                  }
+                  // Leave `busy` set through the navigation; the new code's
+                  // page is a fresh mount that resets it.
+                  router.replace(`/ticket/${encodeURIComponent(res.code)}`);
+                })
+                .catch(() => {
+                  setBusy(false);
+                  setRefusal(say("unavailable"));
+                });
             }}
             className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-[12px] bg-admin-brand text-[15px] font-semibold text-admin-card disabled:opacity-40"
           >
@@ -111,14 +121,19 @@ export function TicketSelfClient(props: {
               setBusy(true);
               setRefusal(null);
               setNotice(null);
-              void ticketResend({ code: props.code }).then((res) => {
-                setBusy(false);
-                if (!res.ok) {
-                  setRefusal(say(res.reason));
-                  return;
-                }
-                setNotice(props.copy.resend);
-              });
+              void ticketResend({ code: props.code })
+                .then((res) => {
+                  setBusy(false);
+                  if (!res.ok) {
+                    setRefusal(say(res.reason));
+                    return;
+                  }
+                  setNotice(props.copy.resend);
+                })
+                .catch(() => {
+                  setBusy(false);
+                  setRefusal(say("unavailable"));
+                });
             }}
             className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-[12px] border-[1.5px] border-admin-brand bg-admin-card text-[15px] font-semibold text-admin-brand disabled:opacity-40"
           >
@@ -144,14 +159,19 @@ export function TicketSelfClient(props: {
               setBusy(true);
               setRefusal(null);
               setFound([]);
-              void ticketLookup({ email: lookupEmail, last4OfReceipt: last4 }).then((res) => {
-                setBusy(false);
-                if (!res.ok) {
-                  setRefusal(say(res.reason));
-                  return;
-                }
-                setFound(res.codes);
-              });
+              void ticketLookup({ email: lookupEmail, last4OfReceipt: last4 })
+                .then((res) => {
+                  setBusy(false);
+                  if (!res.ok) {
+                    setRefusal(say(res.reason));
+                    return;
+                  }
+                  setFound(res.codes);
+                })
+                .catch(() => {
+                  setBusy(false);
+                  setRefusal(say("unavailable"));
+                });
             }}
             className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-[12px] border-[1.5px] border-admin-brand bg-admin-card text-[15px] font-semibold text-admin-brand disabled:opacity-40"
           >
