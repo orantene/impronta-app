@@ -28,7 +28,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Locale } from "@/i18n/config";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
-import { isResolvedAiChatConfigured, resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
+import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
+import { resolveRoutedChat } from "@/lib/ai/call-routing.server";
+import { buildCriticPrompt, checkHeadlineBank, CRITIC_JSON_SCHEMA, parseCriticReply, retryInstruction, type CriticVerdict } from "./copy-critic";
 import { queryLifestyleStockForType } from "@/lib/media/platform-stock";
 import { logServerError } from "@/lib/server/safe-error";
 import { publishHomepage, saveHomepageDraftComposition } from "@/lib/site-admin/server/homepage";
@@ -104,6 +106,76 @@ export interface SiteComposeStamp {
   placed: SiteComposePlaced;
   copySource: "model" | "defaults";
   notes: string[];
+  /** The home headline as composed, so later composes can avoid repeating it. */
+  headline?: Bilingual | null;
+}
+
+// ── Copy critic ──────────────────────────────────────────────────────────────
+
+const CRITIC_TIMEOUT_MS = 10_000;
+
+/** Headlines of the last 500 composed sites (other tenants): what a new site must not repeat. */
+async function loadHeadlineBank(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, tenantId: string): Promise<string[]> {
+  const { data, error } = await admin
+    .from("agencies")
+    .select("id, settings->site_compose->headline")
+    .neq("id", tenantId)
+    .not("settings->site_compose->headline", "is", null)
+    .order("updated_at", { ascending: false })
+    .limit(500);
+  if (error) {
+    logServerError("compose.critic.bank", error);
+    return [];
+  }
+  const out: string[] = [];
+  for (const row of (data ?? []) as Array<{ headline: Bilingual | null }>) {
+    if (row.headline?.es) out.push(row.headline.es);
+    if (row.headline?.en) out.push(row.headline.en);
+  }
+  return out;
+}
+
+/** Deterministic bank check first; the routed critic model only when that passes. Never blocks on a model failure. */
+async function criticVerdict(input: {
+  copy: Record<string, Bilingual>;
+  facts: CopyPassFacts;
+  primaryLocale: "es" | "en";
+  bank: readonly string[];
+  tenantId: string;
+  actorProfileId: string | null;
+  siteComposeId: string;
+}): Promise<CriticVerdict> {
+  const bankProblems = checkHeadlineBank(input.copy, input.bank);
+  if (bankProblems.length > 0) return { ok: false, problems: bankProblems, source: "bank" };
+  try {
+    const { adapter, model } = await resolveRoutedChat("critic");
+    const prompt = buildCriticPrompt({ copy: input.copy, facts: input.facts, primaryLocale: input.primaryLocale });
+    const t0 = Date.now();
+    const pending = adapter.chatCompletion({ ...prompt, jsonSchema: CRITIC_JSON_SCHEMA, maxTokens: 600, temperature: 0, model });
+    const result = await raceWithTimeout(pending, CRITIC_TIMEOUT_MS);
+    void pending
+      .then((r) =>
+        recordAiGenerationUsage({
+          provider: adapter.id,
+          model: r.ok ? (r.model ?? model ?? "auto") : (model ?? "auto"),
+          usage: r.ok ? r.usage : undefined,
+          actorProfileId: input.actorProfileId,
+          ok: r.ok,
+          scope: "site_compose_critic",
+          latencyMs: Date.now() - t0,
+          tenantId: input.tenantId,
+          context: { site_compose_id: input.siteComposeId, timed_out: result === null },
+        }),
+      )
+      .catch((err) => logServerError("compose.critic.usage", err));
+    if (!result?.ok) return { ok: true, problems: [], source: "none" };
+    const problems = parseCriticReply(result.text);
+    if (problems === null) return { ok: true, problems: [], source: "none" };
+    return { ok: problems.length === 0, problems, source: "model" };
+  } catch (err) {
+    logServerError("compose.critic", err);
+    return { ok: true, problems: [], source: "none" };
+  }
 }
 
 /** Nav labels per family: what the catalogue and the transaction ARE for this kind of business. */
@@ -383,6 +455,10 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   if (paletteResult.demoted.length > 0) notes.push(`palette demoted: ${paletteResult.demoted.join(", ")}`);
 
   // 6. Images: owner media, then stock for the type.
+  const stockAltFallback: Bilingual = {
+    es: identity.city ? `${typeRow ? typeRow.label.es : typeId} en ${identity.city}` : (typeRow ? typeRow.label.es : typeId),
+    en: identity.city ? `${typeRow ? typeRow.label.en : typeId} in ${identity.city}` : (typeRow ? typeRow.label.en : typeId),
+  };
   const [owner, stock] = await Promise.all([loadOwnerImages(admin, input.tenantId), queryLifestyleStockForType(admin, { businessType: typeId, family })]);
   const { resolve: images, picks } = buildImageResolver([
     ...owner.map((o) => ({ ...o, level: "owner" as const })),
@@ -390,7 +466,9 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
       src: s.url,
       width: s.width,
       height: s.height,
-      alt: s.alt,
+      // A stock image with no alt would block publish (alt is a floor
+      // requirement); say what it is for, from the facts, never from a guess.
+      alt: s.alt.es.trim() || s.alt.en.trim() ? s.alt : stockAltFallback,
       role: s.role,
       owner: false,
       level: s.businessType ? "type" : s.family === family ? "family" : "universal",
@@ -414,7 +492,17 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   // 8. One bounded copy pass. Nav labels are deterministic per family and
   // never the model's to change.
   const navLabels = FAMILY_NAV_LABELS[family];
-  let copyOverrides: Record<string, Bilingual> = { "nav.catalogue": navLabels.catalogue, "nav.transaction": navLabels.transaction };
+  // Search snippet seeded from the facts: the copy pass rewrites it in the
+  // same call (no second cost); when the pass is skipped this is what ships.
+  const seoTypeLabel = typeRow ? typeRow.label : { es: typeId, en: typeId };
+  const seoDefaults: Record<string, Bilingual> = {
+    "seo.title": { es: identity.city ? `${businessName} en ${identity.city}` : businessName, en: identity.city ? `${businessName} in ${identity.city}` : businessName },
+    "seo.description": {
+      es: identity.city ? `${seoTypeLabel.es} en ${identity.city}.` : `${seoTypeLabel.es}.`,
+      en: identity.city ? `${seoTypeLabel.en} in ${identity.city}.` : `${seoTypeLabel.en}.`,
+    },
+  };
+  let copyOverrides: Record<string, Bilingual> = { ...seoDefaults, "nav.catalogue": navLabels.catalogue, "nav.transaction": navLabels.transaction };
   let copySource: ComposeSiteResult["copySource"] = "defaults";
   try {
     const configured = await isResolvedAiChatConfigured();
@@ -432,36 +520,66 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
         description: visible("business.description"),
         services: facts && promptVisible.has("work.services") ? listFact(facts, "work.services") : [],
       };
-      const prompt = buildCopyPassPrompt({ facts: copyFacts, defaults: look.copy, keys: COPY_PASS_KEYS, primaryLocale: locale });
-      const adapter = await resolveAiChatAdapter();
-      const t0 = Date.now();
-      const pending = adapter.chatCompletion({ ...prompt, jsonSchema: COPY_PASS_JSON_SCHEMA, maxTokens: COPY_PASS_MAX_TOKENS, model: "claude-sonnet-5" });
-      const result = await raceWithTimeout(pending, COPY_PASS_TIMEOUT_MS);
-      // The provider call keeps running after a timeout and still costs money:
-      // record its usage when it lands, flagged, so the per-site cost is honest.
-      void pending
-        .then((r) =>
-          recordAiGenerationUsage({
-            provider: adapter.id,
-            model: r.ok ? (r.model ?? "claude-sonnet-5") : "claude-sonnet-5",
-            usage: r.ok ? r.usage : undefined,
-            actorProfileId: input.actorProfileId ?? null,
-            ok: r.ok,
-            scope: "site_compose_copy",
-            latencyMs: Date.now() - t0,
-            tenantId: input.tenantId,
-            context: { site_compose_id: siteComposeId, look: look.id, business_type: typeId, timed_out: result === null, used: result !== null && r.ok },
-          }),
-        )
-        .catch((err) => logServerError("compose.copyPass.usage", err));
-      if (result?.ok) {
-        const screened = screenCopyReply(result.text, { facts: copyFacts, defaults: look.copy, keys: COPY_PASS_KEYS, primaryLocale: locale });
-        copyOverrides = { ...copyOverrides, ...screened.copy };
-        copySource = Object.keys(screened.copy).length > 0 ? "model" : "defaults";
-        if (Object.keys(screened.copy).length === 0) notes.push("copy pass returned nothing usable; defaults used");
-        if (screened.dropped.length > 0) notes.push(`copy lines dropped: ${screened.dropped.map((d) => `${d.key} (${d.reason})`).join(", ")}`);
+      const copyDefaults = { ...look.copy, ...seoDefaults };
+      const prompt = buildCopyPassPrompt({ facts: copyFacts, defaults: copyDefaults, keys: COPY_PASS_KEYS, primaryLocale: locale });
+      // Routed per call (Operations → AI routing); Sonnet 5 unless an admin
+      // chose otherwise. The model the adapter serves is what the usage row records.
+      const { adapter, model: routedModel } = await resolveRoutedChat("copy");
+      const copyModel = routedModel ?? "claude-sonnet-5";
+      const writeCopy = async (attempt: "draft" | "retry", extraUserMessage: string) => {
+        const t0 = Date.now();
+        const pending = adapter.chatCompletion({ ...prompt, userMessage: prompt.userMessage + extraUserMessage, jsonSchema: COPY_PASS_JSON_SCHEMA, maxTokens: COPY_PASS_MAX_TOKENS, model: copyModel });
+        const result = await raceWithTimeout(pending, COPY_PASS_TIMEOUT_MS);
+        // The provider call keeps running after a timeout and still costs money:
+        // record its usage when it lands, flagged, so the per-site cost is honest.
+        void pending
+          .then((r) =>
+            recordAiGenerationUsage({
+              provider: adapter.id,
+              model: r.ok ? (r.model ?? copyModel) : copyModel,
+              usage: r.ok ? r.usage : undefined,
+              actorProfileId: input.actorProfileId ?? null,
+              ok: r.ok,
+              scope: "site_compose_copy",
+              latencyMs: Date.now() - t0,
+              tenantId: input.tenantId,
+              context: { site_compose_id: siteComposeId, look: look.id, business_type: typeId, attempt, timed_out: result === null, used: result !== null && r.ok },
+            }),
+          )
+          .catch((err) => logServerError("compose.copyPass.usage", err));
+        if (!result?.ok) {
+          notes.push(result === null ? `copy ${attempt} timed out` : `copy ${attempt} failed (${result.code}: ${result.message.slice(0, 120)})`);
+          return null;
+        }
+        const screened = screenCopyReply(result.text, { facts: copyFacts, defaults: copyDefaults, keys: COPY_PASS_KEYS, primaryLocale: locale });
+        if (screened.dropped.length > 0) notes.push(`copy ${attempt} lines dropped: ${screened.dropped.map((d) => `${d.key} (${d.reason})`).join(", ")}`);
+        return screened.copy;
+      };
+      // The critic: a headline another site already carries, one that fits
+      // any business, or a fact the screener missed, costs one retry with the
+      // problems in the prompt. A second failure ships the defaults.
+      const bank = await loadHeadlineBank(admin, input.tenantId);
+      let accepted: Record<string, Bilingual> | null = null;
+      let draft = await writeCopy("draft", "");
+      if (draft && Object.keys(draft).length > 0) {
+        const verdict = await criticVerdict({ copy: draft, facts: copyFacts, primaryLocale: locale, bank, tenantId: input.tenantId, actorProfileId: input.actorProfileId ?? null, siteComposeId });
+        if (verdict.ok) {
+          accepted = draft;
+        } else {
+          notes.push(`critic (${verdict.source}) rejected the draft: ${verdict.problems.map((p) => `${p.key}: ${p.reason}`).join("; ").slice(0, 400)}`);
+          draft = await writeCopy("retry", retryInstruction(verdict.problems, bank));
+          if (draft && Object.keys(draft).length > 0) {
+            const again = await criticVerdict({ copy: draft, facts: copyFacts, primaryLocale: locale, bank, tenantId: input.tenantId, actorProfileId: input.actorProfileId ?? null, siteComposeId });
+            if (again.ok) accepted = draft;
+            else notes.push(`critic rejected the retry too; defaults used: ${again.problems.map((p) => p.key).join(", ")}`);
+          }
+        }
+      }
+      if (accepted) {
+        copyOverrides = { ...copyOverrides, ...accepted };
+        copySource = "model";
       } else {
-        notes.push(result === null ? "copy pass timed out; defaults used" : `copy pass failed (${result.code}: ${result.message.slice(0, 120)}); defaults used`);
+        notes.push("copy pass produced nothing accepted; defaults used");
       }
     } else {
       notes.push(configured ? "AI not allowed for this tenant; defaults used" : "AI provider not configured; defaults used");
@@ -492,7 +610,11 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
       tenantId: input.tenantId,
       locale: writeLocale,
       expectedVersion: home.data.version,
-      metadata: { title: businessName, metaDescription: undefined, introTagline: undefined, ogTitle: undefined, ogDescription: undefined, ogImageUrl: undefined, canonicalUrl: undefined, noindex: false },
+      metadata: {
+        title: copyOverrides["seo.title"]?.[locale] ?? businessName,
+        metaDescription: copyOverrides["seo.description"]?.[locale] ?? undefined,
+        introTagline: undefined, ogTitle: undefined, ogDescription: undefined, ogImageUrl: undefined, canonicalUrl: undefined, noindex: false,
+      },
       slots: {},
       builderTree: site.pages.home,
     },
@@ -565,7 +687,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
     whatsappPresent: !!identity.whatsapp && identity.whatsapp.replace(/\D/g, "").length >= 8,
     logoPresent: !!logoUrl,
   };
-  await writeStamp(admin, input.tenantId, { outcome, siteComposeId, lookId: look.id, typeId, family, at: new Date().toISOString(), pageIds, placed, copySource, notes });
+  await writeStamp(admin, input.tenantId, { outcome, siteComposeId, lookId: look.id, typeId, family, at: new Date().toISOString(), pageIds, placed, copySource, notes, headline: copyOverrides["home.offer.headline"] ?? null });
 
   return { outcome, siteComposeId, lookId: look.id, typeId, family, pageIds, shellPageId: shell.ok ? shell.pageId : null, copySource, imagePicks, placed, notes, costUsd, durationMs: Date.now() - started };
 }

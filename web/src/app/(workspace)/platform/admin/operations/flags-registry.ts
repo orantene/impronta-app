@@ -12,6 +12,8 @@
 //   • Appearance    → @/lib/site-theme, @/lib/dashboard-theme, @/lib/site-font-preset
 //   • Inquiry       → @/lib/inquiry/inquiry-settings
 
+import { AI_ROUTE_MODEL_OPTIONS } from "@/lib/ai/call-routing";
+
 export type FlagControl =
   | { kind: "toggle" }
   | {
@@ -63,6 +65,9 @@ const FONT_PRESET_OPTIONS = [
   { value: "editorial", label: "Editorial", labelKey: "dashboard.platform.operations.optEditorial" },
 ] as const;
 
+/** Per-call model routing (lib/ai/call-routing.ts). Model names are proper nouns; no labelKey. */
+const AI_ROUTE_OPTIONS = AI_ROUTE_MODEL_OPTIONS.map((o) => ({ value: o.value, label: o.label }));
+
 export const FLAG_GROUPS: ReadonlyArray<FlagGroup> = [
   {
     id: "ai",
@@ -78,6 +83,38 @@ export const FLAG_GROUPS: ReadonlyArray<FlagGroup> = [
         labelKey: "dashboard.platform.operations.flagAiProviderLabel",
         descriptionKey: "dashboard.platform.operations.flagAiProviderDesc",
         control: { kind: "select", options: AI_PROVIDER_OPTIONS },
+      },
+      {
+        key: "ai_route_extraction",
+        label: "Model: reading a sentence into facts",
+        description: "Onboarding understand step. Bake-off 2026-09-17: Haiku 4.5 found the most facts and normalized them, in 3 s. Auto = the global provider's default.",
+        labelKey: "dashboard.platform.operations.flagAiRouteExtractionLabel",
+        descriptionKey: "dashboard.platform.operations.flagAiRouteExtractionDesc",
+        control: { kind: "select", options: AI_ROUTE_OPTIONS },
+      },
+      {
+        key: "ai_route_copy",
+        label: "Model: writing the site copy",
+        description: "One call per composed site, both languages. Sonnet 5 writes specific headlines; the cheap models wrote the same line for three different businesses.",
+        labelKey: "dashboard.platform.operations.flagAiRouteCopyLabel",
+        descriptionKey: "dashboard.platform.operations.flagAiRouteCopyDesc",
+        control: { kind: "select", options: AI_ROUTE_OPTIONS },
+      },
+      {
+        key: "ai_route_critic",
+        label: "Model: checking the copy before arrival",
+        description: "Judges a composed site for invented facts, generic headlines and wrong language; one retry on failure.",
+        labelKey: "dashboard.platform.operations.flagAiRouteCriticLabel",
+        descriptionKey: "dashboard.platform.operations.flagAiRouteCriticDesc",
+        control: { kind: "select", options: AI_ROUTE_OPTIONS },
+      },
+      {
+        key: "ai_route_helper",
+        label: "Model: the writing helper (rewrite, expand, shorten)",
+        description: "Edits a person is waiting on. Fast and cheap matters more than voice here.",
+        labelKey: "dashboard.platform.operations.flagAiRouteHelperLabel",
+        descriptionKey: "dashboard.platform.operations.flagAiRouteHelperDesc",
+        control: { kind: "select", options: AI_ROUTE_OPTIONS },
       },
       {
         key: "ai_translations_enabled",

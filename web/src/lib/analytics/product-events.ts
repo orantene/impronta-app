@@ -270,6 +270,8 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   trial_door_shown: "trial_door_shown",
   trial_door_started: "trial_door_started",
   trial_door_dismissed: "trial_door_dismissed",
+  /** Writing helper (Phase 9): { surface, op, tone }. */
+  writing_helper_used: "writing_helper_used",
 } as const;
 
 export type ProductAnalyticsEventName =

@@ -6,7 +6,7 @@
  * same product as the page beneath it: bone paper, forest ink, one accent.
  */
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
@@ -157,5 +157,84 @@ export function Tick({ done }: { done: boolean }) {
     >
       {done ? "✓" : ""}
     </span>
+  );
+}
+
+/**
+ * A step list that visibly moves while a server call runs: done lines get a
+ * tick, the current line a spinning ring, the rest wait. `activeIndex` is
+ * the line in progress; everything before it is done.
+ */
+export function LoadingSteps({ items, activeIndex }: { items: string[]; activeIndex: number }) {
+  return (
+    <ul className="mt-5 flex flex-col gap-3" data-testid="onb-loading-steps" data-active={activeIndex}>
+      {items.map((line, i) => {
+        const done = i < activeIndex;
+        const active = i === activeIndex;
+        return (
+          <li
+            key={line}
+            className="flex items-center gap-3 text-[0.9375rem] transition-colors duration-300"
+            style={{ color: done || active ? "var(--tl-ink)" : "var(--tl-muted)", fontWeight: active ? 600 : 400 }}
+          >
+            {active ? (
+              <span
+                aria-hidden
+                className="inline-block size-5 shrink-0 animate-spin rounded-full border-2 border-t-transparent"
+                style={{ borderColor: "var(--tl-positive)", borderTopColor: "transparent" }}
+              />
+            ) : (
+              <Tick done={done} />
+            )}
+            {line}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * Time-based progress for a call whose length we can only estimate: fills to
+ * 92% over `expectedMs`, then creeps, and snaps to 100% when `done`. Honest
+ * enough (the estimate is measured) and never sits still, which is what keeps
+ * a person on the screen.
+ */
+export function ProgressBar({ expectedMs, done, label }: { expectedMs: number; done?: boolean; label?: string }) {
+  const [pct, setPct] = useState(0);
+  const startRef = useRef<number>(0);
+  useEffect(() => {
+    startRef.current = Date.now();
+    const id = window.setInterval(() => {
+      const elapsed = Date.now() - startRef.current;
+      const base = Math.min(92, (elapsed / expectedMs) * 92);
+      const creep = elapsed > expectedMs ? Math.min(6, ((elapsed - expectedMs) / expectedMs) * 6) : 0;
+      setPct(base + creep);
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [expectedMs]);
+  const value = done ? 100 : pct;
+  return (
+    <div className="mt-5" data-testid="onb-progress">
+      <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--tl-stone-soft)" }} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value)} aria-label={label}>
+        <div className="h-full rounded-full transition-[width] duration-300 ease-out" style={{ width: `${value}%`, background: "var(--tl-positive)" }} />
+      </div>
+      {label ? <p className="mt-2 text-[0.75rem]" style={{ color: "var(--tl-muted)" }}>{label}</p> : null}
+    </div>
+  );
+}
+
+/** Rotates through short lines while something runs, so the screen never reads as stuck. */
+export function WhileYouWait({ lines, everyMs = 3500 }: { lines: string[]; everyMs?: number }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (lines.length < 2) return;
+    const id = window.setInterval(() => setI((n) => (n + 1) % lines.length), everyMs);
+    return () => window.clearInterval(id);
+  }, [lines.length, everyMs]);
+  return (
+    <p key={i} className="mt-4 min-h-[1.5em] text-[0.8125rem] italic animate-in fade-in duration-500" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-while-you-wait" aria-live="polite">
+      {lines[i] ?? ""}
+    </p>
   );
 }

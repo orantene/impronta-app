@@ -1789,6 +1789,21 @@
           "photos": "Fotos para tu tipo de negocio",
           "menu": "Tu menú",
           "profile": "Tu página"
+        },
+        "subTalent": "Unos diez segundos. Puedes cerrar esto; sigue avanzando.",
+        "progressLabel": "Construyendo",
+        "canClose": "Puedes cerrar esto; sigue construyéndose y tu página estará aquí cuando vuelvas.",
+        "while": {
+          "business1": "Eligiendo un estilo para tu tipo de negocio",
+          "business2": "Escribiendo tus páginas en español e inglés, con tus palabras",
+          "business3": "Escogiendo colores y tipografía que van con lo que dijiste",
+          "business4": "Colocando fotos de lo que haces; las tuyas las reemplazan con un toque",
+          "business5": "Preparando tu dirección en la web",
+          "talent1": "Escribiendo tu bio con lo que dijiste",
+          "talent2": "Anotando lo que la gente puede reservar",
+          "talent3": "Poniendo tu ciudad e idiomas",
+          "talent4": "Preparando tu página para tus fotos",
+          "talent5": "Ya casi"
         }
       },
       "arrival": {
@@ -9018,6 +9033,14 @@
         "groupInquiryBlurb": "El flujo de consultas dirigido por el coordinador: activa la v2 y ajusta sus ventanas de tiempo.",
         "flagAiProviderLabel": "Proveedor de IA",
         "flagAiProviderDesc": "Proveedor de chat / NLU para las funciones de IA.",
+        "flagAiRouteExtractionLabel": "Modelo: leer una frase y sacar los datos",
+        "flagAiRouteExtractionDesc": "Paso de comprensión del onboarding. Prueba del 17-09-2026: Haiku 4.5 encontró más datos y los normalizó, en 3 s. Auto = el proveedor global por defecto.",
+        "flagAiRouteCopyLabel": "Modelo: escribir los textos del sitio",
+        "flagAiRouteCopyDesc": "Una llamada por sitio compuesto, en ambos idiomas. Sonnet 5 escribe títulos específicos; los modelos baratos escribieron la misma línea para tres negocios distintos.",
+        "flagAiRouteCriticLabel": "Modelo: revisar los textos antes de la llegada",
+        "flagAiRouteCriticDesc": "Juzga un sitio compuesto por datos inventados, títulos genéricos e idioma equivocado; un reintento si falla.",
+        "flagAiRouteHelperLabel": "Modelo: el asistente de escritura (reescribir, ampliar, acortar)",
+        "flagAiRouteHelperDesc": "Cambios que una persona está esperando. Aquí importa más que sea rápido y barato que la voz.",
         "flagAiTranslationsLabel": "Traducciones de IA",
         "flagAiTranslationsDesc": "Flujos de traducción asistida por IA (administración).",
         "flagAiEmbeddingsLabel": "Embeddings semánticos",
@@ -17952,6 +17975,27 @@
           "already_collected": "Esa venta ya está cobrada.",
           "not_settled": "El efectivo aún no se registró. Sincroniza de nuevo."
         }
+      }
+    },
+    "talent": {
+      "bioHelper": {
+        "title": "Tu bio",
+        "draftMark": "Borrador con IA, toca para cambiar",
+        "placeholder": "Dos o tres frases sobre qué haces y dónde.",
+        "writing": "Escribiendo",
+        "write": "Escríbela por mí",
+        "rewrite": "Reescribir",
+        "shorter": "Más corta",
+        "longer": "Más larga",
+        "warmer": "Más cálida",
+        "professional": "Más profesional",
+        "save": "Guardar",
+        "saving": "Guardando",
+        "saved": "Guardado.",
+        "invalid": "Máximo 600 caracteres, sin guiones largos.",
+        "tryAgain": "Eso no funcionó. Inténtalo de nuevo.",
+        "capReached": "Ya usaste la ayuda de escritura de hoy. Se reinicia mañana.",
+        "aiOff": "La ayuda de escritura está apagada por ahora."
       }
     }
   },

@@ -13,6 +13,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { Brief } from "./brief-store";
 import { recordFacts } from "./brief-store.server";
 import { EXTRACTION_SCHEMA, parseExtraction } from "./extraction";
+import { normalizeExtractedFacts } from "./normalize-facts";
 import type { IndustryPack } from "./industry-packs";
 import { buildExtractionMessage, buildExtractionPrompt } from "./prompts";
 import type { Question } from "./questions";
@@ -74,9 +75,12 @@ export async function extractAndRecord(input: {
     }
     if (parsed.facts.length === 0) return [];
 
-    const result = await recordFacts(input.brief.id, parsed.facts);
+    // Shape before store: hours to one canonical form, phones to E.164 when
+    // the country is known, service lists tidy. The model reads; this shapes.
+    const facts = normalizeExtractedFacts(parsed.facts);
+    const result = await recordFacts(input.brief.id, facts);
     const written = new Set(result.written);
-    return parsed.facts
+    return facts
       .filter((f) => written.has(f.factKey))
       .map((f) => ({
         factKey: f.factKey,

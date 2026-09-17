@@ -80,9 +80,13 @@ export const COPY_PASS_KEYS = [
   "about.headline",
   "about.body",
   "contact.intro",
+  // Search snippet for the home page: what Google shows. Written in the same
+  // call so SEO is not a second cost; screened like every other line.
+  "seo.title",
+  "seo.description",
 ] as const;
 
-const MAX_LEN: Record<string, number> = { "home.hero.sub": 120, "home.offer.headline": 70, "home.closing.headline": 60, "catalogue.headline": 60, "transaction.headline": 60, "about.headline": 80, "contact.headline": 80, "gallery.headline": 80 };
+const MAX_LEN: Record<string, number> = { "seo.title": 60, "seo.description": 155, "home.hero.sub": 120, "home.offer.headline": 70, "home.closing.headline": 60, "catalogue.headline": 60, "transaction.headline": 60, "about.headline": 80, "contact.headline": 80, "gallery.headline": 80 };
 const DEFAULT_MAX = 320;
 
 export function buildCopyPassPrompt(input: CopyPassInput): { systemPrompt: string; userMessage: string } {
@@ -93,6 +97,7 @@ export function buildCopyPassPrompt(input: CopyPassInput): { systemPrompt: strin
     "HARD RULES. Never invent a fact. Do not write prices, currency amounts, opening hours, dates, addresses, phone numbers, email addresses, years of experience, numbers of clients, awards, certifications, reviews, quotes, or people's names. Do not rename the business. Do not mention services, dishes or classes that are not in the facts. Do not promise delivery, parking, discounts or availability.",
     "Style: Spanish (Mexico) natural and warm, English plain. Headlines 3 to 8 words. Body one or two sentences. No exclamation marks in headlines. Never use em dashes or en dashes; use a comma or a period.",
     "Keep every value under the length limit given for its key.",
+    "seo.title and seo.description are the search snippet: say what the business is and its city in plain words a person would search for, once each, no list of keywords, no slogan.",
   ].join("\n");
   const facts = [
     `business: ${f.businessName}`,
