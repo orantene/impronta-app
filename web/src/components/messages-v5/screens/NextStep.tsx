@@ -59,6 +59,14 @@ const ROUTES: Readonly<Record<ShellActionId, ShellRoute>> = {
   link_record: { kind: "coming", seam: "L10 link a record" },
   open_record: { kind: "coming", seam: "L10 record view" },
   book_again: { kind: "coming", seam: "L11 book again" },
+  // L7 registers both sheets in `sheet-registry.tsx`, which the shell
+  // consults BEFORE this table (`dispatch` in `MessagesV5Shell.tsx`), so
+  // these "coming" entries are dead code once `screens/sheets/index.ts`
+  // is imported — they exist only so `ROUTES` (a `Record<ShellActionId, ...>`)
+  // stays exhaustive and a future caller that dispatches before the sheets
+  // import runs still opens "Coming in this program", never nothing.
+  cancel_record: { kind: "coming", seam: "L7" },
+  refund: { kind: "coming", seam: "L7" },
 };
 
 export function routeShellAction(id: ShellActionId): ShellRoute {

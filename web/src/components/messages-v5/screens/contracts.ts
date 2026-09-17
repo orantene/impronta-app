@@ -275,4 +275,11 @@ export type ShellActionId =
   | "open_client"
   | "add_note"
   | "new_conversation"
-  | "book_again";
+  | "book_again"
+  /** L7 (D-MSG-14x), additive: the `CancelRefundSheet` seam. Not reachable
+   * from any wired button yet in this wave (no context-panel/tray action
+   * dispatches it) — the union entry plus the "coming" route exist so the
+   * registry can take over the moment a later lane wires a caller, the same
+   * pattern `request_payment` already followed for L7 itself. */
+  | "cancel_record"
+  | "refund";

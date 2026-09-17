@@ -39,6 +39,7 @@ import {
   cancelRecordReminder,
   refundArbitraryAmount,
   loadOwnedTransaction,
+  loadRefundableTransaction,
   orderLinkedToInquiry,
   type CancelPreview,
 } from "@/lib/messaging/money";
@@ -245,6 +246,28 @@ export async function messagingCancelRecord(input: {
   });
 
   return { ok: true, recordKind, recordId: parsed.data.recordId, refundedCents };
+}
+
+// ─── messagingLoadRefundableTransaction (L7, D-MSG-14x) ────────────────────
+
+/**
+ * The "Refund" sheet (no cancellation) needs a `paymentId`, which nothing on
+ * `RecordChip` carries. This resolves the latest paid transaction on the
+ * record with money still owed on it, the way `messagingPreviewCancel`
+ * resolves the record itself. Read-only; no permission gate beyond
+ * `messagingStaff()` (the write path, `messagingRefund`, already gates on
+ * `messages.refund`).
+ */
+export async function messagingLoadRefundableTransaction(input: {
+  recordKind: RecordKind;
+  recordId: string;
+}): Promise<ActionResult<{ paymentId: string | null; refundableCents: number }>> {
+  const g = await messagingStaff();
+  if (!g.ok) return g;
+  const parsed = z.object({ recordKind: z.enum(RECORD_KINDS), recordId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const found = await loadRefundableTransaction(g.admin, { tenantId: g.tenantId, recordKind: parsed.data.recordKind as RecordKind, recordId: parsed.data.recordId });
+  return { ok: true, paymentId: found?.paymentId ?? null, refundableCents: found?.refundableCents ?? 0 };
 }
 
 // ─── messagingRefund (no cancellation) ─────────────────────────────────────

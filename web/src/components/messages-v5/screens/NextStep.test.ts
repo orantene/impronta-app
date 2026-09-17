@@ -7,11 +7,20 @@ import type { ShellActionId } from "./contracts";
 import { TASK_ACTION, actionLabel, comingActions, primaryActionFor, routeShellAction } from "./NextStep";
 import { EN_SCREEN, ES_SCREEN, FR_SCREEN } from "./test-screen-copy";
 
-const ALL: ShellActionId[] = ["reply", "add_items", "create_offer", "revise_offer", "request_payment", "confirm", "capture_identity", "remind", "reopen", "resolve", "assign", "handover", "rename", "copy_link", "close_lost", "history", "send_times", "send_file", "link_record", "open_record", "open_client", "add_note", "new_conversation", "book_again"];
+const ALL: ShellActionId[] = ["reply", "add_items", "create_offer", "revise_offer", "request_payment", "confirm", "capture_identity", "remind", "reopen", "resolve", "assign", "handover", "rename", "copy_link", "close_lost", "history", "send_times", "send_file", "link_record", "open_record", "open_client", "add_note", "new_conversation", "book_again", "cancel_record", "refund"];
 
 test("every shell action has a route, and the coming set is exactly the later lanes' targets", () => {
   for (const id of ALL) assert.ok(routeShellAction(id), id);
-  assert.deepEqual(comingActions().sort(), ["add_items", "book_again", "confirm", "create_offer", "link_record", "open_record", "remind", "request_payment", "revise_offer", "send_times"].sort());
+  // L7 (D-MSG-14x): `cancel_record` / `refund` are routed "coming" here too,
+  // even though `PaymentRequestSheet`/`CancelRefundSheet` are registered in
+  // `sheet-registry.tsx` (checked BEFORE this table in the shell's
+  // `dispatch`) — nothing in this wave dispatches them yet, so this table
+  // stays the honest fallback for a caller that fires before the sheets
+  // barrel is imported.
+  assert.deepEqual(
+    comingActions().sort(),
+    ["add_items", "book_again", "cancel_record", "confirm", "create_offer", "link_record", "open_record", "refund", "remind", "request_payment", "revise_offer", "send_times"].sort(),
+  );
   for (const id of comingActions()) {
     const route = routeShellAction(id);
     assert.ok(route.kind === "coming" && route.seam.length > 0, id);
