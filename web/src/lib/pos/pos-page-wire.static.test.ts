@@ -214,3 +214,25 @@ test("walk-in class places pick a tenant-scoped session", () => {
   assert.match(client, /sessionId/);
   assert.match(client, /posAddLine/);
 });
+
+test("D-155: every push that follows a write on the counter waits for the router to settle", () => {
+  // A `router.push` in the continuation of a server action reaches Next's
+  // action queue while that action is still pending; the navigation discards
+  // it and React throws #310 from the App Router (react#33556). The counter
+  // went blank after the first line of a sale. Every such push goes through
+  // `pushAfterWrite` (`counter-sale-start.ts`), which defers one macrotask.
+  const client = code("src/app/(workspace)/[tenantSlug]/admin/pos/pos-client.tsx");
+  const start = code("src/app/(workspace)/[tenantSlug]/admin/pos/counter-sale-start.ts");
+  assert.match(client, /import \{[^}]*\bpushAfterWrite\b[^}]*\} from "\.\/counter-sale-start"/);
+  // The first line of a sale: the address moves to the draft after the line landed.
+  assert.doesNotMatch(client, /added\.ok\)\s*router\.push\(/, "addItem must not push in the action's own turn");
+  assert.match(client, /added\.ok\)\s*pushAfterWrite\(router,/);
+  // A line that landed on a draft the address has not reached (D-134).
+  assert.doesNotMatch(client, /onOpened:[\s\S]{0,400}?router\.push\(/, "onOpened must not push in the action's own turn");
+  // Discarding the sale.
+  assert.doesNotMatch(client, /posCancelSale[\s\S]{0,300}?router\.push\(/, "onDiscard must not push in the action's own turn");
+  // Opening a sale with navigation.
+  assert.doesNotMatch(start, /router\.push\(saleHref/, "useStartSale must not push in the action's own turn");
+  assert.match(start, /export function pushAfterWrite\(/);
+  assert.match(start, /setTimeout\(\(\) => router\.push\(href\), 0\)/);
+});

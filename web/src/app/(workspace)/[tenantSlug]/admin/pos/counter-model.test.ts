@@ -21,6 +21,7 @@ import {
   toShiftSummary,
   type PosCatalogItem,
 } from "./counter-model";
+import { pushAfterWrite } from "./counter-sale-start";
 
 const ORDER = "8b0a2b0e-1c4d-4a1f-9f3a-2b7c9d0e1f22";
 
@@ -251,4 +252,19 @@ test("a tile's badge is the fact the page read, in the order a cashier needs it"
     { id: "s2", title: "Tue", startsAt: "2026-09-15T09:00:00Z" },
   ];
   assert.deepEqual(tileBadge({ ...none, sessions, stock: { kind: "counted", available: 2 } }), { kind: "pickSession" });
+});
+
+// ── D-155: a push after a write waits for the router ────────────────────
+
+test("D-155: pushAfterWrite navigates only after the current microtask turn has drained", async () => {
+  const pushed: string[] = [];
+  const router = { push: (href: string) => pushed.push(href) };
+  pushAfterWrite(router, "/x/admin/pos?mode=counter&order=abc");
+  // The App Router applies a server action's state in the microtasks that
+  // follow the action's result; a push landing inside them discards the
+  // action (D-155). Several turns of microtasks: still not pushed.
+  for (let i = 0; i < 8; i += 1) await Promise.resolve();
+  assert.deepEqual(pushed, [], "the push must not land inside the action's own microtasks");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(pushed, ["/x/admin/pos?mode=counter&order=abc"]);
 });

@@ -66,7 +66,7 @@ import { useCounterDisplayBeacon } from "./counter-display-beacon";
 import { useCounterCustomer } from "./counter-customer";
 import { CounterDrawer } from "./counter-drawer";
 import { useCounterEngine } from "./counter-engine";
-import { usePendingDraft, useSaleHref, useStartSale } from "./counter-sale-start";
+import { pushAfterWrite, usePendingDraft, useSaleHref, useStartSale } from "./counter-sale-start";
 import { COUNTER_DESTINATIONS, counterHeader, isDestination, type CounterDestination as Destination } from "./counter-header";
 import { useCounterLock } from "./counter-lock";
 import {
@@ -172,7 +172,7 @@ export function PosClient(props: PosClientProps) {
     // refresh here re-read the sale-less address and lost the line (D-134).
     onOpened: (orderId) => {
       setSavedAt(formatClock(new Date().toISOString(), props.locale));
-      router.push(saleHref(orderId));
+      pushAfterWrite(router, saleHref(orderId));
     },
     onOpenCustomer: customer.open,
     onCollect: () => {
@@ -287,7 +287,7 @@ export function PosClient(props: PosClientProps) {
         () => posAddLine({ ...target, offeringId: productId, units: 1, sessionId, variantId }),
         !opening,
       );
-      if (opening && added.ok) router.push(saleHref(target.orderId));
+      if (opening && added.ok) pushAfterWrite(router, saleHref(target.orderId));
       return added.ok ? target.orderId : null;
     },
     [props.basketLines, props.catalog, router, run, sale, saleHref, sessionByProduct, startSale],
@@ -760,7 +760,7 @@ export function PosClient(props: PosClientProps) {
                 const result = await posCancelSale(sale.orderId, sale.version);
                 if (result.ok) {
                   resetForNewSale();
-                  router.push(saleHref(null));
+                  pushAfterWrite(router, saleHref(null));
                 }
                 return result;
               });
