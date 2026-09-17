@@ -100,6 +100,7 @@ export function useOpenUpgradeModal(): (
         requiredPlan: offer.requiredPlan,
         feature: offer.feature,
         why: offer.outcome ?? offer.why,
+        door: offer.door,
       });
     },
     [openRealUpgradeModal],

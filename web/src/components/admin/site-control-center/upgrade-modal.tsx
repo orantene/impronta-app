@@ -8,6 +8,9 @@ import { Check, Minus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { TrialDoorCard, useTrialDoorOffer } from "@/components/billing/trial-door-card";
+import { trackProductEvent } from "@/lib/analytics/track-client";
+import type { TrialDoorOffer } from "@/lib/server-actions/trial-door";
 import type { Plan } from "./capability-catalog";
 import type { UpgradeReason } from "./upgrade-context";
 
@@ -136,11 +139,17 @@ export function UpgradeModal({
   activePlan,
   onSelect,
   reason = null,
+  doorPending = false,
+  onDoorStart,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activePlan: Plan;
   onSelect?: (plan: Plan) => void;
+  /** Checkout in flight for the door card's button. */
+  doorPending?: boolean;
+  /** The door card's "Start" — receives the resolved offer. */
+  onDoorStart?: (offer: TrialDoorOffer) => void;
   /**
    * Why the modal opened. Contextual prompts ("Custom domain", "Media
    * gallery") set this so the modal names the blocked feature and marks the
@@ -150,6 +159,10 @@ export function UpgradeModal({
 }) {
   const [cycle, setCycle] = React.useState<Cycle>("monthly");
   const t = useT();
+  const door = reason?.door ?? null;
+  const doorOffer = useTrialDoorOffer(door, open);
+  // A door with nothing sellable behind it falls back to the grid below.
+  const showDoor = door != null && doorOffer !== null;
 
   const requiredPlan = reason?.requiredPlan ?? null;
   const requiredPlanName =
@@ -168,6 +181,31 @@ export function UpgradeModal({
         <Dialog.Overlay
           className="fixed inset-0 z-[100] bg-black/55 backdrop-blur-[4px] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
         />
+        {showDoor ? (
+          <Dialog.Content
+            data-testid="trial-door"
+            className={cn(
+              "fixed left-1/2 top-1/2 z-[101] -translate-x-1/2 -translate-y-1/2",
+              "w-[min(520px,calc(100vw-32px))] max-h-[calc(100vh-48px)]",
+              "overflow-hidden rounded-[20px] bg-[#fbfaf5]",
+              "shadow-[0_40px_90px_-25px_rgba(11,11,13,0.55)] border border-[rgba(24,24,27,0.08)]",
+              "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+              "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+            )}
+          >
+            <TrialDoorCard
+              door={door}
+              feature={reason?.feature ?? null}
+              offer={doorOffer}
+              pending={doorPending}
+              onStart={(offer) => onDoorStart?.(offer)}
+              onNotNow={() => {
+                trackProductEvent("trial_door_dismissed", { door, plan: doorOffer?.planKey ?? null });
+                onOpenChange(false);
+              }}
+            />
+          </Dialog.Content>
+        ) : (
         <Dialog.Content
           className={cn(
             "fixed left-1/2 top-1/2 z-[101] -translate-x-1/2 -translate-y-1/2",
@@ -488,6 +526,7 @@ export function UpgradeModal({
             </p>
           </div>
         </Dialog.Content>
+        )}
       </Dialog.Portal>
     </Dialog.Root>
   );
