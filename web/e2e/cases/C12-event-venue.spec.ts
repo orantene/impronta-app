@@ -125,14 +125,17 @@ test("C12-OP door: admit QA Night guest — Sales and DB agree", async ({ page }
   const admit = row.getByRole("button", { name: /^admit$/i });
   await expect(admit).toBeEnabled({ timeout: 20_000 });
   await admit.click();
+  // Polish 7: the events door's verdict reads "Admitted. In. Welcome."
+  // (was the bare word "In").
   const verdict = page.locator("[data-door-verdict]");
-  await expect(verdict).toHaveText(/^In$/i, { timeout: 30_000 });
+  await expect(verdict).toHaveText(/^Admitted\. In\. Welcome\.$/, { timeout: 30_000 });
 
   await page.reload();
   await expect(page.getByText(/could not load the door/i)).toHaveCount(0);
   await page.getByPlaceholder(/find by name/i).fill(guestName);
   const afterReload = page.locator("li").filter({ hasText: guestName });
-  await expect(afterReload.getByText(/^In/)).toBeVisible();
+  // The lookup row reads "In · HH:MM" once admitted.
+  await expect(afterReload.getByText(/^In\b/)).toBeVisible();
   await expect(afterReload.getByRole("button", { name: /^admit$/i })).toHaveCount(0);
 
   await signInJourneysStaff(page, "/admin/sales");
@@ -171,7 +174,9 @@ test("C12-DIFF door: pay-at-door hold blocks competitor then cash settle", async
   await picker.locator("input[autocomplete=name]").fill(guestName);
   await expect(picker.getByRole("radiogroup", { name: /how will you pay/i })).toBeVisible();
   await picker.locator("input[name=payHow]").last().check();
-  await picker.getByRole("button", { name: /^at the door$/i }).click();
+  // Ticket picker v2 (#2024/#2040): with "At the door" chosen the buy button
+  // reads "Hold my seats, pay at the door" (was "At the door").
+  await picker.getByRole("button", { name: /hold my seats, pay at the door/i }).click();
   await expect(page.locator("[data-ticket-picker=held]")).toBeVisible({ timeout: 45_000 });
 
   const held = await latestTicketPickerNight(marker);
@@ -194,7 +199,7 @@ test("C12-DIFF door: pay-at-door hold blocks competitor then cash settle", async
   await pickerB.locator("input[type=email]").fill(`c12-diff-b-${Date.now()}@impronta.test`);
   await pickerB.locator("input[autocomplete=name]").fill("C12 competitor");
   await pickerB.locator("input[name=payHow]").last().check();
-  await pickerB.getByRole("button", { name: /^at the door$/i }).click();
+  await pickerB.getByRole("button", { name: /hold my seats, pay at the door/i }).click();
   await expect(pickerB.locator("[data-ticket-picker=refusal]")).toContainText(/sold out/i, {
     timeout: 30_000,
   });

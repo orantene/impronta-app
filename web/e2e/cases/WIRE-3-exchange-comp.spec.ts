@@ -27,8 +27,12 @@ test("WIRE-3.8 comp a ticket on Event Day (E12)", async ({ page }) => {
   test.setTimeout(360_000);
   await prepareJourneysPage(page);
   const sb = isolatedService();
-  const nightA = await seedEventNight({ daysOut: 2, hour: 20 });
-  const nightB = await seedEventNight({ daysOut: 3, hour: 20 });
+  // Nights are cloned onto the fixture's QA Night event, whose own night the
+  // seed puts at now + 2 days; two nights on one local day share a Dates
+  // button, and the comp landed on the fixture's night (r2/r3 2026-09-17).
+  // Days 4 and 5 keep clear of it.
+  const nightA = await seedEventNight({ daysOut: 4, hour: 20 });
+  const nightB = await seedEventNight({ daysOut: 5, hour: 20 });
   const stamp = Date.now();
   const holder = `WIRE comp ${stamp}`;
   let admissionId: string | null = null;
@@ -36,7 +40,14 @@ test("WIRE-3.8 comp a ticket on Event Day (E12)", async ({ page }) => {
   try {
     // ── Comp (E12): Events › event › Day ───────────────────────────────
     await signInJourneysStaff(page, `/admin/events?event=${nightA.eventId}&tab=day`);
-    const dateButton = page.locator("button[aria-pressed]").filter({ hasText: new RegExp(`\\b${localDay(nightA.startsAt)}\\b`) }).first();
+    // The event's own Dates group (`EventDetail`): a page-wide `button[aria-pressed]`
+    // matched another event's night on the same day (r2 2026-09-17: the comp
+    // landed on the fixture's QA Night, which shares night A's date).
+    const dateButton = page
+      .getByRole("group", { name: "Dates", exact: true })
+      .locator("button[aria-pressed]")
+      .filter({ hasText: new RegExp(`\\b${localDay(nightA.startsAt)}\\b`) })
+      .first();
     await expect(dateButton, "the seeded night is a date on the event").toBeVisible({ timeout: 30_000 });
     await dateButton.click();
     const comp = page.getByTestId("events-comp");
@@ -129,8 +140,8 @@ test("WIRE-3.8 exchange a ticket to another night at the door (E11) and deliver 
   test.setTimeout(300_000);
   await prepareJourneysPage(page);
   const sb = isolatedService();
-  const nightA = await seedEventNight({ daysOut: 2, hour: 20 });
-  const nightB = await seedEventNight({ daysOut: 3, hour: 20 });
+  const nightA = await seedEventNight({ daysOut: 4, hour: 20 });
+  const nightB = await seedEventNight({ daysOut: 5, hour: 20 });
   const holder = `WIRE ticket ${Date.now()}`;
   const ticket = await seedPaidTicket(nightA.sessionId, holder);
   const admissionId = ticket.admissionId;

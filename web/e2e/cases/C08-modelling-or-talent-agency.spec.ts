@@ -210,7 +210,16 @@ test("C08-OP assign: staff adds talent and drafts offer", async ({ page }, testI
 
 test("C08-OP send: staff prices a line and sends the offer", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
-  const marker = `c08-op-${Date.now()}@impronta.test`;
+  const stamp = Date.now();
+  const marker = `c08-op-${stamp}@impronta.test`;
+  // The inbox row's title is the contact's company or name (`briefTitle`,
+  // inquiries-messages.ts); the message never reaches the row or the search.
+  // C08-CUS files the same name seconds earlier and the inbox sorts new rows
+  // by the HOUR of their last activity, so two "Cora Cuevas · shortlist
+  // empty" rows are indistinguishable and `.first()` opened the customer's
+  // inquiry (final run 2026-09-17: the sent offer carried the c08-cus-
+  // e-mail). A reference in the surname lets the staff open THIS inquiry.
+  const ref = `C08OP${stamp}`;
   const brief = "Need two models for a catalog shoot next month.";
 
   const chat = await openFreshDirectoryChat(page);
@@ -225,7 +234,7 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   }
   await expect(chat.getByPlaceholder(/^first name$/i)).toBeVisible({ timeout: 20_000 });
   await chat.getByPlaceholder(/^first name$/i).fill("Cora");
-  await chat.getByPlaceholder(/^last name$/i).fill("Cuevas");
+  await chat.getByPlaceholder(/^last name$/i).fill(`Cuevas ${ref}`);
   await chat.getByPlaceholder(/email/i).fill(marker);
   await chat.getByRole("button", { name: /^send message$/i }).click();
   await expect(
@@ -250,6 +259,7 @@ test("C08-OP send: staff prices a line and sends the offer", async ({ page }, te
   }
   const row = inbox
     .getByRole("button", { name: /cora cuevas/i })
+    .filter({ hasText: ref })
     .filter({ hasText: /shortlist empty/i })
     .first();
   await expect(row).toBeVisible({ timeout: 30_000 });
