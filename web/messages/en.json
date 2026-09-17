@@ -1731,9 +1731,18 @@
         "skip": "Skip for now",
         "of": "{n} of {total}",
         "basicsTitle": "What do you do, and where?",
-        "basicsSub": "Two words each is enough.",
+        "basicsSub": "Pick from the list so people can find you. Both are needed.",
         "basicsWhat": "What you do",
-        "basicsCity": "City"
+        "basicsCity": "City",
+        "basicsWhatTalentHint": "Search: nail technician, photographer, DJ…",
+        "basicsWhatBusinessHint": "Search: nail salon, restaurant, gym…",
+        "basicsCityHint": "Search your city",
+        "basicsOther": "Not in the list?",
+        "basicsOtherHint": "Type it here",
+        "basicsOtherNote": "We'll add it as written. Picking from the list gets you found in search.",
+        "change": "Change",
+        "noMatch": "No match. Try another word or use \"Not in the list\".",
+        "noCity": "No city found yet. Keep typing."
       },
       "ready": {
         "title": "Ready to build",

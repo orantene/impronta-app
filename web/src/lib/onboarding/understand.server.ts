@@ -13,7 +13,8 @@ import "server-only";
 
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
-import { resolveRoutedChat } from "@/lib/ai/call-routing.server";
+import { resolveFailoverChat, resolveRoutedChat } from "@/lib/ai/call-routing.server";
+import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { resolveClientIp } from "@/lib/guest/guest-session";
 import {
   checkTulalaImportByIp,
@@ -27,7 +28,7 @@ import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import type { Brief } from "@/lib/tulala/brief-store";
 import { loadBrief, type BriefOwner } from "@/lib/tulala/brief-store.server";
 import { MAX_USER_MESSAGE_CHARS } from "@/lib/tulala/conversation";
-import { extractAndRecord, type LearnedFact } from "@/lib/tulala/extract-and-record.server";
+import { extractAndRecord, type ExtractionOutcome, type LearnedFact } from "@/lib/tulala/extract-and-record.server";
 import { packForBrief } from "@/lib/tulala/pack-for-brief";
 import { importFromUrl } from "@/lib/tulala/url-import.server";
 
@@ -109,14 +110,41 @@ export async function understandBrief(input: {
       const text = (input.text ?? "").trim();
       if (text.length > MAX_USER_MESSAGE_CHARS) return { ok: false, code: "too_long", message: "Keep it shorter." };
       // Routed per call (Operations → AI routing); Haiku 4.5 by the bake-off.
-      const { adapter } = await resolveRoutedChat("extraction");
-      learned = await extractAndRecord({
-        adapter,
-        brief: input.brief,
-        userMessage: text,
-        question: null,
-        pack: packForBrief(input.brief),
-      });
+      // One provider error must not cost the person their signup: retry
+      // once on the same provider, then once on the other one when it has a
+      // key. Every attempt writes a usage row (cost, latency, ok).
+      const first = await resolveRoutedChat("extraction");
+      const attempts: Array<{ chat: typeof first; attempt: string }> = [{ chat: first, attempt: "first" }, { chat: first, attempt: "retry" }];
+      const failover = await resolveFailoverChat("extraction", first.adapter.id);
+      if (failover) attempts.push({ chat: failover, attempt: "failover" });
+      for (const { chat, attempt } of attempts) {
+        let outcome: ExtractionOutcome | null = null;
+        const t0 = Date.now();
+        learned = await extractAndRecord({
+          adapter: chat.adapter,
+          brief: input.brief,
+          userMessage: text,
+          question: null,
+          pack: packForBrief(input.brief),
+          report: (o) => {
+            outcome = o;
+          },
+        });
+        const o = outcome as ExtractionOutcome | null;
+        void recordAiGenerationUsage({
+          provider: chat.adapter.id,
+          model: o?.model ?? chat.model ?? "auto",
+          usage: o?.usage,
+          actorProfileId: null,
+          ok: o?.ok ?? false,
+          scope: "onboarding_extraction",
+          latencyMs: Date.now() - t0,
+          tenantId: null,
+          context: { brief_id: input.brief.id, attempt, error: o?.ok ? null : (o?.code ?? "unknown"), facts: learned.length },
+        }).catch((err) => logServerError("onboarding.understand.usage", err));
+        if (o?.ok) break;
+        if (o && !["api_error", "quota", "timeout", "empty_response"].includes(o.code ?? "")) break;
+      }
       await recordAiUsageEstimate();
     }
   } catch (err) {

@@ -1731,9 +1731,18 @@
         "skip": "Saltar por ahora",
         "of": "{n} de {total}",
         "basicsTitle": "¿Qué haces y dónde?",
-        "basicsSub": "Con dos palabras cada uno basta.",
+        "basicsSub": "Elige de la lista para que te encuentren. Los dos son necesarios.",
         "basicsWhat": "Qué haces",
-        "basicsCity": "Ciudad"
+        "basicsCity": "Ciudad",
+        "basicsWhatTalentHint": "Busca: manicurista, fotógrafo, DJ…",
+        "basicsWhatBusinessHint": "Busca: salón de uñas, restaurante, gimnasio…",
+        "basicsCityHint": "Busca tu ciudad",
+        "basicsOther": "¿No está en la lista?",
+        "basicsOtherHint": "Escríbelo aquí",
+        "basicsOtherNote": "Lo agregamos tal cual. Elegir de la lista hace que te encuentren en la búsqueda.",
+        "change": "Cambiar",
+        "noMatch": "Sin coincidencias. Prueba otra palabra o usa \"No está en la lista\".",
+        "noCity": "Aún no encontramos la ciudad. Sigue escribiendo."
       },
       "ready": {
         "title": "Listo para construir",

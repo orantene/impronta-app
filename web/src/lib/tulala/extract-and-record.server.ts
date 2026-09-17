@@ -8,6 +8,7 @@ import "server-only";
  */
 
 import type { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
+import type { AiUsage } from "@/lib/ai/provider";
 import { logServerError } from "@/lib/server/safe-error";
 
 import type { Brief } from "./brief-store";
@@ -27,12 +28,26 @@ export const EXTRACTION_MAX_TOKENS = 1200;
 /** Wall clock per model call. Past this the visitor has given up anyway. */
 export const MODEL_TIMEOUT_MS = 20_000;
 
+export type ExtractionOutcome = {
+  ok: boolean;
+  /** Adapter error code (`api_error`, `quota`, `timeout`, …) when not ok. */
+  code: string | null;
+  model: string | null;
+  usage: AiUsage | undefined;
+};
+
 export async function extractAndRecord(input: {
   adapter: Awaited<ReturnType<typeof resolveAiChatAdapter>>;
   brief: Brief;
   userMessage: string;
   question: Question | null;
   pack: IndustryPack | null;
+  /**
+   * Called once with the model call's outcome so a caller can record cost
+   * and fail over to another provider. The return value (the facts written)
+   * is unchanged; a caller that ignores this sees exactly the old behaviour.
+   */
+  report?: (outcome: ExtractionOutcome) => void;
 }): Promise<LearnedFact[]> {
   try {
     const completion = await withTimeout(
@@ -53,8 +68,10 @@ export async function extractAndRecord(input: {
 
     if (!completion.ok) {
       logServerError("tulala.extract", new Error(completion.code));
+      input.report?.({ ok: false, code: completion.code, model: null, usage: undefined });
       return [];
     }
+    input.report?.({ ok: true, code: null, model: completion.model ?? null, usage: completion.usage });
 
     const parsed = parseExtraction(completion.text, {
       questionId: input.question?.id ?? null,
