@@ -15733,13 +15733,38 @@
         "order": "Pedido",
         "orderTickets": "{code} · {count} entradas",
         "orderTicketOne": "{code} · 1 entrada",
-        "wallet": "Añadir a Wallet",
-        "walletReason": "Los pases de Wallet todavía no están disponibles.",
         "transferNote": "El QR anterior deja de funcionar cuando transfieres.",
         "unnamed": "Sin nombre todavía",
         "doors": "puertas {time}",
         "code": "Código de la entrada",
-        "resendDone": "Enviado de nuevo a la dirección de la entrada."
+        "resendDone": "Enviado de nuevo a la dirección de la entrada.",
+        "back": "Volver al evento",
+        "dateTba": "Fecha a confirmar",
+        "event": "Evento {time}",
+        "admits": "Admite {n}",
+        "seat": "Lugar {label}",
+        "vip": "VIP",
+        "position": "{n} de {m}",
+        "save": "Guardar imagen",
+        "print": "Imprimir",
+        "copyLink": "Copiar enlace",
+        "copied": "Copiado",
+        "share": "Compartir",
+        "shareText": "Mi entrada:",
+        "eventInfo": "Info del evento",
+        "refund": "Solicitar reembolso",
+        "refundTitle": "Reembolsos",
+        "refundPolicy": "Política",
+        "refundReceived": "Solicitud recibida. El reembolso vuelve a la tarjeta con la que pagaste; te avisamos por e-mail cuando esté hecho.",
+        "refundReceivedManual": "Solicitud recibida. El local revisa cada solicitud y te confirmará por e-mail.",
+        "refundReason": {
+          "refunds_closed": "Las solicitudes de reembolso están cerradas para este evento.",
+          "already_used": "Esta entrada ya se usó en la puerta, así que no se puede reembolsar.",
+          "not_valid": "Esta entrada ya no es válida.",
+          "event_cancelled": "El evento se canceló: el reembolso ya está en camino, no hace falta pedirlo.",
+          "nothing_to_refund": "No hay nada que reembolsar en esta entrada.",
+          "already_requested": "Ya se solicitó un reembolso para esta entrada."
+        }
       },
       "share": {
         "title": "Pagar mi parte",
@@ -17702,7 +17727,9 @@
         "compEmail": "Email del invitado",
         "compReason": "Motivo",
         "compAction": "Emitir una entrada de cortesía",
-        "compDone": "Entrada de cortesía emitida."
+        "compDone": "Entrada de cortesía emitida.",
+        "readyCover": "Imagen destacada",
+        "readyRefunds": "Política de reembolso"
       },
       "guests": {
         "openDoor": "Abrir la puerta"
@@ -17711,8 +17738,7 @@
         "orders": "Los pedidos de un evento son filas del destino Pedidos; la vista por evento todavía no está construida.",
         "guests": "La lista de invitados por noche es la puerta: ábrela abajo.",
         "page": "La página del evento se construye con el bloque de evento del editor web; la promoción todavía no tiene tabla.",
-        "money": "Dinero e informes se leen desde Ventas y Pagos; el informe por evento todavía no está construido.",
-        "settings": "Los ajustes por evento más allá de puertas, reembolsos y liquidación todavía no tienen columna."
+        "money": "Dinero e informes se leen desde Ventas y Pagos; el informe por evento todavía no está construido."
       },
       "create": {
         "title": "Crear evento",
@@ -17772,6 +17798,34 @@
         "saving": "Guardando…",
         "continueDates": "Continuar a fechas",
         "back": "Volver a eventos"
+      },
+      "settings": {
+        "checklist": "Completa este evento",
+        "checklistIntro": "Lo que todavía le falta a la entrada del cliente. Cada punto se dibuja en la página de la entrada.",
+        "checklistDone": "Todo lo que la entrada necesita está listo.",
+        "set": "Listo",
+        "missing": "Falta",
+        "cover": "Imagen destacada",
+        "coverHint": "La portada de la entrada y el hero de la página del evento. Mejor en horizontal.",
+        "coverEmpty": "Añadir imagen destacada",
+        "doors": "Apertura de puertas (minutos antes)",
+        "doorsHint": "0 abre las puertas con el evento. La entrada muestra la hora de puertas y del evento.",
+        "venue": "Lugar",
+        "venuePick": "Elegir lugar",
+        "venueNone": "Aún no hay lugares. Añade uno en Espacios.",
+        "description": "Descripción",
+        "descriptionHint": "Se muestra en la página del evento. Solo lo que el cliente necesita esa noche.",
+        "refunds": "Política de reembolso",
+        "refundsOpen": "Abierto a reembolsos",
+        "refundsOpenHint": "El cliente ve un botón Solicitar reembolso en su entrada. El reembolso es por línea del pedido y vuelve a la tarjeta.",
+        "policy": "Política",
+        "policyPick": "Elegir política",
+        "policyHint": "Manual: una persona decide cada solicitud; las demás reembolsan automáticamente.",
+        "closeAt": "Cerrar solicitudes el",
+        "closeAtHint": "Opcional. Pasado ese momento la entrada deja de ofrecer reembolsos.",
+        "save": "Guardar ajustes",
+        "saving": "Guardando…",
+        "saved": "Ajustes guardados. La página de la entrada los lee al instante."
       }
     },
     "setupPage": {

@@ -34,7 +34,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
-import { eventCancelledMessage, seatLostMessage } from "@/lib/events/ticket-purchase";
+import { eventCancelledMessage, guestRefundMessage, seatLostMessage } from "@/lib/events/ticket-purchase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -96,25 +96,29 @@ export async function GET(request: Request) {
     if (lErr) logServerError("cron/ticket-refund-intents/line", lErr);
     if (eErr) logServerError("cron/ticket-refund-intents/event", eErr);
 
-    // Two reasons, one mechanism, two sentences. The note is what a person
+    // Three reasons, one mechanism, three sentences. The note is what a person
     // reconciling the ledger reads months later, so it names WHY rather than
-    // describing the refund they can already see.
+    // describing the refund they can already see. A `guest_request` under a
+    // `manual` policy never reaches here: it is inserted already claimed.
     const cancelled = intent.reason === "event_cancelled";
+    const guestAsked = intent.reason === "guest_request";
 
     const res = await refundOrderLines(admin, {
       orderId: intent.order_id as string,
       lineIds: [intent.order_line_id as string],
-      reason: "service_not_delivered",
+      reason: guestAsked ? "requested_by_client" : "service_not_delivered",
       actorUserId: null,
       note: cancelled
         ? "event_cancelled: the venue cancelled the event; every paid line is refunded regardless of the cutoff"
-        : "seat_lost_after_payment: the hold lapsed before the payment settled; refunded automatically",
+        : guestAsked
+          ? "guest_request: the holder asked from the ticket page while the event had refunds open"
+          : "seat_lost_after_payment: the hold lapsed before the payment settled; refunded automatically",
     });
 
     const now = new Date().toISOString();
     if (res.ok) {
       const cents = Number((line as { total_cents?: unknown } | null)?.total_cents ?? (line as { amount_cents?: unknown } | null)?.amount_cents ?? 0);
-      const say = cancelled ? eventCancelledMessage : seatLostMessage;
+      const say = cancelled ? eventCancelledMessage : guestAsked ? guestRefundMessage : seatLostMessage;
       const message = say({ eventTitle: (ev?.title as string | null) ?? null, amountLabel: (cents / 100).toFixed(2) });
 
       // `ok` DOES NOT MEAN EVERY EFFECT LANDED, and recording it as plain "ok"

@@ -6401,6 +6401,9 @@ export type Database = {
           payout_release_rule: string
           published_at: string | null
           refund_cutoff_hours: number | null
+          refund_policy_key: string | null
+          refunds_close_at: string | null
+          refunds_open: boolean
           series_id: string | null
           slug: string
           status: string
@@ -6424,6 +6427,9 @@ export type Database = {
           payout_release_rule?: string
           published_at?: string | null
           refund_cutoff_hours?: number | null
+          refund_policy_key?: string | null
+          refunds_close_at?: string | null
+          refunds_open?: boolean
           series_id?: string | null
           slug: string
           status?: string
@@ -6447,6 +6453,9 @@ export type Database = {
           payout_release_rule?: string
           published_at?: string | null
           refund_cutoff_hours?: number | null
+          refund_policy_key?: string | null
+          refunds_close_at?: string | null
+          refunds_open?: boolean
           series_id?: string | null
           slug?: string
           status?: string
@@ -18211,8 +18220,10 @@ export type Database = {
           order_id: string
           order_line_id: string
           reason: string
+          requested_by_admission_id: string | null
           result: string | null
           result_detail: Json | null
+          source: string
           tenant_id: string
         }
         Insert: {
@@ -18224,8 +18235,10 @@ export type Database = {
           order_id: string
           order_line_id: string
           reason: string
+          requested_by_admission_id?: string | null
           result?: string | null
           result_detail?: Json | null
+          source?: string
           tenant_id: string
         }
         Update: {
@@ -18237,8 +18250,10 @@ export type Database = {
           order_id?: string
           order_line_id?: string
           reason?: string
+          requested_by_admission_id?: string | null
           result?: string | null
           result_detail?: Json | null
+          source?: string
           tenant_id?: string
         }
         Relationships: [

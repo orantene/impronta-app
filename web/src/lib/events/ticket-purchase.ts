@@ -169,3 +169,13 @@ export function eventCancelledMessage(args: { eventTitle: string | null; amountL
   const what = args.eventTitle ? `${args.eventTitle} has been cancelled` : "the event has been cancelled";
   return `We are sorry — ${what}. Your ticket is no longer valid and we have refunded ${args.amountLabel} in full. Nothing is needed from you.`;
 }
+
+/**
+ * The buyer's message when THEY asked, from the ticket page. A third
+ * sentence, not a parameter on the other two: this one says "as you asked",
+ * which the other two must never say.
+ */
+export function guestRefundMessage(args: { eventTitle: string | null; amountLabel: string }): string {
+  const what = args.eventTitle ? `your ticket for ${args.eventTitle}` : "your ticket";
+  return `As you asked, we have refunded ${args.amountLabel} for ${what}. The ticket is no longer valid at the door.`;
+}

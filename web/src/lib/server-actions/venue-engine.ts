@@ -50,6 +50,7 @@ import {
   eventSeriesUpsert as upsertEventSeries,
 } from "@/lib/venues/event-holds";
 import { ticketLookup as lookupTicket, ticketResend as resendTicket, ticketTransfer as transferTicket } from "@/lib/venues/ticket-self";
+import { requestTicketRefund } from "@/lib/events/ticket-refund-request";
 import {
   posDeviceHeartbeat as heartbeatDevice,
   posDeviceRegister as registerDevice,
@@ -652,6 +653,24 @@ export async function ticketLookup(input: { email: string; last4OfReceipt: strin
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   return lookupTicket(g.admin, { tenantId: g.tenantId, ...parsed.data });
+}
+
+/**
+ * The holder asks for a refund from `/ticket/<code>`. Guarded exactly like
+ * the other public ticket actions (the host names the tenant, the signed
+ * code names the admission); the write is ONE `ticket_refund_intents` row and
+ * the money moves in the executor cron, never here. Rate-limited per code so
+ * a refused request cannot be hammered into an oracle.
+ */
+export async function ticketRefundRequest(input: { code: string }) {
+  const g = await publicTicket();
+  if (!g.ok) return g;
+  const code = typeof input.code === "string" ? input.code.trim() : "";
+  if (code.length < 8) return { ok: false as const, reason: "invalid" as const };
+  if (!tryConsumeRateLimit(`ticket-refund:${g.tenantId}:${code.slice(-24)}`, 6, 60_000)) {
+    return { ok: false as const, reason: "too_many_attempts" as const };
+  }
+  return requestTicketRefund(g.admin, { tenantId: g.tenantId, code });
 }
 
 export async function posDevicesList() {

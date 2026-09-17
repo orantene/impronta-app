@@ -6539,7 +6539,9 @@
         "compEmail": "Email de l'invité",
         "compReason": "Motif",
         "compAction": "Émettre un billet offert",
-        "compDone": "Billet offert émis."
+        "compDone": "Billet offert émis.",
+        "readyCover": "Image à la une",
+        "readyRefunds": "Politique de remboursement"
       },
       "guests": {
         "openDoor": "Ouvrir la porte"
@@ -6548,8 +6550,7 @@
         "orders": "Les commandes d'un événement sont des lignes de la destination Commandes ; la vue par événement n'est pas encore construite.",
         "guests": "La liste des invités par soirée est la porte : ouvrez-la ci-dessous.",
         "page": "La page de l'événement se construit avec le bloc événement de l'éditeur de site ; la promotion n'a pas encore de table.",
-        "money": "Argent et rapports se lisent depuis Ventes et Paiements ; le rapport par événement n'est pas encore construit.",
-        "settings": "Les réglages par événement au-delà des portes, des remboursements et du versement n'ont pas encore de colonne."
+        "money": "Argent et rapports se lisent depuis Ventes et Paiements ; le rapport par événement n'est pas encore construit."
       },
       "create": {
         "title": "Créer un événement",
@@ -6609,6 +6610,34 @@
         "saving": "Enregistrement…",
         "continueDates": "Continuer vers les dates",
         "back": "Retour aux événements"
+      },
+      "settings": {
+        "checklist": "Compléter cet événement",
+        "checklistIntro": "Ce qui manque encore au billet du client. Chaque point s'affiche sur la page du billet.",
+        "checklistDone": "Tout ce dont le billet a besoin est renseigné.",
+        "set": "Renseigné",
+        "missing": "Manquant",
+        "cover": "Image à la une",
+        "coverHint": "La couverture du billet et le visuel de la page de l'événement. Le paysage convient le mieux.",
+        "coverEmpty": "Ajouter une image à la une",
+        "doors": "Ouverture des portes (minutes avant)",
+        "doorsHint": "0 ouvre les portes avec l'événement. Le billet affiche l'heure des portes et de l'événement.",
+        "venue": "Lieu",
+        "venuePick": "Choisir un lieu",
+        "venueNone": "Aucun lieu pour l'instant. Ajoutez-en un dans Espaces.",
+        "description": "Description",
+        "descriptionHint": "Affichée sur la page de l'événement. Seulement ce dont le client a besoin ce soir-là.",
+        "refunds": "Politique de remboursement",
+        "refundsOpen": "Ouvert aux remboursements",
+        "refundsOpenHint": "Le client voit un bouton Demander un remboursement sur son billet. Le remboursement se fait par ligne de commande et revient sur la carte.",
+        "policy": "Politique",
+        "policyPick": "Choisir une politique",
+        "policyHint": "Manuel : une personne décide de chaque demande ; les autres remboursent automatiquement.",
+        "closeAt": "Fermer les demandes le",
+        "closeAtHint": "Facultatif. Passé ce moment, le billet ne propose plus de remboursement.",
+        "save": "Enregistrer les réglages",
+        "saving": "Enregistrement…",
+        "saved": "Réglages enregistrés. La page du billet les lit immédiatement."
       }
     },
     "visit": {
@@ -6672,13 +6701,38 @@
         "order": "Commande",
         "orderTickets": "{code} · {count} billets",
         "orderTicketOne": "{code} · 1 billet",
-        "wallet": "Ajouter au Wallet",
-        "walletReason": "Les pass Wallet ne sont pas encore proposés.",
         "transferNote": "L'ancien QR cesse de fonctionner quand vous transférez.",
         "unnamed": "Pas encore nommé",
         "doors": "portes {time}",
         "code": "Code du billet",
-        "resendDone": "Renvoyé à l'adresse du billet."
+        "resendDone": "Renvoyé à l'adresse du billet.",
+        "back": "Retour à l'événement",
+        "dateTba": "Date à confirmer",
+        "event": "Événement {time}",
+        "admits": "Admet {n}",
+        "seat": "Place {label}",
+        "vip": "VIP",
+        "position": "{n} sur {m}",
+        "save": "Enregistrer l'image",
+        "print": "Imprimer",
+        "copyLink": "Copier le lien",
+        "copied": "Copié",
+        "share": "Partager",
+        "shareText": "Mon billet :",
+        "eventInfo": "Infos de l'événement",
+        "refund": "Demander un remboursement",
+        "refundTitle": "Remboursements",
+        "refundPolicy": "Politique",
+        "refundReceived": "Demande reçue. Le remboursement revient sur la carte utilisée ; vous recevrez un e-mail une fois effectué.",
+        "refundReceivedManual": "Demande reçue. Le lieu examine chaque demande et confirmera par e-mail.",
+        "refundReason": {
+          "refunds_closed": "Les demandes de remboursement sont fermées pour cet événement.",
+          "already_used": "Ce billet a déjà été utilisé à l'entrée, il ne peut pas être remboursé.",
+          "not_valid": "Ce billet n'est plus valide.",
+          "event_cancelled": "L'événement a été annulé : le remboursement est déjà en cours, rien à demander.",
+          "nothing_to_refund": "Il n'y a rien à rembourser sur ce billet.",
+          "already_requested": "Un remboursement a déjà été demandé pour ce billet."
+        }
       },
       "share": {
         "title": "Payer ma part",

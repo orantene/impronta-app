@@ -15733,13 +15733,38 @@
         "order": "Order",
         "orderTickets": "{code} · {count} tickets",
         "orderTicketOne": "{code} · 1 ticket",
-        "wallet": "Add to Wallet",
-        "walletReason": "Wallet passes are not offered yet.",
         "transferNote": "The old QR stops working when you transfer.",
         "unnamed": "Not named yet",
         "doors": "doors {time}",
         "code": "Ticket code",
-        "resendDone": "Sent again to the address on the ticket."
+        "resendDone": "Sent again to the address on the ticket.",
+        "back": "Back to the event",
+        "dateTba": "Date to be announced",
+        "event": "Event {time}",
+        "admits": "Admits {n}",
+        "seat": "Seat {label}",
+        "vip": "VIP",
+        "position": "{n} of {m}",
+        "save": "Save image",
+        "print": "Print",
+        "copyLink": "Copy link",
+        "copied": "Copied",
+        "share": "Share",
+        "shareText": "My ticket:",
+        "eventInfo": "Event info",
+        "refund": "Request a refund",
+        "refundTitle": "Refunds",
+        "refundPolicy": "Policy",
+        "refundReceived": "Request received. The refund goes back to the card you paid with; you will get an e-mail when it is done.",
+        "refundReceivedManual": "Request received. The venue reviews each request and will confirm by e-mail.",
+        "refundReason": {
+          "refunds_closed": "Refund requests are closed for this event.",
+          "already_used": "This ticket was already used at the door, so it cannot be refunded.",
+          "not_valid": "This ticket is no longer valid.",
+          "event_cancelled": "The event was cancelled: the refund is already on its way, nothing to ask for.",
+          "nothing_to_refund": "There is nothing to refund on this ticket.",
+          "already_requested": "A refund was already requested for this ticket."
+        }
       },
       "share": {
         "title": "Pay my share",
@@ -17702,7 +17727,9 @@
         "compEmail": "Guest email",
         "compReason": "Reason",
         "compAction": "Issue a complimentary ticket",
-        "compDone": "Complimentary ticket issued."
+        "compDone": "Complimentary ticket issued.",
+        "readyCover": "Featured image",
+        "readyRefunds": "Refund policy"
       },
       "guests": {
         "openDoor": "Open the door"
@@ -17711,8 +17738,7 @@
         "orders": "Orders for an event are the Orders destination's rows; a per-event view is not built yet.",
         "guests": "The guest list per night is the door: open it below.",
         "page": "The event's page is built with the website builder's event block; promotion has no table yet.",
-        "money": "Money & Reports read from Sales and Payments; a per-event report is not built yet.",
-        "settings": "Per-event settings beyond doors, refunds and payout have no column yet."
+        "money": "Money & Reports read from Sales and Payments; a per-event report is not built yet."
       },
       "create": {
         "title": "Create event",
@@ -17772,6 +17798,34 @@
         "saving": "Saving…",
         "continueDates": "Continue to dates",
         "back": "Back to events"
+      },
+      "settings": {
+        "checklist": "Complete this event",
+        "checklistIntro": "What the guest's ticket still lacks. Each item below is drawn on the ticket page.",
+        "checklistDone": "Everything the ticket needs is set.",
+        "set": "Set",
+        "missing": "Missing",
+        "cover": "Featured image",
+        "coverHint": "The ticket's cover and the event page hero. Landscape works best.",
+        "coverEmpty": "Add featured image",
+        "doors": "Doors open (minutes before)",
+        "doorsHint": "0 opens the doors with the event. The ticket prints doors and event times.",
+        "venue": "Venue",
+        "venuePick": "Pick a venue",
+        "venueNone": "No venues yet. Add one under Spaces.",
+        "description": "Description",
+        "descriptionHint": "Shown on the event page. Keep it to what a guest needs on the night.",
+        "refunds": "Refund policy",
+        "refundsOpen": "Open for refunds",
+        "refundsOpenHint": "Guests get a Request a refund button on their ticket. A refund is per order line and goes back to the card.",
+        "policy": "Policy",
+        "policyPick": "Pick a policy",
+        "policyHint": "Manual means a person decides each request; the others refund automatically.",
+        "closeAt": "Close requests at",
+        "closeAtHint": "Optional. After this moment the ticket stops offering refunds.",
+        "save": "Save settings",
+        "saving": "Saving…",
+        "saved": "Settings saved. The ticket page reads them right away."
       }
     },
     "setupPage": {
