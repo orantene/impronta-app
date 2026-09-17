@@ -20,15 +20,18 @@ import type { EventListRow } from "@/app/(workspace)/[tenantSlug]/admin/_events-
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 
-import { ActionButton, FilterChip, StatePill, UsedIn, type PillTone } from "../appointments-classes-ui";
-import { CARD, ListHead, ListRow, PageHeading, RowMenuButton, SegmentLinks } from "../catalog/catalog-ui";
+import { ActionButton, FilterChip, StatePill, UsedIn } from "../appointments-classes-ui";
+import { CARD, SegmentLinks } from "../catalog/catalog-ui";
 import { Icon } from "../../primitives";
 import type { EventsNav } from "./EventsPage";
 import { EVENT_SEGMENTS, eventState, inSegment, segmentCounts, type EventState } from "./events-model";
+import { BlockPill, DenseHead, DenseRow, EventsHeading, RowMenu, type BlockTone } from "./events-ui";
 
-const COLS = "grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_72px_56px_92px_minmax(0,1.3fr)_28px]";
+// The board's columns at 1440: Event · date 260, Venue 150, State 140, Sold
+// 120, Left 130, Door alloc. 130, Event day, the row menu.
+const COLS = "grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.25fr)_84px_92px_96px_minmax(0,1.05fr)_16px]";
 
-const STATE_TONE: Record<EventState, PillTone> = {
+const STATE_TONE: Record<EventState, BlockTone> = {
   draft: "slate",
   salesOpen: "green",
   noNight: "coral",
@@ -37,18 +40,29 @@ const STATE_TONE: Record<EventState, PillTone> = {
   cancelled: "critical",
 };
 
+/**
+ * A night as the boards print it: `Fri 11 Sep` / `Fri 18 Sep 18:00`, on the
+ * event's own clock. English reads day-first (en-US would say "Fri, Sep 11,
+ * 06:00 PM"), so the parts are reassembled rather than the locale swapped;
+ * es/fr keep their own order.
+ */
 export function whenLabel(iso: string | null, timeZone: string, locale: string, fallback: string, withTime = true): string {
   if (!iso) return fallback;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return fallback;
   try {
-    return new Intl.DateTimeFormat(locale, {
+    const fmt = new Intl.DateTimeFormat(locale, {
       timeZone,
       weekday: "short",
       day: "numeric",
       month: "short",
-      ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}),
-    }).format(d);
+      ...(withTime ? { hour: "2-digit", minute: "2-digit", hour12: false } : {}),
+    });
+    if (!/^en/i.test(locale)) return fmt.format(d);
+    const parts = fmt.formatToParts(d);
+    const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    const day = `${part("weekday")} ${part("day")} ${part("month")}`;
+    return withTime ? `${day} ${part("hour")}:${part("minute")}` : day;
   } catch {
     return `${d.toISOString()} (${timeZone})`;
   }
@@ -77,7 +91,7 @@ export function EventsList({ events, nav, nowIso, locale }: { events: EventListR
 
   return (
     <div className="flex flex-col gap-[14px]" data-testid="events-list">
-      <PageHeading
+      <EventsHeading
         title={t("dashboard.events.list.title")}
         intro={t("dashboard.events.list.intro")}
         actions={
@@ -116,7 +130,7 @@ export function EventsList({ events, nav, nowIso, locale }: { events: EventListR
         ]}
       />
       <div className={CARD}>
-        <ListHead cols={COLS}>
+        <DenseHead cols={COLS}>
           <span>{t("dashboard.events.columns.event")}</span>
           <span>{t("dashboard.events.columns.venue")}</span>
           <span>{t("dashboard.events.columns.state")}</span>
@@ -125,7 +139,7 @@ export function EventsList({ events, nav, nowIso, locale }: { events: EventListR
           <span>{t("dashboard.events.columns.doorAlloc")}</span>
           <span>{t("dashboard.events.columns.eventDay")}</span>
           <span />
-        </ListHead>
+        </DenseHead>
         {rows.length === 0 && (
           <p className="m-0 border-t border-admin-border-soft px-[18px] py-[24px] text-center font-admin-body text-admin-13 text-admin-ink-muted">
             {events.length === 0 ? t("dashboard.events.list.empty") : t("dashboard.events.list.emptySegment")}
@@ -161,29 +175,21 @@ export function EventsList({ events, nav, nowIso, locale }: { events: EventListR
                 {stateLabel[state]}
               </StatePill>
             </button>
-            <ListRow cols={COLS} testId={`events-row-${e.id}`} className="max-[720px]:hidden">
-              <button type="button" onClick={() => nav.go({ event: e.id })} className="min-w-0 cursor-pointer text-left" data-testid={`events-open-${e.id}`}>
+            {/* The board's row is one line: the event and its next night; the night count is the row's title. */}
+            <DenseRow cols={COLS} testId={`events-row-${e.id}`} className="max-[720px]:hidden">
+              <button type="button" onClick={() => nav.go({ event: e.id })} title={nightsLabel} className="min-w-0 cursor-pointer text-left" data-testid={`events-open-${e.id}`}>
                 <span className="block truncate font-admin-body text-[13px] font-semibold text-admin-ink">
                   {e.title}
-                  {e.nextSessionAt ? ` · ${whenLabel(e.nextSessionAt, e.timeZone, locale, "")}` : ""}
-                </span>
-                <span className="block truncate font-admin-body text-[11.5px] text-admin-ink-muted">
-                  {e.runFinished
-                    ? t("dashboard.events.list.runFinished")
-                    : e.sessionCount === 0
-                      ? t("dashboard.events.list.noNight")
-                      : e.sessionCount === 1
-                        ? t("dashboard.events.list.nightOne")
-                        : interpolate(t("dashboard.events.list.nights"), { count: e.sessionCount })}
+                  {e.nextSessionAt ? ` · ${whenLabel(e.nextSessionAt, e.timeZone, locale, "", false)}` : ""}
                 </span>
               </button>
               <span className="truncate text-admin-ink-dim" title={t("dashboard.events.list.venueReason")}>
                 —
               </span>
               <span className="min-w-0">
-                <StatePill tone={STATE_TONE[state]} state={state}>
+                <BlockPill tone={STATE_TONE[state]} state={state}>
                   {stateLabel[state]}
-                </StatePill>
+                </BlockPill>
               </span>
               <span className="tabular-nums">{dash}</span>
               <span className="tabular-nums">{dash}</span>
@@ -191,8 +197,8 @@ export function EventsList({ events, nav, nowIso, locale }: { events: EventListR
               <span className="truncate text-admin-ink-muted">
                 {state === "salesOpen" ? t("dashboard.events.list.dayReady") : state === "finished" || state === "cancelled" ? "—" : t("dashboard.events.list.dayNotYet")}
               </span>
-              <RowMenuButton label={t("dashboard.events.list.rowMenu")} onClick={() => nav.go({ event: e.id })} />
-            </ListRow>
+              <RowMenu label={t("dashboard.events.list.rowMenu")} onClick={() => nav.go({ event: e.id })} />
+            </DenseRow>
             </React.Fragment>
           );
         })}

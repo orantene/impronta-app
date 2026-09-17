@@ -18,9 +18,10 @@ import { useT } from "@/i18n/use-t";
 import { eventSeriesUpsert } from "@/lib/server-actions/venue-engine";
 
 import { ActionButton, Outcome, SectionLabel } from "../appointments-classes-ui";
-import { CARD, Field, INPUT, PageHeading } from "../catalog/catalog-ui";
+import { CARD, Field, INPUT } from "../catalog/catalog-ui";
 import { Icon } from "../../primitives";
 import type { EventsNav } from "./EventsPage";
+import { EventsHeading, SELECT, SelectShell } from "./events-ui";
 
 type SalesModel = "ticket" | "rsvp" | "registration" | "pass";
 
@@ -68,24 +69,29 @@ export function EventCreate({ nav, onCreated }: { nav: EventsNav; onCreated: () 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-[24px]" data-testid="events-create-form">
       <form
-        className="flex flex-col gap-[16px]"
+        className="flex flex-col gap-[14px]"
         onSubmit={(e) => {
           e.preventDefault();
           if (title.trim()) save();
         }}
       >
         <div className="flex flex-wrap items-start justify-between gap-[12px]">
-          <PageHeading title={t("dashboard.events.create.title")} intro={t("dashboard.events.create.intro")} />
-          <ol className="m-0 flex list-none flex-wrap items-center gap-[14px] p-0 font-admin-body text-[12.5px]">
+          <EventsHeading title={t("dashboard.events.create.title")} intro={t("dashboard.events.create.intro")} />
+          {/* The board's stepper: a 22px disc per step; the done step a soft check, the active one dark, the rest a bare number. */}
+          <ol className="m-0 flex list-none flex-wrap items-center gap-[16px] p-0 font-admin-body text-[13px] leading-[1.2]">
             {steps.map((s) => (
-              <li key={s.n} title={s.reason} className={`flex items-center gap-[6px] ${s.state === "active" ? "font-semibold text-admin-ink" : s.state === "done" ? "text-admin-brand" : "text-admin-ink-dim"}`}>
-                <span
-                  className={`inline-flex h-[20px] w-[20px] items-center justify-center rounded-full text-[11px] font-bold ${
-                    s.state === "active" ? "bg-admin-brand text-white" : s.state === "done" ? "bg-admin-brand-soft text-admin-brand" : "bg-admin-surface-alt text-admin-ink-dim"
-                  }`}
-                >
-                  {s.state === "done" ? <Icon name="check" size={11} stroke={2.5} /> : s.n}
-                </span>
+              <li key={s.n} title={s.reason} className={`flex items-center gap-[7px] ${s.state === "active" ? "font-semibold text-admin-ink" : s.state === "done" ? "text-admin-brand" : "text-admin-ink-muted"}`}>
+                {s.state === "off" ? (
+                  <span className="text-[12px] font-semibold text-admin-ink-dim">{s.n}</span>
+                ) : (
+                  <span
+                    className={`inline-flex h-[22px] w-[22px] items-center justify-center rounded-full text-[11px] font-bold ${
+                      s.state === "active" ? "bg-admin-ink text-white" : "bg-admin-brand-soft text-admin-brand"
+                    }`}
+                  >
+                    {s.state === "done" ? <Icon name="check" size={11} stroke={2.5} /> : s.n}
+                  </span>
+                )}
                 {s.label}
               </li>
             ))}
@@ -96,12 +102,14 @@ export function EventCreate({ nav, onCreated }: { nav: EventsNav; onCreated: () 
             <input id="ev-title" value={title} onChange={(e) => setTitle(e.target.value)} disabled={busy} maxLength={200} className={INPUT} placeholder={t("dashboard.events.create.namePlaceholder")} aria-label={t("dashboard.events.create.name")} autoFocus />
           </Field>
           <Field label={t("dashboard.events.create.salesModel")} required hint={t("dashboard.events.create.salesModelHint")}>
-            <select value={model} onChange={(e) => setModel(e.target.value === "rsvp" ? "rsvp" : e.target.value === "registration" ? "registration" : e.target.value === "pass" ? "pass" : "ticket")} disabled={busy} className={INPUT} aria-label={t("dashboard.events.create.salesModel")}>
-              <option value="ticket">{t("dashboard.events.create.modelTicket")}</option>
-              <option value="rsvp">{t("dashboard.events.create.modelRsvp")}</option>
-              <option value="registration">{t("dashboard.events.create.modelRegistration")}</option>
-              <option value="pass">{t("dashboard.events.create.modelPass")}</option>
-            </select>
+            <SelectShell>
+              <select value={model} onChange={(e) => setModel(e.target.value === "rsvp" ? "rsvp" : e.target.value === "registration" ? "registration" : e.target.value === "pass" ? "pass" : "ticket")} disabled={busy} className={SELECT} aria-label={t("dashboard.events.create.salesModel")}>
+                <option value="ticket">{t("dashboard.events.create.modelTicket")}</option>
+                <option value="rsvp">{t("dashboard.events.create.modelRsvp")}</option>
+                <option value="registration">{t("dashboard.events.create.modelRegistration")}</option>
+                <option value="pass">{t("dashboard.events.create.modelPass")}</option>
+              </select>
+            </SelectShell>
           </Field>
         </div>
         <div className="grid grid-cols-3 gap-[16px]">
@@ -109,9 +117,11 @@ export function EventCreate({ nav, onCreated }: { nav: EventsNav; onCreated: () 
             <input disabled className={INPUT} value="" readOnly />
           </Field>
           <Field label={t("dashboard.events.create.format")} reason={noColumn}>
-            <select disabled className={INPUT}>
-              <option>{t("dashboard.events.create.formatInPerson")}</option>
-            </select>
+            <SelectShell>
+              <select disabled className={SELECT}>
+                <option>{t("dashboard.events.create.formatInPerson")}</option>
+              </select>
+            </SelectShell>
           </Field>
           <Field label={t("dashboard.events.create.doors")} hint={t("dashboard.events.create.doorsHint")}>
             <input id="ev-doors" inputMode="numeric" value={doors} onChange={(e) => setDoors(e.target.value)} disabled={busy} className={INPUT} aria-label={t("dashboard.events.create.doors")} />
@@ -137,7 +147,7 @@ export function EventCreate({ nav, onCreated }: { nav: EventsNav; onCreated: () 
         </Field>
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-[16px]">
           <Field label={t("dashboard.events.create.venue")} required reason={t("dashboard.events.create.venueReason")}>
-            <div className={`${CARD} flex items-center gap-[10px] px-[12px] py-[10px] opacity-60`}>
+            <div className={`${CARD} flex h-[68px] items-center gap-[10px] px-[12px] opacity-60`}>
               <Icon name="map-pin" size={14} stroke={1.75} />
               <span className="font-admin-body text-admin-13 text-admin-ink-muted">{t("dashboard.events.create.venueNone")}</span>
             </div>
@@ -156,9 +166,11 @@ export function EventCreate({ nav, onCreated }: { nav: EventsNav; onCreated: () 
             <input disabled className={INPUT} value="" readOnly />
           </Field>
           <Field label={t("dashboard.events.create.visibility")} reason={t("dashboard.events.create.visibilityReason")}>
-            <select disabled className={INPUT}>
-              <option>{t("dashboard.events.create.visibilityPublic")}</option>
-            </select>
+            <SelectShell>
+              <select disabled className={SELECT}>
+                <option>{t("dashboard.events.create.visibilityPublic")}</option>
+              </select>
+            </SelectShell>
           </Field>
           <Field label={t("dashboard.events.create.publicUrl")} reason={t("dashboard.events.create.publicUrlReason")}>
             <input disabled className={INPUT} value="" readOnly />
@@ -180,7 +192,7 @@ export function EventCreate({ nav, onCreated }: { nav: EventsNav; onCreated: () 
         </div>
         {error ? <Outcome kind="refused" testId="events-create-refused">{error}</Outcome> : null}
       </form>
-      <aside className="flex flex-col gap-[14px] border-l border-admin-border pl-[20px]">
+      <aside className="flex flex-col gap-[12px] border-l border-admin-border pl-[20px]">
         <SectionLabel>{t("dashboard.events.create.datesPreview")}</SectionLabel>
         <div className={`${CARD} px-[14px] py-[12px] font-admin-body text-[12.5px] text-admin-ink-muted`}>{t("dashboard.events.create.datesPreviewEmpty")}</div>
         <SectionLabel>{t("dashboard.events.create.readiness")}</SectionLabel>

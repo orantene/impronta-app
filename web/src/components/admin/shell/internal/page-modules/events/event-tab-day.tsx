@@ -26,14 +26,17 @@ import { useT } from "@/i18n/use-t";
 import { admissionComp, admissionHoldSeats, eventSeatMapUpsert, layoutsList } from "@/lib/server-actions/venue-engine";
 import { VENUE_ENGINE_REFUSALS, type VenueEngineRefusal } from "@/lib/venues/engine-refusals";
 
+import { ScanLine } from "lucide-react";
+
 import { ActionButton, UsedIn } from "../appointments-classes-ui";
-import { CARD, Field, INPUT, ListHead, ListRow, Note, PageHeading } from "../catalog/catalog-ui";
+import { CARD, Field, INPUT } from "../catalog/catalog-ui";
 import type { EventsNav } from "./EventsPage";
 import { whenLabel } from "./EventsList";
 import { useSessionPools } from "./event-tab-tickets";
 import { eventDayReadiness, nightFigures } from "./events-model";
+import { DenseHead, DenseRow, EventsHeading, EventsNote, SELECT, SelectShell } from "./events-ui";
 
-const COLS = "grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_100px_minmax(0,1fr)_28px]";
+const COLS = "grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_100px_minmax(0,1fr)_16px]";
 
 function nightLabel(event: EventListRow, sessionId: string | null, locale: string, fallback: string): string {
   const sn = event.sessions.find((s) => s.id === sessionId) ?? null;
@@ -43,9 +46,11 @@ function nightLabel(event: EventListRow, sessionId: string | null, locale: strin
 function OffField({ label, value, reason, quiet }: { label: string; value: string; reason: string; quiet?: boolean }) {
   return (
     <Field label={label} reason={quiet ? undefined : reason} className={quiet ? "opacity-70" : ""}>
-      <select disabled className={INPUT} aria-label={label} title={reason} data-not-wired="true">
-        <option>{value}</option>
-      </select>
+      <SelectShell>
+        <select disabled className={SELECT} aria-label={label} title={reason} data-not-wired="true">
+          <option>{value}</option>
+        </select>
+      </SelectShell>
     </Field>
   );
 }
@@ -104,7 +109,7 @@ export function EventVenueTab({ event, sessionId, locale }: { event: EventListRo
 
   return (
     <div className="flex flex-col gap-[14px]" data-testid="events-panel-venue">
-      <PageHeading
+      <EventsHeading
         title={interpolate(t("dashboard.events.venue.title"), { date: nightLabel(event, sessionId, locale, t("dashboard.events.detail.noDate")) })}
         intro={t("dashboard.events.venue.intro")}
         actions={
@@ -139,20 +144,22 @@ export function EventVenueTab({ event, sessionId, locale }: { event: EventListRo
       <div className="grid grid-cols-2 gap-[16px]">
         <OffField label={t("dashboard.events.venue.space")} value={t("dashboard.events.venue.spaceNone")} reason={noWriter} />
         <Field label={t("dashboard.events.venue.layout")}>
-          <select
-            className={INPUT}
-            aria-label={t("dashboard.events.venue.layout")}
-            value={layoutId}
-            onChange={(e) => setLayoutId(e.target.value)}
-            data-testid="events-venue-layout"
-          >
-            <option value="">{t("dashboard.events.venue.layoutNone")}</option>
-            {layoutOptions.map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.name}
-              </option>
-            ))}
-          </select>
+          <SelectShell>
+            <select
+              className={SELECT}
+              aria-label={t("dashboard.events.venue.layout")}
+              value={layoutId}
+              onChange={(e) => setLayoutId(e.target.value)}
+              data-testid="events-venue-layout"
+            >
+              <option value="">{t("dashboard.events.venue.layoutNone")}</option>
+              {layoutOptions.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.name}
+                </option>
+              ))}
+            </select>
+          </SelectShell>
         </Field>
         <Field label={t("dashboard.events.venue.blocked")} reason={t("dashboard.events.venue.blockedReason")}>
           <input disabled className={INPUT} value={event.doorsOffsetMinutes > 0 ? interpolate(t("dashboard.events.overview.doorsBefore"), { minutes: event.doorsOffsetMinutes }) : t("dashboard.events.overview.doorsWith")} readOnly />
@@ -209,18 +216,18 @@ export function EventVenueTab({ event, sessionId, locale }: { event: EventListRo
         {notice ? <p role="status" className="m-0 font-admin-body text-[12.5px] text-admin-ink">{notice}</p> : null}
       </div>
       <div className={CARD}>
-        <ListHead cols={COLS}>
+        <DenseHead cols={COLS}>
           <span>{t("dashboard.events.tickets.colType")}</span>
           <span>{t("dashboard.events.venue.colUses")}</span>
           <span>{t("dashboard.events.venue.colCapacity")}</span>
           <span>{t("dashboard.events.tickets.colAllocation")}</span>
           <span />
-        </ListHead>
+        </DenseHead>
         {event.tiers.length === 0 ? <p className="m-0 border-t border-admin-border-soft px-[18px] py-[20px] font-admin-body text-admin-13 text-admin-ink-muted">{t("dashboard.events.tickets.empty")}</p> : null}
         {event.tiers.map((tier) => {
           const pool = pools.rows?.find((p) => p.poolKey === tier.poolKey) ?? null;
           return (
-            <ListRow key={tier.id} cols={COLS}>
+            <DenseRow key={tier.id} cols={COLS}>
               <span className="truncate font-admin-body text-[13px] font-semibold text-admin-ink">{tier.label}</span>
               <span className="truncate text-admin-ink-muted">
                 {tier.seatingMode === "space_group" ? t("dashboard.events.venue.usesTables") : interpolate(t("dashboard.events.venue.usesPool"), { pool: tier.poolKey })}
@@ -230,15 +237,15 @@ export function EventVenueTab({ event, sessionId, locale }: { event: EventListRo
                 —
               </span>
               <span />
-            </ListRow>
+            </DenseRow>
           );
         })}
       </div>
-      <Note tone="warn">
+      <EventsNote>
         {figures && figures.capacity !== null
           ? interpolate(t("dashboard.events.venue.totalNote"), { capacity: figures.capacity, pooled: figures.pooled })
           : t("dashboard.events.venue.totalNoteNone")}
-      </Note>
+      </EventsNote>
     </div>
   );
 }
@@ -291,7 +298,7 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
   ];
   return (
     <div className="flex flex-col gap-[14px]" data-testid="events-panel-day">
-      <PageHeading
+      <EventsHeading
         title={interpolate(t("dashboard.events.day.title"), { date: nightLabel(event, sessionId, locale, t("dashboard.events.detail.noDate")) })}
         intro={t("dashboard.events.day.intro")}
         actions={
@@ -299,7 +306,8 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
             <ActionButton tone="primary" reason={noColumn}>
               {t("dashboard.events.day.save")}
             </ActionButton>
-            <a href={`${nav.base}/pos?mode=door`} className="inline-flex h-[34px] items-center gap-[6px] rounded-[9px] border border-admin-ink bg-admin-ink px-[14px] font-admin-body text-admin-13 font-semibold text-white no-underline hover:opacity-90" data-testid="events-open-pos">
+            <a href={`${nav.base}/pos?mode=door`} className="inline-flex h-[34px] items-center gap-[6px] rounded-[9px] border border-admin-ink-muted bg-admin-ink-muted px-[14px] font-admin-body text-admin-13 font-semibold text-white no-underline hover:opacity-90" data-testid="events-open-pos">
+              <ScanLine aria-hidden size={13} strokeWidth={1.75} />
               {t("dashboard.events.day.openPos")}
             </a>
           </>
@@ -316,7 +324,7 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
       <div className="grid grid-cols-2 gap-[16px]">
         <div className={`${CARD} flex flex-col gap-[12px] p-[16px]`}>
           <div className="font-admin-body text-[13px] font-semibold text-admin-ink">{t("dashboard.events.day.gate")}</div>
-          <p className="m-0 font-admin-body text-[11.5px] text-admin-ink-dim">{noColumn}</p>
+          <p className="m-0 -mt-[6px] font-admin-body text-[11.5px] leading-[1.2] text-admin-ink-dim">{noColumn}</p>
           <div className="grid grid-cols-2 gap-[12px]">
             {gate.map(([label, value]) => (
               <OffField key={label} label={label} value={value} reason={noColumn} quiet />
@@ -325,12 +333,23 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
         </div>
         <div className={`${CARD} flex flex-col gap-[12px] p-[16px]`}>
           <div className="font-admin-body text-[13px] font-semibold text-admin-ink">{t("dashboard.events.day.boxOffice")}</div>
-          <p className="m-0 font-admin-body text-[11.5px] text-admin-ink-dim">{noColumn}</p>
+          <p className="m-0 -mt-[6px] font-admin-body text-[11.5px] leading-[1.2] text-admin-ink-dim">{noColumn}</p>
           <div className="grid grid-cols-2 gap-[12px]">
             {box.map(([label, value]) => (
               <OffField key={label} label={label} value={value} reason={noColumn} quiet />
             ))}
           </div>
+        </div>
+      </div>
+      <div className={`${CARD} flex flex-col gap-[10px] p-[16px]`} data-testid="events-day-readiness">
+        <div className="font-admin-body text-[11px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted">{t("dashboard.events.day.readiness")}</div>
+        <div className="grid grid-cols-4 gap-[10px]">
+          {readiness.map((r) => (
+            <div key={r.key} className={`rounded-[10px] px-[12px] py-[10px] font-admin-body ${r.ok ? "bg-admin-success-soft" : "bg-admin-coral-soft"}`} data-ready={r.ok ? "true" : "false"}>
+              <div className={`text-[12.5px] font-semibold ${r.ok ? "text-admin-green" : "text-admin-coral-deep"}`}>{readinessLabel[r.key]}</div>
+              <div className="text-[11.5px] text-admin-ink-muted">{r.value}</div>
+            </div>
+          ))}
         </div>
       </div>
       <div className={`${CARD} flex flex-col gap-[10px] p-[16px]`} data-testid="events-comp">
@@ -346,13 +365,15 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
             <input value={compReason} onChange={(e) => setCompReason(e.target.value)} className={INPUT} data-testid="events-comp-reason" />
           </Field>
           <Field label={t("dashboard.events.tickets.colType")}>
-            <select value={compTier} onChange={(e) => setCompTier(e.target.value)} className={INPUT} data-testid="events-comp-tier">
-              {event.tiers.map((tier) => (
-                <option key={tier.id} value={tier.id}>
-                  {tier.label}
-                </option>
-              ))}
-            </select>
+            <SelectShell>
+              <select value={compTier} onChange={(e) => setCompTier(e.target.value)} className={SELECT} data-testid="events-comp-tier">
+                {event.tiers.map((tier) => (
+                  <option key={tier.id} value={tier.id}>
+                    {tier.label}
+                  </option>
+                ))}
+              </select>
+            </SelectShell>
           </Field>
         </div>
         <ActionButton
@@ -379,17 +400,6 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
           {t("dashboard.events.day.compAction")}
         </ActionButton>
         {compNotice ? <p role="status" className="m-0 font-admin-body text-[12.5px] text-admin-ink">{compNotice}</p> : null}
-      </div>
-      <div className={`${CARD} flex flex-col gap-[10px] p-[16px]`} data-testid="events-day-readiness">
-        <div className="font-admin-body text-[11px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted">{t("dashboard.events.day.readiness")}</div>
-        <div className="grid grid-cols-4 gap-[10px]">
-          {readiness.map((r) => (
-            <div key={r.key} className={`rounded-[10px] px-[12px] py-[10px] font-admin-body ${r.ok ? "bg-admin-success-soft" : "bg-admin-coral-soft"}`} data-ready={r.ok ? "true" : "false"}>
-              <div className={`text-[12.5px] font-semibold ${r.ok ? "text-admin-green" : "text-admin-coral-deep"}`}>{readinessLabel[r.key]}</div>
-              <div className="text-[11.5px] text-admin-ink-muted">{r.value}</div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
