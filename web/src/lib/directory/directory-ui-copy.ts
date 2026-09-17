@@ -91,6 +91,7 @@ export type DirectoryUiCopy = {
     gridProfileAriaMany: string;
     sidebarTitle: string;
     clearAll: string;
+    clearAllAria: string;
     radioMore: string;
     emptyAsideTitle: string;
     emptyAsideBody: string;
@@ -108,6 +109,9 @@ export type DirectoryUiCopy = {
     clearTaxonomy: string;
     heightMinPart: string;
     heightMaxPart: string;
+    /** "Remove filter: {label}" — accessible name of one active-filter chip. */
+    removeFilterAria: string;
+    clearAllAria: string;
   };
   talentType: { barAria: string; all: string };
   /** Labels for the configurable taxonomy pill row above results. */
@@ -396,6 +400,7 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
       gridProfileAriaMany: t("public.directory.ui.filters.gridProfileAriaMany"),
       sidebarTitle: t("public.directory.ui.filters.sidebarTitle"),
       clearAll: t("public.directory.ui.filters.clearAll"),
+      clearAllAria: t("public.directory.ui.filters.clearAllAria"),
       radioMore: t("public.directory.ui.filters.radioMore"),
       emptyAsideTitle: t("public.directory.ui.filters.emptyAsideTitle"),
       emptyAsideBody: t("public.directory.ui.filters.emptyAsideBody"),
@@ -413,6 +418,8 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
       clearTaxonomy: t("public.directory.ui.chips.clearTaxonomy"),
       heightMinPart: t("public.directory.ui.chips.heightMinPart"),
       heightMaxPart: t("public.directory.ui.chips.heightMaxPart"),
+      removeFilterAria: t("public.directory.ui.chips.removeFilterAria"),
+      clearAllAria: t("public.directory.ui.chips.clearAllAria"),
     },
     talentType: {
       barAria: t("public.directory.ui.talentType.barAria"),

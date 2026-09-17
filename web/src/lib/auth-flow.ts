@@ -2,6 +2,7 @@ import {
   stripDefaultLocalePrefixFromPath,
   stripLocaleFromPathname,
 } from "@/i18n/pathnames";
+import { pickLocale, type LocaleEntries } from "@/lib/i18n/pick-locale";
 import { isWorkspaceOnboardingPath } from "@/lib/saas/workspace-signup";
 
 export type AccessProfile = {
@@ -203,12 +204,42 @@ export function isOnboardingStatus(
   return status === "onboarding" || status === "registered";
 }
 
+type AccountLinkLabels = {
+  login: string;
+  finishSetup: string;
+  admin: string;
+  profile: string;
+  dashboard: string;
+};
+
+/** Header account-button labels per locale. These render as the button's
+ *  accessible name on every public page, so a locale the header serves must
+ *  have its own row here; an unknown locale falls back to `en`. */
+const ACCOUNT_LINK_LABELS: LocaleEntries<AccountLinkLabels> = {
+  en: {
+    login: "Log in or sign up",
+    finishSetup: "Finish account setup",
+    admin: "Admin",
+    profile: "Profile",
+    dashboard: "Dashboard",
+  },
+  es: {
+    login: "Inicia sesión o regístrate",
+    finishSetup: "Completar configuración de la cuenta",
+    admin: "Administración",
+    profile: "Perfil",
+    dashboard: "Panel",
+  },
+};
+
 export function resolveAccountHref(
   userLoggedIn: boolean,
   profile: AccessProfile | null | undefined,
+  locale: string = "en",
 ): { href: string; label: string } {
+  const labels = pickLocale(locale, ACCOUNT_LINK_LABELS);
   if (!userLoggedIn) {
-    return { href: "/login", label: "Log in or sign up" };
+    return { href: "/login", label: labels.login };
   }
 
   const destination = resolveAuthenticatedDestination(profile);
@@ -216,12 +247,12 @@ export function resolveAccountHref(
   return {
     href: destination,
     label: destination === "/onboarding/role"
-      ? "Finish account setup"
+      ? labels.finishSetup
       : isStaffRole(profile?.app_role)
-      ? "Admin"
+      ? labels.admin
       : profile?.app_role === "talent"
-        ? "Profile"
-        : "Dashboard",
+        ? labels.profile
+        : labels.dashboard,
   };
 }
 

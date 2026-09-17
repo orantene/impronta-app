@@ -9,6 +9,7 @@ import { serializeDirectoryFieldFacetParams } from "@/lib/directory/search-param
 import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { humanizeEnumLabel } from "@/lib/directory/humanize-enum-label";
+import { facetOptionDisplayLabel } from "@/lib/directory/facet-option-label";
 
 /**
  * Active-filter chip row rendered above the directory grid.
@@ -18,9 +19,9 @@ import { humanizeEnumLabel } from "@/lib/directory/humanize-enum-label";
  * Each removal commits a shallow URL update via `commitDirectoryListingUrl`
  * so the reactive grid refetches in place.
  *
- * The "Clear all" button carries `aria-label="Clear all active filters"` to
- * disambiguate it from the sidebar's "Clear all sidebar filters" button
- * (Task 3 — accessibility).
+ * The "Clear all" button carries `ui.chips.clearAllAria` ("Clear all active
+ * filters") to disambiguate it from the sidebar's "Clear all sidebar filters"
+ * button (Task 3 — accessibility). Both come from the locale dictionary.
  */
 type Chip = {
   /** Stable key. */
@@ -147,7 +148,9 @@ export function DirectoryActiveFilterChips({
         const fieldLabel = humanizeEnumLabel(
           fieldLabelByKey[facet.fieldKey] ?? facet.fieldKey,
         );
-        const valueLabel = humanizeEnumLabel(labelById[value] ?? value);
+        // The sidebar model already resolved the option's locale label
+        // (label !== id); a slug-only option is humanized (English).
+        const valueLabel = facetOptionDisplayLabel({ id: value, label: labelById[value] });
         list.push({
           id: `ff:${facet.fieldKey}:${value}`,
           label: `${fieldLabel}: ${valueLabel}`,
@@ -230,7 +233,7 @@ export function DirectoryActiveFilterChips({
           type="button"
           onClick={() => commit(chip.remove)}
           className="group inline-flex max-w-[14rem] items-center gap-1.5 rounded-full border border-border bg-muted/40 py-1 pl-3 pr-2 text-[12px] text-muted-foreground outline-none transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          aria-label={`Remove filter: ${chip.label}`}
+          aria-label={ui.chips.removeFilterAria.replace("{label}", chip.label)}
         >
           <span className="truncate">{chip.label}</span>
           <X className="size-3.5 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground/80" />
@@ -240,7 +243,7 @@ export function DirectoryActiveFilterChips({
         <button
           type="button"
           onClick={clearAll}
-          aria-label="Clear all active filters"
+          aria-label={ui.chips.clearAllAria}
           className="inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium text-muted-foreground underline-offset-4 outline-none transition-colors hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-foreground/30"
         >
           {ui.filters.clearAll}

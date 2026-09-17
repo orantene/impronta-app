@@ -1,5 +1,6 @@
 import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 
 export type DirectoryFilterPresentation = "chips" | "radio" | "grid" | "location" | "height_range" | "age_range";
 
@@ -145,6 +146,10 @@ export type FieldDefinitionQueryRow = FieldDefinitionRow & {
    *  when the `directory_facets` flag is `b`. Preferred over the legacy A
    *  `config` vocab when present; absent = read A. */
   bFilterOptions?: string[] | null;
+  /** Per-option per-locale display labels from System B `option_labels_i18n`,
+   *  overlaid with `bFilterOptions`. Keyed by option value; looked up by
+   *  normalized slug (see `localizedFacetOptionLabel`). */
+  bOptionLabelsI18n?: Record<string, LocalizedMap> | null;
 };
 
 const UNGROUPED_GROUP_SORT = 1_000_000;

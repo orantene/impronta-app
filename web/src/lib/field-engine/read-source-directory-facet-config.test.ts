@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import {
   directoryFacetConfigFromAConfig,
   directoryFacetConfigFromBConfig,
+  optionLabelsI18nFromRow,
 } from "@/lib/field-engine/read-source-directory-facet-config";
 
 // ── A-side config snapshots (legacy `field_definitions.config`, prod 2026-06-11)
@@ -166,4 +167,22 @@ test("empty / null config yields an all-null slice (no spurious vocab)", () => {
   assert.deepEqual(b, { filterOptions: null, min: null, max: null });
   // empty filter_options array is treated as "no vocab", not [].
   assert.equal(directoryFacetConfigFromBConfig({ filter_options: [] }).filterOptions, null);
+});
+
+test("optionLabelsI18nFromRow keeps only non-empty string labels per value", () => {
+  assert.deepEqual(
+    optionLabelsI18nFromRow({
+      available_now: { en: "available_now", es: "Disponible ahora" },
+      by_request: { en: "by_request", es: "  " },
+      broken: "not-a-map",
+      empty: {},
+    }),
+    {
+      available_now: { en: "available_now", es: "Disponible ahora" },
+      by_request: { en: "by_request" },
+    },
+  );
+  assert.equal(optionLabelsI18nFromRow({}), null);
+  assert.equal(optionLabelsI18nFromRow(null), null);
+  assert.equal(optionLabelsI18nFromRow(["x"]), null);
 });

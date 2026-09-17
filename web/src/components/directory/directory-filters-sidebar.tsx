@@ -19,6 +19,7 @@ import { formatFilterSearchSummary } from "@/lib/directory/directory-ui-copy";
 import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
 import { serializeDirectoryFieldFacetParams } from "@/lib/directory/search-params";
 import { humanizeEnumLabel } from "@/lib/directory/humanize-enum-label";
+import { facetOptionDisplayLabel } from "@/lib/directory/facet-option-label";
 import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 const COLLAPSE_CHIPS = 6;
@@ -1014,7 +1015,7 @@ export function DirectoryFiltersSidebar({
           <button
             type="button"
             onClick={clearAll}
-            aria-label="Clear all sidebar filters"
+            aria-label={fc.clearAllAria}
             className="text-xs font-medium text-[var(--dir-accent)] underline-offset-4 hover:underline"
           >
             {fc.clearAll}
@@ -1178,7 +1179,7 @@ export function DirectoryFiltersSidebar({
                           )}
                           aria-hidden
                         />
-                        <HighlightMatch text={humanizeEnumLabel(opt.label)} query={filterQuery} />
+                        <HighlightMatch text={facetOptionDisplayLabel(opt)} query={filterQuery} />
                       </span>
                       {c !== undefined ? (
                         <span className={cn("tabular-nums text-xs", on ? "" : "text-[var(--impronta-muted)]")}>
@@ -1217,7 +1218,7 @@ export function DirectoryFiltersSidebar({
                         )}
                       >
                         <span>
-                          <HighlightMatch text={humanizeEnumLabel(opt.label)} query={filterQuery} />
+                          <HighlightMatch text={facetOptionDisplayLabel(opt)} query={filterQuery} />
                         </span>
                         {c !== undefined ? (
                           <span className={cn("ml-1 tabular-nums", on ? "" : "opacity-70")}>({c})</span>

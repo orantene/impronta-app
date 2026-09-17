@@ -19,6 +19,7 @@ import {
 import { DIRECTORY_CANONICAL_GENDER_FIELD_KEY } from "@/lib/directory/apply-directory-field-facet-filters";
 import { loadDirectoryFacetConfigByLegacyKey } from "@/lib/field-engine/read-source-directory-facet-config";
 import { loadTenantTaxonomyVisibility } from "@/lib/directory/taxonomy-tenant-safety";
+import { localizedFacetOptionLabel } from "@/lib/directory/facet-option-label";
 import {
   compareFieldCatalogOrder,
   pickLabel,
@@ -129,7 +130,19 @@ async function loadDirectoryFilterSectionsUncached(
     if (cfg?.filterOptions && cfg.filterOptions.length > 0) {
       row.bFilterOptions = cfg.filterOptions;
     }
+    if (cfg?.optionLabelsI18n) {
+      row.bOptionLabelsI18n = cfg.optionLabelsI18n;
+    }
   }
+
+  // Locale label for a scalar facet option. The option id stays the value-store
+  // slug (it is what `?ff=` carries and what the count RPCs key on); only the
+  // display label changes. Null → the label stays the slug and the sidebar
+  // humanizes it (English), exactly as before.
+  const enumOption = (row: FieldDefinitionQueryRow, value: string): DirectoryFilterOption => ({
+    id: value,
+    label: localizedFacetOptionLabel(row.bOptionLabelsI18n, value, locale) ?? value,
+  });
 
   const toDefRow = (r: FieldDefinitionQueryRow): FieldDefinitionRow => ({
     key: r.key,
@@ -356,7 +369,7 @@ async function loadDirectoryFilterSectionsUncached(
         label: pickLabel(locale, f.label_en, f.label_es),
         kind: "profile_gender",
         presentation: "chips",
-        options: enumOpts.map((label) => ({ id: label, label })),
+        options: enumOpts.map((value) => enumOption(raw, value)),
       });
       continue;
     }
@@ -388,7 +401,7 @@ async function loadDirectoryFilterSectionsUncached(
         label: pickLabel(locale, f.label_en, f.label_es),
         kind: "field_text_enum",
         presentation: enumOpts.length <= 6 ? "chips" : "radio",
-        options: enumOpts.map((label) => ({ id: label, label })),
+        options: enumOpts.map((value) => enumOption(raw, value)),
       });
       continue;
     }
@@ -761,7 +774,7 @@ export function getCachedDirectoryFilterSidebarModel(
   const tenantKey = tenantId ?? "__hub__";
   return unstable_cache(
     () => loadDirectoryFilterSectionsUncached(locale, ctx, tenantId),
-    ["directory-filter-sidebar", "v15-b-facet-config", locale, tenantKey, key],
+    ["directory-filter-sidebar", "v16-locale-option-labels", locale, tenantKey, key],
     { tags: [CACHE_TAG_DIRECTORY, CACHE_TAG_TAXONOMY], revalidate: 90 },
   )();
 }
