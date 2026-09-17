@@ -6,7 +6,7 @@
  * per business), Money, and three collapsed sections (Files, Team notes,
  * Follow-up).
  *
- * Pure over `ContextPanelPropsV2` (`./contracts`): every write is
+ * Pure over `ContextPanelProps` (`./contracts`): every write is
  * `props.onAction(kind, detail)`, routed by the shell. Section open/closed
  * state is local UI state, not data — nothing here reads or writes a table.
  */
@@ -21,22 +21,22 @@ import { EmptyState, Skeleton } from "../kit/Skeleton";
 
 import { mainRecordChip, summaryFor, type MoneySummary } from "@/lib/messages-v5/context-view";
 
-import type { ContextPanelPropsV2 } from "./contracts";
+import type { ContextMoney, ContextPanelProps } from "./contracts";
 
-/** `props.money` (contract extension) into the shape `summaryFor` expects. */
-function moneyOf(props: ContextPanelPropsV2): MoneySummary | null {
-  if (!props.money) return null;
+/** `props.money` (contracts.ts, L3 extra) into the shape `summaryFor` expects. Shared with `DetailsSheet`. */
+export function moneyOf(money: ContextMoney | null | undefined): MoneySummary | null {
+  if (!money) return null;
   return {
-    totalLabel: props.money.totalLabel,
-    depositLabel: props.money.depositLabel ?? null,
-    paidLabel: props.money.paidLabel,
-    balanceLabel: props.money.balanceLabel,
-    balanceDueCents: props.money.balanceDueCents,
+    totalLabel: money.totalLabel,
+    depositLabel: money.depositLabel ?? null,
+    paidLabel: money.paidLabel,
+    balanceLabel: money.balanceLabel,
+    balanceDueCents: money.balanceDueCents,
     hasTotal: true,
   };
 }
 
-export function ContextPanel(props: ContextPanelPropsV2) {
+export function ContextPanel(props: ContextPanelProps) {
   const { essentials, chips, tasks, itemsLabel, loading, copy, onAction } = props;
   const [openClient, setOpenClient] = useState(true);
   const [openItems, setOpenItems] = useState(true);
@@ -45,7 +45,7 @@ export function ContextPanel(props: ContextPanelPropsV2) {
   const [openNotes, setOpenNotes] = useState(false);
   const [openFollowUp, setOpenFollowUp] = useState(false);
 
-  const money = moneyOf(props);
+  const money = moneyOf(props.money);
   const main = mainRecordChip(chips);
 
   return (

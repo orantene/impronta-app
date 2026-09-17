@@ -5,11 +5,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { EN_COPY } from "../kit/test-copy";
 import { NOW, inboxRow } from "../kit/test-fixtures";
 
-import { Inbox, type InboxScreenProps } from "./Inbox";
+import type { InboxProps } from "./contracts";
+import { Inbox } from "./Inbox";
 
 const noop = () => {};
 
-function baseProps(over: Partial<InboxScreenProps> = {}): InboxScreenProps {
+function baseProps(over: Partial<InboxProps> = {}): InboxProps {
   return {
     rows: [],
     filter: "needs",

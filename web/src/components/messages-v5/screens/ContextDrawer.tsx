@@ -13,9 +13,9 @@ import "../kit/tokens.css";
 import { Sheet } from "../kit/Sheet";
 
 import { ContextPanel } from "./ContextPanel";
-import type { ContextPanelPropsV2 } from "./contracts";
+import type { ContextPanelProps } from "./contracts";
 
-export type ContextDrawerProps = ContextPanelPropsV2 & {
+export type ContextDrawerProps = ContextPanelProps & {
   readonly open: boolean;
   readonly onClose: () => void;
 };

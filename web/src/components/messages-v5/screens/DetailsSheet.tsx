@@ -16,26 +16,12 @@ import { Btn } from "../kit/primitives";
 import { Sheet } from "../kit/Sheet";
 import { EmptyState, Skeleton } from "../kit/Skeleton";
 
-import { mainRecordChip, summaryFor, type MoneySummary } from "@/lib/messages-v5/context-view";
+import { mainRecordChip, summaryFor } from "@/lib/messages-v5/context-view";
 
+import { moneyOf } from "./ContextPanel";
 import type { DetailsSheetProps } from "./contracts";
-import type { ContextPanelExtra } from "./contracts";
 
-export type DetailsSheetPropsV2 = DetailsSheetProps & ContextPanelExtra;
-
-function moneyOf(props: ContextPanelExtra): MoneySummary | null {
-  if (!props.money) return null;
-  return {
-    totalLabel: props.money.totalLabel,
-    depositLabel: props.money.depositLabel ?? null,
-    paidLabel: props.money.paidLabel,
-    balanceLabel: props.money.balanceLabel,
-    balanceDueCents: props.money.balanceDueCents,
-    hasTotal: true,
-  };
-}
-
-export function DetailsSheet(props: DetailsSheetPropsV2) {
+export function DetailsSheet(props: DetailsSheetProps) {
   const { open, onClose, essentials, chips, tasks, itemsLabel, loading, copy, onAction } = props;
   const [openClient, setOpenClient] = useState(true);
   const [openItems, setOpenItems] = useState(true);
@@ -44,7 +30,7 @@ export function DetailsSheet(props: DetailsSheetPropsV2) {
   const [openNotes, setOpenNotes] = useState(false);
   const [openFollowUp, setOpenFollowUp] = useState(false);
 
-  const money = moneyOf(props);
+  const money = moneyOf(props.money);
   const main = mainRecordChip(chips);
 
   return (

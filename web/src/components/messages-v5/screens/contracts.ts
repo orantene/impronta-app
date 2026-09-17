@@ -9,12 +9,16 @@
  * shell owns loading, live patches, drafts, refusals and routing.
  *
  * Types are additive only. A lane that needs one more field appends it here
- * as optional and notes it in decisions.md.
+ * as optional and notes it in decisions.md. Wave A reconciled (D-MSG-110):
+ * L1's `now` / `onSearchSubmit`, L3's line / money / count extras and the
+ * inline client editor, L4's `generated` / `onKeepSeparate` all live here as
+ * optional fields; no lane keeps a local copy or alias of these types.
  */
 
 import type {
   ActionResult,
   ConversationHistoryEntry,
+  CustomerMatch,
   DerivedTask,
   Essentials,
   InboxRow,
@@ -45,7 +49,10 @@ export type InboxProps = {
   readonly chips: readonly InboxFilterKey[];
   readonly onToggleChip: (key: InboxFilterKey) => void;
   readonly search: string;
+  /** Every keystroke: the shell keeps `search` in sync and the pane narrows client-side. */
   readonly onSearch: (query: string) => void;
+  /** L1 (D-MSG-81): Enter in the search field. Optional; the shell may run `messagingSearch` here. */
+  readonly onSearchSubmit?: (query: string) => void;
   readonly selectedId: string | null;
   readonly onSelect: (inquiryId: string) => void;
   readonly loading: boolean;
@@ -60,9 +67,39 @@ export type InboxProps = {
   readonly currentUserId: string | null;
   readonly copy: KitCopy;
   readonly variant: ScreenVariant;
+  /** L1 (D-MSG-81): the clock the day-boundary grouping reads, so tests are deterministic. Defaults to `new Date()`. */
+  readonly now?: Date;
 };
 
 /* --------------------------------------------------------- Context panel (L3) */
+
+/**
+ * L3 (D-MSG-91): one offer / order line as the Items section draws it
+ * (`LineEditorRow`, read-only). The shell fills these from the POS readers
+ * when one is reachable; `items` stays undefined otherwise and the section
+ * draws its empty state, never a fake zero.
+ */
+export type ContextItemLine = {
+  readonly id: string;
+  readonly name: string;
+  readonly sub?: string | null;
+  readonly units: string;
+  readonly price: string;
+  readonly proposedBy?: "client" | "staff" | null;
+  readonly proposedByName?: string | null;
+  readonly confirmed?: boolean;
+  /** Set only when `priceDrift` (`lib/pos/price-drift.ts`) found a drift. */
+  readonly priceSnapshot?: string | null;
+};
+
+/** L3 (D-MSG-91): the Money section, already formatted (USD, `formatCentsUSD`). */
+export type ContextMoney = {
+  readonly totalLabel: string;
+  readonly depositLabel?: string | null;
+  readonly paidLabel: string;
+  readonly balanceLabel: string;
+  readonly balanceDueCents: number;
+};
 
 /**
  * What a context-panel control asks the shell to do. The shell routes every
@@ -100,12 +137,39 @@ export type ContextPanelProps = {
   readonly onAction: (kind: ContextPanelAction, detail?: { readonly recordId?: string; readonly kind?: RecordChip["kind"] }) => void;
   /** Present when the panel is a drawer (1024 to 1279) so it can draw its own close. */
   readonly onClose?: () => void;
+  /* L3 extras (D-MSG-91), every one optional: absent = the section's empty/collapsed state. */
+  readonly itemsLoading?: boolean;
+  readonly items?: readonly ContextItemLine[] | null;
+  readonly money?: ContextMoney | null;
+  readonly filesCount?: number | null;
+  readonly notesCount?: number | null;
+  readonly nextReminderLabel?: string | null;
+  /** "{count} past bookings · {amount}" from a customers rollup, or omitted (not zero) when no reader carries one (D-MSG-92). */
+  readonly clientHistoryLabel?: string | null;
 };
 
 /** Mobile: the same card as one scrollable 92% sheet (board M04). */
 export type DetailsSheetProps = ContextPanelProps & {
   readonly open: boolean;
   readonly onClose: () => void;
+};
+
+/**
+ * L3 (D-MSG-91): the inline client editor's state (board D15). When the shell
+ * passes it, `ClientSheet` draws name / phone / email fields, the matches
+ * list from `messagingMatchCustomers`, a refusal line and Save; when it does
+ * not, the sheet is the L2 summary with an "Edit contact" button.
+ */
+export type ClientSheetMatchState = {
+  readonly name: string;
+  readonly phone: string;
+  readonly email: string;
+  readonly matches: readonly CustomerMatch[];
+  /** A matched `customerId`, or `"new"`. */
+  readonly selected: string;
+  readonly busy: boolean;
+  /** `"already_linked"` when the typed phone belongs to another client's confirmed identity. */
+  readonly refusal?: MessagingRefusal | null;
 };
 
 /** The Client section opened on its own (desktop "Open" on the Client section, M04 Client). */
@@ -116,6 +180,11 @@ export type ClientSheetProps = {
   readonly copy: KitCopy;
   readonly variant: ScreenVariant;
   readonly onAction: (kind: "capture_identity" | "edit_contact") => void;
+  /* L3 extras (D-MSG-91): the inline editor, all optional. */
+  readonly matchState?: ClientSheetMatchState | null;
+  readonly onFieldChange?: (field: "name" | "phone" | "email", value: string) => void;
+  readonly onSelectMatch?: (value: string) => void;
+  readonly onSave?: () => void;
 };
 
 /* ------------------------------------------------ History, tasks, rename (L4) */
@@ -150,6 +219,12 @@ export type RenameInlineProps = {
   readonly onCancel: () => void;
   readonly copy: KitCopy;
   readonly variant: ScreenVariant;
+  /**
+   * L4 (D-MSG-100): true when `name` is `isGeneratedName(name, contactName)`
+   * (`lib/messaging/inquiry-name.ts`); the shell computes it once because the
+   * pane has no `contactName`. Undefined draws no hint.
+   */
+  readonly generated?: boolean;
 };
 
 export type MergeCardProps = {
@@ -158,6 +233,12 @@ export type MergeCardProps = {
   readonly busy: boolean;
   readonly refusal: MessagingRefusal | null;
   readonly onMerge: () => void;
+  /**
+   * L4 (D-MSG-100): the card's middle row, "Keep separate, link the client"
+   * (`messagingCaptureIdentity`, level "linked"). Optional; the row is not
+   * drawn when the shell does not pass it.
+   */
+  readonly onKeepSeparate?: () => void;
   readonly onDismiss: () => void;
   readonly copy: KitCopy;
   readonly variant: ScreenVariant;

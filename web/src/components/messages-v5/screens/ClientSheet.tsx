@@ -6,15 +6,12 @@
  * refusal with a link to that client, identity level chips with the help
  * sentence, and Save.
  *
- * Contract: `ClientSheetProps` (L2, `./contracts`) is a two-action routing
- * sheet (`capture_identity` / `edit_contact`). This lane's board asks for
- * the fuller inline editor, so `ClientSheetPropsV2` layers the optional
- * `matchState` / `onFieldChange` / `onSelectMatch` / `onSave` extension
- * (D-MSG-91) over it: when the shell has not wired the richer flow yet
- * (`matchState` undefined), the sheet falls back to the L2 minimal summary
- * with an "Edit contact" button that still calls `onAction("edit_contact")`
- * unchanged, so this component is correct against BOTH the shipped contract
- * and the fuller wiring a follow-up shell wave adds.
+ * Contract: `ClientSheetProps` (`./contracts`). Its core is a two-action
+ * routing sheet (`capture_identity` / `edit_contact`); the optional
+ * `matchState` / `onFieldChange` / `onSelectMatch` / `onSave` fields
+ * (D-MSG-91) turn it into the fuller inline editor. When the shell does not
+ * pass `matchState`, the sheet is the minimal summary with an "Edit contact"
+ * button that calls `onAction("edit_contact")`.
  */
 
 import { IdentityPill } from "../kit/StateTags";
@@ -26,9 +23,9 @@ import { Sheet } from "../kit/Sheet";
 
 import type { IdentityLevel } from "@/lib/messaging/types";
 
-import type { ClientSheetPropsV2 } from "./contracts";
+import type { ClientSheetProps } from "./contracts";
 
-export function ClientSheet(props: ClientSheetPropsV2) {
+export function ClientSheet(props: ClientSheetProps) {
   const { essentials, open, onClose, copy, variant, onAction, matchState, onFieldChange, onSelectMatch, onSave } = props;
   const level: IdentityLevel = essentials.customer.identityLevel;
   const help = copy.client.help[level];

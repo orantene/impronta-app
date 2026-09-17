@@ -27,16 +27,12 @@ import type { InboxProps } from "./contracts";
 const CHIP_KEYS: readonly InboxFilterKey[] = ["mine", "unassigned", "unread", "paymentIssues", "orders", "offers", "appointments"];
 
 /**
- * Extends `InboxProps` with two optional, additive fields the contract
- * doesn't carry (D-MSG-8x, decisions.md): `now` for deterministic day-
- * boundary grouping in tests (defaults to `new Date()`), and nothing else
- * required from the shell — locale is read locally via
- * `useDashboardLocale()` like the rest of the dashboard.
+ * `now` (optional, contracts.ts) keeps the day-boundary grouping
+ * deterministic in tests and defaults to `new Date()`; locale is read locally
+ * via `useDashboardLocale()` like the rest of the dashboard.
  */
-export type InboxScreenProps = InboxProps & { readonly now?: Date };
-
-export function Inbox(props: InboxScreenProps) {
-  const { rows, filter, onFilter, chips, onToggleChip, search, onSearch, selectedId, onSelect, loading, error, onRetry, counts, onNew, currentUserId, copy, variant, now: nowProp } = props;
+export function Inbox(props: InboxProps) {
+  const { rows, filter, onFilter, chips, onToggleChip, search, onSearch, selectedId, onSelect, loading, error, onRetry, counts, onNew, currentUserId, copy, variant, now: nowProp, onSearchSubmit } = props;
   const now = useMemo(() => nowProp ?? new Date(), [nowProp]);
   const locale = useDashboardLocale();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -105,14 +101,14 @@ export function Inbox(props: InboxScreenProps) {
 
   if (variant === "mobile") {
     return (
-      <div className="mx" data-inbox-pane="mobile">
+      <div className="pane inbox mx" data-inbox-pane="mobile">
         <div className="mx-ih">
           <h1>{copy.inbox.title}</h1>
           <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="mobile" onChange={onFilter} />
           <div className="tools">
             <div className="mx-search">
               <Icon name="search" size={16} />
-              <input type="search" value={search} placeholder={copy.inbox.search} aria-label={copy.inbox.search} onChange={(e) => onSearch(e.target.value)} />
+              <input type="search" value={search} placeholder={copy.inbox.search} aria-label={copy.inbox.search} onChange={(e) => onSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSearchSubmit?.(search); }} />
             </div>
             <Btn size="lg" icon="layers" iconSize={15} className="filt" onClick={() => setSheetOpen(true)}>
               {copy.inbox.filter}
@@ -136,26 +132,26 @@ export function Inbox(props: InboxScreenProps) {
     );
   }
 
+  // The shell's grid (`shell.css`) addresses this root as `.msgs > .pane.inbox`
+  // and the shell root already carries `.msgv5`, so no wrapper here.
   return (
-    <div className="msgv5">
-      <div className="pane inbox" data-inbox-pane="desktop">
-        <div className="ib-head">
-          <div className="row">
-            <h2>{copy.inbox.title}</h2>
-            <span className="cnt-txt">{fill(copy.inbox.threads, { count: rows.length })}</span>
-            <Btn size="sm" icon="plus" iconSize={13} onClick={onNew}>
-              {copy.inbox.newConversation}
-            </Btn>
-          </div>
-          <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="desktop" onChange={onFilter} />
-          <div className="search">
-            <Icon name="search" size={14} />
-            <input type="search" value={search} placeholder={copy.inbox.search} aria-label={copy.inbox.search} onChange={(e) => onSearch(e.target.value)} />
-          </div>
-          <FilterChips active={chips} copy={copy} keys={CHIP_KEYS} variant="desktop" onToggle={onToggleChip} />
+    <div className="pane inbox" data-inbox-pane="desktop">
+      <div className="ib-head">
+        <div className="row">
+          <h2>{copy.inbox.title}</h2>
+          <span className="cnt-txt">{fill(copy.inbox.threads, { count: rows.length })}</span>
+          <Btn size="sm" icon="plus" iconSize={13} onClick={onNew}>
+            {copy.inbox.newConversation}
+          </Btn>
         </div>
-        {body}
+        <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="desktop" onChange={onFilter} />
+        <div className="search">
+          <Icon name="search" size={14} />
+          <input type="search" value={search} placeholder={copy.inbox.search} aria-label={copy.inbox.search} onChange={(e) => onSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSearchSubmit?.(search); }} />
+        </div>
+        <FilterChips active={chips} copy={copy} keys={CHIP_KEYS} variant="desktop" onToggle={onToggleChip} />
       </div>
+      {body}
     </div>
   );
 }
