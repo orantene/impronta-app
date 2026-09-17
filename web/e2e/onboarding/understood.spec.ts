@@ -5,7 +5,7 @@
  * (asserted first), and the three fixtures are exercised by seeding their
  * facts onto a signed-in user's brief (isolated DB only).
  */
-import { evidence, expect, openHome, test } from "./_module";
+import { evidence, expect, openHome, test, answerBasics } from "./_module";
 import { devSignIn, ensureUser, loadFacts, seedBrief } from "./_seed";
 
 const openModule = async (page: Parameters<typeof openHome>[0]) => {
@@ -28,8 +28,7 @@ test.describe("onboarding · understanding", () => {
     await expect(page.getByTestId("onb-accept")).toHaveText(/Looks right · 3 questions/);
     await page.getByTestId("onb-accept").click();
     await expect(page.getByTestId("onb-question-basics")).toBeVisible();
-    await page.getByTestId("onb-basics-what").fill("House cleaner");
-    await page.getByTestId("onb-basics-city").fill("Playa del Carmen");
+    await answerBasics(page, "House cleaner", "Playa del Carmen");
     await page.getByTestId("onb-next").click();
     await expect(page.getByTestId("onb-question-name")).toBeVisible();
     await page.getByTestId("onb-name-input").fill("Rosa");
@@ -79,7 +78,14 @@ test.describe("onboarding · understanding", () => {
     await page.getByTestId("onb-next").click();
     await expect(page.getByTestId("onb-ready")).toBeVisible();
     await expect(page.getByTestId("onb-link-value")).toContainText("unas-mariana.tulala.digital");
-    await expect(page.getByTestId("onb-link-available")).toBeVisible({ timeout: 15_000 });
+    // The check must return a verdict. On a branch where an earlier build run
+    // already holds `unas-mariana`, the verdict is "taken" with alternatives;
+    // taking the first one is the same path a person takes.
+    await expect(page.getByTestId("onb-link-available").or(page.getByTestId("onb-link-taken"))).toBeVisible({ timeout: 15_000 });
+    if (await page.getByTestId("onb-link-taken").isVisible()) {
+      await page.getByTestId("onb-link-suggestion").first().click();
+      await expect(page.getByTestId("onb-link-available")).toBeVisible({ timeout: 15_000 });
+    }
     await expect(page.getByTestId("onb-build")).toBeEnabled();
     await evidence(page, "12-ready-business");
 
