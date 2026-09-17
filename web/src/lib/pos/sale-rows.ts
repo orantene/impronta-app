@@ -65,13 +65,39 @@ export type LineRow = {
   booking_id?: string | null;
   booking_kind?: string | null;
   price_phase_id?: string | null;
+  /** S5 (D-MSG-30): who put the line here, whether staff confirmed it, and the price it was added at. */
+  proposed_by?: LineAuthor | null;
+  confirmed_at?: string | null;
+  confirmed_by?: string | null;
+  price_snapshot_cents?: number | string | null;
+  catalog_price_cents_at_add?: number | string | null;
+  discount_cents?: number | string | null;
+  discount_label?: string | null;
+  tax_cents?: number | string | null;
+  tax_label?: string | null;
 };
+
+/** Who proposed a draft / offer line: the guest link, a staff member, or an automatic writer. */
+export type LineAuthor = "client" | "staff" | "system";
+
+export function lineAuthor(value: unknown): LineAuthor {
+  return value === "client" || value === "system" ? value : "staff";
+}
 
 export const ORDER_COLUMNS =
   "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents, tip_cents";
 
 export const LINE_COLUMNS =
-  "id, offering_id, variant_id, addon_ids, session_id, label, units, unit_cents, total_cents, kind, operator_user_id, booking_id, booking_kind, price_phase_id";
+  "id, offering_id, variant_id, addon_ids, session_id, label, units, unit_cents, total_cents, kind, operator_user_id, booking_id, booking_kind, price_phase_id, proposed_by, confirmed_at, confirmed_by, price_snapshot_cents, catalog_price_cents_at_add, discount_cents, discount_label, tax_cents, tax_label";
+
+/**
+ * The per-line discounts on a draft, summed. They join the order's own
+ * discount in the totals (the RPC does the same sum in SQL), so the fallback
+ * writer and the RPC agree on `orders.discount_cents`.
+ */
+export function lineDiscountCents(lines: readonly LineRow[]): number {
+  return lines.reduce((sum, line) => sum + Math.max(0, num(line.discount_cents)), 0);
+}
 
 /**
  * A stored line, as `cartTotals` wants it.

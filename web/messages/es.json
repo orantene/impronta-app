@@ -15441,7 +15441,8 @@
           "basket_changed": "La canasta cambio despues de iniciar el pago.",
           "not_allowed": "No puedes hacer eso desde aqui.",
           "expired": "Este enlace u oferta ya vencio.",
-          "already": "Eso ya esta hecho."
+          "already": "Eso ya esta hecho.",
+          "deposit_required": "Hace falta un deposito antes de poder confirmar esto."
         },
         "history": {
           "rename": "{actor} renombró esta conversación a \"{name}\"",

@@ -96,7 +96,8 @@ export type MessagingRefusal =
   | "basket_changed"
   | "not_allowed"
   | "expired"
-  | "already";
+  | "already"
+  | "deposit_required";
 
 export type ActionOk<T extends Record<string, unknown> = Record<string, never>> = { ok: true } & T;
 export type ActionFail = { ok: false; reason: MessagingRefusal };

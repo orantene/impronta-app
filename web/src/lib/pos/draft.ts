@@ -11,7 +11,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { cartTotals, lineTotalCents, totalsAreWritable } from "@/lib/cart/totals";
 import { addonCentsOnLine, priceAddons } from "./addons";
-import { LINE_COLUMNS, num, totalsInput, type Admin, type LineRow, type OrderRow } from "./sale-rows";
+import { LINE_COLUMNS, lineDiscountCents, num, totalsInput, type Admin, type LineAuthor, type LineRow, type OrderRow } from "./sale-rows";
 import { posGuestSessionId, type PosLineInput } from "./commands";
 import { lockedCustomLineIds } from "./custom-line";
 import { livePhasePrice } from "@/lib/catalog/price-phases";
@@ -216,6 +216,59 @@ export type MutateLineResult =
   | { ok: true; orderId: string; lineId?: string | null }
   | { ok: false; reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid" | "conflict"; error: string };
 
+/**
+ * The discount the fallback totals writer applies: the order's own discount
+ * (promo or manual) plus every per-line discount (S5). `pos_mutate_draft_line`
+ * sums the same two in SQL, so both writers land on one `orders.discount_cents`.
+ * The stored value already holds the line sum from the previous write, so the
+ * order's own part is what is left after taking the lines it had out, and the
+ * lines it will have go back in.
+ */
+function orderDiscountCents(order: OrderRow, before: readonly LineRow[], after: readonly LineRow[]): number {
+  const own = Math.max(0, num(order.discount_cents) - lineDiscountCents(before));
+  return own + lineDiscountCents(after);
+}
+
+export type ConfirmLinesResult =
+  | { ok: true; orderId: string; confirmedLineIds: string[] }
+  | { ok: false; reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid"; error: string };
+
+/**
+ * Staff confirm the lines a client proposed (owner decision 3: picks hold,
+ * staff confirm). Writes `confirmed_at` / `confirmed_by`; the line trigger
+ * records the confirmation on the history. Exported for S3's confirm; no
+ * caller in this lane. A line already confirmed is left as it was (the first
+ * confirmation is the one that counts), so a repeat is idempotent.
+ */
+export async function confirmLines(
+  admin: Admin,
+  input: { tenantId: string; orderId: string; lineIds: readonly string[]; actor: { kind: LineAuthor; id: string | null } },
+): Promise<ConfirmLinesResult> {
+  if (input.actor.kind !== "staff" && input.actor.kind !== "system") {
+    return { ok: false, reason: "invalid", error: "Only staff confirm a line." };
+  }
+  const ids = [...new Set(input.lineIds.filter((id) => typeof id === "string" && id.length > 0))];
+  if (ids.length === 0) return { ok: false, reason: "invalid", error: "Nothing to confirm." };
+  const loaded = await loadDraft(admin, input.tenantId, input.orderId);
+  if ("ok" in loaded) return { ok: false, reason: loaded.reason, error: "Sale is not open." };
+  const onSale = new Set(loaded.lines.map((l) => l.id));
+  const missing = ids.filter((id) => !onSale.has(id));
+  if (missing.length > 0) return { ok: false, reason: "not_found", error: "That line is not on this sale." };
+  const toConfirm = ids.filter((id) => !loaded.lines.find((l) => l.id === id)?.confirmed_at);
+  if (toConfirm.length === 0) return { ok: true, orderId: input.orderId, confirmedLineIds: [] };
+  const { error } = await admin
+    .from("order_lines")
+    .update({ confirmed_at: new Date().toISOString(), confirmed_by: input.actor.id })
+    .eq("order_id", input.orderId)
+    .eq("tenant_id", input.tenantId)
+    .in("id", toConfirm);
+  if (error) {
+    logServerError("pos.confirmLines", error);
+    return { ok: false, reason: "unavailable", error: "Could not confirm the lines." };
+  }
+  return { ok: true, orderId: input.orderId, confirmedLineIds: toConfirm };
+}
+
 export async function addLine(
   admin: Admin,
   input: {
@@ -223,8 +276,17 @@ export async function addLine(
     orderId: string;
     line: PosLineInput;
     expectedVersion?: number;
+    /**
+     * Who is putting the line on the draft (S5, D-MSG-30). The guest link
+     * passes `client`; the counter and Messages pass `staff`; an automatic
+     * writer passes `system`. Default `staff`: every pre-S5 caller is one.
+     */
+    proposedBy?: LineAuthor;
+    /** The user behind a staff add, written on the line's history event. */
+    actorId?: string | null;
   },
 ): Promise<MutateLineResult> {
+  const proposedBy: LineAuthor = input.proposedBy ?? "staff";
   const loaded = await loadDraft(admin, input.tenantId, input.orderId);
   if ("ok" in loaded) return { ok: false, reason: loaded.reason, error: "Sale is not open." };
   const loadedVersion = Number(loaded.order.version) || 1;
@@ -290,6 +352,10 @@ export async function addLine(
   let unitCents = Math.max(0, Math.trunc(num(off.amount_cents)));
   let label = off.title?.trim() || "Item";
   if (sessionTitle) label = `${label} · ${sessionTitle}`;
+  // The raw catalog price at the add (offering, or the variant when it prices
+  // itself), BEFORE a live phase replaces it. Stamped on the line so the UI
+  // can say "catalog price now X" against the catalog later (D-MSG-30).
+  let catalogCents = unitCents;
   if (input.line.variantId) {
     const { data: variant, error: vErr } = await admin
       .from("talent_offering_variants")
@@ -305,6 +371,7 @@ export async function addLine(
       return { ok: false, reason: "invalid", error: "That option does not belong to this item." };
     }
     if (v.amount_cents != null) unitCents = Math.max(0, Math.trunc(num(v.amount_cents)));
+    catalogCents = unitCents;
     if (v.label) label = `${label} · ${v.label}`;
   }
 
@@ -358,6 +425,14 @@ export async function addLine(
       talent_cost_cents: talentId ? unitCents : 0,
       sort_order: loaded.lines.length,
       price_phase_id: pricePhaseId,
+      proposed_by: proposedBy,
+      actor_kind: proposedBy,
+      actor_id: input.actorId ?? null,
+      // The price this line sold at. Never rewritten by a later catalog
+      // change; `repriceAndValidate` is the one command that re-reads prices
+      // and it writes `unit_cents`, not this.
+      price_snapshot_cents: unitCents,
+      catalog_price_cents_at_add: catalogCents,
     },
   });
   if (viaRpc !== "fallback") {
@@ -390,6 +465,11 @@ export async function addLine(
     talent_cost_cents: talentId ? unitCents : 0,
     sort_order: loaded.lines.length,
     price_phase_id: pricePhaseId,
+    proposed_by: proposedBy,
+    price_snapshot_cents: unitCents,
+    catalog_price_cents_at_add: catalogCents,
+    discount_cents: 0,
+    tax_cents: 0,
   });
   if (insErr) {
     logServerError("pos.addLine.insert", insErr);
@@ -402,7 +482,7 @@ export async function addLine(
     {
       tenantId: input.tenantId,
       orderId: input.orderId,
-      discountCents: num(loaded.order.discount_cents),
+      discountCents: orderDiscountCents(loaded.order, loaded.lines, loaded.lines),
       version: expectedVersion,
       tipCents: num(loaded.order.tip_cents),
     },
@@ -465,7 +545,7 @@ export async function updateLine(
     {
       tenantId: input.tenantId,
       orderId: input.orderId,
-      discountCents: num(loaded.order.discount_cents),
+      discountCents: orderDiscountCents(loaded.order, loaded.lines, loaded.lines),
       version: expectedVersion,
       tipCents: num(loaded.order.tip_cents),
     },
@@ -503,13 +583,14 @@ export async function removeLine(
     logServerError("pos.removeLine", error);
     return { ok: false, reason: "unavailable", error: "Could not remove the item." };
   }
-  const nextLines = loaded.lines.filter((l) => l.id !== input.lineId).map(totalsInput);
+  const remaining = loaded.lines.filter((l) => l.id !== input.lineId);
+  const nextLines = remaining.map(totalsInput);
   const written = await writeTotals(
     admin,
     {
       tenantId: input.tenantId,
       orderId: input.orderId,
-      discountCents: num(loaded.order.discount_cents),
+      discountCents: orderDiscountCents(loaded.order, loaded.lines, remaining),
       version: input.expectedVersion ?? loadedVersion,
       tipCents: num(loaded.order.tip_cents),
     },
@@ -657,7 +738,9 @@ export async function repriceAndValidate(
     {
       tenantId: input.tenantId,
       orderId: input.orderId,
-      discountCents,
+      // The promo replaces the order's own discount; the per-line discounts
+      // (S5) stay on their lines and ride along.
+      discountCents: discountCents + lineDiscountCents(loaded.lines),
       version: input.expectedVersion ?? loadedVersion,
       promoCodeId,
       tipCents: num(loaded.order.tip_cents),
