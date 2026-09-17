@@ -19,6 +19,7 @@ import { useEditContext } from "./edit-context";
 import { locateCanvasNode } from "./freeform-layer-row";
 import { Button, DrawerSkeleton } from "./kit";
 import { useEditorLocale } from "./use-editor-locale";
+import { setBrandIdentityWordmark } from "@/lib/site-admin/edit-mode/brand-identity-action";
 
 /** W1-L2 — hard ceiling for the preflight action. A hung server action used to
  *  leave the drawer as a skeleton forever AND "Publish now" disabled with
@@ -41,6 +42,7 @@ const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
   layout: "Layout",
   mobile_overflow: "Mobile overflow",
   performance: "Performance",
+  brand_identity: "Brand identity",
 };
 
 /** Wand — same glyph as MobileHealthPanel's fix action, so "one-click safe
@@ -114,7 +116,7 @@ export function PublishPreflight({
   onFocusSection,
 }: Props) {
   const { t } = useEditorLocale();
-  const { reportMutationError, fixAllMobileIssues, flushBuilderTreeSave } =
+  const { reportMutationError, fixAllMobileIssues, flushBuilderTreeSave, toggleBrandPanel } =
     useEditContext();
   // Held in a ref and kept OUT of the checks effect's dep list. When it was a
   // dep, any change to its identity re-ran the effect; the previous run's
@@ -131,6 +133,7 @@ export function PublishPreflight({
   // W1-L2 — Retry re-runs the checks after a failure/timeout without closing
   // and reopening the drawer.
   const [retryNonce, setRetryNonce] = useState(0);
+  const [wordmarkBusy, setWordmarkBusy] = useState(false);
   // W1-L2 — visible elapsed-seconds ticker while the checks run, so a slow
   // action reads as "still working on it", never as a dead skeleton.
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -394,7 +397,35 @@ export function PublishPreflight({
             </span>
           ) : null}
         </div>
-        <p className="leading-snug">{issue.message}</p>
+        <p className="leading-snug">{issue.category === "brand_identity" ? t(issue.message) : issue.message}</p>
+        {issue.category === "brand_identity" ? (
+          <div className="mt-1.5 flex flex-wrap gap-2" data-testid="preflight-brand-identity">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => toggleBrandPanel()}
+              data-testid="preflight-brand-upload"
+            >
+              {t("Upload my logo")}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={wordmarkBusy}
+              onClick={() => {
+                setWordmarkBusy(true);
+                void setBrandIdentityWordmark().then((r) => {
+                  setWordmarkBusy(false);
+                  if (r.ok) setRetryNonce((n) => n + 1);
+                  else reportMutationErrorRef.current(r.error);
+                });
+              }}
+              data-testid="preflight-brand-wordmark"
+            >
+              {wordmarkBusy ? t("Saving…") : t("Use my business name as my logo")}
+            </Button>
+          </div>
+        ) : null}
         {nodeIds.length > 0 ? (
           // W3-M1 — node-level locate: points at the exact offending block
           // (scroll + flash) via the W1-L4 plumbing. When a group covers

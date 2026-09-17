@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 
 import { translatorFor } from "@/i18n/use-t";
+import { trackProductEvent } from "@/lib/analytics/track-client";
 import { initialMachineState, reduceMachine, type MachineErrorCode } from "@/lib/onboarding/machine";
 import type { ModuleStep, OnboardingIntent } from "@/lib/onboarding/module-state";
 import {
@@ -83,6 +84,22 @@ export function OnboardingModule({
 }) {
   const t = useMemo(() => translatorFor(locale), [locale]);
   const [state, dispatch] = useReducer(reduceMachine, intent, initialMachineState);
+  // Funnel: one event per milestone, with the time since the module opened.
+  const openedAtRef = useRef<number>(0);
+  const track = useCallback(
+    (name: "onboarding_opened" | "onboarding_sentence_sent" | "onboarding_understood_shown" | "onboarding_account_created" | "onboarding_arrival_shown", extra: Record<string, string | number | null> = {}) => {
+      trackProductEvent(name, { intent: state.intent, path: state.understanding?.path ?? null, locale, ms_since_open: Date.now() - openedAtRef.current, ...extra });
+    },
+    [state.intent, state.understanding?.path, locale],
+  );
+  const trackRef = useRef(track);
+  useEffect(() => {
+    trackRef.current = track;
+  }, [track]);
+  useEffect(() => {
+    openedAtRef.current = Date.now();
+    trackRef.current("onboarding_opened");
+  }, []);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Resume: what this owner already had. Opening creates nothing.
@@ -111,7 +128,28 @@ export function OnboardingModule({
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeRef.current();
+      if (e.key === "Escape") {
+        closeRef.current();
+        return;
+      }
+      // Keep Tab inside the dialog: the page beneath is dimmed and inert to
+      // the eye, so it must be inert to the keyboard too.
+      if (e.key === "Tab" && cardRef.current) {
+        const focusables = cardRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey && (active === first || !cardRef.current.contains(active))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     const focusTimer = window.setTimeout(() => cardRef.current?.focus(), 60);
@@ -131,7 +169,10 @@ export function OnboardingModule({
       dispatch({ type: "sendStarted" });
       try {
         const result = await submitOnboardingInput({ intent: state.intent, locale, text });
-        if (result.ok) dispatch({ type: "sendAccepted", briefId: result.briefId, input: result.input });
+        if (result.ok) {
+          dispatch({ type: "sendAccepted", briefId: result.briefId, input: result.input });
+          trackRef.current("onboarding_sentence_sent", { kind: result.input.kind });
+        }
         else dispatch({ type: "sendFailed", code: result.code as MachineErrorCode });
       } catch {
         dispatch({ type: "sendFailed", code: isOffline() ? "offline" : "save_failed" });
@@ -148,9 +189,14 @@ export function OnboardingModule({
 
   // Phase 3 · the card. Runs the understand step once the words are sent
   // (reading screen), or reloads the card from the brief on resume.
+  const understoodTrackedRef = useRef(false);
   const applyCard = useCallback((result: CardResult, opts: { step?: ModuleStep } = {}) => {
     if (result.ok) {
       dispatch({ type: "cardLoaded", understanding: result.card.understanding, chip: result.card.chip, step: opts.step });
+      if (!understoodTrackedRef.current) {
+        understoodTrackedRef.current = true;
+        trackRef.current("onboarding_understood_shown", { path: result.card.understanding.path, questions: result.card.understanding.followUps.length });
+      }
       return true;
     }
     const code: MachineErrorCode = result.code === "ai" ? (result.understandCode as MachineErrorCode) : (result.code as MachineErrorCode);
@@ -234,12 +280,14 @@ export function OnboardingModule({
     const r = await verifyOnboardingCode({ email: state.codeEmail, code, locale, path });
     if (r.ok) {
       dispatch({ type: "authed", email: r.email });
+      trackRef.current("onboarding_account_created", { method: "code" });
       void saveOnboardingStep({ step: "building" });
     } else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
   }, [state.codeEmail, locale, path, t]);
 
   const onGoogleSuccess = useCallback(() => {
     dispatch({ type: "authed", email: null });
+    trackRef.current("onboarding_account_created", { method: "google" });
     void saveOnboardingStep({ step: "building" });
     void loadOnboardingResume().then((snapshot) => {
       if (snapshot?.email) dispatch({ type: "authed", email: snapshot.email });
@@ -253,7 +301,10 @@ export function OnboardingModule({
     if (state.step !== "building" || buildStartedRef.current) return;
     buildStartedRef.current = true;
     const finish = (build: Record<string, unknown> | null) => {
-      if (build?.status === "done" && build.arrival) dispatch({ type: "buildDone", arrival: build.arrival as ArrivalPayload });
+      if (build?.status === "done" && build.arrival) {
+        dispatch({ type: "buildDone", arrival: build.arrival as ArrivalPayload });
+        trackRef.current("onboarding_arrival_shown", { variant: String((build.arrival as ArrivalPayload).variant) });
+      }
       else if (build?.status === "failed") dispatch({ type: "buildFailed", message: String(build.message ?? "") });
       else dispatch({ type: "buildFailed", message: "" });
     };

@@ -51,4 +51,9 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
     "Programación guardada. La página se publicará a la hora elegida.",
   "Cancel scheduled publish": "Cancelar publicación programada",
   "Update schedule": "Actualizar programación",
+  "Brand identity": "Identidad de marca",
+  "Complete your brand identity to publish: upload a logo, or use your business name as your logo.":
+    "Completa tu identidad de marca para publicar: sube un logo o usa el nombre de tu negocio como logo.",
+  "Upload my logo": "Subir mi logo",
+  "Use my business name as my logo": "Usar el nombre de mi negocio como logo",
 };
