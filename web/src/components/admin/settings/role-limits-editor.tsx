@@ -209,19 +209,50 @@ export function RoleLimitsEditor({ currency, canEdit }: { currency: string; canE
           {t(`${K}.inbox.none`)}
         </div>
       ) : (
-        <ul className="m-0 flex list-none flex-col gap-[8px] p-0" data-testid="approval-inbox">
-          {[...open, ...decided].map((r) => (
-            <li key={r.id} data-approval-request={r.id} data-decision={r.decision ?? "open"} className="rounded-[12px] border border-admin-border bg-admin-card px-[14px] py-[10px]">
-              <div className="flex flex-wrap items-center gap-[8px]">
-                <span className="text-[13px] font-semibold text-admin-ink">
-                  {interpolate(t(`${K}.inbox.title`), { kind: t(KIND_KEY[r.kind]), ref: r.subjectId.slice(0, 8) })}
-                </span>
-                <span className="text-[12px] text-admin-ink-muted">
-                  {interpolate(t(`${K}.inbox.by`), { who: r.requestedByName ?? r.requestedBy.slice(0, 8), when: when(r.createdAt) })}
-                </span>
-                <span className="flex-1" />
+        <ul className="m-0 flex list-none flex-col gap-[10px] p-0" data-testid="approval-inbox">
+          {[...open, ...decided].map((r) => {
+            const kind = t(KIND_KEY[r.kind]);
+            const who = r.requestedByName ?? r.requestedBy.slice(0, 8);
+            const ref = r.subjectId.slice(0, 8);
+            return (
+              <li key={r.id} data-approval-request={r.id} data-decision={r.decision ?? "open"} className="rounded-[14px] border border-admin-border bg-admin-card">
+                {/* The board's request card (W56): the ask as a title, who and when under it, the facts on a hairline card, the decision in the footer. */}
+                <div className="px-[16px] pt-[14px]">
+                  <div className="flex flex-wrap items-center gap-[8px]">
+                    <span className="text-[15px] font-semibold leading-[1.2] text-admin-ink">{interpolate(t(`${K}.inbox.title`), { kind, ref })}</span>
+                    <span className="flex-1" />
+                    {r.decision !== null ? (
+                      <span className="rounded-full bg-admin-surface-alt px-[8px] py-[2px] text-[11px] font-semibold text-admin-ink">
+                        {r.decision === "approved" ? t(`${K}.inbox.approved`) : t(`${K}.inbox.denied`)}
+                        {r.decidedAt ? ` · ${when(r.decidedAt)}` : ""}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-[3px] text-[12.5px] leading-[1.2] text-admin-ink-muted">{interpolate(t(`${K}.inbox.by`), { who, when: when(r.createdAt) })}</div>
+                  <div className="mt-[10px] rounded-[10px] border border-admin-border px-[12px]">
+                    <div className="flex items-baseline justify-between gap-[12px] border-b border-admin-border-soft py-[7px] text-[12.5px] leading-[1.2]">
+                      <span className="shrink-0 text-admin-ink-muted">{t(`${K}.inbox.factAction`)}</span>
+                      <span className="text-right font-medium text-admin-ink">{interpolate(t(`${K}.inbox.factActionValue`), { kind, ref })}</span>
+                    </div>
+                    {r.reason ? (
+                      <div className="flex items-baseline justify-between gap-[12px] border-b border-admin-border-soft py-[7px] text-[12.5px] leading-[1.2]">
+                        <span className="shrink-0 text-admin-ink-muted">{t(`${K}.inbox.factReason`)}</span>
+                        <span className="text-right font-medium text-admin-ink">{r.reason}</span>
+                      </div>
+                    ) : null}
+                    <div className="flex items-baseline justify-between gap-[12px] py-[7px] text-[12.5px] leading-[1.2]">
+                      <span className="shrink-0 text-admin-ink-muted">{t(`${K}.inbox.factScope`)}</span>
+                      <span className="text-right font-medium text-admin-ink">{interpolate(t(`${K}.inbox.factScopeValue`), { who })}</span>
+                    </div>
+                  </div>
+                  {note?.id === r.id ? (
+                    <div role="alert" className="mt-[8px] text-[12px] text-admin-red">
+                      {note.text}
+                    </div>
+                  ) : null}
+                </div>
                 {r.decision === null ? (
-                  <>
+                  <div className="mt-[12px] flex justify-end gap-[8px] border-t border-admin-border-soft px-[16px] py-[10px]">
                     <button type="button" disabled={deciding === r.id} onClick={() => decide(r.id, "denied")} className={BTN} data-approval-deny>
                       {t(`${K}.inbox.deny`)}
                     </button>
@@ -234,22 +265,13 @@ export function RoleLimitsEditor({ currency, canEdit }: { currency: string; canE
                     >
                       {t(`${K}.inbox.approve`)}
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <span className="rounded-full bg-admin-surface-alt px-[8px] py-[2px] text-[11px] font-semibold text-admin-ink">
-                    {r.decision === "approved" ? t(`${K}.inbox.approved`) : t(`${K}.inbox.denied`)}
-                    {r.decidedAt ? ` · ${when(r.decidedAt)}` : ""}
-                  </span>
+                  <div className="h-[14px]" />
                 )}
-              </div>
-              {r.reason ? <div className="mt-[4px] text-[12px] text-admin-ink-muted">{r.reason}</div> : null}
-              {note?.id === r.id ? (
-                <div role="alert" className="mt-[6px] text-[12px] text-admin-red">
-                  {note.text}
-                </div>
-              ) : null}
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

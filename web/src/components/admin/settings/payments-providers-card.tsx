@@ -20,7 +20,8 @@
  * EVERY ROW OF THE METHOD TABLE IS A FACT OF THE ENGINE, not of the board:
  * cash needs an open shift (`lib/pos/shift.ts`); the reader row follows
  * `stripe_terminal`; online card follows `stripe_checkout`; a payment link
- * has no table (D-POS-42); a recorded bank transfer is not a tender
+ * is `createPaymentLink` over `payment_links` (WIRE-1.7) and follows
+ * `stripe_checkout` too, open for the checkout hold; a recorded bank transfer is not a tender
  * `settleAtDoor` knows (`paidVia: "cash" | "card"`); credit is an
  * entitlement, not a tender; two methods on one sale is `collection.split`.
  *
@@ -37,15 +38,17 @@ import {
   type PaymentProviderRefusal,
 } from "@/lib/settings/refusals";
 import type { ProviderId, ProviderStatus } from "@/lib/payments/provider-status";
+import { interpolate } from "@/i18n/interpolate";
 import {
   ActionButton,
   CouldNotLoad,
-  FactRow,
   GridHead,
   GridRow,
   LoadingLines,
   Note,
+  RowMenu,
   SettingsCard,
+  SettingsFactRow as FactRow,
   SettingsHeader,
   StatePill,
   UsedIn,
@@ -56,13 +59,14 @@ const K = "dashboard.adminWorkspace.paymentsProviders";
 /** A server refusal, or the one failure that never reaches the server at all. */
 type CardRefusal = PaymentProviderRefusal | ClientLoadRefusal;
 
-const METHOD_COLS = "grid-cols-[1.3fr_110px_1.6fr]";
+const METHOD_COLS = "grid-cols-[1.3fr_120px_1.6fr_16px]";
 
 type MethodRow = { id: string; on: boolean; rule: string };
 
 export function PaymentsProvidersCard({ workspaceName }: { workspaceName: string }) {
   const t = useT();
   const [providers, setProviders] = useState<ProviderStatus[] | null>(null);
+  const [linkTtlSeconds, setLinkTtlSeconds] = useState<number | null>(null);
   const [refusal, setRefusal] = useState<CardRefusal | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -72,8 +76,10 @@ export function PaymentsProvidersCard({ workspaceName }: { workspaceName: string
     void getPaymentProviderStatus()
       .then((res) => {
         if (cancelled) return;
-        if (res.ok) setProviders(res.providers);
-        else setRefusal(res.reason);
+        if (res.ok) {
+          setProviders(res.providers);
+          setLinkTtlSeconds(res.linkTtlSeconds);
+        } else setRefusal(res.reason);
       })
       .catch(() => {
         if (!cancelled) setRefusal(CLIENT_LOAD_REFUSAL);
@@ -87,12 +93,14 @@ export function PaymentsProvidersCard({ workspaceName }: { workspaceName: string
   const online = status("stripe_checkout");
   const reader = status("stripe_terminal");
   const stripeConnected = Boolean(online?.configured);
+  const linkMinutes = Math.round((linkTtlSeconds ?? 0) / 60);
+  const linkExpiry = interpolate(t(`${K}.linkExpiry`), { n: linkMinutes });
 
   const methods: MethodRow[] = [
     { id: "cash", on: true, rule: t(`${K}.methods.cashRule`) },
     { id: "cardReader", on: Boolean(reader?.configured), rule: t(`${K}.methods.cardReaderRule`) },
     { id: "cardOnline", on: stripeConnected, rule: t(`${K}.methods.cardOnlineRule`) },
-    { id: "paymentLink", on: false, rule: t(`${K}.methods.paymentLinkRule`) },
+    { id: "paymentLink", on: stripeConnected, rule: stripeConnected ? `${t(`${K}.methods.paymentLinkRule`)} · ${linkExpiry}` : t(`${K}.methods.paymentLinkOffRule`) },
     { id: "bankTransfer", on: false, rule: t(`${K}.methods.bankTransferRule`) },
     { id: "credit", on: false, rule: t(`${K}.methods.creditRule`) },
     { id: "twoMethods", on: true, rule: t(`${K}.methods.twoMethodsRule`) },
@@ -151,7 +159,9 @@ export function PaymentsProvidersCard({ workspaceName }: { workspaceName: string
                 </FactRow>
                 <FactRow label={t(`${K}.stripe.reader`)}>{t(`${K}.stripe.reader_${reader?.reason ?? "missing_secret_key"}`)}</FactRow>
                 <FactRow label={t(`${K}.stripe.refunds`)}>{t(`${K}.stripe.refundsValue`)}</FactRow>
-                <FactRow label={t(`${K}.stripe.links`)} muted>{t(`${K}.stripe.linksValue`)}</FactRow>
+                <FactRow label={t(`${K}.stripe.links`)} muted={!stripeConnected}>
+                  {stripeConnected ? `${t(`${K}.stripe.linksValue`)} · ${linkExpiry}` : t(`${K}.stripe.linksOff`)}
+                </FactRow>
                 <FactRow label={t(`${K}.stripe.testMode`)} muted>{t(`${K}.stripe.testModeValue`)}</FactRow>
               </div>
             </SettingsCard>
@@ -174,18 +184,17 @@ export function PaymentsProvidersCard({ workspaceName }: { workspaceName: string
           </div>
 
           <section data-testid="payment-methods-table" className="rounded-[14px] border border-admin-border bg-admin-card">
-            <GridHead cols={METHOD_COLS} columns={[t(`${K}.methods.colMethod`), t(`${K}.methods.colLocation`), t(`${K}.methods.colRules`)]} />
+            <GridHead cols={METHOD_COLS} columns={[t(`${K}.methods.colMethod`), t(`${K}.methods.colLocation`), t(`${K}.methods.colRules`), ""]} />
             {methods.map((m) => (
               <GridRow key={m.id} cols={METHOD_COLS} testId={`payment-method-${m.id}`}>
                 <span className="font-semibold text-admin-ink">{t(`${K}.methods.${m.id}`)}</span>
-                <span>
-                  {m.on ? (
-                    <StatePill tone="green" state="on">{t(`${K}.methods.on`)}</StatePill>
-                  ) : (
-                    <StatePill tone="slate" state="off">{t(`${K}.methods.off`)}</StatePill>
-                  )}
-                </span>
+                {m.on ? (
+                  <StatePill block tone="green" state="on">{t(`${K}.methods.on`)}</StatePill>
+                ) : (
+                  <StatePill block tone="neutral" state="off">{t(`${K}.methods.off`)}</StatePill>
+                )}
                 <span className="text-admin-ink-muted">{m.rule}</span>
+                <RowMenu label={t(`${K}.methods.rowMenu`)} reason={t(`${K}.notWired.rowMenu`)} />
               </GridRow>
             ))}
           </section>

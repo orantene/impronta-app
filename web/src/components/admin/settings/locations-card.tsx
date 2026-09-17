@@ -20,6 +20,7 @@ import {
 } from "@/lib/server-actions/venue-engine";
 import { VENUE_ENGINE_REFUSALS, type VenueEngineRefusal } from "@/lib/venues/engine-refusals";
 import { CLIENT_LOAD_REFUSAL, type ClientLoadRefusal } from "@/lib/settings/refusals";
+import { Icon } from "@/components/admin/shell/internal/primitives";
 import {
   ActionButton,
   CouldNotLoad,
@@ -86,6 +87,9 @@ export function LocationsCard({ workspaceName, onEditLocation }: { workspaceName
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   const [reloadToken, setReloadToken] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // The board lists locations as plain rows; the editor opens under the row
+  // a person taps (preset first, the fields only when asked for).
+  const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [timezoneDraft, setTimezoneDraft] = useState("");
   const [addressDraft, setAddressDraft] = useState("");
@@ -202,7 +206,8 @@ export function LocationsCard({ workspaceName, onEditLocation }: { workspaceName
                 setNewLocationName("");
               }}
             >
-              + {t(`${K}.addLocation`)}
+              <Icon name="plus" size={14} stroke={2} />
+              {t(`${K}.addLocation`)}
             </ActionButton>
             <ActionButton
               testId="locations-add-zone"
@@ -212,7 +217,8 @@ export function LocationsCard({ workspaceName, onEditLocation }: { workspaceName
                 setNewZoneName("");
               }}
             >
-              + {t(`${K}.addZone`)}
+              <Icon name="plus" size={14} stroke={2} />
+              {t(`${K}.addZone`)}
             </ActionButton>
             <ActionButton
               tone="primary"
@@ -257,24 +263,35 @@ export function LocationsCard({ workspaceName, onEditLocation }: { workspaceName
             <LoadingLines label={t(`${K}.loading`)} />
           ) : (
             <div className="flex flex-col">
-              {locations.map((row) => (
-                <button
-                  key={row.id}
-                  type="button"
-                  data-testid={`locations-row-${row.slug}`}
-                  onClick={() => setSelectedId(row.id)}
-                  className={`flex items-start gap-[12px] border-t border-admin-border-soft py-[8px] text-left text-admin-13 ${
-                    row.id === selectedId ? "bg-admin-surface-alt" : ""
-                  }`}
-                >
-                  <span className="w-[110px] shrink-0 font-semibold text-admin-ink">{row.name}</span>
-                  <span className="min-w-0 flex-1 font-medium text-admin-ink">
-                    {[addressLineOf(row.address) || t(`${K}.noAddress`), row.timezone, row.isDefault ? t(`${K}.defaultChip`) : t(`${K}.notDefault`)]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </span>
-                </button>
-              ))}
+              {locations.map((row) => {
+                const open = row.id === selectedId && editing;
+                return (
+                  <button
+                    key={row.id}
+                    type="button"
+                    data-testid={`locations-row-${row.slug}`}
+                    aria-expanded={open}
+                    onClick={() => {
+                      if (row.id === selectedId) setEditing((v) => !v);
+                      else {
+                        setSelectedId(row.id);
+                        setEditing(true);
+                      }
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-[12px] border-x-0 border-t-0 border-b border-solid border-admin-border-soft bg-transparent px-0 py-[10px] text-left font-admin-body text-admin-13 leading-[1.2] hover:text-admin-brand"
+                  >
+                    <span className="w-[72px] shrink-0 text-admin-ink-muted">{row.name}</span>
+                    <span className="min-w-0 flex-1 font-semibold text-admin-ink">
+                      {[addressLineOf(row.address) || t(`${K}.noAddress`), row.timezone, row.isDefault ? t(`${K}.defaultChip`) : t(`${K}.notDefault`)]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                    <span aria-hidden className={`shrink-0 text-admin-ink-dim transition-transform ${open ? "rotate-180" : ""}`}>
+                      <Icon name="chevron-down" size={14} stroke={1.75} />
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
           {addingLocation ? (
@@ -308,7 +325,7 @@ export function LocationsCard({ workspaceName, onEditLocation }: { workspaceName
               </div>
             </div>
           ) : null}
-          {selected ? (
+          {selected && editing ? (
             <div className="grid grid-cols-1 gap-[12px] border-t border-admin-border-soft pt-[10px]">
               <TextField label={t(`${K}.nameLabel`)} value={nameDraft} onChange={setNameDraft} testId="locations-edit-name" />
               <TextField label={t(`${K}.timezoneLabel`)} value={timezoneDraft} onChange={setTimezoneDraft} testId="locations-edit-timezone" />
@@ -324,13 +341,13 @@ export function LocationsCard({ workspaceName, onEditLocation }: { workspaceName
               ) : null}
             </div>
           ) : null}
-          <div>
-            <ActionButton onClick={onEditLocation} className="h-[30px] px-[12px] text-[12px]" testId="locations-edit">
-              {t(`${K}.editLocation`)}
-            </ActionButton>
-          </div>
           {writeReason ? <Note>{sentence(writeReason)}</Note> : null}
-          <Note>{interpolate(t(`${K}.oneLocationNote`), { workspace: workspaceName })}</Note>
+          <Note>
+            {interpolate(t(`${K}.oneLocationNote`), { workspace: workspaceName })}{" "}
+            <button type="button" onClick={onEditLocation} data-testid="locations-edit" className="cursor-pointer border-0 bg-transparent p-0 font-admin-body text-[12px] font-semibold text-admin-brand hover:underline">
+              {t(`${K}.editLocation`)} →
+            </button>
+          </Note>
         </SettingsCard>
 
         <SettingsCard title={t(`${K}.zonesHeading`)} testId="locations-zones">
@@ -391,13 +408,11 @@ export function LocationsCard({ workspaceName, onEditLocation }: { workspaceName
               </div>
             </div>
           ) : null}
-          <div className="rounded-[9px] bg-admin-surface-alt px-[12px] py-[10px] text-admin-12h text-admin-ink-muted" data-not-wired="true" title={t(`${K}.notWired.travel`)}>
-            {t(`${K}.notWired.travel`)}
-          </div>
           <div className="grid grid-cols-1 gap-[12px] sm:grid-cols-2">
             <TextField label={t(`${K}.surcharge`)} value="" reason={t(`${K}.notWired.surcharge`)} hint={t(`${K}.surchargeHint`)} ariaLabel={t(`${K}.surcharge`)} />
             <SelectField label={t(`${K}.professionals`)} value={t(`${K}.professionalsValue`)} reason={t(`${K}.notWired.professionals`)} />
           </div>
+          <Note>{t(`${K}.notWired.travel`)}</Note>
         </SettingsCard>
       </div>
     </div>

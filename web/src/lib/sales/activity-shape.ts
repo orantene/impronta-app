@@ -42,7 +42,8 @@ export function salesKindLabel(kind: SalesChipKind, locale: "en" | "es" | "fr"):
   if (kind === "registration") return "Registration";
   if (kind === "admission") return "Admission";
   if (kind === "appointment") return "Appointment";
-  return "Project booking";
+  // The board's chip word (WS008): "Project".
+  return "Project";
 }
 
 export const SALES_TYPE_CHIPS: readonly SalesChipKind[] = [
@@ -83,6 +84,8 @@ export const SALES_CHANNELS = [
   "reservation",
   "instant_book",
   "offer",
+  "guest_qr",
+  "messages",
 ] as const;
 
 export type SalesChannel = (typeof SALES_CHANNELS)[number];
@@ -95,6 +98,8 @@ const CHANNEL_LABELS: Record<SalesChannel, Record<SalesLocale, string>> = {
   reservation: { en: "Table reservation", es: "Reserva de mesa", fr: "Réservation de table" },
   instant_book: { en: "Instant book", es: "Reserva instantánea", fr: "Réservation instantanée" },
   offer: { en: "Offer", es: "Oferta", fr: "Offre" },
+  guest_qr: { en: "Guest QR", es: "QR de mesa", fr: "QR de table" },
+  messages: { en: "Messages", es: "Mensajes", fr: "Messages" },
 };
 
 /** Raw value shown verbatim when the channel is not one of the known ones — never hidden. */

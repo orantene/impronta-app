@@ -12,13 +12,15 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 
 const CHIP = "inline-flex items-center whitespace-nowrap rounded-full border font-admin-body font-semibold transition-colors";
 
-export function SalesChipLink({ href, active, small = false, children }: { href: string; active: boolean; small?: boolean; children: ReactNode }) {
-  const size = small ? "px-[10px] py-[4px] text-[12px]" : "px-[12px] py-[6px] text-admin-12h";
+/** The board's 28px white chip; the active one carries the ink border on the surface tint. `ariaLabel` keeps a longer accessible name over a short visible word. */
+export function SalesChipLink({ href, active, small = false, ariaLabel, children }: { href: string; active: boolean; small?: boolean; ariaLabel?: string; children: ReactNode }) {
+  const size = small ? "h-[26px] px-[10px] text-[12px]" : "h-[28px] px-[12px] text-[12.5px]";
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`${CHIP} ${size} ${active ? "border-admin-brand bg-admin-brand-soft text-admin-brand" : "border-admin-border bg-admin-card text-admin-ink hover:border-admin-border-strong"}`}
+      aria-label={ariaLabel}
+      className={`${CHIP} ${size} leading-[1.2] ${active ? "border-admin-ink bg-admin-surface-alt text-admin-ink" : "border-admin-border bg-admin-card text-admin-ink hover:border-admin-border-strong"}`}
     >
       {children}
     </Link>
@@ -34,7 +36,7 @@ export function SalesFilterChip({ label, reason }: { label: string; reason: stri
       aria-disabled="true"
       title={reason}
       data-not-wired="true"
-      className={`${CHIP} max-w-[240px] cursor-not-allowed gap-[6px] border-admin-border bg-admin-card px-[10px] py-[5px] text-[12px] font-normal text-admin-ink opacity-50`}
+      className={`${CHIP} h-[28px] max-w-[240px] cursor-not-allowed gap-[6px] border-admin-border bg-admin-card px-[12px] text-[12.5px] font-normal leading-[1.2] text-admin-ink opacity-50`}
     >
       <span className="truncate">{label}</span>
       <span aria-hidden className="text-admin-ink-dim">
@@ -55,7 +57,8 @@ export function salesWhen(iso: string, locale: string, timeZone: string): string
       month: "short",
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false,
+      // `hourCycle: "h23"`, not `hour12: false`: en-US with hour12 off prints midnight as "24:55".
+      hourCycle: "h23",
       timeZone,
     }).formatToParts(at);
     const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";

@@ -78,9 +78,9 @@ export default async function SetupPage({ params }: { params: PageParams }) {
   const blocked = exceptions ? exceptions.rows.slice(0, 2) : [];
 
   return (
-    <div data-tulala-setup-page className="flex w-full flex-col gap-[20px] font-admin-body">
+    <div data-tulala-setup-page className="flex w-full flex-col gap-[16px] font-admin-body leading-[1.2]">
       <div>
-        <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">
+        <h1 className="m-0 text-[26px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">
           {firstName ? interpolate(t("welcome"), { name: firstName }) : t("welcomeNoName")}
         </h1>
         <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted">
@@ -90,17 +90,17 @@ export default async function SetupPage({ params }: { params: PageParams }) {
 
       <div className="grid grid-cols-1 gap-[20px] lg:grid-cols-[1.2fr_1fr]">
         <section data-testid="setup-checklist" className="rounded-[14px] border border-admin-border bg-admin-card px-[16px] py-[14px]">
-          <h2 className="m-0 mb-[4px] text-admin-13! font-semibold text-admin-ink">{t("checklistTitle")}</h2>
+          <h2 className="m-0 mb-[8px] text-[14px]! font-semibold leading-[1.2] text-admin-ink">{t("checklistTitle")}</h2>
           <ol className="m-0 list-none p-0">
             {items.map((item) => (
-              <li key={item.key} data-setup-item={item.key} data-done={item.done ? "true" : "false"} className="flex items-center gap-[12px] border-t border-admin-border-soft py-[10px]">
+              <li key={item.key} data-setup-item={item.key} data-done={item.done ? "true" : "false"} className="flex items-center gap-[10px] border-t border-admin-border-soft py-[11px]">
                 <span
                   aria-hidden
-                  className={`inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full ${item.done ? "bg-admin-green text-white" : "border border-admin-border-strong bg-admin-card"}`}
+                  className={`inline-flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full ${item.done ? "bg-admin-green text-white" : "border border-admin-border-strong bg-admin-card"}`}
                 >
-                  {item.done ? <Icon name="check" size={11} stroke={2.5} /> : null}
+                  {item.done ? <Icon name="check" size={12} stroke={2.5} /> : null}
                 </span>
-                <span className="min-w-0 flex-1 text-admin-13 font-semibold text-admin-ink">{t(`item.${item.key}`)}</span>
+                <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-admin-ink">{t(`item.${item.key}`)}</span>
                 <span className="text-admin-13 text-admin-ink-muted">{copy(item.detail)}</span>
                 {!item.done ? (
                   <Link href={DOORS[item.key](base)} className={`${BUTTON} border-admin-border bg-admin-card text-admin-ink hover:border-admin-border-strong`}>
@@ -113,7 +113,7 @@ export default async function SetupPage({ params }: { params: PageParams }) {
         </section>
 
         <section data-testid="setup-blocked" className="rounded-[14px] border border-admin-border bg-admin-card px-[16px] py-[14px]">
-          <h2 className="m-0 mb-[10px] text-admin-13! font-semibold text-admin-ink">{t("blockedTitle")}</h2>
+          <h2 className="m-0 mb-[12px] text-[14px]! font-semibold leading-[1.2] text-admin-ink">{t("blockedTitle")}</h2>
           {!exceptions ? (
             <p role="alert" className="m-0 text-admin-13 text-admin-red">{t("blockedUnreadable")}</p>
           ) : blocked.length === 0 ? (
@@ -122,11 +122,11 @@ export default async function SetupPage({ params }: { params: PageParams }) {
             <div className="flex flex-col gap-[10px]">
               {blocked.map((row) => (
                 <div key={row.key} data-blocked-row className="rounded-[10px] bg-admin-coral-soft px-[14px] py-[12px]">
-                  <div className="text-admin-13 font-semibold text-admin-coral-deep">{row.title}</div>
-                  <div className="mt-[2px] text-admin-13 text-admin-ink-muted">{row.detail}</div>
+                  <div className="text-[13.5px] font-semibold text-admin-coral-deep">{row.title}</div>
+                  <div className="mt-[3px] text-admin-13 text-admin-ink-muted">{row.detail}</div>
                   <Link
                     href={row.href ?? `${base}/exceptions`}
-                    className={`${BUTTON} mt-[8px] border-admin-brand bg-admin-brand text-white hover:bg-admin-brand-deep`}
+                    className={`${BUTTON} mt-[10px] border-admin-brand bg-admin-brand text-white hover:bg-admin-brand-deep`}
                   >
                     {row.nextAction.kind === "resume" ? row.nextAction.label : t("openIssue")}
                   </Link>
@@ -137,7 +137,7 @@ export default async function SetupPage({ params }: { params: PageParams }) {
           {exceptions && exceptions.unavailable.length > 0 ? (
             <p role="alert" className="mt-[10px] text-[12px] text-admin-red">{t("blockedIncomplete")}</p>
           ) : null}
-          <p className="mt-[12px] text-admin-13 text-admin-ink-muted">{t("blockedFootnote")}</p>
+          <p className="m-0 mt-[12px] text-admin-13 leading-[1.35] text-admin-ink-muted">{t("blockedFootnote")}</p>
         </section>
       </div>
     </div>
