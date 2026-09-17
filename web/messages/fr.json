@@ -7000,6 +7000,14 @@
         "prevDay": "Jour precedent",
         "nextDay": "Jour suivant"
       }
+    },
+    "clientOffer": {
+      "refusal": {
+        "no_client_participant": "Votre compte n'est pas encore sur cette demande. Connectez-vous avec l'e-mail auquel l'offre a été envoyée, ou demandez au coordinateur de vous ajouter.",
+        "version_conflict": "L'offre a changé pendant votre lecture. Actualisez pour voir la dernière version.",
+        "forbidden": "Vous n'avez pas la permission d'approuver cette offre.",
+        "unavailable": "Impossible d'approuver pour le moment. Réessayez."
+      }
     }
   },
   "client": {

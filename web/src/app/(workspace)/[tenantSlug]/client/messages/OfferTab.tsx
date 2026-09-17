@@ -889,7 +889,11 @@ function ApproveDrawer({
           {t("dashboard.clientOffer.approveHint")}
         </Hint>
         {state.kind === "error" && (
-          <div style={errorBoxStyle}>{state.message}</div>
+          // A refusal the action names by code reads as a sentence in the
+          // reader's language (D-174: `no_client_participant` used to print raw).
+          <div style={errorBoxStyle} data-offer-refusal={state.code ?? "message"}>
+            {state.code ? t(`dashboard.clientOffer.refusal.${state.code}`) : state.message}
+          </div>
         )}
       </div>
       <DrawerFooter>

@@ -144,6 +144,22 @@ async function ensureClientParticipant(
   if (existing?.id) {
     const seatedUser = (existing.user_id as string | null) ?? null;
     if (seatedUser && seatedUser !== args.userId) return false;
+    if (seatedUser === args.userId) return true;
+    // D-174: Send seats the client WITHOUT an account (20261231236000:
+    // role client, user_id NULL). The claim used to leave that seat as it
+    // was, so `clientAcceptOffer` found no participant for the signed-in
+    // user and "Approve & lock" answered no_client_participant. The claimed
+    // user adopts the account-less seat.
+    const { error: adoptError } = await admin
+      .from("inquiry_participants")
+      .update({ user_id: args.userId })
+      .eq("id", existing.id)
+      .eq("tenant_id", args.tenantId)
+      .is("user_id", null);
+    if (adoptError) {
+      logServerError("inquiry.claimByEmail.participantAdopt", adoptError);
+      return false;
+    }
     return true;
   }
   const { error: insertError } = await admin.from("inquiry_participants").insert({
