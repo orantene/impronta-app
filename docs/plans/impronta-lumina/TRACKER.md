@@ -41,11 +41,11 @@ Notes
 
 | # | Item | Status | Evidence / PR |
 |---|---|---|---|
-| D-165 | Date moved to Sat 21 Nov 2026 (session, hero, strip, FAQ, e-mails, engine page) | DONE, published; session `519e18b6` starts 2026-11-22T00:00Z (18:00 Cancún) | live page title "21 de noviembre" |
-| D-166 | Home hero LUMINA strip removed (owner: "home looks shit"); top-bar announcement stays → /lumina; LUMINA out of the header nav for good (peer session applied) | DONE, published | improntamodels.com |
-| D-167 | SEO URLs: `/events/<slug>` renders the linked builder page, `/es/eventos/<slug>` alias, `/lumina` 308s to the canonical | DONE #2039 live (`events.page_id`, migration 20261231245000); `?edit=1` skips the redirect #2045 live | curl: `/lumina` → 308, `/lumina?edit=1` → 200 |
-| D-168 | English page was Spanish | DONE: EN overlay (`node.i18n`) applied by peer session `impronta-app-5e` from `lumina-en.json` (89 entries); "Choose your ticket" on EN, "Elige tu entrada" on ES | both canonical URLs checked after publish |
-| D-169 | Ticket UX: tiers visible with prices, designed checkout drawer, always-visible floating "Comprar entradas" | DONE #2040 live (`ticket-picker-{cards,checkout,floating-cta,form}`); floating CTA verified with a real scroll at 375 px in a fresh browser | screenshot in chat |
+| D-176 | Date moved to Sat 21 Nov 2026 (session, hero, strip, FAQ, e-mails, engine page) | DONE, published; session `519e18b6` starts 2026-11-22T00:00Z (18:00 Cancún) | live page title "21 de noviembre" |
+| D-177 | Home hero LUMINA strip removed (owner: "home looks shit"); top-bar announcement stays → /lumina; LUMINA out of the header nav for good (peer session applied) | DONE, published | improntamodels.com |
+| D-178 | SEO URLs: `/events/<slug>` renders the linked builder page, `/es/eventos/<slug>` alias, `/lumina` 308s to the canonical | DONE #2039 live (`events.page_id`, migration 20261231245000); `?edit=1` skips the redirect #2045 live | curl: `/lumina` → 308, `/lumina?edit=1` → 200 |
+| D-179 | English page was Spanish | DONE: EN overlay (`node.i18n`) applied by peer session `impronta-app-5e` from `lumina-en.json` (89 entries); "Choose your ticket" on EN, "Elige tu entrada" on ES | both canonical URLs checked after publish |
+| D-180 | Ticket UX: tiers visible with prices, designed checkout drawer, always-visible floating "Comprar entradas" | DONE #2040 live (`ticket-picker-{cards,checkout,floating-cta,form}`); floating CTA verified with a real scroll at 375 px in a fresh browser | screenshot in chat |
 | AI | Six "Nos acompañan" AI images | DONE via the builder image inspector on production (generateNodeImageAction); stray QR block removed | live page |
 | MAP | Venue block: embedded map, Calle 12 Norte, Playa del Carmen | DONE (`location_map` `mapStyle: embed`) | live page |
 | C1 | "Elegí tu entrada" → "Elige tu entrada" | DONE 18:25Z (builder edit after #2045; EN overlay intact) | curl both locales |
