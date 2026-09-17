@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { POS_SEGMENT, POS_SEGMENT_ACTIVE, POS_SEGMENT_IDLE, POS_SEGMENT_TRACK } from "../pos/pos-classes";
 
 import type { FloorBoardCopy } from "./floor-copy";
-import { arrivingEntries, bookName, isWaiting, seatedEntryFor, seatedTables, tableCode, tableLabel, type FloorBookEntry } from "./floor-model";
+import { arrivingEntries, bookName, floorDuration, isWaiting, seatedEntryFor, seatedTables, tableCode, tableLabel, type FloorBookEntry } from "./floor-model";
 import { FLOOR_PILL, PILL_CONFIRMED, PILL_LATE, PILL_SEATED, PILL_WAITING } from "./floor-tones";
 import type { FloorBoardData, FloorWaitlistEntry } from "./floor-types";
 import { moneyFor } from "./FloorViews";
@@ -95,7 +95,7 @@ export function FloorSidePanel({ data, copy, tab, onTabChange, onPickEntry, onPi
     const name = entry?.holderName ?? p.walkIn;
     const n = table.partySize ?? entry?.partySize ?? 0;
     const line = interpolate(p.seatedLine, {
-      n: table.elapsedMinutes ?? 0,
+      n: floorDuration(table.elapsedMinutes ?? 0),
       amount: table.orderId ? moneyFor(table, data) : copy.tile.noCheck,
     });
     return (

@@ -150,5 +150,11 @@ export type FloorBoardProps = {
    * (`POSLiveFloor`) puts the actions under the map instead.
    */
   readonly header?: { readonly title: string; readonly subtitle: string };
+  /**
+   * The till draws the Floor · Timeline · List switch in ITS header on the
+   * timeline and the list (`POSFloorTimeline`, `POSFloorList`), so the board
+   * leaves the row out there; on the map the switch shares the legend's row.
+   */
+  readonly viewSwitchInHeader?: boolean;
   readonly className?: string;
 };

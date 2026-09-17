@@ -14944,7 +14944,8 @@
             "stateFree": "Free",
             "minutes": "{n} min",
             "until": "until {time}",
-            "serverNone": "—"
+            "serverNone": "—",
+            "allFree": "Every one of the {n} tables is free right now."
           },
           "timeline": {
             "footer": "Now line at {time} · overruns and holds are visible against the next commitment on the same row.",
@@ -14967,6 +14968,7 @@
             "needsResetPill": "Needs reset",
             "blockedPill": "Blocked",
             "guests": "{n} guests",
+            "guestsOne": "1 guest",
             "unpaid": "{amount} unpaid",
             "openOrder": "Open order",
             "addItems": "Add items",
@@ -14982,6 +14984,7 @@
             "blockReason": "Blocking a table is done under Spaces, not from the till.",
             "split": "Split the check",
             "splitReason": "Splitting a check by items or shares is not built yet.",
+            "splitNoCheck": "No check on this table yet; add items first.",
             "checks": "{n} checks · {amount}",
             "openCheck": "Open check {letter} · {amount}",
             "servedBy": "Served by {name}"
@@ -15007,6 +15010,7 @@
             "noShow": "No-show",
             "noShowReason": "A no-show is stamped by the grace sweep, not by hand, so the fee is never a guess.",
             "confirm": "Seat {n} guests at {code}",
+            "confirmOne": "Seat 1 guest at {code}",
             "noFit": "Does not fit this party; the engine will refuse it."
           },
           "walkIn": {
@@ -15027,9 +15031,9 @@
             "seatNow": "Seat now",
             "freeFits": "{code} · seats {n} · free",
             "noFreeFits": "No free table fits this party right now.",
-            "waitlist": "Waiting list",
+            "waitlist": "Waitlist",
             "waitlistSub": "{n} parties ahead",
-            "addToWaitlist": "Add to waiting list",
+            "addToWaitlist": "Add to waitlist",
             "cancel": "Cancel",
             "added": "The party is on the waiting list."
           },
@@ -15081,6 +15085,9 @@
             "goesNothing": "No check yet",
             "after": "{code} after",
             "afterValue": "Needs reset",
+            "nextOn": "Next on {code}",
+            "nextNothingUntil": "Nothing until {time}",
+            "nextNothing": "Nothing booked",
             "why": "Why",
             "whyReason": "A reason is not recorded on a move yet.",
             "back": "Back",
@@ -15120,7 +15127,12 @@
             "date": "Date",
             "time": "Time",
             "party": "Party",
+            "duration": "Duration",
+            "durationValue": "{time} · party of {n}",
+            "durationReason": "The turn time comes from the venue's rules.",
             "customer": "Customer",
+            "occasion": "Occasion",
+            "occasionReason": "An occasion is not taken here yet.",
             "email": "Email",
             "phone": "Phone",
             "note": "Note",

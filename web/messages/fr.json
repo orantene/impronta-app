@@ -3571,7 +3571,8 @@
             "stateFree": "Libre",
             "minutes": "{n} min",
             "until": "jusqu'à {time}",
-            "serverNone": "—"
+            "serverNone": "—",
+            "allFree": "Les {n} tables sont toutes libres en ce moment."
           },
           "timeline": {
             "footer": "Ligne du moment à {time} · les dépassements et les réservations se lisent face au prochain engagement de la même ligne.",
@@ -3594,6 +3595,7 @@
             "needsResetPill": "À redresser",
             "blockedPill": "Bloquée",
             "guests": "{n} couverts",
+            "guestsOne": "1 couvert",
             "unpaid": "{amount} à payer",
             "openOrder": "Ouvrir la commande",
             "addItems": "Ajouter des articles",
@@ -3609,6 +3611,7 @@
             "blockReason": "Bloquer une table se fait dans Espaces, pas depuis la caisse.",
             "split": "Partager l'addition",
             "splitReason": "Partager une addition par article ou par part n'est pas encore construit.",
+            "splitNoCheck": "Pas encore d'addition sur cette table ; ajoutez d'abord des articles.",
             "checks": "{n} additions · {amount}",
             "openCheck": "Ouvrir l'addition {letter} · {amount}",
             "servedBy": "Servi par {name}"
@@ -3634,6 +3637,7 @@
             "noShow": "Absent",
             "noShowReason": "L'absence est posée par le balayage de grâce, pas à la main, pour que les frais ne soient jamais une supposition.",
             "confirm": "Installer {n} couverts à {code}",
+            "confirmOne": "Installer 1 couvert à {code}",
             "noFit": "Ne convient pas à ce groupe ; le moteur refusera."
           },
           "walkIn": {
@@ -3708,6 +3712,9 @@
             "goesNothing": "Pas encore d'addition",
             "after": "{code} ensuite",
             "afterValue": "À redresser",
+            "nextOn": "Prochain sur {code}",
+            "nextNothingUntil": "Rien avant {time}",
+            "nextNothing": "Rien de réservé",
             "why": "Motif",
             "whyReason": "Le motif n'est pas encore enregistré sur un déplacement.",
             "back": "Retour",
@@ -3747,7 +3754,12 @@
             "date": "Date",
             "time": "Heure",
             "party": "Groupe",
+            "duration": "Durée",
+            "durationValue": "{time} · table de {n}",
+            "durationReason": "La durée vient des règles du lieu.",
             "customer": "Client",
+            "occasion": "Occasion",
+            "occasionReason": "L'occasion n'est pas encore saisie ici.",
             "email": "E-mail",
             "phone": "Téléphone",
             "note": "Note",

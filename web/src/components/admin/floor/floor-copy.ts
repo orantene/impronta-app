@@ -16,6 +16,7 @@
 
 import type { Translator } from "../pos/translator";
 import { floorEngineCopy, floorEngineRefusals, type FloorEngineCopy } from "./floor-copy-engine";
+import { floorReservationCopy, type FloorReservationCopy } from "./floor-copy-reservation";
 
 const K = "dashboard.pos.floor.board";
 
@@ -171,6 +172,8 @@ export type FloorBoardCopy = {
     /** `until {time}` */
     readonly until: string;
     readonly serverNone: string;
+    /** `Every one of the {n} tables is free right now.` */
+    readonly allFree: string;
   };
   readonly timeline: {
     readonly footer: string;
@@ -197,6 +200,8 @@ export type FloorBoardCopy = {
     readonly blockedPill: string;
     /** `{n} guests` */
     readonly guests: string;
+    /** `1 guest` */
+    readonly guestsOne: string;
     /** `{amount} unpaid` */
     readonly unpaid: string;
     readonly noCheck: string;
@@ -221,6 +226,7 @@ export type FloorBoardCopy = {
     readonly blockReason: string;
     readonly split: string;
     readonly splitReason: string;
+    readonly splitNoCheck: string;
     readonly kitchenNone: string;
     readonly kitchenQueued: string;
     readonly kitchenAcknowledged: string;
@@ -257,6 +263,8 @@ export type FloorBoardCopy = {
     readonly noShowReason: string;
     /** `Seat {n} guests at {code}` */
     readonly confirm: string;
+    /** `Seat 1 guest at {code}` */
+    readonly confirmOne: string;
     readonly noFit: string;
   };
   readonly walkIn: {
@@ -341,6 +349,11 @@ export type FloorBoardCopy = {
     /** `{code} after` */
     readonly after: string;
     readonly afterValue: string;
+    /** `Next on {code}` */
+    readonly nextOn: string;
+    /** `Nothing until {time}` */
+    readonly nextNothingUntil: string;
+    readonly nextNothing: string;
     readonly why: string;
     readonly whyReason: string;
     readonly back: string;
@@ -385,40 +398,7 @@ export type FloorBoardCopy = {
     /** `{code} is ready` */
     readonly confirm: string;
   };
-  readonly reservation: {
-    readonly title: string;
-    readonly subtitle: string;
-    readonly date: string;
-    readonly time: string;
-    readonly party: string;
-    readonly customer: string;
-    readonly email: string;
-    readonly phone: string;
-    readonly note: string;
-    readonly noteReason: string;
-    readonly where: string;
-    readonly whereReason: string;
-    readonly money: string;
-    /** `Deposit {amount}` */
-    readonly deposit: string;
-    readonly depositSub: string;
-    readonly noDeposit: string;
-    readonly noDepositSub: string;
-    /** `AVAILABILITY · {date} · {n}` */
-    readonly availability: string;
-    readonly loading: string;
-    readonly pickTime: string;
-    readonly lastSeating: string;
-    readonly upsize: string;
-    /** `Confirm · collect {amount} deposit` */
-    readonly confirmDeposit: string;
-    readonly confirm: string;
-    readonly cancel: string;
-    /** `Reserved · {time} · {name} · {n}` */
-    readonly done: string;
-    readonly collectNext: string;
-    readonly contactNeeded: string;
-  };
+  readonly reservation: FloorReservationCopy;
   readonly notices: {
     /** `Sent to the kitchen as ticket revision {n}.` */
     readonly sentToKitchen: string;
@@ -523,6 +503,7 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       minutes: t(`${K}.list.minutes`),
       until: t(`${K}.list.until`),
       serverNone: t(`${K}.list.serverNone`),
+      allFree: t(`${K}.list.allFree`),
     },
     timeline: {
       footer: t(`${K}.timeline.footer`),
@@ -545,6 +526,7 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       needsResetPill: t(`${K}.popover.needsResetPill`),
       blockedPill: t(`${K}.popover.blockedPill`),
       guests: t(`${K}.popover.guests`),
+      guestsOne: t(`${K}.popover.guestsOne`),
       unpaid: t(`${K}.popover.unpaid`),
       noCheck: t("dashboard.pos.floor.noCheckYet"),
       close: t("dashboard.pos.floor.closeSheet"),
@@ -567,6 +549,7 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       blockReason: t(`${K}.popover.blockReason`),
       split: t(`${K}.popover.split`),
       splitReason: t(`${K}.popover.splitReason`),
+      splitNoCheck: t(`${K}.popover.splitNoCheck`),
       kitchenNone: t("dashboard.pos.floor.kitchenNone"),
       kitchenQueued: t("dashboard.pos.floor.kitchenQueued"),
       kitchenAcknowledged: t("dashboard.pos.floor.kitchenAcknowledged"),
@@ -595,6 +578,7 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       noShow: t(`${K}.seat.noShow`),
       noShowReason: t(`${K}.seat.noShowReason`),
       confirm: t(`${K}.seat.confirm`),
+      confirmOne: t(`${K}.seat.confirmOne`),
       noFit: t(`${K}.seat.noFit`),
     },
     walkIn: {
@@ -669,6 +653,9 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       goesNothing: t(`${K}.move.goesNothing`),
       after: t(`${K}.move.after`),
       afterValue: t(`${K}.move.afterValue`),
+      nextOn: t(`${K}.move.nextOn`),
+      nextNothingUntil: t(`${K}.move.nextNothingUntil`),
+      nextNothing: t(`${K}.move.nextNothing`),
       why: t(`${K}.move.why`),
       whyReason: t(`${K}.move.whyReason`),
       back: t(`${K}.move.back`),
@@ -703,36 +690,7 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       notYet: t(`${K}.reset.notYet`),
       confirm: t(`${K}.reset.confirm`),
     },
-    reservation: {
-      title: t(`${K}.reservation.title`),
-      subtitle: t(`${K}.reservation.subtitle`),
-      date: t(`${K}.reservation.date`),
-      time: t(`${K}.reservation.time`),
-      party: t(`${K}.reservation.party`),
-      customer: t(`${K}.reservation.customer`),
-      email: t(`${K}.reservation.email`),
-      phone: t(`${K}.reservation.phone`),
-      note: t(`${K}.reservation.note`),
-      noteReason: t(`${K}.reservation.noteReason`),
-      where: t(`${K}.reservation.where`),
-      whereReason: t(`${K}.reservation.whereReason`),
-      money: t(`${K}.reservation.money`),
-      deposit: t(`${K}.reservation.deposit`),
-      depositSub: t(`${K}.reservation.depositSub`),
-      noDeposit: t(`${K}.reservation.noDeposit`),
-      noDepositSub: t(`${K}.reservation.noDepositSub`),
-      availability: t(`${K}.reservation.availability`),
-      loading: t(`${K}.reservation.loading`),
-      pickTime: t(`${K}.reservation.pickTime`),
-      lastSeating: t(`${K}.reservation.lastSeating`),
-      upsize: t(`${K}.reservation.upsize`),
-      confirmDeposit: t(`${K}.reservation.confirmDeposit`),
-      confirm: t(`${K}.reservation.confirm`),
-      cancel: t(`${K}.reservation.cancel`),
-      done: t(`${K}.reservation.done`),
-      collectNext: t(`${K}.reservation.collectNext`),
-      contactNeeded: t(`${K}.reservation.contactNeeded`),
-    },
+    reservation: floorReservationCopy(t),
     notices: {
       sentToKitchen: t("dashboard.pos.floor.sentToKitchen"),
       amendedInKitchen: t("dashboard.pos.floor.amendedInKitchen"),
