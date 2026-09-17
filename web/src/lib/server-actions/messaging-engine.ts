@@ -11,16 +11,21 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logAssignment, logCloseLost, logConversationState } from "@/lib/messaging/action-log";
 import { messagingChannel } from "@/lib/messaging/channels";
 import { renderCard } from "@/lib/messaging/cards";
 import { loadMessagingEssentials } from "@/lib/messaging/essentials";
+import { loadConversationHistory as loadConversationHistoryReader } from "@/lib/messaging/history";
 import { loadMessagingInbox } from "@/lib/messaging/inbox";
+import { insertMessage, recordDelivery } from "@/lib/messaging/insert-message";
 import { matchCustomers } from "@/lib/messaging/match-customers";
+import { mergeInquiries } from "@/lib/messaging/merge";
 import { fail } from "@/lib/messaging/refusals";
+import { renameInquiry } from "@/lib/messaging/rename";
 import { searchMessaging } from "@/lib/messaging/search";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import { issueVisitorCode, signThreadToken, verifyThreadToken } from "@/lib/messaging/thread-token";
-import type { ActionResult, CardKind, InboxFilter, MessagingChannel, RecordKind } from "@/lib/messaging/types";
+import type { ActionResult, CardKind, ConversationHistoryEntry, InboxFilter, MessagingChannel, RecordKind } from "@/lib/messaging/types";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
@@ -84,6 +89,48 @@ export async function messagingLoadEssentials(input: { inquiryId: string }) {
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   return loadMessagingEssentials(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId });
+}
+
+export async function messagingRename(input: { inquiryId: string; name: string; expectedVersion: number }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({ inquiryId: uuid, name: z.string().trim().min(1).max(120), expectedVersion: version })
+    .safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  return renameInquiry(g.admin, {
+    tenantId: g.tenantId,
+    inquiryId: parsed.data.inquiryId,
+    name: parsed.data.name,
+    expectedVersion: parsed.data.expectedVersion,
+    actorUserId: g.userId,
+  });
+}
+
+export async function loadConversationHistory(
+  input: { inquiryId: string },
+): Promise<{ ok: true; entries: ConversationHistoryEntry[] } | { ok: false; reason: string }> {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  return loadConversationHistoryReader(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId });
+}
+
+export async function messagingMerge(input: { duplicateInquiryId: string; intoInquiryId: string; expectedVersion: number }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({ duplicateInquiryId: uuid, intoInquiryId: uuid, expectedVersion: version })
+    .safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  return mergeInquiries(g.admin, {
+    tenantId: g.tenantId,
+    duplicateInquiryId: parsed.data.duplicateInquiryId,
+    intoInquiryId: parsed.data.intoInquiryId,
+    expectedVersion: parsed.data.expectedVersion,
+    actorUserId: g.userId,
+  });
 }
 
 export async function messagingReply(input: {
@@ -153,18 +200,34 @@ export async function messagingAssignOwner(input: {
   ownerUserId: string | null;
   expectedVersion: number;
 }) {
+  return assignOwnerCore(input, false);
+}
+
+async function assignOwnerCore(
+  input: { inquiryId: string; ownerUserId: string | null; expectedVersion: number },
+  handover: boolean,
+) {
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
     .object({ inquiryId: uuid, ownerUserId: uuid.nullable(), expectedVersion: version })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
-  return callRpc(g.admin, "messaging_assign_owner", {
+  const result = await callRpc(g.admin, "messaging_assign_owner", {
     p_tenant_id: g.tenantId,
     p_inquiry_id: parsed.data.inquiryId,
     p_owner_user_id: parsed.data.ownerUserId,
     p_expected_version: parsed.data.expectedVersion,
   });
+  if (result.ok) {
+    await logAssignment(g.admin, {
+      inquiryId: parsed.data.inquiryId,
+      actorUserId: g.userId,
+      ownerUserId: parsed.data.ownerUserId,
+      handover,
+    });
+  }
+  return result;
 }
 
 export async function messagingResolve(input: { inquiryId: string; expectedVersion: number }) {
@@ -180,7 +243,7 @@ export async function messagingHandOver(input: {
   ownerUserId: string;
   expectedVersion: number;
 }) {
-  const assigned = await messagingAssignOwner(input);
+  const assigned = await assignOwnerCore(input, true);
   if (!assigned.ok) return assigned;
   return { ok: true as const };
 }
@@ -193,13 +256,17 @@ async function setConversationState(
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, expectedVersion: version }).safeParse(input);
   if (!parsed.success) return fail("invalid");
-  return callRpc(g.admin, "messaging_set_conversation_state", {
+  const result = await callRpc(g.admin, "messaging_set_conversation_state", {
     p_tenant_id: g.tenantId,
     p_inquiry_id: parsed.data.inquiryId,
     p_state: state,
     p_actor: g.userId,
     p_expected_version: parsed.data.expectedVersion,
   });
+  if (result.ok && (state === "resolved" || state === "needs_reply")) {
+    await logConversationState(g.admin, { inquiryId: parsed.data.inquiryId, actorUserId: g.userId, state });
+  }
+  return result;
 }
 
 export async function messagingStartConversation(input: {
@@ -567,12 +634,16 @@ export async function messagingCloseLost(input: { inquiryId: string; reason: str
     .object({ inquiryId: uuid, reason: z.string().trim().min(2).max(400), expectedVersion: version })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
-  return callRpc(g.admin, "messaging_close_lost", {
+  const result = await callRpc(g.admin, "messaging_close_lost", {
     p_tenant_id: g.tenantId,
     p_inquiry_id: parsed.data.inquiryId,
     p_reason: parsed.data.reason,
     p_expected_version: parsed.data.expectedVersion,
   });
+  if (result.ok) {
+    await logCloseLost(g.admin, { inquiryId: parsed.data.inquiryId, actorUserId: g.userId, reason: parsed.data.reason });
+  }
+  return result;
 }
 
 export async function messagingScheduleReminder(input: {
@@ -713,50 +784,3 @@ export async function messagingIssueVisitorCode(input: { token: string; phone: s
   return { ok: true as const };
 }
 
-async function insertMessage(
-  admin: SupabaseClient,
-  input: {
-    tenantId: string;
-    inquiryId: string;
-    kind: string;
-    body: string;
-    payload?: Record<string, unknown>;
-    senderUserId: string | null;
-  },
-): Promise<ActionResult<{ messageId: string }>> {
-  const { data, error } = await scoped(admin, "inquiry_messages", input.tenantId)
-    .insert({
-      inquiry_id: input.inquiryId,
-      thread_type: input.kind === "internal_note" ? "private" : "group",
-      message_kind: input.kind,
-      body: input.body,
-      card_payload: input.payload ?? null,
-      sender_user_id: input.senderUserId,
-    })
-    .select("id")
-    .single();
-  if (error || !data) return fail("unavailable");
-  return { ok: true, messageId: (data as { id: string }).id };
-}
-
-async function recordDelivery(
-  admin: SupabaseClient,
-  input: {
-    tenantId: string;
-    messageId: string;
-    channel: string;
-    state: string;
-    providerRef: string | null;
-    lastError: string | null;
-  },
-) {
-  await tenantScopedQuery(admin, "message_delivery", input.tenantId).upsert({
-    message_id: input.messageId,
-    channel: input.channel,
-    state: input.state,
-    provider_ref: input.providerRef,
-    attempts: 1,
-    last_error: input.lastError,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "message_id,channel" });
-}

@@ -15443,6 +15443,28 @@
           "expired": "This link or offer has expired.",
           "already": "That is already done."
         },
+        "history": {
+          "rename": "{actor} renamed this conversation to \"{name}\"",
+          "assignment": "{actor} assigned this conversation to {owner}",
+          "handover": "{actor} handed this conversation to {owner}",
+          "resolve": "{actor} marked this conversation resolved",
+          "reopen": "{actor} reopened this conversation",
+          "closeLost": "{actor} closed this as lost",
+          "closeLostReason": "{actor} closed this as lost: {reason}",
+          "merge": "{actor} merged this conversation into another",
+          "mergedFrom": "{actor} merged another conversation into this one",
+          "offerSent": "{actor} sent the offer",
+          "offerAccepted": "{actor} accepted the offer",
+          "offerDeclined": "{actor} declined the offer",
+          "paymentLinkCreated": "{actor} created a payment link",
+          "paymentPaid": "The payment was received",
+          "paymentFailed": "A payment attempt failed",
+          "paymentExpired": "The payment link expired",
+          "paymentRefunded": "The payment was refunded",
+          "bookingConfirmed": "The booking was confirmed",
+          "bookingCancelled": "The booking was cancelled",
+          "bookingRescheduled": "The booking was rescheduled"
+        },
         "ui": {
           "visitor": "Visitor",
           "unassigned": "Unassigned",

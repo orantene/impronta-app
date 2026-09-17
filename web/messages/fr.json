@@ -4029,6 +4029,28 @@
           "expired": "Ce lien ou cette offre a expire.",
           "already": "C est deja fait."
         },
+        "history": {
+          "rename": "{actor} a renommé cette conversation en « {name} »",
+          "assignment": "{actor} a attribué cette conversation à {owner}",
+          "handover": "{actor} a transféré cette conversation à {owner}",
+          "resolve": "{actor} a marqué cette conversation comme résolue",
+          "reopen": "{actor} a rouvert cette conversation",
+          "closeLost": "{actor} a classé ceci comme perdu",
+          "closeLostReason": "{actor} a classé ceci comme perdu : {reason}",
+          "merge": "{actor} a fusionné cette conversation avec une autre",
+          "mergedFrom": "{actor} a fusionné une autre conversation avec celle-ci",
+          "offerSent": "{actor} a envoyé l'offre",
+          "offerAccepted": "{actor} a accepté l'offre",
+          "offerDeclined": "{actor} a refusé l'offre",
+          "paymentLinkCreated": "{actor} a créé un lien de paiement",
+          "paymentPaid": "Le paiement a été reçu",
+          "paymentFailed": "Une tentative de paiement a échoué",
+          "paymentExpired": "Le lien de paiement a expiré",
+          "paymentRefunded": "Le paiement a été remboursé",
+          "bookingConfirmed": "La réservation a été confirmée",
+          "bookingCancelled": "La réservation a été annulée",
+          "bookingRescheduled": "La réservation a été reprogrammée"
+        },
         "ui": {
           "visitor": "Visiteur",
           "unassigned": "Non attribue",

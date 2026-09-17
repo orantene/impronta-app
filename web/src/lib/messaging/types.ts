@@ -165,6 +165,13 @@ export type ThreadMessage = {
 export type CustomerMatchLevel = "phone" | "name_only" | "new";
 
 export type Essentials = {
+  /** Internal name/subject the workspace shows (contract seam S4: rename).
+   * Starts as `customer.name`/contact name and is overridden by the latest
+   * successful `messaging_rename` action-log entry. Never blank. */
+  name: string;
+  /** The inquiry row's own optimistic-lock counter, so a rename UI can send
+   * it straight back as `expectedVersion`. */
+  version: number;
   customer: {
     name: string;
     email: string | null;
@@ -176,6 +183,53 @@ export type Essentials = {
   };
   linked: RecordChip[];
   notes: { id: string; body: string; createdAt: string }[];
+};
+
+/**
+ * S4: one line of conversation history — an inquiry_action_log row or an
+ * inquiry_events row rendered as a sentence. `kind` is the stable code the UI
+ * uses to pick a `dashboard.pos.messages.history.*` catalogue key; `text` is
+ * the EN sentence rendered server-side.
+ */
+export const HISTORY_KINDS = [
+  "rename",
+  "assignment",
+  "handover",
+  "resolve",
+  "reopen",
+  "close_lost",
+  "merge",
+  "offer_sent",
+  "offer_accepted",
+  "offer_declined",
+  "payment_link_created",
+  "payment_paid",
+  "payment_failed",
+  "payment_expired",
+  "payment_refunded",
+  "booking_confirmed",
+  "booking_cancelled",
+  "booking_rescheduled",
+] as const;
+export type HistoryKind = (typeof HISTORY_KINDS)[number];
+
+export type ConversationHistoryEntry = {
+  at: string;
+  actorLabel: string;
+  kind: HistoryKind;
+  text: string;
+};
+
+/**
+ * S4: one derived task on a conversation. `deriveTasks` (web/src/lib/messaging/tasks.ts)
+ * is a pure function over state — no free-text tasks in v1 (owner decision 7).
+ * The list is priority-ordered; exactly the first entry carries `primary: true`.
+ */
+export type DerivedTask = {
+  key: string;
+  title: string;
+  why: string;
+  primary: boolean;
 };
 
 export type CustomerMatch = {
