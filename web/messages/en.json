@@ -10216,6 +10216,20 @@
         "needsPlan": "{feature} needs {plan}",
         "recommended": "Recommended"
       },
+      "trialDoor": {
+        "kicker": "Included in a paid plan",
+        "title": "Try {plan}",
+        "loading": "One moment",
+        "loadingLine": "Checking what this includes.",
+        "sentenceTrial": "{plan} is free for {days} days, then {price} a month starting {date}. Cancel any time.",
+        "sentenceNoTrial": "{plan} is {price} a month, charged today. Cancel any time.",
+        "startTrial": "Start {days} days free",
+        "startPaid": "Get {plan}",
+        "opening": "Opening checkout",
+        "notNow": "Not now",
+        "close": "Close",
+        "footnote": "Nothing you made is lost if you stop. Premium features pause; your site, your logo and your pages stay yours."
+      },
       "talentUsage": {
         "unlimited": "Unlimited talents",
         "counted": {

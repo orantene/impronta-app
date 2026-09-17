@@ -6,7 +6,8 @@
 // Manage subscription CTA opens Stripe Billing Portal for active subscribers.
 // Capability gate: agency.workspace.view (viewer+). Billing CTAs: manage_billing (admin+).
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { verifyCheckoutReturn } from "@/lib/billing/checkout-return";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
@@ -36,18 +37,20 @@ import { loadWorkspaceOverrideBanner } from "../../../platform/workspace-overrid
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
+const BILLING_NOTICES: Record<string, string> = {
+  success: "Your subscription is active. Plan features and seat limits update within a minute.",
+  cancelled: "Checkout was cancelled. Your workspace is still on the Free plan.",
+  checkout_failed: "We couldn't open checkout. Upgrade from this page when you're ready.",
+};
+
 type SearchParams = Promise<{
   pmsg?: string;
   perr?: string;
   billing?: string;
+  return?: string;
 }>;
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
-
-// Design tokens — values resolve to the canonical admin token set
-// (src/styles/admin-color-bridge.css) instead of page-local hex, so this
-// page can never drift from the shell palette again. Note: the old local
-// amber was a warm gold (#8A6F1A) — the token amber is the de-golded slate.
+// ─── Design tokens (resolve to src/styles/admin-color-bridge.css, never page-local hex) ───
 const C = {
   ink:        "var(--color-admin-ink)",
   inkMuted:   "var(--color-admin-ink-muted)",
@@ -66,7 +69,6 @@ const C = {
 const FONT = 'var(--font-admin-body, "Inter", system-ui, sans-serif)';
 
 // ─── Plan meta ────────────────────────────────────────────────────────────────
-
 const PLAN_META: Record<WorkspacePlan, { label: string; bg: string; color: string }> = {
   free:    { label: "Free",    bg: "rgba(11,11,13,0.07)",    color: "rgba(11,11,13,0.55)" },
   website: { label: "Website", bg: "rgba(20,120,110,0.10)",  color: "#166F65" },
@@ -76,7 +78,6 @@ const PLAN_META: Record<WorkspacePlan, { label: string; bg: string; color: strin
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
 function SectionHead({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -215,7 +216,6 @@ function Divider() {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default async function WorkspaceAccountPage({
   params,
   searchParams,
@@ -226,20 +226,19 @@ export default async function WorkspaceAccountPage({
   const { tenantSlug } = await params;
   const resolvedSearch = await searchParams;
   const { pmsg, perr, billing } = resolvedSearch;
-  const billingNotice =
-    billing === "success"
-      ? "Your subscription is active. Plan features and seat limits update within a minute."
-      : billing === "cancelled"
-        ? "Checkout was cancelled. Your workspace is still on the Free plan."
-        : billing === "checkout_failed"
-          ? "We couldn't open checkout. Upgrade from this page when you're ready."
-          : null;
+  const billingNotice = BILLING_NOTICES[billing ?? ""] ?? null;
 
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
   const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
   if (!canView) notFound();
+
+  // Trial-door return-to-spot: only a token this workspace's checkout signed verifies.
+  if (billing === "success" && resolvedSearch.return) {
+    const back = verifyCheckoutReturn(resolvedSearch.return, scope.tenantId);
+    if (back.ok) redirect(back.path);
+  }
 
   const session = await getCachedActorSession();
   if (!session.user) notFound();

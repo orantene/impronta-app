@@ -30,6 +30,7 @@ import {
   reconcileAppliedDiscount,
   resolveSubscriptionDiscountMirror,
 } from "@/lib/billing/subscription-discounts";
+import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import {
   stripeBillingPortalLocale,
@@ -173,6 +174,8 @@ export async function createWorkspaceCheckoutSession(opts: {
    * from the Stripe customer record.
    */
   buyerUserId?: string | null;
+  /** Signed return-to-spot token (`lib/billing/checkout-return.ts`); the account page forwards to it after success. */
+  returnToken?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -224,7 +227,7 @@ export async function createWorkspaceCheckoutSession(opts: {
       customer: customerResult.data,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=success`,
+      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=success${returnQuery(opts.returnToken)}`,
       cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=cancelled`,
       // Show Checkout in the owner's app language, not their browser's.
       locale: stripeCheckoutLocale(opts.locale),
@@ -256,7 +259,7 @@ export async function createWorkspaceCheckoutSession(opts: {
     },
     // Idempotency: a double submit must not mint a SECOND Checkout session.
     // One subscription per workspace per plan; a second session risks a second sub.
-    { idempotencyKey: `cs_ws_${opts.tenantId}_${opts.planKey}` });
+    { idempotencyKey: `cs_ws_${opts.tenantId}_${opts.planKey}${idempotencySuffix(opts.returnToken)}` });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };

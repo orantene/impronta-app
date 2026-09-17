@@ -261,6 +261,15 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   onboarding_understood_shown: "onboarding_understood_shown",
   onboarding_account_created: "onboarding_account_created",
   onboarding_arrival_shown: "onboarding_arrival_shown",
+
+  /**
+   * Trial doors (trial-and-card.md): the moment inside the product where a
+   * person meets the paid tier. Payload: { door, plan, trial_days }. Checkout
+   * completion and the day-7 charge are Stripe-side (webhook), not here.
+   */
+  trial_door_shown: "trial_door_shown",
+  trial_door_started: "trial_door_started",
+  trial_door_dismissed: "trial_door_dismissed",
 } as const;
 
 export type ProductAnalyticsEventName =

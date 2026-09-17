@@ -10216,6 +10216,20 @@
         "needsPlan": "{feature} necesita {plan}",
         "recommended": "Recomendado"
       },
+      "trialDoor": {
+        "kicker": "Incluido en un plan de pago",
+        "title": "Prueba {plan}",
+        "loading": "Un momento",
+        "loadingLine": "Revisando qué incluye.",
+        "sentenceTrial": "{plan} es gratis por {days} días, después {price} al mes a partir del {date}. Cancela cuando quieras.",
+        "sentenceNoTrial": "{plan} cuesta {price} al mes, con cargo hoy. Cancela cuando quieras.",
+        "startTrial": "Empezar {days} días gratis",
+        "startPaid": "Obtener {plan}",
+        "opening": "Abriendo el pago",
+        "notNow": "Ahora no",
+        "close": "Cerrar",
+        "footnote": "Nada de lo que hiciste se pierde si paras. Las funciones premium se pausan; tu sitio, tu logo y tus páginas siguen siendo tuyos."
+      },
       "talentUsage": {
         "unlimited": "Talentos ilimitados",
         "counted": {

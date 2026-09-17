@@ -26,6 +26,8 @@ import {
   hasLiveWorkspaceSubscription,
 } from "@/lib/stripe/workspace-billing";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
+import { signCheckoutReturn } from "@/lib/billing/checkout-return";
+import { isSafeReturnPath, isTrialDoorId } from "@/lib/billing/trial-door";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { logServerError } from "@/lib/server/safe-error";
 import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
@@ -53,9 +55,19 @@ export async function startWorkspaceUpgrade(
    * `resolveCheckoutDiscount`; never trusted as given.
    */
   promoCode?: string | null,
+  /**
+   * Trial-door context (`lib/billing/trial-door.ts`): which door opened this
+   * checkout and where to land after it. `returnPath` is browser-supplied,
+   * accepted only as a same-origin path inside this workspace, and signed
+   * here so only what this action issued can round-trip through Stripe.
+   */
+  door?: { id: string; returnPath?: string | null } | null,
 ): Promise<BillingActionResult> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing is not available yet. Contact support to upgrade." };
+  }
+  if (door && !isTrialDoorId(door.id)) {
+    return { ok: false, error: "Unknown upgrade entry point." };
   }
 
   // Network has no catalog price, so it is not self-serve. Giving it an active
@@ -121,6 +133,10 @@ export async function startWorkspaceUpgrade(
     locale: await getRequestLocale(),
     promoCode: campaignPromo,
     buyerUserId: session.user.id,
+    returnToken:
+      door && isSafeReturnPath(door.returnPath, tenantSlug)
+        ? signCheckoutReturn({ subjectId: scope.tenantId, path: door.returnPath })
+        : null,
   });
 
   if (!result.ok) {

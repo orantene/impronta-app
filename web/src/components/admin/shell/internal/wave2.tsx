@@ -4291,7 +4291,7 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
     : t("dashboard.adminWave.activationDomainDescPaid");
   const domainStepCta  = isFreePlan ? t("dashboard.adminWave.activationUpgradeStudio") : t("dashboard.adminWave.activationConfigure");
   const domainStepAction = isFreePlan
-    ? () => openUpgrade({ feature: t("dashboard.adminWave.activationDomainFeature"), why: t("dashboard.adminWave.activationDomainWhy"), unlocks: [t("dashboard.adminWave.activationDomainUnlock1"), t("dashboard.adminWave.activationDomainUnlock2"), t("dashboard.adminWave.activationDomainUnlock3")] })
+    ? () => openUpgrade({ door: "custom_domain", feature: t("dashboard.adminWave.activationDomainFeature"), why: t("dashboard.adminWave.activationDomainWhy"), unlocks: [t("dashboard.adminWave.activationDomainUnlock1"), t("dashboard.adminWave.activationDomainUnlock2"), t("dashboard.adminWave.activationDomainUnlock3")] })
     : () => setPage("settings");
 
   const steps: ActivationStep[] = [
