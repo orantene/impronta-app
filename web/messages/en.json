@@ -1731,9 +1731,18 @@
         "skip": "Skip for now",
         "of": "{n} of {total}",
         "basicsTitle": "What do you do, and where?",
-        "basicsSub": "Two words each is enough.",
+        "basicsSub": "Pick from the list so people can find you. Both are needed.",
         "basicsWhat": "What you do",
-        "basicsCity": "City"
+        "basicsCity": "City",
+        "basicsWhatTalentHint": "Search: nail technician, photographer, DJ…",
+        "basicsWhatBusinessHint": "Search: nail salon, restaurant, gym…",
+        "basicsCityHint": "Search your city",
+        "basicsOther": "Not in the list?",
+        "basicsOtherHint": "Type it here",
+        "basicsOtherNote": "We'll add it as written. Picking from the list gets you found in search.",
+        "change": "Change",
+        "noMatch": "No match. Try another word or use \"Not in the list\".",
+        "noCity": "No city found yet. Keep typing."
       },
       "ready": {
         "title": "Ready to build",
@@ -4404,6 +4413,7 @@
         "sessionBlock": "{title} · {booked}/{places}",
         "emptyDay": "Nothing on this day for these filters.",
         "holdExpires": "Hold on {title} at {time}",
+        "holdExpiresAt": "Hold expires {time}",
         "dragOff": "Drag to reschedule is not built; Move it on Appointments & Classes reschedules with the window you saw.",
         "prevDay": "Previous day",
         "nextDay": "Next day"
@@ -16053,6 +16063,12 @@
         "unknown": "State not recognised"
       },
       "board": {
+        "phone": {
+          "appointmentsOne": "1 appointment",
+          "appointmentsOther": "{count} appointments",
+          "sessionsOne": "1 session",
+          "sessionsOther": "{count} sessions"
+        },
         "subtitle": {
           "list": "Today and what is coming, with the person serving and the room",
           "sessions": "Dated sessions of each series and every one-off night, on the venue's clock",
@@ -16910,6 +16926,7 @@
       },
       "needsYou": {
         "title": "Needs you now",
+        "titleShort": "Needs you",
         "sorted": "Sorted by consequence",
         "empty": "Nothing needs you right now.",
         "checkStatus": "Check status",
@@ -17710,6 +17727,24 @@
         "tierHint": "A type has no seat count: seats per night are set when a session is scheduled. Admits per ticket is for a table or a pass, for example a table for 6.",
         "hiddenByLink": "hidden (sold by link)",
         "renameHint": "Renaming keeps the pool and the sold seats of this type. Seats per night are edited under Details & Schedule."
+      },
+      "tiers": {
+        "presentation": {
+          "title": "How this ticket type is shown",
+          "intro": "Shown on every page that sells this ticket type. A page's builder can still override a field for that page only.",
+          "image": "Featured image",
+          "imageHint": "Optional. Without one, the ticket shows as a clean text card.",
+          "imageEmpty": "Add an image",
+          "badge": "Badge",
+          "badgeHint": "A short tag next to the name, for example VIP or Early bird.",
+          "badgePlaceholder": "VIP",
+          "includes": "Includes",
+          "includesHint": "One item per line, shown as bullets on the ticket.",
+          "includesPlaceholder": "Welcome drink\nFront row seating",
+          "description": "Description",
+          "descriptionHint": "One short sentence under the price.",
+          "descriptionPlaceholder": "Everything in General, plus the after party."
+        }
       },
       "venue": {
         "title": "Venue & seating · {date}",

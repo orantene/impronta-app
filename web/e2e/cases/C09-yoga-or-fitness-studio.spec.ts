@@ -11,7 +11,6 @@ import {
   skipUnlessFixture,
   signInJourneysStaff,
   assertWorkspaceIdentity,
-  counterAddItem,
   counterCollectCash,
   counterNameBuyer,
   counterStartSale,
@@ -96,11 +95,30 @@ test("C09-OP walk-in class: New sale → Complimentary class → collect → Sal
   // (spec C19, `SellSurface`'s "Choose one" group) — same decision, same
   // pre-selected next session, a different affordance.
   await openCounter(page);
-  await expect(page.getByRole("button", { name: "Complimentary class" }).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "Morning class" })).toBeVisible();
-
+  // The board's tile (`SellSurface`): a class with more than one upcoming
+  // session says "Pick session" and the tap opens the chooser, one row per
+  // session; with exactly one it sells that session directly. The fixture
+  // carries Morning class and Last place class, so the session is chosen in
+  // the chooser (2026-09-17: the tile no longer lists sessions inline).
+  const tile = page.getByRole("button", { name: /^Complimentary class/ }).first();
+  await expect(tile).toBeVisible();
   await counterStartSale(page);
-  await counterAddItem(page, "Complimentary class");
+  await page.waitForFunction(
+    () => {
+      const first = document.querySelector("[data-pos-tile]");
+      return Boolean(first && Object.keys(first).some((key) => key.startsWith("__react")));
+    },
+    undefined,
+    { timeout: 60_000 },
+  );
+  await tile.click();
+  const chooser = page.getByRole("dialog", { name: "Complimentary class" });
+  if (await chooser.waitFor({ state: "visible", timeout: 5_000 }).then(() => true, () => false)) {
+    await expect(chooser.getByRole("button", { name: "Morning class" })).toBeVisible();
+    await chooser.getByRole("button", { name: "Morning class" }).click();
+  }
+  await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
+  await expect(page.locator("[data-pos-line]")).toHaveCount(1, { timeout: 30_000 });
   await counterNameBuyer(page, marker);
   await counterCollectCash(page);
   await expectCounterPaid(page);
@@ -163,11 +181,25 @@ test("C09-DIFF door: website last seat blocks POS walk-in on the same pool", asy
   await expect(after.getByText(/sold out/i).first()).toBeVisible();
 
   await openCounter(page);
-  await expect(page.getByRole("button", { name: "Complimentary class" }).first()).toBeVisible();
+  const diffTile = page.getByRole("button", { name: /^Complimentary class/ }).first();
+  await expect(diffTile).toBeVisible();
   await counterStartSale(page);
-  // Pick the sold-out session on the tile's chip row before adding the line.
-  await page.getByRole("button", { name: "Last place class" }).click();
-  await counterAddItem(page, "Complimentary class");
+  // Pick the sold-out session in the tile's chooser (one row per upcoming
+  // session, 2026-09-17) before the line lands.
+  await page.waitForFunction(
+    () => {
+      const first = document.querySelector("[data-pos-tile]");
+      return Boolean(first && Object.keys(first).some((key) => key.startsWith("__react")));
+    },
+    undefined,
+    { timeout: 60_000 },
+  );
+  await diffTile.click();
+  const diffChooser = page.getByRole("dialog", { name: "Complimentary class" });
+  await expect(diffChooser).toBeVisible({ timeout: 10_000 });
+  await diffChooser.getByRole("button", { name: "Last place class" }).click();
+  await expect(page).toHaveURL(/order=/, { timeout: 30_000 });
+  await expect(page.locator("[data-pos-line]")).toHaveCount(1, { timeout: 30_000 });
   await counterNameBuyer(page, walkInMarker);
   await counterCollectCash(page);
   // The engine's `sold_out` refusal, rendered as the sentence a cashier can

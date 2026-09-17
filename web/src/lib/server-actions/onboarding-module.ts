@@ -240,7 +240,13 @@ export async function chooseOnboardingPath(input: { path: OnboardingPath }): Pro
 }
 
 export type QuestionAnswer =
-  | { questionId: "basics"; what: string; city: string }
+  | {
+      questionId: "basics";
+      /** Picked from the taxonomy / catalogue (id set) or typed as "Other" (id empty). */
+      type: { kind: "talent" | "business"; id: string; slug: string; label: string };
+      /** Picked from the platform's cities (curated or Google-backed). */
+      city: { id: string | null; slug: string; name: string; countryIso2: string };
+    }
   | { questionId: "name"; name: string }
   | { questionId: "services"; services: string[] }
   | { questionId: "kind_of_business"; kind: "business" | "talent"; id: string; slug: string; label: string }
@@ -258,11 +264,14 @@ export async function answerModuleQuestion(input: {
   const statePatch: PersistedModuleState = { questionIndex: input.questionIndex + 1, updatedAt: new Date().toISOString() };
   const a = input.answer;
   if (a.questionId === "basics") {
-    const what = a.what.trim();
-    const city = a.city.trim();
-    const business = (got.state.path ?? "talent") !== "talent";
-    if (what) facts.push({ factKey: business ? "work.industry" : "work.discipline", value: what, source: "user_stated", status: "confirmed", confidence: 1 });
-    if (city) facts.push({ factKey: "person.city", value: city, source: "user_stated", status: "confirmed", confidence: 1 });
+    const what = a.type.label.trim();
+    const city = a.city.name.trim();
+    if (!what || !city) return { ok: false, code: "save_failed" };
+    const business = a.type.kind === "business";
+    if (a.type.id) statePatch.typeChoice = { kind: a.type.kind, id: a.type.id, slug: a.type.slug };
+    facts.push({ factKey: business ? "work.industry" : "work.discipline", value: what, source: "user_stated", status: "confirmed", confidence: 1 });
+    facts.push({ factKey: "person.city", value: city, source: "user_stated", status: "confirmed", confidence: 1 });
+    if (/^[A-Z]{2}$/.test(a.city.countryIso2)) facts.push({ factKey: "person.country", value: a.city.countryIso2, source: "user_stated", status: "confirmed", confidence: 1 });
   } else if (a.questionId === "name") {
     const name = a.name.trim();
     if (name) facts.push({ factKey: "person.professional_name", value: name, source: "user_stated", status: "confirmed", confidence: 1 });

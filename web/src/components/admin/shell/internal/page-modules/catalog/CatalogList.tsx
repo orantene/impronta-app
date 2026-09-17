@@ -80,7 +80,8 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
         title={t("dashboard.catalog.list.title")}
         intro={t("dashboard.catalog.list.intro")}
         actions={
-          <>
+          // MW21: the phone finds and adjusts; Import and Create item are the desktop's.
+          <div className="contents max-[720px]:hidden">
             <ActionButton onClick={() => setImportOpen((v) => !v)} testId="catalog-import">
               {t("dashboard.catalog.list.import")}
             </ActionButton>
@@ -88,7 +89,7 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
               <Icon name="plus" size={14} stroke={1.75} />
               {t("dashboard.catalog.list.createItem")}
             </ActionButton>
-          </>
+          </div>
         }
       />
 
@@ -97,8 +98,8 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
       <div className="flex flex-wrap items-center gap-[8px] max-[720px]:flex-col max-[720px]:items-stretch">
         <SegmentLinks label={t("dashboard.catalog.segment.label")} items={segments} />
         <span className="flex-1" />
-        {/* `contents` on every width: the phone stacks them under the segments, the desktop keeps them on the strip's row (W01). */}
-        <div className="contents">
+        {/* `contents` on the desktop keeps the chips on the strip's row (W01); MW21 draws only the segments on the phone. */}
+        <div className="contents max-[720px]:hidden">
         <FilterChip
           label={t("dashboard.catalog.filter.type")}
           value={packagesView ? "package" : filters.type}
@@ -137,7 +138,7 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
         </div>
       </div>
       {/* MW21: full editing lives on the desktop; the phone changes availability, price and essentials. */}
-      <div className="hidden max-[720px]:block">
+      <div className="hidden max-[720px]:order-last max-[720px]:block">
         <Note>{t("dashboard.catalog.list.phoneScope")}</Note>
       </div>
 

@@ -8,6 +8,7 @@
  */
 
 import type { PickerNight, PickerTier, TierAvailability } from "@/app/(public)/_events/ticket-picker-actions";
+import { mergeTierPresentation } from "@/lib/events/tier-presentation";
 
 /** Legacy step names, kept for callers that still narrate the v2 stepped flow. */
 export type TicketPickerStep = "tier" | "qty" | "details";
@@ -16,9 +17,11 @@ export type TicketPickerStep = "tier" | "qty" | "details";
 export type CheckoutStage = "tickets" | "details" | "pay";
 
 /**
- * Per-tier presentation the operator authors on the block (the tier row in
- * the database carries label, price and limits only). Keyed by variant id so
- * the copy follows the tier through relabels.
+ * Per-tier presentation OVERRIDE the operator authors on the block. The tier
+ * row itself carries its own presentation (event → Tickets & Offers: image,
+ * badge, includes, description) and the loader delivers it on `PickerTier`;
+ * this layers on top, winning per field it sets. Keyed by variant id so the
+ * copy follows the tier through relabels. `hidden` is builder-only.
  */
 export type TierPresentation = {
   variantId: string;
@@ -27,14 +30,17 @@ export type TierPresentation = {
   imageSrc?: string;
   imageMediaId?: string;
   badge?: string;
+  description?: string;
   /** Hide from the cards even when on sale (a private tier). */
   hidden?: boolean;
 };
 
 export type TierView = PickerTier & {
   includes: string[];
+  /** Null = no image anywhere: the card renders no image column. */
   imageSrc: string | null;
   badge: string | null;
+  description: string | null;
   /** True when the tier is hidden by the engine or by the operator. */
   hidden: boolean;
 };
@@ -93,13 +99,12 @@ export function visibleTiers(
     const engineHidden = (t as { hidden?: boolean }).hidden === true;
     const hidden = engineHidden || p?.hidden === true;
     if (hidden && !tierMatchesRef(t, queryTier)) continue;
-    out.push({
-      ...t,
-      includes: (p?.includes ?? "").split("\n").map((s) => s.trim()).filter(Boolean),
-      imageSrc: p?.imageSrc?.trim() || null,
-      badge: p?.badge?.trim() || null,
-      hidden,
-    });
+    // The tier's own presentation (loader) under the block's override (per field).
+    const merged = mergeTierPresentation(
+      { imageSrc: t.imageUrl ?? null, badge: t.badge ?? null, includes: t.includes ?? [], description: t.description ?? null },
+      p ? { includes: p.includes, imageSrc: p.imageSrc, badge: p.badge, description: p.description } : null,
+    );
+    out.push({ ...t, ...merged, hidden });
   }
   return out;
 }

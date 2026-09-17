@@ -218,7 +218,9 @@ export function MobileBottomNav() {
       .filter((g) => g.destinations.length > 0);
     const settingsRow = groups.find((g) => g.group === "settings")?.destinations[0] ?? null;
 
-    const moreActive = moreOpen;
+    // MW09 / MW17 / MW21: while a page that lives in the sheet is open
+    // (Projects, Orders, Catalog...), the bar shows More as the active tab.
+    const moreActive = moreOpen || (!tabs.some((tb) => tb.active) && chipGroups.some((g) => g.destinations.some((d) => isActive(d))));
 
     return (
       <>

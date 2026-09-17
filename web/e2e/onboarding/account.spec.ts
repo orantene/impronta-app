@@ -9,7 +9,7 @@
  * `generateLink` and finishes the sign-in.
  */
 import { isolatedService } from "../cases/_isolated-db";
-import { evidence, expect, openHome, test } from "./_module";
+import { evidence, expect, openHome, test, answerBasics } from "./_module";
 
 async function reachSave(page: Parameters<typeof openHome>[0]) {
   await openHome(page);
@@ -19,8 +19,7 @@ async function reachSave(page: Parameters<typeof openHome>[0]) {
   await page.getByTestId("onb-confirm-send").click();
   await expect(page.getByTestId("onb-understood")).toBeVisible({ timeout: 30_000 });
   await page.getByTestId("onb-accept").click();
-  await page.getByTestId("onb-basics-what").fill("House cleaner");
-  await page.getByTestId("onb-basics-city").fill("Playa del Carmen");
+  await answerBasics(page, "House cleaner", "Playa del Carmen");
   await page.getByTestId("onb-next").click();
   await page.getByTestId("onb-name-input").fill("Rosa");
   await page.getByTestId("onb-next").click();

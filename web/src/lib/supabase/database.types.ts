@@ -6385,6 +6385,129 @@ export type Database = {
           },
         ]
       }
+      event_schedule_items: {
+        Row: {
+          cover_media_id: string | null
+          created_at: string
+          description: string | null
+          ends_at: string | null
+          event_id: string
+          i18n: Json
+          id: string
+          kind: string
+          links: Json
+          media: Json
+          performer_name: string | null
+          performer_talent_profile_id: string | null
+          performer_tba: boolean
+          session_id: string | null
+          sort_order: number
+          space_id: string | null
+          sponsor: Json
+          starts_at: string | null
+          status: string
+          subtitle: string | null
+          tags: string[]
+          tenant_id: string
+          time_tba: boolean
+          title: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          cover_media_id?: string | null
+          created_at?: string
+          description?: string | null
+          ends_at?: string | null
+          event_id: string
+          i18n?: Json
+          id?: string
+          kind?: string
+          links?: Json
+          media?: Json
+          performer_name?: string | null
+          performer_talent_profile_id?: string | null
+          performer_tba?: boolean
+          session_id?: string | null
+          sort_order?: number
+          space_id?: string | null
+          sponsor?: Json
+          starts_at?: string | null
+          status?: string
+          subtitle?: string | null
+          tags?: string[]
+          tenant_id: string
+          time_tba?: boolean
+          title: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          cover_media_id?: string | null
+          created_at?: string
+          description?: string | null
+          ends_at?: string | null
+          event_id?: string
+          i18n?: Json
+          id?: string
+          kind?: string
+          links?: Json
+          media?: Json
+          performer_name?: string | null
+          performer_talent_profile_id?: string | null
+          performer_tba?: boolean
+          session_id?: string | null
+          sort_order?: number
+          space_id?: string | null
+          sponsor?: Json
+          starts_at?: string | null
+          status?: string
+          subtitle?: string | null
+          tags?: string[]
+          tenant_id?: string
+          time_tba?: boolean
+          title?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_schedule_items_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_schedule_items_performer_talent_profile_id_fkey"
+            columns: ["performer_talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_schedule_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_schedule_items_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_schedule_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           admission_kind: string
@@ -6399,6 +6522,7 @@ export type Database = {
           offering_id: string | null
           page_id: string | null
           payout_release_rule: string
+          program: Json
           published_at: string | null
           refund_cutoff_hours: number | null
           refund_policy_key: string | null
@@ -6425,6 +6549,7 @@ export type Database = {
           offering_id?: string | null
           page_id?: string | null
           payout_release_rule?: string
+          program?: Json
           published_at?: string | null
           refund_cutoff_hours?: number | null
           refund_policy_key?: string | null
@@ -6451,6 +6576,7 @@ export type Database = {
           offering_id?: string | null
           page_id?: string | null
           payout_release_rule?: string
+          program?: Json
           published_at?: string | null
           refund_cutoff_hours?: number | null
           refund_policy_key?: string | null

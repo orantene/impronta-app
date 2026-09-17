@@ -43,14 +43,18 @@ test("SELL: catalog, events, spaces and discounts open with real rows; a discoun
   await signInJourneysStaff(page, "/admin/catalog");
   await assertWorkspaceIdentity(page);
   await expect(page.getByText(/we could not load/i)).toHaveCount(0);
-  await expect(page.getByText("House pizza").first()).toBeVisible({ timeout: 20_000 });
+  // The catalog list now renders a phone row (`catalog-row-phone`, hidden on
+  // desktop) BEFORE the desktop row, so `.first()` lands on a hidden node;
+  // ask for the visible one. The item still has to be visible on the page.
+  await expect(page.getByText("House pizza").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
   await page.screenshot({ path: testInfo.outputPath("01-catalog.png"), fullPage: true });
 
   // ── 2. Events — the fixture's own event ───────────────────────────────────
   await signInJourneysStaff(page, "/admin/events");
   await assertWorkspaceIdentity(page);
   await expect(page.getByText(/we could not load/i)).toHaveCount(0);
-  await expect(page.getByText(/qa night/i).first()).toBeVisible({ timeout: 20_000 });
+  // Same phone-row-first list as the catalog: ask for the visible row.
+  await expect(page.getByText(/qa night/i).filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
   await page.screenshot({ path: testInfo.outputPath("02-events.png"), fullPage: true });
 
   // ── 3. Spaces — redirects to the real floor, the fixture's own table ─────
@@ -58,7 +62,7 @@ test("SELL: catalog, events, spaces and discounts open with real rows; a discoun
   await assertWorkspaceIdentity(page);
   await expect(page).toHaveURL(/\/admin\/tables$/);
   await expect(page.getByText(/we could not load the floor/i)).toHaveCount(0);
-  await expect(page.getByText("T2", { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("T2", { exact: true }).filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
   await page.screenshot({ path: testInfo.outputPath("03-spaces.png"), fullPage: true });
 
   // ── 4. Discounts — create a code through the real form, read it back ─────

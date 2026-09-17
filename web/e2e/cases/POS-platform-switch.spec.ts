@@ -39,6 +39,7 @@ import {
   signInJourneysStaff,
   assertNotAuthWall,
 } from "./_harness";
+import { clickSettingsNav } from "./_wire";
 
 const PLATFORM_ADMIN_EMAIL = "qa-journeys-platform-admin@impronta.test";
 const OWNER_EMAIL = "qa-journeys-owner@impronta.test";
@@ -125,14 +126,17 @@ test("the platform POS switch and the workspace panel agree, end to end", async 
 
   // Reload — the real reader (`getPosModes`) must agree.
   await page.reload();
-  await page.getByRole("button", { name: "Point of sale", exact: true }).click();
+  // A click on the settings nav before hydration is a click on nothing
+  // (r2 2026-09-17: the card never opened); knock until the card is there.
+  await clickSettingsNav(page, "Point of sale", page.getByTestId("pos-modes-card"));
   const counterSwitchAfterReload = page.getByTestId("pos-modes-card").getByRole("switch").first();
   await expect(counterSwitchAfterReload).toHaveAttribute("aria-checked", "true", { timeout: 20000 });
 
   // ── 5. Top bar switch: visible for the owner, absent for the viewer ──────
   await signInJourneysStaff(page, `/${TENANT_SLUG}/admin`, OWNER_EMAIL);
   await assertNotAuthWall(page);
-  await expect(page.getByRole("button", { name: /^Workspace/ })).toBeVisible({ timeout: 20000 });
+  // Polish (2026-09-17): the switch's first half reads "Back office" (was "Workspace").
+  await expect(page.getByRole("button", { name: /^(Back office|Workspace)$/ })).toBeVisible({ timeout: 20000 });
   await page.screenshot({
     path: "../docs/plans/program/evidence/pos-enable/screenshots/4-topbar-switch-owner.png",
     fullPage: true,
@@ -140,7 +144,7 @@ test("the platform POS switch and the workspace panel agree, end to end", async 
 
   await signInJourneysStaff(page, `/${TENANT_SLUG}/admin`, VIEWER_EMAIL);
   await assertNotAuthWall(page);
-  await expect(page.getByRole("button", { name: /^Workspace/ })).toHaveCount(0, { timeout: 20000 });
+  await expect(page.getByRole("button", { name: /^(Back office|Workspace)$/ })).toHaveCount(0, { timeout: 20000 });
   await page.screenshot({
     path: "../docs/plans/program/evidence/pos-enable/screenshots/5-topbar-switch-absent-viewer.png",
     fullPage: true,

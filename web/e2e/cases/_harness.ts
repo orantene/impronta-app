@@ -129,6 +129,18 @@ export async function signInJourneysStaff(
     // 404 (Turbopack briefly missing the route) and 502/503 (Next restarting
     // or the proxy's upstream gone) are the only statuses worth retrying.
     // 403/400/401/500 are the handler answering; retrying only delays the report.
+    // One exception (D-173): the FIRST sign-in of a brand-new `@impronta.test`
+    // user answers 401 "Email link is invalid or has expired" (the route
+    // creates the user, then the fresh magic link fails verifyOtp once); the
+    // second call is a 307. Retry that one answer once, and only that one.
+    if (res.status() === 401 && attempt === 1 && email.toLowerCase().endsWith("@impronta.test")) {
+      const body = await res.text();
+      if (/invalid or has expired/i.test(body)) {
+        await page.waitForTimeout(250);
+        continue;
+      }
+      expect(res.status(), `dev sign-in refused: ${body}`).toBe(307);
+    }
     if (res.status() !== 404 && res.status() !== 502 && res.status() !== 503) {
       expect(res.status(), `dev sign-in refused: ${await res.text()}`).toBe(307);
     }

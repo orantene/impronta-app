@@ -65,3 +65,32 @@ export async function resolveRoutedChat(call: AiRoutedCall): Promise<RoutedChat>
   logServerError("ai.call-routing.fallback", new Error(`${call}: no key for ${model}; using the global provider`));
   return { adapter: await resolveAiChatAdapter(), model: undefined, source: "auto" };
 }
+
+/**
+ * The other provider for a call, when it has a key: the failover target after
+ * an `api_error` / `quota` / `timeout` on the routed one. Null when only one
+ * provider is configured. The failover model is the recommended one for that
+ * provider, not the global default, so quality stays measured.
+ */
+export async function resolveFailoverChat(call: AiRoutedCall, failedProvider: AiProviderAdapter["id"] | string): Promise<RoutedChat | null> {
+  const failed = String(failedProvider);
+  if (failed !== "anthropic") {
+    const key = await resolveAnthropicApiKey();
+    if (key) {
+      const model = FAILOVER_MODEL.anthropic[call];
+      return { adapter: bound(createAnthropicChatAdapter(key), model), model, source: "routed" };
+    }
+    return null;
+  }
+  const key = await resolveOpenAiApiKey();
+  if (key) {
+    const model = FAILOVER_MODEL.openai[call];
+    return { adapter: bound(createOpenAiChatAdapter(key), model), model, source: "routed" };
+  }
+  return null;
+}
+
+const FAILOVER_MODEL: Record<"anthropic" | "openai", Record<AiRoutedCall, string>> = {
+  anthropic: { extraction: "claude-haiku-4-5-20251001", copy: "claude-sonnet-5", critic: "claude-haiku-4-5-20251001", helper: "claude-haiku-4-5-20251001" },
+  openai: { extraction: "gpt-4.1", copy: "gpt-4.1", critic: "gpt-4.1-mini", helper: "gpt-4.1-mini" },
+};

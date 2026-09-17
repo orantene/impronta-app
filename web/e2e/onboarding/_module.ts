@@ -37,3 +37,21 @@ export async function evidence(page: Page, name: string): Promise<void> {
   const project = page.viewportSize()?.width && page.viewportSize()!.width < 500 ? "390" : "1440";
   await page.screenshot({ path: `${dir}/${name}-${project}.png`, fullPage: false });
 }
+
+/**
+ * The basics question (what you do + city) is two pickers, not two text
+ * fields: type, wait for the list, pick the first row. `what` falls back to
+ * "Not in the list" when the taxonomy has no row for it on this stack.
+ */
+export async function answerBasics(page: Page, what: string, city: string): Promise<void> {
+  await page.getByTestId("onb-basics-what").fill(what);
+  const option = page.getByTestId("onb-basics-what-option").first();
+  if (await option.isVisible({ timeout: 4_000 }).catch(() => false)) {
+    await option.click();
+  } else {
+    await page.getByTestId("onb-basics-other").fill(what);
+  }
+  await page.getByTestId("onb-basics-city").fill(city);
+  await page.getByTestId("onb-basics-city-option").first().click({ timeout: 10_000 });
+  await expect(page.getByTestId("onb-basics-city-selected")).toBeVisible();
+}

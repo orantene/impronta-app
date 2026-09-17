@@ -513,3 +513,92 @@ test("the legacy list layout keeps its single screen: no cards, no order bar, no
     assert.equal(host.querySelector('input[type="tel"]'), null, "the legacy screen grew a phone field");
   });
 });
+
+// ── Tier presentation on the ticket type (owner ask, 2026-09-17) ───────────
+// The tier row carries its own image / badge / includes / description; the
+// block's `tiers[]` stays an override that wins per field.
+
+const TIER_IMG = "https://cdn.example/tiers/day-pass.jpg";
+const PAGE_IMG = "https://cdn.example/pages/override.jpg";
+
+test("a tier image from the loader renders the image column; badge sits in the header row, not over the title", () => {
+  mount(
+    <TicketPickerIsland
+      tenantId={TENANT}
+      eventId={EVENT}
+      layout="cards"
+      preload={preload({ tiers: [tier({ imageUrl: TIER_IMG, badge: "VIP", includes: ["Copa de vino"], description: "Front row, early doors." })] })}
+    />,
+    (host) => {
+      const card = host.querySelector<HTMLElement>(`[data-tier-card="${DAY_PASS}"]`);
+      assert.ok(card);
+      assert.equal(card.getAttribute("data-has-media"), "1", "the card did not declare its image column");
+      const img = card.querySelector<HTMLImageElement>("img.tp-card-media");
+      assert.ok(img, "the tier's own image did not render");
+      assert.equal(img.getAttribute("src"), TIER_IMG);
+      assert.equal(card.querySelector(".tp-card-ph"), null, "a placeholder glyph next to a real image");
+      const head = card.querySelector<HTMLElement>(".tp-card-head");
+      assert.ok(head, "no header row");
+      assert.ok(head.querySelector(".tp-card-title"), "the title is not in the header row");
+      assert.equal(head.querySelector(".tp-badge")?.textContent, "VIP", "the badge is not in the header row beside the title");
+      assert.match(card.querySelector(".tp-includes")?.textContent ?? "", /Copa de vino/, "the tier's own includes did not render");
+      assert.equal(card.querySelector(".tp-card-desc")?.textContent, "Front row, early doors.");
+    },
+  );
+});
+
+test("a tier without an image renders a clean text card: no image column, no placeholder glyph", () => {
+  mount(
+    <TicketPickerIsland tenantId={TENANT} eventId={EVENT} layout="cards" preload={preload({ tiers: [tier({ badge: "Early bird" })] })} />,
+    (host) => {
+      const card = host.querySelector<HTMLElement>(`[data-tier-card="${DAY_PASS}"]`);
+      assert.ok(card);
+      assert.equal(card.getAttribute("data-has-media"), null, "an image-less tier declared an image column");
+      assert.equal(card.querySelector("img"), null, "an image rendered for a tier with none");
+      assert.equal(card.querySelector(".tp-card-ph"), null, "a placeholder glyph on an image-less tier");
+      assert.equal(card.querySelector(".tp-card-head .tp-badge")?.textContent, "Early bird", "the badge left the header row");
+      assert.equal(card.querySelector(".tp-card-desc"), null, "a description rendered with none set");
+    },
+  );
+});
+
+test("the builder override beats the tier's own value, per field; fields it leaves blank keep the tier's own", () => {
+  mount(
+    <TicketPickerIsland
+      tenantId={TENANT}
+      eventId={EVENT}
+      layout="cards"
+      tiers={[{ variantId: DAY_PASS, imageSrc: PAGE_IMG, badge: "Page badge", includes: "" }]}
+      preload={preload({ tiers: [tier({ imageUrl: TIER_IMG, badge: "Tier badge", includes: ["Tier bullet"], description: "Tier description" })] })}
+    />,
+    (host) => {
+      const card = host.querySelector<HTMLElement>(`[data-tier-card="${DAY_PASS}"]`);
+      assert.ok(card);
+      assert.equal(card.querySelector<HTMLImageElement>("img.tp-card-media")?.getAttribute("src"), PAGE_IMG, "the builder image did not win");
+      assert.equal(card.querySelector(".tp-badge")?.textContent, "Page badge", "the builder badge did not win");
+      assert.match(card.querySelector(".tp-includes")?.textContent ?? "", /Tier bullet/, "a blank override erased the tier's own includes");
+      assert.equal(card.querySelector(".tp-card-desc")?.textContent, "Tier description", "an unset override erased the tier's own description");
+    },
+  );
+});
+
+test("the checkout summary and the pay button show the SAME money string as the card", () => {
+  mount(
+    <TicketPickerIsland tenantId={TENANT} eventId={EVENT} layout="cards" locale="es" preload={preload({ currency: "MXN", tiers: [tier({ amountCents: 100000 })] })} />,
+    (host) => {
+      const card = host.querySelector<HTMLElement>(`[data-tier-card="${DAY_PASS}"]`);
+      assert.ok(card);
+      assert.equal(card.querySelector(".tp-card-price")?.textContent, "$1,000.00MXN");
+      const plus = card.querySelector<HTMLButtonElement>('button[aria-label="Más"]');
+      assert.ok(plus, "the ES stepper carries no 'Más' control");
+      act(() => { plus.click(); });
+      act(() => { host.querySelector<HTMLButtonElement>('[data-testid="ticket-open-sheet"]')?.click(); });
+      const dialog = host.querySelector<HTMLElement>('[role="dialog"]');
+      assert.ok(dialog, "the checkout did not open");
+      assert.match(dialog.querySelector('[data-testid="ticket-order-total"]')?.textContent ?? "", /\$1,000\.00 MXN/, "the summary total is not the card's format");
+      assert.doesNotMatch(dialog.textContent ?? "", /1000,00/, "the bare-locale format leaked into the sheet");
+      assert.match(dialog.querySelector('[data-testid="ticket-pay"]')?.textContent ?? "", /\$1,000\.00 MXN/, "the pay button is not the card's format");
+      pressEscape();
+    },
+  );
+});

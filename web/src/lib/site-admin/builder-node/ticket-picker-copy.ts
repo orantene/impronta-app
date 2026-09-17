@@ -216,21 +216,26 @@ export function formatWhen(iso: string, timeZone: string | null, locale: Locale)
     }).format(new Date(iso));
   } catch { return iso; }
 }
-export function money(cents: number, currency: string, locale: Locale, freeLabel: string): string {
-  if (cents === 0) return freeLabel;
-  try { return new Intl.NumberFormat(locale === "es" ? "es" : "en", { style: "currency", currency }).format(cents / 100); }
-  catch { return `${(cents / 100).toFixed(2)} ${currency}`; }
-}
 /**
- * The card price: the narrow symbol ("$1,000.00") with the ISO code shown
- * beside it, so "$" is never ambiguous between MXN and USD on one page.
+ * THE ONE money formatter for the picker: the narrow symbol ("$1,000.00")
+ * with the ISO code beside it, so "$" is never ambiguous between MXN and USD
+ * on one page. Cards, order bar, checkout summary and the pay button all
+ * read this, so a guest sees the same "$1,000.00 MXN" everywhere (the sheet
+ * used to say "1000,00 MXN" through a second, bare-locale formatter).
+ * Regional locales on purpose: bare "es" formats MXN as "1000,00 $".
  */
 export function priceParts(cents: number, currency: string, locale: Locale, freeLabel: string): { amount: string; code: string | null } {
   if (cents === 0) return { amount: freeLabel, code: null };
+  const code = currency.toUpperCase();
   try {
-    const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(cents / 100);
-    return { amount, code: currency.toUpperCase() };
-  } catch { return { amount: (cents / 100).toFixed(2), code: currency.toUpperCase() }; }
+    const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { style: "currency", currency: code, currencyDisplay: "narrowSymbol" }).format(cents / 100);
+    return { amount, code };
+  } catch { return { amount: (cents / 100).toFixed(2), code }; }
+}
+/** `priceParts` as one string: "$1,000.00 MXN", or the free label. */
+export function money(cents: number, currency: string, locale: Locale, freeLabel: string): string {
+  const p = priceParts(cents, currency, locale, freeLabel);
+  return p.code ? `${p.amount} ${p.code}` : p.amount;
 }
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

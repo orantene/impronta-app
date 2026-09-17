@@ -17,7 +17,7 @@ Everything below is live now. Nothing needs a developer to change a price, a dat
 | The Show | `/show` | Rewritten for **hotels, resorts, beach clubs, casinos, restaurants**: what is included, formats, how a venue books it, venue inquiry form, casting form kept |
 | For clients | `/for-clients` | New **"Who we work with"**: 9 cards covering all 14 target areas from Alejandra's list, each with a "start an inquiry" link |
 | The Studio | `/studio` | New **"Packages & prices"** list linking to the experiences page |
-| Header menu | all pages | Our Talents · **Services** (menu with the 6 briefs + the Show featured) · **Experiences** · **The Show** · About · Contact · LUMINA |
+| Header menu | all pages | Our Talents · **Services** (menu with the 6 briefs + the Show featured) · **Experiences** · **The Show** · About · Contact. The top bar links to the LUMINA launch party (21 November) |
 
 Both languages are complete on every page above.
 

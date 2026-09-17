@@ -1731,9 +1731,18 @@
         "skip": "Saltar por ahora",
         "of": "{n} de {total}",
         "basicsTitle": "¿Qué haces y dónde?",
-        "basicsSub": "Con dos palabras cada uno basta.",
+        "basicsSub": "Elige de la lista para que te encuentren. Los dos son necesarios.",
         "basicsWhat": "Qué haces",
-        "basicsCity": "Ciudad"
+        "basicsCity": "Ciudad",
+        "basicsWhatTalentHint": "Busca: manicurista, fotógrafo, DJ…",
+        "basicsWhatBusinessHint": "Busca: salón de uñas, restaurante, gimnasio…",
+        "basicsCityHint": "Busca tu ciudad",
+        "basicsOther": "¿No está en la lista?",
+        "basicsOtherHint": "Escríbelo aquí",
+        "basicsOtherNote": "Lo agregamos tal cual. Elegir de la lista hace que te encuentren en la búsqueda.",
+        "change": "Cambiar",
+        "noMatch": "Sin coincidencias. Prueba otra palabra o usa \"No está en la lista\".",
+        "noCity": "Aún no encontramos la ciudad. Sigue escribiendo."
       },
       "ready": {
         "title": "Listo para construir",
@@ -4404,6 +4413,7 @@
         "sessionBlock": "{title} · {booked}/{places}",
         "emptyDay": "Nada este dia con estos filtros.",
         "holdExpires": "Apartado en {title} a las {time}",
+        "holdExpiresAt": "El apartado vence a las {time}",
         "dragOff": "Arrastrar para reprogramar no esta construido; Moverla en Citas y clases reprograma con la ventana que viste.",
         "prevDay": "Dia anterior",
         "nextDay": "Dia siguiente"
@@ -16053,6 +16063,12 @@
         "unknown": "Estado no reconocido"
       },
       "board": {
+        "phone": {
+          "appointmentsOne": "1 cita",
+          "appointmentsOther": "{count} citas",
+          "sessionsOne": "1 sesión",
+          "sessionsOther": "{count} sesiones"
+        },
         "subtitle": {
           "list": "Hoy y lo que viene, con quien atiende y la sala",
           "sessions": "Sesiones con fecha de cada serie y cada noche suelta, en el reloj del lugar",
@@ -16910,6 +16926,7 @@
       },
       "needsYou": {
         "title": "Te necesita ahora",
+        "titleShort": "Te necesita",
         "sorted": "Ordenado por consecuencia",
         "empty": "Nada te necesita ahora mismo.",
         "checkStatus": "Ver estado",
@@ -17710,6 +17727,24 @@
         "tierHint": "Un tipo no tiene número de plazas: las plazas por noche se definen al programar una sesión. Admite por entrada es para una mesa o un pase, por ejemplo una mesa para 6.",
         "hiddenByLink": "oculta (se vende por enlace)",
         "renameHint": "Renombrar conserva las plazas y las vendidas de este tipo. Las plazas por noche se editan en Detalles y calendario."
+      },
+      "tiers": {
+        "presentation": {
+          "title": "Cómo se muestra este tipo de entrada",
+          "intro": "Se muestra en todas las páginas que venden este tipo de entrada. El editor de una página puede cambiar un campo solo para esa página.",
+          "image": "Imagen destacada",
+          "imageHint": "Opcional. Sin imagen, la entrada se muestra como una tarjeta de texto limpia.",
+          "imageEmpty": "Agregar una imagen",
+          "badge": "Etiqueta",
+          "badgeHint": "Una etiqueta corta junto al nombre, por ejemplo VIP o Preventa.",
+          "badgePlaceholder": "VIP",
+          "includes": "Incluye",
+          "includesHint": "Un elemento por línea; se muestran como viñetas en la entrada.",
+          "includesPlaceholder": "Bebida de bienvenida\nAsientos en primera fila",
+          "description": "Descripción",
+          "descriptionHint": "Una frase corta debajo del precio.",
+          "descriptionPlaceholder": "Todo lo de General, más el after."
+        }
       },
       "venue": {
         "title": "Lugar y asientos · {date}",

@@ -16,6 +16,7 @@ import type { Understanding } from "@/lib/onboarding/understanding";
 import type { QuestionAnswer } from "@/lib/server-actions/onboarding-module";
 
 import { GhostLink, Notice, PrimaryButton, Sub, Title } from "../ui";
+import { BasicsQuestion } from "./basics-question";
 
 type T = (key: string) => string;
 
@@ -88,7 +89,7 @@ export function QuestionStep({
     <div data-testid={`onb-question-${questionId}`}>
       <p className="text-[0.75rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>{counter}</p>
       {questionId === "basics" ? (
-        <BasicsQuestion t={t} busy={busy} onAnswer={onAnswer} />
+        <BasicsQuestion t={t} locale={locale} understanding={understanding} chip={chip} busy={busy} onAnswer={onAnswer} />
       ) : questionId === "kind_of_business" ? (
         <KindQuestion t={t} locale={locale} talent={understanding.path === "talent"} chip={chip} busy={busy} onAnswer={onAnswer} />
       ) : questionId === "name" ? (
@@ -101,9 +102,12 @@ export function QuestionStep({
         <LinkConfirm t={t} busy={busy} name={understanding.lines.find((l) => l.id === "businessName")?.value ?? ""} onAnswer={onAnswer} />
       ) : null}
       {errorText ? <Notice tone="error" testId="onb-error">{errorText}</Notice> : null}
-      <div className="mt-3 flex justify-center">
-        <GhostLink onClick={onSkip} testId="onb-skip">{t("public.onboarding.questions.skip")}</GhostLink>
-      </div>
+      {/* What you do and where are required (owner ruling 2026-09-17): no skip on basics. */}
+      {questionId !== "basics" ? (
+        <div className="mt-3 flex justify-center">
+          <GhostLink onClick={onSkip} testId="onb-skip">{t("public.onboarding.questions.skip")}</GhostLink>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -139,24 +143,6 @@ function KindQuestion({ t, locale, talent, chip, busy, onAnswer }: { t: T; local
   );
 }
 
-function BasicsQuestion({ t, busy, onAnswer }: { t: T; busy: boolean; onAnswer: (a: QuestionAnswer) => void }) {
-  const [what, setWhat] = useState("");
-  const [city, setCity] = useState("");
-  const submit = () => { if (what.trim() || city.trim()) onAnswer({ questionId: "basics", what, city }); };
-  return (
-    <>
-      <Title>{t("public.onboarding.questions.basicsTitle")}</Title>
-      <Sub>{t("public.onboarding.questions.basicsSub")}</Sub>
-      <div className="mt-4 flex flex-col gap-2">
-        <Field value={what} onChange={setWhat} placeholder={t("public.onboarding.questions.basicsWhat")} testId="onb-basics-what" />
-        <Field value={city} onChange={setCity} placeholder={t("public.onboarding.questions.basicsCity")} testId="onb-basics-city" onEnter={submit} />
-      </div>
-      <div className="mt-5">
-        <PrimaryButton onClick={submit} disabled={busy || (!what.trim() && !city.trim())} testId="onb-next">{t("public.onboarding.questions.next")}</PrimaryButton>
-      </div>
-    </>
-  );
-}
 
 function NameQuestion({ t, busy, onAnswer }: { t: T; busy: boolean; onAnswer: (a: QuestionAnswer) => void }) {
   const [name, setName] = useState("");

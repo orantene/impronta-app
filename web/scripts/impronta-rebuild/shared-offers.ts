@@ -535,3 +535,29 @@ export function keepBulletRowsOnMobile(nodes: BuilderNode[]): { tree: BuilderNod
     });
   return { tree: walk(nodes), fixed };
 }
+
+/**
+ * Live-tree repair: drop the rise-on-scroll entrance from bands a CTA jumps
+ * to (see `BandOptions.noRise`). Matches the band by root id and clears the
+ * animation keys on its inner wrap.
+ */
+export function stripEntranceAnimation(nodes: BuilderNode[], bandIds: readonly string[]): { tree: BuilderNode[]; fixed: number } {
+  let fixed = 0;
+  const ids = new Set(bandIds);
+  const tree = nodes.map((node) => {
+    if (!ids.has(node.id)) return node;
+    const children = (node as { children?: BuilderNode[] }).children;
+    if (!Array.isArray(children)) return node;
+    let changed = false;
+    const nc = children.map((child) => {
+      const style = ((child.props as Record<string, unknown>).style as Record<string, unknown> | undefined) ?? {};
+      if (!("animationPreset" in style) && !("animationTrigger" in style)) return child;
+      const rest = { ...style };
+      delete rest.animationPreset; delete rest.animationTrigger; delete rest.animationDuration; delete rest.animationEasing;
+      changed = true; fixed += 1;
+      return { ...child, props: { ...(child.props as Record<string, unknown>), style: rest } } as unknown as BuilderNode;
+    });
+    return changed ? ({ ...node, children: nc } as BuilderNode) : node;
+  });
+  return { tree, fixed };
+}

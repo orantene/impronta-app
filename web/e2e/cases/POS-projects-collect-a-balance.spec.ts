@@ -384,7 +384,8 @@ test("POS PROJECTS: find a project, see what is owed with its rows, collect a de
   // 1 — THE MODE, from the top bar's own switch, then its rail.
   // ────────────────────────────────────────────────────────────────────
   await page.goto("/admin");
-  const control = page.getByRole("group", { name: /workspace or point of sale/i });
+  // Polish (2026-09-17): the switch reads "Back office | POS · <mode>"; the group is labelled "Back office or point of sale".
+  const control = page.getByRole("group", { name: /(back office|workspace) or point of sale/i });
   await expect(control, "the top bar switch is the desktop door into the till").toBeVisible({ timeout: 30_000 });
   // The switch is client state; a click that lands before hydration is a
   // click on nothing, so it is repeated until the menu (several modes are
