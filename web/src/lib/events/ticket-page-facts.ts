@@ -153,7 +153,7 @@ async function readFacts(admin: FactsAdmin, input: { tenantId: string; admission
   out.orderLineId = adm.order_line_id ?? null;
   out.sessionStartsAt = adm.starts_at ?? null;
 
-  const [line, session, space, workspace] = await Promise.all([
+  const [line, session, space, workspace, workspaceLocale] = await Promise.all([
     adm.order_line_id
       ? one<{ id: string; order_id: string; label: string | null; total_cents: number | null; refunded_cents: number | null }>(
           "line",
@@ -169,14 +169,21 @@ async function readFacts(admin: FactsAdmin, input: { tenantId: string; admission
     adm.space_id
       ? one<{ name: string | null; code: string | null }>("space", admin.from("spaces").select("name, code").eq("tenant_id", T).eq("id", adm.space_id).maybeSingle())
       : Promise.resolve(null),
-    one<{ timezone: string | null; default_locale: string | null; display_name: string | null }>(
+    one<{ timezone: string | null; display_name: string | null }>(
       "workspace",
-      admin.from("agencies").select("timezone, default_locale, display_name").eq("id", T).maybeSingle(),
+      admin.from("agencies").select("timezone, display_name").eq("id", T).maybeSingle(),
+    ),
+    // The public site's default locale lives on agency_business_identity, not
+    // on agencies (`agencies.default_locale` does not exist; reading it 404'd
+    // every guest ticket page on 2026-09-17). Same source ticket-delivery uses.
+    one<{ default_locale: string | null }>(
+      "workspace-locale",
+      admin.from("agency_business_identity").select("default_locale").eq("tenant_id", T).maybeSingle(),
     ),
   ]);
 
   out.workspaceName = workspace?.display_name ?? null;
-  out.workspaceLocale = workspace?.default_locale ?? null;
+  out.workspaceLocale = workspaceLocale?.default_locale ?? null;
   out.seatLabel = space ? (space.name || space.code || null) : null;
 
   if (line) {
