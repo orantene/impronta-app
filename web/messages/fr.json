@@ -7113,12 +7113,23 @@
           "needsTitle": "Rien à traiter",
           "needsBody": "Chaque conversation attend un client ou est résolue.",
           "needsAction": "Voir En attente",
+          "waitTitle": "Personne n'attend de client",
+          "waitBody": "Les conversations apparaîtront ici dès qu'un client devra une réponse.",
+          "allTitle": "Aucune conversation pour l'instant",
+          "allBody": "Les nouvelles conversations apparaîtront ici.",
           "searchTitle": "Aucune conversation ne correspond à \"{query}\"",
           "searchBody": "La recherche couvre les noms, le téléphone, les numéros de commande et le texte des messages.",
           "searchAction": "Effacer la recherche",
           "failedTitle": "Impossible de charger les conversations",
           "failedBody": "Vos messages sont en sécurité. Vérifiez la connexion et réessayez.",
           "failedAction": "Réessayer"
+        },
+        "groups": {
+          "today": "Aujourd'hui",
+          "yesterday": "Hier",
+          "paymentIssue": "Problème de paiement",
+          "holdExpiring": "Blocage bientôt expiré",
+          "followUpDue": "Relance à faire"
         },
         "loading": "Chargement des conversations"
       },

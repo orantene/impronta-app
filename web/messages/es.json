@@ -18136,12 +18136,23 @@
           "needsTitle": "Nada requiere tu atención",
           "needsBody": "Todas las conversaciones esperan al cliente o están resueltas.",
           "needsAction": "Ver En espera",
+          "waitTitle": "Nadie está esperando al cliente",
+          "waitBody": "Las conversaciones aparecerán aquí cuando un cliente deba una respuesta.",
+          "allTitle": "Aún no hay conversaciones",
+          "allBody": "Las conversaciones nuevas aparecerán aquí.",
           "searchTitle": "Ninguna conversación coincide con \"{query}\"",
           "searchBody": "La búsqueda cubre nombres, teléfono, números de pedido y texto de mensajes.",
           "searchAction": "Limpiar búsqueda",
           "failedTitle": "No se pudieron cargar las conversaciones",
           "failedBody": "Tus mensajes están a salvo. Revisa la conexión e inténtalo de nuevo.",
           "failedAction": "Reintentar"
+        },
+        "groups": {
+          "today": "Hoy",
+          "yesterday": "Ayer",
+          "paymentIssue": "Problema de pago",
+          "holdExpiring": "Reserva por vencer",
+          "followUpDue": "Seguimiento pendiente"
         },
         "loading": "Cargando conversaciones"
       },
