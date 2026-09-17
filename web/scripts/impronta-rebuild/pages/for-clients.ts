@@ -251,7 +251,7 @@ const segments = band(
       { layerLabel: "Client segments", mobileColumns: 1 },
     ),
   ],
-  { borderTop: true, layerLabel: "Who we work with" },
+  { borderTop: true, layerLabel: "Who we work with", noRise: true },
 );
 
 const managed = band(

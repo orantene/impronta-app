@@ -106,7 +106,7 @@ const what = band(
       { layerLabel: "What is included", mobileColumns: 1 },
     ),
   ],
-  { borderTop: true, layerLabel: "What is included" },
+  { borderTop: true, layerLabel: "What is included", noRise: true },
 );
 
 const formats = band(
@@ -252,7 +252,7 @@ const venue = band(
       ],
     },
   ],
-  { borderTop: true, glow: true, layerLabel: "Book the show" },
+  { borderTop: true, glow: true, layerLabel: "Book the show", noRise: true },
 );
 
 const roster = divisionRosterSection({
@@ -311,7 +311,7 @@ const casting = band(
       ],
     },
   ],
-  { borderTop: true, layerLabel: "Casting" },
+  { borderTop: true, layerLabel: "Casting", noRise: true },
 );
 
 const closing = closingCta("rb-show-closing", {

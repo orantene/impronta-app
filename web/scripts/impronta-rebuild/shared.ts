@@ -393,6 +393,14 @@ export interface BandOptions {
   background?: string;
   layerLabel?: string;
   paddingY?: { desktop: string; mobile: string };
+  /**
+   * Skip the rise-on-scroll entrance. Set it on any band a CTA jumps to
+   * (`href="#…"`): the animation starts at opacity 0 and only plays once the
+   * page has hydrated, so a visitor who lands on the anchor sees a black
+   * band for several seconds on a slow connection (observed live on
+   * /experiences#rb-exp-book and /for-clients#…, 2026-09-17).
+   */
+  noRise?: boolean;
 }
 
 /** Full-width dark band with a centered max-width column and rise-on-scroll. */
@@ -448,7 +456,7 @@ export function band(id: string, children: BuilderNode[], opts: BandOptions = {}
         props: {
           layout: "stack",
           layerLabel: "Container",
-          style: { width: "100%", maxWidthFree: "1220px", gap: "40px", ...RISE },
+          style: { width: "100%", maxWidthFree: "1220px", gap: "40px", ...(opts.noRise ? {} : RISE) },
         },
         children,
       },
