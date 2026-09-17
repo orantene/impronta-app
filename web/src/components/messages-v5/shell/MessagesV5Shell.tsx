@@ -36,6 +36,9 @@ import { buildScreenCopy } from "../screens/copy";
 import { IdentityCaptureWire } from "../screens/IdentityCaptureWire";
 import { TASK_ACTION, routeShellAction } from "../screens/NextStep";
 import { ClientSheet, ComingSheet, ContextDrawer, ContextPanel, DetailsSheet, HistorySheet, Inbox, MergeCard, RenameInline, TasksTray } from "../screens/slots";
+import { ActionSheetHost } from "../screens/sheet-host";
+import { registeredActionSheet } from "../screens/sheet-registry";
+import "../screens/sheets";
 import { Thread, ThreadEmpty, type ThreadMenuItem } from "../screens/Thread";
 import { liveShellEngine, type ShellEngine } from "./engine";
 import { contextPlacement, layoutForWidth, shellClassName, variantForLayout, type MobilePane, type ShellLayout } from "./layout";
@@ -103,6 +106,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
 
   const [sheet, setSheet] = useState<SheetName>(null);
   const [coming, setComing] = useState<string | null>(null);
+  const [actionSheet, setActionSheet] = useState<ShellActionId | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [capturing, setCapturing] = useState(false);
@@ -195,6 +199,10 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     },
     [engine],
   );
+
+  const reloadActiveThread = useCallback(async () => {
+    if (activeId) await loadThread(activeId);
+  }, [activeId, loadThread]);
 
   const openThread = useCallback(
     (id: string) => {
@@ -356,6 +364,10 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
 
   const dispatch = useCallback(
     (id: ShellActionId) => {
+      if (registeredActionSheet(id)) {
+        setActionSheet(id);
+        return;
+      }
       const route = routeShellAction(id);
       if (route.kind === "coming") {
         setComing(route.seam);
@@ -652,6 +664,26 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
         }}
       />
       <ComingSheet open={coming !== null} seam={coming} onClose={() => setComing(null)} copy={copy.kit} shell={s} variant={variant} />
+      {actionSheet ? (
+        <ActionSheetHost
+          id={actionSheet}
+          onClose={() => setActionSheet(null)}
+          copy={copy}
+          variant={variant}
+          tenantId={props.tenantId}
+          tenantSlug={props.tenantSlug}
+          row={activeRow}
+          essentials={essentials}
+          messages={messages}
+          state={state}
+          chips={recordChips}
+          tasks={tasks}
+          reloadInbox={reloadInbox}
+          reloadThread={reloadActiveThread}
+          notify={setNotice}
+          dispatch={dispatch}
+        />
+      ) : null}
       {toast ? (
         <div className="toast-host">
           <div className="toast" role="status" data-incoming-toast>
