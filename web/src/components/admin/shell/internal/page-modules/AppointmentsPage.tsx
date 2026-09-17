@@ -35,6 +35,8 @@ import { useSearchParams } from "next/navigation";
 
 import { useAdminShell } from "../state";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { interpolate } from "@/i18n/interpolate";
 import { Icon } from "../primitives";
 import { AppointmentsList } from "./AppointmentsList";
 import { AppointmentPanel } from "./AppointmentPanel";
@@ -60,6 +62,8 @@ import {
   type WaitlistView,
 } from "@/lib/scheduling/appointments-actions";
 import type { AppointmentRow } from "@/lib/scheduling/appointments-board";
+import { formatDayFirst } from "@/lib/scheduling/day-first";
+import { utcToZonedYmd } from "@/lib/scheduling/tz";
 import { loadSchedule, type ScheduleNight, type ScheduleSeries, type ScheduleVenue } from "@/lib/sessions/schedule-actions";
 import { loadWorkspaceMenuForEditor } from "@/lib/talent/menu-offerings-actions";
 
@@ -75,7 +79,8 @@ function viewFromQuery(raw: string | null): AppointmentView {
 }
 
 export function AppointmentsPage() {
-  const { bridgeTenantIdentity, adminBasePath, workspacePosEnabled, workspacePosModes, effectiveTeamMembers } = useAdminShell();
+  const { bridgeTenantIdentity, adminBasePath, workspacePosEnabled, workspacePosModes, effectiveTeamMembers, effectiveTenant } = useAdminShell();
+  const locale = useDashboardLocale();
   const searchParams = useSearchParams();
   const t = useT();
   const tenantId = bridgeTenantIdentity?.tenantId ?? null;
@@ -233,6 +238,10 @@ export function AppointmentsPage() {
     );
   }
 
+  // MW13's subline counts today's appointments and sessions on the venue clock.
+  const todayAppointments = (rows ?? []).filter((r) => r.startsAt && anchorYmd !== null && utcToZonedYmd(new Date(r.startsAt), r.timeZone ?? timeZone) === anchorYmd).length;
+  const todaySessions = sessionRows.filter((s) => s.ymd === anchorYmd).length;
+
   const counts: Record<AppointmentView, number | null> = {
     list: rows === null ? null : rows.length,
     sessions: series === null ? null : sessionRows.length,
@@ -297,9 +306,19 @@ export function AppointmentsPage() {
         <div className="flex items-start justify-between gap-[12px] max-[720px]:flex-wrap">
           <div className="min-w-0">
             <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">
-              {view === "series" ? t(`${K}.tabs.series`) : t(`${K}.title`)}
+              <span className="max-[720px]:hidden">{view === "series" ? t(`${K}.tabs.series`) : t(`${K}.title`)}</span>
+              {/* MW13: the phone is titled by the day, "Tue 8 Sep", over
+                  "location · N appointments · N sessions". */}
+              <span className="hidden max-[720px]:inline">{anchorYmd ? formatDayFirst(anchorYmd, locale) : t(`${K}.title`)}</span>
             </h1>
-            <p className="m-0 mt-[4px] text-admin-13 leading-[1.2] text-admin-ink-muted max-[720px]:text-admin-12h">{t(`${B}.subtitle.${view}`)}</p>
+            <p className="m-0 mt-[4px] text-admin-13 leading-[1.2] text-admin-ink-muted max-[720px]:hidden">{t(`${B}.subtitle.${view}`)}</p>
+            <p className="m-0 mt-[4px] hidden text-admin-12h leading-[1.2] text-admin-ink-muted max-[720px]:block">
+              {[
+                effectiveTenant.name,
+                interpolate(t(todayAppointments === 1 ? `${B}.phone.appointmentsOne` : `${B}.phone.appointmentsOther`), { count: todayAppointments }),
+                interpolate(t(todaySessions === 1 ? `${B}.phone.sessionsOne` : `${B}.phone.sessionsOther`), { count: todaySessions }),
+              ].join(" · ")}
+            </p>
           </div>
           {editor === null ? (
             <div className="flex shrink-0 items-center gap-[8px] max-[720px]:hidden">

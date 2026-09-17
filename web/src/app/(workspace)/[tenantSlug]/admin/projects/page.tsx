@@ -202,8 +202,11 @@ export default async function AdminProjectsPage({
           {SEGMENTS.map((f) => {
             const count = filterProjectRows(allRows, f).length;
             return (
-              <SegmentLink key={f} href={segmentHref(f)} active={f === filter}>
-                {f === "closed" ? tr(FILTER_KEY[f]) : `${tr(FILTER_KEY[f])} · ${count}`}
+              // MW09: the phone's chips carry no count (the title pill does) and
+              // lead with Needs action; W45's desktop chips keep both.
+              <SegmentLink key={f} href={segmentHref(f)} active={f === filter} className={f === "needs_action" ? "max-[720px]:order-first" : undefined}>
+                {tr(FILTER_KEY[f])}
+                {f === "closed" ? null : <span className="max-[720px]:hidden"> · {count}</span>}
               </SegmentLink>
             );
           })}

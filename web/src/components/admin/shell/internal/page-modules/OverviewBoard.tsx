@@ -270,8 +270,9 @@ export function OverviewBoard() {
       {/* Queue + Today; one column on the phone, each card under its eyebrow (MW02). */}
       <div className="grid min-h-0 flex-1 grid-cols-[1.35fr_1fr] gap-[16px] max-[720px]:grid-cols-1 max-[720px]:gap-[12px]">
         <div className="flex min-h-0 flex-col max-[720px]:gap-[12px]">
+        {/* MW02's eyebrow reads "Needs you"; the desktop card keeps "Needs you now". */}
         <div aria-hidden className="hidden text-[11px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted max-[720px]:block">
-          {t(`${K}.needsYou.title`)}
+          {t(`${K}.needsYou.titleShort`)}
         </div>
         <section className={`${CARD} flex min-h-0 flex-col overflow-hidden`} aria-labelledby="tulala-needs-you">
           <div className="flex shrink-0 items-center justify-between gap-[10px] px-[18px] pb-[6px] pt-[16px] max-[720px]:hidden">
