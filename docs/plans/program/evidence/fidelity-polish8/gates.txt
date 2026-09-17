@@ -1,0 +1,18 @@
+fidelity-polish8 gates (2026-09-17, dev server stopped first; real exit codes)
+
+npm run typecheck (scripts/tsc-queue.sh)                  exit 0  (TSC PASS)
+npm run lint                                              exit 0
+npm run verify:ui-messages                                exit 0
+tsx --test sales/activity-shape, payments/activity-shape, payments/provider-status,
+  payments/links, approvals/requests, approvals/enforce, approvals/role-limits-wire.static,
+  venues/*.test, bookings/policy-overrides, i18n/message-key-usage.static,
+  i18n/message-catalog-duplicate-keys.static, quality/file-size-ratchet.static,
+  quality/hex-literal-ratchet.static, quality/primary-button-label-colour.static,
+  pos/pos-page-wire.static                                 exit 0  (213 pass, 0 fail)
+tsx --test quality/settings-refusal-copy.static, settings/*.test,
+  quality/admin-layout-kpi-budget.static, quality/lane-enrolment.static,
+  quality/guard-reads-source.static, quality/supabase-unchecked-read.static,
+  shell/internal/spa-segments.static, shell/canonical-routes    exit 0  (65 pass, 0 fail)
+
+Not run here (need a dev server on the isolated database): the WIRE-2.12/2.13/3.1/3.10 and
+MONEY Playwright cases. No selector they read was renamed (see README).

@@ -45,8 +45,9 @@ const KIND_KEY: Record<RoleLimitAction, string> = { discount: `${K}.inbox.kindDi
 
 const CELL =
   "h-[32px] w-full min-w-0 rounded-[8px] border border-admin-border bg-admin-card px-[10px] font-admin-body text-admin-13 tabular-nums text-admin-ink disabled:cursor-not-allowed disabled:opacity-60";
-const BTN =
-  "inline-flex h-[30px] cursor-pointer items-center rounded-[9px] border border-admin-border bg-admin-card px-[12px] text-[12px] font-semibold text-admin-ink hover:border-admin-border-strong disabled:cursor-not-allowed disabled:opacity-50";
+const BTN_SHAPE = "inline-flex h-[30px] cursor-pointer items-center rounded-[9px] border px-[12px] text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-50";
+const BTN = `${BTN_SHAPE} border-admin-border bg-admin-card text-admin-ink hover:border-admin-border-strong`;
+const BTN_PRIMARY = `${BTN_SHAPE} border-admin-brand bg-admin-brand text-white hover:bg-admin-brand-deep`;
 
 function refusalKey(reason: string): string {
   return (SCHEDULING_ENGINE_REFUSAL_CODES as readonly string[]).includes(reason)
@@ -128,7 +129,12 @@ export function RoleLimitsEditor({ currency, canEdit }: { currency: string; canE
     });
   }
 
-  const when = (iso: string) => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  // Day first, 24h, as the boards print it ("16 Sep 22:36"); the parts are reassembled so no locale adds its own punctuation.
+  const when = (iso: string) => {
+    const parts = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(iso));
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    return `${get("day")} ${get("month").replace(/\.$/, "")} ${get("hour")}:${get("minute")}`.replace(/\s+/g, " ").trim();
+  };
   const open = (requests ?? []).filter((r) => r.decision === null);
   const decided = (requests ?? []).filter((r) => r.decision !== null).slice(0, 5);
 
@@ -260,7 +266,7 @@ export function RoleLimitsEditor({ currency, canEdit }: { currency: string; canE
                       type="button"
                       disabled={deciding === r.id}
                       onClick={() => decide(r.id, "approved")}
-                      className={`${BTN} border-admin-brand bg-admin-brand text-white hover:border-admin-brand`}
+                      className={BTN_PRIMARY}
                       data-approval-approve
                     >
                       {t(`${K}.inbox.approve`)}

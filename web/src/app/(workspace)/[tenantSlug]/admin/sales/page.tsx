@@ -82,7 +82,7 @@ const KIND_PILL: Record<(typeof SALES_KIND_TONE)[keyof typeof SALES_KIND_TONE], 
 
 // The board's 33px header and 46px rows on a 1.2 line-height.
 const TH = "px-[12px] py-[10px] text-left text-admin-11 font-semibold uppercase leading-[1.2] tracking-[0.05em] text-admin-ink-muted first:pl-[18px] last:pr-[18px]";
-const TD = "px-[12px] py-[15px] align-middle text-admin-12h leading-[1.2] first:pl-[18px] last:pr-[18px]";
+const TD = "px-[12px] py-[14px] align-middle text-admin-12h leading-[1.2] first:pl-[18px] last:pr-[18px]";
 /** The board's list-cell pill: a tinted block filling its column, 17px tall, the label left. */
 const PILL_BLOCK = "flex h-[17px] w-full min-w-0 items-center overflow-hidden whitespace-nowrap rounded-[5px] px-[8px] text-[11.5px] font-semibold leading-none";
 
