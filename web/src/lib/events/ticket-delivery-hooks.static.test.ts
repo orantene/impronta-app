@@ -31,6 +31,30 @@ test("a comp with an e-mail delivers; resend and the Delivery sheet reuse the sa
   }
 });
 
+test("the PDF download route has the QR route's guards and no extension in its segment", () => {
+  const s = src("app/api/tickets/[code]/pdf/route.ts");
+  assert.match(s, /getPublicHostContext\(\)/);
+  assert.match(s, /verifyAdmissionToken\(token\)/);
+  assert.match(s, /tryConsumeRateLimit\(`ticket-pdf:/);
+  assert.match(s, /tokenVersion: verified\.tokenVersion/);
+  assert.match(s, /"content-disposition": `attachment; filename=/);
+  // The version check lives in the shared builder, so the mail and the
+  // download refuse a stale token the same way.
+  assert.match(src("lib/events/ticket-delivery.ts"), /self\.token_version !== input\.tokenVersion/);
+});
+
+test("the mail attaches the PDF and says so; staff-triggered sends pass no dashboard locale (D-163)", () => {
+  const d = src("lib/events/ticket-delivery.ts");
+  assert.match(d, /attachments: \[\{ filename: pdf\.filename, content: pdf\.bytes, contentType: "application\/pdf" \}\]/);
+  assert.match(d, /attachmentName: pdf\?\.filename \?\? null/);
+  assert.match(d, /agency_business_identity/, "the workspace's PUBLIC site locale is in the chain");
+  const ve = src("lib/server-actions/venue-engine.ts");
+  assert.doesNotMatch(ve, /deliverTicketForAdmission\([^)]*getRequestLocale/, "a comp must not inherit the desk's language");
+  assert.match(ve, /admissionId: res\.id, locale: null/);
+  const pos = src("app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
+  assert.doesNotMatch(pos, /mintAndDeliverForPaidOrder\([^;]*getRequestLocale/, "a counter sale must not inherit the desk's language");
+});
+
 test("the QR image route is public, host-scoped, version-checked and rate-limited", () => {
   const s = src("app/api/tickets/[code]/qr/route.ts");
   assert.match(s, /getPublicHostContext\(\)/);

@@ -53,6 +53,82 @@ export function whenLabel(
   }
 }
 
+/**
+ * IANA zone → the city a guest would say. The last segment of the zone id,
+ * underscores to spaces, with the accents the id cannot carry restored for
+ * the cities this platform actually sells in. "America/Cancun" → "Cancún",
+ * "America/Argentina/Buenos_Aires" → "Buenos Aires".
+ */
+const ZONE_CITY: Record<string, { en: string; es: string }> = {
+  Cancun: { en: "Cancún", es: "Cancún" },
+  Mexico_City: { en: "Mexico City", es: "Ciudad de México" },
+  Merida: { en: "Mérida", es: "Mérida" },
+  Bogota: { en: "Bogotá", es: "Bogotá" },
+  Sao_Paulo: { en: "São Paulo", es: "São Paulo" },
+  Asuncion: { en: "Asunción", es: "Asunción" },
+  Panama: { en: "Panama City", es: "Panamá" },
+  Lima: { en: "Lima", es: "Lima" },
+  New_York: { en: "New York", es: "Nueva York" },
+  Los_Angeles: { en: "Los Angeles", es: "Los Ángeles" },
+  Madrid: { en: "Madrid", es: "Madrid" },
+  Buenos_Aires: { en: "Buenos Aires", es: "Buenos Aires" },
+};
+
+export function zoneCity(timeZone: string, locale: EventLabelLocale = "en"): string {
+  const last = timeZone.split("/").at(-1) ?? timeZone;
+  const known = ZONE_CITY[last];
+  if (known) return known[locale];
+  return last.replace(/_/g, " ");
+}
+
+/**
+ * The night as a ticket names it, with the zone as a CITY rather than an
+ * abbreviation: "sábado 3 de octubre, 18:00 h (hora de Cancún)" /
+ * "Saturday, October 3, 6:00 PM (Cancún time)". "EST" on a Cancún ticket was
+ * both wrong (Cancún has no DST) and unreadable to the guest holding it;
+ * the city is what they would type into a map.
+ *
+ * Same refusals as `whenLabel`: no instant → "to be announced"; no zone →
+ * "to be confirmed by the venue", never the server's clock.
+ */
+export function nightLabelWithCity(
+  iso: string | null,
+  timeZone: string | null,
+  locale: EventLabelLocale = "en",
+): string {
+  const tba = locale === "es" ? "Fecha a confirmar" : "Date to be announced";
+  if (!iso) return tba;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return tba;
+  if (!timeZone) return unknownTime(locale);
+  try {
+    const parts = new Intl.DateTimeFormat(locale === "es" ? "es" : "en", {
+      timeZone,
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: locale !== "es",
+    }).formatToParts(d);
+    const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? "";
+    const weekday = get("weekday");
+    const day = get("day");
+    const month = get("month");
+    // `hour: "numeric"` in es gives "18"; in en gives "6" + dayPeriod "PM".
+    const hour = get("hour").padStart(locale === "es" ? 2 : 1, "0");
+    const minute = get("minute");
+    const city = zoneCity(timeZone, locale);
+    if (locale === "es") {
+      return `${weekday} ${day} de ${month}, ${hour}:${minute} h (hora de ${city})`;
+    }
+    const period = get("dayPeriod").toUpperCase();
+    return `${weekday}, ${month} ${day}, ${hour}:${minute} ${period} (${city} time)`;
+  } catch {
+    return d.toISOString();
+  }
+}
+
 export function timeLabel(iso: string, timeZone: string | null, locale: EventLabelLocale = "en"): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";

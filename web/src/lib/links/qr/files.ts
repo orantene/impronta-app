@@ -16,8 +16,12 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import sharp from "sharp";
 
 import { encodeQr, type EccLevel } from "./index";
-import { QUIET_ZONE, assertScannableContrast, modulePixels, toBitmap } from "./render";
-import type { Matrix } from "./matrix";
+import { drawMatrix } from "./draw-matrix";
+import { assertScannableContrast, modulePixels, toBitmap } from "./render";
+
+// The vector drawer moved to the pure `./draw-matrix` so the ticket PDF can
+// share it without dragging `sharp` into a unit test. Re-exported for callers.
+export { drawMatrix } from "./draw-matrix";
 
 /** 1 mm in PDF points. */
 const MM = 72 / 25.4;
@@ -54,31 +58,6 @@ export async function toPng(
   return sharp(grey, { raw: { width: size, height: size, channels: 1 } })
     .png({ compressionLevel: 9 })
     .toBuffer();
-}
-
-function drawMatrix(
-  page: ReturnType<PDFDocument["addPage"]>,
-  matrix: Matrix,
-  originXPt: number,
-  originYPt: number,
-  sidePt: number,
-  dark: ReturnType<typeof rgb>,
-): void {
-  const span = matrix.size + QUIET_ZONE * 2;
-  const modulePt = sidePt / span;
-  for (let y = 0; y < matrix.size; y += 1) {
-    for (let x = 0; x < matrix.size; x += 1) {
-      if (!matrix.modules[y]![x]) continue;
-      page.drawRectangle({
-        x: originXPt + (x + QUIET_ZONE) * modulePt,
-        // PDF's origin is bottom-left; the matrix's is top-left.
-        y: originYPt + sidePt - (y + QUIET_ZONE + 1) * modulePt,
-        width: modulePt,
-        height: modulePt,
-        color: dark,
-      });
-    }
-  }
 }
 
 export type SheetItem = {

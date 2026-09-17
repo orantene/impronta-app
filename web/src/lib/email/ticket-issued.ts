@@ -15,7 +15,9 @@
  * The QR is a HOSTED image (`/api/tickets/<token>/qr`), not a data URI:
  * Gmail strips `data:` images. A client that blocks remote images still gets
  * the typed code and the "Ver mi entrada" button, both of which the door can
- * work from.
+ * work from, and the PDF attachment (`lib/events/ticket-pdf.ts`: receipt +
+ * ticket, vector QR, one page per admission) that needs no network at all.
+ * `attachmentName` is how the body says the file is there.
  */
 
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
@@ -44,6 +46,9 @@ export type TicketIssuedInput = {
   receiptUrl?: string | null;
   admissions: TicketEmailAdmission[];
   isResend?: boolean;
+  /** Filename of the PDF attached to this mail (receipt + ticket). When set,
+   *  the body says so: the mail must be complete without the hosted QR. */
+  attachmentName?: string | null;
 };
 
 function escapeHtml(s: string): string {
@@ -74,6 +79,7 @@ const COPY = {
     venue: (v: string) => `Lugar: ${v}`,
     footer: (brand: string) => `Recibes este correo porque se emitió una entrada a tu nombre en ${brand}.`,
     fallback: "Si no ves el código QR, abre el botón de arriba: allí está tu entrada.",
+    attached: (name: string) => `También va adjunto el PDF ${name} con tu entrada y el recibo, por si prefieres guardarlo o imprimirlo.`,
   },
   en: {
     subject: (brand: string, event: string, n: number, resend: boolean) =>
@@ -93,6 +99,7 @@ const COPY = {
     venue: (v: string) => `Venue: ${v}`,
     footer: (brand: string) => `You are receiving this because a ticket was issued in your name at ${brand}.`,
     fallback: "If the QR does not show, open the button above: your ticket is there.",
+    attached: (name: string) => `The PDF ${name} is attached too, with your ticket and receipt, in case you would rather save or print it.`,
   },
 } as const;
 
@@ -146,7 +153,9 @@ export function renderTicketIssuedEmail(input: TicketIssuedInput): string {
       }</p>
       <p style="margin:20px 0 0;color:#3a4541;font-size:15px;line-height:1.6;">${escapeHtml(c.hello(input.holderName ?? null))}<br>${escapeHtml(c.intro(input.admissions.length))}</p>
       ${admissions}
-      <p style="margin:20px 0 0;color:#6b7671;font-size:13px;line-height:1.6;">${escapeHtml(c.fallback)}<br>${escapeHtml(c.manage)}</p>
+      <p style="margin:20px 0 0;color:#6b7671;font-size:13px;line-height:1.6;">${escapeHtml(c.fallback)}${
+        input.attachmentName ? `<br>${escapeHtml(c.attached(input.attachmentName))}` : ""
+      }<br>${escapeHtml(c.manage)}</p>
       ${receipt}
       <p style="margin:28px 0 0;color:#6b7671;font-size:12px;line-height:1.6;">${escapeHtml(c.footer(input.brand.accountName))}</p>
     </td></tr>

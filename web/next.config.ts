@@ -325,6 +325,16 @@ const nextConfig: NextConfig = {
     // serverless bundle with the fonts missing. The key is the ROUTE path with
     // the (workspace) group stripped, matching the entry above.
     "/[tenantSlug]/admin/print/[id]/export": ["./src/lib/talent/fonts/*.ttf"],
+    // The ticket PDF (`lib/events/ticket-pdf.ts`) embeds the same subset when
+    // the files are present and falls back to WinAnsi Helvetica (which covers
+    // the whole ES/EN copy) when they are not. The download route is traced
+    // here; the delivery paths that ALSO render it (Stripe webhook, POS and
+    // door server actions, the public $0 checkout) run in their own
+    // Functions and take the Helvetica fallback unless listed too.
+    "/api/tickets/[code]/pdf": ["./src/lib/talent/fonts/*.ttf"],
+    "/api/stripe/webhook": ["./src/lib/talent/fonts/*.ttf"],
+    "/api/webhooks/stripe": ["./src/lib/talent/fonts/*.ttf"],
+    "/api/webhooks/stripe-v2": ["./src/lib/talent/fonts/*.ttf"],
   },
   /**
    * Opt into Next.js' integration with React's `<ViewTransition>` component

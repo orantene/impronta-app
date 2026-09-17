@@ -60,7 +60,6 @@ import { replayCashOutboxItem } from "@/lib/pos/outbox-replay";
 import { logServerError } from "@/lib/server/safe-error";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { deliverTicketForAdmission } from "@/lib/events/ticket-delivery";
-import { getRequestLocale } from "@/i18n/request-locale";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
 
 const uuid = z.string().uuid();
@@ -559,10 +558,12 @@ export async function admissionComp(input: {
     customerId = ensured.customerId;
   }
   const res = await compAdmission(g.admin, { tenantId: g.tenantId, actorRole: "editor", customerId, ...parsed.data });
-  // A comp with an address gets its ticket mail like any sale would, in the
-  // language the desk is working in (a comp has no buyer locale of its own).
+  // A comp with an address gets its ticket mail like any sale would. NO
+  // locale is passed on purpose (D-163): the language the desk's dashboard
+  // is in says nothing about the guest. Delivery falls through to the
+  // customer's locale, then the workspace's public site locale.
   if (res.ok && parsed.data.holderEmail && res.id) {
-    await deliverTicketForAdmission(g.admin, { tenantId: g.tenantId, admissionId: res.id, locale: await getRequestLocale() });
+    await deliverTicketForAdmission(g.admin, { tenantId: g.tenantId, admissionId: res.id, locale: null });
   }
   return res;
 }
