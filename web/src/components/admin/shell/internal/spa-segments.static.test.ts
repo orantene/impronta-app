@@ -11,7 +11,7 @@ import { test } from "node:test";
 
 import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 
-import { isBareShellPath, SPA_ONLY_ADMIN_SEGMENTS } from "./spa-segments";
+import { isBareShellPath, railMovesWithPushState, SPA_ONLY_ADMIN_SEGMENTS } from "./spa-segments";
 
 const ADMIN_DIR = join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin");
 
@@ -45,4 +45,12 @@ test("isBareShellPath: only the base and one SPA-only segment are bare (D-167)",
   }
   assert.equal(isBareShellPath("/other/admin/messages", "/impronta/admin"), false);
   assert.equal(isBareShellPath("/adminx/messages", "/admin"), false);
+});
+
+test("railMovesWithPushState: SPA-only target AND a bare origin (D-167)", () => {
+  assert.equal(railMovesWithPushState("/impronta/admin/catalog", "/impronta/admin", "messages"), true);
+  assert.equal(railMovesWithPushState("/impronta/admin", "/impronta/admin", "messages"), true);
+  assert.equal(railMovesWithPushState("/impronta/admin/projects", "/impronta/admin", "messages"), false);
+  assert.equal(railMovesWithPushState("/impronta/admin/messages", "/impronta/admin", "projects"), false);
+  assert.equal(railMovesWithPushState("/impronta/admin/messages", "/impronta/admin", ""), false);
 });

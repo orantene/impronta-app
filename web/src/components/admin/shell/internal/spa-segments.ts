@@ -72,3 +72,14 @@ export function isBareShellPath(pathname: string, adminBase: string): boolean {
   const rest = path.slice(adminBase.length + 1);
   return rest.length > 0 && !rest.includes("/") && SPA_ONLY.has(rest);
 }
+
+/**
+ * The rail's decision (`setPage`, state/context.tsx): a click moves the URL
+ * with `history.pushState` only when the target is SPA-only AND the route
+ * being left is bare. A canonical page (Projects, a record, a thread) left
+ * by pushState keeps its content mounted and outlives the navigation above
+ * the shell (D-167); it goes through `router.push`, which replaces it.
+ */
+export function railMovesWithPushState(currentPathname: string, adminBase: string, segment: string): boolean {
+  return segment.length > 0 && SPA_ONLY.has(segment) && isBareShellPath(currentPathname, adminBase);
+}
