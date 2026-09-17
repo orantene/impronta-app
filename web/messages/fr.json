@@ -3091,7 +3091,7 @@
           "issues": "Incidents"
         },
         "clock": "Les heures sont celles de l'horloge du lieu ({zone}).",
-        "noSessions": "Aucun événement n'est programmé à cette porte dans les deux prochaines semaines. Programmez une soirée depuis la page Séances et elle apparaîtra ici.",
+        "noSessions": "Aucun événement n'est programmé à cette porte dans les 30 prochains jours. Programmez une soirée depuis la page Séances et elle apparaîtra ici.",
         "loadFailed": "Impossible de charger la porte. Vérifiez la connexion et réessayez.",
         "header": {
           "gate": "Contrôle · {event}",

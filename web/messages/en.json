@@ -14557,7 +14557,7 @@
           "issues": "Issues"
         },
         "clock": "Times are on the venue's clock ({zone}).",
-        "noSessions": "No event is scheduled at this door in the next two weeks. Schedule a night from the Sessions page and it appears here.",
+        "noSessions": "No event is scheduled at this door in the next 30 days. Schedule a night from the Sessions page and it appears here.",
         "loadFailed": "Could not load the door. Check the connection and try again.",
         "header": {
           "gate": "Gate · {event}",
