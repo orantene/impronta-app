@@ -75,3 +75,15 @@ test("swapImageSrcInTree honours maxNodes so a seed image reused in two slots sw
   const t = one.tree as Array<{ props: { src: string } }>;
   assert.deepEqual(t.map((n) => n.props.src), ["https://x/mine.jpg", "https://x/seed.jpg"]);
 });
+
+test("swapImageSrcInTree also swaps sticky_scroll imageUrl and hero slide urls", () => {
+  const tree = [
+    { kind: "sticky_scroll", props: { imageUrl: "https://x/old.jpg", blocks: [] } },
+    { kind: "container", props: { backgroundMedia: { source: "slideshow", slides: [{ url: "https://x/old.jpg" }, { url: "https://x/b.jpg" }] } } },
+  ];
+  const out = swapImageSrcInTree(tree, "https://x/old.jpg", "https://x/new.jpg");
+  assert.equal(out.changed, 2);
+  const t = out.tree as Array<{ props: Record<string, unknown> }>;
+  assert.equal(t[0].props.imageUrl, "https://x/new.jpg");
+  assert.deepEqual((t[1].props.backgroundMedia as { slides: Array<{ url: string }> }).slides.map((s) => s.url), ["https://x/new.jpg", "https://x/b.jpg"]);
+});

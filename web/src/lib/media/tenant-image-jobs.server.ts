@@ -39,8 +39,16 @@ export interface JobSlot {
 /** The slots a site gets for itself (6–8; team only when the Look placed one). */
 const TENANT_SLOTS: ReadonlyArray<ImageSlotKey> = ["hero", "wide", "portrait", "gallery-1", "gallery-2", "gallery-3", "gallery-4", "team"];
 
+const TENANT_PAGES: ReadonlySet<string> = new Set(["home", "about"]);
+
 export const JOB_CONCURRENCY = 2;
-export const JOB_PAUSE_MS = 2_000;
+/**
+ * The organisation's measured limit is 5 images per minute (2026-09-16,
+ * "input-images per min: Limit 5"): two in flight, then a 26 s pause, keeps a
+ * run under it. A rate-limit reply still leaves the slot queued for the next
+ * cron minute instead of failing it.
+ */
+export const JOB_PAUSE_MS = 26_000;
 
 export async function enqueueTenantImageJob(
   admin: SupabaseClient,
@@ -72,7 +80,9 @@ export async function enqueueTenantImageJob(
     const slots: JobSlot[] = [];
     for (const s of input.slots) {
       const key = `${s.pageRole}|${s.slot}`;
-      if (!wanted.has(s.slot) || seen.has(key)) continue;
+      // Only the home and about pages get their own frames (6–8 per site, owner §9.2);
+      // every other page is served the tenant's images by the resolver.
+      if (!TENANT_PAGES.has(s.pageRole) || !wanted.has(s.slot) || seen.has(key)) continue;
       seen.add(key);
       slots.push({ pageRole: s.pageRole, slot: s.slot as ImageSlotKey, direction: directionForIndex(slots.length), status: "queued" });
       if (slots.length >= 8) break;
@@ -119,7 +129,7 @@ export interface RunReport {
   imagesFailed: number;
   imagesBlocked: number;
   costUsd: number;
-  stoppedBy: "budget_ms" | "daily_cap" | "empty" | "not_configured";
+  stoppedBy: "budget_ms" | "daily_cap" | "empty" | "not_configured" | "rate_limited";
 }
 
 /**
@@ -145,7 +155,7 @@ export async function runTenantImageJobs(admin: SupabaseClient, options: { budge
     const pending = slots.filter((s) => s.status === "queued");
 
     for (let i = 0; i < pending.length && !stop; i += JOB_CONCURRENCY) {
-      if (now() + 25_000 > deadline) {
+      if (now() + JOB_PAUSE_MS + 20_000 > deadline) {
         stop = "budget_ms";
         break;
       }
@@ -191,6 +201,9 @@ export async function runTenantImageJobs(admin: SupabaseClient, options: { budge
           s.status = "blocked";
           s.reason = r.error.slice(0, 200);
           report.imagesBlocked += 1;
+        } else if (r.code === "rate_limit_exceeded") {
+          // Leave the slot queued; the next cron minute retries under the limit.
+          stop = "rate_limited";
         } else if (r.code === "daily_cap" || r.code === "not_configured" || r.code === "insufficient_quota") {
           // Leave the slot queued; the job goes back to the queue for tomorrow / after the fix.
           stop = r.code === "daily_cap" ? "daily_cap" : "not_configured";

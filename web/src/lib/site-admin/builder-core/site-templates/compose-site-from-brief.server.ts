@@ -45,6 +45,8 @@ import { buildCopyPassPrompt, COPY_PASS_JSON_SCHEMA, COPY_PASS_KEYS, COPY_PASS_M
 import { assignmentSourceForLevel, buildImageResolver, type AssignmentSource, type CandidateImage } from "./image-resolver";
 import { stockFactsFromBrief } from "./stock-prompts";
 import { writeAssignments } from "@/lib/media/asset-assignments.server";
+import { tagFor, tenantBustTags } from "@/lib/site-admin/cache-tags";
+import { updateTag } from "next/cache";
 import { enqueueTenantImageJob } from "@/lib/media/tenant-image-jobs.server";
 import { instantiateSite } from "./instantiate-site";
 import { DEFAULT_LOOK_BY_FAMILY } from "./look-defaults";
@@ -282,6 +284,35 @@ async function writeStamp(admin: SupabaseClient, tenantId: string, stamp: SiteCo
   }
 }
 
+/** The public theme is served from the `branding` cache tag (reads.ts); a new Look must reach the page now, not after a restart. */
+function bustBrandingCache(tenantId: string): void {
+  try {
+    updateTag(tagFor(tenantId, "branding"));
+  } catch {
+    /* outside a request scope (scripts, tests): nothing to bust */
+  }
+}
+function bustIdentityCache(tenantId: string): void {
+  try {
+    updateTag(tagFor(tenantId, "identity"));
+  } catch {
+    /* outside a request scope */
+  }
+}
+/**
+ * A compose rewrites the homepage, the shell, the pages, the theme and the
+ * name: every public cache surface of the tenant is stale afterwards. The
+ * page writers bust their own tags; this is the belt for the ones that
+ * render one compose behind (seen live: previous hero under the new name).
+ */
+function bustAllTenantCaches(tenantId: string): void {
+  try {
+    for (const tag of tenantBustTags(tenantId)) updateTag(tag);
+  } catch {
+    /* outside a request scope */
+  }
+}
+
 const EMPTY_PLACED: SiteComposePlaced = { photos: { hero: null, heroSource: null, gallery: 0, level: null, pendingJobId: null }, menuItems: 0, hoursPresent: false, whatsappPresent: false, logoPresent: false };
 
 // ── Main ────────────────────────────────────────────────────────────────────
@@ -365,10 +396,21 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   // `agency_business_identity.public_name`; a tenant provisioned without one
   // would greet visitors as "the agency". Seed it with the name we are about
   // to put on the site (never overwriting a row that exists).
+  const statedName = (facts ? stringFact(facts, "business.name") : null)?.trim() || null;
   if (!identityRow) {
     const { error: idErr } = await admin.from("agency_business_identity").upsert({ tenant_id: input.tenantId, public_name: businessName }, { onConflict: "tenant_id", ignoreDuplicates: true });
     if (idErr) notes.push(`identity row not seeded: ${idErr.message}`);
     identityRow = await loadIdentityForStaff(admin, input.tenantId);
+  } else if (statedName && identityRow.public_name?.trim() !== statedName) {
+    // The brief's stated name is the newest fact: the legacy header, the chat
+    // button and the mobile menu read `public_name`, so a stale seed here
+    // would show one name in the chrome and another on the page.
+    const { error: nameErr } = await admin.from("agency_business_identity").update({ public_name: statedName }).eq("tenant_id", input.tenantId);
+    if (nameErr) notes.push(`public name not updated: ${nameErr.message}`);
+    else {
+      identityRow = { ...identityRow, public_name: statedName };
+      bustIdentityCache(input.tenantId);
+    }
   }
   const logoUrl = await resolveLogoUrl(admin, input.tenantId, facts);
   const hrefs = pageHrefsFor(family);
@@ -504,6 +546,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
 
   const { error: themeErr } = await admin.from("agency_branding").upsert({ tenant_id: input.tenantId, theme_json_draft: themePatch, ...(input.publish ? { theme_json: themePatch } : {}) } as never, { onConflict: "tenant_id" });
   if (themeErr) notes.push(`theme draft not written: ${themeErr.message}`);
+  else bustBrandingCache(input.tenantId);
 
   const home = await ensureHomepageRow(admin, { tenantId: input.tenantId, locale: writeLocale });
   if (!home.ok) return fail(`homepage row: ${home.code ?? "ensure failed"}`, { lookId: look.id, typeId, family });
@@ -617,6 +660,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
     logoPresent: !!logoUrl,
   };
   await writeStamp(admin, input.tenantId, { outcome, siteComposeId, lookId: look.id, typeId, family, at: new Date().toISOString(), pageIds, placed, copySource, notes });
+  bustAllTenantCaches(input.tenantId);
 
   return { outcome, siteComposeId, lookId: look.id, typeId, family, pageIds, shellPageId: shell.ok ? shell.pageId : null, copySource, imagePicks, placed, notes, costUsd, durationMs: Date.now() - started };
 }
