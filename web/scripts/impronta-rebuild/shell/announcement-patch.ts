@@ -2,13 +2,15 @@
  * Header announcement + LUMINA nav link — owner request 2026-09-17.
  *
  * 1. The utility-bar text ("Casting across the Riviera Maya") becomes a LINK
- *    to the launch event: "3 October · LUMINA launch party · Get your ticket".
- * 2. "LUMINA" leaves the primary nav (the announcement now carries it).
+ *    to the launch event: "21 November · LUMINA launch party · Get your ticket".
+ * 2. With --drop-lumina, "LUMINA" leaves the primary nav. Off by default:
+ *    the owner's other editor re-added it minutes after the first run, and a
+ *    re-run must never fight a hand edit.
  *
  * Applied to the LIVE shell rows (both locales) by node id, then the shell
  * snapshot is republished through the editor's own publish function.
  *
- *   npx tsx scripts/impronta-rebuild/shell/announcement-patch.ts [--apply]
+ *   npx tsx scripts/impronta-rebuild/shell/announcement-patch.ts [--apply] [--drop-lumina]
  *   env ANNOUNCEMENT_EN / ANNOUNCEMENT_ES / ANNOUNCEMENT_HREF override the copy.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -22,16 +24,16 @@ type Locale = "en" | "es";
 
 const COPY: Record<Locale, { text: string; href: string }> = {
   en: {
-    text: process.env.ANNOUNCEMENT_EN ?? "3 October · LUMINA launch party · Get your ticket",
+    text: process.env.ANNOUNCEMENT_EN ?? "21 November · LUMINA launch party · Get your ticket",
     href: process.env.ANNOUNCEMENT_HREF ?? "/lumina",
   },
   es: {
-    text: process.env.ANNOUNCEMENT_ES ?? "3 de octubre · Fiesta de lanzamiento LUMINA · Consigue tu boleto",
+    text: process.env.ANNOUNCEMENT_ES ?? "21 de noviembre · Fiesta de lanzamiento LUMINA · Consigue tu boleto",
     href: `/es${process.env.ANNOUNCEMENT_HREF ?? "/lumina"}`,
   },
 };
 
-export function patchShellAnnouncement(live: BuilderNode[], locale: Locale): { tree: BuilderNode[]; changed: string[] } {
+export function patchShellAnnouncement(live: BuilderNode[], locale: Locale, opts: { dropLumina?: boolean } = {}): { tree: BuilderNode[]; changed: string[] } {
   const changed: string[] = [];
   const copyId = `shellhdr-${locale}-utility-copy`;
   const walk = (nodes: BuilderNode[]): BuilderNode[] =>
@@ -68,7 +70,7 @@ export function patchShellAnnouncement(live: BuilderNode[], locale: Locale): { t
           },
         } as BuilderNode;
       }
-      if (node.kind === "nav") {
+      if (node.kind === "nav" && opts.dropLumina) {
         const props = node.props as { links?: Array<{ id: string; label: string; href: string }> };
         const links = props.links ?? [];
         const kept = links.filter((l) => !/lumina/i.test(l.label) && !/\/lumina$/.test(l.href));
@@ -92,6 +94,7 @@ async function main() {
   const { loadEnvLocal } = await import("../../load-env-local.mjs");
   loadEnvLocal();
   const apply = process.argv.includes("--apply");
+  const dropLumina = process.argv.includes("--drop-lumina");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) throw new Error("env missing");
@@ -109,7 +112,7 @@ async function main() {
       .eq("tenant_id", tenantId).eq("locale", locale).eq("slug", "__site_shell__")
       .maybeSingle<{ id: string; version: number; status: string; blocks: BuilderNode[]; template_schema_version: number | null; title: string; meta_description: string | null }>();
     if (error || !row) throw new Error(`shell ${locale}: ${error?.message ?? "missing"}`);
-    const r = patchShellAnnouncement(row.blocks ?? [], locale);
+    const r = patchShellAnnouncement(row.blocks ?? [], locale, { dropLumina });
     const v = validateBuilderNodeTree(r.tree);
     if (!v.ok) throw new Error(`${locale}: ${v.issues.map((i) => i.message).join("; ")}`);
     console.log(`${apply ? "APPLY" : "DRY"} shell/${locale}: ${r.changed.join(", ") || "no change"} (v${row.version})`);
