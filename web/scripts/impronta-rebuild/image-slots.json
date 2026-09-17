@@ -53,7 +53,16 @@
     "show-scenography": "fe754033-f17c-4865-929d-6480d45a5f0d",
     "show-dancers": "c592bcf8-a2ab-4ca5-b7be-d88075f5cd73",
     "show-acrobats": "98d46acb-25ad-4825-a905-27e2811433d4",
-    "exp-posing-course": "44cd17a3-8b3d-460f-b646-c16a2e6ee194"
+    "exp-posing-course": "44cd17a3-8b3d-460f-b646-c16a2e6ee194",
+    "svc-brands": "e75345d8-b24f-40a8-bf95-17d9f41ba47c",
+    "svc-private": "3b6990d2-6461-4706-b288-90a87822dd69",
+    "svc-hotels": "141e5c03-4ab8-4dbe-998d-46f16a62aa0a",
+    "svc-nightlife": "6bd56fd4-b36d-44ee-8038-96c326277bec",
+    "svc-runway": "e2165603-db5a-4660-8b69-ff752ea4ef41",
+    "svc-audiovisual": "377969d9-54ca-4bd2-ad85-9dcb8e44f6a2",
+    "svc-corporate": "6c67aa05-8a07-4508-a4b1-c5621a798e30",
+    "svc-studio": "d6b1dec0-b68a-4b34-b7d0-dc6ac8698271",
+    "svc-activations": "45121dec-3614-4f26-9157-b72e54277285"
   },
   "note": "Curated 2026-08-17: each slot pinned to an approved Impronta photo of talent in that discipline (models / hosts-promo / performers / music-djs), orientation-matched, no asset reused. Regenerate by re-running the curation query in the rebuild plan."
 }

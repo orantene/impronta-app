@@ -34,7 +34,7 @@ import {
   goldButton,
   grid,
   lineButton,
-  linkRow,
+  photoTile,
 } from "../shared";
 import { EXPERIENCE_PRODUCTS } from "./experiences";
 import { EXPERIENCES_ES_COPY } from "./experiences-es-copy";
@@ -57,18 +57,25 @@ export const HOME_SHOW_BAND_ID = "rb-home-statement";
 
 // ── 1. services strip ────────────────────────────────────────────────────────
 
-const SERVICE_LINKS: ReadonlyArray<{ key: string; label: string }> = [
-  { key: "brands", label: "Fashion brands & designers" },
-  { key: "activations", label: "Activations & promotions" },
-  { key: "private", label: "Private events & weddings" },
-  { key: "hotels", label: "Hotels, resorts & beach clubs" },
-  { key: "nightlife", label: "Casinos, bars, clubs & restaurants" },
-  { key: "runway", label: "Fashion shows & runway" },
-  { key: "audiovisual", label: "Audiovisual production" },
-  { key: "corporate", label: "Corporate events & agencies" },
-  { key: "studio", label: "Studio experiences & courses" },
+const SERVICE_TILES: ReadonlyArray<{ key: string; label: string; sub: string; slot: string; alt: string }> = [
+  { key: "brands", label: "Brands & designers", sub: "Campaigns · lookbooks · runway", slot: "svc-brands", alt: "A fashion campaign shoot at golden hour." },
+  { key: "activations", label: "Activations & promo", sub: "Hosts · promoters · launches", slot: "svc-activations", alt: "Event staff welcoming guests at a product launch." },
+  { key: "private", label: "Private events & weddings", sub: "Entertainment for celebrations", slot: "svc-private", alt: "Entertainment at a destination wedding reception." },
+  { key: "hotels", label: "Hotels & resorts", sub: "Shows · dancers · activations", slot: "svc-hotels", alt: "Dancers on a resort stage at night." },
+  { key: "nightlife", label: "Casinos, bars & clubs", sub: "Resident and special shows", slot: "svc-nightlife", alt: "A floor show in a nightclub." },
+  { key: "runway", label: "Fashion shows", sub: "Casting to full production", slot: "svc-runway", alt: "A model walking a fashion runway." },
+  { key: "audiovisual", label: "Audiovisual production", sub: "Photo · video · content", slot: "svc-audiovisual", alt: "A cinema camera filming on a production set." },
+  { key: "corporate", label: "Corporate & agencies", sub: "Events · hosts · partnerships", slot: "svc-corporate", alt: "A host on stage at a corporate gala." },
+  { key: "studio", label: "Studio & experiences", sub: "Sessions · courses · Model for a Day", slot: "svc-studio", alt: "A photographer coaching a pose in a bright studio." },
 ];
 
+/**
+ * 3×3 image tiles (2-up on phones): the nine client segments as photo tiles
+ * with the title on a scrim, whole tile clickable — the same `photoTile`
+ * primitive the divisions rail uses, so it needs no new node kind and any
+ * tenant can build the same section from the builder. Replaced the earlier
+ * link list, whose long labels wrapped unevenly (owner, 2026-09-17).
+ */
 export function buildServicesBand(): BuilderNode {
   return band(
     HOME_SERVICES_BAND_ID,
@@ -79,21 +86,21 @@ export function buildServicesBand(): BuilderNode {
         "From a single face to a full show",
         "Talent, production, photography, entertainment and experiences, for brands, venues, agencies and private clients. Find your brief.",
       ),
-      {
-        id: `${HOME_SERVICES_BAND_ID}-grid`,
-        kind: "container",
-        props: {
-          layout: "grid",
-          columns: 3,
-          gap: "m",
-          layerLabel: "Service rows",
-          responsive: { tablet: { columns: 2 }, mobile: { layout: "stack", columns: 1 } },
-          style: { width: "100%", maxWidthFree: "100%", gap: "0px 48px" },
-        },
-        children: SERVICE_LINKS.map((s) =>
-          linkRow(`${HOME_SERVICES_BAND_ID}-${s.key}`, s.label, `/p/for-clients#rb-clients-seg-${s.key}`),
+      grid(
+        `${HOME_SERVICES_BAND_ID}-grid`,
+        3,
+        SERVICE_TILES.map((t) =>
+          photoTile(`${HOME_SERVICES_BAND_ID}-${t.key}`, {
+            imageSlot: t.slot,
+            imageAlt: t.alt,
+            title: t.label,
+            subtitle: t.sub,
+            href: t.key === "studio" ? "/p/experiences" : `/p/for-clients#rb-clients-seg-${t.key}`,
+            aspect: "1",
+          }),
         ),
-      },
+        { layerLabel: "Service tiles", mobileColumns: 2 },
+      ),
       ctaRow(`${HOME_SERVICES_BAND_ID}-cta`, [
         goldButton(`${HOME_SERVICES_BAND_ID}-cta-brief`, "Start an inquiry", "/p/contact"),
         lineButton(`${HOME_SERVICES_BAND_ID}-cta-show`, "The show for hotels", "/p/show"),
@@ -168,7 +175,31 @@ const HOME_PATCH_ES_COPY: Record<string, string> = {
   "From a single face to a full show": "De un solo rostro a un show completo",
   "Talent, production, photography, entertainment and experiences, for brands, venues, agencies and private clients. Find your brief.":
     "Talento, producción, fotografía, entretenimiento y experiencias, para marcas, venues, agencias y clientes particulares. Encuentra tu brief.",
-  "Service rows": "Filas de servicios",
+  "Service tiles": "Mosaico de servicios",
+  "Brands & designers": "Marcas y diseñadores",
+  "Campaigns · lookbooks · runway": "Campañas · lookbooks · pasarela",
+  "A fashion campaign shoot at golden hour.": "Una sesión de campaña de moda a la hora dorada.",
+  "Activations & promo": "Activaciones y promo",
+  "Hosts · promoters · launches": "Edecanes · promotores · lanzamientos",
+  "Event staff welcoming guests at a product launch.": "Personal de evento recibiendo invitados en un lanzamiento.",
+  "Entertainment for celebrations": "Entretenimiento para celebraciones",
+  "Entertainment at a destination wedding reception.": "Entretenimiento en la recepción de una boda de destino.",
+  "Hotels & resorts": "Hoteles y resorts",
+  "Shows · dancers · activations": "Shows · bailarines · activaciones",
+  "Dancers on a resort stage at night.": "Bailarines en el escenario de un resort de noche.",
+  "Casinos, bars & clubs": "Casinos, bares y clubes",
+  "Resident and special shows": "Shows residentes y especiales",
+  "A floor show in a nightclub.": "Un show de piso en un club nocturno.",
+  "Fashion shows": "Desfiles de moda",
+  "Casting to full production": "Del casting a la producción completa",
+  "A model walking a fashion runway.": "Una modelo caminando una pasarela.",
+  "Photo · video · content": "Foto · video · contenido",
+  "A cinema camera filming on a production set.": "Una cámara de cine filmando en un set de producción.",
+  "Corporate & agencies": "Corporativo y agencias",
+  "Events · hosts · partnerships": "Eventos · edecanes · alianzas",
+  "A host on stage at a corporate gala.": "Un presentador en el escenario de una gala corporativa.",
+  "Sessions · courses · Model for a Day": "Sesiones · cursos · Modelo por un día",
+  "A photographer coaching a pose in a bright studio.": "Un fotógrafo dirigiendo una pose en un estudio luminoso.",
   "Fashion brands & designers  →": "Marcas de ropa y diseñadores  →",
   "Fashion brands & designers": "Marcas de ropa y diseñadores",
   "Activations & promotions  →": "Activaciones y promociones  →",
@@ -304,7 +335,14 @@ export function applyHomeMarketingPatch(live: BuilderNode[]): { tree: BuilderNod
   report.menuBoardsRemoved = before - tree.length;
 
   const insertAfter = (anchorId: string, node: BuilderNode, flag: keyof HomePatchReport) => {
-    if (tree.some((n) => n.id === node.id)) return; // idempotent
+    const existing = tree.findIndex((n) => n.id === node.id);
+    if (existing !== -1) {
+      // Rebuild in place so a redesigned band (services tiles) replaces the
+      // earlier version; content is deterministic, so this is idempotent.
+      tree = [...tree.slice(0, existing), node, ...tree.slice(existing + 1)];
+      (report as unknown as Record<string, unknown>)[flag] = true;
+      return;
+    }
     const i = tree.findIndex((n) => n.id === anchorId);
     if (i === -1) {
       problems.push(`anchor "${anchorId}" not found at the root; ${node.id} not inserted`);
