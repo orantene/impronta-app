@@ -20,6 +20,7 @@ import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./IdentityBar-2";
 import { WhatsAppTopBarButton } from "@/components/admin/channels/WhatsAppChrome";
 import { CreateMenu } from "./CreateMenu";
+import { LanguageMenu } from "./LanguageMenu";
 import { GLOBAL_SEARCH_OPEN_EVENT } from "./GlobalSearchOverlay";
 import { MobileChromeStyles } from "./MobileChromeStyles";
 import { MobileTopBar } from "./MobileTopBar";
@@ -284,6 +285,8 @@ export function TulalaIdentityBar() {
               </button>
               <WhatsAppTopBarButton size={32} />
               <CreateMenu />
+              {/* Dashboard language — same 32px square as search and +. */}
+              <LanguageMenu />
               <NotificationsBell />
               <span
                 data-tulala-plan-chip
@@ -291,6 +294,9 @@ export function TulalaIdentityBar() {
               >
                 {copy.t(planLabel)}
               </span>
+              {/* Support — the launcher (mounted by the layout) portals its
+                  button in here on desktop instead of floating mid-screen. */}
+              <span data-tulala-support-slot className="hidden items-center md:inline-flex" />
               <AccountMenuTrigger userName={userName} userInitials={userInitials} align="right">
                 <Avatar initials={userInitials} size={26} tone="ink" hashSeed={userName} photoUrl={userPhotoUrl} />
               </AccountMenuTrigger>

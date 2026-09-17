@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * stuck on the fallback — so we validate against the tenant's actual supported
  * locales instead.
  */
-function readLocaleFromDocumentCookie(fallback: Locale, allowed: readonly Locale[]): Locale {
+export function readLocaleFromDocumentCookie(fallback: Locale, allowed: readonly Locale[]): Locale {
   if (typeof document === "undefined") return fallback;
   const m = document.cookie.match(
     new RegExp(`(?:^|; )${LOCALE_COOKIE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=([^;]*)`),
@@ -22,7 +22,12 @@ function readLocaleFromDocumentCookie(fallback: Locale, allowed: readonly Locale
   return raw && isLocaleInList(raw, allowed) ? raw : fallback;
 }
 
-function setLocaleCookie(locale: Locale) {
+/**
+ * Persist a deliberate dashboard-language pick. Shared by the account-menu
+ * pills and the top bar's language button so both write the same cookie the
+ * same way (and both clear the proxy's auto-marker). Callers reload.
+ */
+export function setLocaleCookie(locale: Locale) {
   const { path, maxAge, sameSite, secure } = localeCookieOptions;
   let line = `${LOCALE_COOKIE}=${locale}; path=${path}; max-age=${String(maxAge)}; samesite=${sameSite}`;
   if (secure) line += "; secure";

@@ -62,13 +62,13 @@ export function CreateMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-[32px] cursor-pointer items-center gap-[6px] rounded-[9px] border border-admin-border bg-admin-card px-[12px] font-admin-body text-admin-12h font-medium text-admin-ink hover:border-admin-border-strong [transition:border-color_var(--transition-admin-micro)]"
+        aria-label={t(`${K}.label`)}
+        title={t(`${K}.label`)}
+        className="inline-flex h-[32px] w-[32px] cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card text-admin-ink-muted hover:text-admin-ink [transition:color_var(--transition-admin-micro)]"
       >
-        <Icon name="plus" size={14} stroke={1.75} color="currentColor" />
-        {t(`${K}.label`)}
-        <span aria-hidden className="inline-flex text-admin-ink-dim">
-          <Icon name="chevron-down" size={12} stroke={1.75} color="currentColor" />
-        </span>
+        {/* Icon only — the same 32px square as the search and language
+            buttons beside it. The word lives in the aria-label + tooltip. */}
+        <Icon name="plus" size={15} stroke={1.75} color="currentColor" />
       </button>
       {open && (
         <div
