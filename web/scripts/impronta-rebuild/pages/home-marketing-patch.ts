@@ -201,6 +201,8 @@ const HOME_PATCH_ES_COPY: Record<string, string> = {
   "Studio and photographer, with makeup, hair and styling on the fuller packages. Ten edited photographs from the first package up.":
     "Estudio y fotógrafo, con maquillaje, peinado y styling en los paquetes más completos. Diez fotografías editadas desde el primer paquete.",
   "See all sessions": "Ver todas las sesiones",
+  "From $1,500 MXN": "Desde $1,500 MXN",
+  "Photo sessions": "Sesiones de fotos",
   "All experiences and prices": "Todas las experiencias y precios",
 };
 
