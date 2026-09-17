@@ -14571,7 +14571,7 @@
           "issues": "Incidencias"
         },
         "clock": "Las horas son las del reloj del local ({zone}).",
-        "noSessions": "No hay ningún evento programado en esta puerta en las próximas dos semanas. Programa una noche desde la página Sesiones y aparecerá aquí.",
+        "noSessions": "No hay ningún evento programado en esta puerta en los próximos 30 días. Programa una noche desde la página Sesiones y aparecerá aquí.",
         "loadFailed": "No se pudo cargar la puerta. Revisa la conexión e inténtalo de nuevo.",
         "header": {
           "gate": "Acceso · {event}",
