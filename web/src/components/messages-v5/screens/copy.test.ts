@@ -11,7 +11,8 @@ function leaves(value: unknown, path: string[] = []): [string, string][] {
 
 test("every shell string resolves in EN, ES and FR: no raw key, no em dash, never customer, no black or dark green promise", () => {
   const en = leaves(EN_SCREEN.shell);
-  assert.ok(en.length > 90, `expected the shell copy, got ${en.length}`);
+  // 81 after wave A wired the lane panes and the placeholder-only keys left (D-MSG-113); a real regression drops well below this.
+  assert.ok(en.length >= 80, `expected the shell copy, got ${en.length}`);
   for (const [name, copy] of [["en", EN_SCREEN], ["es", ES_SCREEN], ["fr", FR_SCREEN]] as const) {
     const all = leaves(copy.shell);
     assert.equal(all.length, en.length, `${name} has a different key count`);

@@ -15,7 +15,7 @@ function render(width: number) {
 test("the shell's root class per width: three columns at 1440, .tab at 1194, .one at 390; the first paint is the inbox skeleton and the empty thread", () => {
   const three = render(1440);
   assert.match(three, /class="msgv5 msgs" data-messages-v5="true" data-layout="three"/);
-  assert.match(three, /data-inbox="desktop"/);
+  assert.match(three, /data-inbox-pane="desktop"/);
   assert.match(three, /data-skeleton/);
   assert.match(three, /data-thread="none"/);
   assert.match(three, /data-context-panel="empty"/);
@@ -24,7 +24,7 @@ test("the shell's root class per width: three columns at 1440, .tab at 1194, .on
   assert.doesNotMatch(two, /data-context-panel/);
   const one = render(390);
   assert.match(one, /class="msgv5 msgs one pane-inbox" data-messages-v5="true" data-layout="one"/);
-  assert.match(one, /data-inbox="mobile"/);
+  assert.match(one, /data-inbox-pane="mobile"/);
   for (const html of [three, two, one]) {
     assert.doesNotMatch(html, /style="/);
     assert.doesNotMatch(html, /dashboard\.messagesV5\./);

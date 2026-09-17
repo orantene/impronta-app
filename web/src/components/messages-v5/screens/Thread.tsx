@@ -60,12 +60,14 @@ export type ThreadProps = {
   readonly renameSlot?: ReactNode;
   /** The identity capture card, drawn at the end of the stream when active (D04, M07). */
   readonly captureSlot?: ReactNode;
+  /** L4's "Same person?" MergeCard, drawn at the end of the stream when the shell found a likely duplicate (D14). */
+  readonly mergeSlot?: ReactNode;
   /** The composer's engine binding; the Thread mounts the NextStep bar above it on desktop. */
   readonly composer: Omit<ComposerWireProps, "above" | "variant" | "copy">;
 };
 
 export function Thread(props: ThreadProps) {
-  const { row, essentials, messages, error, state, chips, tasks, currentUserId, copy, variant, locale = "en", now = new Date(), origin, headerBusy, nextBusy, onBack, onAction, onCopyText, onRetryLoad, onMoreTasks, menuOpen, onMenu, menuItems, detailsAction, notice, renameSlot, captureSlot, composer } = props;
+  const { row, essentials, messages, error, state, chips, tasks, currentUserId, copy, variant, locale = "en", now = new Date(), origin, headerBusy, nextBusy, onBack, onAction, onCopyText, onRetryLoad, onMoreTasks, menuOpen, onMenu, menuItems, detailsAction, notice, renameSlot, captureSlot, mergeSlot, composer } = props;
   const kit = copy.kit;
   const shell = copy.shell;
   const mobile = variant === "mobile";
@@ -177,6 +179,7 @@ export function Thread(props: ThreadProps) {
           </div>
         );
       })}
+      {mergeSlot}
       {captureSlot}
     </div>
   );

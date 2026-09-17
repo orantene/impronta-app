@@ -81,6 +81,13 @@ export function fixtureShellEngine(): ShellEngine {
       return ok({ version: bump(inquiryId, { conversationState: "resolved", opportunityState: "lost" }) ?? expectedVersion });
     },
     threadLink: async ({ inquiryId }) => ok({ token: `fixture-${inquiryId}` }),
+    merge: async ({ duplicateInquiryId, intoInquiryId, expectedVersion }) => {
+      const bad = versioned(duplicateInquiryId, expectedVersion);
+      if (bad) return { ok: false, reason: bad };
+      if (!rowOf(intoInquiryId)) return { ok: false, reason: "not_found" };
+      bump(duplicateInquiryId, { conversationState: "resolved", opportunityState: "lost" });
+      return { ok: true };
+    },
     history: async () => ({ ok: true, entries: [{ at: "2026-09-10T18:10:00Z", actorLabel: "Ana", kind: "assignment", text: "Ana took this conversation" }] }),
     startConversation: async ({ name, channel, email, phone }) => {
       const id = `inq-new-${rows.length + 1}`;

@@ -16,11 +16,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { draftStorageKey, readDraft, writeDraft } from "@/components/admin/pos/messages/draft-storage";
 import { useT } from "@/i18n/use-t";
+import { itemsLabelForPreset } from "@/lib/messages-v5/context-view";
+import { duplicateHint } from "@/lib/messages-v5/duplicates";
 import { applyInboxRowPatch, useMessagingInboxLive } from "@/lib/messages-v5/use-inbox-live";
 import { keepActiveRow } from "@/lib/messaging/inbox-search";
+import { isGeneratedName } from "@/lib/messaging/inquiry-name-pure";
 import { customerThreadUrl } from "@/lib/messaging/thread-link";
 import { deriveTasks } from "@/lib/messaging/tasks";
-import type { ConversationHistoryEntry, Essentials, InboxFilter, InboxRow, InquiryMessagingState, MessagingRefusal, ThreadMessage } from "@/lib/messaging/types";
+import type { ConversationHistoryEntry, CustomerMatch, Essentials, InboxFilter, InboxRow, InquiryMessagingState, MessagingRefusal, ThreadMessage } from "@/lib/messaging/types";
 
 import "../kit/tokens.css";
 import "./shell.css";
@@ -32,7 +35,7 @@ import type { ContextPanelAction, ShellActionId } from "../screens/contracts";
 import { buildScreenCopy } from "../screens/copy";
 import { IdentityCaptureWire } from "../screens/IdentityCaptureWire";
 import { TASK_ACTION, routeShellAction } from "../screens/NextStep";
-import { ClientSheet, ComingSheet, ContextPanel, DetailsSheet, HistorySheet, Inbox, RenameInline, TasksTray } from "../screens/slots";
+import { ClientSheet, ComingSheet, ContextDrawer, ContextPanel, DetailsSheet, HistorySheet, Inbox, MergeCard, RenameInline, TasksTray } from "../screens/slots";
 import { Thread, ThreadEmpty, type ThreadMenuItem } from "../screens/Thread";
 import { liveShellEngine, type ShellEngine } from "./engine";
 import { contextPlacement, layoutForWidth, shellClassName, variantForLayout, type MobilePane, type ShellLayout } from "./layout";
@@ -40,13 +43,24 @@ import { AssignSheet, LinkSheet, LostSheet, NewConversationSheet } from "./Shell
 
 const SEGMENT_FILTER: Record<InboxSegment, InboxFilter> = { needs: "needs_reply", wait: "awaiting_customer", all: "all" };
 
+const digits = (value: string | null) => (value ?? "").replace(/\D/g, "");
+/** A loaded row belongs to a customer match when the phone digits or the email agree. */
+function sameContact(row: InboxRow, match: CustomerMatch): boolean {
+  const phone = digits(match.phoneE164);
+  if (phone && digits(row.contactPhone) === phone) return true;
+  const email = (match.email ?? "").trim().toLowerCase();
+  return !!email && (row.contactEmail ?? "").trim().toLowerCase() === email;
+}
+
 export type MessagesV5ShellProps = {
   readonly tenantId: string;
   readonly tenantSlug: string;
   readonly locationSlug?: string;
   readonly currentUserId: string | null;
-  /** "talent" workspaces see "Talent & services"; everything else sees "Items". */
+  /** "talent" workspaces see "Talent & services"; everything else sees "Items" (fallback when `industryPreset` is absent). */
   readonly workspaceType?: string | null;
+  /** `agencies.settings.industry_preset` when the mount knows it: L3's finer Items label (Talent & services / Services / Order items / Menu, D-MSG-90). */
+  readonly industryPreset?: unknown;
   readonly initialInquiryId?: string | null;
   readonly locale?: string;
   /** Dev preview and tests: a fixture engine and a forced width instead of measuring. */
@@ -98,6 +112,11 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const [historyError, setHistoryError] = useState<MessagingRefusal | null>(null);
   const [link, setLink] = useState<{ url: string | null; copied: boolean; refusal: MessagingRefusal | null }>({ url: null, copied: false, refusal: null });
   const [toast, setToast] = useState<{ inquiryId: string; name: string; preview: string } | null>(null);
+  // D14 "Same person?": the other OPEN row a customer match points at, found lazily when identity is uncertain (D-MSG-112).
+  const [dupe, setDupe] = useState<{ forId: string; other: InboxRow; match: CustomerMatch } | null>(null);
+  const [dupeBusy, setDupeBusy] = useState(false);
+  const [dupeRefusal, setDupeRefusal] = useState<MessagingRefusal | null>(null);
+  const [dupeDismissed, setDupeDismissed] = useState<ReadonlySet<string>>(() => new Set());
 
   /* ------------------------------------------------------------ layout */
   useEffect(() => {
@@ -187,6 +206,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       setMenuOpen(false);
       setRenaming(false);
       setCapturing(false);
+      setDupe(null);
+      setDupeRefusal(null);
       setDraft(readDraft(draftStorageKey(props.tenantId, locationSlug, id)));
       setPane("thread");
       setToast((cur) => (cur?.inquiryId === id ? null : cur));
@@ -234,6 +255,35 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     await reloadInbox();
   }, [activeId, loadThread, reloadInbox]);
 
+  /* ------------------------------------------- "Same person?" (D14) */
+  // Owner decision 1: only when identity is uncertain. `messagingMatchCustomers`
+  // names customers, not conversations, so "has another open conversation" is
+  // answered from the rows this shell has loaded (`duplicateHint`'s
+  // caller-supplied flag, D-MSG-102); a duplicate outside the loaded segment
+  // draws no card (seam, D-MSG-112).
+  const rowsRef = useRef<InboxRow[]>([]);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+  useEffect(() => {
+    if (!activeId || !essentials) return;
+    const c = essentials.customer;
+    if ((c.identityLevel !== "none" && c.identityLevel !== "linked") || (!c.phone && !c.email)) return;
+    if (dupeDismissed.has(activeId)) return;
+    let cancelled = false;
+    void engine.identity.match({ name: c.name, phone: c.phone ?? "", email: c.email ?? "" }).then((r) => {
+      if (cancelled || !r.ok) return;
+      const others = rowsRef.current.filter((row) => row.id !== activeId && row.conversationState !== "resolved");
+      const candidates = r.matches.map((m) => ({ match: m, other: others.find((row) => sameContact(row, m)) ?? null }));
+      if (!duplicateHint({ identityLevel: c.identityLevel }, candidates.map(({ match, other }) => ({ customerId: match.customerId, hasOpenConversation: other !== null })))) return;
+      const hit = candidates.find(({ match, other }) => match.customerId !== null && other !== null);
+      if (hit && hit.other) setDupe({ forId: activeId, other: hit.other, match: hit.match });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeId, dupeDismissed, engine, essentials]);
+
   /* ----------------------------------------------------- derived state */
   const recordChips = useMemo(() => essentials?.linked ?? activeRow?.recordChips ?? [], [essentials?.linked, activeRow?.recordChips]);
   const state: InquiryMessagingState = useMemo(
@@ -257,7 +307,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       paymentIssue: failed ? "failed" : expired ? "expired" : null,
     });
   }, [activeRow, essentials?.customer.identityLevel, recordChips]);
-  const itemsLabel = props.workspaceType === "talent" ? copy.shell.itemsTalent : copy.shell.itemsGeneric;
+  const itemsLabel = props.industryPreset !== undefined ? itemsLabelForPreset(props.industryPreset, copy.kit) : props.workspaceType === "talent" ? copy.shell.itemsTalent : copy.shell.itemsGeneric;
   const counts = useMemo(() => ({ [segment]: rows.length }) as Partial<Record<InboxSegment, number>>, [segment, rows.length]);
 
   /* ------------------------------------------------------------ actions */
@@ -288,6 +338,21 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       return false;
     }
   }, []);
+
+  /** One D14 write at a time; a refusal stays on the card, a version conflict also re-reads the row. */
+  const runDupe = useCallback(
+    async (run: () => Promise<{ ok: true } | { ok: false; reason: MessagingRefusal }>) => {
+      setDupeBusy(true);
+      setDupeRefusal(null);
+      const result = await run();
+      setDupeBusy(false);
+      if (result.ok) return true;
+      setDupeRefusal(result.reason);
+      if (result.reason === "conflict" || result.reason === "version_stale") await reloadInbox();
+      return false;
+    },
+    [reloadInbox],
+  );
 
   const dispatch = useCallback(
     (id: ShellActionId) => {
@@ -418,7 +483,10 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     />
   );
 
-  const panelProps = { essentials, state, chips: recordChips, tasks, itemsLabel, loading: activeId !== null && essentials === null, copy: copy.kit, variant, onAction: onPanelAction } as const;
+  // L3 extras the shell can answer today: the notes count comes with essentials.
+  // `items`, `money`, `filesCount`, `nextReminderLabel` and `clientHistoryLabel`
+  // stay undefined until an engine reader returns them (D-MSG-111).
+  const panelProps = { essentials, state, chips: recordChips, tasks, itemsLabel, loading: activeId !== null && essentials === null, copy: copy.kit, variant, onAction: onPanelAction, notesCount: essentials ? essentials.notes.length : null } as const;
 
   const thread = activeRow ? (
     <Thread
@@ -460,6 +528,45 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
               return r;
             }}
             onCancel={() => setRenaming(false)}
+            copy={copy.kit}
+            variant={variant}
+            generated={isGeneratedName(essentials.name, essentials.customer.name)}
+          />
+        ) : null
+      }
+      mergeSlot={
+        dupe && dupe.forId === activeRow.id ? (
+          <MergeCard
+            duplicate={{ inquiryId: activeRow.id, name: essentials?.name ?? activeRow.subject }}
+            into={{ inquiryId: dupe.other.id, name: dupe.other.subject, version: dupe.other.version }}
+            busy={dupeBusy}
+            refusal={dupeRefusal}
+            onMerge={() => {
+              const target = dupe.other.id;
+              void runDupe(() => engine.merge({ duplicateInquiryId: activeRow.id, intoInquiryId: target, expectedVersion: activeRow.version })).then((ok) => {
+                if (!ok) return;
+                setDupe(null);
+                void reloadInbox().then(() => openThread(target));
+              });
+            }}
+            onKeepSeparate={
+              dupe.match.customerId
+                ? () => {
+                    const customerId = dupe.match.customerId as string;
+                    void runDupe(() => engine.identity.capture({ inquiryId: activeRow.id, level: "linked", method: dupe.match.phoneE164 && digits(dupe.match.phoneE164) === digits(essentials?.customer.phone ?? null) ? "phone" : "email", customerId, expectedVersion: activeRow.version })).then((ok) => {
+                      if (!ok) return;
+                      // "linked" still counts as uncertain (D-MSG-102); the person just answered, so no second card this session.
+                      setDupeDismissed((set) => new Set(set).add(activeRow.id));
+                      setDupe(null);
+                      void refreshAll();
+                    });
+                  }
+                : undefined
+            }
+            onDismiss={() => {
+              setDupeDismissed((set) => new Set(set).add(activeRow.id));
+              setDupe(null);
+            }}
             copy={copy.kit}
             variant={variant}
           />
@@ -513,7 +620,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     <ThreadEmpty copy={copy} variant={variant} />
   );
 
-  const panel = activeRow ? <ContextPanel {...panelProps} onClose={placement === "drawer" ? () => setDrawerOpen(false) : undefined} /> : null;
+  const panel = activeRow ? <ContextPanel {...panelProps} /> : null;
 
   const overlay = sheet !== null || coming !== null || drawerOpen;
   const s = copy.shell;
@@ -523,17 +630,10 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       {inbox}
       {thread}
       {placement === "column" ? (panel ?? <section className="pane panel" data-context-panel="empty" />) : null}
-      {placement === "drawer" && drawerOpen && panel ? (
-        <>
-          <button type="button" className="scrim" aria-label={copy.kit.sheet.close} onClick={() => setDrawerOpen(false)} />
-          <div className="drawer" data-context-drawer>
-            {panel}
-          </div>
-        </>
-      ) : null}
+      {placement === "drawer" && activeRow ? <ContextDrawer {...panelProps} open={drawerOpen} onClose={() => setDrawerOpen(false)} /> : null}
       {placement === "sheet" && activeRow ? <DetailsSheet {...panelProps} open={sheet === "details"} onClose={() => setSheet(null)} /> : null}
       {essentials ? <ClientSheet essentials={essentials} open={sheet === "client"} onClose={() => setSheet(null)} copy={copy.kit} variant={variant} onAction={(kind) => (kind === "capture_identity" ? dispatch("capture_identity") : setComing("edit contact fields"))} /> : null}
-      <HistorySheet entries={history} open={sheet === "history"} onClose={() => setSheet(null)} copy={copy.kit} variant={variant} error={historyError} locale={locale} />
+      <HistorySheet entries={history} open={sheet === "history"} onClose={() => setSheet(null)} copy={copy.kit} variant={variant} error={historyError} />
       <TasksTray tasks={tasks} open={sheet === "tasks"} onClose={() => setSheet(null)} onPick={(key) => { setSheet(null); const id = TASK_ACTION[key]; if (id) dispatch(id); }} copy={copy.kit} variant={variant} />
       <AssignSheet open={sheet === "assign" || sheet === "handover"} mode={sheet === "handover" ? "handover" : "assign"} onClose={() => setSheet(null)} copy={copy} variant={variant} currentOwnerId={activeRow?.ownerUserId ?? null} loadTargets={engine.handOverTargets} onPick={async (ownerUserId) => (sheet === "handover" && ownerUserId ? withVersion((v) => engine.handOver({ ...v, ownerUserId })) : withVersion((v) => engine.assign({ ...v, ownerUserId })))} />
       <LostSheet open={sheet === "lost"} onClose={() => setSheet(null)} copy={copy} variant={variant} onConfirm={(reason) => withVersion((v) => engine.closeLost({ ...v, reason }))} />

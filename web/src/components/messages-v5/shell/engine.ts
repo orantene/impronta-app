@@ -16,6 +16,7 @@ import {
   messagingAssignOwner,
   messagingCloseLost,
   messagingHandOver,
+  messagingMerge,
   messagingLoadEssentials,
   messagingLoadInbox,
   messagingLoadThread,
@@ -48,6 +49,8 @@ export type ShellEngine = {
   readonly rename: (input: Versioned & { name: string }) => Promise<ActionResult<{ version?: number }>>;
   readonly closeLost: (input: Versioned & { reason: string }) => Promise<ActionResult<{ version?: number }>>;
   readonly threadLink: (input: { inquiryId: string }) => Promise<ActionResult<{ token: string }>>;
+  /** D14: merges `duplicateInquiryId` into `intoInquiryId`; `expectedVersion` is the DUPLICATE's lock (`lib/messaging/merge.ts`). */
+  readonly merge: (input: { duplicateInquiryId: string; intoInquiryId: string; expectedVersion: number }) => Promise<{ ok: true } | { ok: false; reason: MessagingRefusal }>;
   readonly history: (input: { inquiryId: string }) => Promise<{ ok: true; entries: ConversationHistoryEntry[] } | { ok: false; reason: string }>;
   readonly startConversation: (input: { name: string; email: string | null; phone: string | null; channel: MessagingChannel; firstMessage: string | null }) => Promise<ActionResult<{ inquiryId: string; token: string | null }>>;
   readonly whatsappConnected: () => Promise<boolean>;
@@ -68,6 +71,7 @@ export const liveShellEngine: ShellEngine = {
   rename: (input) => messagingRename(input),
   closeLost: (input) => messagingCloseLost(input),
   threadLink: (input) => messagingThreadLink(input),
+  merge: (input) => messagingMerge(input),
   history: (input) => loadConversationHistory(input),
   startConversation: (input) => messagingStartConversation(input),
   whatsappConnected: async () => {
