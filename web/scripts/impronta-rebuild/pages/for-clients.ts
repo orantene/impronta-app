@@ -18,7 +18,8 @@ import {
   copy,
   eyebrow,
   faqAccordion,
-  fullBleedPlate,
+  featureCard,
+  statCell,
   grid,
   headingLine,
   lineButton,
@@ -31,10 +32,10 @@ import {
 } from "../shared";
 
 const hero = pageHero("rb-clients", {
-  eyebrowText: "For clients",
-  line1: "Cast the brief,",
-  line2: "not the chaos.",
-  sub: "Brands, event producers, hotels, photographers and casting directors book through Impronta for one reason: the shortlist is real. Vetted talent, confirmed availability, agreed rates and a coordinator who answers for all of it.",
+  eyebrowText: "For clients · Tulum · Playa del Carmen · Riviera Maya",
+  line1: "Models, hosts, performers",
+  line2: "and shows, booked as one.",
+  sub: "Brands, event producers, hotels, agencies and casting directors book models, hosts, dancers, DJs and complete live shows through Impronta for one reason: the shortlist is real. Vetted talent, confirmed availability, agreed rates and a coordinator who answers for all of it.",
   primary: { label: "Start an inquiry", href: "/contact" },
   secondary: { label: "Browse the roster", href: "/directory" },
   footnote: "No account needed · first reply within 24 hours",
@@ -178,6 +179,62 @@ const SEGMENTS: ReadonlyArray<{ key: string } & SegmentCardInput> = [
   },
 ];
 
+
+/**
+ * Structured data for the client page: the FAQ (rich result eligible) and
+ * the nine services as an ItemList. Kept in sync by hand with the cards
+ * above; `impronta-rebuild-pages.test.ts` pins the shape.
+ */
+export const FOR_CLIENTS_JSON_LD = [
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "How fast can you staff a booking?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Standard briefs get a shortlist within 24 hours. For urgent briefs in Tulum or Playa del Carmen we have confirmed same-day teams.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How does pricing work?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Every shortlist comes with clear rates for the exact scope of your brief: time, usage and travel included. You approve the number before anything is confirmed.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Can I contact talent directly?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Bookings run through the agency, which keeps availability real, rates fair and the coordinator accountable to you.",
+        },
+      },
+    ],
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Impronta services for clients",
+    itemListElement: SEGMENTS.map((seg, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      item: {
+        "@type": "Service",
+        name: seg.title,
+        description: seg.intro,
+        provider: { "@type": "Organization", name: "Impronta", url: "https://improntamodels.com" },
+        areaServed: ["Tulum", "Playa del Carmen", "Cancun", "Riviera Maya"],
+        url: `https://improntamodels.com/for-clients#rb-clients-seg-${seg.key}`,
+      },
+    })),
+  },
+];
+
 const segments = band(
   "rb-clients-segments",
   [
@@ -290,12 +347,63 @@ const process = band(
   { borderTop: true, layerLabel: "Process" },
 );
 
-const plate = fullBleedPlate("rb-clients", {
-  imageSlot: "for-clients-plate",
-  imageAlt: "An Impronta model with long blonde hair in a black strapless top, photographed against a pale studio backdrop.",
-  numeral: "24h",
-  line: "One brief in. One shortlist back. Within a day.",
-});
+/**
+ * WHY IMPRONTA — replaces the editorial plate ("24h · One brief in. One
+ * shortlist back."), which the owner read as saying nothing. Four claims the
+ * site already makes elsewhere, each with the reason it matters to a client.
+ */
+const why = band(
+  "rb-clients-why",
+  [
+    centerHead(
+      "rb-clients-why",
+      "Why book through Impronta",
+      "What you get that a direct booking cannot give you",
+      "Every face on the roster was met in person. Every availability is confirmed before you see a name. Every booking has one coordinator who answers for it.",
+    ),
+    {
+      id: "rb-clients-why-grid",
+      kind: "container",
+      props: {
+        layout: "grid",
+        columns: 4,
+        gap: "m",
+        layerLabel: "Proof points",
+        responsive: { tablet: { columns: 2 }, mobile: { columns: 2 } },
+        style: { width: "100%", maxWidthFree: "100%" },
+      },
+      children: [
+        statCell("rb-clients-why-1", "<24h", "First reply with a shortlist", false),
+        statCell("rb-clients-why-2", "100%", "Talent met and vetted in person", true),
+        statCell("rb-clients-why-3", "1", "Coordinator and one agreement per booking", true),
+        statCell("rb-clients-why-4", "EN · ES", "Bilingual talent and briefs", true),
+      ],
+    },
+    grid(
+      "rb-clients-why-cards",
+      3,
+      [
+        featureCard(
+          "rb-clients-why-c1",
+          "Availability before names",
+          "You never fall for a face that cannot make the date. The shortlist only carries talent confirmed for your dates and city.",
+        ),
+        featureCard(
+          "rb-clients-why-c2",
+          "Rates and usage in writing",
+          "Time, usage rights, travel and overtime agreed in one document before anyone is booked. The invoice matches the quote.",
+        ),
+        featureCard(
+          "rb-clients-why-c3",
+          "One thread to the wrap",
+          "Call times, fittings, logistics and changes go through your coordinator. You run the event; we run the people.",
+        ),
+      ],
+      { layerLabel: "Why Impronta", mobileColumns: 1 },
+    ),
+  ],
+  { borderTop: true, layerLabel: "Why Impronta" },
+);
 
 const divisions = band(
   "rb-clients-divisions",
@@ -439,7 +547,7 @@ const tree: BuilderNode[] = [
   segments,
   managed,
   process,
-  plate,
+  why,
   divisions,
   proof,
   faqTeaser,
@@ -459,6 +567,7 @@ export const forClientsPage: ImprontaRebuildPage = {
     canonical_url: "/p/for-clients",
     noindex: false,
     include_in_sitemap: true,
+    json_ld: FOR_CLIENTS_JSON_LD,
   },
   tree,
 };

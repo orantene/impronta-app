@@ -136,6 +136,40 @@ export const CORE_ES_COPY: Record<string, string> = {
   "Browse the roster": "Explorar el directorio",
   "No account needed · first reply within 24 hours":
     "Sin necesidad de cuenta · primera respuesta en menos de 24 horas",
+  // ── for-clients 2026-09-17 SEO hero + why-Impronta band + button CTAs ────
+  "For clients · Tulum · Playa del Carmen · Riviera Maya": "Para clientes · Tulum · Playa del Carmen · Riviera Maya",
+  "Models, hosts, performers": "Modelos, edecanes, performers",
+  "and shows, booked as one.": "y shows, en una sola reserva.",
+  "Brands, event producers, hotels, agencies and casting directors book models, hosts, dancers, DJs and complete live shows through Impronta for one reason: the shortlist is real. Vetted talent, confirmed availability, agreed rates and a coordinator who answers for all of it.":
+    "Marcas, productoras de eventos, hoteles, agencias y directores de casting reservan modelos, edecanes, bailarines, DJs y shows en vivo completos a través de Impronta por una razón: la preselección es real. Talento verificado, disponibilidad confirmada, tarifas acordadas y un coordinador que responde por todo.",
+  "Book a campaign": "Reservar una campaña",
+  "Staff an activation": "Cubrir una activación",
+  "Plan my event": "Planear mi evento",
+  "See the show for hotels": "Ver el show para hoteles",
+  "Plan a night": "Planear una noche",
+  "Produce my show": "Producir mi desfile",
+  "Cast my production": "Casting para mi producción",
+  "Talk partnerships": "Hablar de alianzas",
+  "See experiences and prices": "Ver experiencias y precios",
+  "Why book through Impronta": "Por qué reservar con Impronta",
+  "What you get that a direct booking cannot give you": "Lo que una reserva directa no te puede dar",
+  "Every face on the roster was met in person. Every availability is confirmed before you see a name. Every booking has one coordinator who answers for it.":
+    "Cada rostro del roster fue conocido en persona. Cada disponibilidad se confirma antes de que veas un nombre. Cada reserva tiene un coordinador que responde por ella.",
+  "Proof points": "Pruebas",
+  "First reply with a shortlist": "Primera respuesta con preselección",
+  "Talent met and vetted in person": "Talento conocido y verificado en persona",
+  "Coordinator and one agreement per booking": "Coordinador y un solo acuerdo por reserva",
+  "Bilingual talent and briefs": "Talento y briefs bilingües",
+  "Why Impronta": "Por qué Impronta",
+  "Availability before names": "Disponibilidad antes que nombres",
+  "You never fall for a face that cannot make the date. The shortlist only carries talent confirmed for your dates and city.":
+    "Nunca te enamoras de un rostro que no puede en tu fecha. La preselección solo lleva talento confirmado para tus fechas y tu ciudad.",
+  "Rates and usage in writing": "Tarifas y usos por escrito",
+  "Time, usage rights, travel and overtime agreed in one document before anyone is booked. The invoice matches the quote.":
+    "Tiempo, derechos de uso, viáticos y horas extra acordados en un solo documento antes de reservar a nadie. La factura coincide con la cotización.",
+  "One thread to the wrap": "Un solo hilo hasta el cierre",
+  "Call times, fittings, logistics and changes go through your coordinator. You run the event; we run the people.":
+    "Horarios de llamado, pruebas, logística y cambios pasan por tu coordinador. Tú diriges el evento; nosotros a las personas.",
   // ── who we work with (2026-09-17 commercial map) ─────────────────────────
   "Who we work with": "Con quién trabajamos",
   "From a single face to a full show": "De un solo rostro a un show completo",
@@ -471,6 +505,7 @@ export const CORE_ES_COPY: Record<string, string> = {
 
 /** Identical in both languages (proper nouns, formats) or carrying none. */
 export const CORE_ES_KEEP_ENGLISH: ReadonlySet<string> = new Set([
+  "EN · ES",
   "Performers",
   "Performers  →",
   "+52 ...",

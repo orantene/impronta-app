@@ -33,6 +33,7 @@ import {
   TEXT,
   bulletRow,
   goldButton,
+  lineButton,
 } from "./shared";
 
 // ── hrefs ────────────────────────────────────────────────────────────────────
@@ -389,31 +390,7 @@ export function segmentCard(id: string, s: SegmentCardInput): BuilderNode {
         },
         children: s.bullets.map((text, i) => compactBullet(`${id}-b${i + 1}`, text)),
       },
-      {
-        id: `${id}-cta`,
-        kind: "button",
-        props: {
-          label: `${s.cta.label} →`,
-          href: s.cta.href,
-          tone: "secondary",
-          layerLabel: "Segment CTA",
-          style: {
-            fontFamily: SANS,
-            fontSize: "13px",
-            fontWeight: 600,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            textColor: GOLD,
-            backgroundColor: "rgba(0,0,0,0)",
-            paddingTop: "12px",
-            paddingBottom: "0px",
-            paddingLeft: "0px",
-            paddingRight: "0px",
-            borderRadius: "0px",
-            hover: { color: GOLD_BRIGHT },
-          },
-        },
-      },
+      lineButton(`${id}-cta`, s.cta.label, s.cta.href),
     ],
   };
 }
@@ -524,4 +501,37 @@ export function priceRow(id: string, title: string, price: string, note?: string
       },
     ],
   };
+}
+
+// ── live-tree repair: bullet rows on phones ──────────────────────────────────
+
+/**
+ * Walk a live tree and give every `bulletRow` container (layer label
+ * "List item", row layout) the mobile row override the helper now sets, so
+ * pages patched in place get the same fix as pages reseeded from modules.
+ */
+export function keepBulletRowsOnMobile(nodes: BuilderNode[]): { tree: BuilderNode[]; fixed: number } {
+  let fixed = 0;
+  const walk = (list: BuilderNode[]): BuilderNode[] =>
+    list.map((node) => {
+      let next = node;
+      if (node.kind === "container") {
+        const props = node.props as Record<string, unknown>;
+        const responsive = (props.responsive as { mobile?: Record<string, unknown> } | undefined) ?? {};
+        if (props.layout === "row" && props.layerLabel === "List item" && responsive.mobile?.layout !== "row") {
+          fixed += 1;
+          next = {
+            ...node,
+            props: { ...props, responsive: { ...responsive, mobile: { ...(responsive.mobile ?? {}), layout: "row" } } },
+          } as unknown as BuilderNode;
+        }
+      }
+      const children = (next as { children?: BuilderNode[] }).children;
+      if (Array.isArray(children)) {
+        const nc = walk(children);
+        if (nc.some((c, i) => c !== children[i])) next = { ...next, children: nc } as BuilderNode;
+      }
+      return next;
+    });
+  return { tree: walk(nodes), fixed };
 }

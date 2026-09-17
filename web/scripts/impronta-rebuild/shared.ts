@@ -36,8 +36,8 @@ export interface ImprontaPageSeo {
   canonical_url: string;
   noindex: boolean;
   include_in_sitemap: boolean;
-  /** JSON-LD payload (home only: Organization schema). */
-  json_ld?: Record<string, unknown>;
+  /** JSON-LD payload: one object or an array of documents (@graph-style). */
+  json_ld?: Record<string, unknown> | Array<Record<string, unknown>>;
 }
 
 export interface ImprontaRebuildPage {
@@ -876,6 +876,9 @@ export function bulletRow(id: string, text: string): BuilderNode {
       layout: "row",
       align: "center",
       layerLabel: "List item",
+      // The renderer stacks every row on phones unless told otherwise, which
+      // put the diamond on its own line above the text (live, 2026-09-17).
+      responsive: { mobile: { layout: "row" } },
       style: {
         width: "100%",
         gap: "16px",
@@ -883,6 +886,9 @@ export function bulletRow(id: string, text: string): BuilderNode {
         // mid-row, ragged-left text) from an inherited alignment. Pin the
         // packing direction rather than trusting the cascade.
         justifyContent: "flex-start",
+        // Rows flex-wrap by default; a long item then pushed its text under
+        // the diamond (seen live on /for-clients card 08, 2026-09-17).
+        flexWrap: "nowrap",
         paddingTop: "14px",
         paddingBottom: "14px",
         borderColor: HAIRLINE,
@@ -925,6 +931,8 @@ export function bulletRow(id: string, text: string): BuilderNode {
             fontSize: "15px",
             lineHeight: "1.5",
             flexGrow: 1,
+            flexBasis: "0px",
+            minWidth: "0px",
             textColor: TEXT,
             marginBottomFree: "0px",
             marginTopFree: "0px",
