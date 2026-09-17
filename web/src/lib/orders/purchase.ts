@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { resolvePurchaseBuyer } from "@/lib/orders/purchase-buyer";
 import { releaseCapacity, capacityHoldTtlSeconds } from "@/lib/capacity";
 import {
@@ -41,14 +42,7 @@ export type {
   PurchaseRefusalReason,
   PurchaseResult,
 };
-import {
-  pricePurchase,
-  amountToCollectCents,
-  type PricedOffering,
-  type PricedVariant,
-  type PricedAddon,
-  type PricedLine,
-} from "@/lib/orders/purchase-pricing";
+import { pricePurchase, amountToCollectCents } from "@/lib/orders/purchase-pricing";
 
 /**
  * ONE purchase pipeline.
@@ -764,6 +758,14 @@ export async function createPurchase(
           card_payload: { order_id: createdOrderId },
         });
         if (cardErr) logServerError("orders.createPurchase/thread-card", cardErr);
+      }
+    }
+
+    // Messages v5 / S2: the thread's record chips follow the order. Non-fatal.
+    if (inquiryId) {
+      await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "order", recordId: createdOrderId });
+      if (bookingId) {
+        await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "appointment", recordId: bookingId });
       }
     }
 

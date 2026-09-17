@@ -146,6 +146,10 @@ export type RecordChip = {
   label: string;
   paymentState: string | null;
   fulfilmentState: string | null;
+  /** S2: the date the record is FOR (order pickup/created, appointment start,
+   * event date, reservation start). ISO or null when the writer has not
+   * synced it yet. Additive. */
+  recordDate?: string | null;
 };
 
 export type ThreadMessage = {

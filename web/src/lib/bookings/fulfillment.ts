@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 
 export type FulfillmentStatus =
   | "pending"
@@ -147,6 +148,8 @@ export async function upsertBookingFulfillment(
     logServerError("fulfillment.upsert", error);
     return { ok: false, shippedAt: existing?.shipped_at ?? null, error: error.message };
   }
+  // Messages v5 / S2: preparing / ready / delivered land on the appointment chip.
+  if (tenantId) await syncConversationRecord(sb, { tenantId, kind: "appointment", recordId: bookingId });
   return { ok: true, shippedAt };
 }
 

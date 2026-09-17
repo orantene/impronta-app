@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { commitCapacity } from "@/lib/capacity";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import {
@@ -270,6 +271,10 @@ export async function completeOrderForTransaction(
       }
     }
 
+    // Messages v5 / S2: the order chip reads "paid". After the seam, so the
+    // admissions the seam minted are already there for their own chips.
+    await syncConversationRecord(admin, { tenantId: row.tenant_id, kind: "order", recordId: orderId });
+
     return { ok: true, orderId, status: "paid", committed };
   } catch (err) {
     logServerError("orders.completeOrder", err);
@@ -427,6 +432,8 @@ export async function completeZeroTotalOrder(
         logServerError("orders.completeZero/onOrderPaid", hookErr);
       }
     }
+
+    await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "order", recordId: row.id });
 
     return { ok: true, orderId: row.id, status: "paid", committed: zeroCommitted };
   } catch (err) {

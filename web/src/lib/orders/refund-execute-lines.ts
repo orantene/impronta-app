@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { executeBookingRefund, type RefundBlockedCode, type RefundReason } from "@/lib/payments/refund-execute";
 import { planRefund, releasesPromoRedemption, type RefundableLine, type PaidTransaction } from "@/lib/orders/refund-plan";
 import { admissionIsRefundable, classifyAdmissionEffect } from "@/lib/orders/refund-admissions";
@@ -108,7 +109,7 @@ export async function refundOrderLines(
   try {
     const { data: orderRow, error: orderErr } = await admin
       .from("orders")
-      .select("id, discount_cents, status, tip_cents")
+      .select("id, discount_cents, status, tip_cents, tenant_id")
       .eq("id", input.orderId)
       .maybeSingle();
     if (orderErr || !orderRow) {
@@ -284,6 +285,7 @@ export async function refundOrderLines(
     // admission and releases its allocation under one row lock: releasing
     // without stamping leaves a refunded ticket that still admits.
     let stamped = 0;
+    const stampedAdmissionIds: string[] = [];
     let admissionsIncomplete = false;
     const { data: admRows, error: admErr } = await admin
       .from("admissions")
@@ -328,6 +330,7 @@ export async function refundOrderLines(
       );
       if (effect.effect === "stamped") {
         stamped += 1;
+        stampedAdmissionIds.push(a.id);
       } else if (effect.effect === "incomplete") {
         admissionsIncomplete = true;
         logServerError(
@@ -350,6 +353,16 @@ export async function refundOrderLines(
         .eq("order_id", input.orderId);
       if (error) logServerError("orders.refundLines/promoRelease", error);
       else releasedPromo = true;
+    }
+
+    // Messages v5 / S2: the chip reads refunded / partially_refunded from
+    // the line figures and the admissions this just stamped.
+    const tenantId = (orderRow as { tenant_id?: string | null }).tenant_id ?? null;
+    if (tenantId) {
+      await syncConversationRecord(admin, { tenantId, kind: "order", recordId: input.orderId });
+      for (const admissionId of stampedAdmissionIds) {
+        await syncConversationRecord(admin, { tenantId, kind: "tickets", recordId: admissionId });
+      }
     }
 
     return {

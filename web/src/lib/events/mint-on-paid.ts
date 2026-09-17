@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { seatLostLines } from "@/lib/events/ticket-purchase";
 import { planAdmissions } from "@/lib/events/mint-admissions";
 
@@ -210,6 +211,8 @@ export async function mintAdmissionsForPaidOrder(
 
   await stampConsumedSeats(admin, ctx, ticketLines.map((l) => l.id));
 
+  await syncMintedAdmissions(admin, ctx, ticketLines.map((l) => l.id));
+
   if (outcome.skipped.length > 0) {
     logServerError(
       "events.mintOnPaid/skippedLines",
@@ -276,5 +279,41 @@ async function stampConsumedSeats(
     }
     free.space_id = hold.seat_space_id;
     taken.add(hold.seat_space_id);
+  }
+}
+
+/**
+ * Messages v5 / S2: every admission this order minted becomes a record chip
+ * on the order's conversation (tickets for an event session, class_enrolment
+ * for a class session). Additive and non-fatal: a failure here is logged and
+ * the mint stands.
+ */
+async function syncMintedAdmissions(admin: SupabaseClient, ctx: MintOnPaidCtx, lineIds: string[]): Promise<void> {
+  if (lineIds.length === 0) return;
+  try {
+    const { data, error } = await admin
+      .from("admissions")
+      .select("id, session_id")
+      .eq("tenant_id", ctx.tenantId)
+      .in("order_line_id", lineIds);
+    if (error) {
+      logServerError("events.mintOnPaid/recordSync", error);
+      return;
+    }
+    const rows = (data ?? []) as { id: string; session_id: string | null }[];
+    const sessionIds = [...new Set(rows.map((r) => r.session_id).filter((id): id is string => Boolean(id)))];
+    const eventSessions = new Set<string>();
+    if (sessionIds.length > 0) {
+      const { data: sessions } = await admin.from("sessions").select("id, event_id").in("id", sessionIds);
+      for (const s of (sessions ?? []) as { id: string; event_id: string | null }[]) {
+        if (s.event_id) eventSessions.add(s.id);
+      }
+    }
+    for (const row of rows) {
+      const kind = row.session_id && !eventSessions.has(row.session_id) ? "class_enrolment" : "tickets";
+      await syncConversationRecord(admin, { tenantId: ctx.tenantId, kind, recordId: row.id });
+    }
+  } catch (err) {
+    logServerError("events.mintOnPaid/recordSync", err);
   }
 }

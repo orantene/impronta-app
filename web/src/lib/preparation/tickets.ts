@@ -10,11 +10,15 @@ import "server-only";
  */
 
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { notifyTicketReady } from "@/lib/preparation/notify-ready";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
+  // Present on the real client; the S2 record sync is skipped without it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rpc?: (fn: string, args: Record<string, unknown>) => any;
 };
 
 export type PrepDestination = "table" | "pickup" | "counter";
@@ -299,6 +303,7 @@ export async function submitOrderToPreparation(
       logServerError("prep.submit.amendRevision", revError);
       return { ok: false, reason: "unavailable", error: "Could not amend the ticket." };
     }
+    await syncOrderChip(admin, input.tenantId, input.orderId);
     return { ok: true, ticketId: ticket.id, revision: nextRevision, amended: true };
   }
 
@@ -331,6 +336,7 @@ export async function submitOrderToPreparation(
     logServerError("prep.submit.revision", revError);
     return { ok: false, reason: "unavailable", error: "Could not send to preparation." };
   }
+  await syncOrderChip(admin, input.tenantId, input.orderId);
   return { ok: true, ticketId, revision: 1, amended: false };
 }
 
@@ -342,10 +348,13 @@ async function loadTicket(
   admin: Admin,
   tenantId: string,
   ticketId: string,
-): Promise<{ id: string; tenant_id: string; status: string } | { ok: false; reason: "not_found" | "wrong_tenant" | "unavailable" }> {
+): Promise<
+  | { id: string; tenant_id: string; status: string; order_id: string | null }
+  | { ok: false; reason: "not_found" | "wrong_tenant" | "unavailable" }
+> {
   const { data, error } = await admin
     .from("preparation_tickets")
-    .select("id, tenant_id, status")
+    .select("id, tenant_id, status, order_id")
     .eq("id", ticketId)
     .maybeSingle();
   if (error) {
@@ -353,9 +362,9 @@ async function loadTicket(
     return { ok: false, reason: "unavailable" };
   }
   if (!data) return { ok: false, reason: "not_found" };
-  const row = data as { id: string; tenant_id: string; status: string };
+  const row = data as { id: string; tenant_id: string; status: string; order_id?: string | null };
   if (row.tenant_id !== tenantId) return { ok: false, reason: "wrong_tenant" };
-  return row;
+  return { ...row, order_id: row.order_id ?? null };
 }
 
 export async function acknowledgeTicket(
@@ -377,6 +386,7 @@ export async function acknowledgeTicket(
     logServerError("prep.acknowledge", error);
     return { ok: false, reason: "unavailable", error: "Could not acknowledge." };
   }
+  await syncOrderChip(admin, input.tenantId, loaded.order_id);
   return { ok: true, ticketId: input.ticketId };
 }
 
@@ -400,6 +410,7 @@ export async function markTicketReady(
     return { ok: false, reason: "unavailable", error: "Could not mark ready." };
   }
   void notifyTicketReady(admin, input);
+  await syncOrderChip(admin, input.tenantId, loaded.order_id);
   return { ok: true, ticketId: input.ticketId };
 }
 
@@ -422,6 +433,7 @@ export async function recordHandoff(
     logServerError("prep.handoff", error);
     return { ok: false, reason: "unavailable", error: "Could not record handoff." };
   }
+  await syncOrderChip(admin, input.tenantId, loaded.order_id);
   return { ok: true, ticketId: input.ticketId };
 }
 
@@ -444,6 +456,7 @@ export async function cancelTicket(
     logServerError("prep.cancel", error);
     return { ok: false, reason: "unavailable", error: "Could not cancel." };
   }
+  await syncOrderChip(admin, input.tenantId, loaded.order_id);
   return { ok: true, ticketId: input.ticketId };
 }
 
@@ -586,4 +599,14 @@ export async function listBoard(
     });
   }
   return { ok: true, tickets };
+}
+
+/**
+ * Messages v5 / S2: every kitchen transition (queued / preparing / ready /
+ * handed off / cancelled) is read back onto the order's conversation chip.
+ * Additive and non-fatal; the ticket write above already stands.
+ */
+async function syncOrderChip(admin: Admin, tenantId: string, orderId: string | null): Promise<void> {
+  if (!orderId) return;
+  await syncConversationRecord(admin, { tenantId, kind: "order", recordId: orderId });
 }
