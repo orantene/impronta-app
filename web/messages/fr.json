@@ -3372,7 +3372,7 @@
           "email": "Email · {email}",
           "emailNone": "Email · le contact de la commande",
           "emailStatus": "Envoyé avec le QR à l'émission du billet · Renvoyer l'envoie à nouveau",
-          "resend": "Renvoyer",
+          "resend": "Renvoyer par e-mail",
           "resendReason": "Renvoie l'e-mail du billet (QR, code et lien) à cette adresse.",
           "sms": "Lien par SMS",
           "smsStatus": "Non proposé · les SMS ne sont pas configurés",
@@ -3385,7 +3385,10 @@
           "back": "Retour",
           "subtitleOne": "{name} · 1 billet · {date}",
           "sent": "Renvoyé.",
-          "notSent": "Non envoyé : aucune adresse sur le billet ni sur la commande."
+          "notSent": "Non envoyé : aucune adresse sur le billet ni sur la commande.",
+          "reprint": "Réimprimer",
+          "sentEmail": "Envoyé par e-mail à {email}.",
+          "sentPrint": "Envoyé à l’imprimante."
         },
         "sell": {
           "cashOnly": "Seules les espèces sont acceptées à cette porte. Les autres moyens de paiement sont encaissés au comptoir.",

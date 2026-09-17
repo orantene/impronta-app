@@ -259,6 +259,9 @@ export type DoorCopy = {
     emailStatus: string;
     resend: string;
     resendReason: string;
+    reprint: string;
+    sentEmail: string;
+    sentPrint: string;
     sms: string;
     smsStatus: string;
     printed: string;
@@ -573,6 +576,9 @@ export function doorCopy(t: Translator): DoorCopy {
       emailStatus: t("dashboard.pos.door.delivery.emailStatus"),
       resend: t("dashboard.pos.door.delivery.resend"),
       resendReason: t("dashboard.pos.door.delivery.resendReason"),
+      reprint: t("dashboard.pos.door.delivery.reprint"),
+      sentEmail: t("dashboard.pos.door.delivery.sentEmail"),
+      sentPrint: t("dashboard.pos.door.delivery.sentPrint"),
       sms: t("dashboard.pos.door.delivery.sms"),
       smsStatus: t("dashboard.pos.door.delivery.smsStatus"),
       printed: t("dashboard.pos.door.delivery.printed"),
