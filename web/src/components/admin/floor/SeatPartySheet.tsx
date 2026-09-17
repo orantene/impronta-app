@@ -24,6 +24,7 @@ import { PosSheet } from "../pos/PosSheet";
 
 import type { FloorBoardCopy } from "./floor-copy";
 import { fits, isSeatable, tableCode, type FloorBookEntry } from "./floor-model";
+import { RadioDot } from "./FloorRadio";
 import { FLOOR_EYEBROW, OPTION_CARD, OPTION_CARD_ACTIVE, OPTION_CARD_IDLE, OPTION_CARD_OFF } from "./floor-tones";
 import type { FloorBoardData, FloorWaitlistEntry } from "./floor-types";
 
@@ -146,15 +147,7 @@ export function SeatPartySheet(props: SeatPartySheetProps) {
           onClick={() => setChoice(o.id)}
           className={cn(OPTION_CARD, active ? OPTION_CARD_ACTIVE : o.fits ? OPTION_CARD_IDLE : OPTION_CARD_OFF)}
         >
-          <span
-            aria-hidden
-            className={cn(
-              "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2",
-              active ? "border-admin-brand bg-admin-brand text-admin-card" : "border-admin-border-strong bg-admin-card",
-            )}
-          >
-            {active && <Check size={12} strokeWidth={3} />}
-          </span>
+          <RadioDot active={active} />
           <span className="min-w-0 flex-1">
             <span className="block text-[16px] font-semibold">{o.label}</span>
             <span className={cn("block text-[14px]", o.fits ? "text-admin-ink-muted" : "text-admin-coral-deep")}>{o.fits ? o.detail : s.noFit}</span>
@@ -192,7 +185,7 @@ export function SeatPartySheet(props: SeatPartySheetProps) {
           disabled={busy || !chosen}
           onClick={() => chosen && props.onSeat({ spaceId: chosen.spaceId, joinedSpaceId: chosen.joinedSpaceId, partySize: party, admissionId })}
         >
-          {interpolate(s.confirm, { n: party, code })}
+          {interpolate(party === 1 ? s.confirmOne : s.confirm, { n: party, code })}
         </button>
       }
     >

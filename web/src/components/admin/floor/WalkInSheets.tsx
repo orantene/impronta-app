@@ -55,7 +55,13 @@ export function WalkInSheet(props: WalkInSheetProps) {
   const [party, setParty] = useState(2);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const fitting = data.tables.filter((t) => isSeatable(t) && !t.joinedFromSpaceId && fits(t, party) && !t.needsResetSinceIso);
+  // RIGHT NOW is the board's one best fit (`POSWalkIn`: "T01 + T02 · seats 4
+  // · free"), here the two tightest tables that fit, smallest first, so the
+  // waitlist card stays on the screen; every fit is still on the Seat sheet.
+  const fitting = data.tables
+    .filter((t) => isSeatable(t) && !t.joinedFromSpaceId && fits(t, party) && !t.needsResetSinceIso)
+    .sort((a, b) => a.partyMax - b.partyMax || a.partyMin - b.partyMin)
+    .slice(0, 2);
   const ahead = data.partyWaitlist.length;
 
   return (
@@ -144,6 +150,7 @@ export function WalkInSheet(props: WalkInSheetProps) {
                   <span className="block text-[16px] font-semibold text-admin-ink">
                     {interpolate(w.freeFits, { code: tableCode(t), n: t.partyMax })}
                   </span>
+                  <span className="block text-[14px] text-admin-ink-muted">{copy.seat.freeNow}</span>
                 </span>
                 <button type="button" className={POS_OUTLINE_ACTION} disabled={busy} onClick={() => props.onSeatNow(t, party)}>
                   {w.seatNow}
