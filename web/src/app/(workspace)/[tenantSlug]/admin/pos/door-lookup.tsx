@@ -16,14 +16,14 @@
  * unavailable.
  */
 
-import { Search } from "lucide-react";
+import { ArrowRight, CalendarDays, ChevronDown, Search, User, X } from "lucide-react";
 import { useCallback, useState, type ReactNode } from "react";
 import { useT } from "@/i18n/use-t";
 
 import { PosSheet } from "@/components/admin/pos";
 import { POS_DANGER_ACTION, POS_EYEBROW, POS_INPUT, POS_OUTLINE_ACTION, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION, POS_SURFACE } from "@/components/admin/pos/pos-classes";
 import { interpolate } from "@/i18n/interpolate";
-import { groupByOrder, groupMatches, type LookupGroup } from "@/lib/pos/door-model";
+import { byCount, groupByOrder, groupMatches, tierWord, type LookupGroup } from "@/lib/pos/door-model";
 import { cn } from "@/lib/utils";
 import type { DoorRow } from "@/app/(workspace)/[tenantSlug]/admin/_door-actions";
 import { refundOrderAtDesk } from "@/app/(workspace)/[tenantSlug]/admin/orders/refund-actions";
@@ -32,7 +32,7 @@ import { admissionDeliver, admissionExchange, ticketTransfer } from "@/lib/serve
 import { VENUE_ENGINE_REFUSALS, type VenueEngineRefusal } from "@/lib/venues/engine-refusals";
 import { posDoorNameTicket } from "./door-actions";
 import { dateAt, type DoorScreenCopy, type OpenDoor, timeAt } from "./door-shared";
-import { DoorNote, Pill, TicketRow, rowName, rowRef, ticketState } from "./door-ui";
+import { DoorNote, Pill, rowName, rowRef, ticketState } from "./door-ui";
 
 function isRefusal(reason: string): reason is VenueEngineRefusal {
   return reason in VENUE_ENGINE_REFUSALS;
@@ -59,6 +59,7 @@ export function LookupScreen(props: LookupScreenProps) {
   const lk = copy.door.lookup;
   const [picked, setPicked] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [resendNote, setResendNote] = useState<string | null>(null);
   const timeOf = (iso: string) => timeAt(iso, zone, locale);
 
   const groups = groupByOrder(door.rows).filter((g) => groupMatches(g, query));
@@ -73,7 +74,8 @@ export function LookupScreen(props: LookupScreenProps) {
           <Search aria-hidden size={20} strokeWidth={1.75} className="text-admin-ink-muted" />
           <span className="sr-only">{lk.eyebrow}</span>
           <input
-            type="search"
+            type="text"
+            role="searchbox"
             autoFocus
             value={query}
             onChange={(e) => {
@@ -81,7 +83,7 @@ export function LookupScreen(props: LookupScreenProps) {
               setPicked(null);
             }}
             placeholder={lk.placeholder}
-            className="min-w-0 flex-1 bg-transparent text-[18px] text-admin-ink outline-none placeholder:text-admin-ink-dim"
+            className="min-w-0 flex-1 bg-transparent text-[18px] text-admin-ink outline-none placeholder:text-admin-ink-dim focus-visible:outline-none!"
             data-door-lookup-query
           />
           <span className="text-[12.5px] text-admin-ink-muted">{lk.hint}</span>
@@ -104,7 +106,7 @@ export function LookupScreen(props: LookupScreenProps) {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[16px] font-semibold text-admin-ink">{g.holderName ?? rowName(first, lk)}</span>
                   <span className="block truncate text-[14px] text-admin-ink-muted">
-                    {interpolate(lk.orderLine, { code: g.ref, count: g.rows.length, admitted: g.admitted })}
+                    {interpolate(byCount(g.rows.length, lk.orderLineOne, lk.orderLine), { code: g.ref, count: g.rows.length, admitted: g.admitted })}
                     {g.rows[0]?.seatedAt ? ` ${timeOf(g.rows[0].seatedAt)}` : ""}
                   </span>
                 </span>
@@ -118,27 +120,36 @@ export function LookupScreen(props: LookupScreenProps) {
       <div className="flex w-[420px] shrink-0 flex-col gap-2.5 overflow-y-auto border-l border-admin-border bg-admin-surface px-[18px] py-5">
         {group ? (
           <>
-            <div className={POS_EYEBROW}>{interpolate(lk.ticketsOf, { code: group.ref, count: group.rows.length })}</div>
-            {group.rows.map((row) => (
-              <div key={row.id} className={cn(POS_SURFACE, "border-[1px] px-4 [&>div]:border-t-0")}>
-                <TicketRow
-                  row={row}
-                  copy={lk}
-                  timeOf={timeOf}
-                  compact
-                  action={
-                    <span className="flex flex-col gap-1">
+            <div className={POS_EYEBROW}>{interpolate(byCount(group.rows.length, lk.ticketsOfOne, lk.ticketsOf), { code: group.ref, count: group.rows.length })}</div>
+            {group.rows.map((row) => {
+              const state = ticketState(row, lk, timeOf);
+              return (
+                <div key={row.id} data-door-row={row.id} data-door-row-state={state.key} className={cn(POS_SURFACE, "flex flex-col gap-1 border-[1px] px-4 py-3")}>
+                  <div className="flex items-center gap-3">
+                    <span className={cn("min-w-0 flex-1 truncate text-[15px] font-semibold", state.admittable || state.key === "admitted" ? "text-admin-ink" : "text-admin-ink-muted")}>
+                      {rowName(row, lk)}
+                    </span>
+                    <Pill tone={state.tone} state={state.key}>
+                      {state.label}
+                    </Pill>
+                  </div>
+                  <div className="flex items-center gap-3 text-[13px] text-admin-ink-muted">
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="font-mono text-[12px]">{rowRef(row)}</span> · {tierWord(row.tierLabel, door.session.title) || lk.ticket}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
                       <button type="button" onClick={() => setSheet({ kind: "change", row })} className="text-[13px] font-semibold text-admin-brand hover:underline" data-door-change={row.id}>
                         {lk.change}
                       </button>
+                      <span aria-hidden className="text-admin-ink-dim">·</span>
                       <button type="button" onClick={() => setSheet({ kind: "delivery", group })} className="text-[13px] font-semibold text-admin-ink-muted hover:underline">
                         {lk.delivery}
                       </button>
                     </span>
-                  }
-                />
-              </div>
-            ))}
+                  </div>
+                </div>
+              );
+            })}
             <div className="flex-1" />
             {next ? (
               <button
@@ -155,10 +166,42 @@ export function LookupScreen(props: LookupScreenProps) {
             ) : (
               <p className="m-0 text-center text-[14px] text-admin-ink-muted">{lk.admitted}</p>
             )}
-            <button type="button" disabled title={lk.resendAllReason} data-not-wired="true" className={cn(POS_SECONDARY_ACTION, "w-full")}>
-              {lk.resendAll}
-            </button>
-            <p className="m-0 text-[12.5px] text-admin-ink-dim">{lk.resendAllReason}</p>
+            {(() => {
+              // The mail goes to the holder's address, else the order's contact
+              // (the engine picks, as the sale did); a sent count of zero is
+              // the honest "nobody on this order has an address".
+              const valid = group.rows.filter((r) => r.status === "valid");
+              const can = valid.length > 0;
+              return (
+                <>
+                  <button
+                    type="button"
+                    disabled={!can || props.busy}
+                    title={can ? lk.resendAllReason : lk.resendAllNone}
+                    data-not-wired={can ? undefined : "true"}
+                    data-door-resend-all
+                    onClick={() => {
+                      props.setBusy(true);
+                      setResendNote(null);
+                      void Promise.all(valid.map((r) => admissionDeliver({ admissionId: r.id, method: "email" })))
+                        .then((results) => {
+                          const sent = results.filter((r) => r.ok).length;
+                          setResendNote(sent > 0 ? interpolate(lk.resendAllDone, { count: sent, total: group.rows.length }) : lk.resendAllNone);
+                        })
+                        .finally(() => props.setBusy(false));
+                    }}
+                    className={cn(POS_SECONDARY_ACTION, "w-full")}
+                  >
+                    {lk.resendAll}
+                  </button>
+                  {resendNote ? (
+                    <p role="status" className="m-0 text-[12.5px] text-admin-ink">
+                      {resendNote}
+                    </p>
+                  ) : null}
+                </>
+              );
+            })()}
           </>
         ) : (
           <DoorNote>{lk.lookupNote}</DoorNote>
@@ -185,7 +228,7 @@ export function LookupScreen(props: LookupScreenProps) {
           open
           name="door-delivery"
           title={interpolate(copy.door.deliveryPanel.title, { code: sheet.group.ref })}
-          subtitle={interpolate(copy.door.deliveryPanel.subtitle, { name: sheet.group.holderName ?? lk.unnamed, count: sheet.group.rows.length, date: dateLabel })}
+          subtitle={interpolate(byCount(sheet.group.rows.length, copy.door.deliveryPanel.subtitleOne, copy.door.deliveryPanel.subtitle), { name: sheet.group.holderName ?? lk.unnamed, count: sheet.group.rows.length, date: dateLabel })}
           closeLabel={copy.chrome.closeLabel}
           onClose={() => setSheet(null)}
           footerStart={
@@ -221,6 +264,7 @@ function DeliveryRows({
 }) {
   const email = group.rows.find((r) => r.holderEmail)?.holderEmail ?? null;
   const first = group.rows[0] ?? null;
+  const [note, setNote] = useState<string | null>(null);
   const rows = [
     { title: email ? interpolate(copy.email, { email }) : copy.emailNone, status: copy.emailStatus, tone: "slate" as const, action: copy.resend, method: "email" as const },
     { title: copy.sms, status: copy.smsStatus, tone: "slate" as const, action: null, method: null },
@@ -239,11 +283,15 @@ function DeliveryRows({
             {r.action && r.method && first ? (
               <button
                 type="button"
-                disabled={busy || (r.method === "email" && !email)}
+                disabled={busy}
+                title={r.method === "email" ? copy.resendReason : undefined}
                 data-testid={`door-deliver-${r.method}`}
                 onClick={() => {
                   setBusy(true);
-                  void admissionDeliver({ admissionId: first.id, method: r.method! }).finally(() => setBusy(false));
+                  setNote(null);
+                  void admissionDeliver({ admissionId: first.id, method: r.method! })
+                    .then((res) => setNote(res.ok ? copy.sent : copy.notSent))
+                    .finally(() => setBusy(false));
                 }}
                 className={cn(POS_SECONDARY_ACTION, "h-11")}
               >
@@ -255,6 +303,11 @@ function DeliveryRows({
           </div>
         ))}
       </div>
+      {note ? (
+        <p role="status" className="m-0 text-[14px] text-admin-ink">
+          {note}
+        </p>
+      ) : null}
       <DoorNote tone="indigo">{copy.footnote}</DoorNote>
     </div>
   );
@@ -336,9 +389,16 @@ function ChangeSheet({
     }
   }, [ch.cancelDone, copy.door.refundOutcome, onChanged, row.orderId, row.orderLineId, setBusy]);
 
-  const card = (title: string, note: string, action: ReactNode, reason?: string) => (
+  // The board's four cards: a 44px glyph tile beside the title, one line of
+  // note, then the action (the forms stay open: a wedge scanner cannot tap).
+  const card = (glyph: ReactNode, title: string, note: string, action: ReactNode, reason?: string) => (
     <div className={cn(POS_SURFACE, "flex flex-col gap-3 border-[1px] p-4")}>
-      <div className="text-[17px] font-semibold text-admin-ink">{title}</div>
+      <div className="flex items-center gap-3">
+        <span aria-hidden className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-admin-surface-alt text-admin-ink">
+          {glyph}
+        </span>
+        <div className="text-[17px] font-semibold leading-[1.2] text-admin-ink">{title}</div>
+      </div>
       <p className="m-0 flex-1 text-[14px] leading-[1.45] text-admin-ink-muted">{note}</p>
       {action}
       {reason && <p className="m-0 text-[12px] leading-[1.4] text-admin-ink-dim">{reason}</p>}
@@ -367,6 +427,7 @@ function ChangeSheet({
         )}
         <div className="grid grid-cols-2 gap-3">
         {card(
+          <ArrowRight size={20} strokeWidth={1.75} />,
           ch.transfer,
           ch.transferNote,
           row.code ? (
@@ -402,6 +463,7 @@ function ChangeSheet({
           row.code ? undefined : ch.transferReason,
         )}
         {card(
+          <CalendarDays size={20} strokeWidth={1.75} />,
           ch.exchange,
           ch.exchangeNote,
           otherNights.length > 0 ? (
@@ -430,14 +492,17 @@ function ChangeSheet({
             >
               <label className="flex flex-col gap-1 text-[12px] font-semibold text-admin-ink">
                 {ch.exchangeNight}
-                <select value={toSessionId} onChange={(e) => setToSessionId(e.target.value)} className={cn(POS_INPUT, "h-12")} data-testid="door-exchange-night">
-                  <option value="">{ch.exchangeNight}</option>
-                  {otherNights.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {dateAt(n.startsAt, zone, locale)}
-                    </option>
-                  ))}
-                </select>
+                <span className="relative block">
+                  <select value={toSessionId} onChange={(e) => setToSessionId(e.target.value)} className={cn(POS_INPUT, "h-12 appearance-none pr-10")} data-testid="door-exchange-night">
+                    <option value="">{ch.exchangeNight}</option>
+                    {otherNights.map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {dateAt(n.startsAt, zone, locale)}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown aria-hidden size={16} strokeWidth={1.75} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-admin-ink-dim" />
+                </span>
               </label>
               <button type="submit" disabled={busy || !toSessionId} className={cn(POS_OUTLINE_ACTION, "w-full")} data-testid="door-exchange">
                 {ch.exchangeAction}
@@ -451,6 +516,7 @@ function ChangeSheet({
           otherNights.length > 0 ? undefined : ch.noOtherNight,
         )}
         {card(
+          <X size={20} strokeWidth={1.75} />,
           ch.cancel,
           ch.cancelNote,
           confirmCancel ? (
@@ -464,6 +530,7 @@ function ChangeSheet({
           ),
         )}
         {card(
+          <User size={20} strokeWidth={1.75} />,
           ch.name,
           row.holderName ? interpolate(ch.nameNoteNamed, { code: ref, name: row.holderName }) : interpolate(ch.nameNote, { code: ref }),
           naming ? (
@@ -486,7 +553,7 @@ function ChangeSheet({
           ),
         )}
         </div>
-        <DoorNote tone="indigo">{ch.footnote}</DoorNote>
+        <DoorNote tone="indigo" glyph="check">{ch.footnote}</DoorNote>
       </div>
     </PosSheet>
   );

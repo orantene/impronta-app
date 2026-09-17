@@ -29,17 +29,18 @@ import {
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 
-import { ActionButton, BUTTON_PRIMARY, FactRow, Outcome, StatePill, type PillTone } from "../appointments-classes-ui";
-import { CARD, Field, INPUT, ListHead, ListRow, Note, RowMenuButton, TabStrip } from "../catalog/catalog-ui";
+import { ActionButton, BUTTON_PRIMARY, FactRow, Outcome } from "../appointments-classes-ui";
+import { CARD, Field, INPUT, TabStrip } from "../catalog/catalog-ui";
 import { centsFromInput, nightFigures, tierPhase, type TierPhase } from "./events-model";
+import { BlockPill, DenseHead, DenseRow, EventsNote, RowMenu, Stat } from "./events-ui";
 
-const COLS = "grid-cols-[minmax(0,1.8fr)_80px_minmax(0,1fr)_minmax(0,1fr)_90px_minmax(0,0.9fr)_90px_28px]";
+// The board's columns: the drag column, Ticket type · entitles to, Price,
+// Active phase, Capacity pool, Sold / pool, Allocation, Channel, the menu.
+const COLS = "grid-cols-[minmax(0,1.6fr)_80px_minmax(0,1.1fr)_minmax(0,1fr)_96px_minmax(0,0.9fr)_96px_16px]";
 
 function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
-
-const PHASE_TONE: Record<TierPhase, PillTone> = { onSale: "green", scheduled: "indigo", hidden: "slate", ended: "slate" };
 
 export function useSessionPools(sessionId: string | null) {
   const [rows, setRows] = useState<SessionPoolRow[] | null>(null);
@@ -80,13 +81,7 @@ export function TicketsTab({ event, sessionId, locale, onChanged }: { event: Eve
     </span>
   );
 
-  const stat = (label: string, value: string | null, note: string, testId: string) => (
-    <div className={`${CARD} flex flex-col gap-[4px] px-[16px] py-[14px]`} data-testid={testId}>
-      <div className="font-admin-body text-[11px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted">{label}</div>
-      <div className="font-admin-body text-[22px] font-semibold tabular-nums leading-none text-admin-ink">{value ?? "—"}</div>
-      <div className="font-admin-body text-[11.5px] text-admin-ink-muted">{note}</div>
-    </div>
-  );
+  const stat = (label: string, value: string | null, note: string, testId: string) => <Stat label={label} value={value} note={note} testId={testId} />;
 
   return (
     <div className="flex flex-col gap-[14px]" data-testid="events-panel-tickets">
@@ -99,7 +94,7 @@ export function TicketsTab({ event, sessionId, locale, onChanged }: { event: Eve
           { id: "allocations", label: t("dashboard.events.tickets.allocations"), href: "#", active: false },
         ]}
       />
-      <p className="m-0 -mt-[8px] font-admin-body text-[11.5px] text-admin-ink-dim">{t("dashboard.events.tickets.subtabsReason")}</p>
+      <p className="m-0 -mt-[6px] font-admin-body text-[11.5px] leading-[1.2] text-admin-ink-dim">{t("dashboard.events.tickets.subtabsReason")}</p>
       <div className="grid grid-cols-4 gap-[12px] max-[720px]:grid-cols-3 max-[720px]:gap-[8px]">
         {stat(t("dashboard.events.tickets.capacity"), figures?.capacity === null || figures === null ? null : String(figures.capacity), sessionId ? (figures ? interpolate(t("dashboard.events.tickets.capacityNote"), { pooled: figures.pooled, tiers: figures.tiers }) : t("dashboard.events.loading")) : noNight, "events-stat-capacity")}
         {stat(t("dashboard.events.tickets.sold"), figures?.sold === null || figures === null ? null : `${figures.unknownPools > 0 ? "≥ " : ""}${figures.sold}`, sessionId ? (figures && figures.unknownPools > 0 ? interpolate(t("dashboard.events.tickets.soldPartialNote"), { n: figures.unknownPools }) : t("dashboard.events.tickets.soldNote")) : noNight, "events-stat-sold")}
@@ -108,7 +103,7 @@ export function TicketsTab({ event, sessionId, locale, onChanged }: { event: Eve
       </div>
       {pools.error ? <Outcome kind="refused">{pools.error}</Outcome> : null}
       <div className={CARD}>
-        <ListHead cols={COLS}>
+        <DenseHead cols={COLS}>
           <span>{t("dashboard.events.tickets.colType")}</span>
           <span>{t("dashboard.events.tickets.colPrice")}</span>
           <span>{t("dashboard.events.tickets.colPhase")}</span>
@@ -117,7 +112,7 @@ export function TicketsTab({ event, sessionId, locale, onChanged }: { event: Eve
           <span>{t("dashboard.events.tickets.colAllocation")}</span>
           <span>{t("dashboard.events.tickets.colChannel")}</span>
           <span />
-        </ListHead>
+        </DenseHead>
         {event.tiers.length === 0 ? (
           <p className="m-0 border-t border-admin-border-soft px-[18px] py-[20px] font-admin-body text-admin-13 text-admin-ink-muted">{t("dashboard.events.tickets.empty")}</p>
         ) : null}
@@ -126,30 +121,28 @@ export function TicketsTab({ event, sessionId, locale, onChanged }: { event: Eve
           const phase = tierPhase(tier);
           return (
             <div key={tier.id}>
-              <ListRow cols={COLS} testId={`events-tier-${tier.id}`}>
+              <DenseRow cols={COLS} testId={`events-tier-${tier.id}`}>
                 <span className="min-w-0">
                   <span className="block truncate font-admin-body text-[13px] font-semibold text-admin-ink">{tier.label}</span>
-                  <span className="block truncate font-admin-body text-[11.5px] text-admin-ink-muted">
+                  <span className="mt-[2px] block truncate font-admin-body text-[11.5px] text-admin-ink-muted">
                     {tier.admitsPerUnit > 1 ? interpolate(t("dashboard.events.tickets.admits"), { count: tier.admitsPerUnit }) : t("dashboard.events.tickets.entry")}
                     {tier.seatingMode === "space_group" ? ` · ${t("dashboard.events.tickets.tableGroup")}` : ""}
                   </span>
                 </span>
                 <span className="font-mono text-[12px] font-semibold tabular-nums text-admin-ink">{money(tier.amountCents)}</span>
-                <span>
-                  <StatePill tone={PHASE_TONE[phase]} state={phase}>
-                    {phaseLabel[phase]}
-                  </StatePill>
+                <span className="truncate text-admin-ink" data-state={phase}>
+                  {phaseLabel[phase]}
                 </span>
                 <span className="truncate font-mono text-[11.5px] text-admin-ink-muted">{tier.poolKey}</span>
                 <span className="font-mono text-[12px] tabular-nums text-admin-ink">
                   {!sessionId ? dash(noNight) : pool === null ? "…" : pool.poolId === null ? dash(t("dashboard.events.tickets.noPoolReason")) : `${pool.committedPeak ?? "—"} / ${(pool.unitsTotal ?? 0) + (pool.overbookUnits ?? 0)}`}
                 </span>
                 <span>{dash(t("dashboard.events.tickets.allocationReason"))}</span>
-                <span>
-                  <StatePill tone={tier.isHidden ? "slate" : "green"}>{tier.isHidden ? t("dashboard.events.tickets.channelLink") : t("dashboard.events.tickets.channelPublic")}</StatePill>
+                <span className="min-w-0">
+                  <BlockPill tone={tier.isHidden ? "slate" : "green"}>{tier.isHidden ? t("dashboard.events.tickets.channelLink") : t("dashboard.events.tickets.channelPublic")}</BlockPill>
                 </span>
-                <RowMenuButton label={t("dashboard.events.tickets.edit")} onClick={() => setEditing(editing === tier.id ? null : tier.id)} testId={`events-tier-menu-${tier.id}`} />
-              </ListRow>
+                <RowMenu label={t("dashboard.events.tickets.edit")} onClick={() => setEditing(editing === tier.id ? null : tier.id)} testId={`events-tier-menu-${tier.id}`} />
+              </DenseRow>
               {editing === tier.id ? (
                 <div className="border-t border-admin-border-soft px-[18px] py-[12px]">
                   <TierEditor
@@ -185,7 +178,7 @@ export function TicketsTab({ event, sessionId, locale, onChanged }: { event: Eve
           <ActionButton reason={t("dashboard.events.tickets.packagesReason")}>{t("dashboard.events.tickets.addPackage")}</ActionButton>
         </div>
       </div>
-      <Note>{t("dashboard.events.tickets.poolNote")}</Note>
+      <EventsNote>{t("dashboard.events.tickets.poolNote")}</EventsNote>
       <div className="grid grid-cols-2 gap-[12px]">
         <div className={`${CARD} px-[16px] py-[8px]`} data-testid="events-ticket-settings">
           <div className="py-[6px] font-admin-body text-[13px] font-semibold text-admin-ink">

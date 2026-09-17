@@ -211,10 +211,12 @@ export async function admissionDeliver(
   let sentAt: string | null = null;
   let providerRef: string | null = null;
   if (input.method === "email") {
-    const email = row.holder_email?.trim();
-    if (!email) return { ok: false as const, reason: "channel_unavailable" as const };
     // The real ticket mail (QR, code, /ticket link), forced: the desk is
-    // re-sending on purpose. It stamps `delivery` itself.
+    // re-sending on purpose. It stamps `delivery` itself, and it picks the
+    // address the way every ticket mail does (the holder's own, else the
+    // order's contact): a box-office sale names the buyer on the ORDER, not
+    // on each ticket, and a resend must reach the same inbox the sale did.
+    // No address anywhere is its `channel_unavailable`.
     const delivered = await deliverTicketForAdmission(admin, {
       tenantId: input.tenantId,
       admissionId: input.admissionId,

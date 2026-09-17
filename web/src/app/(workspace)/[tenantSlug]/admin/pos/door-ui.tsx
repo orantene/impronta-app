@@ -11,13 +11,14 @@
  * classes only.
  */
 
+import { Check, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { POS_SURFACE } from "@/components/admin/pos/pos-classes";
 import { cn } from "@/lib/utils";
 import { interpolate } from "@/i18n/interpolate";
 import type { DoorRow } from "@/app/(workspace)/[tenantSlug]/admin/_door-actions";
-import { ticketRef } from "@/lib/pos/door-model";
+import { ticketRef, tierWord } from "@/lib/pos/door-model";
 
 import type { DoorCopy } from "./door-copy";
 
@@ -84,15 +85,18 @@ export function TicketRow({
   timeOf,
   action,
   compact,
+  eventTitle,
 }: {
   row: DoorRow;
   copy: DoorCopy["lookup"];
   timeOf: (iso: string) => string;
   action?: ReactNode;
   compact?: boolean;
+  /** The night's event, so the line label prints the tier alone ("General admission"). */
+  eventTitle?: string | null;
 }) {
   const state = ticketState(row, copy, timeOf);
-  const second = [row.tierLabel ?? copy.ticket, state.key === "admitted" && row.seatedAt ? state.label : null].filter(Boolean).join(" · ");
+  const second = [tierWord(row.tierLabel, eventTitle) || copy.ticket, state.key === "admitted" && row.seatedAt ? state.label : null].filter(Boolean).join(" · ");
   return (
     <div data-door-row={row.id} data-door-row-state={state.key} className={cn("flex items-center gap-3 border-t border-admin-border-soft", compact ? "py-2.5" : "py-3")}>
       <div className="min-w-0 flex-1">
@@ -124,7 +128,7 @@ export function FactCard({ children, className }: { children: ReactNode; classNa
 }
 
 /** The slate note under a column ("Look up is not admit ..."). */
-export function DoorNote({ children, tone = "slate" }: { children: ReactNode; tone?: "slate" | "indigo" }) {
+export function DoorNote({ children, tone = "slate", glyph = "alert" }: { children: ReactNode; tone?: "slate" | "indigo"; glyph?: "alert" | "check" }) {
   return (
     <div
       className={cn(
@@ -132,7 +136,11 @@ export function DoorNote({ children, tone = "slate" }: { children: ReactNode; to
         tone === "indigo" ? "bg-admin-indigo-soft text-admin-indigo" : "bg-admin-amber-soft text-admin-amber",
       )}
     >
-      <span aria-hidden className="mt-[3px] inline-block h-[14px] w-[14px] shrink-0 rounded-full border-[1.5px] border-current" />
+      {glyph === "check" ? (
+        <Check aria-hidden size={16} strokeWidth={2} className="mt-[2px] shrink-0" />
+      ) : (
+        <TriangleAlert aria-hidden size={16} strokeWidth={1.75} className="mt-[2px] shrink-0" />
+      )}
       <span className="min-w-0">{children}</span>
     </div>
   );

@@ -14570,7 +14570,9 @@
           "inChip": "{admitted} of {expected} in",
           "leftTonight": "{count} tickets left tonight",
           "sharedWithWebsite": "shared with the website",
-          "receiptsSubtitle": "Paid at this door"
+          "receiptsSubtitle": "Paid at this door",
+          "boxPickSubtitle": "Pick the event and the date",
+          "leftTonightOne": "1 ticket left tonight"
         },
         "pick": {
           "title": "Pick the event",
@@ -14585,7 +14587,7 @@
           "ready": "Ready to scan",
           "readyHint": "Hold the ticket in front of the scanner",
           "scanLabel": "Scan or type a ticket code",
-          "scanPlaceholder": "Or type the code from the ticket",
+          "scanPlaceholder": "Scan or type a ticket code",
           "admit": "Admit",
           "lookupByName": "Look up by name",
           "switchToBox": "Switch to box office",
@@ -14656,10 +14658,14 @@
           "admitTicket": "Admit {code} · {name}",
           "admitMany": "Admit {count}",
           "resendAll": "Resend all tickets",
-          "resendAllReason": "Tickets are handed over as a code at this till; there is no ticket email to resend yet.",
+          "resendAllReason": "Sends the ticket e-mail again to every ticket on this order that has an address.",
           "note": "Look up is not admit. Admitting by hand counts once and the QR becomes used.",
           "change": "Change",
-          "delivery": "Delivery"
+          "delivery": "Delivery",
+          "orderLineOne": "{code} · 1 ticket · {admitted} admitted",
+          "ticketsOfOne": "{code} · tonight · 1 ticket",
+          "resendAllNone": "No ticket on this order has an e-mail address; add one from Change.",
+          "resendAllDone": "Sent again · {count} of {total} tickets had an address."
         },
         "manual": {
           "title": "Admit by hand · {name}",
@@ -14715,7 +14721,9 @@
           "soldChip": "Tonight · {sold} sold · {admitted} in",
           "cancelSale": "Cancel this sale",
           "back": "Back",
-          "eventNights": "{count} nights · from {date}"
+          "eventNights": "{count} nights · from {date}",
+          "continueTicketOne": "Continue · 1 ticket",
+          "eventNightOne": "1 night · {date}"
         },
         "attendees": {
           "title": "Who is coming",
@@ -14732,7 +14740,8 @@
           "attendeeHint": "Name · can be added later from the lookup",
           "sameAsBuyer": "Same as buyer",
           "review": "Review & collect {amount}",
-          "releaseBack": "Back"
+          "releaseBack": "Back",
+          "subtitleOne": "1 ticket · {date}"
         },
         "issued": {
           "title": "Paid · ticket issued",
@@ -14752,7 +14761,7 @@
           "text": "Text link",
           "textReason": "Text messages are not set up on this workspace.",
           "resend": "Resend email",
-          "resendReason": "Resending is done from the ticket lookup (Delivery).",
+          "resendReason": "No e-mail on this sale; the code is the ticket. An address can be added from the lookup (Change).",
           "receipt": "Receipt",
           "next": "Next customer",
           "pendingTitle": "Paid · tickets not issued yet",
@@ -14770,7 +14779,13 @@
           "issue": "Issue",
           "issueValue": "Open in Issues",
           "never": "Never",
-          "neverValue": "Refund automatically or resell the places"
+          "neverValue": "Refund automatically or resell the places",
+          "hero": "{count} tickets issued",
+          "heroOne": "1 ticket issued",
+          "heroDetail": "{date} · {summary} · order {code}",
+          "resendDone": "Sent again to {email}.",
+          "resendFailed": "The e-mail could not be sent; the code below is still the ticket.",
+          "sentByEmailNone": "No e-mail on this sale · the code is the ticket"
         },
         "change": {
           "title": "{code} · change",
@@ -14810,7 +14825,7 @@
           "title": "{code} · delivery",
           "subtitle": "{name} · {count} tickets · {date}",
           "email": "Email · {email}",
-          "emailNone": "Email · none on the order",
+          "emailNone": "Email · the order's contact",
           "emailStatus": "Sent with the QR when the ticket was issued · Resend sends it again",
           "resend": "Resend",
           "resendReason": "Sends the ticket e-mail (QR, code and link) again to this address.",
@@ -14822,7 +14837,10 @@
           "walletStatus": "Not offered · integration not verified",
           "notAvailable": "Not available",
           "footnote": "Resending never creates a new credential. A wallet button appears only once the integration is verified; until then it is not shown at all.",
-          "back": "Back"
+          "back": "Back",
+          "subtitleOne": "{name} · 1 ticket · {date}",
+          "sent": "Sent again.",
+          "notSent": "Not sent: no address on the ticket or the order."
         },
         "sell": {
           "cashOnly": "Only cash is taken at this door. Other tenders are collected at the counter."
@@ -15675,7 +15693,24 @@
         "lookupEmail": "Your email",
         "last4": "Last four of the receipt",
         "lookupAction": "Look up",
-        "found": "Open {code}"
+        "found": "Open {code}",
+        "showDoor": "Show this at the door · brightness up",
+        "valid": "Valid",
+        "used": "Used",
+        "notValid": "Not valid",
+        "name": "Name",
+        "when": "When",
+        "where": "Where",
+        "order": "Order",
+        "orderTickets": "{code} · {count} tickets",
+        "orderTicketOne": "{code} · 1 ticket",
+        "wallet": "Add to Wallet",
+        "walletReason": "Wallet passes are not offered yet.",
+        "transferNote": "The old QR stops working when you transfer.",
+        "unnamed": "Not named yet",
+        "doors": "doors {time}",
+        "code": "Ticket code",
+        "resendDone": "Sent again to the address on the ticket."
       },
       "share": {
         "title": "Pay my share",

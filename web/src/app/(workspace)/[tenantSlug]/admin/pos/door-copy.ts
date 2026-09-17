@@ -29,9 +29,11 @@ export type DoorCopy = {
     boxNoEvent: string;
     lookup: string;
     lookupSubtitle: string;
+    boxPickSubtitle: string;
     subtitle: string;
     inChip: string;
     leftTonight: string;
+    leftTonightOne: string;
     sharedWithWebsite: string;
     receiptsSubtitle: string;
   };
@@ -64,8 +66,10 @@ export type DoorCopy = {
     noMatch: string;
     tonight: string;
     orderLine: string;
+    orderLineOne: string;
     orderCard: string;
     ticketsOf: string;
+    ticketsOfOne: string;
     ticket: string;
     party: string;
     walkUp: string;
@@ -82,6 +86,8 @@ export type DoorCopy = {
     admitMany: string;
     resendAll: string;
     resendAllReason: string;
+    resendAllNone: string;
+    resendAllDone: string;
     lookupNote: string;
     change: string;
     delivery: string;
@@ -109,6 +115,7 @@ export type DoorCopy = {
     eyebrowEvents: string;
     eyebrowDates: string;
     eventNights: string;
+    eventNightOne: string;
     onSale: string;
     tonight: string;
     selected: string;
@@ -130,6 +137,7 @@ export type DoorCopy = {
     feesIncluded: string;
     total: string;
     continueTickets: string;
+    continueTicketOne: string;
     continueHint: string;
     charge: string;
     scan: string;
@@ -145,6 +153,7 @@ export type DoorCopy = {
   readonly attendees: {
     title: string;
     subtitle: string;
+    subtitleOne: string;
     buyerEyebrow: string;
     buyerHint: string;
     buyerName: string;
@@ -163,10 +172,14 @@ export type DoorCopy = {
     title: string;
     titleMany: string;
     subtitle: string;
+    hero: string;
+    heroOne: string;
+    heroDetail: string;
     paid: string;
     ticketsIssued: string;
     sentByEmail: string;
     sentByEmailReason: string;
+    sentByEmailNone: string;
     eyebrow: string;
     named: string;
     unnamed: string;
@@ -178,6 +191,8 @@ export type DoorCopy = {
     textReason: string;
     resend: string;
     resendReason: string;
+    resendDone: string;
+    resendFailed: string;
     receipt: string;
     next: string;
     pendingTitle: string;
@@ -236,6 +251,9 @@ export type DoorCopy = {
   readonly deliveryPanel: {
     title: string;
     subtitle: string;
+    subtitleOne: string;
+    sent: string;
+    notSent: string;
     email: string;
     emailNone: string;
     emailStatus: string;
@@ -274,9 +292,11 @@ export function doorCopy(t: Translator): DoorCopy {
       boxNoEvent: t("dashboard.pos.door.header.boxNoEvent"),
       lookup: t("dashboard.pos.door.header.lookup"),
       lookupSubtitle: t("dashboard.pos.door.header.lookupSubtitle"),
+      boxPickSubtitle: t("dashboard.pos.door.header.boxPickSubtitle"),
       subtitle: t("dashboard.pos.door.header.subtitle"),
       inChip: t("dashboard.pos.door.header.inChip"),
       leftTonight: t("dashboard.pos.door.header.leftTonight"),
+      leftTonightOne: t("dashboard.pos.door.header.leftTonightOne"),
       sharedWithWebsite: t("dashboard.pos.door.header.sharedWithWebsite"),
       receiptsSubtitle: t("dashboard.pos.door.header.receiptsSubtitle"),
     },
@@ -347,8 +367,10 @@ export function doorCopy(t: Translator): DoorCopy {
       noMatch: t("dashboard.pos.door.lookup.noMatch"),
       tonight: t("dashboard.pos.door.lookup.tonight"),
       orderLine: t("dashboard.pos.door.lookup.orderLine"),
+      orderLineOne: t("dashboard.pos.door.lookup.orderLineOne"),
       orderCard: t("dashboard.pos.door.lookup.orderCard"),
       ticketsOf: t("dashboard.pos.door.lookup.ticketsOf"),
+      ticketsOfOne: t("dashboard.pos.door.lookup.ticketsOfOne"),
       ticket: t("dashboard.pos.door.lookup.ticket"),
       party: t("dashboard.pos.door.lookup.party"),
       walkUp: t("dashboard.pos.door.lookup.walkUp"),
@@ -365,6 +387,8 @@ export function doorCopy(t: Translator): DoorCopy {
       admitMany: t("dashboard.pos.door.lookup.admitMany"),
       resendAll: t("dashboard.pos.door.lookup.resendAll"),
       resendAllReason: t("dashboard.pos.door.lookup.resendAllReason"),
+      resendAllNone: t("dashboard.pos.door.lookup.resendAllNone"),
+      resendAllDone: t("dashboard.pos.door.lookup.resendAllDone"),
       lookupNote: t("dashboard.pos.door.lookup.note"),
       change: t("dashboard.pos.door.lookup.change"),
       delivery: t("dashboard.pos.door.lookup.delivery"),
@@ -392,6 +416,7 @@ export function doorCopy(t: Translator): DoorCopy {
       eyebrowEvents: t("dashboard.pos.door.box.eyebrowEvents"),
       eyebrowDates: t("dashboard.pos.door.box.eyebrowDates"),
       eventNights: t("dashboard.pos.door.box.eventNights"),
+      eventNightOne: t("dashboard.pos.door.box.eventNightOne"),
       onSale: t("dashboard.pos.door.box.onSale"),
       tonight: t("dashboard.pos.door.box.tonight"),
       selected: t("dashboard.pos.door.box.selected"),
@@ -413,6 +438,7 @@ export function doorCopy(t: Translator): DoorCopy {
       feesIncluded: t("dashboard.pos.door.box.feesIncluded"),
       total: t("dashboard.pos.door.box.total"),
       continueTickets: t("dashboard.pos.door.box.continueTickets"),
+      continueTicketOne: t("dashboard.pos.door.box.continueTicketOne"),
       continueHint: t("dashboard.pos.door.box.continueHint"),
       charge: t("dashboard.pos.door.box.charge"),
       scan: t("dashboard.pos.door.box.scan"),
@@ -428,6 +454,7 @@ export function doorCopy(t: Translator): DoorCopy {
     attendees: {
       title: t("dashboard.pos.door.attendees.title"),
       subtitle: t("dashboard.pos.door.attendees.subtitle"),
+      subtitleOne: t("dashboard.pos.door.attendees.subtitleOne"),
       buyerEyebrow: t("dashboard.pos.door.attendees.buyerEyebrow"),
       buyerHint: t("dashboard.pos.door.attendees.buyerHint"),
       buyerName: t("dashboard.pos.door.attendees.buyerName"),
@@ -446,10 +473,14 @@ export function doorCopy(t: Translator): DoorCopy {
       title: t("dashboard.pos.door.issued.title"),
       titleMany: t("dashboard.pos.door.issued.titleMany"),
       subtitle: t("dashboard.pos.door.issued.subtitle"),
+      hero: t("dashboard.pos.door.issued.hero"),
+      heroOne: t("dashboard.pos.door.issued.heroOne"),
+      heroDetail: t("dashboard.pos.door.issued.heroDetail"),
       paid: t("dashboard.pos.door.issued.paid"),
       ticketsIssued: t("dashboard.pos.door.issued.ticketsIssued"),
       sentByEmail: t("dashboard.pos.door.issued.sentByEmail"),
       sentByEmailReason: t("dashboard.pos.door.issued.sentByEmailReason"),
+      sentByEmailNone: t("dashboard.pos.door.issued.sentByEmailNone"),
       eyebrow: t("dashboard.pos.door.issued.eyebrow"),
       named: t("dashboard.pos.door.issued.named"),
       unnamed: t("dashboard.pos.door.issued.unnamed"),
@@ -461,6 +492,8 @@ export function doorCopy(t: Translator): DoorCopy {
       textReason: t("dashboard.pos.door.issued.textReason"),
       resend: t("dashboard.pos.door.issued.resend"),
       resendReason: t("dashboard.pos.door.issued.resendReason"),
+      resendDone: t("dashboard.pos.door.issued.resendDone"),
+      resendFailed: t("dashboard.pos.door.issued.resendFailed"),
       receipt: t("dashboard.pos.door.issued.receipt"),
       next: t("dashboard.pos.door.issued.next"),
       pendingTitle: t("dashboard.pos.door.issued.pendingTitle"),
@@ -532,6 +565,9 @@ export function doorCopy(t: Translator): DoorCopy {
     deliveryPanel: {
       title: t("dashboard.pos.door.delivery.title"),
       subtitle: t("dashboard.pos.door.delivery.subtitle"),
+      subtitleOne: t("dashboard.pos.door.delivery.subtitleOne"),
+      sent: t("dashboard.pos.door.delivery.sent"),
+      notSent: t("dashboard.pos.door.delivery.notSent"),
       email: t("dashboard.pos.door.delivery.email"),
       emailNone: t("dashboard.pos.door.delivery.emailNone"),
       emailStatus: t("dashboard.pos.door.delivery.emailStatus"),
