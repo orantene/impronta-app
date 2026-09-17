@@ -76,7 +76,7 @@ export function SupportLauncher({
           onClick={toggle}
           className="relative inline-flex h-[32px] w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card text-admin-ink-muted hover:text-admin-ink [transition:color_var(--transition-admin-micro)]"
         >
-          <Icon name="life-buoy" size={15} stroke={1.75} color="currentColor" />
+          <Icon name="help-circle" size={16} stroke={1.75} color="currentColor" />
           {unread > 0 ? (
             <span
               aria-hidden
