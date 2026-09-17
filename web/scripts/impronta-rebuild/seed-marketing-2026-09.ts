@@ -163,6 +163,7 @@ function seoColumns(page: ImprontaRebuildPage): Record<string, unknown> {
     canonical_url: seo.canonical_url ?? `/p/${page.slug}`,
     noindex: seo.noindex ?? false,
     include_in_sitemap: seo.include_in_sitemap ?? true,
+    ...(seo.json_ld !== undefined ? { json_ld: seo.json_ld } : {}),
   };
 }
 
@@ -214,6 +215,9 @@ async function main() {
     console.log(`studio: ${JSON.stringify(r.report)}`);
     for (const s of collectImageSlots(r.tree)) slots.add(s);
   }
+  // The header's featured Show tile needs the stage frame even on a
+  // shell-only run (a --only=shell run once dropped it, 2026-09-17).
+  if (want("shell")) slots.add("show-hero");
   const resolution = await resolveImageSlots(sb, tenantId, [...slots], pins);
   if (resolution.unresolvedSlots.length) {
     throw new Error(`unresolved image slots: ${resolution.unresolvedSlots.join(", ")}`);

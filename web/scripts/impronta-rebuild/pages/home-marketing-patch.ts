@@ -25,7 +25,7 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { mergeLocalePageIntoOverlays } from "@/lib/site-admin/builder-node/locale-page-merge";
 
-import { experienceInquiryHref, offerCard } from "../shared-offers";
+import { experienceInquiryHref, keepBulletRowsOnMobile, offerCard } from "../shared-offers";
 import {
   IMAGE_SLOT,
   band,
@@ -315,5 +315,6 @@ export function applyHomeMarketingPatch(live: BuilderNode[]): { tree: BuilderNod
   insertAfter("rb-home-2", withSpanishOverlay(buildExperiencesBand()), "experiencesInserted");
 
   tree = withRootAnchors(tree);
+  tree = keepBulletRowsOnMobile(tree).tree;
   return { tree, report, problems };
 }

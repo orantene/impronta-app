@@ -12,7 +12,7 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { mergeLocalePageIntoOverlays } from "@/lib/site-admin/builder-node/locale-page-merge";
 
-import { priceRow } from "../shared-offers";
+import { keepBulletRowsOnMobile, priceRow } from "../shared-offers";
 import { band, centerHead, ctaRow, goldButton, lineButton } from "../shared";
 import { EXPERIENCES_ES_COPY } from "./experiences-es-copy";
 import { buildLocalizedTree } from "./localize-page";
@@ -90,7 +90,7 @@ export interface StudioPatchReport {
 export function applyStudioMarketingPatch(live: BuilderNode[]): { tree: BuilderNode[]; report: StudioPatchReport; problems: string[] } {
   const problems: string[] = [];
   const report: StudioPatchReport = { packagesInserted: false };
-  if (live.some((n) => n.id === STUDIO_PACKAGES_BAND_ID)) return { tree: withRootAnchors(live), report, problems };
+  if (live.some((n) => n.id === STUDIO_PACKAGES_BAND_ID)) return { tree: keepBulletRowsOnMobile(withRootAnchors(live)).tree, report, problems };
   const i = live.findIndex((n) => n.id === "rb-studio-sessions");
   if (i === -1) {
     problems.push('anchor "rb-studio-sessions" not found at the root; packages band not inserted');
@@ -99,7 +99,7 @@ export function applyStudioMarketingPatch(live: BuilderNode[]): { tree: BuilderN
   const node = buildStudioPackagesBand();
   const es = buildLocalizedTree([node], { locale: "es", copy: STUDIO_PATCH_ES_COPY, idPrefix: "es-" });
   const merged = mergeLocalePageIntoOverlays({ primaryTree: [node], secondaryTree: es, locale: "es" });
-  const tree = withRootAnchors([...live.slice(0, i + 1), merged.tree[0]!, ...live.slice(i + 1)]);
+  const tree = keepBulletRowsOnMobile(withRootAnchors([...live.slice(0, i + 1), merged.tree[0]!, ...live.slice(i + 1)])).tree;
   report.packagesInserted = true;
   return { tree, report, problems };
 }

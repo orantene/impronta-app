@@ -156,7 +156,7 @@ test("impronta-rebuild: section structure snapshot", () => {
       "container:Who we work with",
       "container:Agency-managed",
       "container:Process",
-      "container:Editorial plate",
+      "container:Why Impronta",
       "container:Divisions",
       "container:Social proof",
       "container:FAQ teaser",
@@ -227,7 +227,11 @@ test("impronta-rebuild: SEO metadata is complete and consistent", () => {
   assert.ok(jsonLd, "home carries JSON-LD");
   assert.equal(jsonLd?.["@type"], "Organization", "home JSON-LD is an Organization schema");
   for (const page of PAGES) {
-    if (page.slug !== "home") {
+    if (page.slug === "for-clients") {
+      const ld = page.seo.json_ld as Array<{ "@type"?: string }> | undefined;
+      assert.ok(Array.isArray(ld) && ld.some((e) => e["@type"] === "FAQPage"), "for-clients carries FAQPage JSON-LD");
+      assert.ok(ld?.some((e) => e["@type"] === "ItemList"), "for-clients carries a service ItemList");
+    } else if (page.slug !== "home") {
       assert.equal(page.seo.json_ld, undefined, `${page.slug} carries no JSON-LD`);
     }
   }
