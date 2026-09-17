@@ -1,7 +1,6 @@
 "use client";
 
-import type { DerivedTask } from "@/lib/messaging/tasks";
-import type { Essentials, InboxRow, InquiryMessagingState, MessagingRefusal, RecordChip, ThreadMessage } from "@/lib/messaging/types";
+import type { DerivedTask, Essentials, InboxRow, InquiryMessagingState, MessagingRefusal, RecordChip, ThreadMessage } from "@/lib/messaging/types";
 
 import type { ScreenVariant, ShellActionId } from "./contracts";
 import type { ScreenCopy } from "./copy";

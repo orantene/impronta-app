@@ -16,8 +16,7 @@
 
 import type { ComponentType } from "react";
 
-import type { DerivedTask } from "@/lib/messaging/tasks";
-import type { Essentials, InboxRow, InquiryMessagingState, MessagingRefusal, RecordChip, ThreadMessage } from "@/lib/messaging/types";
+import type { DerivedTask, Essentials, InboxRow, InquiryMessagingState, MessagingRefusal, RecordChip, ThreadMessage } from "@/lib/messaging/types";
 
 import type { ScreenCopy } from "./copy";
 import type { ScreenVariant, ShellActionId } from "./contracts";

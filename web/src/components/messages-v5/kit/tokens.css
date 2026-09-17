@@ -667,3 +667,18 @@
 .msgv5 .mx-hist-row { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 14.5px; color: var(--msgv5-ink); border-bottom: 1px solid var(--msgv5-line-2); }
 .msgv5 .mx-hist-row .tx { flex: 1; min-width: 0; }
 .msgv5 .mx-hist-row .t { font-size: 12.5px; color: var(--msgv5-ink-3); flex: 0 0 auto; }
+
+/* L5 (screens/sheets): the items picker and the times sheet. Same token set, no new colours. */
+.msgv5 .items-list { display: flex; flex-direction: column; gap: 8px; }
+.msgv5 .items-list .lbl { margin-top: 4px; }
+.msgv5 .items-list .split { padding: 6px 0 2px 28px; }
+.msgv5 .items-list .fld { padding: 6px 0 2px 28px; }
+.msgv5 .items-modes { display: flex; flex-direction: column; gap: 8px; }
+.msgv5 .mx-items-list { display: flex; flex-direction: column; gap: 8px; padding: 0 16px; }
+.msgv5 .mx-items-list .mx-gh { padding: 10px 0 2px; }
+.msgv5 .mx-items-list .split, .msgv5 .mx-items-list .fld { padding: 4px 0 2px; }
+.msgv5 .mx-items-modes { display: flex; flex-direction: column; gap: 8px; padding: 0 16px; }
+.msgv5 .mx-items-line { margin: 8px 16px 0; }
+.msgv5 .times-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.msgv5 .times-day { font-size: 12px; font-weight: 600; color: var(--msgv5-ink-2); font-family: var(--msgv5-display); width: 100%; margin-top: 4px; }
+.msgv5 .mx-times { padding: 0 16px; }
