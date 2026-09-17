@@ -134,6 +134,7 @@ import { MenuBoardIsland } from "./menu-board-island";
 import { ReserveTableIsland } from "./reserve-table-island";
 import { SessionPickerIsland } from "./session-picker-island";
 import { TicketPickerIsland } from "./ticket-picker-island";
+import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 
@@ -147,6 +148,13 @@ export interface BuilderNodeRenderDataSources {
    * it; absent (edit-mode preview, no request scope) ⇒ a scheme-less short link.
    */
   publicOrigin?: string;
+  /**
+   * EVENT PROGRAM — the published event whose `events.page_id` is the page
+   * being rendered, when the page carries an `event_program` node with no
+   * authored `eventId`. Resolved by the SERVER route (`/p/[[...slug]]`, or the
+   * event route that renders the linked page), never by the renderer.
+   */
+  linkedEventId?: string;
   featuredTalentProfiles?: ReadonlyArray<FeaturedTalentCardDTO>;
   /**
    * PHASE 8B — the SAME cards, resolved PER native `featured_talent` NODE.
@@ -5724,6 +5732,43 @@ function renderBuilderNodeElement(
             tiers={p.tiers}
             showNightPicker={p.showNightPicker}
             ctaLabel={text("ctaLabel", p.ctaLabel) || undefined}
+          />
+        </div>
+      );
+    }
+    // EVENT PROGRAM (proposal §7) — self-fetch class like `ticket_picker`.
+    // The event is the authored `eventId`, else the page's linked event the
+    // server route injected as `dataSources.linkedEventId`. `editor` tells the
+    // island to show its not_configured / disabled placeholders; a visitor
+    // gets nothing for either (an off program is not a public sentence).
+    case "event_program": {
+      const p = node.props;
+      const text = (prop: string, value: string | undefined) =>
+        value
+          ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
+          : "";
+      return (
+        <div
+          key={node.id}
+          {...anchorIdAttrs(node)}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--event-program"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          <EventProgramIsland
+            eventId={(p.eventId ?? "").trim() || options.dataSources.linkedEventId || ""}
+            editor={options.contentLocale?.editorPreview === true}
+            heading={text("heading", p.heading) || undefined}
+            locale={options.contentLocale?.locale}
+            layout={p.layout}
+            groupBy={p.groupBy}
+            showTimes={p.showTimes}
+            showImages={p.showImages}
+            showDescriptions={p.showDescriptions}
+            filterKinds={p.filterKinds}
+            limit={p.limit}
           />
         </div>
       );

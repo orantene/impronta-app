@@ -41,7 +41,9 @@ import {
   resolveDesignLocale,
 } from "@/lib/site-admin/server/design-locale";
 import { userHasCapability } from "@/lib/access";
-import { resolveLinkedEventSlugForPageSlug } from "@/lib/events/event-page-link";
+import { resolveLinkedEventSlugForPageSlug, type LinkedEvent } from "@/lib/events/event-page-link";
+import { resolveEventProgramPageData } from "@/lib/events/event-program-page";
+import { withEventProgramJsonLd } from "@/lib/events/event-program-json-ld";
 import { builderPageRedirectForLinkedEvent } from "@/lib/events/event-page-paths";
 import { ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { headers } from "next/headers";
@@ -62,19 +64,19 @@ export const dynamic = "force-dynamic";
  * Read once (scoped to tenant/locale/slug) and emitted as a structured-data
  * script in whichever render branch matches. Returns null when none is set.
  */
-async function loadPageJsonLdScript(
+async function loadPageJsonLd(
   supabase: SupabaseClient,
   tenantId: string,
   locale: string,
   slugPath: string,
-): Promise<string> {
+): Promise<JsonLdDocument | null> {
   const { data } = await supabase
     .rpc("cms_public_pages_for_tenant", { p_tenant_id: tenantId })
     .select("json_ld")
     .eq("locale", locale)
     .eq("slug", slugPath)
     .maybeSingle<{ json_ld: JsonLdDocument | null }>();
-  return jsonLdDocumentToScript(data?.json_ld ?? null);
+  return data?.json_ld ?? null;
 }
 
 function JsonLdScript({ script }: { script: string }) {
@@ -237,11 +239,15 @@ export default async function CmsPublicPage({
   // redirect to itself; the home and directory roles pass `false` because
   // their URL is the role's, not the page's.
   redirectWhenLinkedToEvent = true,
+  // The event route already knows which event this page belongs to; passing it
+  // saves the `event_program` block a link read and binds it to that event.
+  linkedEvent = null,
   searchParams,
 }: {
   params: Promise<{ slug?: string[] }>;
   mountChatLauncher?: boolean;
   redirectWhenLinkedToEvent?: boolean;
+  linkedEvent?: LinkedEvent | null;
   /** Optional: `?f_<field>=` keys prefill `form` nodes (see form-prefill.ts). */
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -327,8 +333,8 @@ export default async function CmsPublicPage({
 
   // P4-SEO — one structured-data read shared by every render branch below,
   // alongside the event-link read (both cheap, neither waits on the other).
-  const [jsonLdScript, linkedEventSlug] = await Promise.all([
-    loadPageJsonLdScript(supabase, publicScope.tenantId, locale, slugPath),
+  const [pageJsonLd, linkedEventSlug] = await Promise.all([
+    loadPageJsonLd(supabase, publicScope.tenantId, locale, slugPath),
     redirectWhenLinkedToEvent
       ? resolveLinkedEventSlugForPageSlug(supabase, publicScope.tenantId, slugPath)
       : Promise.resolve(null),
@@ -354,6 +360,9 @@ export default async function CmsPublicPage({
     const editorRequest = /[?&]edit=1(?:&|$)/.test(search);
     if (target && !editorRequest) permanentRedirect(`${target}${search}`);
   }
+  // The operator's document as emitted on the non-freeform branches; the
+  // freeform branch may fold the event program's `subEvent[]` into it.
+  const jsonLdScript = jsonLdDocumentToScript(pageJsonLd);
 
   // Wave 4.1 — cms_pages opted into FREEFORM (is_freeform=true). Render the
   // BuilderNode[] tree directly (same engine as talent pages),
@@ -553,6 +562,17 @@ export default async function CmsPublicPage({
             publicScope.tenantId,
             locale,
           );
+      // EVENT PROGRAM — the event this page belongs to (for the block's
+      // auto-bind) and its public program (for `Event.subEvent[]`). Pays
+      // nothing on a page without the block. Both render paths get the id.
+      const programData = await resolveEventProgramPageData({
+        supabase, tenantId: publicScope.tenantId, slugPath, blocks, locale, linkedEvent,
+      });
+      const withLinkedEvent = <T extends object>(sources: T | null | undefined): T | undefined =>
+        programData.linkedEventId ? ({ ...(sources ?? {}), linkedEventId: programData.linkedEventId } as T) : (sources ?? undefined);
+      const programJsonLd = programData.program && programData.event
+        ? withEventProgramJsonLd(pageJsonLd, programData.program, { title: programData.event.title })
+        : { merged: pageJsonLd, extra: null };
       return (
         <>
           <SkipToContent />
@@ -567,7 +587,8 @@ export default async function CmsPublicPage({
               locale={locale}
             />
           ) : null}
-          <JsonLdScript script={jsonLdScript} />
+          <JsonLdScript script={jsonLdDocumentToScript(programJsonLd.merged)} />
+          {programJsonLd.extra ? <JsonLdScript script={jsonLdDocumentToScript(programJsonLd.extra)} /> : null}
           <PublicHeader />
           {/* Renderer styles + fonts once at page level — the root-tree helper
               below sets includeRendererStyles/includeFontLinks=false per block
@@ -594,7 +615,7 @@ export default async function CmsPublicPage({
               // defaults false on ClientBuilderCanvas).
               <StorefrontBodyCanvas
                 initialTree={blocks}
-                dataSources={editCanvasRenderData.dataSources}
+                dataSources={withLinkedEvent(editCanvasRenderData.dataSources) ?? editCanvasRenderData.dataSources}
                 sectionEmbedIslands={editCanvasRenderData.sectionEmbedIslands}
                 publicPathPrefix={publicPathPrefix}
                 components={{}}
@@ -612,7 +633,7 @@ export default async function CmsPublicPage({
                 mode: "freeform",
                 includeRendererStyles: false,
                 componentStyleDefaults,
-                dataSources: freeformDataSources ?? undefined,
+                dataSources: withLinkedEvent(freeformDataSources),
                 captcha: pageCaptcha
                   ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
                   : null,

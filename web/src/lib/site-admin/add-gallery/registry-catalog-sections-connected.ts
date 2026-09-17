@@ -555,6 +555,30 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     ],
   }),
   connected({
+    id: "conn-event-program-native",
+    label: "Event program",
+    description:
+      "The event's timed program: sets, talks, doors and close by night, with performer and cover. Timeline, cards or compact. Binds to the event this page belongs to.",
+    category: "booking",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "event_program",
+    sourceType: "native-freeform",
+    connectedSource: "Events",
+    searchTerms: [
+      "program",
+      "programa",
+      "schedule",
+      "lineup",
+      "agenda",
+      "set times",
+      "timeline",
+      "performers",
+      "night",
+      "stage",
+    ],
+  }),
+  connected({
     id: "conn-qr-code-native",
     label: "QR code",
     description:

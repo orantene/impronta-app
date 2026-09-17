@@ -73,20 +73,49 @@ export async function resolveLinkedEventSlug(
   tenantId: string,
   pageIds: readonly string[],
 ): Promise<string | null> {
+  return (await resolveLinkedEvent(supabase, tenantId, pageIds))?.slug ?? null;
+}
+
+/** The published event that claims one of `pageIds`: what the `event_program` block binds to. */
+export type LinkedEvent = { id: string; slug: string; title: string };
+
+export async function resolveLinkedEvent(
+  supabase: SupabaseClient,
+  tenantId: string,
+  pageIds: readonly string[],
+): Promise<LinkedEvent | null> {
   if (pageIds.length === 0) return null;
   const { data, error } = await supabase
     .from("events")
-    .select("slug")
+    .select("id, slug, title")
     .eq("tenant_id", tenantId)
     .eq("status", "published")
     .in("page_id", [...pageIds])
     .limit(1)
-    .maybeSingle<{ slug: string }>();
+    .maybeSingle<{ id: string; slug: string; title: string | null }>();
   if (error) {
     logServerError("events.linkedEventSlug", error);
     return null;
   }
-  return data?.slug ?? null;
+  return data ? { id: data.id, slug: data.slug, title: data.title ?? "" } : null;
+}
+
+/** `resolveLinkedEventSlugForPageSlug`, with the id and title the program block and its JSON-LD need. */
+export async function resolveLinkedEventForPageSlug(
+  supabase: SupabaseClient,
+  tenantId: string,
+  slugPath: string,
+): Promise<LinkedEvent | null> {
+  const { data, error } = await supabase
+    .rpc("cms_public_pages_for_tenant", { p_tenant_id: tenantId })
+    .select("id")
+    .eq("slug", slugPath);
+  if (error) {
+    logServerError("events.linkedEventForPageSlug", error);
+    return null;
+  }
+  const ids = ((data ?? []) as unknown as Array<{ id: string }>).map((row) => row.id);
+  return resolveLinkedEvent(supabase, tenantId, ids);
 }
 
 /**

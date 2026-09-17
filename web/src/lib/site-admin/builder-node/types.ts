@@ -47,6 +47,7 @@ export type BuilderNodeKind =
   | "reserve_table"
   | "session_picker"
   | "ticket_picker"
+  | "event_program"
   | "qr_code"
   | "talent_type_grid"
   // BUILDER 2027 · P2A — NATIVE kinds that replace the frozen legacy section
@@ -1192,6 +1193,36 @@ export interface BuilderTicketPickerNode extends BuilderNodeBase {
   };
 }
 
+// event_program — the event's timed program (sets, talks, doors, close) as a
+// public block (docs/plans/events-program/00-proposal.md §7). Self-fetch class
+// like `ticket_picker`: the island calls `loadEventProgram` itself. `eventId`
+// is OPTIONAL: a page linked from an event (`events.page_id`) is bound to that
+// event by the renderer through `dataSources.linkedEventId`, so the inspector
+// only asks for an event on an unlinked page. The presentation is `layout`
+// (the proposal's "style" word) because `style` is every block's token bag.
+export interface BuilderEventProgramNode extends BuilderNodeBase {
+  kind: "event_program";
+  props: {
+    eventId?: string;
+    /** Localizable. Empty ⇒ the program's own heading (`events.program.heading`). */
+    heading?: string;
+    /** MVP presentations. `schedule` and `lineup` are reserved by the proposal, not built. */
+    layout?: EventProgramLayout;
+    /** `auto` = night when >1 night, else place when >1 space, else none. */
+    groupBy?: EventProgramGroupBy;
+    showTimes?: boolean;
+    showImages?: boolean;
+    showDescriptions?: boolean;
+    /** Schedule item kinds to keep (e.g. `["set","performance"]` for a lineup). Empty ⇒ all. */
+    filterKinds?: string[];
+    limit?: number;
+    style?: BuilderNodeStyle;
+  };
+}
+
+export type EventProgramLayout = "timeline" | "cards" | "compact";
+export type EventProgramGroupBy = "auto" | "night" | "place" | "none";
+
 export interface TicketPickerTierPresentation {
   variantId: string;
   includes?: string;
@@ -2163,6 +2194,7 @@ export type BuilderNode =
   | BuilderReserveTableNode
   | BuilderSessionPickerNode
   | BuilderTicketPickerNode
+  | BuilderEventProgramNode
   | BuilderQrCodeNode
   | BuilderTalentTypeGridNode
   | BuilderIconNode

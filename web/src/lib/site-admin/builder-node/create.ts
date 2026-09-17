@@ -239,14 +239,11 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           emptyMessage: "Menu items are not published yet.",
         },
       };
-    case "qr_code":
-      // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
-      return {
-        id: makeId("qr_code"),
-        kind: "qr_code",
-        props: { linkCode: "" },
-      };
+    // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
+    case "qr_code": return { id: makeId("qr_code"), kind: "qr_code", props: { linkCode: "" } };
     case "ticket_picker": return { id: makeId("ticket_picker"), kind: "ticket_picker", props: { eventId: "", title: "" } };
+    // No eventId on purpose: a linked page binds itself (dataSources.linkedEventId).
+    case "event_program": return { id: makeId("event_program"), kind: "event_program", props: { layout: "timeline", groupBy: "auto" } };
     case "session_picker":
       return {
         id: makeId("session_picker"),

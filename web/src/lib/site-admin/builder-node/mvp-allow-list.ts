@@ -109,6 +109,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     reserve_table: "actions",
     session_picker: "actions",
     ticket_picker: "actions",
+    event_program: "actions",
     qr_code: "actions",
     carousel: "layout",
     masonry: "layout",
@@ -199,6 +200,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
   session_picker: "session class book seat booking schedule sign up capacity workshop course",
   ticket_picker: "ticket tickets event night buy card checkout tier admission door show concert festival",
+  event_program: "program programa schedule lineup agenda set times performers timeline event night stage",
   qr_code: "qr code scan link print table tent share menu",
     form: "form contact lead newsletter signup input email field submit message inquiry capture",
     code: "code html css raw markup snippet iframe embed sandbox custom widget",
@@ -281,6 +283,7 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "reserve_table",
     "session_picker",
     "ticket_picker",
+    "event_program",
     "qr_code",
     "talent_type_grid",
     // BUILDER 2027 · P2A — all twelve are shipped + droppable. The four roster

@@ -146,6 +146,9 @@ const KIND_BY_RENDERER_CSS_TOKEN: Readonly<Record<string, BuilderNodeKind>> = {
   // only a size regression, never a broken block.
   // Menu board: the server half (title, list, item, price) and the category
   // strip. The island's own rules ship inside the island.
+  // Event program: the island carries its own sheet; the wrapper token maps
+  // here so a future renderer rule for it is scoped to the block.
+  "event-program": "event_program",
   "menu-board": "menu_board",
   "menu-board-title": "menu_board",
   "menu-board-subtitle": "menu_board",

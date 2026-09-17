@@ -67,6 +67,9 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   // renaming a table must not be able to rewrite the sentence that explains why
   // a booking was refused.
   reserve_table: ["venueName", "ctaVerb"],
+  // EVENT PROGRAM: the heading is the only authored string; item text is
+  // localised by the row overlay on the server, block chrome ships es/en inline.
+  event_program: ["heading"],
   talent_type_grid: [
     "eyebrow",
     "headline",
