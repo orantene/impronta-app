@@ -248,6 +248,19 @@ export const PRODUCT_ANALYTICS_EVENTS = {
    * Payload: { engine_version, kind, note, missing_fact_keys, talent_score, workspace_score }
    */
   tulala_unclassifiable: "tulala_unclassifiable",
+
+  /**
+   * Onboarding module funnel (screen-spec v3.3 / execution plan Phase 7):
+   * module opened → sentence sent → understood card shown → account created →
+   * arrival shown. Payload: { intent, path, ms_since_open, locale } where
+   * `path` is talent | business | both once known. Activation (first
+   * booking) is measured elsewhere; these five are the funnel that feeds it.
+   */
+  onboarding_opened: "onboarding_opened",
+  onboarding_sentence_sent: "onboarding_sentence_sent",
+  onboarding_understood_shown: "onboarding_understood_shown",
+  onboarding_account_created: "onboarding_account_created",
+  onboarding_arrival_shown: "onboarding_arrival_shown",
 } as const;
 
 export type ProductAnalyticsEventName =
