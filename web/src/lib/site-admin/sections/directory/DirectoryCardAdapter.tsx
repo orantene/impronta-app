@@ -245,12 +245,42 @@ export function DirectoryCardAdapter({
           }
           secondaryActionSlot={
             data.bookable && data.profileHref ? (
-              <a
-                href={data.profileHref}
+              // A <button>, not an <a> — this slot renders inside TalentCard's
+              // own <Link> root (badgeSlot/secondaryActionSlot sit within it),
+              // so a real anchor here is an invalid nested-<a>: the browser's
+              // HTML parser silently repairs it on the initial load, and
+              // React's hydration then mismatches against that repaired DOM.
+              // Reserve targets the exact same profile as the card itself, so
+              // a plain click/keyboard activation just does that navigation
+              // directly; modifier/middle clicks still open a new tab, same
+              // as a real link would. (The card root is a <Link> — keep this
+              // local, matching TalentQuickViewButton's handleOpen above.)
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  ) {
+                    window.open(data.profileHref, "_blank", "noopener,noreferrer");
+                    return;
+                  }
+                  window.location.assign(data.profileHref);
+                }}
+                onAuxClick={(event) => {
+                  if (event.button !== 1) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  window.open(data.profileHref, "_blank", "noopener,noreferrer");
+                }}
                 className="pointer-events-auto rounded-full border border-border bg-background/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground backdrop-blur-sm"
               >
                 {t("public.directory.card.reserve")}
-              </a>
+              </button>
             ) : undefined
           }
         />
