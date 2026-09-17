@@ -1677,6 +1677,8 @@ function TbTextBtn({
   "aria-expanded": ariaExpanded,
   "aria-haspopup": ariaHasPopup,
   "aria-controls": ariaControls,
+  iconOnly,
+  ariaLabel,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
@@ -1689,6 +1691,13 @@ function TbTextBtn({
   "aria-expanded"?: boolean;
   "aria-haspopup"?: "menu";
   "aria-controls"?: string;
+  /**
+   * Square, glyph-only footprint (the exit cluster). The caller keeps the
+   * label in `ariaLabel` + `title`, so the name survives for readers and the
+   * tooltip; only the visible text goes.
+   */
+  iconOnly?: boolean;
+  ariaLabel?: string;
 }) {
   return (
     <button
@@ -1697,13 +1706,16 @@ function TbTextBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={ariaLabel}
       aria-expanded={ariaExpanded}
       aria-haspopup={ariaHasPopup}
       aria-controls={ariaControls}
       className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45 disabled:cursor-not-allowed disabled:opacity-50"
       style={{
         height: TB_CONTROL_H,
-        padding: "0 12px",
+        padding: iconOnly ? 0 : "0 12px",
+        width: iconOnly ? TB_CONTROL_H : undefined,
+        justifyContent: iconOnly ? "center" : undefined,
         fontSize: TB_FONT_PX,
         fontWeight: 500,
         letterSpacing: "-0.005em",
@@ -2369,6 +2381,8 @@ function WorkspaceMenu({ slug }: { slug: string }) {
           })
         }
         title={t("Go to your workspace dashboard")}
+        ariaLabel={t("Workspace")}
+        iconOnly
         aria-expanded={open}
         aria-haspopup="menu"
         aria-controls={open ? menuId : undefined}
@@ -2388,24 +2402,6 @@ function WorkspaceMenu({ slug }: { slug: string }) {
           <rect x="14" y="3" width="7" height="7" rx="1.5" />
           <rect x="3" y="14" width="7" height="7" rx="1.5" />
           <rect x="14" y="14" width="7" height="7" rx="1.5" />
-        </svg>
-        {t("Workspace")}
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-          style={{
-            transform: open ? "rotate(180deg)" : "none",
-            transition: "transform 140ms ease",
-          }}
-        >
-          <polyline points="6 9 12 15 18 9" />
         </svg>
       </TbTextBtn>
       {open && menuPos ? (
@@ -2502,7 +2498,9 @@ function ExitButton() {
     <TbTextBtn
       type="submit"
       disabled={pending}
-      title="Exit edit mode and view your live published site"
+      iconOnly
+      title={pending ? "Exiting…" : "Exit to live site"}
+      ariaLabel={pending ? "Exiting…" : "Exit to live site"}
     >
       <svg
         width={TB_ICON_PX}
@@ -2518,7 +2516,6 @@ function ExitButton() {
         <line x1="19" y1="12" x2="5" y2="12" />
         <polyline points="12 19 5 12 12 5" />
       </svg>
-      {pending ? "Exiting…" : "Exit to live site"}
     </TbTextBtn>
   );
 }
