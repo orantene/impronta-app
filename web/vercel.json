@@ -177,7 +177,7 @@
     },
     {
       "path": "/api/cron/expire-calendar-holds",
-      "schedule": "* * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/materialise-sessions",
@@ -249,7 +249,7 @@
     },
     {
       "path": "/api/cron/expire-orders",
-      "schedule": "* * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/outbox",
