@@ -180,6 +180,25 @@ export function DirectoryCardAdapter({
   // and focus-within keeps it keyboard-accessible.
   const revealTraitsOnHover = hoverBehavior === "reveal_traits";
 
+  const hasTraitContent =
+    show.showAttributes !== false &&
+    (fitChips.length > 0 || traitLines.length > 0);
+  // The portrait style's whole card IS the photo (fixed aspect-ratio box;
+  // name/type/availability already float over it as an absolute scrim — see
+  // TalentCard.tsx). Reserving/animating the trait row as IN-FLOW content
+  // below that box, as the single code path used to, changed this wrapper's
+  // real height on hover; in a CSS Grid with the default `align-items:
+  // stretch` (DirectoryReactiveGrid.tsx) that grows the whole grid ROW, so
+  // hovering one card visibly shoved every card in the rows beneath it down
+  // the page. Portrait + reveal-on-hover therefore floats the trait row as
+  // its own bottom-anchored overlay INSIDE the photo box (rendered inside
+  // the `mediaRef` wrapper below) so the card's box height never changes.
+  // Editorial keeps the original in-flow reveal — its caption already lives
+  // below the photo as flowing content, so this failure mode doesn't apply.
+  const traitOverlayInPhoto =
+    hasTraitContent && revealTraitsOnHover && style === "portrait";
+  const traitRowBelowPhoto = hasTraitContent && !traitOverlayInPhoto;
+
   // cardClickAction="page" — defeat the route interception by turning the
   // card root's soft <Link> navigation into a hard load. Capture-phase so it
   // runs before Next's Link handler; overlay action buttons are siblings of
@@ -318,23 +337,37 @@ export function DirectoryCardAdapter({
             ) : null}
           </div>
         ) : null}
+        {/* Portrait + reveal-on-hover: the trait row floats over the photo's
+            own bottom edge instead of living in flow beneath it, so hovering
+            a card can never change this wrapper's box height (see
+            `traitOverlayInPhoto` above — that height stability is the whole
+            point, not just styling). `pointer-events-none` keeps the card's
+            own <Link> clickable underneath, matching the scrim/name overlay
+            TalentCard already renders the same way. */}
+        {traitOverlayInPhoto ? (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] translate-y-1.5 rounded-b-2xl bg-gradient-to-t from-[rgba(6,6,8,0.94)] via-[rgba(6,6,8,0.72)] to-transparent px-3.5 pb-3.5 pt-9 opacity-0 transition-[opacity,transform] duration-200 group-hover/cardwrap:translate-y-0 group-hover/cardwrap:opacity-100 group-focus-within/cardwrap:translate-y-0 group-focus-within/cardwrap:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100"
+            data-card-traits=""
+          >
+            <TraitRowBody fitChips={fitChips} traitLines={traitLines} onScrim />
+          </div>
+        ) : null}
       </div>
 
       {/* Restrained editorial trait row: a couple of fit chips + a couple of
           catalog lines. Tagged with `data-card-chip` so a card kit can
-          restyle it. Renders nothing when the DTO carries no trait data or
-          the section turned "Show attributes" off (the previously-dead
-          `showAttributes` knob now gates this row).
-          With `reveal_traits` (the preset default) the row is collapsed at
-          rest and reveals on hover / focus / touch; every other hover mode
-          keeps it statically visible. */}
-      {show.showAttributes !== false &&
-      (fitChips.length > 0 || traitLines.length > 0) ? (
+          restyle it. Renders nothing when the DTO carries no trait data, the
+          section turned "Show attributes" off, or the portrait overlay above
+          already rendered it. With `reveal_traits` (the preset default) the
+          row is collapsed at rest and reveals on hover / focus / touch;
+          every other hover mode keeps it statically visible. */}
+      {traitRowBelowPhoto ? (
         revealTraitsOnHover ? (
           // Collapsed at rest (0-fr grid row + faded), revealed on
           // group-hover / focus-within / touch. The grid-rows transition
           // avoids a hard layout jump; the inner overflow-hidden clips the
-          // row while it is collapsed.
+          // row while it is collapsed. (Editorial only — portrait uses the
+          // photo overlay above instead, see `traitOverlayInPhoto`.)
           <div
             className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity,margin] duration-200 group-hover/cardwrap:mt-2 group-hover/cardwrap:grid-rows-[1fr] group-hover/cardwrap:opacity-100 group-focus-within/cardwrap:mt-2 group-focus-within/cardwrap:grid-rows-[1fr] group-focus-within/cardwrap:opacity-100 [@media(hover:none)]:mt-2 [@media(hover:none)]:grid-rows-[1fr] [@media(hover:none)]:opacity-100"
             data-card-traits=""
@@ -355,16 +388,30 @@ export function DirectoryCardAdapter({
 
 /**
  * The trait-row inner content (fit chips + catalog lines), shared by the
- * static and hover-reveal wrappers so the markup stays single-source. The
- * `data-card-chip` / `data-card-trait-line` hooks let a card kit restyle it.
+ * static, in-flow hover-reveal, and photo-overlay wrappers so the markup
+ * stays single-source. The `data-card-chip` / `data-card-trait-line` hooks
+ * let a card kit restyle it.
+ *
+ * `onScrim` swaps the muted/value colors for the portrait style's
+ * white-over-photo caption (matches `StandingChip`'s own `onScrim` prop in
+ * TalentCard.tsx) — the default (plain card surface) colors would be
+ * low-contrast or invisible painted directly on a photo.
  */
 function TraitRowBody({
   fitChips,
   traitLines,
+  onScrim = false,
 }: {
   fitChips: DirectoryCardFitLabel[];
   traitLines: DirectoryCardAttribute[];
+  onScrim?: boolean;
 }) {
+  const mutedClass = onScrim
+    ? "text-[var(--token-card-muted,rgba(255,255,255,0.75))]"
+    : "text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]";
+  const chipBorderClass = onScrim ? "border-white/25" : "border-border";
+  const valueClass = onScrim ? "text-white/90" : "text-foreground/80";
+
   return (
     <>
       {fitChips.length > 0 ? (
@@ -373,7 +420,7 @@ function TraitRowBody({
             <span
               key={chip.slug}
               data-card-chip
-              className="inline-flex max-w-full items-center truncate rounded-full border border-border px-2 py-0.5 text-[10px] font-medium tracking-wide text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]"
+              className={`inline-flex max-w-full items-center truncate rounded-full border ${chipBorderClass} px-2 py-0.5 text-[10px] font-medium tracking-wide ${mutedClass}`}
             >
               {chip.label}
             </span>
@@ -392,10 +439,10 @@ function TraitRowBody({
               // tighter desktop size preserved from sm: up.
               className="flex items-baseline gap-1.5 text-[12px] leading-snug sm:text-[11px]"
             >
-              <dt className="shrink-0 uppercase tracking-[0.12em] text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]">
+              <dt className={`shrink-0 uppercase tracking-[0.12em] ${mutedClass}`}>
                 {trait.label}
               </dt>
-              <dd className="min-w-0 truncate text-foreground/80">
+              <dd className={`min-w-0 truncate ${valueClass}`}>
                 {trait.value}
               </dd>
             </div>
