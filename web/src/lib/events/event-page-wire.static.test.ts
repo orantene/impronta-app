@@ -49,7 +49,8 @@ test("the catch-all sends a page linked to a published event to the event's cano
   assert.match(src, /resolveLinkedEventSlugForPageSlug\(supabase, publicScope\.tenantId, slugPath\)/);
   assert.match(src, /const target = builderPageRedirectForLinkedEvent\(\{/);
   assert.match(src, /requestPath: requestHeaders\.get\(ORIGINAL_PATHNAME_HEADER\)/, "the self-redirect guard reads the browser path");
-  assert.match(src, /if \(target\) permanentRedirect\(`\$\{target\}\$\{requestHeaders\.get\(ORIGINAL_SEARCH_HEADER\) \?\? ""\}`\);/, "the /q/<code> ?l= attribution survives the hop");
+  assert.match(src, /const search = requestHeaders\.get\(ORIGINAL_SEARCH_HEADER\) \?\? "";/, "the original search is read once");
+  assert.match(src, /if \(target && !editorRequest\) permanentRedirect\(`\$\{target\}\$\{search\}`\);/, "the /q/<code> ?l= attribution survives the hop");
   // The check runs before any render branch, so section-composed pages are covered too.
   assert.ok(src.indexOf("permanentRedirect(`${target}") < src.indexOf("Wave 4.1 — cms_pages opted into FREEFORM"));
 });
@@ -116,4 +117,10 @@ test("the admin tab is wired and its copy exists in every catalog; the old not-b
       assert.equal(typeof events.page?.[leaf], "string", `${code}: ${key}`);
     }
   }
+});
+
+test("the linked-page redirect never fires for an editor request (?edit=1)", () => {
+  const src = readFileSync(new URL("../../app/(public)/p/[[...slug]]/page.tsx", import.meta.url), "utf8");
+  assert.match(src, /const editorRequest = \/\[\?&\]edit=1\(\?:&\|\$\)\/\.test\(search\);/, "reads ?edit=1 from the original search");
+  assert.match(src, /if \(target && !editorRequest\) permanentRedirect/, "the redirect is gated on not-editor");
 });
