@@ -32,7 +32,7 @@ const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
 const scoped = tenantScopedQuery;
 
-async function staff() {
+export async function staff() { // exported for messaging-offers.ts (L6)
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();

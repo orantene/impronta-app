@@ -7,6 +7,8 @@
  */
 
 import { annotateDiffWithEvents, diffDraft, type DraftDiffLine, type DraftSnapshot, type LineEventRow } from "./diff-draft";
+import type { OfferDraftLine, OfferDraftState } from "@/lib/messages-v5/offer-draft";
+import { emptyTerms } from "@/lib/messages-v5/offer-draft";
 
 type Admin = {
   // Tests inject a fake PostgREST builder.
@@ -149,6 +151,120 @@ export async function loadInquiryOffers(admin: Admin, input: { tenantId: string;
     totalClientPrice: Number(row.total_client_price ?? 0),
     updatedAt: String(row.updated_at ?? ""),
   }));
+}
+
+/**
+ * L6 (Messages v5, D-MSG-133): the FULL offer for the editor sheet — header
+ * + every line item, staff-only fields included (`talent_cost`,
+ * `coordinator_fee`, `proposed_by`, `confirmed_at`, price snapshot,
+ * discount, tax). This is a staff-only reader for `OfferEditorSheet`; it must
+ * never be reused by a client-facing surface (see
+ * `client-readers.static.test.ts` — the client offer payload has its own,
+ * narrower reader in `client-inquiry-details.ts`).
+ *
+ * Shape matches `lib/messages-v5/offer-draft.ts`'s `OfferDraftState` so the
+ * sheet can load straight into the reducer with no extra mapping layer.
+ */
+export async function loadOfferForEditor(
+  admin: Admin,
+  input: { tenantId: string; inquiryId: string; offerId: string; inquiryExpectedVersion: number },
+): Promise<OfferDraftState | null> {
+  const { data: offer, error } = await admin
+    .from("inquiry_offers")
+    .select(
+      "id, inquiry_id, status, version, currency_code, coordinator_fee, deposit_pct, deposit_amount_cents, valid_until, notes",
+    )
+    .eq("id", input.offerId)
+    .eq("tenant_id", input.tenantId)
+    .maybeSingle();
+  if (error || !offer) return null;
+  const row = offer as Record<string, unknown>;
+  if (String(row.inquiry_id) !== input.inquiryId) return null;
+
+  const { data: lines, error: linesErr } = await admin
+    .from("inquiry_offer_line_items")
+    .select(
+      `id, talent_profile_id, owner_tenant_id, label, pricing_unit, units, unit_price, talent_cost,
+       notes, sort_order, source_service_id, proposed_by, confirmed_at, price_snapshot_cents,
+       catalog_price_cents_at_add, discount_cents, discount_label, tax_cents, tax_label,
+       talent_profiles ( display_name )`,
+    )
+    .eq("offer_id", input.offerId)
+    .eq("tenant_id", input.tenantId)
+    .order("sort_order", { ascending: true });
+  if (linesErr) return null;
+
+  // Catalog-now lookup for the price-drift hint (D-MSG-136): one batched read
+  // of `talent_offerings.amount_cents` for every distinct `source_service_id`
+  // on the offer's lines. Best-effort — an empty/erroring read just means no
+  // line shows a drift hint, never a blocked load.
+  const sourceServiceIds = [
+    ...new Set(
+      ((lines ?? []) as Array<Record<string, unknown>>)
+        .map((r) => r.source_service_id as string | null)
+        .filter((id): id is string => !!id),
+    ),
+  ];
+  const catalogNowById = new Map<string, number | null>();
+  if (sourceServiceIds.length > 0) {
+    const { data: offerings } = await admin.from("talent_offerings").select("id, amount_cents").in("id", sourceServiceIds);
+    for (const o of (offerings ?? []) as Array<{ id: string; amount_cents: number | string | null }>) {
+      catalogNowById.set(String(o.id), o.amount_cents == null ? null : Number(o.amount_cents));
+    }
+  }
+
+  const draftLines: OfferDraftLine[] = ((lines ?? []) as Array<Record<string, unknown>>).map((r, i) => {
+    const talentProfileId = (r.talent_profile_id as string | null) ?? null;
+    const ownerTenantId = (r.owner_tenant_id as string | null) ?? null;
+    const talentName = (r.talent_profiles as { display_name?: string | null } | null)?.display_name ?? null;
+    return {
+      id: String(r.id),
+      kind: talentProfileId ? "talent" : ownerTenantId ? "house" : "custom",
+      talentProfileId,
+      ownerTenantId,
+      label: String(r.label ?? talentName ?? ""),
+      pricingUnit: (r.pricing_unit as OfferDraftLine["pricingUnit"]) ?? "custom",
+      units: Number(r.units ?? 0),
+      unitPriceCents: Math.round(Number(r.unit_price ?? 0) * 100),
+      talentCostCents: Math.round(Number(r.talent_cost ?? 0) * 100),
+      note: (r.notes as string | null) ?? null,
+      sortOrder: Number(r.sort_order ?? i),
+      sourceServiceId: (r.source_service_id as string | null) ?? null,
+      proposedBy: (r.proposed_by as OfferDraftLine["proposedBy"]) ?? null,
+      proposedByName: talentName,
+      confirmed: !!r.confirmed_at,
+      priceSnapshotCents: r.price_snapshot_cents == null ? null : Number(r.price_snapshot_cents),
+      catalogPriceCentsAtAdd: r.catalog_price_cents_at_add == null ? null : Number(r.catalog_price_cents_at_add),
+      catalogNowCents: (r.source_service_id as string | null) ? (catalogNowById.get(r.source_service_id as string) ?? null) : null,
+      discountCents: Number(r.discount_cents ?? 0),
+      discountLabel: (r.discount_label as string | null) ?? null,
+      taxCents: Number(r.tax_cents ?? 0),
+      taxLabel: (r.tax_label as string | null) ?? null,
+      removedBy: null,
+    };
+  });
+
+  const depositPct = row.deposit_pct == null ? null : Number(row.deposit_pct);
+  const depositAmountCents = row.deposit_amount_cents == null ? null : Number(row.deposit_amount_cents);
+
+  return {
+    offerId: String(row.id),
+    inquiryId: input.inquiryId,
+    version: Number(row.version ?? 1),
+    inquiryExpectedVersion: input.inquiryExpectedVersion,
+    status: (row.status as OfferDraftState["status"]) ?? "draft",
+    currencyCode: (row.currency_code as string | null) ?? "USD",
+    lines: draftLines,
+    terms: {
+      ...emptyTerms(),
+      depositMode: depositAmountCents != null ? "amount" : depositPct != null ? "pct" : "none",
+      depositPct,
+      depositAmountCents,
+      validUntil: (row.valid_until as string | null) ?? null,
+      noteToClient: (row.notes as string | null) ?? "",
+    },
+    coordinatorFeeCents: Math.round(Number(row.coordinator_fee ?? 0) * 100),
+  };
 }
 
 /* ── diff ──────────────────────────────────────────────────────────────────── */
