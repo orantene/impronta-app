@@ -523,7 +523,7 @@ export function keepBulletRowsOnMobile(nodes: BuilderNode[]): { tree: BuilderNod
           next = {
             ...node,
             props: { ...props, responsive: { ...responsive, mobile: { ...(responsive.mobile ?? {}), layout: "row" } } },
-          } as BuilderNode;
+          } as unknown as BuilderNode;
         }
       }
       const children = (next as { children?: BuilderNode[] }).children;

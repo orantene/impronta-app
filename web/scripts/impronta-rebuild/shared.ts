@@ -36,8 +36,8 @@ export interface ImprontaPageSeo {
   canonical_url: string;
   noindex: boolean;
   include_in_sitemap: boolean;
-  /** JSON-LD payload (home only: Organization schema). */
-  json_ld?: Record<string, unknown>;
+  /** JSON-LD payload: one object or an array of documents (@graph-style). */
+  json_ld?: Record<string, unknown> | Array<Record<string, unknown>>;
 }
 
 export interface ImprontaRebuildPage {
