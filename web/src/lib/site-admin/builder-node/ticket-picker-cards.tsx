@@ -42,16 +42,24 @@ export function TierCards({
         const mine = on ? qty : 0;
         const max = maxUnits(x);
         return (
-          <div key={x.variantId} className="tp-card" data-on={on ? "1" : undefined} data-soldout={open ? undefined : "1"} data-tier-card={x.variantId}>
-            {x.badge ? <span className="tp-badge">{x.badge}</span> : null}
-            {x.imageSrc ? <img className="tp-card-media" src={x.imageSrc} alt="" loading="lazy" /> : <span className="tp-card-ph" aria-hidden="true">{x.admitsPerUnit > 1 ? x.admitsPerUnit : "✦"}</span>}
+          <div key={x.variantId} className="tp-card" data-on={on ? "1" : undefined} data-soldout={open ? undefined : "1"} data-tier-card={x.variantId} data-has-media={x.imageSrc ? "1" : undefined}>
+            {/* The image column exists ONLY when the tier has an image (its own or
+                the block's override). No placeholder glyph: an image-less tier is
+                a clean text card. */}
+            {x.imageSrc ? <img className="tp-card-media" src={x.imageSrc} alt="" loading="lazy" /> : null}
             <div className="tp-card-body">
-              <span className="tp-card-title">{x.label}</span>
+              {/* Title and badge share the header row: the badge is never
+                  absolutely positioned over the title. */}
+              <span className="tp-card-head">
+                <span className="tp-card-title">{x.label}</span>
+                {x.badge ? <span className="tp-badge">{x.badge}</span> : null}
+              </span>
               <span className="tp-card-price" data-free={x.amountCents === 0 ? "1" : undefined}>
                 {price.amount}
                 {price.code ? <small>{price.code}</small> : null}
               </span>
               {x.admitsPerUnit > 1 ? <span className="tp-card-meta">{t("admits").replace("{n}", String(x.admitsPerUnit))}</span> : null}
+              {x.description ? <span className="tp-card-desc">{x.description}</span> : null}
               {x.includes.length > 0 ? <ul className="tp-includes">{x.includes.map((line) => <li key={line}>{line}</li>)}</ul> : null}
               {avail === "sold_out" ? <span className="tp-avail" data-level="sold_out">{t("soldOut")}</span>
                 : !x.onSale ? <span className="tp-avail" data-level="sold_out">{t("tier_not_on_sale")}</span>

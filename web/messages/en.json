@@ -17675,6 +17675,24 @@
         "hiddenByLink": "hidden (sold by link)",
         "renameHint": "Renaming keeps the pool and the sold seats of this type. Seats per night are edited under Details & Schedule."
       },
+      "tiers": {
+        "presentation": {
+          "title": "How this ticket type is shown",
+          "intro": "Shown on every page that sells this ticket type. A page's builder can still override a field for that page only.",
+          "image": "Featured image",
+          "imageHint": "Optional. Without one, the ticket shows as a clean text card.",
+          "imageEmpty": "Add an image",
+          "badge": "Badge",
+          "badgeHint": "A short tag next to the name, for example VIP or Early bird.",
+          "badgePlaceholder": "VIP",
+          "includes": "Includes",
+          "includesHint": "One item per line, shown as bullets on the ticket.",
+          "includesPlaceholder": "Welcome drink\nFront row seating",
+          "description": "Description",
+          "descriptionHint": "One short sentence under the price.",
+          "descriptionPlaceholder": "Everything in General, plus the after party."
+        }
+      },
       "venue": {
         "title": "Venue & seating · {date}",
         "intro": "Space, layout and how ticket types map to units",

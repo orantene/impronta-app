@@ -6461,6 +6461,24 @@
         "hiddenByLink": "masqué (vendu par lien)",
         "renameHint": "Renommer conserve les places et les ventes de ce type. Les places par soirée se modifient dans Détails et programme."
       },
+      "tiers": {
+        "presentation": {
+          "title": "Présentation de ce type de billet",
+          "intro": "Affiché sur chaque page qui vend ce type de billet. L'éditeur d'une page peut encore remplacer un champ pour cette page seulement.",
+          "image": "Image à la une",
+          "imageHint": "Facultatif. Sans image, le billet s'affiche comme une carte de texte épurée.",
+          "imageEmpty": "Ajouter une image",
+          "badge": "Badge",
+          "badgeHint": "Une courte mention à côté du nom, par exemple VIP ou Prévente.",
+          "badgePlaceholder": "VIP",
+          "includes": "Comprend",
+          "includesHint": "Un élément par ligne, affichés en puces sur le billet.",
+          "includesPlaceholder": "Boisson de bienvenue\nPlaces au premier rang",
+          "description": "Description",
+          "descriptionHint": "Une courte phrase sous le prix.",
+          "descriptionPlaceholder": "Tout ce que comprend Général, plus l'after."
+        }
+      },
       "venue": {
         "title": "Lieu et places · {date}",
         "intro": "Espace, plan et correspondance des types de billet avec les unités",

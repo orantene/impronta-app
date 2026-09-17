@@ -27,6 +27,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { EventStatus } from "@/lib/events/event-policy";
 import { addTierRow, createEventWithOffering, setEventStatusRow } from "@/lib/events/writers";
 import { explainPoolRefusal, poolKeyFor, saleState, type Tier } from "@/lib/events/tiers";
+import { normalizeTierPresentation, tierPresentationSchema, toStoredTierPresentation, type TierPresentation } from "@/lib/events/tier-presentation";
+import { readTierPresentations } from "@/lib/events/tier-presentation-read";
 import { pickTimezone } from "@/lib/spaces/venue-timezone";
 import { buildSessionPoolRows, type SessionPoolPool, type SessionPoolVariant, type SessionPoolRow } from "@/lib/events/session-pools";
 
@@ -44,6 +46,10 @@ export type EventTierRow = {
   salesFrom: string | null;
   salesUntil: string | null;
   maxPerOrder: number | null;
+  /** The tier's own presentation (image, badge, includes, description); empty until set. */
+  presentation: TierPresentation;
+  /** `presentation.imageMediaId` resolved, for the row thumbnail and the editor. */
+  imageUrl: string | null;
 };
 
 export type EventListRow = {
@@ -232,6 +238,8 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
     }
 
     const nowIso = new Date().toISOString();
+    // Separate, failure-tolerant read: the column may be absent for one deploy.
+    const presentations = await readTierPresentations(supabase, (variantRows ?? []).map((v) => v.id as string), "events.loadWorkspaceEvents/presentation");
 
     const variantsByOffering = new Map<string, Array<Record<string, unknown>>>();
     for (const v of variantRows ?? []) {
@@ -276,8 +284,11 @@ export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
         // guest-list tier reads "hidden" here, which is what staff need to see —
         // it is still buyable by link, and `saleWindowState` is that question.
         const state = saleState(asTier, nowIso);
+        const pres = presentations.get(asTier.id) ?? null;
         return {
           id: asTier.id,
+          presentation: pres ? { imageMediaId: pres.imageMediaId, badge: pres.badge, includes: pres.includes, description: pres.description } : normalizeTierPresentation(null),
+          imageUrl: pres?.imageUrl ?? null,
           poolKey: asTier.poolKey,
           label: asTier.label,
           amountCents: asTier.amountCents,
@@ -453,10 +464,15 @@ const tierPatchSchema = z.object({
   admitsPerUnit: z.number().int().min(1).max(1000).optional(),
   maxPerOrder: z.number().int().min(1).nullable().optional(),
   isHidden: z.boolean().optional(),
+  /** Whole-object replace: the editor always sends every presentation field. */
+  presentation: tierPresentationSchema.optional(),
 });
 
+export type UpdateTierInput = z.input<typeof tierPatchSchema>;
+
 /**
- * Edit a tier's label, price, admits, max-per-order, hidden — and NEVER its
+ * Edit a tier's label, price, admits, max-per-order, hidden, presentation
+ * (image, badge, includes, description) — and NEVER its
  * `pool_key`. The key was derived from the label once at creation; a rename
  * is an UPDATE of `label` only, so the pool and its sold seats stay attached
  * (§6a-iii). The select list below does not contain `pool_key`, on purpose.
@@ -464,14 +480,7 @@ const tierPatchSchema = z.object({
  * Tenant scope by derivation: the variant must belong to a WORKSPACE-owned
  * offering of this tenant that an event of this tenant points at.
  */
-export async function updateTier(input: {
-  tierId: string;
-  label?: string;
-  amountCents?: number;
-  admitsPerUnit?: number;
-  maxPerOrder?: number | null;
-  isHidden?: boolean;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function updateTier(input: UpdateTierInput): Promise<{ ok: true } | { ok: false; error: string }> {
   const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!guard.ok) return { ok: false, error: guard.error };
   const { tenantId } = guard;
@@ -502,6 +511,7 @@ export async function updateTier(input: {
     if (patch.admitsPerUnit !== undefined) row.admits_per_unit = patch.admitsPerUnit;
     if (patch.maxPerOrder !== undefined) row.max_per_order = patch.maxPerOrder;
     if (patch.isHidden !== undefined) row.is_hidden = patch.isHidden;
+    if (patch.presentation !== undefined) row.presentation = toStoredTierPresentation(normalizeTierPresentation(patch.presentation));
 
     const { error: uErr } = await admin.from("talent_offering_variants").update(row).eq("id", tierId);
     if (uErr) { logServerError("events.updateTier/update", uErr); return { ok: false, error: "Could not save the tier." }; }

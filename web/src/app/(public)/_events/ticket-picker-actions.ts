@@ -32,6 +32,7 @@ import { checkQuantity, saleWindowState, type Tier } from "@/lib/events/tiers";
 import { buildTicketPurchase, doorOfferState, type DoorOfferState } from "@/lib/events/ticket-purchase";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { deliverTicketsForOrder } from "@/lib/events/ticket-delivery";
+import { readTierPresentations } from "@/lib/events/tier-presentation-read";
 import { uuidWire } from "@/lib/events/uuid-wire";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { admissionHoldConsume, admissionHoldSeats } from "@/lib/venues/event-holds";
@@ -61,6 +62,16 @@ export type PickerTier = {
    * slug a deep link may name (`?tier=<slug>`) instead of the variant UUID.
    */
   tierKey: string;
+  /**
+   * The tier's own presentation (event → Tickets & Offers), image already
+   * resolved to a public URL. The builder's `ticket_picker.tiers[]` override
+   * layers on top of these in the island. Optional so an older preload
+   * (tests, fixtures) still type-checks; the island reads absent as empty.
+   */
+  imageUrl?: string | null;
+  badge?: string | null;
+  includes?: string[];
+  description?: string | null;
 };
 
 /**
@@ -167,6 +178,8 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
     if (venErr) logServerError("events.picker.venue", venErr);
 
     const tierRows = (variants ?? []).filter((v) => typeof v.pool_key === "string" && v.pool_key);
+    // Separate, failure-tolerant read: the column may be absent for one deploy.
+    const presentations = await readTierPresentations(admin, tierRows.map((v) => v.id as string), "events.picker.presentation");
     const sessionIds = (sessions ?? []).map((s) => s.id as string);
     const { data: pools, error: pErr } = sessionIds.length
       ? await admin.from("capacity_pools").select("id, subject_id, pool_key").eq("tenant_id", tenantId)
@@ -245,8 +258,10 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
         maxPerOrder: (v.max_per_order as number | null) ?? null, isHidden: Boolean(v.is_hidden),
       };
       const st = saleWindowState(t, nowIso);
+      const pres = presentations.get(t.id) ?? null;
       return {
         variantId: t.id, label: t.label, amountCents: t.amountCents,
+        imageUrl: pres?.imageUrl ?? null, badge: pres?.badge ?? null, includes: pres?.includes ?? [], description: pres?.description ?? null,
         admitsPerUnit: (v.admits_per_unit as number | null) ?? 1,
         minPerOrder: t.minPerOrder ?? 1, maxPerOrder: t.maxPerOrder ?? null,
         onSale: st.onSale, saleReason: st.onSale ? null : st.reason,
