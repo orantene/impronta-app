@@ -30,7 +30,7 @@
 
 ## Off-app sales and free tickets
 
-- **Sold outside the app** (e.g. 2 tables by transfer): POS → Counter → add the tier on the LUMINA night → tender "cash"/"other" for what was collected → buyer name + e-mail. Tickets mint and the buyer gets the e-mail with the QRs. Vendidas moves.
+- **Sold outside the app** (e.g. 2 tables by transfer): POS → Counter → add the tier on the LUMINA night → **Customer: attach the buyer with an e-mail first** → Charge → tender "cash" for what was collected. Tickets mint and the buyer gets the e-mail with the QRs. Vendidas moves. Without a customer on the sale the tickets exist only on the receipt link (nobody to e-mail).
 - **Free tickets**: Event → Día del evento → Cortesías (one per person, with an e-mail). Counted on the Day tab; on the door list by name.
 
 ## Published-page sweep, 2026-09-16 (390 + 1440, `docs/plans/impronta-lumina/sweep/`)
@@ -54,3 +54,6 @@ Every page in the sitemap loads (200), no horizontal overflow at either width, n
 
 - 2026-09-16 ~18:20 · Comps: Event → Día del evento → "Admisión de cortesía", 3 × Cortesía (LUMINA comp 1/2/3, orantene@gmail.com, "Prueba de emisión LUMINA"). Each answered "Entrada de cortesía emitida." (D-146 migration live on production). Ticket e-mails for these go out once PR #2002 deploys (they were issued before the mail existed; the Delivery sheet's Resend sends them).
 - Tickets tab after the comps: Vendidas still "—" on the deployed build (D-147 fix in #2003 not yet on the production pointer).
+- 2026-09-17 02:53Z · Off-app tables: POS Counter sale #D4A8, 2 × Mesa para 10, cash $30,000. "Paid" screen, receipt https://improntamodels.com/r/h52uec7bxdc4anug36ey with two "Party of 10" codes. Tickets & Offers: Sold 2, Mesa para 10 2/20, remaining sellable 3221. Door (session 519e18b6…): 23 expected = 3 comps + 2 × 10.
+- Same minute · Ticket e-mail did not go out: Vercel log `[events.ticketDelivery/payer] column booking_transactions.tenant_id does not exist (42703)`. The sale had no customer attached (POS guest session), so delivery fell through holder → customer → payer and the payer query was wrong. Fix PR #2016. After it deploys: attach the buyer on #D4A8, then Resend from the door Delivery sheet.
+- Overview exception "1 ticket sold and never issued" = order 6C22E25F, a $0 test order from 2026-09-07 with no admission. Ruling: cancel it (Refund lines → "Cancel one ticket" → Confirm). Not the LUMINA sale.
