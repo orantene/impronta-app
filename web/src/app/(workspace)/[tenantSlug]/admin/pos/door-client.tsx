@@ -31,6 +31,7 @@
  * with the workspace's zone, and the header says so.
  */
 
+import * as Sentry from "@sentry/nextjs";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -146,6 +147,13 @@ export function DoorClient(props: DoorClientProps) {
         const { outcome } = await scanAdmission(props.tenantId, door.session.id, code, 1);
         const v = showOutcome(outcome, null);
         if (v.tone === "in") await openDoor(door.session);
+      } catch (err) {
+        // D-153: a scan that threw (action transport, a rejected promise)
+        // used to end with NO verdict — the gate stayed "Ready to scan" and
+        // the person at the door read silence as "let them in". Admit never
+        // fails silently: render the engine_error verdict and log it.
+        Sentry.captureException(err, { tags: { surface: "door.scan" } });
+        showOutcome({ kind: "engine_error", detail: "scan_failed" }, null);
       } finally {
         setBusy(false);
       }
@@ -161,6 +169,9 @@ export function DoorClient(props: DoorClientProps) {
         const { outcome } = await admitAtDoor(row.id, door.session.id);
         const v = showOutcome(outcome, row.holderName ?? row.tierLabel);
         if (v.tone === "in") await openDoor(door.session);
+      } catch (err) {
+        Sentry.captureException(err, { tags: { surface: "door.admitRow" } });
+        showOutcome({ kind: "engine_error", detail: "admit_failed" }, row.holderName ?? row.tierLabel);
       } finally {
         setBusy(false);
       }
