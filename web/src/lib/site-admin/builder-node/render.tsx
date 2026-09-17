@@ -1742,23 +1742,43 @@ ${HOVER_V2_CSS}
  *      which is when the sheet applies the `--bn-anim` shorthand, then
  *      unobserves it. Plays once, exactly as the panel promises.
  */
-const BUILDER_NODE_ANIM_ONCE_SCRIPT = `(function(){
-  // The renderer sheet is mounted once per SHELL REGION (header, page body,
-  // footer), so this runtime lands three or four times on a real page. Only the
-  // first instance binds -- it already queries every [data-bn-anim-once] on the
-  // page, so the others would only add duplicate observers.
-  if(window.__bnAnimOnceRuntime)return;
-  window.__bnAnimOnceRuntime=1;
+/**
+ * Both scroll lanes (play-once and reveal) are the same machine with different
+ * names: guard flag, armed sheet, IntersectionObserver. One builder, so a fix
+ * to one lane cannot skip the other.
+ *
+ * The observer binds to EVERY node in the lane, present or future. The first
+ * version only bound to the nodes it found at DOMContentLoaded, and that was
+ * enough to hide a whole homepage: entering the builder swaps the canvas in
+ * place, so every section became a new DOM node the observer had never seen,
+ * while the armed sheet was still in <head> holding its replacement at
+ * opacity 0. Guard flag set, sheet armed, zero nodes revealed, forever. The
+ * same hole opens on any client-side route change or block re-render. So the
+ * runtime also watches the body for added nodes and observes those too; a
+ * node that already carries `data-bn-revealed` is left alone (moved, not new).
+ */
+function buildScrollLaneRuntimeScript(lane: {
+  /** window flag so the second/third sheet mount on a page does not re-bind. */
+  flag: string;
+  /** attribute that opts a node into the lane. */
+  attr: string;
+  /** attribute on the injected <style> that holds the hidden pose. */
+  sheetAttr: string;
+  /** the hidden pose, applied only to un-revealed nodes. */
+  armedCss: string;
+}): string {
+  const sel = JSON.stringify(`[${lane.attr}]`);
+  return `(function(){
+  if(window.${lane.flag})return;
+  window.${lane.flag}=1;
+  var SEL=${sel};
   function run(){
     try{
-      var nodes=document.querySelectorAll('[data-bn-anim-once]');
-      if(!nodes.length)return;
       var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // Reduced motion / no IntersectionObserver: never arm. The poses live in
+      // the injected sheet, so skipping injection leaves every node at rest --
+      // no attribute writes, nothing for React to disagree with.
       if(reduce||typeof IntersectionObserver==='undefined')return;
-      var st=document.createElement('style');
-      st.setAttribute('data-bn-anim-once-armed','');
-      st.textContent='.site-builder-node[data-bn-anim-once]:not([data-bn-revealed]){opacity:0}';
-      document.head.appendChild(st);
       var io=new IntersectionObserver(function(entries){
         for(var k=0;k<entries.length;k++){
           var e=entries[k];
@@ -1768,22 +1788,55 @@ const BUILDER_NODE_ANIM_ONCE_SCRIPT = `(function(){
           }
         }
       },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
-      for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
+      var armed=null;
+      function arm(){
+        if(armed)return;
+        armed=document.createElement('style');
+        armed.setAttribute(${JSON.stringify(lane.sheetAttr)},'');
+        armed.textContent=${JSON.stringify(lane.armedCss)};
+        document.head.appendChild(armed);
+      }
+      function watch(root){
+        if(!root||root.nodeType!==1)return;
+        var list=root.querySelectorAll(SEL);
+        var own=root.matches&&root.matches(SEL);
+        if(!own&&!list.length)return;
+        arm();
+        if(own&&!root.hasAttribute('data-bn-revealed'))io.observe(root);
+        for(var m=0;m<list.length;m++)if(!list[m].hasAttribute('data-bn-revealed'))io.observe(list[m]);
+      }
+      watch(document.body);
+      if(typeof MutationObserver!=='undefined'){
+        new MutationObserver(function(recs){
+          for(var r=0;r<recs.length;r++){
+            var added=recs[r].addedNodes;
+            for(var a=0;a<added.length;a++)watch(added[a]);
+          }
+        }).observe(document.body,{childList:true,subtree:true});
+      }
     }catch(err){
-      var s2=document.querySelector('style[data-bn-anim-once-armed]');
+      // Anything went wrong: drop the poses so the content is visible.
+      var s2=document.querySelector('style['+${JSON.stringify(lane.sheetAttr)}+']');
       if(s2&&s2.parentNode)s2.parentNode.removeChild(s2);
     }
   }
-  // This ships with the SHEET, which is emitted in head order -- so at execution
-  // time the body it needs to query does not exist yet and a bare call would
-  // find zero nodes and quietly do nothing. (That is one of the two reasons the
-  // older reveal runtime never worked on a real page.) Wait for the DOM.
+  // The runtime ships with the SHEET, which is emitted in head order -- so at
+  // execution time the body it needs to query does not exist yet and a bare
+  // call would find zero nodes and quietly do nothing. Wait for the DOM.
   if(document.readyState==='loading'){
     document.addEventListener('DOMContentLoaded',run);
   }else{
     run();
   }
 })();`;
+}
+
+const BUILDER_NODE_ANIM_ONCE_SCRIPT = buildScrollLaneRuntimeScript({
+  flag: "__bnAnimOnceRuntime",
+  attr: "data-bn-anim-once",
+  sheetAttr: "data-bn-anim-once-armed",
+  armedCss: ".site-builder-node[data-bn-anim-once]:not([data-bn-revealed]){opacity:0}",
+});
 
 /**
  * The hidden/offset poses for the reveal lane, injected by the runtime rather
@@ -1809,46 +1862,12 @@ const BUILDER_NODE_REVEAL_ARMED_CSS =
   '.site-builder-node[data-bn-reveal="fade-right"]:not([data-bn-revealed]){transform:translateX(calc(-1 * var(--bn-reveal-distance,24px)))}' +
   '.site-builder-node[data-bn-reveal="zoom"]:not([data-bn-revealed]){transform:scale(0.92)}';
 
-const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
-  if(window.__bnRevealRuntime)return;
-  window.__bnRevealRuntime=1;
-  function run(){
-    try{
-      var nodes=document.querySelectorAll('[data-bn-reveal]');
-      if(!nodes.length)return;
-      var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      // Reduced motion / no IntersectionObserver: never arm. The poses live in
-      // the injected sheet, so skipping injection leaves every node at rest --
-      // no attribute writes, nothing for React to disagree with.
-      if(reduce||typeof IntersectionObserver==='undefined')return;
-      var st=document.createElement('style');
-      st.setAttribute('data-bn-reveal-armed-sheet','');
-      st.textContent=${JSON.stringify(BUILDER_NODE_REVEAL_ARMED_CSS)};
-      document.head.appendChild(st);
-      var io=new IntersectionObserver(function(entries){
-        for(var k=0;k<entries.length;k++){
-          var e=entries[k];
-          if(e.isIntersecting){
-            e.target.setAttribute('data-bn-revealed','');
-            io.unobserve(e.target);
-          }
-        }
-      },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
-      for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
-    }catch(err){
-      // Anything went wrong: drop the poses so the content is visible.
-      var s2=document.querySelector('style[data-bn-reveal-armed-sheet]');
-      if(s2&&s2.parentNode)s2.parentNode.removeChild(s2);
-    }
-  }
-  // The runtime ships with the SHEET, which is emitted in head order, so at
-  // execution time the body it queries does not exist yet. Wait for the DOM.
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',run);
-  }else{
-    run();
-  }
-})();`;
+const BUILDER_NODE_REVEAL_SCRIPT = buildScrollLaneRuntimeScript({
+  flag: "__bnRevealRuntime",
+  attr: "data-bn-reveal",
+  sheetAttr: "data-bn-reveal-armed-sheet",
+  armedCss: BUILDER_NODE_REVEAL_ARMED_CSS,
+});
 
 /**
  * ABTEST-1 — inline experiment runtime. Injected ONCE (gated on a live
