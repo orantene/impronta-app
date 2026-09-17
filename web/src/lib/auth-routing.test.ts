@@ -619,3 +619,24 @@ test("every redirect this resolver can emit exists on the surface that emits it"
     }
   }
 });
+
+test("resolveAccountHref labels follow the locale (English by default)", () => {
+  assert.deepEqual(resolveAccountHref(false, null), {
+    href: "/login",
+    label: "Log in or sign up",
+  });
+  assert.deepEqual(resolveAccountHref(false, null, "es"), {
+    href: "/login",
+    label: "Inicia sesión o regístrate",
+  });
+  assert.equal(resolveAccountHref(true, activeAdmin, "es").label, "Administración");
+  assert.equal(resolveAccountHref(true, activeTalent, "es").label, "Perfil");
+  assert.equal(resolveAccountHref(true, activeClient, "es").label, "Panel");
+  assert.equal(
+    resolveAccountHref(true, onboardingUser, "es").label,
+    "Completar configuración de la cuenta",
+  );
+  // The href never depends on the locale; an unknown locale falls back to en.
+  assert.equal(resolveAccountHref(true, activeTalent, "es").href, "/talent");
+  assert.equal(resolveAccountHref(true, activeTalent, "fr").label, "Profile");
+});

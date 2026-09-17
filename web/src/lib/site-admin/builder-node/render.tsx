@@ -18,6 +18,7 @@ import {
 } from "@/lib/social-embed/social-post-url";
 
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
 import { localeUrlSettings } from "@/i18n/pathnames";
@@ -6334,6 +6335,12 @@ function renderBuilderNodeElement(
       const formProps = node.props;
       const fields = formProps.fields ?? [];
       const honeypotName = formProps.honeypotName?.trim() || "website";
+      // Hidden from sighted visitors but still in the DOM, so it follows the
+      // visitor's locale like every other string the form emits.
+      const honeypotLabel = pickLocale(options.visitorLocale, {
+        en: "Leave this field empty",
+        es: "Deja este campo vacío",
+      });
       // Tenant-resolved captcha (see `captcha` in the options doc above).
       const formCaptchaProvider =
         options.captcha && options.captcha.provider !== "none"
@@ -6412,7 +6419,7 @@ function renderBuilderNodeElement(
             style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}
           >
             <label>
-              Leave this field empty
+              {honeypotLabel}
               <input
                 type="text"
                 name={honeypotName}

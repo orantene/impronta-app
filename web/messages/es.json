@@ -565,6 +565,7 @@
           "gridProfileAriaMany": "{label}, {count} perfiles",
           "sidebarTitle": "Filtros",
           "clearAll": "Borrar todo",
+          "clearAllAria": "Borrar todos los filtros del panel",
           "radioMore": "+{count} más",
           "emptyAsideTitle": "Filtros",
           "emptyAsideBody": "Los filtros aparecerán aquí a medida que crezca el roster. Por ahora, explora a todos abajo.",
@@ -584,7 +585,9 @@
           "searchPrefix": "Búsqueda:",
           "clearTaxonomy": "Borrar filtros",
           "heightMinPart": " · mín. {cm} cm",
-          "heightMaxPart": " · máx. {cm} cm"
+          "heightMaxPart": " · máx. {cm} cm",
+          "removeFilterAria": "Quitar filtro: {label}",
+          "clearAllAria": "Borrar todos los filtros activos"
         },
         "talentType": {
           "barAria": "Tipo de talento",

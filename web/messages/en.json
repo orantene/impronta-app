@@ -565,6 +565,7 @@
           "gridProfileAriaMany": "{label}, {count} profiles",
           "sidebarTitle": "Filters",
           "clearAll": "Clear all",
+          "clearAllAria": "Clear all sidebar filters",
           "radioMore": "+{count} more",
           "emptyAsideTitle": "Filters",
           "emptyAsideBody": "Filters will appear here as the roster grows. For now, browse everyone below.",
@@ -584,7 +585,9 @@
           "searchPrefix": "Search:",
           "clearTaxonomy": "Clear filters",
           "heightMinPart": " · ≥ {cm} cm",
-          "heightMaxPart": " · ≤ {cm} cm"
+          "heightMaxPart": " · ≤ {cm} cm",
+          "removeFilterAria": "Remove filter: {label}",
+          "clearAllAria": "Clear all active filters"
         },
         "talentType": {
           "barAria": "Talent type",

@@ -34,6 +34,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { activeReadSource } from "@/lib/field-engine/read-source";
+import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { logServerError } from "@/lib/server/safe-error";
 import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
 
@@ -47,6 +48,10 @@ export type DirectoryFacetConfig = {
   min: number | null;
   /** Slider upper bound. Null for non-range facets. */
   max: number | null;
+  /** Per-option per-locale display labels from B `option_labels_i18n`
+   *  (`{ "<value>": { en, es, … } }`). Only attached by the B read; the pure
+   *  A/B config parsers leave it unset. Absent = render the humanized slug. */
+  optionLabelsI18n?: Record<string, LocalizedMap> | null;
 };
 
 const EMPTY_CONFIG: DirectoryFacetConfig = {
@@ -165,28 +170,54 @@ export async function readDirectoryFacetConfigFromB(
   const bKeys = [...new Set(legacyToB.values())];
   const { data, error } = await supabase
     .from("profile_field_definitions")
-    .select("field_key, directory_filter_config")
+    .select("field_key, directory_filter_config, option_labels_i18n")
     .in("field_key", bKeys)
     .is("deprecated_at", null);
   if (error) {
     throw new Error(`[directory] facet config (System B): ${error.message}`);
   }
 
-  const byBKey = new Map<string, Record<string, unknown> | null>();
+  const byBKey = new Map<
+    string,
+    { config: Record<string, unknown> | null; optionLabels: Record<string, LocalizedMap> | null }
+  >();
   for (const row of (data ?? []) as {
     field_key: string;
     directory_filter_config: Record<string, unknown> | null;
+    option_labels_i18n: unknown;
   }[]) {
-    byBKey.set(row.field_key, row.directory_filter_config ?? null);
+    byBKey.set(row.field_key, {
+      config: row.directory_filter_config ?? null,
+      optionLabels: optionLabelsI18nFromRow(row.option_labels_i18n),
+    });
   }
 
   for (const [lk, bKey] of legacyToB) {
-    if (!byBKey.has(bKey)) continue; // no B def — caller falls back to A row config
-    const cfg = byBKey.get(bKey) ?? null;
-    if (cfg == null) continue; // B def present but config not migrated — fall back
-    out.set(lk, directoryFacetConfigFromBConfig(cfg));
+    const b = byBKey.get(bKey);
+    if (!b) continue; // no B def — caller falls back to A row config
+    if (b.config == null && b.optionLabels == null) continue; // nothing migrated — fall back
+    out.set(lk, {
+      ...(b.config == null ? EMPTY_CONFIG : directoryFacetConfigFromBConfig(b.config)),
+      optionLabelsI18n: b.optionLabels,
+    });
   }
   return out;
+}
+
+/** Coerce a B `option_labels_i18n` jsonb into `{ value: LocalizedMap }`, keeping
+ *  only string entries. Null when the column is empty or malformed. */
+export function optionLabelsI18nFromRow(raw: unknown): Record<string, LocalizedMap> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: Record<string, LocalizedMap> = {};
+  for (const [value, sub] of Object.entries(raw as Record<string, unknown>)) {
+    if (!sub || typeof sub !== "object" || Array.isArray(sub)) continue;
+    const map: LocalizedMap = {};
+    for (const [loc, label] of Object.entries(sub as Record<string, unknown>)) {
+      if (typeof label === "string" && label.trim().length > 0) map[loc] = label.trim();
+    }
+    if (Object.keys(map).length > 0) out[value] = map;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 /**

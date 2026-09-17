@@ -90,7 +90,7 @@ export async function HeaderAuthArea({
   const actor = await getCachedActorSession();
   const user = actor.user;
   const profile: AccessProfileWithDisplayName | null = actor.profile;
-  const accountLink = resolveAccountHref(Boolean(user), profile);
+  const accountLink = resolveAccountHref(Boolean(user), profile, locale);
   const destination = resolveAuthenticatedDestination(profile);
 
   // Host-safe. The published CMS shell renders this on hub hosts, where

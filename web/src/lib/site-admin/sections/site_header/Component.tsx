@@ -73,7 +73,7 @@ async function renderRightZone(
   const pathSettings = localeUrlSettings(localeSettings.defaultLocale, localeSettings.supportedLocales);
   const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath, pathSettings);
   const actor = await getCachedActorSession();
-  const account = resolveAccountHref(Boolean(actor.user), actor.profile);
+  const account = resolveAccountHref(Boolean(actor.user), actor.profile, locale);
   const [savedIds, favoriteIds] = await Promise.all([
     getSavedTalentIds(),
     getFavoriteTalentIds(),

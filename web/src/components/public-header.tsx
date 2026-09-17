@@ -150,7 +150,7 @@ export async function PublicHeader() {
     if (hostSafe !== href) return hostSafe;
     return publicLocaleHref(pathnameWithoutLocale, href, locale, pathSettings);
   };
-  const accountLink = resolveAccountHref(Boolean(user), profile);
+  const accountLink = resolveAccountHref(Boolean(user), profile, locale);
   const destination = resolveAuthenticatedDestination(profile);
   // C3 — Desktop AccountMenu dedup: secondary action currently always
   // resolves to the same href as the primary dashboard link, so it's a
