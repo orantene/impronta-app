@@ -97,7 +97,11 @@ export type MessagingRefusal =
   | "not_allowed"
   | "expired"
   | "already"
-  | "deposit_required";
+  | "deposit_required"
+  /** S6 (D-MSG-41): off-platform settle refused because no payout receiver
+   * exists for this workspace/payee — a known gap in the cash-settlement
+   * path, not a caller error. */
+  | "no_payout_receiver";
 
 export type ActionOk<T extends Record<string, unknown> = Record<string, never>> = { ok: true } & T;
 export type ActionFail = { ok: false; reason: MessagingRefusal };

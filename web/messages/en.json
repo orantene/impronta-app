@@ -15432,6 +15432,7 @@
           "checkout_locked": "Checkout is locked to the basket that was sent.",
           "already_resolved": "This conversation is already resolved.",
           "no_owner": "This conversation has no owner yet.",
+          "no_payout_receiver": "This cannot be recorded as paid yet: nobody is set up to receive the payout. Set up a payout receiver, then try again.",
           "identity_unconfirmed": "Customer identity is not confirmed.",
           "already_linked": "That record is already linked.",
           "version_stale": "Someone else saved first. Compare the three versions.",
