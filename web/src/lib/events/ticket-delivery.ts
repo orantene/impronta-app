@@ -307,7 +307,7 @@ async function orderContact(
   if (!email) {
     const txn = await one<{ payer_email?: string | null }>(
       "payer",
-      admin.from("booking_transactions").select("payer_email").eq("tenant_id", tenantId).eq("order_id", orderId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      admin.from("booking_transactions").select("payer_email").eq("source_tenant_id", tenantId).eq("order_id", orderId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     );
     email = txn?.payer_email ?? null;
   }
