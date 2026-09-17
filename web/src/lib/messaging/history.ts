@@ -129,6 +129,11 @@ function renderActionLogEntry(row: ActionLogRow, labels: Map<string, string>): C
       const text = reason ? `${actorLabel} closed this as lost: ${reason}` : `${actorLabel} closed this as lost`;
       return { at: row.created_at, actorLabel, kind: "close_lost", text };
     }
+    case "messaging_client_edit": {
+      const fields = Array.isArray(meta.fields) ? (meta.fields as unknown[]).filter((f): f is string => typeof f === "string") : [];
+      const text = fields.length > 0 ? `${actorLabel} updated the client's ${fields.join(", ")}` : `${actorLabel} updated the client`;
+      return { at: row.created_at, actorLabel, kind: "client_edit", text };
+    }
     case "messaging_merge": {
       const text =
         meta.direction === "moved_from"

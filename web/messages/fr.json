@@ -7368,7 +7368,41 @@
       "panel": {
         "open": "Ouvrir",
         "expand": "Déplier",
-        "collapse": "Replier"
+        "collapse": "Replier",
+        "items": {
+          "default": "Articles",
+          "talentServices": "Talents et services",
+          "services": "Services",
+          "orderItems": "Articles de la commande",
+          "menu": "Menu"
+        },
+        "addItem": "+ Ajouter un article",
+        "itemsEmpty": "Aucun article pour l'instant",
+        "client": {
+          "title": "Client",
+          "source": "Source"
+        },
+        "money": {
+          "title": "Paiement",
+          "total": "Total",
+          "deposit": "Acompte",
+          "paid": "Payé",
+          "balance": "Solde dû",
+          "requestPayment": "Demander le paiement",
+          "none": "Aucun frais pour l'instant"
+        },
+        "files": {
+          "title": "Fichiers"
+        },
+        "notes": {
+          "title": "Notes d'équipe"
+        },
+        "followUp": {
+          "title": "Suivi",
+          "next": "Prochain : {when}",
+          "none": "Aucun rappel programmé"
+        },
+        "historyLine": "{count} réservations précédentes · {amount}"
       },
       "sheet": {
         "close": "Fermer",
@@ -7530,6 +7564,22 @@
         "inboxFailed": "La boîte n'a pas chargé",
         "inboxFailedBody": "Vos données sont en sécurité. Réessayez.",
         "backToInbox": "Retour à la boîte"
+      },
+      "client": {
+        "title": "Modifier le client",
+        "twoMatches": "Correspondances possibles",
+        "linkThisClient": "Lier ce client",
+        "keepAsNew": "Garder comme nouveau client",
+        "save": "Enregistrer",
+        "saving": "Enregistrement",
+        "saved": "Enregistré",
+        "editContact": "Modifier le contact",
+        "help": {
+          "none": "Aucune identité capturée pour l'instant.",
+          "linked": "Lié à une fiche client. Le client ne l'a pas encore confirmé.",
+          "confirmed": "Le client a confirmé qu'il s'agit de lui.",
+          "granted": "Le client a accordé l'accès depuis son propre lien."
+        }
       }
     }
   },

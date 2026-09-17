@@ -18391,7 +18391,41 @@
       "panel": {
         "open": "Abrir",
         "expand": "Expandir",
-        "collapse": "Contraer"
+        "collapse": "Contraer",
+        "items": {
+          "default": "Artículos",
+          "talentServices": "Talento y servicios",
+          "services": "Servicios",
+          "orderItems": "Artículos del pedido",
+          "menu": "Menú"
+        },
+        "addItem": "+ Agregar artículo",
+        "itemsEmpty": "Aún no hay artículos",
+        "client": {
+          "title": "Cliente",
+          "source": "Origen"
+        },
+        "money": {
+          "title": "Dinero",
+          "total": "Total",
+          "deposit": "Depósito",
+          "paid": "Pagado",
+          "balance": "Saldo pendiente",
+          "requestPayment": "Solicitar pago",
+          "none": "Sin cargos aún"
+        },
+        "files": {
+          "title": "Archivos"
+        },
+        "notes": {
+          "title": "Notas del equipo"
+        },
+        "followUp": {
+          "title": "Seguimiento",
+          "next": "Próximo: {when}",
+          "none": "Sin recordatorio programado"
+        },
+        "historyLine": "{count} reservas anteriores · {amount}"
       },
       "sheet": {
         "close": "Cerrar",
@@ -18553,6 +18587,22 @@
         "inboxFailed": "La bandeja no cargó",
         "inboxFailedBody": "Tus datos están a salvo. Reintenta.",
         "backToInbox": "Volver a la bandeja"
+      },
+      "client": {
+        "title": "Editar cliente",
+        "twoMatches": "Posibles coincidencias",
+        "linkThisClient": "Vincular este cliente",
+        "keepAsNew": "Mantener como cliente nuevo",
+        "save": "Guardar",
+        "saving": "Guardando",
+        "saved": "Guardado",
+        "editContact": "Editar contacto",
+        "help": {
+          "none": "Aún no se capturó identidad.",
+          "linked": "Vinculado a un registro de cliente. El cliente aún no lo confirmó.",
+          "confirmed": "El cliente confirmó que es él o ella.",
+          "granted": "El cliente otorgó acceso desde su propio enlace."
+        }
       }
     }
   },

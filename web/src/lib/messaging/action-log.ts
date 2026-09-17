@@ -66,6 +66,26 @@ export async function logConversationState(
   });
 }
 
+/**
+ * Logs a staff edit of the client's contact fields (D15 ClientSheet,
+ * D-MSG-91) after the actual write (`updateInquiryDetails` or
+ * `messaging_set_identity`) succeeds. `fields` names only what changed —
+ * never the values, so a phone/email never lands in a log row a wider staff
+ * audience might read.
+ */
+export async function logClientEdit(
+  admin: SupabaseClient,
+  input: { inquiryId: string; actorUserId: string; fields: readonly ("name" | "phone" | "email")[] },
+) {
+  if (input.fields.length === 0) return;
+  await logAction(admin, {
+    inquiryId: input.inquiryId,
+    actorUserId: input.actorUserId,
+    actionType: "messaging_client_edit",
+    metadata: { fields: input.fields },
+  });
+}
+
 /** Logs close-lost after `messaging_close_lost` succeeds. */
 export async function logCloseLost(
   admin: SupabaseClient,
