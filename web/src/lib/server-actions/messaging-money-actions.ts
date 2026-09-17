@@ -46,7 +46,7 @@ import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
 import { executeBookingRefund, type RefundReason } from "@/lib/payments/refund-execute";
 import { recordVerifiedCollection } from "@/lib/pos/collection";
 import { markInquiryPaidInCash } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
-import { RECORD_KINDS, type ActionResult, type RecordKind } from "@/lib/messaging/types";
+import { RECORD_KINDS, type ActionFail, type ActionResult, type RecordKind } from "@/lib/messaging/types";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
@@ -56,7 +56,7 @@ async function requirePermission(
   tenantId: string,
   userId: string,
   permission: MessagingMoneyPermission,
-): Promise<ActionResult> {
+): Promise<{ ok: true } | ActionFail> {
   const ok = await hasMessagingMoneyPermission(admin, { tenantId, userId, permission });
   return ok ? { ok: true } : fail("not_allowed");
 }

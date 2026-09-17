@@ -1,6 +1,5 @@
 import "server-only";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * S6 (D-MSG-40): the permission keys this lane introduces for the money
@@ -23,7 +22,10 @@ export const MESSAGING_MONEY_PERMISSIONS = [
 
 export type MessagingMoneyPermission = (typeof MESSAGING_MONEY_PERMISSIONS)[number];
 
-type Admin = Pick<SupabaseClient, "from">;
+type Admin = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+};
 
 /**
  * Tenant-wide staff ids (active memberships), used both to scope a

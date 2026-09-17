@@ -30,10 +30,7 @@ import type { ActionResult, CardKind, ConversationHistoryEntry, InboxFilter, Mes
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
-
-function scoped(admin: SupabaseClient, table: string, tenantId: string) {
-  return tenantScopedQuery(admin, table, tenantId);
-}
+const scoped = tenantScopedQuery;
 
 async function staff() {
   const guard = await requireWorkspaceStaffAction();

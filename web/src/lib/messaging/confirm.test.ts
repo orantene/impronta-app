@@ -52,7 +52,7 @@ function seed(overrides: Partial<Record<string, Array<Record<string, unknown>>>>
 type Calls = { convert: number; hold: number; commit: number; zero: number; cards: Array<{ kind: string; payload?: Record<string, unknown> }> };
 
 function deps(
-  overrides: Partial<ConfirmDeps> & { readers?: Partial<ConfirmReaders> } = {},
+  overrides: Omit<Partial<ConfirmDeps>, "readers"> & { readers?: Partial<ConfirmReaders> } = {},
 ): { deps: ConfirmDeps; calls: Calls } {
   const calls: Calls = { convert: 0, hold: 0, commit: 0, zero: 0, cards: [] };
   const readers: ConfirmReaders = { busy: async () => [], remaining: async () => 10, ...(overrides.readers ?? {}) };

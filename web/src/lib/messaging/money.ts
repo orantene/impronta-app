@@ -1,13 +1,15 @@
 import "server-only";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { planRefund, type PaidTransaction, type RefundableLine } from "@/lib/orders/refund-plan";
 import type { PromoScope } from "@/lib/orders/promo-eligibility";
 import type { RecordKind } from "./types";
 
-type Admin = Pick<SupabaseClient, "from">;
+type Admin = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+};
 
 /**
  * S6 (D-MSG-40): the record kinds a thread can actually cancel/preview money
