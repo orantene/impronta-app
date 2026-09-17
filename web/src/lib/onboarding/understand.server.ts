@@ -12,7 +12,8 @@ import "server-only";
  */
 
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
-import { isResolvedAiChatConfigured, resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
+import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
+import { resolveRoutedChat } from "@/lib/ai/call-routing.server";
 import { resolveClientIp } from "@/lib/guest/guest-session";
 import {
   checkTulalaImportByIp,
@@ -107,7 +108,8 @@ export async function understandBrief(input: {
     } else {
       const text = (input.text ?? "").trim();
       if (text.length > MAX_USER_MESSAGE_CHARS) return { ok: false, code: "too_long", message: "Keep it shorter." };
-      const adapter = await resolveAiChatAdapter();
+      // Routed per call (Operations → AI routing); Haiku 4.5 by the bake-off.
+      const { adapter } = await resolveRoutedChat("extraction");
       learned = await extractAndRecord({
         adapter,
         brief: input.brief,

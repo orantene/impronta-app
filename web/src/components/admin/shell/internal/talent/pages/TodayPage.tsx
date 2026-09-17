@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BioHelperCard } from "@/components/talent/bio-helper-card";
 import Link from "next/link";
 import { logServerError } from "@/lib/server/safe-error";
 import { useDashboardText } from "../../dashboard-i18n";
@@ -331,6 +332,8 @@ export function TalentTodayPage() {
               </span>
             </button>
           )}
+          {/* Your bio (Phase 9): the AI-drafted text, with the writing helper. */}
+          <BioHelperCard />
           {onboardingCompleteness.missing.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {onboardingCompleteness.missing.slice(0, 8).map((m) => (

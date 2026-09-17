@@ -1,38 +1,60 @@
 "use client";
 
-/** Step 4 · Building. The real steps tick; the copy is the measured promise. */
+/**
+ * Step 4 · Building. The build is one server call of 6–25 s; this screen has
+ * to carry a person through it. Three things move at once: the step list
+ * (ring on the current step, ticks behind it), a progress bar paced to the
+ * measured build time for the path, and a rotating line of what is being
+ * made. Nothing here waits on the server except the last tick.
+ */
 
 import { useEffect, useState } from "react";
 
 import type { OnboardingPath } from "@/lib/onboarding/module-state";
 
-import { Sub, Tick, Title } from "../ui";
+import { LoadingSteps, ProgressBar, Sub, Title, WhileYouWait } from "../ui";
 
-export function BuildingStep({ t, path }: { t: (key: string) => string; path: OnboardingPath }) {
+/** Measured on the isolated stack (Phase 4): talent ≈ 6 s, business ≈ 20–25 s. */
+const EXPECTED_MS: Record<OnboardingPath, number> = { talent: 7000, business: 24000, both: 28000 };
+
+export function BuildingStep({ t, path, done = false }: { t: (key: string) => string; path: OnboardingPath; done?: boolean }) {
   const steps = path === "talent"
     ? ["account", "profile"]
     : path === "both"
       ? ["account", "workspace", "site", "photos", "profile"]
       : ["account", "workspace", "site", "photos"];
-  // Visual pacing only (the build is one server call): one tick every ~4 s,
-  // the last one waits for the real result.
-  const [done, setDone] = useState(1);
+  const expected = EXPECTED_MS[path];
+  // Pace the ring across the steps over the expected time; the last step
+  // stays "in progress" until the real result arrives.
+  const [active, setActive] = useState(1);
   useEffect(() => {
-    const id = window.setInterval(() => setDone((n) => Math.min(steps.length - 1, n + 1)), 4000);
+    const per = Math.max(1500, expected / steps.length);
+    const id = window.setInterval(() => setActive((n) => Math.min(steps.length - 1, n + 1)), per);
     return () => window.clearInterval(id);
-  }, [steps.length]);
+  }, [expected, steps.length]);
+  const whileLines = path === "talent"
+    ? [
+        t("public.onboarding.building.while.talent1"),
+        t("public.onboarding.building.while.talent2"),
+        t("public.onboarding.building.while.talent3"),
+        t("public.onboarding.building.while.talent4"),
+        t("public.onboarding.building.while.talent5"),
+      ]
+    : [
+        t("public.onboarding.building.while.business1"),
+        t("public.onboarding.building.while.business2"),
+        t("public.onboarding.building.while.business3"),
+        t("public.onboarding.building.while.business4"),
+        t("public.onboarding.building.while.business5"),
+      ];
   return (
-    <div data-testid="onb-building" aria-busy="true">
+    <div data-testid="onb-building" aria-busy={!done}>
       <Title>{path === "talent" ? t("public.onboarding.building.titleTalent") : t("public.onboarding.building.title")}</Title>
-      <Sub>{t("public.onboarding.building.sub")}</Sub>
-      <ul className="mt-6 flex flex-col gap-3">
-        {steps.map((s, i) => (
-          <li key={s} className="flex items-center gap-3 text-[0.9375rem]" style={{ color: i < done ? "var(--tl-ink)" : "var(--tl-muted)" }}>
-            <Tick done={i < done} />
-            {t(`public.onboarding.building.steps.${s}`)}
-          </li>
-        ))}
-      </ul>
+      <Sub>{path === "talent" ? t("public.onboarding.building.subTalent") : t("public.onboarding.building.sub")}</Sub>
+      <ProgressBar expectedMs={expected} done={done} label={t("public.onboarding.building.progressLabel")} />
+      <LoadingSteps items={steps.map((s) => t(`public.onboarding.building.steps.${s}`))} activeIndex={done ? steps.length : active} />
+      <WhileYouWait lines={whileLines} />
+      <p className="mt-4 text-[0.75rem]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.building.canClose")}</p>
     </div>
   );
 }

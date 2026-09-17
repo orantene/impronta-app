@@ -1789,6 +1789,21 @@
           "photos": "Photos for your kind of business",
           "menu": "Your menu",
           "profile": "Your page"
+        },
+        "subTalent": "About ten seconds. You can close this; it keeps going.",
+        "progressLabel": "Building",
+        "canClose": "You can close this; it keeps building and your page will be here when you come back.",
+        "while": {
+          "business1": "Choosing a look for your kind of business",
+          "business2": "Writing your pages in Spanish and English, in your words",
+          "business3": "Picking colours and type that fit what you said",
+          "business4": "Placing photos for what you do; yours replace them in one tap",
+          "business5": "Setting up your address on the web",
+          "talent1": "Writing your bio from what you said",
+          "talent2": "Listing what people can book",
+          "talent3": "Setting your city and languages",
+          "talent4": "Getting your page ready for photos",
+          "talent5": "Almost there"
         }
       },
       "arrival": {
@@ -9018,6 +9033,14 @@
         "groupInquiryBlurb": "The coordinator-driven inquiry workflow: enable v2 and tune its timing windows.",
         "flagAiProviderLabel": "AI provider",
         "flagAiProviderDesc": "Chat / NLU provider for AI features.",
+        "flagAiRouteExtractionLabel": "Model: reading a sentence into facts",
+        "flagAiRouteExtractionDesc": "Onboarding understand step. Bake-off 2026-09-17: Haiku 4.5 found the most facts and normalized them, in 3 s. Auto = the global provider's default.",
+        "flagAiRouteCopyLabel": "Model: writing the site copy",
+        "flagAiRouteCopyDesc": "One call per composed site, both languages. Sonnet 5 writes specific headlines; the cheap models wrote the same line for three different businesses.",
+        "flagAiRouteCriticLabel": "Model: checking the copy before arrival",
+        "flagAiRouteCriticDesc": "Judges a composed site for invented facts, generic headlines and wrong language; one retry on failure.",
+        "flagAiRouteHelperLabel": "Model: the writing helper (rewrite, expand, shorten)",
+        "flagAiRouteHelperDesc": "Edits a person is waiting on. Fast and cheap matters more than voice here.",
         "flagAiTranslationsLabel": "AI translations",
         "flagAiTranslationsDesc": "AI-assisted translation workflows (admin).",
         "flagAiEmbeddingsLabel": "Semantic embeddings",
@@ -17952,6 +17975,27 @@
           "already_collected": "That sale is already collected.",
           "not_settled": "The cash was not recorded yet. Sync again."
         }
+      }
+    },
+    "talent": {
+      "bioHelper": {
+        "title": "Your bio",
+        "draftMark": "AI draft, tap to change",
+        "placeholder": "Two or three sentences about what you do and where.",
+        "writing": "Writing",
+        "write": "Write it for me",
+        "rewrite": "Rewrite",
+        "shorter": "Shorter",
+        "longer": "Longer",
+        "warmer": "Warmer",
+        "professional": "More professional",
+        "save": "Save",
+        "saving": "Saving",
+        "saved": "Saved.",
+        "invalid": "Keep it under 600 characters, no dashes.",
+        "tryAgain": "That didn't work. Try again.",
+        "capReached": "You've used today's writing help. It resets tomorrow.",
+        "aiOff": "Writing help is off right now."
       }
     }
   },
