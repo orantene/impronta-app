@@ -24,6 +24,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import type { Locale } from "@/lib/site-admin/locales";
 import type { JsonLdDocument } from "@/lib/site-admin/cms-seo";
+import { isLiveViewRequested } from "@/lib/site-admin/edit-mode/live-view";
 import { previewCookieNameFor } from "@/lib/site-admin/preview/cookie";
 import { verifyPreviewJwt } from "@/lib/site-admin/preview/jwt";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
@@ -226,6 +227,8 @@ export async function isPreviewActiveForTenant(
   tenantId: string,
 ): Promise<boolean> {
   if (!tenantId) return false;
+  // `?live=1` (the editor's "Open live page" tab) reads published, not draft.
+  if (await isLiveViewRequested()) return false;
   try {
     const jar = await cookies();
     const cookieName = previewCookieNameFor(tenantId);

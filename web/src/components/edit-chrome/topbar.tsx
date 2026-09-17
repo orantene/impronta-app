@@ -44,6 +44,7 @@ import { useFormStatus } from "react-dom";
 import Link from "next/link";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
+import { liveViewHrefFor } from "@/lib/site-admin/edit-mode/live-view-href";
 import { copyPublishedHomepageAction } from "@/lib/site-admin/edit-mode/composition-actions";
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import { localeMetadata } from "@/i18n/config";
@@ -1609,6 +1610,61 @@ function ViewportFrameTools({
         </button>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Quick preview — the current page in a NEW TAB, exactly as a visitor sees
+ * it. The eye next door only hides the editing tools around the draft; this
+ * opens the published page with `?live=1`, which overrides the edit and
+ * preview cookies for that one request (lib/site-admin/edit-mode/live-view).
+ */
+function OpenLivePageButton() {
+  // A real link, not window.open: anchors are never popup-blocked, and the
+  // operator gets middle-click / cmd-click / copy-link for free. The href is
+  // built from the live location after mount (the server has no window).
+  const [href, setHref] = useState<string | null>(null);
+  useEffect(() => {
+    setHref(liveViewHrefFor(window.location.href));
+  }, []);
+  return (
+    <a
+      href={href ?? "#"}
+      target="_blank"
+      rel="noopener"
+      title="Open live page in a new tab"
+      aria-label="Open live page"
+      aria-disabled={href ? undefined : true}
+      className="relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-transparent no-underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45"
+      style={{ width: 40, height: 40, color: CHROME.muted }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = CHROME.paper2;
+        e.currentTarget.style.color = CHROME.ink;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.color = CHROME.muted;
+      }}
+      onClick={(e) => {
+        if (!href) e.preventDefault();
+      }}
+    >
+      <svg
+        width={TB_ICON_PX}
+        height={TB_ICON_PX}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        <polyline points="15 3 21 3 21 9" />
+        <line x1="10" y1="14" x2="21" y2="3" />
+      </svg>
+    </a>
   );
 }
 
@@ -3301,6 +3357,7 @@ export function TopBar({
         </svg>
       </TbIconBtn>
       <CanvasHelpersToggle />
+      <OpenLivePageButton />
       <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
 
       {onSaveDraft ? (
