@@ -11,7 +11,13 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 /**
- * The QR the ticket e-mail embeds: `/api/tickets/<signed-token>/qr.png`.
+ * The QR the ticket e-mail embeds: `/api/tickets/<signed-token>/qr` (PNG).
+ *
+ * NO IMAGE EXTENSION IN THE PATH. The proxy matcher skips every path that
+ * ends in `.png`, so `/qr.png` reached this handler without the host
+ * headers, `getPublicHostContext()` answered `unknown`, and every ticket
+ * e-mail showed a broken image (Impronta LUMINA, 2026-09-17). The content
+ * type says PNG; the path must not.
  *
  * PUBLIC, and that is safe because the path segment IS the credential — a
  * signed admission token nobody can forge — and the image encodes nothing

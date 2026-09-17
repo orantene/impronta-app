@@ -12,7 +12,7 @@ const base: TicketIssuedInput = {
   holderName: "Ana <script>alert(1)</script>",
   receiptUrl: "https://improntamodels.com/r/ABC123",
   admissions: [
-    { code: "v1.abc.def", qrUrl: "https://improntamodels.com/api/tickets/v1.abc.def/qr.png", ticketUrl: "https://improntamodels.com/ticket/v1.abc.def", tierLabel: "Entrada general", partySize: 1 },
+    { code: "v1.abc.def", qrUrl: "https://improntamodels.com/api/tickets/v1.abc.def/qr", ticketUrl: "https://improntamodels.com/ticket/v1.abc.def", tierLabel: "Entrada general", partySize: 1 },
   ],
 };
 
@@ -26,7 +26,7 @@ test("subject names the brand and the event, per locale", () => {
 test("the body carries the hosted QR, the code, the ticket link and the receipt, in Spanish", () => {
   const html = renderTicketIssuedEmail(base);
   assert.match(html, /<html lang="es">/);
-  assert.match(html, /<img src="https:\/\/improntamodels\.com\/api\/tickets\/v1\.abc\.def\/qr\.png"/);
+  assert.match(html, /<img src="https:\/\/improntamodels\.com\/api\/tickets\/v1\.abc\.def\/qr"/);
   assert.match(html, /v1\.abc\.def<\/div>/);
   assert.match(html, /href="https:\/\/improntamodels\.com\/ticket\/v1\.abc\.def"[^>]*>Ver mi entrada</);
   assert.match(html, /href="https:\/\/improntamodels\.com\/r\/ABC123"[^>]*>Ver recibo</);

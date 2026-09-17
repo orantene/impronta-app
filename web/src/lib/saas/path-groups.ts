@@ -269,7 +269,7 @@ export const AGENCY_API_PREFIXES = [
 ] as const;
 
 /**
- * The ticket QR image (`/api/tickets/<signed-token>/qr.png`) the ticket
+ * The ticket QR image (`/api/tickets/<signed-token>/qr`, no image extension: the proxy matcher skips `*.png` paths and the route needs the host headers) the ticket
  * e-mail embeds. Gated exactly like `/ticket/<code>` (agency + hub hosts):
  * the token is the whole authorization; the route resolves the tenant from
  * the host and 404s on any mismatch.

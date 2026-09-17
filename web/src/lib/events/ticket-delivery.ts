@@ -219,7 +219,7 @@ async function deliverAdmissions(
       if (!token) continue;
       admissions.push({
         code: token,
-        qrUrl: `${homeHref}/api/tickets/${encodeURIComponent(token)}/qr.png`,
+        qrUrl: `${homeHref}/api/tickets/${encodeURIComponent(token)}/qr`,
         ticketUrl: `${homeHref}/ticket/${encodeURIComponent(token)}`,
         tierLabel: facts.tierByAdmission.get(r.id) ?? facts.eventTitle,
         partySize: Math.max(1, r.party_size ?? 1),
