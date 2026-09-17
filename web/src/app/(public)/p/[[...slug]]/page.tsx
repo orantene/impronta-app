@@ -43,6 +43,7 @@ import {
 import { userHasCapability } from "@/lib/access";
 import { shouldRouteSiteShellSurface } from "@/lib/site-admin/site-shell-flag";
 import { SITE_SHELL_EDITOR_SLUG } from "@/lib/admin/website-editor-links";
+import { formPrefillFromSearchParams } from "@/lib/site-admin/builder-node/form-prefill";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import {
   jsonLdDocumentToScript,
@@ -225,11 +226,15 @@ export default async function CmsPublicPage({
   // sourcePage ("/" → show_on_home, "/directory" → show_on_directory) — this
   // prevents a double launcher on those surfaces.
   mountChatLauncher = true,
+  searchParams,
 }: {
   params: Promise<{ slug?: string[] }>;
   mountChatLauncher?: boolean;
+  /** Optional: `?f_<field>=` keys prefill `form` nodes (see form-prefill.ts). */
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug: slugParam } = await params;
+  const formPrefill = formPrefillFromSearchParams(searchParams ? await searchParams : null);
   // ROOT-CAUSE FIX (2026-08-20): `__site_shell__` can NEVER pass
   // slugPathFromParams — SLUG_SEGMENT forbids underscores — so this notFound()
   // fired before the Lane-2 shell branch below ever ran. The branch comparing
@@ -581,6 +586,7 @@ export default async function CmsPublicPage({
                 // providers otherwise read the visitor's BROWSER language, so a
                 // Spanish storefront showed an English challenge.
                 visitorLocale: locale,
+                formPrefill,
                 // ONE DESIGN PER PAGE — resolve each localizable string prop
                 // through the node's `i18n` overlay. `defaultLocale` is the row
                 // we actually loaded, so a page authored only in a secondary

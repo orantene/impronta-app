@@ -3,17 +3,17 @@ import { test } from "node:test";
 
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
 
-import { showPage } from "./show";
-import { collectVisitorText, isAcceptableInSpanishShow, showPageEs } from "./show-es";
+import { experiencesPage } from "./experiences";
+import { collectVisitorText, isAcceptableInSpanishExperiences, experiencesPageEs } from "./experiences-es";
 
-const englishStrings = new Set(collectVisitorText(showPage.tree));
+const englishStrings = new Set(collectVisitorText(experiencesPage.tree));
 
 test("nothing visitor-facing is left in English", () => {
   // THE gate. Add a sentence to the English show page and this fails until its
   // Spanish exists, rather than the Spanish page quietly serving English.
   const missing: string[] = [];
-  for (const value of collectVisitorText(showPageEs.tree)) {
-    if (isAcceptableInSpanishShow(value)) continue;
+  for (const value of collectVisitorText(experiencesPageEs.tree)) {
+    if (isAcceptableInSpanishExperiences(value)) continue;
     if (englishStrings.has(value)) missing.push(value);
   }
   assert.deepEqual(missing, [], `untranslated copy:\n${missing.join("\n")}`);
@@ -31,7 +31,7 @@ test("structure matches the English page it came from", () => {
     JSON.stringify(nodes, (key, value) =>
       key === "id" || key === "href" || PAGE_TEXT_KEYS.has(key) ? undefined : value,
     );
-  assert.equal(shape(showPageEs.tree), shape(showPage.tree));
+  assert.equal(shape(experiencesPageEs.tree), shape(experiencesPage.tree));
 });
 
 test("every internal link stays inside the Spanish site", () => {
@@ -44,7 +44,7 @@ test("every internal link stays inside the Spanish site", () => {
     }
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) walk(v, k);
   };
-  walk(showPageEs.tree);
+  walk(experiencesPageEs.tree);
   assert.ok(hrefs.length > 0);
   assert.deepEqual(
     hrefs.filter((h) => h !== "/es" && !h.startsWith("/es/")),
@@ -62,23 +62,23 @@ test("ids are namespaced, so the two locales cannot collide", () => {
     if (typeof node.id === "string") ids.push(node.id);
     for (const v of Object.values(n as Record<string, unknown>)) walk(v);
   };
-  walk(showPageEs.tree);
+  walk(experiencesPageEs.tree);
   assert.deepEqual(ids.filter((id) => !id.startsWith("es-")), [], "un-namespaced ids");
   assert.equal(new Set(ids).size, ids.length, "duplicate ids");
 });
 
 test("both trees validate", () => {
-  for (const [name, tree] of [["en", showPage.tree], ["es", showPageEs.tree]] as const) {
+  for (const [name, tree] of [["en", experiencesPage.tree], ["es", experiencesPageEs.tree]] as const) {
     const result = validateBuilderNodeTree(tree);
     if (!result.ok) assert.fail(`${name}: ${result.issues.map((i) => i.message).join("; ")}`);
   }
 });
 
-test("the show is for sale: indexable in both languages", () => {
-  for (const page of [showPage, showPageEs]) {
+test("a sellable page is indexable, in both languages", () => {
+  for (const page of [experiencesPage, experiencesPageEs]) {
     const seo = page.seo as unknown as Record<string, unknown>;
-    assert.equal(seo.noindex, false, `${page.slug} must be indexable now that it is sold`);
+    assert.equal(seo.noindex, false, `${page.slug} must be indexable`);
     assert.equal(seo.include_in_sitemap, true);
   }
-  assert.equal((showPageEs.seo as unknown as Record<string, unknown>).canonical_url, "/es/p/show");
+  assert.equal((experiencesPageEs.seo as unknown as Record<string, unknown>).canonical_url, "/es/p/experiences");
 });

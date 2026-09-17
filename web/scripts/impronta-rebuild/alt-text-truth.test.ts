@@ -56,7 +56,9 @@ const SEEDED: ImprontaRebuildPage[] = [
  */
 const SCENE_WORDS = [
   "beach", "shoreline", "coast", "sea", "sand", "sunset", "golden hour", "dusk",
-  "rooftop", "jungle", "villa", "venue", "club", "stage", "backstage", "runway",
+  // "stage" left this list on 2026-09-17: the Lifestyle folder now holds stage
+  // frames for the show page (generate-offer-imagery.ts), pinned by slot.
+  "rooftop", "jungle", "villa", "venue", "club", "backstage", "runway",
   "crowd", "guests", "wedding", "reception", "on set", "on location", "activation",
   "launch", "market", "booth", "decks", "casting day", "candlelit", "lantern",
   "night sky", "open-air", "resort",

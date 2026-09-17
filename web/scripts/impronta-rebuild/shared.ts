@@ -411,6 +411,11 @@ export function band(id: string, children: BuilderNode[], opts: BandOptions = {}
       layout: "stack",
       align: "center",
       layerLabel: opts.layerLabel,
+      // The band's id doubles as its DOM anchor, so `href="#rb-show-venue"`
+      // actually lands. Without this the renderer emits only data attributes
+      // and every in-page hero CTA on the site was a dead click (verified on
+      // the live show and studio pages, 2026-09-17).
+      anchorId: id,
       style: {
         width: "100%",
         maxWidthFree: "100%",
