@@ -11,7 +11,7 @@ import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { loadActiveTicketForOrder } from "@/lib/preparation/tickets";
-import { LINE_COLUMNS, ORDER_COLUMNS, num, type Admin, type LineRow, type OrderRow } from "./sale-rows";
+import { LINE_COLUMNS, ORDER_COLUMNS, lineAuthor, num, type Admin, type LineRow, type OrderRow } from "./sale-rows";
 import type { PosSaleView } from "./commands";
 import { readCustomAmountLimitCents } from "./approval-settings";
 
@@ -147,6 +147,14 @@ export async function loadPosSale(
           operatorUserId: l.operator_user_id ?? null,
           bookingId: l.booking_id ?? null,
           bookingKind,
+          proposedBy: lineAuthor(l.proposed_by),
+          confirmedAt: l.confirmed_at ?? null,
+          priceSnapshotCents: l.price_snapshot_cents == null ? null : num(l.price_snapshot_cents),
+          catalogPriceCentsAtAdd: l.catalog_price_cents_at_add == null ? null : num(l.catalog_price_cents_at_add),
+          discountCents: num(l.discount_cents),
+          discountLabel: l.discount_label ?? null,
+          taxCents: num(l.tax_cents),
+          taxLabel: l.tax_label ?? null,
         };
       }),
     },

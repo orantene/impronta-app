@@ -784,6 +784,19 @@ export type OfferLineDraft = {
   /** S18 — the services-menu ServiceMenuItem.id this line was prefilled from
    *  (audit stamp); null/omitted = hand-authored. */
   source_service_id?: string | null;
+  /**
+   * S5 (Messages v5, D-MSG-30): who proposed the line, the catalog price it
+   * was priced against, and a per-line discount / tax. Staff-only: none of
+   * these reach the client payload (`client-inquiry-details.ts` selects an
+   * explicit column list; `client-readers.static.test.ts` holds it there).
+   */
+  proposed_by?: "client" | "staff" | "system";
+  price_snapshot_cents?: number | null;
+  catalog_price_cents_at_add?: number | null;
+  discount_cents?: number;
+  discount_label?: string | null;
+  tax_cents?: number;
+  tax_label?: string | null;
 };
 
 /**
@@ -908,6 +921,15 @@ export async function updateOfferDraft(
         notes: line.notes,
         sort_order: line.sort_order,
         source_service_id: line.source_service_id ?? null, // S18 audit stamp
+        // S5: author, price snapshot, discount and tax ride through. A line
+        // with no snapshot is snapshotted at the price it is saved with.
+        proposed_by: line.proposed_by ?? "staff",
+        price_snapshot_cents: line.price_snapshot_cents ?? Math.round(Number(line.unit_price ?? 0) * 100),
+        catalog_price_cents_at_add: line.catalog_price_cents_at_add ?? null,
+        discount_cents: Math.max(0, Math.trunc(Number(line.discount_cents ?? 0))),
+        discount_label: line.discount_label ?? null,
+        tax_cents: Math.max(0, Math.trunc(Number(line.tax_cents ?? 0))),
+        tax_label: line.tax_label ?? null,
       });
       if (liErr) return { success: false, error: liErr.message };
     }

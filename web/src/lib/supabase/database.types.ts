@@ -7875,51 +7875,78 @@ export type Database = {
       }
       inquiry_offer_line_items: {
         Row: {
+          catalog_price_cents_at_add: number | null
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
+          discount_cents: number
+          discount_label: string | null
           id: string
           label: string | null
           notes: string | null
           offer_id: string
           owner_tenant_id: string | null
+          price_snapshot_cents: number | null
           pricing_unit: Database["public"]["Enums"]["pricing_unit"]
+          proposed_by: string
           sort_order: number
           source_service_id: string | null
           talent_cost: number
           talent_profile_id: string | null
+          tax_cents: number
+          tax_label: string | null
           tenant_id: string
           total_price: number
           unit_price: number
           units: number
         }
         Insert: {
+          catalog_price_cents_at_add?: number | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
+          discount_cents?: number
+          discount_label?: string | null
           id?: string
           label?: string | null
           notes?: string | null
           offer_id: string
           owner_tenant_id?: string | null
+          price_snapshot_cents?: number | null
           pricing_unit?: Database["public"]["Enums"]["pricing_unit"]
+          proposed_by?: string
           sort_order?: number
           source_service_id?: string | null
           talent_cost?: number
           talent_profile_id?: string | null
+          tax_cents?: number
+          tax_label?: string | null
           tenant_id: string
           total_price?: number
           unit_price?: number
           units?: number
         }
         Update: {
+          catalog_price_cents_at_add?: number | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
+          discount_cents?: number
+          discount_label?: string | null
           id?: string
           label?: string | null
           notes?: string | null
           offer_id?: string
           owner_tenant_id?: string | null
+          price_snapshot_cents?: number | null
           pricing_unit?: Database["public"]["Enums"]["pricing_unit"]
+          proposed_by?: string
           sort_order?: number
           source_service_id?: string | null
           talent_cost?: number
           talent_profile_id?: string | null
+          tax_cents?: number
+          tax_label?: string | null
           tenant_id?: string
           total_price?: number
           unit_price?: number

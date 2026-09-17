@@ -469,6 +469,9 @@ export async function messagingSendOptions(input: {
       orderId: input.addToDraft.orderId,
       expectedVersion: input.addToDraft.expectedVersion,
       line: { offeringId: input.addToDraft.offeringId, units: input.addToDraft.units },
+      // Staff put this on the draft while sending the options (S5).
+      proposedBy: "staff",
+      actorId: g.userId,
     });
     if (!added.ok) return fail(added.reason === "conflict" ? "conflict" : "unavailable");
   }
@@ -758,6 +761,9 @@ export async function messagingGuestDraftAdd(input: {
     orderId: input.orderId,
     expectedVersion: input.expectedVersion,
     line: { offeringId: input.offeringId, units: input.units },
+    // The client chose this from their link: the line is theirs until staff
+    // confirm it (owner decision 3; S5).
+    proposedBy: "client",
   });
   if (!added.ok) return fail(added.reason === "conflict" ? "conflict" : "unavailable");
   return { ok: true as const };
