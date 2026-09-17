@@ -236,3 +236,13 @@ test("D-155: every push that follows a write on the counter waits for the router
   assert.match(start, /export function pushAfterWrite\(/);
   assert.match(start, /setTimeout\(\(\) => router\.push\(href\), 0\)/);
 });
+
+test("D-156: the hold after a write is bounded and released by the re-read, not by a newer version", () => {
+  const client = code("src/app/(workspace)/[tenantSlug]/admin/pos/pos-client.tsx");
+  assert.doesNotMatch(client, /writtenVersion/, "the version-keyed hold held the till forever on a same-version re-read");
+  assert.match(client, /useWriteHold\(sale\)/);
+  const settling = code("src/app/(workspace)/[tenantSlug]/admin/pos/counter-settling.ts");
+  assert.match(settling, /setTimeout\(/, "the hold needs a ceiling");
+  assert.match(settling, /router\.refresh\(\)/, "and asks for the re-read it never got");
+  assert.match(settling, /writeHoldSettling\(held, current\)/);
+});

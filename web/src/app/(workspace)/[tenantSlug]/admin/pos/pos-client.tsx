@@ -67,6 +67,7 @@ import { useCounterCustomer } from "./counter-customer";
 import { CounterDrawer } from "./counter-drawer";
 import { useCounterEngine } from "./counter-engine";
 import { pushAfterWrite, usePendingDraft, useSaleHref, useStartSale } from "./counter-sale-start";
+import { useWriteHold } from "./counter-settling";
 import { COUNTER_DESTINATIONS, counterHeader, isDestination, type CounterDestination as Destination } from "./counter-header";
 import { useCounterLock } from "./counter-lock";
 import {
@@ -103,12 +104,13 @@ export function PosClient(props: PosClientProps) {
 
   const [destination, setDestination] = useState<Destination>("sell");
   const [busy, setBusy] = useState(false);
-  // The sale version the last accepted write was made against. Until the
-  // refresh delivers a newer one, the screen is still looking at a version
-  // the engine has already moved past, and a second tap would be refused as
-  // a conflict (`saleReloading`) for no fault of the cashier's. Derived, not
-  // effectful: it clears itself the moment `props.sale.version` changes.
-  const [writtenVersion, setWrittenVersion] = useState<number | null>(null);
+  // The sale the last accepted write was made against. Until the re-read
+  // lands, the screen is still looking at a sale the engine has already
+  // moved past, and a second tap would be refused as a conflict
+  // (`saleReloading`) for no fault of the cashier's. Released by the next
+  // re-read whatever version it carries, and by a ceiling (D-156;
+  // `counter-settling.ts`).
+  const { settling, hold } = useWriteHold(sale);
   const [refusal, setRefusal] = useState<PosRefusalReason | null>(null);
   // Starts as the sale's last accepted write (the row's `updated_at`), then
   // the clock of each write this screen makes.
@@ -162,8 +164,8 @@ export function PosClient(props: PosClientProps) {
     copy: { custom: copy.custom, booking: copy.booking, tip: copy.tip, paymentLink: copy.paymentLink, refusal: copy.engineRefusal, reload: copy.refusal.reload },
     onWritten: () => {
       setSavedAt(formatClock(new Date().toISOString(), props.locale));
-      // Hold the next command until the re-read delivers the new version.
-      if (sale) setWrittenVersion(sale.version);
+      // Hold the next command until the re-read lands.
+      if (sale) hold(sale);
       router.refresh();
     },
     // The draft under the Custom amount sheet (`counter-sale-start.ts`).
@@ -216,7 +218,7 @@ export function PosClient(props: PosClientProps) {
         }
         if (!refused) {
           setSavedAt(formatClock(new Date().toISOString(), props.locale));
-          if (kind === "sale" && sale) setWrittenVersion(sale.version);
+          if (kind === "sale" && sale) hold(sale);
           if (refresh) router.refresh();
         }
         return result;
@@ -224,9 +226,8 @@ export function PosClient(props: PosClientProps) {
         setBusy(false);
       }
     },
-    [props.basketLines, props.locale, router, sale],
+    [hold, props.basketLines, props.locale, router, sale],
   );
-  const settling = writtenVersion !== null && sale !== null && sale.version === writtenVersion;
   // The customer display's own write (a tip) on this device: hold the next
   // command until the re-read has delivered that version (D-POS-88).
   const beacon = useCounterDisplayBeacon({ tenantId: props.tenantId, orderId: sale?.orderId ?? null, version: sale?.version ?? null });

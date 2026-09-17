@@ -7,9 +7,13 @@
  * blank until a reload. The rule this pins: the counter's hook sequence is
  * the same whatever `props.sale` is, so the same instance can carry a sale
  * in and out without remounting.
+ *
+ * And D-156, the hold after a write (`useWriteHold`): released by the next
+ * re-read whatever version it carries, and by the ceiling when no re-read
+ * comes, so "Cobrar" never reads "Cobrando" until a reload.
  */
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
 
 import { JSDOM } from "jsdom";
 
@@ -26,7 +30,7 @@ g.localStorage = dom.window.localStorage;
 g.IS_REACT_ACT_ENVIRONMENT = true;
 
 /* eslint-disable import/first -- jsdom globals must exist before react-dom loads */
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { AppRouterContext, type AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
@@ -64,6 +68,7 @@ import { cashMovementCopy, engineRefusalCopy, lockScreenCopy, paymentLinkCopy, t
 
 import { PosClient } from "./pos-client";
 import type { PosClientProps, PosSaleSummary } from "./counter-props";
+import { useWriteHold } from "./counter-settling";
 /* eslint-enable import/first */
 
 const ROUTER: AppRouterInstance = {
@@ -208,4 +213,73 @@ test("D-155: the counter carries a sale in on the same instance without a hook-o
   paint(null);
   assert.deepEqual(errors, [], `leaving the sale must not throw: ${String(errors[0])}`);
   unmount();
+});
+
+// ── D-156: the hold after a write ───────────────────────────────────────
+
+type HoldApi = { settling: boolean; hold: (s: PosSaleSummary) => void };
+/** The hook's latest answer, handed out through an effect (never written during render). */
+function HoldProbe({ sale, onRender }: { sale: PosSaleSummary | null; onRender: (api: HoldApi) => void }) {
+  const api = useWriteHold(sale, 4000);
+  useEffect(() => {
+    onRender(api);
+  });
+  return <span data-settling={String(api.settling)} />;
+}
+
+function mountHold(refresh: () => void) {
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  const box: { latest: HoldApi | null } = { latest: null };
+  const paint = (sale: PosSaleSummary | null) =>
+    act(() =>
+      root.render(
+        <AppRouterContext.Provider value={{ ...ROUTER, refresh }}>
+          <HoldProbe sale={sale} onRender={(api) => (box.latest = api)} />
+        </AppRouterContext.Provider>,
+      ),
+    );
+  const api = () => {
+    assert.ok(box.latest, "the probe has rendered");
+    return box.latest;
+  };
+  return { paint, api, unmount: () => act(() => root.unmount()) };
+}
+
+test("D-156: the hold releases when the re-read arrives, even at the same version", () => {
+  const refreshes: number[] = [];
+  const { paint, api, unmount } = mountHold(() => refreshes.push(1));
+  paint(SALE);
+  act(() => api().hold(SALE));
+  assert.equal(api().settling, true, "held against the sale the write was made on");
+  // The re-read: a new object, the SAME version (a no-op edit). The old
+  // rule kept the till on "Cobrando" here until a reload.
+  paint({ ...SALE });
+  assert.equal(api().settling, false, "the re-read releases the hold");
+  assert.deepEqual(refreshes, [], "no extra refresh was needed");
+  unmount();
+});
+
+test("D-156: a hold no re-read ever answers releases at the ceiling and asks for one more re-read", () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    const refreshes: number[] = [];
+    const { paint, api, unmount } = mountHold(() => refreshes.push(1));
+    paint(SALE);
+    act(() => api().hold(SALE));
+    assert.equal(api().settling, true);
+    act(() => {
+      mock.timers.tick(3999);
+    });
+    assert.equal(api().settling, true, "still inside the ceiling");
+    act(() => {
+      mock.timers.tick(1);
+    });
+    assert.equal(api().settling, false, "the ceiling released the till");
+    assert.deepEqual(refreshes, [1], "and asked the router for the re-read it never got");
+    unmount();
+  } finally {
+    mock.timers.reset();
+  }
 });
