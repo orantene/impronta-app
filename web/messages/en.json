@@ -5242,14 +5242,15 @@
           "refunds": "Refunds",
           "refundsValue": "To the original card only",
           "links": "Payment links",
-          "linksValue": "Not yet · no links table",
+          "linksValue": "Yes",
           "testMode": "Test mode",
           "testModeValue": "Keys stay on the platform · not shown here",
           "reader_ready": "Terminal · ready",
           "reader_missing_reader": "Terminal · no reader assigned",
           "reader_missing_secret_key": "Terminal · needs a Stripe key",
           "reader_no_setup_needed": "Terminal · ready",
-          "reader_not_integrated": "Terminal · not integrated"
+          "reader_not_integrated": "Terminal · not integrated",
+          "linksOff": "Needs Stripe · a link is a checkout"
         },
         "mercadoPago": {
           "title": "Mercado Pago · Point",
@@ -5275,19 +5276,23 @@
           "cardOnline": "Card · online",
           "cardOnlineRule": "Checkout and deposits · Stripe",
           "paymentLink": "Payment link",
-          "paymentLinkRule": "Not yet · no links table",
+          "paymentLinkRule": "Sends · does not collect",
           "bankTransfer": "Bank transfer · recorded",
           "bankTransferRule": "Not a tender the till records yet",
           "credit": "Gift card / credit",
           "creditRule": "Passes apply as entitlements, not as a tender",
           "twoMethods": "Two methods",
           "twoMethodsRule": "Cash first, then card · one sale, two allocations",
-          "colLocation": "This location"
+          "colLocation": "This location",
+          "paymentLinkOffRule": "Enables when Stripe is connected",
+          "rowMenu": "Row actions"
         },
         "notWired": {
           "save": "Providers are configured by the platform; there is nothing here to save by hand.",
-          "connect": "There is no place to store a Mercado Pago account yet."
-        }
+          "connect": "There is no place to store a Mercado Pago account yet.",
+          "rowMenu": "Each method's rule is the engine's own; there is nothing to edit per row."
+        },
+        "linkExpiry": "expires after {n} min"
       },
       "rolesLimits": {
         "label": "Roles & limits",
@@ -5313,7 +5318,6 @@
           "other": "{count} members"
         },
         "limitsHeading": "Per-person limits",
-        "limitsGap": "Tulala does not track individual discount or refund limits yet. Everyone eligible for a selling mode can use everything that mode offers.",
         "posOffNotice": "This workspace has every selling mode switched off, so no role reaches the point of sale. Turn one on in Point of sale above.",
         "invitedCount": {
           "one": "{count} invitation not accepted yet",
@@ -5391,14 +5395,19 @@
           "heading": "Approval requests",
           "intro": "What someone asked for above their limit. Approving lets that one action through; the role is unchanged.",
           "none": "Nothing is waiting for approval.",
-          "title": "{kind} · {ref}",
+          "title": "Approval requested · {kind} · {ref}",
           "by": "{who} · {when}",
-          "kindDiscount": "Discount requested",
-          "kindRefund": "Refund requested",
+          "kindDiscount": "discount",
+          "kindRefund": "refund",
           "approve": "Approve",
           "deny": "Reject",
           "approved": "Approved",
-          "denied": "Rejected"
+          "denied": "Rejected",
+          "factAction": "Action",
+          "factActionValue": "A {kind} above the limit · sale {ref}",
+          "factReason": "Reason",
+          "factScope": "Scope",
+          "factScopeValue": "This one action only · {who}'s role is unchanged"
         }
       },
       "locations": {
@@ -5622,7 +5631,7 @@
           "tickets": "Tickets"
         },
         "tablesLink": "Reservations settings →",
-        "depositPlatform": "Platform default · at booking",
+        "depositPlatform": "Default · at booking",
         "depositNone": "None · pay at the visit",
         "depositPct": "{pct}% · at booking",
         "fullAtBooking": "Full · at booking",
@@ -5632,16 +5641,16 @@
           "flexible": "48 h before",
           "strict": "Deposit kept · 50% under 30 days",
           "manual": "The owner decides each refund",
-          "platform": "Platform default policy"
+          "platform": "Platform default"
         },
         "noShowNone": "Not charged · no rule yet",
         "noShowSeatKept": "Seat released · not charged",
         "tablesElsewhere": "Set on Reservations",
         "tablesNoShow": "Marked at the stand",
-        "ticketsRefund": "Refund from the desk · per event",
+        "ticketsRefund": "Per event · at the desk",
         "ticketsNoShow": "Ticket stays valid",
         "dash": "—",
-        "noticeCutoff": "Same as the booking notice · {notice}",
+        "noticeCutoff": "Booking notice · {notice}",
         "appointmentsOff": "Appointments are off",
         "units": {
           "days": "{n} d",
@@ -5700,8 +5709,10 @@
           "previewImpact": "An impact preview needs policy versions, which are not kept yet.",
           "publish": "Policies save as you change them; versions are not kept yet.",
           "intake": "Intake forms are not modelled yet; nothing asks a client to fill one.",
-          "overrides": "Per-role overrides are not modelled; the capacity rules already refuse everyone alike."
-        }
+          "overrides": "Per-role overrides are not modelled; the capacity rules already refuse everyone alike.",
+          "rowMenu": "Each row states what the engine does; the defaults and the per-item overrides below are where a policy changes."
+        },
+        "rowMenu": "Row actions"
       }
     },
     "adminBilling": {
@@ -12991,7 +13002,7 @@
     },
     "sales": {
       "pageTitle": "Sales",
-      "pageIntro": "One commercial view across every product · open a row to reach the source record",
+      "pageIntro": "One commercial view across every product · click a row to open the source record",
       "empty": "No sales yet.",
       "emptyTitle": "No sales yet",
       "colCustomer": "Customer",
@@ -13051,11 +13062,12 @@
         "period": "Sales are not filtered by period yet; this list is the most recent 200 of each kind.",
         "payment": "Sales are not filtered by payment state yet; the pill on each row says it.",
         "seller": "This workspace is the only seller; per-professional filtering is not modelled yet."
-      }
+      },
+      "filterAll": "All"
     },
     "payments": {
       "pageTitle": "Payments",
-      "pageIntro": "Collections, refunds, drawer variances, unknown attempts and payouts · drill into the record",
+      "pageIntro": "Collections, refunds, drawer variances, unknown attempts and payouts · drill into the POS record",
       "unavailableTitle": "We could not load payments",
       "unavailableBody": "This is on our side, not yours. Please refresh in a moment.",
       "takingsTitle": "Takings by method",

@@ -1080,14 +1080,15 @@
           "refunds": "Remboursements",
           "refundsValue": "Sur la carte d'origine uniquement",
           "links": "Liens de paiement",
-          "linksValue": "Pas encore · pas de table des liens",
+          "linksValue": "Oui",
           "testMode": "Mode test",
           "testModeValue": "Les clés restent sur la plateforme · non affichées ici",
           "reader_ready": "Terminal · prêt",
           "reader_missing_reader": "Terminal · aucun lecteur assigné",
           "reader_missing_secret_key": "Terminal · clé Stripe requise",
           "reader_no_setup_needed": "Terminal · prêt",
-          "reader_not_integrated": "Terminal · non intégré"
+          "reader_not_integrated": "Terminal · non intégré",
+          "linksOff": "Nécessite Stripe · un lien est un paiement en ligne"
         },
         "mercadoPago": {
           "title": "Mercado Pago · Point",
@@ -1113,19 +1114,23 @@
           "cardOnline": "Carte · en ligne",
           "cardOnlineRule": "Paiement et acomptes · Stripe",
           "paymentLink": "Lien de paiement",
-          "paymentLinkRule": "Pas encore · pas de table des liens",
+          "paymentLinkRule": "Envoie · n'encaisse pas",
           "bankTransfer": "Virement · enregistré",
           "bankTransferRule": "Pas encore un moyen que la caisse enregistre",
           "credit": "Carte cadeau / crédit",
           "creditRule": "Les pass s'appliquent comme des droits, pas comme un moyen de paiement",
           "twoMethods": "Deux méthodes",
           "twoMethodsRule": "Espèces d'abord, puis carte · une vente, deux affectations",
-          "colLocation": "Cet emplacement"
+          "colLocation": "Cet emplacement",
+          "paymentLinkOffRule": "S'active quand Stripe est connecté",
+          "rowMenu": "Actions de la ligne"
         },
         "notWired": {
           "save": "Les fournisseurs sont configurés par la plateforme ; il n'y a rien à enregistrer à la main ici.",
-          "connect": "Il n'y a pas encore d'endroit où enregistrer un compte Mercado Pago."
-        }
+          "connect": "Il n'y a pas encore d'endroit où enregistrer un compte Mercado Pago.",
+          "rowMenu": "La règle de chaque méthode est celle du moteur ; rien à modifier par ligne."
+        },
+        "linkExpiry": "expire après {n} min"
       },
       "rolesLimits": {
         "label": "Roles et limites",
@@ -1151,7 +1156,6 @@
           "other": "{count} membres"
         },
         "limitsHeading": "Limites par personne",
-        "limitsGap": "Tulala ne suit pas encore les limites individuelles de remise ou de remboursement. Toute personne eligible a un mode de vente peut utiliser tout ce que ce mode offre.",
         "posOffNotice": "Cet espace de travail a désactivé tous les modes de vente, aucun rôle n'atteint donc le point de vente. Activez-en un dans Point de vente, ci-dessus.",
         "invitedCount": {
           "one": "{count} invitation pas encore acceptée",
@@ -1229,14 +1233,19 @@
           "heading": "Demandes d'approbation",
           "intro": "Ce que quelqu'un a demandé au-dessus de sa limite. Approuver laisse passer cette seule action ; le rôle ne change pas.",
           "none": "Rien n'attend d'approbation.",
-          "title": "{kind} · {ref}",
+          "title": "Approbation demandée · {kind} · {ref}",
           "by": "{who} · {when}",
-          "kindDiscount": "Remise demandée",
-          "kindRefund": "Remboursement demandé",
+          "kindDiscount": "remise",
+          "kindRefund": "remboursement",
           "approve": "Approuver",
           "deny": "Refuser",
           "approved": "Approuvé",
-          "denied": "Refusé"
+          "denied": "Refusé",
+          "factAction": "Action",
+          "factActionValue": "Une {kind} au-dessus de la limite · vente {ref}",
+          "factReason": "Motif",
+          "factScope": "Portée",
+          "factScopeValue": "Cette seule action · le rôle de {who} ne change pas"
         }
       },
       "locations": {
@@ -1460,7 +1469,7 @@
           "tickets": "Billets"
         },
         "tablesLink": "Réglages des réservations →",
-        "depositPlatform": "Valeur de la plateforme · à la réservation",
+        "depositPlatform": "Par défaut · à la réservation",
         "depositNone": "Aucun · paiement à la visite",
         "depositPct": "{pct} % · à la réservation",
         "fullAtBooking": "Intégral · à la réservation",
@@ -1470,16 +1479,16 @@
           "flexible": "48 h avant",
           "strict": "Acompte conservé · 50 % à moins de 30 jours",
           "manual": "La personne propriétaire décide de chaque remboursement",
-          "platform": "Politique par défaut de la plateforme"
+          "platform": "Valeur de la plateforme"
         },
         "noShowNone": "Non facturée · pas encore de règle",
         "noShowSeatKept": "Place libérée · non facturée",
         "tablesElsewhere": "Défini dans Réservations",
         "tablesNoShow": "Marquée au pupitre",
-        "ticketsRefund": "Remboursement au comptoir · par événement",
+        "ticketsRefund": "Par événement · au comptoir",
         "ticketsNoShow": "Le billet reste valable",
         "dash": "—",
-        "noticeCutoff": "Comme le préavis de réservation · {notice}",
+        "noticeCutoff": "Préavis de réservation · {notice}",
         "appointmentsOff": "Les rendez-vous sont désactivés",
         "units": {
           "days": "{n} j",
@@ -1538,8 +1547,10 @@
           "previewImpact": "Un aperçu de l'impact a besoin de versions de politique, qui ne sont pas encore conservées.",
           "publish": "Les politiques s'enregistrent au fil des modifications ; les versions ne sont pas encore conservées.",
           "intake": "Les formulaires d'accueil ne sont pas encore modélisés ; rien ne demande à un client d'en remplir un.",
-          "overrides": "Les dérogations par rôle ne sont pas modélisées ; les règles de capacité refusent déjà tout le monde de la même façon."
-        }
+          "overrides": "Les dérogations par rôle ne sont pas modélisées ; les règles de capacité refusent déjà tout le monde de la même façon.",
+          "rowMenu": "Chaque ligne dit ce que fait le moteur ; une règle se change dans les valeurs par défaut et les exceptions par article ci-dessous."
+        },
+        "rowMenu": "Actions de la ligne"
       }
     },
     "platform": {
@@ -5218,7 +5229,7 @@
     },
     "sales": {
       "pageTitle": "Ventes",
-      "pageIntro": "Une vue commerciale sur tous les produits · ouvrez une ligne pour atteindre l'enregistrement source",
+      "pageIntro": "Une vue commerciale sur chaque produit · cliquez sur une ligne pour ouvrir l'enregistrement source",
       "openOrders": "Bureau des commandes",
       "openCalendar": "Calendrier",
       "empty": "Pas encore de ventes.",
@@ -5287,11 +5298,12 @@
         "period": "Les ventes ne sont pas encore filtrées par période ; cette liste est constituée des 200 plus récentes de chaque type.",
         "payment": "Les ventes ne sont pas encore filtrées par état de paiement ; la pastille de chaque ligne le dit.",
         "seller": "Cet espace de travail est le seul vendeur ; le filtre par professionnel n'est pas encore modélisé."
-      }
+      },
+      "filterAll": "Tout"
     },
     "payments": {
       "pageTitle": "Paiements",
-      "pageIntro": "Encaissements, remboursements, écarts de caisse, tentatives inconnues et versements · plongez dans l'enregistrement",
+      "pageIntro": "Encaissements, remboursements, écarts de caisse, tentatives inconnues et versements · plongez dans l'enregistrement du POS",
       "unavailableTitle": "Impossible de charger les paiements",
       "unavailableBody": "C'est un problème de notre côté, pas du vôtre. Actualisez dans un instant.",
       "takingsTitle": "Encaissements par méthode",

@@ -48,6 +48,7 @@ import {
   type SalesLocale,
 } from "@/lib/sales/activity-shape";
 import { ActionButton, StatePill } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
+import { Icon } from "@/components/admin/shell/internal/primitives";
 import { SalesChipLink, SalesFilterChip, salesWhen } from "./sales-ui";
 
 export const dynamic = "force-dynamic";
@@ -79,8 +80,11 @@ const KIND_PILL: Record<(typeof SALES_KIND_TONE)[keyof typeof SALES_KIND_TONE], 
   coral: "bg-admin-coral-soft text-admin-coral-deep",
 };
 
-const TH = "px-[12px] py-[10px] text-left text-admin-11 font-semibold uppercase tracking-[0.05em] text-admin-ink-muted first:pl-[18px] last:pr-[18px]";
-const TD = "px-[12px] py-[11px] align-middle text-admin-12h first:pl-[18px] last:pr-[18px]";
+// The board's 33px header and 46px rows on a 1.2 line-height.
+const TH = "px-[12px] py-[10px] text-left text-admin-11 font-semibold uppercase leading-[1.2] tracking-[0.05em] text-admin-ink-muted first:pl-[18px] last:pr-[18px]";
+const TD = "px-[12px] py-[14px] align-middle text-admin-12h leading-[1.2] first:pl-[18px] last:pr-[18px]";
+/** The board's list-cell pill: a tinted block filling its column, 17px tall, the label left. */
+const PILL_BLOCK = "flex h-[17px] w-full min-w-0 items-center overflow-hidden whitespace-nowrap rounded-[5px] px-[8px] text-[11.5px] font-semibold leading-none";
 
 /** Whether the counter mode is on for this workspace (the door "New sale" opens). */
 async function counterIsOn(tenantId: string): Promise<boolean> {
@@ -126,8 +130,10 @@ export default async function SalesPage({
     counterIsOn(scope.tenantId),
   ]);
 
-  const kindFilters: Array<{ id: SalesKindFilter; label: string }> = [
-    { id: "all", label: t("filterAllKinds") },
+  // The board's first chip reads "All"; its accessible name stays "All kinds"
+  // (the MONEY journey opens it by that name, and the short word is inside it).
+  const kindFilters: Array<{ id: SalesKindFilter; label: string; ariaLabel?: string }> = [
+    { id: "all", label: t("filterAll"), ariaLabel: t("filterAllKinds") },
     ...SALES_TYPE_CHIPS.map((id) => ({ id: id as SalesKindFilter, label: salesKindLabel(id, loc) })),
   ];
 
@@ -155,7 +161,7 @@ export default async function SalesPage({
     <div data-tulala-sales-board className="flex w-full flex-col gap-[20px] font-admin-body">
       <div className="flex items-start justify-between gap-[12px]">
         <div className="min-w-0">
-          <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t("pageTitle")}</h1>
+          <h1 className="m-0 text-[26px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t("pageTitle")}</h1>
           <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted">{t("pageIntro")}</p>
         </div>
         <div className="flex shrink-0 items-center gap-[8px]">
@@ -168,11 +174,13 @@ export default async function SalesPage({
               data-testid="sales-new-sale"
               className="inline-flex h-[34px] cursor-pointer items-center justify-center gap-[6px] whitespace-nowrap rounded-[9px] border border-admin-brand bg-admin-brand px-[14px] text-admin-13 font-semibold text-white hover:bg-admin-brand-deep"
             >
-              + {t("newSale")}
+              <Icon name="plus" size={14} stroke={2} />
+              {t("newSale")}
             </Link>
           ) : (
             <ActionButton tone="primary" reason={notWired("newSale")} testId="sales-new-sale">
-              + {t("newSale")}
+              <Icon name="plus" size={14} stroke={2} />
+              {t("newSale")}
             </ActionButton>
           )}
         </div>
@@ -181,7 +189,7 @@ export default async function SalesPage({
       <div className="flex flex-wrap items-center gap-[8px]">
         <nav aria-label={t("filterKindLabel")} className="flex flex-wrap items-center gap-[8px]">
           {kindFilters.map((f) => (
-            <SalesChipLink key={f.id} href={chipHref({ kind: f.id })} active={f.id === kind}>
+            <SalesChipLink key={f.id} href={chipHref({ kind: f.id })} active={f.id === kind} ariaLabel={f.ariaLabel}>
               {f.label}
             </SalesChipLink>
           ))}
@@ -193,8 +201,8 @@ export default async function SalesPage({
       </div>
 
       {channelChips.length > 0 ? (
-        <nav aria-label={t("filterChannelLabel")} className="-mt-[10px] flex flex-wrap items-center gap-[8px]">
-          <span className="text-[12px] text-admin-ink-muted">{t("filterChannelLabel")}:</span>
+        <nav aria-label={t("filterChannelLabel")} className="-mt-[10px] flex flex-wrap items-center gap-[6px]">
+          <span className="mr-[2px] text-[12px] text-admin-ink-muted">{t("filterChannelLabel")}:</span>
           <SalesChipLink href={chipHref({ channel: "all" })} active={channel === "all"} small>
             {t("filterAllChannels")}
           </SalesChipLink>
@@ -215,14 +223,17 @@ export default async function SalesPage({
           </Link>
         </section>
       ) : rowCount === 0 ? (
-        <section data-testid="sales-empty" className="rounded-[14px] border border-admin-border bg-admin-card px-[24px] py-[40px] text-center">
-          <h2 className="m-0 text-admin-15! font-semibold text-admin-ink">{kind === "all" && channel === "all" ? t("emptyTitle") : t("noResultsTitle")}</h2>
-          <p className="mt-[6px] text-admin-13 text-admin-ink-muted">{kind === "all" && channel === "all" ? t("empty") : t("noResultsBody")}</p>
-          {kind !== "all" || channel !== "all" ? (
-            <Link href={salesFilterHref({ tenantSlug, kind: "all", channel: "all" })} className="mt-[12px] inline-flex h-[30px] items-center rounded-[9px] border border-admin-border bg-admin-card px-[12px] text-[12px] font-semibold text-admin-ink hover:border-admin-border-strong">
-              {t("clearFilters")}
-            </Link>
-          ) : null}
+        <section data-testid="sales-empty" className="rounded-[14px] border border-admin-border bg-admin-card p-[16px]">
+          {/* W59: "no results" and "empty workspace" are the board's compact box, never each other. */}
+          <div className="max-w-[420px] rounded-[10px] bg-admin-surface-alt px-[12px] py-[12px]">
+            <h2 className="m-0 text-admin-13! font-semibold leading-[1.2] text-admin-ink">{kind === "all" && channel === "all" ? t("emptyTitle") : t("noResultsTitle")}</h2>
+            <p className="m-0 mt-[4px] text-admin-13 leading-[1.3] text-admin-ink-muted">{kind === "all" && channel === "all" ? t("empty") : t("noResultsBody")}</p>
+            {kind !== "all" || channel !== "all" ? (
+              <Link href={salesFilterHref({ tenantSlug, kind: "all", channel: "all" })} className="mt-[10px] inline-flex h-[30px] items-center rounded-[9px] border border-admin-border bg-admin-card px-[12px] text-[12px] font-semibold text-admin-ink hover:border-admin-border-strong">
+                {t("clearFilters")}
+              </Link>
+            ) : null}
+          </div>
         </section>
       ) : (
         <div className="overflow-x-auto rounded-[14px] border border-admin-border bg-admin-card">
@@ -268,10 +279,8 @@ export default async function SalesPage({
                 })();
                 return (
                   <tr key={`${row.kind}:${row.id}`} data-sales-row data-sales-kind={row.kind} className="border-t border-admin-border-soft">
-                    <td className={TD}>
-                      <span className={`inline-flex items-center whitespace-nowrap rounded-full px-[8px] py-[2px] text-admin-11 font-semibold ${KIND_PILL[SALES_KIND_TONE[row.kind]]}`}>
-                        {salesKindLabel(row.kind, loc)}
-                      </span>
+                    <td className={`${TD} w-[130px]`}>
+                      <span className={`${PILL_BLOCK} ${KIND_PILL[SALES_KIND_TONE[row.kind]]}`}>{salesKindLabel(row.kind, loc)}</span>
                     </td>
                     <td className={`${TD} font-mono text-admin-ink-muted`}>{salesRef(row.id)}</td>
                     <td className={`${TD} font-semibold text-admin-ink`}>
@@ -279,8 +288,8 @@ export default async function SalesPage({
                     </td>
                     <td className={`${TD} text-admin-ink-muted`}>{what}</td>
                     <td className={`${TD} whitespace-nowrap font-mono text-[11.5px] text-admin-ink`}>{salesWhen(row.createdAt, intlLocale, timeZone)}</td>
-                    <td className={TD}>
-                      <StatePill tone={pill.tone} state={row.status}>
+                    <td className={`${TD} w-[190px]`}>
+                      <StatePill block tone={pill.tone} state={row.status}>
                         {pill.key ? t(`state.${pill.key}`) : row.status}
                       </StatePill>
                     </td>

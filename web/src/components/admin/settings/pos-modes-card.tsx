@@ -41,8 +41,8 @@ import { CLIENT_LOAD_REFUSAL, type ClientLoadRefusal, type PosModesRefusal } fro
 import { POS_MODES, POS_MODE_META, type PosMode } from "@/lib/pos/modes";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
+import { Icon } from "@/components/admin/shell/internal/primitives";
 import {
-  ActionButton,
   CouldNotLoad,
   DeviceRow,
   LoadingLines,
@@ -69,7 +69,7 @@ type LocationOption = { id: string; slug: string; label: string };
 function clock(iso: string | null, timeZone: string): string {
   if (!iso) return "";
   try {
-    return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(new Date(iso));
+    return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone }).format(new Date(iso));
   } catch {
     return "";
   }
@@ -353,31 +353,33 @@ export function PosModesSettingsCard({
             onChange={setPairName}
             testId="pos-pair-name"
           />
-          <div>
-            <ActionButton
-              disabled={pairing || !canEdit}
-              className="h-[30px] px-[12px] text-[12px]"
-              testId="pos-pair-device"
-              onClick={() => {
-                setPairing(true);
-                void (async () => {
-                  const res = await posDeviceRegister({
-                    deviceKey: crypto.randomUUID(),
-                    name: pairName.trim() || t(`${K}.devices.pairFallback`),
-                    kind: "tablet",
-                    locationId: selectedLocation?.id,
-                  });
-                  setPairing(false);
-                  if (res.ok) {
-                    setPairName("");
-                    setReloadToken((n) => n + 1);
-                  }
-                })();
-              }}
-            >
-              + {t(`${K}.devices.pair`)}
-            </ActionButton>
-          </div>
+          {/* The board's full-width grey button with the plus glyph. */}
+          <button
+            type="button"
+            disabled={pairing || !canEdit}
+            data-testid="pos-pair-device"
+            title={canEdit ? undefined : t(`${K}.ownerOnly`)}
+            onClick={() => {
+              setPairing(true);
+              void (async () => {
+                const res = await posDeviceRegister({
+                  deviceKey: crypto.randomUUID(),
+                  name: pairName.trim() || t(`${K}.devices.pairFallback`),
+                  kind: "tablet",
+                  locationId: selectedLocation?.id,
+                });
+                setPairing(false);
+                if (res.ok) {
+                  setPairName("");
+                  setReloadToken((n) => n + 1);
+                }
+              })();
+            }}
+            className="flex h-[32px] w-full cursor-pointer items-center justify-center gap-[6px] rounded-[9px] border-0 bg-admin-surface-alt font-admin-body text-admin-13 font-semibold text-admin-ink hover:bg-admin-border-soft disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Icon name="plus" size={14} stroke={2} />
+            {t(`${K}.devices.pair`)}
+          </button>
           <Note>{t(`${K}.devices.registryNote`)}</Note>
         </SettingsCard>
       </div>

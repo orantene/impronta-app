@@ -34,13 +34,14 @@ import { REFUND_POLICY_LABEL_KEYS, type RefundPolicyKey, type TenantCommercialTe
 import {
   ActionButton,
   CouldNotLoad,
-  FactRow,
   GridHead,
   GridRow,
   LoadingLines,
+  RowMenu,
   SaveStateChip,
   SelectField,
   SettingsCard,
+  SettingsFactRow as FactRow,
   SettingsHeader,
   Switch,
   TextField,
@@ -55,7 +56,8 @@ const REFUND_POLICY_OPTIONS: RefundPolicyKey[] = ["tiered", "flexible", "strict"
 
 const FALLBACK_TERMS: TenantCommercialTerms = { depositPct: null, refundPolicy: null, instantBookEnabled: false };
 
-const COLS = "grid-cols-[1.2fr_1fr_1fr_1fr_1fr]";
+// The board's columns: APPLIES TO 200px, four equal rule columns, the row menu.
+const COLS = "grid-cols-[200px_1fr_1fr_1fr_1fr_16px]";
 
 function minutes(n: number, t: (k: string) => string): string {
   if (n % 1440 === 0 && n >= 1440) return interpolate(t(`${K}.units.days`), { n: n / 1440 });
@@ -195,95 +197,94 @@ export function BookingPoliciesCard({ tenantSlug, reservationsSettingsHref }: { 
       ) : (
         <>
           <section data-testid="booking-policies-table" className="rounded-[14px] border border-admin-border bg-admin-card">
-            <GridHead cols={COLS} columns={[t(`${K}.col.appliesTo`), t(`${K}.col.deposit`), t(`${K}.col.freeCancel`), t(`${K}.col.noShow`), t(`${K}.col.reschedule`)]} />
+            <GridHead cols={COLS} columns={[t(`${K}.col.appliesTo`), t(`${K}.col.deposit`), t(`${K}.col.freeCancel`), t(`${K}.col.noShow`), t(`${K}.col.reschedule`), ""]} />
             {rows.map((r) => (
               <GridRow key={r.id} cols={COLS} testId={`booking-policy-${r.id}`}>
-                <span className="font-semibold text-admin-ink">
-                  {t(`${K}.kind.${r.id}`)}
-                  {r.href ? (
-                    <>
-                      {" "}
-                      <a href={r.href} className="text-[12px] font-semibold text-admin-brand underline-offset-2 hover:underline">
-                        {t(`${K}.tablesLink`)}
-                      </a>
-                    </>
-                  ) : null}
-                </span>
+                <span className="font-semibold text-admin-ink">{t(`${K}.kind.${r.id}`)}</span>
                 <span className="text-admin-ink">{r.deposit}</span>
                 <span className="text-admin-ink">{r.cancel}</span>
                 <span className="text-admin-ink-muted">{r.noShow}</span>
-                <span className="text-admin-ink-muted">{r.reschedule}</span>
+                <span className="text-admin-ink-muted">
+                  {r.href ? (
+                    <a href={r.href} className="font-semibold text-admin-brand underline-offset-2 hover:underline">
+                      {t(`${K}.tablesLink`)}
+                    </a>
+                  ) : (
+                    r.reschedule
+                  )}
+                </span>
+                <RowMenu label={t(`${K}.rowMenu`)} reason={t(`${K}.notWired.rowMenu`)} />
               </GridRow>
             ))}
           </section>
 
-          <SettingsCard title={t(`${K}.defaultsHeading`)} testId="booking-policies-defaults">
-            <div className="grid grid-cols-1 gap-[12px] sm:grid-cols-3">
-              <TextField
-                label={t(`${K}.defaultDeposit`)}
-                ariaLabel={t(`${K}.defaultDeposit`)}
-                testId="booking-policies-deposit"
-                value={depositInput}
-                inputMode="numeric"
-                suffix="%"
-                disabled={save.kind === "saving"}
-                onChange={setDepositInput}
-                onBlur={commitDeposit}
-                hint={t(`${K}.defaultDepositHint`)}
-              />
-              <SelectField
-                label={t(`${K}.refundPolicy`)}
-                testId="booking-policies-refund"
-                value={shown.refundPolicy ?? ""}
-                disabled={save.kind === "saving"}
-                options={[{ id: "", label: t(`${K}.platformDefault`) }, ...REFUND_POLICY_OPTIONS.map((k) => ({ id: k, label: t(REFUND_POLICY_LABEL_KEYS[k]) }))]}
-                onChange={(v) => {
-                  const next = v === "" ? null : (v as RefundPolicyKey);
-                  if (next !== shown.refundPolicy) void commit({ ...shown, refundPolicy: next }, shown);
-                }}
-              />
-              <div className="flex flex-col">
-                <span className="mb-[6px] text-[12px] font-semibold text-admin-ink">{t(`${K}.instantBook`)}</span>
-                <div className="flex h-[36px] items-center gap-[10px]">
-                  <Switch
-                    on={shown.instantBookEnabled}
-                    disabled={save.kind === "saving"}
-                    label={t(`${K}.instantBook`)}
-                    testId="booking-policies-instant"
-                    onToggle={() => void commit({ ...shown, instantBookEnabled: !shown.instantBookEnabled }, shown)}
-                  />
-                  <span className="text-admin-12h text-admin-ink-muted">{t(`${K}.instantBookHint`)}</span>
+          <div className="grid grid-cols-1 gap-[16px] lg:grid-cols-3">
+            <SettingsCard title={t(`${K}.defaultsHeading`)} testId="booking-policies-defaults">
+              <div className="grid grid-cols-1 gap-[12px]">
+                <TextField
+                  label={t(`${K}.defaultDeposit`)}
+                  ariaLabel={t(`${K}.defaultDeposit`)}
+                  testId="booking-policies-deposit"
+                  value={depositInput}
+                  inputMode="numeric"
+                  suffix="%"
+                  disabled={save.kind === "saving"}
+                  onChange={setDepositInput}
+                  onBlur={commitDeposit}
+                  hint={t(`${K}.defaultDepositHint`)}
+                />
+                <SelectField
+                  label={t(`${K}.refundPolicy`)}
+                  testId="booking-policies-refund"
+                  value={shown.refundPolicy ?? ""}
+                  disabled={save.kind === "saving"}
+                  options={[{ id: "", label: t(`${K}.platformDefault`) }, ...REFUND_POLICY_OPTIONS.map((k) => ({ id: k, label: t(REFUND_POLICY_LABEL_KEYS[k]) }))]}
+                  onChange={(v) => {
+                    const next = v === "" ? null : (v as RefundPolicyKey);
+                    if (next !== shown.refundPolicy) void commit({ ...shown, refundPolicy: next }, shown);
+                  }}
+                />
+                <div className="flex flex-col">
+                  <span className="mb-[6px] text-[12px] font-semibold text-admin-ink">{t(`${K}.instantBook`)}</span>
+                  <div className="flex h-[36px] items-center gap-[10px]">
+                    <Switch
+                      on={shown.instantBookEnabled}
+                      disabled={save.kind === "saving"}
+                      label={t(`${K}.instantBook`)}
+                      testId="booking-policies-instant"
+                      onToggle={() => void commit({ ...shown, instantBookEnabled: !shown.instantBookEnabled }, shown)}
+                    />
+                    <span className="text-admin-12h leading-[1.2] text-admin-ink-muted">{t(`${K}.instantBookHint`)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </SettingsCard>
+            </SettingsCard>
+            <SettingsCard title={t(`${K}.holds.title`)} testId="booking-policies-holds">
+              {facts ? (
+                <div className="flex flex-col">
+                  <FactRow label={t(`${K}.holds.pos`)}>{interpolate(t(`${K}.holds.posValue`), { n: Math.round(facts.posHoldSeconds / 60) })}</FactRow>
+                  <FactRow label={t(`${K}.holds.checkout`)}>{interpolate(t(`${K}.holds.checkoutValue`), { n: Math.round(facts.checkoutHoldSeconds / 60) })}</FactRow>
+                  <FactRow label={t(`${K}.holds.waitlist`)}>{interpolate(t(`${K}.holds.waitlistValue`), { n: facts.waitlistOfferMinutes })}</FactRow>
+                  <FactRow label={t(`${K}.holds.expiry`)}>{t(`${K}.holds.expiryValue`)}</FactRow>
+                </div>
+              ) : (
+                <LoadingLines label={t(`${K}.loading`)} />
+              )}
+            </SettingsCard>
+            <SettingsCard title={t(`${K}.intake.title`)} testId="booking-policies-intake">
+              <div className="flex flex-col">
+                <FactRow label={t(`${K}.intake.history`)} muted>{t(`${K}.intake.none`)}</FactRow>
+                <FactRow label={t(`${K}.intake.waiver`)} muted>{t(`${K}.intake.none`)}</FactRow>
+                <FactRow label={t(`${K}.intake.whoReads`)} muted>{t(`${K}.intake.none`)}</FactRow>
+              </div>
+              <ActionButton reason={reason("intake")} testId="booking-policies-manage-forms" className="w-full">
+                {t(`${K}.intake.manage`)}
+              </ActionButton>
+            </SettingsCard>
+          </div>
         </>
       )}
 
-      <div className="grid grid-cols-1 gap-[16px] lg:grid-cols-2">
-        <SettingsCard title={t(`${K}.holds.title`)} testId="booking-policies-holds">
-          {facts ? (
-            <div className="flex flex-col">
-              <FactRow label={t(`${K}.holds.pos`)}>{interpolate(t(`${K}.holds.posValue`), { n: Math.round(facts.posHoldSeconds / 60) })}</FactRow>
-              <FactRow label={t(`${K}.holds.checkout`)}>{interpolate(t(`${K}.holds.checkoutValue`), { n: Math.round(facts.checkoutHoldSeconds / 60) })}</FactRow>
-              <FactRow label={t(`${K}.holds.waitlist`)}>{interpolate(t(`${K}.holds.waitlistValue`), { n: facts.waitlistOfferMinutes })}</FactRow>
-              <FactRow label={t(`${K}.holds.expiry`)}>{t(`${K}.holds.expiryValue`)}</FactRow>
-            </div>
-          ) : (
-            <LoadingLines label={t(`${K}.loading`)} />
-          )}
-        </SettingsCard>
-        <SettingsCard title={t(`${K}.intake.title`)} testId="booking-policies-intake">
-          <div className="flex flex-col">
-            <FactRow label={t(`${K}.intake.history`)} muted>{t(`${K}.intake.none`)}</FactRow>
-            <FactRow label={t(`${K}.intake.waiver`)} muted>{t(`${K}.intake.none`)}</FactRow>
-            <FactRow label={t(`${K}.intake.whoReads`)} muted>{t(`${K}.intake.none`)}</FactRow>
-          </div>
-          <ActionButton reason={reason("intake")} testId="booking-policies-manage-forms" className="w-full">
-            {t(`${K}.intake.manage`)}
-          </ActionButton>
-        </SettingsCard>
-      </div>
       <BookingPolicyOverridesCard />
     </div>
   );
