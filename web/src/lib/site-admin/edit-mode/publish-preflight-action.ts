@@ -243,8 +243,9 @@ export async function runPublishPreflight(input?: {
   const featuredChecks: Array<Promise<void>> = [];
 
   // Brand identity (owner decision 1): a logo or the wordmark choice before
-  // the tenant's site can publish. Read once; a read failure is reported as
-  // "no identity" rather than waved through.
+  // a COMPOSED site can publish. Scoped to tenants carrying a site_compose
+  // stamp so sites that went live before the rule are never blocked. Read
+  // once; a read failure is reported as "no identity" rather than waved through.
   if (brandIdentityAppliesTo(input?.surfaceKind)) {
     const [{ data: branding, error: brandingErr }, { data: agency, error: agencyErr }] = await Promise.all([
       auth.supabase.from("agency_branding").select("logo_media_asset_id").eq("tenant_id", scope.tenantId).maybeSingle<{ logo_media_asset_id: string | null }>(),
@@ -252,11 +253,12 @@ export async function runPublishPreflight(input?: {
     ]);
     if (brandingErr) logServerError("publish-preflight.brandIdentity.branding", brandingErr);
     if (agencyErr) logServerError("publish-preflight.brandIdentity.agency", agencyErr);
+    const composed = !agencyErr && !!agency?.settings?.site_compose;
     const verdict = brandIdentityVerdict({
       hasLogo: !brandingErr && !!branding?.logo_media_asset_id,
       wordmarkChosen: !agencyErr && agency?.settings?.brand_identity === "wordmark",
     });
-    if (!verdict.ok) {
+    if (composed && !verdict.ok) {
       issues.push({ severity: "error", category: "brand_identity", message: BRAND_IDENTITY_MESSAGE });
     }
   }
