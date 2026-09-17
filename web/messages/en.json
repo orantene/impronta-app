@@ -18136,12 +18136,23 @@
           "needsTitle": "Nothing needs you",
           "needsBody": "Every conversation is waiting on a client or resolved.",
           "needsAction": "Show Waiting on client",
+          "waitTitle": "Nobody is waiting on a client",
+          "waitBody": "Conversations show up here once a client owes a reply.",
+          "allTitle": "No conversations yet",
+          "allBody": "New conversations will show up here.",
           "searchTitle": "No conversation matches \"{query}\"",
           "searchBody": "Search covers names, phone, order numbers and message text.",
           "searchAction": "Clear search",
           "failedTitle": "Could not load conversations",
           "failedBody": "Your messages are safe. Check the connection and try again.",
           "failedAction": "Try again"
+        },
+        "groups": {
+          "today": "Today",
+          "yesterday": "Yesterday",
+          "paymentIssue": "Payment issue",
+          "holdExpiring": "Hold expiring",
+          "followUpDue": "Follow-up due"
         },
         "loading": "Loading conversations"
       },
