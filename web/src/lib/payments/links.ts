@@ -1,6 +1,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { reserveCollection, reservationTtlSeconds } from "@/lib/pos/collection-reservations";
 import type { Admin } from "@/lib/pos/sale-rows";
@@ -128,6 +129,8 @@ export async function createPaymentLink(
   if (input.inquiryId) {
     await attachPaymentLinkInquiry(admin, { tenantId: input.tenantId, code, orderId: input.orderId, inquiryId: input.inquiryId });
   }
+  // Messages v5 / S2: an open link means "requested" on the order chip.
+  await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "order", recordId: input.orderId });
   return {
     ok: true,
     code,
@@ -338,6 +341,8 @@ export async function markPaymentLinkPaid(
     logServerError("payments.markPaymentLinkPaid.update", updErr);
     return { ok: false, reason: "unavailable" };
   }
+  // Messages v5 / S2: the order chip reads "paid" now that the link closed.
+  await syncConversationRecord(admin, { tenantId: row.tenant_id, kind: "order", recordId: row.order_id });
   return { ok: true };
 }
 
@@ -352,14 +357,20 @@ export async function cancelPaymentLink(
 ): Promise<{ ok: true; already: boolean } | { ok: false; reason: "not_found" | "already_paid" | "unavailable" }> {
   const { data, error } = await admin
     .from("payment_links")
-    .select("id, tenant_id, status, reservation_id")
+    .select("id, tenant_id, status, reservation_id, order_id")
     .eq("id", input.linkId)
     .maybeSingle();
   if (error) {
     logServerError("payments.cancelPaymentLink", error);
     return { ok: false, reason: "unavailable" };
   }
-  const row = data as { id: string; tenant_id: string; status: string; reservation_id: string | null } | null;
+  const row = data as {
+    id: string;
+    tenant_id: string;
+    status: string;
+    reservation_id: string | null;
+    order_id: string | null;
+  } | null;
   if (!row || row.tenant_id !== input.tenantId) return { ok: false, reason: "not_found" };
   if (row.status === "paid") return { ok: false, reason: "already_paid" };
   if (row.status !== "open") return { ok: true, already: true };
@@ -374,6 +385,10 @@ export async function cancelPaymentLink(
       p_transaction_id: null,
       p_state: "released",
     });
+  }
+  // Messages v5 / S2: the chip drops "requested" with the link.
+  if (row.order_id) {
+    await syncConversationRecord(admin, { tenantId: row.tenant_id, kind: "order", recordId: row.order_id });
   }
   return { ok: true, already: false };
 }

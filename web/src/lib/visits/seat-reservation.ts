@@ -28,6 +28,7 @@ import "server-only";
  */
 
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { doorOutcomeForCheckIn } from "@/lib/sessions/door";
 
 type Admin = {
@@ -139,6 +140,9 @@ export async function markReservationSeated(
       .eq("tenant_id", input.tenantId);
     if (placeError) logServerError("visits.seatReservation.place", placeError);
   }
+
+  // Messages v5 / S2: the reservation chip reads "seated".
+  await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "reservation", recordId: row.id });
 
   return {
     ok: true,

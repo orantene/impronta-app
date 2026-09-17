@@ -55,6 +55,7 @@ import {
 } from "@/lib/payments/payout-reversal-notify";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -145,7 +146,16 @@ async function flipBookingLifecycle(
     .from("agency_bookings")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", bookingId);
-  if (error) logServerError(`refunds.flipBookingLifecycle[booking=${bookingId}]`, error);
+  if (error) {
+    logServerError(`refunds.flipBookingLifecycle[booking=${bookingId}]`, error);
+    return;
+  }
+  // Messages v5 / S2: the appointment chip follows the refund / dispute.
+  // Non-fatal; the lifecycle flip above already stands.
+  const { data } = await sb.from("agency_bookings").select("tenant_id, tenant_id_snapshot").eq("id", bookingId).maybeSingle();
+  const row = data as { tenant_id?: string | null; tenant_id_snapshot?: string | null } | null;
+  const tenantId = row?.tenant_id ?? row?.tenant_id_snapshot ?? null;
+  if (tenantId) await syncConversationRecord(sb, { tenantId, kind: "appointment", recordId: bookingId });
 }
 
 /** The booking is fully clawed back (full refund / lost dispute): client money

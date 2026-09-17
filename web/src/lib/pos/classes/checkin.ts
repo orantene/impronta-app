@@ -25,10 +25,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 
 import { appointmentState, CHECKINABLE_STATES, type ClassesAppointmentState } from "./day";
 
-type Admin = Pick<SupabaseClient, "from">;
+type Admin = Pick<SupabaseClient, "from"> & { rpc?: SupabaseClient["rpc"] };
 
 export type CheckInRefusalReason =
   | "not_found"
@@ -101,5 +102,7 @@ export async function checkInAppointment(
     return { ok: false, reason: "unavailable" };
   }
   if (!write.data || write.data.length === 0) return { ok: false, reason: "changed_since_opened" };
+  // Messages v5 / S2: the appointment chip reads "checked_in".
+  await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "appointment", recordId: input.bookingId });
   return { ok: true, already: false };
 }

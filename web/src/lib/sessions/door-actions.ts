@@ -41,6 +41,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { verifyAdmissionToken } from "@/lib/sessions/admission-token";
 import {
   doorOutcomeForCheckIn,
@@ -143,7 +144,12 @@ export async function scanAdmission(
       return { outcome: { kind: "engine_error", detail: "check_in_failed" } };
     }
 
-    return { outcome: doorOutcomeForCheckIn(data as Record<string, unknown>) };
+    const outcome = doorOutcomeForCheckIn(data as Record<string, unknown>);
+    // Messages v5 / S2: an admitted ticket reads "checked_in" on its chip.
+    if (outcome.kind === "admitted") {
+      await syncConversationRecord(admin, { tenantId, kind: "tickets", recordId: verdict.admissionId });
+    }
+    return { outcome };
   } catch (err) {
     logServerError("sessions.scanAdmission", err);
     // A throw is never an admittance.

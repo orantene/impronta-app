@@ -121,11 +121,20 @@ test("seating the held table admits the whole party through check_in", async () 
   assert.ok(rows[0].seated_at);
   // The arithmetic went through the ONE authority, in actor mode, with no
   // token — a host tapped a card, there is no QR in this story.
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].fn, "check_in");
-  assert.equal(calls[0].p_mode, "actor");
-  assert.equal(calls[0].p_token_version, null);
-  assert.equal(calls[0].p_actor, "user-1");
+  const checkIns = calls.filter((c) => c.fn === "check_in");
+  assert.equal(checkIns.length, 1);
+  assert.equal(checkIns[0].p_mode, "actor");
+  assert.equal(checkIns[0].p_token_version, null);
+  assert.equal(checkIns[0].p_actor, "user-1");
+  // Messages v5 / S2: AFTER the seat lands, the reservation chip is synced
+  // (a separate, read-only-on-POS RPC). The fake refuses it; the seating
+  // still succeeded above, which is the non-fatal contract.
+  assert.deepEqual(
+    calls.map((c) => c.fn),
+    ["check_in", "messaging_sync_record_state"],
+  );
+  assert.equal(calls[1].p_record_kind, "reservation");
+  assert.equal(calls[1].p_record_id, "adm-1");
 });
 
 test("a booking from another workspace is not found, never admitted", async () => {

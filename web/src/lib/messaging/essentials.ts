@@ -1,7 +1,8 @@
 import "server-only";
 
 import { currentInquiryName } from "./inquiry-name";
-import type { Essentials, IdentityLevel, RecordChip } from "./types";
+import { toRecordChip, type ConversationRecordRow } from "./record-chip";
+import type { Essentials, IdentityLevel } from "./types";
 
 export type { Essentials };
 
@@ -36,7 +37,7 @@ export async function loadMessagingEssentials(
     admin.from("conversation_identity").select("level, method").eq("inquiry_id", input.inquiryId).maybeSingle(),
     admin
       .from("conversation_records")
-      .select("record_kind, record_id")
+      .select("record_kind, record_id, payment_state, fulfilment_state, record_date")
       .eq("inquiry_id", input.inquiryId)
       .is("unlinked_at", null),
     admin
@@ -63,13 +64,7 @@ export async function loadMessagingEssentials(
         request: row.message,
         source: row.source_page,
       },
-      linked: ((links ?? []) as { record_kind: RecordChip["kind"]; record_id: string }[]).map((link) => ({
-        kind: link.record_kind,
-        recordId: link.record_id,
-        label: link.record_kind,
-        paymentState: null,
-        fulfilmentState: null,
-      })),
+      linked: ((links ?? []) as ConversationRecordRow[]).map(toRecordChip),
       notes: ((notes ?? []) as { id: string; body: string; created_at: string }[]).map((note) => ({
         id: note.id,
         body: note.body,
