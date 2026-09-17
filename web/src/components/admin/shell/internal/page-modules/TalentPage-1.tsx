@@ -1,29 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { bulkSetWorkflowStatus } from "@/app/(workspace)/[tenantSlug]/admin/roster/bulk-actions";
-import { PitchComposeDrawer } from "../pitch-compose";
-import { CapNudge, Card, GhostButton, PrimaryButton, ReadOnlyChip, StatusCard } from "../primitives";
+import { CapNudge, GhostButton, PrimaryButton, ReadOnlyChip } from "../primitives";
 import { SkillDiscoveryPanel } from "../skill-discovery-panel";
-import { COLORS, FONTS, PLAN_META, Z, getClients, getRoster, meetsRole, useAdminShell } from "../state";
-import type { Plan, TalentPage, TalentProfile } from "../state";
-import { SavedViewsBar, downloadCsv } from "../wave2";
+import { COLORS, FONTS, PLAN_META, meetsRole, useAdminShell } from "../state";
+import type { Plan, TalentPage } from "../state";
 import { FabWithQuickCreate } from "./InboxPage";
-import { FilterChip, RosterGrid, RosterMoreMenu, SortButton, ViewToggle } from "./TalentPage-2";
-import { RosterArrangeView } from "./TalentPage-arrange";
-import { RosterBulkActionBar, RosterEmptyState, RosterList } from "./TalentPage-3";
-import { Grid, PageHeader } from "./pages-shared";
-import {
-  resolveRosterCardTaxonomy,
-  rosterMatchesParentFilter,
-  rosterParentFiltersOf,
-} from "./roster-card-taxonomy";
-import { rosterSortComparator } from "./roster-sort";
+import { FilterChip, RosterMoreMenu, SortButton, ViewToggle } from "./TalentPage-2";
+import { RosterBrowser } from "./TalentPage-browser";
+import { PageHeader } from "./pages-shared";
 import type { RosterSortKey } from "./roster-sort";
 
 /** Parent-category filter chip option (live slug or static TAXONOMY id). */
-type RosterTypeFilterOption = { id: string; label: string; emoji?: string };
+export type RosterTypeFilterOption = { id: string; label: string; emoji?: string };
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -59,102 +49,21 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 export function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, effectiveTenant, t, locale } = useAdminShell();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, t } = useAdminShell();
   const router = useRouter();
-  // Phase 1 real-data bridge: when `?dataSource=live` is set on the URL,
-  // the server pre-fetches Impronta's roster and `effectiveRoster` is
-  // those rows. When absent, this falls back to `getRoster(plan)` per
-  // the existing mock behaviour — same shape, same code path.
   const roster = effectiveRoster;
   const canEdit = meetsRole(state.role, "editor");
-  const isFree = state.plan === "free";
-
-  const [search, setSearch] = useState("");
-  const [stateFilter, setStateFilter] = useState<"all" | "visible" | "hidden">("all");
-  // Parent-category filter — id space covers BOTH live `parent_category`
-  // slugs (e.g. "hosts-promo") and static TAXONOMY parent ids ("hosts").
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  // Default = Recommended: the roster opens in the same order visitors see
-  // in the public directory (curated rank first, recency after).
-  const [sort, setSort] = useState<RosterSortKey>("recommended");
-  // Exit arrange mode + re-fetch the server roster so cards show saved ranks.
-  const exitArrange = () => { setArrangeMode(false); router.refresh(); };
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [view, setView] = useState<"grid" | "list">("grid");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moreOpen, setMoreOpen] = useState(false);
-  const [isBulkLoading, setIsBulkLoading] = useState(false);
-  const [pitchComposeOpen, setPitchComposeOpen] = useState(false);
   // Arrange-directory-order mode (live workspaces only; see RosterArrangeView).
   const [arrangeMode, setArrangeMode] = useState(false);
-
-  // A talent is publicly visible when the agency eye is on AND the talent
-  // has not globally hidden themselves.
-  const isPubliclyVisible = (p: TalentProfile) =>
-    (p.siteVisible ?? false) && !(p.talentHidden ?? false);
-
-  const filteredRoster = roster
-    .filter((p) => {
-      if (stateFilter === "all") return true;
-      return stateFilter === "visible" ? isPubliclyVisible(p) : !isPubliclyVisible(p);
-    })
-    .filter((p) => typeFilter === "all" || rosterMatchesParentFilter(p, typeFilter, locale))
-    .filter((p) => {
-      if (!search.trim()) return true;
-      const q = search.trim().toLowerCase();
-      // Search over what the admin SEES (humanized labels — primary, parent,
-      // secondaries) plus the raw slug and city.
-      const view = resolveRosterCardTaxonomy(p, locale);
-      return (
-        p.name.toLowerCase().includes(q) ||
-        (p.city ?? "").toLowerCase().includes(q) ||
-        (p.primaryType ?? "").toLowerCase().includes(q) ||
-        (view.primaryLabel ?? "").toLowerCase().includes(q) ||
-        (view.parentLabel ?? "").toLowerCase().includes(q) ||
-        view.secondaryLabels.some((s) => s.toLowerCase().includes(q))
-      );
-    })
-    .sort(rosterSortComparator(sort, sortDir));
-
-  const visibleCount = roster.filter(isPubliclyVisible).length;
-  const counts = {
-    visible: visibleCount,
-    hidden: roster.length - visibleCount,
-  };
-
-  // Parent categories that actually exist in the roster — drives the type
-  // filter chips (no point showing "Chefs" if there are 0 chefs). Live
-  // workspaces resolve to real `parent_category` terms; mock workspaces fall
-  // back to the static TAXONOMY parents.
-  const usedTypes: RosterTypeFilterOption[] = (() => {
-    const byId = new Map<string, RosterTypeFilterOption>();
-    for (const r of roster) {
-      // A talent contributes EVERY parent they span, so a chip exists for
-      // each bucket present on the roster (not just primary-type buckets).
-      for (const opt of rosterParentFiltersOf(r, locale)) {
-        if (!byId.has(opt.id)) byId.set(opt.id, opt);
-      }
-    }
-    return Array.from(byId.values());
-  })();
+  // Exit arrange mode + re-fetch the server roster so cards show saved ranks.
+  const exitArrange = () => { setArrangeMode(false); router.refresh(); };
+  // The browser owns the filtered list; the header's Export row asks it.
+  const exportRef = useRef<(() => void) | null>(null);
 
   const pendingCount = overviewMetrics !== null
     ? (overviewMetrics.pendingApprovals ?? 0)
     : pendingTalent.length;
-
-  const exportCsv = () => {
-    downloadCsv(
-      `roster-${new Date().toISOString().slice(0, 10)}.csv`,
-      filteredRoster.map((p) => ({
-        name: p.name,
-        state: p.state,
-        height: p.height ?? "",
-        city: p.city ?? "",
-        representation: p.representation ?? "",
-      })),
-    );
-    toast(fillAdminTpl(t("admin.roster.list.exportedToast"), { count: String(filteredRoster.length) }));
-  };
 
   const rosterCap =
     state.entityType === "agency"
@@ -166,55 +75,6 @@ export function TalentPage() {
             ? 200
             : null
       : null;
-
-  // Bulk select helpers
-  const toggleSelect = (id: string) =>
-    setSelected((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  const clearSelected = () => setSelected(new Set());
-  const selectAll = () => setSelected(new Set(filteredRoster.map((p) => p.id)));
-
-  const handleBulkAction = async (status: "publish" | "archive") => {
-    if (!tenantSlug) {
-      toast(t("admin.roster.list.bulkRequiresWorkspace"));
-      return;
-    }
-    setIsBulkLoading(true);
-    const result = await bulkSetWorkflowStatus(tenantSlug, Array.from(selected), status);
-    setIsBulkLoading(false);
-    if (result.ok) {
-      toast(
-        status === "publish"
-          ? fillAdminTpl(t("admin.roster.list.bulkPublishedToast"), { count: String(result.updatedCount) })
-          : fillAdminTpl(t("admin.roster.list.bulkArchivedToast"), { count: String(result.updatedCount) }),
-      );
-      if (result.skippedCount) toast(`${result.skippedCount} skipped as incomplete: ${result.skippedNames?.join(", ")}`); // publish-checklist rejects; a silent "0" reads as broken
-      clearSelected();
-      // Refresh server-rendered roster so the new workflow_status badges
-      // (Published / Archived) update on the cards immediately.
-      router.refresh();
-    } else {
-      toast(fillAdminTpl(t("admin.roster.list.bulkErrorToast"), { error: result.error }));
-    }
-  };
-
-  // Card click → open the rich profile shell drawer with the canonical
-  // talent id so the drawer's autosaves work against the real DB row.
-  const openProfile = (p: TalentProfile) => {
-    openDrawer("talent-profile-shell", {
-      mode: "edit-admin",
-      talentId: p.id,
-      seed: {
-        stageName: p.name,
-        primaryType: p.primaryType,
-        homeBase: p.city,
-        profileCode: p.profileCode,
-      },
-    });
-  };
 
   return (
     <>
@@ -238,7 +98,7 @@ export function TalentPage() {
                   open={moreOpen}
                   onToggle={() => setMoreOpen((o) => !o)}
                   onClose={() => setMoreOpen(false)}
-                  onExport={exportCsv}
+                  onExport={() => exportRef.current?.()}
                   onImport={() => {
                     setMoreOpen(false);
                     toast(t("admin.roster.list.importToast"));
@@ -326,122 +186,7 @@ export function TalentPage() {
         }
       />
 
-      {/* Arrange mode replaces the filter + grid section: the arranged list is
-          always the FULL roster in public order (filters would be ambiguous). */}
-      {arrangeMode && tenantSlug ? (
-        <RosterArrangeView items={roster} tenantSlug={tenantSlug} onExit={exitArrange} />
-      ) : (
-      <>
-      {/* Status strip — single line replaces 4-up StatusCard. Each segment
-          is a clickable filter (toggle on/off). */}
-      <RosterStatusStrip
-        counts={counts}
-        active={stateFilter}
-        onFilter={(f) => setStateFilter(f === stateFilter ? "all" : f)}
-      />
-
-      {/* Saved views — reuses the same generic SavedViewsBar the inbox
-          uses (viewKey-namespaced localStorage), capturing the full
-          filter/sort/view state so operators can pin e.g. "Hidden dancers
-          by completeness" and restore it in one click. */}
-      <SavedViewsBar
-        viewKey="roster"
-        current={{ search, stateFilter, typeFilter, sort, sortDir, view }}
-        onApply={(v) => {
-          setSearch(v.search);
-          setStateFilter(v.stateFilter);
-          setTypeFilter(v.typeFilter);
-          setSort(v.sort);
-          setSortDir(v.sortDir);
-          setView(v.view);
-        }}
-      />
-
-      {/* Filter bar — search + type chips + sort + view toggle */}
-      <RosterFilterBar
-        search={search}
-        onSearch={setSearch}
-        typeFilter={typeFilter}
-        onTypeFilter={setTypeFilter}
-        usedTypes={usedTypes}
-        sort={sort}
-        sortDir={sortDir}
-        onSort={(s) => {
-          if (s === sort) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-          else {
-            setSort(s);
-            // Name → A→Z; Recommended → position 1 on top. "Newest" +
-            // "Completeness" read more naturally with the high value on top.
-            setSortDir(s === "name" || s === "recommended" ? "asc" : "desc");
-          }
-        }}
-        view={view}
-        onView={setView}
-        canBulk={canEdit}
-        selectedCount={selected.size}
-        onSelectAll={selectAll}
-        onClearSelection={clearSelected}
-        resultCount={filteredRoster.length}
-        totalCount={roster.length}
-      />
-
-      {/* Body — grid / list / empty */}
-      {filteredRoster.length === 0 ? (
-        <RosterEmptyState
-          searching={!!search.trim()}
-          query={search.trim()}
-          onClear={() => {
-            setSearch("");
-            setStateFilter("all");
-            setTypeFilter("all");
-          }}
-          onAdd={canEdit ? () => openDrawer("talent-profile-shell", { mode: "create", seed: {} }) : undefined}
-        />
-      ) : view === "grid" ? (
-        <RosterGrid
-          items={filteredRoster}
-          selected={selected}
-          onSelect={canEdit ? toggleSelect : undefined}
-          onOpen={openProfile}
-        />
-      ) : (
-        <RosterList
-          items={filteredRoster}
-          selected={selected}
-          onSelect={canEdit ? toggleSelect : undefined}
-          onOpen={openProfile}
-        />
-      )}
-      </>
-      )}
-
-      {/* Bulk action bar — sticky bottom when selection > 0 */}
-      {selected.size > 0 && canEdit && (
-        <RosterBulkActionBar
-          count={selected.size}
-          onClear={clearSelected}
-          onPublish={() => handleBulkAction("publish")}
-          onArchive={() => handleBulkAction("archive")}
-          isLoading={isBulkLoading}
-          onSendPitch={() => setPitchComposeOpen(true)}
-        />
-      )}
-
-      {/* Pitch compose drawer */}
-      {pitchComposeOpen && (
-        <PitchComposeDrawer
-          open={pitchComposeOpen}
-          onOpenChange={setPitchComposeOpen}
-          selectedTalents={roster.filter((t) => selected.has(t.id))}
-          clients={getClients(state.plan)}
-          tenantSlug={tenantSlug ?? ""}
-          agencyName={effectiveTenant.name}
-          onPitchSent={() => {
-            clearSelected();
-            toast(t("admin.roster.list.pitchSentToast"));
-          }}
-        />
-      )}
+      <RosterBrowser arrangeMode={arrangeMode} onExitArrange={exitArrange} exportRef={exportRef} />
 
       {/* Mobile FAB — full quick-create menu */}
       {canEdit && <FabWithQuickCreate label={t("admin.roster.list.fabLabel")} />}
@@ -547,7 +292,7 @@ function SelfOnRosterRow({ onEdit }: { onEdit: () => void }) {
 // ── Roster status strip ─────────────────────────────────────────────
 // Two segments — directory visibility, not a workflow lifecycle. Each is a
 // clickable filter; clicking the active one again clears back to "all".
-function RosterStatusStrip({
+export function RosterStatusStrip({
   counts,
   active,
   onFilter,
@@ -626,7 +371,7 @@ function RosterStatusStrip({
 }
 
 // ── Roster filter bar ───────────────────────────────────────────────
-function RosterFilterBar({
+export function RosterFilterBar({
   search, onSearch,
   typeFilter, onTypeFilter, usedTypes,
   sort, sortDir, onSort,
