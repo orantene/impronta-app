@@ -4404,6 +4404,7 @@
         "sessionBlock": "{title} · {booked}/{places}",
         "emptyDay": "Nothing on this day for these filters.",
         "holdExpires": "Hold on {title} at {time}",
+        "holdExpiresAt": "Hold expires {time}",
         "dragOff": "Drag to reschedule is not built; Move it on Appointments & Classes reschedules with the window you saw.",
         "prevDay": "Previous day",
         "nextDay": "Next day"
@@ -16017,6 +16018,12 @@
         "unknown": "State not recognised"
       },
       "board": {
+        "phone": {
+          "appointmentsOne": "1 appointment",
+          "appointmentsOther": "{count} appointments",
+          "sessionsOne": "1 session",
+          "sessionsOther": "{count} sessions"
+        },
         "subtitle": {
           "list": "Today and what is coming, with the person serving and the room",
           "sessions": "Dated sessions of each series and every one-off night, on the venue's clock",
@@ -16874,6 +16881,7 @@
       },
       "needsYou": {
         "title": "Needs you now",
+        "titleShort": "Needs you",
         "sorted": "Sorted by consequence",
         "empty": "Nothing needs you right now.",
         "checkStatus": "Check status",

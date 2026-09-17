@@ -634,7 +634,7 @@
   },
   "src/components/admin/shell/internal/page-modules/CalendarPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 12
+      "count": 8
     }
   },
   "src/components/admin/shell/internal/page-modules/CardDesignStudio-2.tsx": {

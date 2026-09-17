@@ -359,16 +359,19 @@ export function SegmentLink({
   href,
   active,
   children,
+  className,
 }: {
   href: string;
   active: boolean;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
+        className,
         "rounded-[7px] px-[10px] py-[5px] text-[12.5px] font-semibold leading-[1.2] no-underline max-[720px]:shrink-0 max-[720px]:whitespace-nowrap max-[720px]:rounded-full max-[720px]:border max-[720px]:px-[12px] max-[720px]:py-[7px] max-[720px]:text-[13px] max-[720px]:shadow-none",
         active
           ? "bg-admin-card text-admin-ink shadow-admin-rest max-[720px]:border-admin-ink max-[720px]:bg-admin-ink max-[720px]:text-white"

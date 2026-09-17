@@ -6,16 +6,35 @@ import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { pinNextConversation as pinNextConversationP } from "../messages/conversation-pending";
-import { SecondaryButton, StatusStrip } from "../primitives";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { addUtcDays } from "@/lib/scheduling/tz";
+import { formatDayFirst } from "@/lib/scheduling/day-first";
+import { Icon, StatusStrip } from "../primitives";
 import { COLORS, FONTS, RICH_INQUIRIES, TRANSITION, useAdminShell } from "../state";
 import { parseInquiryDays } from "./InboxPage";
-import { PageHeader } from "./pages-shared";
 import { CalendarListViews } from "@/components/workspace-calendar/CalendarListViews";
-import { CalendarResources } from "./CalendarResources";
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, Segmented } from "./appointments-classes-ui";
+import { CalendarResources, type CalendarClock } from "./CalendarResources";
+
+type CalendarView = "month" | "agenda" | "day" | "resources";
+const R = "dashboard.adminCalendar.resources";
+
+/**
+ * The board's 34px square nav button. Not `BUTTON_SECONDARY` + `px-0`: the
+ * kit's `px-[14px]` wins the cascade and squeezes the chevron to 4px.
+ */
+const NAV_BUTTON =
+  "inline-flex h-[34px] w-[34px] shrink-0 cursor-pointer items-center justify-center rounded-[9px] border border-admin-border bg-admin-card text-admin-ink hover:border-admin-border-strong [transition:border-color_var(--transition-admin-micro)]";
+
+function localYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 
 
 export function CalendarPage() {
   const t = useT();
+  const locale = useDashboardLocale();
   const { openDrawer, setPage, effectiveCalendarEvents, toast, effectiveTenant, bridgeTenantIdentity } = useAdminShell();
   const tenantId = bridgeTenantIdentity?.tenantId ?? null;
   const router = useRouter();
@@ -23,12 +42,21 @@ export function CalendarPage() {
   const today = new Date();
   const [displayYear, setDisplayYear] = useState(today.getFullYear());
   const [displayMonth, setDisplayMonth] = useState(today.getMonth());
-  const [view, setView] = useState<"month" | "agenda" | "day" | "resources">("month");
+  // WS006 is the Resources view; the desktop opens on it. The month grid, the
+  // day list and the agenda stay one tab away.
+  const [view, setView] = useState<CalendarView>(tenantId ? "resources" : "month");
   // MW13: the phone opens on the agenda, not a month grid too small to read.
   // Set after mount so the first client render matches the server's.
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth <= 720) setView("agenda");
   }, []);
+  // The day the header owns, on the venue's clock once the Resources reader
+  // has said what that clock is; the browser's today until then.
+  const [clock, setClock] = useState<CalendarClock | null>(null);
+  const [pickedYmd, setPickedYmd] = useState<string | null>(null);
+  const todayYmd = clock?.todayYmd ?? localYmd(today);
+  const dayYmd = pickedYmd ?? todayYmd;
+  const timeZone = clock?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const year = displayYear;
   const month = displayMonth;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -109,28 +137,74 @@ export function CalendarPage() {
     expired: allMonthEvents.filter((e) => e.tone === "red").length,
   };
 
-  return (
-    <>
-      <PageHeader
-        title={t("dashboard.adminCalendar.title")}
-        actions={
-          <SecondaryButton onClick={() => openDrawer("new-booking")}>
-            {t("dashboard.adminCalendar.newBooking")}
-          </SecondaryButton>
-        }
-      />
+  const goPrev = () => (view === "month" ? goToPrev() : setPickedYmd(addUtcDays(dayYmd, -1) ?? dayYmd));
+  const goNext = () => (view === "month" ? goToNext() : setPickedYmd(addUtcDays(dayYmd, 1) ?? dayYmd));
+  const onToday = view === "month" ? isCurrentMonth : dayYmd === todayYmd;
+  const goToday = () => { goToToday(); setPickedYmd(null); };
+  const views: ReadonlyArray<{ id: CalendarView | "week"; label: string; reason?: string | null }> = [
+    { id: "day", label: t("dashboard.adminCalendar.viewDay") },
+    { id: "week", label: t(`${R}.viewWeek`), reason: t(`${R}.viewWeekOff`) },
+    { id: "agenda", label: t("dashboard.adminCalendar.viewAgenda") },
+    { id: "resources", label: t(`${R}.viewResources`) },
+    { id: "month", label: t("dashboard.adminCalendar.viewMonth") },
+  ];
 
-      <StatusStrip
-        ariaLabel={interpolate(t("dashboard.adminCalendar.overviewAria"), { month: monthLabel })}
-        items={[
-          { id: "confirmed",  label: t("dashboard.adminCalendar.confirmed"),   value: monthCounts.confirmed,  tone: "green" },
-          { id: "submitted",  label: t("dashboard.adminCalendar.submitted"),   value: monthCounts.submitted,  tone: "amber" },
-          { id: "inProgress", label: t("dashboard.adminCalendar.inProgress"), value: monthCounts.inProgress, tone: "ink" },
-          { id: "expired",    label: t("dashboard.adminCalendar.expired"),     value: monthCounts.expired,    tone: "red" },
-        ]}
-      />
+  return (
+    <div className="flex flex-col gap-[16px] font-admin-body leading-[1.2]" data-testid="calendar-page">
+      {/* WS006's header: prev / next, "Tue 8 Sep" over "zone · location", the
+          view tabs as the board's segmented control, "+ Add" as the primary.
+          Today appears only when the shown day (or month) is not today. */}
+      <div className="flex flex-wrap items-start justify-between gap-[12px]">
+        <div className="flex min-w-0 items-start gap-[10px]">
+          <button type="button" aria-label={view === "month" ? t("dashboard.adminCalendar.prevMonth") : t(`${R}.prevDay`)} className={NAV_BUTTON} onClick={goPrev}>
+            <span className="inline-block rotate-180"><Icon name="chevron-right" size={14} stroke={1.75} /></span>
+          </button>
+          <button type="button" aria-label={view === "month" ? t("dashboard.adminCalendar.nextMonth") : t(`${R}.nextDay`)} className={NAV_BUTTON} onClick={goNext}>
+            <Icon name="chevron-right" size={14} stroke={1.75} />
+          </button>
+          {onToday ? null : (
+            <button type="button" className={`${BUTTON_SECONDARY} shrink-0`} onClick={goToday}>
+              {t("dashboard.adminCalendar.today")}
+            </button>
+          )}
+          <div className="min-w-0 pl-[6px]">
+            <h1 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink" data-testid="calendar-title">
+              {view === "month" ? monthLabel : formatDayFirst(dayYmd, locale)}
+            </h1>
+            <p className="m-0 mt-[4px] text-admin-13 leading-[1.2] text-admin-ink-muted" title={t("dashboard.adminCalendar.timezoneTip")}>
+              {timeZone} · {effectiveTenant.name}
+            </p>
+          </div>
+        </div>
+        {/* MW13: on the phone the tabs take their own row and scroll; Add is the Create menu's. */}
+        <div className="flex shrink-0 flex-wrap items-center gap-[10px] max-[720px]:w-full max-[720px]:flex-nowrap max-[720px]:overflow-x-auto max-[720px]:[scrollbar-width:none]">
+          <Segmented<CalendarView | "week">
+            label={t("dashboard.adminCalendar.title")}
+            value={view}
+            options={views}
+            onChange={(id) => { if (id !== "week") setView(id); }}
+          />
+          <button type="button" title={t("dashboard.adminCalendar.newBooking")} className={`${BUTTON_PRIMARY} max-[720px]:hidden`} onClick={() => openDrawer("new-booking")} data-testid="calendar-add">
+            <Icon name="plus" size={14} stroke={1.75} />
+            {t(`${R}.add`)}
+          </button>
+        </div>
+      </div>
+
+      {view === "month" ? (
+        <StatusStrip
+          ariaLabel={interpolate(t("dashboard.adminCalendar.overviewAria"), { month: monthLabel })}
+          items={[
+            { id: "confirmed",  label: t("dashboard.adminCalendar.confirmed"),   value: monthCounts.confirmed,  tone: "green" },
+            { id: "submitted",  label: t("dashboard.adminCalendar.submitted"),   value: monthCounts.submitted,  tone: "amber" },
+            { id: "inProgress", label: t("dashboard.adminCalendar.inProgress"), value: monthCounts.inProgress, tone: "ink" },
+            { id: "expired",    label: t("dashboard.adminCalendar.expired"),     value: monthCounts.expired,    tone: "red" },
+          ]}
+        />
+      ) : null}
 
       <div
+        className={view === "month" ? undefined : "hidden"}
         style={{
           background: "#fff",
           border: `1px solid ${COLORS.borderSoft}`,
@@ -139,75 +213,7 @@ export function CalendarPage() {
           fontFamily: FONTS.body,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "12px 14px",
-            borderBottom: `1px solid ${COLORS.borderSoft}`,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <div className="text-admin-ink text-sm font-semibold">{monthLabel}</div>
-            {/* Timezone display (#11) */}
-            <div
-              title={t("dashboard.adminCalendar.timezoneTip")}
-              style={{
-                fontSize: 10.5,
-                fontWeight: 500,
-                color: COLORS.inkMuted,
-                background: COLORS.surfaceAlt,
-                padding: "2px 6px",
-                borderRadius: 5,
-                cursor: "default",
-              }}
-            >
-              {Intl.DateTimeFormat().resolvedOptions().timeZone.replace("_", " ")} ·{" "}
-              {new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
-                .formatToParts(new Date())
-                .find((p) => p.type === "timeZoneName")?.value ?? "local"}
-            </div>
-          </div>
-          <div className="flex gap-1">
-            {/* WS006: Day · Week · Agenda · Resources. Week is not built and says so. */}
-            <button
-              type="button"
-              disabled
-              title={t("dashboard.adminCalendar.resources.viewWeekOff")}
-              data-not-wired="true"
-              className="cursor-not-allowed rounded-md px-2.5 py-1 text-xs font-semibold text-admin-ink-dim"
-            >
-              {t("dashboard.adminCalendar.resources.viewWeek")}
-            </button>
-            {(["month", "agenda", "day", "resources"] as const).map((v) => {
-              const viewLabel =
-                v === "month"
-                  ? t("dashboard.adminCalendar.viewMonth")
-                  : v === "agenda"
-                    ? t("dashboard.adminCalendar.viewAgenda")
-                    : v === "day"
-                      ? t("dashboard.adminCalendar.viewDay")
-                      : t("dashboard.adminCalendar.resources.viewResources");
-              return (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setView(v)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
-                    view === v ? "bg-admin-accent text-white" : "text-admin-ink-muted"
-                  }`}
-                >
-                  {viewLabel}
-                </button>
-              );
-            })}
-            <CalendarNavBtn label="prev" onClick={goToPrev} />
-            <CalendarNavBtn label="today" onClick={goToToday} disabled={isCurrentMonth} />
-            <CalendarNavBtn label="next" onClick={goToNext} />
-          </div>
-        </div>
-        <div className={view === "month" ? undefined : "hidden"}>
+        <div>
         <div
           style={{
             display: "grid",
@@ -218,7 +224,10 @@ export function CalendarPage() {
         >
           {Array.from({ length: 7 }, (_, i) =>
             // 1970-01-04 is a Sunday; step through the week for locale-correct short weekday names.
-            new Intl.DateTimeFormat(t("dashboard.adminCalendar.dateLocale"), { weekday: "short" }).format(new Date(Date.UTC(1970, 0, 4 + i))),
+            // Formatted in UTC: on a browser west of Greenwich the local read of
+            // that midnight is the day before, and the header started on "Sat"
+            // over a grid whose padding is Sunday-first.
+            new Intl.DateTimeFormat(t("dashboard.adminCalendar.dateLocale"), { weekday: "short", timeZone: "UTC" }).format(new Date(Date.UTC(1970, 0, 4 + i))),
           ).map((d, i) => (
             <div
               key={i}
@@ -368,61 +377,19 @@ export function CalendarPage() {
         </div>
         </div>
       </div>
-      {view === "resources" && tenantId ? (
-        <CalendarResources tenantId={tenantId} holds={effectiveCalendarEvents ?? []} />
+      {tenantId ? (
+        <div className={view === "resources" ? undefined : "hidden"}>
+          <CalendarResources tenantId={tenantId} holds={effectiveCalendarEvents ?? []} day={clock ? dayYmd : null} onClock={setClock} />
+        </div>
       ) : null}
       {view !== "month" && view !== "resources" && effectiveCalendarEvents != null ? (
         <CalendarListViews
           events={effectiveCalendarEvents}
           view={view}
+          dayIso={dayYmd}
           onOpen={(id) => { pinNextConversationP(id); setPage("messages"); }}
         />
       ) : null}
-    </>
-  );
-}
-
-function CalendarNavBtn({ label, onClick, disabled }: { label: "prev" | "next" | "today"; onClick?: () => void; disabled?: boolean }) {
-  const t = useT();
-  const todayLabel = t("dashboard.adminCalendar.today");
-  const ariaLabel = label === "prev" ? t("dashboard.adminCalendar.prevMonth") : label === "next" ? t("dashboard.adminCalendar.nextMonth") : todayLabel;
-  const content =
-    label === "prev" ? (
-      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M15 6l-6 6 6 6" />
-      </svg>
-    ) : label === "next" ? (
-      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 6l6 6-6 6" />
-      </svg>
-    ) : (
-      todayLabel
-    );
-  return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        padding: label === "today" ? "5px 10px" : "5px 8px",
-        background: "transparent",
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 6,
-        cursor: disabled ? "default" : "pointer",
-        fontFamily: FONTS.body,
-        fontSize: 12,
-        color: disabled ? COLORS.inkDim : COLORS.inkMuted,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
-        opacity: disabled ? 0.5 : 1,
-      }}
-      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; } }}
-      onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; } }}
-    >
-      {content}
-    </button>
+    </div>
   );
 }

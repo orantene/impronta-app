@@ -95,7 +95,7 @@ export function ListControls({
         <ChevronDown aria-hidden size={12} strokeWidth={1.75} className="pointer-events-none absolute right-[9px] text-admin-ink-dim" />
       </label>
       <form
-        className={cn(SEARCH, "w-[220px] max-[720px]:h-[44px] max-[720px]:w-full max-[720px]:rounded-[12px]")}
+        className={cn(SEARCH, "w-[220px] max-[720px]:hidden")}
         onSubmit={(e) => {
           e.preventDefault();
           push({ q });

@@ -1,0 +1,16 @@
+fidelity-polish9 gates (2026-09-17, dev server stopped first; real exit codes)
+
+npm run typecheck (scripts/tsc-queue.sh)                  exit 0  (TSC PASS)
+npm run lint (eslint-suppressions.json pruned: CalendarPage
+  ratchet/no-new-inline-style 12 -> 8)                    exit 0
+npm run verify:ui-messages                                exit 0
+tsx --test page-modules/mobile-bottom-nav.static, quality/file-size-ratchet.static,
+  quality/hex-literal-ratchet.static, quality/primary-button-label-colour.static,
+  i18n/message-key-usage.static, i18n/message-catalog-duplicate-keys.static,
+  shell/canonical-routes, calendar/feed-wiring.static, scheduling/tz,
+  orders/orders-list                                      exit 0  (186 pass, 0 fail
+  after `dashboard.adminCalendar.newBooking` became the Add button's title;
+  the first run named it newly dead)
+
+Not run here (need a dev server on the isolated database): the Playwright
+journeys. No selector they read was renamed (see README).

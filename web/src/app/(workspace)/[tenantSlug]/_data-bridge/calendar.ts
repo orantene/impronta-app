@@ -23,6 +23,8 @@ export type CalendarEvent = {
   ends_at?: string | null;
   timezone?: string | null;
   kind?: CalendarEventKind;
+  /** A firm hold's expiry instant, when it has one (WS006's "Hold expires 18:00"). */
+  expires_at?: string | null;
 };
 
 function ymdFromInstant(iso: string): string {
@@ -158,6 +160,7 @@ export async function loadCalendarEvents(
         ends_at: row.ends_at,
         timezone: null,
         kind: "hold",
+        expires_at: row.expires_at,
       });
     }
 

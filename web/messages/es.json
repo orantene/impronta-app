@@ -4404,6 +4404,7 @@
         "sessionBlock": "{title} · {booked}/{places}",
         "emptyDay": "Nada este dia con estos filtros.",
         "holdExpires": "Apartado en {title} a las {time}",
+        "holdExpiresAt": "El apartado vence a las {time}",
         "dragOff": "Arrastrar para reprogramar no esta construido; Moverla en Citas y clases reprograma con la ventana que viste.",
         "prevDay": "Dia anterior",
         "nextDay": "Dia siguiente"
@@ -16017,6 +16018,12 @@
         "unknown": "Estado no reconocido"
       },
       "board": {
+        "phone": {
+          "appointmentsOne": "1 cita",
+          "appointmentsOther": "{count} citas",
+          "sessionsOne": "1 sesión",
+          "sessionsOther": "{count} sesiones"
+        },
         "subtitle": {
           "list": "Hoy y lo que viene, con quien atiende y la sala",
           "sessions": "Sesiones con fecha de cada serie y cada noche suelta, en el reloj del lugar",
@@ -16874,6 +16881,7 @@
       },
       "needsYou": {
         "title": "Te necesita ahora",
+        "titleShort": "Te necesita",
         "sorted": "Ordenado por consecuencia",
         "empty": "Nada te necesita ahora mismo.",
         "checkStatus": "Ver estado",
