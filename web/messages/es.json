@@ -15432,6 +15432,7 @@
           "checkout_locked": "El pago esta bloqueado a la canasta que se envio.",
           "already_resolved": "Esta conversacion ya esta resuelta.",
           "no_owner": "Esta conversacion aun no tiene responsable.",
+          "no_payout_receiver": "Esto no se puede registrar como pagado todavia: nadie esta configurado para recibir el pago. Configura un receptor de pagos e intentalo de nuevo.",
           "identity_unconfirmed": "La identidad del cliente no esta confirmada.",
           "already_linked": "Ese registro ya esta ligado.",
           "version_stale": "Otra persona guardo primero. Compara las tres versiones.",

@@ -12,6 +12,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logAssignment, logCloseLost, logConversationState } from "@/lib/messaging/action-log";
+import { hasMessagingMoneyPermission } from "@/lib/messaging/money-permissions";
 import { messagingChannel } from "@/lib/messaging/channels";
 import { renderCard } from "@/lib/messaging/cards";
 import { loadMessagingEssentials } from "@/lib/messaging/essentials";
@@ -186,6 +187,12 @@ export async function messagingInternalNote(input: { inquiryId: string; body: st
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, body: z.string().trim().min(1).max(8000) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  // S6 (D-MSG-40, item 5): gates the whole internal-note feature area —
+  // there is no separate `messages.notes.write` key, and notes.read is the
+  // only notes-related key the brief asked for.
+  if (!(await hasMessagingMoneyPermission(g.admin, { tenantId: g.tenantId, userId: g.userId, permission: "messages.notes.read" }))) {
+    return fail("not_allowed");
+  }
   return insertMessage(g.admin, {
     tenantId: g.tenantId,
     inquiryId: parsed.data.inquiryId,
@@ -634,6 +641,10 @@ export async function messagingCloseLost(input: { inquiryId: string; reason: str
     .object({ inquiryId: uuid, reason: z.string().trim().min(2).max(400), expectedVersion: version })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
+  // S6 (D-MSG-40, item 5).
+  if (!(await hasMessagingMoneyPermission(g.admin, { tenantId: g.tenantId, userId: g.userId, permission: "messages.close_lost" }))) {
+    return fail("not_allowed");
+  }
   const result = await callRpc(g.admin, "messaging_close_lost", {
     p_tenant_id: g.tenantId,
     p_inquiry_id: parsed.data.inquiryId,

@@ -4018,6 +4018,7 @@
           "checkout_locked": "Le paiement est verrouille sur le panier envoye.",
           "already_resolved": "Cette conversation est deja resolue.",
           "no_owner": "Cette conversation n a pas encore de responsable.",
+          "no_payout_receiver": "Impossible d enregistrer ceci comme paye pour l instant: personne n est configure pour recevoir le paiement. Configurez un destinataire de paiement, puis reessayez.",
           "identity_unconfirmed": "L identite du client n est pas confirmee.",
           "already_linked": "Cet enregistrement est deja lie.",
           "version_stale": "Quelqu un d autre a enregistre d abord. Comparez les trois versions.",

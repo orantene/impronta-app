@@ -22,6 +22,7 @@ export const MESSAGING_REFUSAL_CODES = [
   "not_allowed",
   "expired",
   "already",
+  "no_payout_receiver",
 ] as const satisfies readonly MessagingRefusal[];
 
 export function refusalKey(code: MessagingRefusal): `dashboard.pos.messages.refusal.${MessagingRefusal}` {
