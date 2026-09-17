@@ -25,7 +25,7 @@
  * inside an effect, never during render.
  */
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Flame } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -137,6 +137,9 @@ export function PreparationClient(props: {
   nowIso: string;
   tickets: PrepTicketView[];
   copy: PreparationCopy;
+  /** The station's name (`Kitchen · Hot line`) and its moment, built on the server. */
+  title: string;
+  subtitle: string;
 }) {
   const { copy, timeZone, locale } = props;
   const router = useRouter();
@@ -247,10 +250,13 @@ export function PreparationClient(props: {
           {ticket.snapshotLines.map((line) => (
             <li key={line.id} className="flex items-start gap-2.5 border-b border-admin-border-soft px-4 py-3 last:border-b-0">
               <span className="w-8 shrink-0 text-[18px] font-bold tabular-nums text-admin-ink">{line.units}×</span>
-              <span className="min-w-0 flex-1 text-[17px] font-semibold text-admin-ink">{line.label}</span>
-              {ticket.addedLineIds.includes(line.id) && ticket.status === "queued" && (
-                <span className={cn(POS_PILL, POS_PILL_GREEN, "mt-1")}>{copy.lineNew}</span>
-              )}
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1 text-[17px] font-semibold text-admin-ink">
+                {line.label}
+                {ticket.addedLineIds.includes(line.id) && ticket.status === "queued" && (
+                  // The board sets `New` beside the line's name (`Kids pasta · New`), not at the far edge.
+                  <span className={cn(POS_PILL, POS_PILL_GREEN)}>{copy.lineNew}</span>
+                )}
+              </span>
             </li>
           ))}
         </ul>
@@ -289,7 +295,17 @@ export function PreparationClient(props: {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2.5 px-6 pb-3">
+      {/* The board's header (`POSKitchen`): the flame, the station and its
+          moment on the left; Preparing · Queued · Ready and Recall on the right. */}
+      <header className="flex h-[68px] shrink-0 items-center gap-3 border-b border-admin-border bg-admin-card px-6">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-admin-coral bg-admin-card text-admin-coral-deep">
+          <Flame aria-hidden size={18} strokeWidth={1.75} />
+        </span>
+        <div className="min-w-0">
+          <h1 className="m-0 truncate text-[19px] font-bold leading-[1.2] tracking-[-0.01em] text-admin-ink">{props.title}</h1>
+          <p className="m-0 truncate text-[13px] leading-[1.2] text-admin-ink-muted">{props.subtitle}</p>
+        </div>
+        <span className="flex-1" />
         <div role="tablist" className={POS_SEGMENT_TRACK}>
           {tabs.map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id} data-prep-tab={id} onClick={() => setTab(id)} className={cn(POS_SEGMENT, "px-4", tab === id ? POS_SEGMENT_ACTIVE : POS_SEGMENT_IDLE)}>
@@ -297,11 +313,11 @@ export function PreparationClient(props: {
             </button>
           ))}
         </div>
-        <button type="button" className={POS_SECONDARY_ACTION} disabled title={copy.recallReason}>
+        <button type="button" className={cn(POS_SECONDARY_ACTION, "h-11")} disabled title={copy.recallReason}>
           {copy.recall}
         </button>
-        <span className="basis-full text-[12.5px] text-admin-ink-muted">{copy.recallReason}</span>
-      </div>
+      </header>
+      <div className="flex min-h-0 flex-1 flex-col py-5">
       {msg ? (
         <p role="alert" className="mx-6 mb-3 rounded-[12px] border-[1.5px] border-admin-red/40 bg-admin-critical-soft px-4 py-3 text-[14px] text-admin-red">
           {msg}
@@ -314,7 +330,9 @@ export function PreparationClient(props: {
       ) : (
         <ul className="m-0 grid list-none grid-cols-1 gap-4 px-6 p-0 md:grid-cols-2 xl:grid-cols-3">{shown.map(card)}</ul>
       )}
-      <p className="m-0 px-6 pt-4 text-[12.5px] text-admin-ink-muted">{props.zoneNote}</p>
+      <p className="m-0 px-6 pt-4 text-[12.5px] text-admin-ink-muted">
+        {props.zoneNote} {copy.recallReason}
+      </p>
       {amendment && (
         <div role="status" data-prep-amendment className="mx-6 mt-4 flex items-center gap-3 rounded-[12px] border-[1.5px] border-admin-coral bg-admin-card px-4 py-3">
           <AlertTriangle aria-hidden size={16} strokeWidth={1.75} className="shrink-0 text-admin-coral-deep" />
@@ -329,6 +347,7 @@ export function PreparationClient(props: {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }

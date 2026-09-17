@@ -25,7 +25,7 @@ import { useRouter } from "next/navigation";
 import { POS_MESSAGES_DESTINATION, posMessagesHref } from "@/lib/pos/modes";
 import { useMemo, useState } from "react";
 
-import { FloorBoard } from "@/components/admin/floor/FloorBoard";
+import { FloorBoard, FloorViewSwitch } from "@/components/admin/floor/FloorBoard";
 import { panelCounts } from "@/components/admin/floor/FloorSidePanel";
 import { floorSubtitle } from "@/components/admin/floor/FloorViews";
 import type { FloorActions, FloorBoardData } from "@/components/admin/floor/floor-types";
@@ -148,6 +148,7 @@ export function FloorClient(props: FloorClientProps) {
         view={view}
         onViewChange={setView}
         ordersOnly={destination === "orders"}
+        viewSwitchInHeader
       />
     );
 
@@ -195,7 +196,10 @@ export function FloorClient(props: FloorClientProps) {
               { id: "workspace", label: copy.chrome.workspace, onSelect: () => router.push(props.workspacePath) },
             ],
           }}
-          live={destination === "tables" ? copy.board.live : undefined}
+          // `POSFloorTimeline` / `POSFloorList`: the switch sits in the header
+          // and the Live dot is the map's alone.
+          meta={destination === "tables" && view !== "floor" ? <FloorViewSwitch view={view} copy={copy.board} onViewChange={setView} /> : undefined}
+          live={destination === "tables" && view === "floor" ? copy.board.live : undefined}
         />
         <div className="relative flex min-h-0 flex-1 flex-col">{body}</div>
       </PosFrame>

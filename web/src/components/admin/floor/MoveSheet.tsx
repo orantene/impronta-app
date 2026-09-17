@@ -18,13 +18,14 @@ import { ArrowRight, Layers, ShoppingBag } from "lucide-react";
 import { useState } from "react";
 
 import { interpolate } from "@/i18n/interpolate";
+import { venueHhmm } from "@/lib/spaces/venue-clock";
 import type { FloorTable } from "@/lib/visits/floor";
 import { cn } from "@/lib/utils";
 import { POS_INPUT, POS_LABEL, POS_OUTLINE_ACTION, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "../pos/pos-classes";
 import { PosSheet } from "../pos/PosSheet";
 
 import type { FloorBoardCopy } from "./floor-copy";
-import { seatedEntryFor, tableCode } from "./floor-model";
+import { nextBookingFor, seatedEntryFor, tableCode } from "./floor-model";
 import { FACT_ROW } from "./floor-tones";
 import type { FloorBoardData } from "./floor-types";
 import { moneyFor } from "./FloorViews";
@@ -63,8 +64,17 @@ export function MoveSheet(props: MoveSheetProps) {
   const partySize = table.partySize ?? entry?.partySize ?? null;
   const party = [entry?.holderName ?? copy.panel.walkIn, partySize == null ? null : String(partySize)].filter(Boolean).join(" · ");
   const candidates = data.tables.filter((t) => t.spaceId !== table.spaceId && !t.joinedFromSpaceId);
-  const chosen = candidates.find((t) => t.spaceId === choice) ?? null;
+  // The board opens with the first free table that fits already picked
+  // (`POSMoveParty`: "Move to P1"); the host taps another or confirms.
+  const chosen = candidates.find((t) => t.spaceId === choice) ?? candidates.find((t) => whyNot(t, table.partySize, copy) === null) ?? null;
   const ticket = table.orderId ? data.tickets[table.orderId] : undefined;
+  const nowMs = Date.parse(data.nowIso);
+  const nextOnChosen = chosen ? nextBookingFor(chosen, data.book, nowMs) : null;
+  const nextValue = nextOnChosen
+    ? `${nextOnChosen.holderName ?? copy.panel.walkIn} · ${venueHhmm(nextOnChosen.startsAtIso, data.timeZone, data.locale)}`
+    : data.service
+      ? interpolate(copy.move.nextNothingUntil, { time: venueHhmm(data.service.endsAtIso, data.timeZone, data.locale) })
+      : copy.move.nextNothing;
 
   const chooser = (
     <ul className="m-0 flex list-none flex-col gap-3 p-0">
@@ -132,6 +142,12 @@ export function MoveSheet(props: MoveSheetProps) {
             {table.orderId ? interpolate(copy.move.goesValue, { amount: moneyFor(table, data), n: ticket ? 1 : 0 }) : copy.move.goesNothing}
           </strong>
         </div>
+        {chosen && (
+          <div className={FACT_ROW}>
+            <span className="text-admin-ink-muted">{interpolate(copy.move.nextOn, { code: tableCode(chosen) })}</span>
+            <strong className="text-right text-admin-ink">{nextValue}</strong>
+          </div>
+        )}
         <div className={FACT_ROW}>
           <span className="text-admin-ink-muted">{interpolate(copy.move.after, { code })}</span>
           <strong className="text-right text-admin-ink">{copy.move.afterValue}</strong>
