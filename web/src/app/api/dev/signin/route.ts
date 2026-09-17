@@ -20,6 +20,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
+import { mintFixtureSession } from "./fixture-session";
+
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
@@ -78,40 +80,17 @@ export async function GET(request: NextRequest) {
     if (!admin) {
       return new NextResponse("service-role not configured", { status: 503 });
     }
-    let { data: linkData, error: linkError } =
-      await admin.auth.admin.generateLink({ type: "magiclink", email });
-    if (linkError || !linkData?.properties?.hashed_token) {
-      const { error: createError } = await admin.auth.admin.createUser({
-        email,
-        email_confirm: true,
-      });
-      const already =
-        createError &&
-        /already|registered|exists/i.test(createError.message ?? "");
-      if (createError && !already) {
-        return new NextResponse(
-          `Failed to create fixture user: ${createError.message}`,
-          { status: 500 },
-        );
-      }
-      ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-      }));
-    }
-    if (linkError || !linkData?.properties?.hashed_token) {
-      return new NextResponse(
-        `Failed to generate sign-in link: ${linkError?.message ?? "no hashed_token"}`,
-        { status: 500 },
-      );
-    }
-    const { error: otpError } = await supabase.auth.verifyOtp({
-      type: "magiclink",
-      token_hash: linkData.properties.hashed_token,
-    });
-    if (otpError) {
-      return new NextResponse(`Sign-in failed: ${otpError.message}`, { status: 401 });
-    }
+    // D-173: create, then mint, then verify (fixture-session.ts): one call
+    // signs a brand-new fixture address in.
+    const minted = await mintFixtureSession(
+      {
+        createUser: (input) => admin.auth.admin.createUser(input),
+        generateLink: (input) => admin.auth.admin.generateLink(input),
+      },
+      (input) => supabase.auth.verifyOtp(input),
+      email,
+    );
+    if (!minted.ok) return new NextResponse(minted.message, { status: minted.status });
     return response;
   }
 
