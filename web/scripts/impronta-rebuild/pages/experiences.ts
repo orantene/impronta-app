@@ -170,7 +170,7 @@ const sessions = band(
       { layerLabel: "Photo packages", mobileColumns: 1 },
     ),
   ],
-  { borderTop: true, layerLabel: "Photo sessions" },
+  { borderTop: true, layerLabel: "Photo sessions", noRise: true },
 );
 
 const includes = band(
@@ -340,7 +340,7 @@ const book = band(
       ],
     },
   ],
-  { borderTop: true, glow: true, layerLabel: "Book" },
+  { borderTop: true, glow: true, layerLabel: "Book", noRise: true },
 );
 
 const closing = closingCta("rb-exp-closing", {
