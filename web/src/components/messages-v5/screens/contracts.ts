@@ -150,6 +150,15 @@ export type RenameInlineProps = {
   readonly onCancel: () => void;
   readonly copy: KitCopy;
   readonly variant: ScreenVariant;
+  /**
+   * L4 EXTENSION (additive, decisions.md D-MSG-100): true when `name` is
+   * `isGeneratedName(name, contactName)` (lib/messaging/inquiry-name.ts) —
+   * the shell knows `contactName` (it already reads `essentials.customer.name`
+   * for `ThreadHeader`) and this component does not, so it is computed once
+   * upstream rather than threading `contactName` down. Undefined is treated
+   * as false (no hint) so an older caller compiles unchanged.
+   */
+  readonly generated?: boolean;
 };
 
 export type MergeCardProps = {
@@ -161,6 +170,17 @@ export type MergeCardProps = {
   readonly onDismiss: () => void;
   readonly copy: KitCopy;
   readonly variant: ScreenVariant;
+  /**
+   * L4 EXTENSION (additive, decisions.md D-MSG-100): the brief's three-option
+   * card ("Merge into <name>" / "Keep separate, link the client" / "Not the
+   * same person") needs a third action the original two-callback contract
+   * (onMerge, onDismiss) has no seam for — "keep separate but link the
+   * client" calls `messagingCaptureIdentity` (level "linked"), a DIFFERENT
+   * engine action than either merging or dismissing the match. Optional so a
+   * caller that only wants Merge/Not-the-same-person (the original shape)
+   * still compiles; when omitted the middle row is not rendered.
+   */
+  readonly onKeepSeparate?: () => void;
 };
 
 /* ------------------------------------------------------- Shell action routing */
