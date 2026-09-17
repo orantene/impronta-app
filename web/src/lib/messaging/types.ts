@@ -221,6 +221,10 @@ export const HISTORY_KINDS = [
   "booking_confirmed",
   "booking_cancelled",
   "booking_rescheduled",
+  /** L3, D-MSG-91: a staff edit of the client's phone/email/name from the
+   * D15 ClientSheet, best-effort logged after `updateInquiryDetails` or
+   * `messaging_set_identity` succeeds. */
+  "client_edit",
 ] as const;
 export type HistoryKind = (typeof HISTORY_KINDS)[number];
 

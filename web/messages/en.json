@@ -18380,7 +18380,41 @@
       "panel": {
         "open": "Open",
         "expand": "Expand",
-        "collapse": "Collapse"
+        "collapse": "Collapse",
+        "items": {
+          "default": "Items",
+          "talentServices": "Talent & services",
+          "services": "Services",
+          "orderItems": "Order items",
+          "menu": "Menu"
+        },
+        "addItem": "+ Add item",
+        "itemsEmpty": "No items yet",
+        "client": {
+          "title": "Client",
+          "source": "Source"
+        },
+        "money": {
+          "title": "Money",
+          "total": "Total",
+          "deposit": "Deposit",
+          "paid": "Paid",
+          "balance": "Balance due",
+          "requestPayment": "Request payment",
+          "none": "No charges yet"
+        },
+        "files": {
+          "title": "Files"
+        },
+        "notes": {
+          "title": "Team notes"
+        },
+        "followUp": {
+          "title": "Follow-up",
+          "next": "Next: {when}",
+          "none": "No reminder scheduled"
+        },
+        "historyLine": "{count} past bookings · {amount}"
       },
       "sheet": {
         "close": "Close",
@@ -18429,6 +18463,22 @@
       },
       "skeleton": {
         "loading": "Loading"
+      },
+      "client": {
+        "title": "Edit client",
+        "twoMatches": "Possible matches",
+        "linkThisClient": "Link this client",
+        "keepAsNew": "Keep as a new client",
+        "save": "Save",
+        "saving": "Saving",
+        "saved": "Saved",
+        "editContact": "Edit contact",
+        "help": {
+          "none": "No identity captured yet.",
+          "linked": "Linked to a client record. The client has not confirmed it yet.",
+          "confirmed": "The client confirmed this is them.",
+          "granted": "The client granted access from their own link."
+        }
       }
     }
   },
