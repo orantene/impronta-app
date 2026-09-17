@@ -196,7 +196,7 @@ export function ModeTogglePill({
         />
         <ModeTogglePillButton
           active={!inTalent}
-          label={copy.t("Workspace")}
+          label={copy.t("Admin")}
           unread={!inTalent ? 0 : workspaceUnread}
           onClick={!inTalent ? undefined : flipMode}
         />

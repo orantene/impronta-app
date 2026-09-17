@@ -363,6 +363,7 @@ const ES_TEXT: Record<string, string> = {
   "Booking": "Reservas",
   "Track record": "Trayectoria",
   "Admin": "Admin",
+  "Switch between Talent and Admin": "Cambiar entre Talento y Admin",
   "Identity": "Identidad",
   "Services": "Servicios",
   "Location": "Ubicación",

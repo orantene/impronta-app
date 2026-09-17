@@ -2088,8 +2088,8 @@
           "receiptNotSent": "Le reçu n'a pas pu être envoyé. Imprimez-le à la place."
         },
         "switch": {
-          "label": "Espace de travail ou point de vente",
-          "workspace": "Espace de travail",
+          "label": "Bureau ou point de vente",
+          "workspace": "Bureau",
           "openMenu": "Choisissez un mode de point de vente",
           "makeDefault": "En faire le choix par défaut ici",
           "defaultSaved": "Enregistré sur cet appareil",
