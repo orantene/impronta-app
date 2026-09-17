@@ -57,6 +57,7 @@ import {
   posDevicesList as listPosDevices,
 } from "@/lib/venues/pos-devices";
 import { replayCashOutboxItem } from "@/lib/pos/outbox-replay";
+import { logServerError } from "@/lib/server/safe-error";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { deliverTicketForAdmission } from "@/lib/events/ticket-delivery";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -598,6 +599,17 @@ export async function eventSeriesUpsert(input: { id?: string; name: string }) {
 async function publicTicket() {
   const host = await getPublicHostContext();
   if ((host.kind !== "agency" && host.kind !== "hub") || !host.tenantId) {
+    // D-160: this refusal used to be indistinguishable from an outage on the
+    // dashboard — "the action did nothing, no error logged". If a public
+    // ticket action ever resolves a host with no tenant (a header the proxy
+    // failed to set, a mid-deploy `unknown` context, a host that is not the
+    // storefront it claims to be), log WHY so it is not a silent no-op again.
+    // The `/ticket/<code>` GET already rendered, so a POST that cannot see the
+    // tenant is a header/context regression worth a breadcrumb, not silence.
+    logServerError(
+      "venues.publicTicket/no-tenant",
+      new Error(`public ticket action on a non-storefront context: kind=${host.kind} tenant=${host.tenantId ? "set" : "missing"}`),
+    );
     return { ok: false as const, reason: "unavailable" as const };
   }
   const admin = createServiceRoleClient();
@@ -612,7 +624,12 @@ export async function ticketTransfer(input: { code: string; toName: string; toEm
     .object({
       code: z.string().trim().min(8),
       toName: z.string().trim().min(1).max(120),
-      toEmail: z.string().email(),
+      // `.trim()` before `.email()` (D-160): the form enables Transfer on a
+      // bare `includes("@")`, so a mobile keyboard's trailing space reaches
+      // here — without the trim `z.string().email()` refuses an address the
+      // form accepted, and the guest reads "That cannot be saved." for a valid
+      // e-mail. Trim first, validate the trimmed value.
+      toEmail: z.string().trim().email(),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };

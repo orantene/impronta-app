@@ -8,6 +8,7 @@ import type { VenueAdmin } from "./locations";
 
 export type TicketSelfReason =
   | "superseded"
+  | "conflict"
   | "not_found"
   | "too_many_attempts"
   | "channel_unavailable"
@@ -79,19 +80,30 @@ export async function ticketTransfer(
   const loaded = await loadTicketByCode(admin, input);
   if (!loaded.ok) return loaded;
   const nextVersion = loaded.tokenVersion + 1;
-  const { error } = await admin
+  // `.select("id")` is load-bearing, not cosmetic (D-160). The update is
+  // guarded on the version we read a moment ago; if the row's version moved
+  // between the load and this write — a concurrent check-in, an exchange, a
+  // second transfer from another tab — the `.eq("token_version", …)` matches
+  // ZERO rows. Without a returned row that is a SILENT success: no error, the
+  // touch trigger never fires so `updated_at` is untouched, and we would go on
+  // to sign a "new" code and tell the guest it worked while nothing changed.
+  // That is the whole of D-160. A 0-row match is a conflict, and it is said.
+  const { data: updated, error } = await admin
     .from("admissions")
     .update({
       holder_name: input.toName.trim(),
-      holder_email: input.toEmail.trim(),
+      holder_email: input.toEmail.trim().toLowerCase(),
       token_version: nextVersion,
     })
     .eq("id", loaded.admissionId)
-    .eq("token_version", loaded.tokenVersion);
+    .eq("token_version", loaded.tokenVersion)
+    .select("id");
   if (error) {
     logServerError("venues.ticketTransfer", error);
     return { ok: false, reason: "unavailable" };
   }
+  const rows = (updated ?? []) as Array<{ id: string }>;
+  if (rows.length === 0) return { ok: false, reason: "conflict" };
   const code = signAdmissionToken(loaded.admissionId, nextVersion);
   if (!code) return { ok: false, reason: "unavailable" };
   return { ok: true, code, tokenVersion: nextVersion };
