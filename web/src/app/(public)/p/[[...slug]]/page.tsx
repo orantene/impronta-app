@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -41,6 +41,10 @@ import {
   resolveDesignLocale,
 } from "@/lib/site-admin/server/design-locale";
 import { userHasCapability } from "@/lib/access";
+import { resolveLinkedEventSlugForPageSlug } from "@/lib/events/event-page-link";
+import { builderPageRedirectForLinkedEvent } from "@/lib/events/event-page-paths";
+import { ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { headers } from "next/headers";
 import { shouldRouteSiteShellSurface } from "@/lib/site-admin/site-shell-flag";
 import { SITE_SHELL_EDITOR_SLUG } from "@/lib/admin/website-editor-links";
 import { formPrefillFromSearchParams } from "@/lib/site-admin/builder-node/form-prefill";
@@ -226,10 +230,18 @@ export default async function CmsPublicPage({
   // sourcePage ("/" → show_on_home, "/directory" → show_on_directory) — this
   // prevents a double launcher on those surfaces.
   mountChatLauncher = true,
+  // A page that is the CONTENT of a published event (`events.page_id`) has one
+  // canonical URL: the event's (`/events/<slug>`, `/es/eventos/<slug>`). Its
+  // own `/p/<slug>` and clean `/<slug>` forms 308 there. The event route
+  // renders this component AT that URL and passes `false`, or it would
+  // redirect to itself; the home and directory roles pass `false` because
+  // their URL is the role's, not the page's.
+  redirectWhenLinkedToEvent = true,
   searchParams,
 }: {
   params: Promise<{ slug?: string[] }>;
   mountChatLauncher?: boolean;
+  redirectWhenLinkedToEvent?: boolean;
   /** Optional: `?f_<field>=` keys prefill `form` nodes (see form-prefill.ts). */
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -313,13 +325,30 @@ export default async function CmsPublicPage({
     );
   }
 
-  // P4-SEO — one structured-data read shared by every render branch below.
-  const jsonLdScript = await loadPageJsonLdScript(
-    supabase,
-    publicScope.tenantId,
-    locale,
-    slugPath,
-  );
+  // P4-SEO — one structured-data read shared by every render branch below,
+  // alongside the event-link read (both cheap, neither waits on the other).
+  const [jsonLdScript, linkedEventSlug] = await Promise.all([
+    loadPageJsonLdScript(supabase, publicScope.tenantId, locale, slugPath),
+    redirectWhenLinkedToEvent
+      ? resolveLinkedEventSlugForPageSlug(supabase, publicScope.tenantId, slugPath)
+      : Promise.resolve(null),
+  ]);
+  if (linkedEventSlug) {
+    const [eventLocaleSettings, requestHeaders] = await Promise.all([
+      loadTenantLocaleSettings(publicScope.tenantId),
+      headers(),
+    ]);
+    const target = builderPageRedirectForLinkedEvent({
+      linkedEventSlug,
+      locale,
+      settings: localeUrlSettings(eventLocaleSettings.defaultLocale, eventLocaleSettings.supportedLocales),
+      pathPrefix: await getPublicPathPrefix(),
+      requestPath: requestHeaders.get(ORIGINAL_PATHNAME_HEADER) ?? undefined,
+    });
+    // The query survives the hop: a `/q/<code>` scan lands here as
+    // `/lumina?l=<link>` and the attribution must reach the event URL.
+    if (target) permanentRedirect(`${target}${requestHeaders.get(ORIGINAL_SEARCH_HEADER) ?? ""}`);
+  }
 
   // Wave 4.1 — cms_pages opted into FREEFORM (is_freeform=true). Render the
   // BuilderNode[] tree directly (same engine as talent pages),

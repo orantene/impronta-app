@@ -17737,7 +17737,6 @@
       "notBuilt": {
         "orders": "Orders for an event are the Orders destination's rows; a per-event view is not built yet.",
         "guests": "The guest list per night is the door: open it below.",
-        "page": "The event's page is built with the website builder's event block; promotion has no table yet.",
         "money": "Money & Reports read from Sales and Payments; a per-event report is not built yet."
       },
       "create": {
@@ -17826,6 +17825,21 @@
         "save": "Save settings",
         "saving": "Saving…",
         "saved": "Settings saved. The ticket page reads them right away."
+      },
+      "page": {
+        "title": "Event page",
+        "intro": "Pick the website page that is this event's public page. The event's own URLs below show that page; the page's own address redirects to them.",
+        "pick": "Page",
+        "pickHint": "Published pages only. Clear it to show the built-in event page again.",
+        "none": "No published pages yet. Build one in Website, publish it, then pick it here.",
+        "engine": "Built-in event page (no website page)",
+        "save": "Save page",
+        "saving": "Saving…",
+        "saved": "Saved. The event's URLs now show this page.",
+        "canonical": "Public URLs",
+        "canonicalHint": "Share these. They stay the same whichever page is linked.",
+        "canonicalEn": "English",
+        "canonicalEs": "Spanish"
       }
     },
     "setupPage": {

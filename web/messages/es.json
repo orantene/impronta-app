@@ -17737,7 +17737,6 @@
       "notBuilt": {
         "orders": "Los pedidos de un evento son filas del destino Pedidos; la vista por evento todavía no está construida.",
         "guests": "La lista de invitados por noche es la puerta: ábrela abajo.",
-        "page": "La página del evento se construye con el bloque de evento del editor web; la promoción todavía no tiene tabla.",
         "money": "Dinero e informes se leen desde Ventas y Pagos; el informe por evento todavía no está construido."
       },
       "create": {
@@ -17826,6 +17825,21 @@
         "save": "Guardar ajustes",
         "saving": "Guardando…",
         "saved": "Ajustes guardados. La página de la entrada los lee al instante."
+      },
+      "page": {
+        "title": "Página del evento",
+        "intro": "Elige la página del sitio web que es la página pública de este evento. Las URLs propias del evento muestran esa página; la dirección propia de la página redirige a ellas.",
+        "pick": "Página",
+        "pickHint": "Solo páginas publicadas. Deja la opción vacía para volver a mostrar la página de evento integrada.",
+        "none": "Todavía no hay páginas publicadas. Crea una en Sitio web, publícala y elígela aquí.",
+        "engine": "Página de evento integrada (sin página del sitio)",
+        "save": "Guardar página",
+        "saving": "Guardando…",
+        "saved": "Guardado. Las URLs del evento ahora muestran esta página.",
+        "canonical": "URLs públicas",
+        "canonicalHint": "Comparte estas. No cambian aunque cambies la página vinculada.",
+        "canonicalEn": "Inglés",
+        "canonicalEs": "Español"
       }
     },
     "setupPage": {

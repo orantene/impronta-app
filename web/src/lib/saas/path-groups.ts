@@ -402,6 +402,14 @@ export const CANONICAL_TICKET_PREFIX = "/ticket" as const;
 export const CANONICAL_EVENTS_PREFIX = "/events" as const;
 
 /**
+ * The Spanish segment of the same group: `/es/eventos/<slug>` is the Spanish
+ * canonical of `/events/<slug>` (owner ask, SEO: the Spanish URL carries the
+ * Spanish word). Gated exactly like `/events`; the proxy rewrites it to the
+ * `/events` route internally (see `lib/events/event-page-paths.ts`).
+ */
+export const CANONICAL_EVENTS_ES_PREFIX = "/eventos" as const;
+
+/**
  * Events & Ticketing E4b — the public receipt (`/r/<code>`).
  *
  * THIS PATH IS PERMANENT IN A WAY MOST ARE NOT. A receipt link is printed on a

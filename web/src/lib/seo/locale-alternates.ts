@@ -101,6 +101,11 @@ export async function buildTenantLocaleAlternates(
      * framework-rendered routes, which exist in every supported locale.
      */
     availableLocales?: readonly string[];
+    /**
+     * Per-locale locale-free path for a page whose slug is translated
+     * (`/events/x` → `/eventos/x`). See `LocaleAlternatesInput`.
+     */
+    pathnameForLocale?: (locale: string) => string | null | undefined;
   } = {},
 ): Promise<Pick<Metadata, "metadataBase" | "alternates">> {
   const hostContext = await getPublicHostContext();
@@ -136,6 +141,7 @@ export async function buildTenantLocaleAlternates(
     buildLocaleAlternates({
       origin,
       pathnameWithoutLocale,
+      pathnameForLocale: options.pathnameForLocale,
       currentLocale: locale,
       defaultLocale: localeSettings.defaultLocale,
       supportedLocales,

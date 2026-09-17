@@ -126,6 +126,7 @@ export default async function DirectoryPage() {
         <CmsPublicPage
           params={Promise.resolve({ slug: [assignedDirectorySlug] })}
           mountChatLauncher={false}
+          redirectWhenLinkedToEvent={false}
         />
         <AgencyChatLauncherMount sourcePage="/directory" />
         <Suspense fallback={null}>
