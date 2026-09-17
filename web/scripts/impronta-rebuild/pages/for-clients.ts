@@ -1,11 +1,15 @@
 /**
  * Impronta rebuild — FOR CLIENTS (`/p/for-clients`).
  *
- * The client conversion funnel. Flow: photographic hero → what you can book
- * (occasions) → what agency-managed means (split) → booking process →
- * editorial plate → divisions rail → social proof → FAQ teaser → closing CTA.
+ * The client conversion funnel. Flow: photographic hero → who we work with
+ * (nine client segments from the owner's 2026-09-17 commercial map, each an
+ * anchor + a prefilled brief) → what agency-managed means (split) → booking
+ * process → editorial plate → divisions rail → social proof → FAQ teaser →
+ * closing CTA.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+
+import { briefHref, segmentCard, type SegmentCardInput } from "../shared-offers";
 import {
   band,
   bulletRow,
@@ -17,7 +21,6 @@ import {
   fullBleedPlate,
   grid,
   headingLine,
-  linkRow,
   lineButton,
   pageHero,
   photoTile,
@@ -39,40 +42,159 @@ const hero = pageHero("rb-clients", {
   imageAlt: "Close-up studio portrait of an Impronta model, one hand at her jaw, against a pale backdrop.",
 });
 
-const occasions = band(
-  "rb-clients-occasions",
+/**
+ * WHO WE WORK WITH — the owner's 2026-09-17 commercial map, fourteen target
+ * areas folded into nine cards a visitor can scan. Each card's node id is an
+ * in-page anchor (`/p/for-clients#rb-clients-seg-hotels`) that the homepage
+ * services strip and the header menu deep-link into, and every CTA lands on
+ * the contact brief with "What are you booking?" already filled in.
+ */
+const SEGMENTS: ReadonlyArray<{ key: string } & SegmentCardInput> = [
+  {
+    key: "brands",
+    chip: "01 · Fashion",
+    title: "Fashion brands & designers",
+    intro: "Faces and full production for the collection, the campaign and the feed.",
+    bullets: [
+      "Photo productions with models",
+      "Advertising campaigns",
+      "Collection launches",
+      "Catalogues and social content",
+      "Runway shows and presentations",
+    ],
+    cta: { label: "Book a campaign", href: briefHref("Fashion campaign / production with models") },
+  },
+  {
+    key: "activations",
+    chip: "02 · Brands & companies",
+    title: "Activations & promotions",
+    intro: "The people your brand is remembered by, from the door to the demo.",
+    bullets: [
+      "Hosts, hostesses and promoters",
+      "Brand activations and product launches",
+      "Staff for events",
+      "Models for campaigns and content",
+      "Promotional experiences",
+    ],
+    cta: { label: "Staff an activation", href: briefHref("Brand activation / promotional staff") },
+  },
+  {
+    key: "private",
+    chip: "03 · Private",
+    title: "Private events & celebrations",
+    intro: "Birthdays, weddings and the nights that need a production behind them.",
+    bullets: [
+      "Birthdays and bachelor(ette) parties",
+      "Weddings and destination weddings",
+      "Themed and corporate parties",
+      "Luxury private events",
+      "Personalised entertainment",
+    ],
+    cta: { label: "Plan my event", href: briefHref("Private event / wedding entertainment") },
+  },
+  {
+    key: "hotels",
+    chip: "04 · Hospitality",
+    title: "Hotels, resorts & beach clubs",
+    intro: "Complete shows and the talent to fill a season of guest programming.",
+    bullets: [
+      "Show Impronta: a complete live production",
+      "Dancers, acrobats and themed shows",
+      "Models, hosts and animation",
+      "Guest activations",
+      "Special productions for hotel events",
+    ],
+    cta: { label: "See the show for hotels", href: "/p/show" },
+  },
+  {
+    key: "nightlife",
+    chip: "05 · Nightlife",
+    title: "Casinos, bars, clubs & restaurants",
+    intro: "Resident or one-night entertainment that turns a room into a destination.",
+    bullets: [
+      "Resident and special shows",
+      "Dancers, performers and acrobats",
+      "Go-go dancers and models",
+      "Themed events",
+      "Special presentations for chosen nights",
+    ],
+    cta: { label: "Plan a night", href: briefHref("Show / performers for a club, bar or restaurant") },
+  },
+  {
+    key: "runway",
+    chip: "06 · Runway",
+    title: "Fashion shows & runway production",
+    intro: "From the casting to the last look: the whole show, produced as one.",
+    bullets: [
+      "Models and casting",
+      "Organisation and production",
+      "Choreography and wardrobe",
+      "Hair and makeup",
+      "Full runway production",
+    ],
+    cta: { label: "Produce my show", href: briefHref("Fashion show / runway production") },
+  },
+  {
+    key: "audiovisual",
+    chip: "07 · Production",
+    title: "Audiovisual production",
+    intro: "Talent and production for the camera, still or moving.",
+    bullets: [
+      "Models for photo and video",
+      "Content for social media",
+      "Advertising and music videos",
+      "Brand campaigns",
+      "Content for hotels and restaurants",
+    ],
+    cta: { label: "Cast my production", href: briefHref("Audiovisual production / content shoot") },
+  },
+  {
+    key: "corporate",
+    chip: "08 · Corporate & agencies",
+    title: "Corporate events & agency partners",
+    intro: "Entertainment and staff for company events, and a roster your agency can sell.",
+    bullets: [
+      "Hosts, presenters and performers for corporate events",
+      "Entertainment and activations for companies",
+      "Partnerships with advertising, marketing and event agencies",
+      "Talent supplied for your own clients' briefs",
+      "One coordinator, one agreement",
+    ],
+    cta: { label: "Talk partnerships", href: briefHref("Corporate event / agency partnership") },
+  },
+  {
+    key: "studio",
+    chip: "09 · Studio & tourists",
+    title: "Studio experiences & courses",
+    intro: "Photo sessions, posing courses and model-for-a-day experiences at our studio.",
+    bullets: [
+      "Studio photo sessions from $1,500 MXN",
+      "Model for a Day experience",
+      "Posing and self-makeup courses",
+      "Themed and vintage-era shoots",
+      "Experiences for visitors and groups",
+    ],
+    cta: { label: "See experiences and prices", href: "/p/experiences" },
+  },
+];
+
+const segments = band(
+  "rb-clients-segments",
   [
     centerHead(
-      "rb-clients-occasions",
-      "Best for",
-      "Whatever the brief, there is a roster for it",
-      "The occasions we staff most, from single-face campaigns to full activation teams.",
+      "rb-clients-segments",
+      "Who we work with",
+      "From a single face to a full show",
+      "Impronta works with individuals, brands, companies, agencies, hotels, restaurants, bars, clubs, casinos and event organisers. Find your brief below; every card opens a message to a coordinator.",
     ),
-    {
-      id: "rb-clients-occasions-grid",
-      kind: "container",
-      props: {
-        layout: "grid",
-        columns: 3,
-        gap: "m",
-        layerLabel: "Occasion rows",
-        responsive: { tablet: { columns: 2 }, mobile: { layout: "stack", columns: 1 } },
-        style: { width: "100%", maxWidthFree: "100%", gap: "0px 48px" },
-      },
-      children: [
-        linkRow("rb-clients-occ-campaigns", "Fashion & Brand Campaigns", "/directory"),
-        linkRow("rb-clients-occ-launches", "Product Launches", "/directory"),
-        linkRow("rb-clients-occ-events", "Events & Galas", "/directory"),
-        linkRow("rb-clients-occ-hospitality", "Hospitality & VIP", "/directory"),
-        linkRow("rb-clients-occ-shoots", "Editorial & E-commerce Shoots", "/directory"),
-        linkRow("rb-clients-occ-activations", "Brand Activations", "/directory"),
-        linkRow("rb-clients-occ-weddings", "Destination Weddings", "/directory"),
-        linkRow("rb-clients-occ-music", "Music & Entertainment", "/directory"),
-        linkRow("rb-clients-occ-culinary", "Private Dining & Culinary", "/directory"),
-      ],
-    },
+    grid(
+      "rb-clients-segments-grid",
+      3,
+      SEGMENTS.map((s) => segmentCard(`rb-clients-seg-${s.key}`, s)),
+      { layerLabel: "Client segments", mobileColumns: 1 },
+    ),
   ],
-  { borderTop: true, layerLabel: "Occasions" },
+  { borderTop: true, layerLabel: "Who we work with" },
 );
 
 const managed = band(
@@ -314,7 +436,7 @@ const closing = closingCta("rb-clients-closing", {
 
 const tree: BuilderNode[] = [
   hero,
-  occasions,
+  segments,
   managed,
   process,
   plate,
@@ -328,9 +450,9 @@ export const forClientsPage: ImprontaRebuildPage = {
   slug: "for-clients",
   title: "For Clients",
   seo: {
-    meta_title: "Book Talent in Tulum & Riviera Maya | Impronta for Clients",
+    meta_title: "Talent, Shows & Production for Brands, Events & Hotels | Impronta",
     meta_description:
-      "How brands, event producers, hotels and casting directors book models, hosts, performers, DJs and chefs through Impronta: one brief, a vetted shortlist within 24 hours, and a coordinator who runs the day.",
+      "Book models, hosts, dancers, acrobats, DJs and complete shows through Impronta for campaigns, activations, weddings, hotels, clubs, runway and audiovisual production. One brief, a vetted shortlist within 24 hours.",
     og_title: "Cast the brief, not the chaos",
     og_description:
       "Vetted talent, confirmed availability, agreed rates and a named coordinator. How booking through Impronta works.",

@@ -400,6 +400,10 @@ export interface BuilderNodeRenderOptions {
   // attribute is emitted and each provider keeps its own default, which is
   // byte-identical to the markup before this option existed.
   visitorLocale?: string;
+  // Default values for `form` fields, keyed by field NAME. Built from the
+  // page URL (`?f_<name>=…`, see `form-prefill.ts`) so a marketing CTA can land
+  // on a form that already names the product. Absent → markup unchanged.
+  formPrefill?: Readonly<Record<string, string>> | null;
   // W3-T1 — EDITOR-ONLY insert/delete/reorder motion. When true, the rendered
   // node list is wrapped in a `display: contents` FLIP primitive
   // (`BuilderNodeLayoutMotion`) so inserts fade+rise, deletes fade out, and
@@ -6316,6 +6320,11 @@ function renderBuilderNodeElement(
         ? prefixPublicHref("/api/cms/forms/submit", options.publicPathPrefix)
         : prefixPublicHref(formProps.action!.trim(), options.publicPathPrefix);
       const hasFileField = fields.some((f) => f.type === "file");
+      const formPrefill = options.formPrefill ?? null;
+      const prefillFor = (name: string): string | undefined =>
+        formPrefill && Object.prototype.hasOwnProperty.call(formPrefill, name)
+          ? formPrefill[name]
+          : undefined;
       return (
         <form
           key={node.id}
@@ -6413,6 +6422,7 @@ function renderBuilderNodeElement(
                     placeholder={field.placeholder}
                     required={field.required ?? false}
                     rows={4}
+                    defaultValue={prefillFor(field.name)}
                   />
                 ) : field.type === "select" ? (
                   <select
@@ -6420,7 +6430,14 @@ function renderBuilderNodeElement(
                     id={fieldId}
                     name={field.name}
                     required={field.required ?? false}
-                    defaultValue=""
+                    defaultValue={
+                      (() => {
+                        const want = prefillFor(field.name);
+                        return want !== undefined && (field.options ?? []).includes(want)
+                          ? want
+                          : "";
+                      })()
+                    }
                   >
                     <option value="" disabled>
                       {field.placeholder ?? "Choose…"}
@@ -6469,6 +6486,11 @@ function renderBuilderNodeElement(
                     type={field.type}
                     placeholder={field.placeholder}
                     required={field.required ?? false}
+                    defaultValue={
+                      field.type === "file" || field.type === "date"
+                        ? undefined
+                        : prefillFor(field.name)
+                    }
                   />
                 )}
               </div>
@@ -8209,6 +8231,7 @@ function normalizeBuilderNodeRenderOptions(
     // Falls back to the per-element translation locale when a caller set that
     // but not this, so the two can never disagree about the visitor's language.
     visitorLocale: options.visitorLocale ?? options.contentLocale?.locale,
+    formPrefill: options.formPrefill ?? null,
     experimentSeed: options.experimentSeed,
     experimentTenantId: options.experimentTenantId,
     experimentSurface: options.experimentSurface,
