@@ -173,7 +173,7 @@ test("a ticket that could not be voided is REPORTED, not hidden in a count", () 
   assert.match(SRC, /TICKETS_NOT_VOIDED_AFTER_REFUND/, "and a human must be paged");
 });
 
-test("a FREE-ONLY plan refuses a second cancel on the tickets, before any write (D-170)", () => {
+test("a FREE-ONLY plan refuses a second cancel on the tickets, before any write (D-175)", () => {
   // `planRefund` cannot tell a cancelled comp from a fresh one (both have 0
   // left), so the guard lives here and reads the admissions first.
   const guard = SRC.indexOf("plan.totalCents === 0");

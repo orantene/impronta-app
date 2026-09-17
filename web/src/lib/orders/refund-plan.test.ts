@@ -75,7 +75,7 @@ test("a line already fully refunded REFUSES, it does not return zero", () => {
   if (!plan.ok) assert.equal(plan.reason, "line_already_refunded");
 });
 
-test("a FREE line ($0 comp) plans with no money steps instead of refusing (D-170)", () => {
+test("a FREE line ($0 comp) plans with no money steps instead of refusing (D-175)", () => {
   // A comp never had money to give back; refusing it as "already refunded"
   // meant no free ticket could ever be cancelled from the desk or the door.
   const plan = planRefund({
