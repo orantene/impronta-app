@@ -20,6 +20,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { translatableTextOf } from "@/lib/site-admin/builder-node/translatable-text";
+import { localizablePropsForKind } from "@/lib/i18n/builder-i18n-props";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
 import { commitPageRevisionThenVersion } from "@/lib/site-admin/server/page-revision-commit";
 
@@ -97,6 +98,11 @@ export const LUMINA_EN: Record<string, string> = {
   "Mayores de 18 años con identificación.": "18 and over, with ID.",
   "Reembolsos y transferencias": "Refunds and transfers",
   "Puedes transferir tu entrada a otra persona desde el enlace de tu ticket. No hay reembolsos después del 19 de noviembre.": "You can transfer your ticket to someone else from your ticket link. No refunds after 19 November.",
+  "Puertas 18:00 h · Apertura LUMINA 23:00 h · Cierre 3:00 am. Estacionamiento y zona de taxis en la entrada.": "Doors 6:00 pm · LUMINA opening 11:00 pm · Close 3:00 am. Parking and taxi rank at the entrance.",
+  "Calle 12 Norte entre Av. 10 y Av. 15, Centro, Playa del Carmen, Q. Roo": "Calle 12 Norte between Av. 10 and Av. 15, Centro, Playa del Carmen, Q. Roo",
+  "Sáb 21 nov · 18:00 → 3:00 am": "Sat 21 Nov · 6:00 pm → 3:00 am",
+  "Cómo llegar": "How to get there",
+  "Ver en Google Maps": "Open in Google Maps",
   "¿Cómo entro?": "How do I get in?",
   "Recibes un e-mail con tu QR. Lo muestras en la puerta desde el teléfono; no hace falta imprimir.": "You receive an e-mail with your QR. Show it at the door from your phone; no need to print.",
 };
@@ -128,7 +134,15 @@ export function englishBaseWithSpanishOverlay(tree: BuilderNode[]): { tree: Buil
       const i18n = { ...((props.i18n as Record<string, Record<string, string>> | undefined) ?? {}) };
       const es = { ...(i18n.es ?? {}) };
       let touched = false;
-      for (const t of translatableTextOf(node)) {
+      // Generic text props plus the per-kind localizable props the renderer
+      // resolves (location_map overlay copy is not in the generic set).
+      const entries = translatableTextOf(node);
+      const seen = new Set(entries.map((e) => e.prop));
+      for (const prop of localizablePropsForKind(node.kind)) {
+        const v = props[prop];
+        if (!seen.has(prop) && typeof v === "string" && v.trim()) entries.push({ prop, value: v.trim() });
+      }
+      for (const t of entries) {
         const en = LUMINA_EN[t.value];
         if (en === undefined) {
           if (/[áéíóúñ¿¡]/i.test(t.value) || /\b(de|la|el|los|las|con|para|por)\b/i.test(t.value)) untranslated.push(`${node.id} ${t.prop}: ${t.value}`);
