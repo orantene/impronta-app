@@ -75,6 +75,32 @@ test("a line already fully refunded REFUSES, it does not return zero", () => {
   if (!plan.ok) assert.equal(plan.reason, "line_already_refunded");
 });
 
+test("a FREE line ($0 comp) plans with no money steps instead of refusing (D-175)", () => {
+  // A comp never had money to give back; refusing it as "already refunded"
+  // meant no free ticket could ever be cancelled from the desk or the door.
+  const plan = planRefund({
+    lines: [line("comp", 0, 0)],
+    lineIds: ["comp"], scope: {}, discountCents: 0,
+    transactions: [],
+  });
+  assert.equal(plan.ok, true);
+  if (plan.ok) {
+    assert.deepEqual(plan.steps, []);
+    assert.equal(plan.totalCents, 0);
+    assert.deepEqual(plan.lines, [{ id: "comp", amountCents: 0 }]);
+  }
+});
+
+test("a PAID line fully refunded still refuses when picked next to a free one", () => {
+  const plan = planRefund({
+    lines: [line("comp", 0, 0), line("ga", 5000, 5000)],
+    lineIds: ["comp", "ga"], scope: {}, discountCents: 0,
+    transactions: [txn("t1", 5000, 5000)],
+  });
+  assert.equal(plan.ok, false);
+  if (!plan.ok) assert.equal(plan.reason, "line_already_refunded");
+});
+
 test("more than was captured REFUSES rather than refunding what it can", () => {
   // A partial execution leaves money owed with no record of the intent, and the
   // customer sees one refund where two were promised.

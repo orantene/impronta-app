@@ -95,7 +95,13 @@ export function planRefund(input: {
 
   // A line with nothing left REFUSES rather than silently contributing zero.
   // Returning ok with a 0 amount would let a double-refund look successful.
-  if (perLine.some((p) => p.amountCents <= 0)) {
+  //
+  // A FREE line (`totalCents === 0`: a comp, a $0 tier) is the one legitimate
+  // zero. It never had money to give back, so "nothing left" says nothing about
+  // whether its ticket was cancelled; that truth lives on the admission, and
+  // the execute layer refuses a free-only plan whose tickets are all already
+  // stamped. Without this, no comp could ever be cancelled (D-175).
+  if (perLine.some((p) => p.amountCents <= 0 && (byId.get(p.id)?.totalCents ?? 0) > 0)) {
     return { ok: false, reason: "line_already_refunded" };
   }
 
