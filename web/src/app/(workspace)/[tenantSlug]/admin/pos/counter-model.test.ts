@@ -19,8 +19,12 @@ import {
   toHeldSales,
   toProductTiles,
   toShiftSummary,
+  writeHoldSettling,
+  WRITE_HOLD_MS,
   type PosCatalogItem,
 } from "./counter-model";
+import { pushAfterWrite } from "./counter-sale-start";
+import { refusalFromResult } from "@/lib/pos/refusal-reason";
 
 const ORDER = "8b0a2b0e-1c4d-4a1f-9f3a-2b7c9d0e1f22";
 
@@ -251,4 +255,47 @@ test("a tile's badge is the fact the page read, in the order a cashier needs it"
     { id: "s2", title: "Tue", startsAt: "2026-09-15T09:00:00Z" },
   ];
   assert.deepEqual(tileBadge({ ...none, sessions, stock: { kind: "counted", available: 2 } }), { kind: "pickSession" });
+});
+
+// ── D-156: the hold after a write ───────────────────────────────────────
+
+test("D-156: the hold is released by the re-read even when the version did not move", () => {
+  const written = { orderId: ORDER, version: 4 };
+  assert.equal(writeHoldSettling(written, written), true, "the sale on screen is still the one written against: hold");
+  // The re-read hands the counter a NEW object carrying the SAME version (a
+  // no-op edit, a re-read that raced the write). The old rule held forever.
+  const reread = { orderId: ORDER, version: 4 };
+  assert.equal(writeHoldSettling(written, reread), false, "a re-read releases, whatever version it carries");
+  assert.equal(writeHoldSettling(written, { orderId: ORDER, version: 5 }), false, "a newer version releases");
+  assert.equal(writeHoldSettling(written, null), false, "leaving the sale releases");
+  assert.equal(writeHoldSettling(null, written), false, "no write, no hold");
+});
+
+test("D-156: the hold has a ceiling, in seconds not minutes", () => {
+  assert.ok(WRITE_HOLD_MS >= 1000 && WRITE_HOLD_MS <= 10_000, `a till cannot wait ${WRITE_HOLD_MS} ms on a refresh`);
+});
+
+test("D-156: a refused line edit reaches the screen as its own sentence, never as `ok`", () => {
+  // The edit sheet's save runs through `run("sale", …)` → `refusalFromResult`.
+  // Each reason `updateLine` can answer has a sentence; a refusal is never
+  // folded into a success that would set the hold.
+  assert.equal(refusalFromResult({ ok: false, reason: "conflict", error: "changed" }, "sale"), "saleReloading");
+  assert.equal(refusalFromResult({ ok: false, reason: "not_found", error: "gone" }, "sale"), "bookingChanged");
+  assert.equal(refusalFromResult({ ok: false, reason: "invalid", error: "qty" }, "sale"), "itemRefused");
+  assert.equal(refusalFromResult({ ok: true }, "sale"), null);
+});
+
+// ── D-155: a push after a write waits for the router ────────────────────
+
+test("D-155: pushAfterWrite navigates only after the current microtask turn has drained", async () => {
+  const pushed: string[] = [];
+  const router = { push: (href: string) => pushed.push(href) };
+  pushAfterWrite(router, "/x/admin/pos?mode=counter&order=abc");
+  // The App Router applies a server action's state in the microtasks that
+  // follow the action's result; a push landing inside them discards the
+  // action (D-155). Several turns of microtasks: still not pushed.
+  for (let i = 0; i < 8; i += 1) await Promise.resolve();
+  assert.deepEqual(pushed, [], "the push must not land inside the action's own microtasks");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(pushed, ["/x/admin/pos?mode=counter&order=abc"]);
 });

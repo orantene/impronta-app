@@ -12,6 +12,11 @@
  * write while the draft is still starting waits for it; the promise clears
  * once the address carries a sale (this draft or a later one), and when a
  * start is refused so the next tap tries again.
+ *
+ * `pushAfterWrite` is the D-155 fix. A `router.push` issued in the same
+ * microtask turn as a server action's result overlapped two router-state
+ * promises in Next's App Router and threw React #310 on the counter (see the
+ * function's comment).
  */
 
 import { useCallback, useEffect, useRef } from "react";
@@ -22,6 +27,31 @@ import { posCreateDraft } from "./actions";
 export type SaleTarget = { readonly orderId: string; readonly version: number };
 
 type DraftResult = Awaited<ReturnType<typeof posCreateDraft>>;
+
+/**
+ * Move the address AFTER the router has applied the write that just returned.
+ *
+ * THE DEFECT (D-155). A server action resolves the caller's promise BEFORE
+ * the App Router has applied the action's own state (`serverActionReducer`
+ * calls `resolve(actionResult)` and only then returns the next state), so a
+ * `router.push` in the continuation of `await posAddLine(...)` reaches the
+ * action queue while that action is still pending. A navigation discards a
+ * pending action (`dispatchAction`: "navigations take priority"), whose
+ * state promise is then never resolved, and the router's root component is
+ * left holding two thenables of which the second settles first: React 19
+ * throws `Rendered more hooks than during the previous render` (#310) from
+ * the App Router's own `useMemo` (react#33556). On the counter that was a
+ * tap on an option tile: the draft opened, the line landed, the address
+ * gained `?order=`, and the sale panel went blank until a reload.
+ *
+ * One macrotask later the action's state has been applied (everything after
+ * the response is microtasks: no network), so the push is a plain navigation
+ * on a settled router. Every push that follows a write goes through here;
+ * `pos-page-wire.static.test.ts` keeps it that way.
+ */
+export function pushAfterWrite(router: { push: (href: string) => void }, href: string): void {
+  setTimeout(() => router.push(href), 0);
+}
 
 /** Open a draft. `navigate` pushes to it at once; a caller adding a first line pushes after the line lands. */
 export function useStartSale(input: {
@@ -36,7 +66,7 @@ export function useStartSale(input: {
       const result = await run("sale", () => posCreateDraft(), false);
       if (result.ok && "orderId" in result && typeof result.orderId === "string") {
         resetForNewSale();
-        if (navigate) router.push(saleHref(result.orderId));
+        if (navigate) pushAfterWrite(router, saleHref(result.orderId));
         return { orderId: result.orderId, version: 1 };
       }
       return null;
