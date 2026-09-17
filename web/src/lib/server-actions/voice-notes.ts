@@ -121,7 +121,14 @@ async function insertVoiceRows(
       thread_type: threadType,
       sender_user_id: userId,
       body: "",
-      message_kind: "voice",
+      // "voice" is NOT in the inquiry_messages.message_kind CHECK
+      // (supabase/migrations/20261231222000_pos_messaging_state.sql ~217-248)
+      // and adding it needs a migration this lane doesn't own. Voice notes
+      // insert as a plain "text" message; readVoiceMetaFromMessageMetadata
+      // (web/src/lib/messages/voice-meta.ts) and every bubble renderer
+      // (VoiceNotePlayer callers in ClientMessagesShell, talent-thread-stream,
+      // admin-4) detect the bubble from metadata.voice, not message_kind.
+      message_kind: "text",
       metadata: { voice: voiceMeta },
     })
     .select("id")
