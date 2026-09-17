@@ -45,6 +45,8 @@ export const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   // rather than assumed, because designing around an imaginary collision would
   // have cost a worse path than "/r", permanently, on printed tickets.
   "events",
+  // Spanish canonical of /events (`/es/eventos/<slug>`), same shadowing.
+  "eventos",
   "r",
   "pay",
   "manage",

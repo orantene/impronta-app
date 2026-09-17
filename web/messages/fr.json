@@ -6549,7 +6549,6 @@
       "notBuilt": {
         "orders": "Les commandes d'un événement sont des lignes de la destination Commandes ; la vue par événement n'est pas encore construite.",
         "guests": "La liste des invités par soirée est la porte : ouvrez-la ci-dessous.",
-        "page": "La page de l'événement se construit avec le bloc événement de l'éditeur de site ; la promotion n'a pas encore de table.",
         "money": "Argent et rapports se lisent depuis Ventes et Paiements ; le rapport par événement n'est pas encore construit."
       },
       "create": {
@@ -6638,6 +6637,21 @@
         "save": "Enregistrer les réglages",
         "saving": "Enregistrement…",
         "saved": "Réglages enregistrés. La page du billet les lit immédiatement."
+      },
+      "page": {
+        "title": "Page de l'événement",
+        "intro": "Choisissez la page du site web qui est la page publique de cet événement. Les URL propres de l'événement affichent cette page ; l'adresse propre de la page y redirige.",
+        "pick": "Page",
+        "pickHint": "Pages publiées uniquement. Videz le choix pour réafficher la page d'événement intégrée.",
+        "none": "Aucune page publiée pour l'instant. Créez-en une dans Site web, publiez-la, puis choisissez-la ici.",
+        "engine": "Page d'événement intégrée (sans page du site)",
+        "save": "Enregistrer la page",
+        "saving": "Enregistrement…",
+        "saved": "Enregistré. Les URL de l'événement affichent maintenant cette page.",
+        "canonical": "URL publiques",
+        "canonicalHint": "Partagez celles-ci. Elles ne changent pas, quelle que soit la page liée.",
+        "canonicalEn": "Anglais",
+        "canonicalEs": "Espagnol"
       }
     },
     "visit": {

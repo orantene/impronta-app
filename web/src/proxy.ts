@@ -13,46 +13,25 @@ import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from 
 import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middleware-locale-cache";
 import { tryCmsRedirectResponse } from "@/lib/cms/middleware-redirect";
 import { cleanPublicUrlRedirectResponse, resolveCleanUrlRewrite } from "@/lib/cms/clean-url-middleware";
-import {
-  rateLimitHtmlResponse,
-  rateLimitJsonResponse,
-  tryConsumeRateLimit,
-} from "@/lib/rate-limit";
+import { eventPathRedirectResponse } from "@/lib/events/event-path-middleware";
+import { resolveEventPathRewrite } from "@/lib/events/event-page-paths";
+import { rateLimitHtmlResponse, rateLimitJsonResponse, tryConsumeRateLimit } from "@/lib/rate-limit";
 import { updateSession } from "@/lib/supabase/middleware";
-import {
-  resolveTenantContext,
-  HOST_CONTEXT_HEADER,
-  HOST_NAME_HEADER,
-  HOST_TENANT_SLUG_HEADER,
-  HOST_TALENT_PROFILE_HEADER,
-} from "@/lib/saas/host-context";
+import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
-import {
-  brandedAdminRedirectPath,
-  brandedAdminRewritePath,
-  normalizeBrandedNextParam,
-} from "@/lib/saas/branded-admin-url";
-import {
-  PUBLIC_PATH_PREFIX_HEADER,
-  TENANT_HEADER_NAME,
-} from "@/lib/saas/scope";
+import { brandedAdminRedirectPath, brandedAdminRewritePath, normalizeBrandedNextParam } from "@/lib/saas/branded-admin-url";
+import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
 import {
   isPathAllowedForHostKind,
   resolveWorkspacePathTenantPublicPath,
   WORKSPACE_PATH_SEGMENT,
 } from "@/lib/saas/surface-allow-list";
-import {
-  marketingWorkspacePathRedirect,
-  workspacePathRedirect,
-} from "@/lib/saas/workspace-path-redirects";
+import { marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
-import {
-  isTenantHostContext,
-  resolveProxyLocaleContext,
-} from "@/lib/saas/proxy-locale-context";
+import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import {
   PREVIEW_COOKIE_OPTIONS,
   PREVIEW_QUERY_PARAM,
@@ -614,6 +593,14 @@ export async function proxy(request: NextRequest) {
   });
   if (cleanUrlRedirect) return cleanUrlRedirect;
 
+  // Event URL grammar: `/es/eventos/<slug>` is the Spanish canonical of
+  // `/events/<slug>`; the other spellings 301 onto it. Grammar in
+  // lib/events/event-page-paths.ts; the rewrite onto the route on disk is below.
+  const eventPathRedirect = eventPathRedirectResponse({
+    request, hostKind: effectiveHostContext.kind, pathname: originalPathname, languageSettings: effectiveLangSettings,
+  });
+  if (eventPathRedirect) return eventPathRedirect;
+
   // QA 2026-05-13 — locale resolution must use the ORIGINAL pathname, not
   // the canonicalized one. `effectiveCanonicalPath` has had the locale prefix
   // stripped (line 266) for tenant-slug matching, so passing it here would
@@ -704,6 +691,14 @@ export async function proxy(request: NextRequest) {
   if (cmsSlugRewrite) {
     nextUrl.pathname = cmsSlugRewrite;
     pathnameForAuth = cmsSlugRewrite;
+  }
+
+  // `/eventos/<slug>` (already locale- and tenant-stripped, already canonical
+  // for its locale) → the `/events/<slug>` route on disk. Browser URL unchanged.
+  const eventPathRewrite = resolveEventPathRewrite(effectiveHostContext.kind, pathnameForAuth);
+  if (eventPathRewrite) {
+    nextUrl.pathname = eventPathRewrite;
+    pathnameForAuth = eventPathRewrite;
   }
 
   // Phase 3.12 / 3.13 — branded workspace shortcuts on agency hosts. Keep the

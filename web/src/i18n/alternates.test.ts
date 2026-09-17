@@ -296,3 +296,37 @@ test("the sitemap annotates alternates from the tenant's own locale settings", (
   // `<xhtml:link rel="alternate">` annotations the sitemap previously had none of.
   assert.match(src, /alternates: \{ languages/);
 });
+
+test("a translated slug: each locale claims its own words, on a path-based tenant too", () => {
+  // `/events/<slug>` in English, `/eventos/<slug>` in Spanish (owner ask,
+  // 2026-09-17). The locale prefix and the tenant prefix are still this
+  // module's job; the caller returns only the words.
+  const pathnameForLocale = (locale: string) =>
+    locale === "es" ? "/eventos/fiesta-lumina" : "/events/fiesta-lumina";
+  const alt = buildLocaleAlternates({
+    origin: TENANT_ORIGIN,
+    pathnameWithoutLocale: "/events/fiesta-lumina",
+    pathnameForLocale,
+    currentLocale: "es",
+    defaultLocale: "en",
+    supportedLocales: ["en", "es"],
+  });
+  assert.equal(alt.canonical, `${TENANT_ORIGIN}/es/eventos/fiesta-lumina`);
+  assert.deepEqual(alt.languages, {
+    en: `${TENANT_ORIGIN}/events/fiesta-lumina`,
+    es: `${TENANT_ORIGIN}/es/eventos/fiesta-lumina`,
+    "x-default": `${TENANT_ORIGIN}/events/fiesta-lumina`,
+  });
+
+  const onHub = buildLocaleAlternates({
+    origin: PLATFORM_ORIGIN,
+    pathnameWithoutLocale: "/events/fiesta-lumina",
+    pathnameForLocale,
+    currentLocale: "en",
+    defaultLocale: "en",
+    supportedLocales: ["en", "es"],
+    pathPrefix: "/w/impronta",
+  });
+  assert.equal(onHub.canonical, `${PLATFORM_ORIGIN}/w/impronta/events/fiesta-lumina`);
+  assert.equal(onHub.languages?.es, `${PLATFORM_ORIGIN}/es/w/impronta/eventos/fiesta-lumina`);
+});

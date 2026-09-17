@@ -11,6 +11,11 @@ import { resolvePublicZone } from "@/lib/events/public-event-time";
 import { doorsAt } from "@/lib/events/event-policy";
 import { resolveLineupState } from "@/lib/events/lineup";
 import { loadTicketPicker } from "@/app/(public)/_events/ticket-picker-actions";
+import CmsPublicPage, { generateMetadata as cmsPageMetadata } from "@/app/(public)/p/[[...slug]]/page";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { resolveLinkedBuilderPage } from "@/lib/events/event-page-link";
+import { eventPathWithoutLocale } from "@/lib/events/event-page-paths";
+import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { EventPageView, type Locale } from "./event-page-view";
 
 /**
@@ -38,20 +43,51 @@ import { EventPageView, type Locale } from "./event-page-view";
  *
  * PUBLISHED ONLY, enforced twice (the query and the RLS policy). Times in the
  * VENUE'S zone, never the reader's. NO remaining counts anywhere on this page.
+ *
+ * THE BUILDER PAGE, WHEN THERE IS ONE (`events.page_id`, owner ask 2026-09-17):
+ * an event whose operator built its landing page in the website builder gets
+ * THAT page rendered here, at the event's canonical URL (`/events/<slug>`,
+ * `/es/eventos/<slug>`), through the exact storefront path `/p/<slug>` uses
+ * (locale, metadata, site shell, analytics). The engine view above is the
+ * fallback when no page is linked or the linked page is not published. The
+ * builder page's own URL (`/lumina`) 308s here, so one document has one URL.
  */
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ slug: string }> };
+/**
+ * hreflang for the event's canonical pair: `en` → `/events/<slug>`, `es` →
+ * `/es/eventos/<slug>` (the tenant's own grammar decides which is unprefixed).
+ * `availableLocales` narrows the set to the languages the linked page is
+ * really published in, exactly as `/p/<slug>` does for its own metadata.
+ */
+function eventAlternates(locale: string, slug: string, availableLocales?: readonly string[]) {
+  return buildTenantLocaleAlternates(locale, eventPathWithoutLocale(locale, slug), {
+    pathnameForLocale: (code) => eventPathWithoutLocale(code, slug),
+    ...(availableLocales && availableLocales.length > 0 ? { availableLocales } : {}),
+  });
+}
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   // The event's own name, not the slug de-hyphenated and lowercased (#1874).
   const scope = await getPublicTenantScope();
   const supabase = scope ? await createClient() : null;
   const { data } = supabase
-    ? await supabase.from("events").select("title").eq("tenant_id", scope!.tenantId).eq("status", "published").eq("slug", slug).maybeSingle()
+    ? await supabase.from("events").select("title, page_id").eq("tenant_id", scope!.tenantId).eq("status", "published").eq("slug", slug).maybeSingle()
     : { data: null };
-  return { title: (data?.title as string | undefined) ?? slug.replace(/-/g, " ") };
+  if (!data) return { title: slug.replace(/-/g, " ") };
+  const locale = await getRequestLocale();
+  const page = supabase && scope ? await resolveLinkedBuilderPage(supabase, scope.tenantId, data.page_id as string | null) : null;
+  if (page) {
+    // The page's own SEO (title, description, og image, robots; JSON-LD is in
+    // the body), re-rooted to the event URL: `/p/<slug>` alternates are dropped
+    // and replaced, exactly as the home role does for an assigned home page.
+    const pageMeta = await cmsPageMetadata({ params: Promise.resolve({ slug: page.slug.split("/") }) });
+    return { ...pageMeta, alternates: undefined, ...(await eventAlternates(locale, slug, page.publishedLocales)) };
+  }
+  return { title: data.title as string, ...(await eventAlternates(locale, slug)) };
 }
 
 export default async function PublicEventPage({ params }: Params) {
@@ -69,12 +105,25 @@ export default async function PublicEventPage({ params }: Params) {
 
   const { data: event, error: eventErr } = await supabase
     .from("events")
-    .select("id, slug, title, description, doors_offset_minutes, age_gate, refund_cutoff_hours, venue_id, offering_id, cover_media_id")
+    .select("id, slug, title, description, doors_offset_minutes, age_gate, refund_cutoff_hours, venue_id, offering_id, cover_media_id, page_id")
     .eq("tenant_id", scope.tenantId).eq("status", "published").eq("slug", slug).maybeSingle();
   if (eventErr) { logServerError("events.publicDetail", eventErr); notFound(); }
   if (!event) {
     logServerError("events.publicDetail", new Error(`no published event for slug=${slug} tenant=${scope.tenantId}`));
     notFound();
+  }
+
+  // The builder page IS the event page when one is linked and published.
+  // `redirectWhenLinkedToEvent={false}`: this IS the canonical URL, and the
+  // catch-all would otherwise send the visitor back here forever.
+  const linkedPage = await resolveLinkedBuilderPage(supabase, scope.tenantId, (event.page_id as string | null) ?? null);
+  if (linkedPage) {
+    return (
+      <CmsPublicPage
+        params={Promise.resolve({ slug: linkedPage.slug.split("/") })}
+        redirectWhenLinkedToEvent={false}
+      />
+    );
   }
 
   const [{ data: sessionRows, error: sessionErr }, ctx, { data: cover, error: coverErr }] = await Promise.all([

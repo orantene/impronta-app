@@ -275,6 +275,7 @@ export default async function HomePage() {
             <CmsPublicPage
               params={Promise.resolve({ slug: [homeSlug] })}
               mountChatLauncher={false}
+              redirectWhenLinkedToEvent={false}
             />
           </PublicChatSurface>
         );

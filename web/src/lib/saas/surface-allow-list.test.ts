@@ -654,6 +654,21 @@ test('a tenant cannot claim the slug "events" or "r"', () => {
   assert.equal(resolvePathBasedTenantPublicPath("/r/opaque-receipt"), null);
 });
 
+// `/es/eventos/<slug>` is the Spanish canonical of `/events/<slug>` (owner
+// ask, 2026-09-17). The gate sees the locale-stripped `/eventos/<slug>`, and
+// it must answer exactly as it does for `/events`: the proxy rewrites it onto
+// the `/events` route only AFTER this gate has admitted it.
+test("/eventos resolves on the two host kinds that carry a tenant, exactly like /events", () => {
+  for (const path of ["/eventos", "/eventos/qa-night"]) {
+    assert.equal(isPathAllowedForHostKind("agency", path), true, `agency ${path}`);
+    assert.equal(isPathAllowedForHostKind("hub", path), true, `hub ${path}`);
+    assert.equal(isPathAllowedForHostKind("app", path), false, `app ${path}`);
+    assert.equal(isPathAllowedForHostKind("marketing", path), false, `marketing ${path}`);
+  }
+  assert.equal(isPathAllowedForHostKind("agency", "/eventos-2027"), false, "segment-aware");
+  assert.equal(resolvePathBasedTenantPublicPath("/eventos/qa-night"), null, 'a tenant cannot claim "eventos"');
+});
+
 test('a tenant cannot claim the slug "pay"', () => {
   assert.equal(resolvePathBasedTenantPublicPath("/pay/opaque-link"), null);
 });

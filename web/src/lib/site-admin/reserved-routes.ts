@@ -73,6 +73,11 @@ export const PLATFORM_RESERVED_SLUGS = [
   // the route wins and the author gets no error, just a page nobody can open.
   // Reserved so the builder refuses the slug up front instead.
   "events",
+  // The Spanish canonical of the same route (`/es/eventos/<slug>`): the proxy
+  // 301s `/eventos` onto it and rewrites it to `/events`, so a CMS page
+  // slugged "eventos" could never open either. Mirrored in
+  // `…20261231245000_reserve_eventos_slug.sql`.
+  "eventos",
   // Events & Ticketing: /r/<code> is the ticket receipt, resolving on every
   // tenant host. Same shadowing as "events": a CMS page slugged "r" could
   // never open. Mirrored in `…377_reserve_receipt_slug.sql`.

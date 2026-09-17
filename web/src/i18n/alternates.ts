@@ -49,6 +49,14 @@ export type LocaleAlternatesInput = {
   origin: string | URL;
   /** Locale-free path: `/`, `/models`, `/p/about`, `/t/abc123`. */
   pathnameWithoutLocale: string;
+  /**
+   * A page whose PATH differs by language (`/events/x` in English,
+   * `/eventos/x` in Spanish) supplies the locale-free path per locale here;
+   * `pathnameWithoutLocale` is then the fallback for any locale it returns
+   * nothing for. The locale prefix and the tenant prefix are still applied
+   * by this module, so callers return only the words.
+   */
+  pathnameForLocale?: (locale: string) => string | null | undefined;
   /** Locale this page is rendered in. Decides which URL is the canonical. */
   currentLocale: string;
   /**
@@ -110,7 +118,10 @@ export function localeAlternateUrl(
   locale: string,
 ): string {
   const settings = pathGrammar(input.defaultLocale, input.supportedLocales);
-  const path = joinPath(input.pathPrefix ?? "", input.pathnameWithoutLocale);
+  const path = joinPath(
+    input.pathPrefix ?? "",
+    input.pathnameForLocale?.(locale) ?? input.pathnameWithoutLocale,
+  );
   return new URL(withLocalePath(path, locale, settings), input.origin).toString();
 }
 
