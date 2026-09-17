@@ -109,7 +109,7 @@ test("recipient falls back holder → customer → payer; none releases the clai
   // payer
   calls = [];
   res = await deliverTicketsForOrder(
-    fakeAdmin(world({ admissions: [noHolder], booking_transactions: [{ tenant_id: T, order_id: ORDER, payer_email: "payer@example.com" }] }), calls),
+    fakeAdmin(world({ admissions: [noHolder], booking_transactions: [{ source_tenant_id: T, order_id: ORDER, payer_email: "payer@example.com" }] }), calls),
     { tenantId: T, orderId: ORDER },
   );
   assert.equal(res.ok, true);
