@@ -34,4 +34,7 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Create a link…": "Crear un enlace…",
   "Sends guests to": "Lleva a los invitados a",
   "Create link": "Crear enlace",
+  "Full bleed": "A sangre",
+  "On": "Activado",
+  "Span the screen edge to edge, even inside a narrower block.": "Ocupa la pantalla de borde a borde, incluso dentro de un bloque más estrecho.",
 };

@@ -235,14 +235,19 @@ const eventLaunchTree: BuilderNode[] = [
     kind: "container",
     props: {
       layout: "stack",
-      style: { width: "100%", maxWidthFree: "100%", gap: "0px", backgroundColor: BG, textColor: INK, fontFamily: RALEWAY },
+      // `fullBleed` on the root, the strip and the hero: "width 100%" is only
+      // 100% of the PARENT, and every page root the builder wraps a design in
+      // carries the 1120px container cap - the LUMINA page shipped with black
+      // gutters either side of everything. The flag breaks out to the viewport
+      // whatever wraps it; the 1120px inner columns below stay centred.
+      style: { width: "100%", maxWidthFree: "100%", fullBleed: true, gap: "0px", backgroundColor: BG, textColor: INK, fontFamily: RALEWAY },
     },
     children: [
       // ── Announcement strip ───────────────────────────────────────────────
       {
         id: "el-bar",
         kind: "container",
-        props: { layout: "row", align: "center", style: { width: "100%", maxWidthFree: "100%", backgroundColor: GOLD, paddingTop: "9px", paddingBottom: "9px", ...GUTTER } },
+        props: { layout: "row", align: "center", style: { width: "100%", maxWidthFree: "100%", fullBleed: true, backgroundColor: GOLD, paddingTop: "9px", paddingBottom: "9px", ...GUTTER } },
         children: [
           {
             id: "el-bar-text",
@@ -261,6 +266,7 @@ const eventLaunchTree: BuilderNode[] = [
           style: {
             width: "100%",
             maxWidthFree: "100%",
+            fullBleed: true,
             minHeight: "92svh",
             paddingTop: "40px",
             paddingBottom: "64px",

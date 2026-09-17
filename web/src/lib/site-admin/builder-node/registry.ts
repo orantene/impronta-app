@@ -247,6 +247,10 @@ export const builderNodeStyleValueSchema = z.object({
   minWidth: z.string().max(16).optional(),
   maxWidthFree: z.string().max(16).optional(),
   maxHeight: z.string().max(16).optional(),
+  // Full bleed — span the viewport edge to edge regardless of ancestor caps
+  // (see the `fullBleed` note in types.ts). Base-only: applies on every
+  // breakpoint by design, so it has no responsive lane.
+  fullBleed: z.boolean().optional(),
   // Free per-side padding escapes — layer after the paddingX/paddingY token.
   // Also accept a `token:space.*` binding → follow the theme's spacing rhythm.
   //

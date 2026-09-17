@@ -178,6 +178,21 @@ export function createFeatureComparisonPreset(): Exclude<BuilderNode, { kind: "s
 }
 
 // Announcement bar — a slim full-width row with a message + an inline action.
+//
+// EXPLICIT, TOKEN-BOUND PAINT (2026-09-17). This preset used to say
+// `background: "contrast"`, which the renderer paints as `var(--token-color-ink)`
+// with a literal `#fff` label. On a dark theme ink IS near-white, so the bar
+// shipped on improntamodels.com as a plain white strip whose message was white
+// on white and only the CTA survived, pushed to the right. Now it carries its
+// own paint: the tenant's primary as the ground and the DERIVED readable
+// foreground (`color.primary-on`, see tokens/resolve.ts) as the ink, so it can
+// never inherit a page background, on any theme. Centred single row, 44px min
+// (a tap target), wrapping to two rows on a phone. `fullBleed` so it spans the
+// screen even when dropped inside a capped page root. CTA href is the
+// universal chat cue (`no-dead-default-cta`).
+export const ANNOUNCEMENT_BAR_BACKGROUND = "token:color.primary";
+export const ANNOUNCEMENT_BAR_INK = "token:color.primary-on";
+
 export function createAnnouncementBarPreset(): Exclude<BuilderNode, { kind: "section" }> {
   return {
     id: makeId("container"),
@@ -189,8 +204,13 @@ export function createAnnouncementBarPreset(): Exclude<BuilderNode, { kind: "sec
       style: {
         align: "center",
         justifyContent: "center",
+        alignItems: "center",
+        flexWrap: "wrap",
         maxWidth: "full",
-        background: "contrast",
+        fullBleed: true,
+        backgroundColor: ANNOUNCEMENT_BAR_BACKGROUND,
+        textColor: ANNOUNCEMENT_BAR_INK,
+        minHeight: "44px",
         paddingX: "m",
         paddingY: "s",
         responsive: { mobile: { paddingX: "s" } },
@@ -199,13 +219,17 @@ export function createAnnouncementBarPreset(): Exclude<BuilderNode, { kind: "sec
     children: [
       createParagraph("New: launch your talent page in minutes.", {
         size: "sm",
-        tone: "strong",
+        align: "center",
+        textColor: ANNOUNCEMENT_BAR_INK,
         marginBottom: "none",
       }),
-      createButton("Learn more", "/whats-new", "secondary", {
+      createButton("Learn more", "?inquiry=open", "secondary", {
         radius: "pill",
         paddingX: "m",
         paddingY: "s",
+        backgroundColor: "rgba(0,0,0,0)",
+        textColor: ANNOUNCEMENT_BAR_INK,
+        borderColor: ANNOUNCEMENT_BAR_INK,
       }),
     ],
   };

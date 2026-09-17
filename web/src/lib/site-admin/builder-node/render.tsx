@@ -1206,6 +1206,20 @@ export const BUILDER_NODE_RENDERER_CSS = `
    token) so the scoped-CSS filter always keeps it, in the editor canvas and on
    the published page alike. */
 [data-cms-section],[data-cms-block]{max-width:100%;overflow-x:clip}
+/* FULL BLEED (2026-09-17). A node flagged fullBleed spans the viewport edge
+   to edge no matter what its ancestors clamp: every container/split/card
+   carries the 1120px base cap below and a child can never be wider than its
+   parent, so "width:100%; max-width:100%" on a hero was 100% of a centred
+   1120px column whenever a page root wrapped it (the LUMINA launch page).
+   The classic breakout: 100vw wide, pulled to the viewport edges with
+   symmetric negative margins (parents are viewport-centred by the same base
+   rule). Doubled class = specificity 0,3,0 so it beats every responsive
+   lane (0,2,0 + !important) and the node's own inline width/max-width on
+   EVERY breakpoint. The few px a classic (non-overlay) scrollbar adds are
+   swallowed by the band-overflow invariant above. Inner content keeps its
+   own maxWidthFree + auto margins, so a 1120px column inside stays centred.
+   Base rule (no kind token) so the scoped-CSS filter always keeps it. */
+.site-builder-node.site-builder-node[data-builder-full-bleed]{width:100vw!important;max-width:100vw!important;margin-left:calc(50% - 50vw)!important;margin-right:calc(50% - 50vw)!important}
 .site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)}
 .site-builder-node[data-builder-style-container-name]{container-name:var(--bn-container-name)}
 .site-builder-node--container{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);align-items:var(--bn-align,stretch)}
@@ -2169,6 +2183,10 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-ratio": style?.aspectRatio,
     "data-builder-style-container-type": style?.containerType ? "" : undefined,
     "data-builder-style-container-name": style?.containerName ? "" : undefined,
+    // Full bleed — presence attr the static sheet keys the viewport breakout
+    // on (`.site-builder-node[data-builder-full-bleed]`). Base-only on purpose:
+    // "edge to edge" is a promise for every breakpoint, not a desktop tweak.
+    "data-builder-full-bleed": style?.fullBleed ? "" : undefined,
     "data-builder-style-transition": hasBaseTransition ? "" : undefined,
     // Reveal-on-view — the published-page IntersectionObserver targets this attr;
     // the per-direction CSS + the distance/duration/delay/easing vars do the rest.

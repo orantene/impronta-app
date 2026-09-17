@@ -8,11 +8,16 @@
  */
 
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
-import { NumberField } from "../kit";
+import { NumberField, SegmentedField } from "../kit";
 import { MAX_WIDTH_PRESETS, PresetNumberRow } from "../field-kit";
 import { formatLength } from "../../kit/number-unit";
 import { parseCssLength } from "./length-utils";
 import { twoSlotFieldValue, twoSlotPatch } from "./field-value-bridge";
+
+const FULL_BLEED_OPTIONS = [
+  { value: "off", label: "Off" },
+  { value: "on", label: "On" },
+] as const;
 
 export interface DimensionsSectionProps {
   selectedStandaloneViewportStyle: BuilderNodeStyleValue | undefined;
@@ -54,6 +59,25 @@ export function DimensionsBody({
                   maxWidthFree: patch.free,
                 });
               }}
+            />
+
+            {/* FULL BLEED (2026-09-17). The escape hatch for "my hero has a
+                gutter on both sides": every container carries a 1120px base
+                cap and a child can never be wider than its parent, so Max
+                width 100% on THIS node was still 100% of a centred column
+                whenever a page root wrapped it. Desktop-only control by
+                design: the breakout applies on every breakpoint. */}
+            <SegmentedField
+              dataControl="fullBleed"
+              label="Full bleed"
+              hint="Span the screen edge to edge, even inside a narrower block."
+              value={selectedStandaloneViewportStyle?.fullBleed ? "on" : "off"}
+              onChange={(next) =>
+                patchSelectedStandaloneStyle({
+                  fullBleed: next === "on" ? true : undefined,
+                })
+              }
+              options={FULL_BLEED_OPTIONS}
             />
 
             <div

@@ -747,6 +747,7 @@ function cleanBuilderNodeStyle(
   if (value.minWidth) out.minWidth = value.minWidth;
   if (value.maxWidthFree) out.maxWidthFree = value.maxWidthFree;
   if (value.maxHeight) out.maxHeight = value.maxHeight;
+  if (value.fullBleed) out.fullBleed = true;
   if (value.paddingTop) out.paddingTop = value.paddingTop;
   if (value.paddingRight) out.paddingRight = value.paddingRight;
   if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
@@ -920,6 +921,7 @@ function cleanBuilderNodeStyleValue(
   if (value.minWidth) out.minWidth = value.minWidth;
   if (value.maxWidthFree) out.maxWidthFree = value.maxWidthFree;
   if (value.maxHeight) out.maxHeight = value.maxHeight;
+  if (value.fullBleed) out.fullBleed = true;
   if (value.paddingTop) out.paddingTop = value.paddingTop;
   if (value.paddingRight) out.paddingRight = value.paddingRight;
   if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
