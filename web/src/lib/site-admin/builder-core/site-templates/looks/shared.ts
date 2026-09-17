@@ -322,8 +322,8 @@ function navLinks(): Array<{ id: string; label: string; href: string }> {
   }));
 }
 
-function brand(r: LookRecipe, align: "left" | "center" = "left"): BuilderNode {
-  const wordmark = h(2, copy("home.hero.headline"), { ...r.headingStyle, size: "md", align, textWrap: "nowrap" } as Style);
+function brand(r: LookRecipe, align: "left" | "center" = "left", extra: Style = {}): BuilderNode {
+  const wordmark = h(2, copy("home.hero.headline"), { ...r.headingStyle, size: "md", align, textWrap: "nowrap", ...extra } as Style);
   wordmark.props = { ...wordmark.props, layerLabel: "Brand name" };
   return row(
     [
@@ -365,14 +365,29 @@ function headerCta(): BuilderNode {
   return b;
 }
 
+/**
+ * Over a cinematic hero the header floats: absolutely positioned at the top,
+ * no background, light type. The hero's scrim is always dark (v2-sections),
+ * so white is the one honest literal here regardless of the Look's own ink;
+ * the header does not persist on scroll (award-tier pattern; the mobile
+ * drawer and the footer nav carry the links further down).
+ */
+const OVERLAY_INK = "#ffffff";
+
 function header(r: LookRecipe): BuilderNode[] {
-  const gutter: Style = { paddingX: "m", paddingY: "s", maxWidth: "full", maxWidthFree: "100%", width: "100%", background: "surface" };
+  const overlay = r.hero === "cinematic";
+  const gutter: Style = overlay
+    ? { paddingX: "m", paddingY: "m", maxWidth: "full", maxWidthFree: "100%", width: "100%", background: "none", position: "absolute", top: "0px", left: "0px", zIndex: 40, textColor: OVERLAY_INK }
+    : { paddingX: "m", paddingY: "s", maxWidth: "full", maxWidthFree: "100%", width: "100%", background: "surface" };
+  const ink: Style = overlay ? { textColor: OVERLAY_INK } : {};
+  const nav = (style: Style) => navNode({ ...style, ...ink });
+  const mark = (align: "left" | "center" = "left") => brand(r, align, ink);
   switch (r.header) {
     case "left-nav":
-      return [headerRow([brand(r), navNode({ justifyContent: "flex-end" }), headerCta()], gutter)];
+      return [headerRow([mark(), nav({ justifyContent: "flex-end" }), headerCta()], gutter)];
     case "centered": {
       // Desktop: wordmark above a centred nav. Phone: one row, brand + menu.
-      const node = stack([brand(r, "center"), navNode({ justifyContent: "center", flexGrow: 0 })], { ...gutter, alignItems: "center" }, { gap: "s", align: "center" });
+      const node = stack([mark("center"), nav({ justifyContent: "center", flexGrow: 0 })], { ...gutter, alignItems: "center" }, { gap: "s", align: "center" });
       (node as { props: Record<string, unknown> }).props = { ...node.props, responsive: { mobile: { layout: "row", align: "center" } } };
       return [node];
     }
@@ -381,10 +396,10 @@ function header(r: LookRecipe): BuilderNode[] {
       // Equal flex on both wings keeps the wordmark truly centred.
       const wing = ctas([headerCta()], "end");
       (wing as { props: Record<string, unknown> }).props = { ...wing.props, style: { flexGrow: 1, flexBasis: "0%", width: "auto" } };
-      return [headerRow([navNode({ justifyContent: "flex-start", flexGrow: 1, flexBasis: "0%" }), brand(r, "center"), wing], gutter)];
+      return [headerRow([nav({ justifyContent: "flex-start", flexGrow: 1, flexBasis: "0%" }), mark("center"), wing], gutter)];
     }
     case "minimal":
-      return [headerRow([brand(r), navNode({ justifyContent: "flex-end" })], gutter)];
+      return [headerRow([mark(), nav({ justifyContent: "flex-end" })], gutter)];
   }
 }
 
