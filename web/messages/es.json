@@ -18603,6 +18603,40 @@
           "confirmed": "El cliente confirmó que es él o ella.",
           "granted": "El cliente otorgó acceso desde su propio enlace."
         }
+      },
+      "history": {
+        "title": "Historial",
+        "loading": "Cargando el historial",
+        "emptyTitle": "Aun no hay nada aqui",
+        "emptyBody": "Las acciones de esta conversacion apareceran aqui.",
+        "export": "Exportar",
+        "exportComing": "Proximamente",
+        "today": "Hoy",
+        "clientAction": "Cliente"
+      },
+      "rename": {
+        "label": "Nombre de la conversacion",
+        "placeholder": "Ponle un nombre a esta conversacion",
+        "save": "Guardar",
+        "saving": "Guardando",
+        "cancel": "Cancelar",
+        "generatedHint": "Nombrada a partir del primer mensaje · puedes renombrarla"
+      },
+      "merge": {
+        "title": "Es la misma persona?",
+        "body": "Se parece a {name}, que ya tiene una conversacion abierta.",
+        "mergeInto": "Combinar con \"{name}\"",
+        "mergeIntoSub": "Une ambas conversaciones en una sola; esta se cierra.",
+        "keepSeparate": "Mantener separadas, vincular al cliente",
+        "keepSeparateSub": "Vincula a este cliente con esta conversacion sin combinarlas.",
+        "notSame": "No es la misma persona",
+        "notSameSub": "Descartar esta coincidencia.",
+        "confirm": "Combinar",
+        "merging": "Combinando"
+      },
+      "tasks": {
+        "title": "Otras tareas",
+        "empty": "No hay nada mas por hacer"
       }
     }
   },

@@ -656,3 +656,14 @@
 .msgv5 .kit-panel { width: 330px; border: 1px solid var(--msgv5-line); border-radius: var(--msgv5-r-lg); overflow: hidden; background: var(--msgv5-card); }
 .msgv5 .pill-fam { display: contents; }
 .msgv5 .ladder .stop-wrap { display: inline-flex; align-items: center; gap: 6px; }
+
+/* L4 (screens/): RenameInline, HistorySheet entry row. Same token set, no new colours. */
+.msgv5 .rename { display: flex; flex-direction: column; gap: 8px; }
+.msgv5 .rename-acts { display: flex; gap: 8px; justify-content: flex-end; }
+.msgv5 .mx-rename { display: flex; flex-direction: column; gap: 10px; padding: 10px 16px; }
+.msgv5 .hist-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; font-size: 13px; color: var(--msgv5-ink); border-bottom: 1px solid var(--msgv5-line-2); }
+.msgv5 .hist-row .tx { flex: 1; min-width: 0; }
+.msgv5 .hist-row .t { font-size: 11.5px; color: var(--msgv5-ink-3); flex: 0 0 auto; }
+.msgv5 .mx-hist-row { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 14.5px; color: var(--msgv5-ink); border-bottom: 1px solid var(--msgv5-line-2); }
+.msgv5 .mx-hist-row .tx { flex: 1; min-width: 0; }
+.msgv5 .mx-hist-row .t { font-size: 12.5px; color: var(--msgv5-ink-3); flex: 0 0 auto; }

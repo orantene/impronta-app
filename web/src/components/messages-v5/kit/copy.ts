@@ -480,6 +480,40 @@ export function buildKitCopy(t: Translator) {
     skeleton: {
       loading: t("dashboard.messagesV5.skeleton.loading"),
     },
+    history: {
+      title: t("dashboard.messagesV5.history.title"),
+      loading: t("dashboard.messagesV5.history.loading"),
+      emptyTitle: t("dashboard.messagesV5.history.emptyTitle"),
+      emptyBody: t("dashboard.messagesV5.history.emptyBody"),
+      export: t("dashboard.messagesV5.history.export"),
+      exportComing: t("dashboard.messagesV5.history.exportComing"),
+      today: t("dashboard.messagesV5.history.today"),
+      clientAction: t("dashboard.messagesV5.history.clientAction"),
+    },
+    rename: {
+      label: t("dashboard.messagesV5.rename.label"),
+      placeholder: t("dashboard.messagesV5.rename.placeholder"),
+      save: t("dashboard.messagesV5.rename.save"),
+      saving: t("dashboard.messagesV5.rename.saving"),
+      cancel: t("dashboard.messagesV5.rename.cancel"),
+      generatedHint: t("dashboard.messagesV5.rename.generatedHint"),
+    },
+    merge: {
+      title: t("dashboard.messagesV5.merge.title"),
+      body: t("dashboard.messagesV5.merge.body"),
+      mergeInto: t("dashboard.messagesV5.merge.mergeInto"),
+      mergeIntoSub: t("dashboard.messagesV5.merge.mergeIntoSub"),
+      keepSeparate: t("dashboard.messagesV5.merge.keepSeparate"),
+      keepSeparateSub: t("dashboard.messagesV5.merge.keepSeparateSub"),
+      notSame: t("dashboard.messagesV5.merge.notSame"),
+      notSameSub: t("dashboard.messagesV5.merge.notSameSub"),
+      confirm: t("dashboard.messagesV5.merge.confirm"),
+      merging: t("dashboard.messagesV5.merge.merging"),
+    },
+    tasks: {
+      title: t("dashboard.messagesV5.tasks.title"),
+      empty: t("dashboard.messagesV5.tasks.empty"),
+    },
     refusal: (code: MessagingRefusal) => t(refusalKey(code)),
   };
 }

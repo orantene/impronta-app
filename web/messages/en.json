@@ -18603,6 +18603,40 @@
           "confirmed": "The client confirmed this is them.",
           "granted": "The client granted access from their own link."
         }
+      },
+      "history": {
+        "title": "History",
+        "loading": "Loading history",
+        "emptyTitle": "Nothing here yet",
+        "emptyBody": "Actions on this conversation will appear here.",
+        "export": "Export",
+        "exportComing": "Coming soon",
+        "today": "Today",
+        "clientAction": "Client"
+      },
+      "rename": {
+        "label": "Conversation name",
+        "placeholder": "Name this conversation",
+        "save": "Save",
+        "saving": "Saving",
+        "cancel": "Cancel",
+        "generatedHint": "Named from the first message · you can rename it"
+      },
+      "merge": {
+        "title": "Same person?",
+        "body": "This looks like {name}, who already has an open conversation.",
+        "mergeInto": "Merge into \"{name}\"",
+        "mergeIntoSub": "Combines both conversations into one; this one closes.",
+        "keepSeparate": "Keep separate, link the client",
+        "keepSeparateSub": "Link this client to this conversation without combining them.",
+        "notSame": "Not the same person",
+        "notSameSub": "Dismiss this match.",
+        "confirm": "Merge",
+        "merging": "Merging"
+      },
+      "tasks": {
+        "title": "Other tasks",
+        "empty": "Nothing else to do"
       }
     }
   },

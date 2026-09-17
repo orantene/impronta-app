@@ -7580,6 +7580,40 @@
           "confirmed": "Le client a confirmé qu'il s'agit de lui.",
           "granted": "Le client a accordé l'accès depuis son propre lien."
         }
+      },
+      "history": {
+        "title": "Historique",
+        "loading": "Chargement de l'historique",
+        "emptyTitle": "Rien ici pour le moment",
+        "emptyBody": "Les actions sur cette conversation apparaitront ici.",
+        "export": "Exporter",
+        "exportComing": "Bientot disponible",
+        "today": "Aujourd'hui",
+        "clientAction": "Client"
+      },
+      "rename": {
+        "label": "Nom de la conversation",
+        "placeholder": "Nommez cette conversation",
+        "save": "Enregistrer",
+        "saving": "Enregistrement",
+        "cancel": "Annuler",
+        "generatedHint": "Nommee d'apres le premier message · vous pouvez la renommer"
+      },
+      "merge": {
+        "title": "Meme personne ?",
+        "body": "Cela ressemble a {name}, qui a deja une conversation ouverte.",
+        "mergeInto": "Fusionner avec « {name} »",
+        "mergeIntoSub": "Combine les deux conversations en une seule ; celle-ci se ferme.",
+        "keepSeparate": "Garder separees, lier le client",
+        "keepSeparateSub": "Lie ce client a cette conversation sans les combiner.",
+        "notSame": "Ce n'est pas la meme personne",
+        "notSameSub": "Ignorer cette correspondance.",
+        "confirm": "Fusionner",
+        "merging": "Fusion en cours"
+      },
+      "tasks": {
+        "title": "Autres taches",
+        "empty": "Rien d'autre a faire"
       }
     }
   },
