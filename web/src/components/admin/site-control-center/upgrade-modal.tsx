@@ -133,6 +133,15 @@ function formatPrice(value: number, cycle: Cycle): string {
   return `$${value}`;
 }
 
+/** Shared dialog chrome for the plan grid and the trial door card. */
+const CONTENT_CLASS = cn(
+  "fixed left-1/2 top-1/2 z-[101] -translate-x-1/2 -translate-y-1/2 max-h-[calc(100vh-48px)]",
+  "overflow-hidden rounded-[20px] bg-[#fbfaf5] shadow-[0_40px_90px_-25px_rgba(11,11,13,0.55)]",
+  "border border-[rgba(24,24,27,0.08)]",
+  "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+  "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+);
+
 export function UpgradeModal({
   open,
   onOpenChange,
@@ -184,14 +193,7 @@ export function UpgradeModal({
         {showDoor ? (
           <Dialog.Content
             data-testid="trial-door"
-            className={cn(
-              "fixed left-1/2 top-1/2 z-[101] -translate-x-1/2 -translate-y-1/2",
-              "w-[min(520px,calc(100vw-32px))] max-h-[calc(100vh-48px)]",
-              "overflow-hidden rounded-[20px] bg-[#fbfaf5]",
-              "shadow-[0_40px_90px_-25px_rgba(11,11,13,0.55)] border border-[rgba(24,24,27,0.08)]",
-              "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
-              "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-            )}
+            className={cn(CONTENT_CLASS, "w-[min(520px,calc(100vw-32px))]")}
           >
             <TrialDoorCard
               door={door}
@@ -207,16 +209,7 @@ export function UpgradeModal({
           </Dialog.Content>
         ) : (
         <Dialog.Content
-          className={cn(
-            "fixed left-1/2 top-1/2 z-[101] -translate-x-1/2 -translate-y-1/2",
-            "w-[min(1080px,calc(100vw-32px))] max-h-[calc(100vh-48px)]",
-            "overflow-hidden rounded-[20px]",
-            "bg-[#fbfaf5] shadow-[0_40px_90px_-25px_rgba(11,11,13,0.55)]",
-            "border border-[rgba(24,24,27,0.08)]",
-            "flex flex-col",
-            "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
-            "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-          )}
+          className={cn(CONTENT_CLASS, "w-[min(1080px,calc(100vw-32px))] flex flex-col")}
         >
           {/* Header */}
           <header className="relative flex flex-col gap-4 border-b border-[rgba(24,24,27,0.06)] bg-white px-7 pb-5 pt-7 sm:flex-row sm:items-center sm:justify-between">
