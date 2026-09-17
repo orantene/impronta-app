@@ -26,7 +26,12 @@ test("WIRE-1.4 lock, refuse a wrong PIN, unlock, then switch operator", async ({
     .from("pos_device_sessions")
     .select("id, locked_at, unlocked_at, operator_user_id")
     .eq("tenant_id", JOURNEYS_TENANT_ID)
-    .order("locked_at", { ascending: false })
+    // Postgres puts NULLs FIRST on a descending sort, so a row that was only
+    // ever unlocked (2026-09-16 leaves one) sorted above this lock and the
+    // read came back with `locked_at: null` (final run 2026-09-17). The row
+    // this step wants is the newest LOCK.
+    .not("locked_at", "is", null)
+    .order("locked_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
   expect(locked, "failed-fixture: no pos_device_sessions row after lock").toBeTruthy();

@@ -52,7 +52,19 @@ test("WIRE-1.3 owner sets a PIN and the custom-amount limit; viewer is refused",
   await signInJourneysStaff(page, `/${JOURNEYS_SLUG}/admin/settings`);
   const limit = page.getByTestId("custom-amount-limit");
   await clickSettingsNav(page, "Roles & limits", limit);
-  await limit.locator("#custom-amount-limit").fill("50");
+  // Save is disabled while the field equals the stored limit, and a previous
+  // run leaves $50.00 stored (final run 2026-09-17: the button never became
+  // enabled). Move the limit somewhere else first, through the same form, so
+  // the $50.00 below is a change the engine really writes and reads back.
+  const input = limit.locator("#custom-amount-limit");
+  await expect(input).toBeEnabled({ timeout: 20_000 });
+  if ((await readCustomAmountLimitCents()) === 5000) {
+    await input.fill("60");
+    await limit.getByTestId("custom-amount-limit-save").click();
+    await expect(limit.getByRole("status")).toBeVisible({ timeout: 20_000 });
+    expect(await readCustomAmountLimitCents()).toBe(6000);
+  }
+  await input.fill("50");
   await limit.getByTestId("custom-amount-limit-save").click();
   await expect(limit.getByText(/saved|current/i).first()).toBeVisible({ timeout: 20_000 });
   expect(await readCustomAmountLimitCents()).toBe(5000);
