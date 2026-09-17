@@ -72,9 +72,13 @@ test("talent inbox reader excludes internal notes (a coordinator on private is n
 
 test("POS engine: replies and internal notes both land on the client thread via the rule", () => {
   const engine = src("lib/server-actions/messaging-engine.ts");
-  assert.match(engine, /thread_type:\s*threadTypeForStaffMessage\(input\.kind\)/);
-  assert.doesNotMatch(engine, /thread_type:\s*"group"/, "engine must never write the talent thread");
-  assert.doesNotMatch(engine, /\?\s*"private"\s*:\s*"group"/, "no kind-keyed thread switch");
+  // S4 moved the insert into lib/messaging/insert-message.ts; the rule lives there.
+  const insert = src("lib/messaging/insert-message.ts");
+  assert.match(insert, /thread_type:\s*threadTypeForStaffMessage\(input\.kind\)/);
+  for (const [name, text] of [["engine", engine], ["insert-message", insert]] as const) {
+    assert.doesNotMatch(text, /thread_type:\s*"group"/, `${name} must never write the talent thread`);
+    assert.doesNotMatch(text, /\?\s*"private"\s*:\s*"group"/, `${name}: no kind-keyed thread switch`);
+  }
   const reply = engine.slice(engine.indexOf("export async function messagingReply"), engine.indexOf("export async function messagingInternalNote"));
   assert.match(reply, /kind:\s*"text"/);
   const note = engine.slice(engine.indexOf("export async function messagingInternalNote"));
