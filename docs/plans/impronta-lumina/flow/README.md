@@ -7,16 +7,16 @@
 
 | # | Step | Where | Screenshot |
 |---|---|---|---|
-| 1 | Taps the link in the Instagram bio | `improntamodels.com/q/lumina` | `01-instagram-link.png` (pending: link minted after PR-2 deploys) |
-| 2 | Lands on the launch page on their phone | `/lumina` | `02-lumina-390.png` (pending: page built after PR-4/PR-6 deploy) |
+| 1 | Taps the link in the Instagram bio | `improntamodels.com/q/lumina` → 302 → `/es/lumina?l=<scan>` | live, verified 2026-09-17 01:5xZ |
+| 2 | Lands on the launch page on their phone | `/es/lumina` (Spanish) | `02-lumina-390.png`, `02b-lumina-390-full.png` |
 | 3 | Taps **Comprar entradas**, picks a ticket card | sheet opens over the page | `03-tier-cards.png` |
 | 4 | Sets how many, sees the total, taps **Continuar** | quantity bar | `04-qty-bar.png` |
 | 5 | Enters e-mail + name, taps **Pagar con tarjeta** | details step | `05-details.png` |
-| 6 | Pays on Stripe's hosted page | Stripe | `06-stripe.png` |
-| 7 | Sees the receipt with the QR | `/r/<code>?paid=1` | `07-receipt.png` |
-| 8 | Gets the ticket e-mail (Spanish, Impronta-branded) with QR, code and a link | inbox | `08-email.png` |
-| 9 | Opens the link; can resend or transfer the ticket | `/ticket/<code>` | `09-ticket-page.png` |
-| 10 | At the door, staff scan the QR | `/admin/events/door` or POS Door | `10-door-admitido.png` |
+| 6 | Pays on Stripe's hosted page | Stripe (live keys; reached with "Tickets · MX$2,000.00", not paid) | seen live 2026-09-17; no capture kept (payment page) |
+| 7 | Sees the receipt with the QR | `/r/<code>?paid=1` | pending the owner's one real purchase + refund |
+| 8 | Gets the ticket e-mail (Spanish, Impronta-branded) with QR, code and a link | inbox | pending the owner's purchase (the 3 comps were issued before the mail existed; use Resend from the Delivery sheet) |
+| 9 | Opens the link; can resend or transfer the ticket | `/ticket/<code>` | pending (same) |
+| 10 | At the door, staff scan the QR | `/admin/events/door` or POS Door → **Admitido** | pending a real ticket to scan |
 
 ## What happens behind each step (for the team)
 
@@ -44,6 +44,13 @@ Every page in the sitemap loads (200), no horizontal overflow at either width, n
 | `/our-fashion-models`, `/faces-of-fall-26` | Slow to reach network-idle (45 s) with three 404 sub-resources. Pages themselves are 200. | Program session (register) |
 | `/events/fiesta-de-lanzamiento-lumina` | English chrome on a Spanish event (tenant's first locale is en); programme as one paragraph. Superseded by `/lumina`; add a CTA to it. | B4 |
 
+## What is live on improntamodels.com (2026-09-17)
+- `/lumina` (EN chrome) and `/es/lumina` (Spanish, the canonical share URL): Launch party design, real Buy tickets block (cards + sheet, Cortesía hidden, includes per tier), QR block.
+- Header nav "LUMINA" → `/lumina`; home hero banner "Fiesta de lanzamiento LUMINA · sáb 3 oct · Cancún · Entradas disponibles" → `/lumina`.
+- `/q/lumina` short link (name "LUMINA Instagram") → `/es/lumina`, scans recorded. Print file: `/api/links/lumina/qr.pdf?mm=80` while signed in.
+- Guest walk on a phone (390): sticky Comprar entradas → sheet → Entrada general → ×2 → details → Stripe hosted page "Tickets · MX$2,000.00". Stopped there.
+
 ## Evidence log (filled during the production walk)
 
-_(pending)_
+- 2026-09-16 ~18:20 · Comps: Event → Día del evento → "Admisión de cortesía", 3 × Cortesía (LUMINA comp 1/2/3, orantene@gmail.com, "Prueba de emisión LUMINA"). Each answered "Entrada de cortesía emitida." (D-146 migration live on production). Ticket e-mails for these go out once PR #2002 deploys (they were issued before the mail existed; the Delivery sheet's Resend sends them).
+- Tickets tab after the comps: Vendidas still "—" on the deployed build (D-147 fix in #2003 not yet on the production pointer).
