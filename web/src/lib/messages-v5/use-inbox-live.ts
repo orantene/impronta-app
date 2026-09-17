@@ -144,8 +144,13 @@ export function useMessagingInboxLive(args: UseMessagingInboxLiveArgs): void {
   // tears down and re-subscribes the channel — only tenantId should do that.
   const onRowPatchRef = useRef(onRowPatch);
   const onIncomingRef = useRef(onIncoming);
-  onRowPatchRef.current = onRowPatch;
-  onIncomingRef.current = onIncoming;
+  // Assigning ref.current belongs in an effect, not the render body (react-hooks/refs).
+  useEffect(() => {
+    onRowPatchRef.current = onRowPatch;
+  }, [onRowPatch]);
+  useEffect(() => {
+    onIncomingRef.current = onIncoming;
+  }, [onIncoming]);
 
   useEffect(() => {
     if (!tenantId) return;

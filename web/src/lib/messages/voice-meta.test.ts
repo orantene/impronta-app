@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { readVoiceMetaFromMessageMetadata } from "@/lib/messages/voice-meta";
 
 test("parses a well-formed voice payload", () => {
@@ -80,9 +82,6 @@ test("returns null for garbage / absent metadata", () => {
 // metadata.voice payload. Detection everywhere must be metadata-driven, not
 // message_kind-driven — this pins both sides so neither regresses silently.
 test("insertVoiceRows writes an allowed message_kind, not the unchecked 'voice' value", () => {
-  const fs = require("node:fs") as typeof import("node:fs");
-  const path = require("node:path") as typeof import("node:path");
-
   const voiceNotesSrc = fs.readFileSync(
     path.join(__dirname, "../server-actions/voice-notes.ts"),
     "utf8",

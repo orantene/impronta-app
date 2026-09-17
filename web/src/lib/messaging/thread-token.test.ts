@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createHmac } from "node:crypto";
 
 import { issueVisitorCode, publicThreadPath, signThreadToken, verifyThreadToken } from "./thread-token";
 
@@ -147,7 +148,6 @@ test("verifyThreadToken falls back to iat+30d for a token minted before `exp` ex
   const prev = process.env.GUEST_COOKIE_SECRET;
   process.env.GUEST_COOKIE_SECRET = "test-secret-for-pos-messages";
   // Mirrors the OLD signThreadToken shape (no exp field) by signing manually.
-  const { createHmac } = require("node:crypto") as typeof import("node:crypto");
   const legacyPayload = { p: "pos-thread", iq: INQUIRY, tenant: TENANT, iat: 1_000 };
   const encoded = Buffer.from(JSON.stringify(legacyPayload), "utf8").toString("base64url");
   const sig = createHmac("sha256", "test-secret-for-pos-messages")
