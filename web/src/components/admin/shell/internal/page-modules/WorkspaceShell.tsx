@@ -203,9 +203,11 @@ function SidebarNavButton({
  * focus, and how a row and its children draw.
  */
 /**
- * The rail's Talent | Workspace segmented switch. The workspace half is the
- * lit, inert one on this surface; the talent half carries that dashboard's
- * unread count and leaves.
+ * The rail's Talent | Admin segmented switch: which HAT this person wears,
+ * not which business (the chip above picks the business). "Admin" reads the
+ * same for someone who runs three businesses; a business type would not.
+ * The admin half is the lit, inert one on this surface; the talent half
+ * carries that dashboard's unread count and leaves.
  */
 function RailModeSwitch({
   talentUnread,
@@ -221,7 +223,7 @@ function RailModeSwitch({
     <div
       role="group"
       data-tulala-rail-mode-switch
-      aria-label={copy.t("Switch between Talent and Workspace")}
+      aria-label={copy.t("Switch between Talent and Admin")}
       className="flex w-full items-center gap-[2px] rounded-[9px] bg-[rgba(11,11,13,0.05)] p-[3px]"
     >
       <button
@@ -245,7 +247,7 @@ function RailModeSwitch({
         aria-current="true"
         className={`${half} cursor-default bg-admin-card text-admin-ink shadow-admin-rest`}
       >
-        {copy.t("Workspace")}
+        {copy.t("Admin")}
       </span>
     </div>
   );

@@ -13572,8 +13572,8 @@
           "receiptNotSent": "No se pudo enviar el recibo. Imprímelo en su lugar."
         },
         "switch": {
-          "label": "Espacio de trabajo o punto de venta",
-          "workspace": "Espacio de trabajo",
+          "label": "Oficina o punto de venta",
+          "workspace": "Oficina",
           "openMenu": "Elige un modo de punto de venta",
           "makeDefault": "Hacer que sea el predeterminado aquí",
           "defaultSaved": "Guardado en este dispositivo",

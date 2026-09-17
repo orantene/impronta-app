@@ -13572,8 +13572,8 @@
           "receiptNotSent": "The receipt could not be sent. Print it instead."
         },
         "switch": {
-          "label": "Workspace or point of sale",
-          "workspace": "Workspace",
+          "label": "Back office or point of sale",
+          "workspace": "Back office",
           "openMenu": "Choose a point of sale mode",
           "makeDefault": "Make this the default here",
           "defaultSaved": "Saved on this device",

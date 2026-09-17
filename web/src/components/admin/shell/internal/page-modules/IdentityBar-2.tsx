@@ -177,7 +177,7 @@ export function ModeTogglePill({
     <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
       <div
         role="group"
-        aria-label={copy.t("Switch between Talent and Workspace")}
+        aria-label={copy.t("Switch between Talent and Admin")}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -196,7 +196,7 @@ export function ModeTogglePill({
         />
         <ModeTogglePillButton
           active={!inTalent}
-          label={copy.t("Workspace")}
+          label={copy.t("Admin")}
           unread={!inTalent ? 0 : workspaceUnread}
           onClick={!inTalent ? undefined : flipMode}
         />
