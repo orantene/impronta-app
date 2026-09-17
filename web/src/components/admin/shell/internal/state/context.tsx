@@ -44,7 +44,7 @@ import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-s
 import type { Client, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
 import { useDevPlanOverride, useOpenUpgradeModal } from "./upgrade-bridge";
-import { isSpaOnlyAdminSegment } from "../spa-segments";
+import { isBareShellPath, isSpaOnlyAdminSegment } from "../spa-segments";
 import { useLazyBridgeSlices } from "./use-lazy-bridge-slices";
 import { adaptBridgeClient, adaptBridgeTeamMember } from "./bridge-adapters";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
@@ -1130,10 +1130,14 @@ export function AdminShellProvider({
       // navigation loop when PageRouteSyncer fires setPage on mount while
       // the browser is already at the correct route.
       if (typeof window !== "undefined" && window.location.pathname !== targetHref) {
-        if (segment && isSpaOnlyAdminSegment(segment)) {
+        if (segment && isSpaOnlyAdminSegment(segment) && isBareShellPath(window.location.pathname, base)) {
           // The page body is already switched above and the server has
           // nothing to add for this segment (a bare PageRouteSyncer), so the
           // URL moves without a server round trip. See spa-segments.ts.
+          // The route being LEFT must be bare too: pushState keeps its
+          // content mounted, and a canonical page (Projects, a record,
+          // a thread) left that way outlives the navigation above the
+          // shell (D-167).
           window.history.pushState(null, "", targetHref);
         } else {
           router.push(targetHref);
