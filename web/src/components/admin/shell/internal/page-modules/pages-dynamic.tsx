@@ -49,6 +49,13 @@ export const PhoneWorkspaceMessages = dynamic(
   { loading: () => null },
 );
 
+// Messages v5 shell (L2), same single async entry. Rendered by
+// `WorkspaceMessagesPage` only when NEXT_PUBLIC_MESSAGES_V5 === "1".
+export const MessagesV5Shell = dynamic(
+  () => import("../shell-lazy-surfaces").then((m) => ({ default: m.MessagesV5Shell })),
+  { loading: MessagesShellSkeleton },
+);
+
 export const TalentSurface = dynamic(
   () => import("../shell-lazy-surfaces").then((m) => ({ default: m.TalentSurface })),
   { loading: () => null },

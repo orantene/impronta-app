@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { BoardPreview } from "@/components/admin/pos/messages/preview/BoardPreview";
 import { KitPreview } from "@/components/messages-v5/kit/preview/KitPreview";
+import { ShellPreview } from "@/components/messages-v5/shell/ShellPreview";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { customerVisibleMessages, loadMessagingThread } from "@/lib/messaging/thread";
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
@@ -15,13 +16,15 @@ export default async function PublicConversationPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ board?: string; kit?: string }>;
+  searchParams: Promise<{ board?: string; kit?: string; screen?: string }>;
 }) {
   const { token } = await params;
   const query = await searchParams;
   if (token === "preview" && process.env.NODE_ENV !== "production") {
     // Messages v5 kit: every component in every state at 390 / 1194 / 1440.
     if (query.kit === "1") return <KitPreview />;
+    // Messages v5 shell (L2) on fixture data at 390 / 1194 / 1440.
+    if (query.screen === "shell") return <ShellPreview />;
     return <BoardPreview board={query.board ?? "MS02"} />;
   }
   const verified = verifyThreadToken(decodeURIComponent(token));

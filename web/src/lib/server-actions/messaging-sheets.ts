@@ -19,6 +19,7 @@ import {
   loadThreadDelivery,
 } from "@/lib/messaging/sheets";
 import { messagingStaff } from "@/lib/messaging/staff-guard";
+import { refreshThreadToken } from "@/lib/messaging/thread-token";
 import { cancelPaymentLink } from "@/lib/payments/links";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -144,4 +145,28 @@ export async function messagingCancelBooking(input: { inquiryId: string; booking
   });
   if (!result.ok) return { ok: false as const, reason: result.reason };
   return { ok: true as const, refundableCents: result.refundableCents, already: result.already === true };
+}
+
+/**
+ * L2 (Messages v5 shell): the client's own thread link for an EXISTING
+ * conversation. `messagingStartConversation` mints one only at creation and
+ * nothing kept it (D-145), so "Copy client link" had no reader. Pure read:
+ * a signed token whose expiry follows the latest linked record (D-MSG-6),
+ * built on `refreshThreadToken`; no row is written. The inquiry must belong
+ * to the caller's tenant.
+ */
+export async function messagingThreadLink(input: { inquiryId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const { data, error } = await tenantScopedQuery(g.admin, "inquiries", g.tenantId)
+    .select("id")
+    .eq("id", parsed.data.inquiryId)
+    .maybeSingle();
+  if (error) return fail("unavailable");
+  if (!data) return fail("not_found");
+  const token = await refreshThreadToken(g.admin, parsed.data.inquiryId, g.tenantId);
+  if (!token) return fail("unavailable");
+  return { ok: true as const, token };
 }

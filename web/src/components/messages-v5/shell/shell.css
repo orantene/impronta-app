@@ -1,0 +1,91 @@
+/*
+ * Messages v5 shell layout (L2). Scoped under `.msgv5` like the kit; every
+ * colour is a kit token, no literal appears here. The grid is the mockup's
+ * `.msgs` (D01), `.msgs.tab` (D11) and the single column (M01/M02).
+ */
+
+/* ===== root grid ===== */
+.msgv5.msgs {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr) 330px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+  padding: 18px 20px;
+  position: relative;
+  background: var(--msgv5-ground);
+  color: var(--msgv5-ink);
+  font-family: var(--msgv5-body);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+.msgv5.msgs.tab { grid-template-columns: 300px minmax(0, 1fr); padding: 14px 16px; }
+.msgv5.msgs.one { display: block; padding: 0; background: var(--msgv5-card); font-size: 15px; }
+.msgv5.msgs.one > .pane { display: none; border: 0; border-radius: 0; height: 100%; }
+.msgv5.msgs.one.pane-inbox > .pane.inbox { display: flex; }
+.msgv5.msgs.one.pane-thread > .pane.thread { display: flex; }
+.msgv5.msgs.tab > .pane.panel { display: none; }
+.msgv5.msgs.one > .pane.panel { display: none; }
+
+/* ===== panes ===== */
+.msgv5 .pane.thread { position: relative; }
+.msgv5 .pane.thread .stream { scroll-behavior: smooth; }
+.msgv5 .pane.panel { overflow: auto; }
+.msgv5 .pane.inbox .ib-head .row .btn { margin-left: 6px; }
+.msgv5 .thread-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
+.msgv5 .thread-loading { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; }
+.msgv5 .thread-loading .sk { display: block; height: 14px; border-radius: 7px; margin-bottom: 8px; }
+
+/* one-line summary in the thread header (two columns, D11) */
+.msgv5 .th-head .r2 .details { margin-left: auto; }
+
+/* ===== drawer (two columns) ===== */
+.msgv5 .drawer .pane.panel { flex: 1; border: 0; border-radius: 0; }
+.msgv5 .drawer .drawer-close { position: absolute; top: 10px; right: 10px; z-index: 1; }
+
+/* ===== more menu, composer tray, channel picker ===== */
+.msgv5 .menu-anchor { position: relative; }
+.msgv5 .tray.menu-more { position: absolute; right: 0; top: 40px; width: 260px; left: auto; bottom: auto; }
+.msgv5 .tray.menu-more .list { border-top: 0; padding: 6px; }
+.msgv5 .cmp-anchor { position: relative; }
+.msgv5 .cmp-anchor .tray.floating { left: 14px; bottom: 100%; margin-bottom: 8px; }
+.msgv5 .via-list { display: flex; flex-direction: column; gap: 8px; }
+.msgv5 .attach-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+
+/* ===== mobile (one column) ===== */
+.msgv5.msgs.one .pane.inbox { position: relative; }
+.msgv5.msgs.one .pane.thread { position: relative; }
+.msgv5.msgs.one .mx-ih { padding-top: 12px; }
+.msgv5.msgs.one .mx-ih .tools .btn { flex: 0 0 auto; }
+.msgv5 .mx-th .rename { display: flex; gap: 8px; align-items: center; }
+.msgv5 .mx-th .rename .in { flex: 1; min-width: 0; border: 1px solid var(--msgv5-line); border-radius: 10px; padding: 6px 10px; font: inherit; font-size: 14px; }
+
+/* ===== inline rename (desktop) ===== */
+.msgv5 .rename-inline { display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--msgv5-line-2); background: var(--msgv5-paper); }
+.msgv5 .rename-inline .in { flex: 1; min-width: 0; border: 1px solid var(--msgv5-line); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 13px; background: var(--msgv5-white); color: var(--msgv5-ink); }
+
+/* ===== sheets hosted by the shell ===== */
+.msgv5 .sheet-form { display: flex; flex-direction: column; gap: 12px; }
+.msgv5 .sheet-form textarea.in { min-height: 90px; resize: vertical; }
+.msgv5 .sheet-note { font-size: 12.5px; color: var(--msgv5-ink-3); }
+.msgv5 .sheet-list { display: flex; flex-direction: column; gap: 6px; }
+.msgv5 .history-row { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--msgv5-line-2); font-size: 12.5px; }
+.msgv5 .history-row b { font-family: var(--msgv5-display); font-weight: 600; }
+.msgv5 .history-row span { color: var(--msgv5-ink-3); font-size: 11.5px; }
+.msgv5 .task-row { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--msgv5-line-2); text-align: left; background: transparent; border-left: 0; border-right: 0; border-top: 0; width: 100%; color: inherit; font: inherit; cursor: pointer; }
+.msgv5 .task-row b { font-family: var(--msgv5-display); font-weight: 600; }
+.msgv5 .task-row span { color: var(--msgv5-ink-3); font-size: 12px; }
+.msgv5 .link-box { display: flex; gap: 8px; align-items: center; }
+.msgv5 .link-box .in { flex: 1; min-width: 0; border: 1px solid var(--msgv5-line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 12.5px; background: var(--msgv5-sunk); color: var(--msgv5-ink-2); }
+
+/* ===== toast host ===== */
+.msgv5 .toast-host { position: absolute; left: 0; right: 0; bottom: 0; pointer-events: none; }
+.msgv5 .toast-host .toast { pointer-events: auto; }
+
+/* ===== dev preview frames (/c/t/preview?screen=shell) ===== */
+.msgv5 .shell-frame { height: 820px; display: flex; flex-direction: column; }
+.msgv5 .shell-frame.w390 { height: 844px; }
+.msgv5 .shell-frame > .msgs { flex: 1; min-height: 0; }
+.msgv5.shell-preview { padding: 24px; display: flex; flex-direction: column; gap: 24px; background: var(--msgv5-ground); min-height: 100vh; }
