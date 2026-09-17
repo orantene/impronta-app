@@ -15443,6 +15443,28 @@
           "expired": "Este enlace u oferta ya vencio.",
           "already": "Eso ya esta hecho."
         },
+        "history": {
+          "rename": "{actor} renombró esta conversación a \"{name}\"",
+          "assignment": "{actor} asignó esta conversación a {owner}",
+          "handover": "{actor} entregó esta conversación a {owner}",
+          "resolve": "{actor} marcó esta conversación como resuelta",
+          "reopen": "{actor} reabrió esta conversación",
+          "closeLost": "{actor} cerró esto como perdido",
+          "closeLostReason": "{actor} cerró esto como perdido: {reason}",
+          "merge": "{actor} fusionó esta conversación con otra",
+          "mergedFrom": "{actor} fusionó otra conversación con esta",
+          "offerSent": "{actor} envió la oferta",
+          "offerAccepted": "{actor} aceptó la oferta",
+          "offerDeclined": "{actor} rechazó la oferta",
+          "paymentLinkCreated": "{actor} creó un enlace de pago",
+          "paymentPaid": "Se recibió el pago",
+          "paymentFailed": "Un intento de pago falló",
+          "paymentExpired": "El enlace de pago venció",
+          "paymentRefunded": "Se reembolsó el pago",
+          "bookingConfirmed": "La reserva fue confirmada",
+          "bookingCancelled": "La reserva fue cancelada",
+          "bookingRescheduled": "La reserva fue reprogramada"
+        },
         "ui": {
           "visitor": "Visitante",
           "unassigned": "Sin asignar",

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { currentInquiryName } from "./inquiry-name";
 import type { Essentials, IdentityLevel, RecordChip } from "./types";
 
 export type { Essentials };
@@ -15,7 +16,7 @@ export async function loadMessagingEssentials(
 ): Promise<{ ok: true; essentials: Essentials } | { ok: false; reason: "unavailable" | "not_found" | "wrong_tenant" }> {
   const { data: inquiry, error } = await admin
     .from("inquiries")
-    .select("id, tenant_id, contact_name, contact_email, contact_phone, message, source_page")
+    .select("id, tenant_id, contact_name, contact_email, contact_phone, message, source_page, version")
     .eq("id", input.inquiryId)
     .maybeSingle();
   if (error) return { ok: false, reason: "unavailable" };
@@ -27,6 +28,7 @@ export async function loadMessagingEssentials(
     contact_phone: string | null;
     message: string | null;
     source_page: string | null;
+    version: number;
   };
   if (row.tenant_id !== input.tenantId) return { ok: false, reason: "wrong_tenant" };
 
@@ -46,9 +48,12 @@ export async function loadMessagingEssentials(
   ]);
 
   const ident = (identity ?? null) as { level: IdentityLevel; method: string | null } | null;
+  const name = await currentInquiryName(admin, input.inquiryId, row.contact_name);
   return {
     ok: true,
     essentials: {
+      name,
+      version: row.version,
       customer: {
         name: row.contact_name,
         email: row.contact_email,
