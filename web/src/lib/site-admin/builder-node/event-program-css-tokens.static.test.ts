@@ -126,7 +126,17 @@ test("drawer: the checkout's shell (88svh sheet, 440px panel, scrim), a dialog w
   assert.match(sheet, /\.ep-sheet\{position:fixed;left:0;right:0;bottom:0[^}]*max-height:88svh/);
   assert.match(sheet, /@media \(min-width:1024px\)\{\[data-event-program\] \.ep-sheet\{inset:0 0 0 auto;width:440px/);
   assert.match(sheet, /\.ep-scrim\{position:fixed;inset:0/);
-  assert.match(sheet, /\.ep-trigger\{[^}]*border:0;background:transparent;color:inherit;font:inherit;text-align:left/);
+  // The trigger reset must come BEFORE every layout rule and own nothing the
+  // layout owns (padding, border, display): a late `padding:0;border:0` is
+  // exactly what stripped the timeline rows of their separators once.
+  const resetAt = sheet.indexOf(".ep-trigger{");
+  assert.ok(resetAt >= 0);
+  assert.match(sheet, /\.ep-trigger\{all:unset;display:block;box-sizing:border-box;width:100%;cursor:pointer;text-align:left;font:inherit;color:inherit\}/);
+  for (const cls of ["ep-item", "ep-card", "ep-tile-link", "ep-line"]) {
+    assert.ok(sheet.indexOf(`.${cls}{`) > resetAt, `${cls} rule comes after the trigger reset`);
+  }
+  assert.equal((sheet.match(/\.ep-trigger[^{]*\{/g) ?? []).length, 2, "one reset rule and one focus ring; nothing else targets the trigger");
+  assert.doesNotMatch(sheet, /(?:^|[\s,}])(?:button|div|li|span|a)\.ep-/m, "no rule depends on the element name: a row is styled by its class whether it is a button or a div");
   assert.match(sheet, /\.ep-close\{min-height:44px/);
   assert.match(sheet, /\.ep-cta\{[^}]*min-height:48px[^}]*background:var\(--token-color-primary\);color:var\(--token-color-primary-on/);
   assert.match(drawer, /role="dialog" aria-modal="true" aria-labelledby=\{titleId\} data-testid="event-program-drawer"/);

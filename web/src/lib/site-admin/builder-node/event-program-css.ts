@@ -30,6 +30,8 @@ export const EP_CSS_BASE = `
 [data-event-program]{color:var(--token-color-ink);font-family:var(--site-body-font,inherit);background:transparent;--ep-rail:color-mix(in srgb,var(--token-color-primary) 35%,transparent);--ep-glow:color-mix(in srgb,var(--token-color-primary) 18%,transparent);--ep-sep:color-mix(in srgb,var(--token-color-line) 40%,transparent);--ep-primary-12:color-mix(in srgb,var(--token-color-primary) 12%,transparent);--ep-surface:var(--token-color-surface-raised,color-mix(in srgb,var(--token-color-ink) 4%,var(--token-color-background)))}
 [data-event-program="not_configured"],[data-event-program="disabled"],[data-event-program="empty"],[data-event-program="loading"],[data-event-program="unavailable"]{padding:1.25rem 1.35rem}
 [data-event-program] .ep-status{margin:0;color:var(--token-color-muted,inherit)}
+[data-event-program] .ep-trigger{all:unset;display:block;box-sizing:border-box;width:100%;cursor:pointer;text-align:left;font:inherit;color:inherit}
+[data-event-program] .ep-trigger:focus-visible{outline:2px solid var(--token-color-primary);outline-offset:3px;border-radius:8px}
 [data-event-program] .ep-head{max-width:880px;margin:0 auto 1.5rem}
 [data-event-program] .ep-eyebrow{margin:0 0 0.5rem;font-size:0.7rem;font-weight:600;letter-spacing:0.24em;text-transform:uppercase;color:var(--token-color-primary)}
 [data-event-program] .ep-heading{margin:0;font-family:var(--site-heading-font,inherit);font-weight:500;font-size:1.9rem;line-height:1.05;letter-spacing:-0.01em;color:var(--token-color-ink)}

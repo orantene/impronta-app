@@ -229,6 +229,7 @@ test("cards: a 16:10 cover when there is an image, a surface panel with the time
     assert.equal(panels[0]!.textContent, "20:00", "the panel shows the time large");
     assert.match(panels[2]!.textContent ?? "", /Hora por confirmar/);
     assert.ok(host.querySelector(".ep-desc-2"), "descriptions clamp to two lines");
+    assert.equal(host.querySelectorAll(".ep-card-time").length, 1, "only the card with a cover shows the small time line; the panel already shows it large");
     assert.equal(host.querySelector('[data-testid="event-program-nav"]'), null, "one night: no chips");
   });
 });
@@ -285,6 +286,7 @@ test("lineup: only performers or covers make tiles; initials without an image; t
     assert.equal(tiles[0]!.querySelector("a.ep-tile-link")?.getAttribute("href"), "/t/ana");
     assert.equal(tiles[1]!.querySelector("a.ep-tile-link"), null, "no profile, no link");
     assert.deepEqual(Array.from(host.querySelectorAll(".ep-tile-name")).map((n) => n.textContent), ["DJ Ana", "Marco", "Artista por anunciar"]);
+    assert.deepEqual(Array.from(host.querySelectorAll('[data-testid="event-program-tile-title"]')).map((n) => n.textContent), ["Opening set", "Closing set", "Secret guest"], "the item title reads above the name");
   });
   mount(<EventProgramIsland eventId={EVENT} preload={program({ items: [item({ id: "doors", kind: "doors" })] })} layout="lineup" />, (host) => {
     assert.ok(host.querySelector('[data-testid="event-program-empty"]'), "no performer and no cover: the lineup is empty");
@@ -382,7 +384,7 @@ test("drawer: never in compact or schedule; lineup tiles open it", () => {
     });
   }
   mount(<EventProgramIsland eventId={EVENT} preload={rich()} layout="lineup" />, (host) => {
-    const trigger = host.querySelector<HTMLButtonElement>('button[data-testid="event-program-item"]');
+    const trigger = host.querySelector<HTMLButtonElement>(".ep-tile button.ep-trigger[aria-haspopup=\"dialog\"]");
     assert.ok(trigger, "the tile is a trigger");
     assert.equal(host.querySelector("a.ep-tile-link"), null, "the profile link moved into the drawer");
     act(() => { trigger!.click(); });
@@ -411,4 +413,24 @@ test("space chips: groupBy=place with two spaces renders the chip row in every l
     assert.equal(host.querySelector('[data-testid="event-program-space-chips"]'), null, "the schedule grid has its columns instead");
     assert.equal(host.querySelectorAll('[data-testid="event-program-group"]').length, 1);
   });
+});
+
+test("a drawer-on row is styled by the same classes as a drawer-off row (the button only adds the reset class)", () => {
+  const classesOf = (host: HTMLElement) => Array.from(host.querySelectorAll('[data-testid="event-program-item"]')).map((r) => Array.from(r.classList).filter((c) => c !== "ep-trigger").sort().join(" "));
+  let on: string[] = [];
+  let off: string[] = [];
+  mount(<EventProgramIsland eventId={EVENT} preload={program()} openDrawer />, (host) => {
+    on = classesOf(host);
+    assert.ok(host.querySelector('button.ep-trigger[data-testid="event-program-item"]'));
+  });
+  mount(<EventProgramIsland eventId={EVENT} preload={program()} openDrawer={false} />, (host) => { off = classesOf(host); });
+  assert.deepEqual(on, off);
+  assert.ok(on.every((c) => c === "ep-item"));
+  for (const layout of ["cards", "lineup"] as const) {
+    let a: string[] = [];
+    let b: string[] = [];
+    mount(<EventProgramIsland eventId={EVENT} preload={program()} layout={layout} openDrawer />, (host) => { a = classesOf(host); });
+    mount(<EventProgramIsland eventId={EVENT} preload={program()} layout={layout} openDrawer={false} />, (host) => { b = classesOf(host); });
+    assert.deepEqual(a, b, `${layout}: same classes with and without the drawer`);
+  }
 });

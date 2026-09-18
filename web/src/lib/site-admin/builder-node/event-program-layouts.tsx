@@ -47,7 +47,7 @@ export type RowProps = {
  * layout classes and data attributes on the button so the grid holds), a
  * plain element otherwise. Always inside the `<li>`.
  */
-function Shell({ as: Tag, className, placed, now, image, onOpen, t, children }: {
+function Shell({ as: Tag, className, placed, now, image, onOpen, t, children, bare }: {
   as: "div" | "span";
   className: string;
   placed: PlacedItem;
@@ -56,8 +56,10 @@ function Shell({ as: Tag, className, placed, now, image, onOpen, t, children }: 
   onOpen?: (placed: PlacedItem) => void;
   t: (k: string) => string;
   children: ReactNode;
+  bare?: boolean;
 }) {
-  const attrs = itemAttrs(placed, now, image);
+  /** `bare`: the enclosing element already carries the item attributes (the lineup li). */
+  const attrs = bare ? {} : itemAttrs(placed, now, image);
   if (onOpen) {
     return (
       <button type="button" className={`ep-trigger ${className}`} aria-haspopup="dialog" aria-label={`${t("openDetails")}: ${placed.item.title}`} onClick={() => onOpen(placed)} {...attrs}>
@@ -173,7 +175,7 @@ export function CardItem(props: RowProps) {
           </div>
         )}
         <div className="ep-card-body">
-          <TimeCell placed={placed} t={t} className="ep-card-time" />
+          {cover ? <TimeCell placed={placed} t={t} className="ep-card-time" /> : null}
           <p className="ep-title">{item.title}</p>
           {descriptions && item.description ? <p className="ep-desc ep-desc-2">{item.description}</p> : null}
           <MetaLine {...props} />
@@ -221,6 +223,7 @@ export function LineupTile(props: RowProps) {
           {kindLabel ? <span className="ep-kind" data-testid="event-program-kind">{kindLabel}</span> : null}
           {now ? <span className="ep-now" data-testid="event-program-now" aria-label={t("nowLabel")}>{t("now")}</span> : null}
         </span>
+        {item.title.trim() && item.title.trim() !== name ? <span className="ep-tile-title" data-testid="event-program-tile-title">{item.title}</span> : null}
         <span className="ep-tile-name" data-testid="event-program-performer">{name}</span>
       </span>
     </>
@@ -228,7 +231,7 @@ export function LineupTile(props: RowProps) {
   return (
     <li className="ep-tile" {...itemAttrs(placed, now, !!cover)}>
       {onOpen ? (
-        <Shell as="span" className="ep-tile-link" placed={placed} now={now} image={!!cover} onOpen={onOpen} t={t}>{inner}</Shell>
+        <Shell as="span" className="ep-tile-link" placed={placed} now={now} image={!!cover} onOpen={onOpen} t={t} bare>{inner}</Shell>
       ) : href ? <a className="ep-tile-link" href={href} aria-label={name}>{inner}</a> : <span className="ep-tile-link">{inner}</span>}
     </li>
   );

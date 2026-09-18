@@ -5,10 +5,6 @@
  * `button` that must look exactly like the row). Tokens only.
  */
 export const EP_CSS_DRAWER = `
-[data-event-program] .ep-trigger{display:grid;width:100%;margin:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-appearance:none;appearance:none}
-[data-event-program] .ep-trigger:focus-visible{outline:2px solid var(--token-color-primary);outline-offset:3px;border-radius:8px}
-[data-event-program] .ep-trigger.ep-card{display:flex}
-[data-event-program] .ep-trigger.ep-tile-link{display:block}
 [data-event-program] .ep-cta-cue{color:var(--token-color-primary);font-weight:600}
 [data-event-program] .ep-cta-link{color:var(--token-color-primary);font-weight:600;text-decoration:underline;text-underline-offset:0.2em}
 [data-event-program] .ep-scrim{position:fixed;inset:0;z-index:100;background:color-mix(in srgb,var(--token-color-background,var(--token-color-ink)) 62%,transparent);backdrop-filter:blur(2px)}
