@@ -31,7 +31,8 @@ import "./shell.css";
 import { type InboxFilterKey, type InboxSegment } from "../kit/InboxSegments";
 import { Avatar, Btn } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
-import type { ContextPanelAction, ShellActionId } from "../screens/contracts";
+import type { ContextItemLine, ContextMoney, ContextPanelAction, ShellActionId } from "../screens/contracts";
+import { formatCentsUSD } from "@/lib/bookings/commission";
 import { buildScreenCopy } from "../screens/copy";
 import { IdentityCaptureWire } from "../screens/IdentityCaptureWire";
 import { TASK_ACTION, routeShellAction } from "../screens/NextStep";
@@ -106,6 +107,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const [activeId, setActiveId] = useState<string | null>(props.initialInquiryId ?? null);
   const [messages, setMessages] = useState<ThreadMessage[] | null>(null);
   const [essentials, setEssentials] = useState<Essentials | null>(null);
+  const [contextItems, setContextItems] = useState<ContextItemLine[] | null>(null);
+  const [contextMoney, setContextMoney] = useState<ContextMoney | null>(null);
   const [threadError, setThreadError] = useState<MessagingRefusal | null>(null);
   const [draft, setDraft] = useState("");
   const [noteRequest, setNoteRequest] = useState(0);
@@ -194,7 +197,11 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   /* ------------------------------------------------------------ thread */
   const loadThread = useCallback(
     async (id: string) => {
-      const [thread, ess] = await Promise.all([engine.loadThread({ inquiryId: id }), engine.loadEssentials({ inquiryId: id })]);
+      const [thread, ess, ctxLines] = await Promise.all([
+        engine.loadThread({ inquiryId: id }),
+        engine.loadEssentials({ inquiryId: id }),
+        engine.loadContextLines ? engine.loadContextLines({ inquiryId: id }) : Promise.resolve(null),
+      ]);
       if (!thread.ok) {
         setThreadError(thread.reason);
         setMessages([]);
@@ -203,6 +210,18 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
         setMessages(thread.messages);
       }
       if (ess.ok) setEssentials(ess.essentials);
+      if (ctxLines && ctxLines.ok) {
+        setContextItems(
+          ctxLines.lines
+            ? ctxLines.lines.map((l) => ({ id: l.id, name: l.label, units: String(l.units), price: formatCentsUSD(l.unitCents * l.units), proposedBy: l.proposedBy, confirmed: l.confirmed }))
+            : null,
+        );
+        setContextMoney(
+          ctxLines.money
+            ? { totalLabel: formatCentsUSD(ctxLines.money.totalCents), paidLabel: formatCentsUSD(ctxLines.money.paidCents), balanceLabel: formatCentsUSD(ctxLines.money.balanceCents), balanceDueCents: ctxLines.money.balanceCents }
+            : null,
+        );
+      }
     },
     [engine],
   );
@@ -216,6 +235,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       setActiveId(id);
       setMessages(null);
       setEssentials(null);
+      setContextItems(null);
+      setContextMoney(null);
       setThreadError(null);
       setNotice(null);
       setMenuOpen(false);
@@ -505,7 +526,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   // L3 extras the shell can answer today: the notes count comes with essentials.
   // `items`, `money`, `filesCount`, `nextReminderLabel` and `clientHistoryLabel`
   // stay undefined until an engine reader returns them (D-MSG-111).
-  const panelProps = { essentials, state, chips: recordChips, tasks, itemsLabel, loading: activeId !== null && essentials === null, copy: copy.kit, variant, onAction: onPanelAction, notesCount: essentials ? essentials.notes.length : null } as const;
+  const panelProps = { essentials, state, chips: recordChips, tasks, itemsLabel, items: contextItems, money: contextMoney, loading: activeId !== null && essentials === null, copy: copy.kit, variant, onAction: onPanelAction, notesCount: essentials ? essentials.notes.length : null } as const;
 
   const thread = activeRow ? (
     <Thread

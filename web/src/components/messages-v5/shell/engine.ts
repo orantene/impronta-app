@@ -25,7 +25,7 @@ import {
   messagingResolve,
 } from "@/lib/server-actions/messaging-engine";
 import { messagingStartConversation } from "@/lib/server-actions/messaging-start";
-import { messagingLoadHandOverTargets, messagingThreadLink } from "@/lib/server-actions/messaging-sheets";
+import { messagingLoadContextLines, messagingLoadHandOverTargets, messagingThreadLink } from "@/lib/server-actions/messaging-sheets";
 
 import type { ComposerActions } from "../screens/ComposerWire";
 import { engineComposerActions } from "../screens/ComposerWire";
@@ -40,6 +40,8 @@ export type ShellEngine = {
   readonly loadInbox: (input: { locationSlug: string; filter: InboxFilter }) => Promise<ActionResult<{ rows: InboxRow[]; unreadCount: number }>>;
   readonly loadThread: (input: { inquiryId: string }) => Promise<ActionResult<{ messages: ThreadMessage[] }>>;
   readonly loadEssentials: (input: { inquiryId: string }) => Promise<ActionResult<{ essentials: Essentials }>>;
+  /** Context panel Items + Money from the conversation's shared draft (D-MSG-111). Optional: an engine without it leaves the sections empty. */
+  readonly loadContextLines?: (input: { inquiryId: string }) => Promise<ActionResult<{ lines: ContextLine[] | null; money: ContextMoneyCents | null }>>;
   readonly markRead: (input: { tenantSlug: string; inquiryId: string }) => Promise<void>;
   readonly resolve: (input: Versioned) => Promise<ActionResult<{ version?: number }>>;
   readonly reopen: (input: Versioned) => Promise<ActionResult<{ version?: number }>>;
@@ -58,10 +60,14 @@ export type ShellEngine = {
   readonly identity: IdentityActions;
 };
 
+export type ContextLine = { id: string; label: string; units: number; unitCents: number; proposedBy: "client" | "staff" | null; confirmed: boolean };
+export type ContextMoneyCents = { totalCents: number; paidCents: number; balanceCents: number; currency: string };
+
 export const liveShellEngine: ShellEngine = {
   loadInbox: (input) => messagingLoadInbox(input),
   loadThread: (input) => messagingLoadThread(input),
   loadEssentials: (input) => messagingLoadEssentials(input),
+  loadContextLines: (input) => messagingLoadContextLines(input),
   markRead: (input) => markThreadRead(input.tenantSlug, input.inquiryId, "private"),
   resolve: (input) => messagingResolve(input),
   reopen: (input) => messagingReopen(input),
