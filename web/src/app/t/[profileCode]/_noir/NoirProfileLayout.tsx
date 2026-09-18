@@ -390,9 +390,12 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
           {childTypes.length > 0 ? (
             <div className="nf-specialties">
               <span className="nf-specialties__label">{labels.alsoSpecialties}</span>
-              {childTypes.map((tt) => (
+              {childTypes.slice(0, 5).map((tt) => (
                 <span key={tt} className="nf-chip">{tt}</span>
               ))}
+              {childTypes.length > 5 ? (
+                <span className="nf-chip nf-chip--more">+{childTypes.length - 5}</span>
+              ) : null}
             </div>
           ) : null}
 
