@@ -28,6 +28,8 @@ import { z } from "zod";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { renameClientContact } from "@/lib/messaging/client-rename";
+import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
+import { bookAgainFromRecord } from "@/lib/messaging/client-book-again";
 import { insertMessage } from "@/lib/messaging/insert-message";
 import { fail } from "@/lib/messaging/refusals";
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
@@ -444,4 +446,17 @@ export async function messagingClientRename(input: { token: string; name: string
   const result = await renameClientContact(l.admin, { tenantId: l.tenantId, inquiryId: l.inquiryId, name: parsed.data.name });
   if (!result.ok) return result;
   return { ok: true, name: result.name };
+/* ---------- 6. book again (P6 / owner decision 13) ---------- */
+
+export async function messagingClientBookAgain(input: { token: string; recordId: string }): Promise<ActionResult<{ inquiryId: string }>> {
+  const parsed = z.object({ token: z.string().min(1), recordId: z.string().min(1).max(80) }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const l = await link(parsed.data.token);
+  if (isFail(l)) return l;
+  return bookAgainFromRecord(l.admin, {
+    tenantId: l.tenantId,
+    inquiryId: l.inquiryId,
+    recordId: parsed.data.recordId,
+    createInquiry: createInquiryFromIntent as never,
+  });
 }

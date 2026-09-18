@@ -8,11 +8,13 @@
  * file-size cap.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { Translator } from "@/i18n/interpolate";
 import type { GuestThreadMessage, GuestThreadV5Extras, MiniChatBrand } from "@/lib/inquiry/guest-chat-contract";
 import type { GuestDockCatalogProps } from "./GuestDockCatalog";
+import { bookAgainRecordId } from "@/lib/messages-v5/guest-book-again";
+import { messagingClientBookAgain } from "@/lib/server-actions/messaging-client";
 
 import { useGuestClientCards } from "./GuestClientCards";
 import type { paletteFor } from "./mini-chat-styles";
@@ -31,6 +33,8 @@ export function useGuestDockModel(input: {
   readonly contactEmail?: string | null;
   readonly contactPhone?: string | null;
   readonly onRenameSaved?: (name: string) => void;
+  readonly inquiryId?: string | null;
+  readonly onOpenInquiry?: (inquiryId: string) => void;
 }) {
   const locale = input.brand.locale ?? "en";
   const businessName = input.brand.agencyName;
@@ -55,6 +59,32 @@ export function useGuestDockModel(input: {
     refresh: input.refresh ?? (() => undefined),
     onTick: () => setNow(new Date()),
   });
+  const recordId = bookAgainRecordId(input.v5?.items?.records);
+  const token = input.v5?.threadToken ?? null;
+  const [busy, setBusy] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const run = useCallback(async () => {
+    if (!token || !recordId || busy) return;
+    setBusy(true);
+    setRefusal(null);
+    const result = await messagingClientBookAgain({ token, recordId });
+    setBusy(false);
+    if (!result.ok) {
+      setRefusal(result.reason);
+      return;
+    }
+    input.onOpenInquiry?.(result.inquiryId);
+  }, [token, recordId, busy, input]);
+  const onBookInquiry = useCallback(
+    (inquiryId: string) => {
+      if (inquiryId !== input.inquiryId) {
+        input.onOpenInquiry?.(inquiryId);
+        return;
+      }
+      void run();
+    },
+    [input, run],
+  );
   return {
     cardModel,
     now,
@@ -102,5 +132,13 @@ export function useGuestDockModel(input: {
       detailsToken: input.v5?.threadToken ?? null,
       onDetailsSaved: input.onRenameSaved,
     },
+    bookAgainHome: {
+      bookAgainRecordId: recordId,
+      bookAgainEnabled: Boolean(token && recordId),
+      bookAgainBusy: busy,
+      bookAgainRefusal: refusal,
+      onBookAgain: run,
+    },
+    onBookAgainInquiry: onBookInquiry,
   };
 }

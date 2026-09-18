@@ -34,3 +34,4 @@ Items shelf hold rows with countdown from times/table payloads. Closes D-MSG-206
 P5 / F07 (`cursor/dock-p5-identity-6292`): `messagingClientRename` + Your details on Home + link-expiry sentence on `/c/t/[token]`. D-MSG-217. MiniChatPanelColumn stayed 799/800.
 ## P2 · F06 Inquiries list (cursor/dock-p2-inquiries-6292)
 Rebuild `GuestDockProjectsView` as name+time · subject · one state line · one record chip. Segments Needs you / Waiting on them / Done. Same person? banner is read-only. Reader: `listGuestInquiries` + `conversation_records`. D-MSG-214.
+P6 / Book again (`cursor/dock-p6-book-again-6292`): `messagingClientBookAgain` via `createInquiryFromIntent` + POS draft lines. D-MSG-218. MiniChatPanelColumn 800/800.
