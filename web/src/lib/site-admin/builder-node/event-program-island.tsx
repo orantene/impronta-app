@@ -29,6 +29,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { PublicEventProgram } from "@/app/(public)/_events/event-program-actions";
 import { PROGRAM_COPY, pickProgramLocale } from "./event-program-copy";
 import { EP_CSS } from "./event-program-css";
+import { CardItem, CompactRow, LineupTile, ScheduleNight, TimelineRow, placeName, type RowProps } from "./event-program-layouts";
+import { lineupItems } from "./event-program-lineup-tiles";
 import {
   DEFAULT_LAYOUT,
   buildGroups,
@@ -108,8 +110,21 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
 
   const ready: ReadyProgram | null = data && data.enabled ? data : null;
   const times = showTimes !== false;
-  const items = useMemo(() => (ready ? selectItems(ready.items, { filterKinds, limit }) : []), [ready, filterKinds, limit]);
-  const mode = useMemo(() => (ready ? resolveGroupMode(groupBy, ready, items) : "none"), [ready, groupBy, items]);
+  const lay: EventProgramLayout = layout ?? DEFAULT_LAYOUT;
+  // The lineup shows who is playing: only items with a performer or a cover
+  // make a tile, and a program with none of those is EMPTY for this layout.
+  const items = useMemo(() => {
+    if (!ready) return [];
+    const picked = selectItems(ready.items, { filterKinds, limit });
+    return lay === "lineup" ? lineupItems(picked) : picked;
+  }, [ready, filterKinds, limit, lay]);
+  // The schedule grid already lays spaces out as columns, so grouping it by
+  // place would split one night into single-column grids: night or nothing.
+  const mode = useMemo(() => {
+    if (!ready) return "none";
+    const resolved = resolveGroupMode(groupBy, ready, items);
+    return lay === "schedule" && resolved === "place" ? "none" : resolved;
+  }, [ready, groupBy, items, lay]);
   const groups = useMemo(() => (ready ? buildGroups(ready, items, mode, loc, times) : []), [ready, items, mode, loc, times]);
   const nowKey = useMemo(() => {
     if (now === null) return null;
@@ -122,7 +137,7 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
 
   const state: State = !configured ? "not_configured" : failed ? "unavailable" : data === null ? "loading" : !ready ? "disabled" : items.length === 0 ? "empty" : "ready";
   const chrome = (children: ReactNode, hidden = false) => (
-    <div data-event-program={state} data-testid={`event-program-${state}`} data-ep-layout={layout ?? DEFAULT_LAYOUT} hidden={hidden || undefined}>
+    <div data-event-program={state} data-testid={`event-program-${state}`} data-layout={lay} hidden={hidden || undefined}>
       {hidden ? null : <style>{EP_CSS}</style>}
       {children}
     </div>
@@ -144,6 +159,27 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
     groupRefs.current.get(key)?.scrollIntoView?.({ behavior: "smooth", block: "start" });
   };
 
+
+  // Night chips for every layout but compact (which uses small headers) and
+  // only with more than one group. Schedule adds its own space chips on phones.
+  const chips = multi && lay !== "compact";
+  const rowProps = (g: ProgramGroup, p: PlacedItem): RowProps => ({
+    placed: p,
+    now: nowKey === `${g.key}:${p.item.id}`,
+    images: showImages !== false,
+    descriptions: showDescriptions !== false,
+    kind: showKind === true,
+    place: placeName(ready as ReadyProgram, p.item.spaceId),
+    t,
+  });
+  const groupBody = (g: ProgramGroup) => {
+    if (lay === "schedule") return <ScheduleNight group={g} program={ready as ReadyProgram} nowKey={nowKey} loc={loc} t={t} kind={showKind === true} />;
+    if (lay === "lineup") return <ul className="ep-tiles">{g.items.map((p) => <LineupTile key={p.item.id} {...rowProps(g, p)} />)}</ul>;
+    if (lay === "cards") return <ul className="ep-cards">{g.items.map((p) => <CardItem key={p.item.id} {...rowProps(g, p)} />)}</ul>;
+    if (lay === "compact") return <ol className="ep-list">{g.items.map((p) => <CompactRow key={p.item.id} {...rowProps(g, p)} />)}</ol>;
+    return <ol className="ep-list">{g.items.map((p) => <TimelineRow key={p.item.id} {...rowProps(g, p)} />)}</ol>;
+  };
+
   return chrome(
     <>
       {title || eyebrow ? (
@@ -152,8 +188,8 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
           {title ? <h2 className="ep-heading">{title}</h2> : null}
         </header>
       ) : null}
-      <div className="ep-shell" data-rail={multi ? "1" : undefined}>
-        {multi ? (
+      <div className="ep-shell" data-rail={chips && lay === "timeline" ? "1" : undefined}>
+        {chips ? (
           <nav className="ep-nav" aria-label={t(mode === "place" ? "places" : "nights")} data-testid="event-program-nav">
             {groups.map((g) => (
               <button key={g.key} type="button" className="ep-chip" data-on={(active ?? groups[0]!.key) === g.key ? "1" : undefined} onClick={() => jump(g.key)}>
@@ -172,68 +208,11 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
               ref={(el) => { if (el) groupRefs.current.set(g.key, el); else groupRefs.current.delete(g.key); }}
             >
               {multi && g.label ? <h3 className="ep-group-title">{g.label}</h3> : null}
-              <ol className="ep-list">
-                {g.items.map((p) => (
-                  <ProgramRow key={p.item.id} placed={p} now={nowKey === `${g.key}:${p.item.id}`} images={showImages !== false} descriptions={showDescriptions !== false} kind={showKind === true} place={placeName(ready as ReadyProgram, p.item.spaceId)} t={t} />
-                ))}
-              </ol>
+              {groupBody(g)}
             </section>
           ))}
         </div>
       </div>
     </>,
-  );
-}
-
-function placeName(program: ReadyProgram, spaceId: string | null): string | null {
-  return spaceId ? (program.spaces.find((s) => s.id === spaceId)?.name ?? null) : null;
-}
-
-/**
- * One row, the same shape for every kind: time column, rail dot, content,
- * thumb (only with an image). A kind is never drawn as a symbol; with
- * `showKind` it is a tiny uppercase word in the meta line, nothing more.
- */
-function ProgramRow({ placed, now, images, descriptions, kind, place, t }: { placed: PlacedItem; now: boolean; images: boolean; descriptions: boolean; kind: boolean; place: string | null; t: (k: string) => string }) {
-  const { item, timeLabel, endTimeLabel, dayOffset } = placed;
-  const cover = images && item.coverUrl ? item.coverUrl : null;
-  const performer = item.performer;
-  const performerName = performer ? (performer.tba && !performer.name ? t("performerTba") : performer.name) : null;
-  const kindLabel = kind ? t(`kind_${item.kind}`) : null;
-  return (
-    <li className="ep-item" data-testid="event-program-item" data-kind={item.kind} data-now={now ? "1" : undefined} data-image={cover ? "1" : undefined} data-tba={item.timeTba ? "1" : undefined}>
-      <div className="ep-time">
-        {timeLabel ? (
-          <>
-            <span>
-              {timeLabel}
-              {dayOffset > 0 ? <span className="ep-plus" title={t("nextDay")} data-testid="event-program-plus-day">+{dayOffset}</span> : null}
-            </span>
-            {endTimeLabel ? <span className="ep-time-end">{endTimeLabel}</span> : null}
-          </>
-        ) : (
-          <span className="ep-time-tba">{t("tba")}</span>
-        )}
-      </div>
-      <span className="ep-dot" aria-hidden="true" data-testid="event-program-dot" />
-      <div className="ep-body">
-        <p className="ep-title">{item.title}</p>
-        {item.subtitle ? <p className="ep-subtitle">{item.subtitle}</p> : null}
-        {descriptions && item.description ? <p className="ep-desc">{item.description}</p> : null}
-        {performerName || place || kindLabel || now ? (
-          <p className="ep-meta">
-            {performerName ? (
-              <span className="ep-performer" data-testid="event-program-performer">
-                {performer?.profileHref ? <a href={performer.profileHref}>{performerName}</a> : performerName}
-              </span>
-            ) : null}
-            {place ? <span className="ep-place">{place}</span> : null}
-            {kindLabel ? <span className="ep-kind" data-testid="event-program-kind">{kindLabel}</span> : null}
-            {now ? <span className="ep-now" data-testid="event-program-now" aria-label={t("nowLabel")}>{t("now")}</span> : null}
-          </p>
-        ) : null}
-      </div>
-      {cover ? <img className="ep-cover" src={cover} alt="" loading="lazy" data-testid="event-program-cover" /> : null}
-    </li>
   );
 }

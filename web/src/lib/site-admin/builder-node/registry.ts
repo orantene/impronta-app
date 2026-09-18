@@ -1092,7 +1092,7 @@ const eventProgramPropsSchema = z.object({
   eventId: z.string().max(200).optional(),
   eyebrow: z.string().max(80).optional(),
   heading: z.string().max(120).optional(),
-  layout: z.enum(["timeline", "cards", "compact"]).optional(),
+  layout: z.enum(["timeline", "cards", "compact", "schedule", "lineup"]).optional(),
   groupBy: z.enum(["auto", "night", "place", "none"]).optional(),
   showTimes: z.boolean().optional(),
   showImages: z.boolean().optional(),

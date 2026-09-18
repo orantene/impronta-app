@@ -40,6 +40,7 @@ function item(overrides: Partial<PublicScheduleItem> & { id: string }): PublicSc
   return {
     kind: "set", title: overrides.id, subtitle: null, description: null, startsAt: null, endsAt: null, timeTba: false,
     sessionId: null, spaceId: null, performer: null, coverUrl: null,
+    media: { gallery: [], video: null },
     links: { href: null, label: null, instagram: null, website: null }, sponsor: null, tags: [], sortOrder: 0,
     ...overrides,
   };
@@ -51,9 +52,9 @@ function program(overrides: Partial<Extract<PublicEventProgram, { enabled: true 
     nights: [NIGHT_A], spaces: [],
     items: [
       item({ id: "doors", kind: "doors", title: "Puertas", sessionId: "night-a", startsAt: "2026-11-22T01:00:00.000Z" }),
-      item({ id: "set1", title: "Opening set", sessionId: "night-a", startsAt: "2026-11-22T02:00:00.000Z", endsAt: "2026-11-22T03:00:00.000Z", performer: { name: "DJ Ana", tba: false, profileHref: "/t/ana", heroUrl: null, instagram: null }, coverUrl: "https://cdn.example/ana.jpg", description: "Warm-up." }),
-      item({ id: "late", title: "Closing set", sessionId: "night-a", startsAt: "2026-11-22T06:30:00.000Z", performer: { name: "Marco", tba: false, profileHref: null, heroUrl: null, instagram: null } }),
-      item({ id: "tba", title: "Secret guest", sessionId: "night-a", timeTba: true, performer: { name: "", tba: true, profileHref: null, heroUrl: null, instagram: null } }),
+      item({ id: "set1", title: "Opening set", sessionId: "night-a", startsAt: "2026-11-22T02:00:00.000Z", endsAt: "2026-11-22T03:00:00.000Z", performer: { name: "DJ Ana", tba: false, profileHref: "/t/ana", heroUrl: null, instagram: null, bio: null }, coverUrl: "https://cdn.example/ana.jpg", description: "Warm-up." }),
+      item({ id: "late", title: "Closing set", sessionId: "night-a", startsAt: "2026-11-22T06:30:00.000Z", performer: { name: "Marco", tba: false, profileHref: null, heroUrl: null, instagram: null, bio: null } }),
+      item({ id: "tba", title: "Secret guest", sessionId: "night-a", timeTba: true, performer: { name: "", tba: true, profileHref: null, heroUrl: null, instagram: null, bio: null } }),
     ],
     ...overrides,
   };
@@ -199,4 +200,93 @@ test("server render carries no now marker, whatever the wall clock", () => {
   const html = renderToStaticMarkup(<EventProgramIsland eventId={EVENT} preload={program()} />);
   assert.doesNotMatch(html, /event-program-now/);
   assert.match(html, /data-event-program="ready"/);
+});
+
+// ── Every layout is a real option ─────────────────────────────────────────
+
+const LAYOUTS = ["timeline", "cards", "compact", "schedule", "lineup"] as const;
+
+test("every layout renders the ready state under the same testids and names itself on the root", () => {
+  for (const layout of LAYOUTS) {
+    mount(<EventProgramIsland eventId={EVENT} preload={program()} layout={layout} />, (host) => {
+      const root = host.querySelector('[data-testid="event-program-ready"]');
+      assert.ok(root, `${layout}: ready root`);
+      assert.equal(root!.getAttribute("data-layout"), layout);
+      assert.ok(host.querySelectorAll('[data-testid="event-program-item"]').length >= 1, `${layout}: items`);
+      assert.ok(host.querySelectorAll('[data-testid="event-program-performer"]').length >= 1, `${layout}: performers`);
+      assert.doesNotMatch(host.innerHTML, /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u, `${layout}: no emoji`);
+    });
+  }
+});
+
+test("cards: a 16:10 cover when there is an image, a surface panel with the time otherwise; 2-line description", () => {
+  mount(<EventProgramIsland eventId={EVENT} preload={program()} layout="cards" locale="es" />, (host) => {
+    const cards = Array.from(host.querySelectorAll(".ep-card"));
+    assert.equal(cards.length, 4);
+    assert.equal(host.querySelectorAll('[data-testid="event-program-cover"]').length, 1);
+    const panels = host.querySelectorAll('[data-testid="event-program-card-panel"]');
+    assert.equal(panels.length, 3, "three cards without an image get the panel");
+    assert.equal(panels[0]!.textContent, "20:00", "the panel shows the time large");
+    assert.match(panels[2]!.textContent ?? "", /Hora por confirmar/);
+    assert.ok(host.querySelector(".ep-desc-2"), "descriptions clamp to two lines");
+    assert.equal(host.querySelector('[data-testid="event-program-nav"]'), null, "one night: no chips");
+  });
+});
+
+test("compact: one line per item, no images, no descriptions, performer at the right; no chips, headers instead", () => {
+  const two = program({ nights: [NIGHT_A, NIGHT_B], items: [
+    item({ id: "a", sessionId: "night-a", startsAt: "2026-11-22T02:00:00.000Z", coverUrl: "https://cdn.example/a.jpg", description: "long", performer: { name: "Ana", tba: false, profileHref: null, heroUrl: null, instagram: null, bio: null } }),
+    item({ id: "b", sessionId: "night-b", startsAt: "2026-11-23T02:00:00.000Z" }),
+  ] });
+  mount(<EventProgramIsland eventId={EVENT} preload={two} layout="compact" />, (host) => {
+    assert.equal(host.querySelectorAll(".ep-line").length, 2);
+    assert.equal(host.querySelectorAll('[data-testid="event-program-cover"]').length, 0, "compact never shows an image");
+    assert.equal(host.querySelectorAll(".ep-desc").length, 0);
+    assert.equal(host.querySelector(".ep-line-performer")?.textContent, "Ana");
+    assert.equal(host.querySelector('[data-testid="event-program-nav"]'), null, "compact uses headers, not chips");
+    assert.equal(host.querySelectorAll(".ep-group-title").length, 2);
+  });
+});
+
+test("schedule: a column per space, blocks spanning their slots, a phone list grouped by space with chips", () => {
+  const staged = program({
+    spaces: [{ id: "main", name: "Main", kind: "stage" }, { id: "patio", name: "Patio", kind: "space" }],
+    items: [
+      item({ id: "a", spaceId: "main", sessionId: "night-a", startsAt: "2026-11-22T01:00:00.000Z", endsAt: "2026-11-22T02:00:00.000Z" }),
+      item({ id: "b", spaceId: "patio", sessionId: "night-a", startsAt: "2026-11-22T01:00:00.000Z" }),
+      item({ id: "tba", sessionId: "night-a", timeTba: true }),
+    ],
+  });
+  mount(<EventProgramIsland eventId={EVENT} preload={staged} layout="schedule" locale="es" />, (host) => {
+    const grid = host.querySelector(".ep-grid") as HTMLElement | null;
+    assert.ok(grid, "the grid renders");
+    assert.equal(host.querySelector('[data-testid="event-program-schedule"]')?.getAttribute("data-columns"), "2");
+    assert.deepEqual(Array.from(grid!.querySelectorAll(".ep-grid-head")).map((h) => h.textContent), ["Main", "Patio"]);
+    assert.deepEqual(Array.from(grid!.querySelectorAll(".ep-grid-slot")).map((h) => h.textContent), ["20:00", "20:30"]);
+    const blocks = Array.from(grid!.querySelectorAll(".ep-block")) as HTMLElement[];
+    assert.equal(blocks.length, 2);
+    assert.equal(blocks[0]!.style.gridRow, "2 / span 2", "an hour spans two 30-minute rows");
+    assert.equal(blocks[1]!.style.gridRow, "2 / span 1", "open-ended and last: one slot");
+    assert.equal(host.querySelectorAll('[data-testid="event-program-cover"]').length, 0, "no images in the schedule");
+    assert.equal(host.querySelectorAll(".ep-schedule-unplaced .ep-line").length, 1, "TBA listed apart");
+    const phone = host.querySelector('[data-testid="event-program-schedule-phone"]');
+    assert.equal(phone?.querySelectorAll(".ep-space-chips .ep-chip").length, 2, "space chips on phones");
+    assert.equal(phone?.querySelectorAll(".ep-space .ep-line").length, 2, "compact rows grouped by space");
+  });
+});
+
+test("lineup: only performers or covers make tiles; initials without an image; the tile links to the profile", () => {
+  mount(<EventProgramIsland eventId={EVENT} preload={program()} layout="lineup" locale="es" />, (host) => {
+    const tiles = Array.from(host.querySelectorAll(".ep-tile"));
+    assert.equal(tiles.length, 3, "Doors has no face and makes no tile");
+    assert.equal(host.querySelectorAll('[data-testid="event-program-cover"]').length, 1);
+    const panels = Array.from(host.querySelectorAll('[data-testid="event-program-tile-panel"]'));
+    assert.deepEqual(panels.map((p) => p.textContent), ["M", "AA"], "initials in place of a cover; the announced performer uses the TBA words");
+    assert.equal(tiles[0]!.querySelector("a.ep-tile-link")?.getAttribute("href"), "/t/ana");
+    assert.equal(tiles[1]!.querySelector("a.ep-tile-link"), null, "no profile, no link");
+    assert.deepEqual(Array.from(host.querySelectorAll(".ep-tile-name")).map((n) => n.textContent), ["DJ Ana", "Marco", "Artista por anunciar"]);
+  });
+  mount(<EventProgramIsland eventId={EVENT} preload={program({ items: [item({ id: "doors", kind: "doors" })] })} layout="lineup" />, (host) => {
+    assert.ok(host.querySelector('[data-testid="event-program-empty"]'), "no performer and no cover: the lineup is empty");
+  });
 });

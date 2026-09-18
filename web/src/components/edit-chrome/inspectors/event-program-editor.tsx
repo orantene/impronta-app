@@ -129,9 +129,11 @@ export function EventProgramEditor({ eventId, pageId, layout, groupBy, showTimes
         value={layout ?? "timeline"}
         onChange={(next) => void patch({ layout: next })}
         options={[
-          { value: "timeline", label: "Timeline" },
-          { value: "cards", label: "Cards" },
-          { value: "compact", label: "Compact list" },
+          { value: "timeline", label: "Timeline: run of show, one column" },
+          { value: "cards", label: "Cards: cover, time and title in a grid" },
+          { value: "compact", label: "Compact: one line per item, for sidebars" },
+          { value: "schedule", label: "Schedule: a column per stage, rows by time" },
+          { value: "lineup", label: "Lineup: who is playing, image first" },
         ]}
         dataControl="event-program-layout"
       />

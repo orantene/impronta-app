@@ -3,38 +3,45 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
+import { EP_CSS } from "./event-program-css";
+
 /**
- * event_program: the sheet reads tenant tokens only (no hex, no parallel
- * palette), every class the island emits owns a rule, the island injects the
- * sheet, every state is attributed on the root, tap targets are 44px, and the
- * timeline is vertical on phones (no horizontal timeline rule anywhere).
+ * event_program: the sheets read tenant tokens only (no hex, no parallel
+ * palette), every class the island or a layout emits owns a rule, the island
+ * injects the sheet, every state is attributed on the root, tap targets are
+ * 44px, the timeline is vertical on phones, all five layouts share the design
+ * language, and nothing carries an emoji or a glyph.
  */
 const here = path.dirname(new URL(import.meta.url).pathname);
-const css = readFileSync(path.join(here, "event-program-css.ts"), "utf8");
-const island = readFileSync(path.join(here, "event-program-island.tsx"), "utf8");
-const scope = readFileSync(path.join(here, "renderer-css-scope.ts"), "utf8");
-const renderer = readFileSync(path.join(here, "render.tsx"), "utf8");
+const read = (name: string) => readFileSync(path.join(here, name), "utf8");
+const island = read("event-program-island.tsx");
+const layouts = read("event-program-layouts.tsx");
+const scope = read("renderer-css-scope.ts");
+const renderer = read("render.tsx");
+const sheet = EP_CSS;
 
-const sheet = css.slice(css.indexOf("export const EP_CSS = `") + "export const EP_CSS = `".length, css.lastIndexOf("`;"));
-
-test("no hex literal; colours are --token-color-* roles", () => {
+test("no hex literal; colours are --token-color-* roles; type is the site font tokens", () => {
   assert.doesNotMatch(sheet, /#[0-9a-f]{3,8}\b/i);
   assert.doesNotMatch(sheet, /\brgb\(|\bhsl\(/i, "no raw colour functions");
-  assert.ok((sheet.match(/--token-color-/g) ?? []).length >= 8);
+  assert.ok((sheet.match(/--token-color-/g) ?? []).length >= 20);
+  assert.doesNotMatch(sheet, /font-family:(?!var\(--site-(heading|body)-font|inherit)/, "type comes from --site-heading-font / --site-body-font only");
 });
 
-test("every island class has a rule", () => {
-  const classes = new Set(Array.from(island.matchAll(/className="(ep-[a-z-]+)"/g)).map((m) => m[1]!));
-  assert.ok(classes.size >= 12, `expected the island's classes, got ${classes.size}`);
-  for (const cls of classes) assert.match(sheet, new RegExp(`\\.${cls}[^a-z-]`), `${cls} has no rule`);
+test("every class the island or a layout emits has a rule", () => {
+  const classes = new Set<string>();
+  for (const src of [island, layouts]) {
+    for (const m of src.matchAll(/className="([^"]+)"/g)) for (const cls of m[1]!.split(/\s+/)) if (cls.startsWith("ep-")) classes.add(cls);
+  }
+  assert.ok(classes.size >= 40, `expected the block's classes, got ${classes.size}`);
+  for (const cls of classes) assert.match(sheet, new RegExp(`\\.${cls}[^a-z0-9-]`), `${cls} has no rule`);
   assert.match(island, /<style>\{EP_CSS\}<\/style>/);
 });
 
-test("every state is attributed on the root with a testid, and the two public-silent ones are hidden", () => {
+test("every state is attributed on the root with a testid and the layout; the two public-silent ones are hidden", () => {
   for (const s of ["not_configured", "loading", "disabled", "unavailable", "empty", "ready"]) {
     assert.match(island, new RegExp(`"${s}"`), `state ${s} is missing`);
   }
-  assert.match(island, /data-event-program=\{state\} data-testid=\{`event-program-\$\{state\}`\}/);
+  assert.match(island, /data-event-program=\{state\} data-testid=\{`event-program-\$\{state\}`\} data-layout=\{lay\}/);
   assert.match(island, /if \(state === "not_configured" \|\| state === "disabled"\) \{\s*\/\/[^\n]*\n\s*if \(!editor\) return chrome\(null, true\);/);
 });
 
@@ -47,14 +54,16 @@ test("mobile first: 44px targets, vertical timeline only, sticky chips, desktop 
   assert.doesNotMatch(sheet, /overflow-x:auto[^\n]*\.ep-list|\.ep-list\{[^}]*overflow-x/, "no horizontal timeline rule");
 });
 
-test("editorial run-of-show: one 880px column, the row grid, the rail and dot, no boxes, no hover", () => {
+test("timeline: one 880px column, the row grid, the rail and dot, thumbs only with an image, no boxes, no hover", () => {
   assert.match(sheet, /\.ep-shell\{[^}]*max-width:880px;margin:0 auto/);
   assert.match(sheet, /\.ep-item\{[^}]*grid-template-columns:64px 20px minmax\(0,1fr\)/, "phone grid: time 64 / rail 20 / content");
+  assert.match(sheet, /\.ep-item\[data-image="1"\]\{grid-template-columns:64px 20px minmax\(0,1fr\) 56px\}/, "phone: 56px square at the right edge, only with an image");
+  assert.match(sheet, /\.ep-cover\{display:block;grid-column:4;width:56px;height:56px[^}]*border-radius:8px/);
   assert.match(sheet, /@media \(min-width:640px\)\{[^\n]*\.ep-item\{grid-template-columns:96px 24px minmax\(0,1fr\)/, "desktop grid: time 96 / rail 24 / content");
-  assert.match(sheet, /\.ep-item\[data-image="1"\]\{grid-template-columns:96px 24px minmax\(0,1fr\) 72px\}/, "thumb column only with an image");
-  assert.match(sheet, /\.ep-cover\{display:none/, "thumb hidden on phones");
+  assert.match(sheet, /\.ep-item\[data-image="1"\]\{grid-template-columns:96px 24px minmax\(0,1fr\) 72px\}/, "72px thumb column only with an image");
+  assert.match(sheet, /\.ep-cover\{width:72px;height:auto;aspect-ratio:4\/5\}/, "4:5 cover from 640px");
   assert.match(sheet, /--ep-rail:color-mix\(in srgb,var\(--token-color-primary\) 35%,transparent\)/);
-  assert.match(sheet, /\.ep-list::before\{[^}]*width:1px;background:var\(--ep-rail\)/, "1px rail");
+  assert.match(sheet, /\[data-layout="timeline"\] \.ep-list::before\{[^}]*width:1px;background:var\(--ep-rail\)/, "1px rail");
   assert.match(sheet, /\.ep-dot\{[^}]*width:8px;height:8px[^}]*background:var\(--token-color-primary\)/, "8px primary dot");
   assert.match(sheet, /\[data-now="1"\] \.ep-dot\{box-shadow:0 0 0 6px var\(--ep-glow\)\}/, "current item glow");
   assert.match(sheet, /--ep-glow:color-mix\(in srgb,var\(--token-color-primary\) 18%,transparent\)/);
@@ -68,22 +77,57 @@ test("editorial run-of-show: one 880px column, the row grid, the rail and dot, n
   assert.match(sheet, /\.ep-heading\{[^}]*font-size:1\.9rem/);
   assert.match(sheet, /\.ep-heading\{font-size:2\.4rem\}/);
   assert.match(sheet, /\.ep-chip\[data-on="1"\]\{[^}]*background:var\(--token-color-primary\);color:var\(--token-color-primary-on/);
-  assert.doesNotMatch(sheet, /\.ep-item[^{]*:hover/, "rows are not interactive: no hover");
-  assert.doesNotMatch(sheet, /\.ep-item\{[^}]*border-radius/, "no card box");
+  assert.doesNotMatch(sheet, /\.ep-(item|card|line|tile|block)[^{]*:hover/, "rows are not interactive: no hover");
+  assert.doesNotMatch(sheet, /\.ep-item\{[^}]*border-radius/, "no card box on a timeline row");
   assert.match(sheet, /\.ep-desc\{[^}]*-webkit-line-clamp:3/);
   assert.match(sheet, /\.ep-time-tba\{[^}]*letter-spacing:0\.12em;text-transform:uppercase/);
 });
 
-test("no emoji, no glyph fallback, anywhere in the block's copy, sheet or markup", () => {
-  const copy = readFileSync(path.join(here, "event-program-copy.ts"), "utf8");
-  const model = readFileSync(path.join(here, "event-program-model.ts"), "utf8");
+test("cards: 1 → 2 → 3 grid, 16:10 cover or surface panel with the time, hairline border, radius 12, no shadow", () => {
+  assert.match(sheet, /\.ep-cards\{[^}]*grid-template-columns:1fr/);
+  assert.match(sheet, /@media \(min-width:640px\)\{\[data-event-program\] \.ep-cards\{grid-template-columns:repeat\(2,/);
+  assert.match(sheet, /@media \(min-width:1024px\)\{\[data-event-program\] \.ep-cards\{grid-template-columns:repeat\(3,/);
+  assert.match(sheet, /\.ep-card\{[^}]*border:1px solid var\(--ep-sep\);border-radius:12px/);
+  assert.doesNotMatch(sheet, /\.ep-card\{[^}]*box-shadow/);
+  assert.match(sheet, /\.ep-card-cover\{[^}]*aspect-ratio:16\/10/);
+  assert.match(sheet, /\.ep-card-panel\{[^}]*aspect-ratio:16\/10;background:var\(--ep-surface\)/);
+  assert.match(sheet, /\.ep-card-panel-time\{font-family:var\(--site-heading-font,inherit\);font-size:2\.4rem[^}]*color:var\(--token-color-primary\)/);
+  assert.match(sheet, /\.ep-desc-2\{-webkit-line-clamp:2\}/);
+});
+
+test("compact: one hairline line per item, time 64px, performer muted at the right, no images", () => {
+  assert.match(sheet, /\.ep-line\{[^}]*grid-template-columns:64px minmax\(0,1fr\) auto[^}]*padding:0\.6rem 0;border-bottom:1px solid var\(--ep-sep\)/);
+  assert.match(sheet, /\.ep-line\{padding:0\.75rem 0\}/, "0.75rem from 640px");
+  assert.match(sheet, /\.ep-line-performer\{[^}]*color:var\(--token-color-muted\);text-align:right/);
+  const compact = layouts.slice(layouts.indexOf("export function CompactRow"), layouts.indexOf("export function LineupTile"));
+  assert.ok(compact.length > 100, "the compact row is where it is expected");
+  assert.doesNotMatch(compact, /<img/, "the compact row renders no image");
+});
+
+test("schedule: grid from 640px, surface blocks with a line border, compact-by-space list on phones", () => {
+  assert.match(sheet, /\.ep-grid\{display:none/);
+  assert.match(sheet, /@media \(min-width:640px\)\{\[data-event-program\] \.ep-grid\{display:grid\}\[data-event-program\] \.ep-schedule-phone\{display:none\}\}/);
+  assert.match(sheet, /\.ep-block\{[^}]*border:1px solid var\(--token-color-line\);border-radius:8px;background:var\(--ep-surface\)/);
+  assert.match(layouts, /gridTemplateRows: `auto repeat\(\$\{grid\.slotLabels\.length\}/, "rows come from the 30-minute slots");
+});
+
+test("lineup: 2 → 3 → 4 tiles, 4:5, bottom scrim from the background token to 85%, initials panel in the heading font", () => {
+  assert.match(sheet, /\.ep-tiles\{[^}]*grid-template-columns:repeat\(2,/);
+  assert.match(sheet, /@media \(min-width:640px\)\{\[data-event-program\] \.ep-tiles\{grid-template-columns:repeat\(3,/);
+  assert.match(sheet, /@media \(min-width:1024px\)\{\[data-event-program\] \.ep-tiles\{grid-template-columns:repeat\(4,/);
+  assert.match(sheet, /\.ep-tile-link\{[^}]*aspect-ratio:4\/5/);
+  assert.match(sheet, /\.ep-tile-scrim\{[^}]*linear-gradient\(to bottom,transparent,color-mix\(in srgb,var\(--token-color-background\) 85%,transparent\)\)/);
+  assert.match(sheet, /\.ep-tile-panel\{[^}]*font-family:var\(--site-heading-font,inherit\)/);
+  assert.match(sheet, /\.ep-tile-name\{font-family:var\(--site-heading-font,inherit\)/);
+});
+
+test("no emoji, no glyph fallback, anywhere in the block's copy, sheets or markup", () => {
   // Emoji, dingbats, misc symbols, geometric shapes, variation selectors, ZWJ (the ⇒ in a doc comment is not a glyph the page renders).
   const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{25A0}-\u{25FF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/u;
-  for (const [name, src] of [["copy", copy], ["css", css], ["island", island], ["model", model]] as const) {
-    assert.doesNotMatch(src, emoji, `${name} carries an emoji or symbol glyph`);
-  }
-  assert.doesNotMatch(island, /kind === "doors" \|\| item\.kind === "close"/, "a kind is never special-cased into a symbol");
-  assert.match(island, /const kindLabel = kind \? t\(`kind_\$\{item\.kind\}`\) : null;/, "a kind is a word, only on showKind");
+  const files = ["event-program-copy.ts", "event-program-css.ts", "event-program-css-cards.ts", "event-program-css-schedule.ts", "event-program-css-lineup.ts", "event-program-island.tsx", "event-program-layouts.tsx", "event-program-model.ts", "event-program-lineup-tiles.ts", "event-program-schedule-grid.ts"];
+  for (const name of files) assert.doesNotMatch(read(name), emoji, `${name} carries an emoji or symbol glyph`);
+  assert.doesNotMatch(layouts, /kind === "doors" \|\| item\.kind === "close"/, "a kind is never special-cased into a symbol");
+  assert.match(layouts, /const kindLabel = kind \? t\(`kind_\$\{(placed\.)?item\.kind\}`\) : null;/, "a kind is a word, only on showKind");
 });
 
 test("the wrapper token is scoped to the kind and the renderer emits it", () => {

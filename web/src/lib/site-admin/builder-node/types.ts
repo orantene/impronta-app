@@ -1208,7 +1208,7 @@ export interface BuilderEventProgramNode extends BuilderNodeBase {
     eyebrow?: string;
     /** Localizable. Empty ⇒ the program's own heading (`events.program.heading`). */
     heading?: string;
-    /** MVP presentations. `schedule` and `lineup` are reserved by the proposal, not built. */
+    /** Five real, designed presentations sharing one design language; default `timeline`. */
     layout?: EventProgramLayout;
     /** `auto` = night when >1 night, else place when >1 space, else none. */
     groupBy?: EventProgramGroupBy;
@@ -1224,7 +1224,7 @@ export interface BuilderEventProgramNode extends BuilderNodeBase {
   };
 }
 
-export type EventProgramLayout = "timeline" | "cards" | "compact";
+export type EventProgramLayout = "timeline" | "cards" | "compact" | "schedule" | "lineup";
 export type EventProgramGroupBy = "auto" | "night" | "place" | "none";
 
 export interface TicketPickerTierPresentation {

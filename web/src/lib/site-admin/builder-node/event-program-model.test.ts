@@ -24,6 +24,7 @@ function item(overrides: Partial<PublicScheduleItem> & { id: string }): PublicSc
     spaceId: null,
     performer: null,
     coverUrl: null,
+    media: { gallery: [], video: null },
     links: { href: null, label: null, instagram: null, website: null },
     sponsor: null,
     tags: [],

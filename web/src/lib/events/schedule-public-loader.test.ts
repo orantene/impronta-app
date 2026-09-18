@@ -127,7 +127,7 @@ test("resolves the performer: public talent gives name, /t/<code> and the hero a
   const res = await loadPublicEventProgram(client(db), { tenantId: T, eventId: EVENT, locale: "en" });
   assert.ok(res.enabled);
   const [set, own, gone, guest, nobody] = res.items;
-  assert.deepEqual(set!.performer, { name: "DJ Sofia", tba: false, profileHref: "/t/TAL-00042", heroUrl: "https://cdn.example/sofia-hero.jpg", instagram: null });
+  assert.deepEqual(set!.performer, { name: "DJ Sofia", tba: false, profileHref: "/t/TAL-00042", heroUrl: "https://cdn.example/sofia-hero.jpg", instagram: null, bio: null });
   assert.equal(set!.coverUrl, "https://cdn.example/sofia-hero.jpg", "no cover → the talent's hero");
   assert.equal(own!.coverUrl, "https://cdn.example/cover-1.jpg", "the item's own cover wins");
   assert.equal(own!.performer?.instagram, "@sofia");
@@ -138,6 +138,33 @@ test("resolves the performer: public talent gives name, /t/<code> and the hero a
   assert.deepEqual(guest!.sponsor, { name: "Brand", logoUrl: null, url: "https://brand.example" });
   assert.equal(nobody!.performer, null);
   assert.deepEqual(res.spaces, [{ id: STAGE, name: "Main Stage", kind: "stage" }]);
+});
+
+test("drawer fields: the public bio rides the performer, the gallery resolves to URLs (unknown ids dropped, six at most), the video passes through", async () => {
+  const db = fakeDb(world(undefined, {
+    talent_profiles: [
+      { id: TALENT, display_name: "DJ Sofia", first_name: "Sofía", short_bio: "Cancun house.", profile_code: "TAL-00042", workflow_status: "published", visibility: "public", deleted_at: null },
+      { id: TALENT_GONE, display_name: "Gone Act", first_name: null, short_bio: "Hidden bio", profile_code: "TAL-00043", workflow_status: "published", visibility: "hidden", deleted_at: null },
+    ],
+    media_assets: [
+      { id: "cover-1", public_url: "https://cdn.example/cover-1.jpg", owner_talent_profile_id: null, storage_path: "x", variant_kind: "gallery", deleted_at: null },
+      { id: "g-1", public_url: "https://cdn.example/g-1.jpg", owner_talent_profile_id: null, storage_path: "x", variant_kind: "gallery", deleted_at: null },
+      { id: "g-2", public_url: "https://cdn.example/g-2.jpg", owner_talent_profile_id: null, storage_path: "x", variant_kind: "gallery", deleted_at: null },
+    ],
+    event_schedule_items: [
+      item({ title: "Set", performer_talent_profile_id: TALENT, media: { gallery_media_ids: ["g-1", "missing", "g-2"], video_url: "https://www.youtube.com/watch?v=abc" } }),
+      item({ title: "Gone", performer_talent_profile_id: TALENT_GONE, performer_name: "The Gone Act", media: { gallery_media_ids: ["g-1", "g-1", "g-2", "g-1", "g-2", "g-1", "g-2", "g-1"] } }),
+      item({ title: "Plain" }),
+    ],
+  }));
+  const res = await loadPublicEventProgram(client(db), { tenantId: T, eventId: EVENT, locale: "en" });
+  assert.ok(res.enabled);
+  const [set, gone, plain] = res.items;
+  assert.equal(set!.performer?.bio, "Cancun house.");
+  assert.deepEqual(set!.media, { gallery: ["https://cdn.example/g-1.jpg", "https://cdn.example/g-2.jpg"], video: "https://www.youtube.com/watch?v=abc" });
+  assert.equal(gone!.performer?.bio, null, "an unpublished profile lends no bio");
+  assert.equal(gone!.media.gallery.length, 6, "the gallery is capped at six");
+  assert.deepEqual(plain!.media, { gallery: [], video: null });
 });
 
 test("enabled:false when the switch is off, the event is not published, the table is absent, or the program column is absent", async () => {

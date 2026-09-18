@@ -8,8 +8,8 @@ const ready: PublicEventProgram = {
   enabled: true, heading: "Programa", setTimesPublic: true, groupBy: "day", zone: "America/Cancun",
   nights: [], spaces: [{ id: "main", name: "Main stage", kind: "stage" }],
   items: [
-    { id: "a", kind: "set", title: "Opening", subtitle: null, description: "Warm-up.", startsAt: "2026-11-22T02:00:00.000Z", endsAt: "2026-11-22T03:00:00.000Z", timeTba: false, sessionId: null, spaceId: "main", performer: { name: "DJ Ana", tba: false, profileHref: "/t/ana", heroUrl: null, instagram: null }, coverUrl: "https://cdn.example/a.jpg", links: { href: null, label: null, instagram: null, website: null }, sponsor: null, tags: [], sortOrder: 0 },
-    { id: "b", kind: "set", title: "Secret", subtitle: null, description: null, startsAt: null, endsAt: null, timeTba: true, sessionId: null, spaceId: null, performer: { name: "", tba: true, profileHref: null, heroUrl: null, instagram: null }, coverUrl: null, links: { href: null, label: null, instagram: null, website: null }, sponsor: null, tags: [], sortOrder: 1 },
+    { id: "a", kind: "set", title: "Opening", subtitle: null, description: "Warm-up.", startsAt: "2026-11-22T02:00:00.000Z", endsAt: "2026-11-22T03:00:00.000Z", timeTba: false, sessionId: null, spaceId: "main", performer: { name: "DJ Ana", tba: false, profileHref: "/t/ana", heroUrl: null, instagram: null, bio: null }, coverUrl: "https://cdn.example/a.jpg", media: { gallery: [], video: null }, links: { href: null, label: null, instagram: null, website: null }, sponsor: null, tags: [], sortOrder: 0 },
+    { id: "b", kind: "set", title: "Secret", subtitle: null, description: null, startsAt: null, endsAt: null, timeTba: true, sessionId: null, spaceId: null, performer: { name: "", tba: true, profileHref: null, heroUrl: null, instagram: null, bio: null }, coverUrl: null, media: { gallery: [], video: null }, links: { href: null, label: null, instagram: null, website: null }, sponsor: null, tags: [], sortOrder: 1 },
   ],
 };
 
