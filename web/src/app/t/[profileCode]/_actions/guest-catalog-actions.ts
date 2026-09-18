@@ -49,12 +49,16 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
   if (!parsed.success) return { ok: false, error: "invalid" };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "unavailable" };
-  const { data: tenant } = await admin
+  const { data: tenant, error: tenantError } = await admin
     .from("agencies")
     .select("id, status")
     .eq("slug", parsed.data.tenantSlug.trim().toLowerCase())
     .limit(1)
     .maybeSingle();
+  if (tenantError) {
+    logServerError("guest-catalog-actions.tenant", tenantError);
+    return { ok: false, error: "unavailable" };
+  }
   const tenantId = (tenant as { id?: string; status?: string } | null)?.id ?? null;
   if (!tenantId) return { ok: false, error: "not_found" };
   try {
@@ -92,7 +96,12 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
 async function profileCodes(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, ids: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (ids.length === 0) return out;
-  const { data } = await admin.from("talent_profiles").select("id, profile_code").in("id", ids);
+  const { data, error } = await admin.from("talent_profiles").select("id, profile_code").in("id", ids);
+  if (error) {
+    // A failed code lookup only costs the profile links; the catalog still renders.
+    logServerError("guest-catalog-actions.profileCodes", error);
+    return out;
+  }
   for (const row of (data ?? []) as Array<{ id: string; profile_code: string | null }>) {
     if (row.profile_code) out.set(row.id, row.profile_code);
   }
