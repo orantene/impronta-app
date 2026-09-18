@@ -71,3 +71,30 @@ test("the guest items reader selects client-safe line columns only (wave 2)", ()
   const shelf = read("app/t/[profileCode]/_chat/GuestDockItemsShelf.tsx");
   assert.doesNotMatch(shelf, /server-actions|onRemove|onClick/);
 });
+
+test("Home draws Your details (not a ClientCard); rename is token-identified", () => {
+  const home = read("app/t/[profileCode]/_chat/GuestDockHomeView.tsx");
+  assert.match(home, /GuestDockDetailsCard/);
+  const card = read("app/t/[profileCode]/_chat/GuestDockDetailsCard.tsx");
+  assert.match(card, /messagingClientRename/);
+  assert.doesNotMatch(card, /from ["']@\/components\/messages-v5\/client\/ClientCard["']/);
+  assert.doesNotMatch(card, /#0f4f3e/);
+  const actions = read("lib/server-actions/messaging-client.ts");
+  const fn = actions.slice(actions.indexOf("export async function messagingClientRename"));
+  assert.match(fn, /await link\(parsed\.data\.token\)/);
+  assert.match(fn, /renameClientContact/);
+  const writer = read("lib/messaging/client-rename.ts");
+  assert.match(writer, /contact_name: name/);
+  assert.doesNotMatch(writer, /update\(\{[^}]*contact_email/);
+  assert.doesNotMatch(writer, /update\(\{[^}]*contact_phone/);
+  const col = read("app/t/[profileCode]/_chat/MiniChatPanelColumn.tsx");
+  assert.ok(col.split("\n").length <= 800, `MiniChatPanelColumn is ${col.split("\n").length} lines`);
+});
+
+test("token page passes baked expiry onto the client thread (D-MSG-208c)", () => {
+  const page = read("app/(public)/c/t/[token]/page.tsx");
+  assert.match(page, /threadTokenExpiresAt=\{new Date\(verified\.expiresAtMs\)\.toISOString\(\)\}/);
+  const view = read("components/messages-v5/client/ClientThreadView.tsx");
+  assert.match(view, /data-client-link-expiry/);
+  assert.doesNotMatch(view, /GuestDockDetailsCard/);
+});

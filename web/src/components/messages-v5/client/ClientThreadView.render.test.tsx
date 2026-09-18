@@ -128,6 +128,14 @@ test("footer: secure line and a greyed Save to email when no writer is reachable
   assert.doesNotMatch(live, /disabled=""[^>]*data-client-action="save_to_email"/);
 });
 
+test("footer: link-expiry sentence only on /c/t/[token] when threadTokenExpiresAt is passed", () => {
+  const dock = renderToStaticMarkup(<ClientThreadView {...base} />);
+  assert.doesNotMatch(dock, /data-client-link-expiry/);
+  const link = renderToStaticMarkup(<ClientThreadView {...base} threadTokenExpiresAt="2026-10-18T00:00:00.000Z" />);
+  assert.match(link, /data-client-link-expiry/);
+  assert.match(link, /This link is valid until /);
+});
+
 test("whole-thread refusal (expired link) is one catalogue sentence", () => {
   const html = renderToStaticMarkup(<ClientRefusal code="expired" kit={EN_KIT} />);
   assert.match(html, /data-refusal="expired"/);

@@ -1215,6 +1215,15 @@
       "homeLineupSub": "Talento que has agregado y guardado",
       "homeDashboardTitle": "Abrir tu panel",
       "homeDashboardSub": "Todas las conversaciones en un solo lugar",
+      "detailsTitle": "Tus datos",
+      "detailsName": "Nombre",
+      "detailsEmail": "Correo",
+      "detailsPhone": "Teléfono",
+      "detailsEmpty": "Aún no añadido",
+      "detailsSave": "Guardar",
+      "detailsSaving": "Guardando",
+      "detailsFailed": "No se pudo guardar tu nombre. Inténtalo de nuevo.",
+      "detailsExpired": "Este enlace ha caducado. Abre la conversación desde un enlace nuevo para actualizar tu nombre.",
       "detailsAddCta": "Agregar detalles",
       "detailsProgress": "{filled}/{total}",
       "detailsSheetTitle": "Detalles del evento",
@@ -18908,7 +18917,8 @@
           "footer": {
             "secure": "Enlace seguro · válido para tu reserva",
             "saveToEmail": "Guardar esta conversación en tu correo",
-            "saveToEmailSoon": "Guardar en el correo aún no está disponible desde este enlace"
+            "saveToEmailSoon": "Guardar en el correo aún no está disponible desde este enlace",
+            "expires": "Este enlace es válido hasta el {date}"
           },
           "choices": {
             "cat": "Elige",

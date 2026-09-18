@@ -38,6 +38,7 @@ export function buildClientCopy(t: Translator) {
       secure: t("dashboard.messagesV5.client.link.footer.secure"),
       saveToEmail: t("dashboard.messagesV5.client.link.footer.saveToEmail"),
       saveToEmailSoon: t("dashboard.messagesV5.client.link.footer.saveToEmailSoon"),
+      expires: t("dashboard.messagesV5.client.link.footer.expires"),
     },
     choices: {
       cat: t("dashboard.messagesV5.client.link.choices.cat"),

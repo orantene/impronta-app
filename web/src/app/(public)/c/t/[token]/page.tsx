@@ -55,6 +55,7 @@ export default async function PublicConversationPage({
       messages={messages}
       offers={offers}
       payCode={payCode}
+      threadTokenExpiresAt={new Date(verified.expiresAtMs).toISOString()}
     />
   );
 }

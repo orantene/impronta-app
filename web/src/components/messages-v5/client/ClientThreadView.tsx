@@ -15,6 +15,7 @@ import {
   buildClientStream,
   clientOfferForMessage,
   dayLabelFor,
+  formatClientDate,
   formatClientTime,
   offerCardMessageIds,
   readChange,
@@ -64,6 +65,8 @@ export type ClientThreadViewProps = {
   readonly onPay?: (code: string) => void;
   /** Null hides the link; the current token thread has no reachable "save to email" writer (D-MSG-166), so the wrapper passes null and the line renders greyed. */
   readonly onSaveToEmail?: (() => void) | null;
+  /** ISO expiry of THIS `/c/t/[token]` link (D-MSG-208c). */
+  readonly threadTokenExpiresAt?: string | null;
 };
 
 export function ClientThreadView(p: ClientThreadViewProps) {
@@ -117,6 +120,11 @@ export function ClientThreadView(p: ClientThreadViewProps) {
             <button type="button" onClick={p.onSaveToEmail ?? undefined} disabled={!p.onSaveToEmail} title={p.onSaveToEmail ? undefined : copy.footer.saveToEmailSoon} data-client-action="save_to_email">
               {copy.footer.saveToEmail}
             </button>
+            {p.threadTokenExpiresAt ? (
+              <div data-client-link-expiry>
+                {fill(copy.footer.expires, { date: formatClientDate(p.threadTokenExpiresAt, locale) })}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
