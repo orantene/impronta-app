@@ -20,6 +20,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GuestConversationItems, GuestThreadV5Extras } from "@/lib/inquiry/guest-chat-contract";
 import { loadClientOfferSummaries, loadOpenPaymentCode } from "@/lib/messaging/client-link";
 import { resolveThreadTokenExpiry, signThreadToken } from "@/lib/messaging/thread-token";
+import { decorateHoldChips } from "@/lib/messages-v5/guest-hold-rows";
 
 
 export async function loadGuestThreadV5Extras(
@@ -60,7 +61,7 @@ export async function loadGuestConversationItems(
   admin: SupabaseClient,
   input: { tenantId: string; inquiryId: string },
 ): Promise<GuestConversationItems | null> {
-  const [{ data: draft }, { data: recordRows }] = await Promise.all([
+  const [{ data: draft }, { data: recordRows }, { data: holdMessages }] = await Promise.all([
     admin
       .from("orders")
       .select("id, currency")
@@ -76,6 +77,13 @@ export async function loadGuestConversationItems(
       .select("record_kind, record_id, payment_state, fulfilment_state, record_date")
       .eq("inquiry_id", input.inquiryId)
       .is("unlinked_at", null),
+    admin
+      .from("inquiry_messages")
+      .select("message_kind, card_payload")
+      .eq("inquiry_id", input.inquiryId)
+      .eq("tenant_id", input.tenantId)
+      .eq("thread_type", "private")
+      .in("message_kind", ["professional_times", "service_card"]),
   ]);
   const records = ((recordRows ?? []) as Array<Record<string, unknown>>).map((r) => ({
     kind: String(r.record_kind ?? ""),
@@ -84,8 +92,15 @@ export async function loadGuestConversationItems(
     fulfilmentState: typeof r.fulfilment_state === "string" ? r.fulfilment_state : null,
     recordDate: typeof r.record_date === "string" ? r.record_date : null,
   }));
+  const messages = ((holdMessages ?? []) as Array<Record<string, unknown>>).map((m) => ({
+    kind: String(m.message_kind ?? ""),
+    payload: (m.card_payload && typeof m.card_payload === "object" ? (m.card_payload as Record<string, unknown>) : null),
+  }));
   const order = draft as { id: string; currency: string | null } | null;
-  if (!order) return records.length === 0 ? null : { currency: "USD", lines: [], records };
+  if (!order) {
+    const decorated = decorateHoldChips(records.length === 0 ? null : { currency: "USD", lines: [], records }, messages);
+    return decorated;
+  }
   const { data: lineRows } = await admin
     .from("order_lines")
     .select("id, label, units, unit_cents, price_snapshot_cents, kind, proposed_by, confirmed_at")
@@ -103,5 +118,5 @@ export async function loadGuestConversationItems(
       kind: typeof l.kind === "string" ? l.kind : null,
     };
   });
-  return { currency: order.currency ?? "USD", lines, records };
+  return decorateHoldChips({ currency: order.currency ?? "USD", lines, records }, messages);
 }

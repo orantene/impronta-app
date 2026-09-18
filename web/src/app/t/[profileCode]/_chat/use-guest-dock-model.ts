@@ -31,9 +31,13 @@ export function useGuestDockModel(input: {
   const locale = input.brand.locale ?? "en";
   const businessName = input.brand.agencyName;
   const [now, setNow] = useState(() => new Date());
-  const anyHold = input.rows.some(
-    (m) => m.kind === "professional_times" && typeof (m.cardPayload as { holdExpiresAt?: unknown } | null)?.holdExpiresAt === "string",
-  );
+  const anyHold =
+    input.rows.some(
+      (m) =>
+        (m.kind === "professional_times" || m.kind === "service_card") &&
+        typeof (m.cardPayload as { holdExpiresAt?: unknown } | null)?.holdExpiresAt === "string",
+    ) ||
+    (input.v5?.items?.records.some((r) => typeof r.holdExpiresAt === "string") ?? false);
   useEffect(() => {
     if (!anyHold) return;
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -64,7 +68,7 @@ export function useGuestDockModel(input: {
       accentInk: input.accentInk,
     },
     /** Props for the Items shelf inside the Lineup view. */
-    lineupItemsProps: { items: input.v5?.items ?? null, businessName, locale, representsPeople: input.brand.dockRepresentsPeople !== false },
+    lineupItemsProps: { items: input.v5?.items ?? null, businessName, locale, representsPeople: input.brand.dockRepresentsPeople !== false, now },
     /** Props for the catalog (browse + add) at the top of the Items tab. */
     catalogProps: (c: {
       tenantSlug: string;
