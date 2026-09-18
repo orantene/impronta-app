@@ -24,6 +24,52 @@ import type { ReactNode } from "react";
 
 import { CHROME, Z_INDEX } from "./tokens";
 
+/**
+ * Mobile compaction (W2-C2 follow-up).
+ *
+ * Root-cause note: the oversized/overwhelming toast on a phone is NOT a
+ * `transform: scale()` inflation bug. `EditToast` mounts inside the
+ * `[data-edit-chrome]` subtree (see edit-shell.tsx), and the canvas zoom
+ * style (`CanvasZoomStyle` in canvas-viewport.tsx) explicitly EXCLUDES
+ * `[data-edit-chrome]` from its `transform: scale()` rule
+ * (`body > *:not([data-edit-chrome])...`) — so the toast is never a
+ * `position: fixed` descendant of a scaled ancestor and is never
+ * geometrically magnified. It is also never rendered inside the
+ * device-preview iframe (`iframe-child.tsx` mounts no toast), so the
+ * `transform: scale(dScale)` DeviceFrameSurface applies to that iframe for
+ * desktop-testing-mobile doesn't touch it either.
+ *
+ * The real cause is layout, not scale: some callers (MutationErrorToast in
+ * particular) pass a wide `max-w-[min(92vw,...)]` with an unbounded number
+ * of message/detail lines. On a narrow phone viewport that reads as "huge
+ * text" because the toast becomes a tall, nearly-full-width multi-line
+ * block that dominates the small screen — even though every character is
+ * still 12px. This stylesheet compacts the shell at <=640px: a narrower
+ * cap, tighter padding, and a clamp on the body copy so it can never grow
+ * past a few lines.
+ */
+const MOBILE_COMPACT_STYLE = `
+@media (max-width: 640px) {
+  [data-edit-toast-shell] {
+    top: 12px !important;
+    max-width: calc(100vw - 24px) !important;
+    width: max-content;
+    padding: 8px 10px !important;
+    gap: 6px !important;
+    font-size: 12px !important;
+    line-height: 1.3 !important;
+    border-radius: 10px !important;
+  }
+  [data-edit-toast-shell] [data-edit-toast-body] {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden !important;
+    max-width: 100% !important;
+  }
+}
+`;
+
 export type EditToastTone = "neutral" | "success" | "attention" | "error";
 
 interface TonePalette {
@@ -123,54 +169,65 @@ export function EditToast({
   const palette = editToastPalette(tone);
   const resolvedIcon = icon === undefined ? CheckIcon : icon;
   return (
-    <div
-      data-edit-overlay={overlayId}
-      role={role}
-      aria-live={role === "alert" ? "assertive" : "polite"}
-      aria-atomic={role === "alert" ? "true" : undefined}
-      className={`pointer-events-auto fixed left-1/2 top-[66px] flex -translate-x-1/2 items-start gap-2 rounded-md border px-3 py-2 text-xs font-medium shadow-lg ${className ?? ""}`}
-      style={{
-        zIndex: Z_INDEX.toast,
-        background: palette.bg,
-        borderColor: palette.border,
-        color: palette.text,
-      }}
-      {...dataAttrs}
-    >
-      {resolvedIcon ? (
-        <span
-          className="mt-px inline-flex shrink-0"
-          style={{ color: palette.icon }}
-        >
-          {resolvedIcon}
-        </span>
-      ) : null}
-      <span className="min-w-0 flex-1 leading-snug">{children}</span>
-      {action ? <span className="shrink-0">{action}</span> : null}
-      {!hideDismiss && onDismiss ? (
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="ml-0.5 shrink-0 rounded-sm px-1 opacity-70 transition hover:opacity-100"
-          style={{ color: palette.text }}
-          aria-label="Dismiss"
-          title="Dismiss"
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+    <>
+      {/* Scoped to [data-edit-toast-shell] and gated behind max-width: 640px —
+          desktop appearance is byte-for-byte unchanged. */}
+      <style>{MOBILE_COMPACT_STYLE}</style>
+      <div
+        data-edit-overlay={overlayId}
+        data-edit-toast-shell
+        role={role}
+        aria-live={role === "alert" ? "assertive" : "polite"}
+        aria-atomic={role === "alert" ? "true" : undefined}
+        className={`pointer-events-auto fixed left-1/2 top-[66px] flex -translate-x-1/2 items-start gap-2 rounded-md border px-3 py-2 text-xs font-medium shadow-lg ${className ?? ""}`}
+        style={{
+          zIndex: Z_INDEX.toast,
+          background: palette.bg,
+          borderColor: palette.border,
+          color: palette.text,
+        }}
+        {...dataAttrs}
+      >
+        {resolvedIcon ? (
+          <span
+            className="mt-px inline-flex shrink-0"
+            style={{ color: palette.icon }}
           >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      ) : null}
-    </div>
+            {resolvedIcon}
+          </span>
+        ) : null}
+        <span
+          data-edit-toast-body
+          className="min-w-0 flex-1 leading-snug"
+        >
+          {children}
+        </span>
+        {action ? <span className="shrink-0">{action}</span> : null}
+        {!hideDismiss && onDismiss ? (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="ml-0.5 shrink-0 rounded-sm px-1 opacity-70 transition hover:opacity-100"
+            style={{ color: palette.text }}
+            aria-label="Dismiss"
+            title="Dismiss"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        ) : null}
+      </div>
+    </>
   );
 }

@@ -24,6 +24,7 @@ import { improntaLog } from "@/lib/server/structured-log";
  */
 
 import {
+  type CSSProperties,
   useCallback,
   useEffect,
   useMemo,
@@ -31,6 +32,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { MOBILE_RAIL_EXPAND_EVENT } from "./command-dock";
 
 import {
   loadSectionForEditAction,
@@ -1181,9 +1183,150 @@ export function InspectorDock() {
   const { dragOptions, inspectorRailDocked } =
     useInspectorRailCoupling("inspector");
 
+  // ── Mobile (≤640px) collapse/expand/hide layer ───────────────────────────
+  // Same pattern as CommandDock's mobile layer (see command-dock.tsx): local
+  // state only, every extra element/class is scoped behind Tailwind's
+  // `max-sm:` (max-width: 640px) variant, so desktop (and the existing
+  // ≤1024px bottom-sheet mode) render exactly as before above 640px. Below
+  // it, the rail defaults to a small edge tab pinned to the right instead of
+  // the full-size inspector, and only one of the two rails (command dock /
+  // inspector) stays expanded at a time via the shared custom event.
+  const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [mobileTabHidden, setMobileTabHidden] = useState(false);
+
+  useEffect(() => {
+    function onOtherRailExpand(event: Event) {
+      const detail = (event as CustomEvent<{ side?: string }>).detail;
+      if (detail?.side !== "inspector") setMobileExpanded(false);
+    }
+    window.addEventListener(MOBILE_RAIL_EXPAND_EVENT, onOtherRailExpand);
+    return () =>
+      window.removeEventListener(MOBILE_RAIL_EXPAND_EVENT, onOtherRailExpand);
+  }, []);
+
+  // Selecting a new block re-opens the mobile tab if the operator had
+  // dismissed it entirely, so a fresh selection is never stranded with no
+  // way to reach the inspector.
+  useEffect(() => {
+    if (selectedSectionId || selectedBuilderNodeId) setMobileTabHidden(false);
+  }, [selectedSectionId, selectedBuilderNodeId]);
+
+  const expandMobileInspector = () => {
+    setMobileExpanded(true);
+    setMobileTabHidden(false);
+    window.dispatchEvent(
+      new CustomEvent(MOBILE_RAIL_EXPAND_EVENT, { detail: { side: "inspector" } }),
+    );
+  };
+  const collapseMobileInspector = () => setMobileExpanded(false);
+  const hideMobileInspectorTab = () => {
+    setMobileExpanded(false);
+    setMobileTabHidden(true);
+  };
+  const restoreMobileInspectorTab = () => setMobileTabHidden(false);
+
   return (
     <>
       {!dockOpen ? null : (
+        <>
+          {!mobileExpanded && !mobileTabHidden ? (
+            <button
+              type="button"
+              onClick={expandMobileInspector}
+              aria-expanded={false}
+              aria-label={t("Open inspector")}
+              data-mobile-inspector-tab
+              className="hidden max-sm:flex fixed items-center justify-center border border-r-0"
+              style={{
+                right: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 24,
+                height: 64,
+                borderRadius: "12px 0 0 12px",
+                zIndex: 85,
+                background: CHROME.surface,
+                borderColor: CHROME.line,
+                boxShadow: "0 8px 24px -10px rgba(17,24,39,0.3)",
+              }}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+            </button>
+          ) : null}
+
+          {!mobileExpanded && mobileTabHidden ? (
+            <button
+              type="button"
+              onClick={restoreMobileInspectorTab}
+              aria-label={t("Show inspector tab")}
+              data-mobile-inspector-restore
+              className="hidden max-sm:block fixed"
+              style={{
+                right: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 6,
+                height: 40,
+                borderRadius: "4px 0 0 4px",
+                zIndex: 85,
+                background: CHROME.line,
+                opacity: 0.6,
+              }}
+            />
+          ) : null}
+
+          {mobileExpanded ? (
+            <div
+              className="hidden max-sm:flex fixed items-center gap-1 rounded-lg border p-1"
+              style={{
+                right: 10,
+                top: INSPECTOR_CHROME_TOP_PX + 6,
+                zIndex: 86,
+                background: CHROME.surface,
+                borderColor: CHROME.line,
+                boxShadow: "0 8px 24px -10px rgba(17,24,39,0.3)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={collapseMobileInspector}
+                aria-label={t("Collapse inspector")}
+                className="inline-flex items-center justify-center rounded-md p-1"
+              >
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={hideMobileInspectorTab}
+                aria-label={t("Hide inspector")}
+                className="inline-flex items-center justify-center rounded-md p-1"
+              >
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ) : null}
+
+          {/* Mobile-only positioning wrapper. `display: contents` on desktop
+              means this div contributes nothing to layout/paint there — it
+              only becomes a real (transformed) box below 640px, where CSS's
+              "a transform establishes a containing block for `position:
+              fixed` descendants" rule lets us slide the whole floating
+              inspector aside on/off screen without touching Drawer's own
+              positioning logic. */}
+          <div
+            className="contents max-sm:block max-sm:fixed max-sm:inset-0 max-sm:pointer-events-none max-sm:transition-transform max-sm:duration-300 max-sm:ease-out max-sm:!translate-x-[var(--ec-mobile-inspector-x)]"
+            style={
+              {
+                "--ec-mobile-inspector-x": mobileExpanded ? "0px" : "110%",
+              } as CSSProperties
+            }
+          >
     <Drawer
       kind="dock"
       open={dockOpen}
@@ -1456,6 +1599,8 @@ export function InspectorDock() {
         </div>
       )}
     </Drawer>
+          </div>
+        </>
       )}
     </>
   );

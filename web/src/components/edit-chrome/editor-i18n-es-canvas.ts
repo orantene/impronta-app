@@ -10,6 +10,15 @@
  */
 
 export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
+  // Mobile builder chrome — collapsible command dock + inspector rail tabs.
+  "Collapse builder tools": "Contraer herramientas",
+  "Hide builder tools": "Ocultar herramientas",
+  "Open builder tools": "Abrir herramientas",
+  "Show builder tools tab": "Mostrar pestaña de herramientas",
+  "Collapse inspector": "Contraer inspector",
+  "Hide inspector": "Ocultar inspector",
+  "Open inspector": "Abrir inspector",
+  "Show inspector tab": "Mostrar pestaña del inspector",
   // ── WAVE 4.3 — AI panels (rewrite, translate, brief, revise, image) ───
   Apply: "Aplicar",
   "Apply all": "Aplicar todo",
