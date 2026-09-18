@@ -174,6 +174,8 @@ export type ThreadMessage = {
   /** Engine-authored line (auto-ack, "inquiry_created", ...): metadata.system_event_type
    * is set and there is no sender. Drawn as a system line, never as a client bubble. */
   system?: boolean;
+  /** metadata.system_event_type of an engine line ("offer_sent", "inquiry_created", ...). */
+  systemEvent?: string | null;
 };
 
 export type CustomerMatchLevel = "phone" | "name_only" | "new";

@@ -64,6 +64,7 @@ export async function loadMessagingThread(
     internal: row.message_kind === INTERNAL_NOTE_KIND,
     delivery: delivery.get(row.id) ?? null,
     system: row.sender_user_id === null && typeof row.metadata?.system_event_type === "string",
+    systemEvent: typeof row.metadata?.system_event_type === "string" ? row.metadata.system_event_type : null,
   }));
   return { ok: true, messages };
 }

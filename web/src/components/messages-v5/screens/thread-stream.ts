@@ -12,6 +12,7 @@
  */
 
 import { CARD_KINDS, type CardKind, type ThreadMessage } from "@/lib/messaging/types";
+import { offerCardMessageIds } from "@/lib/messages-v5/client-thread-view";
 
 import type { BubblePosition, DeliveryState } from "../kit/MessageBubble";
 
@@ -56,7 +57,16 @@ export type BuildStreamInput = {
 };
 
 export function buildStream({ messages, currentUserId, unreadCount }: BuildStreamInput): StreamItem[] {
-  const live = messages.filter((m) => !m.deletedAt || BUBBLE_KINDS.has(m.kind));
+  // One offer card per offer (the newest sent event wins: the legacy
+  // `offer_event` row the offer engine writes on every send, or the v5
+  // `offer_review` card). The engine's "Offer sent to client." system line and
+  // the talent-thread mirror are the same fact and stay out of the stream.
+  const offerCards = offerCardMessageIds(messages);
+  const live = messages.filter((m) => {
+    if (m.kind === "offer_event" || m.kind === "offer_review") return offerCards.has(m.id);
+    if (m.system && m.systemEvent === "offer_sent" && offerCards.size > 0) return false;
+    return !m.deletedAt || BUBBLE_KINDS.has(m.kind);
+  });
   const items: StreamItem[] = [];
 
   // Index of the first unread client message (counting from the end).
@@ -113,7 +123,9 @@ export function buildStream({ messages, currentUserId, unreadCount }: BuildStrea
     }
 
     prevBubble = null;
-    if (isCardKindString(m.kind)) {
+    if (m.kind === "offer_event") {
+      items.push({ kind: "card", key: m.id, message: m, cardKind: "offer_review" });
+    } else if (isCardKindString(m.kind)) {
       items.push({ kind: "card", key: m.id, message: m, cardKind: m.kind });
     } else {
       items.push({ kind: "system", key: m.id, message: m });

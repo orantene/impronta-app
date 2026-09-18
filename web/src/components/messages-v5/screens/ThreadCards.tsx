@@ -84,20 +84,23 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
   switch (cardKind) {
     case "offer_review":
     case "offer_state": {
-      const o = p as OfferReviewPayload;
+      const o = p as OfferReviewPayload & { offer_id?: string; total_label?: string; status?: string };
+      const offerId = o.offerId ?? o.offer_id ?? "";
+      const legacyCents = typeof o.total_label === "string" ? Math.round(Number.parseFloat(o.total_label) * 100) : Number.NaN;
+      const totalCents = typeof o.totalCents === "number" ? o.totalCents : Number.isFinite(legacyCents) ? legacyCents : 0;
       return (
         <OfferCard
           title={model.title}
-          state={offerState(cardKind, message.payload)}
+          state={offerState(cardKind, message.kind === "offer_event" ? { ...p, state: o.status === "accepted" ? "selected" : o.status ?? "sent" } : message.payload)}
           version={typeof o.version === "number" ? o.version : 1}
           forName={clientName}
           lines={[]}
-          total={money(o.totalCents, o.currency)}
+          total={money(totalCents, o.currency ?? "USD")}
           validUntil={o.validUntil ? formatTime(o.validUntil, locale) : null}
           copy={kit}
           mine={mine}
           variant={variant}
-          onAction={(a) => onAction(a === "request_deposit" ? "request_payment" : a === "send" || a === "resend" ? "create_offer" : "revise_offer", { recordId: o.offerId, recordKind: "offer" })}
+          onAction={(a) => onAction(a === "request_deposit" ? "request_payment" : a === "send" || a === "resend" ? "create_offer" : "revise_offer", { recordId: offerId, recordKind: "offer" })}
         />
       );
     }

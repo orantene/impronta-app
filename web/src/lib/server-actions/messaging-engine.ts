@@ -668,18 +668,29 @@ export async function messagingSendOffer(input: { inquiryId: string; offerId: st
     .eq("id", parsed.data.inquiryId)
     .maybeSingle();
   const { data: offer } = await scoped(g.admin, "inquiry_offers", g.tenantId)
-    .select("version")
+    .select("version, total_client_price, currency_code, valid_until")
     .eq("id", parsed.data.offerId)
     .maybeSingle();
+  const o = offer as { version?: number; total_client_price?: number | string | null; currency_code?: string | null; valid_until?: string | null } | null;
   const sent = await sendOffer(g.supabase, {
     inquiryId: parsed.data.inquiryId,
     tenantId: g.tenantId,
     offerId: parsed.data.offerId,
     actorUserId: g.userId,
     inquiryExpectedVersion: Number((inquiry as { version?: number } | null)?.version ?? 1),
-    offerExpectedVersion: Number((offer as { version?: number } | null)?.version ?? 1),
+    offerExpectedVersion: Number(o?.version ?? 1),
   });
   if (!sent.success) return fail("unavailable");
+  // The offer card in the stream (D06): the client link renders it with
+  // Accept / Ask for changes / Decline; the operator sees Sent → Viewed → ....
+  await insertMessage(g.admin, {
+    tenantId: g.tenantId,
+    inquiryId: parsed.data.inquiryId,
+    kind: "offer_review",
+    body: `Offer v${Number(o?.version ?? 1)} sent`,
+    payload: { state: "sent", offerId: parsed.data.offerId, version: Number(o?.version ?? 1), totalCents: Math.round(Number(o?.total_client_price ?? 0) * 100), currency: o?.currency_code ?? "USD", validUntil: o?.valid_until ?? null },
+    senderUserId: g.userId,
+  });
   return { ok: true as const };
 }
 

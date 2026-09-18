@@ -644,7 +644,7 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
       return;
     }
     ctx.notify({ kind: "ok", text: copy.kit.offer.sentOk });
-    await ctx.reloadThread();
+    await Promise.all([ctx.reloadThread(), ctx.reloadInbox()]);
     onClose();
   }
 
