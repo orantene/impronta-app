@@ -3,10 +3,10 @@ import { test } from "node:test";
 
 import { contextPlacement, layoutForWidth, shellClassName, variantForLayout } from "./layout";
 
-test("breakpoints: ≥1280 three columns, 900–1279 two, <900 one", () => {
+test("breakpoints: ≥1200 three columns, 900–1199 two, <900 one", () => {
   assert.equal(layoutForWidth(1440), "three");
-  assert.equal(layoutForWidth(1280), "three");
-  assert.equal(layoutForWidth(1279), "two");
+  assert.equal(layoutForWidth(1200), "three");
+  assert.equal(layoutForWidth(1199), "two");
   assert.equal(layoutForWidth(1194), "two");
   assert.equal(layoutForWidth(1024), "two");
   assert.equal(layoutForWidth(900), "two");

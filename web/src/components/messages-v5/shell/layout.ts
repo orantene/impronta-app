@@ -3,15 +3,15 @@
  * so the dev preview can draw 390 / 1194 / 1440 side by side and each frame
  * lays itself out the way the board for that width does.
  *
- *   three  ≥ 1280   inbox 340 | thread | context 330 as cards on the ground (D01)
- *   two    900–1279 inbox 300 | thread; context is a right drawer (D11)
+ *   three  ≥ 1200   inbox 340 | thread | context 330 as cards on the ground (D01)
+ *   two    900–1199 inbox 300 | thread; context is a right drawer (D11)
  *   one    < 900    inbox ⇄ thread ⇄ Details sheet, mobile kit (M01/M02/M04)
  */
 
 export type ShellLayout = "three" | "two" | "one";
 export type MobilePane = "inbox" | "thread";
 
-export const THREE_COLUMN_MIN = 1280;
+export const THREE_COLUMN_MIN = 1200;
 export const TWO_COLUMN_MIN = 900;
 
 export function layoutForWidth(width: number): ShellLayout {
