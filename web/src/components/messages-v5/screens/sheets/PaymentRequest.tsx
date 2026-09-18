@@ -172,7 +172,13 @@ export function PaymentRequestSheet(props: ActionSheetProps) {
       copy={copy.kit}
       variant={variant}
       identityConfirmed={identityConfirmed}
-      onCaptureIdentity={() => ctx.dispatch("capture_identity")}
+      // The identity card renders in the thread's capture slot; close this
+      // sheet first or it hides the card and the button reads as dead
+      // (found live 2026-09-18, D-MSG-211).
+      onCaptureIdentity={() => {
+        onClose();
+        ctx.dispatch("capture_identity");
+      }}
       targets={targets}
       selectedTargetId={selectedTarget?.recordId ?? null}
       onSelectTarget={selectTarget}

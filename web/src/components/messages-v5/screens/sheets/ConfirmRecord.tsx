@@ -339,7 +339,10 @@ function ConfirmRecordSheet({ open, onClose, ctx, copy, variant }: ActionSheetPr
       onConfirm={() => void confirm()}
       onSeeAlternatives={() => ctx.dispatch("add_items")}
       onOpenRecord={() => ctx.dispatch("open_record")}
-      onCaptureIdentity={() => ctx.dispatch("capture_identity")}
+      onCaptureIdentity={() => {
+        onClose();
+        ctx.dispatch("capture_identity");
+      }}
     />
   );
 }
