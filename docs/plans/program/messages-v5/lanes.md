@@ -26,3 +26,6 @@
 
 ## L13 · Guest dock on Messages v5 (session impronta-app-5d)
 Owns the public guest dock (storefronts + tulala.digital apex) as the "client boards" surface. Wave 1 (this PR): v5 client cards drawn inside the dock through the shared `ClientCard` + `useClientCardActions`; token/offers/payCode bridged on the full thread load. Next: Items tab (Lineup → Items, labelled per industry preset via the Words engine; POS draft lines with author flag; holds with expiry), next-step block above the composer, identity + link-expiry line, Book again. Decisions D-MSG-200..203. Gates run: scoped eslint 0 errors, test:messaging 601/601 + 4 new static tests. Not run: whole-repo tsc/lint (lane rule).
+
+## P3 · F05 client cards (cursor/dock-p3-cards-6292)
+Paid tickets leave the chooser for `ClientTicketsCard` (`/q/<code>` when stamped). Cancel/refund sentences from existing `change_result` + cancelled payment. D-MSG-215. No new writer.

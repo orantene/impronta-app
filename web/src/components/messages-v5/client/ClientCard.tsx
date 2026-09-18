@@ -14,7 +14,9 @@ import {
   readChoices,
   readConfirmation,
   readPayment,
+  readTickets,
   readTimes,
+  ticketsIssued,
   type ClientCardKind,
   type ClientOfferSummary,
 } from "@/lib/messages-v5/client-thread-view";
@@ -22,7 +24,7 @@ import {
 import { Card, CardLine } from "../kit/Card";
 import type { KitCopy } from "../kit/copy";
 import { SystemLine } from "../kit/MessageBubble";
-import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientPaymentCard, ClientTimesCard } from "./ClientCards";
+import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientPaymentCard, ClientTicketsCard, ClientTimesCard } from "./ClientCards";
 import type { CardActivity } from "./ClientThreadView";
 import type { ClientCopy } from "./copy";
 import type { ClientCardActions } from "./use-client-card-actions";
@@ -54,10 +56,26 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
   const act = (key: string): CardActivity => actions.activity[key] ?? { phase: "idle" };
   const payload = message.payload;
   switch (kind) {
+    case "tickets_card": {
+      const tickets = readTickets(payload);
+      if (ticketsIssued(tickets) || tickets.state === "cancelled") {
+        return (
+          <ClientTicketsCard
+            view={tickets}
+            copy={copy}
+            business={business}
+            onOpen={(code) => {
+              window.location.assign(`/q/${encodeURIComponent(code)}`);
+            }}
+          />
+        );
+      }
+      const a = act(message.id);
+      return <ChoicesCard view={readChoices(kind, payload)} copy={copy} kit={kit} business={business} locale={locale} phase={a.phase} refusal={a.refusal} onSend={(ids) => void actions.onChoose(message.id, ids)} />;
+    }
     case "menu_options":
     case "service_card":
-    case "class_card":
-    case "tickets_card": {
+    case "class_card": {
       const a = act(message.id);
       return <ChoicesCard view={readChoices(kind, payload)} copy={copy} kit={kit} business={business} locale={locale} phase={a.phase} refusal={a.refusal} onSend={(ids) => void actions.onChoose(message.id, ids)} />;
     }

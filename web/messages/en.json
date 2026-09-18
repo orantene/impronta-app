@@ -18993,7 +18993,27 @@
             "paid": "Paid",
             "expired": "This payment link has expired. Ask {business} for a new one.",
             "expiresAt": "Link valid until {date}",
-            "keepSlot": "Paying keeps your booking."
+            "keepSlot": "Paying keeps your booking.",
+            "cancelled": "This payment was cancelled. Ask {business} if you still want to pay.",
+            "cancelledPill": "Cancelled"
+          },
+          "tickets": {
+            "cat": "Tickets",
+            "title": "Your tickets",
+            "issued": "Issued",
+            "open": "Open ticket",
+            "openHint": "Show this at the door.",
+            "waitingCode": "Your tickets are ready. {business} will send the door link.",
+            "cancelled": "These tickets were cancelled.",
+            "cancelledPill": "Cancelled"
+          },
+          "cancel": {
+            "cat": "Cancelled",
+            "title": "Cancelled",
+            "pill": "Cancelled",
+            "refunded": "Cancelled. {amount} will be refunded.",
+            "noRefund": "Cancelled. No refund.",
+            "refundOnly": "{amount} was refunded."
           },
           "confirmed": {
             "catBooking": "Booked",

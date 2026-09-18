@@ -18993,7 +18993,27 @@
             "paid": "Pagado",
             "expired": "Este enlace de pago venció. Pide uno nuevo a {business}.",
             "expiresAt": "Enlace válido hasta el {date}",
-            "keepSlot": "Pagar mantiene tu reserva."
+            "keepSlot": "Pagar mantiene tu reserva.",
+            "cancelled": "Este pago se canceló. Pregunta a {business} si aún quieres pagar.",
+            "cancelledPill": "Cancelado"
+          },
+          "tickets": {
+            "cat": "Entradas",
+            "title": "Tus entradas",
+            "issued": "Emitidas",
+            "open": "Abrir entrada",
+            "openHint": "Muéstrala en la puerta.",
+            "waitingCode": "Tus entradas están listas. {business} te enviará el enlace de la puerta.",
+            "cancelled": "Estas entradas se cancelaron.",
+            "cancelledPill": "Canceladas"
+          },
+          "cancel": {
+            "cat": "Cancelado",
+            "title": "Cancelado",
+            "pill": "Cancelado",
+            "refunded": "Cancelado. Se reembolsarán {amount}.",
+            "noRefund": "Cancelado. Sin reembolso.",
+            "refundOnly": "Se reembolsaron {amount}."
           },
           "confirmed": {
             "catBooking": "Reservado",

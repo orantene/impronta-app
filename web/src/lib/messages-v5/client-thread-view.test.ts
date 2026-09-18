@@ -15,7 +15,9 @@ import {
   readChoices,
   readConfirmation,
   readPayment,
+  readTickets,
   readTimes,
+  ticketsIssued,
   timesState,
   type ClientOfferSummary,
 } from "./client-thread-view";
@@ -120,6 +122,27 @@ test("payment, confirmation and change readers read client-safe fields only", ()
   assert.equal(readChange("change_request", { state: "selected" }, "").state, "applied");
   assert.equal(readChange("change_result", { state: "cancelled" }, "").state, "declined");
   assert.equal(readChange("change_result", { state: "sent" }, "").state, "applied");
+  const cancel = readChange("change_result", { state: "sent", summary: "Cancelled, refunded 18.00", refundedCents: 1800, currency: "USD" }, "");
+  assert.equal(cancel.state, "cancelled");
+  assert.equal(cancel.refundedCents, 1800);
+  const refundOnly = readChange("change_result", { state: "sent", summary: "Refunded 18.00 USD", refundedCents: 1800 }, "");
+  assert.equal(refundOnly.state, "cancelled");
+});
+
+test("tickets reader: chooser until paid/issued; code from /q/ path or short stamp", () => {
+  const sent = readTickets({ title: "Friday night", tiers: [{ id: "t1", label: "GA", priceCents: 5000 }], currency: "USD" });
+  assert.equal(ticketsIssued(sent), false);
+  assert.equal(sent.state, "sent");
+  assert.equal(sent.ticketCode, null);
+  const paid = readTickets({ title: "Friday night", tiers: [{ id: "t1", label: "GA", priceCents: 5000 }], state: "paid", ticketCode: "abc12" });
+  assert.equal(ticketsIssued(paid), true);
+  assert.equal(paid.ticketCode, "abc12");
+  const fromUrl = readTickets({ state: "issued", ticketUrl: "https://qa.example/q/door7?x=1" });
+  assert.equal(ticketsIssued(fromUrl), true);
+  assert.equal(fromUrl.ticketCode, "door7");
+  const cancelled = readTickets({ state: "cancelled", title: "Friday night" });
+  assert.equal(ticketsIssued(cancelled), false);
+  assert.equal(cancelled.state, "cancelled");
 });
 
 test("firstName", () => {

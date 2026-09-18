@@ -2,12 +2,13 @@
  * L9: the client-side cards (boards C01/C02), pure and props-driven so the
  * render tests cover every state without a server action in scope.
  *
- *   ChoicesCard        menu_options / service_card / class_card / tickets_card
+ *   ChoicesCard        menu_options / service_card / class_card / unpaid tickets_card
+ *   ClientTicketsCard  tickets_card once paid/issued (opens /q/<code> when the engine stamped one)
  *   ClientTimesCard    professional_times (pick holds the time, countdown, hold ended)
  *   ClientOfferCard    offer_event / offer_review (accept exact version, ask for a change, decline)
  *   ClientPaymentCard  payment_request (Pay opens /pay/<code>)
  *   ClientConfirmedCard order_confirmation / appointment_confirmation (Ask for a change, Receipt)
- *   ClientChangeCard   change_request / change_result, read-only with the state
+ *   ClientChangeCard   change_request / change_result, including cancel + refund sentences
  *   ClientDraftCard    basket (read-only: what the client picked so far)
  *
  * Nothing here reads net, commission, payout, discount or tax: the payload
@@ -30,6 +31,7 @@ import {
   type ClientOfferSummary,
   type ConfirmationView,
   type PaymentView,
+  type TicketsView,
   type TimesView,
 } from "@/lib/messages-v5/client-thread-view";
 
@@ -85,6 +87,33 @@ export function ChoicesCard({ view, copy, kit, business, phase = "idle", refusal
       })}
       {!closed ? <CardLine muted label={fill(copy.choices.hint, { business })} /> : null}
       {phase === "refused" && refusal ? <div className="cx-inline"><RefusalLine code={refusal} copy={kit} variant="mobile" /></div> : null}
+    </Card>
+  );
+}
+
+/* ---------- tickets (paid / issued) ---------- */
+
+export function ClientTicketsCard({ view, copy, business, onOpen }: Omit<Common, "kit" | "locale"> & { readonly view: TicketsView; readonly onOpen?: (code: string) => void }) {
+  const cancelled = view.state === "cancelled";
+  const pill = cancelled ? <Pill tone="lost">{copy.tickets.cancelledPill}</Pill> : <Pill tone="money">{copy.tickets.issued}</Pill>;
+  const foot = cancelled
+    ? copy.tickets.cancelled
+    : view.ticketCode
+      ? copy.tickets.openHint
+      : fill(copy.tickets.waitingCode, { business });
+  return (
+    <Card category="ticket" label={copy.tickets.cat} title={view.title ?? copy.tickets.title} variant="mobile" testId="client-tickets"
+      pills={pill}
+      foot={foot}
+      actions={!cancelled && view.ticketCode && onOpen ? (
+        <Btn size="sm" variant="primary" onClick={() => onOpen(view.ticketCode as string)} data-client-action="open_ticket">
+          {copy.tickets.open}
+        </Btn>
+      ) : null}
+    >
+      {view.tiers.map((t) => (
+        <CardLine key={t.id} label={t.label} amount={t.priceCents != null ? money(t.priceCents, view.currency) : undefined} />
+      ))}
     </Card>
   );
 }
@@ -229,14 +258,16 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
 
 export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: Omit<Common, "kit"> & { readonly view: PaymentView; readonly now: Date; readonly onPay?: (code: string) => void }) {
   const paid = view.state === "paid";
-  const expired = view.state === "expired" || view.state === "cancelled" || (view.expiresAt ? Date.parse(view.expiresAt) < now.getTime() : false);
+  const cancelled = view.state === "cancelled";
+  const expired = view.state === "expired" || (view.expiresAt ? Date.parse(view.expiresAt) < now.getTime() : false);
+  const closed = cancelled || expired;
   const kind = view.amountKind === "deposit" ? copy.pay.deposit : copy.pay.full;
   const amount = view.amountCents != null ? money(view.amountCents, view.currency) : "";
   return (
     <Card category="pay" label={copy.pay.cat} title={copy.pay.title} variant="mobile" testId="client-pay"
-      pills={paid ? <Pill tone="won">{copy.pay.paid}</Pill> : expired ? <Pill tone="lost">{copy.pay.expired.split(".")[0]}</Pill> : null}
-      foot={paid ? null : expired ? fill(copy.pay.expired, { business }) : view.expiresAt ? fill(copy.pay.expiresAt, { date: formatClientDate(view.expiresAt, locale) }) : copy.pay.keepSlot}
-      actions={!paid && !expired && view.code && onPay ? (
+      pills={paid ? <Pill tone="won">{copy.pay.paid}</Pill> : cancelled ? <Pill tone="lost">{copy.pay.cancelledPill}</Pill> : expired ? <Pill tone="lost">{copy.pay.expired.split(".")[0]}</Pill> : null}
+      foot={paid ? null : cancelled ? fill(copy.pay.cancelled, { business }) : expired ? fill(copy.pay.expired, { business }) : view.expiresAt ? fill(copy.pay.expiresAt, { date: formatClientDate(view.expiresAt, locale) }) : copy.pay.keepSlot}
+      actions={!paid && !closed && view.code && onPay ? (
         <Btn size="sm" variant="primary" onClick={() => onPay(view.code as string)} data-client-action="pay">{fill(copy.pay.pay, { amount })}</Btn>
       ) : null}
     >
@@ -287,11 +318,30 @@ export function ClientConfirmedCard({ view, kind, copy, business, locale, phase 
 /* ---------- change request / result (read-only) ---------- */
 
 export function ClientChangeCard({ view, copy, business }: { readonly view: ChangeView; readonly copy: ClientCopy; readonly business: string }) {
-  const pill = view.state === "applied" ? <Pill tone="won">{copy.change.applied}</Pill> : view.state === "declined" ? <Pill tone="lost">{copy.change.declined}</Pill> : <Pill tone="due">{copy.change.sent}</Pill>;
-  const body = view.state === "applied" ? copy.change.appliedBody : view.state === "declined" ? fill(copy.change.declinedBody, { business }) : fill(copy.change.sentBody, { business });
+  const cancelled = view.state === "cancelled";
+  const refunded = cancelled && view.refundedCents != null && view.refundedCents > 0;
+  const refundOnly = cancelled && !/cancelled/i.test(view.body ?? "") && refunded;
+  const pill = cancelled
+    ? <Pill tone="lost">{copy.cancel.pill}</Pill>
+    : view.state === "applied"
+      ? <Pill tone="won">{copy.change.applied}</Pill>
+      : view.state === "declined"
+        ? <Pill tone="lost">{copy.change.declined}</Pill>
+        : <Pill tone="due">{copy.change.sent}</Pill>;
+  const body = cancelled
+    ? refundOnly
+      ? fill(copy.cancel.refundOnly, { amount: money(view.refundedCents, view.currency) })
+      : refunded
+        ? fill(copy.cancel.refunded, { amount: money(view.refundedCents, view.currency) })
+        : copy.cancel.noRefund
+    : view.state === "applied"
+      ? copy.change.appliedBody
+      : view.state === "declined"
+        ? fill(copy.change.declinedBody, { business })
+        : fill(copy.change.sentBody, { business });
   return (
-    <Card category="change" label={copy.change.cat} title={view.title ?? view.body ?? copy.change.title} variant="mobile" testId="client-change" pills={pill}>
-      {view.title && view.body ? <CardLine label={view.body} /> : null}
+    <Card category="change" label={cancelled ? copy.cancel.cat : copy.change.cat} title={view.title ?? view.body ?? (cancelled ? copy.cancel.title : copy.change.title)} variant="mobile" testId={cancelled ? "client-cancel" : "client-change"} pills={pill}>
+      {view.title && view.body && !cancelled ? <CardLine label={view.body} /> : null}
       <CardLine muted label={body} />
     </Card>
   );

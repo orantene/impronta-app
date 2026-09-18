@@ -7910,7 +7910,27 @@
             "paid": "Payé",
             "expired": "Ce lien de paiement a expiré. Demandez-en un nouveau à {business}.",
             "expiresAt": "Lien valable jusqu'au {date}",
-            "keepSlot": "Payer conserve votre réservation."
+            "keepSlot": "Payer conserve votre réservation.",
+            "cancelled": "Ce paiement a été annulé. Demandez à {business} si vous souhaitez encore payer.",
+            "cancelledPill": "Annulé"
+          },
+          "tickets": {
+            "cat": "Billets",
+            "title": "Vos billets",
+            "issued": "Émis",
+            "open": "Ouvrir le billet",
+            "openHint": "Montrez-le à l'entrée.",
+            "waitingCode": "Vos billets sont prêts. {business} enverra le lien d'entrée.",
+            "cancelled": "Ces billets ont été annulés.",
+            "cancelledPill": "Annulés"
+          },
+          "cancel": {
+            "cat": "Annulé",
+            "title": "Annulé",
+            "pill": "Annulé",
+            "refunded": "Annulé. {amount} sera remboursé.",
+            "noRefund": "Annulé. Aucun remboursement.",
+            "refundOnly": "{amount} a été remboursé."
           },
           "confirmed": {
             "catBooking": "Réservé",
