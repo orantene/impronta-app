@@ -201,7 +201,7 @@ export async function messagingLoadContextLines(input: { inquiryId: string }) {
     label: l.label ?? "Item",
     units: Number(l.units ?? 1),
     unitCents: Number(l.unit_cents ?? 0),
-    proposedBy: l.proposed_by === "client" || l.proposed_by === "staff" ? l.proposed_by : null,
+    proposedBy: (l.proposed_by === "client" || l.proposed_by === "staff" ? l.proposed_by : null) as "client" | "staff" | null,
     confirmed: l.confirmed_at !== null,
   }));
   const totalCents = Number(o.total_cents ?? 0) || lines.reduce((sum, l) => sum + l.units * l.unitCents, 0);
