@@ -519,6 +519,8 @@
       "dockItemsFulCheckedIn": "Enregistré",
       "dockItemsFulCancelled": "Annulé",
       "dockItemsStateUnknown": "En attente d'une mise à jour",
+      "dockItemsHoldLeft": "{minutes} min restantes",
+      "dockItemsHoldEnded": "La réservation temporaire a expiré",
       "nextLabel": "Prochaine étape",
       "nextPayTitle": "Payer {amount}",
       "nextPaySub": "Votre date est confirmée dès réception du paiement.",

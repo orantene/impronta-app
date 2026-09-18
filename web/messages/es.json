@@ -1164,6 +1164,8 @@
       "dockItemsFulCheckedIn": "Registrado",
       "dockItemsFulCancelled": "Cancelado",
       "dockItemsStateUnknown": "Esperando una actualización",
+      "dockItemsHoldLeft": "{minutes} min restantes",
+      "dockItemsHoldEnded": "La reserva temporal terminó",
       "nextLabel": "Siguiente paso",
       "nextPayTitle": "Pagar {amount}",
       "nextPaySub": "Tu fecha queda confirmada cuando llega el pago.",

@@ -1164,6 +1164,8 @@
       "dockItemsFulCheckedIn": "Checked in",
       "dockItemsFulCancelled": "Cancelled",
       "dockItemsStateUnknown": "Waiting for an update",
+      "dockItemsHoldLeft": "{minutes} min left",
+      "dockItemsHoldEnded": "Hold ended",
       "nextLabel": "Next step",
       "nextPayTitle": "Pay {amount}",
       "nextPaySub": "Your date is confirmed once the payment lands.",

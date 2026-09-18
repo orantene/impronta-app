@@ -78,6 +78,10 @@ export type GuestRecordChip = {
   paymentState: string | null;
   fulfilmentState: string | null;
   recordDate: string | null;
+  /** Slot or table label from the picked times/table card (F03). */
+  label?: string | null;
+  /** Hold expiry from the times/table payload. Null when the engine never stamped one. */
+  holdExpiresAt?: string | null;
 };
 
 export type GuestConversationItems = {

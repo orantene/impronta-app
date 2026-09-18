@@ -70,6 +70,8 @@ export type GuestDockLineupViewProps = {
   representsPeople?: boolean;
   /** L13 wave 5: the business's catalog (browse + add) rendered above the shelves. */
   catalog?: GuestDockCatalogProps | null;
+  /** Shared 1s clock from the dock model so a held row counts down. */
+  now?: Date;
 };
 
 type SavedTile = {
@@ -213,6 +215,7 @@ export function GuestDockLineupView({
   locale = "en",
   representsPeople = true,
   catalog = null,
+  now,
 }: GuestDockLineupViewProps) {
   const C = paletteFor(surfaceMode);
   // Shelf A — the inquiry lineup (cart). Same projection the launcher rail uses:
@@ -457,6 +460,7 @@ export function GuestDockLineupView({
         t={t}
         C={C}
         accent={accent}
+        now={now}
         header={(label, count) => <ShelfHeader label={label} count={count} C={C} />}
       />
 

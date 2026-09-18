@@ -15,6 +15,7 @@ import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
 import type { GuestConversationItems, GuestDraftLine, GuestRecordChip } from "@/lib/inquiry/guest-chat-contract";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import { shelfHoldLabel } from "@/lib/messages-v5/guest-hold-rows";
 
 import { FONT, type paletteFor } from "./mini-chat-styles";
 
@@ -101,20 +102,30 @@ function LineRow({ line, currency, businessName, t, C, accent }: { line: GuestDr
   );
 }
 
-function RecordRow({ chip, t, C, accent, locale }: { chip: GuestRecordChip; t: Translator; C: Palette; accent: string; locale: string }) {
+function RecordRow({ chip, t, C, accent, locale, now }: { chip: GuestRecordChip; t: Translator; C: Palette; accent: string; locale: string; now: Date }) {
   const kindKey = RECORD_KIND_KEY[chip.kind];
-  const label = kindKey ? t(kindKey) : chip.kind;
+  const kindLabel = kindKey ? t(kindKey) : chip.kind;
+  const slot = chip.label
+    ? Number.isNaN(Date.parse(chip.label))
+      ? chip.label
+      : new Date(chip.label).toLocaleString(locale, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : null;
+  const title = slot ?? kindLabel;
   const pay = chip.paymentState && PAYMENT_KEY[chip.paymentState] ? t(PAYMENT_KEY[chip.paymentState]) : null;
   const ful = chip.fulfilmentState && FULFILMENT_KEY[chip.fulfilmentState] ? t(FULFILMENT_KEY[chip.fulfilmentState]) : null;
-  const when = chip.recordDate
+  const clock = shelfHoldLabel(chip.holdExpiresAt, now, {
+    minutesLeft: t("public.guestChat.dockItemsHoldLeft"),
+    ended: t("public.guestChat.dockItemsHoldEnded"),
+  });
+  const when = !slot && chip.recordDate
     ? new Date(chip.recordDate).toLocaleDateString(locale, { day: "numeric", month: "short" })
     : null;
-  const state = [ful, pay].filter(Boolean).join(" · ");
+  const state = [ful, clock, pay].filter(Boolean).join(" · ");
   return (
-    <div data-guest-dock-item="record" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
+    <div data-guest-dock-item="record" data-hold={chip.fulfilmentState === "hold" ? "1" : undefined} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
-          {label}
+          {title}
           {when && <span style={{ fontWeight: 500, color: C.inkDim }}> · {when}</span>}
         </div>
         {state ? (
@@ -135,6 +146,7 @@ export function GuestDockItemsShelf({
   C,
   accent,
   header,
+  now,
 }: {
   items: GuestConversationItems | null;
   businessName: string;
@@ -144,14 +156,16 @@ export function GuestDockItemsShelf({
   accent: string;
   /** The shelf header, rendered by the parent so every shelf reads alike. */
   header: (label: string, count: number) => React.ReactNode;
+  now?: Date;
 }) {
   if (!items || (items.lines.length === 0 && items.records.length === 0)) return null;
   const count = items.lines.length + items.records.length;
+  const clock = now ?? new Date();
   return (
     <div data-guest-dock-items-shelf>
       {header(t("public.guestChat.dockItemsShelf"), count)}
       {items.records.map((chip) => (
-        <RecordRow key={`${chip.kind}:${chip.recordId}`} chip={chip} t={t} C={C} accent={accent} locale={locale} />
+        <RecordRow key={`${chip.kind}:${chip.recordId}`} chip={chip} t={t} C={C} accent={accent} locale={locale} now={clock} />
       ))}
       {items.lines.map((line) => (
         <LineRow key={line.id} line={line} currency={items.currency} businessName={businessName} t={t} C={C} accent={accent} />
