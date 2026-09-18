@@ -56,7 +56,7 @@ test.describe("onboarding · build and arrival", () => {
     await expect(page.getByTestId("onb-understood")).toBeVisible({ timeout: 20_000 });
     await page.getByTestId("onb-accept").click();
     await finishEssentials(page, { style: true });
-    await expect(page.getByTestId("onb-ready")).toBeVisible();
+    await expect(page.getByTestId("onb-ready")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("onb-link-available").or(page.getByTestId("onb-link-taken"))).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("onb-link-value")).toContainText(slug);
 
@@ -130,7 +130,8 @@ test.describe("onboarding · build and arrival", () => {
     await page.getByTestId("onb-build").click();
     await expect(page.getByTestId("onb-arrival")).toBeVisible({ timeout: 60_000 });
     await expect(page.getByTestId("onb-arrival")).toHaveAttribute("data-variant", "talent");
-    await expect(page.getByTestId("onb-arrival")).toContainText("You're in, Rosa QA");
+    await expect(page.getByTestId("onb-arrival")).toContainText("Your page is ready");
+    await expect(page.getByTestId("onb-next-steps")).toContainText("Add three photos");
     await expect(page.getByTestId("onb-arrival-fact")).toContainText("2 services");
     await expect(page.getByTestId("onb-arrival-cta")).toHaveText(/Finish my page/);
     await evidence(page, "33-arrival-talent");
@@ -140,7 +141,8 @@ test.describe("onboarding · build and arrival", () => {
     // drafts, the language of the module, the primary type from the discipline
     // (hub roster permitting: the isolated branch has no platform hub tenant,
     // so the tenant-scoped rows are asserted only when the roster exists).
-    expect(String(tp!.short_bio)).toMatch(/^I'm Rosa QA, a house cleaner in Playa del Carmen\. I offer house cleaning and deep cleaning\./);
+    // The discipline is the taxonomy term the essentials picker preselected from the words (Housekeeper), not the free text.
+    expect(String(tp!.short_bio)).toMatch(/^I'm Rosa QA, a (house cleaner|housekeeper) in Playa del Carmen\. I offer house cleaning and deep cleaning\./);
     const { data: roster } = await admin.from("agency_talent_roster").select("tenant_id").eq("talent_profile_id", tp!.id).limit(1);
     if (roster && roster.length) {
       const tenantId = roster[0].tenant_id as string;

@@ -63,10 +63,8 @@ test.describe("onboarding · understanding", () => {
     await expect(page.getByTestId("onb-essentials")).toBeVisible();
     await evidence(page, "11-essentials-business");
     await page.getByTestId("onb-hours-mon_sat_9_7").click();
+    // The field shows +52 as a prefix, so a bare Mexican number is accepted as-is (the fact below proves the +52).
     await page.getByTestId("onb-whatsapp-input").fill("998 123 4567");
-    await page.getByTestId("onb-next").click();
-    await expect(page.getByTestId("onb-error")).toContainText(/country code/);
-    await page.getByTestId("onb-whatsapp-input").fill("+52 998 123 4567");
     await page.getByTestId("onb-next").click();
     await expect(page.getByTestId("onb-style")).toBeVisible();
     await evidence(page, "11b-style");

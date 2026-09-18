@@ -56,8 +56,14 @@ export function ArrivalStep({ t, arrival }: { t: (key: string) => string; arriva
       {arrival.link ? (
         <div className="mt-5 overflow-hidden rounded-[18px]" style={{ background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)" }} data-testid="onb-arrival-link">
           {/* The site itself, framed. A tenant site that refuses framing shows the address card only. */}
-          <div className="relative aspect-[4/3] w-full" style={{ background: "var(--tl-stone-soft)" }}>
-            <iframe title={arrival.link.display} src={arrival.link.href} className="absolute inset-0 h-full w-full border-0" loading="lazy" sandbox="allow-same-origin allow-scripts" />
+          <div className={business ? "relative aspect-[4/3] w-full" : "relative h-28 w-full"} style={{ background: "var(--tl-stone-soft)" }}>
+            {/* Under the frame: the site's name, so a slow or refused load never reads as a blank box. */}
+            <div aria-hidden className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
+              <span className="tl-display text-[1.375rem] font-semibold leading-[1.15]" style={{ color: "var(--tl-ink)" }}>{arrival.businessName ?? arrival.headlineName ?? arrival.link.display}</span>
+              <span className="text-[0.75rem] uppercase tracking-[0.12em]" style={{ color: "var(--tl-muted)" }}>{arrival.link.display}</span>
+            </div>
+            {/* A business site is live at once; a talent page goes live after three photos, so it is not framed. */}
+            {business ? <iframe title={arrival.link.display} src={arrival.link.href} className="absolute inset-0 h-full w-full border-0 bg-transparent" loading="lazy" sandbox="allow-same-origin allow-scripts" /> : null}
           </div>
           <div className="flex items-center justify-between gap-3 px-3 py-2.5">
             <span className="min-w-0">
