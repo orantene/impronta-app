@@ -96,7 +96,8 @@ test("C02-CUS last-resource: Massage takes therapist B, competing Couples reques
   await assertWorkspaceIdentity(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
-  await expect(page.getByText("instant_book").first()).toBeVisible();
+  // Sales polish (2026-09-17): the channel is a word; its raw value lives on `data-sales-channel`.
+  await expect(page.locator("[data-sales-channel='instant_book']").first()).toBeVisible();
   await expect(page.getByText(/overdue/i)).toHaveCount(0);
 
   await page.screenshot({
@@ -142,7 +143,8 @@ test("C02-CUS couples set: two therapists and Room A held together", async ({
   await assertWorkspaceIdentity(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
-  await expect(page.getByText("instant_book").first()).toBeVisible();
+  // Sales polish (2026-09-17): the channel is a word; its raw value lives on `data-sales-channel`.
+  await expect(page.locator("[data-sales-channel='instant_book']").first()).toBeVisible();
   await expect(page.getByText(/overdue/i)).toHaveCount(0);
 
   await page.screenshot({
@@ -164,9 +166,13 @@ test("C02-DIFF: couples set booked, competing Massage on that window refuses", a
   await page.locator("select").selectOption({ label: "Couples massage" });
   await expect(page.getByText(/no open times/i)).toHaveCount(0);
 
-  // Last listed slot: leftover first-slot Massage / second-slot Couples holds
-  // from C02-CUS must not collide with this DIFF.
-  const slot = page.locator("[data-testid=slot-picker] button").last();
+  // Third listed slot. C02-CUS last-resource books therapist B's Massage on
+  // the LAST slot and proves the couples picker still lists it and refuses
+  // it at confirm ("That resource is not free."); C02-CUS couples takes the
+  // second. Taking the last one here made this DIFF book the slot the
+  // sibling had just blocked (final run + r2, 2026-09-17), so it takes the
+  // third: not the one either sibling holds.
+  const slot = page.locator("[data-testid=slot-picker] button").nth(2);
   await expect(slot).toBeVisible({ timeout: 30_000 });
   const slotLabel = ((await slot.innerText()) ?? "").trim();
   expect(slotLabel.length).toBeGreaterThan(0);
@@ -213,7 +219,8 @@ test("C02-DIFF: couples set booked, competing Massage on that window refuses", a
   await assertWorkspaceIdentity(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
-  await expect(page.getByText("instant_book").first()).toBeVisible();
+  // Sales polish (2026-09-17): the channel is a word; its raw value lives on `data-sales-channel`.
+  await expect(page.locator("[data-sales-channel='instant_book']").first()).toBeVisible();
   await expect(page.getByText(/overdue/i)).toHaveCount(0);
 
   await page.screenshot({

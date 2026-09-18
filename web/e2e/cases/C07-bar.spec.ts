@@ -51,7 +51,8 @@ test("C07-CUS tab: guest reads open check then ended after close", async ({
   const row = page.locator("li").filter({ has: page.locator("strong", { hasText: "T1" }) });
   await expect(row.getByText(/free/i)).toBeVisible();
   await row.getByRole("button", { name: /^open tab$/i }).click();
-  await expect(row.getByText(/tab\s*·\s*occupied/i)).toBeVisible({ timeout: 20_000 });
+  await expect(row.getByText(/^occupied$/i)).toBeVisible({ timeout: 20_000 });
+  await expect(row.getByText(/^bar tab$/i)).toBeVisible();
   await row.getByRole("button", { name: /^open check$/i }).click();
   await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
   await counterAddItem(page, "House pizza");
@@ -70,7 +71,11 @@ test("C07-CUS tab: guest reads open check then ended after close", async ({
   // Q01: the guest is greeted by the table the code was printed for.
   await expect(guestPage.getByRole("heading", { level: 1 })).toHaveText(/welcome to table/i);
   await expect(guestPage.getByText(/house pizza/i)).toBeVisible();
-  await expect(guestPage.getByText(/total:\s*1800\s*usd/i)).toBeVisible();
+  // Q01 (polish 6): the bill's total row is the word "Total" beside the
+  // formatted amount, no longer "Total: 1800 USD".
+  const totalRow = guestPage.locator("div", { has: guestPage.getByText(/^total$/i) }).last();
+  await expect(totalRow.getByText(/^total$/i)).toBeVisible();
+  await expect(totalRow.getByText("$18.00", { exact: true })).toBeVisible();
   await guestPage.reload();
   await expect(guestPage.getByText(/house pizza/i)).toBeVisible();
 
@@ -79,7 +84,7 @@ test("C07-CUS tab: guest reads open check then ended after close", async ({
   await expectCounterPaid(page);
   await page.goto("/admin/tables");
   await assertWorkspaceIdentity(page);
-  await row.getByRole("button", { name: /^close visit$/i }).click();
+  await row.getByRole("button", { name: /^end visit$/i }).click();
   await expect(row.getByText(/free/i)).toBeVisible({ timeout: 20_000 });
 
   await guestPage.reload();
@@ -113,14 +118,21 @@ test("C07-OP tab: Open tab → pizza cash at close and DB agree", async ({ page 
   await expect(row).toBeVisible();
   await expect(row.getByText(/free/i)).toBeVisible();
 
-  await row.getByRole("button", { name: /^open visit$/i }).click();
-  await expect(row.getByText(/table\s*·\s*occupied/i)).toBeVisible({ timeout: 20_000 });
-  await row.getByRole("button", { name: /^close visit$/i }).click();
+  // The floor (polish 6) seats a party with a size instead of "open visit":
+  // Seat party → Party size → Seat here. The state pill reads "Occupied" and a
+  // second pill says which check is open ("Table check" / "Bar tab").
+  await row.getByRole("button", { name: /^seat party$/i }).click();
+  await expect(row.getByLabel(/party size/i)).toBeVisible();
+  await row.getByRole("button", { name: /^seat here$/i }).click();
+  await expect(row.getByText(/^occupied$/i)).toBeVisible({ timeout: 20_000 });
+  await expect(row.getByText(/^table check$/i)).toBeVisible();
+  await row.getByRole("button", { name: /^end visit$/i }).click();
   await expect(row.getByText(/free/i)).toBeVisible({ timeout: 20_000 });
 
   await row.getByRole("button", { name: /^open tab$/i }).click();
-  await expect(row.getByText(/tab\s*·\s*occupied/i)).toBeVisible({ timeout: 20_000 });
-  await expect(row.getByText(/table\s*·\s*occupied/i)).toHaveCount(0);
+  await expect(row.getByText(/^occupied$/i)).toBeVisible({ timeout: 20_000 });
+  await expect(row.getByText(/^bar tab$/i)).toBeVisible();
+  await expect(row.getByText(/^table check$/i)).toHaveCount(0);
 
   await row.getByRole("button", { name: /^open check$/i }).click();
   await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
@@ -130,12 +142,14 @@ test("C07-OP tab: Open tab → pizza cash at close and DB agree", async ({ page 
 
   await page.goto("/admin/tables");
   await assertWorkspaceIdentity(page);
-  await expect(row.getByText(/tab\s*·\s*occupied/i)).toBeVisible();
-  await row.getByRole("button", { name: /^close visit$/i }).click();
+  await expect(row.getByText(/^occupied$/i)).toBeVisible();
+  await expect(row.getByText(/^bar tab$/i)).toBeVisible();
+  await row.getByRole("button", { name: /^end visit$/i }).click();
   await expect(page.getByText(/collect or cancel the check before resetting the table/i)).toBeVisible({
     timeout: 20_000,
   });
-  await expect(row.getByText(/tab\s*·\s*occupied/i)).toBeVisible();
+  await expect(row.getByText(/^occupied$/i)).toBeVisible();
+  await expect(row.getByText(/^bar tab$/i)).toBeVisible();
 
   await row.getByRole("button", { name: /^open check$/i }).click();
   await expect(page).toHaveURL(/order=/, { timeout: 20_000 });
@@ -146,8 +160,9 @@ test("C07-OP tab: Open tab → pizza cash at close and DB agree", async ({ page 
 
   await page.goto("/admin/tables");
   await assertWorkspaceIdentity(page);
-  await expect(row.getByText(/tab\s*·\s*occupied/i)).toBeVisible();
-  await row.getByRole("button", { name: /^close visit$/i }).click();
+  await expect(row.getByText(/^occupied$/i)).toBeVisible();
+  await expect(row.getByText(/^bar tab$/i)).toBeVisible();
+  await row.getByRole("button", { name: /^end visit$/i }).click();
   await expect(row.getByText(/free/i)).toBeVisible({ timeout: 20_000 });
 
   const persisted = await latestTabCollectAtClose(marker);

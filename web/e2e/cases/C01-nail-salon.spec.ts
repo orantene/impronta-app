@@ -56,9 +56,12 @@ test("C01-CUS deposit: /book Gel manicure → slot → deposit checkout and DB a
   await assertWorkspaceIdentity(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/sales/i);
   await expect(page.getByText("We could not load your orders")).toHaveCount(0);
-  await expect(page.getByText("instant_book").first()).toBeVisible();
-  await expect(page.getByText(/still owed/i).first()).toBeVisible();
-  await expect(page.getByText("pending_payment").first()).toBeVisible();
+  // Sales polish (2026-09-17) renders words, not enums: the channel keeps
+  // its raw value on `data-sales-channel`, the pill on `data-state`, and
+  // the DUE cell marks an owed row with `data-sales-due="owed"`.
+  await expect(page.locator("[data-sales-channel='instant_book']").first()).toBeVisible();
+  await expect(page.locator("[data-sales-due='owed']").first()).toBeVisible();
+  await expect(page.locator("[data-state='pending_payment']").first()).toBeVisible();
   await expect(page.getByText("$50.00").first()).toBeVisible();
 
   const persisted = await latestGelManicureDeposit(marker);

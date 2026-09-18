@@ -151,13 +151,16 @@ async function expectRefusalSentence(page: Page, sentence: RegExp): Promise<stri
  * only Counter on, the same click already navigated and no menu appears.
  */
 async function enterCounterFromTopBar(page: Page): Promise<void> {
-  const control = page.getByRole("group", { name: /workspace or point of sale/i });
+  // Polish (2026-09-17): the switch reads "Back office | POS · <mode>"; the group is labelled "Back office or point of sale".
+  const control = page.getByRole("group", { name: /(back office|workspace) or point of sale/i });
   await expect(
     control,
     "the top bar switch is the only desktop door into the counter; " +
       "it needs platform_settings.workspace_pos_enabled on this database",
   ).toBeVisible({ timeout: 30_000 });
-  await control.getByRole("button", { name: /^(pos · )?counter$/i }).click();
+  // The POS half carries the CURRENT mode's name ("POS · Counter", or whatever
+  // this device last used); with several modes on it opens the menu.
+  await control.getByRole("button", { name: /^pos\b/i }).click();
   // With more than one mode switched on, the POS half opens the mode menu
   // (W00) instead of going straight to the counter; pick Counter there.
   const menu = page.getByRole("menu");

@@ -42,6 +42,7 @@ import {
   signInJourneysStaff,
   skipUnlessFixture,
   assertWorkspaceIdentity,
+  counterAddItem,
 } from "./_harness";
 import { isolatedService, JOURNEYS_TENANT_ID } from "./_isolated-db";
 import { releaseVenueJourneyParty } from "./_venue-db";
@@ -206,8 +207,10 @@ test("VENUE-WORDS kitchen: a ticket another station already took is refused in a
     await page.goto("/admin/pos?mode=counter");
     // The board's counter has no start button: the first tap opens the sale.
     await expect(page.locator("[data-pos-empty]")).toBeVisible({ timeout: 40_000 });
-    await page.getByRole("button", { name: "House pizza" }).first().click();
-    await expect(page).toHaveURL(/order=/, { timeout: 40_000 });
+    // `counterAddItem` waits for React to own the tile before tapping: a tap
+    // on the server-rendered tile is a tap on nothing, and the address never
+    // gains `?order=` (final run 2026-09-17, second pass).
+    await counterAddItem(page, "House pizza");
     const orderId = new URL(page.url()).searchParams.get("order");
     expect(orderId).toBeTruthy();
     await expect(page.locator("[data-pos-charge]").first()).toHaveText(/\$18\.00/, { timeout: 30_000 });

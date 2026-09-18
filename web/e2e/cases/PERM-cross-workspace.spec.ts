@@ -113,7 +113,12 @@ test("the POS locator finds B's line when the viewer is allowed to see it", asyn
   // failure this spec exists to avoid. Loading the SAME order in the SAME
   // surface as someone entitled to it proves the locator can match.
   await signInAsBOwner(page, `/admin/pos?order=${JOURNEYS_B_ORDER_ID}`);
-  await page.goto(`${B_ORIGIN}/admin/pos?order=${JOURNEYS_B_ORDER_ID}`);
+  // The sign-in already lands on B's till, and the counter then rewrites its
+  // own address (`?mode=counter&order=…`) as it settles. A second `goto` of
+  // the same page raced that client navigation and Chromium aborted it
+  // (net::ERR_ABORTED, final run 2026-09-17). Wait for the settled address
+  // instead: it is the same surface, and it carries B's order id.
+  await expect(page).toHaveURL(new RegExp(`/admin/pos\\?.*order=${JOURNEYS_B_ORDER_ID}`), { timeout: 30_000 });
   await assertNotAuthWall(page);
   await expect(
     page.getByText(B_ONLY_LABEL).first(),
