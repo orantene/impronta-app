@@ -2215,12 +2215,12 @@ html[data-token-typography-scale-preset="editorial"] {
 
 /* Scrim: very light — name lives in the body panel below image, not
  * over the image, so the scrim only guards the lower image edge. */
+/* Magazine moves the caption OFF the photo (static body below it), so the
+ * portrait scrims — which span the whole card root, not just the media —
+ * must go: left on, their dark gradient bled over the light body and the
+ * caption sat in a grey fog (tulala.digital/directory, 2026-09-17). */
 :is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-scrim] {
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.22) 0%,
-    transparent 40%
-  ) !important;
+  display: none !important;
 }
 
 /* Body panel below image — the magazine's pull-quote zone. */

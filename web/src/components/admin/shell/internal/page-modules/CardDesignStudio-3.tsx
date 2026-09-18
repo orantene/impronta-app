@@ -25,9 +25,8 @@ import type { DirectoryCardData } from "@/components/talent-cards/talent-card-sh
 import {
   pickAttributeLines,
   pickFitLabels,
-  TalentCardTraitBelow,
-  TalentCardTraitOverlay,
-  traitRowPlacement,
+  TalentCardTraitRow,
+  traitRowMode,
 } from "@/components/talent-cards/talent-card-trait-row";
 import { STANDING_DEFAULTS } from "./card-design-drift";
 
@@ -242,13 +241,20 @@ export function PreviewCard({
   // "Attributes" switch and "Hover behavior" would have nothing to show.
   const fitChips = pickFitLabels(data.fitLabels);
   const traitLines = pickAttributeLines(data.cardAttributes, [], 2);
-  const traitPlacement = traitRowPlacement({
+  const traitMode = traitRowMode({
     hasContent:
       appearance.showAttributes &&
       (fitChips.length > 0 || traitLines.length > 0),
     revealOnHover: appearance.hoverBehavior === "reveal_traits",
-    style: appearance.cardStyle === "editorial" ? "editorial" : "portrait",
   });
+  const traitSlot = traitMode ? (
+    <TalentCardTraitRow
+      fitChips={fitChips}
+      traitLines={traitLines}
+      mode={traitMode}
+      onScrim={appearance.cardStyle !== "editorial"}
+    />
+  ) : undefined;
 
   // Reviews-on-cards: the live gate is a token on <html>
   // (`data-token-card-standing`), which the admin shell never carries, so
@@ -293,11 +299,9 @@ export function PreviewCard({
           rootMode="button"
           onActivate={() => {}}
           showStanding={showStanding ? "always" : "auto"}
+          traitSlot={traitSlot}
           priority
         />
-        {traitPlacement === "overlay" ? (
-          <TalentCardTraitOverlay fitChips={fitChips} traitLines={traitLines} />
-        ) : null}
         {/* Favorite + Inquire demo affordances in the CANONICAL position
             (top-right over the media — where DirectoryCardAdapter mounts
             <TalentCardActions>). Interactive so the admin can see both
@@ -386,13 +390,6 @@ export function PreviewCard({
         ) : null}
       </div>
 
-      {traitPlacement === "below-reveal" || traitPlacement === "below-static" ? (
-        <TalentCardTraitBelow
-          fitChips={fitChips}
-          traitLines={traitLines}
-          reveal={traitPlacement === "below-reveal"}
-        />
-      ) : null}
 
       {!rule.favorite && !rule.inquiry ? (
         <div

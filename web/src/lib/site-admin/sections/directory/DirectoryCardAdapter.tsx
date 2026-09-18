@@ -20,9 +20,8 @@ import {
 import {
   pickAttributeLines,
   pickFitLabels,
-  TalentCardTraitBelow,
-  TalentCardTraitOverlay,
-  traitRowPlacement,
+  TalentCardTraitRow,
+  traitRowMode,
 } from "@/components/talent-cards/talent-card-trait-row";
 
 import { DirectoryCard } from "./DirectoryCard";
@@ -186,19 +185,24 @@ export function DirectoryCardAdapter({
   // and focus-within keeps it keyboard-accessible.
   const revealTraitsOnHover = hoverBehavior === "reveal_traits";
 
-  // Where the trait row lives — see talent-card-trait-row.tsx. The portrait
-  // style's whole card IS the photo (fixed aspect-ratio box; name/type float
-  // over it as an absolute scrim), so its reveal floats over the photo too:
-  // an in-flow reveal changed this wrapper's real height on hover and, in a
-  // CSS Grid with the default `align-items: stretch`, shoved every card in
-  // the rows beneath it down the page.
-  const traitPlacement = traitRowPlacement({
+  // The trait row renders INSIDE the card caption (TalentCard `traitSlot`),
+  // never as a loose line under the photo. On portrait the caption is an
+  // absolute bottom-anchored block, so a hover reveal grows it upward and
+  // the card's box never changes — a CSS-grid row can't reflow.
+  const traitMode = traitRowMode({
     hasContent:
       show.showAttributes !== false &&
       (fitChips.length > 0 || traitLines.length > 0),
     revealOnHover: revealTraitsOnHover,
-    style,
   });
+  const traitSlot = traitMode ? (
+    <TalentCardTraitRow
+      fitChips={fitChips}
+      traitLines={traitLines}
+      mode={traitMode}
+      onScrim={style === "portrait"}
+    />
+  ) : undefined;
 
   // cardClickAction="page" — defeat the route interception by turning the
   // card root's soft <Link> navigation into a hard load. Capture-phase so it
@@ -237,6 +241,7 @@ export function DirectoryCardAdapter({
           density={density}
           priority={priority}
           index={index}
+          traitSlot={traitSlot}
           badgeSlot={
             data.bookable ? (
               <span className="pointer-events-none absolute left-2.5 bottom-2.5 z-[2] rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/80 backdrop-blur-sm">
@@ -368,18 +373,7 @@ export function DirectoryCardAdapter({
             ) : null}
           </div>
         ) : null}
-        {traitPlacement === "overlay" ? (
-          <TalentCardTraitOverlay fitChips={fitChips} traitLines={traitLines} />
-        ) : null}
       </div>
-
-      {traitPlacement === "below-reveal" || traitPlacement === "below-static" ? (
-        <TalentCardTraitBelow
-          fitChips={fitChips}
-          traitLines={traitLines}
-          reveal={traitPlacement === "below-reveal"}
-        />
-      ) : null}
     </div>
   );
 }

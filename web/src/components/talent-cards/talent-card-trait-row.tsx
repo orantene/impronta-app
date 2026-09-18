@@ -11,24 +11,22 @@ import type {
  * carried this row, so the "Attributes" switch and every hover mode were
  * invisible there.
  *
- * Placement is decided by `traitRowPlacement`: the row either floats over
- * the photo (portrait + reveal-on-hover, so a hover never changes the card's
- * box height and can't reflow a CSS-grid row), reveals in flow beneath the
- * photo (editorial), or sits statically beneath it (every other hover mode).
- * Hover/focus state comes from an ancestor carrying Tailwind's `group/cardwrap`.
+ * It is passed to <TalentCard traitSlot> and rendered INSIDE the caption,
+ * beneath the type/location line — never as a loose line under the card.
+ * On the portrait style the caption is an absolute, bottom-anchored block
+ * over the photo, so a hover reveal grows the caption upward and the card's
+ * outer box never changes: no CSS-grid row can reflow. Hover/focus state
+ * comes from an ancestor carrying Tailwind's `group/cardwrap`.
  */
 
-export type TraitRowStyle = "portrait" | "editorial";
-export type TraitRowPlacement = "overlay" | "below-reveal" | "below-static";
+export type TraitRowMode = "reveal" | "static";
 
-export function traitRowPlacement(args: {
+export function traitRowMode(args: {
   hasContent: boolean;
   revealOnHover: boolean;
-  style: TraitRowStyle;
-}): TraitRowPlacement | null {
+}): TraitRowMode | null {
   if (!args.hasContent) return null;
-  if (!args.revealOnHover) return "below-static";
-  return args.style === "portrait" ? "overlay" : "below-reveal";
+  return args.revealOnHover ? "reveal" : "static";
 }
 
 /** At most two fit chips — a restrained, editorial trait row. */
@@ -67,65 +65,43 @@ export function pickAttributeLines(
 }
 
 /**
- * Floats over the photo's bottom edge. Must be a child of the `relative`
- * box that wraps <TalentCard>, and a descendant of a `group/cardwrap`.
- * `pointer-events-none` keeps the card's own <Link> clickable underneath,
- * matching the scrim/name overlay TalentCard renders the same way.
+ * The slot content. `reveal` collapses it at rest (0-fr grid row + faded)
+ * and opens it on group-hover / focus-within / touch; `static` keeps it
+ * visible. `onScrim` = the portrait caption (white over the photo).
  */
-export function TalentCardTraitOverlay({
+export function TalentCardTraitRow({
   fitChips,
   traitLines,
+  mode,
+  onScrim,
 }: {
   fitChips: DirectoryCardFitLabel[];
   traitLines: DirectoryCardAttribute[];
+  mode: TraitRowMode;
+  onScrim: boolean;
 }) {
-  return (
-    <div
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] translate-y-1.5 rounded-b-2xl bg-gradient-to-t from-[rgba(6,6,8,0.94)] via-[rgba(6,6,8,0.72)] to-transparent px-3.5 pb-3.5 pt-9 opacity-0 transition-[opacity,transform] duration-200 group-hover/cardwrap:translate-y-0 group-hover/cardwrap:opacity-100 group-focus-within/cardwrap:translate-y-0 group-focus-within/cardwrap:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100"
-      data-card-traits=""
-    >
-      <TraitRowBody fitChips={fitChips} traitLines={traitLines} onScrim />
-    </div>
-  );
-}
-
-/**
- * Sits beneath the photo box as flowing content. `reveal` collapses it at
- * rest (0-fr grid row + faded) and opens it on group-hover / focus-within /
- * touch; otherwise it is statically visible.
- */
-export function TalentCardTraitBelow({
-  fitChips,
-  traitLines,
-  reveal,
-}: {
-  fitChips: DirectoryCardFitLabel[];
-  traitLines: DirectoryCardAttribute[];
-  reveal: boolean;
-}) {
-  if (!reveal) {
+  if (mode === "static") {
     return (
-      <div className="mt-2 flex flex-col gap-1.5" data-card-traits="">
-        <TraitRowBody fitChips={fitChips} traitLines={traitLines} />
+      <div className="mt-1.5 flex flex-col gap-1.5" data-card-traits="">
+        <TraitRowBody fitChips={fitChips} traitLines={traitLines} onScrim={onScrim} />
       </div>
     );
   }
   return (
     <div
-      className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity,margin] duration-200 group-hover/cardwrap:mt-2 group-hover/cardwrap:grid-rows-[1fr] group-hover/cardwrap:opacity-100 group-focus-within/cardwrap:mt-2 group-focus-within/cardwrap:grid-rows-[1fr] group-focus-within/cardwrap:opacity-100 [@media(hover:none)]:mt-2 [@media(hover:none)]:grid-rows-[1fr] [@media(hover:none)]:opacity-100"
+      className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity,margin] duration-200 ease-out group-hover/cardwrap:mt-1.5 group-hover/cardwrap:grid-rows-[1fr] group-hover/cardwrap:opacity-100 group-focus-within/cardwrap:mt-1.5 group-focus-within/cardwrap:grid-rows-[1fr] group-focus-within/cardwrap:opacity-100 [@media(hover:none)]:mt-1.5 [@media(hover:none)]:grid-rows-[1fr] [@media(hover:none)]:opacity-100"
       data-card-traits=""
     >
       <div className="flex min-h-0 flex-col gap-1.5 overflow-hidden">
-        <TraitRowBody fitChips={fitChips} traitLines={traitLines} />
+        <TraitRowBody fitChips={fitChips} traitLines={traitLines} onScrim={onScrim} />
       </div>
     </div>
   );
 }
 
 /**
- * The trait-row inner content, shared by every placement so the markup stays
- * single-source. The `data-card-chip` / `data-card-trait-line` hooks let a
- * card kit restyle it.
+ * The trait-row inner content, single-source for both modes. The
+ * `data-card-chip` / `data-card-trait-line` hooks let a card kit restyle it.
  *
  * `onScrim` swaps the muted/value colors for the portrait style's
  * white-over-photo caption (matches `StandingChip`'s own `onScrim` prop in
@@ -141,11 +117,18 @@ export function TraitRowBody({
   traitLines: DirectoryCardAttribute[];
   onScrim?: boolean;
 }) {
+  // Token-first, like every other caption line: a kit that moves the caption
+  // off the photo (magazine) sets dark tokens, a kit that keeps it on the
+  // scrim (noir) sets light ones; the fallbacks are the bare portrait scrim.
   const mutedClass = onScrim
-    ? "text-[var(--token-card-muted,rgba(255,255,255,0.75))]"
+    ? "text-[var(--token-card-muted,rgba(255,255,255,0.72))]"
     : "text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]";
-  const chipBorderClass = onScrim ? "border-white/25" : "border-border";
-  const valueClass = onScrim ? "text-white/90" : "text-foreground/80";
+  const chipClass = onScrim
+    ? "border-[color:var(--token-color-line,rgba(255,255,255,0.22))] text-[var(--token-card-muted,rgba(255,255,255,0.85))]"
+    : "border-border text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]";
+  const valueClass = onScrim
+    ? "text-[var(--token-card-name-color,rgba(255,255,255,0.9))]"
+    : "text-foreground/80";
 
   return (
     <>
@@ -155,7 +138,7 @@ export function TraitRowBody({
             <span
               key={chip.slug}
               data-card-chip
-              className={`inline-flex max-w-full items-center truncate rounded-full border ${chipBorderClass} px-2 py-0.5 text-[10px] font-medium tracking-wide ${mutedClass}`}
+              className={`inline-flex max-w-full items-center truncate rounded-full border px-2 py-0.5 text-[10px] font-medium tracking-wide ${chipClass}`}
             >
               {chip.label}
             </span>
@@ -163,7 +146,7 @@ export function TraitRowBody({
         </div>
       ) : null}
       {traitLines.length > 0 ? (
-        <dl className="flex flex-col gap-0.5">
+        <dl className="flex flex-wrap gap-x-3 gap-y-0.5">
           {traitLines.map((trait) => (
             <div
               key={trait.key}
@@ -172,12 +155,12 @@ export function TraitRowBody({
               // and these trait lines ("HEIGHT 164 cm") are exactly the detail
               // a client squints at on a phone. 12px on small screens, the
               // tighter desktop size preserved from sm: up.
-              className="flex items-baseline gap-1.5 text-[12px] leading-snug sm:text-[11px]"
+              className="flex min-w-0 items-baseline gap-1.5 text-[12px] leading-snug sm:text-[11px]"
             >
-              <dt className={`shrink-0 uppercase tracking-[0.12em] ${mutedClass}`}>
+              <dt className={`shrink-0 text-[9px] uppercase tracking-[0.14em] ${mutedClass}`}>
                 {trait.label}
               </dt>
-              <dd className={`min-w-0 truncate ${valueClass}`}>{trait.value}</dd>
+              <dd className={`min-w-0 truncate tabular-nums ${valueClass}`}>{trait.value}</dd>
             </div>
           ))}
         </dl>
