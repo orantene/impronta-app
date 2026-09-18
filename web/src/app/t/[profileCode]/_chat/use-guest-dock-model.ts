@@ -63,6 +63,6 @@ export function useGuestDockModel(input: {
       accentInk: input.accentInk,
     },
     /** Props for the Items shelf inside the Lineup view. */
-    lineupItemsProps: { items: input.v5?.items ?? null, businessName, locale },
+    lineupItemsProps: { items: input.v5?.items ?? null, businessName, locale, representsPeople: input.brand.dockRepresentsPeople !== false },
   };
 }

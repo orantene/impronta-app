@@ -646,8 +646,8 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
       return;
     }
     ctx.notify({ kind: "ok", text: copy.kit.offer.sentOk });
-    await Promise.all([ctx.reloadThread(), ctx.reloadInbox()]);
     onClose();
+    await Promise.all([ctx.reloadThread(), ctx.reloadInbox()]);
   }
 
   function openVersionCompare(version: number) {

@@ -23,6 +23,7 @@ export type GuestDockFlags = {
   dockItemsTab: boolean;
   dockCardsV5: boolean;
   dockItemsLabel: string | null;
+  dockRepresentsPeople: boolean;
 };
 
 export async function loadGuestDockFlags(
@@ -30,7 +31,7 @@ export async function loadGuestDockFlags(
   locale: string | null | undefined,
 ): Promise<GuestDockFlags> {
   if (!tenantId) {
-    return { dockItemsTab: GUEST_CHAT_DEFAULTS.itemsTab, dockCardsV5: GUEST_CHAT_DEFAULTS.cardsV5, dockItemsLabel: null };
+    return { dockItemsTab: GUEST_CHAT_DEFAULTS.itemsTab, dockCardsV5: GUEST_CHAT_DEFAULTS.cardsV5, dockItemsLabel: null, dockRepresentsPeople: true };
   }
   const [settings, words] = await Promise.all([
     loadGuestChatSettings(tenantId),
@@ -40,5 +41,7 @@ export async function loadGuestDockFlags(
     dockItemsTab: settings.itemsTab,
     dockCardsV5: settings.cardsV5,
     dockItemsLabel: chatItemsLabel(words),
+    // "custom" (every pre-preset workspace) keeps the people wording.
+    dockRepresentsPeople: words.preset.id === "custom" ? true : words.preset.representsPeople,
   };
 }

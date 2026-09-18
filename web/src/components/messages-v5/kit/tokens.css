@@ -299,6 +299,8 @@
 .msgv5 .card .tot { display: flex; justify-content: space-between; border-top: 1px solid var(--msgv5-line-2); padding-top: 7px; margin-top: 2px; font-weight: 600; font-variant-numeric: tabular-nums; font-family: var(--msgv5-display); }
 .msgv5 .card .cf { display: flex; gap: 6px; padding: 8px 13px; border-top: 1px solid var(--msgv5-line-2); background: var(--msgv5-paper); align-items: center; font-size: 12px; color: var(--msgv5-ink-2); }
 .msgv5 .card .cf .cf-t { flex: 1; min-width: 0; }
+/* Phone: a long footer sentence takes its own line above the actions instead of wrapping one word per line beside a wide button (D-MSG-210 (5)). */
+.msgv5 .mx-card .cf .cf-t { flex: 1 1 100%; min-width: 0; }
 .msgv5 .card .cf .btn { margin-left: auto; }
 .msgv5 .card .cf .btn + .btn { margin-left: 6px; }
 .msgv5 .lineflag { font-size: 10px; padding: 0 6px; border-radius: 999px; background: var(--msgv5-ink-6); color: var(--msgv5-ink-2); font-family: var(--msgv5-display); font-weight: 600; margin-left: 6px; vertical-align: 1px; font-style: normal; }
@@ -537,7 +539,7 @@
 .msgv5 .mx-card .li span:last-child { font-variant-numeric: tabular-nums; font-weight: 500; white-space: nowrap; }
 .msgv5 .mx-card .li.muted { color: var(--msgv5-ink-3); font-size: 13px; }
 .msgv5 .mx-card .tot { display: flex; justify-content: space-between; border-top: 1px solid var(--msgv5-line-2); padding-top: 8px; font: 600 15px var(--msgv5-display); font-variant-numeric: tabular-nums; }
-.msgv5 .mx-card .cf { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-top: 1px solid var(--msgv5-line-2); background: var(--msgv5-paper); font-size: 13px; color: var(--msgv5-ink-2); }
+.msgv5 .mx-card .cf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 9px 14px; border-top: 1px solid var(--msgv5-line-2); background: var(--msgv5-paper); font-size: 13px; color: var(--msgv5-ink-2); }
 .msgv5 .mx-card .cf .cf-t { flex: 1; min-width: 0; }
 .msgv5 .mx-card .cf .btn { margin-left: auto; }
 .msgv5 .mx-card .cf .btn + .btn { margin-left: 6px; }

@@ -510,7 +510,10 @@
       "nextWaitingTitle": "En attente de la confirmation de {business}",
       "nextWaitingSub": "Votre choix est réservé. Rien n'est confirmé avant leur validation.",
       "nextBookedTitle": "Réservé · {date}",
-      "nextBookedSub": "Besoin d'un changement ? Demandez-le sur la carte de confirmation."
+      "nextBookedSub": "Besoin d'un changement ? Demandez-le sur la carte de confirmation.",
+      "dockItemsRecordOffer": "Offre",
+      "dockLineupEmptyItems": "Rien de choisi pour l'instant. Choisissez dans les cartes du chat ou parcourez le menu.",
+      "homeItemsSub": "Vos choix et ce qui a été ajouté pour vous"
     },
     "profileCta": {
       "inquireAbout": "Demander pour {name}",

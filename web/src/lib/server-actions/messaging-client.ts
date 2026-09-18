@@ -280,8 +280,21 @@ export async function messagingClientAcceptOffer(input: { token: string; offerId
  * RPC's all-accepted branch writes, guarded by the inquiry version.
  */
 async function acceptDirect(l: Link, offer: OfferRow, expectedVersion: number): Promise<{ ok: true } | { ok: false; reason: MessagingRefusal }> {
-  const { data: pending } = await scoped(l.admin, "inquiry_approvals", l.tenantId).select("id").eq("offer_id", offer.id).neq("status", "accepted").limit(1);
-  if (Array.isArray(pending) && pending.length > 0) return fail("not_allowed");
+  // Pending approvals block a direct accept, EXCEPT the client's own row:
+  // that row is the very approval this accept records (D-MSG-210 (1): a
+  // guest-seat inquiry carries a client participant with no user, and its
+  // pending approval refused every accept from the link).
+  const { data: pending } = await scoped(l.admin, "inquiry_approvals", l.tenantId)
+    .select("id, participant_id, inquiry_participants!inner(role)")
+    .eq("offer_id", offer.id)
+    .neq("status", "accepted");
+  const rows = (pending ?? []) as Array<{ id: string; inquiry_participants: { role: string } | { role: string }[] | null }>;
+  const roleOf = (r: (typeof rows)[number]) => (Array.isArray(r.inquiry_participants) ? r.inquiry_participants[0]?.role : r.inquiry_participants?.role) ?? "";
+  if (rows.some((r) => roleOf(r) !== "client")) return fail("not_allowed");
+  const own = rows.filter((r) => roleOf(r) === "client").map((r) => r.id);
+  if (own.length > 0) {
+    await scoped(l.admin, "inquiry_approvals", l.tenantId).update({ status: "accepted", decided_at: new Date().toISOString(), updated_at: new Date().toISOString() }).in("id", own);
+  }
   const { error: offerErr } = await scoped(l.admin, "inquiry_offers", l.tenantId)
     .update({ status: "accepted", accepted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq("id", offer.id)

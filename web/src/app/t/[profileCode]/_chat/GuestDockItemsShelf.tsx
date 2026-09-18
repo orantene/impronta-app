@@ -27,6 +27,7 @@ const RECORD_KIND_KEY: Record<string, string> = {
   class_enrolment: "public.guestChat.dockItemsRecordSession",
   tickets: "public.guestChat.dockItemsRecordTickets",
   project: "public.guestChat.dockItemsRecordProject",
+  offer: "public.guestChat.dockItemsRecordOffer",
 };
 
 const PAYMENT_KEY: Record<string, string> = {

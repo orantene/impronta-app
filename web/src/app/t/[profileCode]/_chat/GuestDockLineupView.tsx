@@ -65,6 +65,8 @@ export type GuestDockLineupViewProps = {
   /** For the "added by {business}" flag and the footnote. */
   businessName?: string;
   locale?: string;
+  /** False on a business that sells things, not people (restaurant, venue): the empty copy stops saying "talent". */
+  representsPeople?: boolean;
 };
 
 type SavedTile = {
@@ -206,6 +208,7 @@ export function GuestDockLineupView({
   items = null,
   businessName = "",
   locale = "en",
+  representsPeople = true,
 }: GuestDockLineupViewProps) {
   const C = paletteFor(surfaceMode);
   // Shelf A — the inquiry lineup (cart). Same projection the launcher rail uses:
@@ -357,7 +360,9 @@ export function GuestDockLineupView({
           text={
             dragTile
               ? t("public.guestChat.dockLineupDropHint")
-              : t("public.guestChat.dockLineupEmptyInquiry")
+              : representsPeople
+                ? t("public.guestChat.dockLineupEmptyInquiry")
+                : t("public.guestChat.dockLineupEmptyItems")
           }
           C={C}
         />
