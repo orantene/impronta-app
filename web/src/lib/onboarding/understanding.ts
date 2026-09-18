@@ -197,8 +197,12 @@ export function typeChipFor(brief: Brief, path: OnboardingPath): TypeChip | null
   const industry = fact(brief, "work.industry");
   const discipline = fact(brief, "work.discipline");
   const f = path === "talent" ? (discipline ?? industry) : (industry ?? discipline);
-  const query = displayValue(f);
+  let query = displayValue(f);
   if (!f || !query) return null;
+  // "Taquería El Güero" says more about the kind of business than the model's
+  // "food service"; the name rides along so its words can hit the catalogue.
+  const name = path === "talent" ? null : displayValue(fact(brief, "business.name"));
+  if (name) query = `${query} ${name}`;
   return { query, status: lineStatus(f, true) === "known" ? "known" : "assumed" };
 }
 

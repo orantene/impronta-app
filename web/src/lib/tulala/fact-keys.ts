@@ -105,6 +105,12 @@ export type FactKeyDef = {
    * so a model that invents a fifth answer is rejected rather than stored.
    */
   allowed?: readonly string[];
+  /**
+   * Shape a free string must match. A model asked for a WhatsApp number that
+   * only heard "WhatsApp orders" answers "true"; the fact is refused, not shown
+   * in a phone field.
+   */
+  pattern?: RegExp;
   evidence?: EvidenceWeight;
   /**
    * True when this fact names a person or contact detail. Drives redaction:
@@ -394,6 +400,7 @@ export const FACT_KEYS: readonly FactKeyDef[] = [
     type: "string",
     category: "presence",
     label: "WhatsApp number",
+    pattern: /^\+?[\d\s().-]{7,20}$/,
   },
   {
     key: "brand.logo_url",
@@ -618,6 +625,9 @@ export function validateFactValue(
           ok: false,
           error: `${key}: "${trimmed}" is not one of ${def.allowed.join(", ")}`,
         };
+      }
+      if (def.pattern && !def.pattern.test(trimmed)) {
+        return { ok: false, error: `${key}: "${trimmed}" does not look like a ${def.label.toLowerCase()}` };
       }
       return { ok: true, value: trimmed };
     }

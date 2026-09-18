@@ -75,7 +75,7 @@ function fold(value: string): string {
 
 /** Authorized types from the 48 cases, live presets, and theme tables 7.2–7.13. */
 export const BUSINESS_TYPES: readonly BusinessType[] = [
-  t("restaurant", "dining", "Restaurant", "Restaurante", ["dining", "restaurante"], "restaurant"),
+  t("restaurant", "dining", "Restaurant", "Restaurante", ["dining", "restaurante", "taqueria", "taquería", "tacos", "food service", "fonda", "comida", "eatery", "grill", "parrilla"], "restaurant"),
   t("bar", "dining", "Bar", "Bar", ["drinks bar", "bar_club"], "bar_club"),
   t("beach-club", "dining", "Beach club", "Beach club", ["beach day", "club de playa"], "beach_club"),
   t("sushi-restaurant", "dining", "Sushi restaurant", "Restaurante de sushi", ["sushi"]),

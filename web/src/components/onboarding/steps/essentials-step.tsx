@@ -80,7 +80,10 @@ export function EssentialsStep({
   };
   const [hoursPreset, setHoursPreset] = useState<HoursPresetId | null>(presetFor(knownHours));
   const [hoursCustom, setHoursCustom] = useState(knownHours && !presetFor(knownHours) ? knownHours : "");
-  const [whatsapp, setWhatsapp] = useState(known("whatsapp") ?? "");
+  // Only a phone-shaped value may prefill the phone field (a stray "true" from
+  // "WhatsApp orders" is refused at record time too; belt and braces).
+  const knownWhatsapp = known("whatsapp");
+  const [whatsapp, setWhatsapp] = useState(knownWhatsapp && /^\+?[\d\s().-]{7,20}$/.test(knownWhatsapp) ? knownWhatsapp : "");
 
   const [typeCleared, setTypeCleared] = useState(false);
   const ready = (type !== null || other.trim().length >= 3 || (knownWhat !== null && !typeCleared)) && city !== null;

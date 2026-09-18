@@ -2662,7 +2662,7 @@ export async function TalentProfileView({
                 signOutAction={signOut}
               />
               {/* id="main-content" lives inside LightProfileLayout (<main>) */}
-              <div className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">
+              <div className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">
                 {profileBody}
               </div>
               <MarketingFooter />

@@ -12,6 +12,15 @@ test("Rosa's bio: first person, her words only, passes the floor, no invented cl
   assert.ok(es.length >= 30);
 });
 
+test("catalogue labels read as trades: an event photographer, a DJ, an AC technician", () => {
+  const base = { name: "Diego", city: "Tulum", services: [], yearsExperience: null };
+  assert.ok(draftBio({ ...base, discipline: "Event Photographer" }, "en").startsWith("I'm Diego, an event photographer in Tulum."));
+  assert.ok(draftBio({ ...base, discipline: "DJ" }, "en").startsWith("I'm Diego, a DJ in Tulum."));
+  assert.ok(draftBio({ ...base, discipline: "AC Technician" }, "en").startsWith("I'm Diego, an AC technician in Tulum."));
+  assert.ok(draftBio({ ...base, discipline: "Yoga Instructor" }, "en").startsWith("I'm Diego, a yoga instructor in Tulum."));
+  assert.ok(draftBio({ ...base, discipline: "Fotógrafo de Eventos" }, "es").startsWith("Soy Diego, fotógrafo de eventos en Tulum."));
+});
+
 test("rules refuse invented years, awards, clients and em dashes", () => {
   const facts = { name: null, discipline: null, city: null, services: [], yearsExperience: null };
   assert.equal(bioPassesRules("With 10 years of experience I do great work for you.", facts).reason, "invented_claim");

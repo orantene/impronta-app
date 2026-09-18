@@ -4,7 +4,8 @@
  * EventDetail — one event as the boards draw it: the header with its date
  * chips, zone, status and the three actions; the ten-row sub-nav on the
  * left; the tab on the right. Tickets & Offers (`event-tab-tickets`), Venue
- * & Seating and Event Day (`event-tab-day`) are their own files; Overview
+ * & Seating and Event Day (`event-tab-day`) and Programa (`event-tab-program`)
+ * are their own files; Overview
  * and Details & Schedule live here; Settings (`event-tab-settings`) writes
  * what the guest ticket reads; Page & Promotion (`event-tab-page`) picks the
  * builder page that is the event's public page; Orders, Guests and Money &
@@ -30,6 +31,7 @@ import type { EventsNav } from "./EventsPage";
 import { whenLabel } from "./EventsList";
 import { EventDayTab, EventVenueTab } from "./event-tab-day";
 import { EventPageTab } from "./event-tab-page";
+import { EventProgramTab } from "./event-tab-program";
 import { EventSettingsTab } from "./event-tab-settings";
 import { SessionSeats, TicketsTab } from "./event-tab-tickets";
 import { DETAIL_TABS, eventState, type DetailTab, type EventState } from "./events-model";
@@ -54,6 +56,7 @@ export function EventDetail({ event, nav, locale, onChanged }: { event: EventLis
     overview: t("dashboard.events.tab.overview"),
     schedule: t("dashboard.events.tab.schedule"),
     tickets: t("dashboard.events.tab.tickets"),
+    program: t("dashboard.events.tab.program"),
     venue: t("dashboard.events.tab.venue"),
     orders: t("dashboard.events.tab.orders"),
     guests: t("dashboard.events.tab.guests"),
@@ -151,6 +154,8 @@ export function EventDetail({ event, nav, locale, onChanged }: { event: EventLis
         );
       case "tickets":
         return <TicketsTab event={event} sessionId={selectedSession?.id ?? sessions[0]?.id ?? null} locale={locale} onChanged={onChanged} />;
+      case "program":
+        return <EventProgramTab event={event} locale={locale} />;
       case "venue":
         return <EventVenueTab event={event} sessionId={selectedSession?.id ?? sessions[0]?.id ?? null} locale={locale} />;
       case "day":
