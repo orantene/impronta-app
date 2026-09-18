@@ -57,3 +57,17 @@ test("the shared card actions call only the token-identified client writers", ()
   const actions = imports.filter((p) => p.includes("server-actions"));
   assert.deepEqual(actions, ["@/lib/server-actions/messaging-client"]);
 });
+
+test("the guest items reader selects client-safe line columns only (wave 2)", () => {
+  const src = read("app/t/[profileCode]/_actions/guest-thread-v5.ts");
+  const select = src.match(/from\("order_lines"\)\s*\.select\("([^"]+)"\)/);
+  assert.ok(select, "order_lines select present");
+  const cols = select![1].split(",").map((c) => c.trim());
+  for (const forbidden of ["discount_cents", "discount_label", "tax_cents", "tax_label", "catalog_price_cents_at_add", "operator_user_id", "confirmed_by"]) {
+    assert.ok(!cols.includes(forbidden), `${forbidden} never reaches the guest`);
+  }
+  assert.ok(cols.includes("proposed_by") && cols.includes("confirmed_at"), "author flag columns present");
+  // The Items shelf is read only: no write from the shelf.
+  const shelf = read("app/t/[profileCode]/_chat/GuestDockItemsShelf.tsx");
+  assert.doesNotMatch(shelf, /server-actions|onRemove|onClick/);
+});
