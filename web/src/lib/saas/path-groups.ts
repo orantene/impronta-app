@@ -536,4 +536,14 @@ export const MARKETING_PAGE_PREFIXES = [
  * stay agency+app only. The guest chat route authorizes via the signed
  * guest cookie + ticket ownership; this entry only lets the POST reach it.
  */
-export const MARKETING_API_PREFIXES = ["/api/ai/guest-support-chat"] as const;
+export const MARKETING_API_PREFIXES = [
+  "/api/ai/guest-support-chat",
+  // The dock's Saved shelf on the global directory (tulala.digital/directory)
+  // resolves hearted talent to cards through this batch lookup. The route is
+  // host-agnostic, service-role, discoverability-gated and returns only the
+  // public card fields the global directory already renders. Without it the
+  // marketing host answered the POST with HTML and the shelf read "Nothing
+  // saved yet" under a header badge of 1 (2026-09-17). Exactly this path;
+  // the rest of `/api/directory` stays agency + app only.
+  "/api/directory/talents-by-ids",
+] as const;
