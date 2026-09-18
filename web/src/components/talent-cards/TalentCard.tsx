@@ -4,11 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { StaticStars } from "@/components/reviews/star-rating";
-import {
-  computeStandingTier,
-  meetsCredibilityFloor,
-  standingTierLabel,
-} from "@/lib/reviews/craft-standing";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 
 import {
   TALENT_CARD_ASPECT_RATIO,
@@ -19,6 +15,13 @@ import {
   type TalentCardProps,
   type TalentCardRootMode,
 } from "./talent-card-shape";
+import {
+  AgencyLine,
+  AvailabilityLine,
+  OwnershipBadge,
+  StandingChip,
+  VerifiedBadge,
+} from "./talent-card-parts";
 import { TalentCardEmptyPlate } from "./talent-card-empty-plate";
 
 /**
@@ -47,178 +50,6 @@ function resolveName(
   if (fallback === "hidden") return null;
   if (fallback === "first_name") return name.split(/\s+/)[0] || null;
   return name; // code/role unavailable on card data → safe to show name
-}
-
-function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
-  // A tenant storefront directory shows ONE agency's roster, so stamping the
-  // agency's own name on every card is pure repetition (it's already the site
-  // brand in the header). Render only a DIFFERENTIATING signal: an exclusive
-  // mark (gold, on-brand) or an independent tag. A bare own-agency name → no
-  // badge at all. Cross-agency surfaces still surface "Exclusive"/"Independent".
-  if (data.isExclusive) {
-    return (
-      <span
-        data-card-ownership
-        data-card-chip
-        className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-[var(--dir-accent)] bg-background/85 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--impronta-gold-bright)] backdrop-blur-sm"
-      >
-        Exclusive
-      </span>
-    );
-  }
-  if (data.agencyName) return null;
-  return (
-    <span
-      data-card-ownership
-      data-card-chip
-      className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-border bg-background/85 px-2 py-0.5 text-[10px] font-medium tracking-wide text-foreground backdrop-blur-sm"
-    >
-      Independent
-    </span>
-  );
-}
-
-/**
- * Craft standing chip — the same credibility-gated signal the directory
- * list-row renders (`talent-directory-list-row.tsx`), reused here so the
- * grid card carries it too. Rendered only past `meetsCredibilityFloor`; the
- * `directory.card.show-standing` / `directory.card.standing-style` tokens
- * gate visibility via the `data-card-standing*` hooks (token-presets.css),
- * so absence-by-token-off stays a pure CSS toggle, not a JS branch here.
- *
- * `onScrim` swaps the tone for the portrait style's white-over-photo caption
- * (matches the name/type/availability lines already on that scrim); the
- * editorial style renders on the card's plain surface, so it uses the
- * muted-foreground token like its other caption lines.
- */
-/**
- * "Verified" mark — a green checkmark pill distinct from `OwnershipBadge`'s
- * Exclusive/Independent tag (both can render together: verification is a
- * trust signal, exclusivity is a relationship signal). Gated on
- * `data.verified`, the same field `editorial`'s inline `<VerifiedMark>`
- * reads, so no new data plumbing.
- */
-function VerifiedBadge() {
-  return (
-    <span
-      data-card-verified
-      data-card-chip
-      className="pointer-events-none inline-flex items-center gap-1 rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold text-[#1F7A4C] backdrop-blur-sm"
-    >
-      <svg
-        aria-hidden
-        width="10"
-        height="10"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M20 6 9 17l-5-5" />
-      </svg>
-      Verified
-    </span>
-  );
-}
-
-/**
- * "via {agency}" — the small attribution line under the price on the
- * portrait caption. Independent of whether a price is present: the
- * marketing directory (the only surface that sets `showAgencyLine`) does
- * not resolve per-talent pricing at all, and the attribution is still
- * meaningful on its own ("this face belongs to that agency").
- */
-function AgencyLine({ data }: { data: CanonicalTalentCardData }) {
-  if (!data.agencyName) return null;
-  return (
-    <p
-      data-card-agency
-      className="mt-0.5 text-[10px] text-[var(--token-card-muted,rgba(255,255,255,0.6))]"
-    >
-      via {data.agencyName}
-    </p>
-  );
-}
-
-function StandingChip({
-  data,
-  onScrim,
-  showStanding = "auto",
-}: {
-  data: CanonicalTalentCardData;
-  onScrim: boolean;
-  showStanding?: "auto" | "always";
-}) {
-  if (data.ratingAvg == null || !meetsCredibilityFloor(data.ratingCount)) {
-    return null;
-  }
-  const ratingCount = data.ratingCount ?? 0;
-  const tier = computeStandingTier({
-    ratingCount,
-    ratingAvg: data.ratingAvg,
-    wouldBookAgainPct: data.wouldBookAgainPct ?? null,
-  });
-  const textClass = onScrim ? "text-white/80" : "";
-  const textStyle = onScrim ? undefined : { color: TALENT_CARD_VARS.muted };
-  // `gated` (default) keeps the `data-card-standing` hook the CSS token gate
-  // matches against; `showStanding="always"` swaps to a different attribute
-  // so `html:not([data-token-card-standing]) [data-card-standing]{display:none}`
-  // in token-presets.css doesn't hide it on surfaces (like Discover) that
-  // resolve the reviews entitlement themselves and have no tenant token on
-  // `<html>` to opt into.
-  const gated = showStanding !== "always";
-  const wrapperAttrs = gated
-    ? { "data-card-standing": true }
-    : { "data-card-standing-shown": true };
-  return (
-    <div
-      {...wrapperAttrs}
-      className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1"
-    >
-      <span
-        data-card-standing-tier
-        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] ${
-          onScrim
-            ? "border border-white/[0.25] bg-white/[0.08] text-white/90"
-            : "border border-border bg-background/60 text-foreground/90"
-        }`}
-      >
-        {standingTierLabel(tier)}
-      </span>
-      <span
-        data-card-standing-signal
-        className={`inline-flex items-center gap-1.5 text-[11px] ${textClass}`}
-        style={textStyle}
-      >
-        <StaticStars rating={data.ratingAvg} size={11} />
-        <span className="tabular-nums">{data.ratingAvg.toFixed(1)}</span>
-        <span aria-hidden className="text-[var(--dir-accent)]">
-          ·
-        </span>
-        <span className="tabular-nums">{ratingCount}</span>
-      </span>
-    </div>
-  );
-}
-
-function AvailabilityLine({ data }: { data: CanonicalTalentCardData }) {
-  return (
-    <span
-      data-card-availability
-      className="inline-flex items-center gap-1.5 text-[11px]"
-      style={{ color: TALENT_CARD_VARS.muted }}
-    >
-      <span
-        aria-hidden
-        className={`size-1.5 rounded-full ${
-          data.availabilityKnown ? "bg-foreground/60" : "bg-foreground/25"
-        }`}
-      />
-      {data.availabilityLabel}
-    </span>
-  );
 }
 
 function Photo({
@@ -362,6 +193,141 @@ export function TalentCard({
   const Root: ElementType = rootMode === "button" ? "div" : Link;
   const rootProps = cardRootProps(rootMode, href, onActivate, rootStyle);
 
+  if (style === "showcase") {
+    // "Showcase" — the light dossier card: trust marks on the photo
+    // (Verified, availability, Exclusive), then a raised white panel with
+    // name + rating, a 3-fact strip, fit chips, and price + a persistent
+    // Inquire CTA. Built for the cross-tenant hub grid (tulala.digital).
+    const hasRating =
+      data.ratingAvg != null && meetsCredibilityFloor(data.ratingCount);
+    const typeLine = [
+      show.showTalentType ? data.primaryType : null,
+      show.showLocation ? data.location : null,
+    ].filter(Boolean);
+    return (
+      <Root
+        {...rootProps}
+        data-card-style="showcase"
+        className={`${TALENT_CARD_CLASS} @container group/card flex flex-col overflow-hidden rounded-2xl @[280px]:rounded-[20px] border border-[var(--token-card-border,#e7e3da)] bg-[var(--token-card-surface,#ffffff)] text-[var(--token-card-name-color,#17160f)] shadow-[0_1px_2px_rgba(23,22,15,0.06)] outline-none transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-22px_rgba(23,22,15,0.55)] focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+          rootMode === "button" ? "cursor-pointer" : ""
+        }`}
+      >
+        <div className="relative">
+          <Photo
+            data={data}
+            aspectRatio={aspectRatio}
+            priority={priority}
+            rounded="rounded-none"
+          />
+          {data.verified ? (
+            <div className="pointer-events-none absolute left-3 top-3 z-[1]">
+              <VerifiedBadge tone="light" />
+            </div>
+          ) : null}
+          {badgeSlot ? (
+            <div className="pointer-events-none absolute inset-0 z-[1]">
+              {badgeSlot}
+            </div>
+          ) : null}
+          {secondaryActionSlot ? (
+            <div className="absolute right-3 top-3 z-[2]">
+              {secondaryActionSlot}
+            </div>
+          ) : null}
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[1] flex items-end justify-between gap-2">
+            {availabilitySlot ??
+              (show.showAvailability ? (
+                <span
+                  data-card-availability
+                  className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-white/[0.92] px-2.5 py-1 text-[11px] font-medium text-[#17160f] shadow-[0_2px_8px_rgba(0,0,0,0.14)]"
+                >
+                  <span
+                    aria-hidden
+                    className={`size-2 shrink-0 rounded-full ${
+                      data.availabilityKnown
+                        ? "bg-[#2e9e5b] shadow-[0_0_0_3px_rgba(46,158,91,0.22)]"
+                        : "bg-[#9a968c]"
+                    }`}
+                  />
+                  <span className="truncate">{data.availabilityLabel}</span>
+                </span>
+              ) : (
+                <span />
+              ))}
+            {show.showBadges && data.isExclusive ? (
+              <span
+                data-card-badge-exclusive
+                className="inline-flex shrink-0 items-center rounded-full bg-[var(--token-card-cta,#1f4d3a)] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white"
+              >
+                Exclusive
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <div
+          data-card-body
+          className={`flex flex-col gap-2 px-3 pb-3 pt-2.5 @[240px]:gap-2.5 ${
+            compact ? "@[240px]:px-3.5 @[240px]:pb-3.5 @[240px]:pt-3" : "@[240px]:px-4 @[240px]:pb-4 @[240px]:pt-3.5"
+          }`}
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            {displayName ? (
+              <h3
+                data-card-name
+                className={`min-w-0 truncate font-[family-name:var(--font-fraunces,Georgia,serif)] font-medium leading-[1.1] tracking-[-0.01em] ${
+                  compact ? "text-base! @[240px]:text-lg!" : "text-lg! @[240px]:text-[22px]!"
+                }`}
+              >
+                {displayName}
+              </h3>
+            ) : null}
+            {hasRating ? (
+              <span
+                data-card-standing-shown
+                className="inline-flex shrink-0 items-center gap-1 text-[13px] font-semibold"
+              >
+                <StaticStars rating={data.ratingAvg ?? 0} size={12} />
+                <span className="tabular-nums">{data.ratingAvg?.toFixed(1)}</span>
+                <span
+                  className="tabular-nums font-medium"
+                  style={{ color: TALENT_CARD_VARS.muted }}
+                >
+                  · {data.ratingCount}
+                </span>
+              </span>
+            ) : null}
+          </div>
+          {typeLine.length > 0 ? (
+            <p
+              className="-mt-1.5 truncate text-[13px]"
+              style={{ color: TALENT_CARD_VARS.muted }}
+            >
+              {typeLine.join(" · ")}
+            </p>
+          ) : null}
+          {traitSlot ? <div className="hidden @[200px]:contents">{traitSlot}</div> : null}
+          <div className="flex items-center justify-between gap-2 pt-0.5 @[240px]:gap-3">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              {data.priceFromLabel ? (
+                <span
+                  data-card-price-from
+                  className="truncate text-[15px] font-semibold tabular-nums text-[var(--token-card-price-color,#17160f)]"
+                >
+                  {data.priceFromLabel}
+                </span>
+              ) : null}
+              {showAgencyLine ? <AgencyLine data={data} onScrim={false} /> : null}
+              {show.showBadges && !data.isExclusive ? (
+                <OwnershipBadge data={data} />
+              ) : null}
+            </div>
+            {ctaSlot ? <div className="shrink-0">{ctaSlot}</div> : null}
+          </div>
+        </div>
+      </Root>
+    );
+  }
+
   if (style === "editorial") {
     return (
       <Root
@@ -474,43 +440,41 @@ export function TalentCard({
   }
 
   if (style === "profile") {
-    // "Cinematic" — full-bleed like portrait, but the whole caption reads as
-    // one editorial statement: availability/exclusivity moves to a top pill
-    // (off the name block entirely), the name runs large, and price ends in
-    // a persistent CTA instead of a hover-only icon. Built for Impronta's
-    // noir storefront; falls back to portrait's own photo/scrim primitives
-    // so it stays IN the shared token cascade, not a fork of it.
-    const topPill = data.isExclusive ? (
-      <span
-        data-card-badge-exclusive
-        className="pointer-events-none inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-md"
-      >
-        Exclusive
-      </span>
-    ) : show.showAvailability ? (
-      availabilitySlot ?? (
-        <span
-          data-card-availability
-          className="pointer-events-none inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-md"
-        >
+    // "Cinematic" — full-bleed statement card built to the 02 · Cinematic
+    // canvas: availability pill top-left, gold "EXCLUSIVE · {agency}"
+    // eyebrow, oversized serif name (surname italic), gold hairline, a
+    // ruled three-column fact strip (rating fills the third column), then
+    // price + a solid gold Inquire pill. Shares portrait's photo primitive
+    // so it stays in the token cascade.
+    const topPill = show.showAvailability
+      ? (availabilitySlot ?? (
           <span
-            aria-hidden
-            className={`size-1.5 rounded-full ${
-              data.availabilityKnown ? "bg-[#7ED957]" : "bg-white/40"
-            }`}
-          />
-          {data.availabilityLabel}
-        </span>
-      )
-    ) : null;
+            data-card-availability
+            title={data.availabilityLabel}
+            className="pointer-events-none inline-flex h-[26px] max-w-full items-center gap-1.5 overflow-hidden rounded-full border border-white/[0.28] bg-[rgba(6,6,8,0.42)] px-2.5 text-[10px] font-semibold tracking-[0.02em] text-[#f3efe6] backdrop-blur-md @[280px]:h-[30px] @[280px]:gap-2 @[280px]:px-3 @[280px]:text-[11px] @[280px]:uppercase @[280px]:tracking-[0.14em]"
+          >
+            <span
+              aria-hidden
+              className={`size-[7px] shrink-0 rounded-full ${
+                data.availabilityKnown ? "bg-[#7ED957]" : "bg-white/40"
+              }`}
+            />
+            <span className="hidden truncate @[220px]:inline">{data.availabilityLabel}</span>
+          </span>
+        ))
+      : null;
     const [firstName, ...rest] = displayName ? displayName.split(/\s+/) : [];
     const restName = rest.join(" ");
+    const typeLine = [
+      show.showTalentType ? data.primaryType : null,
+      show.showLocation ? data.location : null,
+    ].filter(Boolean);
 
     return (
       <Root
         {...rootProps}
         data-card-style="profile"
-        className={`${TALENT_CARD_CLASS} group/card relative block overflow-hidden rounded-2xl border border-border outline-none transition-[border-color,box-shadow] duration-200 hover:border-[var(--dir-accent-line)] hover:shadow-[0_18px_40px_-22px_rgba(0,0,0,0.7)] focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+        className={`${TALENT_CARD_CLASS} @container group/card relative block overflow-hidden rounded-2xl bg-[#141416] @[280px]:rounded-[22px] text-[#f3efe6] outline-none ring-1 ring-white/[0.06] transition-[box-shadow] duration-300 hover:shadow-[0_18px_40px_-22px_rgba(0,0,0,0.7)] focus-visible:ring-2 focus-visible:ring-[var(--dir-accent,#c8a04a)] ${
           rootMode === "button" ? "cursor-pointer" : ""
         }`}
       >
@@ -524,25 +488,32 @@ export function TalentCard({
         <div
           aria-hidden
           data-card-scrim
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-3/4 bg-gradient-to-t from-[rgba(6,6,8,0.97)] via-[rgba(6,6,8,0.68)] to-transparent"
+          className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_top,rgba(6,6,8,0.96)_0%,rgba(6,6,8,0.72)_32%,rgba(6,6,8,0.1)_58%,rgba(6,6,8,0)_75%)]"
         />
 
         {topPill ? (
-          <div className="absolute left-2.5 top-2.5 z-[1]">{topPill}</div>
+          <div className="absolute left-2.5 top-2.5 z-[1] max-w-[calc(100%-88px)] @[280px]:left-4 @[280px]:top-4 @[280px]:max-w-[calc(100%-112px)]">
+            {topPill}
+          </div>
         ) : null}
         {badgeSlot ? <div className="absolute inset-0 z-[2]">{badgeSlot}</div> : null}
         {secondaryActionSlot ? (
-          <div className="absolute right-2.5 top-2.5 z-[3]">{secondaryActionSlot}</div>
+          <div className="absolute right-2.5 top-2.5 z-[3] @[280px]:right-4 @[280px]:top-4">
+            {secondaryActionSlot}
+          </div>
         ) : null}
 
         <div
-          className={`absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-2.5 ${
-            compact ? "px-4 pb-4" : "px-5 pb-5"
+          className={`absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-1.5 px-3 pb-3 @[280px]:gap-2.5 ${
+            compact ? "@[280px]:px-4 @[280px]:pb-4" : "@[280px]:px-5 @[280px]:pb-5"
           }`}
           data-card-body
         >
           {show.showBadges && data.isExclusive ? (
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--token-card-price-color,var(--impronta-gold-bright,#c8a04a))]">
+            <span
+              data-card-badge-exclusive
+              className="truncate text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--token-card-price-color,var(--dir-accent,#c8a04a))] @[280px]:text-[11px] @[280px]:tracking-[0.2em]"
+            >
               Exclusive
               {data.agencyName ? ` · ${data.agencyName}` : ""}
             </span>
@@ -550,43 +521,38 @@ export function TalentCard({
           {displayName ? (
             <h3
               data-card-name
-              className={`font-display font-normal leading-[0.95] tracking-tight text-[var(--token-card-name-color,#fff)] drop-shadow-sm ${
-                compact ? "text-3xl" : "text-4xl sm:text-5xl"
+              className={`font-[family-name:var(--font-fraunces,Georgia,serif)] font-normal leading-none tracking-[-0.02em] text-[var(--token-card-name-color,#f3efe6)] ${
+                compact
+                  ? "text-[20px]! @[220px]:text-[26px]! @[300px]:text-[30px]!"
+                  : "text-[22px]! @[220px]:text-[30px]! @[300px]:text-[40px]!"
               }`}
             >
               {firstName}
-              {restName ? <em className="font-serif italic"> {restName}</em> : null}
+              {restName ? <em className="italic"> {restName}</em> : null}
             </h3>
           ) : null}
           {displayName ? (
             <span
               aria-hidden
               data-card-name-rule
-              className="block h-px w-10 bg-[var(--dir-accent)]"
+              className="block h-px w-10 bg-[var(--dir-accent,#c8a04a)]"
             />
           ) : null}
-          {(show.showTalentType && data.primaryType) ||
-          (show.showLocation && data.location) ? (
-            <p className="truncate text-[13px] text-[var(--token-card-muted,rgba(255,255,255,0.78))]">
-              {show.showTalentType ? data.primaryType : null}
-              {show.showLocation && data.location ? (
-                <span>
-                  {show.showTalentType && data.primaryType ? "  ·  " : null}
-                  {data.location}
-                </span>
-              ) : null}
+          {typeLine.length > 0 ? (
+            <p className="truncate text-[12px] text-[var(--token-card-muted,rgba(243,239,230,0.78))] @[280px]:text-[14px]">
+              {typeLine.join(" · ")}
             </p>
           ) : null}
           {traitSlot ? (
-            <div className="border-t border-white/15 pt-2.5">{traitSlot}</div>
+            <div className="hidden @[200px]:block">{traitSlot}</div>
           ) : (
             <StandingChip data={data} onScrim showStanding={showStanding} />
           )}
-          <div className="mt-1 flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-2 @[280px]:gap-3">
             {data.priceFromLabel ? (
               <p
                 data-card-price-from
-                className="text-[13px] font-semibold text-white"
+                className="text-[13px] font-semibold text-[var(--token-card-name-color,#f3efe6)] @[280px]:text-[15px]"
               >
                 {data.priceFromLabel}
               </p>
@@ -600,8 +566,6 @@ export function TalentCard({
     );
   }
 
-  // Portrait (default / canonical). The four non-portrait/-editorial/-profile
-  // schema styles intentionally fall through here until their kits land.
   return (
     <Root
       {...rootProps}

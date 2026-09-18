@@ -35,6 +35,7 @@ export type TalentCardStyle =
   | "editorial"
   | "portfolio"
   | "profile"
+  | "showcase"
   | "stat"
   | "service"
   | "minimal";

@@ -16,7 +16,9 @@ import { fileURLToPath } from "node:url";
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
-const cardSrc = readFileSync(join(here, "TalentCard.tsx"), "utf8");
+const cardSrc =
+  readFileSync(join(here, "TalentCard.tsx"), "utf8") +
+  readFileSync(join(here, "talent-card-parts.tsx"), "utf8");
 const shapeSrc = readFileSync(join(here, "talent-card-shape.ts"), "utf8");
 
 test("shape defines the canonical keystone class as 'talent-card'", () => {

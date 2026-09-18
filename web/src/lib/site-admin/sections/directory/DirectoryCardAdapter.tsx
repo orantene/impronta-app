@@ -17,7 +17,9 @@ import {
   NO_CAPTION_NORMS,
 } from "@/lib/directory/caption-norms";
 
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import {
+  CardFactStrip,
   pickAttributeLines,
   pickFitLabels,
   TalentCardTraitRow,
@@ -144,9 +146,12 @@ export function DirectoryCardAdapter({
     showLocation:
       show.showLocation &&
       !isRedundant(data.location, captionNorms.dominantLocation),
+    // Cinematic anchors its top-left corner on the availability pill, so
+    // the "drop when it repeats the grid" rule would leave a hole there.
     showAvailability:
       show.showAvailability &&
-      !isRedundant(data.availabilityLabel, captionNorms.dominantAvailability),
+      (cardStyle === "profile" ||
+        !isRedundant(data.availabilityLabel, captionNorms.dominantAvailability)),
   };
 
   if (
@@ -179,7 +184,12 @@ export function DirectoryCardAdapter({
     data.cardAttributes,
     cardFieldKeys,
     maxFieldLines,
+    style === "profile" ? 3 : 2,
   );
+  const cinematicRating =
+    data.ratingAvg != null && meetsCredibilityFloor(data.ratingCount)
+      ? { avg: data.ratingAvg, count: data.ratingCount ?? 0 }
+      : null;
 
   // `reveal_traits` (the preset default) keeps the trait row out of the resting
   // card and reveals it on hover / focus, so the grid reads as clean portraits
@@ -199,14 +209,26 @@ export function DirectoryCardAdapter({
       (fitChips.length > 0 || traitLines.length > 0),
     revealOnHover: revealTraitsOnHover,
   });
-  const traitSlot = traitMode ? (
-    <TalentCardTraitRow
-      fitChips={fitChips}
-      traitLines={traitLines}
-      mode={traitMode}
-      onScrim={style === "portrait" || style === "profile"}
-    />
-  ) : undefined;
+  // Cinematic renders its facts as a ruled, always-visible strip (the card
+  // is a fixed-height statement; a hover reveal has nowhere to grow).
+  const traitSlot =
+    style === "profile" ? (
+      show.showAttributes !== false && (traitLines.length > 0 || cinematicRating) ? (
+        <CardFactStrip
+          fitChips={[]}
+          traitLines={traitLines}
+          tone="scrim"
+          rating={cinematicRating}
+        />
+      ) : undefined
+    ) : traitMode ? (
+      <TalentCardTraitRow
+        fitChips={fitChips}
+        traitLines={traitLines}
+        mode={traitMode}
+        onScrim={style === "portrait"}
+      />
+    ) : undefined;
 
   // Persistent "Inquire" CTA, rendered IN the caption (via TalentCard's
   // `ctaSlot`) instead of the old hover-only icon pill over the photo — the
@@ -257,7 +279,8 @@ export function DirectoryCardAdapter({
 
   return (
     <div
-      className="group/cardwrap relative flex flex-col"
+      className="@container group/cardwrap relative flex flex-col"
+      data-directory-card
       onClickCapture={handleClickCapture}
     >
       <div className="relative" ref={mediaRef}>

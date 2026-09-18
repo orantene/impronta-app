@@ -32,9 +32,10 @@ export function traitRowMode(args: {
 /** At most two fit chips — a restrained, editorial trait row. */
 export function pickFitLabels(
   fitLabels: readonly DirectoryCardFitLabel[] | undefined,
+  ceiling = 2,
 ): DirectoryCardFitLabel[] {
   if (!fitLabels || fitLabels.length === 0) return [];
-  return fitLabels.filter((f) => f.label.trim().length > 0).slice(0, 2);
+  return fitLabels.filter((f) => f.label.trim().length > 0).slice(0, ceiling);
 }
 
 /**
@@ -46,6 +47,7 @@ export function pickAttributeLines(
   attributes: readonly DirectoryCardAttribute[] | undefined,
   cardFieldKeys: readonly string[],
   maxFieldLines: number,
+  ceiling = 2,
 ): DirectoryCardAttribute[] {
   if (!attributes || attributes.length === 0) return [];
   const usable = attributes.filter((a) => a.value.trim().length > 0);
@@ -60,7 +62,7 @@ export function pickAttributeLines(
     ordered = usable;
   }
 
-  const cap = Math.max(0, Math.min(2, maxFieldLines));
+  const cap = Math.max(0, Math.min(ceiling, maxFieldLines));
   return ordered.slice(0, cap);
 }
 
@@ -164,6 +166,97 @@ export function TraitRowBody({
             </div>
           ))}
         </dl>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * The fact strip shared by the "showcase" (light panel) and "profile" /
+ * Cinematic (dark scrim) styles: up to three labelled columns (HEIGHT /
+ * HAIR / LANGUAGES …) ruled top and bottom, an optional Rating column, and
+ * the fit chips beneath. Reads the same DTO fields as `TraitRowBody`; only
+ * the composition differs.
+ */
+export function CardFactStrip({
+  fitChips,
+  traitLines,
+  tone = "light",
+  rating,
+}: {
+  fitChips: DirectoryCardFitLabel[];
+  traitLines: DirectoryCardAttribute[];
+  tone?: "light" | "scrim";
+  /** Rendered as a trailing "Rating" column when present. */
+  rating?: { avg: number; count: number } | null;
+}) {
+  const onScrim = tone === "scrim";
+  const columns = rating ? traitLines.slice(0, 2) : traitLines.slice(0, 3);
+  if (fitChips.length === 0 && columns.length === 0 && !rating) return null;
+  const labelClass = onScrim
+    ? "text-[var(--token-card-muted,rgba(243,239,230,0.6))]"
+    : "text-[var(--token-card-muted,#6a665c)]";
+  const ruleClass = onScrim
+    ? "border-white/[0.16]"
+    : "border-[var(--token-card-border,#e7e3da)]";
+  const valueClass = onScrim ? "text-[var(--token-card-name-color,#f3efe6)]" : "";
+  return (
+    <>
+      {columns.length > 0 || rating ? (
+        <dl
+          data-card-fact-strip=""
+          className={`grid gap-2.5 border-y py-2.5 ${ruleClass} ${
+            columns.length + (rating ? 1 : 0) === 1 ? "grid-cols-1" : columns.length + (rating ? 1 : 0) === 2 ? "grid-cols-2" : "grid-cols-3"
+          }`}
+        >
+          {columns.map((trait) => (
+            <div key={trait.key} data-card-trait-line="" className="flex min-w-0 flex-col gap-0.5">
+              <dt className={`truncate text-[9px] font-semibold uppercase tracking-[0.16em] ${labelClass}`}>
+                {trait.label}
+              </dt>
+              <dd className={`truncate text-[14px] font-medium tabular-nums ${valueClass}`}>
+                {trait.value}
+              </dd>
+            </div>
+          ))}
+          {rating ? (
+            <div data-card-standing-shown="" className="flex min-w-0 flex-col gap-0.5">
+              <dt className={`truncate text-[9px] font-semibold uppercase tracking-[0.16em] ${labelClass}`}>
+                Rating
+              </dt>
+              <dd className={`inline-flex items-center gap-1 text-[14px] font-medium tabular-nums ${valueClass}`}>
+                <svg
+                  aria-hidden
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className={onScrim ? "text-[var(--dir-accent,#c8a04a)]" : "text-[var(--token-card-cta,#1f4d3a)]"}
+                >
+                  <path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4l-5.9 3.2 1.3-6.6L2.5 9.4l6.6-.8z" />
+                </svg>
+                {rating.avg.toFixed(1)}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
+      {fitChips.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {fitChips.map((chip) => (
+            <span
+              key={chip.slug}
+              data-card-chip
+              className={`inline-flex max-w-full items-center truncate rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                onScrim
+                  ? "border border-white/20 text-white/90"
+                  : "bg-[var(--token-card-chip-surface,#f3f1eb)]"
+              }`}
+            >
+              {chip.label}
+            </span>
+          ))}
+        </div>
       ) : null}
     </>
   );

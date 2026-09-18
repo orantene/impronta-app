@@ -1921,6 +1921,10 @@ html[data-token-typography-scale-preset="editorial"] {
  * The card component (see `TalentCard`) renders a base shell; families
  * override image ratio, chip style, spacing, hover, and CTA layout via
  * these targeted rules. Keeps the component simple — CSS owns variance.
+ *
+ * The designed styles (`data-card-style="profile"` Cinematic and
+ * `"showcase"`) own their own structure and read the kit's colour tokens
+ * directly, so every family rule below excludes them via :not().
  * ------------------------------------------------------------------------- */
 
 /* editorial-bridal — portrait 4:5 ivory card with ribbon + blush chips.
@@ -1930,7 +1934,7 @@ html[data-token-typography-scale-preset="editorial"] {
  * one attribute selector so its specificity lands above the Tailwind
  * `bg-gradient-to-b from-zinc-900/95` et al. without needing !important. */
 
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) {
   border-radius: var(--site-radius-lg);
   border: 1px solid var(--token-color-line);
   /* important: overrides Tailwind gradient bg baked into component.
@@ -1946,26 +1950,26 @@ html[data-token-typography-scale-preset="editorial"] {
     transform var(--site-motion-dur-short) var(--site-motion-ease),
     box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
 }
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:hover {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]):hover {
   transform: translateY(-4px);
   box-shadow: var(--site-shadow-ambient);
 }
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-media] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-media] {
   aspect-ratio: 4 / 5;
   position: relative;
   overflow: hidden;
   background: var(--token-color-secondary);
 }
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-media] img {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-media] img {
   transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
 }
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:hover [data-card-media] img {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]):hover [data-card-media] img {
   transform: scale(1.04);
 }
 /* Soften the dark gradient that the base component paints for text
  * legibility — editorial cards still show the name overlay on image,
  * just in softer tones. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-media] > div[aria-hidden].pointer-events-none {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-media] > div[aria-hidden].pointer-events-none {
   background: linear-gradient(
     to top,
     rgba(42, 34, 30, 0.55) 0%,
@@ -1977,20 +1981,20 @@ html[data-token-typography-scale-preset="editorial"] {
  * repainted to ivory (already white, so no change needed) + the kicker
  * recolor. Real reorg to name-in-body is scheduled for when the card
  * component itself gets a family-switch prop. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-name] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-name] {
   font-family: var(--site-heading-font) !important;
   font-weight: 400 !important;
   letter-spacing: -0.005em !important;
   text-transform: none !important;
 }
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-body] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-body] {
   padding: 22px 22px 24px !important;
   display: flex !important;
   flex-direction: column;
   gap: 14px;
   background: var(--token-card-surface, var(--token-color-surface-raised));
 }
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-chip] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-chip] {
   background: var(--token-color-secondary) !important;
   color: var(--token-color-ink) !important;
   padding: 7px 14px !important;
@@ -2001,10 +2005,10 @@ html[data-token-typography-scale-preset="editorial"] {
   font-weight: 500 !important;
   border: 1px solid var(--token-color-line) !important;
 }
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-ribbon] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-ribbon] {
   z-index: 3;
 }
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-ribbon] > span {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-ribbon] > span {
   background: rgba(246, 241, 234, 0.92) !important;
   color: var(--token-color-primary) !important;
   border: 1px solid rgba(74, 64, 58, 0.1) !important;
@@ -2067,10 +2071,10 @@ html[data-token-typography-scale-preset="editorial"] {
 }
 
 /* service-professional — same shell, no ribbon, squarer ratio */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="service-professional"] .talent-card [data-card-media] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="service-professional"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-media] {
   aspect-ratio: 1 / 1;
 }
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="service-professional"] .talent-card [data-card-body] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="service-professional"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-body] {
   padding: 18px 20px;
 }
 
@@ -2091,7 +2095,7 @@ html[data-token-typography-scale-preset="editorial"] {
  * Impronta literals — tenant color cascade drives everything.
  * ------------------------------------------------------------------------- */
 
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) {
   /* Forced dark ground beats any Tailwind bg-* on the card root. The Card
    * Design "Card background" knob (`--token-card-surface`) wins; the theme
    * background is the fallback. */
@@ -2109,13 +2113,13 @@ html[data-token-typography-scale-preset="editorial"] {
     box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
 }
 
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:hover {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]):hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 28px -8px rgba(0, 0, 0, 0.88);
 }
 
 /* Tall portrait ratio — 3:4 gives cinematic stature. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-media] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-media] {
   aspect-ratio: 3 / 4;
   position: relative;
   overflow: hidden;
@@ -2124,17 +2128,17 @@ html[data-token-typography-scale-preset="editorial"] {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-media] img {
     transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
   }
-  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:hover [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]):hover [data-card-media] img {
     transform: scale(1.03);
   }
 }
 
 /* Cinematic scrim — heavier at the bottom for name legibility, with a
  * faint mid-register veil so overexposed images still feel dark. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-scrim] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-scrim] {
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.82) 0%,
@@ -2146,7 +2150,7 @@ html[data-token-typography-scale-preset="editorial"] {
 
 /* Name: lighter weight, serif fallback hierarchy, restrained tracking.
  * Stays white-on-dark so it reads over the scrim. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-name] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-name] {
   font-family:
     var(--font-playfair-display, "Playfair Display"),
     var(--site-heading-font),
@@ -2160,12 +2164,12 @@ html[data-token-typography-scale-preset="editorial"] {
 }
 
 /* Body area — inherits from portrait base (absolute-positioned overlay). */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-body] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-body] {
   /* inherit from portrait base — already absolute-positioned overlay */
 }
 
 /* Availability indicator — muted color matches the card's dark register. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-availability] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-availability] {
   color: var(--token-card-muted, var(--token-color-muted)) !important;
 }
 
@@ -2178,7 +2182,7 @@ html[data-token-typography-scale-preset="editorial"] {
  * spacing and typography alone. Reads like a well-printed magazine feature.
  * ------------------------------------------------------------------------- */
 
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) {
   /* Card Design "Card background" knob first, theme surface as fallback. */
   background: var(--token-card-surface, var(--token-color-surface-raised)) !important;
   border: 1px solid var(--token-color-line);
@@ -2191,13 +2195,13 @@ html[data-token-typography-scale-preset="editorial"] {
     box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
 }
 
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:hover {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]):hover {
   transform: translateY(-4px);
   box-shadow: var(--site-shadow-ambient);
 }
 
 /* Landscape-adjacent ratio — 4:3 gives a magazine-spread feel. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-media] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-media] {
   aspect-ratio: 4 / 3;
   position: relative;
   overflow: hidden;
@@ -2205,10 +2209,10 @@ html[data-token-typography-scale-preset="editorial"] {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-media] img {
     transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
   }
-  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:hover [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]):hover [data-card-media] img {
     transform: scale(1.04);
   }
 }
@@ -2219,12 +2223,12 @@ html[data-token-typography-scale-preset="editorial"] {
  * portrait scrims — which span the whole card root, not just the media —
  * must go: left on, their dark gradient bled over the light body and the
  * caption sat in a grey fog (tulala.digital/directory, 2026-09-17). */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-scrim] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-scrim] {
   display: none !important;
 }
 
 /* Body panel below image — the magazine's pull-quote zone. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-body] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-body] {
   /* Portrait-style overlay → reposition to static below-image panel. */
   position: static !important;
   padding: 20px 20px 22px !important;
@@ -2236,7 +2240,7 @@ html[data-token-typography-scale-preset="editorial"] {
 }
 
 /* Name: editorial serif feel with tighter tracking. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-name] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-name] {
   font-family:
     var(--font-fraunces, "Fraunces"),
     var(--font-playfair-display, "Playfair Display"),
@@ -2252,12 +2256,12 @@ html[data-token-typography-scale-preset="editorial"] {
 }
 
 /* Availability: matches body text register, slightly muted. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-availability] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-availability] {
   color: var(--token-card-muted, var(--token-color-muted)) !important;
 }
 
 /* Chips/badges — paper surface, no glass effect. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-chip] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-chip] {
   background: var(--token-color-secondary) !important;
   color: var(--token-color-ink) !important;
   border: 1px solid var(--token-color-line) !important;
@@ -2276,7 +2280,7 @@ html[data-token-typography-scale-preset="editorial"] {
  * disappears — only the face matters.
  * ------------------------------------------------------------------------- */
 
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) {
   /* The kit ships `card.surface` #ffffff ("quiet white cards"); honor the
    * Card Design knob, transparent only when the tenant cleared it. */
   background: var(--token-card-surface, transparent) !important;
@@ -2290,13 +2294,13 @@ html[data-token-typography-scale-preset="editorial"] {
     box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
 }
 
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:hover {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]):hover {
   border-color: var(--token-color-line) !important;
   box-shadow: var(--site-shadow-soft);
 }
 
 /* Tall portrait — image IS the card. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-media] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-media] {
   aspect-ratio: 3 / 4;
   position: relative;
   overflow: hidden;
@@ -2306,17 +2310,17 @@ html[data-token-typography-scale-preset="editorial"] {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-media] img {
     transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
   }
-  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:hover [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]):hover [data-card-media] img {
     transform: scale(1.025);
   }
 }
 
 /* Minimal scrim — barely-there gradient, just enough to legibility the
  * name without killing the portrait. Quiet, not cinematic. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-scrim] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-scrim] {
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.44) 0%,
@@ -2326,7 +2330,7 @@ html[data-token-typography-scale-preset="editorial"] {
 }
 
 /* Name: clean sans, normal weight — pure legibility over the portrait. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-name] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-name] {
   font-family: var(--site-heading-font) !important;
   font-weight: 400 !important;
   letter-spacing: 0.01em !important;
@@ -2336,13 +2340,13 @@ html[data-token-typography-scale-preset="editorial"] {
 }
 
 /* Availability: white-toned to match portrait overlay register. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-availability] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-availability] {
   color: var(--token-card-muted, rgba(255, 255, 255, 0.75)) !important;
 }
 
 /* Ownership chip — blends into the portrait overlay; glass blur matches
  * the base component chip but with softer tint. */
-:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-chip] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:not([data-card-style="profile"]):not([data-card-style="showcase"]) [data-card-chip] {
   background: rgba(255, 255, 255, 0.15) !important;
   color: rgba(255, 255, 255, 0.9) !important;
   border: 1px solid rgba(255, 255, 255, 0.22) !important;

@@ -153,3 +153,86 @@
     transform: translate(-50%, -50%);
   }
 }
+
+/* Showcase card (light dossier panel): the persistent Inquire CTA is a solid
+ * forest pill on the white panel, not the gold glass pill built for photos.
+ * Added-to-lineup flips it to ink so the state change is unmistakable. */
+[data-card-style="showcase"] .talent-card-actions__inquiry-pill {
+  height: 34px;
+  padding: 0 12px;
+  border-color: transparent;
+  /* Forest is the Showcase design's own CTA colour (the canvas), not the
+   * host's directory accent: on the hub that accent is the link blue. */
+  background: var(--token-card-cta, #1f4d3a);
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  backdrop-filter: none;
+}
+[data-card-style="showcase"] .talent-card-actions__inquiry-pill:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--token-card-cta, #1f4d3a) 88%, #000);
+}
+[data-card-style="showcase"] .talent-card-actions__inquiry-pill[data-in-cart="true"] {
+  border-color: transparent;
+  background: #17160f;
+  color: #fff;
+}
+
+/* Cinematic card: solid gold Inquire pill with ink text (02 · Cinematic
+ * canvas), 44px tall; in-lineup inverts to an ink pill with a gold ring. */
+[data-card-style="profile"] .talent-card-actions__inquiry-pill {
+  height: 34px;
+  padding: 0 12px;
+  border-color: transparent;
+  background: var(--dir-accent, #c8a04a);
+  color: #151204;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  backdrop-filter: none;
+}
+[data-card-style="profile"] .talent-card-actions__inquiry-pill:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--dir-accent, #c8a04a) 88%, #fff);
+}
+[data-card-style="profile"] .talent-card-actions__inquiry-pill[data-in-cart="true"] {
+  border-color: var(--dir-accent, #c8a04a);
+  background: rgba(6, 6, 8, 0.7);
+  color: var(--impronta-gold-bright, var(--dir-accent, #c8a04a));
+}
+
+/* Cinematic + Showcase: the favorite / quick-view circles match each canvas
+ * (40px glass ring on the dark card, 40px white disc on the light card). */
+[data-directory-card]:has([data-card-style="profile"]) .talent-card-actions__favorite,
+[data-directory-card]:has([data-card-style="profile"]) [data-card-quick-view] {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(6, 6, 8, 0.42);
+  color: #f3efe6;
+}
+[data-directory-card]:has([data-card-style="showcase"]) .talent-card-actions__favorite,
+[data-directory-card]:has([data-card-style="showcase"]) [data-card-quick-view] {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.92);
+  color: #17160f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+@container (min-width: 280px) {
+  [data-directory-card]:has([data-card-style="profile"]) .talent-card-actions__favorite,
+  [data-directory-card]:has([data-card-style="profile"]) [data-card-quick-view],
+  [data-directory-card]:has([data-card-style="showcase"]) .talent-card-actions__favorite,
+  [data-directory-card]:has([data-card-style="showcase"]) [data-card-quick-view] {
+    width: 40px;
+    height: 40px;
+  }
+  [data-card-style="showcase"] .talent-card-actions__inquiry-pill {
+    height: 40px;
+    padding: 0 16px;
+  }
+  [data-card-style="profile"] .talent-card-actions__inquiry-pill {
+    height: 44px;
+    padding: 0 18px;
+  }
+}
