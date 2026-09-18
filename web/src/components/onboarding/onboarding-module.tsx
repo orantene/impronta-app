@@ -16,10 +16,12 @@ import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { translatorFor } from "@/i18n/use-t";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { initialMachineState, reduceMachine, type MachineErrorCode } from "@/lib/onboarding/machine";
+import type { VisualDirection } from "@/lib/onboarding/module-state";
 import type { ModuleStep, OnboardingIntent } from "@/lib/onboarding/module-state";
 import {
   acceptUnderstoodCard,
-  answerModuleQuestion,
+  saveOnboardingEssentials,
+  saveOnboardingStyle,
   getOnboardingBuildStatus,
   chooseOnboardingPath,
   editUnderstoodFact,
@@ -31,7 +33,7 @@ import {
   submitOnboardingInput,
   understandOnboardingInput,
   type CardResult,
-  type QuestionAnswer,
+  type EssentialsAnswer,
 } from "@/lib/server-actions/onboarding-module";
 import type { OnboardingPath } from "@/lib/onboarding/module-state";
 import { requestOnboardingCode, verifyOnboardingCode } from "@/lib/server-actions/onboarding-account";
@@ -39,7 +41,8 @@ import { requestOnboardingCode, verifyOnboardingCode } from "@/lib/server-action
 import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
 import { ForkStep } from "./steps/fork-step";
-import { QuestionStep, questionsAfterFork } from "./steps/question-steps";
+import { EssentialsStep } from "./steps/essentials-step";
+import { StyleStep } from "./steps/style-step";
 import { ReadingStep } from "./steps/reading-step";
 import { ReadyStep } from "./steps/ready-step";
 import { SaveStep } from "./steps/save-step";
@@ -61,11 +64,19 @@ const STEP_LABEL: Record<ModuleStep, string> = {
   understood: "public.onboarding.chrome.step2",
   fork: "public.onboarding.chrome.step2",
   question: "public.onboarding.chrome.step2",
+  essentials: "public.onboarding.chrome.step2",
+  style: "public.onboarding.chrome.step2",
   readyToBuild: "public.onboarding.chrome.step2",
   save: "public.onboarding.chrome.step3",
   code: "public.onboarding.chrome.step3",
   building: "public.onboarding.chrome.step4",
   arrival: "public.onboarding.chrome.step5",
+};
+
+/** Progress across the whole journey, for the thin bar under the header. */
+const STEP_PROGRESS: Record<ModuleStep, number> = {
+  entry: 8, listening: 8, confirmWords: 12, tooLittle: 12, reading: 20, understood: 32, fork: 36, question: 45, essentials: 45,
+  style: 58, readyToBuild: 66, save: 74, code: 80, building: 90, arrival: 100,
 };
 
 /** Reading ceiling: the model call is capped at 20 s server-side, plus retry and failover; past this the short form takes over. */
@@ -269,12 +280,23 @@ export function OnboardingModule({
     } else dispatch({ type: "cardFailed", code: "save_failed" });
   }, []);
 
-  const answer = useCallback(async (a: QuestionAnswer) => {
+  const saveEssentials = useCallback(async (a: EssentialsAnswer) => {
     dispatch({ type: "sendStarted" });
-    const r = await answerModuleQuestion({ answer: a, questionIndex: state.questionIndex });
-    if (r.ok) dispatch({ type: "questionAnswered", understanding: r.card.understanding, chip: r.card.chip });
-    else dispatch({ type: "cardFailed", code: r.code === "invalid_whatsapp" ? "invalid_whatsapp" : "save_failed" });
-  }, [state.questionIndex]);
+    const r = await saveOnboardingEssentials(a);
+    if (r.ok) {
+      dispatch({ type: "essentialsSaved", understanding: r.card.understanding, chip: r.card.chip });
+    } else {
+      const code: MachineErrorCode = r.code === "invalid_whatsapp" || r.code === "missing_required" ? r.code : "save_failed";
+      dispatch({ type: "cardFailed", code });
+    }
+  }, []);
+
+  const chooseStyle = useCallback(async (direction: VisualDirection, notes: string | null) => {
+    dispatch({ type: "sendStarted" });
+    const r = await saveOnboardingStyle({ direction, notes });
+    if (r.ok) dispatch({ type: "styleSaved", direction });
+    else dispatch({ type: "cardFailed", code: "save_failed" });
+  }, []);
 
   // Phase 4 · account. Signed-in people never see the save step.
   const path: OnboardingPath = state.understanding?.path ?? "talent";
@@ -358,8 +380,7 @@ export function OnboardingModule({
   }, []);
 
   const stepLabel = t(STEP_LABEL[state.step]);
-  const showBack = state.step === "confirmWords" || state.step === "tooLittle" || state.step === "fork" || state.step === "question" || state.step === "readyToBuild" || state.step === "save";
-  const questions = questionsAfterFork(state.followUps);
+  const showBack = state.step === "confirmWords" || state.step === "tooLittle" || state.step === "fork" || state.step === "essentials" || state.step === "style" || state.step === "readyToBuild" || state.step === "save";
 
   let body: React.ReactNode;
   if (state.resume) {
@@ -379,6 +400,7 @@ export function OnboardingModule({
       <EntryStep
         locale={locale}
         t={t}
+        intent={state.intent}
         text={state.text}
         onText={(text) => dispatch({ type: "textChanged", text })}
         onDictation={(on) => dispatch({ type: "dictation", on })}
@@ -414,8 +436,8 @@ export function OnboardingModule({
           const r = await editUnderstoodFact({ factKey, value });
           applyCard(r, { step: "understood" });
         }}
-        onAskMe={(questionId) => {
-          void accept().then(() => dispatch({ type: "jumpToQuestion", questionId }));
+        onAskMe={() => {
+          void accept();
         }}
         onAccept={() => void accept()}
         onChangePath={() => dispatch({ type: "toStep", step: "fork" })}
@@ -423,25 +445,25 @@ export function OnboardingModule({
     );
   } else if (state.step === "fork") {
     body = <ForkStep t={t} busy={state.busy} onChoose={(path) => void choosePath(path)} />;
-  } else if (state.step === "question" && state.understanding && questions[state.questionIndex]) {
+  } else if ((state.step === "essentials" || state.step === "question") && state.understanding) {
     body = (
-      <QuestionStep
+      <EssentialsStep
         t={t}
         locale={locale}
-        questionId={questions[state.questionIndex]}
-        index={state.questionIndex}
-        total={questions.length}
         understanding={state.understanding}
         chip={state.chip}
         busy={state.busy}
-        error={state.error}
-        onAnswer={(a) => void answer(a)}
-        onSkip={() => {
-          dispatch({ type: "questionSkipped" });
-          void saveOnboardingStep({ step: state.questionIndex + 1 < questions.length ? "question" : "readyToBuild" });
-        }}
+        error={
+          state.error === "invalid_whatsapp" ? t("public.onboarding.errors.invalidWhatsapp")
+          : state.error === "missing_required" ? t("public.onboarding.essentials.missingRequired")
+          : state.error === "save_failed" ? t("public.onboarding.errors.saveFailed")
+          : null
+        }
+        onSave={(a) => void saveEssentials(a)}
       />
     );
+  } else if (state.step === "style") {
+    body = <StyleStep t={t} initial={state.styleChoice} busy={state.busy} onChoose={(d, notes) => void chooseStyle(d, notes)} />;
   } else if (state.step === "readyToBuild" && state.understanding) {
     body = (
       <ReadyStep
@@ -541,9 +563,8 @@ export function OnboardingModule({
                   <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 3L5 8l5 5" /></svg>
                 </button>
               ) : null}
-              <span className="text-[0.75rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }} data-testid="onb-step-label">
-                {stepLabel}
-              </span>
+              <span className="font-display text-[1.25rem] font-semibold tracking-[-0.02em]" style={{ color: "var(--tl-ink)" }} aria-hidden>tulala.</span>
+              <span className="sr-only" data-testid="onb-step-label">{stepLabel}</span>
             </div>
             <div className="flex items-center gap-2">
               <span
@@ -566,6 +587,9 @@ export function OnboardingModule({
                 <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 2l10 10M12 2L2 12" /></svg>
               </button>
             </div>
+          </div>
+          <div className="mx-4 mb-1 h-1 overflow-hidden rounded-full sm:mx-6" style={{ background: "var(--tl-stone-soft)" }} aria-hidden data-testid="onb-progress-bar">
+            <div className="h-full rounded-full transition-[width] duration-500 ease-out" style={{ width: `${STEP_PROGRESS[state.step]}%`, background: "var(--tl-forest)" }} />
           </div>
           <div className="flex-1 overflow-y-auto px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pb-8">{body}</div>
         </div>

@@ -53,8 +53,8 @@ export function UnderstoodStep({
 }) {
   const [editing, setEditing] = useState<UnderstoodLine | null>(null);
   const [draft, setDraft] = useState("");
-  const n = understanding.followUps.filter((q) => q !== "fork").length + (understanding.followUps.includes("fork") ? 1 : 0);
-  const cta = n === 0 ? t("public.onboarding.understood.looksRight") : (n === 1 ? t("public.onboarding.understood.looksRightN") : t("public.onboarding.understood.looksRightNs")).replace("{n}", String(n));
+  // One essentials screen follows whatever is missing, so the button says the same thing every time.
+  const cta = t("public.onboarding.understood.looksGood");
   const pathKey = `public.onboarding.understood.path.${understanding.path}` as const;
 
   const errorText =
@@ -103,16 +103,23 @@ export function UnderstoodStep({
                 type="button"
                 onClick={onTap}
                 disabled={!editable}
-                className="flex w-full items-start justify-between gap-3 rounded-[14px] px-3 py-2.5 text-left"
+                className="flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left"
                 style={{ background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)" }}
               >
-                <span className="min-w-0">
+                <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full" style={{ background: "var(--tl-stone-soft)", color: "var(--tl-ink)" }}>
+                  <LineIcon id={line.id} />
+                </span>
+                <span className="min-w-0 flex-1">
                   <span className="block text-[0.6875rem] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--tl-muted)" }}>{t(line.labelKey)}</span>
                   <span className="block truncate text-[0.9375rem]" style={{ color: line.value ? "var(--tl-ink)" : "var(--tl-muted-soft)" }}>
-                    {line.value ?? (line.status === "later" ? "" : "…")}
+                    {line.value ?? (line.status === "later" ? t("public.onboarding.understood.laterValue") : t("public.onboarding.understood.missingValue"))}
                   </span>
                 </span>
-                <StatusChip t={t} status={line.status} />
+                {line.status === "known" ? (
+                  <span aria-hidden className="shrink-0 text-[0.875rem]" style={{ color: "var(--tl-muted)" }}>✎</span>
+                ) : (
+                  <StatusChip t={t} status={line.status} />
+                )}
               </button>
             </li>
           );
@@ -121,8 +128,9 @@ export function UnderstoodStep({
 
       {errorText ? <Notice tone={error === "ai_off" ? "warn" : "error"} testId="onb-error">{errorText}</Notice> : null}
 
-      <div className="mt-5">
+      <div className="mt-5 flex flex-col gap-2">
         <PrimaryButton onClick={onAccept} disabled={busy} testId="onb-accept">{cta}</PrimaryButton>
+        <p className="text-center text-[0.8125rem]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.understood.editHint")}</p>
       </div>
 
       {editing ? (
@@ -159,6 +167,22 @@ export function UnderstoodStep({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** One glyph per line id; a shape, not a brand asset, so it needs no locale. */
+function LineIcon({ id }: { id: string }) {
+  const d =
+    id === "businessName" || id === "name" ? "M4 20a8 8 0 0116 0M12 12a4 4 0 100-8 4 4 0 000 8z"
+    : id === "kind" || id === "what" ? "M4 7h16M4 12h10M4 17h7"
+    : id === "city" ? "M12 21s-6-5.3-6-11a6 6 0 1112 0c0 5.7-6 11-6 11zM12 10a2 2 0 100-4 2 2 0 000 4z"
+    : id === "services" || id === "offer" ? "M5 12l4 4L19 6"
+    : id === "hours" ? "M12 8v4l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+    : id === "whatsapp" ? "M5 4h4l2 5-2 1a11 11 0 005 5l1-2 5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"
+    : id === "logo" ? "M4 4h16v16H4zM8 14l3-3 3 3 2-2 4 4"
+    : "M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z";
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
   );
 }
 

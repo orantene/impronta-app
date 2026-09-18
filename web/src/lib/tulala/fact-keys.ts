@@ -423,6 +423,21 @@ export const FACT_KEYS: readonly FactKeyDef[] = [
     label: "Visual direction",
     allowed: ["editorial", "service", "result", "lifestyle", "minimal"],
   },
+  // The style tile picked in onboarding (2026-09-17): the Look the composer
+  // starts from. Distinct from visual_direction, which is the imagery brief.
+  {
+    key: "brand.style",
+    type: "string",
+    category: "brand",
+    label: "Style",
+    allowed: ["natural", "modern", "minimal", "vibrant"],
+  },
+  {
+    key: "brand.style_notes",
+    type: "string",
+    category: "brand",
+    label: "Style notes",
+  },
   {
     key: "menu.categories",
     type: "string_list",

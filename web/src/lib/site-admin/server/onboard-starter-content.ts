@@ -47,6 +47,7 @@ import {
 import { resolveSignupStarterTreeForOnboard } from "./signup-ai-draft-serve";
 import { composeSiteFromBrief } from "@/lib/site-admin/builder-core/site-templates/compose-site-from-brief.server";
 import { loadBriefForTenant } from "@/lib/tulala/brief-store-tenant.server";
+import { isVisualDirection, LOOK_BY_DIRECTION } from "@/lib/onboarding/module-state";
 import { buildFreeStarterEntries } from "./onboard-starter-content-entries";
 import type { StarterAudience } from "./onboard-starter-content-entries";
 import { ensureDirectoryPageIfRosterActive } from "./onboard-directory-page";
@@ -696,9 +697,13 @@ export async function onboardStarterContent(
       try {
         const brief = await loadBriefForTenant({ tenantId: input.tenantId });
         if (brief) {
+          // The style tile the person picked in onboarding (brand.visual_direction)
+          // chooses the starting Look; absent, the family default applies as before.
+          const direction = brief.facts.find((f) => f.factKey === "brand.style" && f.status !== "rejected")?.value;
           const composed = await composeSiteFromBrief({
             tenantId: input.tenantId,
             briefId: brief.id,
+            lookId: isVisualDirection(direction) ? LOOK_BY_DIRECTION[direction] : null,
             locale: locale === "en" ? "en" : "es",
             actorProfileId,
             publish: true,

@@ -25,6 +25,7 @@ import type { OnboardingIntent } from "@/lib/onboarding/module-state";
 import { TALENT_MODAL_EVENT } from "@/components/marketing/talent-register-modal";
 
 import { ONBOARDING_MODULE_EVENT, type OnboardingModuleEventDetail } from "./onboarding-events";
+import { intentFromStartParam, START_PARAM } from "@/lib/onboarding/front-door";
 import { OnboardingModule, SavedToast } from "./onboarding-module";
 
 const GET_STARTED_PATH = "/get-started";
@@ -68,6 +69,16 @@ export function OnboardingModuleHost({ locale }: { locale: "en" | "es" }) {
     window.addEventListener(ONBOARDING_MODULE_EVENT, onModuleEvent);
     window.addEventListener(TALENT_MODAL_EVENT, onTalentEvent);
     document.addEventListener("click", onClick, true);
+    // One front door: an old route redirected here with `?start=`; open at
+    // once and drop the param so a reload or a share does not reopen it.
+    const params = new URLSearchParams(window.location.search);
+    const startIntent = intentFromStartParam(params.get(START_PARAM));
+    if (startIntent) {
+      params.delete(START_PARAM);
+      const rest = params.toString();
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`);
+      openWith(startIntent);
+    }
     // Hydration marker: a CTA clicked before this effect ran would navigate or
     // do nothing. Specs wait for it; nothing else reads it.
     document.documentElement.setAttribute("data-onboarding-ready", "1");
