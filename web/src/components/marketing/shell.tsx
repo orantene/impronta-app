@@ -133,7 +133,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       {/* Records the campaign that earned this visit, once, before the
           visitor navigates deeper and the query string disappears. */}
       <AttributionCapture />
-      <main className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">{children}</main>
+      <main className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">{children}</main>
       <MarketingFooter />
       <MarketingSupportLauncherMount />
       <MarketingModalHost locale={locale} onboardingModule={onboardingFlags.onboarding_module_enabled} />
