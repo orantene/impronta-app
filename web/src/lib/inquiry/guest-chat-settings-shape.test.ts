@@ -75,7 +75,16 @@ describe("mapGuestChatSettingsRow — show_on_home", () => {
       showOnDirectory: false,
       showOnHome: false,
       greeting: "Hi there",
+      itemsTab: true,
+      cardsV5: false,
     });
+  });
+
+  it("L13: the Items tab fails open, the v5 cards are opt-in", () => {
+    assert.equal(mapGuestChatSettingsRow({ items_tab: null }).itemsTab, true);
+    assert.equal(mapGuestChatSettingsRow({ items_tab: false }).itemsTab, false);
+    assert.equal(mapGuestChatSettingsRow({ cards_v5: null }).cardsV5, false);
+    assert.equal(mapGuestChatSettingsRow({ cards_v5: true }).cardsV5, true);
   });
 
   it("trims a blank greeting to null", () => {

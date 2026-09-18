@@ -29,6 +29,10 @@ export type GuestDockNavProps = {
   t: Translator;
   /** Live inquiry-lineup size (cart). 0 hides the badge. */
   lineupCount?: number;
+  /** L13: tenant switch, show the Items (lineup) tab. Default on. */
+  itemsTab?: boolean;
+  /** L13: per-business label for the Items tab; null → the i18n default. */
+  itemsLabel?: string | null;
   /** Live project (inquiry) count. 0 hides the badge. */
   projectsCount?: number;
 };
@@ -52,9 +56,17 @@ export function GuestDockNav({
   t,
   lineupCount = 0,
   projectsCount = 0,
+  itemsTab = true,
+  itemsLabel = null,
 }: GuestDockNavProps) {
   const countFor = (view: GuestDockView): number =>
     view === "lineup" ? lineupCount : view === "projects" ? projectsCount : 0;
+  // L13: the Lineup tab is the Items tab, labelled per business (Talent &
+  // services / Your order / Tickets & tables / Services / Items) and hidden
+  // when the tenant switched it off.
+  const tabs = itemsTab ? TABS : TABS.filter((tab) => tab.view !== "lineup");
+  const labelFor = (view: GuestDockView, labelKey: string): string =>
+    view === "lineup" && itemsLabel ? itemsLabel : t(labelKey);
 
   return (
     <div
@@ -69,7 +81,7 @@ export function GuestDockNav({
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {TABS.map(({ view, labelKey, Icon }) => {
+      {tabs.map(({ view, labelKey, Icon }) => {
         const isActive = view === active;
         const count = countFor(view);
         return (
@@ -78,7 +90,7 @@ export function GuestDockNav({
             type="button"
             role="tab"
             aria-selected={isActive}
-            aria-label={t(labelKey)}
+            aria-label={labelFor(view, labelKey)}
             onClick={() => {
               if (!isActive) onChange(view);
             }}
@@ -140,7 +152,7 @@ export function GuestDockNav({
                 whiteSpace: "nowrap",
               }}
             >
-              {t(labelKey)}
+              {labelFor(view, labelKey)}
             </span>
           </button>
         );

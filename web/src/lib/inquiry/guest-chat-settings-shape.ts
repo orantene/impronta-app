@@ -22,6 +22,14 @@ export type GuestChatSettings = {
   showOnHome: boolean;
   /** Optional custom opener line; null → the built-in brand-voiced greeting. */
   greeting: string | null;
+  /** L13: the dock shows its Items tab (Lineup renamed, labelled per business). Default on. */
+  itemsTab: boolean;
+  /**
+   * L13: the dock draws the Messages v5 client cards (choices, times, offer,
+   * payment, confirmed, change). OPT-IN: null/false keeps the legacy bubbles
+   * until QA passes (owner decision 10); only an explicit true turns it on.
+   */
+  cardsV5: boolean;
 };
 
 /** All-on default — preserves the pre-settings behavior + the directory rollout. */
@@ -31,6 +39,8 @@ export const GUEST_CHAT_DEFAULTS: GuestChatSettings = {
   showOnDirectory: true,
   showOnHome: true,
   greeting: null,
+  itemsTab: true,
+  cardsV5: false,
 };
 
 /** Raw column shape as read from `tenant_guest_chat_settings` (all optional/nullable). */
@@ -40,6 +50,8 @@ export type GuestChatSettingsRow = {
   show_on_directory?: boolean | null;
   show_on_home?: boolean | null;
   greeting?: string | null;
+  items_tab?: boolean | null;
+  cards_v5?: boolean | null;
 };
 
 /**
@@ -61,5 +73,7 @@ export function mapGuestChatSettingsRow(
     showOnDirectory: row.show_on_directory !== false,
     showOnHome: row.show_on_home !== false,
     greeting,
+    itemsTab: row.items_tab !== false,
+    cardsV5: row.cards_v5 === true,
   };
 }

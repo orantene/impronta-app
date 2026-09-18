@@ -35,6 +35,9 @@ export function GuestChatSettingsDrawer() {
   const [showOnTalent, setShowOnTalent] = useState(true);
   const [showOnDirectory, setShowOnDirectory] = useState(true);
   const [showOnHome, setShowOnHome] = useState(true);
+  // L13: what the dock does once it is open, tenant-wide.
+  const [itemsTab, setItemsTab] = useState(true);
+  const [cardsV5, setCardsV5] = useState(false);
   const [greeting, setGreeting] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(!!tenantSlug);
@@ -52,6 +55,8 @@ export function GuestChatSettingsDrawer() {
           setShowOnTalent(res.data.showOnTalent);
           setShowOnDirectory(res.data.showOnDirectory);
           setShowOnHome(res.data.showOnHome);
+          setItemsTab(res.data.itemsTab);
+          setCardsV5(res.data.cardsV5);
           setGreeting(res.data.greeting ?? "");
         }
       } finally {
@@ -74,6 +79,8 @@ export function GuestChatSettingsDrawer() {
         showOnTalent,
         showOnDirectory,
         showOnHome,
+        itemsTab,
+        cardsV5,
         greeting: greeting.trim() ? greeting.trim() : null,
       });
       if (!result.ok) {
@@ -150,6 +157,27 @@ export function GuestChatSettingsDrawer() {
               {copy.t("Guest chat is on, but no surface is selected. Pick at least one place for it to appear, or turn it off above.")}
             </p>
           )}
+        </Section>
+      )}
+
+      {enabled && (
+        <Section
+          title={copy.t("Inside the chat")}
+          description={copy.t("What visitors can do once the chat is open. Applies to every public page.")}
+          framed
+        >
+          <FieldRow
+            label={copy.t("Items tab")}
+            hint={copy.t("Visitors collect what they want to ask about (talent, services, a table, tickets) before sending. The tab is named after what you sell; change the word under Settings, Words.")}
+          >
+            <ToggleControl value={itemsTab} onChange={setItemsTab} label="" />
+          </FieldRow>
+          <FieldRow
+            label={copy.t("Offer, payment and booking cards (beta)")}
+            hint={copy.t("The choices, offer, payment and confirmation cards your team sends from Messages appear in the chat as cards visitors can act on. Off keeps plain messages.")}
+          >
+            <ToggleControl value={cardsV5} onChange={setCardsV5} label="" />
+          </FieldRow>
         </Section>
       )}
 

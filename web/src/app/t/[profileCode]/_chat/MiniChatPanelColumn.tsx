@@ -783,6 +783,8 @@ export function MiniChatPanelColumn({
           t={t}
           lineupCount={cartTalentNames.length}
           projectsCount={inquiries.length}
+          itemsTab={brand.dockItemsTab !== false}
+          itemsLabel={brand.dockItemsLabel ?? null}
         />
       )}
     </>

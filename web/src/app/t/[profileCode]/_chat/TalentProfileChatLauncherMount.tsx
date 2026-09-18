@@ -27,6 +27,7 @@
  * (house rule) — the accent is the tenant's own brand color or a neutral fallback.
  */
 
+import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
@@ -125,6 +126,8 @@ export async function TalentProfileChatLauncherMount({
   if (tenantId && (await isEditModeActiveForTenant(tenantId))) return null;
 
   const t = createTranslator(locale ?? "en");
+  // L13: the tenant-wide dock switches + the per-business Items label.
+  const dockFlags = await loadGuestDockFlags(tenantId, locale);
 
   // Returning-guest resume (B1): reopen the live thread from the cookie instead
   // of starting fresh. Always { active } | failure; any failure → fresh start.
@@ -186,6 +189,7 @@ export async function TalentProfileChatLauncherMount({
       talentProfileCode={talentProfileCode}
       sourcePage={sourcePage}
       brand={{
+        ...dockFlags,
         agencyName,
         talentDisplayName,
         accentColor,

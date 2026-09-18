@@ -17893,6 +17893,8 @@ export type Database = {
           guest_conversation_limit: number
           show_on_directory: boolean
           show_on_home: boolean
+          items_tab: boolean | null
+          cards_v5: boolean | null
           show_on_talent: boolean
           tenant_id: string
           updated_at: string
@@ -17907,6 +17909,8 @@ export type Database = {
           guest_conversation_limit?: number
           show_on_directory?: boolean
           show_on_home?: boolean
+          items_tab?: boolean | null
+          cards_v5?: boolean | null
           show_on_talent?: boolean
           tenant_id: string
           updated_at?: string
@@ -17921,6 +17925,8 @@ export type Database = {
           guest_conversation_limit?: number
           show_on_directory?: boolean
           show_on_home?: boolean
+          items_tab?: boolean | null
+          cards_v5?: boolean | null
           show_on_talent?: boolean
           tenant_id?: string
           updated_at?: string
