@@ -167,23 +167,25 @@ export function OfferEditorView(props: OfferEditorViewProps) {
   const { phase, copy, variant, onClose, refusalCode, draft, clientName } = props;
   const c = copy.kit.offer;
   const sheetVariant = variant === "mobile" ? "mobile-full" : "desktop";
-  const title = draft ? `${copy.kit.offer.editorTitle.replace("v{version}", `v${draft.version}`).replace("{name}", clientName)}` : c.editorTitle;
-
-  if (phase === "loading" || !draft) {
-    return (
-      <Sheet open title={title} copy={copy.kit} onClose={onClose} variant={sheetVariant} width={560} labelledBy="msgv5-offer-editor-title">
-        <div data-offer-editor-phase="loading">
-          <Skeleton rows={4} variant={variant} copy={copy.kit} />
-        </div>
-      </Sheet>
-    );
-  }
+  const title = draft
+    ? `${copy.kit.offer.editorTitle.replace("v{version}", `v${draft.version}`).replace("{name}", clientName)}`
+    : copy.kit.offer.editorTitle.replace("v{version}", "").replace(" · {name}", clientName ? ` · ${clientName}` : "").replace("{name}", clientName ?? "").trim();
 
   if (phase === "refused" && refusalCode) {
     return (
       <Sheet open title={title} copy={copy.kit} onClose={onClose} variant={sheetVariant} width={560} labelledBy="msgv5-offer-editor-title">
         <div data-offer-editor-phase="refused">
           <RefusalLine code={refusalCode} copy={copy.kit} variant={variant} action={props.onRetry ? { label: copy.shell.tryAgain, onClick: props.onRetry } : undefined} />
+        </div>
+      </Sheet>
+    );
+  }
+
+  if (phase === "loading" || !draft) {
+    return (
+      <Sheet open title={title} copy={copy.kit} onClose={onClose} variant={sheetVariant} width={560} labelledBy="msgv5-offer-editor-title">
+        <div data-offer-editor-phase="loading">
+          <Skeleton rows={4} variant={variant} copy={copy.kit} />
         </div>
       </Sheet>
     );

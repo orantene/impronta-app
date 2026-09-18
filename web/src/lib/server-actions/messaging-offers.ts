@@ -57,11 +57,16 @@ export async function messagingCreateOffer(input: { inquiryId: string; expectedV
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, expectedVersion: version, currencyCode: z.string().length(3).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  // Creating the draft is the operator's own move on a thread they are
+  // looking at: the version guard reads the row now instead of trusting a
+  // number the sheet captured before the picker linked the shared draft.
+  const { data: fresh } = await scoped(g.admin, "inquiries", g.tenantId).select("version").eq("id", parsed.data.inquiryId).maybeSingle();
+  const currentVersion = Number((fresh as { version?: number } | null)?.version ?? parsed.data.expectedVersion);
   const result = await createOffer(g.supabase, {
     inquiryId: parsed.data.inquiryId,
     tenantId: g.tenantId,
     actorUserId: g.userId,
-    expectedVersion: parsed.data.expectedVersion,
+    expectedVersion: currentVersion,
     currencyCode: parsed.data.currencyCode ?? "USD",
   });
   if (!result.success) return offerEngineFail(result);
