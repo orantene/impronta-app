@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
 type PortfolioItem = {
@@ -74,6 +74,19 @@ function WatermarkOverlay({
   );
 }
 
+/**
+ * Editorial layout hook (Noir). `items` is split into consecutive runs; each
+ * run renders as its own <ul> with the given class, and `after` (a
+ * server-rendered node) is placed between runs. One lightbox spans them all,
+ * so arrow keys walk the whole portfolio in display order. Without
+ * `sections` the classic 2/3-column grid renders exactly as before.
+ */
+export type PortfolioLayoutSection = {
+  count: number;
+  listClassName: string;
+  after?: React.ReactNode;
+};
+
 export function PortfolioGalleryLightbox({
   name,
   items,
@@ -81,6 +94,8 @@ export function PortfolioGalleryLightbox({
   closeLabel,
   watermarkPreset,
   watermarkLogoUrl,
+  sections,
+  tileClassName,
 }: {
   name: string;
   items: PortfolioItem[];
@@ -88,6 +103,9 @@ export function PortfolioGalleryLightbox({
   closeLabel: string;
   watermarkPreset?: WatermarkPreset | null;
   watermarkLogoUrl?: string | null;
+  sections?: PortfolioLayoutSection[];
+  /** Replaces the classic tile button classes when `sections` is used. */
+  tileClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
@@ -96,6 +114,34 @@ export function PortfolioGalleryLightbox({
 
   const count = items.length;
   const active = items[index] ?? null;
+
+  // Split into consecutive runs (one per layout section); the classic grid is
+  // a single run carrying its own classes.
+  const runs = useMemo(() => {
+    const indexed = items.map((item, index) => ({ item, index }));
+    if (!sections || sections.length === 0) {
+      return [
+        {
+          listClassName: "mt-6 grid list-none grid-cols-2 gap-3 sm:grid-cols-3",
+          items: indexed,
+          after: null as React.ReactNode,
+        },
+      ];
+    }
+    const out: { listClassName: string; items: typeof indexed; after: React.ReactNode }[] = [];
+    let cursor = 0;
+    for (const s of sections) {
+      const slice = indexed.slice(cursor, cursor + s.count);
+      cursor += s.count;
+      if (slice.length === 0 && !s.after) continue;
+      out.push({ listClassName: s.listClassName, items: slice, after: s.after ?? null });
+    }
+    if (cursor < indexed.length) {
+      const last = out[out.length - 1];
+      if (last) last.items = last.items.concat(indexed.slice(cursor));
+    }
+    return out;
+  }, [items, sections]);
 
   const aspect = useMemo(() => {
     if (!active?.width || !active?.height) return 4 / 3;
@@ -135,39 +181,54 @@ export function PortfolioGalleryLightbox({
 
   return (
     <>
-      <ul className="mt-6 grid list-none grid-cols-2 gap-3 sm:grid-cols-3">
-        {items.map((m, i) => {
-          const a = m.width && m.height ? m.width / m.height : 3 / 4;
-          const isPortrait = a < 1;
-          return (
-            <li
-              key={m.id}
-              className={isPortrait ? "col-span-1 row-span-2" : "col-span-1 row-span-1"}
-            >
-              <button
-                type="button"
-                onClick={() => onOpen(i)}
-                className="group relative block w-full overflow-hidden rounded bg-[var(--impronta-surface)] text-left outline-none ring-offset-2 ring-offset-[var(--impronta-black)] focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/60"
-                style={{ aspectRatio: isPortrait ? "3/4" : "4/3" }}
-                aria-label={`Open ${name} portfolio image ${i + 1} of ${count}`}
-              >
-                <Image
-                  src={m.url}
-                  alt={`${name} — portfolio image ${i + 1}`}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  priority={i < 3}
-                />
-                <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/20" />
-                {watermarkPreset?.enabled && watermarkLogoUrl ? (
-                  <WatermarkOverlay logoUrl={watermarkLogoUrl} preset={watermarkPreset} />
-                ) : null}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      {runs.map((run, r) => (
+        <Fragment key={r}>
+          <ul className={run.listClassName}>
+            {run.items.map(({ item: m, index: i }) => {
+              const a = m.width && m.height ? m.width / m.height : 3 / 4;
+              const isPortrait = a < 1;
+              return (
+                <li
+                  key={m.id}
+                  data-orientation={isPortrait ? "portrait" : "landscape"}
+                  className={
+                    sections
+                      ? undefined
+                      : isPortrait
+                        ? "col-span-1 row-span-2"
+                        : "col-span-1 row-span-1"
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={() => onOpen(i)}
+                    className={
+                      tileClassName ??
+                      "group relative block w-full overflow-hidden rounded bg-[var(--impronta-surface)] text-left outline-none ring-offset-2 ring-offset-[var(--impronta-black)] focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/60"
+                    }
+                    style={sections ? undefined : { aspectRatio: isPortrait ? "3/4" : "4/3" }}
+                    aria-label={`Open ${name} portfolio image ${i + 1} of ${count}`}
+                  >
+                    <Image
+                      src={m.url}
+                      alt={`${name} — portfolio image ${i + 1}`}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      priority={i < 3}
+                    />
+                    <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/20" />
+                    {watermarkPreset?.enabled && watermarkLogoUrl ? (
+                      <WatermarkOverlay logoUrl={watermarkLogoUrl} preset={watermarkPreset} />
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {run.after}
+        </Fragment>
+      ))}
 
       {open && active ? (
         <div

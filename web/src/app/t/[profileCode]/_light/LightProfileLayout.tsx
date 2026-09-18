@@ -218,6 +218,12 @@ export type LightProfileLayoutProps = {
   tenantSlug: string;
   /** Platform host renders MarketingFooter outside the layout → suppress the in-layout footer. */
   showFooter: boolean;
+  /**
+   * Render surface. "modal" = the directory quick-open overlay (a scrolling
+   * dialog panel, its own close/open-full-page chrome). Templates that
+   * compose differently per surface read it; the classic layout ignores it.
+   */
+  variant?: "page" | "modal";
 
   // ── Tenant theme (for theme-adaptive templates: Lumen / Atelier) ─────────
   /** Light/dark register derived from the tenant's background.mode design token. */
