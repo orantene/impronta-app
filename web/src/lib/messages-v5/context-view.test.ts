@@ -148,7 +148,7 @@ test("itemFlagsFor: proposedBy/confirmed pass through; 'system' collapses to nul
 
 test("itemFlagsFor: a drift stamps the catalog-now price; no drift leaves priceSnapshot null", () => {
   const drifted = itemFlagsFor({ proposedBy: "staff", proposedByName: null, confirmedAt: null, drift: { drifted: true, catalogNowCents: 1250 } });
-  assert.equal(drifted.priceSnapshot, "$12.5");
+  assert.equal(drifted.priceSnapshot, "$12.50");
 
   const flat = itemFlagsFor({ proposedBy: "staff", proposedByName: null, confirmedAt: null, drift: { drifted: false, catalogNowCents: 1200 } });
   assert.equal(flat.priceSnapshot, null);

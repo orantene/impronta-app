@@ -79,10 +79,13 @@ export function calculateTransactionAmountsForBasisPoints(
  * for a specific locale.
  */
 export function formatCents(cents: number, currency: string, locale?: string): string {
+  // Whole amounts stay short ("$18"); anything with cents shows both digits
+  // ("$6.50", never "$6.5").
+  const whole = Number.isInteger(cents) && cents % 100 === 0;
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: currency || "USD",
-    minimumFractionDigits: 0,
+    minimumFractionDigits: whole ? 0 : 2,
     maximumFractionDigits: 2,
   }).format(cents / 100);
 }
