@@ -18240,7 +18240,7 @@
         "send": "Enviar oferta",
         "sending": "Enviando oferta",
         "editorTitle": "Oferta v{version} · {name}",
-        "addLine": "+ Añadir línea",
+        "addLine": "Añadir línea",
         "addLineCatalog": "Añadir del catálogo",
         "customLineLabel": "Nombre de la línea",
         "customLineAdd": "Añadir línea",

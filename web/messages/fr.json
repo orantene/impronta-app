@@ -7217,7 +7217,7 @@
         "send": "Envoyer l'offre",
         "sending": "Envoi de l'offre",
         "editorTitle": "Offre v{version} · {name}",
-        "addLine": "+ Ajouter une ligne",
+        "addLine": "Ajouter une ligne",
         "addLineCatalog": "Ajouter depuis le catalogue",
         "customLineLabel": "Nom de la ligne",
         "customLineAdd": "Ajouter la ligne",

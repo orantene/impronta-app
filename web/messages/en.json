@@ -18240,7 +18240,7 @@
         "send": "Send offer",
         "sending": "Sending offer",
         "editorTitle": "Offer v{version} · {name}",
-        "addLine": "+ Add line",
+        "addLine": "Add line",
         "addLineCatalog": "Add from catalog",
         "customLineLabel": "Line name",
         "customLineAdd": "Add line",

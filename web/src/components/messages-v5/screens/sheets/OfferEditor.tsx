@@ -432,7 +432,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
         <section className="pn-sec" data-offer-preview>
           <h4>{c.previewTitle}</h4>
           <OfferCard
-            title={c.editorTitle}
+            title={title}
             state={offerCardStateFor(draft.status)}
             version={draft.version}
             forName={clientName}

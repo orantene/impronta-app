@@ -64,7 +64,51 @@ export async function messagingCreateOffer(input: { inquiryId: string; expectedV
     currencyCode: parsed.data.currencyCode ?? "USD",
   });
   if (!result.success) return offerEngineFail(result);
-  return { ok: true as const, offerId: result.data?.offerId ?? "" };
+  const offerId = result.data?.offerId ?? "";
+  if (offerId) await seedOfferFromSharedDraft(g, parsed.data.inquiryId, offerId);
+  return { ok: true as const, offerId };
+}
+
+/**
+ * A new offer starts from the conversation's shared draft (the lines the
+ * picker / the client link added to the `messages` draft order), so
+ * "Add items → Continue to offer" opens an editor that already prices them.
+ * Nothing to copy, or a failed copy, leaves the empty offer as before.
+ */
+async function seedOfferFromSharedDraft(g: Extract<Awaited<ReturnType<typeof staff>>, { ok: true }>, inquiryId: string, offerId: string) {
+  const { data: order } = await scoped(g.admin, "orders", g.tenantId)
+    .select("id, currency")
+    .eq("inquiry_id", inquiryId)
+    .eq("status", "draft")
+    .eq("source_channel", "messages")
+    .maybeSingle();
+  const o = order as { id: string; currency: string | null } | null;
+  if (!o) return;
+  const { data: rows } = await scoped(g.admin, "order_lines", g.tenantId).select("label, units, unit_cents, talent_profile_id").eq("order_id", o.id);
+  const lines = ((rows ?? []) as Array<{ label: string | null; units: number | null; unit_cents: number | null; talent_profile_id: string | null }>).filter((l) => (l.units ?? 0) > 0);
+  if (lines.length === 0) return;
+  const { data: inquiry } = await scoped(g.admin, "inquiries", g.tenantId).select("version").eq("id", inquiryId).maybeSingle();
+  const draft = await loadOfferForEditor(g.admin, { tenantId: g.tenantId, inquiryId, offerId, inquiryExpectedVersion: Number((inquiry as { version?: number } | null)?.version ?? 1) });
+  if (!draft || draft.lines.length > 0) return;
+  const lineItems: OfferLineDraft[] = lines.map((l, i) => {
+    const units = Number(l.units ?? 1);
+    const unit = Number(l.unit_cents ?? 0) / 100;
+    return { talent_profile_id: l.talent_profile_id, owner_tenant_id: l.talent_profile_id ? null : g.tenantId, label: l.label ?? "Item", pricing_unit: "custom", units, unit_price: unit, total_price: unit * units, talent_cost: 0, notes: null, sort_order: i, proposed_by: "staff" };
+  });
+  const total = lineItems.reduce((sum, l) => sum + l.total_price, 0);
+  await updateOfferDraft(g.supabase, {
+    inquiryId,
+    tenantId: g.tenantId,
+    offerId,
+    actorUserId: g.userId,
+    inquiryExpectedVersion: draft.inquiryExpectedVersion,
+    offerExpectedVersion: draft.version,
+    total_client_price: total,
+    coordinator_fee: 0,
+    currency_code: draft.currencyCode || o.currency || "USD",
+    notes: null,
+    lineItems,
+  });
 }
 
 /** L6: the full draft (header + lines) for the editor sheet. */
