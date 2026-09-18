@@ -29,6 +29,12 @@
 //
 // Idempotent: skips (node, locale) pairs whose stored source_hash already
 // matches the current registry entry, unless --force is passed.
+//
+// CHANGING sourceHashFor() invalidates every stored hash and the next run
+// regenerates the whole corpus (happened 2026-09-18: 135 pairs, ~300 calls,
+// before it was cancelled). Any change to the formula MUST ship with a
+// one-off `--rehash-only` run, which rewrites the stored hashes with zero
+// model calls.
 
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
