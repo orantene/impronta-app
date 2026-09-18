@@ -10,7 +10,7 @@
  * MiniChatPanelColumn. No logic changes.
  */
 
-import type { RefObject } from "react";
+import { useMemo, type RefObject } from "react";
 
 import type {
   GuestIdentityTier,
@@ -26,6 +26,7 @@ import { ClaimEmailRecap } from "./ClaimEmailRecap";
 import { GuestAccountToolkit } from "./GuestAccountToolkit";
 import { InquiryReceiptCard } from "./InquiryReceiptCard";
 import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
+import { GuestClientCardRow, isGuestClientCardRow, type GuestClientCardsModel } from "./GuestClientCards";
 import { SystemNoteCluster } from "./SystemNoteCluster";
 import { clusterSystemRows } from "./cluster-system-rows";
 import { NewMessagePulse } from "./NewMessagePulse";
@@ -70,6 +71,10 @@ export type GuestConversationBodyProps = {
    * time — it belongs AFTER a real send. Mutually exclusive with the send bar.
    */
   sendBarActive?: boolean;
+  /** L13: the per-thread card model built by the column (`useGuestClientCards`). */
+  cardModel: GuestClientCardsModel;
+  /** L13: the column's clock (ticks while a hold counts down). */
+  now: Date;
 };
 
 export function GuestConversationBody({
@@ -96,7 +101,17 @@ export function GuestConversationBody({
   identity,
   threadStatus,
   sendBarActive = false,
+  cardModel,
+  now,
 }: GuestConversationBodyProps) {
+  // L13: the card model + clock come from the column (it also feeds the
+  // next-step block above the composer, so both act through one model).
+  const cardsOn = brand.dockCardsV5 === true;
+  const hasOffers = cardModel.offers.length > 0;
+  const drawsV5Card = useMemo(
+    () => (row: StreamRow) => cardsOn && isGuestClientCardRow(row) && (hasOffers || !String(row.kind).startsWith("offer_")),
+    [cardsOn, hasOffers],
+  );
   return (
     <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", minWidth: 0 }}>
       <div
@@ -194,7 +209,9 @@ export function GuestConversationBody({
           so lineup/AI-capture bursts read as a whisper, not spam. Human
           messages render as bubbles, in place. */}
       {clusterSystemRows(rows).map((node) =>
-        node.kind === "message" ? (
+        node.kind === "message" && drawsV5Card(node.row) ? (
+          <GuestClientCardRow key={node.row.id} row={node.row} model={cardModel} now={now} />
+        ) : node.kind === "message" ? (
           <MiniChatMessageBubble
             key={node.row.id}
             m={node.row}

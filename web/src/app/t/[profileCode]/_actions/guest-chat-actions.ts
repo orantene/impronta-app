@@ -26,6 +26,7 @@
  * Contract: web/src/lib/inquiry/guest-chat-contract.ts (pure types).
  */
 
+import { loadGuestThreadV5Extras } from "./guest-thread-v5";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -300,6 +301,14 @@ function deriveAuthorRole(
   if (!row.sender_user_id) {
     return "system";
   }
+  // Engine-authored lines ("Offer v3 sent", auto-ack) carry
+  // metadata.system_event_type even when a staff user id is stamped as the
+  // actor; they are system lines, never a staff bubble (Messages v5 rule:
+  // ThreadMessage.system). Found live 2026-09-17 on the fixture tenant.
+  const meta = (row as { metadata?: unknown }).metadata;
+  if (meta && typeof meta === "object" && typeof (meta as { system_event_type?: unknown }).system_event_type === "string") {
+    return "system";
+  }
   const ident = identityByUserId.get(row.sender_user_id);
   if (!ident) return "other";
   if (ident.role === "coordinator") return "staff";
@@ -556,7 +565,10 @@ async function readGuestVisibleMessages(
     // thread the talent's Client tab and a registered client use. This surfaces
     // the talent-coordinator's replies (which live on 'private'). The GROUP
     // thread is the talent-coordination channel and must NOT reach the guest.
+    // D-MSG-2: staff internal notes sit on the client thread and never reach
+    // the guest either.
     .eq("thread_type", "private")
+    .neq("message_kind", "internal_note")
     .order("created_at", { ascending: true });
 
   if (afterIso) {
@@ -1652,12 +1664,22 @@ export async function getGuestThreadMessages(
     }
   }
 
+  // L13: the v5 client-card extras (thread token, offers, pay code) ride the
+  // full load only; the incremental poll leaves them untouched.
+  const v5 = input.afterIso
+    ? null
+    : await loadGuestThreadV5Extras(admin, {
+        tenantId: owned.inquiry.tenantId,
+        inquiryId: owned.inquiry.id,
+      });
+
   return {
     ok: true,
     messages,
     threadStatus: toThreadStatus(owned.inquiry.status),
     typicalReplyLabel,
     receipt,
+    v5,
   };
 }
 

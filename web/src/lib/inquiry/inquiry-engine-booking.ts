@@ -13,6 +13,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 
 type InquiryRow = Database["public"]["Tables"]["inquiries"]["Row"];
 type InquiryOffersRow = Database["public"]["Tables"]["inquiry_offers"]["Row"];
@@ -477,6 +478,14 @@ export async function convertToBooking(
     } catch (enrichErr) {
       logServerError("convertToBooking.reservation_enrichment", enrichErr);
     }
+
+    // Messages v5 / S2: the conversation's appointment chip follows the
+    // booking. Additive, non-fatal, after every rollback path above.
+    await syncConversationRecord(createServiceRoleClient() ?? supabase, {
+      tenantId: ctx.tenantId,
+      kind: "appointment",
+      recordId: bookingId,
+    });
 
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
 

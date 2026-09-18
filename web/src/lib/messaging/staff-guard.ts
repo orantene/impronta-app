@@ -12,5 +12,15 @@ export async function messagingStaff() {
   if (!guard.ok) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
-  return { ok: true as const, tenantId: guard.tenantId, userId: guard.user.id, admin, supabase: guard.supabase };
+  return {
+    ok: true as const,
+    tenantId: guard.tenantId,
+    // S6: `messagingRecordOutsidePayment`'s workspace-booking path wraps
+    // `markInquiryPaidInCash(tenantSlug, ...)`, which is keyed on the slug,
+    // not the tenant id. Additive — every existing caller ignores it.
+    tenantSlug: guard.tenantSlug,
+    userId: guard.user.id,
+    admin,
+    supabase: guard.supabase,
+  };
 }

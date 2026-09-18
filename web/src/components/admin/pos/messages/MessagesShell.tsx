@@ -38,8 +38,8 @@ import {
   messagingSearch,
   messagingSendOffer,
   messagingSendOptions,
-  messagingStartConversation,
 } from "@/lib/server-actions/messaging-engine";
+import { messagingStartConversation } from "@/lib/server-actions/messaging-start";
 import {
   messagingCancelBooking,
   messagingCancelPaymentLink,
@@ -53,6 +53,7 @@ import {
 } from "@/lib/server-actions/messaging-sheets";
 import { interpolate } from "@/i18n/interpolate";
 import { cn } from "@/lib/utils";
+import { applyInboxRowPatch, useMessagingInboxLive } from "@/lib/messages-v5/use-inbox-live";
 
 import { messagesCopy, pinMessagingKeys } from "./copy";
 import { draftStorageKey, readDraft, writeDraft } from "./draft-storage";
@@ -173,13 +174,23 @@ export function MessagesShell(props: MessagesClientProps) {
     void reload();
   }, [reload]);
 
-  useEffect(() => {
-    if (preview) return;
-    const timer = window.setInterval(() => {
-      void reload();
-    }, 12_000);
-    return () => window.clearInterval(timer);
-  }, [preview, reload]);
+  // Messages v5: one realtime subscription per tenant patches rows in place
+  // (src/lib/messages-v5/use-inbox-live.ts) instead of the 12s
+  // messagingLoadInbox poll this shell ran before. Disabled in preview mode,
+  // same as `reload` above. `onIncoming` fires only for a customer/guest
+  // message (never a staff reply), which is what the toast + unread bump
+  // are for — mirrors the old "unreadCount grew since last poll" toast rule,
+  // just event-driven instead of diffed across two full reloads.
+  useMessagingInboxLive({
+    tenantId: preview ? null : props.tenantId,
+    onRowPatch: useCallback((patch) => {
+      setRows((previous) => applyInboxRowPatch(previous, patch));
+    }, []),
+    onIncoming: useCallback(() => {
+      setToast(true);
+      setInboxUnread((previous) => (previous === null ? previous : previous + 1));
+    }, []),
+  });
 
   const openThread = useCallback(
     async (id: string) => {

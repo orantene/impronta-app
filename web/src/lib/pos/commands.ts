@@ -69,6 +69,16 @@ export type PosSaleView = {
     operatorUserId: string | null;
     bookingId: string | null;
     bookingKind: "talent_booking" | "agency_booking" | "admission" | null;
+    /** S5: who proposed the line and whether staff confirmed it (decision 3). */
+    proposedBy: "client" | "staff" | "system";
+    confirmedAt: string | null;
+    /** The price the line was added at; a later catalog change never moves it (D-MSG-30). */
+    priceSnapshotCents: number | null;
+    catalogPriceCentsAtAdd: number | null;
+    discountCents: number;
+    discountLabel: string | null;
+    taxCents: number;
+    taxLabel: string | null;
   }>;
 };
 

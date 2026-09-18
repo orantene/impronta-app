@@ -35,9 +35,10 @@
 
 import { POS_MODES, modesForPerson, parsePosMode } from "@/lib/pos/modes";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { posModeLabel } from "@/components/admin/pos/pos-copy";
+import { posSwitchHref, workspaceSwitchHref } from "@/lib/messages-v5/pos-continuity";
 import { resolveDestination } from "@/lib/workspace/destinations";
 import type { PosMode } from "@/lib/pos/modes";
 import {
@@ -103,6 +104,15 @@ export function usePosModeMenuModel(): PosModeMenuModel {
     useAdminShell();
   const tenantName = effectiveTenant.name;
   const router = useRouter();
+  // L10 (D-MSG-172): whichever thread is on screen (a workspace Messages
+  // deep link's `?inquiry=`, or the counter's own `?order=`) rides along
+  // when this switch crosses between Workspace and POS, so the person lands
+  // back on the same conversation rather than the mode's blank landing
+  // screen. Read off the CURRENT url, not a store — this control has no
+  // other view of "what thread is open".
+  const searchParams = useSearchParams();
+  const openInquiryId = searchParams.get("inquiry");
+  const openOrderId = searchParams.get("order");
   const [remembered, setRemembered] = useState<PosMode | null>(null);
   const [savedDefault, setSavedDefault] = useState(false);
 
@@ -164,7 +174,9 @@ export function usePosModeMenuModel(): PosModeMenuModel {
       // does not re-run; the chosen mode is the address from here on.
       setUrlMode(mode);
       setSavedDefault(false);
-      const href = `${adminBasePath}/pos?mode=${mode}`;
+      // Messages v5 POS continuity (D-MSG): the open thread / order ride
+      // along on the address so the counter opens on the same sale.
+      const href = posSwitchHref({ adminBasePath, mode, inquiryId: openInquiryId, orderId: openOrderId });
       // ENTERING THE POINT OF SALE IS A DOCUMENT LOAD, NOT A SOFT PUSH (D-171).
       // The POS replaces the admin chrome; a `router.push` from the back
       // office kept the whole shell (and every poll it runs) alive under the
@@ -176,7 +188,7 @@ export function usePosModeMenuModel(): PosModeMenuModel {
       if (onPos) router.push(href);
       else window.location.assign(href);
     },
-    [adminBasePath, onPos, router, tenantSlug],
+    [adminBasePath, onPos, openInquiryId, openOrderId, router, tenantSlug],
   );
 
   // Plain functions: the React compiler memoises them itself, and a
@@ -190,8 +202,9 @@ export function usePosModeMenuModel(): PosModeMenuModel {
 
   const goWorkspace = () => {
     // Back into the admin chrome: the same document load, for the same
-    // reason as `openMode` (D-171); the two chromes are two pages.
-    window.location.assign(adminBasePath);
+    // reason as `openMode` (D-171); the two chromes are two pages. The open
+    // thread rides along so Messages reopens on it.
+    window.location.assign(workspaceSwitchHref({ adminBasePath, inquiryId: openInquiryId }));
   };
 
   const onMenuClosed = useCallback(() => setSavedDefault(false), []);

@@ -11,7 +11,7 @@ import {
   loadClientInquiries,
   loadWorkspaceRosterLite,
 } from "../../_data-bridge";
-import { loadInquiryMessages } from "../../_data-bridge/inquiries-messages";
+import { loadClientInquiryMessages } from "../../_data-bridge/inquiries-messages";
 import { loadClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { ClientMessagesShell } from "./ClientMessagesShell";
 
@@ -100,9 +100,10 @@ export default async function ClientMessagesPage({
   // the initial active inquiry. The shell mounts Details tab content from
   // server data so the first paint is rich (no spinner-and-fetch).
   // Private thread = agency + client; group thread is the talent fan-out.
+  // D-MSG-2: the client reader also drops staff internal notes.
   const [initialMessages, initialDetails] = await Promise.all([
     initialActiveId
-      ? loadInquiryMessages(activeTenantId, initialActiveId, "private")
+      ? loadClientInquiryMessages(activeTenantId, initialActiveId)
       : Promise.resolve([]),
     initialActiveId
       ? loadClientInquiryDetails(activeTenantId, initialActiveId)

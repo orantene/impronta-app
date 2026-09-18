@@ -2,8 +2,6 @@
 
 import { z } from "zod";
 
-import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
-import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { sendOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { addLine, createDraftOrder } from "@/lib/pos/draft";
 import { attachPaymentLinkInquiry, createPaymentLink } from "@/lib/payments/links";
@@ -11,25 +9,30 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logAssignment, logCloseLost, logConversationState } from "@/lib/messaging/action-log";
+import { hasMessagingMoneyPermission } from "@/lib/messaging/money-permissions";
 import { messagingChannel } from "@/lib/messaging/channels";
+import { contactForChannel } from "@/lib/messaging/contact-for-channel";
 import { renderCard } from "@/lib/messaging/cards";
 import { loadMessagingEssentials } from "@/lib/messaging/essentials";
+import { loadConversationHistory as loadConversationHistoryReader } from "@/lib/messaging/history";
 import { loadMessagingInbox } from "@/lib/messaging/inbox";
+import { insertMessage, recordDelivery } from "@/lib/messaging/insert-message";
 import { matchCustomers } from "@/lib/messaging/match-customers";
+import { mergeInquiries } from "@/lib/messaging/merge";
+import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { fail } from "@/lib/messaging/refusals";
+import { renameInquiry } from "@/lib/messaging/rename";
 import { searchMessaging } from "@/lib/messaging/search";
 import { loadMessagingThread } from "@/lib/messaging/thread";
-import { issueVisitorCode, signThreadToken, verifyThreadToken } from "@/lib/messaging/thread-token";
-import type { ActionResult, CardKind, InboxFilter, MessagingChannel, RecordKind } from "@/lib/messaging/types";
+import { issueVisitorCode, verifyThreadToken } from "@/lib/messaging/thread-token";
+import type { ActionResult, CardKind, ConversationHistoryEntry, InboxFilter, MessagingChannel, RecordKind } from "@/lib/messaging/types";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
+const scoped = tenantScopedQuery;
 
-function scoped(admin: SupabaseClient, table: string, tenantId: string) {
-  return tenantScopedQuery(admin, table, tenantId);
-}
-
-async function staff() {
+export async function staff() { // exported for messaging-offers.ts (L6)
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
@@ -86,6 +89,48 @@ export async function messagingLoadEssentials(input: { inquiryId: string }) {
   return loadMessagingEssentials(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId });
 }
 
+export async function messagingRename(input: { inquiryId: string; name: string; expectedVersion: number }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({ inquiryId: uuid, name: z.string().trim().min(1).max(120), expectedVersion: version })
+    .safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  return renameInquiry(g.admin, {
+    tenantId: g.tenantId,
+    inquiryId: parsed.data.inquiryId,
+    name: parsed.data.name,
+    expectedVersion: parsed.data.expectedVersion,
+    actorUserId: g.userId,
+  });
+}
+
+export async function loadConversationHistory(
+  input: { inquiryId: string },
+): Promise<{ ok: true; entries: ConversationHistoryEntry[] } | { ok: false; reason: string }> {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  return loadConversationHistoryReader(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId });
+}
+
+export async function messagingMerge(input: { duplicateInquiryId: string; intoInquiryId: string; expectedVersion: number }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({ duplicateInquiryId: uuid, intoInquiryId: uuid, expectedVersion: version })
+    .safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  return mergeInquiries(g.admin, {
+    tenantId: g.tenantId,
+    duplicateInquiryId: parsed.data.duplicateInquiryId,
+    intoInquiryId: parsed.data.intoInquiryId,
+    expectedVersion: parsed.data.expectedVersion,
+    actorUserId: g.userId,
+  });
+}
+
 export async function messagingReply(input: {
   inquiryId: string;
   body: string;
@@ -115,23 +160,21 @@ export async function messagingReply(input: {
       messageId: inserted.messageId,
       body: parsed.data.body,
       smsText: parsed.data.body,
-      to: null,
+      to: await contactForChannel(g.admin, parsed.data.inquiryId, channelId),
     });
     await recordDelivery(g.admin, {
-      tenantId: g.tenantId,
-      messageId: inserted.messageId,
-      channel: channelId,
+      tenantId: g.tenantId, messageId: inserted.messageId, channel: channelId,
       state: sent.ok ? (channelId === "whatsapp" ? "queued" : "sent") : sent.reason === "rate_limited" ? "queued" : "failed",
       providerRef: sent.ok ? sent.providerRef : null,
       lastError: sent.ok || sent.reason === "rate_limited" ? null : sent.reason,
     });
-    // WhatsApp is an experimental outbox: a send miss must not fail the
-    // stored reply. Drop the adapter and this branch is the original path.
-    if (!sent.ok && channelId !== "web_chat" && channelId !== "whatsapp" && sent.reason !== "rate_limited") {
-      return { ok: false as const, reason: sent.reason };
+    // The reply is stored either way; a channel miss is a delivery state on
+    // the bubble (Not delivered · retry), never a refusal that hides the row.
+    if (!sent.ok && sent.reason !== "rate_limited") {
+      return { ok: true as const, messageId: inserted.messageId, delivery: "failed" as const, reason: sent.reason };
     }
   }
-  return { ok: true as const, messageId: inserted.messageId };
+  return { ok: true as const, messageId: inserted.messageId, delivery: "sent" as const };
 }
 
 export async function messagingInternalNote(input: { inquiryId: string; body: string }) {
@@ -139,6 +182,12 @@ export async function messagingInternalNote(input: { inquiryId: string; body: st
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, body: z.string().trim().min(1).max(8000) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  // S6 (D-MSG-40, item 5): gates the whole internal-note feature area —
+  // there is no separate `messages.notes.write` key, and notes.read is the
+  // only notes-related key the brief asked for.
+  if (!(await hasMessagingMoneyPermission(g.admin, { tenantId: g.tenantId, userId: g.userId, permission: "messages.notes.read" }))) {
+    return fail("not_allowed");
+  }
   return insertMessage(g.admin, {
     tenantId: g.tenantId,
     inquiryId: parsed.data.inquiryId,
@@ -153,18 +202,34 @@ export async function messagingAssignOwner(input: {
   ownerUserId: string | null;
   expectedVersion: number;
 }) {
+  return assignOwnerCore(input, false);
+}
+
+async function assignOwnerCore(
+  input: { inquiryId: string; ownerUserId: string | null; expectedVersion: number },
+  handover: boolean,
+) {
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
     .object({ inquiryId: uuid, ownerUserId: uuid.nullable(), expectedVersion: version })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
-  return callRpc(g.admin, "messaging_assign_owner", {
+  const result = await callRpc(g.admin, "messaging_assign_owner", {
     p_tenant_id: g.tenantId,
     p_inquiry_id: parsed.data.inquiryId,
     p_owner_user_id: parsed.data.ownerUserId,
     p_expected_version: parsed.data.expectedVersion,
   });
+  if (result.ok) {
+    await logAssignment(g.admin, {
+      inquiryId: parsed.data.inquiryId,
+      actorUserId: g.userId,
+      ownerUserId: parsed.data.ownerUserId,
+      handover,
+    });
+  }
+  return result;
 }
 
 export async function messagingResolve(input: { inquiryId: string; expectedVersion: number }) {
@@ -180,7 +245,7 @@ export async function messagingHandOver(input: {
   ownerUserId: string;
   expectedVersion: number;
 }) {
-  const assigned = await messagingAssignOwner(input);
+  const assigned = await assignOwnerCore(input, true);
   if (!assigned.ok) return assigned;
   return { ok: true as const };
 }
@@ -193,75 +258,17 @@ async function setConversationState(
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, expectedVersion: version }).safeParse(input);
   if (!parsed.success) return fail("invalid");
-  return callRpc(g.admin, "messaging_set_conversation_state", {
+  const result = await callRpc(g.admin, "messaging_set_conversation_state", {
     p_tenant_id: g.tenantId,
     p_inquiry_id: parsed.data.inquiryId,
     p_state: state,
     p_actor: g.userId,
     p_expected_version: parsed.data.expectedVersion,
   });
-}
-
-export async function messagingStartConversation(input: {
-  name: string;
-  email?: string | null;
-  phone?: string | null;
-  channel: MessagingChannel;
-  locationSlug?: string;
-  firstMessage?: string | null;
-}) {
-  const g = await staff();
-  if (!g.ok) return g;
-  const parsed = z
-    .object({
-      name: z.string().trim().min(1).max(200),
-      email: z.string().email().nullable().optional(),
-      phone: z.string().trim().max(32).nullable().optional(),
-      channel: z.enum(["web_chat", "whatsapp", "sms", "email", "counter"]),
-      locationSlug: z.string().trim().min(1).max(80).optional(),
-      firstMessage: z.string().trim().max(4000).nullable().optional(),
-    })
-    .safeParse(input);
-  if (!parsed.success) return fail("invalid");
-  if (parsed.data.channel === "web_chat") {
-    return fail("not_allowed");
+  if (result.ok && (state === "resolved" || state === "needs_reply")) {
+    await logConversationState(g.admin, { inquiryId: parsed.data.inquiryId, actorUserId: g.userId, state });
   }
-  if (!parsed.data.email && !parsed.data.phone) return fail("invalid");
-  const intent: InquiryIntent = {
-    source: "admin_created",
-    source_context: { acting_staff_user_id: g.userId, channel: parsed.data.channel },
-    requester: {
-      name: parsed.data.name,
-      email: parsed.data.email ?? undefined,
-      phone: parsed.data.phone ?? undefined,
-    },
-    brief: { summary: parsed.data.firstMessage || "POS conversation" },
-    location: { status: "not_sure" },
-    date: { status: "not_sure" },
-  };
-  const created = await createInquiryFromIntent(g.supabase, intent, {
-    tenant_id: g.tenantId,
-    actor_user_id: g.userId,
-  });
-  if (!created.ok) return fail("unavailable");
-  await scoped(g.admin, "inquiries", g.tenantId)
-    .update({
-      channel: parsed.data.channel,
-      location_slug: parsed.data.locationSlug ?? "default",
-      owner_user_id: g.userId,
-    })
-    .eq("id", created.inquiryId);
-  if (parsed.data.firstMessage) {
-    await insertMessage(g.admin, {
-      tenantId: g.tenantId,
-      inquiryId: created.inquiryId,
-      kind: "text",
-      body: parsed.data.firstMessage,
-      senderUserId: g.userId,
-    });
-  }
-  const token = signThreadToken(created.inquiryId, g.tenantId);
-  return { ok: true as const, inquiryId: created.inquiryId, token };
+  return result;
 }
 
 export async function messagingMatchCustomers(input: {
@@ -402,6 +409,9 @@ export async function messagingSendOptions(input: {
       orderId: input.addToDraft.orderId,
       expectedVersion: input.addToDraft.expectedVersion,
       line: { offeringId: input.addToDraft.offeringId, units: input.addToDraft.units },
+      // Staff put this on the draft while sending the options (S5).
+      proposedBy: "staff",
+      actorId: g.userId,
     });
     if (!added.ok) return fail(added.reason === "conflict" ? "conflict" : "unavailable");
   }
@@ -432,6 +442,7 @@ export async function messagingEnsureSharedDraft(input: { inquiryId: string; cur
   await scoped(g.admin, "orders", g.tenantId)
     .update({ inquiry_id: parsed.data.inquiryId, source_channel: "messages" })
     .eq("id", created.orderId);
+  await linkRecordToConversation(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId, kind: "order", recordId: created.orderId, linkedBy: g.userId });
   return { ok: true as const, orderId: created.orderId, version: 1 };
 }
 
@@ -567,12 +578,20 @@ export async function messagingCloseLost(input: { inquiryId: string; reason: str
     .object({ inquiryId: uuid, reason: z.string().trim().min(2).max(400), expectedVersion: version })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
-  return callRpc(g.admin, "messaging_close_lost", {
+  // S6 (D-MSG-40, item 5).
+  if (!(await hasMessagingMoneyPermission(g.admin, { tenantId: g.tenantId, userId: g.userId, permission: "messages.close_lost" }))) {
+    return fail("not_allowed");
+  }
+  const result = await callRpc(g.admin, "messaging_close_lost", {
     p_tenant_id: g.tenantId,
     p_inquiry_id: parsed.data.inquiryId,
     p_reason: parsed.data.reason,
     p_expected_version: parsed.data.expectedVersion,
   });
+  if (result.ok) {
+    await logCloseLost(g.admin, { inquiryId: parsed.data.inquiryId, actorUserId: g.userId, reason: parsed.data.reason });
+  }
+  return result;
 }
 
 export async function messagingScheduleReminder(input: {
@@ -649,18 +668,29 @@ export async function messagingSendOffer(input: { inquiryId: string; offerId: st
     .eq("id", parsed.data.inquiryId)
     .maybeSingle();
   const { data: offer } = await scoped(g.admin, "inquiry_offers", g.tenantId)
-    .select("version")
+    .select("version, total_client_price, currency_code, valid_until")
     .eq("id", parsed.data.offerId)
     .maybeSingle();
+  const o = offer as { version?: number; total_client_price?: number | string | null; currency_code?: string | null; valid_until?: string | null } | null;
   const sent = await sendOffer(g.supabase, {
     inquiryId: parsed.data.inquiryId,
     tenantId: g.tenantId,
     offerId: parsed.data.offerId,
     actorUserId: g.userId,
     inquiryExpectedVersion: Number((inquiry as { version?: number } | null)?.version ?? 1),
-    offerExpectedVersion: Number((offer as { version?: number } | null)?.version ?? 1),
+    offerExpectedVersion: Number(o?.version ?? 1),
   });
   if (!sent.success) return fail("unavailable");
+  // The offer card in the stream (D06): the client link renders it with
+  // Accept / Ask for changes / Decline; the operator sees Sent → Viewed → ....
+  await insertMessage(g.admin, {
+    tenantId: g.tenantId,
+    inquiryId: parsed.data.inquiryId,
+    kind: "offer_review",
+    body: `Offer v${Number(o?.version ?? 1)} sent`,
+    payload: { state: "sent", offerId: parsed.data.offerId, version: Number(o?.version ?? 1), totalCents: Math.round(Number(o?.total_client_price ?? 0) * 100), currency: o?.currency_code ?? "USD", validUntil: o?.valid_until ?? null },
+    senderUserId: g.userId,
+  });
   return { ok: true as const };
 }
 
@@ -687,6 +717,9 @@ export async function messagingGuestDraftAdd(input: {
     orderId: input.orderId,
     expectedVersion: input.expectedVersion,
     line: { offeringId: input.offeringId, units: input.units },
+    // The client chose this from their link: the line is theirs until staff
+    // confirm it (owner decision 3; S5).
+    proposedBy: "client",
   });
   if (!added.ok) return fail(added.reason === "conflict" ? "conflict" : "unavailable");
   return { ok: true as const };
@@ -713,50 +746,3 @@ export async function messagingIssueVisitorCode(input: { token: string; phone: s
   return { ok: true as const };
 }
 
-async function insertMessage(
-  admin: SupabaseClient,
-  input: {
-    tenantId: string;
-    inquiryId: string;
-    kind: string;
-    body: string;
-    payload?: Record<string, unknown>;
-    senderUserId: string | null;
-  },
-): Promise<ActionResult<{ messageId: string }>> {
-  const { data, error } = await scoped(admin, "inquiry_messages", input.tenantId)
-    .insert({
-      inquiry_id: input.inquiryId,
-      thread_type: input.kind === "internal_note" ? "private" : "group",
-      message_kind: input.kind,
-      body: input.body,
-      card_payload: input.payload ?? null,
-      sender_user_id: input.senderUserId,
-    })
-    .select("id")
-    .single();
-  if (error || !data) return fail("unavailable");
-  return { ok: true, messageId: (data as { id: string }).id };
-}
-
-async function recordDelivery(
-  admin: SupabaseClient,
-  input: {
-    tenantId: string;
-    messageId: string;
-    channel: string;
-    state: string;
-    providerRef: string | null;
-    lastError: string | null;
-  },
-) {
-  await tenantScopedQuery(admin, "message_delivery", input.tenantId).upsert({
-    message_id: input.messageId,
-    channel: input.channel,
-    state: input.state,
-    provider_ref: input.providerRef,
-    attempts: 1,
-    last_error: input.lastError,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "message_id,channel" });
-}

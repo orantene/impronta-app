@@ -24,5 +24,7 @@
 
 export { MessagesShell } from "./messages";
 export { PhoneWorkspaceMessages } from "./messages/phone-workspace-messages";
+// Messages v5 (L2): behind NEXT_PUBLIC_MESSAGES_V5=1 until the tenant flag lands (Phase 3).
+export { MessagesV5Shell } from "@/components/messages-v5/shell/MessagesV5Shell";
 export { TalentSurface } from "./talent";
 export { DrawerSwitch } from "./drawer-switch";

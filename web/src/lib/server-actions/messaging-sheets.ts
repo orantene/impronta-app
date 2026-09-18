@@ -19,6 +19,7 @@ import {
   loadThreadDelivery,
 } from "@/lib/messaging/sheets";
 import { messagingStaff } from "@/lib/messaging/staff-guard";
+import { refreshThreadToken } from "@/lib/messaging/thread-token";
 import { cancelPaymentLink } from "@/lib/payments/links";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -144,4 +145,66 @@ export async function messagingCancelBooking(input: { inquiryId: string; booking
   });
   if (!result.ok) return { ok: false as const, reason: result.reason };
   return { ok: true as const, refundableCents: result.refundableCents, already: result.already === true };
+}
+
+/**
+ * L2 (Messages v5 shell): the client's own thread link for an EXISTING
+ * conversation. `messagingStartConversation` mints one only at creation and
+ * nothing kept it (D-145), so "Copy client link" had no reader. Pure read:
+ * a signed token whose expiry follows the latest linked record (D-MSG-6),
+ * built on `refreshThreadToken`; no row is written. The inquiry must belong
+ * to the caller's tenant.
+ */
+export async function messagingThreadLink(input: { inquiryId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const { data, error } = await tenantScopedQuery(g.admin, "inquiries", g.tenantId)
+    .select("id")
+    .eq("id", parsed.data.inquiryId)
+    .maybeSingle();
+  if (error) return fail("unavailable");
+  if (!data) return fail("not_found");
+  const token = await refreshThreadToken(g.admin, parsed.data.inquiryId, g.tenantId);
+  if (!token) return fail("unavailable");
+  return { ok: true as const, token };
+}
+
+/**
+ * Context panel › Items + Money (D-MSG-111 closed): the conversation's shared
+ * draft order (`orders.inquiry_id`, source_channel messages) is the one POS
+ * record Messages writes lines into, so its lines ARE the items on the table
+ * and its totals the money. No shared draft → nulls, the panel draws its
+ * empty state. Read-only; formatting happens in the shell (USD).
+ */
+export async function messagingLoadContextLines(input: { inquiryId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ inquiryId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const { data: order } = await tenantScopedQuery(g.admin, "orders", g.tenantId)
+    .select("id, status, currency, total_cents")
+    .eq("inquiry_id", parsed.data.inquiryId)
+    .eq("source_channel", "messages")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const o = order as { id: string; status: string; currency: string | null; total_cents: number | string | null } | null;
+  if (!o) return { ok: true as const, lines: null, money: null };
+  const { data: rows } = await tenantScopedQuery(g.admin, "order_lines", g.tenantId)
+    .select("id, label, units, unit_cents, proposed_by, confirmed_at")
+    .eq("order_id", o.id)
+    .order("created_at", { ascending: true });
+  const lines = ((rows ?? []) as Array<{ id: string; label: string | null; units: number | null; unit_cents: number | null; proposed_by: string | null; confirmed_at: string | null }>).map((l) => ({
+    id: l.id,
+    label: l.label ?? "Item",
+    units: Number(l.units ?? 1),
+    unitCents: Number(l.unit_cents ?? 0),
+    proposedBy: (l.proposed_by === "client" || l.proposed_by === "staff" ? l.proposed_by : null) as "client" | "staff" | null,
+    confirmed: l.confirmed_at !== null,
+  }));
+  const totalCents = Number(o.total_cents ?? 0) || lines.reduce((sum, l) => sum + l.units * l.unitCents, 0);
+  const paidCents = o.status === "paid" || o.status === "fulfilled" || o.status === "partially_refunded" ? totalCents : 0;
+  return { ok: true as const, lines, money: { totalCents, paidCents, balanceCents: Math.max(0, totalCents - paidCents), currency: o.currency ?? "USD" } };
 }

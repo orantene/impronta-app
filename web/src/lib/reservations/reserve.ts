@@ -21,6 +21,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPurchase } from "@/lib/orders/purchase";
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { availabilityForWindow, resolveWindowOnDate } from "./index";
 import type { OfferedTime, PartyBand } from "./availability";
 import type { ServiceRules, ServiceWindow, ServiceWindowException } from "./types";
@@ -230,6 +231,14 @@ export async function createReservation(
       logServerError("reservations.createReservation/admission", error);
       return { ok: false, reason: "engine_error", error: "admission_not_written" };
     }
+
+    // Messages v5 / S2: the reservation chip follows this admission. The
+    // helper never throws; with no thread on the order it links nothing.
+    await syncConversationRecord(admin, {
+      tenantId: input.tenantId,
+      kind: "reservation",
+      recordId: admission.id as string,
+    });
 
     return {
       ok: true,

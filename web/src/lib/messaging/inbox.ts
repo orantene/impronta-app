@@ -1,5 +1,6 @@
 import "server-only";
 
+import { toRecordChip, type ConversationRecordRow } from "./record-chip";
 import { readConversationState, readOpportunityState } from "./state";
 import type { InboxFilter, InboxNextAction, InboxRow, MessagingChannel, RecordChip } from "./types";
 
@@ -56,6 +57,7 @@ export async function loadMessagingInbox(
     if ((row.location_slug ?? "default") !== input.locationSlug && input.locationSlug !== "all") continue;
     const unread = isUnread(row, reads.get(row.id) ?? null);
     if (unread) unreadCount += 1;
+    const paid = (chips.get(row.id) ?? []).some((chip) => chip.paymentState === "paid" || chip.paymentState === "partially_refunded");
     const mapped: InboxRow = {
       id: row.id,
       tenantId: row.tenant_id,
@@ -84,6 +86,7 @@ export async function loadMessagingInbox(
         status: row.status,
         currentOfferId: row.current_offer_id,
         unread,
+        paid,
       }),
       channel: (row.channel as MessagingChannel | null) ?? "web_chat",
       ownerUserId: row.owner_user_id,
@@ -115,6 +118,7 @@ export async function loadMessagingInbox(
           status: row.status,
           currentOfferId: row.current_offer_id,
           unread,
+          paid,
         }),
         recordChips: chips.get(row.id) ?? [],
       }),
@@ -221,20 +225,15 @@ async function loadChips(admin: Admin, tenantId: string, inquiryIds: string[]): 
   if (inquiryIds.length === 0) return map;
   const { data, error } = await admin
     .from("conversation_records")
-    .select("inquiry_id, record_kind, record_id")
+    .select("inquiry_id, record_kind, record_id, payment_state, fulfilment_state, record_date")
     .eq("tenant_id", tenantId)
     .is("unlinked_at", null);
   if (error) return map;
-  for (const row of (data ?? []) as { inquiry_id: string; record_kind: RecordChip["kind"]; record_id: string }[]) {
-    if (!inquiryIds.includes(row.inquiry_id)) continue;
+  const wanted = new Set(inquiryIds);
+  for (const row of (data ?? []) as (ConversationRecordRow & { inquiry_id: string })[]) {
+    if (!wanted.has(row.inquiry_id)) continue;
     const list = map.get(row.inquiry_id) ?? [];
-    list.push({
-      kind: row.record_kind,
-      recordId: row.record_id,
-      label: row.record_kind,
-      paymentState: null,
-      fulfilmentState: null,
-    });
+    list.push(toRecordChip(row));
     map.set(row.inquiry_id, list);
   }
   return map;

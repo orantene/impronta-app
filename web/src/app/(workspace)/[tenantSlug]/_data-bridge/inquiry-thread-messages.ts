@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadOrdersForThread, orderIdsFromMessages } from "@/lib/orders/orders-for-thread";
+import { CLIENT_THREAD, INTERNAL_NOTE_KIND } from "@/lib/messaging/thread-rule";
 import { INQUIRY_CLOSED_STATUSES } from "./inquiries-workspace";
 import type { ThreadType, WorkspaceMessage } from "./inquiries-messages";
 
@@ -73,13 +74,30 @@ export async function loadTotalUnreadMessages(tenantId: string): Promise<number>
 }
 
 /**
+ * D-MSG-2: the client's view of the client thread. Reads "private" only and
+ * never returns a staff internal note. Every client surface that renders the
+ * workspace thread (client Messages page, /api/client/messages) goes through
+ * this, not through `loadInquiryMessages`, which is the staff reader.
+ */
+export async function loadClientInquiryMessages(
+  tenantId: string,
+  inquiryId: string,
+): Promise<WorkspaceMessage[]> {
+  return loadInquiryMessages(tenantId, inquiryId, CLIENT_THREAD, { audience: "client" });
+}
+
+/**
  * Load messages for a specific inquiry thread (private or group).
  * Returns messages with sender display_name resolved.
+ *
+ * Staff read everything on the thread. `audience: "client"` excludes
+ * `message_kind = 'internal_note'` (D-MSG-2); use `loadClientInquiryMessages`.
  */
 export async function loadInquiryMessages(
   tenantId: string,
   inquiryId: string,
   threadType: ThreadType,
+  options?: { audience?: "staff" | "client" },
 ): Promise<WorkspaceMessage[]> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -90,13 +108,19 @@ export async function loadInquiryMessages(
 
     const admin = createServiceRoleClient();
     const readClient = admin ?? supabase;
-    const { data, error } = await readClient
+    let messagesQuery = readClient
       .from("inquiry_messages")
       .select("id, sender_user_id, body, created_at, message_kind, card_payload, metadata, profiles:sender_user_id(display_name)")
       .eq("inquiry_id", inquiryId)
       .eq("thread_type", threadType)
       .eq("tenant_id", tenantId)
-      .is("deleted_at", null)
+      .is("deleted_at", null);
+    if (options?.audience === "client") {
+      // Internal notes sit on the client thread for staff; the client never
+      // reads them.
+      messagesQuery = messagesQuery.neq("message_kind", INTERNAL_NOTE_KIND);
+    }
+    const { data, error } = await messagesQuery
       .order("created_at", { ascending: true })
       .limit(200);
 

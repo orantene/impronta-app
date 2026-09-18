@@ -1,0 +1,40 @@
+import "server-only";
+
+/**
+ * S4 seam (D-MSG-2, decisions.md): `inquiries` has no `subject` / `title` /
+ * `project_label` column — grepped every migration, none exists, and the
+ * lane may not add one. The workspace's internal name is therefore
+ * event-sourced off `inquiry_action_log` instead of a column: the latest
+ * successful `messaging_rename` row's `metadata.new` IS the current name;
+ * with no rename yet, the name is `contact_name` (today's fallback, used
+ * everywhere the "subject" is drawn — see `loadMessagingInbox`).
+ */
+
+import { fallbackName } from "./inquiry-name-pure";
+
+type Admin = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+};
+
+export async function currentInquiryName(
+  admin: Admin,
+  inquiryId: string,
+  fallbackContactName: string,
+): Promise<string> {
+  const { data, error } = await admin
+    .from("inquiry_action_log")
+    .select("metadata")
+    .eq("inquiry_id", inquiryId)
+    .eq("action_type", "messaging_rename")
+    .eq("result", "success")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return fallbackName(fallbackContactName);
+  const metadata = (data as { metadata: Record<string, unknown> | null }).metadata;
+  const renamed = metadata && typeof metadata.new === "string" ? metadata.new.trim() : "";
+  return renamed || fallbackName(fallbackContactName);
+}
+
+export { fallbackName, isGeneratedName } from "./inquiry-name-pure";

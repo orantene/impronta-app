@@ -22,7 +22,8 @@
  */
 
 import type { EnsureGuestChatInquiryCallback, GetGuestInquiryDetailsCallback, ListGuestInquiriesCallback, ListGuestTenantRosterCallback, ResolveGuestCartPortraitsCallback } from "./guest-chat-unified-contract"; // imported to annotate props below; also re-exported from this barrel further down
-import type { InquiryReceiptData } from "./inquiry-receipt-contract"; // Jon 360 Phase 2 receipt; annotated on GetGuestThreadResult below + re-exported from this barrel
+import type { InquiryReceiptData } from "./inquiry-receipt-contract";
+import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view"; // pure module (no server import); L13 v5 extras below // Jon 360 Phase 2 receipt; annotated on GetGuestThreadResult below + re-exported from this barrel
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 0. Message-kind discriminator — EXACT mirror of the DB CHECK constraint on
@@ -33,8 +34,75 @@ import type { InquiryReceiptData } from "./inquiry-receipt-contract"; // Jon 360
 //    migration) lets the guest mini-chat render them as first-class kinds.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * L13 (Messages v5) · what the guest dock needs to draw the v5 client cards
+ * and act on them. Produced server-side by `_actions/guest-thread-v5.ts` on
+ * the full thread load. The token is the SAME identity `/c/t/[token]` carries:
+ * the reader has already proven the guest cookie owns the inquiry.
+ */
+export type GuestThreadV5Extras = {
+  /** Signed thread token for `lib/server-actions/messaging-client.ts`; null when the secret is unset. */
+  threadToken: string | null;
+  /** ISO expiry of that token (30 days after the last record date, D-MSG-6). */
+  threadTokenExpiresAt: string | null;
+  /** Client-visible offer summaries, oldest first, for the offer cards. */
+  offers: ClientOfferSummary[];
+  /** The open payment-link code, if any (the offer card's Pay button). */
+  payCode: string | null;
+  /**
+   * L13 wave 2: the non-talent items of this conversation, for the dock's
+   * Items tab. Lines are the POS shared draft (`orders` draft on this inquiry,
+   * `source_channel = messages`) with the S5 author flag; records are the
+   * `conversation_records` chips with their two state families. Client-safe
+   * fields only: no cost, margin, discount or tax columns.
+   */
+  items: GuestConversationItems | null;
+};
+
+export type GuestDraftLine = {
+  id: string;
+  label: string;
+  units: number;
+  /** Client-facing unit price at add time (S5 snapshot), in cents. */
+  unitCents: number;
+  /** "client" = you chose · "staff" = added by the business · "system". */
+  author: "client" | "staff" | "system";
+  /** Staff confirmed this line (shared-draft ladder: draft → confirmed). */
+  confirmed: boolean;
+  kind: string | null;
+};
+
+export type GuestRecordChip = {
+  kind: string;
+  recordId: string;
+  paymentState: string | null;
+  fulfilmentState: string | null;
+  recordDate: string | null;
+};
+
+export type GuestConversationItems = {
+  currency: string;
+  lines: GuestDraftLine[];
+  records: GuestRecordChip[];
+};
+
 export type GuestMessageKind =
   | "text"
+  // Messages v5 client cards (drawn by components/messages-v5/client). The
+  // reader passes every non-note kind through; these are the ones the dock
+  // draws as interactive cards (`CLIENT_CARD_KINDS` in client-thread-view.ts).
+  | "menu_options"
+  | "service_card"
+  | "class_card"
+  | "tickets_card"
+  | "professional_times"
+  | "offer_review"
+  | "offer_state"
+  | "basket"
+  | "order_confirmation"
+  | "appointment_confirmation"
+  | "change_request"
+  | "change_result"
   | "offer_event"
   | "payment_request"
   | "payment_paid"
@@ -409,6 +477,12 @@ export type GetGuestThreadResult =
        */
       threadStatus: GuestThreadStatus;
       /**
+       * L13 (Messages v5): what the dock needs to draw and act on the v5
+       * client cards. Present on the FULL load only (afterIso null); null on
+       * the incremental poll. See `_actions/guest-thread-v5.ts`.
+       */
+      v5?: GuestThreadV5Extras | null;
+      /**
        * Honest presence/SLA hint for the header, as a bare FRAGMENT ("in ~4
        * hours", "within a day"). The panel renders `Typically replies {fragment}`
        * — the producer must NOT include the prefix (avoids a double-prefix).
@@ -654,6 +728,14 @@ export type MiniChatBrand = {
    * render in the tenant's language. Falls back to "en" when absent.
    */
   locale?: string | null;
+  /** L13: tenant switch, the dock shows its Items tab (default on). */
+  dockItemsTab?: boolean;
+  /** L13: tenant switch, the dock draws the Messages v5 client cards (opt-in). */
+  dockCardsV5?: boolean;
+  /** L13: the Items tab label per business ("Talent & services", "Your order", ...). */
+  dockItemsLabel?: string | null;
+  /** L13: the industry preset represents people (agency, act); false for a restaurant, venue, salon. */
+  dockRepresentsPeople?: boolean;
 };
 
 export type MiniChatPanelProps = {

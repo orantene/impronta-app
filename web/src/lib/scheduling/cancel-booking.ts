@@ -1,6 +1,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { readPolicyOverride } from "@/lib/bookings/policy-overrides";
 
@@ -115,8 +116,17 @@ export async function cancelBookingSet(
     return { ok: false, reason: "unavailable" };
   }
 
-  let paidCents = 0;
+  // Messages v5 / S2: the RPC accepted, so the booking (and its order) are
+  // cancelled; the conversation chips follow. Additive, non-fatal, and
+  // placed before the refund arithmetic so a read failure below cannot hide
+  // the cancellation from the thread.
   const orderId = reply.order_id ?? b.order_id;
+  await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "appointment", recordId: input.bookingId });
+  if (orderId) {
+    await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "order", recordId: orderId });
+  }
+
+  let paidCents = 0;
   if (orderId) {
     const { data: txns, error: txnErr } = await admin
       .from("booking_transactions")

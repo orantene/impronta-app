@@ -122,6 +122,8 @@ export function fixtureThread(inquiryId: string): ThreadMessage[] {
 export function fixtureEssentials(inquiryId: string): Essentials {
   if (inquiryId === "inq-laura-m") {
     return {
+      name: "Colour + cut with Dani",
+      version: 1,
       customer: {
         name: "Laura Mendez",
         email: "laura@example.test",
@@ -136,6 +138,8 @@ export function fixtureEssentials(inquiryId: string): Essentials {
     };
   }
   return {
+    name: inquiryId === "inq-visitor" ? "Visitor" : "Pizza · pickup · 3 people",
+    version: 1,
     customer: {
       name: inquiryId === "inq-visitor" ? "" : "Marco Ruiz",
       email: null,
@@ -227,6 +231,7 @@ function msg(id: string, inquiryId: string, body: string, sender: string | null,
     createdAt,
     editedAt: null,
     deletedAt: null,
+    thread: "private",
     internal: false,
     delivery: sender ? { channel: "web_chat", state: "sent" } : null,
   };

@@ -12,7 +12,7 @@ import type { RichInquiry } from "../state";
 import { LoadMore, QuickReplyButtons, SavedViewsBar, downloadCsv } from "../wave2";
 import { useQuickCreateActionsFiltered } from "./WorkspaceTopbar";
 import { useCompactViewport } from "@/components/admin/pos/messages/use-compact-viewport";
-import { MessagesShell, PhoneWorkspaceMessages } from "./pages-dynamic";
+import { MessagesShell, MessagesV5Shell, PhoneWorkspaceMessages } from "./pages-dynamic";
 import { PageHeader } from "./pages-shared";
 
 
@@ -42,7 +42,21 @@ export function WorkspaceMessagesPage() {
   // MM06), scoped to the bridge's real tenant. The prototype's standalone
   // mode has no tenant to scope the actions to and keeps the legacy shell.
   const compact = useCompactViewport();
-  const { bridgeTenantIdentity } = useAdminShell();
+  const { bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
+  // Messages v5 (L2): env flag for QA; Phase 3 replaces it with the per-tenant
+  // `messages_v5` flag (owner decision 10). The old shells stay intact below.
+  if (process.env.NEXT_PUBLIC_MESSAGES_V5 === "1" && bridgeTenantIdentity) {
+    return (
+      <div data-tulala-messages-v5 className="-mx-[14px] -mt-[14px] -mb-[60px] flex h-[calc(100dvh-66px)] min-h-0 flex-col max-md:h-[calc(100dvh-115px-env(safe-area-inset-bottom,0px))]">
+        <MessagesV5Shell
+          tenantId={bridgeTenantIdentity.tenantId}
+          tenantSlug={bridgeTenantIdentity.slug}
+          currentUserId={bridgeSessionIdentity?.userId ?? null}
+          workspaceType={bridgeTenantIdentity.workspaceType ?? null}
+        />
+      </div>
+    );
+  }
   if (compact && bridgeTenantIdentity) return <PhoneWorkspaceMessages tenantId={bridgeTenantIdentity.tenantId} />;
   return <MessagesShell pov="admin" />;
 }

@@ -275,8 +275,8 @@ export function GuestDockHomeView({
         />
         <ActionCard
           Icon={Users}
-          title={t("public.guestChat.homeLineupTitle")}
-          subtitle={t("public.guestChat.homeLineupSub")}
+          title={brand.dockItemsLabel ?? t("public.guestChat.homeLineupTitle")}
+          subtitle={t(brand.dockRepresentsPeople === false ? "public.guestChat.homeItemsSub" : "public.guestChat.homeLineupSub")}
           count={lineupCount}
           accent={accent}
           C={C}

@@ -25,6 +25,7 @@ import type {
   GuestIdentityTier,
   GuestInquirySummary,
   GuestThreadStatus,
+  GuestThreadV5Extras,
   InquiryReceiptData,
   ListGuestInquiriesCallback,
   ListGuestTenantRosterCallback,
@@ -52,6 +53,8 @@ import { guestHeaderThreadState, isPrivateDraftThread } from "./guest-thread-sta
 import { GuestPanelHeader, type GuestHeaderThreadState } from "./GuestPanelHeader";
 import { GuestThreadSwitcherDrawer } from "./GuestThreadSwitcherDrawer";
 import { MiniChatComposer } from "./MiniChatComposer";
+import { GuestNextStep } from "./GuestNextStep";
+import { useGuestDockModel } from "./use-guest-dock-model";
 import { MiniChatGateForm } from "./MiniChatGateForm";
 import { OfferingQuickPicker, type ChatOffering } from "./OfferingQuickPicker";
 import { SendToAgencyBar } from "./SendToAgencyBar";
@@ -92,6 +95,9 @@ export type MiniChatPanelColumnProps = {
    * humanized coordinator header. Null pre-send.
    */
   receipt?: InquiryReceiptData | null;
+  /** L13: v5 extras from the full thread load + the full-load bump after a card action. */
+  v5?: GuestThreadV5Extras | null;
+  onRefreshThread?: () => void;
   emailedTo: string | null;
   seenAtByInquiry: Record<string, string>;
   pulseActive: boolean;
@@ -284,6 +290,8 @@ export function MiniChatPanelColumn({
   threadStatus,
   typicalReply,
   receipt = null,
+  v5 = null,
+  onRefreshThread,
   emailedTo,
   seenAtByInquiry,
   pulseActive,
@@ -410,6 +418,8 @@ export function MiniChatPanelColumn({
   // DOCK v2.1 — the details sheet is opened from the HEADER icon (the old
   // composer-area pill gave up too much real estate); the in-chat thread
   // switcher is a slide-over drawer, also header-triggered.
+  // L13: one card model + clock per thread (stream card rows + next step).
+  const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk });
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // The header's status line has THREE states, not two. A guest who has opened
@@ -510,6 +520,7 @@ export function MiniChatPanelColumn({
           sourcePage={sourcePage}
           onRemoveCartTalent={onRemoveCartTalent}
           onStartInquiry={startInquiryInChat}
+          {...dock.lineupItemsProps}
         />
       )}
 
@@ -559,6 +570,8 @@ export function MiniChatPanelColumn({
         onGuestEmailUpdated={onGuestEmailUpdated}
         identity={identity}
         threadStatus={threadStatus}
+        cardModel={dock.cardModel}
+        now={dock.now}
         sendBarActive={sendBarActive}
       />
 
@@ -723,6 +736,8 @@ export function MiniChatPanelColumn({
         />
       )}
 
+      {!showGate && brand.dockCardsV5 === true && <GuestNextStep {...dock.nextStepProps} />}
+
       {/* ── Composer ─────────────────────────────────────────────────────── */}
       {!showGate && (
         <MiniChatComposer
@@ -774,6 +789,8 @@ export function MiniChatPanelColumn({
           t={t}
           lineupCount={cartTalentNames.length}
           projectsCount={inquiries.length}
+          itemsTab={brand.dockItemsTab !== false}
+          itemsLabel={brand.dockItemsLabel ?? null}
         />
       )}
     </>

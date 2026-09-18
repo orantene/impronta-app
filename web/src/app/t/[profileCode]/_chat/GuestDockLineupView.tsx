@@ -42,6 +42,8 @@ import { registerCartTalent, useCartTalentRegistry } from "./cart-talent-registr
 import { useCartTalents } from "./use-cart-talents";
 import { AVATAR_GROUND, FACE_OBJECT_POSITION, PERSON_SILHOUETTE_SVG } from "./launcher-avatar-styles";
 import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
+import { GuestDockItemsShelf } from "./GuestDockItemsShelf";
+import type { GuestConversationItems } from "@/lib/inquiry/guest-chat-contract";
 
 export type GuestDockLineupViewProps = {
   accent: string;
@@ -58,6 +60,13 @@ export type GuestDockLineupViewProps = {
   onRemoveCartTalent?: (talentProfileId: string) => void;
   /** Jump to Chat with the current lineup (the draft picks the cart up). */
   onStartInquiry?: () => void;
+  /** L13 wave 2: the conversation's non-talent items (draft lines + records). */
+  items?: GuestConversationItems | null;
+  /** For the "added by {business}" flag and the footnote. */
+  businessName?: string;
+  locale?: string;
+  /** False on a business that sells things, not people (restaurant, venue): the empty copy stops saying "talent". */
+  representsPeople?: boolean;
 };
 
 type SavedTile = {
@@ -196,6 +205,10 @@ export function GuestDockLineupView({
   sourcePage,
   onRemoveCartTalent,
   onStartInquiry,
+  items = null,
+  businessName = "",
+  locale = "en",
+  representsPeople = true,
 }: GuestDockLineupViewProps) {
   const C = paletteFor(surfaceMode);
   // Shelf A — the inquiry lineup (cart). Same projection the launcher rail uses:
@@ -347,7 +360,9 @@ export function GuestDockLineupView({
           text={
             dragTile
               ? t("public.guestChat.dockLineupDropHint")
-              : t("public.guestChat.dockLineupEmptyInquiry")
+              : representsPeople
+                ? t("public.guestChat.dockLineupEmptyInquiry")
+                : t("public.guestChat.dockLineupEmptyItems")
           }
           C={C}
         />
@@ -422,6 +437,17 @@ export function GuestDockLineupView({
         </div>
       )}
       </div>
+
+      {/* ── Shelf A2: the conversation's other items (L13 wave 2) ─────────── */}
+      <GuestDockItemsShelf
+        items={items ?? null}
+        businessName={businessName ?? ""}
+        locale={locale ?? "en"}
+        t={t}
+        C={C}
+        accent={accent}
+        header={(label, count) => <ShelfHeader label={label} count={count} C={C} />}
+      />
 
       {/* ── Shelf B: saved favorites (client_favorites) ────────────────────── */}
       <ShelfHeader
