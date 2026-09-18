@@ -3,14 +3,14 @@
 /**
  * IdentityCaptureWire (boards D04, M07): the kit IdentityCaptureCard bound to
  * `messagingMatchCustomers` (match, never merge) and `messagingCaptureIdentity`
- * (link the thread to the chosen existing client). "Create a new client" has
- * no engine writer reachable from Messages in this wave, so that choice opens
- * the "Coming in this program" sheet (seam D-MSG-75), never a dead save.
+ * (link the thread to the chosen existing client). "Create a new client" goes
+ * through `messagingCreateClientForThread` (ensureCustomer + set identity).
  */
 
 import { useEffect, useRef, useState } from "react";
 
 import { messagingCaptureIdentity, messagingMatchCustomers } from "@/lib/server-actions/messaging-engine";
+import { messagingCreateClientForThread } from "@/lib/server-actions/messaging-start";
 import type { ActionResult, CustomerMatch, Essentials, MessagingRefusal } from "@/lib/messaging/types";
 
 import { IdentityCaptureCard, type IdentityCaptureState } from "../kit/IdentityCaptureCard";
@@ -20,11 +20,13 @@ import type { ScreenCopy } from "./copy";
 export type IdentityActions = {
   readonly match: (input: { name: string; phone: string; email: string }) => Promise<ActionResult<{ matches: CustomerMatch[] }>>;
   readonly capture: (input: { inquiryId: string; level: "linked" | "confirmed"; method: "phone" | "email" | "name_only"; customerId: string | null; expectedVersion: number }) => Promise<ActionResult<{ version?: number }>>;
+  readonly createClient: (input: { inquiryId: string; name: string; phone: string | null; email: string | null; expectedVersion: number }) => Promise<ActionResult<{ version?: number }>>;
 };
 
 export const engineIdentityActions: IdentityActions = {
   match: (input) => messagingMatchCustomers({ name: input.name || null, phone: input.phone || null, email: input.email || null }),
   capture: (input) => messagingCaptureIdentity(input),
+  createClient: (input) => messagingCreateClientForThread(input),
 };
 
 export type IdentityCaptureWireProps = {
@@ -35,10 +37,11 @@ export type IdentityCaptureWireProps = {
   readonly variant: ScreenVariant;
   readonly actions?: IdentityActions;
   readonly onDone: (version: number | null) => void;
-  readonly onComing: (seam: string) => void;
+  /** Kept for callers; every choice is wired now. */
+  readonly onComing?: (seam: string) => void;
 };
 
-export function IdentityCaptureWire({ inquiryId, version, essentials, copy, variant, onDone, onComing, ...rest }: IdentityCaptureWireProps) {
+export function IdentityCaptureWire({ inquiryId, version, essentials, copy, variant, onDone, ...rest }: IdentityCaptureWireProps) {
   const actions = rest.actions ?? engineIdentityActions;
   const [name, setName] = useState(essentials?.customer.name ?? "");
   const [phone, setPhone] = useState(essentials?.customer.phone ?? "");
@@ -79,14 +82,13 @@ export function IdentityCaptureWire({ inquiryId, version, essentials, copy, vari
 
   const save = async () => {
     if (state === "saving") return;
-    if (selected === "new") {
-      onComing("create a new client record from Messages");
-      return;
-    }
     setState("saving");
     setRefusal(null);
     const method = phone.trim() ? "phone" : email.trim() ? "email" : "name_only";
-    const result = await actions.capture({ inquiryId, level: "confirmed", method, customerId: selected, expectedVersion: version });
+    const result =
+      selected === "new"
+        ? await actions.createClient({ inquiryId, name: name.trim(), phone: phone.trim() || null, email: email.trim() || null, expectedVersion: version })
+        : await actions.capture({ inquiryId, level: "confirmed", method, customerId: selected, expectedVersion: version });
     if (!result.ok) {
       setRefusal(result.reason);
       setState("refused");

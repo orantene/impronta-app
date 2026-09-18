@@ -77,16 +77,66 @@ export async function messagingStartConversation(input: {
       senderUserId: g.userId,
     });
   }
-  // Staff typed a phone or email: the conversation starts linked (method
+  // Staff typed a phone or email: the conversation starts confirmed (method
   // staff), so the header never reads "no identity yet" on a conversation the
   // operator opened themselves. Read the fresh version; the RPC guards it.
   if (parsed.data.email || parsed.data.phone) {
     const { data: row } = await scoped(g.admin, "inquiries", g.tenantId).select("version").eq("id", created.inquiryId).maybeSingle();
     const current = (row as { version?: number } | null)?.version;
     if (typeof current === "number") {
-      await g.admin.rpc("messaging_set_identity", { p_tenant_id: g.tenantId, p_inquiry_id: created.inquiryId, p_level: "linked", p_method: "staff", p_customer_id: null, p_expected_version: current });
+      await g.admin.rpc("messaging_set_identity", { p_tenant_id: g.tenantId, p_inquiry_id: created.inquiryId, p_level: "confirmed", p_method: "staff", p_customer_id: null, p_expected_version: current });
     }
   }
   const token = signThreadToken(created.inquiryId, g.tenantId);
   return { ok: true as const, inquiryId: created.inquiryId, token };
+}
+
+/**
+ * Identity capture › "Create a new client" (boards D04 / M07, seam D-MSG-75
+ * closed): the customer row comes from the same idempotent writer every
+ * checkout uses (`ensureCustomer`, keyed by email or phone), then the thread
+ * is linked to it through `messaging_set_identity`. Also updates the inquiry
+ * contact so the header stops reading "Visitor".
+ */
+export async function messagingCreateClientForThread(input: {
+  inquiryId: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  expectedVersion: number;
+}) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z
+    .object({
+      inquiryId: z.string().uuid(),
+      name: z.string().trim().min(1).max(200),
+      phone: z.string().trim().max(32).nullable().optional(),
+      email: z.string().trim().email().nullable().optional(),
+      expectedVersion: z.number().int().nonnegative(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  if (!parsed.data.email && !parsed.data.phone) return fail("invalid");
+  const { ensureCustomer } = await import("@/lib/customers/ensure-customer");
+  const customer = await ensureCustomer(
+    { tenantId: g.tenantId, email: parsed.data.email ?? null, phone: parsed.data.phone ?? null, displayName: parsed.data.name },
+    { admin: g.admin },
+  );
+  if (!customer.ok) return fail(customer.reason === "unavailable" ? "unavailable" : "invalid");
+  await scoped(g.admin, "inquiries", g.tenantId)
+    .update({ contact_name: parsed.data.name, contact_email: parsed.data.email ?? null, contact_phone: parsed.data.phone ?? null })
+    .eq("id", parsed.data.inquiryId);
+  const { data, error } = await g.admin.rpc("messaging_set_identity", {
+    p_tenant_id: g.tenantId,
+    p_inquiry_id: parsed.data.inquiryId,
+    p_level: "confirmed",
+    p_method: parsed.data.phone ? "phone" : "email",
+    p_customer_id: customer.customerId,
+    p_expected_version: parsed.data.expectedVersion,
+  });
+  if (error) return fail("unavailable");
+  const row = data as { ok?: boolean; reason?: string; version?: number } | null;
+  if (!row?.ok) return fail(row?.reason === "conflict" ? "conflict" : "unavailable");
+  return { ok: true as const, customerId: customer.customerId, version: row.version };
 }

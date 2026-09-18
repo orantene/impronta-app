@@ -148,6 +148,11 @@ export function fixtureShellEngine(): ShellEngine {
         if (bad) return { ok: false, reason: bad };
         return ok({ version: bump(inquiryId, { contactName: "Marco Ruiz" }) ?? expectedVersion });
       },
+      createClient: async ({ inquiryId, name, expectedVersion }) => {
+        const bad = versioned(inquiryId, expectedVersion);
+        if (bad) return { ok: false, reason: bad };
+        return ok({ version: bump(inquiryId, { contactName: name }) ?? expectedVersion });
+      },
     },
   };
 }
