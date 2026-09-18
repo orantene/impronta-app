@@ -82,7 +82,8 @@ import { Btn, Icon } from "../../kit/primitives";
 import { RefusalLine } from "../../kit/RefusalLine";
 import { Sheet } from "../../kit/Sheet";
 import { EmptyState, Skeleton } from "../../kit/Skeleton";
-import type { ScreenCopy, ScreenVariant } from "../copy";
+import type { ScreenVariant } from "../contracts";
+import type { ScreenCopy } from "../copy";
 import type { ActionSheetProps } from "../sheet-registry";
 import { registerActionSheet } from "../sheet-registry";
 
@@ -298,7 +299,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
                     price={formatCentsUSD(line.unitPriceCents)}
                     copy={copy.kit}
                     variant={variant}
-                    proposedBy={line.proposedBy}
+                    proposedBy={line.proposedBy === "system" ? "staff" : line.proposedBy}
                     proposedByName={line.proposedByName}
                     confirmed={line.confirmed}
                     priceSnapshot={drift.drifted ? c.priceDriftHint.replace("{price}", formatCentsUSD(drift.catalogNowCents)) : null}

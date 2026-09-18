@@ -145,7 +145,8 @@ export function PaymentRequestSheet(props: ActionSheetProps) {
       const result = await messagingRequestPayment({
         inquiryId,
         orderId: selectedTarget.recordId,
-        amountKind,
+        // The engine knows deposit | full | none; "other" is a deposit-shaped request with a typed amount.
+        amountKind: amountKind === "other" ? "deposit" : amountKind,
         amountCents: amountKind === "full" ? 0 : (amountCents ?? 0),
         idempotencyKey: `msgv5-pay-${inquiryId}-${selectedTarget.recordId}-${amountKind}`,
         publicOrigin: typeof window !== "undefined" ? window.location.origin : "",

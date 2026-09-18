@@ -13,8 +13,8 @@ import {
   overrideReasonValid,
 } from "./confirm-view";
 
-const OFFER_ACCEPTED: OfferRow = { id: "of-1", status: "accepted", version: 2, totalClientPrice: 38, updatedAt: "2026-09-17T10:00:00Z" };
-const OFFER_DRAFT: OfferRow = { id: "of-2", status: "draft", version: 1, totalClientPrice: 10, updatedAt: "2026-09-17T09:00:00Z" };
+const OFFER_ACCEPTED: OfferRow = { id: "of-1", status: "accepted", version: 2, totalClientPrice: 38, updatedAt: "2026-09-17T10:00:00Z", depositPct: 30, depositAmountCents: null };
+const OFFER_DRAFT: OfferRow = { id: "of-2", status: "draft", version: 1, totalClientPrice: 10, updatedAt: "2026-09-17T09:00:00Z", depositPct: null, depositAmountCents: null };
 
 function chip(over: Partial<RecordChip>): RecordChip {
   return { kind: "offer", recordId: "of-1", label: "Offer v2", paymentState: null, fulfilmentState: null, ...over };
