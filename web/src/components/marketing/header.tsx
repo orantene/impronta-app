@@ -135,7 +135,7 @@ export function MarketingHeader({
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:h-[72px] sm:gap-6 sm:px-8">
         <Link
           href={L("/")}
-          className="group relative -mx-1 flex items-center rounded-md px-1 py-1"
+          className="group relative -mx-1 flex min-w-0 shrink-0 items-center rounded-md px-1 py-1"
           aria-label={`${PLATFORM_BRAND.name} home`}
           style={{ color: "var(--plt-ink)" }}
         >
@@ -582,14 +582,15 @@ function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
           Letter-spacing is tuned so the line optically matches the wordmark's
           width. Still ~60% opacity, so it never becomes a second dark bold
           element in the bar. */}
-      {/* Phones: the line WRAPS under the wordmark (max ~9.5rem, two short
-          lines) instead of running 258px wide. Measured live 2026-09-17 at
-          375px: the nowrap strip pushed Language, Support, account and the
-          hamburger past the viewport edge (menu at x=511), so the menu could
-          not be tapped. From sm up it is one line again. */}
+      {/* Phones: hidden. Measured live 2026-09-17 at 375px with the signed-in
+          cluster (heart, inquiry, language, support, avatar, menu ≈ 280px):
+          even wrapped to 9.5rem the slogan pushed the menu button past the
+          viewport (right edge 379px) and its four clipped lines overflowed
+          the 64px bar. The bar only fits the wordmark + cluster at that width;
+          the slogan returns from sm (640px) up, one line as designed. */}
       <span
         aria-hidden
-        className="mt-1 block max-w-[9.5rem] whitespace-normal text-[0.5625rem] font-medium uppercase leading-[1.25] tracking-[0.2em] sm:max-w-none sm:whitespace-nowrap"
+        className="mt-1 hidden whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.2em] sm:block"
         style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
       >
         {descriptor}
