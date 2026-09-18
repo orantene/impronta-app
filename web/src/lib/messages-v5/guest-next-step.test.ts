@@ -25,6 +25,12 @@ test("an open payment link wins, with the deposit when the offer has one", () =>
   assert.equal(step?.values.amount, "USD 300");
 });
 
+test("an open payment link on an accepted offer still names the amount", () => {
+  const step = deriveGuestNextStep(base({ payCode: "abc", offers: [offer({ status: "accepted", depositPct: null })] }));
+  assert.equal(step?.kind, "pay");
+  assert.equal(step?.values.amount, "USD 1500");
+});
+
 test("a pending offer asks for acceptance, newest version first", () => {
   const step = deriveGuestNextStep(base({ offers: [offer({ id: "o0", version: 1 }), offer()] }));
   assert.equal(step?.kind, "accept_offer");
