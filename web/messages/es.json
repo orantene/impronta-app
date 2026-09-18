@@ -19227,6 +19227,80 @@
         "phoneMore": "Más",
         "noThreadYet": "Todavía no hay conversación para esta venta",
         "noThreadBody": "Los mensajes ligados a esta venta aparecerán aquí."
+      },
+      "taskWords": {
+        "closedLost": {
+          "title": "Perdida",
+          "why": "Marcada como perdida. Reábrela si el cliente vuelve."
+        },
+        "closedResolved": {
+          "title": "Resuelta",
+          "why": "Esta conversación está resuelta."
+        },
+        "payment_issue_failed": {
+          "title": "Problema de pago",
+          "why": "El último intento de pago falló."
+        },
+        "payment_issue_expired": {
+          "title": "Problema de pago",
+          "why": "El enlace de pago caducó antes de pagarse."
+        },
+        "payment_issue_declined": {
+          "title": "Problema de pago",
+          "why": "El pago fue rechazado."
+        },
+        "expired_hold": {
+          "title": "Reserva vencida",
+          "why": "La hora o el lugar reservado ya no está garantizado. Ofrece otra hora."
+        },
+        "reply": {
+          "title": "Responder al cliente",
+          "why": "El cliente espera una respuesta."
+        },
+        "confirm_identity": {
+          "title": "Confirma con quién hablas",
+          "why": "Hay una reserva en curso pero la identidad aún no está confirmada."
+        },
+        "await_offer": {
+          "title": "Dar seguimiento a la oferta",
+          "why": "La oferta fue enviada y espera la aceptación del cliente."
+        },
+        "collect_deposit": {
+          "title": "Cobrar el depósito",
+          "why": "La oferta fue aceptada; el depósito aún no se ha pagado."
+        },
+        "prepare_order": {
+          "title": "Preparar el pedido",
+          "why": "El pedido está pagado y espera preparación."
+        },
+        "collect_balance_now": {
+          "title": "Cobrar el saldo",
+          "why": "El saldo restante vence ahora."
+        },
+        "collect_balance_soon": {
+          "title": "Cobrar el saldo",
+          "why": "El saldo restante vence pronto."
+        },
+        "send_reminder": {
+          "title": "Enviar el recordatorio",
+          "why": "Hay un recordatorio programado pendiente."
+        },
+        "confirm_talent": {
+          "title": "Confirmar con el talento",
+          "why": "{count} confirmaciones de talento pendientes."
+        },
+        "send_offer": {
+          "title": "Enviar la oferta",
+          "why": "Hay un borrador de oferta listo para enviar."
+        },
+        "add_items": {
+          "title": "Agregar ítems",
+          "why": "Aún no hay nada sobre la mesa. Agrega lo que el cliente pide."
+        },
+        "all_clear": {
+          "title": "Nada pendiente",
+          "why": "No se necesita ninguna acción ahora."
+        }
       }
     }
   },

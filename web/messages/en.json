@@ -19227,6 +19227,80 @@
         "phoneMore": "More",
         "noThreadYet": "No conversation for this sale yet",
         "noThreadBody": "Messages linked to this sale will show up here."
+      },
+      "taskWords": {
+        "closedLost": {
+          "title": "Lost",
+          "why": "Marked as lost. Reopen if the client comes back."
+        },
+        "closedResolved": {
+          "title": "Resolved",
+          "why": "This conversation is resolved."
+        },
+        "payment_issue_failed": {
+          "title": "Payment issue",
+          "why": "The last payment attempt failed."
+        },
+        "payment_issue_expired": {
+          "title": "Payment issue",
+          "why": "The payment link expired before it was paid."
+        },
+        "payment_issue_declined": {
+          "title": "Payment issue",
+          "why": "The payment was declined."
+        },
+        "expired_hold": {
+          "title": "Hold expired",
+          "why": "The held time or seat is no longer guaranteed. Offer a new time."
+        },
+        "reply": {
+          "title": "Reply to the client",
+          "why": "The client is waiting on a reply."
+        },
+        "confirm_identity": {
+          "title": "Confirm who you're talking to",
+          "why": "A hold is in place but identity is not confirmed yet."
+        },
+        "await_offer": {
+          "title": "Follow up on the offer",
+          "why": "The offer was sent and is awaiting the client's acceptance."
+        },
+        "collect_deposit": {
+          "title": "Collect the deposit",
+          "why": "The offer was accepted; a deposit has not been paid yet."
+        },
+        "prepare_order": {
+          "title": "Prepare the order",
+          "why": "The order is paid and waiting to be prepared."
+        },
+        "collect_balance_now": {
+          "title": "Collect the balance",
+          "why": "The remaining balance is due now."
+        },
+        "collect_balance_soon": {
+          "title": "Collect the balance",
+          "why": "The remaining balance is due soon."
+        },
+        "send_reminder": {
+          "title": "Send the reminder",
+          "why": "A scheduled reminder is due."
+        },
+        "confirm_talent": {
+          "title": "Confirm with talent",
+          "why": "{count} talent confirmations pending."
+        },
+        "send_offer": {
+          "title": "Send the offer",
+          "why": "A draft offer is waiting to be sent."
+        },
+        "add_items": {
+          "title": "Add items",
+          "why": "Nothing is on the table yet. Add what the client is asking for."
+        },
+        "all_clear": {
+          "title": "Nothing to do",
+          "why": "No action is needed right now."
+        }
       }
     }
   },
