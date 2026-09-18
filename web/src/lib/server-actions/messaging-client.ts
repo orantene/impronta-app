@@ -27,6 +27,7 @@ import { z } from "zod";
 
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
+import { renameClientContact } from "@/lib/messaging/client-rename";
 import { insertMessage } from "@/lib/messaging/insert-message";
 import { fail } from "@/lib/messaging/refusals";
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
@@ -431,4 +432,16 @@ export async function messagingClientRequestChange(input: {
     senderUserId: null,
   });
   return inserted;
+}
+
+/* ---------- 6. rename the client's own name (P5 / F07, D-MSG-217) ---------- */
+
+export async function messagingClientRename(input: { token: string; name: string }): Promise<ActionResult<{ name: string }>> {
+  const parsed = z.object({ token: z.string().min(1), name: z.string().trim().min(1).max(80) }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const l = await link(parsed.data.token);
+  if (isFail(l)) return l;
+  const result = await renameClientContact(l.admin, { tenantId: l.tenantId, inquiryId: l.inquiryId, name: parsed.data.name });
+  if (!result.ok) return result;
+  return { ok: true, name: result.name };
 }

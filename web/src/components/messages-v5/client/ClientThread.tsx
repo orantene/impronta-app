@@ -37,6 +37,7 @@ export type ClientThreadProps = {
   readonly messages: readonly ThreadMessage[];
   readonly offers: readonly ClientOfferSummary[];
   readonly payCode: string | null;
+  readonly threadTokenExpiresAt?: string | null;
 };
 
 export function ClientThread(props: ClientThreadProps) {
@@ -212,6 +213,7 @@ export function ClientThread(props: ClientThreadProps) {
       onPay={onPay}
       // D-MSG-166: `sendGuestClaimToEmail` needs the guest cookie session that owns the inquiry; a link holder has none.
       onSaveToEmail={null}
+      threadTokenExpiresAt={props.threadTokenExpiresAt}
     />
   );
 }

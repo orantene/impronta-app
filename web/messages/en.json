@@ -1215,6 +1215,15 @@
       "homeLineupSub": "Talent you've added and saved",
       "homeDashboardTitle": "Open your dashboard",
       "homeDashboardSub": "Every conversation in one place",
+      "detailsTitle": "Your details",
+      "detailsName": "Name",
+      "detailsEmail": "Email",
+      "detailsPhone": "Phone",
+      "detailsEmpty": "Not added yet",
+      "detailsSave": "Save",
+      "detailsSaving": "Saving",
+      "detailsFailed": "Could not save your name. Try again.",
+      "detailsExpired": "This link has expired. Open the conversation from a new link to update your name.",
       "detailsAddCta": "Add details",
       "detailsProgress": "{filled}/{total}",
       "detailsSheetTitle": "Event details",
@@ -18908,7 +18917,8 @@
           "footer": {
             "secure": "Secure link · valid for your booking",
             "saveToEmail": "Save this conversation to your email",
-            "saveToEmailSoon": "Saving to email is not available from this link yet"
+            "saveToEmailSoon": "Saving to email is not available from this link yet",
+            "expires": "This link is valid until {date}"
           },
           "choices": {
             "cat": "Choose",

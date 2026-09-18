@@ -432,6 +432,15 @@
       "homeLineupSub": "Les talents ajoutés et enregistrés",
       "homeDashboardTitle": "Ouvrir votre tableau de bord",
       "homeDashboardSub": "Toutes les conversations au même endroit",
+      "detailsTitle": "Vos informations",
+      "detailsName": "Nom",
+      "detailsEmail": "E-mail",
+      "detailsPhone": "Téléphone",
+      "detailsEmpty": "Pas encore renseigné",
+      "detailsSave": "Enregistrer",
+      "detailsSaving": "Enregistrement",
+      "detailsFailed": "Impossible d'enregistrer votre nom. Réessayez.",
+      "detailsExpired": "Ce lien a expiré. Ouvrez la conversation depuis un nouveau lien pour mettre à jour votre nom.",
       "detailsAddCta": "Ajouter des détails",
       "detailsProgress": "{filled}/{total}",
       "detailsSheetTitle": "Détails de l'événement",
@@ -7825,7 +7834,8 @@
           "footer": {
             "secure": "Lien sécurisé · valable pour votre réservation",
             "saveToEmail": "Enregistrer cette conversation dans votre e-mail",
-            "saveToEmailSoon": "L'enregistrement par e-mail n'est pas encore disponible depuis ce lien"
+            "saveToEmailSoon": "L'enregistrement par e-mail n'est pas encore disponible depuis ce lien",
+            "expires": "Ce lien est valable jusqu'au {date}"
           },
           "choices": {
             "cat": "Choisir",

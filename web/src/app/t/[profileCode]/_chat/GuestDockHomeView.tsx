@@ -31,6 +31,7 @@ import type {
 } from "@/lib/inquiry/guest-chat-contract";
 
 import { GuestAccountToolkit } from "./GuestAccountToolkit";
+import { GuestDockDetailsCard } from "./GuestDockDetailsCard";
 import { FONT, FONT_DISPLAY, accentText, type Palette, type SurfaceMode } from "./mini-chat-styles";
 
 export type GuestDockHomeViewProps = {
@@ -58,6 +59,11 @@ export type GuestDockHomeViewProps = {
   onAddClaimEmail: AddClaimEmailCallback | null;
   onCheckClaimEmail?: CheckGuestClaimEmailCallback | null;
   onGuestEmailUpdated?: (email: string) => void;
+  detailsName?: string;
+  detailsEmail?: string | null;
+  detailsPhone?: string | null;
+  detailsToken?: string | null;
+  onDetailsSaved?: (name: string) => void;
 };
 
 function ActionCard({
@@ -189,6 +195,11 @@ export function GuestDockHomeView({
   onAddClaimEmail,
   onCheckClaimEmail,
   onGuestEmailUpdated,
+  detailsName = "",
+  detailsEmail = null,
+  detailsPhone = null,
+  detailsToken = null,
+  onDetailsSaved,
 }: GuestDockHomeViewProps) {
   const isAccount = identity === "account";
   const startTitle = draftExists
@@ -327,6 +338,22 @@ export function GuestDockHomeView({
           </a>
         )}
       </div>
+
+      {(detailsToken || detailsName || detailsEmail || detailsPhone) ? (
+        <div style={{ padding: "0 14px 8px" }}>
+          <GuestDockDetailsCard
+            name={detailsName}
+            email={detailsEmail}
+            phone={detailsPhone}
+            token={detailsToken}
+            accent={accent}
+            accentInk={accentInk}
+            C={C}
+            t={t}
+            onSaved={onDetailsSaved}
+          />
+        </div>
+      ) : null}
 
       {/* ── Account / save-this-conversation (guests only) ─────────────────
           Sits directly under the action cards, not pinned to the base. With the

@@ -27,6 +27,10 @@ export function useGuestDockModel(input: {
   readonly C: ReturnType<typeof paletteFor>;
   readonly accent: string;
   readonly accentInk: string;
+  readonly contactName?: string;
+  readonly contactEmail?: string | null;
+  readonly contactPhone?: string | null;
+  readonly onRenameSaved?: (name: string) => void;
 }) {
   const locale = input.brand.locale ?? "en";
   const businessName = input.brand.agencyName;
@@ -91,5 +95,12 @@ export function useGuestDockModel(input: {
       onRefresh: input.refresh ?? (() => undefined),
       onAsk: c.onAsk,
     }),
+    detailsProps: {
+      detailsName: input.contactName ?? "",
+      detailsEmail: input.contactEmail ?? null,
+      detailsPhone: input.contactPhone ?? null,
+      detailsToken: input.v5?.threadToken ?? null,
+      onDetailsSaved: input.onRenameSaved,
+    },
   };
 }
