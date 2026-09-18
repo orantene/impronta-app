@@ -47,8 +47,7 @@ import { buildCopyPassPrompt, COPY_PASS_JSON_SCHEMA, COPY_PASS_KEYS, COPY_PASS_M
 import { assignmentSourceForLevel, buildImageResolver, type AssignmentSource, type CandidateImage } from "./image-resolver";
 import { stockFactsFromBrief } from "./stock-prompts";
 import { writeAssignments } from "@/lib/media/asset-assignments.server";
-import { tagFor, tenantBustTags } from "@/lib/site-admin/cache-tags";
-import { updateTag } from "next/cache";
+import { bustAllTenantCaches, bustBrandingCache, bustIdentityCache } from "./compose-cache-bust.server";
 import { enqueueTenantImageJob } from "@/lib/media/tenant-image-jobs.server";
 import { instantiateSite } from "./instantiate-site";
 import { DEFAULT_LOOK_BY_FAMILY } from "./look-defaults";
@@ -353,35 +352,6 @@ async function writeStamp(admin: SupabaseClient, tenantId: string, stamp: SiteCo
     if (upErr) throw upErr;
   } catch (error) {
     logServerError("compose.stamp", error);
-  }
-}
-
-/** The public theme is served from the `branding` cache tag (reads.ts); a new Look must reach the page now, not after a restart. */
-function bustBrandingCache(tenantId: string): void {
-  try {
-    updateTag(tagFor(tenantId, "branding"));
-  } catch {
-    /* outside a request scope (scripts, tests): nothing to bust */
-  }
-}
-function bustIdentityCache(tenantId: string): void {
-  try {
-    updateTag(tagFor(tenantId, "identity"));
-  } catch {
-    /* outside a request scope */
-  }
-}
-/**
- * A compose rewrites the homepage, the shell, the pages, the theme and the
- * name: every public cache surface of the tenant is stale afterwards. The
- * page writers bust their own tags; this is the belt for the ones that
- * render one compose behind (seen live: previous hero under the new name).
- */
-function bustAllTenantCaches(tenantId: string): void {
-  try {
-    for (const tag of tenantBustTags(tenantId)) updateTag(tag);
-  } catch {
-    /* outside a request scope */
   }
 }
 
