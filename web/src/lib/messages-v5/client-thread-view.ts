@@ -320,13 +320,78 @@ export function readConfirmation(payload: Record<string, unknown> | null): Confi
   };
 }
 
-export type ChangeView = { readonly title: string | null; readonly body: string | null; readonly state: "sent" | "applied" | "declined"; readonly oldWhen: string | null; readonly newWhen: string | null };
+export type TicketsView = {
+  readonly title: string | null;
+  readonly tiers: readonly ChoiceOption[];
+  readonly currency: string;
+  readonly state: string;
+  /** Short code for `/q/<code>` when the engine stamped one on the card. */
+  readonly ticketCode: string | null;
+};
+
+const TICKETS_ISSUED = new Set(["paid", "issued", "checked_in", "selected"]);
+
+/** The door/QR code the staff kit already opens at `/q/<code>`. Null when the engine never stamped one (D-MSG-215). */
+function ticketCodeFrom(p: Record<string, unknown>): string | null {
+  const raw = str(p.ticketCode) ?? str(p.code) ?? str(p.qrCode) ?? str(p.linkCode) ?? str(p.ticketUrl);
+  if (!raw) return null;
+  const fromPath = raw.match(/\/q\/([^/?#]+)/);
+  if (fromPath?.[1]) return fromPath[1];
+  if (/^[A-Za-z0-9_-]{2,64}$/.test(raw)) return raw;
+  return null;
+}
+
+export function readTickets(payload: Record<string, unknown> | null): TicketsView {
+  const p = payload ?? {};
+  const choices = readChoices("tickets_card", p);
+  return {
+    title: choices.title,
+    tiers: choices.options,
+    currency: choices.currency,
+    state: (str(p.state) ?? "sent").toLowerCase(),
+    ticketCode: ticketCodeFrom(p),
+  };
+}
+
+/** Paid / issued / checked-in: the client leaves the chooser for a ticket card. */
+export function ticketsIssued(view: TicketsView): boolean {
+  return TICKETS_ISSUED.has(view.state);
+}
+
+export type ChangeView = {
+  readonly title: string | null;
+  readonly body: string | null;
+  readonly state: "sent" | "applied" | "declined" | "cancelled";
+  readonly oldWhen: string | null;
+  readonly newWhen: string | null;
+  readonly refundedCents: number | null;
+  readonly currency: string;
+};
+
+function isCancelOrRefundPayload(p: Record<string, unknown>): boolean {
+  if (typeof p.refundedCents === "number") return true;
+  const summary = str(p.summary) ?? "";
+  return /^cancelled/i.test(summary) || /^refunded/i.test(summary);
+}
 
 export function readChange(kind: ClientCardKind, payload: Record<string, unknown> | null, body: string): ChangeView {
   const p = payload ?? {};
   const raw = str(p.state);
-  const state: ChangeView["state"] = kind === "change_result" ? (raw === "cancelled" || raw === "unavailable" ? "declined" : "applied") : raw === "selected" || raw === "paid" ? "applied" : raw === "cancelled" || raw === "unavailable" ? "declined" : "sent";
-  return { title: str(p.title), body: str(p.summary) ?? str(body), state, oldWhen: str(p.oldWhen), newWhen: str(p.newWhen) };
+  const refundedCents = num(p.refundedCents);
+  const currency = str(p.currency) ?? "USD";
+  let state: ChangeView["state"];
+  if (kind === "change_result" && isCancelOrRefundPayload(p)) {
+    state = "cancelled";
+  } else if (kind === "change_result") {
+    state = raw === "cancelled" || raw === "unavailable" ? "declined" : "applied";
+  } else if (raw === "selected" || raw === "paid") {
+    state = "applied";
+  } else if (raw === "cancelled" || raw === "unavailable") {
+    state = "declined";
+  } else {
+    state = "sent";
+  }
+  return { title: str(p.title), body: str(p.summary) ?? str(body), state, oldWhen: str(p.oldWhen), newWhen: str(p.newWhen), refundedCents, currency };
 }
 
 /** First name for "<name> is handling your request". */

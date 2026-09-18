@@ -3,9 +3,9 @@ import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
-import { readChange, readChoices, readConfirmation, readPayment, readTimes } from "@/lib/messages-v5/client-thread-view";
+import { readChange, readChoices, readConfirmation, readPayment, readTickets, readTimes } from "@/lib/messages-v5/client-thread-view";
 
-import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientPaymentCard, ClientTimesCard } from "./ClientCards";
+import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientPaymentCard, ClientTicketsCard, ClientTimesCard } from "./ClientCards";
 import { EN_CLIENT, EN_KIT, ES_CLIENT } from "./test-copy";
 
 const now = new Date("2026-09-17T10:00:00.000Z");
@@ -186,6 +186,37 @@ test("change request and result are read-only with the state", () => {
   const declined = renderToStaticMarkup(<ClientChangeCard copy={EN_CLIENT} business="Impronta" view={readChange("change_result", { state: "cancelled" }, "")} />);
   assert.match(declined, />Not possible</);
   assert.match(declined, /Impronta could not make this change\./);
+  const cancelled = renderToStaticMarkup(<ClientChangeCard copy={EN_CLIENT} business="Impronta" view={readChange("change_result", { state: "sent", summary: "Cancelled, refunded 18.00", refundedCents: 1800, currency: "USD" }, "")} />);
+  assert.match(cancelled, /data-card="client-cancel"/);
+  assert.match(cancelled, />Cancelled</);
+  assert.match(cancelled, /Cancelled\. \$18\.00 will be refunded\./);
+  const noRefund = renderToStaticMarkup(<ClientChangeCard copy={EN_CLIENT} business="Impronta" view={readChange("change_result", { state: "sent", summary: "Cancelled, no refund", refundedCents: 0 }, "")} />);
+  assert.match(noRefund, /Cancelled\. No refund\./);
+  const refundOnly = renderToStaticMarkup(<ClientChangeCard copy={EN_CLIENT} business="Impronta" view={readChange("change_result", { state: "sent", summary: "Refunded 18.00 USD", refundedCents: 1800, currency: "USD" }, "")} />);
+  assert.match(refundOnly, /\$18\.00 was refunded\./);
+});
+
+test("tickets paid: Issued pill, Open ticket when the engine stamped a /q/ code; waiting sentence when it did not; cancelled leaves the chooser", () => {
+  const issued = renderToStaticMarkup(<ClientTicketsCard copy={EN_CLIENT} business="Impronta" view={readTickets({ title: "Friday night", tiers: [{ id: "t1", label: "GA", priceCents: 5000 }], state: "paid", ticketCode: "abc12" })} onOpen={() => {}} />);
+  assert.match(issued, /data-card="client-tickets"/);
+  assert.match(issued, />Issued</);
+  assert.match(issued, /Friday night/);
+  assert.match(issued, /GA/);
+  assert.match(issued, /data-client-action="open_ticket"/);
+  assert.match(issued, />Open ticket</);
+  const waiting = renderToStaticMarkup(<ClientTicketsCard copy={EN_CLIENT} business="Impronta" view={readTickets({ title: "Friday night", tiers: [{ id: "t1", label: "GA", priceCents: 5000 }], state: "issued" })} />);
+  assert.match(waiting, /Your tickets are ready\. Impronta will send the door link\./);
+  assert.doesNotMatch(waiting, /data-client-action="open_ticket"/);
+  const cancelled = renderToStaticMarkup(<ClientTicketsCard copy={EN_CLIENT} business="Impronta" view={readTickets({ title: "Friday night", state: "cancelled" })} />);
+  assert.match(cancelled, /These tickets were cancelled\./);
+  assert.doesNotMatch(cancelled, /data-client-action/);
+});
+
+test("payment cancelled is its own sentence, not the expired line", () => {
+  const html = renderToStaticMarkup(<ClientPaymentCard {...base} now={now} view={readPayment({ paymentLinkCode: "abc", amountCents: 1800, amountKind: "full", state: "cancelled" })} onPay={() => {}} />);
+  assert.match(html, />Cancelled</);
+  assert.match(html, /This payment was cancelled\. Ask Impronta if you still want to pay\./);
+  assert.doesNotMatch(html, /data-client-action/);
 });
 
 test("draft card: what the client picked so far, with a total", () => {
