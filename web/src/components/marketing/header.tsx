@@ -135,7 +135,7 @@ export function MarketingHeader({
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:h-[72px] sm:gap-6 sm:px-8">
         <Link
           href={L("/")}
-          className="group relative -mx-1 flex items-center rounded-md px-1 py-1"
+          className="group relative -mx-1 flex min-w-0 shrink items-center rounded-md px-1 py-1"
           aria-label={`${PLATFORM_BRAND.name} home`}
           style={{ color: "var(--plt-ink)" }}
         >
@@ -581,10 +581,15 @@ function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
           and it stops the descriptor from fighting the nav for horizontal room.
           Letter-spacing is tuned so the line optically matches the wordmark's
           width. Still ~60% opacity, so it never becomes a second dark bold
-          element in the bar. */}
+          element in the bar.
+
+          On phones the nowrap line (~330px at 0.2em tracking) was wider than
+          the bar's free space and pushed the action icons past the right edge
+          (owner screenshot, 2026-09-17). Below `sm` it wraps inside a capped
+          width with tighter tracking, so the lockup never sets the row width. */}
       <span
         aria-hidden
-        className="mt-1 block whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.2em]"
+        className="mt-1 block max-w-[min(50vw,13rem)] whitespace-normal text-[0.5625rem] font-medium uppercase leading-[1.25] tracking-[0.14em] sm:max-w-none sm:whitespace-nowrap sm:leading-none sm:tracking-[0.2em]"
         style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
       >
         {descriptor}
