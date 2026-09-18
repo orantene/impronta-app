@@ -23,6 +23,7 @@ import { keepActiveRow } from "@/lib/messaging/inbox-search";
 import { isGeneratedName } from "@/lib/messaging/inquiry-name-pure";
 import { customerThreadUrl } from "@/lib/messaging/thread-link";
 import { deriveTasks } from "@/lib/messaging/tasks";
+import { localizeTasks } from "@/lib/messages-v5/localize-tasks";
 import type { ConversationHistoryEntry, CustomerMatch, Essentials, InboxFilter, InboxRow, InquiryMessagingState, MessagingRefusal, ThreadMessage } from "@/lib/messaging/types";
 
 import "../kit/tokens.css";
@@ -330,7 +331,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     if (!activeRow) return [];
     const failed = recordChips.some((c) => c.paymentState === "failed");
     const expired = recordChips.some((c) => c.paymentState === "expired");
-    return deriveTasks({
+    return localizeTasks(deriveTasks({
       conversationState: activeRow.conversationState,
       opportunityState: activeRow.opportunityState,
       recordChips,
@@ -341,8 +342,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       reminderDueAt: null,
       holdExpiresAt: null,
       paymentIssue: failed ? "failed" : expired ? "expired" : null,
-    });
-  }, [activeRow, essentials?.customer.identityLevel, recordChips]);
+    }), copy.kit.taskWords);
+  }, [activeRow, copy.kit.taskWords, essentials?.customer.identityLevel, recordChips]);
   const itemsLabel = props.industryPreset !== undefined ? itemsLabelForPreset(props.industryPreset, copy.kit) : props.workspaceType === "talent" ? copy.shell.itemsTalent : copy.shell.itemsGeneric;
   const counts = useMemo(() => ({ [segment]: rows.length }) as Partial<Record<InboxSegment, number>>, [segment, rows.length]);
 

@@ -8144,6 +8144,80 @@
         "phoneMore": "Plus",
         "noThreadYet": "Pas encore de conversation pour cette vente",
         "noThreadBody": "Les messages liés à cette vente apparaîtront ici."
+      },
+      "taskWords": {
+        "closedLost": {
+          "title": "Perdue",
+          "why": "Marquée comme perdue. Rouvrez si le client revient."
+        },
+        "closedResolved": {
+          "title": "Résolue",
+          "why": "Cette conversation est résolue."
+        },
+        "payment_issue_failed": {
+          "title": "Problème de paiement",
+          "why": "La dernière tentative de paiement a échoué."
+        },
+        "payment_issue_expired": {
+          "title": "Problème de paiement",
+          "why": "Le lien de paiement a expiré avant d'être payé."
+        },
+        "payment_issue_declined": {
+          "title": "Problème de paiement",
+          "why": "Le paiement a été refusé."
+        },
+        "expired_hold": {
+          "title": "Réservation expirée",
+          "why": "Le créneau ou la place retenue n'est plus garantie. Proposez un autre horaire."
+        },
+        "reply": {
+          "title": "Répondre au client",
+          "why": "Le client attend une réponse."
+        },
+        "confirm_identity": {
+          "title": "Confirmez à qui vous parlez",
+          "why": "Une réservation est en cours mais l'identité n'est pas encore confirmée."
+        },
+        "await_offer": {
+          "title": "Relancer sur l'offre",
+          "why": "L'offre a été envoyée et attend l'acceptation du client."
+        },
+        "collect_deposit": {
+          "title": "Encaisser l'acompte",
+          "why": "L'offre a été acceptée ; l'acompte n'a pas encore été payé."
+        },
+        "prepare_order": {
+          "title": "Préparer la commande",
+          "why": "La commande est payée et attend d'être préparée."
+        },
+        "collect_balance_now": {
+          "title": "Encaisser le solde",
+          "why": "Le solde restant est dû maintenant."
+        },
+        "collect_balance_soon": {
+          "title": "Encaisser le solde",
+          "why": "Le solde restant est dû bientôt."
+        },
+        "send_reminder": {
+          "title": "Envoyer le rappel",
+          "why": "Un rappel programmé est à envoyer."
+        },
+        "confirm_talent": {
+          "title": "Confirmer avec le talent",
+          "why": "{count} confirmations de talent en attente."
+        },
+        "send_offer": {
+          "title": "Envoyer l'offre",
+          "why": "Un brouillon d'offre attend d'être envoyé."
+        },
+        "add_items": {
+          "title": "Ajouter des éléments",
+          "why": "Rien n'est encore sur la table. Ajoutez ce que le client demande."
+        },
+        "all_clear": {
+          "title": "Rien à faire",
+          "why": "Aucune action n'est nécessaire pour l'instant."
+        }
       }
     }
   },
