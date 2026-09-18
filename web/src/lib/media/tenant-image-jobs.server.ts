@@ -17,6 +17,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { resolveImageEngineSettings } from "@/lib/ai/ai-image-model";
 import { logServerError } from "@/lib/server/safe-error";
+import { bustAllTenantCaches } from "@/lib/site-admin/builder-core/site-templates/compose-cache-bust.server";
 import { directionForIndex, type DirectionId, type StockPromptFacts } from "@/lib/site-admin/builder-core/site-templates/stock-prompts";
 import type { ImageSlotKey } from "@/lib/site-admin/builder-core/site-templates/types";
 import type { BusinessFamilyId } from "@/lib/words/business-types";
@@ -37,7 +38,12 @@ export interface JobSlot {
 }
 
 /** The slots a site gets for itself (6–8; team only when the Look placed one). */
-const TENANT_SLOTS: ReadonlyArray<ImageSlotKey> = ["hero", "wide", "portrait", "gallery-1", "gallery-2", "gallery-3", "gallery-4", "team"];
+/**
+ * In priority order: the cap below (8 per site, owner §9.2) must spend on what
+ * a visitor sees first. `detail` sits in the first content band of the v2
+ * Looks; a generic stand-in there read as "not my barbería" (p13).
+ */
+const TENANT_SLOTS: ReadonlyArray<ImageSlotKey> = ["hero", "wide", "detail", "portrait", "gallery-1", "gallery-2", "gallery-3", "gallery-4", "team"];
 
 const TENANT_PAGES: ReadonlySet<string> = new Set(["home", "about"]);
 
@@ -78,7 +84,8 @@ export async function enqueueTenantImageJob(
     const wanted = new Set<string>(TENANT_SLOTS);
     const seen = new Set<string>();
     const slots: JobSlot[] = [];
-    for (const s of input.slots) {
+    const rank = (s: { pageRole: string; slot: string }) => (s.pageRole === "home" ? 0 : 100) + Math.max(0, TENANT_SLOTS.indexOf(s.slot as ImageSlotKey));
+    for (const s of [...input.slots].sort((a, b) => rank(a) - rank(b))) {
       const key = `${s.pageRole}|${s.slot}`;
       // Only the home and about pages get their own frames (6–8 per site, owner §9.2);
       // every other page is served the tenant's images by the resolver.
@@ -188,7 +195,9 @@ export async function runTenantImageJobs(admin: SupabaseClient, options: { budge
             s.assetId = r.id;
             if (swapped === "swapped" && src) {
               // The page carries the src; rewrite it so the renderer shows the tenant's own image.
-              if (previous && previous !== src) await swapImageSrcInTenantPages(admin, { tenantId: job.tenant_id, fromSrc: previous, toSrc: src, pageId: pageIds[s.pageRole] ?? null, maxNodes: 1 });
+              // Every node on this page carrying the slot's previous photo: the
+              // resolver hands one photo per page+slot, so they are all this frame.
+              if (previous && previous !== src) await swapImageSrcInTenantPages(admin, { tenantId: job.tenant_id, fromSrc: previous, toSrc: src, pageId: pageIds[s.pageRole] ?? null });
               report.imagesDone += 1;
             } else report.imagesFailed += 1;
           } else {
@@ -225,6 +234,11 @@ export async function runTenantImageJobs(admin: SupabaseClient, options: { budge
       .update({ slots, status, cost_usd: Number((job.cost_usd + cost).toFixed(5)), attempts: job.attempts + 1, ...(remaining > 0 ? {} : { finished_at: new Date().toISOString() }), error: stop ? `paused: ${stop}` : null })
       .eq("id", job.id);
     if (error) logServerError("tenant-image-jobs.settle", error);
+    // The swaps rewrote the live trees; the public page is served from the
+    // tenant's cache tags and would keep showing the stand-in photos until
+    // something else busted them (seen: the barbería kept the universal
+    // hero after its own images were done).
+    if (done > 0) bustAllTenantCaches(job.tenant_id);
     if (remaining === 0) await clearPending(admin, { tenantId: job.tenant_id, jobId: job.id });
     if (stop) {
       report.stoppedBy = stop;

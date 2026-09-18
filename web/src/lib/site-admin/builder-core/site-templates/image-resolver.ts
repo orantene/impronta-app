@@ -103,7 +103,14 @@ export function buildImageResolver(
 ): { resolve: ImageResolver; picks: ImagePick[] } {
   const used = new Set<string>();
   const picks: ImagePick[] = [];
+  // One frame per page+slot: a Look that names "wide" twice on the home page
+  // (sticky story + a picture) gets the SAME photo, so the stored assignment
+  // and the per-site swap cover both nodes (p13: the second call drew a
+  // different universal photo that no job could ever replace).
+  const memo = new Map<string, ResolvedImage | null>();
   const resolve: ImageResolver = (slot, role, page = "home") => {
+    const memoKey = `${page}|${slot}`;
+    if (memo.has(memoKey)) return memo.get(memoKey) ?? null;
     const ranked = [...candidates]
       // Unused owner > unused tenant > unused pool (tag matches, then pack level)
       // > a photo already placed (one photo in nine frames reads as broken).
@@ -121,11 +128,13 @@ export function buildImageResolver(
     const best = ranked[0] ?? null;
     if (!best) {
       picks.push({ page, slot, source: "none", level: null, src: null, stockId: null, direction: null });
+      memo.set(memoKey, null);
       return null;
     }
     used.add(best.c.src);
     picks.push({ page, slot, source: best.c.owner ? "owner" : "stock", level: best.level, src: best.c.src, stockId: best.c.stockId ?? null, direction: best.c.direction ?? null });
     const out: ResolvedImage = { src: best.c.src, alt: best.c.alt };
+    memo.set(memoKey, out);
     return out;
   };
   return { resolve, picks };

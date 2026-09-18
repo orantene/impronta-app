@@ -89,3 +89,15 @@ test("candidatePalettesFromHexes: at most three, each ≤ 3 swatches, demotions 
   assert.match(withWhite[0]?.demotions.join(" ") ?? "", /accent|unused/);
   assert.deepEqual(candidatePalettesFromHexes(base, ["nope"]), []);
 });
+
+test("one photo per page+slot: a slot asked twice on a page returns the same frame and records one pick (p13)", () => {
+  const { resolve, picks } = buildImageResolver([
+    { src: "wide-a", width: 1600, height: 900, alt: { es: "a", en: "a" }, role: "wide", owner: false, level: "universal" },
+    { src: "wide-b", width: 1600, height: 900, alt: { es: "b", en: "b" }, role: "wide", owner: false, level: "universal" },
+  ]);
+  const first = resolve("wide", "wide", "home")?.src;
+  const second = resolve("wide", "wide", "home")?.src;
+  assert.equal(first, second, "the sticky story and the picture share the frame the assignment tracks");
+  assert.equal(picks.filter((p) => p.page === "home" && p.slot === "wide").length, 1);
+  assert.notEqual(resolve("wide", "wide", "about")?.src, first, "another page still gets an unused photo");
+});
