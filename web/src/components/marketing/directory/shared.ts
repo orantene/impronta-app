@@ -14,7 +14,11 @@ import type {
   DiscoverSort,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
 import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
-import { AVAILABILITY_UNKNOWN } from "@/lib/site-admin/sections/directory/card-data";
+import {
+  AVAILABILITY_UNKNOWN,
+  type DirectoryCardAttribute,
+  type DirectoryCardFitLabel,
+} from "@/lib/site-admin/sections/directory/card-data";
 import type { CardDesign } from "@/lib/site-admin/server/card-design-shape";
 
 export type {
@@ -51,6 +55,7 @@ export type DirectoryCardData = Pick<
   // the row renders a chip only past the credibility floor.
   | "ratingAvg"
   | "ratingCount"
+  | "wouldBookAgainPct"
 >;
 
 /**
@@ -61,6 +66,9 @@ export type DirectoryCardData = Pick<
  * extra conversion.
  */
 export type DirectoryCardRow = DirectoryCardData & {
+  /** Hub-catalog fit chips + engine attributes (see lib/directory/hub-card-traits). */
+  fitLabels?: readonly DirectoryCardFitLabel[];
+  cardAttributes?: readonly DirectoryCardAttribute[];
   /** Owning agency tenant — present on grid rows (`DiscoverTalentListItem`),
    *  absent on map points (`DiscoverMapPoint` doesn't carry it yet), so it's
    *  optional. When absent the card paints the platform-default design. */
@@ -148,6 +156,14 @@ export function toCanonicalCardData(
       : AVAILABILITY_UNKNOWN,
     availabilityKnown: known,
     availableDaysInNext30: days,
+    fitLabels: talent.fitLabels,
+    cardAttributes: talent.cardAttributes,
+    // Standing (verified review aggregates) is portable by design and the
+    // marketing directory is platform-host, so it is reviews-entitled; the
+    // renderer still applies the credibility floor.
+    ratingAvg: talent.ratingAvg ?? null,
+    ratingCount: talent.ratingCount ?? null,
+    wouldBookAgainPct: talent.wouldBookAgainPct ?? null,
   };
 }
 

@@ -117,6 +117,13 @@ export type TalentCardProps = {
   secondaryActionSlot?: ReactNode;
   badgeSlot?: ReactNode;
   /**
+   * The trait row (fit chips + engine attributes such as "HEIGHT 178 cm"),
+   * rendered INSIDE the caption beneath the type/location line so the
+   * fields read as part of the card, not as a loose line floating under
+   * it. See talent-card-trait-row.tsx for the reveal / static wrappers.
+   */
+  traitSlot?: ReactNode;
+  /**
    * Standing-chip visibility escape hatch. `"auto"` (default) keeps the
    * existing behavior: the chip renders with the `data-card-standing` hook
    * and stays gated by the `html[data-token-card-standing]` CSS rule in

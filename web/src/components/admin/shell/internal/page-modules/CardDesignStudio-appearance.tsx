@@ -127,7 +127,10 @@ export function CardAppearanceSection({
             <ToggleRow label={t("dashboard.adminCardStudio.rowAttributes")} on={appearance.showAttributes} onChange={canEdit ? (v) => setLineDefault("showAttributes", "directory.card.show-attributes", v) : undefined} disabled={!canEdit} />
             <ToggleRow label={t("dashboard.adminCardStudio.rowAvailability")} on={appearance.showAvailability} onChange={canEdit ? (v) => setLineDefault("showAvailability", "directory.card.show-availability", v) : undefined} disabled={!canEdit} />
             <ToggleRow label={t("dashboard.adminCardStudio.rowTrustBadges")} on={appearance.showBadges} onChange={canEdit ? (v) => setLineDefault("showBadges", "directory.card.show-badges", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowRating")} on={appearance.showRating} onChange={canEdit ? (v) => setLineDefault("showRating", "directory.card.show-rating", v) : undefined} disabled={!canEdit} />
+            {/* No "Rating" row here: `directory.card.show-rating` only ever
+                set an <html> attribute nothing reads, so the switch was dead
+                on the live site as well as in the preview. The real control
+                is "Show talent standing" below. */}
             <ToggleRow label={t("dashboard.adminCardStudio.rowPriceFrom")} hint={t("dashboard.adminCardStudio.rowPriceFromHint")} on={appearance.showPriceFrom} onChange={canEdit ? (v) => setLineDefault("showPriceFrom", "directory.card.show-starting-from-price", v) : undefined} disabled={!canEdit} />
 
             {/* Reviews on cards — REAL persistence (template tokens; see

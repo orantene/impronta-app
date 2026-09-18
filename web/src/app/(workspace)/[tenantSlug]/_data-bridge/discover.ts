@@ -477,6 +477,7 @@ export type DiscoverMapPoint = {
   // card, so these are present-and-null to satisfy the shared shape.
   ratingAvg: number | null;
   ratingCount: number | null;
+  wouldBookAgainPct: number | null;
 };
 
 export async function loadDiscoverMapPoints(
@@ -589,6 +590,7 @@ export async function loadDiscoverMapPoints(
       homeLng: coords.lng,
       ratingAvg: null,
       ratingCount: null,
+      wouldBookAgainPct: null,
     });
   }
 

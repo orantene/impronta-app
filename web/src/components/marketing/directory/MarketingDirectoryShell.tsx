@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { MarketingContainer } from "@/components/marketing/container";
@@ -10,19 +10,12 @@ import {
   directoryPageHref,
   type DirectoryPageWindow,
 } from "@/lib/directory/pagination";
-import {
-  FOCUS_RING,
-  type DirectoryActiveFilters,
-  type DirectoryCardRow,
-  type DirectoryFacets,
-  type DirectoryView,
-  type DiscoverMapPoint,
-  type DiscoverSort,
-} from "./shared";
+import { FOCUS_RING, availabilityLine, locationLine, type DirectoryActiveFilters, type DirectoryCardRow, type DirectoryFacets, type DirectoryView, type DiscoverMapPoint, type DiscoverSort } from "./shared";
 import { DirectorySearch } from "./DirectorySearch";
 import { DirectoryTypeBar } from "./DirectoryTypeBar";
 import { DirectoryFilters } from "./DirectoryFilters";
 import { DirectoryToolbar } from "./DirectoryToolbar";
+import { computeCaptionNorms } from "@/lib/directory/caption-norms";
 import { DirectoryTalentCard } from "./DirectoryTalentCard";
 import { DirectoryTalentRow } from "./DirectoryTalentRow";
 import { MarketingDirectoryMap } from "./MarketingDirectoryMap";
@@ -71,6 +64,19 @@ export function MarketingDirectoryShell({
   const reduceMotion = useReducedMotion();
 
   const [items, setItems] = useState(initialItems);
+  const captionNorms = useMemo(
+    () =>
+      computeCaptionNorms(
+        items.map((t) => ({
+          locationLabel: locationLine(t.homeCity, t.homeCountry),
+          availabilityLabel:
+            typeof t.availableDaysInNext30 === "number" && t.availableDaysInNext30 > 0
+              ? availabilityLine(t.availableDaysInNext30).text
+              : null,
+        })),
+      ),
+    [items],
+  );
   const [total, setTotal] = useState(initialTotal);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
@@ -250,7 +256,7 @@ export function MarketingDirectoryShell({
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
                 {items.map((t, i) => (
                   <Entrance key={t.id} index={i} reduce={!!reduceMotion}>
-                    <DirectoryTalentCard talent={t} />
+                    <DirectoryTalentCard talent={t} captionNorms={captionNorms} />
                   </Entrance>
                 ))}
               </div>

@@ -17,13 +17,18 @@ import {
   NO_CAPTION_NORMS,
 } from "@/lib/directory/caption-norms";
 
+import {
+  pickAttributeLines,
+  pickFitLabels,
+  TalentCardTraitRow,
+  traitRowMode,
+} from "@/components/talent-cards/talent-card-trait-row";
+
 import { DirectoryCard } from "./DirectoryCard";
 import {
   AVAILABILITY_UNKNOWN,
   AVAILABILITY_UNKNOWN_ES,
-  type DirectoryCardAttribute,
   type DirectoryCardData,
-  type DirectoryCardFitLabel,
 } from "./card-data";
 import type { DirectoryV1 } from "./schema";
 
@@ -180,24 +185,24 @@ export function DirectoryCardAdapter({
   // and focus-within keeps it keyboard-accessible.
   const revealTraitsOnHover = hoverBehavior === "reveal_traits";
 
-  const hasTraitContent =
-    show.showAttributes !== false &&
-    (fitChips.length > 0 || traitLines.length > 0);
-  // The portrait style's whole card IS the photo (fixed aspect-ratio box;
-  // name/type/availability already float over it as an absolute scrim — see
-  // TalentCard.tsx). Reserving/animating the trait row as IN-FLOW content
-  // below that box, as the single code path used to, changed this wrapper's
-  // real height on hover; in a CSS Grid with the default `align-items:
-  // stretch` (DirectoryReactiveGrid.tsx) that grows the whole grid ROW, so
-  // hovering one card visibly shoved every card in the rows beneath it down
-  // the page. Portrait + reveal-on-hover therefore floats the trait row as
-  // its own bottom-anchored overlay INSIDE the photo box (rendered inside
-  // the `mediaRef` wrapper below) so the card's box height never changes.
-  // Editorial keeps the original in-flow reveal — its caption already lives
-  // below the photo as flowing content, so this failure mode doesn't apply.
-  const traitOverlayInPhoto =
-    hasTraitContent && revealTraitsOnHover && style === "portrait";
-  const traitRowBelowPhoto = hasTraitContent && !traitOverlayInPhoto;
+  // The trait row renders INSIDE the card caption (TalentCard `traitSlot`),
+  // never as a loose line under the photo. On portrait the caption is an
+  // absolute bottom-anchored block, so a hover reveal grows it upward and
+  // the card's box never changes — a CSS-grid row can't reflow.
+  const traitMode = traitRowMode({
+    hasContent:
+      show.showAttributes !== false &&
+      (fitChips.length > 0 || traitLines.length > 0),
+    revealOnHover: revealTraitsOnHover,
+  });
+  const traitSlot = traitMode ? (
+    <TalentCardTraitRow
+      fitChips={fitChips}
+      traitLines={traitLines}
+      mode={traitMode}
+      onScrim={style === "portrait"}
+    />
+  ) : undefined;
 
   // cardClickAction="page" — defeat the route interception by turning the
   // card root's soft <Link> navigation into a hard load. Capture-phase so it
@@ -236,6 +241,7 @@ export function DirectoryCardAdapter({
           density={density}
           priority={priority}
           index={index}
+          traitSlot={traitSlot}
           badgeSlot={
             data.bookable ? (
               <span className="pointer-events-none absolute left-2.5 bottom-2.5 z-[2] rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/80 backdrop-blur-sm">
@@ -367,156 +373,9 @@ export function DirectoryCardAdapter({
             ) : null}
           </div>
         ) : null}
-        {/* Portrait + reveal-on-hover: the trait row floats over the photo's
-            own bottom edge instead of living in flow beneath it, so hovering
-            a card can never change this wrapper's box height (see
-            `traitOverlayInPhoto` above — that height stability is the whole
-            point, not just styling). `pointer-events-none` keeps the card's
-            own <Link> clickable underneath, matching the scrim/name overlay
-            TalentCard already renders the same way. */}
-        {traitOverlayInPhoto ? (
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] translate-y-1.5 rounded-b-2xl bg-gradient-to-t from-[rgba(6,6,8,0.94)] via-[rgba(6,6,8,0.72)] to-transparent px-3.5 pb-3.5 pt-9 opacity-0 transition-[opacity,transform] duration-200 group-hover/cardwrap:translate-y-0 group-hover/cardwrap:opacity-100 group-focus-within/cardwrap:translate-y-0 group-focus-within/cardwrap:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100"
-            data-card-traits=""
-          >
-            <TraitRowBody fitChips={fitChips} traitLines={traitLines} onScrim />
-          </div>
-        ) : null}
       </div>
-
-      {/* Restrained editorial trait row: a couple of fit chips + a couple of
-          catalog lines. Tagged with `data-card-chip` so a card kit can
-          restyle it. Renders nothing when the DTO carries no trait data, the
-          section turned "Show attributes" off, or the portrait overlay above
-          already rendered it. With `reveal_traits` (the preset default) the
-          row is collapsed at rest and reveals on hover / focus / touch;
-          every other hover mode keeps it statically visible. */}
-      {traitRowBelowPhoto ? (
-        revealTraitsOnHover ? (
-          // Collapsed at rest (0-fr grid row + faded), revealed on
-          // group-hover / focus-within / touch. The grid-rows transition
-          // avoids a hard layout jump; the inner overflow-hidden clips the
-          // row while it is collapsed. (Editorial only — portrait uses the
-          // photo overlay above instead, see `traitOverlayInPhoto`.)
-          <div
-            className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity,margin] duration-200 group-hover/cardwrap:mt-2 group-hover/cardwrap:grid-rows-[1fr] group-hover/cardwrap:opacity-100 group-focus-within/cardwrap:mt-2 group-focus-within/cardwrap:grid-rows-[1fr] group-focus-within/cardwrap:opacity-100 [@media(hover:none)]:mt-2 [@media(hover:none)]:grid-rows-[1fr] [@media(hover:none)]:opacity-100"
-            data-card-traits=""
-          >
-            <div className="flex min-h-0 flex-col gap-1.5 overflow-hidden">
-              <TraitRowBody fitChips={fitChips} traitLines={traitLines} />
-            </div>
-          </div>
-        ) : (
-          <div className="mt-2 flex flex-col gap-1.5" data-card-traits="">
-            <TraitRowBody fitChips={fitChips} traitLines={traitLines} />
-          </div>
-        )
-      ) : null}
     </div>
   );
-}
-
-/**
- * The trait-row inner content (fit chips + catalog lines), shared by the
- * static, in-flow hover-reveal, and photo-overlay wrappers so the markup
- * stays single-source. The `data-card-chip` / `data-card-trait-line` hooks
- * let a card kit restyle it.
- *
- * `onScrim` swaps the muted/value colors for the portrait style's
- * white-over-photo caption (matches `StandingChip`'s own `onScrim` prop in
- * TalentCard.tsx) — the default (plain card surface) colors would be
- * low-contrast or invisible painted directly on a photo.
- */
-function TraitRowBody({
-  fitChips,
-  traitLines,
-  onScrim = false,
-}: {
-  fitChips: DirectoryCardFitLabel[];
-  traitLines: DirectoryCardAttribute[];
-  onScrim?: boolean;
-}) {
-  const mutedClass = onScrim
-    ? "text-[var(--token-card-muted,rgba(255,255,255,0.75))]"
-    : "text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]";
-  const chipBorderClass = onScrim ? "border-white/25" : "border-border";
-  const valueClass = onScrim ? "text-white/90" : "text-foreground/80";
-
-  return (
-    <>
-      {fitChips.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {fitChips.map((chip) => (
-            <span
-              key={chip.slug}
-              data-card-chip
-              className={`inline-flex max-w-full items-center truncate rounded-full border ${chipBorderClass} px-2 py-0.5 text-[10px] font-medium tracking-wide ${mutedClass}`}
-            >
-              {chip.label}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {traitLines.length > 0 ? (
-        <dl className="flex flex-col gap-0.5">
-          {traitLines.map((trait) => (
-            <div
-              key={trait.key}
-              data-card-trait-line=""
-              // 11px is under the 12px legibility floor the mobile audit set,
-              // and these trait lines ("HEIGHT 164 cm") are exactly the detail
-              // a client squints at on a phone. 12px on small screens, the
-              // tighter desktop size preserved from sm: up.
-              className="flex items-baseline gap-1.5 text-[12px] leading-snug sm:text-[11px]"
-            >
-              <dt className={`shrink-0 uppercase tracking-[0.12em] ${mutedClass}`}>
-                {trait.label}
-              </dt>
-              <dd className={`min-w-0 truncate ${valueClass}`}>
-                {trait.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-    </>
-  );
-}
-
-/** At most two fit chips — a restrained, editorial trait row. */
-function pickFitLabels(
-  fitLabels: readonly DirectoryCardFitLabel[] | undefined,
-): DirectoryCardFitLabel[] {
-  if (!fitLabels || fitLabels.length === 0) return [];
-  return fitLabels.filter((f) => f.label.trim().length > 0).slice(0, 2);
-}
-
-/**
- * At most two catalog trait lines, ordered + filtered by the section's
- * `cardFieldKeys` allow-list when set, else the DTO's catalog order. The
- * 2-line ceiling is intersected with the operator's `maxFieldLines` knob.
- */
-function pickAttributeLines(
-  attributes: readonly DirectoryCardAttribute[] | undefined,
-  cardFieldKeys: DirectoryV1["cardFieldKeys"],
-  maxFieldLines: DirectoryV1["maxFieldLines"],
-): DirectoryCardAttribute[] {
-  if (!attributes || attributes.length === 0) return [];
-  const usable = attributes.filter((a) => a.value.trim().length > 0);
-
-  let ordered: DirectoryCardAttribute[];
-  if (cardFieldKeys.length > 0) {
-    const byKey = new Map(usable.map((a) => [a.key, a] as const));
-    ordered = cardFieldKeys
-      .map((key) => byKey.get(key))
-      .filter((a): a is DirectoryCardAttribute => Boolean(a));
-  } else {
-    ordered = usable;
-  }
-
-  // Keep the row restrained (<=2 lines) but never exceed the operator's cap.
-  const cap = Math.max(0, Math.min(2, maxFieldLines));
-  return ordered.slice(0, cap);
 }
 
 function mapDtoToCardData(

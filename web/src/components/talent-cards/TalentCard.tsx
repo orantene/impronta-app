@@ -289,6 +289,7 @@ export function TalentCard({
   availabilitySlot,
   secondaryActionSlot,
   badgeSlot,
+  traitSlot,
   showStanding = "auto",
 }: TalentCardProps) {
   const displayName = resolveName(data.name, show.showName, nameFallback);
@@ -395,6 +396,7 @@ export function TalentCard({
               {data.location}
             </p>
           ) : null}
+          {traitSlot}
           <StandingChip data={data} onScrim={false} showStanding={showStanding} />
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             {show.showBadges ? <OwnershipBadge data={data} /> : <span />}
@@ -521,6 +523,7 @@ export function TalentCard({
             ) : null}
           </p>
         ) : null}
+        {traitSlot}
         <StandingChip data={data} onScrim showStanding={showStanding} />
         {/* availabilitySlot overrides the built-in line (e.g. the Discover
             14-day strip). Falls back to the default white-over-scrim line. */}
