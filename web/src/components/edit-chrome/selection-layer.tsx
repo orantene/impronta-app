@@ -151,7 +151,7 @@ import {
 } from "./selection-overlay-boxes";
 import {
   menuShouldOpenUp,
-  positionAnchoredToolbarStack,
+  positionDockedToolbarStack,
 } from "./canvas-toolbar-anchor";
 import { useMaybeCanvasViewport } from "./canvas-viewport";
 import {
@@ -2992,17 +2992,16 @@ export function SelectionLayer() {
         box,
       );
       if (!box || !el) return;
-      // Anchored contextual toolbar(s) — the chip (plus the ungroup bar for a
-      // single selected container) tracks the SELECTION, not the viewport
-      // bottom. Anchored off the raw AABB: for a rotated element that IS its
-      // live visual bounds (#1119), and the bars get no rotation transform, so
-      // they stay upright while following a tilted element. Flip/clamp/
-      // occluder rules live in canvas-toolbar-anchor.ts.
-      const r = el.getBoundingClientRect();
-      positionAnchoredToolbarStack(
-        { top: r.top, left: r.left, width: r.width, height: r.height },
-        [chipRef.current, multiToolbarAnchorRef.current],
-      );
+      // Contextual toolbar(s) — the chip (plus the ungroup bar for a single
+      // selected container) DOCK to the bottom slot the text toolbar uses, so
+      // every click lands its actions in one place (owner ruling 2026-09-17;
+      // the bars used to anchor to the selection and jumped around the page).
+      // Still written from the geometry loop: the bar widths change with the
+      // selection and the occluders (zoom bar, panels) move.
+      positionDockedToolbarStack([
+        chipRef.current,
+        multiToolbarAnchorRef.current,
+      ]);
     };
 
     // Write once synchronously (pre-paint) so the overlays never flash at the
@@ -3054,13 +3053,10 @@ export function SelectionLayer() {
       const rings = document.querySelectorAll<HTMLElement>(
         "[data-multi-ring-source]",
       );
-      // Union of the measured source rects — the live multi-select bbox the
-      // anchored toolbar tracks (state-driven multiSelectedRect goes stale on
-      // scroll; this loop is the only per-frame measurement of the set).
-      let unionLeft = Infinity;
-      let unionTop = Infinity;
-      let unionRight = -Infinity;
-      let unionBottom = -Infinity;
+      // Did any ring measure? Decides whether a docked bar is written at all
+      // (state-driven multiSelectedRect goes stale on scroll; this loop is
+      // the only per-frame measurement of the set).
+      let measuredAny = false;
       for (const ring of Array.from(rings)) {
         const source = ring.getAttribute("data-multi-ring-source");
         if (!source) continue;
@@ -3099,25 +3095,14 @@ export function SelectionLayer() {
           height: r.height,
           transform: "",
         });
-        unionLeft = Math.min(unionLeft, r.left);
-        unionTop = Math.min(unionTop, r.top);
-        unionRight = Math.max(unionRight, r.right);
-        unionBottom = Math.max(unionBottom, r.bottom);
+        measuredAny = true;
       }
-      // Anchor the multi-selection toolbar to the union bbox — but only when
-      // a builder-node multi-select is active: that is when the primary loop
-      // is dormant and this loop owns the toolbar. (With only SECTION
-      // additional rings the primary loop stacks the toolbar with the chip.)
-      if (unionRight > unionLeft && multiNodeSelectionActive) {
-        positionAnchoredToolbarStack(
-          {
-            top: unionTop,
-            left: unionLeft,
-            width: unionRight - unionLeft,
-            height: unionBottom - unionTop,
-          },
-          [multiToolbarAnchorRef.current],
-        );
+      // Dock the multi-selection toolbar — but only when a builder-node
+      // multi-select is active: that is when the primary loop is dormant and
+      // this loop owns the toolbar. (With only SECTION additional rings the
+      // primary loop stacks the toolbar with the chip.)
+      if (measuredAny && multiNodeSelectionActive) {
+        positionDockedToolbarStack([multiToolbarAnchorRef.current]);
       }
     };
 
@@ -5610,10 +5595,10 @@ export function SelectionLayer() {
             {...hoverAttributionProps(selectedCanvasNodeId)}
             style={{
               position: "fixed",
-              // ANCHORED to the selection bbox: the rAF geometry loop writes
-              // top/left every dirty frame via positionAnchoredToolbarStack
-              // (above the element, flipping below / inside and clamping —
-              // rules in canvas-toolbar-anchor.ts). These constants are only
+              // DOCKED to the text toolbar's bottom slot: the rAF geometry
+              // loop writes top/left every dirty frame via
+              // positionDockedToolbarStack (viewport-centred, clamped clear of
+              // chrome — rules in canvas-toolbar-anchor.ts). These constants are only
               // the pre-first-measure seed, and they stay CONSTANT so a React
               // re-render never clobbers the loop's imperative writes; the
               // layout effect positions the chip before first paint.

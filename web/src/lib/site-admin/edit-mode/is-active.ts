@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 import { editCookieNameFor } from "./cookie";
+import { isLiveViewRequested } from "./live-view";
 
 /**
  * Server-side edit-mode probe.
@@ -18,6 +19,8 @@ export async function isEditModeActiveForTenant(
   tenantId: string,
 ): Promise<boolean> {
   if (!tenantId) return false;
+  // `?live=1` (the editor's "Open live page" tab) wins over the cookie.
+  if (await isLiveViewRequested()) return false;
   try {
     const jar = await cookies();
     return jar.get(editCookieNameFor(tenantId))?.value === "1";

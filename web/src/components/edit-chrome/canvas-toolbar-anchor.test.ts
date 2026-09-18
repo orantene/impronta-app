@@ -22,8 +22,10 @@ import {
   clampAnchoredBarLeft,
   menuShouldOpenUp,
   resolveAnchoredToolbarStack,
+  resolveDockedToolbarStack,
   type AnchorOccluder,
 } from "./canvas-toolbar-anchor";
+import { CANVAS_FLOATING_BAR } from "./kit/tokens";
 
 const VIEWPORT = { width: 1280, height: 800 };
 const BAR = { width: 420, height: 42 };
@@ -242,4 +244,62 @@ test("menuShouldOpenUp: prefers down with room, flips up near the bottom", () =>
     }),
     true,
   );
+});
+
+// ── Docked (click toolbars share the text toolbar's slot) ───────────────────
+
+test("docked: bars[0] takes the text toolbar's bottom slot, centred on the viewport", () => {
+  const result = resolveDockedToolbarStack({ bars: [BAR], viewport: VIEWPORT });
+  assert.equal(result.placement, "docked");
+  assert.equal(
+    result.bars[0].top + BAR.height,
+    VIEWPORT.height - CANVAS_FLOATING_BAR.bottom,
+    "bar bottom must sit exactly where the canvas text toolbar's does",
+  );
+  assert.equal(result.bars[0].left, (VIEWPORT.width - BAR.width) / 2);
+});
+
+test("docked: the slot is the same whatever the selection's position", () => {
+  // The whole point: a hero at the top and a footer band scrolled to the
+  // bottom land their actions in one place. No box goes in, so no box can
+  // move the answer; assert the API has nothing to anchor to.
+  const a = resolveDockedToolbarStack({ bars: [BAR], viewport: VIEWPORT });
+  const b = resolveDockedToolbarStack({ bars: [BAR], viewport: VIEWPORT });
+  assert.deepEqual(a, b);
+});
+
+test("docked: later bars stack upward from the slot", () => {
+  const second = { width: 300, height: 36 };
+  const result = resolveDockedToolbarStack({
+    bars: [BAR, second],
+    viewport: VIEWPORT,
+  });
+  assert.equal(
+    result.bars[1].top + second.height + ANCHOR_STACK_GAP,
+    result.bars[0].top,
+  );
+});
+
+test("docked: the zoom bar in the same band pushes the stack right, never under", () => {
+  const zoomBar: AnchorOccluder = {
+    left: 8,
+    top: VIEWPORT.height - CANVAS_FLOATING_BAR.bottom - 42,
+    right: 232,
+    bottom: VIEWPORT.height - CANVAS_FLOATING_BAR.bottom,
+  };
+  const wide = { width: 1000, height: 42 };
+  const result = resolveDockedToolbarStack({
+    bars: [wide],
+    viewport: VIEWPORT,
+    occluders: [zoomBar],
+  });
+  assert.ok(result.bars[0].left >= zoomBar.right + ANCHOR_OCCLUDER_GAP);
+});
+
+test("docked: a bar never rises into the edit topbar on a tiny viewport", () => {
+  const result = resolveDockedToolbarStack({
+    bars: [BAR, BAR, BAR],
+    viewport: { width: 1280, height: 160 },
+  });
+  for (const bar of result.bars) assert.ok(bar.top >= ANCHOR_TOP_INSET);
 });
