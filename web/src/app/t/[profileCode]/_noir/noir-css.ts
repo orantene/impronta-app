@@ -312,6 +312,9 @@ ${M} .nf-modal-foot .n span{ color:var(--nf-ink-56); font-size:1.1rem; font-styl
   ${N} .nf-hero__cta .nf-actions > .nf-cta-slot,${N} .nf-hero__hint{ display:none; }
   ${N} .nf-side-slot--hero :is(button,a),${N} .nf-share > summary{ height:40px; }
   ${N} .nf-bar{ transform:none; }
+  /* The guest-chat launcher (body-level, fixed bottom-right at 24px on phones)
+     would sit on top of the bar's primary button; lift it above the bar. */
+  body:has(${N}:not([data-profile-variant="modal"])) [data-guest-chat-launcher]{ bottom:calc(86px + env(safe-area-inset-bottom,0px)) !important; }
   ${N} .nf-hero--split{ height:auto; }
   ${N} .nf-hero--split .nf-hero__body{ grid-template-columns:1fr; padding-top:0; }
   ${N} .nf-hero--split .nf-portrait{ margin-inline:calc(-1 * var(--nf-pad)); }
