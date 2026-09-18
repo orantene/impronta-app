@@ -9,8 +9,6 @@ import {
 
 import {
   BUILDER_NODE_REGISTRY,
-  builderNodeSupportsDataBinding,
-  builderNodeSupportsFieldBindings,
   type BuilderNode,
 } from "@/lib/site-admin/builder-node";
 
@@ -95,15 +93,6 @@ function nodeUsesLayoutInspector(
   }
 }
 
-/**
- * Kinds that get a Data tab for its VISIBILITY rules alone, having no data
- * binding of their own to earn it.
- */
-const KINDS_WITH_VISIBILITY_RULES: ReadonlySet<string> = new Set([
-  "nav",
-  "social_links",
-]);
-
 function allowedInspectorTabKeys(input: {
   sectionTypeKey: string | null | undefined;
   selectedStandaloneBuilderNode: ReturnType<
@@ -119,19 +108,14 @@ function allowedInspectorTabKeys(input: {
     // every standalone kind -- and is pushed BEFORE Data so the rail order
     // matches INSPECTOR_TABS.
     tabs.push("motion");
-    if (builderNodeSupportsDataBinding(selectedStandaloneBuilderNode.kind)) {
-      tabs.push("data");
-    } else if (
-      builderNodeSupportsFieldBindings(selectedStandaloneBuilderNode.kind)
-    ) {
-      tabs.push("data");
-    } else if (KINDS_WITH_VISIBILITY_RULES.has(selectedStandaloneBuilderNode.kind)) {
-      // The Data tab also owns visibility rules (show only in one locale, only
-      // when signed in). Gating the tab purely on data BINDING hid that control
-      // from the header's two most locale-sensitive nodes -- a nav and a social
-      // row -- so the rules existed with no way to reach them.
-      tabs.push("data");
-    }
+    // The Data tab is offered to EVERY standalone kind. It owns two base fields
+    // that exist on every node regardless of bindings: the in-page anchor
+    // (C11) and the visibility rules. Gating it on data BINDING hid both from
+    // every plain block, so a program, a map or a card grid could never be a
+    // link target from the editor (D-182); the nav/social exception below was
+    // the first symptom of the same gate. The panel itself renders only the
+    // sections the kind supports.
+    tabs.push("data");
     return tabs;
   }
   return tabsForSectionType(sectionTypeKey);
