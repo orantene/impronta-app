@@ -48,6 +48,13 @@ function pendingOffer(offers: readonly ClientOfferSummary[], now: Date): ClientO
   return null;
 }
 
+function latestAccepted(offers: readonly ClientOfferSummary[]): ClientOfferSummary | null {
+  for (let i = offers.length - 1; i >= 0; i -= 1) {
+    if (offers[i].status === "accepted") return offers[i];
+  }
+  return null;
+}
+
 function heldTime(payloads: readonly (Record<string, unknown> | null)[], now: Date): boolean {
   return payloads.some((p) => {
     const exp = typeof p?.holdExpiresAt === "string" ? Date.parse(p.holdExpiresAt) : NaN;
@@ -62,12 +69,16 @@ export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | 
 
   const offer = pendingOffer(input.offers, now);
   if (input.payCode) {
-    const deposit = offer ? offerDepositCents(offer) : null;
-    const amount = offer ? (deposit ?? offer.totalCents) : null;
+    // The amount comes from the offer the link is about: the pending one, or
+    // (once accepted) the newest accepted one. Live 2026-09-18 the title read
+    // a bare "Pay" because only the pending offer was consulted.
+    const about = offer ?? latestAccepted(input.offers);
+    const deposit = about ? offerDepositCents(about) : null;
+    const amount = about ? (deposit ?? about.totalCents) : null;
     return {
       kind: "pay",
       payCode: input.payCode,
-      values: { amount: amount != null && offer ? input.money(amount, offer.currency) : "" },
+      values: { amount: amount != null && about ? input.money(amount, about.currency) : "" },
     };
   }
   if (offer) {
