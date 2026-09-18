@@ -1,5 +1,6 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { humaniseFieldToken } from "./humanise-field-token";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -1064,7 +1065,6 @@ function optionMapFromI18n(
   return Object.keys(out).length > 0 ? out : null;
 }
 
-
 function formatFieldValue(row: PublicFieldValueRow, locale: string): string | null {
   const fd = row.field_definitions
     ? Array.isArray(row.field_definitions)
@@ -1103,13 +1103,12 @@ function formatFieldValue(row: PublicFieldValueRow, locale: string): string | nu
     if (kind === "multiselect" || kind === "chips") {
       return row.value_text
         .split(",")
-        .map((s) => mapOpt(s))
+        .map((s) => humaniseFieldToken(mapOpt(s), locale, fd?.key))
         .filter((s) => s.length > 0)
         .join(", ");
     }
-    // select / text — map a single option value (text fields have no
-    // options_es, so mapOpt is a no-op for them).
-    return mapOpt(row.value_text);
+    // select / text: map the option value (mapOpt is a no-op for text), then humanise a raw token.
+    return humaniseFieldToken(mapOpt(row.value_text), locale, fd?.key);
   }
   if (typeof row.value_number === "number") {
     // Append the definition's unit. `profile_field_definitions.unit` carries one
@@ -2472,6 +2471,7 @@ export async function TalentProfileView({
         hostCtxKind={hostCtx.kind as "agency" | "app" | "hub" | "platform"}
         tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
         tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+        variant={variant}
         hubsIndicator={
           otherHubs.length > 0 ? (
             <ProfileHubsIndicator hubs={otherHubs} label={alsoOnLabel} />
