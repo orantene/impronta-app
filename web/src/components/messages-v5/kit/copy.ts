@@ -626,6 +626,7 @@ export function buildKitCopy(t: Translator) {
       timesDone: t("dashboard.messagesV5.items.timesDone"),
       timesService: t("dashboard.messagesV5.items.timesService"),
       timesAnyService: t("dashboard.messagesV5.items.timesAnyService"),
+    },
     /** L7 (D07/M05): `PaymentRequestSheet`. A new namespace, not nested
      * under `payment` above — that one is the PaymentCard's state pills
      * (`requested`/`opened`/…), a flat `Record<PaymentCardState, string>`. */
@@ -690,6 +691,7 @@ export function buildKitCopy(t: Translator) {
       working: t("dashboard.messagesV5.cancel.working"),
       doneCancelled: t("dashboard.messagesV5.cancel.doneCancelled"),
       doneRefunded: t("dashboard.messagesV5.cancel.doneRefunded"),
+    },
     /** L8 (D-MSG-150): the confirm booking / confirm order sheet (board D19, M09 phone 2, D08). */
     confirm: {
       titleBooking: t("dashboard.messagesV5.confirm.titleBooking"),
