@@ -10,12 +10,11 @@
  * MiniChatPanelColumn. No logic changes.
  */
 
-import { useEffect, useMemo, useState, type RefObject } from "react";
+import { useMemo, type RefObject } from "react";
 
 import type {
   GuestIdentityTier,
   GuestThreadStatus,
-  GuestThreadV5Extras,
   InquiryReceiptData,
   MiniChatBrand,
 } from "@/lib/inquiry/guest-chat-contract";
@@ -27,7 +26,7 @@ import { ClaimEmailRecap } from "./ClaimEmailRecap";
 import { GuestAccountToolkit } from "./GuestAccountToolkit";
 import { InquiryReceiptCard } from "./InquiryReceiptCard";
 import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
-import { GuestClientCardRow, isGuestClientCardRow, useGuestClientCards } from "./GuestClientCards";
+import { GuestClientCardRow, isGuestClientCardRow, type GuestClientCardsModel } from "./GuestClientCards";
 import { SystemNoteCluster } from "./SystemNoteCluster";
 import { clusterSystemRows } from "./cluster-system-rows";
 import { NewMessagePulse } from "./NewMessagePulse";
@@ -72,14 +71,10 @@ export type GuestConversationBodyProps = {
    * time — it belongs AFTER a real send. Mutually exclusive with the send bar.
    */
   sendBarActive?: boolean;
-  /**
-   * L13 (Messages v5): token + offers + pay code from the full thread load.
-   * Null until it lands (or when the secret is unset); the v5 card rows then
-   * draw without actions and offer rows keep the legacy bubble.
-   */
-  v5?: GuestThreadV5Extras | null;
-  /** L13: re-read the thread after a card action (the panel's full-load bump). */
-  onRefreshThread?: () => void;
+  /** L13: the per-thread card model built by the column (`useGuestClientCards`). */
+  cardModel: GuestClientCardsModel;
+  /** L13: the column's clock (ticks while a hold counts down). */
+  now: Date;
 };
 
 export function GuestConversationBody({
@@ -106,32 +101,13 @@ export function GuestConversationBody({
   identity,
   threadStatus,
   sendBarActive = false,
-  v5 = null,
-  onRefreshThread,
+  cardModel,
+  now,
 }: GuestConversationBodyProps) {
-  // L13: one card model per thread. A held time shows a countdown; tick once
-  // a second while any card is held (same rule as the secure link).
-  const [now, setNow] = useState(() => new Date());
-  const anyHold = rows.some((m) => m.kind === "professional_times" && typeof (m.cardPayload as { holdExpiresAt?: unknown } | null)?.holdExpiresAt === "string");
-  useEffect(() => {
-    if (!anyHold) return;
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, [anyHold]);
-  const cardModel = useGuestClientCards({
-    rows,
-    v5,
-    locale: brand.locale ?? "en",
-    businessName: brand.agencyName,
-    refresh: onRefreshThread ?? (() => undefined),
-    onTick: () => setNow(new Date()),
-  });
-  // Offer rows only move to the v5 card once the offer summaries are here;
-  // until then the legacy enriched offer bubble keeps drawing them.
-  const hasOffers = cardModel.offers.length > 0;
-  // Tenant switch (Settings, Guest chat, "Offer, payment and booking cards"):
-  // off keeps every row on the legacy bubbles. Opt-in until QA (decision 10).
+  // L13: the card model + clock come from the column (it also feeds the
+  // next-step block above the composer, so both act through one model).
   const cardsOn = brand.dockCardsV5 === true;
+  const hasOffers = cardModel.offers.length > 0;
   const drawsV5Card = useMemo(
     () => (row: StreamRow) => cardsOn && isGuestClientCardRow(row) && (hasOffers || !String(row.kind).startsWith("offer_")),
     [cardsOn, hasOffers],
