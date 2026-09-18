@@ -36,6 +36,7 @@ import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { deriveProjectLabel, shortDateFragment } from "@/lib/inquiry/project-label";
 import { readSelectedIds } from "@/lib/inquiry/guest-draft-resume";
+import { pickRecordChip, type GuestInquiryRecordChip } from "@/lib/messages-v5/guest-inquiries-view";
 
 import type { AvatarStackItem } from "@/lib/inquiry/guest-chat-unified-contract";
 import type {
@@ -125,11 +126,10 @@ function toThreadStatus(status: string): GuestThreadStatus {
 // Private: isTerminal — excludes closed/cancelled threads from the switcher.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function isTerminal(status: string): boolean {
-  return (
-    status === "cancelled" ||
-    toThreadStatus(status) === "closed"
-  );
+function isDropped(status: string): boolean {
+  // F06 keeps closed/cancelled rows in the Done segment. Only drop archived
+  // so a junk archive never occupies a slot in the 20-row window.
+  return status === "archived";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -212,7 +212,7 @@ export async function listGuestInquiries(input: {
     "inquiries",
     tenantId,
   )
-    .select("id, status, created_at, event_date, interpreted_query")
+    .select("id, status, created_at, event_date, interpreted_query, contact_name, conversation_state, opportunity_state, last_customer_message_at, last_staff_message_at, resolved_at, lost_reason, current_offer_id")
     .eq("guest_session_id", guestSessionId)
     .order("created_at", { ascending: false })
     .limit(20);
@@ -233,8 +233,16 @@ export async function listGuestInquiries(input: {
     created_at: string;
     event_date: string | null;
     interpreted_query: unknown;
+    contact_name: string | null;
+    conversation_state: string | null;
+    opportunity_state: string | null;
+    last_customer_message_at: string | null;
+    last_staff_message_at: string | null;
+    resolved_at: string | null;
+    lost_reason: string | null;
+    current_offer_id: string | null;
   };
-  const liveRows = (inquiryRows as InquiryRow[]).filter((r) => !isTerminal(r.status));
+  const liveRows = (inquiryRows as InquiryRow[]).filter((r) => !isDropped(r.status));
 
   if (liveRows.length === 0) {
     return { ok: true, inquiries: [] };
@@ -333,6 +341,63 @@ export async function listGuestInquiries(input: {
     if (m.message_kind !== "text") continue;
     if (!lastMsgByInquiry.has(m.inquiry_id)) {
       lastMsgByInquiry.set(m.inquiry_id, m);
+    }
+  }
+
+  // ── F06: one conversation_records chip per inquiry (newest live row) ────────
+  const recordsByInquiry = new Map<string, GuestInquiryRecordChip[]>();
+  const { data: recordRows } = await tenantScopedQuery(admin, "conversation_records", tenantId)
+    .select("inquiry_id, record_kind, record_id, payment_state, fulfilment_state, record_date")
+    .in("inquiry_id", inquiryIds)
+    .is("unlinked_at", null)
+    .order("record_date", { ascending: true });
+  for (const r of ((recordRows ?? []) as Array<Record<string, unknown>>)) {
+    const inquiryId = String(r.inquiry_id ?? "");
+    if (!inquiryId) continue;
+    const list = recordsByInquiry.get(inquiryId) ?? [];
+    list.push({
+      kind: String(r.record_kind ?? ""),
+      recordId: String(r.record_id ?? ""),
+      paymentState: typeof r.payment_state === "string" ? r.payment_state : null,
+      fulfilmentState: typeof r.fulfilment_state === "string" ? r.fulfilment_state : null,
+      recordDate: typeof r.record_date === "string" ? r.record_date : null,
+      amountCents: null,
+      currency: "USD",
+    });
+    recordsByInquiry.set(inquiryId, list);
+  }
+  const orderIds = [...recordsByInquiry.values()].flat().filter((c) => c.kind === "order").map((c) => c.recordId);
+  const offerIds = [...recordsByInquiry.values()].flat().filter((c) => c.kind === "offer").map((c) => c.recordId);
+  const amountByRecord = new Map<string, { amountCents: number; currency: string }>();
+  if (orderIds.length > 0) {
+    const { data: orderRows } = await tenantScopedQuery(admin, "orders", tenantId)
+      .select("id, total_cents, currency")
+      .in("id", orderIds);
+    for (const o of ((orderRows ?? []) as Array<{ id: string; total_cents: number | null; currency: string | null }>)) {
+      const cents = typeof o.total_cents === "number" ? o.total_cents : Number(o.total_cents);
+      if (Number.isFinite(cents) && cents > 0) {
+        amountByRecord.set(o.id, { amountCents: cents, currency: o.currency || "USD" });
+      }
+    }
+  }
+  if (offerIds.length > 0) {
+    const { data: offerRows } = await tenantScopedQuery(admin, "inquiry_offers", tenantId)
+      .select("id, total_client_price, currency_code")
+      .in("id", offerIds);
+    for (const o of ((offerRows ?? []) as Array<{ id: string; total_client_price: number | null; currency_code: string | null }>)) {
+      const dollars = typeof o.total_client_price === "number" ? o.total_client_price : Number(o.total_client_price);
+      if (Number.isFinite(dollars) && dollars > 0) {
+        amountByRecord.set(o.id, { amountCents: Math.round(dollars * 100), currency: o.currency_code || "USD" });
+      }
+    }
+  }
+  for (const list of recordsByInquiry.values()) {
+    for (const chip of list) {
+      const amt = amountByRecord.get(chip.recordId);
+      if (amt) {
+        chip.amountCents = amt.amountCents;
+        chip.currency = amt.currency;
+      }
     }
   }
 
@@ -478,6 +543,15 @@ export async function listGuestInquiries(input: {
       threadStatus: toThreadStatus(row.status),
       typicalReplyLabel,
       isDraft: row.status === "draft",
+      contactName: row.contact_name,
+      conversationState: row.conversation_state,
+      opportunityState: row.opportunity_state,
+      lastCustomerMessageAt: row.last_customer_message_at,
+      lastStaffMessageAt: row.last_staff_message_at,
+      resolvedAt: row.resolved_at,
+      lostReason: row.lost_reason,
+      currentOfferId: row.current_offer_id,
+      recordChip: pickRecordChip(recordsByInquiry.get(row.id) ?? []),
     };
   });
 

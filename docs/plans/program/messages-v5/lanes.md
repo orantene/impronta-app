@@ -32,3 +32,5 @@ Paid tickets leave the chooser for `ClientTicketsCard` (`/q/<code>` when stamped
 ## P4 · F03 hold rows (cursor/dock-p4-holds-6292)
 Items shelf hold rows with countdown from times/table payloads. Closes D-MSG-206. D-MSG-216.
 P5 / F07 (`cursor/dock-p5-identity-6292`): `messagingClientRename` + Your details on Home + link-expiry sentence on `/c/t/[token]`. D-MSG-217. MiniChatPanelColumn stayed 799/800.
+## P2 · F06 Inquiries list (cursor/dock-p2-inquiries-6292)
+Rebuild `GuestDockProjectsView` as name+time · subject · one state line · one record chip. Segments Needs you / Waiting on them / Done. Same person? banner is read-only. Reader: `listGuestInquiries` + `conversation_records`. D-MSG-214.

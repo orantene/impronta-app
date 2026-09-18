@@ -77,6 +77,29 @@ export type GuestInquirySummary = {
    * highlight (most recent draft).
    */
   isDraft: boolean;
+  /**
+   * F06 Inquiries list (additive). The guest's own name as stored on the
+   * inquiry; used only for the "Same person?" banner when identity is a
+   * placeholder. Optional so older summaries still type-check.
+   */
+  contactName?: string | null;
+  conversationState?: string | null;
+  opportunityState?: string | null;
+  lastCustomerMessageAt?: string | null;
+  lastStaffMessageAt?: string | null;
+  resolvedAt?: string | null;
+  lostReason?: string | null;
+  currentOfferId?: string | null;
+  /** ONE live conversation_records chip, with amount when the reader had one. */
+  recordChip?: {
+    kind: string;
+    recordId: string;
+    paymentState: string | null;
+    fulfilmentState: string | null;
+    recordDate: string | null;
+    amountCents: number | null;
+    currency: string;
+  } | null;
 };
 
 export type ListGuestInquiriesResult =
