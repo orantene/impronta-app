@@ -132,6 +132,20 @@ test("ready: heading, rows in order, performer link, cover only when there is on
     assert.match(rows[3]!.querySelector(".ep-performer")?.textContent ?? "", /por anunciar/);
     assert.equal(host.querySelector('[data-testid="event-program-nav"]'), null, "one group: no chips");
     assert.ok(host.querySelector(".ep-desc"), "descriptions on by default");
+    // Editorial run-of-show: every row the same shape, a rail dot each, no box.
+    assert.equal(host.querySelectorAll('[data-testid="event-program-dot"]').length, rows.length, "one rail dot per row");
+    for (const r of rows) assert.equal(r.className, "ep-item", "no card class on a timeline row");
+    assert.equal(host.querySelectorAll('[data-testid="event-program-kind"]').length, 0, "kind words are off by default");
+    assert.equal(host.querySelector('[data-testid="event-program-eyebrow"]'), null, "no eyebrow unless authored");
+  });
+});
+
+test("eyebrow renders when authored; showKind adds a small word, never a symbol", () => {
+  mount(<EventProgramIsland eventId={EVENT} preload={program()} eyebrow="Run of show" showKind locale="es" />, (host) => {
+    assert.equal(host.querySelector('[data-testid="event-program-eyebrow"]')?.textContent, "Run of show");
+    const kinds = Array.from(host.querySelectorAll('[data-testid="event-program-kind"]')).map((k) => k.textContent);
+    assert.deepEqual(kinds, ["Puertas", "Set", "Set", "Set"]);
+    assert.doesNotMatch(host.innerHTML, /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u, "no emoji in the markup");
   });
 });
 

@@ -40,6 +40,7 @@ type Props = {
   showTimes: boolean | undefined;
   showImages: boolean | undefined;
   showDescriptions: boolean | undefined;
+  showKind: boolean | undefined;
   filterKinds: ReadonlyArray<string> | undefined;
   limit: number | undefined;
   patch: (patch: Record<string, unknown>) => Promise<void> | void;
@@ -55,7 +56,7 @@ function sameKinds(a: ReadonlyArray<string> | undefined, b: ReadonlyArray<string
   return b.every((k) => s.has(k));
 }
 
-export function EventProgramEditor({ eventId, pageId, layout, groupBy, showTimes, showImages, showDescriptions, filterKinds, limit, patch }: Props) {
+export function EventProgramEditor({ eventId, pageId, layout, groupBy, showTimes, showImages, showDescriptions, showKind, filterKinds, limit, patch }: Props) {
   const { t } = useInspectorT();
   const [events, setEvents] = useState<Load>({ status: "loading" });
   // `undefined` = not resolved yet; `null` = resolved, no event claims the page.
@@ -152,6 +153,7 @@ export function EventProgramEditor({ eventId, pageId, layout, groupBy, showTimes
         {checkbox("Times", showTimes !== false, (next) => void patch({ showTimes: next ? undefined : false }), "event-program-show-times")}
         {checkbox("Images", showImages !== false, (next) => void patch({ showImages: next ? undefined : false }), "event-program-show-images")}
         {checkbox("Descriptions", showDescriptions !== false, (next) => void patch({ showDescriptions: next ? undefined : false }), "event-program-show-descriptions")}
+        {checkbox("Kind label (a small word, never a symbol)", showKind === true, (next) => void patch({ showKind: next || undefined }), "event-program-show-kind")}
         {checkbox("Performers only (a lineup)", performersOnly, (next) => void patch({ filterKinds: next ? PERFORMERS_ONLY : undefined }), "event-program-performers-only")}
       </div>
 

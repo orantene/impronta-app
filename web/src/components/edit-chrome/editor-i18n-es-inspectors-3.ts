@@ -52,4 +52,6 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Performers only (a lineup)": "Solo artistas (un lineup)",
   "Show at most": "Mostrar como máximo",
   "All items": "Todos los elementos",
+  "Kind label (a small word, never a symbol)": "Etiqueta de tipo (una palabra pequeña, nunca un símbolo)",
+  "Run of show": "Orden del show",
 };

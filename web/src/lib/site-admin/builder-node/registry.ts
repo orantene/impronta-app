@@ -1090,12 +1090,14 @@ const ticketPickerPropsSchema = z.object({
  */
 const eventProgramPropsSchema = z.object({
   eventId: z.string().max(200).optional(),
+  eyebrow: z.string().max(80).optional(),
   heading: z.string().max(120).optional(),
   layout: z.enum(["timeline", "cards", "compact"]).optional(),
   groupBy: z.enum(["auto", "night", "place", "none"]).optional(),
   showTimes: z.boolean().optional(),
   showImages: z.boolean().optional(),
   showDescriptions: z.boolean().optional(),
+  showKind: z.boolean().optional(),
   filterKinds: z.array(z.string().max(40)).max(20).optional(),
   limit: z.number().int().min(1).max(200).optional(),
   style: builderNodeStyleSchema,

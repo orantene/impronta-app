@@ -69,7 +69,7 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   reserve_table: ["venueName", "ctaVerb"],
   // EVENT PROGRAM: the heading is the only authored string; item text is
   // localised by the row overlay on the server, block chrome ships es/en inline.
-  event_program: ["heading"],
+  event_program: ["eyebrow", "heading"],
   talent_type_grid: [
     "eyebrow",
     "headline",

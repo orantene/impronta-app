@@ -1204,6 +1204,8 @@ export interface BuilderEventProgramNode extends BuilderNodeBase {
   kind: "event_program";
   props: {
     eventId?: string;
+    /** Localizable. Small uppercase line above the heading. */
+    eyebrow?: string;
     /** Localizable. Empty ⇒ the program's own heading (`events.program.heading`). */
     heading?: string;
     /** MVP presentations. `schedule` and `lineup` are reserved by the proposal, not built. */
@@ -1213,6 +1215,8 @@ export interface BuilderEventProgramNode extends BuilderNodeBase {
     showTimes?: boolean;
     showImages?: boolean;
     showDescriptions?: boolean;
+    /** A tiny uppercase kind word in each row's meta line. Default off; a kind is never a symbol. */
+    showKind?: boolean;
     /** Schedule item kinds to keep (e.g. `["set","performance"]` for a lineup). Empty ⇒ all. */
     filterKinds?: string[];
     limit?: number;

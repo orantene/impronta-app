@@ -51,12 +51,16 @@ export interface EventProgramIslandProps {
   /** True on the editor canvas: the not_configured / disabled states show a placeholder instead of nothing. */
   editor?: boolean;
   heading?: string;
+  /** Small uppercase line above the heading (localizable). */
+  eyebrow?: string;
   locale?: string;
   layout?: EventProgramLayout;
   groupBy?: EventProgramGroupBy;
   showTimes?: boolean;
   showImages?: boolean;
   showDescriptions?: boolean;
+  /** A tiny uppercase kind word in the meta line. Default off: a kind is never a symbol. */
+  showKind?: boolean;
   filterKinds?: ReadonlyArray<string>;
   limit?: number;
   /** TEST-ONLY: seed the answer; no action is called. */
@@ -68,7 +72,7 @@ export interface EventProgramIslandProps {
 type State = "not_configured" | "loading" | "disabled" | "unavailable" | "empty" | "ready";
 
 export function EventProgramIsland(props: EventProgramIslandProps) {
-  const { eventId, editor, heading, locale, layout, groupBy, showTimes, showImages, showDescriptions, filterKinds, limit, preload, nowMs: nowOverride } = props;
+  const { eventId, editor, heading, eyebrow, locale, showKind, layout, groupBy, showTimes, showImages, showDescriptions, filterKinds, limit, preload, nowMs: nowOverride } = props;
   const loc = pickProgramLocale(locale);
   const t = (key: string) => PROGRAM_COPY[loc][key] ?? PROGRAM_COPY.en[key] ?? key;
   const configured = UUID.test(eventId);
@@ -142,7 +146,12 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
 
   return chrome(
     <>
-      {title ? <h2 className="ep-heading">{title}</h2> : null}
+      {title || eyebrow ? (
+        <header className="ep-head">
+          {eyebrow ? <p className="ep-eyebrow" data-testid="event-program-eyebrow">{eyebrow}</p> : null}
+          {title ? <h2 className="ep-heading">{title}</h2> : null}
+        </header>
+      ) : null}
       <div className="ep-shell" data-rail={multi ? "1" : undefined}>
         {multi ? (
           <nav className="ep-nav" aria-label={t(mode === "place" ? "places" : "nights")} data-testid="event-program-nav">
@@ -165,7 +174,7 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
               {multi && g.label ? <h3 className="ep-group-title">{g.label}</h3> : null}
               <ol className="ep-list">
                 {g.items.map((p) => (
-                  <ProgramRow key={p.item.id} placed={p} now={nowKey === `${g.key}:${p.item.id}`} images={showImages !== false} descriptions={showDescriptions !== false} t={t} />
+                  <ProgramRow key={p.item.id} placed={p} now={nowKey === `${g.key}:${p.item.id}`} images={showImages !== false} descriptions={showDescriptions !== false} kind={showKind === true} place={placeName(ready as ReadyProgram, p.item.spaceId)} t={t} />
                 ))}
               </ol>
             </section>
@@ -176,12 +185,21 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
   );
 }
 
-function ProgramRow({ placed, now, images, descriptions, t }: { placed: PlacedItem; now: boolean; images: boolean; descriptions: boolean; t: (k: string) => string }) {
+function placeName(program: ReadyProgram, spaceId: string | null): string | null {
+  return spaceId ? (program.spaces.find((s) => s.id === spaceId)?.name ?? null) : null;
+}
+
+/**
+ * One row, the same shape for every kind: time column, rail dot, content,
+ * thumb (only with an image). A kind is never drawn as a symbol; with
+ * `showKind` it is a tiny uppercase word in the meta line, nothing more.
+ */
+function ProgramRow({ placed, now, images, descriptions, kind, place, t }: { placed: PlacedItem; now: boolean; images: boolean; descriptions: boolean; kind: boolean; place: string | null; t: (k: string) => string }) {
   const { item, timeLabel, endTimeLabel, dayOffset } = placed;
   const cover = images && item.coverUrl ? item.coverUrl : null;
   const performer = item.performer;
   const performerName = performer ? (performer.tba && !performer.name ? t("performerTba") : performer.name) : null;
-  const kindLabel = item.kind === "doors" || item.kind === "close" || item.kind === "break" ? t(`kind_${item.kind}`) : null;
+  const kindLabel = kind ? t(`kind_${item.kind}`) : null;
   return (
     <li className="ep-item" data-testid="event-program-item" data-kind={item.kind} data-now={now ? "1" : undefined} data-image={cover ? "1" : undefined} data-tba={item.timeTba ? "1" : undefined}>
       <div className="ep-time">
@@ -197,18 +215,25 @@ function ProgramRow({ placed, now, images, descriptions, t }: { placed: PlacedIt
           <span className="ep-time-tba">{t("tba")}</span>
         )}
       </div>
-      {cover ? <img className="ep-cover" src={cover} alt="" loading="lazy" data-testid="event-program-cover" /> : null}
+      <span className="ep-dot" aria-hidden="true" data-testid="event-program-dot" />
       <div className="ep-body">
         <p className="ep-title">{item.title}</p>
-        {performerName ? (
-          <p className="ep-performer" data-testid="event-program-performer">
-            {performer?.profileHref ? <a href={performer.profileHref}>{performerName}</a> : performerName}
+        {item.subtitle ? <p className="ep-subtitle">{item.subtitle}</p> : null}
+        {descriptions && item.description ? <p className="ep-desc">{item.description}</p> : null}
+        {performerName || place || kindLabel || now ? (
+          <p className="ep-meta">
+            {performerName ? (
+              <span className="ep-performer" data-testid="event-program-performer">
+                {performer?.profileHref ? <a href={performer.profileHref}>{performerName}</a> : performerName}
+              </span>
+            ) : null}
+            {place ? <span className="ep-place">{place}</span> : null}
+            {kindLabel ? <span className="ep-kind" data-testid="event-program-kind">{kindLabel}</span> : null}
+            {now ? <span className="ep-now" data-testid="event-program-now" aria-label={t("nowLabel")}>{t("now")}</span> : null}
           </p>
         ) : null}
-        {item.subtitle || kindLabel ? <p className="ep-meta">{item.subtitle ?? kindLabel}</p> : null}
-        {descriptions && item.description ? <p className="ep-desc">{item.description}</p> : null}
-        {now ? <span className="ep-now" data-testid="event-program-now" aria-label={t("nowLabel")}>{t("now")}</span> : null}
       </div>
+      {cover ? <img className="ep-cover" src={cover} alt="" loading="lazy" data-testid="event-program-cover" /> : null}
     </li>
   );
 }

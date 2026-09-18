@@ -5760,6 +5760,7 @@ function renderBuilderNodeElement(
           <EventProgramIsland
             eventId={(p.eventId ?? "").trim() || options.dataSources.linkedEventId || ""}
             editor={options.contentLocale?.editorPreview === true}
+            eyebrow={text("eyebrow", p.eyebrow) || undefined}
             heading={text("heading", p.heading) || undefined}
             locale={options.contentLocale?.locale}
             layout={p.layout}
@@ -5767,6 +5768,7 @@ function renderBuilderNodeElement(
             showTimes={p.showTimes}
             showImages={p.showImages}
             showDescriptions={p.showDescriptions}
+            showKind={p.showKind}
             filterKinds={p.filterKinds}
             limit={p.limit}
           />

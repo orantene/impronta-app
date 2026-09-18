@@ -1714,6 +1714,23 @@ function BuilderNodeContentInspectorBody({
       <BuilderNodeFlatPanel>
         <BuilderNodeSection title="Copy">
           <div className={KIT.field}>
+            <label className={KIT.label}>Eyebrow</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="eyebrow"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={ep.eyebrow ?? ""}
+              ariaLabel="Eyebrow"
+              className={KIT.input}
+              placeholder="Run of show"
+              onCommitBase={(next) =>
+                commitTextInput("eyebrow", ep.eyebrow ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
             <label className={KIT.label}>Heading</label>
             <BuilderNodeLocalizableTextField
               node={node}
@@ -1741,6 +1758,7 @@ function BuilderNodeContentInspectorBody({
             showTimes={ep.showTimes}
             showImages={ep.showImages}
             showDescriptions={ep.showDescriptions}
+            showKind={ep.showKind}
             filterKinds={ep.filterKinds}
             limit={ep.limit}
             patch={commitPatch}
