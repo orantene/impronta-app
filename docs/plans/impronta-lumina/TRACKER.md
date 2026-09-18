@@ -36,3 +36,23 @@ Notes
 - 2026-09-17 00:40Z: production DB compute-starved (smallest Supabase tier, burst credits drained; count(*) 10.8 s). Owner must upgrade Compute → Small in the Supabase dashboard. Site TTFB 5–27 s until then.
 - #2002 on production pointer at 00:38Z (314e6d8be); Vercel build in progress.
 - Gamma image credits exhausted after 4 images (hero beams, runway, fire, aerial silk). Remaining imagery via canvas-design skill.
+
+## Owner audit round (2026-09-17, 10:00Z → 18:30Z)
+
+| # | Item | Status | Evidence / PR |
+|---|---|---|---|
+| D-176 | Date moved to Sat 21 Nov 2026 (session, hero, strip, FAQ, e-mails, engine page) | DONE, published; session `519e18b6` starts 2026-11-22T00:00Z (18:00 Cancún) | live page title "21 de noviembre" |
+| D-177 | Home hero LUMINA strip removed (owner: "home looks shit"); top-bar announcement stays → /lumina; LUMINA out of the header nav for good (peer session applied) | DONE, published | improntamodels.com |
+| D-178 | SEO URLs: `/events/<slug>` renders the linked builder page, `/es/eventos/<slug>` alias, `/lumina` 308s to the canonical | DONE #2039 live (`events.page_id`, migration 20261231245000); `?edit=1` skips the redirect #2045 live | curl: `/lumina` → 308, `/lumina?edit=1` → 200 |
+| D-179 | English page was Spanish | DONE: EN overlay (`node.i18n`) applied by peer session `impronta-app-5e` from `lumina-en.json` (89 entries); "Choose your ticket" on EN, "Elige tu entrada" on ES | both canonical URLs checked after publish |
+| D-180 | Ticket UX: tiers visible with prices, designed checkout drawer, always-visible floating "Comprar entradas" | DONE #2040 live (`ticket-picker-{cards,checkout,floating-cta,form}`); floating CTA verified with a real scroll at 375 px in a fresh browser | screenshot in chat |
+| AI | Six "Nos acompañan" AI images | DONE via the builder image inspector on production (generateNodeImageAction); stray QR block removed | live page |
+| MAP | Venue block: embedded map, Calle 12 Norte, Playa del Carmen | DONE (`location_map` `mapStyle: embed`) | live page |
+| C1 | "Elegí tu entrada" → "Elige tu entrada" | DONE 18:25Z (builder edit after #2045; EN overlay intact) | curl both locales |
+| T1 | Tier presentation on the ticket type (featured image / badge / includes / description; image column hidden without an image; money parity) | PR #2048 open, gates green, handed to the program session; migration 20261231248000 (additive) to apply before merge | https://github.com/orantene/impronta-app/pull/2048 |
+| P0 | Event Program / Schedule / Lineup engine: audit + proposal | PR #2047 (docs) | docs/plans/events-program/00-proposal.md |
+| P1 | Wave 1: PR A (schema `event_schedule_items` 20261231249000 + model + night grouping + i18n), PR B (staff actions + public loader) | building; both waiting on the machine-wide tsc queue | |
+| P2 | Wave 2 (Programa tab, `event_program` block, JSON-LD, dead lineup fields) · Wave 3 (LUMINA onto the block, QA, docs) | after PR A merges | |
+
+Owner-side, still open: real 500 MXN purchase + refund; Orders → cancel 6C22E25F; confirm venue city (hero says Cancún, venue block says Playa del Carmen).
+Editor note: Chrome caches the 308 from `/lumina`; open the editor with `/lumina?edit=1&<any>=1` once after the deploy, then it is fine.
