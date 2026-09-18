@@ -151,6 +151,10 @@ export function toCanonicalCardData(
     photoUrl: talent.headshotUrl,
     agencyName: talent.agencyName,
     isExclusive: talent.isExclusive,
+    // The portrait/profile "Verified" badge reads this boolean; the trust
+    // ladder ("basic" | "verified" | "silver" | "gold") already carries the
+    // same fact, so no new field — "basic" is the unverified default.
+    verified: talent.trustTier != null && talent.trustTier !== "basic",
     availabilityLabel: known
       ? availabilityLine(days).text
       : AVAILABILITY_UNKNOWN,

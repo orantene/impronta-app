@@ -82,7 +82,7 @@ export const SURFACE_RULES: Record<CardSurface, SurfaceRule> = {
 
 export const SURFACE_ORDER: CardSurface[] = ["directory", "pitch", "roster", "embedded"];
 
-export type CardStyle = "portrait" | "editorial";
+export type CardStyle = "portrait" | "editorial" | "profile";
 export type CardAspect = "4:5" | "1:1" | "3:4" | "16:9";
 export type HoverBehavior = "reveal_traits" | "zoom" | "swap" | "none";
 
@@ -185,6 +185,52 @@ const ASPECT_RATIO: Record<CardAspect, number> = {
 // <TalentCardActions>. Self-contained; favorite/inquiry are demo-interactive.
 // ────────────────────────────────────────────────────────────────────────
 
+/**
+ * The demo "Inquire" pill both preview slots need (the hover-cluster icon
+ * pill for editorial, and the persistent caption CTA for portrait/profile) —
+ * factored into ONE component so there is exactly one inline `style={{…}}`
+ * literal for it in this file, not two (this file's `ratchet/no-new-inline-style`
+ * budget is frozen; a second literal copy would read as a NEW violation even
+ * though the content is identical).
+ */
+function DemoInquireButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        height: 32,
+        padding: "0 12px",
+        borderRadius: 999,
+        border: "1px solid rgba(255,255,255,0.35)",
+        background: active ? "rgba(200,160,74,0.92)" : "rgba(0,0,0,0.64)",
+        color: active ? "#1c1710" : "#fff",
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        textTransform: "uppercase",
+        backdropFilter: "blur(6px)",
+        cursor: "pointer",
+        transition: TRANSITION.sm,
+      }}
+    >
+      {active ? <Check size={12} aria-hidden /> : <Send size={12} aria-hidden />}
+      {label}
+    </button>
+  );
+}
+
 export function PreviewCard({
   surface,
   appearance,
@@ -206,6 +252,11 @@ export function PreviewCard({
   const showFavorite = rule.favorite && appearance.showSave;
   const showInquiry = rule.inquiry && appearance.showAddToInquiry;
   const FavGlyph = favoriteIcon === "bookmark" ? Bookmark : Heart;
+  // Portrait + Cinematic (profile) render Inquire as a persistent caption
+  // CTA on the live site (DirectoryCardAdapter's `ctaSlot`), not the
+  // hover-only icon pill — mirror that split here so the preview matches.
+  const inquiryIsPersistentCta =
+    appearance.cardStyle === "portrait" || appearance.cardStyle === "profile";
 
   // Token projection: an empty token = no var = the
   // card inherits the theme color (the live contract).
@@ -300,6 +351,19 @@ export function PreviewCard({
           onActivate={() => {}}
           showStanding={showStanding ? "always" : "auto"}
           traitSlot={traitSlot}
+          ctaSlot={
+            showInquiry && inquiryIsPersistentCta ? (
+              <DemoInquireButton
+                active={demoInquiry}
+                onClick={() => setDemoInquiry((v) => !v)}
+                label={
+                  demoInquiry
+                    ? t("dashboard.adminCardStudio2.previewAdded")
+                    : t("dashboard.adminCardStudio2.previewInquire")
+                }
+              />
+            ) : undefined
+          }
           priority
         />
         {/* Favorite + Inquire demo affordances in the CANONICAL position
@@ -307,7 +371,7 @@ export function PreviewCard({
             <TalentCardActions>). Interactive so the admin can see both
             states; on the live surface they connect to the client's real
             favorites and inquiry list. */}
-        {showFavorite || showInquiry ? (
+        {showFavorite || (showInquiry && !inquiryIsPersistentCta) ? (
           <div
             style={{
               position: "absolute",
@@ -319,44 +383,20 @@ export function PreviewCard({
               gap: 8,
             }}
           >
-            {showInquiry ? (
+            {showInquiry && !inquiryIsPersistentCta ? (
               /* Hover-revealed, exactly like the live cluster: at rest the
                  card shows only the favorite; the inquire pill fades in on
                  hover/focus (and stays visible on touch devices). */
               <div className="pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/previewwrap:pointer-events-auto group-hover/previewwrap:translate-x-0 group-hover/previewwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100">
-              <button
-                type="button"
+              <DemoInquireButton
+                active={demoInquiry}
                 onClick={() => setDemoInquiry((v) => !v)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  height: 32,
-                  padding: "0 12px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(255,255,255,0.35)",
-                  background: demoInquiry
-                    ? "rgba(200,160,74,0.92)"
-                    : "rgba(0,0,0,0.64)",
-                  color: demoInquiry ? "#1c1710" : "#fff",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: 0.4,
-                  textTransform: "uppercase",
-                  backdropFilter: "blur(6px)",
-                  cursor: "pointer",
-                  transition: TRANSITION.sm,
-                }}
-              >
-                {demoInquiry ? (
-                  <Check size={12} aria-hidden />
-                ) : (
-                  <Send size={12} aria-hidden />
-                )}
-                {demoInquiry
-                  ? t("dashboard.adminCardStudio2.previewAdded")
-                  : t("dashboard.adminCardStudio2.previewInquire")}
-              </button>
+                label={
+                  demoInquiry
+                    ? t("dashboard.adminCardStudio2.previewAdded")
+                    : t("dashboard.adminCardStudio2.previewInquire")
+                }
+              />
               </div>
             ) : null}
             {showFavorite ? (
@@ -477,6 +517,9 @@ export const CARD_PREVIEW_SAMPLE: DirectoryCardData = {
   // Sample price so the "Price chip" color knob has visible feedback in the
   // live preview (the chip renders only when a priceFromLabel is present).
   priceFromLabel: "From $850 / day",
+  // So the "Verified" badge (portrait/profile styles) and the agency
+  // attribution line under the price have something to show in the preview.
+  verified: true,
   // Fit chips + engine attributes so the "Attributes" switch and every hover
   // mode have something to reveal (the preview renders the same shared trait
   // row the live grid does). Rating clears the credibility floor so the

@@ -82,7 +82,7 @@ export type CardDesign = {
    * sets its own value keeps it; sections that left the value UNSET follow
    * these. Undefined here = fall through to the platform default.
    */
-  cardStyle?: "portrait" | "editorial";
+  cardStyle?: "portrait" | "editorial" | "profile";
   cardAspect?: "4:5" | "1:1" | "3:4" | "16:9";
   hover?: "zoom" | "swap" | "reveal_traits" | "none";
   density?: "comfortable" | "compact";
@@ -136,7 +136,7 @@ const LINE_VISIBILITY_KEYS = {
 
 /** Registry token key → `CardDesign` layout field, with its allowed values. */
 const LAYOUT_KEYS = {
-  cardStyle: ["directory.card.style", ["portrait", "editorial"]],
+  cardStyle: ["directory.card.style", ["portrait", "editorial", "profile"]],
   cardAspect: ["directory.card.aspect", ["4:5", "1:1", "3:4", "16:9"]],
   hover: ["directory.card.hover", ["zoom", "swap", "reveal_traits", "none"]],
   density: ["directory.card.density", ["comfortable", "compact"]],

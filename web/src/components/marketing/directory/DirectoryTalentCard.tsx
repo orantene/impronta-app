@@ -11,6 +11,7 @@ import {
 } from "@/components/talent-cards/talent-card-trait-row";
 import { type CaptionNorms, isRedundant, NO_CAPTION_NORMS } from "@/lib/directory/caption-norms";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
+import { TalentQuickViewButton } from "@/components/directory/talent-quick-view";
 import {
   cardDesignToCssVars,
   DEFAULT_CARD_DESIGN,
@@ -121,6 +122,27 @@ export function DirectoryTalentCard({
   const showFavorite = design.showFavorite !== "off";
   const showInquire = design.showInquiry !== "off";
 
+  // Portrait (and Cinematic) render Inquire as a persistent caption CTA
+  // instead of the hover-only icon pill — same split as
+  // DirectoryCardAdapter on the tenant storefront, so the hub grid and every
+  // tenant's own directory read the same way once a tenant picks either style.
+  const inquiryIsPersistentCta = style === "portrait" || style === "profile";
+  const ctaSlot =
+    showInquire && inquiryIsPersistentCta ? (
+      <TalentCardActions
+        talentProfileId={talent.id}
+        profileCode={talent.profileCode ?? ""}
+        displayName={data.name}
+        sourcePage="/directory"
+        variant="pill"
+        hideFavorite
+        portraitUrl={talent.headshotUrl ?? null}
+        getInquiryPhotoRect={() =>
+          mediaRef.current?.querySelector("img")?.getBoundingClientRect() ?? null
+        }
+      />
+    ) : undefined;
+
   return (
     <div
       ref={mediaRef}
@@ -137,6 +159,11 @@ export function DirectoryTalentCard({
         show={show}
         nameFallback="first_name"
         traitSlot={traitSlot}
+        ctaSlot={ctaSlot}
+        // Cross-tenant grid (many agencies, one page) — attribute the price
+        // to the agency, unlike a tenant's own storefront where that would
+        // just repeat the site's own brand back at the visitor.
+        showAgencyLine
         aspect={aspect}
         density={density}
         priority={priority}
@@ -145,14 +172,16 @@ export function DirectoryTalentCard({
         // token gate never exists here — opt in the same way Discover does.
         showStanding="always"
       />
-      {/* Favorite heart + hover-revealed Inquire pill — the same canonical
-          cluster DirectoryCardAdapter mounts on the storefront directory.
+      {/* Favorite heart + quick-view eye, always visible — the same cluster
+          DirectoryCardAdapter mounts on the storefront directory. Inquire
+          moved into the caption as a persistent CTA for portrait/profile
+          styles (`ctaSlot`, above); editorial keeps it here as a hover pill.
           Both hooks are guest-capable, and the actions render null until the
           discovery-state provider hydrates, so this stays safe on any surface
           that omits the provider. */}
-      {showFavorite || showInquire ? (
+      {showFavorite || (showInquire && !inquiryIsPersistentCta) || data.profileHref ? (
         <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
-          {showInquire ? (
+          {showInquire && !inquiryIsPersistentCta ? (
             <div className="pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:translate-x-0 group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100">
               <TalentCardActions
                 talentProfileId={talent.id}
@@ -169,6 +198,20 @@ export function DirectoryTalentCard({
                 }
               />
             </div>
+          ) : null}
+          {data.profileHref ? (
+            <TalentQuickViewButton
+              talentProfileId={talent.id}
+              profileCode={talent.profileCode ?? ""}
+              displayName={data.name}
+              profileHref={data.profileHref}
+              thumbnailUrl={talent.headshotUrl ?? null}
+              locale="en"
+              sourcePage="/directory"
+              openLabel="Quick view"
+              closeLabel="Close"
+              viewProfileLabel="View profile"
+            />
           ) : null}
           {showFavorite ? (
             <TalentCardActions
