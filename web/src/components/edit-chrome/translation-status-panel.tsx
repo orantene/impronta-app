@@ -102,19 +102,28 @@ export function TranslationStatusButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title={t("What still needs translating into {locale}").replace(
+        title={`${t("Translations")}: ${t("What still needs translating into {locale}").replace(
           "{locale}",
           auditLocale.toUpperCase(),
-        )}
-        className="inline-flex shrink-0 cursor-pointer items-center gap-[5px] rounded-full border-none px-[10px] py-[7px] text-[12px] font-semibold transition-all"
-        style={{ background: "rgba(0,0,0,0.05)", color: CHROME.muted }}
+        )}`}
+        aria-label={t("Translations")}
+        // Icon-only, sized to sit INSIDE the language pill track as its last
+        // segment (the topbar wraps the two in one track): the glyph is the
+        // two overlapping language dots, the words live in the tooltip.
+        className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border-none transition-all"
+        style={{ width: 30, height: 30, background: "transparent", color: CHROME.muted }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = CHROME.surface;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "transparent";
+        }}
       >
-        {/* two overlapping language dots — reads as "compare languages" */}
         <span aria-hidden style={{ display: "inline-flex" }}>
           <span
             style={{
-              width: 8,
-              height: 8,
+              width: 9,
+              height: 9,
               borderRadius: 999,
               background: "#059669",
               display: "inline-block",
@@ -122,8 +131,8 @@ export function TranslationStatusButton({
           />
           <span
             style={{
-              width: 8,
-              height: 8,
+              width: 9,
+              height: 9,
               borderRadius: 999,
               border: `2px solid ${CHROME.amber}`,
               background: "transparent",
@@ -132,7 +141,6 @@ export function TranslationStatusButton({
             }}
           />
         </span>
-        {t("Translations")}
       </button>
       {open ? (
         <TranslationStatusPanel
