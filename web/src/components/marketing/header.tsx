@@ -558,12 +558,10 @@ function MobileSection({
  * `@/components/brand/tulala-logo`. Letter strokes ride `currentColor`
  * (ink-strong here); the full-stop carries the brand orange.
  *
- * `descriptor` renders the category-message lockup line to the right of
- * the wordmark, desktop-only (xl+, one step past the `lg:` breakpoint the
- * nav itself switches on at, so the label never competes with nav for
- * space; QA at 1024-1280px and drop to a wider breakpoint if it still
- * crowds). ~60% opacity, one weight lighter than the wordmark, letter-
- * spaced small-caps-style, never a second dark bold element in the bar.
+ * `descriptor` renders the category-message lockup line, stacked under the
+ * wordmark, at all viewport widths (including mobile). ~60% opacity, one
+ * weight lighter than the wordmark, letter-spaced small-caps-style, never
+ * a second dark bold element in the bar.
  */
 function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
   return (
@@ -576,11 +574,11 @@ function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
           one brand unit instead of two competing elements separated by a rule,
           and it stops the descriptor from fighting the nav for horizontal room.
           Letter-spacing is tuned so the line optically matches the wordmark's
-          width. Still desktop-only (xl+) and still ~60% opacity, so it never
-          becomes a second dark bold element in the bar. */}
+          width. Still ~60% opacity, so it never becomes a second dark bold
+          element in the bar. */}
       <span
         aria-hidden
-        className="mt-1 hidden whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.2em] xl:block"
+        className="mt-1 block whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.2em]"
         style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
       >
         {descriptor}
