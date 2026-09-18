@@ -15,6 +15,7 @@ import {
   type OnboardingPath,
   type PersistedModuleState,
   type ResumeSnapshot,
+  type VisualDirection,
 } from "./module-state";
 import type { ModuleQuestionId } from "./module-questions";
 import type { TypeChipProposal } from "./type-chip";
@@ -33,7 +34,8 @@ export type MachineErrorCode =
   | "rate_limit"
   | "import_failed"
   | "failed"
-  | "invalid_whatsapp";
+  | "invalid_whatsapp"
+  | "missing_required";
 
 export type MachineState = {
   intent: OnboardingIntent;
@@ -57,6 +59,7 @@ export type MachineState = {
   followUps: ModuleQuestionId[];
   questionIndex: number;
   linkSlug: string | null;
+  styleChoice: VisualDirection | null;
   linkAvailable: boolean | null;
   linkSuggestions: string[];
   /** Phase 4: the address a code was sent to; a message for the code screen. */
@@ -87,6 +90,8 @@ export type MachineEvent =
   | { type: "cardAccepted"; nextStep: ModuleStep; followUps: ModuleQuestionId[] }
   | { type: "pathChosen"; understanding: Understanding; chip: TypeChipProposal | null; path: OnboardingPath }
   | { type: "questionAnswered"; understanding: Understanding; chip: TypeChipProposal | null }
+  | { type: "essentialsSaved"; understanding: Understanding; chip: TypeChipProposal | null }
+  | { type: "styleSaved"; direction: VisualDirection }
   | { type: "questionSkipped" }
   | { type: "jumpToQuestion"; questionId: ModuleQuestionId }
   | { type: "linkChecked"; slug: string; available: boolean; suggestions: string[] }
@@ -116,6 +121,7 @@ export function initialMachineState(intent: OnboardingIntent = "unknown"): Machi
     followUps: [],
     questionIndex: 0,
     linkSlug: null,
+    styleChoice: null,
     linkAvailable: null,
     linkSuggestions: [],
     codeEmail: null,
@@ -133,7 +139,9 @@ const BACK: Partial<Record<ModuleStep, ModuleStep>> = {
   tooLittle: "entry",
   fork: "understood",
   question: "understood",
-  readyToBuild: "understood",
+  essentials: "understood",
+  style: "essentials",
+  readyToBuild: "essentials",
   save: "readyToBuild",
   code: "save",
 };
@@ -174,6 +182,7 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
         step: s.step ?? "entry",
         questionIndex: s.questionIndex ?? 0,
         linkSlug: s.linkSlug ?? null,
+        styleChoice: s.styleChoice ?? null,
       };
     }
     case "resumeFresh":
@@ -207,7 +216,8 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
       // Resuming mid-questions: the answered ones are no longer missing, so
       // the remaining list starts at 0; none left means ready to build.
       const remaining = followUps.filter((q) => q !== "fork");
-      if (step === "question" && remaining.length === 0) step = "readyToBuild";
+      if (step === "question") step = "essentials";
+      void remaining;
       return {
         ...state,
         busy: false,
@@ -215,7 +225,7 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
         understanding: event.understanding,
         chip: event.chip,
         followUps,
-        questionIndex: step === "question" ? 0 : state.questionIndex,
+        questionIndex: 0,
         step,
       };
     }
@@ -232,19 +242,22 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
         chip: event.chip,
         followUps,
         questionIndex: 0,
-        step: followUps.length ? "question" : "readyToBuild",
+        step: "essentials",
       };
     }
     case "questionAnswered":
       return afterQuestion({ ...state, understanding: event.understanding, chip: event.chip });
     case "questionSkipped":
       return afterQuestion(state);
-    case "jumpToQuestion": {
-      const remaining: ModuleQuestionId[] = state.followUps.filter((q) => q !== "fork");
-      const idx = remaining.indexOf(event.questionId);
-      if (idx < 0) return state;
-      return { ...state, step: "question", questionIndex: idx, error: null };
+    case "essentialsSaved": {
+      // Talent goes straight to the summary; a business picks its look first.
+      const next: ModuleStep = event.understanding.path === "talent" ? "readyToBuild" : "style";
+      return { ...state, busy: false, error: null, understanding: event.understanding, chip: event.chip, step: next };
     }
+    case "styleSaved":
+      return { ...state, busy: false, error: null, styleChoice: event.direction, step: "readyToBuild" };
+    case "jumpToQuestion":
+      return { ...state, step: "essentials", questionIndex: 0, error: null };
     case "linkChecked":
       return { ...state, linkSlug: event.slug, linkAvailable: event.available, linkSuggestions: event.suggestions };
     case "toStep":

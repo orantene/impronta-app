@@ -16,20 +16,20 @@ export function Eyebrow({ children }: { children: ReactNode }) {
   );
 }
 
-export function Title({ children, size = 28 }: { children: ReactNode; size?: number }) {
+export function Title({ children, size = 28, tone = "ink" }: { children: ReactNode; size?: number; tone?: "ink" | "inverse" }) {
   return (
     <h2
       className="tl-display mt-2 font-semibold leading-[1.1] tracking-[-0.03em]"
-      style={{ color: "var(--tl-ink)", fontSize: size }}
+      style={{ color: tone === "inverse" ? "var(--tl-on-inverse)" : "var(--tl-ink)", fontSize: size }}
     >
       {children}
     </h2>
   );
 }
 
-export function Sub({ children }: { children: ReactNode }) {
+export function Sub({ children, tone = "ink" }: { children: ReactNode; tone?: "ink" | "inverse" }) {
   return (
-    <p className="mt-2 text-[0.9375rem] leading-[1.5]" style={{ color: "var(--tl-ink-soft)" }}>
+    <p className="mt-2 text-[0.9375rem] leading-[1.5]" style={{ color: tone === "inverse" ? "var(--tl-on-inverse)" : "var(--tl-ink-soft)", opacity: tone === "inverse" ? 0.85 : 1 }}>
       {children}
     </p>
   );
@@ -165,7 +165,9 @@ export function Tick({ done }: { done: boolean }) {
  * tick, the current line a spinning ring, the rest wait. `activeIndex` is
  * the line in progress; everything before it is done.
  */
-export function LoadingSteps({ items, activeIndex }: { items: string[]; activeIndex: number }) {
+export function LoadingSteps({ items, activeIndex, tone = "ink" }: { items: string[]; activeIndex: number; tone?: "ink" | "inverse" }) {
+  const inkColor = tone === "inverse" ? "var(--tl-on-inverse)" : "var(--tl-ink)";
+  const mutedColor = tone === "inverse" ? "rgba(255,255,255,0.55)" : "var(--tl-muted)";
   return (
     <ul className="mt-5 flex flex-col gap-3" data-testid="onb-loading-steps" data-active={activeIndex}>
       {items.map((line, i) => {
@@ -175,7 +177,7 @@ export function LoadingSteps({ items, activeIndex }: { items: string[]; activeIn
           <li
             key={line}
             className="flex items-center gap-3 text-[0.9375rem] transition-colors duration-300"
-            style={{ color: done || active ? "var(--tl-ink)" : "var(--tl-muted)", fontWeight: active ? 600 : 400 }}
+            style={{ color: done || active ? inkColor : mutedColor, fontWeight: active ? 600 : 400 }}
           >
             {active ? (
               <span
@@ -225,7 +227,7 @@ export function ProgressBar({ expectedMs, done, label }: { expectedMs: number; d
 }
 
 /** Rotates through short lines while something runs, so the screen never reads as stuck. */
-export function WhileYouWait({ lines, everyMs = 3500 }: { lines: string[]; everyMs?: number }) {
+export function WhileYouWait({ lines, everyMs = 3500, tone = "ink" }: { lines: string[]; everyMs?: number; tone?: "ink" | "inverse" }) {
   const [i, setI] = useState(0);
   useEffect(() => {
     if (lines.length < 2) return;
@@ -233,7 +235,7 @@ export function WhileYouWait({ lines, everyMs = 3500 }: { lines: string[]; every
     return () => window.clearInterval(id);
   }, [lines.length, everyMs]);
   return (
-    <p key={i} className="mt-4 min-h-[1.5em] text-[0.8125rem] italic animate-in fade-in duration-500" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-while-you-wait" aria-live="polite">
+    <p key={i} className="mt-4 min-h-[1.5em] text-[0.8125rem] italic animate-in fade-in duration-500" style={{ color: tone === "inverse" ? "var(--tl-on-inverse)" : "var(--tl-ink-soft)", opacity: tone === "inverse" ? 0.85 : 1 }} data-testid="onb-while-you-wait" aria-live="polite">
       {lines[i] ?? ""}
     </p>
   );

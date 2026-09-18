@@ -34,24 +34,44 @@ export function ArrivalStep({ t, arrival }: { t: (key: string) => string; arriva
     : arrival.primary.label === "open_my_website" ? t("public.onboarding.arrival.openMyWebsite")
     : t("public.onboarding.arrival.openMyWorkspace");
 
+  const business = arrival.variant === "business" || arrival.variant === "both" || arrival.variant === "fallback";
+  const title = arrival.variant === "talent" ? t("public.onboarding.arrival.readyTalent") : business ? t("public.onboarding.arrival.readyBusiness") : t("public.onboarding.arrival.youreIn");
+  const nextSteps = business
+    ? [t("public.onboarding.arrival.nextVisit"), t("public.onboarding.arrival.nextCustomize"), t("public.onboarding.arrival.nextPhotos"), t("public.onboarding.arrival.nextDomain"), t("public.onboarding.arrival.nextPremium")]
+    : [t("public.onboarding.arrival.nextTalentPhotos"), t("public.onboarding.arrival.nextTalentBio"), t("public.onboarding.arrival.nextTalentShare")];
+
   return (
     <div data-testid="onb-arrival" data-variant={arrival.variant}>
-      <Title size={32}>
-        {arrival.headlineName ? t("public.onboarding.arrival.youreInName").replace("{name}", arrival.headlineName) : t("public.onboarding.arrival.youreIn")}
-      </Title>
+      <div className="mb-3 flex justify-center" aria-hidden>
+        <span className="grid size-12 place-items-center rounded-full text-[1.25rem]" style={{ background: "var(--tl-forest-soft)", color: "var(--tl-forest)" }}>✓</span>
+      </div>
+      <Title size={30}>{title}</Title>
       <Sub>{sub}</Sub>
       {facts.length ? (
         <p className="mt-3 text-[0.9375rem]" style={{ color: "var(--tl-ink)" }} data-testid="onb-arrival-fact">
           {facts.join(" · ")}
         </p>
       ) : null}
+
       {arrival.link ? (
-        <p className="mt-4 rounded-[14px] px-3 py-2 text-[0.9375rem] font-semibold" style={{ background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)", color: "var(--tl-ink)" }} data-testid="onb-arrival-link">
-          <span className="block text-[0.6875rem] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.arrival.link")}</span>
-          {arrival.link.display}
-        </p>
+        <div className="mt-5 overflow-hidden rounded-[18px]" style={{ background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)" }} data-testid="onb-arrival-link">
+          {/* The site itself, framed. A tenant site that refuses framing shows the address card only. */}
+          <div className="relative aspect-[4/3] w-full" style={{ background: "var(--tl-stone-soft)" }}>
+            <iframe title={arrival.link.display} src={arrival.link.href} className="absolute inset-0 h-full w-full border-0" loading="lazy" sandbox="allow-same-origin allow-scripts" />
+          </div>
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+            <span className="min-w-0">
+              <span className="block text-[0.6875rem] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.arrival.link")}</span>
+              <span className="block truncate text-[0.9375rem] font-semibold" style={{ color: "var(--tl-ink)" }}>{arrival.link.display}</span>
+            </span>
+            <a href={arrival.link.href} target="_blank" rel="noreferrer" className="shrink-0 text-[0.8125rem] font-semibold underline underline-offset-2" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-arrival-visit">
+              {t("public.onboarding.arrival.visit")}
+            </a>
+          </div>
+        </div>
       ) : null}
-      <div className="mt-6">
+
+      <div className="mt-5">
         <a
           href={arrival.primary.href}
           data-testid="onb-arrival-cta"
@@ -60,6 +80,18 @@ export function ArrivalStep({ t, arrival }: { t: (key: string) => string; arriva
         >
           {cta}
         </a>
+      </div>
+
+      <div className="mt-6" data-testid="onb-next-steps">
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.arrival.nextSteps")}</p>
+        <ul className="mt-2 flex flex-col gap-2">
+          {nextSteps.map((step, i) => (
+            <li key={step} className="flex items-center gap-3 text-[0.9375rem]" style={{ color: "var(--tl-ink)" }}>
+              <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded-full text-[0.7rem]" style={{ background: i === 0 ? "var(--tl-positive)" : "transparent", color: i === 0 ? "#fff" : "var(--tl-muted)", border: i === 0 ? "none" : "1px solid var(--tl-hairline-strong)" }}>{i === 0 ? "✓" : ""}</span>
+              {step}
+            </li>
+          ))}
+        </ul>
       </div>
       {arrival.quiet === "own_page_drafted" ? (
         <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-arrival-quiet">
