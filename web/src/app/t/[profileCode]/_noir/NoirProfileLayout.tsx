@@ -42,7 +42,6 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 import { ServicesBlock } from "../_light/ServicesBlock";
 import { ServiceMenuBlock } from "../_light/ServiceMenuBlock";
 import { TalentStorefront } from "../_shared/TalentStorefront";
-import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { SkillsExperienceBlock } from "../_light/SkillsExperienceBlock";
 import { AvailabilityWidget } from "../_light/AvailabilityWidget";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
@@ -60,6 +59,7 @@ import {
 import { ExclusiveRepresentationLine } from "../_shared/ExclusiveRepresentationLine";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
+import { NOIR_CSS } from "./noir-css";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
 /** Group detail rows by resolved group label, first-seen order. */
@@ -140,135 +140,14 @@ const noirVars: Record<string, string> = {
   "--plt-font-body": "'Jost', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   "--plt-font-sans": "'Jost', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   "--plt-font-mono": "'Jost', sans-serif",
-  // radii — Noir is sharp
-  "--plt-radius-sm": "2px",
-  "--plt-radius-md": "2px",
-  "--plt-radius-lg": "3px",
-  "--plt-radius-xl": "4px",
+  // radii — Noir is square-modern (sharp editorial corners everywhere)
+  "--plt-radius-sm": "0px",
+  "--plt-radius-md": "0px",
+  "--plt-radius-lg": "0px",
+  "--plt-radius-xl": "1px",
 };
 
 // Scoped Noir styles. Every selector is namespaced under [data-profile-theme="noir"].
-const NOIR_CSS = `
-[data-profile-theme="noir"]{
-  --nf-gold:#c6a14e; --nf-champagne:#e0c074; --nf-line:rgba(198,161,78,0.26);
-  --nf-ease:cubic-bezier(0.16,1,0.3,1);
-  --nf-pad:clamp(20px,5vw,64px);
-  background:#0b0a0d; color:#ece4d3;
-  font-family:'Jost',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  font-weight:300; line-height:1.65; -webkit-font-smoothing:antialiased;
-}
-[data-profile-theme="noir"] ::selection{ background:var(--nf-gold); color:#14110a; }
-[data-profile-theme="noir"] .plt-display,[data-profile-theme="noir"] .nf-display{ font-family:'Cormorant Garamond',Georgia,serif; font-weight:600; letter-spacing:0; line-height:1.04; color:#ece4d3; }
-[data-profile-theme="noir"] .plt-mono{ font-family:'Jost',sans-serif; }
-[data-profile-theme="noir"] .nf-wrap{ width:100%; max-width:1200px; margin-inline:auto; padding-inline:var(--nf-pad); }
-[data-profile-theme="noir"] .nf-section{ padding-block:clamp(54px,8vw,108px); }
-[data-profile-theme="noir"] .nf-eyebrow{ font-size:11px; letter-spacing:0.34em; text-transform:uppercase; font-weight:500; color:var(--nf-champagne); display:inline-flex; align-items:center; gap:12px; }
-[data-profile-theme="noir"] .nf-eyebrow::before{ content:""; width:30px; height:1px; background:var(--nf-gold); display:inline-block; }
-[data-profile-theme="noir"] .nf-sec-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:32px; flex-wrap:wrap; margin-bottom:clamp(28px,4vw,52px); }
-[data-profile-theme="noir"] .nf-sec-head h2{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:clamp(1.9rem,3.6vw,3rem); margin-top:14px; max-width:18ch; }
-[data-profile-theme="noir"] .nf-sec-head__aside{ max-width:38ch; color:rgba(236,228,211,0.66); font-size:0.95rem; padding-bottom:6px; }
-
-/* buttons */
-[data-profile-theme="noir"] .nf-btn{ display:inline-flex; align-items:center; gap:10px; font-size:11px; letter-spacing:0.2em; text-transform:uppercase; font-weight:500; padding:14px 30px; border-radius:2px; transition:all .4s var(--nf-ease); border:1px solid transparent; white-space:nowrap; cursor:pointer; }
-[data-profile-theme="noir"] .nf-btn--ghost{ border-color:var(--nf-line); color:#ece4d3; }
-[data-profile-theme="noir"] .nf-btn--ghost:hover{ border-color:var(--nf-gold); color:var(--nf-champagne); }
-[data-profile-theme="noir"] .nf-btn .arr{ transition:transform .4s var(--nf-ease); }
-[data-profile-theme="noir"] .nf-btn:hover .arr{ transform:translateX(5px); }
-
-/* hero */
-[data-profile-theme="noir"] .nf-hero{ display:grid; grid-template-columns:1fr 1fr; gap:clamp(28px,5vw,72px); align-items:stretch; padding-top:clamp(40px,7vh,96px); padding-bottom:clamp(20px,3vw,40px); }
-[data-profile-theme="noir"] .nf-portrait{ position:relative; aspect-ratio:4/5; overflow:hidden; background:#1b1722; }
-[data-profile-theme="noir"] .nf-portrait img{ width:100%; height:100%; object-fit:cover; filter:brightness(0.95); }
-[data-profile-theme="noir"] .nf-portrait::after{ content:""; position:absolute; inset:14px; border:1px solid rgba(224,192,116,0.45); pointer-events:none; }
-[data-profile-theme="noir"] .nf-portrait__mono{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Cormorant Garamond',serif; font-size:clamp(4rem,10vw,8rem); color:rgba(224,192,116,0.5); letter-spacing:0.08em; }
-[data-profile-theme="noir"] .nf-intro{ display:flex; flex-direction:column; justify-content:center; min-width:0; }
-[data-profile-theme="noir"] .nf-intro h1{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:clamp(2.8rem,6.2vw,5.2rem); line-height:1.0; margin-top:16px; }
-[data-profile-theme="noir"] .nf-chips{ display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
-[data-profile-theme="noir"] .nf-chip{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; font-weight:500; padding:7px 15px; border:1px solid var(--nf-line); border-radius:2px; color:rgba(236,228,211,0.74); }
-[data-profile-theme="noir"] .nf-chip--gold{ border-color:rgba(224,192,116,0.55); color:var(--nf-champagne); }
-[data-profile-theme="noir"] a.nf-chip{ text-decoration:none; transition:border-color .2s ease,color .2s ease; }
-[data-profile-theme="noir"] a.nf-chip:hover{ border-color:rgba(224,192,116,0.85); color:var(--nf-champagne); }
-html:has([data-profile-theme="noir"]){ scroll-behavior:smooth; }
-[data-profile-theme="noir"] #reviews{ scroll-margin-top:96px; }
-[data-profile-theme="noir"] .nf-bio{ color:rgba(236,228,211,0.74); margin-top:24px; max-width:50ch; font-size:1rem; line-height:1.8; }
-[data-profile-theme="noir"] .nf-actions{ display:flex; gap:12px; margin-top:32px; flex-wrap:wrap; align-items:center; }
-[data-profile-theme="noir"] .nf-hero-extra{ margin-top:26px; display:flex; gap:18px; flex-wrap:wrap; align-items:center; }
-
-/* digitals */
-[data-profile-theme="noir"] .nf-digitals{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1px; background:var(--nf-line); border:1px solid var(--nf-line); }
-[data-profile-theme="noir"] .nf-digitals + .nf-digitals{ margin-top:1px; }
-[data-profile-theme="noir"] .nf-digitals .d{ background:#100e13; padding:22px 20px; min-width:0; }
-[data-profile-theme="noir"] .nf-digitals .d .k{ font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--nf-champagne); }
-[data-profile-theme="noir"] .nf-digitals .d .v{ font-family:'Cormorant Garamond',serif; font-size:1.5rem; margin-top:8px; color:#ece4d3; word-break:break-word; }
-/* Section eyebrows measured 4.43:1 at alpha .5 — just under the 4.5 floor
-   for 10.5px text. 0.56 -> 5.30:1. */
-[data-profile-theme="noir"] .nf-group-label{ font-size:10.5px; letter-spacing:0.2em; text-transform:uppercase; color:rgba(236,228,211,0.56); margin:26px 0 12px; }
-
-/* clients */
-[data-profile-theme="noir"] .nf-clients{ display:flex; flex-wrap:wrap; gap:14px 40px; align-items:center; }
-[data-profile-theme="noir"] .nf-clients span{ font-family:'Cormorant Garamond',serif; font-size:clamp(1.3rem,2vw,1.9rem); color:#ece4d3; opacity:0.8; }
-
-/* similar */
-[data-profile-theme="noir"] .nf-similar{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
-[data-profile-theme="noir"] .nf-similar__card{ position:relative; }
-[data-profile-theme="noir"] .nf-similar__media{ position:relative; aspect-ratio:3/4; overflow:hidden; background:#100e13; border:1px solid transparent; transition:border-color .5s; display:block; }
-[data-profile-theme="noir"] .nf-similar__card:hover .nf-similar__media{ border-color:var(--nf-line); }
-[data-profile-theme="noir"] .nf-similar__media img{ width:100%; height:100%; object-fit:cover; transition:transform 1s var(--nf-ease); filter:brightness(0.9); }
-[data-profile-theme="noir"] .nf-similar__card:hover .nf-similar__media img{ transform:scale(1.04); }
-[data-profile-theme="noir"] .nf-similar__cap{ position:absolute; left:0; right:0; bottom:0; padding:14px; background:linear-gradient(transparent,rgba(8,7,10,0.84)); }
-[data-profile-theme="noir"] .nf-similar__cap .nm{ font-family:'Cormorant Garamond',serif; font-size:1.15rem; color:#fff; }
-[data-profile-theme="noir"] .nf-similar__cap .ct{ font-size:9.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--nf-champagne); margin-top:4px; }
-
-/* cta */
-[data-profile-theme="noir"] .nf-cta{ position:relative; overflow:hidden; background:#100e13; border-top:1px solid var(--nf-line); border-bottom:1px solid var(--nf-line); }
-[data-profile-theme="noir"] .nf-cta__inner{ position:relative; z-index:2; text-align:center; padding-block:clamp(70px,11vw,150px); }
-[data-profile-theme="noir"] .nf-cta__inner::before{ content:""; position:absolute; inset:clamp(16px,3vw,38px); border:1px solid rgba(224,192,116,0.4); pointer-events:none; }
-[data-profile-theme="noir"] .nf-cta h2{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:clamp(2.4rem,5.4vw,4.6rem); line-height:1.0; margin:18px 0 14px; }
-[data-profile-theme="noir"] .nf-cta p{ color:rgba(236,228,211,0.74); max-width:46ch; margin:0 auto 34px; }
-[data-profile-theme="noir"] .nf-cta__btns{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; align-items:center; }
-
-/* footer */
-[data-profile-theme="noir"] .nf-foot{ background:#100e13; border-top:1px solid var(--nf-line); padding-block:clamp(40px,6vw,72px); }
-[data-profile-theme="noir"] .nf-foot__row{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:18px; }
-[data-profile-theme="noir"] .nf-foot__brand{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:clamp(1.8rem,4vw,2.8rem); letter-spacing:0.12em; color:var(--nf-champagne); }
-[data-profile-theme="noir"] .nf-foot__pw{ font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:rgba(236,228,211,0.56); }
-[data-profile-theme="noir"] .nf-foot__pw em{ font-style:normal; color:var(--nf-champagne); }
-
-/* sticky book bar */
-[data-profile-theme="noir"] .nf-bookbar{ transition:transform .28s ease, opacity .28s ease; position:sticky; bottom:0; z-index:40; background:rgba(10,9,12,0.92); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px var(--nf-pad); flex-wrap:wrap; border-top:1px solid var(--nf-line); }
-[data-profile-theme="noir"][data-bookbar="idle"] .nf-bookbar{ transform:translateY(115%); opacity:0; pointer-events:none; }
-@media (prefers-reduced-motion: reduce){ [data-profile-theme="noir"] .nf-bookbar{ transition:none; } }
-[data-profile-theme="noir"] .nf-bookbar .who{ display:flex; align-items:center; gap:14px; min-width:0; }
-[data-profile-theme="noir"] .nf-bookbar .who img{ width:46px; height:46px; border-radius:50%; object-fit:cover; border:1px solid var(--nf-gold); }
-[data-profile-theme="noir"] .nf-bookbar .who .mono{ width:46px; height:46px; border-radius:50%; border:1px solid var(--nf-gold); display:flex; align-items:center; justify-content:center; font-family:'Cormorant Garamond',serif; color:var(--nf-champagne); }
-[data-profile-theme="noir"] .nf-bookbar .who .n{ font-family:'Cormorant Garamond',serif; font-size:1.3rem; line-height:1; }
-[data-profile-theme="noir"] .nf-bookbar .who .s{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--nf-champagne); margin-top:3px; }
-
-/* the passed-in inquire/share/save slots inherit gold via the --plt overrides */
-[data-profile-theme="noir"] .nf-preview-banner{ border-bottom:1px solid var(--nf-line); background:#100e13; color:rgba(236,228,211,0.7); text-align:center; padding:12px 16px; font-size:11px; letter-spacing:0.2em; text-transform:uppercase; }
-
-/* Reused sub-blocks render their own heading; Noir supplies its grand
-   nf-sec-head instead, so suppress the block heading (we pass heading="").
-   display:none removes the empty element from the a11y tree + closes the gap. */
-[data-profile-theme="noir"] #skills-exp-heading,
-[data-profile-theme="noir"] #services-heading,
-[data-profile-theme="noir"] #service-menu-heading,
-[data-profile-theme="noir"] #featured-media-heading{ display:none !important; }
-[data-profile-theme="noir"] section[aria-label="Client reviews"] > div:first-of-type{ display:none !important; }
-
-/* reveal-on-scroll (driven by NoirReveal; hero is never marked so it paints instantly) */
-[data-profile-theme="noir"] [data-nf-reveal]{ opacity:0; transform:translateY(26px); transition:opacity .9s var(--nf-ease), transform .9s var(--nf-ease); will-change:opacity,transform; }
-[data-profile-theme="noir"] [data-nf-reveal].nf-in{ opacity:1; transform:none; }
-@media (prefers-reduced-motion: reduce){
-  [data-profile-theme="noir"] [data-nf-reveal]{ opacity:1 !important; transform:none !important; transition:none !important; }
-}
-
-@media (max-width:900px){
-  [data-profile-theme="noir"] .nf-hero{ grid-template-columns:1fr; }
-  [data-profile-theme="noir"] .nf-similar{ grid-template-columns:repeat(2,1fr); }
-  [data-profile-theme="noir"] .nf-sec-head{ flex-direction:column; align-items:flex-start; }
-}
-`;
 
 export function NoirProfileLayout(props: LightProfileLayoutProps) {
   const {
@@ -330,7 +209,11 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
   } = props;
 
   const isFreePlan = !talentPlanKey || talentPlanKey === "talent_basic";
-  const heroImg = profileImageUrl ?? bannerUrl;
+  // The wide "hero" media renders as a full-bleed banner across the top; the
+  // card image is the overlapping portrait. bannerUrl stays a portrait fallback
+  // only when there is no card image, so no talent loses their face.
+  const bannerImg = bannerUrl;
+  const portraitImg = profileImageUrl ?? bannerUrl;
   const agency = agencyDisplayName ?? agencyName;
 
   // Hero chips ------------------------------------------------------------
@@ -339,8 +222,12 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
     .filter(Boolean)
     .slice(0, 4);
   const travels = serviceAreas.some((s) => s.service_kind === "travel_to");
-  const eyebrowLine =
-    allTalentTypes.length > 0 ? allTalentTypes.join(" · ") : primaryType;
+  // The parent talent type leads the hero (eyebrow); the remaining types are
+  // the talent's child specialties, surfaced as a quieter strip so the header
+  // reads clean instead of a wall of five roles.
+  const parentType = primaryType ?? (allTalentTypes[0] ?? null);
+  const childTypes = allTalentTypes.filter((tt) => tt !== parentType);
+  const eyebrowLine = parentType;
 
   // Digitals / detail groups ---------------------------------------------
   const groupedBasic =
@@ -387,6 +274,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
     rosterEyebrow: pickLocale(locale, { en: "The board", es: "El board" }),
     rosterTitle: pickLocale(locale, { en: "More from this roster.", es: "Más de este roster." }),
     visitSite: pickLocale(locale, { en: "Visit my site", es: "Visita mi sitio" }),
+    alsoSpecialties: pickLocale(locale, { en: "Also", es: "También" }),
   };
 
   const detailValue = (rows: DetailRow[]) =>
@@ -434,26 +322,40 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
         <div className="nf-preview-banner">{t("public.profile.previewModeBanner")}</div>
       ) : null}
 
-      {/* ── 1. HERO ─────────────────────────────────────────────────────── */}
-      <section className="nf-wrap nf-hero" data-profile-section="hero">
-        <div className="nf-portrait">
-          {heroImg ? (
+      {/* ── 1. HERO (full-bleed banner + overlapping portrait) ──────────── */}
+      <section data-profile-section="hero">
+        {bannerImg ? (
+          <div className="nf-banner">
             <Image
-              src={heroImg}
-              alt={`${name}, portrait`}
+              src={bannerImg}
+              alt={`${name}, banner`}
               fill
               priority
-              sizes="(min-width: 900px) 50vw, 100vw"
+              sizes="100vw"
               style={{ objectFit: "cover" }}
             />
-          ) : (
-            <div className="nf-portrait__mono" aria-hidden="true">
-              <Silhouette />
-            </div>
-          )}
-        </div>
+            <span className="nf-banner__frame" aria-hidden="true" />
+          </div>
+        ) : null}
+        <div className={`nf-wrap nf-hero${bannerImg ? " nf-hero--overlap" : ""}`}>
+          <div className="nf-portrait">
+            {portraitImg ? (
+              <Image
+                src={portraitImg}
+                alt={`${name}, portrait`}
+                fill
+                priority
+                sizes="(min-width: 900px) 360px, 80vw"
+                style={{ objectFit: "cover" }}
+              />
+            ) : (
+              <div className="nf-portrait__mono" aria-hidden="true">
+                <Silhouette />
+              </div>
+            )}
+          </div>
 
-        <div className="nf-intro">
+          <div className="nf-intro">
           {eyebrowLine ? <span className="nf-eyebrow">{eyebrowLine}</span> : null}
           <h1>{name}</h1>
 
@@ -485,11 +387,20 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
 
           {aboutText.trim() ? <p className="nf-bio">{aboutText}</p> : null}
 
+          {childTypes.length > 0 ? (
+            <div className="nf-specialties">
+              <span className="nf-specialties__label">{labels.alsoSpecialties}</span>
+              {childTypes.map((tt) => (
+                <span key={tt} className="nf-chip">{tt}</span>
+              ))}
+            </div>
+          ) : null}
+
           <div className="nf-actions">
             {inquireButtonHeader}
             {galleryItems.length > 0 ? (
               <a href="#nf-portfolio" className="nf-btn nf-btn--ghost">
-                {labels.viewPortfolio}
+                {labels.viewPortfolio} <span className="arr">↓</span>
               </a>
             ) : null}
             {maxSiteUrl ? (
@@ -519,6 +430,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
               />
             </div>
           ) : null}
+          </div>
         </div>
       </section>
 
