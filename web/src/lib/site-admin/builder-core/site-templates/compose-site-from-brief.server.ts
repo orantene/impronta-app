@@ -567,11 +567,30 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
           accepted = draft;
         } else {
           notes.push(`critic (${verdict.source}) rejected the draft: ${verdict.problems.map((p) => `${p.key}: ${p.reason}`).join("; ").slice(0, 400)}`);
+          const firstDraft = draft;
+          const firstBad = new Set(verdict.problems.map((p) => p.key));
           draft = await writeCopy("retry", retryInstruction(verdict.problems, bank));
-          if (draft && Object.keys(draft).length > 0) {
+          if (!draft || Object.keys(draft).length === 0) {
+            // The retry produced nothing usable (timeout, not JSON): the first
+            // draft's passed lines are still better than the Look's defaults.
+            const kept = Object.fromEntries(Object.entries(firstDraft).filter(([k]) => !firstBad.has(k)));
+            if (Object.keys(kept).length > 0) {
+              accepted = kept;
+              notes.push(`retry unusable; first draft kept minus ${[...firstBad].join(", ")}`);
+            }
+          } else {
             const again = await criticVerdict({ copy: draft, facts: copyFacts, primaryLocale: locale, bank, tenantId: input.tenantId, actorProfileId: input.actorProfileId ?? null, siteComposeId });
             if (again.ok) accepted = draft;
-            else notes.push(`critic rejected the retry too; defaults used: ${again.problems.map((p) => p.key).join(", ")}`);
+            else {
+              // Keep every line the critic passed; only the named keys fall
+              // back. Throwing the whole draft away over two generic
+              // headlines shipped a taquería with the Look's placeholder copy
+              // (p12 real-model run).
+              const bad = new Set(again.problems.map((p) => p.key));
+              const kept = Object.fromEntries(Object.entries(draft).filter(([k]) => !bad.has(k)));
+              if (Object.keys(kept).length > 0) accepted = kept;
+              notes.push(`critic rejected the retry too; defaults used for: ${[...bad].join(", ")}${Object.keys(kept).length ? ` (${Object.keys(kept).length} lines kept)` : ""}`);
+            }
           }
         }
       }
