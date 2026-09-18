@@ -20,6 +20,7 @@ import { loadMessagingInbox } from "@/lib/messaging/inbox";
 import { insertMessage, recordDelivery } from "@/lib/messaging/insert-message";
 import { matchCustomers } from "@/lib/messaging/match-customers";
 import { mergeInquiries } from "@/lib/messaging/merge";
+import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { fail } from "@/lib/messaging/refusals";
 import { renameInquiry } from "@/lib/messaging/rename";
 import { searchMessaging } from "@/lib/messaging/search";
@@ -441,6 +442,7 @@ export async function messagingEnsureSharedDraft(input: { inquiryId: string; cur
   await scoped(g.admin, "orders", g.tenantId)
     .update({ inquiry_id: parsed.data.inquiryId, source_channel: "messages" })
     .eq("id", created.orderId);
+  await linkRecordToConversation(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId, kind: "order", recordId: created.orderId, linkedBy: g.userId });
   return { ok: true as const, orderId: created.orderId, version: 1 };
 }
 

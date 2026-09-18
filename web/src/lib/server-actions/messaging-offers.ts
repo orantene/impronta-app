@@ -17,6 +17,7 @@ import { z } from "zod";
 
 import { counterOffer, createOffer, reopenOfferForAmendment, updateOfferDraft, type OfferLineDraft } from "@/lib/inquiry/inquiry-engine-offers";
 import { loadInquiryOffers, loadOfferForEditor } from "@/lib/messaging/sheets";
+import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { fail } from "@/lib/messaging/refusals";
 import { staff } from "./messaging-engine";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -65,7 +66,10 @@ export async function messagingCreateOffer(input: { inquiryId: string; expectedV
   });
   if (!result.success) return offerEngineFail(result);
   const offerId = result.data?.offerId ?? "";
-  if (offerId) await seedOfferFromSharedDraft(g, parsed.data.inquiryId, offerId);
+  if (offerId) {
+    await seedOfferFromSharedDraft(g, parsed.data.inquiryId, offerId);
+    await linkRecordToConversation(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId, kind: "offer", recordId: offerId, linkedBy: g.userId });
+  }
   return { ok: true as const, offerId };
 }
 
