@@ -18,9 +18,11 @@ import { floorBoardCopy } from "@/components/admin/floor/floor-copy";
 import { interpolate, withPluralization } from "@/i18n/interpolate";
 import type { Translator } from "@/components/admin/pos/translator";
 import { countMessagingUnread } from "@/lib/messaging/inbox";
+import { findConversationForOrder } from "@/lib/messages-v5/pos-continuity";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { loadPosSale } from "@/lib/pos/draft";
 import type { PosMode } from "@/lib/pos/modes";
+import { messagingLoadInbox } from "@/lib/server-actions/messaging-engine";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import { PageRouteSyncer } from "../_page-route-syncer";
@@ -48,6 +50,8 @@ export async function messagesModeView(input: {
   locale: string;
   mode: PosMode;
   tenantId: string;
+  /** L10: the shell needs both id and slug (`MessagesV5ShellProps`). */
+  tenantSlug: string;
   /** This request's own `/…/admin/pos` path, so the return link keeps the host shape. */
   posPath: string;
   /** The counter's open sale from `?order=`, when there is one. */
@@ -61,6 +65,18 @@ export async function messagesModeView(input: {
   const openOrderId = input.orderId && /^[0-9a-f-]{36}$/i.test(input.orderId) ? input.orderId : null;
   const openSale = mode === "counter" && openOrderId ? await loadPosSale(admin, { tenantId: input.tenantId, orderId: openOrderId }) : null;
   const sale = openSale && openSale.ok ? openSale.sale : null;
+  const actor = await getCachedActorSession();
+  // L10 (D-MSG-172): the counter dock's "This client" view starts on the
+  // conversation already linked to the open sale's order, when there is one.
+  // `messagingLoadInbox` is the SAME reader the shell itself calls (no new
+  // query); a sale with no thread yet, or the flag off, resolves to null and
+  // the dock falls back to Inbox — never a new writer, never a blank refusal.
+  const messagesV5 = process.env.NEXT_PUBLIC_MESSAGES_V5 === "1";
+  let initialCustomerInquiryId: string | null = null;
+  if (messagesV5 && mode === "counter" && sale) {
+    const inboxRes = await messagingLoadInbox({ locationSlug: "default", filter: "all" });
+    if (inboxRes.ok) initialCustomerInquiryId = findConversationForOrder(inboxRes.rows, sale.orderId);
+  }
   const destinationLabels: Readonly<Record<string, string>> =
     mode === "counter"
       ? input.railLabels
@@ -99,12 +115,16 @@ export async function messagesModeView(input: {
       <MessagesModeClient
         mode={mode}
         tenantId={input.tenantId}
+        tenantSlug={input.tenantSlug}
         locationSlug="default"
         adminBasePath={workspacePath}
         returnHref={returnHref}
         returnLabel={returnLabel}
         messagesUnread={input.messagesUnread}
         workspacePath={workspacePath}
+        currentUserId={actor.user?.id ?? null}
+        openOrderId={sale ? sale.orderId : null}
+        initialCustomerInquiryId={initialCustomerInquiryId}
         frame={{
           navLabel,
           destinationLabels,

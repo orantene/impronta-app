@@ -1,0 +1,123 @@
+/*
+ * PosMessagesDock (L10). Scoped under `.msgv5` like the kit and the shell;
+ * every colour is a `--msgv5-*` token, no literal appears here.
+ */
+
+.mv5pd {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--msgv5-card);
+}
+
+.mv5pd-strip {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--msgv5-line);
+  background: var(--msgv5-sunk);
+  padding: 10px 16px;
+}
+
+.mv5pd-return {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--msgv5-green-ink);
+  text-decoration: none;
+}
+.mv5pd-return:hover { text-decoration: underline; }
+
+.mv5pd-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 8px 14px 0;
+  border-bottom: 1px solid var(--msgv5-line);
+  background: var(--msgv5-card);
+}
+
+.mv5pd-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--msgv5-ink-3);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.mv5pd-tab[aria-selected="true"] {
+  color: var(--msgv5-ink);
+  border-bottom-color: var(--msgv5-green);
+}
+
+.mv5pd-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.mv5pd-body > .msgv5 { flex: 1; min-width: 0; }
+
+.mv5pd-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+  color: var(--msgv5-ink-3);
+}
+.mv5pd-empty-title { font-size: 14px; font-weight: 700; color: var(--msgv5-ink-2); margin: 0; }
+.mv5pd-empty-body { font-size: 12.5px; margin: 0; }
+
+/* ===== ≥1100 dock beside the sale; <1100 a drawer / phone overlay over it ===== */
+.mv5pd-drawer { position: relative; }
+.mv5pd-dock { }
+
+/* ===== PosPhoneNav (M06, D-MSG-174: drawn, not yet mounted in pos-client.tsx) ===== */
+.mv5pd-phone-nav {
+  display: flex;
+  border-top: 1px solid var(--msgv5-line);
+  background: var(--msgv5-card);
+}
+.mv5pd-phone-nav-item {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 4px 10px;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--msgv5-ink-3);
+  cursor: pointer;
+}
+.mv5pd-phone-nav-item.is-active { color: var(--msgv5-green-ink); }
+.mv5pd-phone-nav-count {
+  position: absolute;
+  top: 2px;
+  right: calc(50% - 20px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--msgv5-terra);
+  color: var(--msgv5-white);
+  font-size: 9.5px;
+  font-weight: 700;
+}

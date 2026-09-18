@@ -18815,6 +18815,17 @@
         "openRecord": "Abrir registro",
         "doneBooking": "Reserva confirmada · ya en Calendario, Proyectos, Clientes y POS",
         "doneOrder": "Pedido confirmado · ya en Cocina, Clientes y POS"
+      },
+      "pos": {
+        "thisClient": "Este cliente",
+        "inbox": "Bandeja",
+        "phoneSale": "Venta",
+        "phoneOrders": "Pedidos",
+        "phoneMessages": "Mensajes",
+        "phoneClients": "Clientes",
+        "phoneMore": "Más",
+        "noThreadYet": "Todavía no hay conversación para esta venta",
+        "noThreadBody": "Los mensajes ligados a esta venta aparecerán aquí."
       }
     }
   },

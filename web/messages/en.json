@@ -18815,6 +18815,17 @@
         "openRecord": "Open record",
         "doneBooking": "Booking confirmed · in Calendar, Projects, Clients and POS now",
         "doneOrder": "Order confirmed · in Kitchen, Clients and POS now"
+      },
+      "pos": {
+        "thisClient": "This client",
+        "inbox": "Inbox",
+        "phoneSale": "Sale",
+        "phoneOrders": "Orders",
+        "phoneMessages": "Messages",
+        "phoneClients": "Clients",
+        "phoneMore": "More",
+        "noThreadYet": "No conversation for this sale yet",
+        "noThreadBody": "Messages linked to this sale will show up here."
       }
     }
   },

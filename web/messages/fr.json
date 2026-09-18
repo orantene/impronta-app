@@ -7792,6 +7792,17 @@
         "openRecord": "Ouvrir le dossier",
         "doneBooking": "Réservation confirmée · déjà dans Calendrier, Projets, Clients et POS",
         "doneOrder": "Commande confirmée · déjà dans Cuisine, Clients et POS"
+      },
+      "pos": {
+        "thisClient": "Ce client",
+        "inbox": "Boîte de réception",
+        "phoneSale": "Vente",
+        "phoneOrders": "Commandes",
+        "phoneMessages": "Messages",
+        "phoneClients": "Clients",
+        "phoneMore": "Plus",
+        "noThreadYet": "Pas encore de conversation pour cette vente",
+        "noThreadBody": "Les messages liés à cette vente apparaîtront ici."
       }
     }
   },

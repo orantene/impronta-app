@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { PosFrame } from "@/components/admin/pos/PosFrame";
 import { MessagesShell, type MessagesClientProps } from "@/components/admin/pos/messages/MessagesShell";
 import { useCompactViewport } from "@/components/admin/pos/messages/use-compact-viewport";
+import { PosMessagesDock } from "@/components/messages-v5/pos/PosMessagesDock";
 import { POS_MESSAGES_DESTINATION, posMessagesHref, type PosMode } from "@/lib/pos/modes";
 
 export type { MessagesClientProps };
@@ -31,6 +32,8 @@ export function MessagesClient(props: MessagesClientProps) {
 export type MessagesModeClientProps = {
   readonly mode: PosMode;
   readonly tenantId: string;
+  /** L10: `MessagesV5Shell` needs both id and slug. */
+  readonly tenantSlug: string;
   readonly locationSlug: string;
   readonly adminBasePath: string;
   /** Where the header's back link goes: the mode's landing screen, with the counter's open sale. */
@@ -38,6 +41,12 @@ export type MessagesModeClientProps = {
   readonly returnLabel: string;
   /** The inbox's unread count: the rail's `messages` badge (seam 10). */
   readonly messagesUnread: number;
+  /** L10: the signed-in person, for the v5 shell's message attribution. Null when nobody is (never renders past the route guard, but the type stays honest). */
+  readonly currentUserId: string | null;
+  /** L10: the counter's open sale, for the dock's "This client" view and the sale-summary pane. Null with no sale open. */
+  readonly openOrderId: string | null;
+  /** L10: the conversation already linked to `openOrderId`, resolved server-side (`messagingLoadInbox`, no new reader). Null with no sale, no flag, or no thread yet. */
+  readonly initialCustomerInquiryId: string | null;
   readonly frame: {
     readonly navLabel: string;
     readonly destinationLabels: Readonly<Record<string, string>>;
@@ -72,15 +81,34 @@ export function MessagesModeClient(props: MessagesModeClientProps) {
         workspace={{ label: props.frame.workspace, href: props.workspacePath }}
         className="flex-1 rounded-none border-0"
       >
-        <MessagesClient
-          mode={props.mode}
-          tenantId={props.tenantId}
-          locationSlug={props.locationSlug}
-          adminBasePath={props.adminBasePath}
-          returnHref={props.returnHref}
-          returnLabel={props.returnLabel}
-          compact={compact}
-        />
+        {process.env.NEXT_PUBLIC_MESSAGES_V5 === "1" ? (
+          // Messages v5 (L10): the dock beside the sale / drawer over it,
+          // rather than a full-screen replacement of the mode's own PosFrame
+          // content. Behind the same env flag L2 used for the workspace
+          // inbox; Phase 3 replaces this with the per-tenant `messages_v5`
+          // flag (owner decision 10) at both call sites.
+          <PosMessagesDock
+            tenantId={props.tenantId}
+            tenantSlug={props.tenantSlug}
+            locationSlug={props.locationSlug}
+            adminBasePath={props.adminBasePath}
+            currentUserId={props.currentUserId}
+            returnHref={props.returnHref}
+            returnLabel={props.returnLabel}
+            openOrderId={props.openOrderId}
+            initialCustomerInquiryId={props.initialCustomerInquiryId}
+          />
+        ) : (
+          <MessagesClient
+            mode={props.mode}
+            tenantId={props.tenantId}
+            locationSlug={props.locationSlug}
+            adminBasePath={props.adminBasePath}
+            returnHref={props.returnHref}
+            returnLabel={props.returnLabel}
+            compact={compact}
+          />
+        )}
       </PosFrame>
     </div>
   );
