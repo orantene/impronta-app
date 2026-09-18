@@ -148,7 +148,7 @@ export function PaymentRequestView(props: PaymentRequestViewProps) {
                     key={t.recordId}
                     control="radio"
                     selected={selectedTargetId === t.recordId}
-                    title={t.label}
+                    title={t.label === t.kind ? (kitCopy.record as Record<string, string>)[t.kind] ?? t.label : t.label}
                     disabled={busy}
                     onSelect={() => onSelectTarget(t.recordId)}
                     variant={variant}
