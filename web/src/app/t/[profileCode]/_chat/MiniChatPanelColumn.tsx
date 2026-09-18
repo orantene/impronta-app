@@ -53,6 +53,8 @@ import { guestHeaderThreadState, isPrivateDraftThread } from "./guest-thread-sta
 import { GuestPanelHeader, type GuestHeaderThreadState } from "./GuestPanelHeader";
 import { GuestThreadSwitcherDrawer } from "./GuestThreadSwitcherDrawer";
 import { MiniChatComposer } from "./MiniChatComposer";
+import { GuestNextStep } from "./GuestNextStep";
+import { useGuestDockModel } from "./use-guest-dock-model";
 import { MiniChatGateForm } from "./MiniChatGateForm";
 import { OfferingQuickPicker, type ChatOffering } from "./OfferingQuickPicker";
 import { SendToAgencyBar } from "./SendToAgencyBar";
@@ -93,9 +95,8 @@ export type MiniChatPanelColumnProps = {
    * humanized coordinator header. Null pre-send.
    */
   receipt?: InquiryReceiptData | null;
-  /** L13: v5 client-card extras from the full thread load. */
+  /** L13: v5 extras from the full thread load + the full-load bump after a card action. */
   v5?: GuestThreadV5Extras | null;
-  /** L13: bump the panel's full thread load after a card action. */
   onRefreshThread?: () => void;
   emailedTo: string | null;
   seenAtByInquiry: Record<string, string>;
@@ -417,6 +418,8 @@ export function MiniChatPanelColumn({
   // DOCK v2.1 — the details sheet is opened from the HEADER icon (the old
   // composer-area pill gave up too much real estate); the in-chat thread
   // switcher is a slide-over drawer, also header-triggered.
+  // L13: one card model + clock per thread (stream card rows + next step).
+  const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk });
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // The header's status line has THREE states, not two. A guest who has opened
@@ -517,9 +520,7 @@ export function MiniChatPanelColumn({
           sourcePage={sourcePage}
           onRemoveCartTalent={onRemoveCartTalent}
           onStartInquiry={startInquiryInChat}
-          items={v5?.items ?? null}
-          businessName={brand.agencyName}
-          locale={brand.locale ?? "en"}
+          {...dock.lineupItemsProps}
         />
       )}
 
@@ -569,8 +570,8 @@ export function MiniChatPanelColumn({
         onGuestEmailUpdated={onGuestEmailUpdated}
         identity={identity}
         threadStatus={threadStatus}
-        v5={v5}
-        onRefreshThread={onRefreshThread}
+        cardModel={dock.cardModel}
+        now={dock.now}
         sendBarActive={sendBarActive}
       />
 
@@ -734,6 +735,8 @@ export function MiniChatPanelColumn({
           onPick={onPickOffering}
         />
       )}
+
+      {!showGate && brand.dockCardsV5 === true && <GuestNextStep {...dock.nextStepProps} />}
 
       {/* ── Composer ─────────────────────────────────────────────────────── */}
       {!showGate && (
