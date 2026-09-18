@@ -5,12 +5,15 @@
  * beside the page because it is wiring (search → pick / draft → attach at
  * collection), not a design screen of its own.
  *
- * THE BUYER IS NAMED ON THE SALE, NOT INSERTED HERE. `startCollection`
- * attaches the customer through `ensureCustomer`, idempotent on (tenant,
- * email) and (tenant, phone), so what this hook holds is the name and
- * contact the charge will send. Picking a hit copies that row's own contact
- * details, which is what resolves the collection back to the same customer
- * instead of inserting a second one (C10's rule).
+ * THE BUYER IS NAMED ON THE SALE, NOT INSERTED HERE. Saving or picking a
+ * buyer hands it to `options.attach` (D-170: `posAttachCustomer`, which
+ * writes `orders.customer_id` on the open draft through `ensureCustomer`,
+ * idempotent on (tenant, email) and (tenant, phone), so a promo code can be
+ * applied before the charge); `startCollection` attaches through the same
+ * `ensureCustomer` for a sale that opens later, so what this hook holds is
+ * the name and contact the charge will send. Picking a hit copies that
+ * row's own contact details, which is what resolves the collection back to
+ * the same customer instead of inserting a second one (C10's rule).
  *
  * The duplicate warning on the create form is a search on the typed phone or
  * email: the same phone would resolve to the same row at collection anyway,
@@ -36,7 +39,21 @@ export type CounterCustomer = {
   readonly sheet: ReactElement;
 };
 
-export function useCounterCustomer(copy: CustomerSheetCopy): CounterCustomer {
+/** The buyer as the sale should carry it: a picked row's id, or the draft's contact. */
+export type CounterBuyer = {
+  readonly customerId: string | null;
+  readonly email: string | null;
+  readonly phone: string | null;
+  readonly displayName: string | null;
+};
+
+export type CounterCustomerOptions = {
+  /** Write the buyer on the open sale. Resolves false when the attach did not take. */
+  readonly attach?: (buyer: CounterBuyer) => Promise<boolean>;
+};
+
+export function useCounterCustomer(copy: CustomerSheetCopy, options: CounterCustomerOptions = {}): CounterCustomer {
+  const { attach } = options;
   const [isOpen, setOpen] = useState(false);
   const [view, setView] = useState<"search" | "create" | "failed">("search");
   const [query, setQuery] = useState("");
@@ -63,14 +80,19 @@ export function useCounterCustomer(copy: CustomerSheetCopy): CounterCustomer {
         setView("failed");
         return;
       }
-      setAttached({ id: hit.id, displayName: hit.displayName, email: hit.email, phone: hit.phone });
+      const picked = { id: hit.id, displayName: hit.displayName, email: hit.email, phone: hit.phone };
+      setAttached(picked);
       setDraft(EMPTY_DRAFT);
       setDuplicate(null);
       setFailed(null);
       setOpen(false);
       setView("search");
+      // C10: an attach that did not take is retried with the SAME id.
+      void attach?.({ customerId: hit.id, email: hit.email ?? null, phone: hit.phone ?? null, displayName: hit.displayName }).then((ok) => {
+        if (!ok) setFailed(picked);
+      });
     },
-    [attached, draft.name, duplicate, hits, query],
+    [attach, attached, draft.name, duplicate, hits, query],
   );
 
   const changeDraft = useCallback((next: CustomerDraft) => {
@@ -90,17 +112,16 @@ export function useCounterCustomer(copy: CustomerSheetCopy): CounterCustomer {
   }, []);
 
   const saveDraft = useCallback(() => {
-    // A walk-in becomes a named customer the moment money is collected; the
-    // three fields ride on the sale until then (see the header comment).
-    setAttached({
-      id: `draft:${draft.email.trim() || draft.phone.trim()}`,
-      displayName: draft.name.trim(),
-      email: draft.email.trim() || null,
-      phone: draft.phone.trim() || null,
-    });
+    // The three fields ride on the sale (see the header comment); on an open
+    // sale the buyer is written now (D-170), else at collection.
+    const email = draft.email.trim() || null;
+    const phone = draft.phone.trim() || null;
+    const displayName = draft.name.trim();
+    setAttached({ id: `draft:${email ?? phone ?? ""}`, displayName, email, phone });
     setOpen(false);
     setView("search");
-  }, [draft]);
+    if (email || phone) void attach?.({ customerId: null, email, phone, displayName: displayName || null });
+  }, [attach, draft]);
 
   const walkIn = useCallback(() => {
     setAttached(null);

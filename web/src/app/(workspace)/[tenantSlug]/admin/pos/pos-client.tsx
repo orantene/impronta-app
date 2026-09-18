@@ -94,6 +94,7 @@ import {
   posSubmitPrep,
   posUpdateLine,
 } from "./actions";
+import { posAttachCustomer } from "./customer-actions";
 
 type PaidSale = { amountCents: number; tenderedCents: number; changeCents: number; receiptCode: string | null };
 
@@ -140,7 +141,52 @@ export function PosClient(props: PosClientProps) {
   const [scanToast, setScanToast] = useState<ScanToast | null>(null);
   const dismissScanToast = useCallback(() => setScanToast(null), []);
 
-  const customer = useCounterCustomer(copy.customer);
+  /**
+   * Run one command and render whatever it says.
+   *
+   * `kind` picks the refusal vocabulary, because `amount` means "someone else
+   * took part of this balance" on a sale and "that cash-box figure is not a
+   * number" on a shift. One table would have to be wrong about one of them.
+   */
+  const run = useCallback(
+    async <T extends { ok: boolean; reason?: unknown; error?: unknown }>(
+      kind: "sale" | "shift",
+      fn: () => Promise<T>,
+      // `false` for a command whose caller navigates next (opening a sale):
+      // a refresh of the OLD address racing that push painted the sale-less
+      // page over a sale that was already open, and the next tap opened a
+      // second one.
+      refresh = true,
+    ): Promise<T> => {
+      setBusy(true);
+      setRefusal(null);
+      try {
+        const result = await fn();
+        const refused = refusalFromResult(result, kind);
+        if (refused === "capacityGone") {
+          const lapsed = props.basketLines.find((line) => line.sessionId);
+          if (lapsed) setSheet({ kind: "expired", lineId: lapsed.id });
+          else setRefusal(refused);
+        } else {
+          setRefusal(refused);
+        }
+        if (!refused) {
+          setSavedAt(formatClock(new Date().toISOString(), props.locale));
+          if (kind === "sale" && sale) hold(sale);
+          if (refresh) router.refresh();
+        }
+        return result;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [hold, props.basketLines, props.locale, router, sale],
+  );
+  const customer = useCounterCustomer(copy.customer, {
+    // D-170: a buyer named on an OPEN sale is written to `orders.customer_id` now (counter-customer.tsx).
+    attach: async (buyer) =>
+      sale ? (await run("sale", () => posAttachCustomer({ orderId: sale.orderId, expectedVersion: sale.version, ...buyer }))).ok : true,
+  });
   const till = useCounterLock({
     people: props.people,
     signedInName: props.cashierName,
@@ -187,47 +233,6 @@ export function PosClient(props: PosClientProps) {
 
   const saleHref = useSaleHref(props.posPath, props.mode);
 
-  /**
-   * Run one command and render whatever it says.
-   *
-   * `kind` picks the refusal vocabulary, because `amount` means "someone else
-   * took part of this balance" on a sale and "that cash-box figure is not a
-   * number" on a shift. One table would have to be wrong about one of them.
-   */
-  const run = useCallback(
-    async <T extends { ok: boolean; reason?: unknown; error?: unknown }>(
-      kind: "sale" | "shift",
-      fn: () => Promise<T>,
-      // `false` for a command whose caller navigates next (opening a sale):
-      // a refresh of the OLD address racing that push painted the sale-less
-      // page over a sale that was already open, and the next tap opened a
-      // second one.
-      refresh = true,
-    ): Promise<T> => {
-      setBusy(true);
-      setRefusal(null);
-      try {
-        const result = await fn();
-        const refused = refusalFromResult(result, kind);
-        if (refused === "capacityGone") {
-          const lapsed = props.basketLines.find((line) => line.sessionId);
-          if (lapsed) setSheet({ kind: "expired", lineId: lapsed.id });
-          else setRefusal(refused);
-        } else {
-          setRefusal(refused);
-        }
-        if (!refused) {
-          setSavedAt(formatClock(new Date().toISOString(), props.locale));
-          if (kind === "sale" && sale) hold(sale);
-          if (refresh) router.refresh();
-        }
-        return result;
-      } finally {
-        setBusy(false);
-      }
-    },
-    [hold, props.basketLines, props.locale, router, sale],
-  );
   // The customer display's own write (a tip) on this device: hold the next
   // command until the re-read has delivered that version (D-POS-88).
   const beacon = useCounterDisplayBeacon({ tenantId: props.tenantId, orderId: sale?.orderId ?? null, version: sale?.version ?? null });

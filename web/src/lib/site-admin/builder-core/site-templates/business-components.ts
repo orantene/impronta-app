@@ -149,12 +149,16 @@ const sessionPicker: BusinessComponent = {
   factKeys: ["operations.takes_bookings"],
   emptyState: COMPONENT_EMPTY_STATES.session_picker,
   build(ctx) {
-    if (!ctx.offeringId) {
+    // No offering named → the block ships with `offeringId: ""` and the
+    // island binds the tenant's next scheduled offering itself (and hides
+    // when there is none); a page-less studio still renders its class
+    // picker (D-169). The empty line is kept for an example context only.
+    if (!ctx.offeringId && ctx.example) {
       return empty("session_picker", ctx, [ctas([button(label("goToBooking"), "/book", ctx), askButton(ctx)])]);
     }
     return [
       band(
-        [{ id: tplId("session_picker"), kind: "session_picker", props: { offeringId: ctx.offeringId, ...bi("title", label("classes"), ctx), style: {} } }],
+        [{ id: tplId("session_picker"), kind: "session_picker", props: { offeringId: ctx.offeringId ?? "", ...bi("title", label("classes"), ctx), style: {} } }],
         { paddingY: "l" },
       ),
     ];

@@ -2287,7 +2287,13 @@
       "humanOther": "otro",
       "paymentRequestedNext": "Abre la pestaña Oferta para pagar y confirmar tu reserva.",
       "paymentBalanceNext": "Queda un saldo, abre la pestaña Oferta para pagar el resto.",
-      "paymentFailedNext": "El último intento de pago falló, inténtalo de nuevo desde la pestaña Oferta."
+      "paymentFailedNext": "El último intento de pago falló, inténtalo de nuevo desde la pestaña Oferta.",
+      "refusal": {
+        "no_client_participant": "Tu cuenta todavía no está en esta solicitud. Inicia sesión con el correo al que se envió la oferta, o pide al coordinador que te agregue.",
+        "version_conflict": "La oferta cambió mientras la revisabas. Actualiza para ver la última versión.",
+        "forbidden": "No tienes permiso para aprobar esta oferta.",
+        "unavailable": "No se pudo aprobar ahora. Inténtalo de nuevo."
+      }
     },
     "clientStatus": {
       "submitted": "Enviada",

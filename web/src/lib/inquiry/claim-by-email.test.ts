@@ -9,11 +9,12 @@ function makeAdmin(seed: {
   profileId: string | null;
   inquiries: Row[];
   relationships?: Row[];
+  participants?: Row[];
 }): ClaimByEmailAdmin & { inserts: Record<string, Row[]>; updates: Record<string, Row[]>; inquiryFilters: string[] } {
   const inserts: Record<string, Row[]> = {};
   const updates: Record<string, Row[]> = {};
   const inquiryFilters: string[] = [];
-  const participants: Row[] = [];
+  const participants: Row[] = [...(seed.participants ?? [])];
   const relationships: Row[] = [...(seed.relationships ?? [])];
   const approvals: Row[] = [];
 
@@ -214,4 +215,55 @@ test("already-owned inquiry does not rewrite relationship activity", async () =>
   assert.equal(result.claimed, 0);
   assert.equal(result.linkedRelationships, 1);
   assert.equal(admin.updates.agency_client_relationships, undefined);
+});
+
+// D-174: Send seats the client without an account (`inquiry_participants`
+// role client, user_id NULL). The claim stamped `inquiries.client_user_id`
+// and left that seat as it was, so "Approve & lock" answered
+// no_client_participant for the signed-in contact.
+test("claim-by-email adopts the account-less client seat instead of leaving user_id null", async () => {
+  const admin = makeAdmin({
+    profileId: "cp-1",
+    inquiries: [
+      {
+        id: "inq-1",
+        tenant_id: "t1",
+        client_user_id: null,
+        contact_email: "contact@impronta.test",
+        origin_domain: "impronta.test",
+        source_workspace_id: "t1",
+        current_offer_id: "off-1",
+      },
+    ],
+    participants: [
+      { id: "part-1", inquiry_id: "inq-1", tenant_id: "t1", role: "client", user_id: null, status: "active" },
+    ],
+  });
+
+  const result = await claimInquiriesByConfirmedEmail({ admin, userId: "user-1", verifiedEmail: "contact@impronta.test" });
+  assert.equal(result.claimed, 1);
+  assert.equal(result.linkedParticipants, 1);
+  assert.equal(admin.inserts.inquiry_participants, undefined, "no second client seat");
+  const adopt = (admin.updates.inquiry_participants ?? []).find((u) => u.user_id === "user-1");
+  assert.ok(adopt, "the existing seat is updated with the claimed user");
+
+  // Idempotent: a second claim finds the seat already the user's and writes nothing more.
+  const again = await claimInquiriesByConfirmedEmail({ admin, userId: "user-1", verifiedEmail: "contact@impronta.test" });
+  assert.equal(again.linkedParticipants, 1);
+  assert.equal((admin.updates.inquiry_participants ?? []).length, 1);
+});
+
+test("claim-by-email never takes a seat another account already holds", async () => {
+  const admin = makeAdmin({
+    profileId: "cp-1",
+    inquiries: [
+      { id: "inq-1", tenant_id: "t1", client_user_id: null, contact_email: "contact@impronta.test", origin_domain: null, source_workspace_id: null, current_offer_id: null },
+    ],
+    participants: [
+      { id: "part-1", inquiry_id: "inq-1", tenant_id: "t1", role: "client", user_id: "someone-else", status: "active" },
+    ],
+  });
+  const result = await claimInquiriesByConfirmedEmail({ admin, userId: "user-1", verifiedEmail: "contact@impronta.test" });
+  assert.equal(result.linkedParticipants, 0);
+  assert.equal(admin.updates.inquiry_participants, undefined);
 });

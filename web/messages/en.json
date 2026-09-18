@@ -2287,7 +2287,13 @@
       "humanOther": "other",
       "paymentRequestedNext": "Open the Offer tab to pay and confirm your booking.",
       "paymentBalanceNext": "A balance remains, open the Offer tab to pay the rest.",
-      "paymentFailedNext": "The last payment attempt failed, try again from the Offer tab."
+      "paymentFailedNext": "The last payment attempt failed, try again from the Offer tab.",
+      "refusal": {
+        "no_client_participant": "Your account is not on this inquiry yet. Sign in with the email the offer was sent to, or ask the coordinator to add you.",
+        "version_conflict": "The offer changed while you were reviewing. Refresh to see the latest.",
+        "forbidden": "You don't have permission to approve this offer.",
+        "unavailable": "Could not approve right now. Try again."
+      }
     },
     "clientStatus": {
       "submitted": "Submitted",

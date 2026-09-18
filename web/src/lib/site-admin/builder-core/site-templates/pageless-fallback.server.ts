@@ -1,7 +1,8 @@
 /**
  * pageless-fallback.server.ts — what a tenant with NO published homepage
- * renders: its family's default Look, its type's components in their honest
- * empty state, lifestyle stock, and the owner's identity. Never blank, never a
+ * renders: its family's default Look, its type's components (folded onto the
+ * one page it has, `pageless-home.ts`) in their honest empty state, lifestyle
+ * stock, and the owner's identity. Never blank, never a
  * fictional business (docs/plans/templates/01-plan.md §4; D-TPL-17).
  *
  * Read-only: nothing is written, so a page-less tenant keeps rendering this
@@ -15,11 +16,10 @@ import { queryLifestyleStockForType } from "@/lib/media/platform-stock";
 import { logServerError } from "@/lib/server/safe-error";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
-import { buildComponentsForType } from "./business-components";
 import { DEFAULT_LOOK_BY_FAMILY } from "./look-defaults";
 import { buildImageResolver, type CandidateImage } from "./image-resolver";
-import { instantiateSite } from "./instantiate-site";
 import { getLook, LOOKS } from "./looks";
+import { composePagelessHome } from "./pageless-home";
 import { resolveTenantBusinessType } from "./tenant-business-type";
 import type { SiteLocale } from "./types";
 
@@ -40,16 +40,19 @@ export async function resolveLookFallbackHomeTree(
     const { resolve } = buildImageResolver(stock.map<CandidateImage>((s) => ({ src: s.url, width: s.width, height: s.height, alt: s.alt, role: s.role, owner: false })));
     const identity = { businessName: input.businessName?.trim() || agency?.display_name?.trim() || "", tagline: input.tagline ?? null, city: input.city ?? null };
     if (!identity.businessName) return null; // no name → the caller's own safety net
-    const site = instantiateSite({
+    // D-169: the type's catalogue / transaction components sit on the Look's
+    // inner pages, which nothing serves for a page-less tenant; fold them
+    // onto the home so a restaurant shows its menu board + reserve band and
+    // a studio its class picker.
+    const { tree } = composePagelessHome({
       look,
       locale,
       identity,
       images: resolve,
-      components: buildComponentsForType(type.typeId, { locale, family: type.family, typeId: type.typeId, identity, images: resolve, rosterActive: type.family === "agency" }),
+      typeId: type.typeId,
+      ctx: { locale, family: type.family, typeId: type.typeId, identity, images: resolve, rosterActive: type.family === "agency" },
     });
-    // A validator issue means this tree must not reach a visitor; image gaps are tolerated.
-    if (site.issues.some((i) => !/image slot .* unresolved/.test(i))) return null;
-    return [...site.shell.header, ...site.pages.home, ...site.shell.footer];
+    return tree;
   } catch (error) {
     logServerError("pageless-fallback", error);
     return null;

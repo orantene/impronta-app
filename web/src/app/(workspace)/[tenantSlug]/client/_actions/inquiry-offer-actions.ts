@@ -31,13 +31,15 @@ import {
 } from "@/lib/inquiry/inquiry-engine";
 import { sendClientMessageAction } from "./inquiry-message-actions";
 import { logServerError } from "@/lib/server/safe-error";
+import { offerRefusalCode, type OfferRefusalCode } from "./offer-refusal";
 
 export type InquiryOfferActionState =
   | { kind: "idle" }
   | { kind: "approved"; inquiryId: string; offerId: string }
   | { kind: "rejected"; inquiryId: string; offerId: string }
   | { kind: "countered"; inquiryId: string }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string; code?: OfferRefusalCode };
+
 
 /** Allowed rejection-reason values (mirrors the DB CHECK constraint). */
 const REJECTION_REASONS = new Set([
@@ -92,14 +94,23 @@ export async function approveOfferAction(
     if (result.conflict) {
       return {
         kind: "error",
+        code: "version_conflict",
         message: "The offer changed while you were reviewing. Refresh to see the latest.",
       };
     }
     if (result.forbidden) {
-      return { kind: "error", message: "You don't have permission to approve this offer." };
+      return { kind: "error", code: "forbidden", message: "You don't have permission to approve this offer." };
     }
     logServerError("client.approveOffer", new Error(JSON.stringify(result)));
-    return { kind: "error", message: result.error ?? "Could not approve. Try again." };
+    const code = offerRefusalCode(result);
+    return {
+      kind: "error",
+      code,
+      message:
+        code === "no_client_participant"
+          ? "Your account is not on this inquiry yet. Sign in with the email the offer was sent to, or ask the coordinator to add you."
+          : "Could not approve. Try again.",
+    };
   }
 
   revalidatePath(`/${tenantSlug}/client/messages`);
