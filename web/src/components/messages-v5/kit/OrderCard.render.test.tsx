@@ -34,7 +34,8 @@ test("busy confirm reads Confirming; a paid order shows Paid + Preparing pills, 
   assert.match(order, /card k-order me/);
   assert.match(order, /pill money">Paid/);
   assert.match(order, /pill due">Preparing/);
-  assert.match(order, /data-order-action="mark_picked_up"/);
+  assert.doesNotMatch(order, /data-order-action="mark_picked_up"/);
+  assert.match(order, /data-order-fulfilment-note="true">Fulfilment updates from the POS/);
   const done = renderToStaticMarkup(<OrderCard mode="order" title="#1203" clientName="Diego" lines={[]} total="$48.50" step="fulfilled" paymentState="paid" fulfilmentState="fulfilled" copy={EN_COPY} onAction={() => {}} />);
   assert.doesNotMatch(done, /data-order-action/);
   assert.match(done, /<b>Fulfilled<\/b>/);

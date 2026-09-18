@@ -122,6 +122,7 @@ const PAYLOAD: Partial<Record<CardKind, Record<string, unknown>>> = {
   appointment_confirmation: { recordKind: "appointment", recordId: "ap-1", when: "2026-09-20T10:00:00Z" },
   change_request: { recordKind: "appointment", recordId: "ap-1", requestedAt: "2026-09-17T10:00:00Z", hoursBefore: 48, freeUntil: null, oldWhen: "2026-09-20T10:00:00Z", newWhen: "2026-09-21T10:00:00Z" },
   change_result: { recordKind: "appointment", recordId: "ap-1", requestedAt: "2026-09-17T10:00:00Z", hoursBefore: 48, freeUntil: null, oldWhen: null, newWhen: null, state: "cancelled" },
+  tickets_card: { eventId: "ev-1", title: "Friday night", tiers: [{ id: "t1", label: "General", priceCents: 5000 }], currency: "USD" },
 };
 
 const EXPECTED_CARD: Record<string, string> = {
@@ -134,6 +135,10 @@ const EXPECTED_CARD: Record<string, string> = {
   appointment_confirmation: "appointment",
   change_request: "change",
   change_result: "change",
+  // L11 (D-MSG-156/158): tickets_card always renders TicketsCard; service_card
+  // only becomes TableCard with `payload.variant === "table"` (unset here,
+  // so it still falls through to the generic card under its own kind name).
+  tickets_card: "tickets",
 };
 
 test("every engine CardKind renders as a kit card (typed cards by kind, the rest through the generic Card), and an unknown kind falls back too", () => {

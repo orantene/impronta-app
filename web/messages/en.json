@@ -18309,7 +18309,12 @@
         "paidInFull": "Paid in full",
         "fulfilled": "Fulfilled",
         "delivered": "Delivered",
-        "failed": "Failed"
+        "failed": "Failed",
+        "held": "Held",
+        "seated": "Seated",
+        "issued": "Issued",
+        "checkedIn": "Checked in",
+        "done": "Done"
       },
       "order": {
         "notYet": "v{version} · not an order yet",
@@ -18326,7 +18331,8 @@
         "readyAt": "ready ~{time}",
         "pickedUp": "Picked up",
         "versionBy": "v{version} by {name} {time}",
-        "rechecked": "availability rechecked"
+        "rechecked": "availability rechecked",
+        "fulfilmentFromPos": "Fulfilment updates from the POS"
       },
       "appt": {
         "withName": "with {name}",
@@ -18353,7 +18359,9 @@
         "holdEnded": "The hold ended. Offer a new time.",
         "offerNew": "Offer new times",
         "confirmTime": "Confirm time",
-        "noSlots": "No free times on that day"
+        "noSlots": "No free times on that day",
+        "seeAlternatives": "See alternatives",
+        "holdLeft": "{minutes} min left"
       },
       "change": {
         "preview": "Preview",
@@ -18815,6 +18823,25 @@
         "openRecord": "Open record",
         "doneBooking": "Booking confirmed · in Calendar, Projects, Clients and POS now",
         "doneOrder": "Order confirmed · in Kitchen, Clients and POS now"
+      },
+      "table": {
+        "partySize": "Party of {count}",
+        "held": "Held",
+        "confirmTable": "Confirm table",
+        "confirming": "Confirming",
+        "openInReservations": "Open in Reservations",
+        "holdEnded": "The hold ended",
+        "seated": "Seated",
+        "closed": "Closed",
+        "pickChoice": "Table choices sent to {name}"
+      },
+      "tickets": {
+        "seatHeld": "{count} held · {left} left",
+        "requestPayment": "Request payment",
+        "openAtDoor": "Open at the door",
+        "secureLink": "Copy secure ticket link",
+        "checkedInOf": "Checked in {checkedIn} of {total}",
+        "quantity": "{count} × {label}"
       }
     }
   },

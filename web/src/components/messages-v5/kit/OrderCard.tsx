@@ -12,7 +12,7 @@ import { Btn, Pill } from "./primitives";
 
 export type OrderCardLine = { readonly label: string; readonly amount: string; readonly proposedBy?: "client" | "staff" | null; readonly muted?: boolean };
 export type OrderLadderStep = "draft" | "confirmed" | "paid" | "fulfilled";
-export type OrderCardAction = "confirm" | "edit" | "mark_picked_up";
+export type OrderCardAction = "confirm" | "edit";
 
 export type OrderCardProps = {
   readonly mode: "draft" | "order";
@@ -63,11 +63,11 @@ export function OrderCard({ mode, title, clientName, version, lines, total, pick
           {busy ? copy.order.confirming : copy.order.confirm}
         </Btn>
       </>
-    ) : onAction && mode === "order" && step === "paid" ? (
-      <Btn size="sm" busy={busy} onClick={() => onAction("mark_picked_up")} data-order-action="mark_picked_up">
-        {copy.order.markPickedUp}
-      </Btn>
     ) : null;
+  // Fulfilment is owned by the POS (D-MSG-155): "paid" reads a status sentence,
+  // never a writer. `markPickedUp` in copy is kept as a past-tense label for
+  // the "fulfilled" pill row elsewhere; no button ever calls it here.
+  const fulfilmentNote = mode === "order" && step === "paid" ? copy.order.fulfilmentFromPos : null;
 
   return (
     <Card
@@ -94,6 +94,7 @@ export function OrderCard({ mode, title, clientName, version, lines, total, pick
       ))}
       <CardTotal label={totalLabel} amount={total} />
       <PaymentLadder steps={ladder} />
+      {fulfilmentNote ? <div className="who" data-order-fulfilment-note>{fulfilmentNote}</div> : null}
     </Card>
   );
 }

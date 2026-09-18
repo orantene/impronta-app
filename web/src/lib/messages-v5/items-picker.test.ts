@@ -92,14 +92,14 @@ test("selectionTotal: sums priced lines times units, the chosen tier for tickets
   assert.deepEqual(selectionTotal([{ row: TICKET, units: 1, variantId: "nope" }]), { count: 1, totalCents: 0, partial: true });
 });
 
-test("cardKindForCategory: one card kind per category, none for tables", () => {
+test("cardKindForCategory: one card kind per category; tables reuse service_card (D-MSG-156)", () => {
   assert.equal(cardKindForCategory("talent"), "service_card");
   assert.equal(cardKindForCategory("package"), "service_card");
   assert.equal(cardKindForCategory("service"), "service_card");
   assert.equal(cardKindForCategory("class"), "class_card");
   assert.equal(cardKindForCategory("ticket"), "tickets_card");
   assert.equal(cardKindForCategory("menu"), "menu_options");
-  assert.equal(cardKindForCategory("table"), null);
+  assert.equal(cardKindForCategory("table"), "service_card");
 });
 
 test("sendModeToEngineCall offer: shared draft first, one line per row (talent via the lineup engine), the custom line, then create_offer", () => {
@@ -170,12 +170,19 @@ test("sendModeToEngineCall choices: one card per kind with the selected options 
   ]);
 });
 
-test("seams are calls, not silent drops: a table in any mode, a custom line under choices", () => {
+test("tables are sendable as choices (D-MSG-156): one service_card with variant table, a custom line still seams", () => {
   const choices = sendModeToEngineCall({ mode: "choices", selected: [{ row: TABLE, units: 1 }], custom: { label: "x", amountCents: 1 }, timezone: "UTC" });
-  assert.deepEqual(choices, [
-    { action: "seam", category: "table", reason: "no_card_kind" },
-    { action: "seam", category: "menu", reason: "custom_not_a_choice" },
-  ]);
+  assert.equal(choices.length, 2);
+  assert.deepEqual(choices[1], { action: "seam", category: "menu", reason: "custom_not_a_choice" });
+  const tableCall = choices[0];
+  assert.ok(tableCall.action === "send_options");
+  assert.equal(tableCall.kind, "service_card");
+  assert.equal(tableCall.payload.variant, "table");
+  assert.deepEqual(tableCall.payload.labels, ["8:00 PM"]);
+  assert.equal((tableCall.payload.tables as { partySize: number }[])[0].partySize, 2);
+});
+
+test("seams are calls, not silent drops: a table as a draft/offer line has no writer", () => {
   const draft = sendModeToEngineCall({ mode: "draft", selected: [{ row: TABLE, units: 1 }], custom: null, timezone: "UTC" });
   assert.deepEqual(draft, [{ action: "seam", category: "table", reason: "no_writer" }]);
 });
