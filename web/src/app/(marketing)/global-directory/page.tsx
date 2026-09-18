@@ -288,15 +288,20 @@ export default async function MarketingDirectoryPage({
             mapUnmappedCount={mapData.unmappedCount}
             mapApiKey={mapApiKey}
           />
+          {/* Floating "Message {hub}" guest-chat launcher. On the marketing
+              apex this self-resolves the platform hub (getPlatformHubTenant)
+              and gates on the hub's guest-chat settings (enabled +
+              show-on-directory). This is the directory served at
+              tulala.digital/directory (the /directory → /global-directory
+              rewrite), so the launcher belongs here.
+
+              It MUST sit inside PublicDiscoveryStateProvider: the dock's
+              Lineup view (useInquiryCart / favorites) reads that context, and
+              mounted as a sibling it saw an empty cart, so a talent hearted or
+              added to the lineup on this grid never appeared in the dock. */}
+          <AgencyChatLauncherMount sourcePage="/directory" />
         </PublicDiscoveryStateProvider>
       </div>
-
-      {/* Floating "Message {hub}" guest-chat launcher. On the marketing apex
-          this self-resolves the platform hub (getPlatformHubTenant) and gates
-          on the hub's guest-chat settings (enabled + show-on-directory). This
-          is the directory served at tulala.digital/directory (the /directory →
-          /global-directory rewrite), so the launcher belongs here. */}
-      <AgencyChatLauncherMount sourcePage="/directory" />
     </>
   );
 }

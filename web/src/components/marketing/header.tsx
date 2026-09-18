@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -33,6 +33,7 @@ export function MarketingHeader({
   pathnameWithoutLocale,
   account,
   signOutAction,
+  discoveryTools,
 }: {
   locale: string;
   pathnameWithoutLocale: string;
@@ -40,6 +41,10 @@ export function MarketingHeader({
    *  logged-out CTAs (Join as talent / Sign in / Start free). */
   account?: MarketingAccount;
   signOutAction?: () => void | Promise<void>;
+  /** Heart + plane (favorites / inquiry cart) resolved by the shell. Rendered
+   *  first in the action cluster at every width, so a talent hearted on the
+   *  global directory has a way back on phones too. */
+  discoveryTools?: ReactNode;
 }) {
   const copy = getMarketingCopy(locale);
   /** Every internal href in this header goes through here — see `buildNav`. */
@@ -176,6 +181,7 @@ export function MarketingHeader({
             menu buried: the bar stops feeling empty and the menu can go back
             to being pure navigation. */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {discoveryTools}
           <MarketingLanguageMenu
             activeLocale={locale}
             pathnameWithoutLocale={pathnameWithoutLocale}
