@@ -18309,7 +18309,12 @@
         "paidInFull": "Pagado por completo",
         "fulfilled": "Entregado",
         "delivered": "Realizado",
-        "failed": "Fallido"
+        "failed": "Fallido",
+        "held": "Retenida",
+        "seated": "Sentados",
+        "issued": "Emitido",
+        "checkedIn": "Registrado",
+        "done": "Listo"
       },
       "order": {
         "notYet": "v{version} · todavía no es un pedido",
@@ -18326,7 +18331,8 @@
         "readyAt": "listo ~{time}",
         "pickedUp": "Recogido",
         "versionBy": "v{version} por {name} {time}",
-        "rechecked": "disponibilidad verificada"
+        "rechecked": "disponibilidad verificada",
+        "fulfilmentFromPos": "El cumplimiento se actualiza desde el POS"
       },
       "appt": {
         "withName": "con {name}",
@@ -18353,7 +18359,9 @@
         "holdEnded": "La reserva temporal terminó. Ofrece otro horario.",
         "offerNew": "Ofrecer nuevos horarios",
         "confirmTime": "Confirmar horario",
-        "noSlots": "No hay horarios libres ese día"
+        "noSlots": "No hay horarios libres ese día",
+        "seeAlternatives": "Ver alternativas",
+        "holdLeft": "{minutes} min restantes"
       },
       "change": {
         "preview": "Vista previa",
@@ -18815,6 +18823,25 @@
         "openRecord": "Abrir registro",
         "doneBooking": "Reserva confirmada · ya en Calendario, Proyectos, Clientes y POS",
         "doneOrder": "Pedido confirmado · ya en Cocina, Clientes y POS"
+      },
+      "table": {
+        "partySize": "Mesa para {count}",
+        "held": "Retenida",
+        "confirmTable": "Confirmar mesa",
+        "confirming": "Confirmando",
+        "openInReservations": "Abrir en Reservas",
+        "holdEnded": "La retención terminó",
+        "seated": "Sentados",
+        "closed": "Cerrada",
+        "pickChoice": "Opciones de mesa enviadas a {name}"
+      },
+      "tickets": {
+        "seatHeld": "{count} retenidos · {left} restantes",
+        "requestPayment": "Solicitar pago",
+        "openAtDoor": "Abrir en la puerta",
+        "secureLink": "Copiar enlace seguro del boleto",
+        "checkedInOf": "Registrados {checkedIn} de {total}",
+        "quantity": "{count} entradas de {label}"
       }
     }
   },

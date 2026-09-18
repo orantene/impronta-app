@@ -6,12 +6,18 @@
  * order. Principle 0: every call below names a writer the POS already has
  * (`messagingEnsureSharedDraft`, `posAddLine`, `posAddCustomLine`,
  * `rosterAddTalent`, `messagingSendOptions`); nothing here invents one. A
- * category with no engine (tables, D21) comes out as a `seam`, never as a
- * silent drop.
+ * category with no engine (tables as a draft/offer line, D-MSG-122) comes
+ * out as a `seam`, never as a silent drop. Tables as CHOICES are sendable
+ * (D-MSG-156): `messagingSendOptions` takes the existing `service_card` kind
+ * with `payload.variant = "table"` — no new kind, no CHECK change. The pick
+ * still does not hold capacity (no reservation-hold writer wired to this
+ * card yet); that half of the seam is unchanged and filed separately.
  */
 
 import { resolveIndustryPreset } from "@/lib/words/presets";
 import type { IdentityLevel } from "@/lib/messaging/types";
+
+import { tableChoicePayload } from "./record-cards";
 
 export type ItemCategory = "talent" | "package" | "service" | "class" | "ticket" | "table" | "menu";
 
@@ -168,12 +174,19 @@ export type EngineCall =
   | { readonly action: "dispatch"; readonly id: "create_offer" }
   | { readonly action: "seam"; readonly category: ItemCategory; readonly reason: "no_card_kind" | "no_writer" | "custom_not_a_choice" };
 
-/** The card kind `messagingSendOptions` takes for one category, or null when none exists (tables, D21). */
+/**
+ * The card kind `messagingSendOptions` takes for one category. Tables were
+ * `null` under D-MSG-122 ("no card kind"); D-MSG-156 closes that half of the
+ * seam by reusing `service_card` with `payload.variant = "table"` (no CHECK
+ * change, L11) — the writer half (a table pick still does not hold capacity,
+ * `no_writer` below) is unchanged.
+ */
 export function cardKindForCategory(category: ItemCategory): OptionCardKind | null {
   switch (category) {
     case "talent":
     case "package":
     case "service":
+    case "table":
       return "service_card";
     case "class":
       return "class_card";
@@ -181,8 +194,6 @@ export function cardKindForCategory(category: ItemCategory): OptionCardKind | nu
       return "tickets_card";
     case "menu":
       return "menu_options";
-    case "table":
-      return null;
   }
 }
 
@@ -296,7 +307,20 @@ function optionCalls(selected: readonly Selection[], timezone: string): EngineCa
       },
     });
   }
-  if ((byCategory.get("table") ?? []).length > 0) out.push({ action: "seam", category: "table", reason: "no_card_kind" });
+  const tables = byCategory.get("table") ?? [];
+  if (tables.length > 0) {
+    out.push({
+      action: "send_options",
+      kind: "service_card",
+      payload: tableChoicePayload(
+        tables.map((s) => ({
+          label: s.row.title,
+          partySize: s.row.partySize ?? 0,
+          startsAt: s.row.startsAt ?? "",
+        })),
+      ),
+    });
+  }
   return out;
 }
 

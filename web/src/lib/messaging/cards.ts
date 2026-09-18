@@ -47,11 +47,21 @@ export type ServiceCardPayload = PayloadBase & {
   labels: string[];
   depositCents?: number | null;
   currency: string;
+  /** L11 (D-MSG-156): "table" reuses this kind for sendable table choices
+   * instead of a new CardKind. `tables` rides alongside the existing
+   * `labels`/`offeringIds` fields (offeringIds stays empty for a table row,
+   * there is no offering). `holdExpiresAt` is additive, set once a hold
+   * writer exists (D-MSG-157, not yet). */
+  variant?: "service" | "table";
+  tables?: { label: string; partySize: number; startsAt: string; spaceId?: string | null }[];
+  holdExpiresAt?: string | null;
 };
 
 export type ProfessionalTimesPayload = PayloadBase & {
   slots: { startsAt: string; professionalName: string | null }[];
   timezone: string;
+  /** L11: the pick's hold expiry, read by `TimesCard`'s countdown. Additive. */
+  holdExpiresAt?: string | null;
 };
 
 export type ClassCardPayload = PayloadBase & {
@@ -67,6 +77,11 @@ export type TicketsCardPayload = PayloadBase & {
   title: string;
   tiers: { id: string; label: string; priceCents: number }[];
   currency: string;
+  /** L11: seat hold countdown + check-in ladder. Additive, null/undefined
+   * until the events engine writes them (seam, D-MSG-158). */
+  holdExpiresAt?: string | null;
+  capacity?: number | null;
+  checkedIn?: number | null;
 };
 
 export type OfferReviewPayload = PayloadBase & {

@@ -10,9 +10,10 @@
  * copies the pay page URL the engine already minted.
  */
 
-import { readCardState, renderCard, type BasketPayload, type ChangeRequestPayload, type ConfirmationPayload, type OfferReviewPayload, type OfferStatePayload, type PaymentRequestPayload, type ProfessionalTimesPayload } from "@/lib/messaging/cards";
+import { readCardState, renderCard, type BasketPayload, type ChangeRequestPayload, type ConfirmationPayload, type OfferReviewPayload, type OfferStatePayload, type PaymentRequestPayload, type ProfessionalTimesPayload, type ServiceCardPayload, type TicketsCardPayload } from "@/lib/messaging/cards";
 import type { CardKind, ThreadMessage } from "@/lib/messaging/types";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import { formatHoldCountdown, holdCountdown, ladderFor } from "@/lib/messages-v5/record-cards";
 
 import { AppointmentCard } from "../kit/AppointmentCard";
 import { Card, cardCategoryForKind, cardCategoryLabel } from "../kit/Card";
@@ -20,6 +21,8 @@ import { ChangeRequestCard } from "../kit/ChangeRequestCard";
 import { OfferCard, type OfferCardState } from "../kit/OfferCard";
 import { OrderCard } from "../kit/OrderCard";
 import { PaymentCard, type PaymentCardState } from "../kit/PaymentCard";
+import { TableCard } from "../kit/TableCard";
+import { TicketsCard } from "../kit/TicketsCard";
 import { TimesCard } from "../kit/TimesCard";
 import type { ScreenVariant, ShellActionId } from "./contracts";
 import type { ScreenCopy } from "./copy";
@@ -35,6 +38,8 @@ export type ThreadCardProps = {
   readonly onAction: (id: ShellActionId, detail?: { readonly recordId?: string; readonly recordKind?: string }) => void;
   readonly onCopyText: (text: string) => void;
   readonly origin?: string;
+  /** Injectable for tests; defaults to `new Date()` for hold countdowns. */
+  readonly now?: Date;
 };
 
 function offerState(kind: CardKind, payload: Record<string, unknown> | null): OfferCardState {
@@ -69,11 +74,12 @@ function money(cents: unknown, currency: unknown): string {
   return formatOrderMoney(typeof cents === "number" ? cents : 0, typeof currency === "string" ? currency : "USD");
 }
 
-export function ThreadCard({ message, cardKind, clientName, copy, variant, locale = "en", onAction, onCopyText, origin }: ThreadCardProps) {
+export function ThreadCard({ message, cardKind, clientName, copy, variant, locale = "en", onAction, onCopyText, origin, now }: ThreadCardProps) {
   const kit = copy.kit;
   const model = renderCard(cardKind, message.payload, "operator");
   const p = message.payload ?? {};
   const mine = message.senderUserId !== null;
+  const clock = now ?? new Date();
 
   switch (cardKind) {
     case "offer_review":
@@ -147,15 +153,74 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
       const t = p as ProfessionalTimesPayload;
       const slots = Array.isArray(t.slots) ? t.slots : [];
       const state = readCardState(message.payload);
+      // `TimesCard`'s own "{name} picked {slot} · held {minutes} min · {left}
+      // left" template supplies the trailing "left" word, so this slot takes
+      // the bare minutes count, not `formatHoldCountdown`'s full sentence.
+      const countdown = holdCountdown(t.holdExpiresAt, clock);
+      const holdLeft = countdown ? (countdown.ended ? kit.times.holdEnded : String(countdown.minutesLeft)) : null;
       return (
         <TimesCard
           withName={slots[0]?.professionalName ?? model.title}
           clientName={clientName}
           slots={slots.map((s, i) => ({ id: `${message.id}:${i}`, label: formatTime(s.startsAt, locale), picked: state === "selected" && i === 0 }))}
           state={state === "selected" ? "picked" : state === "expired" ? "hold_ended" : state === "paid" ? "confirmed" : "sent"}
-          copy={kit}
+          holdLeft={state === "selected" ? holdLeft : null}
+          copy={{ ...kit, times: { ...kit.times, offerNew: kit.times.seeAlternatives } }}
           variant={variant}
           onAction={(a) => onAction(a === "confirm" ? "confirm" : "send_times")}
+        />
+      );
+    }
+    case "service_card": {
+      const s = p as ServiceCardPayload;
+      if (s.variant === "table") {
+        const first = Array.isArray(s.tables) ? s.tables[0] : null;
+        const state = readCardState(message.payload);
+        const chip = { paymentState: state === "paid" ? "paid" : null, fulfilmentState: state === "selected" ? "confirmed" : state === "cancelled" ? "cancelled" : null };
+        const step = state === "cancelled" ? "closed" : state === "selected" || state === "paid" ? "confirmed" : "held";
+        const holdLeft = formatHoldCountdown(holdCountdown(s.holdExpiresAt, clock), { minutesLeft: kit.times.holdLeft, ended: kit.table.holdEnded });
+        return (
+          <TableCard
+            clientName={clientName}
+            partySize={first?.partySize ?? null}
+            whenLabel={first ? formatTime(first.startsAt, locale) : null}
+            tableLabel={first?.label ?? null}
+            ladder={ladderFor("reservation", chip, kit.ladder)}
+            step={step}
+            holdLeftLabel={step === "held" ? holdLeft : null}
+            copy={kit}
+            variant={variant}
+            onAction={(a) => onAction(a === "confirm" ? "confirm" : "open_record", { recordKind: "reservation" })}
+          />
+        );
+      }
+      return (
+        <Card category={cardCategoryForKind(cardKind)} label={cardCategoryLabel(cardKind, kit)} title={model.title} mine={mine} variant={variant} testId={cardKind}>
+          {model.summary ? <div className="who">{model.summary}</div> : null}
+        </Card>
+      );
+    }
+    case "tickets_card": {
+      const tk = p as TicketsCardPayload;
+      const tiers = Array.isArray(tk.tiers) ? tk.tiers : [];
+      const state = readCardState(message.payload);
+      const fulfilmentState = state === "selected" ? "checked_in" : state === "cancelled" ? null : state === "paid" ? "confirmed" : null;
+      const chip = { paymentState: state === "paid" || state === "selected" ? "paid" : null, fulfilmentState };
+      const step = fulfilmentState === "checked_in" ? "checked_in" : chip.paymentState === "paid" ? "issued" : "paid";
+      const holdLeft = formatHoldCountdown(holdCountdown(tk.holdExpiresAt, clock), { minutesLeft: kit.times.holdLeft, ended: kit.table.holdEnded });
+      return (
+        <TicketsCard
+          title={tk.title ?? model.title}
+          clientName={clientName}
+          tiers={tiers.map((t) => ({ label: t.label, quantity: 1, priceCents: t.priceCents }))}
+          ladder={ladderFor("tickets", chip, kit.ladder)}
+          step={step}
+          holdLeftLabel={step === "paid" ? holdLeft : null}
+          checkedIn={tk.checkedIn ?? null}
+          total={tk.capacity ?? null}
+          copy={kit}
+          variant={variant}
+          onAction={(a) => onAction(a === "request_payment" ? "request_payment" : "open_record", { recordKind: "tickets" })}
         />
       );
     }
