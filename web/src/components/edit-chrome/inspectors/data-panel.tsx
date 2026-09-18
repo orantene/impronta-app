@@ -212,6 +212,10 @@ function DataPanelInner({
           <LockedFieldsBanner paths={lockedDataPaths} noun="data settings" />
         ) : null}
         <UnsupportedDataNodeCard kind={selectedBuilderNode.kind} />
+        <AnchorSection
+          selectedBuilderNode={selectedBuilderNode}
+          onPatchBuilderNodeProps={onPatchBuilderNodeProps}
+        />
         <ABTestCard
           selectedBuilderNode={selectedBuilderNode}
           onPatchBuilderNodeProps={onPatchBuilderNodeProps}
@@ -277,44 +281,10 @@ function DataPanelInner({
       {lockedDataPaths.length > 0 ? (
         <LockedFieldsBanner paths={lockedDataPaths} noun="data settings" />
       ) : null}
-      {/* C11 — the DOM id that makes an in-page anchor resolve. Lives here
-          rather than in Content because it is a base field on every kind, not a
-          per-kind prop. Without this the anchorId schema + renderer would be a
-          capability wired at 3 of 4 layers: a design author could set one in
-          code and an operator never could. */}
-      <InspectorSection
-        title="Anchor"
-        description="Link to this block from elsewhere on the page"
-      >
-        <Field flush>
-          <FieldLabel>Anchor name</FieldLabel>
-          <input
-            className={KIT.input}
-            type="text"
-            placeholder="menu"
-            defaultValue={
-              normalizeAnchorId(
-                (selectedBuilderNode.props as Record<string, unknown>).anchorId,
-              ) ?? ""
-            }
-            onBlur={(event) => {
-              // Commit on blur, not per keystroke: every character would
-              // otherwise be a separate patch + validate pass, and the
-              // slugifier rewriting the value mid-word makes the field
-              // unusable to type in.
-              const next = normalizeAnchorId(event.currentTarget.value);
-              event.currentTarget.value = next ?? "";
-              void onPatchBuilderNodeProps(selectedBuilderNode.id, {
-                anchorId: next,
-              });
-            }}
-          />
-          <Helper>
-            Lowercase letters, numbers and dashes. A button elsewhere can then
-            link to <code>#{"{name}"}</code> and jump here.
-          </Helper>
-        </Field>
-      </InspectorSection>
+      <AnchorSection
+        selectedBuilderNode={selectedBuilderNode}
+        onPatchBuilderNodeProps={onPatchBuilderNodeProps}
+      />
       {device !== "desktop" ? (
         <InspectorNotice tone="info">
           Data binding uses desktop settings on {device === "tablet" ? "Tablet" : "Mobile"}. Per-device binding is not available yet.
@@ -592,6 +562,10 @@ function FieldBindingsPanel({
       {lockedDataPaths.length > 0 ? (
         <LockedFieldsBanner paths={lockedDataPaths} noun="data settings" />
       ) : null}
+      <AnchorSection
+        selectedBuilderNode={selectedBuilderNode}
+        onPatchBuilderNodeProps={onPatchBuilderNodeProps}
+      />
       <Card state={persisted ? "active" : "default"}>
         <CardHead title="Field bindings" sub="Repeat item props" iconAccent="green" />
         <CardBody>
@@ -714,4 +688,55 @@ function requiredPlanLabel(plan: string): string {
     default:
       return "Free+";
   }
+}
+
+/**
+ * C11 — the DOM id that makes an in-page anchor resolve. A base field on
+ * EVERY kind, not a per-kind prop, so it renders in every DataPanel branch:
+ * bindable kinds, field-binding kinds and the "no data here" kinds alike.
+ * It used to live only in the bindable branch, and the rail only offered the
+ * Data tab to bindable kinds, so a plain block (a program, a map, a card
+ * grid) could never be a link target from the editor (D-182).
+ */
+function AnchorSection(props: {
+  selectedBuilderNode: BuilderNode;
+  onPatchBuilderNodeProps: DataPanelProps["onPatchBuilderNodeProps"];
+}) {
+  const { selectedBuilderNode, onPatchBuilderNodeProps } = props;
+  return (
+    <InspectorSection
+      title="Anchor"
+      description="Link to this block from elsewhere on the page"
+    >
+      <Field flush>
+        <FieldLabel>Anchor name</FieldLabel>
+        <input
+          className={KIT.input}
+          type="text"
+          placeholder="menu"
+          data-builder-anchor-input=""
+          defaultValue={
+            normalizeAnchorId(
+              (selectedBuilderNode.props as Record<string, unknown>).anchorId,
+            ) ?? ""
+          }
+          onBlur={(event) => {
+            // Commit on blur, not per keystroke: every character would
+            // otherwise be a separate patch + validate pass, and the
+            // slugifier rewriting the value mid-word makes the field
+            // unusable to type in.
+            const next = normalizeAnchorId(event.currentTarget.value);
+            event.currentTarget.value = next ?? "";
+            void onPatchBuilderNodeProps(selectedBuilderNode.id, {
+              anchorId: next,
+            });
+          }}
+        />
+        <Helper>
+          Lowercase letters, numbers and dashes. A button elsewhere can then
+          link to <code>#{"{name}"}</code> and jump here.
+        </Helper>
+      </Field>
+    </InspectorSection>
+  );
 }
