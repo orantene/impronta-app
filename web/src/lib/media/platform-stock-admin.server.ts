@@ -21,7 +21,7 @@ import sharp from "sharp";
 
 import { logServerError } from "@/lib/server/safe-error";
 
-import { STOCK_FOLDER, resolveStockTenantId, type StockRole } from "./platform-stock";
+import { STOCK_FOLDER, resolveStockTenantId, type StockApproval, type StockProvenance, type StockRole } from "./platform-stock";
 import { fileAssetInSystemFolder } from "./system-folders";
 
 export const STOCK_MAX_BYTES = 300 * 1024;
@@ -40,6 +40,21 @@ export interface StockManifestInput {
   altEs: string;
   altEn: string;
   sortOrder?: number;
+  // ── Visual Asset Engine columns (03 §2); absent = the pre-engine defaults ──
+  slot?: string | null;
+  /** Default: `approved` for a licensed upload (a human chose it), `generated` for anything the engine made. */
+  approval?: StockApproval;
+  provenance?: StockProvenance;
+  direction?: string | null;
+  qaJson?: Record<string, unknown> | null;
+  layerVersions?: Record<string, string> | null;
+  tags?: Record<string, string>;
+  originTenantId?: string | null;
+  model?: string | null;
+  modelSize?: string | null;
+  modelQuality?: string | null;
+  promptVersion?: string | null;
+  measuredCostUsd?: number | null;
 }
 
 export type StockWriteResult = { ok: true; id: string; assetId: string; bytes: number } | { ok: false; error: string };
@@ -118,6 +133,20 @@ export async function storeStockImage(
         alt_en: input.manifest.altEn,
         sort_order: input.manifest.sortOrder ?? 0,
         created_by: input.createdBy,
+        slot: input.manifest.slot ?? (input.manifest.role === "gallery" ? null : input.manifest.role),
+        approval: input.manifest.approval ?? (input.manifest.source === "licensed" ? "approved" : "generated"),
+        provenance: input.manifest.provenance ?? input.manifest.source,
+        direction: input.manifest.direction ?? null,
+        qa_json: input.manifest.qaJson ?? null,
+        layer_versions: input.manifest.layerVersions ?? null,
+        tags: input.manifest.tags ?? {},
+        origin_tenant_id: input.manifest.originTenantId ?? null,
+        model: input.manifest.model ?? null,
+        model_size: input.manifest.modelSize ?? null,
+        model_quality: input.manifest.modelQuality ?? null,
+        prompt_version: input.manifest.promptVersion ?? null,
+        generated_at: input.manifest.source === "generated" ? new Date().toISOString() : null,
+        measured_cost_usd: input.manifest.measuredCostUsd ?? null,
       } as never)
       .select("id")
       .single<{ id: string }>();

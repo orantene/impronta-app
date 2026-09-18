@@ -91,14 +91,10 @@ import {
   CanvasGuides,
   useCanvasViewport,
 } from "./canvas-viewport";
-import {
-  DEFAULT_WORKSPACE_CANVAS_MODE,
-  resolveBodyHorizontalPadding,
-  resolveDeviceFrameHorizontalPadding,
-  type WorkspaceCanvasMode,
-} from "./workspace-layout";
+import { DEFAULT_WORKSPACE_CANVAS_MODE, resolveBodyHorizontalPadding, resolveDeviceFrameHorizontalPadding, type WorkspaceCanvasMode } from "./workspace-layout";
 import { useEditorLocale } from "./use-editor-locale";
 import { editorT, type EditorLocale } from "./editor-i18n";
+import { PendingImagesWatcher } from "./pending-images-watcher";
 
 // Deferred overlays. Every one of these is a large panel that starts closed;
 // their `next/dynamic` declarations live in one module so this file is not the
@@ -299,6 +295,7 @@ export function EditShell({
             >
               {children}
             </EditShellInner>
+            {headerVariant === "live" ? <PendingImagesWatcher /> : null}
           </CanvasViewportProviderWrapper>
         </BuilderProfilerBoundary>
       </EditProvider>

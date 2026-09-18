@@ -69,3 +69,55 @@ export function themePatchFromPalette(
   delete patch["color.primary-on"];
   return { patch, used, demoted };
 }
+
+// ── Candidate palettes for the owner's choice (decision-1 follow-up) ────────
+
+export interface CandidatePalette {
+  /** Stable id for the choice UI (`p1`…`p3`). */
+  id: string;
+  /** The hexes this candidate is built from, in the order they were read. */
+  swatches: string[];
+  /** The registry-accepted patch a compose/retheme would apply. */
+  patch: Record<string, string>;
+  /** Why a swatch was demoted or dropped, in plain words; empty = clean. */
+  demotions: string[];
+  /** The primary this candidate ends up with (the Look's own when none qualified). */
+  primary: string;
+}
+
+/**
+ * Up to three palette candidates from the hexes a logo (or the owner) gave,
+ * each ≤ 3 swatches, each with its demotions spelled out, so the owner picks
+ * and nothing rethemes on upload (owner logo rule 2026-09-16). Candidate 1 is
+ * the saturation ranking `themePatchFromPalette` would use; candidate 2 leads
+ * with the darkest colour; candidate 3 with the second most saturated. Pure.
+ */
+export function candidatePalettesFromHexes(base: Readonly<Record<string, string>>, hexes: ReadonlyArray<string>): CandidatePalette[] {
+  const clean = [...new Set(hexes.map((h) => h.trim()).filter((h) => HEX_RE.test(h)).map(expand))];
+  if (clean.length === 0) return [];
+  const bySaturation = [...clean].sort((a, b) => saturation(b) - saturation(a));
+  const byDarkness = [...clean].sort((a, b) => luminanceOf(a) - luminanceOf(b));
+  const orders: string[][] = [bySaturation.slice(0, 3)];
+  if (byDarkness[0] !== bySaturation[0]) orders.push([byDarkness[0], ...bySaturation.filter((h) => h !== byDarkness[0])].slice(0, 3));
+  if (bySaturation.length > 1) orders.push([bySaturation[1], ...bySaturation.filter((h) => h !== bySaturation[1])].slice(0, 3));
+  const seen = new Set<string>();
+  const out: CandidatePalette[] = [];
+  for (const swatches of orders) {
+    const key = swatches.join(",");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const mapped = themePatchFromPalette(base, swatches);
+    out.push({ id: `p${out.length + 1}`, swatches, patch: mapped.patch, demotions: mapped.demoted, primary: mapped.patch["color.primary"] ?? base["color.primary"] ?? "" });
+    if (out.length === 3) break;
+  }
+  return out;
+}
+
+function luminanceOf(hex: string): number {
+  const h = expand(hex).slice(1);
+  const ch = (i: number) => {
+    const v = parseInt(h.slice(i, i + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * ch(0) + 0.7152 * ch(2) + 0.0722 * ch(4);
+}

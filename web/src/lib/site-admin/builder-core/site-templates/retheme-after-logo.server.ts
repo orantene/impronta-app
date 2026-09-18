@@ -1,11 +1,9 @@
 /**
- * retheme-after-logo.server.ts — the logo lands AFTER the site composed
- * (onboarding v3.2: account → provisioning → arrival → logo), so the shell
- * was written with the name-mark. This re-instantiates ONLY the shell header
- * and footer from the stamped Look with the logo in place and leaves every
- * page alone. It refuses to touch a shell someone edited after the compose
- * (same rule as pages: edit history wins), so call it freely from the logo
- * upload path.
+ * retheme-after-logo.server.ts — recolour a composed site from the palette the
+ * OWNER CHOSE (owner logo rule 2026-09-16): never called on a logo upload by
+ * itself. The upload path offers `candidatePalettesFromHexes` (≤ 3 swatches,
+ * demotions shown); this runs only with the picked palette. Refuses when the
+ * shell was edited since the compose, so an owner's edit is never overwritten.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -18,6 +16,8 @@ import type { SiteComposeStamp } from "./compose-site-from-brief.server";
 import { instantiateSite } from "./instantiate-site";
 import { loadLookBySlug } from "./site-looks.server";
 import { themePatchFromPalette } from "./theme-from-palette";
+import { tagFor } from "@/lib/site-admin/cache-tags";
+import { updateTag } from "next/cache";
 import { validateThemePatch } from "@/lib/site-admin/tokens/registry";
 import type { SiteIdentity } from "./types";
 import { writeFreeformSiteShell } from "./write-site-shell.server";
@@ -108,6 +108,11 @@ export async function rethemeSiteAfterLogo(
         return admin.from("agency_branding").update({ theme_json: r.data.theme_json_draft } as never).eq("tenant_id", input.tenantId);
       });
       if (liveErr) return { outcome: "failed", note: `theme publish: ${liveErr.message}` };
+    }
+    try {
+      updateTag(tagFor(input.tenantId, "branding"));
+    } catch {
+      /* outside a request scope */
     }
     return { outcome: "rethemed", paletteDemoted };
   } catch (err) {

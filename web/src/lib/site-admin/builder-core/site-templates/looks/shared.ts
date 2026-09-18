@@ -17,18 +17,19 @@ import type { BuilderNode, BuilderNodeStyleValue } from "@/lib/site-admin/builde
 import { LOOK_COPY_DEFAULTS } from "../copy";
 import { band, btn, card, copy, ctas, divider, eyebrow, grid, h, img, masonry, p, row, slot, spacer, split, stack, tplId } from "../dsl";
 import type { Bilingual, Look, LookId, SitePageRole } from "../types";
+import { cinematicHero, liftCard, marqueeBand, railGallery, reveal, stagger, stickyStory, zoomPicture, type RevealPreset } from "./v2-sections";
 
 type Style = BuilderNodeStyleValue & Record<string, unknown>;
 type Bg = "none" | "surface" | "muted" | "accent" | "contrast";
 
 export interface LookRecipe {
-  hero: "left" | "centered" | "split" | "fullbleed" | "stacked" | "banded";
+  hero: "left" | "centered" | "split" | "fullbleed" | "stacked" | "banded" | "cinematic";
   heroBand: Bg;
   heroMinHeight: string;
   offer: "split" | "cards" | "prose" | "list";
   proofBand: Bg;
   closing: Bg;
-  gallery: "masonry" | "grid" | "strip";
+  gallery: "masonry" | "grid" | "strip" | "rail";
   cardVariant: "elevated" | "outline" | "ghost";
   imageRadius: "none" | "sm" | "md" | "lg";
   header: "left-nav" | "centered" | "split" | "minimal";
@@ -40,6 +41,17 @@ export interface LookRecipe {
   sectionPadding: "l" | "xl";
   /** Extra decoration a recipe opts into. */
   rulesBetweenSections?: boolean;
+  // ── Looks v2 (D-TPL-36): motion and the cinematic sections ────────────────
+  /** Entrance animation on every section and staggered children; off = v1 static. */
+  motion?: RevealPreset;
+  /** A scrolling strip of the business's words under the hero. */
+  marquee?: boolean;
+  /** One oversized line on a contrast band after the hero. */
+  statement?: boolean;
+  /** Pinned picture beside three scrolling blocks, in place of the offer split. */
+  story?: "sticky";
+  /** Cards lift and their pictures zoom on hover. */
+  lift?: boolean;
 }
 
 // ── Small pieces ────────────────────────────────────────────────────────────
@@ -89,7 +101,8 @@ function picture(r: LookRecipe, key: Parameters<typeof img>[0], ratio: Style["as
   return img(key, { aspectRatio: ratio, radius: r.imageRadius, ...extra }, priority);
 }
 function section(r: LookRecipe, children: BuilderNode[], opts: Parameters<typeof band>[1] = {}): BuilderNode {
-  return band(children, { paddingY: r.sectionPadding, ...opts });
+  const kids = r.motion ? stagger(children, r.motion) : children;
+  return band(kids, { paddingY: r.sectionPadding, ...opts });
 }
 function maybeRule(r: LookRecipe): BuilderNode[] {
   // `divider` is not a root kind; a hairline band carries it.
@@ -138,6 +151,21 @@ function hero(r: LookRecipe): BuilderNode[] {
       ];
     case "stacked":
       return [section(r, [picture(r, "hero", "21:9", {}, true), copyStack("start")], { background: r.heroBand })];
+    case "cinematic":
+      return [
+        cinematicHero({
+          slides: ["hero", "wide", "gallery-1"],
+          eyebrowKey: "home.hero.eyebrow",
+          headingKey: "home.hero.headline",
+          subKey: "home.hero.sub",
+          primary: { labelKey: "action.primary", href: HREF.transaction },
+          secondary: { labelKey: "nav.catalogue", href: HREF.catalogue },
+          align: "bl",
+          tone: "dark",
+        }),
+        ...(r.marquee ? [marqueeBand(["home.hero.headline", "home.hero.eyebrow", "nav.catalogue", "nav.gallery", "nav.contact"], { style: { background: "surface" } })] : []),
+        ...(r.statement ? [section(r, [h(2, copy("home.statement"), { ...r.displayStyle, textColor: "token:color.background", align: "center", textWrap: "balance" })], { background: "contrast", align: "center", maxWidth: "wide" })] : []),
+      ];
     case "banded":
       return [
         section(
@@ -154,6 +182,23 @@ function hero(r: LookRecipe): BuilderNode[] {
 
 function offer(r: LookRecipe): BuilderNode {
   const copyBlock = stack([eye(r, "home.offer.eyebrow"), title(r, "home.offer.headline"), body(r, "home.offer.body"), ctas([secondary("action.about", HREF.about)])], {}, { gap: "m" });
+  if (r.story === "sticky") {
+    return stickyStory({
+      imageSlot: "wide",
+      eyebrowKey: "home.offer.eyebrow",
+      headlineKey: "home.offer.headline",
+      blockKeys: [
+        { title: "home.story.1.title", body: "home.story.1.body" },
+        { title: "home.story.2.title", body: "home.story.2.body" },
+        { title: "home.story.3.title", body: "home.story.3.body" },
+      ],
+      side: "media-left",
+      variant: "minimal",
+      style: r.motion ? reveal(r.motion) : {},
+    });
+  }
+  const cardOf = (children: BuilderNode[]) => (r.lift ? liftCard(children, r.cardVariant === "ghost" ? { paddingX: "s", paddingY: "s" } : {}) : card(children, r.cardVariant));
+  const framed = (key: Parameters<typeof img>[0], ratio: Style["aspectRatio"]) => (r.lift ? zoomPicture(key, { aspectRatio: ratio }, { radius: r.imageRadius }) : picture(r, key, ratio));
   switch (r.offer) {
     case "split":
       return section(r, [split(copyBlock, picture(r, "wide", "4:3"), "50-50")]);
@@ -162,9 +207,9 @@ function offer(r: LookRecipe): BuilderNode {
         copyBlock,
         grid(
           [
-            card([picture(r, "portrait", "4:3"), h(3, copy("nav.catalogue"), r.headingStyle), textLink("nav.catalogue", HREF.catalogue)], r.cardVariant),
-            card([picture(r, "detail", "4:3"), h(3, copy("nav.about"), r.headingStyle), textLink("action.about", HREF.about)], r.cardVariant),
-            card([picture(r, "wide", "4:3"), h(3, copy("nav.gallery"), r.headingStyle), textLink("action.gallery", HREF.gallery)], r.cardVariant),
+            cardOf([framed("portrait", "4:3"), h(3, copy("nav.catalogue"), r.headingStyle), textLink("nav.catalogue", HREF.catalogue)]),
+            cardOf([framed("detail", "4:3"), h(3, copy("nav.about"), r.headingStyle), textLink("action.about", HREF.about)]),
+            cardOf([framed("wide", "4:3"), h(3, copy("nav.gallery"), r.headingStyle), textLink("action.gallery", HREF.gallery)]),
           ],
           3,
         ),
@@ -178,6 +223,9 @@ function offer(r: LookRecipe): BuilderNode {
 
 function galleryTeaser(r: LookRecipe): BuilderNode {
   const head = stack([eye(r, "home.gallery.eyebrow"), title(r, "home.gallery.headline")], {}, { gap: "s" });
+  if (r.gallery === "rail") {
+    return section(r, [head, railGallery(["gallery-1", "gallery-2", "gallery-3", "gallery-4", "detail"], { perView: 3, ratio: "3:4" }), ctas([secondary("action.gallery", HREF.gallery)])], { maxWidth: "full", style: { paddingX: "m" } });
+  }
   const frames = [picture(r, "gallery-1", "4:3"), picture(r, "gallery-2", "3:4"), picture(r, "gallery-3", "1:1"), picture(r, "gallery-4", "4:3")];
   const media = r.gallery === "masonry" ? masonry(frames, 4) : r.gallery === "strip" ? row(frames, {}, { gap: "s" }) : grid(frames, 4);
   return section(r, [head, media, ctas([secondary("action.gallery", HREF.gallery)])]);
@@ -274,8 +322,8 @@ function navLinks(): Array<{ id: string; label: string; href: string }> {
   }));
 }
 
-function brand(r: LookRecipe, align: "left" | "center" = "left"): BuilderNode {
-  const wordmark = h(2, copy("home.hero.headline"), { ...r.headingStyle, size: "md", align, textWrap: "nowrap" } as Style);
+function brand(r: LookRecipe, align: "left" | "center" = "left", extra: Style = {}): BuilderNode {
+  const wordmark = h(2, copy("home.hero.headline"), { ...r.headingStyle, size: "md", align, textWrap: "nowrap", ...extra } as Style);
   wordmark.props = { ...wordmark.props, layerLabel: "Brand name" };
   return row(
     [
@@ -317,14 +365,29 @@ function headerCta(): BuilderNode {
   return b;
 }
 
+/**
+ * Over a cinematic hero the header floats: absolutely positioned at the top,
+ * no background, light type. The hero's scrim is always dark (v2-sections),
+ * so white is the one honest literal here regardless of the Look's own ink;
+ * the header does not persist on scroll (award-tier pattern; the mobile
+ * drawer and the footer nav carry the links further down).
+ */
+const OVERLAY_INK = "#ffffff";
+
 function header(r: LookRecipe): BuilderNode[] {
-  const gutter: Style = { paddingX: "m", paddingY: "s", maxWidth: "full", maxWidthFree: "100%", width: "100%", background: "surface" };
+  const overlay = r.hero === "cinematic";
+  const gutter: Style = overlay
+    ? { paddingX: "m", paddingY: "m", maxWidth: "full", maxWidthFree: "100%", width: "100%", background: "none", position: "absolute", top: "0px", left: "0px", zIndex: 40, textColor: OVERLAY_INK }
+    : { paddingX: "m", paddingY: "s", maxWidth: "full", maxWidthFree: "100%", width: "100%", background: "surface" };
+  const ink: Style = overlay ? { textColor: OVERLAY_INK } : {};
+  const nav = (style: Style) => navNode({ ...style, ...ink });
+  const mark = (align: "left" | "center" = "left") => brand(r, align, ink);
   switch (r.header) {
     case "left-nav":
-      return [headerRow([brand(r), navNode({ justifyContent: "flex-end" }), headerCta()], gutter)];
+      return [headerRow([mark(), nav({ justifyContent: "flex-end" }), headerCta()], gutter)];
     case "centered": {
       // Desktop: wordmark above a centred nav. Phone: one row, brand + menu.
-      const node = stack([brand(r, "center"), navNode({ justifyContent: "center", flexGrow: 0 })], { ...gutter, alignItems: "center" }, { gap: "s", align: "center" });
+      const node = stack([mark("center"), nav({ justifyContent: "center", flexGrow: 0 })], { ...gutter, alignItems: "center" }, { gap: "s", align: "center" });
       (node as { props: Record<string, unknown> }).props = { ...node.props, responsive: { mobile: { layout: "row", align: "center" } } };
       return [node];
     }
@@ -333,10 +396,10 @@ function header(r: LookRecipe): BuilderNode[] {
       // Equal flex on both wings keeps the wordmark truly centred.
       const wing = ctas([headerCta()], "end");
       (wing as { props: Record<string, unknown> }).props = { ...wing.props, style: { flexGrow: 1, flexBasis: "0%", width: "auto" } };
-      return [headerRow([navNode({ justifyContent: "flex-start", flexGrow: 1, flexBasis: "0%" }), brand(r, "center"), wing], gutter)];
+      return [headerRow([nav({ justifyContent: "flex-start", flexGrow: 1, flexBasis: "0%" }), mark("center"), wing], gutter)];
     }
     case "minimal":
-      return [headerRow([brand(r), navNode({ justifyContent: "flex-end" })], gutter)];
+      return [headerRow([mark(), nav({ justifyContent: "flex-end" })], gutter)];
   }
 }
 

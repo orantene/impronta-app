@@ -223,12 +223,22 @@ export const BUDGETS: readonly Budget[] = [
   //     them reorders the cascade for a measured 3.9 KB and would still leave
   //     121.3 KB — over this ceiling. Rejected as risk without benefit.
   //
+  // RE-TUNED 2026-09-18: 126 → 128 KB. Spend is Looks v2 (#2114): 38 native
+  // kinds' muted text moved from fixed `rgba(18,18,18,…)` (19 B) to
+  // `color-mix(in oklab,currentColor N%,transparent)` (47 B) so dark Looks
+  // stay legible, plus one 275 B phone rule (sticky_scroll stacks). Measured
+  // 127.2 KB after the squeeze: the branch first spelled the same thing as
+  // `color-mix(in srgb,var(--token-color-ink,#111) …)` (62 B); aligning all
+  // 43 to main's currentColor idiom took 574 B back. Comments are stripped at
+  // emit (audited again: 0 B of the number is commentary). The remaining
+  // +1.2 KB is the feature, not waste.
+  //
   // What a visitor downloads did NOT move into the red: the scoped ceiling
   // below stays at 103 KB and measures 83.8–89.3 KB across all seven designs,
   // ~14 KB of headroom. That is the number that protects page weight; this one
   // is an early-warning on the build-time sheet, and twelve kinds cannot cost
   // less than the ~1 KB of pad the previous retune deliberately left.
-  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 126 * KB, unit: "bytes" },
+  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 128 * KB, unit: "bytes" },
   // What a VISITOR actually downloads. REND-2 scopes the sheet to the node-kinds
   // present on the page (`collectPresentNodeKinds` → `buildScopedRendererCss`),
   // and every public render path passes it. This is the number that matters for

@@ -3,10 +3,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
-import {
-  requestOpenAiImageBytes,
-  resolveOpenAiImageModel,
-} from "@/lib/ai/openai-image-request";
+import { imageCostFromUsage, resolveImageEngineSettings, type ImageEngineSettings, type ImageQuality, type ImageUsage } from "@/lib/ai/ai-image-model";
+import { buildOpenAiImageRequestBody, isDallEModel } from "@/lib/ai/openai-image-request";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
@@ -40,10 +38,10 @@ export * from "@/lib/ai/ai-image-quota";
  * are unit-tested; the DB/OpenAI/storage paths are best-effort and fail closed
  * (an error never charges the tenant or corrupts the tree).
  *
- * LIVE-TEST BLOCKER: production has no OpenAI key configured yet
- * (ai-providers shows OpenAI "Not configured"). generateImageBytesFromPrompt
- * throws a clear error until one is set; the quota gate + cost accounting are
- * exercisable without it.
+ * The model is the `ai_image_model` admin setting (ai-image-model.ts); the
+ * old `dall-e-3` default is gone from the vendor (verified 2026-09-16 against
+ * /v1/models). Engine callers use `generateStockImage`, which returns the
+ * measured cost; the legacy helpers below keep their shape.
  */
 
 // ── Month key (matches ai-usage-gate) ───────────────────────────────────────
@@ -95,12 +93,91 @@ export async function generateLifestyleStockBytes(input: {
   return { bytes: await requestOpenAiImage(prompt), prompt };
 }
 
-async function requestOpenAiImage(prompt: string): Promise<Buffer> {
+export type ImageProviderErrorCode = "not_configured" | "moderation_blocked" | "rate_limit_exceeded" | "insufficient_quota" | "provider_error";
+
+/** A provider refusal the pipeline treats as a STATE (03 §4), not a crash. */
+export class ImageProviderError extends Error {
+  readonly code: ImageProviderErrorCode;
+  readonly status: number | null;
+  constructor(code: ImageProviderErrorCode, message: string, status: number | null = null) {
+    super(message);
+    this.name = "ImageProviderError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+export interface GeneratedStockImage {
+  bytes: Buffer;
+  model: string;
+  size: string;
+  quality: ImageQuality;
+  usage: ImageUsage | null;
+  /** From usage × the stored per-1M prices; 0 when the reply carried no usage. */
+  costUsd: number;
+  latencyMs: number;
+}
+
+/**
+ * One image from the OpenAI images API with the engine's stored model and the
+ * COST MEASURED from the reply's usage (03 §1). The prompt is the caller's
+ * (the layered resolver); nothing is appended here. Errors are typed so a job
+ * runner can file `moderation_blocked` / `rate_limit_exceeded` as states.
+ */
+export async function generateStockImage(input: {
+  prompt: string;
+  size: "1536x1024" | "1024x1024" | "1024x1536";
+  quality?: ImageQuality;
+  settings?: ImageEngineSettings;
+}): Promise<GeneratedStockImage> {
   const key = (await resolveOpenAiApiKey())?.trim();
-  if (!key) throw new Error("OpenAI API key is not configured.");
-  // Model default + body shape live in openai-image-request.ts (gpt-image
-  // family; dall-e-3 no longer exists on the API as of 2026-09-17).
-  return requestOpenAiImageBytes(key, { prompt, size: "1024x1024", quality: "high" });
+  if (!key) throw new ImageProviderError("not_configured", "OpenAI API key is not configured.");
+  const settings = input.settings ?? (await resolveImageEngineSettings());
+  const quality = input.quality ?? "medium";
+  const started = Date.now();
+  const res = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    // Body shape per model family lives in openai-image-request.ts (#2029):
+    // dall-e takes hd/standard and a square, gpt-image takes size + quality.
+    body: JSON.stringify({
+      ...buildOpenAiImageRequestBody({ prompt: input.prompt, model: settings.model, size: input.size, quality }),
+      ...(isDallEModel(settings.model) ? {} : { output_format: "jpeg", output_compression: 85 }),
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let code: ImageProviderErrorCode = "provider_error";
+    let message = text.slice(0, 280) || `OpenAI images HTTP ${res.status}`;
+    try {
+      const parsed = JSON.parse(text) as { error?: { code?: string; message?: string; type?: string } };
+      const vendor = parsed.error?.code ?? parsed.error?.type ?? "";
+      message = parsed.error?.message?.slice(0, 280) ?? message;
+      if (vendor === "moderation_blocked" || vendor === "content_policy_violation") code = "moderation_blocked";
+      else if (vendor === "rate_limit_exceeded" || res.status === 429 && !/quota/i.test(vendor)) code = "rate_limit_exceeded";
+      if (vendor === "insufficient_quota" || /credit_balance_exhausted/i.test(vendor)) code = "insufficient_quota";
+    } catch {
+      if (res.status === 429) code = "rate_limit_exceeded";
+    }
+    throw new ImageProviderError(code, message, res.status);
+  }
+  const json = (await res.json()) as { data?: { url?: string; b64_json?: string }[]; usage?: ImageUsage };
+  const first = json.data?.[0];
+  let bytes: Buffer | null = null;
+  if (first?.b64_json) bytes = Buffer.from(first.b64_json, "base64");
+  else if (first?.url) {
+    const img = await fetch(first.url);
+    if (!img.ok) throw new ImageProviderError("provider_error", "Failed to download generated image.");
+    bytes = Buffer.from(await img.arrayBuffer());
+  }
+  if (!bytes) throw new ImageProviderError("provider_error", "OpenAI returned no image.");
+  return { bytes, model: settings.model, size: input.size, quality, usage: json.usage ?? null, costUsd: imageCostFromUsage(json.usage, settings.prices), latencyMs: Date.now() - started };
+}
+
+/** Legacy single-image path (builder node image, taxonomy promo). Uses the stored model; square, medium. */
+async function requestOpenAiImage(prompt: string): Promise<Buffer> {
+  const out = await generateStockImage({ prompt, size: "1024x1024", quality: "medium" });
+  return out.bytes;
 }
 
 // ── Quota check (DB) ────────────────────────────────────────────────────────
@@ -240,7 +317,7 @@ export async function recordImageGenerationUsage(input: {
       tenant_id: input.tenantId,
       action: "generate_section", // reuse the allowed action value; feature marks images
       provider: "openai",
-      model: resolveOpenAiImageModel(),
+      model: (await resolveImageEngineSettings()).model,
       ok: input.ok,
       actor_profile_id: input.userId,
       context_jsonb: { feature: "builder_image", cost_usd: costUsd },

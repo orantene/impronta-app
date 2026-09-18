@@ -166,7 +166,21 @@ export interface LifestyleStockPhoto {
   createdAt: string;
   /** Set when soft-retired (only returned with `includeRetired`). */
   retiredAt: string | null;
+  /** Review state (03 §4). Serving reads only return approved / qa_passed. */
+  approval: StockApproval;
+  /** Where the bytes came from; `unverified` rows are never counted as photos placed. */
+  provenance: StockProvenance;
+  /** Visual direction inside the type, when the engine generated it. */
+  direction: string | null;
+  /** Stated brief facts the prompt was filled from ({} for seed assets). */
+  tags: Record<string, string>;
+  /** The business a tenant-generated asset was made for (null for pool assets). */
+  originTenantId: string | null;
+  timesPlaced: number;
 }
+
+export type StockApproval = "generated" | "qa_passed" | "approved" | "rejected" | "retired";
+export type StockProvenance = "generated" | "licensed" | "unverified";
 
 type ManifestRow = {
   id: string;
@@ -181,20 +195,38 @@ type ManifestRow = {
   sort_order: number;
   created_at: string;
   retired_at: string | null;
+  approval: StockApproval;
+  provenance: StockProvenance;
+  direction: string | null;
+  tags: Record<string, string> | null;
+  origin_tenant_id: string | null;
+  times_placed: number | null;
 };
+
+const MANIFEST_SELECT =
+  "id, asset_id, business_type, family, role, source, licence, alt_es, alt_en, sort_order, created_at, retired_at, approval, provenance, direction, tags, origin_tenant_id, times_placed";
+
+/** Roles a merely QA-passed asset may serve (03 §4: soft launch for the small frames). */
+const QA_PASSED_SERVES: ReadonlySet<StockRole> = new Set(["gallery", "detail"]);
+
+function servesRole(r: Pick<ManifestRow, "approval" | "role">): boolean {
+  return r.approval === "approved" || (r.approval === "qa_passed" && QA_PASSED_SERVES.has(r.role));
+}
 
 /** The family whose pack is every other family's last resort. */
 export const UNIVERSAL_STOCK_FAMILY = "custom";
 
 /**
  * Live stock for one business type: the type's own rows first, then the
- * family pack, then the universal pack (`custom`). Returns [] (never throws)
- * when the manifest is empty or the stock tenant is missing, so a Media page
- * stays up with an empty shelf.
+ * family pack, then the universal pack (`custom`). Only approved rows serve
+ * (qa_passed for gallery/detail); a tenant's own generated rows serve that
+ * tenant from any state past automated QA when `forTenantId` is given.
+ * Returns [] (never throws) when the manifest is empty or the stock tenant is
+ * missing, so a Media page stays up with an empty shelf.
  */
 export async function queryLifestyleStockForType(
   supabase: SupabaseClient,
-  input: { businessType: string | null; family: string; includeRetired?: boolean },
+  input: { businessType: string | null; family: string; includeRetired?: boolean; forTenantId?: string | null },
 ): Promise<LifestyleStockPhoto[]> {
   try {
     const tenantId = await resolveStockTenantId(supabase);
@@ -203,7 +235,7 @@ export async function queryLifestyleStockForType(
     const families = input.family === UNIVERSAL_STOCK_FAMILY ? [input.family] : [input.family, UNIVERSAL_STOCK_FAMILY];
     let q = supabase
       .from("platform_stock_images")
-      .select("id, asset_id, business_type, family, role, source, licence, alt_es, alt_en, sort_order, created_at, retired_at")
+      .select(MANIFEST_SELECT)
       .in("family", families)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true })
@@ -215,48 +247,26 @@ export async function queryLifestyleStockForType(
       return [];
     }
     const rows = ((manifest ?? []) as ManifestRow[]).filter(
-      (r) => r.business_type === null || r.business_type === input.businessType,
+      (r) =>
+        // A tenant's own images were generated for ONE type; they never carry
+        // over when the business is re-composed as another type.
+        (r.business_type === null || r.business_type === input.businessType) &&
+        (r.origin_tenant_id === null || r.origin_tenant_id !== input.forTenantId || r.business_type === input.businessType) &&
+        // Another tenant's generated image serves the pool only once approved;
+        // the originating tenant sees its own from qa_passed on.
+        (r.origin_tenant_id === null || r.origin_tenant_id === input.forTenantId || r.approval === "approved") &&
+        (input.includeRetired ||
+          servesRole(r) ||
+          (r.origin_tenant_id !== null && r.origin_tenant_id === input.forTenantId && r.approval === "qa_passed")),
     );
     if (rows.length === 0) return [];
 
-    const { data: assets, error: assetsError } = await supabase
-      .from("media_assets")
-      .select("id, storage_path, bucket_id, width, height")
-      .eq("tenant_id", tenantId)
-      .is("deleted_at", null)
-      .in("id", rows.map((r) => r.asset_id));
-    if (assetsError) {
-      logServerError("media.platform-stock.assets", assetsError);
-      return [];
-    }
-    const byId = new Map(
-      ((assets ?? []) as Array<{ id: string; storage_path: string | null; bucket_id: string | null; width: number | null; height: number | null }>).map((a) => [a.id, a] as const),
-    );
-
-    // Type rows outrank the family pack, which outranks the universal pack.
-    const rank = (r: ManifestRow) => (r.business_type !== null ? 0 : r.family === input.family ? 1 : 2);
+    // The tenant's own images outrank type rows, which outrank the family
+    // pack, which outranks the universal pack.
+    const rank = (r: ManifestRow) =>
+      r.origin_tenant_id !== null && r.origin_tenant_id === input.forTenantId ? -1 : r.business_type !== null ? 0 : r.family === input.family ? 1 : 2;
     const ranked = [...rows].sort((a, b) => rank(a) - rank(b) || a.sort_order - b.sort_order);
-    const out: LifestyleStockPhoto[] = [];
-    for (const r of ranked) {
-      const a = byId.get(r.asset_id);
-      if (!a?.storage_path) continue;
-      const bucket = a.bucket_id ?? "media-public";
-      out.push({
-        id: r.id,
-        assetId: r.asset_id,
-        url: supabase.storage.from(bucket).getPublicUrl(a.storage_path).data.publicUrl,
-        width: a.width,
-        height: a.height,
-        role: r.role,
-        businessType: r.business_type,
-        family: r.family,
-        alt: { es: r.alt_es, en: r.alt_en },
-        source: r.source,
-        licence: r.licence,
-        createdAt: r.created_at,
-        retiredAt: r.retired_at,
-      });
-    }
+    const out = await hydrate(supabase, tenantId, ranked);
     return out;
   } catch (error) {
     logServerError("media.platform-stock.by-type", error);
@@ -264,24 +274,112 @@ export async function queryLifestyleStockForType(
   }
 }
 
-/** Coverage per (type|family) × role, for the platform admin section. */
-export async function queryLifestyleStockCoverage(
-  supabase: SupabaseClient,
-): Promise<Array<{ family: string; businessType: string | null; role: StockRole; live: number; retired: number }>> {
+/** Join manifest rows to their media_assets and build public URLs; rows without an object are dropped. */
+async function hydrate(supabase: SupabaseClient, tenantId: string, rows: ManifestRow[]): Promise<LifestyleStockPhoto[]> {
+  if (rows.length === 0) return [];
+  const { data: assets, error: assetsError } = await supabase
+    .from("media_assets")
+    .select("id, storage_path, bucket_id, width, height")
+    .eq("tenant_id", tenantId)
+    .is("deleted_at", null)
+    .in("id", rows.map((r) => r.asset_id));
+  if (assetsError) {
+    logServerError("media.platform-stock.assets", assetsError);
+    return [];
+  }
+  const byId = new Map(
+    ((assets ?? []) as Array<{ id: string; storage_path: string | null; bucket_id: string | null; width: number | null; height: number | null }>).map((a) => [a.id, a] as const),
+  );
+  const out: LifestyleStockPhoto[] = [];
+  for (const r of rows) {
+    const a = byId.get(r.asset_id);
+    if (!a?.storage_path) continue;
+    const bucket = a.bucket_id ?? "media-public";
+    out.push({
+      id: r.id,
+      assetId: r.asset_id,
+      url: supabase.storage.from(bucket).getPublicUrl(a.storage_path).data.publicUrl,
+      width: a.width,
+      height: a.height,
+      role: r.role,
+      businessType: r.business_type,
+      family: r.family,
+      alt: { es: r.alt_es, en: r.alt_en },
+      source: r.source,
+      licence: r.licence,
+      createdAt: r.created_at,
+      retiredAt: r.retired_at,
+      approval: r.approval,
+      provenance: r.provenance,
+      direction: r.direction,
+      tags: r.tags ?? {},
+      originTenantId: r.origin_tenant_id,
+      timesPlaced: r.times_placed ?? 0,
+    });
+  }
+  return out;
+}
+
+/** The human queue (03 §4.3): not yet approved/rejected, heroes first, oldest first. */
+export async function queryStockReviewQueue(supabase: SupabaseClient, options: { limit?: number } = {}): Promise<LifestyleStockPhoto[]> {
+  try {
+    const tenantId = await resolveStockTenantId(supabase);
+    if (!tenantId) return [];
+    const { data, error } = await supabase
+      .from("platform_stock_images")
+      .select(MANIFEST_SELECT)
+      .in("approval", ["generated", "qa_passed"])
+      .is("retired_at", null)
+      .order("generated_at", { ascending: true })
+      .limit(Math.min(options.limit ?? 120, 400));
+    if (error) {
+      logServerError("media.platform-stock.review-queue", error);
+      return [];
+    }
+    const rows = (data ?? []) as ManifestRow[];
+    rows.sort((a, b) => (a.role === "hero" ? 0 : 1) - (b.role === "hero" ? 0 : 1));
+    return hydrate(supabase, tenantId, rows);
+  } catch (error) {
+    logServerError("media.platform-stock.review-queue", error);
+    return [];
+  }
+}
+
+export interface StockCoverageCell {
+  family: string;
+  businessType: string | null;
+  role: StockRole;
+  /** Serving rows (approved, or qa_passed on gallery/detail), not retired. */
+  live: number;
+  approved: number;
+  qaPassed: number;
+  /** Awaiting automated QA or human review. */
+  pending: number;
+  retired: number;
+}
+
+/** Coverage per (type|family) × role, for the platform admin section. Pool rows only (tenant-origin rows count once approved). */
+export async function queryLifestyleStockCoverage(supabase: SupabaseClient): Promise<StockCoverageCell[]> {
   const { data, error } = await supabase
     .from("platform_stock_images")
-    .select("family, business_type, role, retired_at")
+    .select("family, business_type, role, retired_at, approval, origin_tenant_id")
     .limit(5000);
   if (error) {
     logServerError("media.platform-stock.coverage", error);
     return [];
   }
-  const map = new Map<string, { family: string; businessType: string | null; role: StockRole; live: number; retired: number }>();
-  for (const r of (data ?? []) as Array<{ family: string; business_type: string | null; role: StockRole; retired_at: string | null }>) {
+  const map = new Map<string, StockCoverageCell>();
+  for (const r of (data ?? []) as Array<{ family: string; business_type: string | null; role: StockRole; retired_at: string | null; approval: StockApproval; origin_tenant_id: string | null }>) {
+    if (r.origin_tenant_id !== null && r.approval !== "approved") continue;
     const key = `${r.family}|${r.business_type ?? ""}|${r.role}`;
-    const cur = map.get(key) ?? { family: r.family, businessType: r.business_type, role: r.role, live: 0, retired: 0 };
+    const cur = map.get(key) ?? { family: r.family, businessType: r.business_type, role: r.role, live: 0, approved: 0, qaPassed: 0, pending: 0, retired: 0 };
     if (r.retired_at) cur.retired += 1;
-    else cur.live += 1;
+    else {
+      if (servesRole(r)) cur.live += 1;
+      if (r.approval === "approved") cur.approved += 1;
+      else if (r.approval === "qa_passed") cur.qaPassed += 1;
+      else if (r.approval === "generated") cur.pending += 1;
+    }
     map.set(key, cur);
   }
   return [...map.values()];

@@ -44,7 +44,11 @@ import { BUSINESS_TYPES, businessTypeById, searchBusinessTypes, type BusinessFam
 
 import { buildComponentsForType } from "./business-components";
 import { buildCopyPassPrompt, COPY_PASS_JSON_SCHEMA, COPY_PASS_KEYS, COPY_PASS_MAX_TOKENS, COPY_PASS_TIMEOUT_MS, screenCopyReply, type CopyPassFacts } from "./copy-pass";
-import { buildImageResolver, type CandidateImage } from "./image-resolver";
+import { assignmentSourceForLevel, buildImageResolver, type AssignmentSource, type CandidateImage } from "./image-resolver";
+import { stockFactsFromBrief } from "./stock-prompts";
+import { writeAssignments } from "@/lib/media/asset-assignments.server";
+import { bustAllTenantCaches, bustBrandingCache, bustIdentityCache } from "./compose-cache-bust.server";
+import { enqueueTenantImageJob } from "@/lib/media/tenant-image-jobs.server";
 import { instantiateSite } from "./instantiate-site";
 import { DEFAULT_LOOK_BY_FAMILY } from "./look-defaults";
 import { LOOKS } from "./looks";
@@ -86,8 +90,16 @@ export interface ComposeSiteResult {
   durationMs: number;
 }
 
+export type PlacedPhotoLevel = "owner" | "tenant" | "type" | "family" | "universal";
+
 export interface SiteComposePlaced {
-  photos: { hero: "owner" | "type" | "family" | "universal" | null; gallery: number; level: "owner" | "type" | "family" | "universal" | null };
+  /**
+   * `hero` / `level` are pack levels (worst level across placed slots);
+   * `heroSource` is the stored assignment's `source` for the home hero, which
+   * is what onboarding's arrival copy reads (claims photos for `type_pool` or
+   * better). `pendingJobId` is set when a per-site generation was enqueued.
+   */
+  photos: { hero: PlacedPhotoLevel | null; heroSource: AssignmentSource | null; gallery: number; level: PlacedPhotoLevel | null; pendingJobId: string | null };
   menuItems: number;
   hoursPresent: boolean;
   whatsappPresent: boolean;
@@ -343,7 +355,7 @@ async function writeStamp(admin: SupabaseClient, tenantId: string, stamp: SiteCo
   }
 }
 
-const EMPTY_PLACED: SiteComposePlaced = { photos: { hero: null, gallery: 0, level: null }, menuItems: 0, hoursPresent: false, whatsappPresent: false, logoPresent: false };
+const EMPTY_PLACED: SiteComposePlaced = { photos: { hero: null, heroSource: null, gallery: 0, level: null, pendingJobId: null }, menuItems: 0, hoursPresent: false, whatsappPresent: false, logoPresent: false };
 
 // ── Main ────────────────────────────────────────────────────────────────────
 
@@ -426,10 +438,21 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   // `agency_business_identity.public_name`; a tenant provisioned without one
   // would greet visitors as "the agency". Seed it with the name we are about
   // to put on the site (never overwriting a row that exists).
+  const statedName = (facts ? stringFact(facts, "business.name") : null)?.trim() || null;
   if (!identityRow) {
     const { error: idErr } = await admin.from("agency_business_identity").upsert({ tenant_id: input.tenantId, public_name: businessName }, { onConflict: "tenant_id", ignoreDuplicates: true });
     if (idErr) notes.push(`identity row not seeded: ${idErr.message}`);
     identityRow = await loadIdentityForStaff(admin, input.tenantId);
+  } else if (statedName && identityRow.public_name?.trim() !== statedName) {
+    // The brief's stated name is the newest fact: the legacy header, the chat
+    // button and the mobile menu read `public_name`, so a stale seed here
+    // would show one name in the chrome and another on the page.
+    const { error: nameErr } = await admin.from("agency_business_identity").update({ public_name: statedName }).eq("tenant_id", input.tenantId);
+    if (nameErr) notes.push(`public name not updated: ${nameErr.message}`);
+    else {
+      identityRow = { ...identityRow, public_name: statedName };
+      bustIdentityCache(input.tenantId);
+    }
   }
   const logoUrl = await resolveLogoUrl(admin, input.tenantId, facts);
   const hrefs = pageHrefsFor(family);
@@ -454,26 +477,36 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   const themePatch = themeGate.normalized;
   if (paletteResult.demoted.length > 0) notes.push(`palette demoted: ${paletteResult.demoted.join(", ")}`);
 
-  // 6. Images: owner media, then stock for the type.
+  // 6. Images: owner media, the tenant's own generated images, then the pool
+  //    for the type (tag matches first), the family, the universal pack.
   const stockAltFallback: Bilingual = {
     es: identity.city ? `${typeRow ? typeRow.label.es : typeId} en ${identity.city}` : (typeRow ? typeRow.label.es : typeId),
     en: identity.city ? `${typeRow ? typeRow.label.en : typeId} in ${identity.city}` : (typeRow ? typeRow.label.en : typeId),
   };
-  const [owner, stock] = await Promise.all([loadOwnerImages(admin, input.tenantId), queryLifestyleStockForType(admin, { businessType: typeId, family })]);
-  const { resolve: images, picks } = buildImageResolver([
-    ...owner.map((o) => ({ ...o, level: "owner" as const })),
-    ...stock.map<CandidateImage>((s) => ({
-      src: s.url,
-      width: s.width,
-      height: s.height,
-      // A stock image with no alt would block publish (alt is a floor
-      // requirement); say what it is for, from the facts, never from a guess.
-      alt: s.alt.es.trim() || s.alt.en.trim() ? s.alt : stockAltFallback,
-      role: s.role,
-      owner: false,
-      level: s.businessType ? "type" : s.family === family ? "family" : "universal",
-    })),
-  ]);
+  const stockFacts = stockFactsFromBrief(brief, family);
+  const briefTags = Object.fromEntries(Object.entries(stockFacts).filter(([, v]) => typeof v === "string")) as Record<string, string>;
+  const [owner, stock] = await Promise.all([loadOwnerImages(admin, input.tenantId), queryLifestyleStockForType(admin, { businessType: typeId, family, forTenantId: input.tenantId })]);
+  const { resolve: images, picks } = buildImageResolver(
+    [
+      ...owner.map((o) => ({ ...o, level: "owner" as const })),
+      ...stock.map<CandidateImage>((s) => ({
+        src: s.url,
+        width: s.width,
+        height: s.height,
+        // A stock image with no alt would block publish (alt is a floor
+        // requirement); say what it is for, from the facts, never from a guess.
+        alt: s.alt.es.trim() || s.alt.en.trim() ? s.alt : stockAltFallback,
+        role: s.role,
+        owner: false,
+        level: s.originTenantId === input.tenantId ? "tenant" : s.businessType ? "type" : s.family === family ? "family" : "universal",
+        stockId: s.id,
+        direction: s.direction,
+        tags: s.tags,
+        timesPlaced: s.timesPlaced,
+      })),
+    ],
+    { briefTags },
+  );
   if (stock.length === 0 && owner.length === 0) notes.push("no owner media and no stock for this type");
 
   // 7. Components from facts.
@@ -620,6 +653,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
 
   const { error: themeErr } = await admin.from("agency_branding").upsert({ tenant_id: input.tenantId, theme_json_draft: themePatch, ...(input.publish ? { theme_json: themePatch } : {}) } as never, { onConflict: "tenant_id" });
   if (themeErr) notes.push(`theme draft not written: ${themeErr.message}`);
+  else bustBrandingCache(input.tenantId);
 
   const home = await ensureHomepageRow(admin, { tenantId: input.tenantId, locale: writeLocale });
   if (!home.ok) return fail(`homepage row: ${home.code ?? "ensure failed"}`, { lookId: look.id, typeId, family });
@@ -695,18 +729,49 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   const outcome: ComposeOutcome = degraded ? "fallback_used" : !logoUrl ? "missing_logo" : "composed";
   if (!logoUrl) notes.push("no logo; the wordmark carries the header");
 
+  // 10b. Store the selection (03 §5) and, for a verified account, enqueue the
+  //      per-site generation (03 §4b). Neither blocks arrival.
+  const placedPicks = picks.filter((p) => p.src);
+  const assignments = await writeAssignments(admin, {
+    tenantId: input.tenantId,
+    siteComposeId,
+    picks: placedPicks.map((p) => ({ pageRole: p.page, slot: p.slot, assetId: p.stockId, src: p.src as string, source: assignmentSourceForLevel(p.level ?? "universal"), direction: p.direction })),
+  });
+  if (assignments.error) notes.push(`assignments not stored: ${assignments.error}`);
+  let pendingJobId: string | null = null;
+  if (!assignments.error && placedPicks.length > 0) {
+    const job = await enqueueTenantImageJob(admin, {
+      tenantId: input.tenantId,
+      actorProfileId: input.actorProfileId ?? null,
+      siteComposeId,
+      typeId,
+      family,
+      facts: stockFacts,
+      slots: placedPicks.filter((p) => p.level !== "owner" && p.level !== "tenant").map((p) => ({ pageRole: p.page, slot: p.slot })),
+    });
+    if (job.ok) pendingJobId = job.jobId;
+    else notes.push(`tenant images: ${job.reason}`);
+  }
+
   // What was REALLY placed, so the arrival copy claims nothing more.
-  const heroPick = picks.find((p) => p.slot === "hero");
-  const levelRank = { owner: 0, type: 1, family: 2, universal: 3 } as const;
+  const heroPick = picks.find((p) => p.slot === "hero" && p.page === "home") ?? picks.find((p) => p.slot === "hero");
+  const levelRank = { owner: 0, tenant: 1, type: 2, family: 3, universal: 4 } as const;
   const worst = picks.filter((p) => p.level).map((p) => p.level as keyof typeof levelRank).sort((a, b) => levelRank[b] - levelRank[a])[0] ?? null;
   const placed: SiteComposePlaced = {
-    photos: { hero: heroPick?.level ?? null, gallery: picks.filter((p) => p.slot.startsWith("gallery") && p.source !== "none").length, level: worst },
+    photos: {
+      hero: heroPick?.level ?? null,
+      heroSource: heroPick?.level ? assignmentSourceForLevel(heroPick.level) : null,
+      gallery: picks.filter((p) => p.slot.startsWith("gallery") && p.source !== "none").length,
+      level: worst,
+      pendingJobId,
+    },
     menuItems: 0, // the menu board reads live offerings; intake's import writes them, not the composer
     hoursPresent: (identity.hours ?? []).length > 0,
     whatsappPresent: !!identity.whatsapp && identity.whatsapp.replace(/\D/g, "").length >= 8,
     logoPresent: !!logoUrl,
   };
   await writeStamp(admin, input.tenantId, { outcome, siteComposeId, lookId: look.id, typeId, family, at: new Date().toISOString(), pageIds, placed, copySource, notes, headline: copyOverrides["home.offer.headline"] ?? null });
+  bustAllTenantCaches(input.tenantId);
 
   return { outcome, siteComposeId, lookId: look.id, typeId, family, pageIds, shellPageId: shell.ok ? shell.pageId : null, copySource, imagePicks, placed, notes, costUsd, durationMs: Date.now() - started };
 }
