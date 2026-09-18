@@ -115,6 +115,13 @@ test("nothing pending: a single reassuring 'all clear' task", () => {
   assert.deepEqual(tasks, [{ key: "all_clear", title: "Nothing to do", why: "No action is needed right now.", primary: true }]);
 });
 
+test("gathering with nothing on the table asks for items; a draft offer asks to send it", () => {
+  assert.equal(deriveTasks(base({ opportunityState: "gathering" }))[0].key, "add_items");
+  const chips = [{ kind: "offer" as const, paymentState: null, fulfilmentState: null }];
+  assert.equal(deriveTasks(base({ opportunityState: "gathering", recordChips: chips }))[0].key, "send_offer");
+  assert.equal(deriveTasks(base({ opportunityState: "gathering", conversationState: "needs_reply", unanswered: true }))[0].key, "reply");
+});
+
 test("talent confirmations pending surface with a count in the sentence", () => {
   const tasks = deriveTasks(base({ talentConfirmationsPending: 2 }));
   assert.equal(tasks[0].key, "confirm_talent");

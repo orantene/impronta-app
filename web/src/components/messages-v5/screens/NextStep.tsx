@@ -25,6 +25,8 @@ export const TASK_ACTION: Readonly<Record<string, ShellActionId | null>> = {
   send_reminder: "remind",
   confirm_talent: "confirm",
   closed: "reopen",
+  add_items: "add_items",
+  send_offer: "create_offer",
   all_clear: null,
 };
 

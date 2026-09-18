@@ -117,6 +117,18 @@ export function deriveTasks(input: DeriveTasksInput): DerivedTask[] {
     });
   }
 
+  // The selling ladder (owner ruling 4): while the opportunity is still
+  // gathering, the one next thing is to put items on the table, then to
+  // send the offer that already exists as a draft.
+  if (input.opportunityState === "gathering" && candidates.length === 0) {
+    const draftOffer = input.recordChips.some((chip) => chip.kind === "offer");
+    candidates.push(
+      draftOffer
+        ? { key: "send_offer", title: "Send the offer", why: "A draft offer is waiting to be sent." }
+        : { key: "add_items", title: "Add items", why: "Nothing is on the table yet. Add what the client is asking for." },
+    );
+  }
+
   if (candidates.length === 0) {
     candidates.push({ key: "all_clear", title: "Nothing to do", why: "No action is needed right now." });
   }
