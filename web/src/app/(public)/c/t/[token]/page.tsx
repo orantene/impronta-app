@@ -2,15 +2,21 @@ import { notFound } from "next/navigation";
 
 import { BoardPreview } from "@/components/admin/pos/messages/preview/BoardPreview";
 import { KitPreview } from "@/components/messages-v5/kit/preview/KitPreview";
+import { ClientThread } from "@/components/messages-v5/client/ClientThread";
 import { ShellPreview } from "@/components/messages-v5/shell/ShellPreview";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { loadClientLinkBusiness, loadClientOfferSummaries, loadOpenPaymentCode } from "@/lib/messaging/client-link";
 import { customerVisibleMessages, loadMessagingThread } from "@/lib/messaging/thread";
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
 
-import { CustomerThread } from "./CustomerThread";
-
 export const dynamic = "force-dynamic";
 
+/**
+ * The client's secure thread link (L9, boards C01/C02). Token verification
+ * and the server render are unchanged from the POS-era page; the
+ * presentation is the Messages v5 client thread, with the client's actions
+ * wired through `lib/server-actions/messaging-client.ts`.
+ */
 export default async function PublicConversationPage({
   params,
   searchParams,
@@ -31,15 +37,24 @@ export default async function PublicConversationPage({
   if (!verified.ok) notFound();
   const admin = createServiceRoleClient();
   if (!admin) notFound();
-  const thread = await loadMessagingThread(admin, {
-    tenantId: verified.tenantId,
-    inquiryId: verified.inquiryId,
-  });
+  const scope = { tenantId: verified.tenantId, inquiryId: verified.inquiryId };
+  const thread = await loadMessagingThread(admin, scope);
   if (!thread.ok) notFound();
+  const [business, offers, payCode] = await Promise.all([
+    loadClientLinkBusiness(admin, scope),
+    loadClientOfferSummaries(admin, scope),
+    loadOpenPaymentCode(admin, scope),
+  ]);
+  // `customerVisibleMessages` is the client reader (D-MSG-2): client thread only, no internal notes.
+  const messages = customerVisibleMessages(thread.messages).map(({ render: _render, ...message }) => message);
   return (
-    <CustomerThread
+    <ClientThread
       token={token}
-      messages={customerVisibleMessages(thread.messages)}
+      locale={business.locale}
+      business={{ name: business.name, handlerFirstName: business.handlerFirstName }}
+      messages={messages}
+      offers={offers}
+      payCode={payCode}
     />
   );
 }

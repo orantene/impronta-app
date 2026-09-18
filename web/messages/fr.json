@@ -7588,6 +7588,137 @@
           "linked": "Lié à une fiche client. Le client ne l'a pas encore confirmé.",
           "confirmed": "Le client a confirmé qu'il s'agit de lui.",
           "granted": "Le client a accordé l'accès depuis son propre lien."
+        },
+        "link": {
+          "header": {
+            "handling": "{name} s'occupe de votre demande",
+            "handlingTeam": "L'équipe s'occupe de votre demande"
+          },
+          "stream": {
+            "you": "Vous",
+            "today": "Aujourd'hui",
+            "yesterday": "Hier",
+            "emptyTitle": "Rien pour l'instant",
+            "emptyBody": "Quand {business} vous écrira, cela apparaîtra ici. Vous pouvez écrire en premier.",
+            "loading": "Chargement de votre conversation"
+          },
+          "composer": {
+            "placeholder": "Écrire à {business}",
+            "send": "Envoyer",
+            "sending": "Envoi",
+            "failed": "Votre message n'a pas été envoyé.",
+            "retry": "Réessayer",
+            "sent": "Envoyé"
+          },
+          "footer": {
+            "secure": "Lien sécurisé · valable pour votre réservation",
+            "saveToEmail": "Enregistrer cette conversation dans votre e-mail",
+            "saveToEmailSoon": "L'enregistrement par e-mail n'est pas encore disponible depuis ce lien"
+          },
+          "choices": {
+            "cat": "Choisir",
+            "title": "Vos options",
+            "hint": "Choisissez ce qui vous plaît. {business} confirme le prix et la disponibilité avant toute réservation.",
+            "chosenCount": "{count} choisi(s)",
+            "send": "Envoyer mon choix",
+            "sending": "Envoi",
+            "sentTitle": "Choix envoyé",
+            "sentBody": "{business} confirmera avant toute réservation.",
+            "addMore": "En ajouter un autre",
+            "noOptions": "Aucune option à choisir.",
+            "closed": "Ces options ne sont plus ouvertes."
+          },
+          "times": {
+            "cat": "Horaires",
+            "title": "Choisir un horaire",
+            "titleWith": "Choisir un horaire avec {name}",
+            "hint": "Votre choix bloque l'horaire 15 minutes pendant que {business} confirme.",
+            "pick": "Choisir",
+            "holding": "Réservation",
+            "held": "{slot} est réservé pour vous · {left} restant",
+            "heldNoClock": "{slot} est réservé pour vous",
+            "holdEnded": "La réservation temporaire a expiré. Choisissez un autre horaire ou écrivez à {business}.",
+            "taken": "Cet horaire vient d'être pris. Choisissez-en un autre ou écrivez à {business}.",
+            "noSlots": "Aucun horaire à choisir pour l'instant."
+          },
+          "offer": {
+            "cat": "Offre",
+            "title": "Votre offre",
+            "version": "v{version}",
+            "total": "Total",
+            "depositLine": "Acompte pour confirmer · solde le jour même",
+            "depositPct": "Acompte de {pct} % pour confirmer · solde le jour même",
+            "refund": {
+              "tiered": "remboursable de façon dégressive avant la date",
+              "flexible": "entièrement remboursable jusqu'à peu avant la date",
+              "strict": "non remboursable une fois payé",
+              "manual": "remboursements examinés par {business}"
+            },
+            "validUntil": "Valable jusqu'au {date}",
+            "acceptPay": "Accepter et payer l'acompte · {amount}",
+            "accept": "Accepter cette offre",
+            "accepting": "Acceptation",
+            "askChange": "Demander un changement",
+            "decline": "Refuser",
+            "accepted": "Acceptée",
+            "acceptedPayNext": "Acceptée. Prochaine étape : payer l'acompte pour confirmer.",
+            "acceptedPayLater": "Acceptée. {business} vous enverra un lien de paiement pour confirmer.",
+            "declined": "Refusée",
+            "expired": "Cette offre a expiré. Demandez-en une nouvelle à {business}.",
+            "superseded": "Une version plus récente a remplacé cette offre.",
+            "unitsSuffix": "× {units}",
+            "note": "Note de {business}"
+          },
+          "change": {
+            "cat": "Demande de changement",
+            "title": "Demander un changement",
+            "prompt": "Dites à {business} ce que vous souhaitez changer.",
+            "placeholder": "Par exemple : pourrions-nous commencer une heure plus tard ?",
+            "send": "Envoyer la demande",
+            "sending": "Envoi",
+            "cancel": "Annuler",
+            "sent": "Envoyée",
+            "sentBody": "{business} répondra avec le nouveau prix et ce qui reste inchangé. Rien ne change tant que vous n'avez pas confirmé.",
+            "applied": "Appliqué",
+            "appliedBody": "Le changement a été appliqué.",
+            "declined": "Impossible",
+            "declinedBody": "{business} n'a pas pu faire ce changement."
+          },
+          "decline": {
+            "prompt": "Dites à {business} pourquoi, pour qu'ils puissent vous aider.",
+            "placeholder": "Facultatif",
+            "confirm": "Refuser cette offre",
+            "declining": "Refus",
+            "cancel": "Garder l'offre"
+          },
+          "pay": {
+            "cat": "Paiement",
+            "title": "Demande de paiement",
+            "deposit": "Acompte",
+            "full": "Montant total",
+            "pay": "Payer {amount}",
+            "paid": "Payé",
+            "expired": "Ce lien de paiement a expiré. Demandez-en un nouveau à {business}.",
+            "expiresAt": "Lien valable jusqu'au {date}",
+            "keepSlot": "Payer conserve votre réservation."
+          },
+          "confirmed": {
+            "catBooking": "Réservé",
+            "catOrder": "Commande",
+            "pill": "Confirmé",
+            "when": "Quand",
+            "askChange": "Demander un changement",
+            "receipt": "Reçu",
+            "receiptSoon": "Votre reçu sera bientôt disponible ici."
+          },
+          "draft": {
+            "cat": "Votre commande",
+            "title": "Ce que vous avez choisi jusqu'ici",
+            "hint": "{business} confirme avant tout prélèvement."
+          },
+          "generic": {
+            "message": "Message"
+          }
         }
       },
       "history": {

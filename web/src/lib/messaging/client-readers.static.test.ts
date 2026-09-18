@@ -144,3 +144,28 @@ test("pay page and the sent-basket snapshot read label, units and unit price onl
   const request = engine.slice(engine.indexOf("export async function messagingRequestPayment"));
   assert.match(selectArg(request, 'scoped(g.admin, "order_lines", g.tenantId)'), /\.select\("id, label, units, unit_cents"\)/);
 });
+
+/**
+ * L9 (D-MSG-165): the client LINK thread (/c/t/[token]) has its own readers.
+ * `loadClientOfferSummaries` is the client-audience twin of the staff
+ * `loadOfferForEditor` (D-MSG-133): an explicit column list with no
+ * staff-only money or authorship column, and the page renders through
+ * `customerVisibleMessages` (the D-MSG-2 client reader), never the staff
+ * thread directly.
+ */
+test("client link readers (L9): offer summary selects are closed against staff-only columns; the page uses the client reader", () => {
+  const link = src("lib/messaging/client-link.ts");
+  const offerSelect = selectArg(link, '.from("inquiry_offers")');
+  const lineSelect = selectArg(link, '.from("inquiry_offer_line_items")');
+  for (const column of [...STAFF_ONLY_LINE_COLUMNS, "coordinator_fee", "platform_fee", "talent_cost"]) {
+    assert.doesNotMatch(offerSelect, new RegExp(`\\b${column}\\b`), `client offer select must not read ${column}`);
+    assert.doesNotMatch(lineSelect, new RegExp(`\\b${column}\\b`), `client line select must not read ${column}`);
+  }
+  assert.match(lineSelect, /\.select\("offer_id, label, units, total_price, sort_order"\)/);
+  const page = src("app/(public)/c/t/[token]/page.tsx");
+  assert.match(page, /customerVisibleMessages\(thread\.messages\)/);
+  assert.doesNotMatch(page, /<CustomerThread/, "the POS-era CustomerThread is no longer the token page's presentation");
+  // The client actions file reads inquiry_messages through the tenant-scoped helper and never selects a staff-only column.
+  const actions = src("lib/server-actions/messaging-client.ts");
+  assert.doesNotMatch(actions, /talent_cost|coordinator_fee|discount_cents|tax_cents|proposed_by/);
+});
