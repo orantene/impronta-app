@@ -95,9 +95,10 @@ export type MiniChatPanelColumnProps = {
    * humanized coordinator header. Null pre-send.
    */
   receipt?: InquiryReceiptData | null;
-  /** L13: v5 extras from the full thread load + the full-load bump after a card action. */
+  /** L13: v5 extras, the full-load bump after a card action, and the early-row ensure for catalog adds. */
   v5?: GuestThreadV5Extras | null;
   onRefreshThread?: () => void;
+  onEnsureInquiryForItems?: (() => Promise<string | null>) | null;
   emailedTo: string | null;
   seenAtByInquiry: Record<string, string>;
   pulseActive: boolean;
@@ -292,6 +293,7 @@ export function MiniChatPanelColumn({
   receipt = null,
   v5 = null,
   onRefreshThread,
+  onEnsureInquiryForItems = null,
   emailedTo,
   seenAtByInquiry,
   pulseActive,
@@ -418,7 +420,6 @@ export function MiniChatPanelColumn({
   // DOCK v2.1 — the details sheet is opened from the HEADER icon (the old
   // composer-area pill gave up too much real estate); the in-chat thread
   // switcher is a slide-over drawer, also header-triggered.
-  // L13: one card model + clock per thread (stream card rows + next step).
   const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk });
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -521,6 +522,7 @@ export function MiniChatPanelColumn({
           onRemoveCartTalent={onRemoveCartTalent}
           onStartInquiry={startInquiryInChat}
           {...dock.lineupItemsProps}
+          catalog={dock.catalogProps({ tenantSlug, inquiryId, sourcePage, onEnsureInquiry: onEnsureInquiryForItems, onAsk: (text) => { onDraftChange(text); onDockViewChange?.("chat"); } })}
         />
       )}
 

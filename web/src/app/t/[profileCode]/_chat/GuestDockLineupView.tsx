@@ -43,6 +43,7 @@ import { useCartTalents } from "./use-cart-talents";
 import { AVATAR_GROUND, FACE_OBJECT_POSITION, PERSON_SILHOUETTE_SVG } from "./launcher-avatar-styles";
 import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
 import { GuestDockItemsShelf } from "./GuestDockItemsShelf";
+import { GuestDockCatalog, type GuestDockCatalogProps } from "./GuestDockCatalog";
 import type { GuestConversationItems } from "@/lib/inquiry/guest-chat-contract";
 
 export type GuestDockLineupViewProps = {
@@ -67,6 +68,8 @@ export type GuestDockLineupViewProps = {
   locale?: string;
   /** False on a business that sells things, not people (restaurant, venue): the empty copy stops saying "talent". */
   representsPeople?: boolean;
+  /** L13 wave 5: the business's catalog (browse + add) rendered above the shelves. */
+  catalog?: GuestDockCatalogProps | null;
 };
 
 type SavedTile = {
@@ -209,6 +212,7 @@ export function GuestDockLineupView({
   businessName = "",
   locale = "en",
   representsPeople = true,
+  catalog = null,
 }: GuestDockLineupViewProps) {
   const C = paletteFor(surfaceMode);
   // Shelf A — the inquiry lineup (cart). Same projection the launcher rail uses:
@@ -350,6 +354,13 @@ export function GuestDockLineupView({
           transition: "background 120ms",
         }}
       >
+      {catalog ? (
+        <>
+          <ShelfHeader label={t("public.guestChat.catalogShelf")} count={0} C={C} />
+          <GuestDockCatalog {...catalog} />
+        </>
+      ) : null}
+
       <ShelfHeader
         label={t("public.guestChat.dockLineupShelfInquiry")}
         count={cartTalents.length}

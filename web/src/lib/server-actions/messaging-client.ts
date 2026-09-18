@@ -192,6 +192,45 @@ export async function messagingClientPickTime(input: { token: string; messageId:
   return { ok: true, holdExpiresAt: hold.expiresAt };
 }
 
+/* ---------- 3b. add an item from the catalog (L13 wave 5) ---------- */
+
+/**
+ * The client adds a priced item to the conversation's shared draft from the
+ * dock's Items tab, with no card in between. Same writer and the same
+ * `proposedBy: "client"` as `messagingClientChoose`; a line never books
+ * (owner decision 3), staff confirm and price it in the offer.
+ */
+export async function messagingClientAddItem(input: {
+  token: string;
+  offeringId: string;
+  label: string;
+  units?: number;
+  sessionId?: string | null;
+}): Promise<ActionResult<{ orderId: string }>> {
+  const parsed = z
+    .object({
+      token: z.string().min(1),
+      offeringId: z.string().min(1),
+      label: z.string().max(200),
+      units: z.number().int().min(1).max(50).optional(),
+      sessionId: z.string().uuid().nullable().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const l = await link(parsed.data.token);
+  if (isFail(l)) return l;
+  const draft = await sharedDraft(l);
+  if (isFail(draft)) return draft;
+  const added = await addLine(l.admin, {
+    tenantId: l.tenantId,
+    orderId: draft.orderId,
+    line: { offeringId: parsed.data.offeringId, units: parsed.data.units ?? 1, sessionId: parsed.data.sessionId ?? null },
+    proposedBy: "client",
+  });
+  if (!added.ok) return fail(added.reason === "conflict" ? "conflict" : "unavailable");
+  return { ok: true, orderId: draft.orderId };
+}
+
 /* ---------- 4. accept / decline an exact offer version (D-MSG-162) ---------- */
 
 type OfferRow = { id: string; inquiry_id: string; status: string; version: number; valid_until: string | null; total_client_price?: number | string | null; currency_code?: string | null };
