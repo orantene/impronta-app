@@ -12,14 +12,14 @@ function render(width: number) {
   return renderToStaticMarkup(<MessagesV5Shell tenantId={FIXTURE_TENANT} tenantSlug="fixture" currentUserId="user-ana" engine={fixtureShellEngine()} forceWidth={width} live={false} />);
 }
 
-test("the shell's root class per width: three columns at 1440, .tab at 1194, .one at 390; the first paint is the inbox skeleton and the empty thread", () => {
+test("the shell's root class per width: three columns at 1440, .tab at 954 (a 1194 viewport), .one at 390; the first paint is the inbox skeleton and the empty thread", () => {
   const three = render(1440);
   assert.match(three, /class="msgv5 msgs" data-messages-v5="true" data-layout="three"/);
   assert.match(three, /data-inbox-pane="desktop"/);
   assert.match(three, /data-skeleton/);
   assert.match(three, /data-thread="none"/);
   assert.match(three, /data-context-panel="empty"/);
-  const two = render(1194);
+  const two = render(954);
   assert.match(two, /class="msgv5 msgs tab" data-messages-v5="true" data-layout="two"/);
   assert.doesNotMatch(two, /data-context-panel/);
   const one = render(390);

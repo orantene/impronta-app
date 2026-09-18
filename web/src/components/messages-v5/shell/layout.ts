@@ -3,15 +3,15 @@
  * so the dev preview can draw 390 / 1194 / 1440 side by side and each frame
  * lays itself out the way the board for that width does.
  *
- *   three  ≥ 1200   inbox 340 | thread | context 330 as cards on the ground (D01)
- *   two    900–1199 inbox 300 | thread; context is a right drawer (D11)
+ *   three  ≥ 1100   inbox 340 | thread | context 330 as cards on the ground (D01)
+ *   two    900–1099 inbox 300 | thread; context is a right drawer (D11)
  *   one    < 900    inbox ⇄ thread ⇄ Details sheet, mobile kit (M01/M02/M04)
  */
 
 export type ShellLayout = "three" | "two" | "one";
 export type MobilePane = "inbox" | "thread";
 
-export const THREE_COLUMN_MIN = 1200;
+export const THREE_COLUMN_MIN = 1100;
 export const TWO_COLUMN_MIN = 900;
 
 export function layoutForWidth(width: number): ShellLayout {
@@ -20,7 +20,9 @@ export function layoutForWidth(width: number): ShellLayout {
   return "one";
 }
 
-/** The mobile kit below 900; the desktop grammar (also at 1194) above. */
+/** The mobile kit below 900; the desktop grammar above. Widths are the shell's
+ * CONTAINER (viewport minus the 240px workspace sidebar): a 13-inch 1194
+ * viewport is a ~950 container and gets the drawer (D11). */
 export function variantForLayout(layout: ShellLayout): "desktop" | "mobile" {
   return layout === "one" ? "mobile" : "desktop";
 }

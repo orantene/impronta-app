@@ -3,11 +3,11 @@ import { test } from "node:test";
 
 import { contextPlacement, layoutForWidth, shellClassName, variantForLayout } from "./layout";
 
-test("breakpoints: ≥1200 three columns, 900–1199 two, <900 one", () => {
+test("breakpoints: ≥1100 three columns, 900–1099 two, <900 one", () => {
   assert.equal(layoutForWidth(1440), "three");
-  assert.equal(layoutForWidth(1200), "three");
-  assert.equal(layoutForWidth(1199), "two");
-  assert.equal(layoutForWidth(1194), "two");
+  assert.equal(layoutForWidth(1100), "three");
+  assert.equal(layoutForWidth(1099), "two");
+  assert.equal(layoutForWidth(954), "two");
   assert.equal(layoutForWidth(1024), "two");
   assert.equal(layoutForWidth(900), "two");
   assert.equal(layoutForWidth(899), "one");
@@ -24,7 +24,7 @@ test("class output per layout: the grid, .tab, .one with the active pane, the dr
   assert.doesNotMatch(shellClassName({ layout: "three", pane: "inbox", drawerOpen: true, overlay: false }), /drawer/);
 });
 
-test("the mobile kit below 900, the desktop grammar above (also at 1194); the context panel is a column, a drawer, then a sheet", () => {
+test("the mobile kit below 900, the desktop grammar above (a 1194 viewport is a 954 container); the context panel is a column, a drawer, then a sheet", () => {
   assert.equal(variantForLayout("three"), "desktop");
   assert.equal(variantForLayout("two"), "desktop");
   assert.equal(variantForLayout("one"), "mobile");
