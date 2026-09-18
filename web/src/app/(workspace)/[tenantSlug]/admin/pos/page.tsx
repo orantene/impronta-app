@@ -278,6 +278,7 @@ export default async function PosPage({
       locale,
       mode,
       tenantId: scope.tenantId,
+      tenantSlug,
       posPath: await currentAdminPath(tenantSlug),
       orderId: typeof q.order === "string" ? q.order : null,
       messagesUnread,

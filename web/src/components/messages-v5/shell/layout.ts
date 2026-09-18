@@ -33,6 +33,13 @@ export type ShellClassInput = {
   readonly drawerOpen: boolean;
   /** Something modal (sheet / drawer / tray) is open; the root gets `has-overlay`. */
   readonly overlay: boolean;
+  /**
+   * L10 (D-MSG-172), additive: the POS "This customer" dock view hides the
+   * inbox rail (the dock draws its own This customer / Inbox tabs outside
+   * the shell) so the thread + context panel get the full width instead.
+   * Absent/false: unchanged three/two/one behaviour.
+   */
+  readonly hideInboxRail?: boolean;
 };
 
 /**
@@ -49,6 +56,7 @@ export function shellClassName(input: ShellClassInput): string {
   }
   if (input.layout === "two" && input.drawerOpen) parts.push("drawer-open");
   if (input.overlay) parts.push("has-overlay");
+  if (input.hideInboxRail) parts.push("hide-inbox");
   return parts.join(" ");
 }
 

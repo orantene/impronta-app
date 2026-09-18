@@ -22,6 +22,11 @@
   overflow: hidden;
 }
 .msgv5.msgs.tab { grid-template-columns: 300px minmax(0, 1fr); padding: 14px 16px; }
+/* L10 (D-MSG-172): the POS "This customer" dock hides the inbox rail so the
+   thread + context panel take the width the inbox column would have used. */
+.msgv5.msgs.hide-inbox { grid-template-columns: minmax(0, 1fr) 330px; }
+.msgv5.msgs.tab.hide-inbox { grid-template-columns: minmax(0, 1fr); }
+.msgv5.msgs.hide-inbox > .pane.inbox { display: none; }
 .msgv5.msgs.one { display: block; padding: 0; background: var(--msgv5-card); font-size: 15px; }
 .msgv5.msgs.one > .pane { display: none; border: 0; border-radius: 0; height: 100%; }
 .msgv5.msgs.one.pane-inbox > .pane.inbox { display: flex; }

@@ -70,6 +70,13 @@ export type MessagesV5ShellProps = {
   readonly engine?: ShellEngine;
   readonly forceWidth?: number;
   readonly live?: boolean;
+  /**
+   * L10 (D-MSG-172), additive: hides the inbox rail (thread + context panel
+   * take the full width). The POS "This customer" dock view uses this so its
+   * own tab strip, not a second inbox list, is how the person gets to Inbox.
+   * Absent/false: unchanged.
+   */
+  readonly hideInboxRail?: boolean;
 };
 
 type SheetName = "assign" | "handover" | "lost" | "link" | "history" | "tasks" | "client" | "details" | "new" | null;
@@ -83,7 +90,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [layout, setLayout] = useState<ShellLayout>(props.forceWidth ? layoutForWidth(props.forceWidth) : "three");
-  const [pane, setPane] = useState<MobilePane>("inbox");
+  const [pane, setPane] = useState<MobilePane>(props.hideInboxRail ? "thread" : "inbox");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const variant = variantForLayout(layout);
   const placement = contextPlacement(layout);
@@ -516,7 +523,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       locale={locale}
       origin={typeof window === "undefined" ? undefined : window.location.origin}
       headerBusy={headerBusy}
-      onBack={layout === "one" ? () => setPane("inbox") : undefined}
+      onBack={layout === "one" && !props.hideInboxRail ? () => setPane("inbox") : undefined}
       onAction={(id) => dispatch(id)}
       onCopyText={(text) => void copyText(text).then((ok) => setNotice(ok ? { kind: "ok", text: copy.shell.linkCopied } : { kind: "refusal", code: "unavailable" }))}
       onRetryLoad={() => void loadThread(activeRow.id)}
@@ -638,8 +645,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const s = copy.shell;
 
   return (
-    <div ref={rootRef} className={shellClassName({ layout, pane, drawerOpen, overlay })} data-messages-v5 data-layout={layout}>
-      {inbox}
+    <div ref={rootRef} className={shellClassName({ layout, pane, drawerOpen, overlay, hideInboxRail: props.hideInboxRail })} data-messages-v5 data-layout={layout}>
+      {props.hideInboxRail ? null : inbox}
       {thread}
       {placement === "column" ? (panel ?? <section className="pane panel" data-context-panel="empty" />) : null}
       {placement === "drawer" && activeRow ? <ContextDrawer {...panelProps} open={drawerOpen} onClose={() => setDrawerOpen(false)} /> : null}

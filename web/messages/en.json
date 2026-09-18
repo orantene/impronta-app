@@ -18842,6 +18842,17 @@
         "secureLink": "Copy secure ticket link",
         "checkedInOf": "Checked in {checkedIn} of {total}",
         "quantity": "{count} × {label}"
+      },
+      "pos": {
+        "thisClient": "This client",
+        "inbox": "Inbox",
+        "phoneSale": "Sale",
+        "phoneOrders": "Orders",
+        "phoneMessages": "Messages",
+        "phoneClients": "Clients",
+        "phoneMore": "More",
+        "noThreadYet": "No conversation for this sale yet",
+        "noThreadBody": "Messages linked to this sale will show up here."
       }
     }
   },

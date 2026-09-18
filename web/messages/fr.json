@@ -7819,6 +7819,17 @@
         "secureLink": "Copier le lien sécurisé du billet",
         "checkedInOf": "Enregistrés {checkedIn} sur {total}",
         "quantity": "{count} billets de {label}"
+      },
+      "pos": {
+        "thisClient": "Ce client",
+        "inbox": "Boîte de réception",
+        "phoneSale": "Vente",
+        "phoneOrders": "Commandes",
+        "phoneMessages": "Messages",
+        "phoneClients": "Clients",
+        "phoneMore": "Plus",
+        "noThreadYet": "Pas encore de conversation pour cette vente",
+        "noThreadBody": "Les messages liés à cette vente apparaîtront ici."
       }
     }
   },
