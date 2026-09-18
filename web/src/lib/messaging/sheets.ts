@@ -132,13 +132,24 @@ export async function loadCheckoutSnapshots(admin: Admin, input: { tenantId: str
 
 /* ── offer ─────────────────────────────────────────────────────────────────── */
 
-export type OfferRow = { id: string; status: string; version: number; totalClientPrice: number; updatedAt: string };
+export type OfferRow = {
+  id: string;
+  status: string;
+  version: number;
+  totalClientPrice: number;
+  updatedAt: string;
+  /** L7 (D-MSG-14x), additive: the offer's own deposit rule, read by
+   * `lib/messages-v5/payment-view.ts`'s `depositFor`. Both null means no
+   * deposit rule on this offer. */
+  depositPct: number | null;
+  depositAmountCents: number | null;
+};
 
 /** The inquiry's offers, newest first. `draft` can be sent; `sent` can be reminded or revised. */
 export async function loadInquiryOffers(admin: Admin, input: { tenantId: string; inquiryId: string }): Promise<OfferRow[]> {
   const { data, error } = await admin
     .from("inquiry_offers")
-    .select("id, status, version, total_client_price, updated_at")
+    .select("id, status, version, total_client_price, updated_at, deposit_pct, deposit_amount_cents")
     .eq("tenant_id", input.tenantId)
     .eq("inquiry_id", input.inquiryId)
     .order("created_at", { ascending: false })
@@ -150,6 +161,8 @@ export async function loadInquiryOffers(admin: Admin, input: { tenantId: string;
     version: Number(row.version ?? 1),
     totalClientPrice: Number(row.total_client_price ?? 0),
     updatedAt: String(row.updated_at ?? ""),
+    depositPct: row.deposit_pct == null ? null : Number(row.deposit_pct),
+    depositAmountCents: row.deposit_amount_cents == null ? null : Number(row.deposit_amount_cents),
   }));
 }
 
