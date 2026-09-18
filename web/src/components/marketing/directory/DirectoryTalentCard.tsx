@@ -4,10 +4,9 @@ import { useRef } from "react";
 
 import { TalentCard } from "@/components/talent-cards/TalentCard";
 import {
+  CardFactStrip,
   pickAttributeLines,
   pickFitLabels,
-  TalentCardTraitRow,
-  traitRowMode,
 } from "@/components/talent-cards/talent-card-trait-row";
 import { type CaptionNorms, isRedundant, NO_CAPTION_NORMS } from "@/lib/directory/caption-norms";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
@@ -15,7 +14,6 @@ import { TalentQuickViewButton } from "@/components/directory/talent-quick-view"
 import {
   cardDesignToCssVars,
   DEFAULT_CARD_DESIGN,
-  familyToTalentCardStyle,
   resolveCardShow,
 } from "@/lib/site-admin/server/card-design-shape";
 import type { DirectoryCardRow } from "./shared";
@@ -49,7 +47,6 @@ import { toCanonicalCardData } from "./shared";
 export function DirectoryTalentCard({
   talent,
   priority,
-  index,
   captionNorms = NO_CAPTION_NORMS,
 }: {
   /** The directory row. Carries its own resolved `design` (per `agencyTenantId`,
@@ -57,7 +54,6 @@ export function DirectoryTalentCard({
    *  and fall back to the platform `classic` default. */
   talent: DirectoryCardRow;
   priority?: boolean;
-  index?: number;
   /** What is NORMAL for this grid — matching lines are dropped (see lib/directory/caption-norms). */
   captionNorms?: CaptionNorms;
 }) {
@@ -66,7 +62,10 @@ export function DirectoryTalentCard({
   const data = toCanonicalCardData(talent);
   // The tenant's explicit Card Design layout defaults win; the family only
   // decides the render branch when no explicit style was published.
-  const style = design.cardStyle ?? familyToTalentCardStyle(design.family);
+  // Phase 1 of the hub card redesign: the public grid renders the Showcase
+  // card regardless of the hub workspace's published style. Phase 2 makes
+  // Showcase a selectable Card Design style and removes this override.
+  const style = "showcase" as const;
   // Platform grid crop: 3:4 unless the hub published its own aspect. The
   // caption sits BELOW the photo on this surface's kits, so a 4:5 portrait
   // plus caption ran taller than a phone viewport per card.
@@ -81,26 +80,16 @@ export function DirectoryTalentCard({
     ...baseShow,
     showLocation:
       baseShow.showLocation && !isRedundant(data.location, captionNorms.dominantLocation),
-    showAvailability:
-      baseShow.showAvailability &&
-      !isRedundant(data.availabilityLabel, captionNorms.dominantAvailability),
+    // The Showcase photo anchors on the availability pill; never drop it.
+    showAvailability: baseShow.showAvailability,
   };
 
-  const fitChips = pickFitLabels(data.fitLabels);
-  const traitLines = pickAttributeLines(data.cardAttributes, [], 2);
-  const traitMode = traitRowMode({
-    hasContent:
-      design.showAttributes !== "off" && (fitChips.length > 0 || traitLines.length > 0),
-    revealOnHover: (design.hover ?? "reveal_traits") === "reveal_traits",
-  });
-  const traitSlot = traitMode ? (
-    <TalentCardTraitRow
-      fitChips={fitChips}
-      traitLines={traitLines}
-      mode={traitMode}
-      onScrim={style === "portrait"}
-    />
-  ) : undefined;
+  const fitChips = pickFitLabels(data.fitLabels, 3);
+  const traitLines = pickAttributeLines(data.cardAttributes, [], 3, 3);
+  const traitSlot =
+    design.showAttributes !== "off" && (fitChips.length > 0 || traitLines.length > 0) ? (
+      <CardFactStrip fitChips={fitChips} traitLines={traitLines} tone="light" />
+    ) : undefined;
 
   const handleClickCapture =
     design.profilePopup === "off" && data.profileHref
@@ -122,13 +111,9 @@ export function DirectoryTalentCard({
   const showFavorite = design.showFavorite !== "off";
   const showInquire = design.showInquiry !== "off";
 
-  // Portrait (and Cinematic) render Inquire as a persistent caption CTA
-  // instead of the hover-only icon pill — same split as
-  // DirectoryCardAdapter on the tenant storefront, so the hub grid and every
-  // tenant's own directory read the same way once a tenant picks either style.
-  const inquiryIsPersistentCta = style === "portrait" || style === "profile";
+  // Showcase renders Inquire as a persistent panel CTA next to the price.
   const ctaSlot =
-    showInquire && inquiryIsPersistentCta ? (
+    showInquire ? (
       <TalentCardActions
         talentProfileId={talent.id}
         profileCode={talent.profileCode ?? ""}
@@ -150,7 +135,7 @@ export function DirectoryTalentCard({
       data-token-template-directory-card-family={design.family}
       data-card-design-scope=""
       data-directory-card
-      className="group/cardwrap relative"
+      className="@container group/cardwrap relative"
       onClickCapture={handleClickCapture}
     >
       <TalentCard
@@ -167,38 +152,15 @@ export function DirectoryTalentCard({
         aspect={aspect}
         density={density}
         priority={priority}
-        index={style === "editorial" ? index : undefined}
         // Platform-host surface: reviews-entitled, and the <html> standing
         // token gate never exists here — opt in the same way Discover does.
         showStanding="always"
       />
-      {/* Favorite heart + quick-view eye, always visible — the same cluster
-          DirectoryCardAdapter mounts on the storefront directory. Inquire
-          moved into the caption as a persistent CTA for portrait/profile
-          styles (`ctaSlot`, above); editorial keeps it here as a hover pill.
-          Both hooks are guest-capable, and the actions render null until the
-          discovery-state provider hydrates, so this stays safe on any surface
-          that omits the provider. */}
-      {showFavorite || (showInquire && !inquiryIsPersistentCta) || data.profileHref ? (
-        <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
-          {showInquire && !inquiryIsPersistentCta ? (
-            <div className="pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:translate-x-0 group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100">
-              <TalentCardActions
-                talentProfileId={talent.id}
-                profileCode={talent.profileCode ?? ""}
-                displayName={data.name}
-                sourcePage="/directory"
-                variant="pill"
-                hideFavorite
-                portraitUrl={talent.headshotUrl ?? null}
-                getInquiryPhotoRect={() =>
-                  mediaRef.current
-                    ?.querySelector("img")
-                    ?.getBoundingClientRect() ?? null
-                }
-              />
-            </div>
-          ) : null}
+      {/* Favorite heart + quick-view eye, always visible. Both hooks are
+          guest-capable and render null until the discovery-state provider
+          hydrates, so this stays safe on any surface without the provider. */}
+      {showFavorite || data.profileHref ? (
+        <div className="absolute right-3 top-3 z-[2] flex items-center gap-2">
           {data.profileHref ? (
             <TalentQuickViewButton
               talentProfileId={talent.id}
