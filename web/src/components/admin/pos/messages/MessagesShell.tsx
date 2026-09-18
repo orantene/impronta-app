@@ -38,8 +38,8 @@ import {
   messagingSearch,
   messagingSendOffer,
   messagingSendOptions,
-  messagingStartConversation,
 } from "@/lib/server-actions/messaging-engine";
+import { messagingStartConversation } from "@/lib/server-actions/messaging-start";
 import {
   messagingCancelBooking,
   messagingCancelPaymentLink,

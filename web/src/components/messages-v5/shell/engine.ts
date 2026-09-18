@@ -23,8 +23,8 @@ import {
   messagingRename,
   messagingReopen,
   messagingResolve,
-  messagingStartConversation,
 } from "@/lib/server-actions/messaging-engine";
+import { messagingStartConversation } from "@/lib/server-actions/messaging-start";
 import { messagingLoadHandOverTargets, messagingThreadLink } from "@/lib/server-actions/messaging-sheets";
 
 import type { ComposerActions } from "../screens/ComposerWire";

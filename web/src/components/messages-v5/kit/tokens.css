@@ -249,6 +249,7 @@
 .msgv5 .th-head .who b { font-family: var(--msgv5-display); font-size: 16px; font-weight: 700; letter-spacing: -0.25px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .msgv5 .th-head .who span { font-size: 12px; color: var(--msgv5-ink-2); display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
 .msgv5 .th-head .who .subj { overflow: hidden; text-overflow: ellipsis; display: inline; }
+.msgv5 .th-head .who .pill { flex: 0 0 auto; }
 .msgv5 .th-head .acts { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-shrink: 0; white-space: nowrap; }
 .msgv5 .th-head .r2 { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .msgv5 .stream { flex: 1; overflow: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; background: var(--msgv5-card); }
