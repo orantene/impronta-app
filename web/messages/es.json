@@ -18619,6 +18619,137 @@
           "linked": "Vinculado a un registro de cliente. El cliente aún no lo confirmó.",
           "confirmed": "El cliente confirmó que es él o ella.",
           "granted": "El cliente otorgó acceso desde su propio enlace."
+        },
+        "link": {
+          "header": {
+            "handling": "{name} atiende tu solicitud",
+            "handlingTeam": "El equipo atiende tu solicitud"
+          },
+          "stream": {
+            "you": "Tú",
+            "today": "Hoy",
+            "yesterday": "Ayer",
+            "emptyTitle": "Todavía no hay nada",
+            "emptyBody": "Cuando {business} te escriba, aparecerá aquí. Puedes escribir primero.",
+            "loading": "Cargando tu conversación"
+          },
+          "composer": {
+            "placeholder": "Escribe a {business}",
+            "send": "Enviar",
+            "sending": "Enviando",
+            "failed": "Tu mensaje no se envió.",
+            "retry": "Reintentar",
+            "sent": "Enviado"
+          },
+          "footer": {
+            "secure": "Enlace seguro · válido para tu reserva",
+            "saveToEmail": "Guardar esta conversación en tu correo",
+            "saveToEmailSoon": "Guardar en el correo aún no está disponible desde este enlace"
+          },
+          "choices": {
+            "cat": "Elige",
+            "title": "Tus opciones",
+            "hint": "Elige lo que te guste. {business} confirma precio y disponibilidad antes de reservar nada.",
+            "chosenCount": "{count} elegidas",
+            "send": "Enviar mi elección",
+            "sending": "Enviando",
+            "sentTitle": "Elección enviada",
+            "sentBody": "{business} confirmará antes de reservar nada.",
+            "addMore": "Añadir otra",
+            "noOptions": "No hay opciones para elegir.",
+            "closed": "Estas opciones ya no están abiertas."
+          },
+          "times": {
+            "cat": "Horarios",
+            "title": "Elige un horario",
+            "titleWith": "Elige un horario con {name}",
+            "hint": "Tu elección reserva el horario 15 minutos mientras {business} confirma.",
+            "pick": "Elegir",
+            "holding": "Reservando",
+            "held": "{slot} está reservado para ti · quedan {left}",
+            "heldNoClock": "{slot} está reservado para ti",
+            "holdEnded": "La reserva temporal terminó. Elige otro horario o escribe a {business}.",
+            "taken": "Ese horario se acaba de ocupar. Elige otro o escribe a {business}.",
+            "noSlots": "Aún no hay horarios para elegir."
+          },
+          "offer": {
+            "cat": "Oferta",
+            "title": "Tu oferta",
+            "version": "v{version}",
+            "total": "Total",
+            "depositLine": "Depósito para confirmar · saldo el mismo día",
+            "depositPct": "Depósito del {pct}% para confirmar · saldo el mismo día",
+            "refund": {
+              "tiered": "reembolsable de forma escalonada antes de la fecha",
+              "flexible": "reembolsable por completo hasta cerca de la fecha",
+              "strict": "no reembolsable una vez pagado",
+              "manual": "reembolsos revisados por {business}"
+            },
+            "validUntil": "Válida hasta el {date}",
+            "acceptPay": "Aceptar y pagar el depósito · {amount}",
+            "accept": "Aceptar esta oferta",
+            "accepting": "Aceptando",
+            "askChange": "Pedir un cambio",
+            "decline": "Rechazar",
+            "accepted": "Aceptada",
+            "acceptedPayNext": "Aceptada. Siguiente paso: paga el depósito para confirmar.",
+            "acceptedPayLater": "Aceptada. {business} te enviará un enlace de pago para confirmar.",
+            "declined": "Rechazada",
+            "expired": "Esta oferta venció. Pide una nueva a {business}.",
+            "superseded": "Una versión más reciente reemplazó esta oferta.",
+            "unitsSuffix": "× {units}",
+            "note": "Nota de {business}"
+          },
+          "change": {
+            "cat": "Solicitud de cambio",
+            "title": "Pedir un cambio",
+            "prompt": "Cuéntale a {business} qué te gustaría cambiar.",
+            "placeholder": "Por ejemplo: ¿podemos empezar una hora más tarde?",
+            "send": "Enviar solicitud",
+            "sending": "Enviando",
+            "cancel": "Cancelar",
+            "sent": "Enviada",
+            "sentBody": "{business} responderá con el nuevo precio y lo que se mantiene igual. Nada cambia hasta que confirmes.",
+            "applied": "Aplicado",
+            "appliedBody": "El cambio se aplicó.",
+            "declined": "No es posible",
+            "declinedBody": "{business} no pudo hacer este cambio."
+          },
+          "decline": {
+            "prompt": "Cuéntale a {business} el motivo, para que pueda ayudarte.",
+            "placeholder": "Opcional",
+            "confirm": "Rechazar esta oferta",
+            "declining": "Rechazando",
+            "cancel": "Mantener la oferta"
+          },
+          "pay": {
+            "cat": "Pago",
+            "title": "Solicitud de pago",
+            "deposit": "Depósito",
+            "full": "Importe total",
+            "pay": "Pagar {amount}",
+            "paid": "Pagado",
+            "expired": "Este enlace de pago venció. Pide uno nuevo a {business}.",
+            "expiresAt": "Enlace válido hasta el {date}",
+            "keepSlot": "Pagar mantiene tu reserva."
+          },
+          "confirmed": {
+            "catBooking": "Reservado",
+            "catOrder": "Pedido",
+            "pill": "Confirmado",
+            "when": "Cuándo",
+            "askChange": "Pedir un cambio",
+            "receipt": "Recibo",
+            "receiptSoon": "Tu recibo estará disponible aquí pronto."
+          },
+          "draft": {
+            "cat": "Tu pedido",
+            "title": "Lo que elegiste hasta ahora",
+            "hint": "{business} confirma antes de cobrar nada."
+          },
+          "generic": {
+            "message": "Mensaje"
+          }
         }
       },
       "history": {

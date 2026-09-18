@@ -18619,6 +18619,137 @@
           "linked": "Linked to a client record. The client has not confirmed it yet.",
           "confirmed": "The client confirmed this is them.",
           "granted": "The client granted access from their own link."
+        },
+        "link": {
+          "header": {
+            "handling": "{name} is handling your request",
+            "handlingTeam": "The team is handling your request"
+          },
+          "stream": {
+            "you": "You",
+            "today": "Today",
+            "yesterday": "Yesterday",
+            "emptyTitle": "Nothing here yet",
+            "emptyBody": "When {business} writes to you, it shows up here. You can write first.",
+            "loading": "Loading your conversation"
+          },
+          "composer": {
+            "placeholder": "Write to {business}",
+            "send": "Send",
+            "sending": "Sending",
+            "failed": "Your message did not send.",
+            "retry": "Try again",
+            "sent": "Sent"
+          },
+          "footer": {
+            "secure": "Secure link · valid for your booking",
+            "saveToEmail": "Save this conversation to your email",
+            "saveToEmailSoon": "Saving to email is not available from this link yet"
+          },
+          "choices": {
+            "cat": "Choose",
+            "title": "Your options",
+            "hint": "Pick what you like. {business} confirms price and availability before anything is booked.",
+            "chosenCount": "{count} chosen",
+            "send": "Send my choice",
+            "sending": "Sending",
+            "sentTitle": "Choice sent",
+            "sentBody": "{business} will confirm before anything is booked.",
+            "addMore": "Add another",
+            "noOptions": "No options to pick from.",
+            "closed": "These options are no longer open."
+          },
+          "times": {
+            "cat": "Times",
+            "title": "Pick a time",
+            "titleWith": "Pick a time with {name}",
+            "hint": "Your pick holds the time for 15 minutes while {business} confirms.",
+            "pick": "Pick",
+            "holding": "Holding",
+            "held": "{slot} is held for you · {left} left",
+            "heldNoClock": "{slot} is held for you",
+            "holdEnded": "The hold ended. Pick another time, or write to {business}.",
+            "taken": "That time was just taken. Pick another, or write to {business}.",
+            "noSlots": "No times to pick yet."
+          },
+          "offer": {
+            "cat": "Offer",
+            "title": "Your offer",
+            "version": "v{version}",
+            "total": "Total",
+            "depositLine": "Deposit to confirm · balance on the day",
+            "depositPct": "Deposit {pct}% to confirm · balance on the day",
+            "refund": {
+              "tiered": "refundable on a sliding scale before the date",
+              "flexible": "fully refundable until close to the date",
+              "strict": "non-refundable once paid",
+              "manual": "refunds reviewed by {business}"
+            },
+            "validUntil": "Valid until {date}",
+            "acceptPay": "Accept and pay deposit · {amount}",
+            "accept": "Accept this offer",
+            "accepting": "Accepting",
+            "askChange": "Ask for a change",
+            "decline": "Decline",
+            "accepted": "Accepted",
+            "acceptedPayNext": "Accepted. Next: pay the deposit to confirm.",
+            "acceptedPayLater": "Accepted. {business} will send you a payment link to confirm.",
+            "declined": "Declined",
+            "expired": "This offer has expired. Ask {business} for a new one.",
+            "superseded": "A newer version replaced this offer.",
+            "unitsSuffix": "× {units}",
+            "note": "Note from {business}"
+          },
+          "change": {
+            "cat": "Change request",
+            "title": "Ask for a change",
+            "prompt": "Tell {business} what you would like to change.",
+            "placeholder": "For example: could we start an hour later?",
+            "send": "Send request",
+            "sending": "Sending",
+            "cancel": "Cancel",
+            "sent": "Sent",
+            "sentBody": "{business} will reply with the new price and what stays the same. Nothing changes until you confirm.",
+            "applied": "Applied",
+            "appliedBody": "The change was applied.",
+            "declined": "Not possible",
+            "declinedBody": "{business} could not make this change."
+          },
+          "decline": {
+            "prompt": "Tell {business} why, so they can help.",
+            "placeholder": "Optional",
+            "confirm": "Decline this offer",
+            "declining": "Declining",
+            "cancel": "Keep the offer"
+          },
+          "pay": {
+            "cat": "Payment",
+            "title": "Payment request",
+            "deposit": "Deposit",
+            "full": "Full amount",
+            "pay": "Pay {amount}",
+            "paid": "Paid",
+            "expired": "This payment link has expired. Ask {business} for a new one.",
+            "expiresAt": "Link valid until {date}",
+            "keepSlot": "Paying keeps your booking."
+          },
+          "confirmed": {
+            "catBooking": "Booked",
+            "catOrder": "Order",
+            "pill": "Confirmed",
+            "when": "When",
+            "askChange": "Ask for a change",
+            "receipt": "Receipt",
+            "receiptSoon": "Your receipt will be available here soon."
+          },
+          "draft": {
+            "cat": "Your order",
+            "title": "What you picked so far",
+            "hint": "{business} confirms before anything is charged."
+          },
+          "generic": {
+            "message": "Message"
+          }
         }
       },
       "history": {
