@@ -17,7 +17,7 @@ Started: 2026-09-18
 
 **Seams retested / left:** Template tray item coming; email Not sent on QA host; pay-link TTL / Any-service times (known).
 
-**PRs this wave:** (filled after open)  
+**PRs this wave:** [#2128](https://github.com/orantene/impronta-app/pull/2128) (draft; await human merge when CI green)  
 
 ## Host SHA skew (Phase 0)
 
