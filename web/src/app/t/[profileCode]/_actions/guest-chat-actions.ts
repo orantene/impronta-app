@@ -301,6 +301,14 @@ function deriveAuthorRole(
   if (!row.sender_user_id) {
     return "system";
   }
+  // Engine-authored lines ("Offer v3 sent", auto-ack) carry
+  // metadata.system_event_type even when a staff user id is stamped as the
+  // actor; they are system lines, never a staff bubble (Messages v5 rule:
+  // ThreadMessage.system). Found live 2026-09-17 on the fixture tenant.
+  const meta = (row as { metadata?: unknown }).metadata;
+  if (meta && typeof meta === "object" && typeof (meta as { system_event_type?: unknown }).system_event_type === "string") {
+    return "system";
+  }
   const ident = identityByUserId.get(row.sender_user_id);
   if (!ident) return "other";
   if (ident.role === "coordinator") return "staff";

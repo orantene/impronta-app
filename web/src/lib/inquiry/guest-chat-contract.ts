@@ -734,6 +734,8 @@ export type MiniChatBrand = {
   dockCardsV5?: boolean;
   /** L13: the Items tab label per business ("Talent & services", "Your order", ...). */
   dockItemsLabel?: string | null;
+  /** L13: the industry preset represents people (agency, act); false for a restaurant, venue, salon. */
+  dockRepresentsPeople?: boolean;
 };
 
 export type MiniChatPanelProps = {
