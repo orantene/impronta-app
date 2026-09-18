@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 
 import type { Translator } from "@/i18n/interpolate";
 import type { GuestThreadMessage, GuestThreadV5Extras, MiniChatBrand } from "@/lib/inquiry/guest-chat-contract";
+import type { GuestDockCatalogProps } from "./GuestDockCatalog";
 
 import { useGuestClientCards } from "./GuestClientCards";
 import type { paletteFor } from "./mini-chat-styles";
@@ -64,5 +65,27 @@ export function useGuestDockModel(input: {
     },
     /** Props for the Items shelf inside the Lineup view. */
     lineupItemsProps: { items: input.v5?.items ?? null, businessName, locale, representsPeople: input.brand.dockRepresentsPeople !== false },
+    /** Props for the catalog (browse + add) at the top of the Items tab. */
+    catalogProps: (c: {
+      tenantSlug: string;
+      inquiryId: string | null;
+      sourcePage: string;
+      onEnsureInquiry: (() => Promise<string | null>) | null;
+      onAsk: (text: string) => void;
+    }): GuestDockCatalogProps => ({
+      tenantSlug: c.tenantSlug,
+      businessName,
+      locale,
+      t: input.t,
+      C: input.C,
+      accent: input.accent,
+      accentInk: input.accentInk,
+      inquiryId: c.inquiryId,
+      threadToken: input.v5?.threadToken ?? null,
+      sourcePage: c.sourcePage,
+      onEnsureInquiry: c.onEnsureInquiry,
+      onRefresh: input.refresh ?? (() => undefined),
+      onAsk: c.onAsk,
+    }),
   };
 }

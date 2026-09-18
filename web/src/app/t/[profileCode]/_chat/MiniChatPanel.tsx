@@ -645,6 +645,18 @@ export function MiniChatPanel({
     // engine's rows via the same full-load path a send uses.
     v5: threadMeta.v5,
     onRefreshThread: () => setReloadTick((n) => n + 1),
+    // L13 wave 5: a catalog add before any inquiry exists mints the early row
+    // through the same ensure path the chips use; the full load then brings
+    // the token and the queued add runs.
+    onEnsureInquiryForItems: onEnsureInquiry
+      ? async () => {
+          if (inquiryId) return inquiryId;
+          const res = await onEnsureInquiry({ tenantSlug, talentProfileId, sourcePage });
+          if (!res.ok) return null;
+          setInquiryId(res.inquiryId);
+          return res.inquiryId;
+        }
+      : null,
     emailedTo,
     seenAtByInquiry,
     pulseActive,
