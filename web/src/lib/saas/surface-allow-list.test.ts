@@ -174,6 +174,13 @@ test("marketing host: guest support chat API is allowed; other /api/ai stays blo
   assert.equal(isPathAllowedForHostKind("marketing", "/api/ai/support-chat"), false);
 });
 
+test("marketing host: the Saved-shelf batch lookup is allowed; the rest of /api/directory stays blocked", () => {
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/directory/talents-by-ids"), true);
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/directory"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/directory/preview/abc"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/directory/talents-by-idsx"), false);
+});
+
 test("read-only deploy diagnostics: /api/health/* allowed on every host kind", () => {
   // /api/health/guest-chat reports only the boolean presence of the Upstash KV
   // env vars (no secrets, no tenant data) and must be reachable unauthenticated
