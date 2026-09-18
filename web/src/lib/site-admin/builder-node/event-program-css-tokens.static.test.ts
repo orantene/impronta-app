@@ -16,6 +16,7 @@ const here = path.dirname(new URL(import.meta.url).pathname);
 const read = (name: string) => readFileSync(path.join(here, name), "utf8");
 const island = read("event-program-island.tsx");
 const layouts = read("event-program-layouts.tsx");
+const drawer = read("event-program-drawer.tsx");
 const scope = read("renderer-css-scope.ts");
 const renderer = read("render.tsx");
 const sheet = EP_CSS;
@@ -29,7 +30,7 @@ test("no hex literal; colours are --token-color-* roles; type is the site font t
 
 test("every class the island or a layout emits has a rule", () => {
   const classes = new Set<string>();
-  for (const src of [island, layouts]) {
+  for (const src of [island, layouts, drawer]) {
     for (const m of src.matchAll(/className="([^"]+)"/g)) for (const cls of m[1]!.split(/\s+/)) if (cls.startsWith("ep-")) classes.add(cls);
   }
   assert.ok(classes.size >= 40, `expected the block's classes, got ${classes.size}`);
@@ -121,10 +122,24 @@ test("lineup: 2 → 3 → 4 tiles, 4:5, bottom scrim from the background token t
   assert.match(sheet, /\.ep-tile-name\{font-family:var\(--site-heading-font,inherit\)/);
 });
 
+test("drawer: the checkout's shell (88svh sheet, 440px panel, scrim), a dialog with a close control, a trigger that looks like the row", () => {
+  assert.match(sheet, /\.ep-sheet\{position:fixed;left:0;right:0;bottom:0[^}]*max-height:88svh/);
+  assert.match(sheet, /@media \(min-width:1024px\)\{\[data-event-program\] \.ep-sheet\{inset:0 0 0 auto;width:440px/);
+  assert.match(sheet, /\.ep-scrim\{position:fixed;inset:0/);
+  assert.match(sheet, /\.ep-trigger\{[^}]*border:0;background:transparent;color:inherit;font:inherit;text-align:left/);
+  assert.match(sheet, /\.ep-close\{min-height:44px/);
+  assert.match(sheet, /\.ep-cta\{[^}]*min-height:48px[^}]*background:var\(--token-color-primary\);color:var\(--token-color-primary-on/);
+  assert.match(drawer, /role="dialog" aria-modal="true" aria-labelledby=\{titleId\} data-testid="event-program-drawer"/);
+  assert.match(drawer, /data-testid="event-program-drawer-close"/);
+  assert.match(drawer, /document\.body\.style\.overflow = "hidden"/, "scroll lock");
+  assert.match(drawer, /opener\?\.focus\?\.\(\)/, "focus returns to the trigger");
+  assert.match(layouts, /aria-haspopup="dialog"/);
+});
+
 test("no emoji, no glyph fallback, anywhere in the block's copy, sheets or markup", () => {
   // Emoji, dingbats, misc symbols, geometric shapes, variation selectors, ZWJ (the ⇒ in a doc comment is not a glyph the page renders).
   const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{25A0}-\u{25FF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/u;
-  const files = ["event-program-copy.ts", "event-program-css.ts", "event-program-css-cards.ts", "event-program-css-schedule.ts", "event-program-css-lineup.ts", "event-program-island.tsx", "event-program-layouts.tsx", "event-program-model.ts", "event-program-lineup-tiles.ts", "event-program-schedule-grid.ts"];
+  const files = ["event-program-copy.ts", "event-program-css.ts", "event-program-css-cards.ts", "event-program-css-schedule.ts", "event-program-css-lineup.ts", "event-program-css-drawer.ts", "event-program-island.tsx", "event-program-layouts.tsx", "event-program-drawer.tsx", "event-program-drawer-model.ts", "event-program-model.ts", "event-program-lineup-tiles.ts", "event-program-schedule-grid.ts"];
   for (const name of files) assert.doesNotMatch(read(name), emoji, `${name} carries an emoji or symbol glyph`);
   assert.doesNotMatch(layouts, /kind === "doors" \|\| item\.kind === "close"/, "a kind is never special-cased into a symbol");
   assert.match(layouts, /const kindLabel = kind \? t\(`kind_\$\{(placed\.)?item\.kind\}`\) : null;/, "a kind is a word, only on showKind");

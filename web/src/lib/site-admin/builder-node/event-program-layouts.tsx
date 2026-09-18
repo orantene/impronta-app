@@ -17,6 +17,9 @@
  * same data attributes so one test walks every layout.
  */
 
+import type { ReactNode } from "react";
+
+import { itemCta } from "./event-program-drawer-model";
 import { initials, lineupName } from "./event-program-lineup-tiles";
 import type { PlacedItem, ReadyProgram } from "./event-program-model";
 import { buildScheduleGrid, type ScheduleGrid } from "./event-program-schedule-grid";
@@ -28,8 +31,42 @@ export type RowProps = {
   descriptions: boolean;
   kind: boolean;
   place: string | null;
+  /** Render the item CTA (`links.href`) in the meta line. */
+  links: boolean;
+  /**
+   * When set, the row / card / tile is a `button` that opens the drawer, so
+   * no link may live inside it: the profile and CTA links move to the drawer
+   * and the meta line shows their words as plain cues.
+   */
+  onOpen?: (placed: PlacedItem) => void;
   t: (k: string) => string;
 };
+
+/**
+ * The row's box: a `<button>` when the drawer is on (aria-haspopup, the
+ * layout classes and data attributes on the button so the grid holds), a
+ * plain element otherwise. Always inside the `<li>`.
+ */
+function Shell({ as: Tag, className, placed, now, image, onOpen, t, children }: {
+  as: "div" | "span";
+  className: string;
+  placed: PlacedItem;
+  now: boolean;
+  image: boolean;
+  onOpen?: (placed: PlacedItem) => void;
+  t: (k: string) => string;
+  children: ReactNode;
+}) {
+  const attrs = itemAttrs(placed, now, image);
+  if (onOpen) {
+    return (
+      <button type="button" className={`ep-trigger ${className}`} aria-haspopup="dialog" aria-label={`${t("openDetails")}: ${placed.item.title}`} onClick={() => onOpen(placed)} {...attrs}>
+        {children}
+      </button>
+    );
+  }
+  return <Tag className={className} {...attrs}>{children}</Tag>;
+}
 
 export function placeName(program: Pick<ReadyProgram, "spaces">, spaceId: string | null): string | null {
   return spaceId ? (program.spaces.find((s) => s.id === spaceId)?.name ?? null) : null;
@@ -70,65 +107,78 @@ function TimeCell({ placed, t, className = "ep-time" }: { placed: PlacedItem; t:
   );
 }
 
-function MetaLine({ placed, now, kind, place, t }: Pick<RowProps, "placed" | "now" | "kind" | "place" | "t">) {
+function MetaLine({ placed, now, kind, place, links, onOpen, t }: Pick<RowProps, "placed" | "now" | "kind" | "place" | "links" | "onOpen" | "t">) {
   const performer = placed.item.performer;
   const name = performerLabel(placed, t);
   const kindLabel = kind ? t(`kind_${placed.item.kind}`) : null;
-  if (!name && !place && !kindLabel && !now) return null;
+  const cta = links ? itemCta(placed.item, t) : null;
+  if (!name && !place && !kindLabel && !now && !cta) return null;
+  // Inside a trigger button nothing may be a link: the words stay, the
+  // targets live in the drawer.
+  const linkable = !onOpen;
   return (
     <p className="ep-meta">
       {name ? (
         <span className="ep-performer" data-testid="event-program-performer">
-          {performer?.profileHref ? <a href={performer.profileHref}>{name}</a> : name}
+          {linkable && performer?.profileHref ? <a href={performer.profileHref}>{name}</a> : name}
         </span>
       ) : null}
       {place ? <span className="ep-place">{place}</span> : null}
       {kindLabel ? <span className="ep-kind" data-testid="event-program-kind">{kindLabel}</span> : null}
       {now ? <span className="ep-now" data-testid="event-program-now" aria-label={t("nowLabel")}>{t("now")}</span> : null}
+      {cta ? (
+        linkable
+          ? <a className="ep-cta-link" href={cta.href} data-testid="event-program-cta">{cta.label}</a>
+          : <span className="ep-cta-cue" data-testid="event-program-cta">{cta.label}</span>
+      ) : null}
     </p>
   );
 }
 
 /** timeline: time · rail dot · content · thumb (4:5 at right from 640px, 56px square on phones). */
 export function TimelineRow(props: RowProps) {
-  const { placed, now, images, descriptions } = props;
+  const { placed, now, images, descriptions, onOpen, t } = props;
   const { item } = placed;
   const cover = images && item.coverUrl ? item.coverUrl : null;
   return (
-    <li className="ep-item" {...itemAttrs(placed, now, !!cover)}>
-      <TimeCell placed={placed} t={props.t} />
-      <span className="ep-dot" aria-hidden="true" data-testid="event-program-dot" />
-      <div className="ep-body">
-        <p className="ep-title">{item.title}</p>
-        {item.subtitle ? <p className="ep-subtitle">{item.subtitle}</p> : null}
-        {descriptions && item.description ? <p className="ep-desc">{item.description}</p> : null}
-        <MetaLine {...props} />
-      </div>
-      {cover ? <img className="ep-cover" src={cover} alt="" loading="lazy" data-testid="event-program-cover" /> : null}
+    <li className="ep-row">
+      <Shell as="div" className="ep-item" placed={placed} now={now} image={!!cover} onOpen={onOpen} t={t}>
+        <TimeCell placed={placed} t={t} />
+        <span className="ep-dot" aria-hidden="true" data-testid="event-program-dot" />
+        <div className="ep-body">
+          <p className="ep-title">{item.title}</p>
+          {item.subtitle ? <p className="ep-subtitle">{item.subtitle}</p> : null}
+          {descriptions && item.description ? <p className="ep-desc">{item.description}</p> : null}
+          <MetaLine {...props} />
+        </div>
+        {cover ? <img className="ep-cover" src={cover} alt="" loading="lazy" data-testid="event-program-cover" /> : null}
+      </Shell>
     </li>
   );
 }
 
 /** cards: 16:10 cover, or a surface panel with the time large; then time · title · description · meta. */
 export function CardItem(props: RowProps) {
-  const { placed, now, images, descriptions, t } = props;
+  const { placed, now, images, descriptions, onOpen, t } = props;
   const { item } = placed;
   const cover = images && item.coverUrl ? item.coverUrl : null;
   return (
-    <li className="ep-card" {...itemAttrs(placed, now, !!cover)}>
-      {cover ? (
-        <img className="ep-card-cover" src={cover} alt="" loading="lazy" data-testid="event-program-cover" />
-      ) : (
-        <div className="ep-card-panel" aria-hidden="true" data-testid="event-program-card-panel">
-          <span className="ep-card-panel-time">{placed.timeLabel ?? t("tba")}</span>
+    <li className="ep-row">
+      <Shell as="div" className="ep-card" placed={placed} now={now} image={!!cover} onOpen={onOpen} t={t}>
+        {cover ? (
+          <img className="ep-card-cover" src={cover} alt="" loading="lazy" data-testid="event-program-cover" />
+        ) : (
+          <div className="ep-card-panel" aria-hidden="true" data-testid="event-program-card-panel">
+            <span className="ep-card-panel-time">{placed.timeLabel ?? t("tba")}</span>
+          </div>
+        )}
+        <div className="ep-card-body">
+          <TimeCell placed={placed} t={t} className="ep-card-time" />
+          <p className="ep-title">{item.title}</p>
+          {descriptions && item.description ? <p className="ep-desc ep-desc-2">{item.description}</p> : null}
+          <MetaLine {...props} />
         </div>
-      )}
-      <div className="ep-card-body">
-        <TimeCell placed={placed} t={t} className="ep-card-time" />
-        <p className="ep-title">{item.title}</p>
-        {descriptions && item.description ? <p className="ep-desc ep-desc-2">{item.description}</p> : null}
-        <MetaLine {...props} />
-      </div>
+      </Shell>
     </li>
   );
 }
@@ -146,13 +196,14 @@ export function CompactRow(props: RowProps) {
       <span className="ep-line-title">{placed.item.title}</span>
       {name ? <span className="ep-line-performer" data-testid="event-program-performer">{name}</span> : null}
       {now ? <span className="ep-now" data-testid="event-program-now" aria-label={t("nowLabel")}>{t("now")}</span> : null}
+      {props.links && itemCta(placed.item, t) ? <a className="ep-cta-link ep-line-cta" href={itemCta(placed.item, t)!.href} data-testid="event-program-cta">{itemCta(placed.item, t)!.label}</a> : null}
     </li>
   );
 }
 
 /** lineup: 4:5 cover with a bottom scrim and the name over it; initials panel without an image. */
 export function LineupTile(props: RowProps) {
-  const { placed, now, images, kind, t } = props;
+  const { placed, now, images, kind, onOpen, t } = props;
   const { item } = placed;
   const cover = images && item.coverUrl ? item.coverUrl : null;
   const name = lineupName(item, t("performerTba"));
@@ -176,7 +227,9 @@ export function LineupTile(props: RowProps) {
   );
   return (
     <li className="ep-tile" {...itemAttrs(placed, now, !!cover)}>
-      {href ? <a className="ep-tile-link" href={href} aria-label={name}>{inner}</a> : <span className="ep-tile-link">{inner}</span>}
+      {onOpen ? (
+        <Shell as="span" className="ep-tile-link" placed={placed} now={now} image={!!cover} onOpen={onOpen} t={t}>{inner}</Shell>
+      ) : href ? <a className="ep-tile-link" href={href} aria-label={name}>{inner}</a> : <span className="ep-tile-link">{inner}</span>}
     </li>
   );
 }
@@ -215,7 +268,7 @@ export function ScheduleNight({ group, program, nowKey, loc, t, kind }: {
       ) : null}
       {grid.unplaced.length > 0 ? (
         <ol className="ep-list ep-schedule-unplaced">
-          {grid.unplaced.map((p) => <CompactRow key={p.item.id} placed={p} now={false} images={false} descriptions={false} kind={kind} place={null} t={t} />)}
+          {grid.unplaced.map((p) => <CompactRow key={p.item.id} placed={p} now={false} images={false} descriptions={false} kind={kind} place={null} links={false} t={t} />)}
         </ol>
       ) : null}
       <div className="ep-schedule-phone" data-testid="event-program-schedule-phone">
@@ -230,7 +283,7 @@ export function ScheduleNight({ group, program, nowKey, loc, t, kind }: {
           <section key={c.column.key} id={`ep-${group.key}-${c.column.key}`} className="ep-space">
             {multiColumn ? <h4 className="ep-group-title">{c.column.label}</h4> : null}
             <ol className="ep-list">
-              {c.blocks.map((b) => <CompactRow key={b.placed.item.id} placed={b.placed} now={isNow(b.placed)} images={false} descriptions={false} kind={kind} place={null} t={t} />)}
+              {c.blocks.map((b) => <CompactRow key={b.placed.item.id} placed={b.placed} now={isNow(b.placed)} images={false} descriptions={false} kind={kind} place={null} links={false} t={t} />)}
             </ol>
           </section>
         ))}

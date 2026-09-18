@@ -41,6 +41,8 @@ type Props = {
   showImages: boolean | undefined;
   showDescriptions: boolean | undefined;
   showKind: boolean | undefined;
+  showLinks: boolean | undefined;
+  openDrawer: boolean | undefined;
   filterKinds: ReadonlyArray<string> | undefined;
   limit: number | undefined;
   patch: (patch: Record<string, unknown>) => Promise<void> | void;
@@ -56,7 +58,7 @@ function sameKinds(a: ReadonlyArray<string> | undefined, b: ReadonlyArray<string
   return b.every((k) => s.has(k));
 }
 
-export function EventProgramEditor({ eventId, pageId, layout, groupBy, showTimes, showImages, showDescriptions, showKind, filterKinds, limit, patch }: Props) {
+export function EventProgramEditor({ eventId, pageId, layout, groupBy, showTimes, showImages, showDescriptions, showKind, showLinks, openDrawer, filterKinds, limit, patch }: Props) {
   const { t } = useInspectorT();
   const [events, setEvents] = useState<Load>({ status: "loading" });
   // `undefined` = not resolved yet; `null` = resolved, no event claims the page.
@@ -156,6 +158,8 @@ export function EventProgramEditor({ eventId, pageId, layout, groupBy, showTimes
         {checkbox("Images", showImages !== false, (next) => void patch({ showImages: next ? undefined : false }), "event-program-show-images")}
         {checkbox("Descriptions", showDescriptions !== false, (next) => void patch({ showDescriptions: next ? undefined : false }), "event-program-show-descriptions")}
         {checkbox("Kind label (a small word, never a symbol)", showKind === true, (next) => void patch({ showKind: next || undefined }), "event-program-show-kind")}
+        {checkbox("Item links (Reserve a spot, See more)", showLinks !== false, (next) => void patch({ showLinks: next ? undefined : false }), "event-program-show-links")}
+        {checkbox("Tap opens the item details (off for compact and schedule unless ticked)", openDrawer ?? (layout !== "compact" && layout !== "schedule"), (next) => void patch({ openDrawer: next }), "event-program-open-drawer")}
         {checkbox("Performers only (a lineup)", performersOnly, (next) => void patch({ filterKinds: next ? PERFORMERS_ONLY : undefined }), "event-program-performers-only")}
       </div>
 

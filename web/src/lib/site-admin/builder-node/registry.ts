@@ -1098,6 +1098,8 @@ const eventProgramPropsSchema = z.object({
   showImages: z.boolean().optional(),
   showDescriptions: z.boolean().optional(),
   showKind: z.boolean().optional(),
+  showLinks: z.boolean().optional(),
+  openDrawer: z.boolean().optional(),
   filterKinds: z.array(z.string().max(40)).max(20).optional(),
   limit: z.number().int().min(1).max(200).optional(),
   style: builderNodeStyleSchema,

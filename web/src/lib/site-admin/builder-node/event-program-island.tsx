@@ -24,13 +24,15 @@
  * server render never carries it, so hydration cannot disagree.
  */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type { PublicEventProgram } from "@/app/(public)/_events/event-program-actions";
 import { PROGRAM_COPY, pickProgramLocale } from "./event-program-copy";
 import { EP_CSS } from "./event-program-css";
 import { CardItem, CompactRow, LineupTile, ScheduleNight, TimelineRow, placeName, type RowProps } from "./event-program-layouts";
 import { lineupItems } from "./event-program-lineup-tiles";
+import { ProgramDrawer } from "./event-program-drawer";
+import { drawerEnabled } from "./event-program-drawer-model";
 import {
   DEFAULT_LAYOUT,
   buildGroups,
@@ -63,6 +65,10 @@ export interface EventProgramIslandProps {
   showDescriptions?: boolean;
   /** A tiny uppercase kind word in the meta line. Default off: a kind is never a symbol. */
   showKind?: boolean;
+  /** Render the item CTA (`links.href`) in rows and the drawer. Default true. */
+  showLinks?: boolean;
+  /** Tapping a row opens the item drawer. Default true for timeline / cards / lineup, off for compact / schedule. */
+  openDrawer?: boolean;
   filterKinds?: ReadonlyArray<string>;
   limit?: number;
   /** TEST-ONLY: seed the answer; no action is called. */
@@ -74,7 +80,7 @@ export interface EventProgramIslandProps {
 type State = "not_configured" | "loading" | "disabled" | "unavailable" | "empty" | "ready";
 
 export function EventProgramIsland(props: EventProgramIslandProps) {
-  const { eventId, editor, heading, eyebrow, locale, showKind, layout, groupBy, showTimes, showImages, showDescriptions, filterKinds, limit, preload, nowMs: nowOverride } = props;
+  const { eventId, editor, heading, eyebrow, locale, showKind, layout, groupBy, showTimes, showImages, showDescriptions, showLinks, openDrawer, filterKinds, limit, preload, nowMs: nowOverride } = props;
   const loc = pickProgramLocale(locale);
   const t = (key: string) => PROGRAM_COPY[loc][key] ?? PROGRAM_COPY.en[key] ?? key;
   const configured = UUID.test(eventId);
@@ -83,6 +89,8 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
   const [failed, setFailed] = useState(false);
   const [now, setNow] = useState<number | null>(nowOverride ?? null);
   const [active, setActive] = useState<string | null>(null);
+  const [open, setOpen] = useState<PlacedItem | null>(null);
+  const drawerTitleId = useId();
   const groupRefs = useRef(new Map<string, HTMLElement>());
 
   useEffect(() => {
@@ -163,6 +171,7 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
   // Night chips for every layout but compact (which uses small headers) and
   // only with more than one group. Schedule adds its own space chips on phones.
   const chips = multi && lay !== "compact";
+  const drawer = drawerEnabled(lay, openDrawer);
   const rowProps = (g: ProgramGroup, p: PlacedItem): RowProps => ({
     placed: p,
     now: nowKey === `${g.key}:${p.item.id}`,
@@ -170,6 +179,8 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
     descriptions: showDescriptions !== false,
     kind: showKind === true,
     place: placeName(ready as ReadyProgram, p.item.spaceId),
+    links: showLinks !== false,
+    onOpen: drawer ? setOpen : undefined,
     t,
   });
   const groupBody = (g: ProgramGroup) => {
@@ -190,7 +201,7 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
       ) : null}
       <div className="ep-shell" data-rail={chips && lay === "timeline" ? "1" : undefined}>
         {chips ? (
-          <nav className="ep-nav" aria-label={t(mode === "place" ? "places" : "nights")} data-testid="event-program-nav">
+          <nav className="ep-nav" aria-label={t(mode === "place" ? "places" : "nights")} data-testid={mode === "place" ? "event-program-space-chips" : "event-program-nav"}>
             {groups.map((g) => (
               <button key={g.key} type="button" className="ep-chip" data-on={(active ?? groups[0]!.key) === g.key ? "1" : undefined} onClick={() => jump(g.key)}>
                 {g.label}
@@ -213,6 +224,7 @@ export function EventProgramIsland(props: EventProgramIslandProps) {
           ))}
         </div>
       </div>
+      {open ? <ProgramDrawer placed={open} place={placeName(ready as ReadyProgram, open.item.spaceId)} kind={showKind === true} t={t} titleId={drawerTitleId} onClose={() => setOpen(null)} /> : null}
     </>,
   );
 }

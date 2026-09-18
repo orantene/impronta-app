@@ -22,6 +22,7 @@
  * `compact` is the dense agenda: one hairline row per item, no images.
  */
 import { EP_CSS_CARDS } from "./event-program-css-cards";
+import { EP_CSS_DRAWER } from "./event-program-css-drawer";
 import { EP_CSS_LINEUP } from "./event-program-css-lineup";
 import { EP_CSS_SCHEDULE } from "./event-program-css-schedule";
 
@@ -43,7 +44,10 @@ export const EP_CSS_BASE = `
 [data-event-program] .ep-group-title{margin:1rem 0 0.25rem;font-size:0.7rem;font-weight:600;letter-spacing:0.24em;text-transform:uppercase;color:var(--token-color-primary)}
 [data-event-program] .ep-list{list-style:none;margin:0;padding:0;position:relative}
 [data-event-program] .ep-item{position:relative;display:grid;grid-template-columns:64px 20px minmax(0,1fr);column-gap:0.75rem;align-items:start;min-height:44px;margin:0;padding:1rem 0;border-bottom:1px solid var(--ep-sep);background:transparent}
-[data-event-program] .ep-item:last-child{border-bottom:0}
+[data-event-program] .ep-row{margin:0;padding:0;list-style:none;min-width:0}
+[data-event-program] .ep-row:last-child .ep-item{border-bottom:0}
+[data-event-program] .ep-row>.ep-card{height:100%}
+[data-event-program] .ep-line-cta{grid-column:2/4;font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase}
 [data-event-program] .ep-item[data-image="1"]{grid-template-columns:64px 20px minmax(0,1fr) 56px}
 [data-event-program] .ep-dot{grid-column:2;justify-self:center;width:8px;height:8px;margin-top:0.55rem;border-radius:50%;background:var(--token-color-primary)}
 [data-event-program] .ep-item[data-now="1"] .ep-dot{box-shadow:0 0 0 6px var(--ep-glow)}
@@ -75,4 +79,4 @@ export const EP_CSS_BASE = `
 @media (min-width:1024px){[data-event-program] .ep-heading{font-size:2.4rem}[data-event-program] .ep-shell[data-rail="1"]{display:grid;grid-template-columns:180px minmax(0,1fr);gap:2.5rem;align-items:start}[data-event-program] .ep-shell[data-rail="1"] .ep-nav{position:sticky;top:1rem;flex-direction:column;align-items:flex-start;overflow:visible;background:transparent;padding:0}[data-event-program] .ep-shell[data-rail="1"] .ep-chip{white-space:normal;text-align:left}[data-event-program] .ep-shell[data-rail="1"] .ep-groups{min-width:0}}
 `;
 
-export const EP_CSS = EP_CSS_BASE + EP_CSS_CARDS + EP_CSS_SCHEDULE + EP_CSS_LINEUP;
+export const EP_CSS = EP_CSS_BASE + EP_CSS_CARDS + EP_CSS_SCHEDULE + EP_CSS_LINEUP + EP_CSS_DRAWER;

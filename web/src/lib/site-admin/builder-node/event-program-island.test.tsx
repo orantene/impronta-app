@@ -116,7 +116,7 @@ test("empty: an enabled program with no item after the filter", () => {
 });
 
 test("ready: heading, rows in order, performer link, cover only when there is one, TBA last with its sentence, +1 on the crossing", () => {
-  mount(<EventProgramIsland eventId={EVENT} preload={program()} locale="es" />, (host) => {
+  mount(<EventProgramIsland eventId={EVENT} preload={program()} locale="es" openDrawer={false} />, (host) => {
     assert.equal(state(host), "ready");
     assert.equal(host.querySelector(".ep-heading")?.textContent, "Programa");
     const rows = Array.from(host.querySelectorAll('[data-testid="event-program-item"]'));
@@ -135,7 +135,7 @@ test("ready: heading, rows in order, performer link, cover only when there is on
     assert.ok(host.querySelector(".ep-desc"), "descriptions on by default");
     // Editorial run-of-show: every row the same shape, a rail dot each, no box.
     assert.equal(host.querySelectorAll('[data-testid="event-program-dot"]').length, rows.length, "one rail dot per row");
-    for (const r of rows) assert.equal(r.className, "ep-item", "no card class on a timeline row");
+    for (const r of rows) assert.ok(r.classList.contains("ep-item") && !r.classList.contains("ep-card"), "no card class on a timeline row");
     assert.equal(host.querySelectorAll('[data-testid="event-program-kind"]').length, 0, "kind words are off by default");
     assert.equal(host.querySelector('[data-testid="event-program-eyebrow"]'), null, "no eyebrow unless authored");
   });
@@ -276,7 +276,7 @@ test("schedule: a column per space, blocks spanning their slots, a phone list gr
 });
 
 test("lineup: only performers or covers make tiles; initials without an image; the tile links to the profile", () => {
-  mount(<EventProgramIsland eventId={EVENT} preload={program()} layout="lineup" locale="es" />, (host) => {
+  mount(<EventProgramIsland eventId={EVENT} preload={program()} layout="lineup" locale="es" openDrawer={false} />, (host) => {
     const tiles = Array.from(host.querySelectorAll(".ep-tile"));
     assert.equal(tiles.length, 3, "Doors has no face and makes no tile");
     assert.equal(host.querySelectorAll('[data-testid="event-program-cover"]').length, 1);
@@ -288,5 +288,127 @@ test("lineup: only performers or covers make tiles; initials without an image; t
   });
   mount(<EventProgramIsland eventId={EVENT} preload={program({ items: [item({ id: "doors", kind: "doors" })] })} layout="lineup" />, (host) => {
     assert.ok(host.querySelector('[data-testid="event-program-empty"]'), "no performer and no cover: the lineup is empty");
+  });
+});
+
+// ── The item drawer ───────────────────────────────────────────────────────
+
+const rich = () => program({
+  spaces: [{ id: "main", name: "Main", kind: "stage" }],
+  items: [
+    item({
+      id: "ws", kind: "workshop", title: "Taller de luz", sessionId: "night-a", spaceId: "main", startsAt: "2026-11-22T02:00:00.000Z", endsAt: "2026-11-22T03:00:00.000Z",
+      description: "Una hora con la luz.", coverUrl: "https://cdn.example/ws.jpg",
+      performer: { name: "DJ Ana", tba: false, profileHref: "/t/ana", heroUrl: null, instagram: "@ana", bio: "Cancun house.", },
+      media: { gallery: ["https://cdn.example/g1.jpg", "https://cdn.example/g2.jpg"], video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+      links: { href: "https://tickets.example/ws", label: null, instagram: null, website: "https://ana.example" },
+      sponsor: { name: "Brand", logoUrl: null, url: "https://brand.example" },
+    }),
+    item({ id: "set", title: "Set", sessionId: "night-a", startsAt: "2026-11-22T04:00:00.000Z", links: { href: "https://x.example", label: "Buy the record", instagram: null, website: null } }),
+  ],
+});
+
+test("drawer: a row is a dialog trigger; open shows hero, title, performer, bio, links, description, gallery, video, sponsor and CTA; Escape closes and focus returns", () => {
+  mount(<EventProgramIsland eventId={EVENT} preload={rich()} locale="es" />, (host) => {
+    const trigger = host.querySelector<HTMLButtonElement>('button[data-testid="event-program-item"]');
+    assert.ok(trigger, "the row is a button");
+    assert.equal(trigger!.getAttribute("aria-haspopup"), "dialog");
+    assert.equal(trigger!.querySelector("a"), null, "no link inside the trigger");
+    assert.equal(trigger!.querySelector('[data-testid="event-program-cta"]')?.textContent, "Reservar lugar", "an empty label on a workshop reads Reservar lugar, as a cue");
+    assert.equal(host.querySelector('[data-testid="event-program-drawer"]'), null);
+    trigger!.focus();
+    act(() => { trigger!.click(); });
+    const drawer = host.querySelector<HTMLElement>('[data-testid="event-program-drawer"]');
+    assert.ok(drawer, "the drawer opened");
+    assert.equal(drawer!.getAttribute("role"), "dialog");
+    assert.equal(drawer!.getAttribute("aria-modal"), "true");
+    assert.equal(dom.window.document.body.style.overflow, "hidden", "scroll locked");
+    assert.equal(host.querySelector<HTMLImageElement>('[data-testid="event-program-drawer-hero"]')?.getAttribute("src"), "https://cdn.example/ws.jpg");
+    assert.equal(drawer!.querySelector(".ep-sheet-title")?.textContent, "Taller de luz");
+    assert.match(drawer!.querySelector(".ep-sheet-kicker")?.textContent ?? "", /21:00 - 22:00 · Main/);
+    assert.equal(drawer!.querySelector(".ep-sheet-name")?.textContent, "DJ Ana");
+    assert.equal(drawer!.querySelector(".ep-sheet-bio")?.textContent, "Cancun house.");
+    const links = Array.from(drawer!.querySelectorAll(".ep-sheet-links a")).map((a) => [a.textContent, a.getAttribute("href")]);
+    assert.deepEqual(links, [["Ver perfil", "/t/ana"], ["Instagram", "https://www.instagram.com/ana/"], ["Sitio web", "https://ana.example"]]);
+    assert.equal(drawer!.querySelector(".ep-sheet-desc")?.textContent, "Una hora con la luz.");
+    assert.equal(drawer!.querySelector('[data-testid="event-program-drawer-video"]')?.getAttribute("src"), "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    assert.match(drawer!.querySelector('[data-testid="event-program-drawer-sponsor"]')?.textContent ?? "", /Con el apoyo de Brand/);
+    assert.equal(drawer!.querySelector('[data-testid="event-program-drawer-sponsor"] a')?.getAttribute("href"), "https://brand.example");
+    const cta = drawer!.querySelector('[data-testid="event-program-drawer-cta"]');
+    assert.equal(cta?.textContent, "Reservar lugar");
+    assert.equal(cta?.getAttribute("href"), "https://tickets.example/ws");
+    // Gallery: tapping a thumb swaps the hero.
+    const thumbs = Array.from(drawer!.querySelectorAll<HTMLButtonElement>('[data-testid="event-program-drawer-thumb"]'));
+    assert.equal(thumbs.length, 2);
+    act(() => { thumbs[1]!.click(); });
+    assert.equal(host.querySelector<HTMLImageElement>('[data-testid="event-program-drawer-hero"]')?.getAttribute("src"), "https://cdn.example/g2.jpg");
+    assert.equal(host.querySelectorAll('[data-testid="event-program-drawer-thumb"]')[1]!.getAttribute("data-on"), "1");
+    // Escape closes, scroll unlocks, focus returns to the trigger.
+    act(() => { dom.window.document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+    assert.equal(host.querySelector('[data-testid="event-program-drawer"]'), null, "Escape closed it");
+    assert.equal(dom.window.document.body.style.overflow, "", "scroll unlocked");
+    assert.equal(dom.window.document.activeElement, trigger, "focus returned to the row");
+  });
+});
+
+test("drawer: the scrim and the close button close it; authored CTA labels win; openDrawer=false keeps rows plain with real links", () => {
+  mount(<EventProgramIsland eventId={EVENT} preload={rich()} layout="cards" />, (host) => {
+    const triggers = host.querySelectorAll<HTMLButtonElement>('button[data-testid="event-program-item"]');
+    assert.equal(triggers.length, 2, "cards are triggers too");
+    act(() => { triggers[1]!.click(); });
+    assert.equal(host.querySelector('[data-testid="event-program-drawer-cta"]')?.textContent, "Buy the record", "the authored label wins");
+    act(() => { (host.querySelector('[data-testid="event-program-drawer-scrim"]') as HTMLElement).click(); });
+    assert.equal(host.querySelector('[data-testid="event-program-drawer"]'), null, "the scrim closed it");
+    act(() => { triggers[0]!.click(); });
+    act(() => { (host.querySelector('[data-testid="event-program-drawer-close"]') as HTMLElement).click(); });
+    assert.equal(host.querySelector('[data-testid="event-program-drawer"]'), null, "the close button closed it");
+  });
+  mount(<EventProgramIsland eventId={EVENT} preload={rich()} openDrawer={false} locale="en" />, (host) => {
+    assert.equal(host.querySelector('button[data-testid="event-program-item"]'), null, "no trigger");
+    assert.equal(host.querySelector('a[data-testid="event-program-cta"]')?.getAttribute("href"), "https://tickets.example/ws", "the CTA is a real link in the row");
+    assert.equal(host.querySelector('a[data-testid="event-program-cta"]')?.textContent, "Reserve a spot");
+    assert.equal(host.querySelector(".ep-performer a")?.getAttribute("href"), "/t/ana", "the profile link is back in the row");
+  });
+  mount(<EventProgramIsland eventId={EVENT} preload={rich()} showLinks={false} openDrawer={false} />, (host) => {
+    assert.equal(host.querySelector('[data-testid="event-program-cta"]'), null, "showLinks=false hides the CTA");
+  });
+});
+
+test("drawer: never in compact or schedule; lineup tiles open it", () => {
+  for (const layout of ["compact", "schedule"] as const) {
+    mount(<EventProgramIsland eventId={EVENT} preload={rich()} layout={layout} />, (host) => {
+      assert.equal(host.querySelector('button[data-testid="event-program-item"]'), null, `${layout}: no trigger`);
+      assert.equal(host.querySelector('[aria-haspopup="dialog"]'), null);
+    });
+  }
+  mount(<EventProgramIsland eventId={EVENT} preload={rich()} layout="lineup" />, (host) => {
+    const trigger = host.querySelector<HTMLButtonElement>('button[data-testid="event-program-item"]');
+    assert.ok(trigger, "the tile is a trigger");
+    assert.equal(host.querySelector("a.ep-tile-link"), null, "the profile link moved into the drawer");
+    act(() => { trigger!.click(); });
+    assert.ok(host.querySelector('[data-testid="event-program-drawer"]'));
+    assert.equal(host.querySelector('.ep-sheet-links a')?.getAttribute("href"), "/t/ana");
+  });
+});
+
+test("space chips: groupBy=place with two spaces renders the chip row in every layout but schedule", () => {
+  const staged = program({
+    spaces: [{ id: "main", name: "Main", kind: "stage" }, { id: "patio", name: "Patio", kind: "space" }],
+    items: [
+      item({ id: "a", spaceId: "main", sessionId: "night-a", startsAt: "2026-11-22T01:00:00.000Z", performer: { name: "A", tba: false, profileHref: null, heroUrl: null, instagram: null, bio: null } }),
+      item({ id: "b", spaceId: "patio", sessionId: "night-a", startsAt: "2026-11-22T01:00:00.000Z", performer: { name: "B", tba: false, profileHref: null, heroUrl: null, instagram: null, bio: null } }),
+    ],
+  });
+  for (const layout of ["timeline", "cards", "lineup"] as const) {
+    mount(<EventProgramIsland eventId={EVENT} preload={staged} layout={layout} />, (host) => {
+      const chips = host.querySelector('[data-testid="event-program-space-chips"]');
+      assert.ok(chips, `${layout}: auto resolves to place, chips render`);
+      assert.deepEqual(Array.from(chips!.querySelectorAll(".ep-chip")).map((c) => c.textContent), ["Main", "Patio"]);
+      assert.equal(host.querySelectorAll('[data-testid="event-program-group"]').length, 2);
+    });
+  }
+  mount(<EventProgramIsland eventId={EVENT} preload={staged} layout="schedule" />, (host) => {
+    assert.equal(host.querySelector('[data-testid="event-program-space-chips"]'), null, "the schedule grid has its columns instead");
+    assert.equal(host.querySelectorAll('[data-testid="event-program-group"]').length, 1);
   });
 });

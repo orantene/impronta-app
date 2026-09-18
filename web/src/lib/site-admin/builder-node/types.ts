@@ -1215,6 +1215,10 @@ export interface BuilderEventProgramNode extends BuilderNodeBase {
     showTimes?: boolean;
     showImages?: boolean;
     showDescriptions?: boolean;
+    /** Render the item CTA (`links.href`) in rows and the drawer. Default true. */
+    showLinks?: boolean;
+    /** Tapping a row opens the item drawer. Default true for timeline / cards / lineup, off for compact / schedule. */
+    openDrawer?: boolean;
     /** A tiny uppercase kind word in each row's meta line. Default off; a kind is never a symbol. */
     showKind?: boolean;
     /** Schedule item kinds to keep (e.g. `["set","performance"]` for a lineup). Empty ⇒ all. */

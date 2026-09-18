@@ -59,4 +59,6 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "All items": "Todos los elementos",
   "Kind label (a small word, never a symbol)": "Etiqueta de tipo (una palabra pequeña, nunca un símbolo)",
   "Run of show": "Orden del show",
+  "Item links (Reserve a spot, See more)": "Enlaces del elemento (Reservar lugar, Ver más)",
+  "Tap opens the item details (off for compact and schedule unless ticked)": "Tocar abre el detalle del elemento (apagado en compacto y horario salvo que lo marques)",
 };

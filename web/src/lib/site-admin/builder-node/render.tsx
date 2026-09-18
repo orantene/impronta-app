@@ -5769,6 +5769,8 @@ function renderBuilderNodeElement(
             showImages={p.showImages}
             showDescriptions={p.showDescriptions}
             showKind={p.showKind}
+            showLinks={p.showLinks}
+            openDrawer={p.openDrawer}
             filterKinds={p.filterKinds}
             limit={p.limit}
           />

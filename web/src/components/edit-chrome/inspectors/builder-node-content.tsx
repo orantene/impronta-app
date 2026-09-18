@@ -1759,6 +1759,8 @@ function BuilderNodeContentInspectorBody({
             showImages={ep.showImages}
             showDescriptions={ep.showDescriptions}
             showKind={ep.showKind}
+            showLinks={ep.showLinks}
+            openDrawer={ep.openDrawer}
             filterKinds={ep.filterKinds}
             limit={ep.limit}
             patch={commitPatch}
