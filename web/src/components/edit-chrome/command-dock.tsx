@@ -8,7 +8,7 @@
  * the active item is highlighted, and clicking the active item again closes it.
  */
 
-import { type ReactNode } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { commandDockRailDockStyle } from "./command-dock-rail-dock";
@@ -43,6 +43,15 @@ export const COMMAND_DOCK_PANEL_FLUSH_LEFT_PX = DOCK_LEFT + DOCK_WIDTH;
 
 const DOCK_ICON_PX = 22;
 const DOCK_LABEL_PX = 11;
+
+/**
+ * Mobile-only (≤640px) collapse/expand coordination between the left
+ * command dock and the right inspector rail — expanding one collapses the
+ * other so a phone-width viewport never has to juggle both full rails at
+ * once. Desktop never dispatches/listens (state stays false there), so this
+ * has zero effect above the breakpoint.
+ */
+export const MOBILE_RAIL_EXPAND_EVENT = "ec-mobile-rail-expand";
 
 interface DockItem {
   id: string;
@@ -314,41 +323,155 @@ export function CommandDock() {
   );
   const dockBorder = `1px solid ${CHROME.line}`;
 
+  // ── Mobile (≤640px) collapse/expand/hide layer ─────────────────────────
+  // Desktop is untouched: every extra element/class below is scoped behind
+  // Tailwind's `max-sm:` (max-width: 640px) variant, so above that width
+  // this block has no visual effect at all — the nav renders exactly as
+  // before. Below it, the rail defaults to a small edge tab instead of the
+  // full-size dock; local component state only, guarded by the breakpoint.
+  const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [mobileTabHidden, setMobileTabHidden] = useState(false);
+
+  useEffect(() => {
+    function onOtherRailExpand(event: Event) {
+      const detail = (event as CustomEvent<{ side?: string }>).detail;
+      if (detail?.side !== "command") setMobileExpanded(false);
+    }
+    window.addEventListener(MOBILE_RAIL_EXPAND_EVENT, onOtherRailExpand);
+    return () =>
+      window.removeEventListener(MOBILE_RAIL_EXPAND_EVENT, onOtherRailExpand);
+  }, []);
+
+  const expandMobileDock = () => {
+    setMobileExpanded(true);
+    setMobileTabHidden(false);
+    window.dispatchEvent(
+      new CustomEvent(MOBILE_RAIL_EXPAND_EVENT, { detail: { side: "command" } }),
+    );
+  };
+  const collapseMobileDock = () => setMobileExpanded(false);
+  const hideMobileDockTab = () => {
+    setMobileExpanded(false);
+    setMobileTabHidden(true);
+  };
+  const restoreMobileDockTab = () => setMobileTabHidden(false);
+
   return (
-    <nav
-      ref={setPanelNode}
-      data-command-dock
-      data-command-dock-docked={dockedToPanel ? "true" : "false"}
-      aria-label={t("Builder tools")}
-      className="fixed flex flex-col"
-      style={{
-        left: DOCK_LEFT,
-        top: DOCK_TOP,
-        width: DOCK_WIDTH,
-        maxHeight: `calc(100vh - ${DOCK_TOP + 16}px)`,
-        zIndex: Z_INDEX.panels + 1,
-        background: CHROME.surface,
-        borderTop: dockBorder,
-        borderBottom: dockBorder,
-        borderLeft: dockBorder,
-        borderRight: dockedToPanel ? "none" : dockBorder,
-        padding: "14px 8px 12px",
-        transform,
-        ...dockStyle,
-      }}
-    >
-      <div className="flex flex-col gap-1" style={{ borderRadius: 12 }}>
-        {primaryItems.map((item) => (
-          <DockButton key={item.id} item={item} />
-        ))}
-      </div>
-      <span aria-hidden className="flex-1" />
-      <span
-        aria-hidden
-        className="my-[6px] h-px w-full shrink-0"
-        style={{ background: CHROME.line }}
-      />
-      <DockButton item={helpItem} />
-    </nav>
+    <>
+      {/* Collapsed edge handle — mobile only, hidden once expanded or hidden. */}
+      {!mobileExpanded && !mobileTabHidden ? (
+        <button
+          type="button"
+          onClick={expandMobileDock}
+          aria-expanded={false}
+          aria-label={t("Open builder tools")}
+          data-mobile-command-dock-tab
+          className="hidden max-sm:flex fixed items-center justify-center border border-l-0"
+          style={{
+            left: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 24,
+            height: 64,
+            borderRadius: "0 12px 12px 0",
+            zIndex: Z_INDEX.panels,
+            background: CHROME.surface,
+            borderColor: CHROME.line,
+            boxShadow: DOCK_SHADOW,
+          }}
+        >
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </button>
+      ) : null}
+
+      {/* Fully hidden — a minimal sliver so the operator is never stranded. */}
+      {!mobileExpanded && mobileTabHidden ? (
+        <button
+          type="button"
+          onClick={restoreMobileDockTab}
+          aria-label={t("Show builder tools tab")}
+          data-mobile-command-dock-restore
+          className="hidden max-sm:block fixed"
+          style={{
+            left: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 6,
+            height: 40,
+            borderRadius: "0 4px 4px 0",
+            zIndex: Z_INDEX.panels,
+            background: CHROME.line,
+            opacity: 0.6,
+          }}
+        />
+      ) : null}
+
+      <nav
+        ref={setPanelNode}
+        data-command-dock
+        data-command-dock-docked={dockedToPanel ? "true" : "false"}
+        data-mobile-expanded={mobileExpanded ? "true" : "false"}
+        aria-label={t("Builder tools")}
+        className="fixed flex flex-col max-sm:!left-0 max-sm:w-[200px] max-sm:max-w-[76vw] max-sm:transition-transform max-sm:duration-300 max-sm:ease-out max-sm:!translate-x-[var(--ec-mobile-dock-x)]"
+        style={
+          {
+            left: DOCK_LEFT,
+            top: DOCK_TOP,
+            width: DOCK_WIDTH,
+            maxHeight: `calc(100vh - ${DOCK_TOP + 16}px)`,
+            zIndex: Z_INDEX.panels + 1,
+            background: CHROME.surface,
+            borderTop: dockBorder,
+            borderBottom: dockBorder,
+            borderLeft: dockBorder,
+            borderRight: dockedToPanel ? "none" : dockBorder,
+            padding: "14px 8px 12px",
+            transform,
+            ...dockStyle,
+            // Mobile-only CSS var consumed by the `max-sm:!translate-x-[...]`
+            // class above; irrelevant (unused) above the 640px breakpoint.
+            "--ec-mobile-dock-x": mobileExpanded ? "0px" : "-120%",
+          } as CSSProperties
+        }
+      >
+        {/* Mobile-only mini header: collapse back to the tab, or hide it. */}
+        <div className="hidden max-sm:flex items-center justify-between pb-2 mb-1" style={{ borderBottom: `1px solid ${CHROME.line}` }}>
+          <button
+            type="button"
+            onClick={collapseMobileDock}
+            aria-label={t("Collapse builder tools")}
+            className="inline-flex items-center justify-center rounded-md p-1"
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={hideMobileDockTab}
+            aria-label={t("Hide builder tools")}
+            className="inline-flex items-center justify-center rounded-md p-1"
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex flex-col gap-1" style={{ borderRadius: 12 }}>
+          {primaryItems.map((item) => (
+            <DockButton key={item.id} item={item} />
+          ))}
+        </div>
+        <span aria-hidden className="flex-1" />
+        <span
+          aria-hidden
+          className="my-[6px] h-px w-full shrink-0"
+          style={{ background: CHROME.line }}
+        />
+        <DockButton item={helpItem} />
+      </nav>
+    </>
   );
 }

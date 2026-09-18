@@ -611,26 +611,63 @@ export function CanvasZoomControls({
   const rightOffset = inspectorOpen ? 12 : 12;
 
   return (
-    <div
-      data-edit-overlay="zoom-controls"
-      className="pointer-events-auto fixed flex items-center"
-      style={{
-        bottom: CANVAS_FLOATING_BAR.bottom,
-        left: leftOffset,
-        zIndex: Z_INDEX.floatingControls,
-        gap: 4,
-        height: CANVAS_FLOATING_BAR.height,
-        padding: "0 8px",
-        background: CHROME.surface,
-        borderRadius: CHROME_RADII.lg,
-        border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
-        boxShadow: BUILDER_VISUAL.toolbarShadow,
-        transition: "left 220ms cubic-bezier(0.32,0.72,0,1)",
-        // Hide the HUD on small screens where the inspector rail is also hidden.
-        display: "flex",
-      }}
-      aria-label="Canvas zoom controls"
-    >
+    <>
+      {/*
+        Compact + bottom-left-docked HUD on narrow / coarse-pointer (phone)
+        screens. Scoped to [data-edit-overlay="zoom-controls"] and guarded by
+        the media query so DESKTOP styling (the inline `style` above) is
+        completely untouched above 640px on a fine-pointer device. `!important`
+        is required here because the rules must win over the element's own
+        inline `style` attribute.
+      */}
+      <style>{`
+        @media (max-width: 640px), (pointer: coarse) {
+          [data-edit-overlay="zoom-controls"] {
+            left: 12px !important;
+            right: auto !important;
+            bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+            height: 32px !important;
+            padding: 0 4px !important;
+            gap: 2px !important;
+            transform: scale(0.92);
+            transform-origin: bottom left;
+          }
+          [data-edit-overlay="zoom-controls"] button {
+            height: 26px !important;
+            width: 26px !important;
+            min-width: 26px !important;
+          }
+          [data-edit-overlay="zoom-controls"] button svg {
+            width: 12px !important;
+            height: 12px !important;
+          }
+          [data-edit-overlay="zoom-controls"] [data-zoom-pct] {
+            height: 26px !important;
+            min-width: 38px !important;
+            font-size: 10px !important;
+          }
+        }
+      `}</style>
+      <div
+        data-edit-overlay="zoom-controls"
+        className="pointer-events-auto fixed flex items-center"
+        style={{
+          bottom: CANVAS_FLOATING_BAR.bottom,
+          left: leftOffset,
+          zIndex: Z_INDEX.floatingControls,
+          gap: 4,
+          height: CANVAS_FLOATING_BAR.height,
+          padding: "0 8px",
+          background: CHROME.surface,
+          borderRadius: CHROME_RADII.lg,
+          border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
+          boxShadow: BUILDER_VISUAL.toolbarShadow,
+          transition: "left 220ms cubic-bezier(0.32,0.72,0,1)",
+          // Hide the HUD on small screens where the inspector rail is also hidden.
+          display: "flex",
+        }}
+        aria-label="Canvas zoom controls"
+      >
       {/* Zoom out */}
       <ZoomBtn title="Zoom out (⌘−)" onClick={zoomOut} disabled={zoom <= ZOOM_MIN}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -641,6 +678,7 @@ export function CanvasZoomControls({
       {/* Zoom % display — click to reset to 100% */}
       <button
         type="button"
+        data-zoom-pct
         title="Click to reset to 100%"
         onClick={() => zoomTo(1)}
         className="inline-flex items-center justify-center border-none transition-colors"
@@ -704,7 +742,8 @@ export function CanvasZoomControls({
 
       {/* Void right offset so the HUD doesn't slide under the inspector. */}
       <span style={{ width: Math.max(0, rightOffset - 12) > 0 ? 0 : 0 }} />
-    </div>
+      </div>
+    </>
   );
 }
 

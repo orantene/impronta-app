@@ -634,7 +634,27 @@ export function CanvasTextToolbar({
   };
 
   const bar = (
-    <div
+    <>
+      {/* Narrow-viewport override: the desktop centering math in
+          computeToolbarPosition() can push the bar off-center and clip its
+          right-side controls on phones. On narrow screens only, pin the bar
+          to symmetric gutters and let the (single-row) control strip scroll
+          horizontally instead of clipping. Desktop layout is untouched. */}
+      <style>{`
+        @media (max-width: 640px) {
+          [data-canvas-text-toolbar] {
+            left: 8px !important;
+            right: 8px !important;
+            max-width: calc(100vw - 16px) !important;
+            width: auto !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            flex-wrap: nowrap !important;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + ${TOOLBAR_BOTTOM_GUTTER}px) !important;
+          }
+        }
+      `}</style>
+      <div
       ref={barRef}
       data-canvas-text-toolbar=""
       role="toolbar"
@@ -1215,7 +1235,8 @@ export function CanvasTextToolbar({
           }}
         />
       ) : null}
-    </div>
+      </div>
+    </>
   );
 
   if (typeof document === "undefined") return null;

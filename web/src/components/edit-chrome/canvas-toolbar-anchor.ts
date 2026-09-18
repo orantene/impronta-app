@@ -314,6 +314,9 @@ export function measureAnchorOccluders(
  * `data-anchor-placement` for QA. Null/absent elements are skipped, so the
  * caller can always pass its full candidate list.
  */
+/** At or below this viewport width the contextual toolbars bottom-dock. */
+export const MOBILE_ANCHOR_MAX_WIDTH = 640;
+
 export function positionAnchoredToolbarStack(
   box: AnchorBox,
   elements: ReadonlyArray<HTMLElement | null | undefined>,
@@ -321,6 +324,31 @@ export function positionAnchoredToolbarStack(
   if (typeof window === "undefined") return;
   const els = elements.filter((el): el is HTMLElement => !!el);
   if (els.length === 0) return;
+
+  // MOBILE — dock the contextual block toolbar(s) to the bottom-centre of the
+  // viewport (like a phone action bar) instead of anchoring them ABOVE the
+  // selection, where on a small screen they sit on top of the block and crowd
+  // it. Bars stack upward from a reserved bottom band that clears the
+  // bottom-docked text toolbar + the bottom-left zoom HUD.
+  if (window.innerWidth <= MOBILE_ANCHOR_MAX_WIDTH) {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const GUTTER = 8;
+    const GAP = 8;
+    const BOTTOM_RESERVE = 96; // room for the text toolbar + zoom pill + safe-area
+    let fromBottom = BOTTOM_RESERVE;
+    for (const el of els) {
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      const left = Math.max(GUTTER, Math.min((vw - w) / 2, vw - w - GUTTER));
+      el.style.top = `${Math.max(GUTTER, vh - fromBottom - h)}px`;
+      el.style.left = `${left}px`;
+      el.setAttribute("data-anchor-placement", "mobile-bottom");
+      fromBottom += h + GAP;
+    }
+    return;
+  }
+
   const placed = resolveAnchoredToolbarStack({
     box,
     bars: els.map((el) => ({ width: el.offsetWidth, height: el.offsetHeight })),

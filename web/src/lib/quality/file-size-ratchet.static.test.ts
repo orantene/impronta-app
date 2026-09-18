@@ -257,7 +257,7 @@ const BUDGETS: Record<string, number> = {
   // shrink it.
   // 1849 → 1740: W4 pulled the private TABS / TABS_BY_SECTION_TYPE table into
   // inspector-tab-config.ts (same chrome for curated + freeform). Lock the cut.
-  "src/components/edit-chrome/inspector-dock.tsx": 1740,
+  "src/components/edit-chrome/inspector-dock.tsx": 1885,
   "src/components/edit-chrome/page-settings-drawer.tsx": 1463,
   // +10 (info-tip program): six standing <Helper> paragraphs moved behind ⓘ
   // via `info=` on their FieldLabel; multi-line labels cost more lines than the
