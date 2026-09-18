@@ -1,4 +1,4 @@
-import type { DerivedTask } from "@/lib/messaging/tasks";
+import type { DerivedTask } from "@/lib/messaging/types";
 
 /**
  * L12: `deriveTasks` (S4) speaks English by design (it is engine truth, tested
