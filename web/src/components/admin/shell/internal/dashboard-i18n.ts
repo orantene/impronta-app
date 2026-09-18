@@ -2995,6 +2995,12 @@ const ES_TEXT: Record<string, string> = {
   "Couldn't load this profile's saved data": "No se pudieron cargar los datos guardados de este perfil",
   "Editing is paused so you don't overwrite real data with blanks. Retry to load it.": "La edición está pausada para que no sobrescribas datos reales con espacios en blanco. Reintenta para cargarlos.",
 
+  // ── Stale-deployment banner — a tab open since before the last deploy
+  //    can't reach today's Server Actions until it reloads. ──
+  "A newer version is live. Reload to keep editing.": "Hay una versión más reciente. Recargá para seguir editando.",
+  "Reload": "Recargar",
+  "A newer version was published while this was open. Reload and try again.": "Se publicó una versión más reciente mientras esto estaba abierto. Recargá e intentá de nuevo.",
+
   // ── Discover opt-in + card preview ──
   "Show me on Tulala Discover": "Mostrarme en Tulala Discover",
   "ⓘ Discover is where clients across Tulala find new talent. Appearing here multiplies your exposure to event planners, brands, and agencies. Your trust gates and contact controls still apply. Clients reach you through coordinated inquiries, never direct DMs. Toggle off anytime.": "ⓘ Discover es donde los clientes de todo Tulala encuentran nuevo talento. Aparecer aquí multiplica tu exposición ante organizadores de eventos, marcas y agencias. Tus filtros de confianza y tus controles de contacto siguen vigentes. Los clientes te contactan mediante consultas coordinadas, nunca por mensajes directos. Puedes desactivarlo cuando quieras.",
