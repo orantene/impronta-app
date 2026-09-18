@@ -28,6 +28,7 @@ export { buildImageResolver, type CandidateImage } from "./image-resolver";
 export { resolveTenantBusinessType, type ResolvedBusinessType } from "./tenant-business-type";
 export { toPortableLook, parsePortableLook, type PortableLook } from "./portable-look";
 export { DEFAULT_LOOK_BY_FAMILY } from "./look-defaults";
+export { composePagelessHome, foldComponentsForPagelessHome } from "./pageless-home";
 export { themePatchFromPalette } from "./theme-from-palette";
 export { buildCopyPassPrompt, screenCopyReply, screenCopyValue, COPY_PASS_KEYS } from "./copy-pass";
 // Server-only modules (composer, shell writer, logo re-theme, site_looks) are

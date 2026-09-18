@@ -20,17 +20,7 @@ import { archiveBrief, ensureBrief, loadBrief, recordFacts } from "@/lib/tulala/
 import { updateBriefModuleState } from "@/lib/tulala/brief-module-state.server";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import {
-  MAX_INPUT_CHARS,
-  MIN_INPUT_WORDS,
-  parsePersistedModuleState,
-  wordCount,
-  type ModuleInput,
-  type ModuleStep,
-  type OnboardingIntent,
-  type PersistedModuleState,
-  type ResumeSnapshot,
-} from "@/lib/onboarding/module-state";
+import { MAX_INPUT_CHARS, MIN_INPUT_WORDS, parsePersistedModuleState, wordCount, type ModuleInput, type ModuleStep, type OnboardingIntent, type PersistedModuleState, type ResumeSnapshot, isVisualDirection, type VisualDirection } from "@/lib/onboarding/module-state";
 import { detectLink } from "@/lib/tulala/detect-url";
 import { understandBrief, understandingFor, type UnderstandResult } from "@/lib/onboarding/understand.server";
 import {
@@ -97,6 +87,18 @@ export async function submitOnboardingInput(input: {
 
   const resolved = await resolveBriefOwner();
   if (!resolved) return { ok: false, code: "no_owner" };
+  // A new sentence is a new start. An owner's live brief may carry facts
+  // from an earlier attempt or from another flow (2026-09-17: the old agent
+  // page's "Café Río Barbería" surfaced under a fitness-studio sentence).
+  // Archive it (never delete) and begin clean; resume never comes through
+  // here, so a person continuing their own brief is untouched.
+  const existing = await loadBrief(resolved.owner);
+  if (existing) {
+    const previous = parsePersistedModuleState(existing.moduleState);
+    const hadContent = existing.facts.length > 0 || !!previous.input;
+    const sameInput = previous.input?.value === parsed.value;
+    if (hadContent && !sameInput) await archiveBrief(existing.id);
+  }
   const ensured = await ensureBrief(resolved.owner, { locale: input.locale });
   if (!ensured.ok) return { ok: false, code: "no_brief" };
 
@@ -239,58 +241,87 @@ export async function chooseOnboardingPath(input: { path: OnboardingPath }): Pro
   return { ok: true, card: await cardFor(got.brief.id, state, got.brief) };
 }
 
-export type QuestionAnswer =
-  | { questionId: "basics"; what: string; city: string }
-  | { questionId: "name"; name: string }
-  | { questionId: "services"; services: string[] }
-  | { questionId: "kind_of_business"; kind: "business" | "talent"; id: string; slug: string; label: string }
-  | { questionId: "two_quick_things"; hoursPreset?: HoursPresetId | null; hoursCustom?: string[] | null; whatsapp?: string | null }
-  | { questionId: "link_confirm"; confirmed: boolean };
+export type EssentialsAnswer = {
+  /** Picked from the taxonomy / catalogue (id set) or typed as "Other" (id empty). Null = unchanged. */
+  type?: { kind: "talent" | "business"; id: string; slug: string; label: string } | null;
+  city?: { id: string | null; slug: string; name: string; countryIso2: string } | null;
+  name?: string | null;
+  services?: string[] | null;
+  hoursPreset?: HoursPresetId | null;
+  hoursCustom?: string[] | null;
+  whatsapp?: string | null;
+};
 
-export async function answerModuleQuestion(input: {
-  answer: QuestionAnswer;
-  questionIndex: number;
-}): Promise<CardResult | { ok: false; code: "invalid_whatsapp" }> {
+/**
+ * The essentials screen: every detail the site needs, saved in one call.
+ * Only fields the person set are written (null / undefined = leave what the
+ * words gave). What you do and city are required when the card lacks them;
+ * the screen enforces that, and this re-checks it against the brief.
+ */
+export async function saveOnboardingEssentials(input: EssentialsAnswer): Promise<CardResult | { ok: false; code: "invalid_whatsapp" | "missing_required" }> {
   const got = await ownedBrief();
   if (got.error) return got.error;
   const locale = got.state.locale ?? "en";
   const facts: Parameters<typeof recordFacts>[1] = [];
-  const statePatch: PersistedModuleState = { questionIndex: input.questionIndex + 1, updatedAt: new Date().toISOString() };
-  const a = input.answer;
-  if (a.questionId === "basics") {
-    const what = a.what.trim();
-    const city = a.city.trim();
-    const business = (got.state.path ?? "talent") !== "talent";
-    if (what) facts.push({ factKey: business ? "work.industry" : "work.discipline", value: what, source: "user_stated", status: "confirmed", confidence: 1 });
-    if (city) facts.push({ factKey: "person.city", value: city, source: "user_stated", status: "confirmed", confidence: 1 });
-  } else if (a.questionId === "name") {
-    const name = a.name.trim();
-    if (name) facts.push({ factKey: "person.professional_name", value: name, source: "user_stated", status: "confirmed", confidence: 1 });
-  } else if (a.questionId === "services") {
-    const list = a.services.map((s) => s.trim()).filter(Boolean).slice(0, 12);
-    if (list.length) facts.push({ factKey: "work.services", value: list, source: "user_stated", status: "confirmed", confidence: 1 });
-  } else if (a.questionId === "kind_of_business") {
-    statePatch.typeChoice = { kind: a.kind, id: a.id, slug: a.slug };
-    if (a.label.trim()) facts.push({ factKey: "work.industry", value: a.label.trim(), source: "user_stated", status: "confirmed", confidence: 1 });
-  } else if (a.questionId === "two_quick_things") {
-    if (a.hoursPreset) facts.push({ factKey: "business.hours", value: hoursFromPreset(a.hoursPreset, locale), source: "user_stated", status: "confirmed", confidence: 1 });
-    else if (a.hoursCustom && a.hoursCustom.length) facts.push({ factKey: "business.hours", value: a.hoursCustom.map((l) => l.trim()).filter(Boolean), source: "user_stated", status: "confirmed", confidence: 1 });
-    if (a.whatsapp && a.whatsapp.trim()) {
-      const normalized = normalizeWhatsapp(a.whatsapp);
-      if (!normalized) return { ok: false, code: "invalid_whatsapp" };
-      facts.push({ factKey: "presence.whatsapp", value: normalized, source: "user_stated", status: "confirmed", confidence: 1 });
-    }
-  } else if (a.questionId === "link_confirm") {
-    if (a.confirmed) {
-      const name = got.brief.facts.find((f) => f.factKey === "business.name");
-      if (name) facts.push({ factKey: "business.name", value: name.value, source: "user_stated", status: "confirmed", confidence: 1 });
-    }
+  const statePatch: PersistedModuleState = { updatedAt: new Date().toISOString() };
+  const path = got.state.path ?? "talent";
+  const business = path !== "talent";
+
+  if (input.type) {
+    const label = input.type.label.trim();
+    if (!label) return { ok: false, code: "missing_required" };
+    if (input.type.id) statePatch.typeChoice = { kind: input.type.kind, id: input.type.id, slug: input.type.slug };
+    facts.push({ factKey: input.type.kind === "business" ? "work.industry" : "work.discipline", value: label, source: "user_stated", status: "confirmed", confidence: 1 });
   }
+  if (input.city) {
+    const city = input.city.name.trim();
+    if (!city) return { ok: false, code: "missing_required" };
+    facts.push({ factKey: "person.city", value: city, source: "user_stated", status: "confirmed", confidence: 1 });
+    if (/^[A-Z]{2}$/.test(input.city.countryIso2)) facts.push({ factKey: "person.country", value: input.city.countryIso2, source: "user_stated", status: "confirmed", confidence: 1 });
+  }
+  if (typeof input.name === "string" && input.name.trim()) {
+    facts.push({ factKey: business ? "business.name" : "person.professional_name", value: input.name.trim(), source: "user_stated", status: "confirmed", confidence: 1 });
+    if (path === "both") facts.push({ factKey: "person.professional_name", value: input.name.trim(), source: "user_stated", status: "confirmed", confidence: 1 });
+  }
+  if (input.services) {
+    const list = input.services.map((x) => x.trim()).filter(Boolean).slice(0, 12);
+    if (list.length) facts.push({ factKey: "work.services", value: list, source: "user_stated", status: "confirmed", confidence: 1 });
+  }
+  if (input.hoursPreset) facts.push({ factKey: "business.hours", value: hoursFromPreset(input.hoursPreset, locale), source: "user_stated", status: "confirmed", confidence: 1 });
+  else if (input.hoursCustom && input.hoursCustom.length) facts.push({ factKey: "business.hours", value: input.hoursCustom.map((l) => l.trim()).filter(Boolean), source: "user_stated", status: "confirmed", confidence: 1 });
+  if (typeof input.whatsapp === "string" && input.whatsapp.trim()) {
+    const normalized = normalizeWhatsapp(input.whatsapp);
+    if (!normalized) return { ok: false, code: "invalid_whatsapp" };
+    facts.push({ factKey: "presence.whatsapp", value: normalized, source: "user_stated", status: "confirmed", confidence: 1 });
+  }
+
   if (facts.length) await recordFacts(got.brief.id, facts);
+  const brief = (await loadBrief(got.resolved.owner)) ?? got.brief;
+  const card = await cardFor(brief.id, { ...got.state, ...statePatch }, brief);
+  // Required on this screen: what you do and where, whatever the words said.
+  const missing = card.understanding.lines.filter((l) => (l.id === "what" || l.id === "kind" || l.id === "city") && l.status === "missing");
+  if (missing.some((l) => l.id === "city") || (missing.length > 0 && !business && missing.some((l) => l.id === "what")) || (business && missing.some((l) => l.id === "kind"))) {
+    return { ok: false, code: "missing_required" };
+  }
+  statePatch.step = business ? "style" : "readyToBuild";
   const saved = await updateBriefModuleState(got.brief.id, statePatch as Record<string, unknown>);
   if (!saved.ok) return { ok: false, code: "save_failed" };
-  const brief = (await loadBrief(got.resolved.owner)) ?? got.brief;
-  return { ok: true, card: await cardFor(brief.id, { ...got.state, ...statePatch }, brief) };
+  return { ok: true, card };
+}
+
+/** The style tile: stored as the brand.visual_direction fact the composer reads, and as the module's choice. */
+export async function saveOnboardingStyle(input: { direction: VisualDirection; notes?: string | null }): Promise<{ ok: boolean }> {
+  if (!isVisualDirection(input.direction)) return { ok: false };
+  const got = await ownedBrief();
+  if (got.error) return { ok: false };
+  const facts: Parameters<typeof recordFacts>[1] = [{ factKey: "brand.style", value: input.direction, source: "user_stated", status: "confirmed", confidence: 1 }];
+  const notes = (input.notes ?? "").trim().slice(0, 300);
+  // Free words about the look (colours, mood, brands they like): kept as a
+  // fact so the composer's copy pass and a later design-brief step can read it.
+  if (notes) facts.push({ factKey: "brand.style_notes", value: notes, source: "user_stated", status: "confirmed", confidence: 1 });
+  await recordFacts(got.brief.id, facts);
+  const saved = await updateBriefModuleState(got.brief.id, { styleChoice: input.direction, step: "readyToBuild", updatedAt: new Date().toISOString() });
+  return { ok: saved.ok };
 }
 
 /** "Looks right": accept the assumed lines as they stand and move on. */
@@ -299,7 +330,9 @@ export async function acceptUnderstoodCard(): Promise<{ ok: boolean; nextStep: M
   if (got.error) return { ok: false, nextStep: "understood", followUps: [] };
   const card = await cardFor(got.brief.id, got.state, got.brief);
   const followUps = card.understanding.followUps;
-  const nextStep: ModuleStep = followUps[0] === "fork" ? "fork" : followUps.length ? "question" : "readyToBuild";
+  // One essentials screen after the card (2026-09-17): every missing detail
+  // on one page, prefilled, instead of a question per screen.
+  const nextStep: ModuleStep = followUps[0] === "fork" ? "fork" : "essentials";
   // The path the card showed is the path we build, unless a fork follows.
   const pathPatch = nextStep === "fork" ? {} : { path: card.understanding.path };
   const saved = await updateBriefModuleState(got.brief.id, { step: nextStep, cardAccepted: true, questionIndex: 0, ...pathPatch, updatedAt: new Date().toISOString() });

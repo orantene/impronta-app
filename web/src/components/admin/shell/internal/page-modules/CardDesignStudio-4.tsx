@@ -132,18 +132,35 @@ export function PublishCluster({
             ? t("dashboard.adminCardStudio2.publishedUpToDate")
             : t("dashboard.adminCardStudio2.publish")}
       </button>
-      <div
-        role="status"
-        aria-live="polite"
-        style={{
-          fontSize: 11,
-          color: publishState.kind === "error" ? COLORS.critical : COLORS.inkMuted,
-          textAlign: "right",
-          maxWidth: 220,
-        }}
-      >
-        {line}
-      </div>
+      {/* Unpublished changes to THIS page's own tokens used to render in the
+          same muted gray as "up to date" / "published" — identical visual
+          weight to a neutral status line, easy to miss after toggling a knob
+          (e.g. Hover Behavior) further down a long page and never scrolling
+          back up. Give it the same amber emphasis as the driftCount note
+          below, which already flags OTHER pages' pending changes — a
+          visitor's own pending change deserves at least as much weight. */}
+      {dirty && publishState.kind !== "error" ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="max-w-[240px] rounded-admin-md bg-admin-amber-soft px-[9px] py-[5px] text-right text-admin-11 font-semibold leading-[1.4] text-admin-amber-deep"
+        >
+          {line}
+        </div>
+      ) : (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            fontSize: 11,
+            color: publishState.kind === "error" ? COLORS.critical : COLORS.inkMuted,
+            textAlign: "right",
+            maxWidth: 220,
+          }}
+        >
+          {line}
+        </div>
+      )}
       {driftCount > 0 ? (
         <div
           role="note"

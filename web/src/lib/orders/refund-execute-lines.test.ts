@@ -172,3 +172,14 @@ test("a ticket that could not be voided is REPORTED, not hidden in a count", () 
   assert.match(SRC, /admissionsIncomplete/, "the caller must be able to see it");
   assert.match(SRC, /TICKETS_NOT_VOIDED_AFTER_REFUND/, "and a human must be paged");
 });
+
+test("a FREE-ONLY plan refuses a second cancel on the tickets, before any write (D-175)", () => {
+  // `planRefund` cannot tell a cancelled comp from a fresh one (both have 0
+  // left), so the guard lives here and reads the admissions first.
+  const guard = SRC.indexOf("plan.totalCents === 0");
+  const money = SRC.indexOf("await executeBookingRefund(");
+  assert.ok(guard > 0, "free-only plans are recognised");
+  assert.ok(guard < money, "the guard runs before any money moves");
+  assert.match(SRC.slice(guard, money), /admissionIsRefundable/);
+  assert.match(SRC.slice(guard, money), /line_already_refunded/);
+});

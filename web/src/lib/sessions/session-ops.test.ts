@@ -83,3 +83,52 @@ test("session_move_participant commits the new seat before releasing the old one
   assert.ok(releaseOldAt > commitAt, "the old seat is released only after the new one is committed");
   assert.match(body, /v_commit->>'ok'/);
 });
+
+// D-168: 20261231244000 re-created ticket_refund_intents_reason_check with three
+// reasons and silently dropped `session_cancelled` and `admission_exchange`;
+// cancelling a session with a paid seat and exchanging a ticket both ended in
+// 23514. The LATEST migration that defines the CHECK must admit every reason
+// any writer (SQL RPC or TS) inserts.
+test("ticket_refund_intents_reason_check admits every reason a writer inserts", () => {
+  const dir = join(process.cwd(), "..", "supabase", "migrations");
+  const files = readdirSync(dir).filter((name) => name.endsWith(".sql")).sort();
+  const latest = [...files]
+    .reverse()
+    .find((name) => readFileSync(join(dir, name), "utf8").includes("ADD CONSTRAINT ticket_refund_intents_reason_check"));
+  assert.ok(latest, "some migration defines ticket_refund_intents_reason_check");
+  const sql = readFileSync(join(dir, latest!), "utf8");
+  const body = sql.slice(sql.indexOf("ADD CONSTRAINT ticket_refund_intents_reason_check"));
+  const inList = body.match(/CHECK\s*\(\s*reason\s+IN\s*\(([\s\S]*?)\)\s*\)/i);
+  assert.ok(inList, `${latest} spells the CHECK as reason IN (...)`);
+  const allowed = new Set([...inList![1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
+
+  // SQL writers: every INSERT INTO public.ticket_refund_intents (... reason) SELECT ... 'x'
+  const sqlReasons = new Set<string>();
+  for (const name of files) {
+    const text = readFileSync(join(dir, name), "utf8");
+    for (const m of text.matchAll(/INSERT INTO public\.ticket_refund_intents\s*\([^)]*\breason\b[^)]*\)\s*(?:SELECT|VALUES)[^;]*?'([a-z_]+)'/g)) {
+      sqlReasons.add(m[1]);
+    }
+  }
+  // TS writers: the `reason` each insert/upsert on the table passes (a literal,
+  // or `input.reason` whose input type names the literal).
+  const tsReasons = new Set<string>();
+  for (const rel of ["src/lib/events/ticket-refund-request.ts", "src/lib/events/mint-on-paid.ts", "src/lib/orders/capacity-lost-compensation.ts"]) {
+    const text = readFileSync(join(process.cwd(), rel), "utf8");
+    const writes = [...text.matchAll(/from\("ticket_refund_intents"\)\s*\.(?:insert|upsert)\([\s\S]*?reason:\s*(?:"([a-z_]+)"|input\.reason)/g)];
+    assert.ok(writes.length > 0, `${rel} still writes ticket_refund_intents`);
+    for (const m of writes) {
+      if (m[1]) tsReasons.add(m[1]);
+      else for (const t of text.matchAll(/reason:\s*"([a-z_]+)";/g)) tsReasons.add(t[1]);
+    }
+  }
+  for (const expected of ["seat_lost_after_payment", "guest_request"]) {
+    assert.ok(tsReasons.has(expected), `the TS writers still insert '${expected}'`);
+  }
+  const writers = new Set([...sqlReasons, ...tsReasons]);
+  for (const expected of ["session_cancelled", "admission_exchange", "event_cancelled"]) {
+    assert.ok(writers.has(expected), `the SQL writers still insert '${expected}'`);
+  }
+  const missing = [...writers].filter((r) => !allowed.has(r));
+  assert.deepEqual(missing, [], `${latest} admits every writer reason; missing: ${missing.join(", ")}`);
+});

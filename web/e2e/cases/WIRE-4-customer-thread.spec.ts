@@ -38,8 +38,18 @@ test("WIRE-4.6 /pay/<code> leads to /c/t/<token>; the cards and their states mat
   await page.goto(href!);
   await expect(page.locator("[data-pos-messages='customer']")).toBeVisible({ timeout: 30_000 });
 
-  // Every card kind on the page is a card message of this conversation.
-  const { data: msgs } = await sb.from("inquiry_messages").select("message_kind, card_payload").eq("inquiry_id", pick.inquiry_id).not("card_payload", "is", null);
+  // Every card kind on the page is a message of this conversation. A plain
+  // `text` message is drawn as a card too (`CustomerCards` falls through to
+  // the title + body article with `data-card-kind="text"`), and it carries no
+  // `card_payload`, so the comparison set is every message the customer may
+  // see: not internal notes, not deleted ones (final run 2026-09-17 showed
+  // "text" on the page and the old payload-only set refused it).
+  const { data: msgs } = await sb
+    .from("inquiry_messages")
+    .select("message_kind, card_payload, deleted_at")
+    .eq("inquiry_id", pick.inquiry_id)
+    .neq("message_kind", "internal_note")
+    .is("deleted_at", null);
   const kinds = new Set(((msgs ?? []) as { message_kind: string }[]).map((m) => m.message_kind));
   const shown = await page.locator("[data-card-kind]").evaluateAll((els) => els.map((el) => el.getAttribute("data-card-kind")));
   expect(shown.length, "cards on the page").toBeGreaterThan(0);

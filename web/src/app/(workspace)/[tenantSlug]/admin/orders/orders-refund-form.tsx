@@ -64,7 +64,9 @@ export function OrdersRefundForm({
       setOutcome(res.outcome);
       return;
     }
-    setLines(res.lines.filter((l) => l.totalCents > l.refundedCents));
+    // A free line ($0 comp) has no money left by definition; it still has a
+    // ticket to cancel, so it stays pickable (D-175).
+    setLines(res.lines.filter((l) => l.totalCents > l.refundedCents || l.totalCents === 0));
   }
 
   return (

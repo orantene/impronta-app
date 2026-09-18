@@ -95,7 +95,7 @@ test.describe("onboarding module shell", () => {
   test("Spanish page, Spanish module", async ({ page }) => {
     await openHome(page, "es");
     await page.getByRole("button", { name: /Vende tu trabajo/ }).first().click();
-    await expect(dialog(page)).toContainText("Cuéntanos qué haces");
+    await expect(dialog(page)).toContainText("Creemos tu página");
     await expect(page.getByTestId("onb-example")).toContainText(/Por ejemplo:/);
     await evidence(page, "06-entry-es");
     await expect(overlay(page)).toBeVisible();

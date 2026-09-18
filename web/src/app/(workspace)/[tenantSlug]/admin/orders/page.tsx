@@ -18,6 +18,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { loadWorkspaceOrders } from "../../_data-bridge/orders";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import { salesChannelLabel, type SalesLocale } from "@/lib/sales/activity-shape";
 import {
   bucketOf,
   filterOrders,
@@ -106,6 +107,9 @@ export default async function OrdersPage({
   const locale = await getRequestLocale();
   const tr = await createTranslator(locale);
   const t = (k: string) => tr(`dashboard.orders.${k}`);
+  // The channel in words (Counter, Instant book, Guest QR), as Sales prints it; an unknown value stays verbatim.
+  const channelLocale: SalesLocale = locale === "es" || locale === "fr" ? locale : "en";
+  const channel = (raw: string) => salesChannelLabel(raw, channelLocale);
 
   const load = await loadWorkspaceOrders(scope.tenantId);
 
@@ -157,7 +161,8 @@ export default async function OrdersPage({
   return (
     <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto", color: C.ink }} className="max-[720px]:p-0!">
       <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }} className="max-[720px]:text-[22px]! max-[720px]:tracking-[-0.02em]">{t("pageTitle")}</h1>
-      <p style={{ color: C.inkMuted, marginTop: 6, marginBottom: 24 }} className="max-[720px]:mb-[12px]! max-[720px]:mt-[2px]! max-[720px]:text-[12.5px]">{t("pageIntro")}</p>
+      {/* MW17 draws the location under the title, not this sentence; the page has no location to name (D-POS-71), so the phone shows the title alone. */}
+      <p style={{ color: C.inkMuted, marginTop: 6, marginBottom: 24 }} className="max-[720px]:hidden">{t("pageIntro")}</p>
 
       {/*
         A read failure is its own state, never an empty list. `loadWorkspaceOrders`
@@ -262,7 +267,7 @@ export default async function OrdersPage({
                 ))}
                 {/* Named explicitly. A figure beside a filtered list that silently
                     describes something wider is how someone acts on the wrong number. */}
-                <span style={{ fontSize: 12, color: C.inkDim, flexBasis: "100%" }}>
+                <span style={{ fontSize: 12, color: C.inkDim, flexBasis: "100%" }} className="max-[720px]:hidden">
                   {t("totalsScopeNote")}
                 </span>
               </section>
@@ -287,7 +292,7 @@ export default async function OrdersPage({
                           #{shortId(row.id)} · {row.customerName ?? t("noCustomer")}
                         </span>
                         <span className="mt-0.5 block text-[12.5px] leading-[1.35] text-admin-ink-muted">
-                          {row.lineCount} {t("lineCount")} · {row.sourceChannel} · {formatOrderMoney(row.totalCents, row.currency)}
+                          {row.lineCount} {t("lineCount")} · {channel(row.sourceChannel)} · {formatOrderMoney(row.totalCents, row.currency)}
                           {owed > 0 ? ` · ${t("colOutstanding")} ${formatOrderMoney(owed, row.currency)}` : ""}
                         </span>
                       </span>
@@ -356,7 +361,7 @@ export default async function OrdersPage({
                               <div style={{ color: C.inkDim, fontSize: 12 }}>{row.customerEmail}</div>
                             ) : null}
                           </td>
-                          <td style={{ padding: "12px", color: C.inkMuted }}>{row.sourceChannel}</td>
+                          <td style={{ padding: "12px", color: C.inkMuted }}>{channel(row.sourceChannel)}</td>
                           <td
                             style={{
                               padding: "12px",

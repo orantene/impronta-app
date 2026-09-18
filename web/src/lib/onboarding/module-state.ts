@@ -22,7 +22,12 @@ export type ModuleStep =
   | "tooLittle"
   | "understood"
   | "fork"
+  /** Legacy (pre 2026-09-17): the one-question-per-screen sequence. Resumes as `essentials`. */
   | "question"
+  /** One screen with every essential the site needs, prefilled from the words. */
+  | "essentials"
+  /** Business only: pick the look (natural / modern / minimal / vibrant). */
+  | "style"
   | "readyToBuild"
   | "save"
   | "code"
@@ -30,6 +35,14 @@ export type ModuleStep =
   | "arrival";
 
 export type ModuleInput = { kind: "text" | "url"; value: string };
+
+export const VISUAL_DIRECTIONS = ["natural", "modern", "minimal", "vibrant"] as const;
+export type VisualDirection = (typeof VISUAL_DIRECTIONS)[number];
+/** Style tile → the Look the composer starts from (looks/index.ts ids). */
+export const LOOK_BY_DIRECTION: Record<VisualDirection, string> = { natural: "warm", modern: "editorial", minimal: "minimal", vibrant: "bold" };
+export function isVisualDirection(v: unknown): v is VisualDirection {
+  return typeof v === "string" && (VISUAL_DIRECTIONS as readonly string[]).includes(v);
+}
 
 /** Steps a reopened module may resume at. Anything else restarts at entry. */
 export const RESUMABLE_STEPS: ReadonlySet<ModuleStep> = new Set<ModuleStep>([
@@ -39,6 +52,8 @@ export const RESUMABLE_STEPS: ReadonlySet<ModuleStep> = new Set<ModuleStep>([
   "understood",
   "fork",
   "question",
+  "essentials",
+  "style",
   "readyToBuild",
   "save",
   "code",
@@ -58,6 +73,8 @@ export type PersistedModuleState = {
   typeChoice?: { kind: "business" | "talent"; id: string; slug: string } | null;
   /** The link name chosen at "Ready to build" (checked for availability). */
   linkSlug?: string | null;
+  /** The style tile the person picked (also stored as the brand.visual_direction fact). */
+  styleChoice?: VisualDirection | null;
   /** "Looks right" tapped: assumed lines were accepted as they stand. */
   cardAccepted?: boolean;
   /** The build record (`lib/onboarding/build.server.ts` BuildStatus), opaque here. */
@@ -75,7 +92,7 @@ export type ResumeSnapshot = {
 
 const STEPS: ReadonlySet<string> = new Set<ModuleStep>([
   "entry", "listening", "confirmWords", "reading", "tooLittle", "understood", "fork",
-  "question", "readyToBuild", "save", "code", "building", "arrival",
+  "question", "essentials", "style", "readyToBuild", "save", "code", "building", "arrival",
 ]);
 
 export function isModuleStep(value: unknown): value is ModuleStep {
@@ -95,7 +112,9 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
   const r = raw as Record<string, unknown>;
   const out: PersistedModuleState = {};
   if (isOnboardingIntent(r.intent)) out.intent = r.intent;
-  if (isModuleStep(r.step)) out.step = r.step;
+  // The question-per-screen sequence became one essentials screen; a brief
+  // parked mid-sequence resumes there with everything it answered prefilled.
+  if (isModuleStep(r.step)) out.step = r.step === "question" ? "essentials" : r.step;
   if (r.input && typeof r.input === "object") {
     const i = r.input as Record<string, unknown>;
     if ((i.kind === "text" || i.kind === "url") && typeof i.value === "string") {
@@ -114,6 +133,7 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
     }
   }
   if (typeof r.linkSlug === "string") out.linkSlug = r.linkSlug;
+  if (isVisualDirection(r.styleChoice)) out.styleChoice = r.styleChoice;
   if (typeof r.cardAccepted === "boolean") out.cardAccepted = r.cardAccepted;
   if (r.build && typeof r.build === "object" && !Array.isArray(r.build)) out.build = r.build as Record<string, unknown>;
   if (typeof r.updatedAt === "string") out.updatedAt = r.updatedAt;

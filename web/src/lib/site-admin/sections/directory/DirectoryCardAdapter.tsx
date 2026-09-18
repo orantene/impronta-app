@@ -17,13 +17,18 @@ import {
   NO_CAPTION_NORMS,
 } from "@/lib/directory/caption-norms";
 
+import {
+  pickAttributeLines,
+  pickFitLabels,
+  TalentCardTraitRow,
+  traitRowMode,
+} from "@/components/talent-cards/talent-card-trait-row";
+
 import { DirectoryCard } from "./DirectoryCard";
 import {
   AVAILABILITY_UNKNOWN,
   AVAILABILITY_UNKNOWN_ES,
-  type DirectoryCardAttribute,
   type DirectoryCardData,
-  type DirectoryCardFitLabel,
 } from "./card-data";
 import type { DirectoryV1 } from "./schema";
 
@@ -180,6 +185,25 @@ export function DirectoryCardAdapter({
   // and focus-within keeps it keyboard-accessible.
   const revealTraitsOnHover = hoverBehavior === "reveal_traits";
 
+  // The trait row renders INSIDE the card caption (TalentCard `traitSlot`),
+  // never as a loose line under the photo. On portrait the caption is an
+  // absolute bottom-anchored block, so a hover reveal grows it upward and
+  // the card's box never changes — a CSS-grid row can't reflow.
+  const traitMode = traitRowMode({
+    hasContent:
+      show.showAttributes !== false &&
+      (fitChips.length > 0 || traitLines.length > 0),
+    revealOnHover: revealTraitsOnHover,
+  });
+  const traitSlot = traitMode ? (
+    <TalentCardTraitRow
+      fitChips={fitChips}
+      traitLines={traitLines}
+      mode={traitMode}
+      onScrim={style === "portrait"}
+    />
+  ) : undefined;
+
   // cardClickAction="page" — defeat the route interception by turning the
   // card root's soft <Link> navigation into a hard load. Capture-phase so it
   // runs before Next's Link handler; overlay action buttons are siblings of
@@ -217,6 +241,7 @@ export function DirectoryCardAdapter({
           density={density}
           priority={priority}
           index={index}
+          traitSlot={traitSlot}
           badgeSlot={
             data.bookable ? (
               <span className="pointer-events-none absolute left-2.5 bottom-2.5 z-[2] rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/80 backdrop-blur-sm">
@@ -226,12 +251,42 @@ export function DirectoryCardAdapter({
           }
           secondaryActionSlot={
             data.bookable && data.profileHref ? (
-              <a
-                href={data.profileHref}
+              // A <button>, not an <a> — this slot renders inside TalentCard's
+              // own <Link> root (badgeSlot/secondaryActionSlot sit within it),
+              // so a real anchor here is an invalid nested-<a>: the browser's
+              // HTML parser silently repairs it on the initial load, and
+              // React's hydration then mismatches against that repaired DOM.
+              // Reserve targets the exact same profile as the card itself, so
+              // a plain click/keyboard activation just does that navigation
+              // directly; modifier/middle clicks still open a new tab, same
+              // as a real link would. (The card root is a <Link> — keep this
+              // local, matching TalentQuickViewButton's handleOpen above.)
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  ) {
+                    window.open(data.profileHref, "_blank", "noopener,noreferrer");
+                    return;
+                  }
+                  window.location.assign(data.profileHref);
+                }}
+                onAuxClick={(event) => {
+                  if (event.button !== 1) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  window.open(data.profileHref, "_blank", "noopener,noreferrer");
+                }}
                 className="pointer-events-auto rounded-full border border-border bg-background/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground backdrop-blur-sm"
               >
                 {t("public.directory.card.reserve")}
-              </a>
+              </button>
             ) : undefined
           }
         />
@@ -319,127 +374,8 @@ export function DirectoryCardAdapter({
           </div>
         ) : null}
       </div>
-
-      {/* Restrained editorial trait row: a couple of fit chips + a couple of
-          catalog lines. Tagged with `data-card-chip` so a card kit can
-          restyle it. Renders nothing when the DTO carries no trait data or
-          the section turned "Show attributes" off (the previously-dead
-          `showAttributes` knob now gates this row).
-          With `reveal_traits` (the preset default) the row is collapsed at
-          rest and reveals on hover / focus / touch; every other hover mode
-          keeps it statically visible. */}
-      {show.showAttributes !== false &&
-      (fitChips.length > 0 || traitLines.length > 0) ? (
-        revealTraitsOnHover ? (
-          // Collapsed at rest (0-fr grid row + faded), revealed on
-          // group-hover / focus-within / touch. The grid-rows transition
-          // avoids a hard layout jump; the inner overflow-hidden clips the
-          // row while it is collapsed.
-          <div
-            className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity,margin] duration-200 group-hover/cardwrap:mt-2 group-hover/cardwrap:grid-rows-[1fr] group-hover/cardwrap:opacity-100 group-focus-within/cardwrap:mt-2 group-focus-within/cardwrap:grid-rows-[1fr] group-focus-within/cardwrap:opacity-100 [@media(hover:none)]:mt-2 [@media(hover:none)]:grid-rows-[1fr] [@media(hover:none)]:opacity-100"
-            data-card-traits=""
-          >
-            <div className="flex min-h-0 flex-col gap-1.5 overflow-hidden">
-              <TraitRowBody fitChips={fitChips} traitLines={traitLines} />
-            </div>
-          </div>
-        ) : (
-          <div className="mt-2 flex flex-col gap-1.5" data-card-traits="">
-            <TraitRowBody fitChips={fitChips} traitLines={traitLines} />
-          </div>
-        )
-      ) : null}
     </div>
   );
-}
-
-/**
- * The trait-row inner content (fit chips + catalog lines), shared by the
- * static and hover-reveal wrappers so the markup stays single-source. The
- * `data-card-chip` / `data-card-trait-line` hooks let a card kit restyle it.
- */
-function TraitRowBody({
-  fitChips,
-  traitLines,
-}: {
-  fitChips: DirectoryCardFitLabel[];
-  traitLines: DirectoryCardAttribute[];
-}) {
-  return (
-    <>
-      {fitChips.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {fitChips.map((chip) => (
-            <span
-              key={chip.slug}
-              data-card-chip
-              className="inline-flex max-w-full items-center truncate rounded-full border border-border px-2 py-0.5 text-[10px] font-medium tracking-wide text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]"
-            >
-              {chip.label}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {traitLines.length > 0 ? (
-        <dl className="flex flex-col gap-0.5">
-          {traitLines.map((trait) => (
-            <div
-              key={trait.key}
-              data-card-trait-line=""
-              // 11px is under the 12px legibility floor the mobile audit set,
-              // and these trait lines ("HEIGHT 164 cm") are exactly the detail
-              // a client squints at on a phone. 12px on small screens, the
-              // tighter desktop size preserved from sm: up.
-              className="flex items-baseline gap-1.5 text-[12px] leading-snug sm:text-[11px]"
-            >
-              <dt className="shrink-0 uppercase tracking-[0.12em] text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]">
-                {trait.label}
-              </dt>
-              <dd className="min-w-0 truncate text-foreground/80">
-                {trait.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-    </>
-  );
-}
-
-/** At most two fit chips — a restrained, editorial trait row. */
-function pickFitLabels(
-  fitLabels: readonly DirectoryCardFitLabel[] | undefined,
-): DirectoryCardFitLabel[] {
-  if (!fitLabels || fitLabels.length === 0) return [];
-  return fitLabels.filter((f) => f.label.trim().length > 0).slice(0, 2);
-}
-
-/**
- * At most two catalog trait lines, ordered + filtered by the section's
- * `cardFieldKeys` allow-list when set, else the DTO's catalog order. The
- * 2-line ceiling is intersected with the operator's `maxFieldLines` knob.
- */
-function pickAttributeLines(
-  attributes: readonly DirectoryCardAttribute[] | undefined,
-  cardFieldKeys: DirectoryV1["cardFieldKeys"],
-  maxFieldLines: DirectoryV1["maxFieldLines"],
-): DirectoryCardAttribute[] {
-  if (!attributes || attributes.length === 0) return [];
-  const usable = attributes.filter((a) => a.value.trim().length > 0);
-
-  let ordered: DirectoryCardAttribute[];
-  if (cardFieldKeys.length > 0) {
-    const byKey = new Map(usable.map((a) => [a.key, a] as const));
-    ordered = cardFieldKeys
-      .map((key) => byKey.get(key))
-      .filter((a): a is DirectoryCardAttribute => Boolean(a));
-  } else {
-    ordered = usable;
-  }
-
-  // Keep the row restrained (<=2 lines) but never exceed the operator's cap.
-  const cap = Math.max(0, Math.min(2, maxFieldLines));
-  return ordered.slice(0, cap);
 }
 
 function mapDtoToCardData(

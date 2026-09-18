@@ -13,6 +13,10 @@ import { AttributionCapture } from "./attribution-capture";
 import { MarketingModalHost } from "./marketing-modal-host";
 import { MarketingSupportLauncherMount } from "./support/MarketingSupportLauncherMount";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
+import { createTranslator } from "@/i18n/messages";
+import type { Locale } from "@/i18n/config";
+import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
+import { PublicHeaderDiscoveryTools } from "@/components/public-header-discovery-tools";
 
 /**
  * The outer layout for every platform marketing surface (homepage + sub-pages).
@@ -80,6 +84,26 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
         };
   }
 
+  // Heart + plane for the marketing header. Both reads are cookie-scoped
+  // (guest RPC or client_favorites) and already cached per request by the
+  // global-directory page, so the apex header shows the same counts as the
+  // grid. The click routes through /directory?inquiry=open, which the
+  // (marketing) layout's DirectoryInquiryUrlSync turns into the dock opening.
+  const [savedIds, favoriteIds] = await Promise.all([
+    getSavedTalentIds(),
+    getFavoriteTalentIds(),
+  ]);
+  const t = createTranslator(locale as Locale);
+  const directoryHeaderCopy = {
+    favoritesAria: t("public.header.directoryShortlistAria"),
+    favoritesTooltipEmpty: t("public.header.directoryShortlistTooltipEmpty"),
+    favoritesTooltipWithCount: t("public.header.directoryShortlistTooltipWithCount"),
+    inquiryAriaEmpty: t("public.header.directoryInquirySparklesAriaEmpty"),
+    inquiryAriaWithCart: t("public.header.directoryInquirySparklesAriaWithShortlist"),
+    inquiryTooltipEmpty: t("public.header.directoryInquiryTooltipEmpty"),
+    inquiryTooltipWithCart: t("public.header.directoryInquiryTooltipWithShortlist"),
+  };
+
   return (
     <div
       data-platform-surface="marketing"
@@ -98,6 +122,13 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
         pathnameWithoutLocale={pathnameWithoutLocale}
         account={account}
         signOutAction={signOut}
+        discoveryTools={
+          <PublicHeaderDiscoveryTools
+            initialFavoritesCount={favoriteIds.length}
+            initialCartCount={savedIds.length}
+            directoryHeaderCopy={directoryHeaderCopy}
+          />
+        }
       />
       {/* Records the campaign that earned this visit, once, before the
           visitor navigates deeper and the query string disappears. */}

@@ -10,6 +10,7 @@ import { useCompactViewport } from "./use-compact-viewport";
 import { SupportPanel } from "./SupportPanel";
 import type { SupportContract } from "./support-contract";
 import { useSupportDeepLink, useSupportUnread } from "./support-hooks";
+import { GUIDE_OPEN_EVENT, type GuideOpenDetail } from "@/lib/guide/open-guide";
 
 export function SupportLauncher({
   contract,
@@ -23,6 +24,19 @@ export function SupportLauncher({
   const [open, setOpen] = useState(false);
   const [tickets, setTicketsState] = useState(contract.initialTickets);
   const [deepLinkTicketId, setDeepLinkTicketId] = useState<string | null>(null);
+  const [guideNodeId, setGuideNodeId] = useState<string | null>(null);
+  // The (i) next to a page title (PageHeader guideNodeId) and, later, Helper
+  // mode on real pages: open the drawer straight onto that article.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<GuideOpenDetail>).detail;
+      if (!detail?.nodeId) return;
+      setGuideNodeId(detail.nodeId);
+      setOpen(true);
+    };
+    window.addEventListener(GUIDE_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(GUIDE_OPEN_EVENT, onOpen);
+  }, []);
   const setTickets = useCallback(
     (updater: (prev: typeof tickets) => typeof tickets) => setTicketsState(updater),
     [],
@@ -82,15 +96,24 @@ export function SupportLauncher({
               aria-hidden
               style={{
                 position: "absolute",
-                top: -3,
-                right: -3,
-                width: 9,
-                height: 9,
-                borderRadius: "50%",
+                top: -6,
+                right: -6,
+                minWidth: 15,
+                height: 15,
+                padding: "0 3px",
+                boxSizing: "border-box",
+                borderRadius: 8,
                 background: COLORS.coral,
+                color: "#fff",
+                fontSize: 10,
+                fontWeight: 700,
+                lineHeight: "15px",
+                textAlign: "center",
                 boxShadow: `0 0 0 2px ${COLORS.surface}`,
               }}
-            />
+            >
+              {unread > 9 ? "9+" : unread}
+            </span>
           ) : null}
         </button>,
         slot,
@@ -156,6 +179,8 @@ export function SupportLauncher({
         tickets={tickets}
         setTickets={setTickets}
         deepLinkTicketId={deepLinkTicketId}
+        guideNodeId={guideNodeId}
+        onConsumedGuideNode={() => setGuideNodeId(null)}
       />
       <style>{`
         button[data-tulala-support-launcher=""]:hover{transform:translateY(-50%) scale(1.06)}

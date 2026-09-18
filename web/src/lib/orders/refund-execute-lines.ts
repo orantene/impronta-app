@@ -204,6 +204,25 @@ export async function refundOrderLines(
     });
     if (!plan.ok) return { ok: false, reason: plan.reason, movedCents: 0 };
 
+    // A FREE-ONLY plan (every picked line is a $0 comp) moves no money, so the
+    // double-cancel guard `planRefund` applies to paid lines has to live here,
+    // on the tickets: when none of them can still be stamped, this is a second
+    // cancel and refuses like a second refund would. Read before anything is
+    // written, so the refusal is clean.
+    if (plan.totalCents === 0) {
+      const { data: freeRows, error: freeErr } = await admin
+        .from("admissions")
+        .select("id, admitted_count, status")
+        .in("order_line_id", plan.lines.map((l) => l.id));
+      if (freeErr) {
+        logServerError("orders.refundLines/freeLines", freeErr);
+        return { ok: false, reason: "unavailable", movedCents: 0 };
+      }
+      const stillOpen = ((freeRows ?? []) as Array<{ admitted_count: number; status: string }>)
+        .some((a) => admissionIsRefundable({ admittedCount: a.admitted_count, status: a.status }));
+      if (!stillOpen) return { ok: false, reason: "line_already_refunded", movedCents: 0 };
+    }
+
     // ── Money. Every step before this point is reversible; nothing after is.
     let moved = 0;
     const steps: RefundStep[] = [];

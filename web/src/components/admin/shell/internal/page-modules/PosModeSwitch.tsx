@@ -174,9 +174,21 @@ export function usePosModeMenuModel(): PosModeMenuModel {
       // does not re-run; the chosen mode is the address from here on.
       setUrlMode(mode);
       setSavedDefault(false);
-      router.push(posSwitchHref({ adminBasePath, mode, inquiryId: openInquiryId, orderId: openOrderId }));
+      // Messages v5 POS continuity (D-MSG): the open thread / order ride
+      // along on the address so the counter opens on the same sale.
+      const href = posSwitchHref({ adminBasePath, mode, inquiryId: openInquiryId, orderId: openOrderId });
+      // ENTERING THE POINT OF SALE IS A DOCUMENT LOAD, NOT A SOFT PUSH (D-171).
+      // The POS replaces the admin chrome; a `router.push` from the back
+      // office kept the whole shell (and every poll it runs) alive under the
+      // counter, and a server action completing across that push had the
+      // router re-apply `/admin` over it: Open drawer landed on the Overview
+      // and wrote no shift. A hard load into `/admin/pos?mode=…` is the path
+      // the counter is proven on. Mode-to-mode moves stay inside one chrome
+      // and keep the soft push.
+      if (onPos) router.push(href);
+      else window.location.assign(href);
     },
-    [adminBasePath, openInquiryId, openOrderId, router, tenantSlug],
+    [adminBasePath, onPos, openInquiryId, openOrderId, router, tenantSlug],
   );
 
   // Plain functions: the React compiler memoises them itself, and a
@@ -189,7 +201,10 @@ export function usePosModeMenuModel(): PosModeMenuModel {
   };
 
   const goWorkspace = () => {
-    router.push(workspaceSwitchHref({ adminBasePath, inquiryId: openInquiryId }));
+    // Back into the admin chrome: the same document load, for the same
+    // reason as `openMode` (D-171); the two chromes are two pages. The open
+    // thread rides along so Messages reopens on it.
+    window.location.assign(workspaceSwitchHref({ adminBasePath, inquiryId: openInquiryId }));
   };
 
   const onMenuClosed = useCallback(() => setSavedDefault(false), []);

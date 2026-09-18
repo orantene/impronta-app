@@ -2,7 +2,7 @@
  * Header announcement + LUMINA nav link — owner request 2026-09-17.
  *
  * 1. The utility-bar text ("Casting across the Riviera Maya") becomes a LINK
- *    to the launch event: "21 November · LUMINA launch party · Get your ticket".
+ *    to the launch event: "21 November · Launch party · Get your ticket".
  * 2. With --drop-lumina, "LUMINA" leaves the primary nav. Off by default:
  *    the owner's other editor re-added it minutes after the first run, and a
  *    re-run must never fight a hand edit.
@@ -24,11 +24,11 @@ type Locale = "en" | "es";
 
 const COPY: Record<Locale, { text: string; href: string }> = {
   en: {
-    text: process.env.ANNOUNCEMENT_EN ?? "21 November · LUMINA launch party · Get your ticket",
+    text: process.env.ANNOUNCEMENT_EN ?? "21 November · Launch party · Get your ticket",
     href: process.env.ANNOUNCEMENT_HREF ?? "/lumina",
   },
   es: {
-    text: process.env.ANNOUNCEMENT_ES ?? "21 de noviembre · Fiesta de lanzamiento LUMINA · Consigue tu boleto",
+    text: process.env.ANNOUNCEMENT_ES ?? "21 de noviembre · Fiesta de lanzamiento · Consigue tu boleto",
     href: `/es${process.env.ANNOUNCEMENT_HREF ?? "/lumina"}`,
   },
 };

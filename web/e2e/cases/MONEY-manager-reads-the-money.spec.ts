@@ -127,7 +127,16 @@ async function counterNextSale(page: Page, previousOrderId: string | null): Prom
   const empty = page.locator("[data-pos-empty]");
   const hold = page.locator("[data-pos-hold]");
   await expect(empty.or(hold).first()).toBeVisible({ timeout: 30_000 });
-  if ((await empty.count()) === 0) {
+  // Right after a discard the basket still shows the old sale for the moment
+  // the router takes to settle (D-155: a push after a write waits, up to 4 s),
+  // so "Hold sale" can be on screen and gone before the tap lands (final run
+  // 2026-09-17). Give the empty surface that moment; park only what is
+  // really still there.
+  const emptiedOnItsOwn = await empty
+    .waitFor({ state: "visible", timeout: 8_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!emptiedOnItsOwn) {
     await hold.click();
     await page.locator("[data-pos-hold-confirm]").click();
   }

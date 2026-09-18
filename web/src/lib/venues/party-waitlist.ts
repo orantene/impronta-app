@@ -160,11 +160,18 @@ export async function partyWaitlistSeat(
   if (!claimed.ok) return claimed;
   if (claimed.already && claimed.visitId) return claimed;
 
+  // D-172: the RPC answers with the size only; the party's name and contact
+  // are on its row. They travel to the table as an admission (below), the
+  // same row a seated reservation carries, or the floor reads the table as a
+  // nameless walk-in.
+  const party = await readParty(admin, input.tenantId, input.id);
+  const partySize = party?.partySize ?? claimed.partySize;
+
   const opened = await openVisit(admin, {
     tenantId: input.tenantId,
     spaceId: input.spaceId,
     actorUserId: input.actorUserId,
-    partySize: claimed.partySize,
+    partySize,
   });
   if (!opened.ok) {
     await call(admin, "party_waitlist_unclaim", { p_tenant_id: input.tenantId, p_id: input.id });
@@ -178,7 +185,56 @@ export async function partyWaitlistSeat(
     p_visit_id: opened.visit.id,
   });
   if (!attached.ok) return attached;
-  return { ok: true, id: input.id, visitId: opened.visit.id, version: claimed.version };
+
+  // The seated party's record on the table: holder, size, space, seated now
+  // (admitted in full, as `check_in` stamps a reservation that arrived), so
+  // the Live Floor and the host stand read "<name> · <n>" on the table. No
+  // order line and no allocation: a waiting party bought nothing. Written
+  // AFTER the visit is attached: the table is correct even if this row is
+  // not, and the visit is the fact the room runs on.
+  if (party) {
+    const now = new Date().toISOString();
+    const { error: admissionError } = await admin.from("admissions").insert({
+      tenant_id: input.tenantId,
+      space_id: input.spaceId,
+      holder_name: party.holderName,
+      holder_email: party.holderEmail,
+      party_size: partySize,
+      admitted_count: partySize,
+      starts_at: now,
+      seated_at: now,
+      status: "valid",
+    });
+    if (admissionError) logServerError("venues.partyWaitlistSeat.admission", admissionError);
+  }
+  return { ok: true, id: input.id, visitId: opened.visit.id, version: claimed.version, partySize };
+}
+
+async function readParty(
+  admin: VenueAdmin,
+  tenantId: string,
+  id: string,
+): Promise<{ holderName: string; holderEmail: string | null; holderPhone: string | null; partySize: number } | null> {
+  const { data, error } = await admin
+    .from("party_waitlist")
+    .select("holder_name, holder_email, holder_phone, party_size")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (error) {
+    logServerError("venues.partyWaitlistSeat.party", error);
+    return null;
+  }
+  const row = data as { holder_name?: unknown; holder_email?: unknown; holder_phone?: unknown; party_size?: unknown } | null;
+  if (!row) return null;
+  const holderName = typeof row.holder_name === "string" ? row.holder_name.trim() : "";
+  const size = Number(row.party_size);
+  return {
+    holderName: holderName || "Walk-in",
+    holderEmail: typeof row.holder_email === "string" && row.holder_email.trim() ? row.holder_email.trim() : null,
+    holderPhone: typeof row.holder_phone === "string" && row.holder_phone.trim() ? row.holder_phone.trim() : null,
+    partySize: Number.isFinite(size) && size >= 1 ? Math.trunc(size) : 1,
+  };
 }
 
 export async function partyWaitlistLeave(

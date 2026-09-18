@@ -117,8 +117,9 @@ function tableTicket(page: Page, code: string) {
  */
 async function leaveCounter(page: Page) {
   await page
-    .getByRole("group", { name: /workspace or point of sale/i })
-    .getByRole("button", { name: /^workspace$/i })
+    // Polish (2026-09-17): "Back office | POS · <mode>".
+    .getByRole("group", { name: /(back office|workspace) or point of sale/i })
+    .getByRole("button", { name: /^(back office|workspace)$/i })
     .click();
   await expect(page.locator("[data-tulala-app-sidebar]")).toBeVisible({ timeout: 30_000 });
 }
@@ -201,7 +202,10 @@ test("VENUE-OP: walk-in booked, seated, fed, amended, collected and the table ha
 
   // The party lands on tonight's book: on the Waiting list (here, no table yet).
   await page.getByRole("tab", { name: /^waiting/i }).click();
-  const bookRow = page.locator("[data-floor-party]").filter({ hasText: guest });
+  // Polish 6: a waiting party on the side panel is a `button[data-floor-waiting]`
+  // row (`FloorSidePanel`); `data-floor-party` is the party-size readout in
+  // the sheets. Tapping the row opens the Waiting sheet.
+  const bookRow = page.locator("button[data-floor-waiting]").filter({ hasText: guest });
   await expect(bookRow, "the walk-in must land on tonight's book").toBeVisible({
     timeout: 30_000,
   });

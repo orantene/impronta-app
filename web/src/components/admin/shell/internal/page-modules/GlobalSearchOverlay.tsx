@@ -143,7 +143,7 @@ export function GlobalSearchOverlay({ open, onClose }: { open: boolean; onClose:
       role="dialog"
       aria-modal="true"
       aria-label={t(`${K}.label`)}
-      className="fixed inset-0 z-[120] flex items-start justify-center bg-admin-ink/45 px-[16px] pt-[72px] font-admin-body max-[720px]:bg-admin-surface max-[720px]:px-0 max-[720px]:pt-0"
+      className="fixed inset-0 z-[120] flex items-start justify-center bg-admin-ink/45 px-[16px] pt-[72px] font-admin-body max-[720px]:top-[52px] max-[720px]:bg-admin-surface max-[720px]:px-0 max-[720px]:pt-0"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

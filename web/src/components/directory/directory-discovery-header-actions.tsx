@@ -85,8 +85,13 @@ export function DirectoryDiscoveryHeaderActions({
 
   // AFTER every hook, never before: an early return above a hook changes hook
   // order between renders and React throws.
-  const favCount = mounted ? favoritesCount : initialFavoritesCount;
-  const cartCount = mounted ? savedCount : initialCartCount;
+  // When the header renders ABOVE the discovery provider (marketing shell,
+  // freeform talent pages) `discovery` is null for the whole session; falling
+  // through to the live zero after mount blanked a badge the server had just
+  // painted. Keep the server counts in that case; they are cookie-derived and
+  // as fresh as the request.
+  const favCount = mounted && discovery ? favoritesCount : initialFavoritesCount;
+  const cartCount = mounted && discovery ? savedCount : initialCartCount;
   const hasFavorites = favCount > 0;
   const hasCart = cartCount > 0;
 

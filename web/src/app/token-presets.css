@@ -1933,8 +1933,12 @@ html[data-token-typography-scale-preset="editorial"] {
 :is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card {
   border-radius: var(--site-radius-lg);
   border: 1px solid var(--token-color-line);
-  /* important: overrides Tailwind gradient bg baked into component */
-  background: var(--token-color-surface-raised) !important;
+  /* important: overrides Tailwind gradient bg baked into component.
+   * `--token-card-surface` is the Card Design "Card background" knob (the
+   * kit ships #faf7f2 ivory); the theme surface is only the fallback. Reading
+   * the theme FIRST painted this kit's dark-ink name onto Impronta's
+   * near-black theme surface — an invisible name — and made the knob dead. */
+  background: var(--token-card-surface, var(--token-color-surface-raised)) !important;
   box-shadow: var(--site-shadow-soft);
   overflow: hidden;
   color: var(--token-color-ink);
@@ -1984,7 +1988,7 @@ html[data-token-typography-scale-preset="editorial"] {
   display: flex !important;
   flex-direction: column;
   gap: 14px;
-  background: var(--token-color-surface-raised);
+  background: var(--token-card-surface, var(--token-color-surface-raised));
 }
 :is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-chip] {
   background: var(--token-color-secondary) !important;
@@ -2088,8 +2092,10 @@ html[data-token-typography-scale-preset="editorial"] {
  * ------------------------------------------------------------------------- */
 
 :is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card {
-  /* Forced dark ground beats any Tailwind bg-* on the card root. */
-  background: var(--token-color-background) !important;
+  /* Forced dark ground beats any Tailwind bg-* on the card root. The Card
+   * Design "Card background" knob (`--token-card-surface`) wins; the theme
+   * background is the fallback. */
+  background: var(--token-card-surface, var(--token-color-background)) !important;
   /* Hairline border — reads gold on the noir palette (token-color-line
    * resolves to rgba(201,162,39,.18) there), neutral on any other theme. */
   border: 1px solid var(--token-color-line) !important;
@@ -2173,7 +2179,8 @@ html[data-token-typography-scale-preset="editorial"] {
  * ------------------------------------------------------------------------- */
 
 :is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card {
-  background: var(--token-color-surface-raised) !important;
+  /* Card Design "Card background" knob first, theme surface as fallback. */
+  background: var(--token-card-surface, var(--token-color-surface-raised)) !important;
   border: 1px solid var(--token-color-line);
   border-radius: var(--site-radius-lg);
   overflow: hidden;
@@ -2208,12 +2215,12 @@ html[data-token-typography-scale-preset="editorial"] {
 
 /* Scrim: very light — name lives in the body panel below image, not
  * over the image, so the scrim only guards the lower image edge. */
+/* Magazine moves the caption OFF the photo (static body below it), so the
+ * portrait scrims — which span the whole card root, not just the media —
+ * must go: left on, their dark gradient bled over the light body and the
+ * caption sat in a grey fog (tulala.digital/directory, 2026-09-17). */
 :is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-scrim] {
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.22) 0%,
-    transparent 40%
-  ) !important;
+  display: none !important;
 }
 
 /* Body panel below image — the magazine's pull-quote zone. */
@@ -2224,7 +2231,7 @@ html[data-token-typography-scale-preset="editorial"] {
   display: flex !important;
   flex-direction: column;
   gap: 8px;
-  background: var(--token-color-surface-raised);
+  background: var(--token-card-surface, var(--token-color-surface-raised));
   border-top: 1px solid var(--token-color-line);
 }
 
@@ -2270,7 +2277,9 @@ html[data-token-typography-scale-preset="editorial"] {
  * ------------------------------------------------------------------------- */
 
 :is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card {
-  background: transparent !important;
+  /* The kit ships `card.surface` #ffffff ("quiet white cards"); honor the
+   * Card Design knob, transparent only when the tenant cleared it. */
+  background: var(--token-card-surface, transparent) !important;
   border: 1px solid transparent !important;
   border-radius: var(--site-radius-lg);
   overflow: hidden;
@@ -2554,10 +2563,10 @@ html:not([data-token-card-standing="compact"]):not([data-token-card-standing="fu
 html[data-token-card-standing="compact"] [data-card-standing-readall] {
   display: none !important;
 }
-html[data-token-card-standing-style="tier"] [data-card-standing-signal] {
+:is(html, [data-card-design-scope])[data-token-card-standing-style="tier"] [data-card-standing-signal] {
   display: none !important;
 }
-html[data-token-card-standing-style="signal"] [data-card-standing-tier] {
+:is(html, [data-card-design-scope])[data-token-card-standing-style="signal"] [data-card-standing-tier] {
   display: none !important;
 }
 html[data-token-profile-reviews="hidden"] [data-profile-section="reviews"] {

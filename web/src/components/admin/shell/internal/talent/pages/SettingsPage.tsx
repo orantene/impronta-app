@@ -42,6 +42,7 @@ export function SettingsPage() {
   return (
     <>
       <PageHeader
+        guideNodeId="talent-notifications"
         title={copy.t("Settings")}
         subtitle={copy.t("Agencies, notifications, privacy and payouts. Where you appear lives in Reach.")}
         actions={

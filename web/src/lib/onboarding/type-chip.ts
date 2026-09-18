@@ -37,7 +37,7 @@ export type TypeChipProposal = {
   alternatives: ChipOption[];
 };
 
-function fold(value: string): string {
+export function fold(value: string): string {
   return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
 }
 

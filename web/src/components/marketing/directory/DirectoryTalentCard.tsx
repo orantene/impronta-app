@@ -3,6 +3,13 @@
 import { useRef } from "react";
 
 import { TalentCard } from "@/components/talent-cards/TalentCard";
+import {
+  pickAttributeLines,
+  pickFitLabels,
+  TalentCardTraitRow,
+  traitRowMode,
+} from "@/components/talent-cards/talent-card-trait-row";
+import { type CaptionNorms, isRedundant, NO_CAPTION_NORMS } from "@/lib/directory/caption-norms";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import {
   cardDesignToCssVars,
@@ -42,6 +49,7 @@ export function DirectoryTalentCard({
   talent,
   priority,
   index,
+  captionNorms = NO_CAPTION_NORMS,
 }: {
   /** The directory row. Carries its own resolved `design` (per `agencyTenantId`,
    *  attached server-side by the page); independents / load-more rows omit it
@@ -49,6 +57,8 @@ export function DirectoryTalentCard({
   talent: DirectoryCardRow;
   priority?: boolean;
   index?: number;
+  /** What is NORMAL for this grid — matching lines are dropped (see lib/directory/caption-norms). */
+  captionNorms?: CaptionNorms;
 }) {
   const mediaRef = useRef<HTMLDivElement>(null);
   const design = talent.design ?? DEFAULT_CARD_DESIGN;
@@ -56,9 +66,40 @@ export function DirectoryTalentCard({
   // The tenant's explicit Card Design layout defaults win; the family only
   // decides the render branch when no explicit style was published.
   const style = design.cardStyle ?? familyToTalentCardStyle(design.family);
-  const aspect = design.cardAspect ?? "4:5";
+  // Platform grid crop: 3:4 unless the hub published its own aspect. The
+  // caption sits BELOW the photo on this surface's kits, so a 4:5 portrait
+  // plus caption ran taller than a phone viewport per card.
+  const aspect = design.cardAspect ?? "3:4";
   const density = design.density ?? "comfortable";
   const cssVars = cardDesignToCssVars(design);
+
+  const baseShow = resolveCardShow(design);
+  // Differential caption: "Open 30 of next 30 days" on every card tells the
+  // visitor nothing — drop a line when it just repeats what the grid says.
+  const show = {
+    ...baseShow,
+    showLocation:
+      baseShow.showLocation && !isRedundant(data.location, captionNorms.dominantLocation),
+    showAvailability:
+      baseShow.showAvailability &&
+      !isRedundant(data.availabilityLabel, captionNorms.dominantAvailability),
+  };
+
+  const fitChips = pickFitLabels(data.fitLabels);
+  const traitLines = pickAttributeLines(data.cardAttributes, [], 2);
+  const traitMode = traitRowMode({
+    hasContent:
+      design.showAttributes !== "off" && (fitChips.length > 0 || traitLines.length > 0),
+    revealOnHover: (design.hover ?? "reveal_traits") === "reveal_traits",
+  });
+  const traitSlot = traitMode ? (
+    <TalentCardTraitRow
+      fitChips={fitChips}
+      traitLines={traitLines}
+      mode={traitMode}
+      onScrim={style === "portrait"}
+    />
+  ) : undefined;
 
   const handleClickCapture =
     design.profilePopup === "off" && data.profileHref
@@ -93,12 +134,16 @@ export function DirectoryTalentCard({
       <TalentCard
         data={data}
         style={style}
-        show={resolveCardShow(design)}
+        show={show}
         nameFallback="first_name"
+        traitSlot={traitSlot}
         aspect={aspect}
         density={density}
         priority={priority}
         index={style === "editorial" ? index : undefined}
+        // Platform-host surface: reviews-entitled, and the <html> standing
+        // token gate never exists here — opt in the same way Discover does.
+        showStanding="always"
       />
       {/* Favorite heart + hover-revealed Inquire pill — the same canonical
           cluster DirectoryCardAdapter mounts on the storefront directory.

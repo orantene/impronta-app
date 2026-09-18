@@ -105,12 +105,16 @@ export function OverviewBoard() {
   })();
   const now = snapshot ? new Date(snapshot.nowIso) : new Date();
   const locale = t("dashboard.adminOverview.dateLocale");
-  const dateLabel = now.toLocaleDateString(locale, {
-    weekday: "long",
+  // The kit's day-first date, "Thu 17 Sep" (MW02 / the Overview board), in
+  // every locale: the parts are reordered rather than trusting the locale's.
+  const dateParts = new Intl.DateTimeFormat(locale, {
+    weekday: "short",
     day: "numeric",
     month: "short",
     ...(snapshot ? { timeZone: snapshot.timeZone } : {}),
-  });
+  }).formatToParts(now);
+  const datePart = (type: string) => dateParts.find((p) => p.type === type)?.value ?? "";
+  const dateLabel = `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim();
   const greeting = interpolate(t(greetingKey(now.getHours())), {
     name: firstName ?? t("dashboard.adminOverview.greetingFallbackName"),
   });
@@ -266,8 +270,9 @@ export function OverviewBoard() {
       {/* Queue + Today; one column on the phone, each card under its eyebrow (MW02). */}
       <div className="grid min-h-0 flex-1 grid-cols-[1.35fr_1fr] gap-[16px] max-[720px]:grid-cols-1 max-[720px]:gap-[12px]">
         <div className="flex min-h-0 flex-col max-[720px]:gap-[12px]">
+        {/* MW02's eyebrow reads "Needs you"; the desktop card keeps "Needs you now". */}
         <div aria-hidden className="hidden text-[11px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted max-[720px]:block">
-          {t(`${K}.needsYou.title`)}
+          {t(`${K}.needsYou.titleShort`)}
         </div>
         <section className={`${CARD} flex min-h-0 flex-col overflow-hidden`} aria-labelledby="tulala-needs-you">
           <div className="flex shrink-0 items-center justify-between gap-[10px] px-[18px] pb-[6px] pt-[16px] max-[720px]:hidden">

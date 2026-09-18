@@ -16,6 +16,8 @@ import { EXAMPLE_ROTATE_MS, exampleAt } from "@/lib/onboarding/example-bank";
 import type { MachineErrorCode } from "@/lib/onboarding/machine";
 
 import { useVoiceInput } from "../use-voice-input";
+import type { OnboardingIntent } from "@/lib/onboarding/module-state";
+
 import { Eyebrow, MicGlyph, Notice, PrimaryButton, StopGlyph, Sub, Title } from "../ui";
 
 const PERSIST_STEP = "onboarding-entry";
@@ -23,6 +25,7 @@ const PERSIST_STEP = "onboarding-entry";
 export function EntryStep({
   locale,
   t,
+  intent = "unknown",
   text,
   onText,
   onDictation,
@@ -38,6 +41,7 @@ export function EntryStep({
   onDictation: (on: boolean) => void;
   onReview: () => void;
   onSendLink: (url: string) => void;
+  intent?: OnboardingIntent;
   busy: boolean;
   error: MachineErrorCode | null;
 }) {
@@ -45,7 +49,8 @@ export function EntryStep({
   // Typed words survive a reload / an app switch on the phone (offline too).
   useFormPersistence(formRef, { step: PERSIST_STEP });
 
-  const [linkMode, setLinkMode] = useState(false);
+  const [mode, setMode] = useState<"type" | "voice" | "link">("type");
+  const linkMode = mode === "link";
   const [link, setLink] = useState("");
   const [exampleIndex, setExampleIndex] = useState(0);
 
@@ -111,10 +116,28 @@ export function EntryStep({
       data-testid="onb-entry"
     >
       <Eyebrow>{t("public.onboarding.entry.eyebrow")}</Eyebrow>
-      <Title>{t("public.onboarding.entry.title")}</Title>
+      <Title>{intent === "business" ? t("public.onboarding.entry.titleBusiness") : intent === "talent" ? t("public.onboarding.entry.titleTalent") : t("public.onboarding.entry.title")}</Title>
       <Sub>{t("public.onboarding.entry.sub")}</Sub>
 
-      {!linkMode ? (
+      {/* How they want to say it. One control, three modes; the box below follows. */}
+      <div className="mt-5 inline-flex rounded-full p-1" style={{ background: "var(--tl-stone-soft)" }} role="tablist" aria-label={t("public.onboarding.entry.modeLabel")} data-testid="onb-mode">
+        {(["type", "voice", "link"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="tab"
+            aria-selected={mode === m}
+            onClick={() => { if (listening) voice.cancel(); setMode(m); }}
+            data-testid={m === "link" ? "onb-toggle-link" : `onb-mode-${m}`}
+            className="rounded-full px-4 py-1.5 text-[0.8125rem] font-semibold transition-colors"
+            style={{ background: mode === m ? "var(--tl-ink)" : "transparent", color: mode === m ? "var(--tl-bone)" : "var(--tl-ink-soft)" }}
+          >
+            {m === "type" ? t("public.onboarding.entry.modeType") : m === "voice" ? t("public.onboarding.entry.modeVoice") : t("public.onboarding.entry.modeLink")}
+          </button>
+        ))}
+      </div>
+
+      {mode === "voice" ? (
         <div className="mt-6 flex flex-col items-center">
           {voice.micMode ? (
             <>
@@ -178,7 +201,7 @@ export function EntryStep({
                 submit();
               }
             }}
-            rows={3}
+            rows={mode === "voice" ? 3 : 4}
             placeholder={t("public.onboarding.entry.typePlaceholder")}
             aria-label={t("public.onboarding.entry.typePlaceholder")}
             data-testid="onb-sentence"
@@ -201,15 +224,7 @@ export function EntryStep({
         <PrimaryButton type="submit" disabled={busy || (linkMode ? !link.trim() : !text.trim())} testId="onb-send">
           {t("public.onboarding.entry.send")}
         </PrimaryButton>
-        <button
-          type="button"
-          onClick={() => setLinkMode((v) => !v)}
-          data-testid="onb-toggle-link"
-          className="text-[0.875rem] font-medium"
-          style={{ color: "var(--tl-forest)" }}
-        >
-          {linkMode ? t("public.onboarding.entry.typePlaceholder") : t("public.onboarding.entry.pasteLink")}
-        </button>
+        <p className="text-center text-[0.75rem]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.entry.free")}</p>
       </div>
     </form>
   );

@@ -5,7 +5,7 @@
  * (asserted first), and the three fixtures are exercised by seeding their
  * facts onto a signed-in user's brief (isolated DB only).
  */
-import { evidence, expect, openHome, test } from "./_module";
+import { evidence, expect, openHome, test, finishEssentials } from "./_module";
 import { devSignIn, ensureUser, loadFacts, seedBrief } from "./_seed";
 
 const openModule = async (page: Parameters<typeof openHome>[0]) => {
@@ -25,19 +25,10 @@ test.describe("onboarding · understanding", () => {
     await expect(page.getByTestId("onb-understood")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId("onb-error")).toContainText(/couldn't read your words|short questions/);
     await expect(page.getByTestId("onb-path")).toContainText(/Your own page/);
-    await expect(page.getByTestId("onb-accept")).toHaveText(/Looks right · 3 questions/);
+    await expect(page.getByTestId("onb-accept")).toHaveText(/Looks good/);
     await page.getByTestId("onb-accept").click();
-    await expect(page.getByTestId("onb-question-basics")).toBeVisible();
-    await page.getByTestId("onb-basics-what").fill("House cleaner");
-    await page.getByTestId("onb-basics-city").fill("Playa del Carmen");
-    await page.getByTestId("onb-next").click();
-    await expect(page.getByTestId("onb-question-name")).toBeVisible();
-    await page.getByTestId("onb-name-input").fill("Rosa");
-    await page.getByTestId("onb-next").click();
-    await expect(page.getByTestId("onb-question-services")).toBeVisible();
-    await page.getByTestId("onb-service-0").fill("House cleaning");
-    await page.getByTestId("onb-service-1").fill("Deep cleaning");
-    await page.getByTestId("onb-next").click();
+    await evidence(page, "05-essentials-talent");
+    await finishEssentials(page, { what: "House cleaner", city: "Playa del Carmen", name: "Rosa", services: ["House cleaning", "Deep cleaning"] });
     await expect(page.getByTestId("onb-ready")).toBeVisible();
     await expect(page.getByTestId("onb-ready-facts")).toContainText("Rosa");
     await expect(page.getByTestId("onb-ready-facts")).toContainText("House cleaning · Deep cleaning");
@@ -59,7 +50,7 @@ test.describe("onboarding · understanding", () => {
     await expect(page.getByTestId("onb-line-hours")).toHaveAttribute("data-status", "missing");
     await expect(page.getByTestId("onb-line-whatsapp")).toHaveAttribute("data-status", "missing");
     await expect(page.getByTestId("onb-line-logo")).toHaveAttribute("data-status", "later");
-    await expect(page.getByTestId("onb-accept")).toHaveText(/Looks right · 1 question/);
+    await expect(page.getByTestId("onb-accept")).toHaveText(/Looks good/);
     await evidence(page, "10-understood-mariana");
 
     await page.getByTestId("onb-line-city").getByRole("button").click();
@@ -69,17 +60,26 @@ test.describe("onboarding · understanding", () => {
     await expect(page.getByTestId("onb-line-city")).toContainText("Tulum, Quintana Roo");
 
     await page.getByTestId("onb-accept").click();
-    await expect(page.getByTestId("onb-question-two_quick_things")).toBeVisible();
-    await evidence(page, "11-two-quick-things");
+    await expect(page.getByTestId("onb-essentials")).toBeVisible();
+    await evidence(page, "11-essentials-business");
     await page.getByTestId("onb-hours-mon_sat_9_7").click();
+    // The field shows +52 as a prefix, so a bare Mexican number is accepted as-is (the fact below proves the +52).
     await page.getByTestId("onb-whatsapp-input").fill("998 123 4567");
     await page.getByTestId("onb-next").click();
-    await expect(page.getByTestId("onb-error")).toContainText(/country code/);
-    await page.getByTestId("onb-whatsapp-input").fill("+52 998 123 4567");
-    await page.getByTestId("onb-next").click();
+    await expect(page.getByTestId("onb-style")).toBeVisible();
+    await evidence(page, "11b-style");
+    await page.getByTestId("onb-style-vibrant").click();
+    await page.getByTestId("onb-style-continue").click();
     await expect(page.getByTestId("onb-ready")).toBeVisible();
     await expect(page.getByTestId("onb-link-value")).toContainText("unas-mariana.tulala.digital");
-    await expect(page.getByTestId("onb-link-available")).toBeVisible({ timeout: 15_000 });
+    // The check must return a verdict. On a branch where an earlier build run
+    // already holds `unas-mariana`, the verdict is "taken" with alternatives;
+    // taking the first one is the same path a person takes.
+    await expect(page.getByTestId("onb-link-available").or(page.getByTestId("onb-link-taken"))).toBeVisible({ timeout: 15_000 });
+    if (await page.getByTestId("onb-link-taken").isVisible()) {
+      await page.getByTestId("onb-link-suggestion").first().click();
+      await expect(page.getByTestId("onb-link-available")).toBeVisible({ timeout: 15_000 });
+    }
     await expect(page.getByTestId("onb-build")).toBeEnabled();
     await evidence(page, "12-ready-business");
 
@@ -104,8 +104,9 @@ test.describe("onboarding · understanding", () => {
     await openModule(page);
     await expect(page.getByTestId("onb-understood")).toContainText(/Here is what I found/);
     await expect(page.getByTestId("onb-path")).toContainText(/A site for the business/);
-    await expect(page.getByTestId("onb-accept")).toHaveText(/^Looks right$/);
+    await expect(page.getByTestId("onb-accept")).toHaveText(/Looks good/);
     await page.getByTestId("onb-accept").click();
+    await finishEssentials(page, { style: true });
     await expect(page.getByTestId("onb-ready")).toBeVisible();
     await expect(page.getByTestId("onb-ready-facts")).toContainText("Parrilla El Paisa");
     await expect(page.getByTestId("onb-ready-facts")).toContainText("+529981234567");
@@ -128,7 +129,7 @@ test.describe("onboarding · understanding", () => {
     await expect(page.getByTestId("onb-fork")).toBeVisible();
     await evidence(page, "14-fork");
     await page.getByTestId("onb-fork-business").click();
-    await expect(page.getByTestId("onb-question-kind_of_business")).toBeVisible();
+    await expect(page.getByTestId("onb-essentials")).toBeVisible();
     await page.getByTestId("onb-back").click();
     await expect(page.getByTestId("onb-understood")).toBeVisible();
     await expect(page.getByTestId("onb-path")).toContainText(/A site for the business/);

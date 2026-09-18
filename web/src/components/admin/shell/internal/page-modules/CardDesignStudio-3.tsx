@@ -19,10 +19,16 @@ import { Bookmark, Check, Heart, Send } from "lucide-react";
 
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { Icon } from "../primitives";
 import { COLORS, FONTS, RADIUS, TRANSITION } from "../state";
 import { TalentCard } from "@/components/talent-cards/TalentCard";
 import type { DirectoryCardData } from "@/components/talent-cards/talent-card-shape";
+import {
+  pickAttributeLines,
+  pickFitLabels,
+  TalentCardTraitRow,
+  traitRowMode,
+} from "@/components/talent-cards/talent-card-trait-row";
+import { STANDING_DEFAULTS } from "./card-design-drift";
 
 // ────────────────────────────────────────────────────────────────────────
 // Appearance draft — the card-relevant subset of directorySchemaV1, with the
@@ -229,11 +235,48 @@ export function PreviewCard({
       : undefined,
   };
 
+  // The trait row (fit chips + engine attributes) and every hover mode live
+  // in the directory adapter, not in <TalentCard> — so this preview renders
+  // the same shared row the live grid does, in the same placement, or the
+  // "Attributes" switch and "Hover behavior" would have nothing to show.
+  const fitChips = pickFitLabels(data.fitLabels);
+  const traitLines = pickAttributeLines(data.cardAttributes, [], 2);
+  const traitMode = traitRowMode({
+    hasContent:
+      appearance.showAttributes &&
+      (fitChips.length > 0 || traitLines.length > 0),
+    revealOnHover: appearance.hoverBehavior === "reveal_traits",
+  });
+  const traitSlot = traitMode ? (
+    <TalentCardTraitRow
+      fitChips={fitChips}
+      traitLines={traitLines}
+      mode={traitMode}
+      onScrim={appearance.cardStyle !== "editorial"}
+    />
+  ) : undefined;
+
+  // Reviews-on-cards: the live gate is a token on <html>
+  // (`data-token-card-standing`), which the admin shell never carries, so
+  // the preview opts in explicitly — the same `showStanding="always"` path
+  // Discover uses. The standing STYLE rule is scoped to this preview via the
+  // data attribute below (token-presets.css matches `[data-card-design-scope]`).
+  const showStanding =
+    (d["directory.card.show-standing"] ||
+      STANDING_DEFAULTS["directory.card.show-standing"]) !== "off";
+  const standingStyle =
+    d["directory.card.standing-style"] ||
+    STANDING_DEFAULTS["directory.card.standing-style"];
+
   return (
     <div
       data-tulala-card-design-preview-card
       data-token-template-directory-card-family={family}
+      data-token-card-standing-style={showStanding ? standingStyle : undefined}
       data-card-design-scope=""
+      // `group/cardwrap` is the SAME hover group the live adapter uses, so
+      // the shared trait row reveals here exactly as it does on the site.
+      className="group/cardwrap flex flex-col"
       style={{ width: 260, maxWidth: "100%", ...previewVars }}
     >
       <div className="group/previewwrap" style={{ position: "relative" }}>
@@ -255,6 +298,8 @@ export function PreviewCard({
           density={appearance.density}
           rootMode="button"
           onActivate={() => {}}
+          showStanding={showStanding ? "always" : "auto"}
+          traitSlot={traitSlot}
           priority
         />
         {/* Favorite + Inquire demo affordances in the CANONICAL position
@@ -346,25 +391,6 @@ export function PreviewCard({
       </div>
 
 
-      {appearance.showRating ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            marginTop: 8,
-            fontSize: 12,
-            color: COLORS.inkMuted,
-          }}
-        >
-          <Icon name="star" size={12} color={COLORS.amber} />
-          {interpolate(t("dashboard.adminCardStudio2.previewRating"), {
-            rating: "4.9",
-            count: 32,
-          })}
-        </div>
-      ) : null}
-
       {!rule.favorite && !rule.inquiry ? (
         <div
           style={{
@@ -451,6 +477,21 @@ export const CARD_PREVIEW_SAMPLE: DirectoryCardData = {
   // Sample price so the "Price chip" color knob has visible feedback in the
   // live preview (the chip renders only when a priceFromLabel is present).
   priceFromLabel: "From $850 / day",
+  // Fit chips + engine attributes so the "Attributes" switch and every hover
+  // mode have something to reveal (the preview renders the same shared trait
+  // row the live grid does). Rating clears the credibility floor so the
+  // "Show talent standing" switch shows the real chip, not a mockup.
+  fitLabels: [
+    { slug: "editorial", label: "Editorial" },
+    { slug: "runway", label: "Runway" },
+  ],
+  cardAttributes: [
+    { key: "height", label: "Height", value: "178 cm" },
+    { key: "hair", label: "Hair", value: "Dark brown" },
+  ],
+  ratingAvg: 4.9,
+  ratingCount: 12,
+  wouldBookAgainPct: 96,
 };
 
 export type DesignSaveState =

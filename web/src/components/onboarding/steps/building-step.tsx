@@ -48,13 +48,16 @@ export function BuildingStep({ t, path, done = false }: { t: (key: string) => st
         t("public.onboarding.building.while.business5"),
       ];
   return (
-    <div data-testid="onb-building" aria-busy={!done}>
-      <Title>{path === "talent" ? t("public.onboarding.building.titleTalent") : t("public.onboarding.building.title")}</Title>
-      <Sub>{path === "talent" ? t("public.onboarding.building.subTalent") : t("public.onboarding.building.sub")}</Sub>
+    <div data-testid="onb-building" aria-busy={!done} className="-mx-4 -mt-2 min-h-[70vh] rounded-[20px] px-5 py-6 sm:-mx-6" style={{ background: "var(--tl-surface-inverse)", color: "var(--tl-on-inverse)" }}>
+      <div className="mb-5 flex justify-center" aria-hidden>
+        <span className="inline-block size-12 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "var(--tl-on-inverse)", borderTopColor: "transparent", opacity: 0.9 }} />
+      </div>
+      <Title tone="inverse">{path === "talent" ? t("public.onboarding.building.titleTalent") : t("public.onboarding.building.title")}</Title>
+      <Sub tone="inverse">{path === "talent" ? t("public.onboarding.building.subTalent") : t("public.onboarding.building.sub")}</Sub>
       <ProgressBar expectedMs={expected} done={done} label={t("public.onboarding.building.progressLabel")} />
-      <LoadingSteps items={steps.map((s) => t(`public.onboarding.building.steps.${s}`))} activeIndex={done ? steps.length : active} />
-      <WhileYouWait lines={whileLines} />
-      <p className="mt-4 text-[0.75rem]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.building.canClose")}</p>
+      <LoadingSteps items={steps.map((s) => t(`public.onboarding.building.steps.${s}`))} activeIndex={done ? steps.length : active} tone="inverse" />
+      <WhileYouWait lines={whileLines} tone="inverse" />
+      <p className="mt-4 text-[0.75rem]" style={{ color: "var(--tl-on-inverse)", opacity: 0.7 }}>{t("public.onboarding.building.canClose")}</p>
     </div>
   );
 }

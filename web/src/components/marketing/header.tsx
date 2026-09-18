@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -33,6 +33,7 @@ export function MarketingHeader({
   pathnameWithoutLocale,
   account,
   signOutAction,
+  discoveryTools,
 }: {
   locale: string;
   pathnameWithoutLocale: string;
@@ -40,6 +41,10 @@ export function MarketingHeader({
    *  logged-out CTAs (Join as talent / Sign in / Start free). */
   account?: MarketingAccount;
   signOutAction?: () => void | Promise<void>;
+  /** Heart + plane (favorites / inquiry cart) resolved by the shell. Rendered
+   *  first in the action cluster at every width, so a talent hearted on the
+   *  global directory has a way back on phones too. */
+  discoveryTools?: ReactNode;
 }) {
   const copy = getMarketingCopy(locale);
   /** Every internal href in this header goes through here — see `buildNav`. */
@@ -176,6 +181,7 @@ export function MarketingHeader({
             menu buried: the bar stops feeling empty and the menu can go back
             to being pure navigation. */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {discoveryTools}
           <MarketingLanguageMenu
             activeLocale={locale}
             pathnameWithoutLocale={pathnameWithoutLocale}
@@ -558,12 +564,10 @@ function MobileSection({
  * `@/components/brand/tulala-logo`. Letter strokes ride `currentColor`
  * (ink-strong here); the full-stop carries the brand orange.
  *
- * `descriptor` renders the category-message lockup line to the right of
- * the wordmark, desktop-only (xl+, one step past the `lg:` breakpoint the
- * nav itself switches on at, so the label never competes with nav for
- * space; QA at 1024-1280px and drop to a wider breakpoint if it still
- * crowds). ~60% opacity, one weight lighter than the wordmark, letter-
- * spaced small-caps-style, never a second dark bold element in the bar.
+ * `descriptor` renders the category-message lockup line, stacked under the
+ * wordmark, at all viewport widths (including mobile). ~60% opacity, one
+ * weight lighter than the wordmark, letter-spaced small-caps-style, never
+ * a second dark bold element in the bar.
  */
 function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
   return (
@@ -576,11 +580,16 @@ function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
           one brand unit instead of two competing elements separated by a rule,
           and it stops the descriptor from fighting the nav for horizontal room.
           Letter-spacing is tuned so the line optically matches the wordmark's
-          width. Still desktop-only (xl+) and still ~60% opacity, so it never
-          becomes a second dark bold element in the bar. */}
+          width. Still ~60% opacity, so it never becomes a second dark bold
+          element in the bar. */}
+      {/* Phones: the line WRAPS under the wordmark (max ~9.5rem, two short
+          lines) instead of running 258px wide. Measured live 2026-09-17 at
+          375px: the nowrap strip pushed Language, Support, account and the
+          hamburger past the viewport edge (menu at x=511), so the menu could
+          not be tapped. From sm up it is one line again. */}
       <span
         aria-hidden
-        className="mt-1 hidden whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.2em] xl:block"
+        className="mt-1 block max-w-[9.5rem] whitespace-normal text-[0.5625rem] font-medium uppercase leading-[1.25] tracking-[0.2em] sm:max-w-none sm:whitespace-nowrap"
         style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
       >
         {descriptor}

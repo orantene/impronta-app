@@ -33,6 +33,7 @@ import {
   locationLine,
   type DirectoryActiveFilters,
 } from "@/components/marketing/directory/shared";
+import { loadHubCardTraits } from "@/lib/directory/hub-card-traits";
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 import { DEFAULT_CARD_DESIGN } from "@/lib/site-admin/server/card-design-shape";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
@@ -151,7 +152,20 @@ export default async function MarketingDirectoryPage({
   const hubDesign = hub
     ? await resolveCardDesign(hub.tenantId)
     : DEFAULT_CARD_DESIGN;
-  const gridItems = gridData.items.map((row) => ({ ...row, design: hubDesign }));
+  // Fit chips + engine attributes: the discover index carries none, so the
+  // grid rendered every card trait-less. Projected here from the hub's card
+  // catalog (same builders as the tenant directory); load-more rows fall
+  // back to no traits, matching how they already fall back on design.
+  const traitsByProfile = await loadHubCardTraits(
+    hub?.tenantId ?? null,
+    gridData.items.map((row) => row.id),
+    locale,
+  );
+  const gridItems = gridData.items.map((row) => ({
+    ...row,
+    design: hubDesign,
+    ...(traitsByProfile.get(row.id) ?? {}),
+  }));
 
   // Rebuilt with the REAL total, which is the first moment clamping is possible.
   // A ?page= past the end therefore reports the last page rather than an empty
@@ -288,15 +302,20 @@ export default async function MarketingDirectoryPage({
             mapUnmappedCount={mapData.unmappedCount}
             mapApiKey={mapApiKey}
           />
+          {/* Floating "Message {hub}" guest-chat launcher. On the marketing
+              apex this self-resolves the platform hub (getPlatformHubTenant)
+              and gates on the hub's guest-chat settings (enabled +
+              show-on-directory). This is the directory served at
+              tulala.digital/directory (the /directory → /global-directory
+              rewrite), so the launcher belongs here.
+
+              It MUST sit inside PublicDiscoveryStateProvider: the dock's
+              Lineup view (useInquiryCart / favorites) reads that context, and
+              mounted as a sibling it saw an empty cart, so a talent hearted or
+              added to the lineup on this grid never appeared in the dock. */}
+          <AgencyChatLauncherMount sourcePage="/directory" />
         </PublicDiscoveryStateProvider>
       </div>
-
-      {/* Floating "Message {hub}" guest-chat launcher. On the marketing apex
-          this self-resolves the platform hub (getPlatformHubTenant) and gates
-          on the hub's guest-chat settings (enabled + show-on-directory). This
-          is the directory served at tulala.digital/directory (the /directory →
-          /global-directory rewrite), so the launcher belongs here. */}
-      <AgencyChatLauncherMount sourcePage="/directory" />
     </>
   );
 }
