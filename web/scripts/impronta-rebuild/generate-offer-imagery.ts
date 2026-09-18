@@ -136,6 +136,16 @@ export const OFFER_IMAGE_SLOTS: readonly Slot[] = [
       "An aerial acrobat on silks high above a stage, in silhouette against gold light, dramatic and elegant.",
     alt: "An aerial acrobat on silks in silhouette against gold stage light.",
   },
+  // ── home "What we do" tiles (2026-09-17, owner asked for image tiles) ──
+  { slot: "svc-brands", size: "1024x1024", subject: "A fashion campaign shoot on location: a model in a designer dress seen from behind on a white-washed rooftop at golden hour, a stylist's hand adjusting the hem, camera crew soft in the background.", alt: "A fashion campaign shoot at golden hour." },
+  { slot: "svc-activations", size: "1024x1024", subject: "A product launch event by the sea: a sleek minimalist display counter with glassware and flowers, two event staff in tailored uniforms welcoming guests, seen from behind, tropical daylight.", alt: "Hostesses at a brand activation counter." },
+  { slot: "svc-private", size: "1024x1024", subject: "A destination wedding reception at dusk under string lights: a fire dancer entertaining guests at their tables, palms and candles, warm glow, faces turned away.", alt: "Entertainment at a destination wedding reception." },
+  { slot: "svc-hotels", size: "1024x1024", subject: "A resort stage show: dancers in gold costumes mid-choreography on an outdoor hotel stage, pool and palms behind, night, dramatic lighting.", alt: "Dancers on a resort stage at night." },
+  { slot: "svc-nightlife", size: "1024x1024", subject: "A nightclub floor show: a performer on a small stage with haze and gold spotlights, a DJ booth and a crowd in silhouette, casino-lounge elegance.", alt: "A floor show in a nightclub." },
+  { slot: "svc-runway", size: "1024x1024", subject: "A fashion runway seen from the end of the catwalk: a model walking away under white runway lights, front row in silhouette, editorial.", alt: "A model walking a fashion runway." },
+  { slot: "svc-audiovisual", size: "1024x1024", subject: "A video production set: a cinema camera on a gimbal filming a model against a colored backdrop, monitors and crew, cinematic depth of field.", alt: "A cinema camera filming on a production set." },
+  { slot: "svc-corporate", size: "1024x1024", subject: "A corporate gala: an elegant host with a microphone on a stage at a conference dinner, round tables with candles, audience out of focus.", alt: "A host on stage at a corporate gala." },
+  { slot: "svc-studio", size: "1024x1024", subject: "A bright photo studio: a beginner being coached on a pose by a photographer next to a softbox, white backdrop, relaxed and welcoming.", alt: "A photographer coaching a pose in a bright studio." },
 ];
 
 interface Pins {
