@@ -46,6 +46,12 @@ export function ProfileModalShell({
         <Dialog.Content
           aria-describedby={undefined}
           onOpenAutoFocus={(e) => e.preventDefault()}
+          // Escape closes the innermost layer only: while the portfolio
+          // lightbox is open inside this panel, Escape belongs to it (Radix
+          // listens in the capture phase, so the lightbox cannot stop it).
+          onEscapeKeyDown={(e) => {
+            if (document.querySelector("[data-portfolio-lightbox]")) e.preventDefault();
+          }}
           data-platform-surface="marketing"
           // Centered with auto margins, NOT translate(-50%): a transform on
           // this panel would make every `position: fixed` descendant (the

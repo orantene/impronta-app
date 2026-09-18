@@ -148,7 +148,7 @@ export function PortfolioGalleryLightbox({
     const v = active.width / active.height;
     if (!Number.isFinite(v) || v <= 0) return 4 / 3;
     return v;
-  }, [active?.width, active?.height]);
+  }, [active]);
 
   const go = useCallback((delta: number) => {
     if (count <= 1) return;
@@ -233,6 +233,7 @@ export function PortfolioGalleryLightbox({
       {open && active ? (
         <div
           className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md"
+          data-portfolio-lightbox=""
           role="dialog"
           aria-modal="true"
           aria-label={lightbox.dialogAria}

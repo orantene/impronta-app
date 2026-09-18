@@ -254,7 +254,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
     ? L("Remote only", "Solo remoto")
     : travelScopeRow?.value
       ? L(`Travels ${travelScopeRow.value.toLowerCase()}`, `Viaja: ${travelScopeRow.value.toLowerCase()}`)
-      : travels ? L("Travels worldwide", "Viaja a todo el mundo") : livesIn ? L(`Based in ${livesIn}`, `En ${livesIn}`) : null;
+      : travels ? L("Travels worldwide", "Viaja a todo el mundo") : null;
   const logistics: Array<[string, string]> = [
     langShort.length ? [L("Speaks", "Habla"), langShort.join(" · ")] : null,
     travelLine ? [L("Travel", "Viajes"), travelLine] : null,
@@ -360,7 +360,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
             {langShort.length ? <span><b>{L("Speaks", "Habla")}</b> {langShort.join(", ")}</span> : null}
             {livesIn ? <span><b>{L("Based", "Base")}</b> {livesIn}</span> : null}
             {travelLine ? <span><b>{travelLine}</b></span> : null}
-            {childTypes.slice(0, 4).map((c) => <span key={c}>{c}</span>)}
+            {childTypes.length ? <span><b>{L("Also", "También")}</b> {childTypes.slice(0, 4).join(", ")}</span> : null}
           </div>
         </div>
         <NoirStatRail rows={compRows} locale={locale} />
@@ -495,8 +495,11 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
       {resolvedPreview ? <div className="nf-preview-banner">{t("public.profile.previewModeBanner")}</div> : null}
 
       {/* ── STICKY RAIL (desktop) ── */}
-      <div className="nf-rail-slot">
-        <div className="nf-rail" data-profile-sticky-bar="visible">
+      {/* data-profile-sticky-bar sits on the SLOT, not the rail: the tenant
+          token forces `display:flex !important` on the attribute host, which
+          would defeat the rail's phone-only display:none. */}
+      <div className="nf-rail-slot" data-profile-sticky-bar="visible">
+        <div className="nf-rail">
           <div className="nf-wrap">
             <div className="nf-rail__who">
               <span className="nf-thumb">{portraitImg ? <Image src={portraitImg} alt="" fill sizes="38px" /> : <span className="nf-portrait__mono"><Silhouette size="60%" /></span>}</span>
@@ -611,9 +614,11 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
       ) : null}
 
       {/* ── STICKY BAR (phone) ── */}
+      <div className="nf-bar-slot" data-profile-sticky-bar="visible">
       <div className="nf-bar">
         <div className="nf-bar__l"><div className="n">{name}</div><div className="s">{bookable && startingFrom ? `${L("From", "Desde")} ${startingFrom} · ${signal}` : signal}</div></div>
         {primary(inquireButtonSidebar, true)}
+      </div>
       </div>
     </main>
   );

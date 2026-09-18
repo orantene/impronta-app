@@ -48,11 +48,7 @@ import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
 import type { TalentServiceAreaRow } from "../profile-view";
-import type {
-  TalentRatingSummary,
-  TalentReview,
-  Testimonial,
-} from "@/lib/reviews/review-types";
+import type { TalentRatingSummary, TalentReview, Testimonial } from "@/lib/reviews/review-types";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
@@ -218,12 +214,7 @@ export type LightProfileLayoutProps = {
   tenantSlug: string;
   /** Platform host renders MarketingFooter outside the layout → suppress the in-layout footer. */
   showFooter: boolean;
-  /**
-   * Render surface. "modal" = the directory quick-open overlay (a scrolling
-   * dialog panel, its own close/open-full-page chrome). Templates that
-   * compose differently per surface read it; the classic layout ignores it.
-   */
-  variant?: "page" | "modal";
+  variant?: "page" | "modal"; // "modal" = directory quick-open overlay; classic ignores it
 
   // ── Tenant theme (for theme-adaptive templates: Lumen / Atelier) ─────────
   /** Light/dark register derived from the tenant's background.mode design token. */
