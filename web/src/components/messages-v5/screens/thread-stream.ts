@@ -61,7 +61,7 @@ export function buildStream({ messages, currentUserId, unreadCount }: BuildStrea
   // `offer_event` row the offer engine writes on every send, or the v5
   // `offer_review` card). The engine's "Offer sent to client." system line and
   // the talent-thread mirror are the same fact and stay out of the stream.
-  const offerCards = offerCardMessageIds(messages);
+  const offerCards = offerCardMessageIds(messages.filter((m) => m.thread !== "group"));
   const live = messages.filter((m) => {
     if (m.kind === "offer_event" || m.kind === "offer_review") return offerCards.has(m.id);
     if (m.system && m.systemEvent === "offer_sent" && offerCards.size > 0) return false;

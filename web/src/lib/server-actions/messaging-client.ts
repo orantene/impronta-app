@@ -194,10 +194,10 @@ export async function messagingClientPickTime(input: { token: string; messageId:
 
 /* ---------- 4. accept / decline an exact offer version (D-MSG-162) ---------- */
 
-type OfferRow = { id: string; inquiry_id: string; status: string; version: number; valid_until: string | null };
+type OfferRow = { id: string; inquiry_id: string; status: string; version: number; valid_until: string | null; total_client_price?: number | string | null; currency_code?: string | null };
 
 async function offerFor(l: Link, offerId: string, offerVersion: number): Promise<OfferRow | { ok: false; reason: MessagingRefusal }> {
-  const { data } = await scoped(l.admin, "inquiry_offers", l.tenantId).select("id, inquiry_id, status, version, valid_until").eq("id", offerId).maybeSingle();
+  const { data } = await scoped(l.admin, "inquiry_offers", l.tenantId).select("id, inquiry_id, status, version, valid_until, total_client_price, currency_code").eq("id", offerId).maybeSingle();
   const row = data as OfferRow | null;
   if (!row || row.inquiry_id !== l.inquiryId) return fail("not_found");
   // Accept binds to an exact version (owner ruling): a card drawn for v2 cannot act on v3.
@@ -224,7 +224,7 @@ async function offerStateCard(l: Link, offer: OfferRow, offerStatus: "accepted" 
     inquiryId: l.inquiryId,
     kind: "offer_state",
     body,
-    payload: { state: offerStatus === "accepted" ? "selected" : "cancelled", offerId: offer.id, version: offer.version, offerStatus },
+    payload: { state: offerStatus === "accepted" ? "selected" : "cancelled", offerId: offer.id, version: offer.version, offerStatus, totalCents: Math.round(Number(offer.total_client_price ?? 0) * 100), currency: offer.currency_code ?? "USD" },
     senderUserId: null,
   });
 }

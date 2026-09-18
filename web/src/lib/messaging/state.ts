@@ -15,6 +15,9 @@ export type InquiryStateInput = {
   status: string | null;
   currentOfferId: string | null;
   unread: boolean;
+  /** Whether any linked record carries money (deposit or full). Optional: a
+   * caller with no record view leaves it out and "approved" stays won. */
+  paid?: boolean;
 };
 
 /**
@@ -41,6 +44,9 @@ export function readOpportunityState(input: InquiryStateInput): OpportunityState
   if (status === "rejected" || status === "expired" || status === "closed_lost" || status === "closed") {
     return "lost";
   }
+  // An accepted offer with no money on any record is still awaiting its
+  // deposit (D06 ladder: accepted → deposit → won).
+  if (status === "approved" && input.currentOfferId && input.paid === false) return "accepted_awaiting_deposit";
   if (status === "booked" || status === "converted" || status === "approved") return "won";
   if (!input.currentOfferId) {
     if (

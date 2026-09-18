@@ -87,7 +87,7 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
       const o = p as OfferReviewPayload & { offer_id?: string; total_label?: string; status?: string };
       const offerId = o.offerId ?? o.offer_id ?? "";
       const legacyCents = typeof o.total_label === "string" ? Math.round(Number.parseFloat(o.total_label) * 100) : Number.NaN;
-      const totalCents = typeof o.totalCents === "number" ? o.totalCents : Number.isFinite(legacyCents) ? legacyCents : 0;
+      const totalCents = typeof o.totalCents === "number" ? o.totalCents : Number.isFinite(legacyCents) ? legacyCents : null;
       return (
         <OfferCard
           title={model.title}
@@ -95,7 +95,7 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
           version={typeof o.version === "number" ? o.version : 1}
           forName={clientName}
           lines={[]}
-          total={money(totalCents, o.currency ?? "USD")}
+          total={totalCents === null ? "" : money(totalCents, o.currency ?? "USD")}
           validUntil={o.validUntil ? formatTime(o.validUntil, locale) : null}
           copy={kit}
           mine={mine}

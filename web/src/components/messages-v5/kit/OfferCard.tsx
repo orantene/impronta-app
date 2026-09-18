@@ -100,7 +100,7 @@ export function OfferCard({ title, state, version, versions, forName, affects, l
       {lines.map((l, i) => (
         <CardLine key={i} label={l.label} amount={l.amount} muted={l.muted} />
       ))}
-      <CardTotal label={copy.card.total} amount={total} />
+      {total ? <CardTotal label={copy.card.total} amount={total} /> : null}
       {depositLine ? <CardLine muted label={fill(copy.offer.depositLine, { pct: depositLine.pct })} amount={depositLine.amount} /> : null}
     </Card>
   );

@@ -57,6 +57,7 @@ export async function loadMessagingInbox(
     if ((row.location_slug ?? "default") !== input.locationSlug && input.locationSlug !== "all") continue;
     const unread = isUnread(row, reads.get(row.id) ?? null);
     if (unread) unreadCount += 1;
+    const paid = (chips.get(row.id) ?? []).some((chip) => chip.paymentState === "paid" || chip.paymentState === "partially_refunded");
     const mapped: InboxRow = {
       id: row.id,
       tenantId: row.tenant_id,
@@ -85,6 +86,7 @@ export async function loadMessagingInbox(
         status: row.status,
         currentOfferId: row.current_offer_id,
         unread,
+        paid,
       }),
       channel: (row.channel as MessagingChannel | null) ?? "web_chat",
       ownerUserId: row.owner_user_id,
@@ -116,6 +118,7 @@ export async function loadMessagingInbox(
           status: row.status,
           currentOfferId: row.current_offer_id,
           unread,
+          paid,
         }),
         recordChips: chips.get(row.id) ?? [],
       }),
