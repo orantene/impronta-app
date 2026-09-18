@@ -79,7 +79,9 @@ test.describe("onboarding · build and arrival", () => {
     expect(fact.includes("photos")).toBe(stamp!.placed.photos.hero === "type" || stamp!.placed.photos.hero === "owner");
     const variant = await page.getByTestId("onb-arrival").getAttribute("data-variant");
     expect(stamp!.outcome === "fallback_used" || stamp!.outcome === "failed" ? "fallback" : "business").toBe(variant);
-    await expect(page.getByTestId("onb-arrival-cta")).toHaveText(/Open my website/);
+    // The site comes first, the builder second (never edit mode on arrival).
+    await expect(page.getByTestId("onb-arrival-view")).toHaveText(/View my website/);
+    await expect(page.getByTestId("onb-arrival-cta")).toHaveText(/Customize in builder/);
 
     // Second tap: idempotent, same workspace.
     const res = await page.request.post("/api/onboarding/build");

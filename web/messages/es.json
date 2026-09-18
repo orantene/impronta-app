@@ -1818,7 +1818,9 @@
         "nextPremium": "Explora las funciones premium",
         "nextTalentPhotos": "Agrega tres fotos para publicar",
         "nextTalentBio": "Revisa tu bio",
-        "nextTalentShare": "Comparte tu enlace"
+        "nextTalentShare": "Comparte tu enlace",
+        "viewMyWebsite": "Ver mi sitio",
+        "customizeInBuilder": "Personalizar en el editor"
       },
       "essentials": {
         "title": "Agrega lo esencial",

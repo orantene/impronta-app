@@ -1818,7 +1818,9 @@
         "nextPremium": "Explore premium features",
         "nextTalentPhotos": "Add three photos to go live",
         "nextTalentBio": "Check your bio",
-        "nextTalentShare": "Share your link"
+        "nextTalentShare": "Share your link",
+        "viewMyWebsite": "View my website",
+        "customizeInBuilder": "Customize in builder"
       },
       "essentials": {
         "title": "Add the essentials",

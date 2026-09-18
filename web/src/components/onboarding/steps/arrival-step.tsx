@@ -77,15 +77,24 @@ export function ArrivalStep({ t, arrival }: { t: (key: string) => string; arriva
         </div>
       ) : null}
 
-      <div className="mt-5">
-        <a
-          href={arrival.primary.href}
-          data-testid="onb-arrival-cta"
-          className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold"
-          style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}
-        >
-          {cta}
-        </a>
+      {/* A business lands on its site, never in edit mode (owner ruling
+          2026-09-17); the builder is the second button. A talent's primary is
+          "Finish my page" (the page goes live after three photos). */}
+      <div className="mt-5 flex flex-col gap-2">
+        {business && arrival.link ? (
+          <>
+            <a href={arrival.link.href} data-testid="onb-arrival-view" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}>
+              {t("public.onboarding.arrival.viewMyWebsite")}
+            </a>
+            <a href={arrival.primary.href} data-testid="onb-arrival-cta" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
+              {t("public.onboarding.arrival.customizeInBuilder")}
+            </a>
+          </>
+        ) : (
+          <a href={arrival.primary.href} data-testid="onb-arrival-cta" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}>
+            {cta}
+          </a>
+        )}
       </div>
 
       <div className="mt-6" data-testid="onb-next-steps">
