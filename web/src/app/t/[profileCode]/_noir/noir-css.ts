@@ -50,6 +50,7 @@ export const NOIR_CSS = `
 [data-profile-theme="noir"] .nf-chips{ display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
 [data-profile-theme="noir"] .nf-chip{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; font-weight:500; padding:7px 15px; border:1px solid var(--nf-line); border-radius:0; color:rgba(236,228,211,0.74); }
 [data-profile-theme="noir"] .nf-chip--gold{ border-color:rgba(224,192,116,0.55); color:var(--nf-champagne); }
+[data-profile-theme="noir"] .nf-chip--more{ border-color:transparent; color:rgba(236,228,211,0.5); padding-inline:6px; }
 [data-profile-theme="noir"] a.nf-chip{ text-decoration:none; transition:border-color .2s ease,color .2s ease; }
 [data-profile-theme="noir"] a.nf-chip:hover{ border-color:rgba(224,192,116,0.85); color:var(--nf-champagne); }
 html:has([data-profile-theme="noir"]){ scroll-behavior:smooth; }
@@ -60,15 +61,17 @@ html:has([data-profile-theme="noir"]){ scroll-behavior:smooth; }
 [data-profile-theme="noir"] .nf-specialties{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-top:22px; }
 [data-profile-theme="noir"] .nf-specialties__label{ font-size:9.5px; letter-spacing:0.24em; text-transform:uppercase; color:rgba(236,228,211,0.5); margin-right:2px; }
 
-/* digitals */
-[data-profile-theme="noir"] .nf-digitals{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1px; background:var(--nf-line); border:1px solid var(--nf-line); }
-[data-profile-theme="noir"] .nf-digitals + .nf-digitals{ margin-top:1px; }
-[data-profile-theme="noir"] .nf-digitals .d{ background:#100e13; padding:22px 20px; min-width:0; }
-[data-profile-theme="noir"] .nf-digitals .d .k{ font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--nf-champagne); }
-[data-profile-theme="noir"] .nf-digitals .d .v{ font-family:'Cormorant Garamond',serif; font-size:1.5rem; margin-top:8px; color:#ece4d3; word-break:break-word; }
-/* Section eyebrows measured 4.43:1 at alpha .5 — just under the 4.5 floor
-   for 10.5px text. 0.56 -> 5.30:1. */
-[data-profile-theme="noir"] .nf-group-label{ font-size:10.5px; letter-spacing:0.2em; text-transform:uppercase; color:rgba(236,228,211,0.56); margin:26px 0 12px; }
+/* digitals — editorial spec, not a boxed casting sheet: no filled cells, no
+   grid gaps; each field is a quiet label over a serif value with a single
+   hairline underline, generous air between columns. */
+[data-profile-theme="noir"] .nf-digitals{ display:grid; grid-template-columns:repeat(auto-fit, minmax(168px, 1fr)); gap:clamp(24px,3vw,34px) clamp(32px,4vw,56px); background:none; border:0; }
+[data-profile-theme="noir"] .nf-digitals + .nf-digitals{ margin-top:clamp(24px,3vw,34px); }
+[data-profile-theme="noir"] .nf-digitals .d{ background:none; padding:0 0 14px; border-bottom:1px solid rgba(198,161,78,0.15); min-width:0; }
+[data-profile-theme="noir"] .nf-digitals .d .k{ font-size:9px; letter-spacing:0.24em; text-transform:uppercase; color:rgba(236,228,211,0.42); }
+[data-profile-theme="noir"] .nf-digitals .d .v{ font-family:'Cormorant Garamond',serif; font-weight:500; font-size:clamp(1.35rem,1.7vw,1.6rem); line-height:1.22; margin-top:10px; color:#f1ede4; word-break:break-word; }
+/* Sub-group eyebrow inside a spec section (Physical casting, Availability…). */
+[data-profile-theme="noir"] .nf-group-label{ font-size:10px; letter-spacing:0.26em; text-transform:uppercase; color:var(--nf-champagne); margin:clamp(34px,4vw,48px) 0 20px; display:flex; align-items:center; gap:12px; }
+[data-profile-theme="noir"] .nf-group-label::before{ content:""; width:24px; height:1px; background:var(--nf-gold); display:inline-block; }
 
 /* clients */
 [data-profile-theme="noir"] .nf-clients{ display:flex; flex-wrap:wrap; gap:14px 40px; align-items:center; }
