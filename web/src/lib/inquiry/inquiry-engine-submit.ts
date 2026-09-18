@@ -646,7 +646,7 @@ export async function submitInquiry(
         const autoAckMessage: string =
           typeof agencyRow?.auto_ack_message === "string" && agencyRow.auto_ack_message.trim()
             ? agencyRow.auto_ack_message
-            : "Thanks — we'll get back to you within 4 hours.";
+            : "Thanks, we'll get back to you within 4 hours.";
 
         if (!input.guest_session_id && autoAckEnabled && (input.client_user_id || input.contact_email)) {
           await insertSystemMessage(supabase, {

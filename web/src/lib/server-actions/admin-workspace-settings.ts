@@ -602,7 +602,7 @@ export async function loadAgencyAutoAck(): Promise<LoadAutoAckResult> {
       autoAckMessage:
         typeof agency?.auto_ack_message === "string" && agency.auto_ack_message.trim()
           ? agency.auto_ack_message
-          : "Thanks — we'll get back to you within 4 hours.",
+          : "Thanks, we'll get back to you within 4 hours.",
     },
   };
 }
