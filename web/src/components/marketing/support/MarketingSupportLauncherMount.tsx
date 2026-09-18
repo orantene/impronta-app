@@ -8,7 +8,16 @@ import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { MarketingSupportLauncher } from "./MarketingSupportLauncher";
 
+/**
+ * The floating "?" launcher is hidden on marketing hosts unless
+ * `NEXT_PUBLIC_MARKETING_SUPPORT_FAB=1` is set (owner ruling 2026-09-17).
+ * Nothing else dispatches TULALA_SUPPORT_OPEN_EVENT, so with the flag off the
+ * guest support panel is unreachable from tulala.digital by design.
+ */
+const SUPPORT_FAB_ENABLED = process.env.NEXT_PUBLIC_MARKETING_SUPPORT_FAB === "1";
+
 export async function MarketingSupportLauncherMount() {
+  if (!SUPPORT_FAB_ENABLED) return null;
   const ctx = await getPublicHostContext();
   if (ctx.kind !== "marketing") return null;
   if (!guestSupportMayServe(guestCookieSigningEnabled())) return null;

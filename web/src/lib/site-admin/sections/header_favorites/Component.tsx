@@ -1,10 +1,7 @@
-import Link from "next/link";
-import { Bookmark } from "lucide-react";
-
 import { createTranslator } from "@/i18n/messages";
-import { withLocalePath } from "@/i18n/pathnames";
-import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import type { Locale } from "@/i18n/config";
+import { getFavoriteTalentIds } from "@/lib/public-discovery";
+import { HeaderFavoritesLauncher } from "./HeaderFavoritesLauncher";
 import {
   HeaderWidgetGlyph,
   HeaderWidgetPlaceholder,
@@ -14,18 +11,16 @@ import type { HeaderFavoritesV1 } from "./schema";
 
 /**
  * WS-A A5 — header FAVORITES widget. The live header's ♥ saved-talent affordance.
- * Rendered as a lightweight bookmark link to the favorites list, locale +
- * path-prefix resolved like the legacy header. (The full discovery DRAWER lives
- * in the coupled inquiry cluster; this is the standalone bookmark entry point.)
+ * Opens the chat dock on its Lineup view (the one favorites surface since DOCK
+ * v2.1); it used to link to /client/favorites, a dead end for guests.
  *
  *   - editor canvas (`preview`)  → a static placeholder chip.
- *   - published shell            → the real bookmark → favorites link.
+ *   - published shell            → the real heart/bookmark → dock Lineup.
  */
 export async function HeaderFavoritesComponent({
   props,
   preview,
   locale,
-  publicPathPrefix = "",
 }: SectionComponentProps<HeaderFavoritesV1>) {
   const t = createTranslator(locale as Locale);
   const ariaLabel = t("public.header.directoryShortlistAria");
@@ -46,24 +41,13 @@ export async function HeaderFavoritesComponent({
   }
 
   // Awaited AFTER the preview early-return so the editor canvas never pays
-  // for it. The tenant's grammar decides whether the ACTIVE locale is the
-  // unprefixed one; the platform fallback gets that backwards on any tenant
-  // whose default locale is not the platform default.
-  const pathSettings = await getRequestLocaleUrlSettings();
-  const href = `${publicPathPrefix}${withLocalePath("/client/favorites", locale as Locale, pathSettings)}`;
+  // for it. Cookie-scoped guest RPC / client_favorites read, request-cached
+  // (the page's discovery provider reads the same list).
+  const favoriteIds = await getFavoriteTalentIds();
   return (
-    <Link
-      href={href}
-      aria-label={ariaLabel}
-      className="site-header-widget-embed site-header-widget-embed--favorites inline-flex size-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-      data-header-widget="header_favorites"
-      data-header-widget-mode="live"
-    >
-      {/* size-4, NOT size-5: every sibling header icon is hosted in <Button>,
-          which forces `[&_svg]:size-4` (16px) on its glyph. This widget is a
-          plain link, so a size-5 glyph rendered 20px and read as an oddly
-          oversized icon next to the others (owner report 2026-08-21). */}
-      <Bookmark className="size-4" aria-hidden />
-    </Link>
+    <HeaderFavoritesLauncher
+      ariaLabel={ariaLabel}
+      initialCount={favoriteIds.length}
+    />
   );
 }
