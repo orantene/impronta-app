@@ -49,6 +49,41 @@ export type GuestThreadV5Extras = {
   offers: ClientOfferSummary[];
   /** The open payment-link code, if any (the offer card's Pay button). */
   payCode: string | null;
+  /**
+   * L13 wave 2: the non-talent items of this conversation, for the dock's
+   * Items tab. Lines are the POS shared draft (`orders` draft on this inquiry,
+   * `source_channel = messages`) with the S5 author flag; records are the
+   * `conversation_records` chips with their two state families. Client-safe
+   * fields only: no cost, margin, discount or tax columns.
+   */
+  items: GuestConversationItems | null;
+};
+
+export type GuestDraftLine = {
+  id: string;
+  label: string;
+  units: number;
+  /** Client-facing unit price at add time (S5 snapshot), in cents. */
+  unitCents: number;
+  /** "client" = you chose · "staff" = added by the business · "system". */
+  author: "client" | "staff" | "system";
+  /** Staff confirmed this line (shared-draft ladder: draft → confirmed). */
+  confirmed: boolean;
+  kind: string | null;
+};
+
+export type GuestRecordChip = {
+  kind: string;
+  recordId: string;
+  paymentState: string | null;
+  fulfilmentState: string | null;
+  recordDate: string | null;
+};
+
+export type GuestConversationItems = {
+  currency: string;
+  lines: GuestDraftLine[];
+  records: GuestRecordChip[];
 };
 
 export type GuestMessageKind =

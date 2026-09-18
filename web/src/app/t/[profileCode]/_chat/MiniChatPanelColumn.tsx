@@ -517,6 +517,9 @@ export function MiniChatPanelColumn({
           sourcePage={sourcePage}
           onRemoveCartTalent={onRemoveCartTalent}
           onStartInquiry={startInquiryInChat}
+          items={v5?.items ?? null}
+          businessName={brand.agencyName}
+          locale={brand.locale ?? "en"}
         />
       )}
 
