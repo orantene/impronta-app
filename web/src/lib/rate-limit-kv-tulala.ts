@@ -22,7 +22,41 @@
 import type { KvRateLimitResult } from "./rate-limit-kv";
 
 export function isTulalaKvConfigured(): boolean {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) || isMemoryLimiterAllowed();
+}
+
+/**
+ * The isolated QA stack has no Upstash (its production values are sealed in
+ * Vercel), so a real-model run there would fail closed forever. An in-memory
+ * sliding window stands in ONLY when the process is not production AND the
+ * Supabase target is the isolated QA branch. Both conditions are checked on
+ * every call; a production build with the QA URL, or a dev process on the
+ * production project, gets the Upstash rule unchanged.
+ */
+export const MEMORY_LIMITER_ALLOWED_REF = "fxlankepwnvelxjrahwk";
+
+export function isMemoryLimiterAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (env.NODE_ENV === "production") return false;
+  const url = env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  return url.includes(`https://${MEMORY_LIMITER_ALLOWED_REF}.supabase.co`);
+}
+
+/** Sliding window over a Map; same contract as `Ratelimit.limit`. Test-visible. */
+export function memorySlidingWindow(requests: number, windowMs: number, now: () => number = Date.now) {
+  const hits = new Map<string, number[]>();
+  return {
+    async limit(key: string): Promise<{ success: boolean; reset: number }> {
+      const t = now();
+      const kept = (hits.get(key) ?? []).filter((h) => t - h < windowMs);
+      if (kept.length >= requests) {
+        hits.set(key, kept);
+        return { success: false, reset: kept[0] + windowMs };
+      }
+      kept.push(t);
+      hits.set(key, kept);
+      return { success: true, reset: t + windowMs };
+    },
+  };
 }
 
 export function tulalaSessionKey(sessionId: string | null | undefined): string {
@@ -80,6 +114,20 @@ async function getTulalaLimiter(): Promise<TulalaLimiter> {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) {
+    if (isMemoryLimiterAllowed()) {
+      const hour = 60 * 60 * 1000;
+      const turnSession = memorySlidingWindow(30, hour);
+      const turnIp = memorySlidingWindow(60, hour);
+      const importSession = memorySlidingWindow(5, hour);
+      const importIp = memorySlidingWindow(15, hour);
+      _limiter = {
+        checkTurnBySession: (key) => wrap((k) => turnSession.limit(k), key),
+        checkTurnByIp: (key) => wrap((k) => turnIp.limit(k), key),
+        checkImportBySession: (key) => wrap((k) => importSession.limit(k), key),
+        checkImportByIp: (key) => wrap((k) => importIp.limit(k), key),
+      };
+      return _limiter;
+    }
     _limiter = noop;
     return _limiter;
   }

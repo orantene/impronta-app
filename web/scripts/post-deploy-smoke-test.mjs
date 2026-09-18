@@ -539,12 +539,17 @@ async function check_auth_surface_matrix() {
   // real marketing host) fails the deploy gate.
   try {
     const onMarketing = await get(MARKETING_HOST + "/get-started");
+    // One front door (PR #2086): with the onboarding module on, /get-started
+    // 307s to the home with ?start=; with it off, the legacy form renders 200.
+    const loc = onMarketing.headers?.location ?? "";
     if (onMarketing.status === 200) {
-      pass(`${MARKETING_HOST}/get-started (200)`, "operator funnel — marketing-only, by design");
+      pass(`${MARKETING_HOST}/get-started (200)`, "operator funnel — marketing-only, by design (module off)");
+    } else if (onMarketing.status === 307 && /\?start=/.test(loc)) {
+      pass(`${MARKETING_HOST}/get-started (307 → ${loc})`, "one front door — legacy funnel lands in the onboarding module");
     } else {
       fail(
         `${MARKETING_HOST}/get-started`,
-        `expected 200 on the marketing host, got ${onMarketing.status}`,
+        `expected 200 (module off) or 307 → /?start= (module on) on the marketing host, got ${onMarketing.status} ${loc}`,
       );
     }
   } catch (e) {

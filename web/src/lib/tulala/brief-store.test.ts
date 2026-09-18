@@ -213,6 +213,13 @@ test("a number arriving as text is rejected, not coerced", () => {
   assert.equal(good.ok, true);
 });
 
+test("a WhatsApp fact must look like a number (p12: 'WhatsApp orders' came back as \"true\")", () => {
+  assert.equal(validateFactValue("presence.whatsapp", "true").ok, false);
+  assert.equal(validateFactValue("presence.whatsapp", "yes, on WhatsApp").ok, false);
+  assert.equal(validateFactValue("presence.whatsapp", "+52 998 123 4567").ok, true);
+  assert.equal(validateFactValue("presence.whatsapp", "9981234567").ok, true);
+});
+
 test("an invented enum value is rejected", () => {
   const def = factKeyDef("business.works_from");
   assert.ok(def?.allowed && def.allowed.length > 0);
