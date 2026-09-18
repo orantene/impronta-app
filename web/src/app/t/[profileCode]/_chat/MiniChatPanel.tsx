@@ -25,6 +25,7 @@ import type {
   GuestIdentityTier,
   GuestThreadMessage,
   GuestThreadStatus,
+  GuestThreadV5Extras,
   InquiryReceiptData,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
@@ -185,7 +186,7 @@ export function MiniChatPanel({
   const [cooldownSecs, setCooldownSecs] = useState(0);
   const [captchaRequired, setCaptchaRequired] = useState(false);
 
-  const [threadMeta, setThreadMeta] = useState<{ typicalReply: string | null; receipt: InquiryReceiptData | null }>({ typicalReply: null, receipt: null });
+  const [threadMeta, setThreadMeta] = useState<{ typicalReply: string | null; receipt: InquiryReceiptData | null; v5: GuestThreadV5Extras | null }>({ typicalReply: null, receipt: null, v5: null });
   const [threadStatus, setThreadStatus] = useState<GuestThreadStatus>("open");
   const [emailedTo, setEmailedTo] = useState<string | null>(null);
   // Debounced claim-email check at the gate — extracted to useGateEmailCheck
@@ -397,7 +398,7 @@ export function MiniChatPanel({
       lastSeenIsoRef.current = null;
       mergeServer(res.messages);
       setThreadStatus(res.threadStatus);
-      setThreadMeta({ typicalReply: res.typicalReplyLabel, receipt: res.receipt });
+      setThreadMeta({ typicalReply: res.typicalReplyLabel, receipt: res.receipt, v5: res.v5 ?? null });
       setStage("thread");
     })();
     return () => {
@@ -640,6 +641,10 @@ export function MiniChatPanel({
     threadStatus,
     typicalReply: threadMeta.typicalReply,
     receipt: threadMeta.receipt,
+    // L13: v5 client cards act through the thread token and then re-read the
+    // engine's rows via the same full-load path a send uses.
+    v5: threadMeta.v5,
+    onRefreshThread: () => setReloadTick((n) => n + 1),
     emailedTo,
     seenAtByInquiry,
     pulseActive,

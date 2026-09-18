@@ -10,11 +10,12 @@
  * MiniChatPanelColumn. No logic changes.
  */
 
-import type { RefObject } from "react";
+import { useEffect, useMemo, useState, type RefObject } from "react";
 
 import type {
   GuestIdentityTier,
   GuestThreadStatus,
+  GuestThreadV5Extras,
   InquiryReceiptData,
   MiniChatBrand,
 } from "@/lib/inquiry/guest-chat-contract";
@@ -26,6 +27,7 @@ import { ClaimEmailRecap } from "./ClaimEmailRecap";
 import { GuestAccountToolkit } from "./GuestAccountToolkit";
 import { InquiryReceiptCard } from "./InquiryReceiptCard";
 import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
+import { GuestClientCardRow, isGuestClientCardRow, useGuestClientCards } from "./GuestClientCards";
 import { SystemNoteCluster } from "./SystemNoteCluster";
 import { clusterSystemRows } from "./cluster-system-rows";
 import { NewMessagePulse } from "./NewMessagePulse";
@@ -70,6 +72,14 @@ export type GuestConversationBodyProps = {
    * time — it belongs AFTER a real send. Mutually exclusive with the send bar.
    */
   sendBarActive?: boolean;
+  /**
+   * L13 (Messages v5): token + offers + pay code from the full thread load.
+   * Null until it lands (or when the secret is unset); the v5 card rows then
+   * draw without actions and offer rows keep the legacy bubble.
+   */
+  v5?: GuestThreadV5Extras | null;
+  /** L13: re-read the thread after a card action (the panel's full-load bump). */
+  onRefreshThread?: () => void;
 };
 
 export function GuestConversationBody({
@@ -96,7 +106,33 @@ export function GuestConversationBody({
   identity,
   threadStatus,
   sendBarActive = false,
+  v5 = null,
+  onRefreshThread,
 }: GuestConversationBodyProps) {
+  // L13: one card model per thread. A held time shows a countdown; tick once
+  // a second while any card is held (same rule as the secure link).
+  const [now, setNow] = useState(() => new Date());
+  const anyHold = rows.some((m) => m.kind === "professional_times" && typeof (m.cardPayload as { holdExpiresAt?: unknown } | null)?.holdExpiresAt === "string");
+  useEffect(() => {
+    if (!anyHold) return;
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, [anyHold]);
+  const cardModel = useGuestClientCards({
+    rows,
+    v5,
+    locale: brand.locale ?? "en",
+    businessName: brand.agencyName,
+    refresh: onRefreshThread ?? (() => undefined),
+    onTick: () => setNow(new Date()),
+  });
+  // Offer rows only move to the v5 card once the offer summaries are here;
+  // until then the legacy enriched offer bubble keeps drawing them.
+  const hasOffers = cardModel.offers.length > 0;
+  const drawsV5Card = useMemo(
+    () => (row: StreamRow) => isGuestClientCardRow(row) && (hasOffers || !String(row.kind).startsWith("offer_")),
+    [hasOffers],
+  );
   return (
     <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", minWidth: 0 }}>
       <div
@@ -194,7 +230,9 @@ export function GuestConversationBody({
           so lineup/AI-capture bursts read as a whisper, not spam. Human
           messages render as bubbles, in place. */}
       {clusterSystemRows(rows).map((node) =>
-        node.kind === "message" ? (
+        node.kind === "message" && drawsV5Card(node.row) ? (
+          <GuestClientCardRow key={node.row.id} row={node.row} model={cardModel} now={now} />
+        ) : node.kind === "message" ? (
           <MiniChatMessageBubble
             key={node.row.id}
             m={node.row}
