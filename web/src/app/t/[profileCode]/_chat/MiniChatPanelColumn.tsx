@@ -417,9 +417,7 @@ export function MiniChatPanelColumn({
     onDockViewChange?.("chat");
   };
 
-  // DOCK v2.1 — the details sheet is opened from the HEADER icon (the old
-  // composer-area pill gave up too much real estate); the in-chat thread
-  // switcher is a slide-over drawer, also header-triggered.
+  // DOCK v2.1 — details sheet and thread switcher are both header-triggered.
   const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk, contactName: `${firstName} ${lastName}`.trim(), contactEmail: guestContactEmail, contactPhone: capturedChipValues?.contact?.contactPhone ?? inquiryIntent?.requester?.phone ?? null, onRenameSaved: (n) => { onFirstNameChange(n); onLastNameChange(""); } });
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
