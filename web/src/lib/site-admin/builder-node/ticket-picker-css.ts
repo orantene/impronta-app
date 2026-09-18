@@ -83,8 +83,8 @@ export const TP_CSS = `
 [data-ticket-picker] .tp-card-media{width:96px;height:100%;min-height:120px;aspect-ratio:4/5;object-fit:cover;display:block}
 @media (min-width:640px){[data-ticket-picker] .tp-card-media{width:100%;height:auto;min-height:0;max-height:260px}}
 [data-ticket-picker] .tp-card-body{display:grid;gap:0.3rem;padding:0.9rem 0.95rem 0.95rem 1rem;min-width:0;align-content:start}
-[data-ticket-picker] .tp-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;min-width:0}
-[data-ticket-picker] .tp-card-title{min-width:0;font-family:var(--site-heading-font,inherit);font-weight:600;font-size:1.05rem;line-height:1.25;letter-spacing:0.01em}
+[data-ticket-picker] .tp-card-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:0.35rem 0.5rem;min-width:0}
+[data-ticket-picker] .tp-card-title{flex:1 1 9ch;min-width:0;font-family:var(--site-heading-font,inherit);font-weight:600;font-size:1.05rem;line-height:1.25;letter-spacing:0.01em}
 [data-ticket-picker] .tp-card-price{display:flex;align-items:baseline;gap:0.4rem;font-family:var(--site-heading-font,inherit);font-size:1.5rem;line-height:1.1;color:var(--token-color-primary);font-variant-numeric:tabular-nums}
 [data-ticket-picker] .tp-card-price small{font-family:inherit;font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--token-color-muted)}
 [data-ticket-picker] .tp-card-price[data-free="1"]{font-family:inherit;font-weight:700;font-size:1.15rem}
