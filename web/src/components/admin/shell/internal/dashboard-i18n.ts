@@ -2966,6 +2966,13 @@ const ES_TEXT: Record<string, string> = {
   "A “Message {agency}” button on your home page, starts a general inquiry to your team.": "Un botón “Enviar mensaje a {agency}” en tu página de inicio, que inicia una consulta general para tu equipo.",
   "Directory page": "Página del directorio",
   "A “Message {agency}” button on your directory page, starts a general inquiry to your team.": "Un botón “Enviar mensaje a {agency}” en tu página del directorio, que inicia una consulta general para tu equipo.",
+  // L13 (Messages v5 guest dock): what the dock does once open, tenant-wide.
+  "Inside the chat": "Dentro del chat",
+  "What visitors can do once the chat is open. Applies to every public page.": "Lo que los visitantes pueden hacer una vez abierto el chat. Aplica a todas tus páginas públicas.",
+  "Items tab": "Pestaña de selección",
+  "Visitors collect what they want to ask about (talent, services, a table, tickets) before sending. The tab is named after what you sell; change the word under Settings, Words.": "Los visitantes reúnen lo que quieren consultar (talento, servicios, una mesa, entradas) antes de enviar. La pestaña lleva el nombre de lo que vendes; cambia la palabra en Ajustes, Palabras.",
+  "Offer, payment and booking cards (beta)": "Tarjetas de oferta, pago y reserva (beta)",
+  "The choices, offer, payment and confirmation cards your team sends from Messages appear in the chat as cards visitors can act on. Off keeps plain messages.": "Las tarjetas de opciones, oferta, pago y confirmación que tu equipo envía desde Mensajes aparecen en el chat como tarjetas con las que el visitante puede actuar. Apagado mantiene mensajes simples.",
 
   // ── Talent profile shell drawer ──
   "No workspace context.": "Sin contexto de espacio.",

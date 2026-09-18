@@ -31,6 +31,8 @@ export type SaveGuestChatSettingsInput = {
   showOnDirectory: boolean;
   showOnHome: boolean;
   greeting: string | null;
+  itemsTab: boolean;
+  cardsV5: boolean;
 };
 
 export type SaveGuestChatSettingsResult =
@@ -42,6 +44,8 @@ const saveSchema = z.object({
   showOnTalent: z.boolean(),
   showOnDirectory: z.boolean(),
   showOnHome: z.boolean(),
+  itemsTab: z.boolean(),
+  cardsV5: z.boolean(),
   greeting: z
     .string()
     .max(280, "Keep the greeting under 280 characters.")
@@ -63,7 +67,7 @@ export async function loadGuestChatSettingsForAdmin(): Promise<LoadGuestChatSett
     "tenant_guest_chat_settings",
     tenantId,
   )
-    .select("enabled, show_on_talent, show_on_directory, show_on_home, greeting")
+    .select("enabled, show_on_talent, show_on_directory, show_on_home, greeting, items_tab, cards_v5")
     .maybeSingle();
 
   if (error) {
@@ -107,6 +111,8 @@ export async function saveGuestChatSettings(
       show_on_directory: v.showOnDirectory,
       show_on_home: v.showOnHome,
       greeting,
+      items_tab: v.itemsTab,
+      cards_v5: v.cardsV5,
       updated_by: user.id,
     },
     { onConflict: "tenant_id" },

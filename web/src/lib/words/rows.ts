@@ -325,6 +325,14 @@ export const WORD_ROWS: ReadonlyArray<WordRow> = [
 
   // ── Customers ──────────────────────────────────────────────────────────
   {
+    key: "customers.chat_items",
+    feature: "customers",
+    where: { en: "The chat tab that holds what a customer picked", es: "La pestaña del chat con lo que eligió el cliente" },
+    // The default is derived from the preset (see chat-items-label.ts):
+    // Talent & services / Your order / Tickets & tables / Services / Items.
+    fallback: { en: "Items", es: "Selección" },
+  },
+  {
     key: "customers.person",
     feature: "customers",
     where: { en: "The person buying", es: "Quien compra" },

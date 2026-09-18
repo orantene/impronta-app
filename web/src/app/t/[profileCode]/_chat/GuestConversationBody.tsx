@@ -129,9 +129,12 @@ export function GuestConversationBody({
   // Offer rows only move to the v5 card once the offer summaries are here;
   // until then the legacy enriched offer bubble keeps drawing them.
   const hasOffers = cardModel.offers.length > 0;
+  // Tenant switch (Settings, Guest chat, "Offer, payment and booking cards"):
+  // off keeps every row on the legacy bubbles. Opt-in until QA (decision 10).
+  const cardsOn = brand.dockCardsV5 === true;
   const drawsV5Card = useMemo(
-    () => (row: StreamRow) => isGuestClientCardRow(row) && (hasOffers || !String(row.kind).startsWith("offer_")),
-    [hasOffers],
+    () => (row: StreamRow) => cardsOn && isGuestClientCardRow(row) && (hasOffers || !String(row.kind).startsWith("offer_")),
+    [cardsOn, hasOffers],
   );
   return (
     <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", minWidth: 0 }}>

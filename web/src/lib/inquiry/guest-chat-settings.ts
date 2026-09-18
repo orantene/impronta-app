@@ -47,7 +47,7 @@ export async function loadGuestChatSettings(
 
     const { data, error } = await admin
       .from("tenant_guest_chat_settings")
-      .select("enabled, show_on_talent, show_on_directory, show_on_home, greeting")
+      .select("enabled, show_on_talent, show_on_directory, show_on_home, greeting, items_tab, cards_v5")
       .eq("tenant_id", tenantId)
       .maybeSingle();
 

@@ -693,6 +693,12 @@ export type MiniChatBrand = {
    * render in the tenant's language. Falls back to "en" when absent.
    */
   locale?: string | null;
+  /** L13: tenant switch, the dock shows its Items tab (default on). */
+  dockItemsTab?: boolean;
+  /** L13: tenant switch, the dock draws the Messages v5 client cards (opt-in). */
+  dockCardsV5?: boolean;
+  /** L13: the Items tab label per business ("Talent & services", "Your order", ...). */
+  dockItemsLabel?: string | null;
 };
 
 export type MiniChatPanelProps = {

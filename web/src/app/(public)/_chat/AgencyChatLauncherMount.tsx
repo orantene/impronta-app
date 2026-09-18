@@ -53,6 +53,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadTenantWords } from "@/lib/words/server";
 import { loadGuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
+import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
@@ -217,6 +218,8 @@ export async function AgencyChatLauncherMount({
   // (existingInquiryId + prefill), so clicking an "Inquiry sent" pill reopens
   // that conversation + receipt instead of a fresh re-draftable draft, and it
   // feeds the lifecycle label. autoAnchorLatest stays as the no-resume fallback.
+  // L13: the tenant-wide dock switches + the per-business Items label.
+  const dockFlags = await loadGuestDockFlags(tenantId, locale);
   const resume = await getActiveGuestInquiry({ tenantSlug });
   const active = resume.ok ? resume.active : null;
   const lifecycle = await resolveLauncherLifecycleInputs({
@@ -240,6 +243,7 @@ export async function AgencyChatLauncherMount({
         isHub={isHub}
         brand={{
         agencyName,
+        ...dockFlags,
         // Drives the opener voice ("Hi — I'm {agency}'s booking assistant").
         talentDisplayName: agencyName,
         accentColor,
