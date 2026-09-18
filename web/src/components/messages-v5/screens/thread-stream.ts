@@ -64,7 +64,7 @@ export function buildStream({ messages, currentUserId, unreadCount }: BuildStrea
   const offerCards = offerCardMessageIds(messages.filter((m) => m.thread !== "group"));
   const live = messages.filter((m) => {
     if (m.kind === "offer_event" || m.kind === "offer_review") return offerCards.has(m.id);
-    if (m.system && m.systemEvent === "offer_sent" && offerCards.size > 0) return false;
+    if (m.system && (m.systemEvent === "offer_sent" || m.systemEvent === "all_approvals_complete") && offerCards.size > 0) return false;
     return !m.deletedAt || BUBBLE_KINDS.has(m.kind);
   });
   const items: StreamItem[] = [];

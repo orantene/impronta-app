@@ -37,7 +37,7 @@ export function RecordPill({ chip, copy }: { chip: RecordChip; copy: KitCopy }) 
   return (
     <Pill tone="rec" title={copy.record[chip.kind]}>
       <Icon name={RECORD_ICON[chip.kind]} size={12} />
-      <b>{chip.label}</b>
+      <b>{chip.label === chip.kind ? copy.record[chip.kind] : chip.label}</b>
       {state ? ` · ${state}` : null}
     </Pill>
   );

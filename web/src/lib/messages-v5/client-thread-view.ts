@@ -66,8 +66,18 @@ function sameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+const HIDDEN_CLIENT_SYSTEM_EVENTS = new Set(["offer_sent", "offer_accepted", "approvals_complete", "all_approvals_complete", "talent_approved"]);
+
 export function buildClientStream(messages: readonly ThreadMessage[]): ClientStreamItem[] {
-  const live = messages.filter((m) => !m.internal && m.kind !== "internal_note" && (!m.deletedAt || CLIENT_BUBBLE_KINDS.has(m.kind)));
+  // One offer card per offer; the engine's own "Offer sent" / approvals
+  // lines are the same fact as the card and stay out of the client's stream.
+  const offerCards = offerCardMessageIds(messages);
+  const live = messages.filter((m) => {
+    if (m.internal || m.kind === "internal_note") return false;
+    if (m.kind === "offer_event" || m.kind === "offer_review") return offerCards.has(m.id);
+    if (m.system && m.systemEvent && HIDDEN_CLIENT_SYSTEM_EVENTS.has(m.systemEvent)) return false;
+    return !m.deletedAt || CLIENT_BUBBLE_KINDS.has(m.kind);
+  });
   const items: ClientStreamItem[] = [];
   let lastDay: Date | null = null;
   let prev: { index: number; mine: boolean; at: number } | null = null;
