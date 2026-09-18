@@ -257,8 +257,9 @@ export async function loadOfferForEditor(
     };
   });
 
-  const depositPct = row.deposit_pct == null ? null : Number(row.deposit_pct);
-  const depositAmountCents = row.deposit_amount_cents == null ? null : Number(row.deposit_amount_cents);
+  // A column default of 0 is "no deposit", not an amount of $0.
+  const depositPct = row.deposit_pct == null || Number(row.deposit_pct) <= 0 ? null : Number(row.deposit_pct);
+  const depositAmountCents = row.deposit_amount_cents == null || Number(row.deposit_amount_cents) <= 0 ? null : Number(row.deposit_amount_cents);
 
   return {
     offerId: String(row.id),
