@@ -779,76 +779,43 @@ function formatSavedAgo(isoOrEpoch: string): string {
 }
 
 /**
- * Perf spine — leaf Save-draft button. Subscribes to `saving` HERE so the
- * double-submit guard (an explicit manual save while one is in flight) keeps
- * working without the whole topbar re-rendering on every save flip. This gate
- * is KEPT deliberately: it is a pressed-state affordance on an action that
- * writes, not a stale-fragility gate.
+ * Save + status in ONE 40px control (owner ruling 2026-09-17: the outline
+ * "Save" button plus a "Draft saved · 2m ago" caption plus an "Unpublished
+ * changes" pill was three widgets for one fact). The glyph carries the state,
+ * the tooltip carries the words, the click is ⌘S:
+ *
+ *   saved    green check          "Draft saved · 2m ago"
+ *   dirty    amber dot            "Unsaved draft"
+ *   saving   pulsing blue dot     "Saving…"
+ *   failed   rose ! + SHORT TEXT  "Couldn't save" / "Save conflict"
+ *
+ * The failure state keeps its words: a draft that did not persist must never
+ * be a glyph the operator can glance past (W3-T2(a)). "Unpublished changes"
+ * folds into the tooltip; the primary Publish CTA next door is the standing
+ * signal that live differs from draft.
+ *
+ * Perf spine — `saving` / `lastDraftSavedAt` are read here via the micro-
+ * store, so a save cycle re-renders only this control.
  */
-function SaveDraftButton({
-  onSaveDraft,
-}: {
-  onSaveDraft: () => void | Promise<unknown>;
-}) {
-  const saving = useSaving();
-  return (
-    <TbOutlineBtn
-      onClick={() => void onSaveDraft()}
-      disabled={saving}
-      title="Save draft (⌘S)"
-    >
-      <span
-        className="inline-flex shrink-0 items-center justify-center rounded-full"
-        style={{
-          width: 18,
-          height: 18,
-          background: CHROME.green,
-          color: CHROME.surface,
-        }}
-        aria-hidden
-      >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M20 6 9 17l-5-5" />
-        </svg>
-      </span>
-      Save
-    </TbOutlineBtn>
-  );
-}
-
-/**
- * #18 — SaveStatus: surfaces the autosave state with a relative "Saved Xs ago"
- * timestamp (from `lastDraftSavedAt`) so operators always know when the last
- * checkpoint was written, and shows an amber "Unpublished changes" pill when
- * the draft was saved AFTER the last publish (or when the page has never been
- * published), signalling the live site doesn't yet reflect current work.
- */
-function SaveStatus({
+function SaveStatusButton({
   dirty,
   liveSitePublishedAt,
+  onSaveDraft,
 }: {
   dirty: boolean;
   /** ISO timestamp when the page was last published, or null if never. */
   liveSitePublishedAt?: string | null;
+  onSaveDraft?: () => void | Promise<unknown>;
 }) {
-  // Perf spine (save-cycle bridge) — `saving` / `lastDraftSavedAt` are read
-  // HERE via the micro-store (not prop-drilled from the shell), so a save
-  // cycle re-renders only this status chip, not the whole topbar/shell.
   const saving = useSaving();
   const lastDraftSavedAt = useLastDraftSavedAt();
-  // W3-T2(a) — surface a persistent SAVE-FAILURE state in the topbar status,
-  // not just the transient mutation toast. A draft that didn't persist
-  // (SAVE_FAILED) or lost a CAS race (VERSION_CONFLICT) flips the status chip to
-  // the rose "Couldn't save" state until the operator acts, so the failure is
-  // never invisible once the toast is gone.
   const { mutationError } = useEditContext();
   const saveFailed =
     !saving &&
     (mutationError?.code === "SAVE_FAILED" ||
       mutationError?.code === "VERSION_CONFLICT");
 
-  // Tick every 15 s so relative "Xs ago" stays reasonably fresh without
-  // hammering re-renders. The display is informational, not realtime.
+  // Tick every 15 s so the relative "Xs ago" in the tooltip stays fresh.
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!lastDraftSavedAt) return;
@@ -856,8 +823,6 @@ function SaveStatus({
     return () => clearInterval(id);
   }, [lastDraftSavedAt]);
 
-  // "Unpublished changes" = draft was saved at or after the last publish,
-  // OR the page has never been published. Detect by comparing ISO strings.
   const hasUnpublishedChanges = Boolean(
     lastDraftSavedAt &&
       (!liveSitePublishedAt ||
@@ -865,31 +830,6 @@ function SaveStatus({
           new Date(liveSitePublishedAt).getTime()),
   );
 
-  const dot = "inline-block shrink-0 rounded-full";
-
-  if (saving) {
-    return (
-      <span
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
-        style={{
-          padding: "4px 11px 4px 9px",
-          background: CHROME.blueBg,
-          color: CHROME.blue,
-          borderColor: CHROME.blueLine,
-        }}
-      >
-        <span
-          className={`${dot} animate-pulse`}
-          style={{ width: 6, height: 6, background: CHROME.blue, boxShadow: "0 0 8px rgba(58,123,255,0.6)" }}
-          aria-hidden
-        />
-        Saving…
-      </span>
-    );
-  }
   if (saveFailed) {
     const label =
       mutationError?.code === "VERSION_CONFLICT"
@@ -909,95 +849,75 @@ function SaveStatus({
       </span>
     );
   }
-  if (dirty) {
-    return (
-      <span
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
-        style={{
-          padding: "4px 11px 4px 9px",
-          background: CHROME.amberBg,
-          color: CHROME.amber,
-          borderColor: CHROME.amberLine,
-        }}
-        title="Edits are only in your draft until you publish. If the canvas or device preview looks one step behind, wait for autosave to finish or switch viewport to refresh the preview."
-        aria-label="Unsaved draft. Changes are not fully saved yet, or the preview may still be catching up."
-      >
-        <span
-          className={dot}
-          style={{ width: 6, height: 6, background: CHROME.amber, boxShadow: "0 0 8px rgba(58,123,255,0.6)" }}
-          aria-hidden
-        />
-        Unsaved draft
-      </span>
-    );
-  }
 
-  // Saved state — plain "Draft saved" text per canvas-first mockup.
-  const savedAgoText = lastDraftSavedAt
-    ? `Draft saved · ${formatSavedAgo(lastDraftSavedAt)}`
-    : "Draft saved";
+  const state: "saving" | "dirty" | "saved" = saving
+    ? "saving"
+    : dirty
+      ? "dirty"
+      : "saved";
+  const publishNote = hasUnpublishedChanges
+    ? " Visitors still see the last published version until you publish."
+    : "";
+  const words =
+    state === "saving"
+      ? "Saving…"
+      : state === "dirty"
+        ? "Unsaved draft"
+        : lastDraftSavedAt
+          ? `Draft saved · ${formatSavedAgo(lastDraftSavedAt)}`
+          : "Draft saved";
+  const title = onSaveDraft
+    ? `${words}.${publishNote} Click to save now (⌘S).`
+    : `${words}.${publishNote}`;
+  const color =
+    state === "saving"
+      ? CHROME.blue
+      : state === "dirty"
+        ? CHROME.amber
+        : CHROME.green;
 
   return (
-    <>
-      <span
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="inline-flex shrink-0 items-center gap-[5px] text-[13px] font-medium"
-        style={{ color: CHROME.muted }}
-        title={
-          lastDraftSavedAt
-            ? `Draft last saved at ${new Date(lastDraftSavedAt).toLocaleString()}. Visitors see the last published version until you publish.`
-            : "Draft is saved on our servers. Visitors still see the published site until you click Publish."
-        }
-        aria-label={savedAgoText}
+    <span role="status" aria-live="polite" aria-atomic="true">
+      <TbIconBtn
+        title={title}
+        ariaLabel={words}
+        onClick={onSaveDraft ? () => void onSaveDraft() : undefined}
+        disabled={!onSaveDraft || saving}
       >
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke={CHROME.green}
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M20 6 9 17l-5-5" />
-        </svg>
-        Draft saved
-      </span>
-      {/* #18 — "Unpublished changes" amber pill: visible whenever there are
-          draft saves that haven't been published to the live site yet. This
-          gives operators an at-a-glance signal that the live site differs
-          from what they see in the canvas. Click Publish to close the gap. */}
-      {hasUnpublishedChanges ? (
-        <span
-          role="note"
-          aria-label="You have unpublished changes. The live site still shows the previous published version."
-          className="inline-flex shrink-0 items-center gap-[5px] rounded-full border text-[10.5px] font-semibold"
-          style={{
-            padding: "3px 9px 3px 8px",
-            background: CHROME.amberBg,
-            color: CHROME.amber,
-            borderColor: CHROME.amberLine,
-          }}
-          title="The live site visitors see does not yet reflect your saved draft. Click Publish to push these changes live."
-        >
-          <span
-            className={dot}
-            style={{ width: 5, height: 5, background: CHROME.amber }}
+        {state === "saved" ? (
+          <svg
+            width={TB_ICON_PX}
+            height={TB_ICON_PX}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={color}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             aria-hidden
+          >
+            <circle cx="12" cy="12" r="9" />
+            <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+          </svg>
+        ) : (
+          <span
+            aria-hidden
+            className={state === "saving" ? "animate-pulse" : undefined}
+            style={{
+              display: "inline-block",
+              width: 10,
+              height: 10,
+              borderRadius: 999,
+              background: color,
+              boxShadow: `0 0 0 4px ${state === "saving" ? CHROME.blueBg : CHROME.amberBg}`,
+            }}
           />
-          Unpublished changes
-        </span>
-      ) : null}
-    </>
+        )}
+      </TbIconBtn>
+    </span>
   );
 }
+
 
 const VIEWPORT_OPTS: ReadonlyArray<{
   key: EditDevice;
@@ -1197,10 +1117,13 @@ function NavLocaleToggle({
   activeLocale,
   defaultLocale,
   tenantLocales,
+  bare = false,
 }: {
   activeLocale: string;
   defaultLocale: string;
   tenantLocales: ReadonlyArray<string>;
+  /** No own track: the caller draws it (so a sibling control can share it). */
+  bare?: boolean;
 }) {
   const { t } = useEditorLocale();
   const orderedLocales = useMemo(
@@ -1232,11 +1155,19 @@ function NavLocaleToggle({
 
   return (
     <div
-      className="inline-flex shrink-0 items-center rounded-full p-[4px]"
-      style={{
-        background: "rgba(0,0,0,0.05)",
-        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
-      }}
+      className={
+        bare
+          ? "inline-flex shrink-0 items-center"
+          : "inline-flex shrink-0 items-center rounded-full p-[4px]"
+      }
+      style={
+        bare
+          ? undefined
+          : {
+              background: "rgba(0,0,0,0.05)",
+              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
+            }
+      }
       role="radiogroup"
       aria-label={t("Page language (opens that language's version of this page)")}
     >
@@ -1787,59 +1718,6 @@ function TbTextBtn({
       onMouseLeave={(e) => {
         e.currentTarget.style.background = "transparent";
         e.currentTarget.style.color = CHROME.text;
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** White bordered pill — Preview / Save per canvas-first mockup. */
-function TbOutlineBtn({
-  children,
-  onClick,
-  disabled,
-  title,
-  type = "button",
-  active,
-  "aria-pressed": ariaPressed,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  title?: string;
-  type?: "button" | "submit" | "reset";
-  active?: boolean;
-  "aria-pressed"?: boolean;
-}) {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      aria-pressed={ariaPressed}
-      className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-      style={{
-        height: TB_CONTROL_H,
-        padding: "0 18px",
-        fontSize: TB_FONT_PX,
-        fontWeight: 500,
-        letterSpacing: "-0.005em",
-        color: CHROME.ink,
-        background: CHROME.surface,
-        borderColor: active ? CHROME.accent : CHROME.lineStrong,
-        boxShadow: active ? `inset 0 0 0 1px ${CHROME.accent}` : "none",
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.borderColor = CHROME.accent;
-      }}
-      onMouseLeave={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.borderColor = active
-            ? CHROME.accent
-            : CHROME.lineStrong;
-        }
       }}
     >
       {children}
@@ -2878,7 +2756,7 @@ export interface TopBarProps {
   setPreviewing: (next: boolean) => void;
   dirty: boolean;
   // Perf spine — `saving` / `lastDraftSavedAt` props removed: the leaf
-  // components that need them (SaveStatus, ExitForm, SaveDraftButton)
+  // components that need them (SaveStatusButton, ExitForm)
   // subscribe to the save-cycle bridge directly.
   canUndo: boolean;
   canRedo: boolean;
@@ -3279,11 +3157,21 @@ export function TopBar({
         // rendered, so an in-place flip would repaint nothing). This pill
         // navigates; edit mode is a cookie, so the editor stays open. Both URLs
         // load the SAME design row — only the overlay text changes.
-        <>
+        // One track: the language pills and, as its last segment, the
+        // translation-audit icon (it used to be a separate "Translations"
+        // text pill; owner ruling 2026-09-17, topbar real estate).
+        <div
+          className="inline-flex shrink-0 items-center rounded-full p-[4px]"
+          style={{
+            background: "rgba(0,0,0,0.05)",
+            boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
+          }}
+        >
           <NavLocaleToggle
             activeLocale={activeLocale ?? defaultLocale}
             defaultLocale={defaultLocale}
             tenantLocales={tenantLocales}
+            bare
           />
           {/* Freeform translation audit — the one-row-per-locale analogue of
               the legacy LocaleFieldTabs dots. Gated to surfaces with a slug
@@ -3295,7 +3183,7 @@ export function TopBar({
               tenantLocales={tenantLocales}
             />
           ) : null}
-        </>
+        </div>
       ) : null}
 
       {/* ── Spacer ── */}
@@ -3360,14 +3248,12 @@ export function TopBar({
       <OpenLivePageButton />
       <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
 
-      {onSaveDraft ? (
-        <SaveDraftButton onSaveDraft={onSaveDraft} />
-      ) : null}
-      <TopBarPresence />
-      <SaveStatus
+      <SaveStatusButton
         dirty={dirty}
         liveSitePublishedAt={liveSitePublishedAt}
+        onSaveDraft={onSaveDraft}
       />
+      <TopBarPresence />
 
       {/* ── Publish split (primary CTA) ── */}
       {/* Perf spine — no `disabled={saving}` here: the button and its menu
