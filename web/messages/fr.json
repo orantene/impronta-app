@@ -7580,7 +7580,8 @@
         "itemsTalent": "Talents et services",
         "itemsGeneric": "Articles",
         "toastOpen": "Ouvrir",
-        "toastNew": "Nouveau message"
+        "toastNew": "Nouveau message",
+        "sentNotDelivered": "Enregistré, mais non livré par {channel}. Le client le voit quand même sur son lien."
       },
       "client": {
         "title": "Modifier le client",

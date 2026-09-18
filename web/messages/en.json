@@ -18603,7 +18603,8 @@
         "itemsTalent": "Talent & services",
         "itemsGeneric": "Items",
         "toastOpen": "Open",
-        "toastNew": "New message"
+        "toastNew": "New message",
+        "sentNotDelivered": "Stored, but not delivered by {channel}. The client still sees it on their link."
       },
       "client": {
         "title": "Edit client",

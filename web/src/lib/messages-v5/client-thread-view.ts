@@ -58,8 +58,8 @@ export function isClientCardKind(kind: string): kind is ClientCardKind {
 }
 
 /** From the client's side: no staff sender and not a note. */
-export function isMine(message: Pick<ThreadMessage, "senderUserId" | "internal">): boolean {
-  return message.senderUserId === null && !message.internal;
+export function isMine(message: Pick<ThreadMessage, "senderUserId" | "internal" | "system">): boolean {
+  return message.senderUserId === null && !message.internal && !message.system;
 }
 
 function sameDay(a: Date, b: Date): boolean {

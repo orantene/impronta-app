@@ -34,8 +34,8 @@ export function isCardKindString(kind: string): kind is CardKind {
 }
 
 /** A message from the client side: no staff sender (a guest session, or nothing at all). */
-export function isFromClient(message: Pick<ThreadMessage, "senderUserId" | "internal">): boolean {
-  return message.senderUserId === null && !message.internal;
+export function isFromClient(message: Pick<ThreadMessage, "senderUserId" | "internal" | "system">): boolean {
+  return message.senderUserId === null && !message.internal && !message.system;
 }
 
 function senderKey(message: ThreadMessage): string {
@@ -91,7 +91,7 @@ export function buildStream({ messages, currentUserId, unreadCount }: BuildStrea
       prevBubble = null;
     }
 
-    if (BUBBLE_KINDS.has(m.kind)) {
+    if (BUBBLE_KINDS.has(m.kind) && !m.system) {
       const sender = senderKey(m);
       const grouped = prevBubble !== null && prevBubble.sender === sender && at.getTime() - prevBubble.at <= GROUP_WINDOW_MS;
       if (grouped && prevBubble) {

@@ -119,7 +119,7 @@ export function Composer(props: ComposerProps) {
       <label htmlFor={id} className="sr">
         {note ? c.notePlaceholder : c.placeholder}
       </label>
-      <textarea id={id} className={mobile ? "in" : "t"} rows={1} value={value} placeholder={note ? c.notePlaceholder : c.placeholder} disabled={locked || sending} onChange={(e) => onChange?.(e.target.value)} data-composer-input />
+      <textarea id={id} className={mobile ? "in" : "t"} rows={1} value={value} placeholder={note ? c.notePlaceholder : c.placeholder} disabled={locked || sending} onChange={(e) => onChange?.(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && canSend) { e.preventDefault(); onSend?.(); } }} data-composer-input />
       <button type="button" className="tool" onClick={onAttach} disabled={locked} aria-label={c.attach}>
         <Icon name="clip" size={mobile ? 18 : 16} />
       </button>

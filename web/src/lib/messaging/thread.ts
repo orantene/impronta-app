@@ -27,7 +27,7 @@ export async function loadMessagingThread(
   const { data, error } = await admin
     .from("inquiry_messages")
     .select(
-      "id, inquiry_id, thread_type, message_kind, body, card_payload, sender_user_id, guest_session_id, created_at, edited_at, deleted_at",
+      "id, inquiry_id, thread_type, message_kind, body, card_payload, sender_user_id, guest_session_id, created_at, edited_at, deleted_at, metadata",
     )
     .eq("inquiry_id", input.inquiryId)
     .order("created_at", { ascending: true });
@@ -48,6 +48,7 @@ export async function loadMessagingThread(
     created_at: string;
     edited_at: string | null;
     deleted_at: string | null;
+    metadata: Record<string, unknown> | null;
   }>).map((row) => ({
     id: row.id,
     inquiryId: row.inquiry_id,
@@ -62,6 +63,7 @@ export async function loadMessagingThread(
     thread: row.thread_type,
     internal: row.message_kind === INTERNAL_NOTE_KIND,
     delivery: delivery.get(row.id) ?? null,
+    system: row.sender_user_id === null && typeof row.metadata?.system_event_type === "string",
   }));
   return { ok: true, messages };
 }

@@ -142,13 +142,17 @@ export function ComposerWire(props: ComposerWireProps) {
         dispatch({ type: "refused", reason: result.reason });
         return;
       }
-      dispatch({ type: "sent", ok: state.mode === "note" ? shell.noteOk : shell.sentOk });
+      const notDelivered = "delivery" in result && result.delivery === "failed";
+      dispatch({
+        type: "sent",
+        ok: state.mode === "note" ? shell.noteOk : notDelivered ? shell.sentNotDelivered.replace("{channel}", state.channel) : shell.sentOk,
+      });
       onDraftChange("");
       await onWrote();
     } catch {
       dispatch({ type: "failed" });
     }
-  }, [actions, inquiryId, onConflict, onDraftChange, onWrote, shell.conflictReloaded, shell.noteOk, shell.sentOk, state]);
+  }, [actions, inquiryId, onConflict, onDraftChange, onWrote, shell.conflictReloaded, shell.noteOk, shell.sentNotDelivered, shell.sentOk, state]);
 
   const reopen = useCallback(async () => {
     const result = await actions.reopen({ inquiryId, expectedVersion: versionRef.current });

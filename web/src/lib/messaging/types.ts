@@ -171,6 +171,9 @@ export type ThreadMessage = {
   thread: "private" | "group";
   internal: boolean;
   delivery: { channel: string; state: string } | null;
+  /** Engine-authored line (auto-ack, "inquiry_created", ...): metadata.system_event_type
+   * is set and there is no sender. Drawn as a system line, never as a client bubble. */
+  system?: boolean;
 };
 
 export type CustomerMatchLevel = "phone" | "name_only" | "new";

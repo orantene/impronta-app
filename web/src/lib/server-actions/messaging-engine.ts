@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logAssignment, logCloseLost, logConversationState } from "@/lib/messaging/action-log";
 import { hasMessagingMoneyPermission } from "@/lib/messaging/money-permissions";
 import { messagingChannel } from "@/lib/messaging/channels";
+import { contactForChannel } from "@/lib/messaging/contact-for-channel";
 import { renderCard } from "@/lib/messaging/cards";
 import { loadMessagingEssentials } from "@/lib/messaging/essentials";
 import { loadConversationHistory as loadConversationHistoryReader } from "@/lib/messaging/history";
@@ -160,23 +161,21 @@ export async function messagingReply(input: {
       messageId: inserted.messageId,
       body: parsed.data.body,
       smsText: parsed.data.body,
-      to: null,
+      to: await contactForChannel(g.admin, parsed.data.inquiryId, channelId),
     });
     await recordDelivery(g.admin, {
-      tenantId: g.tenantId,
-      messageId: inserted.messageId,
-      channel: channelId,
+      tenantId: g.tenantId, messageId: inserted.messageId, channel: channelId,
       state: sent.ok ? (channelId === "whatsapp" ? "queued" : "sent") : sent.reason === "rate_limited" ? "queued" : "failed",
       providerRef: sent.ok ? sent.providerRef : null,
       lastError: sent.ok || sent.reason === "rate_limited" ? null : sent.reason,
     });
-    // WhatsApp is an experimental outbox: a send miss must not fail the
-    // stored reply. Drop the adapter and this branch is the original path.
-    if (!sent.ok && channelId !== "web_chat" && channelId !== "whatsapp" && sent.reason !== "rate_limited") {
-      return { ok: false as const, reason: sent.reason };
+    // The reply is stored either way; a channel miss is a delivery state on
+    // the bubble (Not delivered · retry), never a refusal that hides the row.
+    if (!sent.ok && sent.reason !== "rate_limited") {
+      return { ok: true as const, messageId: inserted.messageId, delivery: "failed" as const, reason: sent.reason };
     }
   }
-  return { ok: true as const, messageId: inserted.messageId };
+  return { ok: true as const, messageId: inserted.messageId, delivery: "sent" as const };
 }
 
 export async function messagingInternalNote(input: { inquiryId: string; body: string }) {

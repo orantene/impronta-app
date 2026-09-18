@@ -47,7 +47,7 @@ export function WorkspaceMessagesPage() {
   // `messages_v5` flag (owner decision 10). The old shells stay intact below.
   if (process.env.NEXT_PUBLIC_MESSAGES_V5 === "1" && bridgeTenantIdentity) {
     return (
-      <div data-tulala-messages-v5 className="-mx-[14px] -mt-[14px] flex h-[calc(100dvh-72px)] min-h-0 flex-col">
+      <div data-tulala-messages-v5 className="-mx-[14px] -mt-[14px] -mb-[60px] flex h-[calc(100dvh-66px)] min-h-0 flex-col">
         <MessagesV5Shell
           tenantId={bridgeTenantIdentity.tenantId}
           tenantSlug={bridgeTenantIdentity.slug}

@@ -75,6 +75,7 @@ export function buildShellCopy(t: Translator) {
     voiceUnsupported: t("dashboard.messagesV5.shell.voiceUnsupported"),
     conflictReloaded: t("dashboard.messagesV5.shell.conflictReloaded"),
     sentOk: t("dashboard.messagesV5.shell.sentOk"),
+    sentNotDelivered: t("dashboard.messagesV5.shell.sentNotDelivered"),
     noteOk: t("dashboard.messagesV5.shell.noteOk"),
     next: {
       reply: t("dashboard.messagesV5.shell.next.reply"),
