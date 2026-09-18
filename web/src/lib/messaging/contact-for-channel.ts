@@ -12,11 +12,14 @@ export async function contactForChannel(
   channel: string,
 ): Promise<string | null> {
   if (channel !== "email" && channel !== "sms" && channel !== "whatsapp") return null;
-  const { data } = await admin
+  const { data, error } = await admin
     .from("inquiries")
     .select("contact_email, contact_phone")
     .eq("id", inquiryId)
     .maybeSingle();
+  // A denied policy or a bad column must not read as "no address": the send
+  // then refuses loudly (channel_unavailable) instead of silently skipping.
+  if (error) return null;
   const row = (data ?? null) as { contact_email: string | null; contact_phone: string | null } | null;
   if (!row) return null;
   const value = channel === "email" ? row.contact_email : row.contact_phone;

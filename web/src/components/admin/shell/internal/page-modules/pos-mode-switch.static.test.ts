@@ -166,7 +166,7 @@ test("entering or leaving the point of sale from the switch is a document load, 
   const openMode = src.slice(src.indexOf("const openMode = useCallback("), src.indexOf("const makeDefault"));
   assert.match(openMode, /if \(onPos\) router\.push\(href\);\s*else window\.location\.assign\(href\);/, "from the back office the switch must load the POS document; mode-to-mode stays a push");
   const goWorkspace = src.slice(src.indexOf("const goWorkspace = () => {"), src.indexOf("const onMenuClosed"));
-  assert.match(goWorkspace, /window\.location\.assign\(adminBasePath\)/, "back to the workspace must be a document load");
+  assert.match(goWorkspace, /window\.location\.assign\((adminBasePath\)|workspaceSwitchHref\()/, "back to the workspace must be a document load (Messages v5: the open thread rides on the href)");
   assert.ok(!/router\.push\(adminBasePath\)/.test(goWorkspace), "no soft push back into the admin chrome");
 });
 

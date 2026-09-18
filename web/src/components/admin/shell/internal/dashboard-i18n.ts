@@ -302,7 +302,6 @@ const ES_TEXT: Record<string, string> = {
   "pending approvals": "aprobaciones pendientes",
   "items need attention": "elementos necesitan atención",
   "pending": "pendiente",
-
   // Workspace page descriptions
   "Today's snapshot: unread, pending actions, recent activity": "Resumen de hoy: no leídos, pendientes y actividad reciente",
   "All threads across active inquiries and bookings": "Todos los hilos de consultas y reservas activas",
@@ -315,7 +314,6 @@ const ES_TEXT: Record<string, string> = {
   "Workspace photo library, watermark control, and usage tracking": "Biblioteca de fotos, marca de agua y seguimiento de uso",
   "Curated talent suggestions sent to clients": "Sugerencias curadas de talento enviadas a clientes",
   "Account, plan, branding, integrations, team, and danger zone": "Cuenta, plan, marca, integraciones, equipo y zona crítica",
-
   // Quick create
   "New": "Nuevo",
   "New inquiry": "Nueva consulta",
@@ -337,7 +335,6 @@ const ES_TEXT: Record<string, string> = {
   "Open quick actions": "Abrir acciones rápidas",
   "Close quick actions": "Cerrar acciones rápidas",
   "Press G then a key from anywhere to quick-create": "Presiona G y luego una tecla desde cualquier lugar para crear rápido",
-
   // Command palette / bottom-action FAB (admin-shell-client)
   "Search, create, or ask Tulala…": "Busca, crea o pregúntale a Tulala...",
   "Search, create, or ask": "Buscar, crear o preguntar",
@@ -355,7 +352,6 @@ const ES_TEXT: Record<string, string> = {
   "How do I invite a teammate?": "¿Cómo invito a un compañero de equipo?",
   "Context: {category}": "Contexto: {category}",
   "Ask Tulala anything…": "Pregúntale lo que sea a Tulala...",
-
   // Drawer rail and headers
   "Essentials": "Esenciales",
   "Visual": "Visual",
@@ -420,7 +416,6 @@ const ES_TEXT: Record<string, string> = {
   "Redone": "Rehecho",
   "No talent context yet — finish creating first.": "Aún no hay contexto de talento. Termina de crearlo primero.",
   "Saved — closing drawer": "Guardado. Cerrando panel.",
-
   // Talent drawer sections
   "Name, pronouns, DOB. Each field has its own privacy.": "Nombre, pronombres y fecha de nacimiento. Cada campo tiene su propia privacidad.",
   "Tagline": "Lema",
@@ -429,7 +424,6 @@ const ES_TEXT: Record<string, string> = {
   "What this person is booked as. The most important section.": "Lo que se le puede contratar. La sección más importante.",
   "Location & service area": "Ubicación y área de servicio",
   "Current location + upcoming travel.": "Ubicación actual y próximos viajes.",
-
   // Identity editor
   "Stage / professional name": "Nombre artístico / profesional",
   "What clients see on the public profile.": "Lo que ven los clientes en el perfil público.",
@@ -509,7 +503,6 @@ const ES_TEXT: Record<string, string> = {
   "Social proof": "Prueba social",
   "Documents": "Documentos",
   "Limits": "Límites",
-
   // Pronouns / gender
   "she / her": "ella",
   "he / him": "él",
@@ -525,7 +518,6 @@ const ES_TEXT: Record<string, string> = {
   "Non-binary": "No binario",
   "Prefer not to say": "Prefiere no decir",
   "Other": "Otro",
-
   // Services / skills
   "Category fields (live)": "Campos por categoría (en vivo)",
   "DB-resolved field catalog for this talent's types": "Catálogo de campos resuelto desde la DB para los tipos de este talento",

@@ -3031,10 +3031,8 @@ function Bubble({
   const t = useT();
   const mine = m.is_mine;
   const kind = m.message_kind ?? "text";
-  // Voice notes render as an inline player bubble (handled below), never a
-  // money/booking card. Voice notes insert as message_kind="text" with a
-  // metadata.voice payload (the "voice" CHECK value never existed on
-  // inquiry_messages), so detection is metadata-driven, not kind-driven.
+  // Voice notes: message_kind="text" + metadata.voice (no "voice" CHECK value
+  // exists on inquiry_messages), so detection is metadata-driven.
   const voiceMeta = kind === "text" || kind === "voice" ? readVoiceMetaFromMessageMetadata(m.metadata) : null;
   const card = kind !== "text" && kind !== "voice" && !voiceMeta ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow, t, tenantSlug, inquiryId }) : null;
 
