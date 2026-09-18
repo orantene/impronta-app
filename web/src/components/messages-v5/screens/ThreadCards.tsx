@@ -107,12 +107,16 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
     case "payment_request": {
       const pay = p as PaymentRequestPayload;
       const state = paymentState(message.payload);
+      const msLeft = pay.expiresAt ? new Date(pay.expiresAt).getTime() - clock.getTime() : Number.NaN;
+      const hoursLeft = Number.isFinite(msLeft) ? Math.max(0, Math.ceil(msLeft / 3_600_000)) : null;
       return (
         <PaymentCard
           state={state}
           label={model.title}
           amount={money(pay.amountCents, pay.currency)}
           payerName={clientName}
+          hoursLeft={hoursLeft}
+          expiredOn={pay.expiresAt ? formatTime(pay.expiresAt, locale) : null}
           copy={kit}
           mine={mine}
           variant={variant}
