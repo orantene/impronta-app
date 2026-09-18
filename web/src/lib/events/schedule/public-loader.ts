@@ -5,8 +5,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolvePublicZone } from "@/lib/events/public-event-time";
 import { resolveTalentMediaForHub } from "@/lib/media/talent-media-for-hub";
-import { readProgramSettings, sortScheduleRows } from "./row-shape";
-import { EVENT_PROGRAM_COLUMN, EVENT_SCHEDULE_ITEMS_TABLE, SCHEDULE_ITEM_COLUMNS, type ScheduleItemKind, type ScheduleItemRow } from "./contract";
+import { sortScheduleRows } from "./grouping";
+import { EVENT_PROGRAM_COLUMN, EVENT_SCHEDULE_ITEMS_TABLE, SCHEDULE_ITEM_COLUMNS, normalizeEventProgramSettings, type ScheduleItemKind } from "./model";
+import type { ScheduleItemRow } from "./staff-store";
 
 /**
  * THE PUBLIC READ of an event's program: what the `event_program` island
@@ -124,7 +125,7 @@ export async function loadPublicEventProgram(
     admin.from("events").select(`id, status, venue_id, ${EVENT_PROGRAM_COLUMN}`).eq("tenant_id", tenantId).eq("id", eventId).maybeSingle(),
   );
   if (!ev || ev.status !== "published") return OFF;
-  const settings = readProgramSettings(ev.program);
+  const settings = normalizeEventProgramSettings(ev.program);
   if (!settings.enabled) return OFF;
 
   // Published + public rows only. A missing table errors here: `enabled: false`.

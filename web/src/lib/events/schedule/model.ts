@@ -17,6 +17,17 @@ import { normalizeNodeI18nOverlay, type BuilderNodeI18nOverlay } from "@/lib/sit
 
 import { uuidWire } from "../uuid-wire";
 
+// ── Table ──────────────────────────────────────────────────────────────────
+
+export const EVENT_SCHEDULE_ITEMS_TABLE = "event_schedule_items" as const;
+
+/** `events.program` (jsonb): the per-event program settings. */
+export const EVENT_PROGRAM_COLUMN = "program" as const;
+
+/** The columns every reader selects, in the migration's order. */
+export const SCHEDULE_ITEM_COLUMNS =
+  "id, tenant_id, event_id, session_id, space_id, kind, title, subtitle, description, starts_at, ends_at, time_tba, performer_talent_profile_id, performer_name, performer_tba, cover_media_id, media, links, sponsor, tags, visibility, status, sort_order, i18n, created_at, updated_at" as const;
+
 // ── Kinds ──────────────────────────────────────────────────────────────────
 
 /**

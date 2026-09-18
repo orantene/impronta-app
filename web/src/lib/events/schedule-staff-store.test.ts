@@ -14,8 +14,10 @@ import {
   reorderScheduleItemRows,
   saveEventProgramSettingsRow,
   saveScheduleItemRow,
+  scheduleItemWireToInput,
   searchPerformerRows,
 } from "./schedule/staff-store";
+import { SCHEDULE_ITEM_LIMITS, scheduleItemInputSchema } from "./schedule/model";
 
 /**
  * The schedule store against the scripted PostgREST fake: every foreign key
@@ -106,6 +108,40 @@ test("save: creates a row scoped to the tenant with the next sort_order, and ref
   assert.equal(noTime.ok, false);
   const tba = await saveScheduleItemRow(client(db), T, { eventId: EVENT, kind: "talk", title: "x", timeTba: true });
   assert.ok(tba.ok);
+});
+
+test("save: the camelCase wire is renamed column for column and judged by the model's one rule", async () => {
+  const wire = {
+    ...baseInput, id: ITEM, sessionId: SESSION, spaceId: null, subtitle: "Late", timeTba: false, performerName: "MC", performerTba: true, coverMediaId: null,
+    media: { galleryMediaIds: [TALENT], videoUrl: "https://v.example/1" }, links: { href: "https://x.example", label: "Tickets" }, sponsor: { name: "Brand", logoMediaId: TALENT_PUBLIC },
+    tags: ["house"], visibility: "staff", status: "published", i18n: { es: { title: "Apertura" } }, unknownKey: "dropped",
+  };
+  const input = scheduleItemWireToInput(wire);
+  assert.deepEqual(input, {
+    session_id: SESSION, space_id: null, kind: "talk", title: "Opening", subtitle: "Late", starts_at: baseInput.startsAt, time_tba: false, performer_name: "MC", performer_tba: true, cover_media_id: null,
+    media: { gallery_media_ids: [TALENT], video_url: "https://v.example/1" }, links: { href: "https://x.example", label: "Tickets" }, sponsor: { name: "Brand", logo_media_id: TALENT_PUBLIC },
+    tags: ["house"], visibility: "staff", status: "published", i18n: { es: { title: "Apertura" } },
+  }, "no ids, no unknown keys, absent keys stay absent so the model's defaults apply");
+  assert.ok(scheduleItemInputSchema.safeParse(input).success, "the renamed wire is a valid model input");
+
+  const db = fakeDb(world());
+  // The limits are the model's, not a second copy: one over the title cap and one over the gallery cap are refused; at the cap they pass.
+  assert.equal((await saveScheduleItemRow(client(db), T, { ...baseInput, title: "x".repeat(SCHEDULE_ITEM_LIMITS.title + 1) })).ok, false);
+  assert.ok((await saveScheduleItemRow(client(db), T, { ...baseInput, title: "x".repeat(SCHEDULE_ITEM_LIMITS.title) })).ok);
+  const seven = Array.from({ length: SCHEDULE_ITEM_LIMITS.galleryMax + 1 }, () => TALENT);
+  assert.equal((await saveScheduleItemRow(client(db), T, { ...baseInput, media: { galleryMediaIds: seven } })).ok, false);
+  assert.equal((await saveScheduleItemRow(client(db), T, { ...baseInput, media: { videoUrl: "javascript:alert(1)" } })).ok, false);
+  assert.equal((await saveScheduleItemRow(client(db), T, { ...baseInput, eventId: "not-a-uuid" })).ok, false);
+  assert.equal((await saveScheduleItemRow(client(db), T, { ...baseInput, endsAt: "2026-11-21T22:00:00Z" })).ok, false, "end before start");
+  // A TBA save with a stray start stores no time, and the JSON blobs land under their column names.
+  const saved = await saveScheduleItemRow(client(db), T, { ...baseInput, timeTba: true, media: { videoUrl: "https://v.example/1" }, sponsor: { name: "Brand", logoMediaId: TALENT_PUBLIC } });
+  assert.ok(saved.ok, JSON.stringify(saved));
+  const row = db.rows.event_schedule_items!.find((r) => r.id === saved.id)!;
+  assert.equal(row.starts_at, null);
+  assert.equal(row.time_tba, true);
+  assert.deepEqual(row.media, { video_url: "https://v.example/1" });
+  assert.deepEqual(row.sponsor, { name: "Brand", logo_media_id: TALENT_PUBLIC });
+  assert.deepEqual(row.links, {});
 });
 
 test("save: session must belong to the event, space to the event's venue, performer to the roster or public talent", async () => {
