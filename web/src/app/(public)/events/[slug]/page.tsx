@@ -122,6 +122,8 @@ export default async function PublicEventPage({ params }: Params) {
       <CmsPublicPage
         params={Promise.resolve({ slug: linkedPage.slug.split("/") })}
         redirectWhenLinkedToEvent={false}
+        // The `event_program` block binds to THIS event; no second link read.
+        linkedEvent={{ id: event.id as string, slug: event.slug as string, title: (event.title as string | null) ?? "" }}
       />
     );
   }

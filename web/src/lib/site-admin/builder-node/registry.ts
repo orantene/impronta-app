@@ -73,6 +73,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "reserve_table",
   "session_picker",
   "ticket_picker",
+  "event_program",
   // BUILDER 2027 · P2A — the native kinds are ordinary leaves for drop purposes
   // too, except `reveal`, which is itself a wrapper (it accepts any child) and
   // is therefore droppable anywhere a layout shell is.
@@ -1079,6 +1080,31 @@ const ticketPickerPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/**
+ * EVENT PROGRAM — `event_program`. Self-fetch class like `ticket_picker`: props
+ * only, the island loads the program through `loadEventProgram`. `eventId` is
+ * optional on purpose: a page linked from an event binds through
+ * `dataSources.linkedEventId` at render time. `filterKinds` is a free string
+ * list rather than the schedule enum so a kind added later (a migration + a
+ * model entry) never makes a stored node fail to parse.
+ */
+const eventProgramPropsSchema = z.object({
+  eventId: z.string().max(200).optional(),
+  eyebrow: z.string().max(80).optional(),
+  heading: z.string().max(120).optional(),
+  layout: z.enum(["timeline", "cards", "compact", "schedule", "lineup"]).optional(),
+  groupBy: z.enum(["auto", "night", "place", "none"]).optional(),
+  showTimes: z.boolean().optional(),
+  showImages: z.boolean().optional(),
+  showDescriptions: z.boolean().optional(),
+  showKind: z.boolean().optional(),
+  showLinks: z.boolean().optional(),
+  openDrawer: z.boolean().optional(),
+  filterKinds: z.array(z.string().max(40)).max(20).optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+  style: builderNodeStyleSchema,
+});
+
 const qrCodePropsSchema = z.object({
   linkCode: z.string().max(200),
   foreground: z.string().max(9).optional(),
@@ -1983,6 +2009,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Tier cards with what each includes, a quantity bar with a live total, one details step, then card checkout; a seat past capacity is refused. Shows only what can actually be bought.",
       children: { type: "none" },
       propsSchema: ticketPickerPropsSchema,
+    },
+    event_program: {
+      kind: "event_program",
+      label: "Event program",
+      description:
+        "The event's timed program: sets, talks, doors and close, grouped by night, with performer and cover. Reads the event's published program; binds to the event this page belongs to.",
+      children: { type: "none" },
+      propsSchema: eventProgramPropsSchema,
     },
     qr_code: {
       kind: "qr_code",

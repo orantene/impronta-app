@@ -42,9 +42,13 @@ export type PublicScheduleItem = {
     profileHref: string | null;
     heroUrl: string | null;
     instagram: string | null;
+    /** The talent's short public bio; null when no public profile is linked. */
+    bio: string | null;
   } | null;
   /** The item's own cover, or the linked talent's hero. */
   coverUrl: string | null;
+  /** The drawer's gallery (public URLs, at most six) and the item's video URL, when any. */
+  media: { gallery: string[]; video: string | null };
   links: { href: string | null; label: string | null; instagram: string | null; website: string | null };
   sponsor: { name: string; logoUrl: string | null; url: string | null } | null;
   tags: string[];
@@ -105,7 +109,7 @@ function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v : null;
 }
 
-type TalentHead = { id: string; display_name: string | null; first_name: string | null; profile_code: string | null; workflow_status: string | null; visibility: string | null; deleted_at: string | null };
+type TalentHead = { id: string; display_name: string | null; first_name: string | null; short_bio?: string | null; profile_code: string | null; workflow_status: string | null; visibility: string | null; deleted_at: string | null };
 
 export async function loadPublicEventProgram(
   admin: SupabaseClient,
@@ -150,11 +154,12 @@ export async function loadPublicEventProgram(
   // Enrichment, each to its fallback.
   const talentIds = [...new Set(visible.map((r) => r.performer_talent_profile_id).filter((x): x is string => !!x))];
   const spaceIds = [...new Set(visible.map((r) => r.space_id).filter((x): x is string => !!x))];
-  const mediaIds = [...new Set(visible.flatMap((r) => [r.cover_media_id, str(r.sponsor?.logo_media_id)]).filter((x): x is string => !!x))];
+  const galleryIds = (r: ScheduleItemRow): string[] => (Array.isArray(r.media?.gallery_media_ids) ? r.media.gallery_media_ids.filter((x): x is string => typeof x === "string") : []).slice(0, 6);
+  const mediaIds = [...new Set(visible.flatMap((r) => [r.cover_media_id, str(r.sponsor?.logo_media_id), ...galleryIds(r)]).filter((x): x is string => !!x))];
 
   const [talents, talentMedia, spaces, media] = await Promise.all([
     talentIds.length
-      ? many<TalentHead>("talent", admin.from("talent_profiles").select("id, display_name, first_name, profile_code, workflow_status, visibility, deleted_at").in("id", talentIds))
+      ? many<TalentHead>("talent", admin.from("talent_profiles").select("id, display_name, first_name, short_bio, profile_code, workflow_status, visibility, deleted_at").in("id", talentIds))
       : Promise.resolve([] as TalentHead[]),
     talentIds.length ? resolveTalentMediaForHub(admin, { tenantId, talentProfileIds: talentIds }).catch((err) => { logServerError("events.program.public/talentMedia", err); return new Map(); }) : Promise.resolve(new Map()),
     spaceIds.length
@@ -200,9 +205,16 @@ export async function loadPublicEventProgram(
               // The talent's own socials live in field values behind a plan gate;
               // the item's link is the only cheap, honest source here.
               instagram: str(r.links?.instagram),
+              // The short public bio, only while the profile is public (§10:
+              // an unpublished profile falls back to what the row stores).
+              bio: talentPublic ? str(talent?.short_bio) : null,
             }
           : null,
       coverUrl,
+      media: {
+        gallery: galleryIds(r).map((id) => urlByMedia.get(id) ?? null).filter((u): u is string => !!u),
+        video: str(r.media?.video_url),
+      },
       links: { href: str(r.links?.href), label: str(r.links?.label), instagram: str(r.links?.instagram), website: str(r.links?.website) },
       sponsor: sponsorName ? { name: sponsorName, logoUrl: r.sponsor?.logo_media_id ? urlByMedia.get(r.sponsor.logo_media_id) ?? null : null, url: str(r.sponsor?.url) } : null,
       tags: Array.isArray(r.tags) ? r.tags : [],

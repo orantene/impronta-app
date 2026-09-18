@@ -78,3 +78,38 @@ export async function listEventTiersForInspectorAction(input: { eventId: string 
     return { ok: false, error: "Could not load the event's tickets." };
   }
 }
+
+export type InspectorLinkedEvent = { id: string; title: string; status: string };
+
+/**
+ * EVENT PROGRAM — the event that claims the page being edited through
+ * `events.page_id`, or null. Draft AND published: the operator is building the
+ * page for an event that may not be live yet, and the block must bind to it
+ * the same way the public render will once both publish. Used by the
+ * `event_program` inspector to hide its event select on a linked page.
+ */
+export async function resolveLinkedEventForPageInspectorAction(input: { pageId: string }): Promise<
+  { ok: true; event: InspectorLinkedEvent | null } | { ok: false; error: string }
+> {
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.site_admin.pages.edit" });
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const pageId = typeof input?.pageId === "string" ? input.pageId.trim() : "";
+  if (!/^[0-9a-f-]{36}$/i.test(pageId)) return { ok: true, event: null };
+  try {
+    const { data, error } = await guard.supabase
+      .from("events")
+      .select("id, title, status")
+      .eq("tenant_id", guard.tenantId)
+      .eq("page_id", pageId)
+      .in("status", ["published", "draft"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    const row = data as { id: string; title: string | null; status: string } | null;
+    return { ok: true, event: row ? { id: row.id, title: row.title ?? "", status: row.status } : null };
+  } catch (error) {
+    logServerError("events:resolveLinkedEventForPageInspectorAction", error);
+    return { ok: false, error: "Could not resolve the page's event." };
+  }
+}

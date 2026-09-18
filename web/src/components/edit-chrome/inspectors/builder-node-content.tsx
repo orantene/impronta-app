@@ -61,6 +61,7 @@ import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
 import { QrCodeLinkPicker } from "./qr-code-link-picker";
 import { TicketPickerEditor } from "./ticket-picker-editor";
+import { EventProgramEditor } from "./event-program-editor";
 import { InspectorLabelWithInfo, MediaField, toMediaValue } from "./kit";
 import { AiGenerateImageButton } from "./ai-generate-image-button";
 import { BackgroundMediaCard } from "./background-media-card";
@@ -401,6 +402,9 @@ function BuilderNodeContentInspectorBody({
     // The canvas viewport being edited. Per-device image sources write to the
     // SAME device the style controls do, so the image panel reads it too.
     device,
+    // The page being edited: the event_program inspector resolves the event
+    // that claims it (events.page_id) so it can hide its own event select.
+    pageId,
   } = useEditContext();
 
   /**
@@ -1695,6 +1699,72 @@ function BuilderNodeContentInspectorBody({
               <option value="rounded">Rounded</option>
             </select>
           </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
+  // ── event_program (the event's timed program) ─────────────────────────────
+  // Copy stays here (the localizable heading); the event binding and the
+  // presentation switches live in `event-program-editor.tsx`, which owns the
+  // hooks that resolve the page's linked event and load the event list.
+  if (node.kind === "event_program") {
+    const ep = node.props;
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Copy">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Eyebrow</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="eyebrow"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={ep.eyebrow ?? ""}
+              ariaLabel="Eyebrow"
+              className={KIT.input}
+              placeholder="Run of show"
+              onCommitBase={(next) =>
+                commitTextInput("eyebrow", ep.eyebrow ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Heading</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="heading"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={ep.heading ?? ""}
+              ariaLabel="Heading"
+              className={KIT.input}
+              placeholder="Program"
+              onCommitBase={(next) =>
+                commitTextInput("heading", ep.heading ?? "", true)(next)
+              }
+              patch={commitPatch}
+            />
+            <p className={KIT.hint}>Leave empty to use the heading set on the event&apos;s Program tab.</p>
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title="Event & presentation">
+          <EventProgramEditor
+            eventId={ep.eventId ?? ""}
+            pageId={pageId}
+            layout={ep.layout}
+            groupBy={ep.groupBy}
+            showTimes={ep.showTimes}
+            showImages={ep.showImages}
+            showDescriptions={ep.showDescriptions}
+            showKind={ep.showKind}
+            showLinks={ep.showLinks}
+            openDrawer={ep.openDrawer}
+            filterKinds={ep.filterKinds}
+            limit={ep.limit}
+            patch={commitPatch}
+          />
         </BuilderNodeSection>
       </BuilderNodeFlatPanel>
     );
@@ -5059,6 +5129,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Sessions · book a seat";
     case "ticket_picker":
       return "Tickets · buy for a night";
+    case "event_program":
+      return "Program · the event by night";
     case "qr_code":
       return "QR code · a scannable link";
     case "talent_type_grid":

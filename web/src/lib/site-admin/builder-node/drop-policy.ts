@@ -36,6 +36,7 @@ const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   "reserve_table",
   "session_picker",
   "ticket_picker",
+  "event_program",
   "qr_code",
   "talent_type_grid",
   // BUILDER 2027 · P2A — the native page bands (marquee strip, directory grid,
