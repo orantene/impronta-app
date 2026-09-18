@@ -19,7 +19,6 @@ function ev(over: Partial<EventForLineup> = {}): EventForLineup {
     id: "ev-1",
     status: "published",
     startsAt: "2026-09-13T21:00:00.000Z",
-    setTimesPublic: true,
     ...over,
   };
 }
@@ -31,8 +30,6 @@ function entry(over: Partial<LineupEntry> = {}): LineupEntry {
     displayName: "DJ Malú",
     state: "booked",
     sortOrder: 0,
-    setStartsAt: "2026-09-13T21:00:00.000Z",
-    setEndsAt: "2026-09-13T23:00:00.000Z",
     ...over,
   };
 }
@@ -85,14 +82,17 @@ test("a draft or cancelled event publishes nobody, whatever the bookings say", (
   assert.deepEqual(publicLineup([booked], ev({ status: "draft" })), []);
 });
 
-test("hidden set times strip the TIME, they do not hide the act", () => {
-  const e = ev({ setTimesPublic: false });
-  const out = publicLineup([entry()], e);
+test("a lineup entry carries WHO, never WHEN: the clock belongs to the program", () => {
+  // `setStartsAt`, `setEndsAt`, `role` and `EventForLineup.setTimesPublic`
+  // were deleted (events-program proposal §12): no column ever backed them,
+  // and timing is `event_schedule_items`. Pinned so they do not creep back.
+  const keys = Object.keys(entry()).sort();
+  assert.deepEqual(keys, ["displayName", "inquiryId", "sortOrder", "state", "talentProfileId"]);
+  assert.deepEqual(Object.keys(ev()).sort(), ["id", "startsAt", "status"]);
 
-  assert.equal(out.length, 1, "the act is still announced — that is the poster");
-  assert.equal(out[0]?.setStartsAt, null);
-  assert.equal(out[0]?.setEndsAt, null);
-  // A wrong time is worse than no time: people plan an evening around it.
+  // The poster still announces a confirmed act with no running order fixed.
+  const out = publicLineup([entry()], ev());
+  assert.equal(out.length, 1);
   assert.equal(out[0]?.displayName, "DJ Malú");
 });
 

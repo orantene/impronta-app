@@ -17849,7 +17849,16 @@
         "compAction": "Emitir una entrada de cortesía",
         "compDone": "Entrada de cortesía emitida.",
         "readyCover": "Imagen destacada",
-        "readyRefunds": "Política de reembolso"
+        "readyRefunds": "Política de reembolso",
+        "runOfShow": {
+          "title": "Guion de la noche",
+          "staffOnly": "Solo staff",
+          "now": "Ahora",
+          "tba": "Hora a confirmar",
+          "empty": "Sin programa todavía.",
+          "emptyLink": "Ir a Programa",
+          "editLink": "Editar en Programa"
+        }
       },
       "guests": {
         "openDoor": "Abrir la puerta"

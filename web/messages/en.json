@@ -17849,7 +17849,16 @@
         "compAction": "Issue a complimentary ticket",
         "compDone": "Complimentary ticket issued.",
         "readyCover": "Featured image",
-        "readyRefunds": "Refund policy"
+        "readyRefunds": "Refund policy",
+        "runOfShow": {
+          "title": "Run of show",
+          "staffOnly": "Staff only",
+          "now": "Now",
+          "tba": "Time TBA",
+          "empty": "No program yet.",
+          "emptyLink": "Go to Program",
+          "editLink": "Edit in Program"
+        }
       },
       "guests": {
         "openDoor": "Open the door"

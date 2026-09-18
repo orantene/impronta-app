@@ -16,13 +16,23 @@
  * allocation, meal redemption, staff) has no column; the card says what the
  * POS applies tonight as the engine's own fixed answer, disabled, and the
  * readiness strip is derived from the rows that exist (D-POS-57).
+ *
+ * RUN OF SHOW (events-program §4, §12): the night's `event_schedule_items`,
+ * staff rows included, read through `listScheduleItems` and grouped by night
+ * with the same grouper the Programa tab and the public block use. Read-only
+ * here; editing lives in the Programa tab. "Ahora" is the client clock after
+ * mount, never the server's.
  */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 
 import { loadSessionComps, type EventListRow } from "@/app/(workspace)/[tenantSlug]/admin/_events-actions";
+import { listScheduleItems } from "@/app/(workspace)/[tenantSlug]/admin/_events-schedule-actions";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
+import { groupItemsByNight, type NightGroup, type PlacedScheduleItem } from "@/lib/events/schedule/grouping";
+import { normalizeScheduleItemRow, type ScheduleItem } from "@/lib/events/schedule/model";
+import { nowItemIds } from "@/lib/events/schedule/now-marker";
 import { admissionComp, admissionHoldSeats, eventSeatMapUpsert, layoutsList } from "@/lib/server-actions/venue-engine";
 import { VENUE_ENGINE_REFUSALS, type VenueEngineRefusal } from "@/lib/venues/engine-refusals";
 
@@ -33,7 +43,7 @@ import { CARD, Field, INPUT } from "../catalog/catalog-ui";
 import type { EventsNav } from "./EventsPage";
 import { whenLabel } from "./EventsList";
 import { useSessionPools } from "./event-tab-tickets";
-import { eventDayReadiness, nightFigures } from "./events-model";
+import { eventDayReadiness, nightFigures, type DetailTab } from "./events-model";
 import { DenseHead, DenseRow, EventsHeading, EventsNote, SELECT, SelectShell } from "./events-ui";
 
 const COLS = "grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_100px_minmax(0,1fr)_16px]";
@@ -250,6 +260,137 @@ export function EventVenueTab({ event, sessionId, locale }: { event: EventListRo
   );
 }
 
+/** The Programa tab's id. Its panel lands in its own PR; the href pattern is EventDetail's own. */
+const PROGRAM_TAB = "program" as DetailTab;
+
+/** Refreshes the "Ahora" mark; a set is on for an hour, a minute is plenty. */
+const NOW_TICK_MS = 60_000;
+
+type RunOfShowState = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready"; items: ScheduleItem[] };
+
+function useRunOfShow(eventId: string): RunOfShowState {
+  const [state, setState] = useState<RunOfShowState>({ kind: "loading" });
+  useEffect(() => {
+    let alive = true;
+    setState({ kind: "loading" });
+    void listScheduleItems({ eventId }).then((res) => {
+      if (!alive) return;
+      if (!res.ok) {
+        setState({ kind: "error", message: res.error });
+        return;
+      }
+      const items: ScheduleItem[] = [];
+      for (const row of res.items) {
+        const item = normalizeScheduleItemRow(row);
+        if (item) items.push(item);
+      }
+      setState({ kind: "ready", items });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [eventId]);
+  return state;
+}
+
+/** The client clock, read after mount and once a minute; null on the server render. */
+function useNowMs(): number | null {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), NOW_TICK_MS);
+    return () => window.clearInterval(id);
+  }, []);
+  return now;
+}
+
+/** Tonight's groups: the selected night plus any "general" rows; every night when none is selected. */
+function groupsForNight(groups: NightGroup[], sessionId: string | null): NightGroup[] {
+  if (!sessionId) return groups;
+  return groups.filter((g) => g.sessionId === null || g.sessionId === sessionId);
+}
+
+const ROS_COLS = "grid-cols-[84px_minmax(0,1fr)_auto]";
+
+function RunOfShowRow({ placed, now, staffOnlyLabel, nowLabel, tbaLabel }: { placed: PlacedScheduleItem; now: boolean; staffOnlyLabel: string; nowLabel: string; tbaLabel: string }) {
+  const { item } = placed;
+  const detail = item.performerName ?? item.subtitle;
+  return (
+    <DenseRow cols={ROS_COLS} testId={`events-ros-item-${item.id}`} className={now ? "bg-admin-brand-soft" : ""}>
+      <span className="flex items-baseline gap-[3px] font-mono text-[12px] tabular-nums text-admin-ink" data-testid="events-ros-time">
+        {placed.timeLabel ? (
+          <>
+            {placed.timeLabel}
+            {placed.dayOffset > 0 ? <sup className="text-[9px] font-semibold text-admin-ink-muted">{`+${placed.dayOffset}`}</sup> : null}
+          </>
+        ) : (
+          <span className="font-admin-body text-[12px] text-admin-ink-muted">{tbaLabel}</span>
+        )}
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate font-admin-body text-[13px] font-semibold text-admin-ink">{item.title}</span>
+        {detail ? <span className="block truncate font-admin-body text-[12px] text-admin-ink-muted">{detail}</span> : null}
+      </span>
+      <span className="flex items-center gap-[6px]">
+        {item.visibility === "staff" ? (
+          <span className="rounded-[5px] bg-admin-surface-alt px-[7px] py-[2px] font-admin-body text-[11px] font-semibold text-admin-ink-muted" data-testid="events-ros-staff-only">
+            {staffOnlyLabel}
+          </span>
+        ) : null}
+        {now ? (
+          <span className="rounded-[5px] bg-admin-brand px-[7px] py-[2px] font-admin-body text-[11px] font-semibold text-white" data-testid="events-ros-now">
+            {nowLabel}
+          </span>
+        ) : null}
+      </span>
+    </DenseRow>
+  );
+}
+
+/** The night's rows, staff items included, read-only. Editing is the Programa tab. */
+function RunOfShowStrip({ event, sessionId, nav, locale }: { event: EventListRow; sessionId: string | null; nav: EventsNav; locale: string }) {
+  const t = useT();
+  const state = useRunOfShow(event.id);
+  const nowMs = useNowMs();
+  const labelLocale = locale === "es" ? "es" : "en";
+  const groups = state.kind === "ready" ? groupsForNight(groupItemsByNight(state.items, event.sessions, event.timeZone, { locale: labelLocale }), sessionId) : [];
+  const nowIds = new Set(nowMs === null ? [] : groups.flatMap((g) => nowItemIds(g.items, nowMs)));
+  const showHeaders = groups.length > 1;
+  const programHref = nav.href({ event: event.id, tab: PROGRAM_TAB });
+  const staffOnly = t("dashboard.events.day.runOfShow.staffOnly");
+  const nowLabel = t("dashboard.events.day.runOfShow.now");
+  const tbaLabel = t("dashboard.events.day.runOfShow.tba");
+  return (
+    <div className={CARD} data-testid="events-run-of-show" data-state={state.kind}>
+      <div className="flex items-center justify-between gap-[12px] px-[18px] py-[12px]">
+        <div className="font-admin-body text-[13px] font-semibold text-admin-ink">{t("dashboard.events.day.runOfShow.title")}</div>
+        {state.kind === "ready" && groups.length > 0 ? (
+          <a href={programHref} className="font-admin-body text-[12.5px] font-semibold text-admin-brand no-underline hover:underline" data-testid="events-ros-edit-link">
+            {t("dashboard.events.day.runOfShow.editLink")}
+          </a>
+        ) : null}
+      </div>
+      {state.kind === "error" ? <p role="status" className="m-0 border-t border-admin-border-soft px-[18px] py-[14px] font-admin-body text-[12.5px] text-admin-ink-muted">{state.message}</p> : null}
+      {state.kind === "ready" && groups.length === 0 ? (
+        <p className="m-0 border-t border-admin-border-soft px-[18px] py-[14px] font-admin-body text-[12.5px] text-admin-ink-muted" data-testid="events-ros-empty">
+          {t("dashboard.events.day.runOfShow.empty")}{" "}
+          <a href={programHref} className="font-semibold text-admin-brand no-underline hover:underline">
+            {t("dashboard.events.day.runOfShow.emptyLink")}
+          </a>
+        </p>
+      ) : null}
+      {groups.map((g) => (
+        <div key={g.key} data-testid={`events-ros-night-${g.key}`}>
+          {showHeaders ? <div className="border-t border-admin-border-soft px-[18px] py-[8px] font-admin-body text-[11px] font-semibold uppercase tracking-[0.05em] text-admin-ink-muted">{g.label}</div> : null}
+          {g.items.map((p) => (
+            <RunOfShowRow key={p.item.id} placed={p} now={nowIds.has(p.item.id)} staffOnlyLabel={staffOnly} nowLabel={nowLabel} tbaLabel={tbaLabel} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function EventDayTab({ event, sessionId, nav, locale }: { event: EventListRow; sessionId: string | null; nav: EventsNav; locale: string }) {
   const t = useT();
   const pools = useSessionPools(sessionId);
@@ -323,6 +464,7 @@ export function EventDayTab({ event, sessionId, nav, locale }: { event: EventLis
           { where: t("dashboard.events.usedIn.web"), what: t("dashboard.events.day.usedInWeb") },
         ]}
       />
+      <RunOfShowStrip event={event} sessionId={sessionId} nav={nav} locale={locale} />
       <div className="grid grid-cols-2 gap-[16px]">
         <div className={`${CARD} flex flex-col gap-[12px] p-[16px]`}>
           <div className="font-admin-body text-[13px] font-semibold text-admin-ink">{t("dashboard.events.day.gate")}</div>

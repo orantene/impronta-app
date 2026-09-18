@@ -6567,7 +6567,16 @@
         "compAction": "Émettre un billet offert",
         "compDone": "Billet offert émis.",
         "readyCover": "Image à la une",
-        "readyRefunds": "Politique de remboursement"
+        "readyRefunds": "Politique de remboursement",
+        "runOfShow": {
+          "title": "Déroulé de la soirée",
+          "staffOnly": "Équipe seulement",
+          "now": "Maintenant",
+          "tba": "Heure à confirmer",
+          "empty": "Pas encore de programme.",
+          "emptyLink": "Aller au Programme",
+          "editLink": "Modifier dans Programme"
+        }
       },
       "guests": {
         "openDoor": "Ouvrir la porte"

@@ -84,15 +84,19 @@ export function resolveLineupState(s: SpineStatuses): LineupState {
   return "invited";
 }
 
+/**
+ * WHO is booked, and nothing about WHEN they play. Set times, roles and the
+ * "set times public" switch used to live here and described a model that
+ * never existed in the schema. Timing is `event_schedule_items`
+ * (`./schedule/model.ts`); the one bridge is "Añadir desde el cartel", which
+ * imports BOOKED entries as schedule rows with the time TBA.
+ */
 export type LineupEntry = {
   inquiryId: string;
   talentProfileId: string | null;
   /** For an act with no Tulala profile, added by hand. */
   displayName: string;
   state: LineupState;
-  role?: string | null;
-  setStartsAt?: string | null;
-  setEndsAt?: string | null;
   sortOrder: number;
 };
 
@@ -100,8 +104,6 @@ export type EventForLineup = {
   id: string;
   status: "draft" | "published" | "cancelled";
   startsAt: string | null;
-  /** The venue's choice: hide set times until the day if the running order may change. */
-  setTimesPublic: boolean;
 };
 
 /**
@@ -120,13 +122,9 @@ export function isPubliclyVisible(entry: LineupEntry, event: EventForLineup): bo
 }
 
 /**
- * The lineup as the public sees it: confirmed acts, in running order, with set
- * times only when the venue has said they are stable.
- *
- * Set times are stripped rather than the entry being hidden. A venue that has
- * not fixed the running order still wants the acts announced -- that is the
- * poster -- and an entry with a wrong time is worse than one with no time,
- * because people plan an evening around it.
+ * The lineup as the public sees it: confirmed acts, in running order. This
+ * is the poster. The clock is the program's business (`./schedule`), so a
+ * venue that has not fixed its running order still announces its acts.
  */
 export function publicLineup(
   entries: readonly LineupEntry[],
@@ -134,10 +132,7 @@ export function publicLineup(
 ): LineupEntry[] {
   return entries
     .filter((e) => isPubliclyVisible(e, event))
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.displayName.localeCompare(b.displayName))
-    .map((e) =>
-      event.setTimesPublic ? e : { ...e, setStartsAt: null, setEndsAt: null },
-    );
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.displayName.localeCompare(b.displayName));
 }
 
 export type CrossListing =
