@@ -180,7 +180,7 @@ export function MarketingHeader({
             icons (language / support / account) carry what the old hamburger
             menu buried: the bar stops feeling empty and the menu can go back
             to being pure navigation. */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {discoveryTools}
           <MarketingLanguageMenu
             activeLocale={locale}
