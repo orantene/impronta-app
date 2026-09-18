@@ -66,13 +66,19 @@ export async function loadClientOfferSummaries(admin: Admin, input: { tenantId: 
 }
 
 /** The newest OPEN payment link on this conversation, so "Accept and pay" and "Pay" can go straight to /pay/<code>. */
-export async function loadOpenPaymentCode(admin: Admin, input: { tenantId: string; inquiryId: string }): Promise<string | null> {
+export async function loadOpenPaymentCode(admin: Admin, input: { tenantId: string; inquiryId: string; now?: Date }): Promise<string | null> {
+  // `status` stays "open" after the link's own expiry passes (the sweeper
+  // flips it later), so the expiry is checked here too: an expired link is
+  // not a Pay button and not a next step. Found live 2026-09-18: the card
+  // read "This payment link has expired" while the dock still offered Pay.
+  const nowIso = (input.now ?? new Date()).toISOString();
   const { data, error } = await admin
     .from("payment_links")
-    .select("code, status, created_at")
+    .select("code, status, created_at, expires_at")
     .eq("tenant_id", input.tenantId)
     .eq("inquiry_id", input.inquiryId)
     .eq("status", "open")
+    .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
