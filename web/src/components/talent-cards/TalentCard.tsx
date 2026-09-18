@@ -91,6 +91,57 @@ function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
  * editorial style renders on the card's plain surface, so it uses the
  * muted-foreground token like its other caption lines.
  */
+/**
+ * "Verified" mark — a green checkmark pill distinct from `OwnershipBadge`'s
+ * Exclusive/Independent tag (both can render together: verification is a
+ * trust signal, exclusivity is a relationship signal). Gated on
+ * `data.verified`, the same field `editorial`'s inline `<VerifiedMark>`
+ * reads, so no new data plumbing.
+ */
+function VerifiedBadge() {
+  return (
+    <span
+      data-card-verified
+      data-card-chip
+      className="pointer-events-none inline-flex items-center gap-1 rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold text-[#1F7A4C] backdrop-blur-sm"
+    >
+      <svg
+        aria-hidden
+        width="10"
+        height="10"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+      Verified
+    </span>
+  );
+}
+
+/**
+ * "via {agency}" — the small attribution line under the price on the
+ * portrait caption. Independent of whether a price is present: the
+ * marketing directory (the only surface that sets `showAgencyLine`) does
+ * not resolve per-talent pricing at all, and the attribution is still
+ * meaningful on its own ("this face belongs to that agency").
+ */
+function AgencyLine({ data }: { data: CanonicalTalentCardData }) {
+  if (!data.agencyName) return null;
+  return (
+    <p
+      data-card-agency
+      className="mt-0.5 text-[10px] text-[var(--token-card-muted,rgba(255,255,255,0.6))]"
+    >
+      via {data.agencyName}
+    </p>
+  );
+}
+
 function StandingChip({
   data,
   onScrim,
@@ -290,6 +341,8 @@ export function TalentCard({
   secondaryActionSlot,
   badgeSlot,
   traitSlot,
+  ctaSlot,
+  showAgencyLine = false,
   showStanding = "auto",
 }: TalentCardProps) {
   const displayName = resolveName(data.name, show.showName, nameFallback);
@@ -420,8 +473,135 @@ export function TalentCard({
     );
   }
 
-  // Portrait (default / canonical). The five non-portrait/-editorial schema
-  // styles intentionally fall through here until their kits land.
+  if (style === "profile") {
+    // "Cinematic" — full-bleed like portrait, but the whole caption reads as
+    // one editorial statement: availability/exclusivity moves to a top pill
+    // (off the name block entirely), the name runs large, and price ends in
+    // a persistent CTA instead of a hover-only icon. Built for Impronta's
+    // noir storefront; falls back to portrait's own photo/scrim primitives
+    // so it stays IN the shared token cascade, not a fork of it.
+    const topPill = data.isExclusive ? (
+      <span
+        data-card-badge-exclusive
+        className="pointer-events-none inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-md"
+      >
+        Exclusive
+      </span>
+    ) : show.showAvailability ? (
+      availabilitySlot ?? (
+        <span
+          data-card-availability
+          className="pointer-events-none inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-md"
+        >
+          <span
+            aria-hidden
+            className={`size-1.5 rounded-full ${
+              data.availabilityKnown ? "bg-[#7ED957]" : "bg-white/40"
+            }`}
+          />
+          {data.availabilityLabel}
+        </span>
+      )
+    ) : null;
+    const [firstName, ...rest] = displayName ? displayName.split(/\s+/) : [];
+    const restName = rest.join(" ");
+
+    return (
+      <Root
+        {...rootProps}
+        data-card-style="profile"
+        className={`${TALENT_CARD_CLASS} group/card relative block overflow-hidden rounded-2xl border border-border outline-none transition-[border-color,box-shadow] duration-200 hover:border-[var(--dir-accent-line)] hover:shadow-[0_18px_40px_-22px_rgba(0,0,0,0.7)] focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+          rootMode === "button" ? "cursor-pointer" : ""
+        }`}
+      >
+        <Photo
+          data={data}
+          aspectRatio={aspectRatio}
+          priority={priority}
+          rounded="rounded-none"
+        />
+
+        <div
+          aria-hidden
+          data-card-scrim
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-3/4 bg-gradient-to-t from-[rgba(6,6,8,0.97)] via-[rgba(6,6,8,0.68)] to-transparent"
+        />
+
+        {topPill ? (
+          <div className="absolute left-2.5 top-2.5 z-[1]">{topPill}</div>
+        ) : null}
+        {badgeSlot ? <div className="absolute inset-0 z-[2]">{badgeSlot}</div> : null}
+        {secondaryActionSlot ? (
+          <div className="absolute right-2.5 top-2.5 z-[3]">{secondaryActionSlot}</div>
+        ) : null}
+
+        <div
+          className={`absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-2.5 ${
+            compact ? "px-4 pb-4" : "px-5 pb-5"
+          }`}
+          data-card-body
+        >
+          {show.showBadges && data.isExclusive ? (
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--token-card-price-color,var(--impronta-gold-bright,#c8a04a))]">
+              Exclusive
+              {data.agencyName ? ` · ${data.agencyName}` : ""}
+            </span>
+          ) : null}
+          {displayName ? (
+            <h3
+              data-card-name
+              className={`font-display font-normal leading-[0.95] tracking-tight text-[var(--token-card-name-color,#fff)] drop-shadow-sm ${
+                compact ? "text-3xl" : "text-4xl sm:text-5xl"
+              }`}
+            >
+              {firstName}
+              {restName ? <em className="font-serif italic"> {restName}</em> : null}
+            </h3>
+          ) : null}
+          {displayName ? (
+            <span
+              aria-hidden
+              data-card-name-rule
+              className="block h-px w-10 bg-[var(--dir-accent)]"
+            />
+          ) : null}
+          {(show.showTalentType && data.primaryType) ||
+          (show.showLocation && data.location) ? (
+            <p className="truncate text-[13px] text-[var(--token-card-muted,rgba(255,255,255,0.78))]">
+              {show.showTalentType ? data.primaryType : null}
+              {show.showLocation && data.location ? (
+                <span>
+                  {show.showTalentType && data.primaryType ? "  ·  " : null}
+                  {data.location}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+          {traitSlot ? (
+            <div className="border-t border-white/15 pt-2.5">{traitSlot}</div>
+          ) : (
+            <StandingChip data={data} onScrim showStanding={showStanding} />
+          )}
+          <div className="mt-1 flex items-center justify-between gap-3">
+            {data.priceFromLabel ? (
+              <p
+                data-card-price-from
+                className="text-[13px] font-semibold text-white"
+              >
+                {data.priceFromLabel}
+              </p>
+            ) : (
+              <span />
+            )}
+            {ctaSlot}
+          </div>
+        </div>
+      </Root>
+    );
+  }
+
+  // Portrait (default / canonical). The four non-portrait/-editorial/-profile
+  // schema styles intentionally fall through here until their kits land.
   return (
     <Root
       {...rootProps}
@@ -458,6 +638,7 @@ export function TalentCard({
 
       {show.showBadges ? (
         <div className="absolute left-2.5 top-2.5 z-[1] flex flex-wrap gap-1.5">
+          {data.verified ? <VerifiedBadge /> : null}
           <OwnershipBadge data={data} />
         </div>
       ) : null}
@@ -550,6 +731,8 @@ export function TalentCard({
             {data.priceFromLabel}
           </p>
         ) : null}
+        {showAgencyLine ? <AgencyLine data={data} /> : null}
+        {ctaSlot ? <div className="mt-2">{ctaSlot}</div> : null}
       </div>
     </Root>
   );

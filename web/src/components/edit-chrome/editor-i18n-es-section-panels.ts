@@ -216,6 +216,7 @@ export const ES_SECTION_PANEL_TEXT: Record<string, string> = {
   "Chip label": "Etiqueta del chip",
   "Chips": "Fichas",
   "Chips Source": "Origen de las fichas",
+  "Cinematic (full-bleed statement)": "Cinemática (declaración a sangre completa)",
   "City / market label": "Ciudad / etiqueta de mercado",
   "Clean / aurora": "Limpio / aurora",
   "Clear": "Borrar",

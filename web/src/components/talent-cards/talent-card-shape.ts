@@ -124,6 +124,23 @@ export type TalentCardProps = {
    */
   traitSlot?: ReactNode;
   /**
+   * A persistent call-to-action rendered in the caption (portrait + profile
+   * styles), replacing the old hover-only icon pill with an always-visible
+   * button — the Card Design "Cinematic" and "Verified" layouts both read
+   * this way. Unset keeps the caller's existing hover-affordance behavior
+   * (e.g. Discover, which never passes it).
+   */
+  ctaSlot?: ReactNode;
+  /**
+   * Show the "via {agency}" attribution line under the price (portrait
+   * style only). Defaults OFF: on a tenant's OWN storefront the agency IS
+   * the site, so stamping its name under every price is pure repetition —
+   * the exact rule `OwnershipBadge` above already applies to the
+   * Exclusive/Independent tag. Only the CROSS-TENANT marketing directory
+   * (many agencies, one grid) sets this true.
+   */
+  showAgencyLine?: boolean;
+  /**
    * Standing-chip visibility escape hatch. `"auto"` (default) keeps the
    * existing behavior: the chip renders with the `data-card-standing` hook
    * and stays gated by the `html[data-token-card-standing]` CSS rule in

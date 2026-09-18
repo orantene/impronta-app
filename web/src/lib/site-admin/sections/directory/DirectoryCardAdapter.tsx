@@ -167,8 +167,12 @@ export function DirectoryCardAdapter({
   // invisible until hover, which read as "nothing selected".
   const inLineup = cart.isReady && cart.isInCart(card.id);
 
-  const style: "portrait" | "editorial" =
-    cardStyle === "editorial" ? "editorial" : "portrait";
+  const style: "portrait" | "editorial" | "profile" =
+    cardStyle === "editorial"
+      ? "editorial"
+      : cardStyle === "profile"
+        ? "profile"
+        : "portrait";
 
   const fitChips = pickFitLabels(data.fitLabels);
   const traitLines = pickAttributeLines(
@@ -200,9 +204,34 @@ export function DirectoryCardAdapter({
       fitChips={fitChips}
       traitLines={traitLines}
       mode={traitMode}
-      onScrim={style === "portrait"}
+      onScrim={style === "portrait" || style === "profile"}
     />
   ) : undefined;
+
+  // Persistent "Inquire" CTA, rendered IN the caption (via TalentCard's
+  // `ctaSlot`) instead of the old hover-only icon pill over the photo — the
+  // "Cinematic" and light-portrait Card Design kits both read this way: the
+  // top-right cluster stays favorite + quick-view only, and Inquire becomes
+  // an always-visible button next to the price. Reuses the exact same
+  // `<TalentCardActions>` control (cart state, fly-to-rail animation,
+  // "In lineup" state) — no duplicated inquiry logic.
+  const ctaSlot =
+    showAddToInquiry && (style === "profile" || style === "portrait") ? (
+      <TalentCardActions
+        talentProfileId={card.id}
+        profileCode={card.profileCode ?? ""}
+        displayName={card.displayName}
+        sourcePage={pathname}
+        variant="pill"
+        hideFavorite
+        portraitUrl={card.thumbnail?.url ?? null}
+        locale={locale}
+        getInquiryPhotoRect={() =>
+          mediaRef.current?.querySelector("img")?.getBoundingClientRect() ??
+          null
+        }
+      />
+    ) : undefined;
 
   // cardClickAction="page" — defeat the route interception by turning the
   // card root's soft <Link> navigation into a hard load. Capture-phase so it
@@ -242,6 +271,7 @@ export function DirectoryCardAdapter({
           priority={priority}
           index={index}
           traitSlot={traitSlot}
+          ctaSlot={ctaSlot}
           badgeSlot={
             data.bookable ? (
               <span className="pointer-events-none absolute left-2.5 bottom-2.5 z-[2] rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/80 backdrop-blur-sm">
@@ -290,21 +320,22 @@ export function DirectoryCardAdapter({
             ) : undefined
           }
         />
-        {/* Top-right affordance cluster: the favorite heart (always visible)
-            and a hover-revealed gold "Inquire" pill. This in-media pill is the
-            single inquiry affordance per card (it replaces the old heavy
-            full-width "Inquire / Added" bar that used to sit under every card).
-            It carries the portrait + photo rect so adding flies a face-focus
-            avatar to the "Message {agency}" launcher pill (plan §4.A.5), and it
-            reflects cart membership as "In lineup" with a filled pill. On touch
-            devices (no hover) the pill stays visible so the action is never
-            hidden; on desktop it fades in on card hover / focus. */}
-        {/* Lineup STATE badge — top-left, always visible while active. A
-            compact gold check; hover reveals the label, click removes (the
-            shared TalentCardActions keeps the Undo-flash + fly animation
-            behavior single-source). Styled via .lineup-check-badge in
-            talent-card-actions.css. */}
-        {showAddToInquiry && inLineup ? (
+        {/* Top-right affordance cluster: the favorite heart (always visible),
+            a quick-view eye, and — ONLY on styles without a persistent
+            `ctaSlot` (editorial) — a hover-revealed gold "Inquire" pill.
+            Portrait + Cinematic (profile) render Inquire as the persistent
+            caption CTA instead (`ctaSlot`, above), so this cluster stays
+            favorite + quick-view only for them. It carries the portrait +
+            photo rect so adding flies a face-focus avatar to the
+            "Message {agency}" launcher pill (plan §4.A.5). */}
+        {/* Lineup STATE badge — top-left, always visible while active, for
+            styles WITHOUT a persistent ctaSlot (the ctaSlot itself already
+            shows the checked "In lineup" state, so this would just
+            duplicate it on portrait/profile). A compact gold check; hover
+            reveals the label, click removes (the shared TalentCardActions
+            keeps the Undo-flash + fly animation behavior single-source).
+            Styled via .lineup-check-badge in talent-card-actions.css. */}
+        {showAddToInquiry && inLineup && !ctaSlot ? (
           <div
             className="lineup-check-badge absolute left-2.5 top-2.5 z-[2]"
             title={locale === "es" ? "En tu lineup, clic para quitar" : "In lineup, click to remove"}
@@ -325,7 +356,7 @@ export function DirectoryCardAdapter({
         ) : null}
         {showSave || showAddToInquiry || showQuickView ? (
           <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
-            {showAddToInquiry && !inLineup ? (
+            {showAddToInquiry && !inLineup && !ctaSlot ? (
               <div className="pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:translate-x-0 group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100">
                 <TalentCardActions
                   talentProfileId={card.id}

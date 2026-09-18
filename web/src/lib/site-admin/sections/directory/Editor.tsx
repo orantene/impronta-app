@@ -633,12 +633,13 @@ export function DirectoryEditor({
               set("cardStyle", (v === "" ? undefined : v) as DirectoryV1["cardStyle"])
             }
             // Only shipped card styles are listed; unbuilt ones (portfolio,
-            // profile, stat, service, minimal) are omitted rather than shown as
+            // stat, service, minimal) are omitted rather than shown as
             // disabled "coming soon" rows. Schema enum keeps them for back-compat.
             options={[
               { value: "", label: t("Follow Card Design default") },
               { value: "portrait", label: t("Portrait (editorial)") },
               { value: "editorial", label: t("Editorial (display name)") },
+              { value: "profile", label: t("Cinematic (full-bleed statement)") },
             ]}
           />
           <FieldSelect
