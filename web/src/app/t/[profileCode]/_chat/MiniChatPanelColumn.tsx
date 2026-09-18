@@ -25,6 +25,7 @@ import type {
   GuestIdentityTier,
   GuestInquirySummary,
   GuestThreadStatus,
+  GuestThreadV5Extras,
   InquiryReceiptData,
   ListGuestInquiriesCallback,
   ListGuestTenantRosterCallback,
@@ -92,6 +93,10 @@ export type MiniChatPanelColumnProps = {
    * humanized coordinator header. Null pre-send.
    */
   receipt?: InquiryReceiptData | null;
+  /** L13: v5 client-card extras from the full thread load. */
+  v5?: GuestThreadV5Extras | null;
+  /** L13: bump the panel's full thread load after a card action. */
+  onRefreshThread?: () => void;
   emailedTo: string | null;
   seenAtByInquiry: Record<string, string>;
   pulseActive: boolean;
@@ -284,6 +289,8 @@ export function MiniChatPanelColumn({
   threadStatus,
   typicalReply,
   receipt = null,
+  v5 = null,
+  onRefreshThread,
   emailedTo,
   seenAtByInquiry,
   pulseActive,
@@ -559,6 +566,8 @@ export function MiniChatPanelColumn({
         onGuestEmailUpdated={onGuestEmailUpdated}
         identity={identity}
         threadStatus={threadStatus}
+        v5={v5}
+        onRefreshThread={onRefreshThread}
         sendBarActive={sendBarActive}
       />
 

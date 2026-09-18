@@ -26,6 +26,7 @@
  * Contract: web/src/lib/inquiry/guest-chat-contract.ts (pure types).
  */
 
+import { loadGuestThreadV5Extras } from "./guest-thread-v5";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -1655,12 +1656,22 @@ export async function getGuestThreadMessages(
     }
   }
 
+  // L13: the v5 client-card extras (thread token, offers, pay code) ride the
+  // full load only; the incremental poll leaves them untouched.
+  const v5 = input.afterIso
+    ? null
+    : await loadGuestThreadV5Extras(admin, {
+        tenantId: owned.inquiry.tenantId,
+        inquiryId: owned.inquiry.id,
+      });
+
   return {
     ok: true,
     messages,
     threadStatus: toThreadStatus(owned.inquiry.status),
     typicalReplyLabel,
     receipt,
+    v5,
   };
 }
 
