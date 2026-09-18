@@ -106,6 +106,7 @@ export function WebsiteSetupPage() {
     <>
       <PageHeader
         title={t("dashboard.adminWebsite.setup.title")}
+        guideNodeId="site-setup"
         subtitle={t("dashboard.adminWebsite.setup.subtitle")}
       />
       <div className="flex flex-col gap-[14px]">

@@ -17,20 +17,26 @@ export function supportPanelContainerStyle(compactSheet: boolean): CSSProperties
       paddingBottom: "env(safe-area-inset-bottom)",
     };
   }
+  // Desktop: a full-height drawer anchored to the right edge that PUSHES the
+  // page (SupportPanel sets html[data-tulala-support-open="push"], which pads
+  // <body> by SUPPORT_DRAWER_WIDTH), per the B-002 mockups. Compact stays a
+  // full-screen sheet above.
   return {
     position: "fixed",
-    right: "max(16px, env(safe-area-inset-right))",
-    top: "50%",
-    transform: "translateY(-50%)",
-    width: "min(408px, calc(100vw - 32px))",
-    height: "min(720px, calc(100dvh - 48px))",
-    borderRadius: 20,
+    right: 0,
+    top: 0,
+    width: SUPPORT_DRAWER_WIDTH,
+    height: "100dvh",
+    borderRadius: 0,
     background: COLORS.card,
-    boxShadow: "0 18px 48px rgba(11,11,13,0.16)",
-    border: `1px solid ${COLORS.border}`,
+    boxShadow: "-18px 0 48px rgba(11,11,13,0.10)",
+    borderLeft: `1px solid ${COLORS.border}`,
     zIndex: 390,
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
   };
 }
+
+/** Width of the desktop drawer; also the page's padding-right while it is open. */
+export const SUPPORT_DRAWER_WIDTH = 400;

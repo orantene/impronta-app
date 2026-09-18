@@ -22,6 +22,7 @@ export function ServicesPage() {
   return (
     <div>
       <PageHeader
+        guideNodeId="talent-rate-card"
         eyebrow={copy.t("Catalog")}
         title={copy.t("Catalog & Pricing")}
         subtitle={copy.t("What clients can book or buy from your page — you choose per service whether they inquire first or reserve instantly.")}

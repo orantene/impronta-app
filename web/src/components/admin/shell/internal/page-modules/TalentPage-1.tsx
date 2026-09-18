@@ -79,6 +79,7 @@ export function TalentPage() {
   return (
     <>
       <PageHeader
+        guideNodeId="talent-profile"
         eyebrow={state.entityType === "hub" ? t("admin.roster.list.eyebrowNetwork") : t("admin.roster.list.eyebrowTalent")}
         title={state.entityType === "hub" ? t("admin.roster.list.eyebrowNetwork") : t("admin.account.rosterLabel")}
         subtitle={

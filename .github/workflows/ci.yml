@@ -167,6 +167,9 @@ jobs:
           npm run check:capability-keys
           npm run check:field-engine-integrity
           npm run check:types-fresh
+          # check:guide-coverage: same posture as types-fresh — no DB secrets here,
+          # so it prints a skip notice; the real check runs in guide-sync.yml.
+          npm run check:guide-coverage
           npm run check:untracked-imports
           npm run verify:seatbelt-executes
           npm run check:migration-collisions

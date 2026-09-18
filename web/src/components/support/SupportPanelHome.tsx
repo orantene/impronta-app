@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
@@ -8,6 +7,7 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import { ReplayConsent } from "./ReplayConsent";
 import { relTime } from "./support-rel-time";
+import { GuideHotspot } from "./GuideHotspot";
 import type { SupportTicketSummary } from "@/lib/support/support-types";
 
 export function HomeView({
@@ -27,6 +27,9 @@ export function HomeView({
   replayEnabled,
   attachReplay,
   setAttachReplay,
+  helperMode = false,
+  onOpenGuideArticle,
+  onSeeAllTickets,
 }: {
   ideaSent: number | null;
   onDismissIdeaSent: () => void;
@@ -44,10 +47,16 @@ export function HomeView({
   replayEnabled: boolean;
   attachReplay: boolean;
   setAttachReplay: (v: boolean) => void;
+  /** Helper mode (plan §3, drawer target icon) — see GuideHotspot. */
+  helperMode?: boolean;
+  onOpenGuideArticle?: (nodeId: string) => void;
+  onSeeAllTickets?: () => void;
 }) {
   const t = useT();
+  const unreadCount = recent.filter((r) => r.unread && r.status === "open").length;
+  const noop = () => {};
   return (
-    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, minHeight: "100%" }}>
       <div>
         <div style={{ fontFamily: FONTS.display, fontSize: 19, fontWeight: 600, color: COLORS.ink }}>
           {interpolate(t("dashboard.adminSupport.greeting"), { name: firstName })}
@@ -77,32 +86,39 @@ export function HomeView({
             type="button"
             onClick={onDismissIdeaSent}
             aria-label={t("dashboard.adminSupport.close")}
-            style={{
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              color: COLORS.royalDeep,
-              padding: 6,
-              margin: -6,
-              display: "flex",
-            }}
+            style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.royalDeep, padding: 6, margin: -6, display: "flex" }}
           >
             <Icon name="x" size={13} color={COLORS.royalDeep} />
           </button>
         </div>
       ) : null}
+
+      {/* The three ways in (B-002 mockup). "Start live chat" is the human
+          path: it opens a thread with the support agent directly. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <GuideHotspot id="support.live-chat" label={interpolate(t("dashboard.adminSupport.helperReadAbout"), { what: t("dashboard.adminSupport.cardLiveChat") })} active={helperMode} onOpen={onOpenGuideArticle ?? noop}>
+          <ActionCard icon="send" title={t("dashboard.adminSupport.cardLiveChat")} sub={t("dashboard.adminSupport.cardLiveChatSub")} primary onClick={onMessageOran} />
+        </GuideHotspot>
+        <GuideHotspot id="support.start-ticket" label={interpolate(t("dashboard.adminSupport.helperReadAbout"), { what: t("dashboard.adminSupport.cardTicket") })} active={helperMode} onOpen={onOpenGuideArticle ?? noop}>
+          <ActionCard icon="ticket" title={t("dashboard.adminSupport.cardTicket")} sub={t("dashboard.adminSupport.cardTicketSub")} onClick={onStartTicket} />
+        </GuideHotspot>
+        <ActionCard icon="sparkle" title={t("dashboard.adminSupport.cardIdea")} sub={t("dashboard.adminSupport.cardIdeaSub")} onClick={onAskFeature} />
+      </div>
+
+      {/* AI ask: kept (it works and escalates to a human); below the cards
+          so the three doors read first, as in the mockup. */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 8,
           background: COLORS.card,
-          border: "1px solid rgba(95,75,139,0.35)",
-          borderRadius: 14,
-          padding: "8px 10px 8px 12px",
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 12,
+          padding: "6px 6px 6px 12px",
         }}
       >
-        <Icon name="sparkle" size={16} color={COLORS.royal} />
+        <Icon name="sparkle" size={15} color={COLORS.inkDim} />
         <input
           value={ask}
           onChange={(e) => setAsk(e.target.value)}
@@ -113,15 +129,7 @@ export function HomeView({
             }
           }}
           placeholder={t("dashboard.adminSupport.askPlaceholder")}
-          style={{
-            flex: 1,
-            border: "none",
-            outline: "none",
-            fontSize: 13.5,
-            fontFamily: FONTS.body,
-            background: "transparent",
-            color: COLORS.ink,
-          }}
+          style={{ flex: 1, border: "none", outline: "none", fontSize: 13, fontFamily: FONTS.body, background: "transparent", color: COLORS.ink }}
         />
         <button
           type="button"
@@ -129,12 +137,11 @@ export function HomeView({
           disabled={!ask.trim() || sending}
           aria-label={t("dashboard.adminSupport.send")}
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: "50%",
+            width: 34,
+            height: 34,
+            borderRadius: 9,
             border: "none",
-            background: ask.trim() ? COLORS.fill : COLORS.surfaceAlt,
-            color: "#fff",
+            background: ask.trim() ? COLORS.ink : COLORS.surfaceAlt,
             cursor: ask.trim() ? "pointer" : "default",
             display: "flex",
             alignItems: "center",
@@ -142,7 +149,7 @@ export function HomeView({
             flexShrink: 0,
           }}
         >
-          <Icon name="send" size={14} color={ask.trim() ? "#fff" : COLORS.inkDim} />
+          <Icon name="send" size={13} color={ask.trim() ? "#fff" : COLORS.inkDim} />
         </button>
       </div>
       {error ? (
@@ -150,65 +157,91 @@ export function HomeView({
           {error}
         </div>
       ) : null}
-      {replayEnabled ? (
-        <ReplayConsent checked={attachReplay} onChange={setAttachReplay} />
-      ) : null}
+      {replayEnabled ? <ReplayConsent checked={attachReplay} onChange={setAttachReplay} /> : null}
+
       {recent.length > 0 ? (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: COLORS.inkDim, marginBottom: 8 }}>
-            {t("dashboard.adminSupport.recent")}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: COLORS.inkDim, textTransform: "uppercase" }}>
+              {t("dashboard.adminSupport.yourTickets")}
+            </span>
+            {unreadCount > 0 ? (
+              <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.coralDeep, background: COLORS.coralSoft, padding: "1px 6px", borderRadius: 6 }}>
+                {interpolate(t("dashboard.adminSupport.newReplies"), { n: String(unreadCount) })}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={onSeeAllTickets ?? noop}
+              style={{ marginLeft: "auto", border: "none", background: "transparent", fontSize: 12, color: COLORS.inkMuted, cursor: "pointer", padding: 0 }}
+            >
+              {t("dashboard.adminSupport.seeAll")}
+            </button>
           </div>
           {recent.map((row) => (
             <TicketRow key={row.id} row={row} onOpen={() => onOpenTicket(row.id)} />
           ))}
         </div>
       ) : null}
-      <button
-        type="button"
-        onClick={onStartTicket}
+
+      <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: COLORS.inkDim }}>
+        <Icon name="book" size={14} color={COLORS.inkDim} />
+        <span>{interpolate(t("dashboard.adminSupport.guideHint"), { guide: t("dashboard.adminSupport.tabGuide") })}</span>
+      </div>
+    </div>
+  );
+}
+
+function ActionCard({
+  icon,
+  title,
+  sub,
+  primary,
+  onClick,
+}: {
+  icon: "send" | "ticket" | "sparkle";
+  title: string;
+  sub: string;
+  primary?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        width: "100%",
+        padding: "12px 14px",
+        borderRadius: 12,
+        background: COLORS.card,
+        border: `1px solid ${primary ? COLORS.borderStrong : COLORS.border}`,
+        textAlign: "left",
+        cursor: "pointer",
+      }}
+    >
+      <span
         style={{
-          border: `1px solid ${COLORS.border}`,
-          background: COLORS.card,
-          borderRadius: 10,
-          padding: "10px 12px",
-          fontSize: 13,
-          fontWeight: 600,
-          cursor: "pointer",
-          color: COLORS.ink,
-        }}
-      >
-        {t("dashboard.adminSupport.startTicket")}
-      </button>
-      {/* Idea intake: a peer CTA, not a menu item — the owner wants these. */}
-      <button
-        type="button"
-        onClick={onAskFeature}
-        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 9,
+          background: primary ? COLORS.accentSoft : COLORS.surfaceAlt,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 7,
-          border: `1px solid rgba(95,75,139,0.35)`,
-          background: COLORS.royalSoft,
-          borderRadius: 10,
-          padding: "10px 12px",
-          fontSize: 13,
-          fontWeight: 600,
-          cursor: "pointer",
-          color: COLORS.royalDeep,
+          flexShrink: 0,
         }}
       >
-        <Icon name="sparkle" size={14} color={COLORS.royal} />
-        {t("dashboard.adminSupport.askFeature")}
-      </button>
-      <button
-        type="button"
-        onClick={onMessageOran}
-        style={{ border: "none", background: "transparent", color: COLORS.royal, fontSize: 12.5, cursor: "pointer" }}
-      >
-        {interpolate(t("dashboard.adminSupport.messageOran"), SUPPORT_AGENT_VARS)}
-      </button>
-    </div>
+        <Icon name={icon} size={17} color={primary ? COLORS.accent : COLORS.ink} stroke={1.8} />
+      </span>
+      <span style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{title}</span>
+        <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{sub}</span>
+      </span>
+      <Icon name="chevron-right" size={15} color={COLORS.inkDim} />
+    </button>
   );
 }
 

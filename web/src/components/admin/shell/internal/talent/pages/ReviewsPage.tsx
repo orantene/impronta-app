@@ -592,6 +592,7 @@ export function ReviewsPage() {
   return (
     <>
       <PageHeader
+        guideNodeId="talent-reviews"
         eyebrow={t("dashboard.talentReviews.eyebrow")}
         title={t("dashboard.talentReviews.title")}
         subtitle={t("dashboard.talentReviews.subtitle")}

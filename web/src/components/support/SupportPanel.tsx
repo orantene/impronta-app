@@ -8,7 +8,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
-import { supportPanelContainerStyle } from "./support-panel-geometry";
+import { SUPPORT_DRAWER_WIDTH, supportPanelContainerStyle } from "./support-panel-geometry";
 import { useCompactViewport } from "./use-compact-viewport";
 import { useFocusTrap } from "./use-focus-trap";
 import {
@@ -21,6 +21,7 @@ import { SupportThreadHeader } from "./SupportThreadHeader";
 import { Composer, NewTicketForm } from "./SupportPanelForms";
 import { SupportIdeaForm } from "./SupportIdeaForm";
 import { HomeView, TicketRow } from "./SupportPanelHome";
+import { GuideTab } from "./GuideTab";
 import type { SupportContract } from "./support-contract";
 import { createClient } from "@/lib/supabase/client";
 import { supportFrom } from "@/lib/support/support-from";
@@ -33,7 +34,7 @@ import { keepTicketOpenAction } from "@/lib/support/actions";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { relTime } from "./support-rel-time";
 
-type View = "home" | "tickets" | "thread" | "new" | "idea";
+type View = "home" | "tickets" | "thread" | "new" | "idea" | "guide";
 
 export function SupportPanel({
   open,
@@ -42,6 +43,8 @@ export function SupportPanel({
   tickets,
   setTickets,
   deepLinkTicketId = null,
+  guideNodeId = null,
+  onConsumedGuideNode,
 }: {
   open: boolean;
   onClose: () => void;
@@ -51,6 +54,9 @@ export function SupportPanel({
   setTickets: (updater: (prev: SupportTicketSummary[]) => SupportTicketSummary[]) => void;
   /** Ticket to open on mount (email "Reply in app" deep link). */
   deepLinkTicketId?: string | null;
+  /** Guide article to open (the (i) next to a page title). */
+  guideNodeId?: string | null;
+  onConsumedGuideNode?: () => void;
 }) {
   const t = useT();
   const compact = useCompactViewport();
@@ -65,13 +71,41 @@ export function SupportPanel({
   const [thinking, setThinking] = useState(false);
   const [attachReplay, setAttachReplay] = useState(false);
   const [ideaSent, setIdeaSent] = useState<number | null>(null);
+  const [helperMode, setHelperMode] = useState(false);
+  const [guideDeepLinkNodeId, setGuideDeepLinkNodeId] = useState<string | null>(null);
   const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
+
+  // Desktop: push the page instead of covering it (mockup). The attribute is
+  // read by the style tag rendered below; compact keeps the full-screen
+  // sheet, so nothing is padded there.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    if (open && !compact) root.setAttribute("data-tulala-support-open", "push");
+    else root.removeAttribute("data-tulala-support-open");
+    return () => root.removeAttribute("data-tulala-support-open");
+  }, [open, compact]);
+
+  const openGuideArticle = useCallback(
+    (nodeId: string) => {
+      setHelperMode(false);
+      setGuideDeepLinkNodeId(nodeId);
+      setView("guide");
+    },
+    [setView],
+  );
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (deepLinkTicketId) setView("thread", deepLinkTicketId);
   }, [deepLinkTicketId, setView]);
+
+  useEffect(() => {
+    if (!guideNodeId) return;
+    openGuideArticle(guideNodeId);
+    onConsumedGuideNode?.();
+  }, [guideNodeId, openGuideArticle, onConsumedGuideNode]);
 
   useEffect(() => {
     if (deepLinkTicketId) return;
@@ -270,6 +304,26 @@ export function SupportPanel({
         <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, color: COLORS.ink }}>
           {t("dashboard.adminSupport.title")}
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <button
+          type="button"
+          onClick={() => setHelperMode((v) => !v)}
+          aria-label={t("dashboard.adminSupport.helperModeAria")}
+          aria-pressed={helperMode}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 9,
+            border: "none",
+            background: helperMode ? COLORS.royal : "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+          }}
+        >
+          <Icon name="target" size={17} color={helperMode ? "#fff" : COLORS.inkMuted} stroke={1.8} />
+        </button>
         <button
           type="button"
           onClick={onClose}
@@ -286,7 +340,27 @@ export function SupportPanel({
         >
           <Icon name="x" size={16} />
         </button>
+        </div>
       </header>
+      <style>{`html[data-tulala-support-open="push"] body { padding-right: ${SUPPORT_DRAWER_WIDTH}px; transition: padding-right .18s cubic-bezier(.22,1,.36,1); }`}</style>
+
+      {view !== "thread" ? (
+        <div
+          role="tablist"
+          style={{
+            margin: "10px 14px 6px",
+            padding: 3,
+            borderRadius: 11,
+            background: COLORS.surfaceAlt,
+            display: "flex",
+            gap: 2,
+          }}
+        >
+          <TopTab active={view === "home" || view === "idea" || view === "new"} icon="home" label={t("dashboard.adminSupport.tabHome")} onClick={() => setView("home")} />
+          <TopTab active={view === "tickets"} icon="ticket" label={t("dashboard.adminSupport.tabTickets")} badge={unread} onClick={() => setView("tickets")} />
+          <TopTab active={view === "guide"} icon="book" label={t("dashboard.adminSupport.tabGuide")} onClick={() => setView("guide")} />
+        </div>
+      ) : null}
 
       {view === "thread" ? (
         <SupportThreadHeader
@@ -307,13 +381,16 @@ export function SupportPanel({
             onSubmit={() => void submitAsk()}
             sending={sending}
             error={askError}
-            recent={tickets.slice(0, 2)}
+            recent={tickets.slice(0, 3)}
             onOpenTicket={(id) => setView("thread", id)}
             onStartTicket={() => setView("new")}
             onAskFeature={() => setView("idea")}
             replayEnabled={replay.enabled}
             attachReplay={attachReplay}
             setAttachReplay={setAttachReplay}
+            helperMode={helperMode}
+            onOpenGuideArticle={openGuideArticle}
+            onSeeAllTickets={() => setView("tickets")}
             onMessageOran={() => {
               void (async () => {
                 setAskError(null);
@@ -405,6 +482,16 @@ export function SupportPanel({
             }}
           />
         )}
+        {view === "guide" && (
+          <GuideTab
+            initialNodeId={guideDeepLinkNodeId}
+            onConsumedDeepLink={() => setGuideDeepLinkNodeId(null)}
+            onAskSupport={(question) => {
+              setAsk(question);
+              setView("home");
+            }}
+          />
+        )}
       </div>
 
       {view === "thread" ? (
@@ -455,71 +542,66 @@ export function SupportPanel({
         </>
       ) : null}
 
-      <nav
-        style={{
-          display: "flex",
-          borderTop: `1px solid ${COLORS.borderSoft}`,
-          padding: "8px 12px",
-          gap: 8,
-        }}
-      >
-        <DockTab
-          active={view === "home"}
-          label={t("dashboard.adminSupport.tabHome")}
-          onClick={() => setView("home")}
-        />
-        <DockTab
-          active={view === "tickets" || view === "thread"}
-          label={t("dashboard.adminSupport.tabTickets")}
-          badge={unread}
-          onClick={() => setView("tickets")}
-        />
-      </nav>
     </div>
   );
 }
 
-function DockTab({
+function TopTab({
   active,
+  icon,
   label,
   badge,
   onClick,
 }: {
   active: boolean;
+  icon: "home" | "ticket" | "book";
   label: string;
   badge?: number;
   onClick: () => void;
 }) {
+  const color = active ? COLORS.ink : COLORS.inkMuted;
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
       style={{
         flex: 1,
+        height: 32,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
         border: "none",
-        background: active ? COLORS.surfaceAlt : "transparent",
-        borderRadius: 10,
-        padding: "13px 10px",
+        borderRadius: 8,
+        background: active ? COLORS.card : "transparent",
+        boxShadow: active ? "0 1px 2px rgba(11,11,13,0.10)" : "none",
+        color,
         fontSize: 12.5,
         fontWeight: 600,
-        color: active ? COLORS.ink : COLORS.inkMuted,
         cursor: "pointer",
-        position: "relative",
+        fontFamily: FONTS.body,
       }}
     >
-      {label}
+      <Icon name={icon} size={14} color={color} stroke={1.9} />
+      <span>{label}</span>
       {badge && badge > 0 ? (
         <span
           style={{
-            marginLeft: 6,
+            minWidth: 16,
+            height: 16,
+            padding: "0 4px",
+            borderRadius: 8,
             background: COLORS.coral,
             color: "#fff",
-            borderRadius: 8,
             fontSize: 10,
-            padding: "1px 5px",
+            fontWeight: 700,
+            lineHeight: "16px",
+            textAlign: "center",
           }}
         >
-          {badge}
+          {badge > 9 ? "9+" : badge}
         </span>
       ) : null}
     </button>

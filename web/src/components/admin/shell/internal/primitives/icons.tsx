@@ -46,7 +46,10 @@ export type AdminShellIconName =
   | "chart"
   | "life-buoy"
   | "help-circle"
-  | "ellipsis";
+  | "ellipsis"
+  | "target"
+  | "book"
+  | "ticket";
 
 export function Icon({
   name,
@@ -215,6 +218,28 @@ export function Icon({
       return (
         <svg {...common}>
           <circle cx="12" cy="12" r="9" />
+        </svg>
+      );
+    case "target":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="5" />
+          <circle cx="12" cy="12" r="1" fill={common.stroke} stroke="none" />
+        </svg>
+      );
+    case "ticket":
+      return (
+        <svg {...common}>
+          <path d="M3 9a2 2 0 0 0 2-2V5h14v2a2 2 0 0 0 2 2v6a2 2 0 0 0-2 2v2H5v-2a2 2 0 0 0-2-2z" />
+          <path d="M13 5v14" strokeDasharray="2 2" />
+        </svg>
+      );
+    case "book":
+      return (
+        <svg {...common}>
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
         </svg>
       );
     case "map-pin":
