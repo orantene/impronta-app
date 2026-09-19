@@ -368,7 +368,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
 
       {!isModal && plan.cinematic ? (
         <section className="nf-cine" data-nf-reveal aria-hidden="true">
-          <Image src={plan.cinematic.url} alt="" fill sizes="100vw" />
+          <Image src={plan.cinematic.url} alt="" fill quality={85} sizes="100vw" />
           {availableFor && lead !== availableFor ? <div className="nf-cine__cap">{availableFor}</div> : null}
         </section>
       ) : null}
@@ -396,7 +396,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
             <div>
               {showIndustries ? <><h4 className="nf-h4">{labels.industries}</h4><div className="nf-tags">{industries.map((x) => <span key={x}>{x}</span>)}</div></> : null}
               {showEvents ? <><h4 className="nf-h4" style={{ marginTop: showIndustries ? 28 : 0 }}>{labels.events}</h4><div className="nf-tags">{eventList.map((x) => <span key={x}>{x}</span>)}</div></> : null}
-              {!showIndustries && !showEvents && highlights ? <><h4 className="nf-h4">{L("Highlights", "Destacados")}</h4><p className="nf-caps__exp" style={{ marginTop: 0 }}>{highlights}</p></> : null}
+              {!showIndustries && !showEvents && highlights && highlights !== body && highlights !== lead ? <><h4 className="nf-h4">{L("Highlights", "Destacados")}</h4><p className="nf-caps__exp" style={{ marginTop: 0 }}>{highlights}</p></> : null}
             </div>
             <div>
               {logistics.length ? <><h4 className="nf-h4">{labels.logistics}</h4><dl className="nf-kv">{logistics.map(([k, v]) => <div key={k} style={{ display: "contents" }}><dt>{k}</dt><dd>{v}</dd></div>)}</dl></> : null}
@@ -425,7 +425,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
               {dots ? <div className="nf-dots" aria-hidden="true">{dots.map((c, i) => <i key={i} className={c === "·" ? "y" : c === "×" ? undefined : "h"} />)}</div> : null}
             </div>
             <dl className="nf-avl__facts">
-              <div><dt>{labels.nextAvailable}</dt><dd>{nextAvailableDate ? formatDay(nextAvailableDate, locale) : availableNow ? L("Now", "Ahora") : labels.onRequest}</dd></div>
+              <div><dt>{labels.nextAvailable}</dt><dd>{availableNow ? L("Now", "Ahora") : nextAvailableDate ? formatDay(nextAvailableDate, locale) : labels.onRequest}</dd></div>
               {notice ? <div><dt>{L("Notice", "Antelación")}</dt><dd>{notice}</dd></div> : null}
               {travelLine ? <div><dt>{L("Travel", "Viajes")}</dt><dd>{travelLine.replace(/^(Travels|Viaja:)\s*/, "")}</dd></div> : null}
               {replyTime ? <div><dt>{L("Replies", "Responde")}</dt><dd>{replyTime}</dd></div> : null}
@@ -519,7 +519,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
       {/* ── 1. HERO ── */}
       <header className={`nf-hero${splitHero ? " nf-hero--split" : ""}`} data-profile-section="hero">
         {!splitHero ? (
-          <div className="nf-hero__media"><Image src={bannerUrl!} alt={`${name}, banner`} fill priority sizes="100vw" /></div>
+          <div className="nf-hero__media"><Image src={bannerUrl!} alt={`${name}, banner`} fill priority quality={90} sizes="100vw" /></div>
         ) : null}
         <div className="nf-wrap nf-hero__body">
           {splitHero ? (

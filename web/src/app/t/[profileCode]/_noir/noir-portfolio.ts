@@ -76,10 +76,14 @@ export function planNoirPortfolio(
 
   if (pool.length >= 5) {
     lookKind = "quad";
+    // Photographers upload series: consecutive frames are usually the same
+    // look. Spread the strip across the gallery (first, one third, two
+    // thirds) so the opening four read as four looks, not one pose twice.
+    const step = Math.max(1, Math.floor(portraits.length / 3));
     const a = take(portraits[0]) ?? take(pool[0]);
-    const b = take(portraits[1]) ?? take(pool.find((it) => !used.has(it.id)));
-    const c = take(landscapes[0]) ?? take(pool.find((it) => !used.has(it.id)));
-    const d = take(portraits.find((it) => !used.has(it.id))) ?? take(pool.find((it) => !used.has(it.id)));
+    const b = take(portraits[step]) ?? take(portraits.find((it) => !used.has(it.id))) ?? take(pool.find((it) => !used.has(it.id)));
+    const c = take(landscapes[0]) ?? take(portraits[2 * step]) ?? take(pool.find((it) => !used.has(it.id)));
+    const d = take(portraits[2 * step]) ?? take(portraits.find((it) => !used.has(it.id))) ?? take(pool.find((it) => !used.has(it.id)));
     for (const it of [a, b, c, d]) if (it) look.push(it);
   } else if (pool.length >= 3) {
     lookKind = "trio";
