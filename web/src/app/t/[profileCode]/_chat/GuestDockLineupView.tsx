@@ -231,6 +231,7 @@ export function GuestDockLineupView({
   const favoriteIds = favorites.favoriteIds;
   const favoritesKey = [...favoriteIds].join(",");
   const [savedTiles, setSavedTiles] = useState<SavedTile[]>([]);
+  const showPeopleShelves = representsPeople || cartTalents.length > 0 || savedTiles.length > 0;
   const [savedLoading, setSavedLoading] = useState(false);
   // id → profileCode for BOTH shelves (names link to the talent's page).
   const [codeById, setCodeById] = useState<Record<string, string>>({});
@@ -364,6 +365,8 @@ export function GuestDockLineupView({
         </>
       ) : null}
 
+      {showPeopleShelves && (
+        <>
       <ShelfHeader
         label={t("public.guestChat.dockLineupShelfInquiry")}
         count={cartTalents.length}
@@ -450,6 +453,8 @@ export function GuestDockLineupView({
           </button>
         </div>
       )}
+        </>
+      )}
       </div>
 
       {/* ── Shelf A2: the conversation's other items (L13 wave 2) ─────────── */}
@@ -464,7 +469,11 @@ export function GuestDockLineupView({
         header={(label, count) => <ShelfHeader label={label} count={count} C={C} />}
       />
 
-      {/* ── Shelf B: saved favorites (client_favorites) ────────────────────── */}
+      {/* ── Shelf B: saved favorites (client_favorites). A business that does
+          not sell people has nothing to save or line up: both people shelves
+          stay hidden unless a row already exists (D-MSG-221). ─────────────── */}
+      {showPeopleShelves && (
+        <>
       <ShelfHeader
         label={t("public.guestChat.dockLineupShelfSaved")}
         count={savedTiles.length}
@@ -601,6 +610,8 @@ export function GuestDockLineupView({
             );
           })}
         </ul>
+      )}
+        </>
       )}
     </div>
   );
