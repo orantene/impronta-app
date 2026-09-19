@@ -205,16 +205,16 @@ export function CardFactStrip({
       {columns.length > 0 || rating ? (
         <dl
           data-card-fact-strip=""
-          className={`grid gap-2.5 border-y py-2.5 ${ruleClass} ${
+          className={`grid gap-2 border-y py-1.5 @[280px]:gap-2.5 @[280px]:py-2.5 ${ruleClass} ${
             columns.length + (rating ? 1 : 0) === 1 ? "grid-cols-1" : columns.length + (rating ? 1 : 0) === 2 ? "grid-cols-2" : "grid-cols-3"
           }`}
         >
           {columns.map((trait) => (
-            <div key={trait.key} data-card-trait-line="" className="flex min-w-0 flex-col gap-0.5">
-              <dt className={`truncate text-[9px] font-semibold uppercase tracking-[0.16em] ${labelClass}`}>
+            <div key={trait.key} data-card-trait-line="" className="flex min-w-0 flex-col gap-0 @[280px]:gap-0.5">
+              <dt className={`truncate text-[8px] font-semibold uppercase tracking-[0.14em] @[280px]:text-[9px] @[280px]:tracking-[0.16em] ${labelClass}`}>
                 {trait.label}
               </dt>
-              <dd className={`truncate text-[14px] font-medium tabular-nums ${valueClass}`}>
+              <dd className={`truncate text-[13px] font-medium tabular-nums @[280px]:text-[14px] ${valueClass}`}>
                 {trait.value}
               </dd>
             </div>

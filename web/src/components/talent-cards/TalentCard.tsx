@@ -504,7 +504,7 @@ export function TalentCard({
         ) : null}
 
         <div
-          className={`absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-1.5 px-3 pb-3 @[280px]:gap-2.5 ${
+          className={`absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-1 px-3 pb-3 @[280px]:gap-2.5 ${
             compact ? "@[280px]:px-4 @[280px]:pb-4" : "@[280px]:px-5 @[280px]:pb-5"
           }`}
           data-card-body
@@ -524,7 +524,7 @@ export function TalentCard({
               className={`font-[family-name:var(--font-fraunces,Georgia,serif)] font-normal leading-none tracking-[-0.02em] text-[var(--token-card-name-color,#f3efe6)] ${
                 compact
                   ? "text-[20px]! @[220px]:text-[26px]! @[300px]:text-[30px]!"
-                  : "text-[22px]! @[220px]:text-[28px]! @[300px]:text-[34px]!"
+                  : "text-[22px]! @[220px]:text-[26px]! @[300px]:text-[34px]!"
               }`}
             >
               {firstName}
@@ -539,7 +539,7 @@ export function TalentCard({
             />
           ) : null}
           {typeLine.length > 0 ? (
-            <p className="truncate text-[12px] text-[var(--token-card-muted,rgba(243,239,230,0.78))] @[280px]:text-[14px]">
+            <p className="truncate text-[11px] leading-tight text-[var(--token-card-muted,rgba(243,239,230,0.78))] @[280px]:text-[14px]">
               {typeLine.join(" · ")}
             </p>
           ) : null}
