@@ -451,7 +451,7 @@ export function TalentCard({
           <span
             data-card-availability
             title={data.availabilityLabel}
-            className="pointer-events-none inline-flex h-[26px] max-w-full items-center gap-1.5 overflow-hidden rounded-full border border-white/[0.28] bg-[rgba(6,6,8,0.42)] px-2.5 text-[10px] font-semibold tracking-[0.02em] text-[#f3efe6] backdrop-blur-md @[280px]:h-[30px] @[280px]:gap-2 @[280px]:px-3 @[280px]:text-[11px] @[280px]:uppercase @[280px]:tracking-[0.14em]"
+            className="pointer-events-none inline-flex h-[26px] max-w-full items-center gap-1.5 overflow-hidden rounded-full border border-white/[0.28] bg-[rgba(6,6,8,0.62)] px-2.5 text-[10px] font-semibold tracking-[0.02em] text-[#f3efe6] backdrop-blur-md @[280px]:h-[30px] @[280px]:gap-2 @[280px]:px-3 @[280px]:text-[11px] @[280px]:uppercase @[280px]:tracking-[0.14em]"
           >
             <span
               aria-hidden
@@ -488,7 +488,7 @@ export function TalentCard({
         <div
           aria-hidden
           data-card-scrim
-          className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_top,rgba(6,6,8,0.96)_0%,rgba(6,6,8,0.72)_32%,rgba(6,6,8,0.1)_58%,rgba(6,6,8,0)_75%)]"
+          className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_top,rgba(6,6,8,0.97)_0%,rgba(6,6,8,0.88)_30%,rgba(6,6,8,0.5)_52%,rgba(6,6,8,0.3)_100%)]"
         />
 
         {topPill ? (
@@ -524,7 +524,7 @@ export function TalentCard({
               className={`font-[family-name:var(--font-fraunces,Georgia,serif)] font-normal leading-none tracking-[-0.02em] text-[var(--token-card-name-color,#f3efe6)] ${
                 compact
                   ? "text-[20px]! @[220px]:text-[26px]! @[300px]:text-[30px]!"
-                  : "text-[22px]! @[220px]:text-[30px]! @[300px]:text-[40px]!"
+                  : "text-[22px]! @[220px]:text-[28px]! @[300px]:text-[34px]!"
               }`}
             >
               {firstName}

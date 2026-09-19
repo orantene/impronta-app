@@ -1230,7 +1230,7 @@ const directoryPropsSchema = z.object({
       "minimal",
     ])
     .optional(),
-  cardAspect: z.enum(["4:5", "1:1", "3:4", "16:9"]).optional(),
+  cardAspect: z.enum(["4:5", "1:1", "3:4", "2:3", "16:9"]).optional(),
   showName: z.boolean().optional(),
   showTalentType: z.boolean().optional(),
   showLocation: z.boolean().optional(),

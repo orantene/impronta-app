@@ -49,6 +49,7 @@ export const ES_SECTION_PANEL_TEXT: Record<string, string> = {
   "21/9": "21/9",
   "3 talent cards": "3 tarjetas de talento",
   "3:4": "3:4",
+  "2:3": "2:3",
   "3/4": "3/4",
   "4:5": "4:5",
   "4:5 portrait": "4:5 vertical",

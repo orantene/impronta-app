@@ -208,7 +208,7 @@
 [data-directory-card]:has([data-card-style="profile"]) .talent-card-actions__favorite,
 [data-directory-card]:has([data-card-style="profile"]) [data-card-quick-view] {
   border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(6, 6, 8, 0.42);
+  background: rgba(6, 6, 8, 0.62);
   color: #f3efe6;
 }
 [data-directory-card]:has([data-card-style="showcase"]) .talent-card-actions__favorite,

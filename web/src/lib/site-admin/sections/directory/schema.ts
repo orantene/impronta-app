@@ -104,7 +104,7 @@ export const directorySchemaV1 = z.object({
     ])
     .optional(),
   /** UNSET = follow `directory.card.aspect`. */
-  cardAspect: z.enum(["4:5", "1:1", "3:4", "16:9"]).optional(),
+  cardAspect: z.enum(["4:5", "1:1", "3:4", "2:3", "16:9"]).optional(),
   /** UNSET = follow `directory.card.show-name`. */
   showName: z.boolean().optional(),
   /** Used when showName=false (privacy verticals). */

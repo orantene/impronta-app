@@ -489,6 +489,7 @@ const ASPECT_RATIO: Record<NonNullable<DirectoryV1["cardAspect"]>, string> = {
   "4:5": "4 / 5",
   "1:1": "1 / 1",
   "3:4": "3 / 4",
+  "2:3": "2 / 3",
   "16:9": "16 / 9",
 };
 

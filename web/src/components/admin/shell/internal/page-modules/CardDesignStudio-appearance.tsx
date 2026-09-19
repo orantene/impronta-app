@@ -88,6 +88,7 @@ export function CardAppearanceSection({
                     { value: "4:5", label: "4:5" },
                     { value: "1:1", label: "1:1" },
                     { value: "3:4", label: "3:4" },
+                    { value: "2:3", label: "2:3" },
                     { value: "16:9", label: "16:9" },
                   ]}
                 />
