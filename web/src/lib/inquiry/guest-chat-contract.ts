@@ -734,7 +734,7 @@ export type MiniChatBrand = {
   locale?: string | null;
   /** L13: tenant switch, the dock shows its Items tab (default on). */
   dockItemsTab?: boolean;
-  /** L13: tenant switch, the dock draws the Messages v5 client cards (opt-in). */
+  /** L13: tenant switch, the dock draws the Messages v5 client cards (fail-open). */
   dockCardsV5?: boolean;
   /** L13: the Items tab label per business ("Talent & services", "Your order", ...). */
   dockItemsLabel?: string | null;

@@ -37,7 +37,7 @@ export function GuestChatSettingsDrawer() {
   const [showOnHome, setShowOnHome] = useState(true);
   // L13: what the dock does once it is open, tenant-wide.
   const [itemsTab, setItemsTab] = useState(true);
-  const [cardsV5, setCardsV5] = useState(false);
+  const [cardsV5, setCardsV5] = useState(true);
   const [greeting, setGreeting] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(!!tenantSlug);
@@ -173,7 +173,7 @@ export function GuestChatSettingsDrawer() {
             <ToggleControl value={itemsTab} onChange={setItemsTab} label="" />
           </FieldRow>
           <FieldRow
-            label={copy.t("Offer, payment and booking cards (beta)")}
+            label={copy.t("Offer, payment and booking cards")}
             hint={copy.t("The choices, offer, payment and confirmation cards your team sends from Messages appear in the chat as cards visitors can act on. Off keeps plain messages.")}
           >
             <ToggleControl value={cardsV5} onChange={setCardsV5} label="" />

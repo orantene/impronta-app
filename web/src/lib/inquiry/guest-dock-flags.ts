@@ -6,12 +6,12 @@ import "server-only";
  * `MiniChatBrand` by both launcher mounts (agency surfaces, talent pages).
  *
  *   itemsTab   tenant_guest_chat_settings.items_tab   (null/true = on)
- *   cardsV5    tenant_guest_chat_settings.cards_v5    (opt-in, decision 10)
+ *   cardsV5    tenant_guest_chat_settings.cards_v5    (fail-open; explicit false = legacy)
  *   itemsLabel words table `customers.chat_items`, else derived from the
  *              industry preset (Talent & services / Your order / ...)
  *
  * The talent page passes a null tenant on a non-agency host; the defaults
- * then apply (Items tab on, legacy bubbles, "Items").
+ * then apply (Items tab on, v5 cards on, "Items").
  */
 
 import { loadGuestChatSettings } from "./guest-chat-settings";

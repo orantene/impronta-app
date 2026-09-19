@@ -26,8 +26,8 @@ export type GuestChatSettings = {
   itemsTab: boolean;
   /**
    * L13: the dock draws the Messages v5 client cards (choices, times, offer,
-   * payment, confirmed, change). OPT-IN: null/false keeps the legacy bubbles
-   * until QA passes (owner decision 10); only an explicit true turns it on.
+   * payment, confirmed, change). Fail-open: null/undefined stays ON; only an
+   * explicit false keeps the legacy bubbles.
    */
   cardsV5: boolean;
 };
@@ -40,7 +40,7 @@ export const GUEST_CHAT_DEFAULTS: GuestChatSettings = {
   showOnHome: true,
   greeting: null,
   itemsTab: true,
-  cardsV5: false,
+  cardsV5: true,
 };
 
 /** Raw column shape as read from `tenant_guest_chat_settings` (all optional/nullable). */
@@ -74,6 +74,6 @@ export function mapGuestChatSettingsRow(
     showOnHome: row.show_on_home !== false,
     greeting,
     itemsTab: row.items_tab !== false,
-    cardsV5: row.cards_v5 === true,
+    cardsV5: row.cards_v5 !== false,
   };
 }
