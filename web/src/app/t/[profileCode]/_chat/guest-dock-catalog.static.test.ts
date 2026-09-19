@@ -23,7 +23,7 @@ test("the guest catalog action is a reader and never writes POS or calendar", ()
   const src = read("app/t/[profileCode]/_actions/guest-catalog-actions.ts");
   assert.match(src, /"use server"/);
   assert.match(src, /loadItemsCatalog/);
-  assert.match(src, /from\("talent_profiles"\)\.select\("id, profile_code"\)/);
+  assert.match(src, /from\("talent_profiles"\)\s*\.select\("id, profile_code"\)/);
   for (const forbidden of [
     /createDraftOrder/,
     /addLine/,
@@ -62,4 +62,12 @@ test("Buy now is the storefront page for service, class, and ticket; tables have
   assert.doesNotMatch(src, /table:\s*"\//);
   assert.match(src, /onAsk\(/);
   assert.match(src, /catalogAskPrefill/);
+});
+
+test("D-MSG-222: the guest catalog offers only people the public directory lists", () => {
+  const reader = read("app/t/[profileCode]/_actions/guest-catalog-actions.ts");
+  assert.match(reader, /\.eq\("is_publicly_hidden", false\)/);
+  assert.match(reader, /\.eq\("is_publicly_listed", true\)/);
+  assert.match(reader, /\.is\("deleted_at", null\)/);
+  assert.match(reader, /codes\.has\(r\.talentProfileId\)/);
 });
