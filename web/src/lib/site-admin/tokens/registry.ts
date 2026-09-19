@@ -729,7 +729,7 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     label: "Card image ratio",
     scope: "template",
     agencyConfigurable: true,
-    validator: z.enum(["4:5", "1:1", "3:4", "16:9"]),
+    validator: z.enum(["4:5", "1:1", "3:4", "2:3", "16:9"]),
     defaultValue: "4:5",
     group: "Template families",
     description:

@@ -180,12 +180,12 @@ export function DirectoryCardAdapter({
         : "portrait";
 
   const fitChips = pickFitLabels(data.fitLabels);
-  const traitLines = pickAttributeLines(
-    data.cardAttributes,
-    cardFieldKeys,
-    maxFieldLines,
-    style === "profile" ? 3 : 2,
-  );
+  // Cinematic's strip is a fixed three-column spec block, so it ignores the
+  // line ceiling and takes the first three card-visible fields.
+  const traitLines =
+    style === "profile"
+      ? pickAttributeLines(data.cardAttributes, cardFieldKeys, 3, 3)
+      : pickAttributeLines(data.cardAttributes, cardFieldKeys, maxFieldLines);
   const cinematicRating =
     data.ratingAvg != null && meetsCredibilityFloor(data.ratingCount)
       ? { avg: data.ratingAvg, count: data.ratingCount ?? 0 }

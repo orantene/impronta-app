@@ -655,6 +655,7 @@ export function DirectoryEditor({
               { value: "4:5", label: t("4:5 portrait") },
               { value: "1:1", label: t("1:1 square") },
               { value: "3:4", label: "3:4" },
+              { value: "2:3", label: "2:3" },
               { value: "16:9", label: "16:9" },
             ]}
           />

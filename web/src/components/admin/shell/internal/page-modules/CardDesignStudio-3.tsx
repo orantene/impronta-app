@@ -83,7 +83,7 @@ export const SURFACE_RULES: Record<CardSurface, SurfaceRule> = {
 export const SURFACE_ORDER: CardSurface[] = ["directory", "pitch", "roster", "embedded"];
 
 export type CardStyle = "portrait" | "editorial" | "profile";
-export type CardAspect = "4:5" | "1:1" | "3:4" | "16:9";
+export type CardAspect = "4:5" | "1:1" | "3:4" | "2:3" | "16:9";
 export type HoverBehavior = "reveal_traits" | "zoom" | "swap" | "none";
 
 export type CardDensity = "comfortable" | "compact";
@@ -177,6 +177,7 @@ const ASPECT_RATIO: Record<CardAspect, number> = {
   "4:5": 4 / 5,
   "1:1": 1,
   "3:4": 3 / 4,
+  "2:3": 2 / 3,
   "16:9": 16 / 9,
 };
 

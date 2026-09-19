@@ -1610,7 +1610,7 @@ export interface BuilderDirectoryNode extends BuilderNodeBase {
       | "stat"
       | "service"
       | "minimal";
-    cardAspect?: "4:5" | "1:1" | "3:4" | "16:9";
+    cardAspect?: "4:5" | "1:1" | "3:4" | "2:3" | "16:9";
     showName?: boolean;
     showTalentType?: boolean;
     showLocation?: boolean;

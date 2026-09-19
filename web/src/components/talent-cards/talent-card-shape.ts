@@ -40,7 +40,7 @@ export type TalentCardStyle =
   | "service"
   | "minimal";
 
-export type TalentCardAspect = "4:5" | "1:1" | "3:4" | "16:9";
+export type TalentCardAspect = "4:5" | "1:1" | "3:4" | "2:3" | "16:9";
 
 export type TalentCardNameFallback = "code" | "role" | "first_name" | "hidden";
 
@@ -166,6 +166,7 @@ export const TALENT_CARD_ASPECT_RATIO: Record<TalentCardAspect, string> = {
   "4:5": "4 / 5",
   "1:1": "1 / 1",
   "3:4": "3 / 4",
+  "2:3": "2 / 3",
   "16:9": "16 / 9",
 };
 
