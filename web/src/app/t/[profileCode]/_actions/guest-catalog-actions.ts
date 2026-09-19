@@ -65,7 +65,11 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
     // A missing inquiry only means "no date": the catalog still loads.
     const catalog = await loadItemsCatalog(admin, { tenantId, inquiryId: parsed.data.inquiryId ?? "00000000-0000-0000-0000-000000000000" });
     const codes = await profileCodes(admin, catalog.rows.map((r) => r.talentProfileId).filter((v): v is string => Boolean(v)));
-    const groups: CatalogGroup[] = groupCatalog(catalog.rows, categoryOrderForPreset(catalog.preset));
+    // The shared reader lists the whole roster for staff. A visitor sees only
+    // what the public directory shows (D-MSG-222): a person the directory
+    // hides is not offered in the dock either.
+    const rows = catalog.rows.filter((r) => !r.talentProfileId || codes.has(r.talentProfileId));
+    const groups: CatalogGroup[] = groupCatalog(rows, categoryOrderForPreset(catalog.preset));
     return {
       ok: true,
       groups: groups.map((g) => ({
@@ -79,7 +83,7 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
           available: r.availability.kind !== "busy",
           busy: r.availability.kind === "busy" ? r.availability.reason : null,
           talentProfileId: r.talentProfileId ?? null,
-          profileCode: r.talentProfileId ? (codes.get(r.talentProfileId) ?? null) : null,
+          profileCode: r.talentProfileId ? codes.get(r.talentProfileId) || null : null,
           offeringId: r.offeringId ?? null,
           sessionId: r.sessionId ?? null,
           startsAt: r.startsAt ?? null,
@@ -93,17 +97,29 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
   }
 }
 
+/**
+ * Public profile codes, keyed by id. Only profiles the public directory lists
+ * are returned (same predicate as `fetch-directory-page.ts`): the caller
+ * treats a missing id as "not public" and drops the row.
+ */
 async function profileCodes(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, ids: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (ids.length === 0) return out;
-  const { data, error } = await admin.from("talent_profiles").select("id, profile_code").in("id", ids);
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("id, profile_code")
+    .in("id", ids)
+    .is("deleted_at", null)
+    .eq("is_publicly_hidden", false)
+    .eq("is_publicly_listed", true)
+    .neq("profile_kind", "resource");
   if (error) {
     // A failed code lookup only costs the profile links; the catalog still renders.
     logServerError("guest-catalog-actions.profileCodes", error);
     return out;
   }
   for (const row of (data ?? []) as Array<{ id: string; profile_code: string | null }>) {
-    if (row.profile_code) out.set(row.id, row.profile_code);
+    out.set(row.id, row.profile_code ?? "");
   }
   return out;
 }
