@@ -75,10 +75,11 @@ async function confirmedLinesForRecord(
   if (lineErr) return fail("unavailable");
   let matched = rows(byOrder as LineRow | null);
   if (matched.length === 0) {
-    const { data: byBooking } = await admin
+    const { data: byBooking, error: bookingErr } = await admin
       .from("order_lines")
       .select("offering_id, units, confirmed_at, variant_id, addon_ids, session_id, booking_id, order_id")
       .eq("booking_id", input.recordId);
+    if (bookingErr) return fail("unavailable");
     matched = rows(byBooking as LineRow | null);
   }
   const confirmed = matched.filter((l) => l.confirmed_at && l.offering_id);
