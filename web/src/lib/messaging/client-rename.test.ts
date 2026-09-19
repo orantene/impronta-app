@@ -33,7 +33,7 @@ function seed(over: { name?: string; email?: string; clientUserId?: string | nul
 test("rename writes contact_name, bumps version, logs client_edit; email and phone stay", async () => {
   const { admin, store } = seed();
   const result = await renameClientContact(admin, { tenantId: TENANT, inquiryId: INQUIRY, name: " Ana Ruiz " });
-  assert.deepEqual(result, { ok: true, name: "Ana Ruiz", email: "ana@example.com" });
+  assert.deepEqual(result, { ok: true, name: "Ana Ruiz", email: "ana@example.com", previousName: "Guest" });
   assert.equal(store.inquiries[0].contact_name, "Ana Ruiz");
   assert.equal(store.inquiries[0].contact_email, "ana@example.com");
   assert.equal(store.inquiries[0].contact_phone, "+15555550100");
@@ -43,12 +43,21 @@ test("rename writes contact_name, bumps version, logs client_edit; email and pho
   assert.equal(store.customers[0].email, "ana@example.com");
   assert.equal(store.inquiry_action_log[0].action_type, "messaging_client_edit");
   assert.deepEqual(store.inquiry_action_log[0].metadata, { fields: ["name"] });
+  assert.equal(store.inquiry_action_log[0].tenant_id, TENANT);
+});
+
+test("a guest (no client user) renames without a log row: actor_user_id is NOT NULL in production", async () => {
+  const { admin, store } = seed({ clientUserId: null });
+  const result = await renameClientContact(admin, { tenantId: TENANT, inquiryId: INQUIRY, name: "Ana Ruiz" });
+  assert.equal(result.ok, true);
+  assert.equal(store.inquiries[0].contact_name, "Ana Ruiz");
+  assert.equal(store.inquiry_action_log.length, 0);
 });
 
 test("same name is a no-op: no version bump, no log, email untouched", async () => {
   const { admin, store } = seed({ name: "Ana Ruiz" });
   const result = await renameClientContact(admin, { tenantId: TENANT, inquiryId: INQUIRY, name: "Ana Ruiz" });
-  assert.deepEqual(result, { ok: true, name: "Ana Ruiz", email: "ana@example.com" });
+  assert.deepEqual(result, { ok: true, name: "Ana Ruiz", email: "ana@example.com", previousName: "Ana Ruiz" });
   assert.equal(store.inquiries[0].version, 1);
   assert.equal(store.inquiry_action_log.length, 0);
 });
