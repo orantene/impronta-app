@@ -445,6 +445,8 @@ export async function messagingClientRename(input: { token: string; name: string
   if (isFail(l)) return l;
   const result = await renameClientContact(l.admin, { tenantId: l.tenantId, inquiryId: l.inquiryId, name: parsed.data.name });
   if (!result.ok) return result;
+  // The history line staff read: a guest has no user id for the action log, so the change lives in the thread itself.
+  if (result.previousName !== result.name) await clientText(l, `Name updated to ${result.name} (was ${result.previousName || "not set"}).`);
   return { ok: true, name: result.name };
 }
 

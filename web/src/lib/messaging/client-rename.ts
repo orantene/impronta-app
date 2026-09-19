@@ -18,7 +18,7 @@ type Admin = {
 export async function renameClientContact(
   admin: Admin,
   input: { tenantId: string; inquiryId: string; name: string },
-): Promise<ActionResult<{ name: string; email: string }>> {
+): Promise<ActionResult<{ name: string; email: string; previousName: string }>> {
   const { data: inquiry, error } = await admin
     .from("inquiries")
     .select("id, tenant_id, version, contact_name, contact_email, client_user_id")
@@ -38,9 +38,10 @@ export async function renameClientContact(
   const name = input.name.trim();
   if (!name) return { ok: false, reason: "invalid" };
   const email = row.contact_email;
+  const previousName = row.contact_name;
 
   if (row.contact_name === name) {
-    return { ok: true, name, email };
+    return { ok: true, name, email, previousName: name };
   }
 
   const { data: updated, error: updateError } = await admin
@@ -64,13 +65,19 @@ export async function renameClientContact(
       .eq("email", email);
   }
 
-  await admin.from("inquiry_action_log").insert({
-    inquiry_id: input.inquiryId,
-    actor_user_id: row.client_user_id,
-    action_type: "messaging_client_edit",
-    result: "success",
-    metadata: { fields: ["name"] },
-  });
+  // `inquiry_action_log.actor_user_id` and `tenant_id` are NOT NULL: a guest
+  // (no client user) cannot own a log row, so the caller posts the thread line
+  // instead (D-MSG-220). The row silently failed before this guard.
+  if (row.client_user_id) {
+    await admin.from("inquiry_action_log").insert({
+      inquiry_id: input.inquiryId,
+      tenant_id: input.tenantId,
+      actor_user_id: row.client_user_id,
+      action_type: "messaging_client_edit",
+      result: "success",
+      metadata: { fields: ["name"] },
+    });
+  }
 
-  return { ok: true, name, email: (updated as { contact_email: string }).contact_email ?? email };
+  return { ok: true, name, email: (updated as { contact_email: string }).contact_email ?? email, previousName };
 }
