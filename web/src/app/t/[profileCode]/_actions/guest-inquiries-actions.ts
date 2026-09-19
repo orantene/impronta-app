@@ -391,14 +391,15 @@ export async function listGuestInquiries(input: {
       }
     }
   }
-  for (const list of recordsByInquiry.values()) {
-    for (const chip of list) {
-      const amt = amountByRecord.get(chip.recordId);
-      if (amt) {
-        chip.amountCents = amt.amountCents;
-        chip.currency = amt.currency;
-      }
-    }
+  // Chips are readonly on the contract: rebuild the lists with the amounts instead of mutating.
+  for (const [inquiryId, list] of recordsByInquiry) {
+    recordsByInquiry.set(
+      inquiryId,
+      list.map((chip) => {
+        const amt = amountByRecord.get(chip.recordId);
+        return amt ? { ...chip, amountCents: amt.amountCents, currency: amt.currency } : chip;
+      }),
+    );
   }
 
   // ── typicalReplyLabel per talent (batched via the cache in guest-reply-latency) ─
