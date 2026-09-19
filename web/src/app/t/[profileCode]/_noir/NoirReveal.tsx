@@ -87,10 +87,28 @@ export function NoirBookbarAutoHide() {
 
     const reveal = () => shell.setAttribute("data-bookbar", "active");
 
+    // The rail pins to the top of the viewport, but an agency host may carry
+    // its own sticky/fixed site header there (Impronta does). Measure any such
+    // header outside the shell and hand the offset to the CSS so the rail sits
+    // just below it instead of underneath it. Re-measured on resize.
+    const measureHeader = () => {
+      let offset = 0;
+      for (const el of document.querySelectorAll<HTMLElement>("header, nav, [role='banner']")) {
+        if (shell.contains(el)) continue;
+        const cs = getComputedStyle(el);
+        if (cs.position !== "sticky" && cs.position !== "fixed") continue;
+        const r = el.getBoundingClientRect();
+        if (r.top <= 1 && r.height > 0 && r.bottom > offset) offset = r.bottom;
+      }
+      shell.style.setProperty("--nf-rail-top", `${Math.round(offset)}px`);
+    };
+    measureHeader();
+    window.addEventListener("resize", measureHeader);
+
     // No hero CTA to defer to (or no IO support) → the bar is the only CTA.
     if (!heroActions || typeof IntersectionObserver === "undefined") {
       reveal();
-      return;
+      return () => window.removeEventListener("resize", measureHeader);
     }
 
     let delivered = false;
@@ -120,6 +138,7 @@ export function NoirBookbarAutoHide() {
     return () => {
       io.disconnect();
       window.clearTimeout(failOpen);
+      window.removeEventListener("resize", measureHeader);
     };
   }, []);
 

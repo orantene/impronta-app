@@ -68,6 +68,22 @@ function groupRows(rows: NoirDetailRow[]): Array<{ group: string; rows: NoirDeta
   return order.map((group) => ({ group, rows: byGroup.get(group)! }));
 }
 
+/** A stored URL renders as a link showing its host, never as a raw string. */
+function renderValue(value: string): React.ReactNode {
+  if (!/^https?:\/\/\S+$/i.test(value)) return value;
+  let host = value;
+  try {
+    host = new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    /* keep the raw value */
+  }
+  return (
+    <a href={value} target="_blank" rel="noopener noreferrer nofollow">
+      {host}
+    </a>
+  );
+}
+
 /** Long-form rows (sentences) read better as prose than as a key/value pair. */
 function isProse(value: string): boolean {
   return value.length > 60 || /[.;]\s/.test(value);
@@ -102,7 +118,7 @@ export function NoirStatRail({
       {showRail ? (
         <dl className="nf-stats__row">
           {vitals.map((s) => (
-            <div className="nf-stats__cell" key={s.key}>
+            <div className={`nf-stats__cell${/^\d/.test(s.v) ? "" : " is-text"}`} key={s.key}>
               <dt>{shortLabel(s.key, s.label, locale)}</dt>
               <dd>
                 {s.v}
@@ -132,7 +148,7 @@ export function NoirStatRail({
                     ) : (
                       <div key={r.key}>
                         <dt>{r.label}</dt>
-                        <dd>{r.value}</dd>
+                        <dd>{renderValue(r.value)}</dd>
                       </div>
                     ),
                   )}

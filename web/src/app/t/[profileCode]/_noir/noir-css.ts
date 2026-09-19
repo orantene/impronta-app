@@ -29,7 +29,7 @@ ${N}{
 }
 ${N} ::selection{ background:var(--nf-gold); color:#14110a; }
 ${N} img{ display:block; }
-${N} .nf-wrap{ width:100%; max-width:var(--nf-max); margin-inline:auto; padding-inline:var(--nf-pad); }
+${N} .nf-wrap{ box-sizing:border-box; width:100%; max-width:var(--nf-max); margin-inline:auto; padding-inline:var(--nf-pad); }
 ${N} .nf-sec{ padding-block:clamp(56px,7vw,112px); }
 ${N} .nf-meta{ font-size:10.5px; letter-spacing:0.24em; text-transform:uppercase; font-weight:500; color:var(--nf-ink-56); }
 ${N} .nf-meta--gold{ color:var(--nf-champ); }
@@ -41,7 +41,7 @@ ${N} h2.nf-sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:r
 ${N} .nf-h4{ font-size:10.5px; letter-spacing:0.26em; text-transform:uppercase; color:var(--nf-champ); font-weight:500; margin:0 0 18px; display:flex; align-items:center; gap:12px; }
 ${N} .nf-h4::after{ content:""; flex:1; height:1px; background:var(--nf-line); }
 html:has(${N}){ scroll-behavior:smooth; }
-${N} [id]{ scroll-margin-top:84px; }
+${N} [id]{ scroll-margin-top:calc(var(--nf-rail-top,0px) + 84px); }
 
 /* ── buttons: ONE gold primary per viewport; ghost secondary; text tertiary ── */
 ${N} .nf-btn{ display:inline-flex; align-items:center; justify-content:center; gap:10px; height:48px; padding:0 26px; font-size:11px; letter-spacing:0.2em; text-transform:uppercase; font-weight:500; border:1px solid transparent; border-radius:0; white-space:nowrap; cursor:pointer; text-decoration:none; transition:all .35s var(--nf-ease); }
@@ -89,8 +89,13 @@ ${N} .nf-share__pop p{ display:none; }
 /* ── HERO ── */
 ${N} .nf-hero{ position:relative; min-height:min(92vh,900px); display:grid; align-items:end; overflow:hidden; background:#100e13; }
 ${N} .nf-hero__media{ position:absolute; inset:0; }
-${N} .nf-hero__media img{ object-fit:cover; object-position:center 25%; transform:scale(1.04); animation:nfHeroIn 1.8s var(--nf-ease) both; }
-@keyframes nfHeroIn{ from{ transform:scale(1.1); opacity:.6; } to{ transform:scale(1.04); opacity:1; } }
+${N} .nf-hero__media img{ object-fit:cover; object-position:center 12%; animation:nfHeroIn 1.4s var(--nf-ease) both; }
+@keyframes nfHeroIn{ from{ opacity:0; } to{ opacity:1; } }
+/* Fine film grain over the banner: agency hero assets are often 1200px wide
+   and get stretched to the viewport; grain reads as editorial texture where
+   plain upscaling reads as blur. Sits under the gradient, above the image. */
+${N} .nf-hero__media::before{ content:""; position:absolute; inset:0; z-index:1; pointer-events:none; opacity:.16; mix-blend-mode:overlay; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>"); background-size:160px 160px; }
+${N} .nf-hero__media::after{ z-index:2; }
 ${N} .nf-hero__media::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(11,10,13,0.12) 0%,rgba(11,10,13,0.05) 35%,rgba(11,10,13,0.55) 68%,rgba(11,10,13,0.96) 100%); }
 ${N} .nf-hero__body{ position:relative; z-index:2; width:100%; display:grid; grid-template-columns:1fr auto; align-items:end; gap:40px; padding-bottom:clamp(36px,5vw,64px); padding-top:120px; }
 ${N} .nf-hero h1{ font-family:var(--nf-serif); font-weight:500; font-size:clamp(3.6rem,9vw,8.4rem); line-height:.9; letter-spacing:-0.01em; margin:14px 0 18px; color:var(--nf-ink); }
@@ -123,7 +128,7 @@ ${N} .nf-hero__strip > div{ position:relative; aspect-ratio:3/4; overflow:hidden
 ${N} .nf-hero__strip img{ object-fit:cover; }
 
 /* ── STICKY: top rail (desktop) / bottom bar (phone) ── */
-${N} .nf-rail-slot{ position:sticky; top:0; height:0; z-index:50; }
+${N} .nf-rail-slot{ position:sticky; top:var(--nf-rail-top,0px); height:0; z-index:50; }
 ${N} .nf-rail{ position:absolute; left:0; right:0; top:0; background:rgba(11,10,13,0.86); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-bottom:1px solid var(--nf-line); transform:translateY(-100%); transition:transform .35s var(--nf-ease); }
 ${N}[data-bookbar="active"] .nf-rail{ transform:none; }
 ${N} .nf-rail .nf-wrap{ display:flex; align-items:center; justify-content:space-between; gap:20px; height:64px; }
@@ -149,7 +154,10 @@ ${N} .nf-bar .nf-cta-slot > :not(:first-child){ display:none; }
 /* ── FIRST LOOK: editorial strip (lightbox tiles) ── */
 ${N} .nf-look{ padding-top:clamp(28px,4vw,56px); }
 ${N} .nf-look__caption{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; }
-${N} ul.nf-look-grid{ list-style:none; margin:0; padding:0; display:grid; gap:10px; height:clamp(420px,58vw,760px); grid-template-rows:minmax(0,1fr); }
+/* The lists carry .nf-wrap, so only the BLOCK margin/padding is reset here: a
+   blanket margin:0/padding:0 out-specifies .nf-wrap and parks the grid on the
+   left edge of wide screens (the 2026-09-18 'empty space on the right' bug). */
+${N} ul.nf-look-grid{ list-style:none; margin-block:0; padding-block:0; display:grid; gap:10px; height:clamp(420px,58vw,760px); grid-template-rows:minmax(0,1fr); }
 ${N} ul.nf-look-grid > li{ min-width:0; min-height:0; }
 ${N} ul.nf-look-grid--quad{ grid-template-columns:1.1fr 1fr .85fr; grid-template-rows:minmax(0,1fr) minmax(0,1.25fr); }
 ${N} ul.nf-look-grid--quad > li:nth-child(1){ grid-row:1/3; }
@@ -160,7 +168,7 @@ ${N} ul.nf-look-grid--solo{ grid-template-columns:1.4fr 1fr; }
 ${N} .nf-tile{ position:relative; display:block; width:100%; height:100%; overflow:hidden; background:#161320; cursor:zoom-in; border:0; padding:0; }
 ${N} .nf-tile img{ transition:transform 1.4s var(--nf-ease); }
 ${N} .nf-tile:hover img{ transform:scale(1.04); }
-${N} ul.nf-folio{ list-style:none; margin:0; padding:0; columns:3; column-gap:10px; }
+${N} ul.nf-folio{ list-style:none; margin-block:0; padding-block:0; columns:3; column-gap:10px; }
 ${N} ul.nf-folio > li{ break-inside:avoid; margin-bottom:10px; }
 ${N} ul.nf-folio > li .nf-tile{ aspect-ratio:3/4; }
 ${N} ul.nf-folio > li[data-orientation="landscape"] .nf-tile{ aspect-ratio:4/3; }
@@ -179,6 +187,7 @@ ${N} .nf-stats__row{ display:grid; grid-template-columns:repeat(4,1fr); margin:0
 ${N} .nf-stats__cell{ padding:20px 0 18px; border-bottom:1px solid var(--nf-line-soft); min-width:0; }
 ${N} .nf-stats__cell dt{ font-size:9.5px; letter-spacing:0.26em; text-transform:uppercase; color:var(--nf-ink-42); }
 ${N} .nf-stats__cell dd{ font-family:var(--nf-serif); font-size:clamp(1.55rem,2vw,2rem); line-height:1; margin:8px 0 0; color:#f1ede4; }
+${N} .nf-stats__cell.is-text dd{ font-size:clamp(1.2rem,1.5vw,1.45rem); line-height:1.15; }
 ${N} .nf-stats__cell dd small{ font-family:var(--nf-sans); font-size:11px; letter-spacing:0.08em; color:var(--nf-ink-56); margin-left:3px; }
 ${N} .nf-comp > summary{ list-style:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px 0 0; font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase; color:var(--nf-champ); }
 ${N} .nf-comp > summary::-webkit-details-marker{ display:none; }
@@ -190,6 +199,7 @@ ${N} .nf-comp__group h3{ font-size:9.5px; letter-spacing:0.26em; text-transform:
 ${N} .nf-comp__group dl{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px 24px; margin:0; }
 ${N} .nf-comp__group dl > div{ font-size:12.5px; color:var(--nf-ink-70); display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid var(--nf-line-soft); padding-bottom:8px; }
 ${N} .nf-comp__group dl > div dd{ margin:0; color:var(--nf-ink); text-align:right; }
+${N} .nf-comp__group dd a{ color:var(--nf-champ); text-decoration:none; border-bottom:1px solid rgba(224,192,116,0.4); }
 ${N} .nf-comp__group dl > .nf-comp__prose{ grid-column:1/-1; flex-direction:column; gap:4px; }
 ${N} .nf-comp__group dl > .nf-comp__prose dd{ text-align:left; color:var(--nf-ink-70); line-height:1.6; }
 
@@ -209,7 +219,7 @@ ${N} .nf-caps{ display:grid; grid-template-columns:1.25fr 1fr 1fr; gap:clamp(28p
 ${N} ul.nf-disc{ list-style:none; margin:0; padding:0; }
 ${N} .nf-disc li{ display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:10px 0; border-bottom:1px solid var(--nf-line-soft); }
 ${N} .nf-disc li .n{ font-family:var(--nf-serif); font-size:1.35rem; }
-${N} .nf-disc li.is-prime .n{ font-size:1.75rem; color:var(--nf-champ); }
+${N} .nf-disc li.is-prime .n{ font-size:1.5rem; color:var(--nf-champ); }
 ${N} .nf-disc li .lvl{ font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--nf-ink-56); white-space:nowrap; text-align:right; }
 ${N} .nf-tags{ font-size:13.5px; color:var(--nf-ink-70); line-height:1.9; }
 ${N} .nf-tags span::after{ content:"·"; margin:0 10px; color:var(--nf-ink-42); }
@@ -282,7 +292,7 @@ ${N} [data-nf-reveal]{ opacity:0; transform:translateY(22px); transition:opacity
 ${N} [data-nf-reveal].nf-in{ opacity:1; transform:none; }
 @media (prefers-reduced-motion: reduce){
   ${N} [data-nf-reveal]{ opacity:1 !important; transform:none !important; transition:none !important; }
-  ${N} .nf-hero__media img{ animation:none; }
+  ${N} .nf-hero__media img{ animation:none; opacity:1; }
   ${N} .nf-tile img,${N} .nf-sim__media img{ transition:none; }
 }
 
@@ -302,7 +312,7 @@ ${M} .nf-modal-foot .n span{ color:var(--nf-ink-56); font-size:1.1rem; font-styl
 @media (max-width:820px){
   ${N}{ --nf-pad:18px; padding-bottom:78px; }
   ${N} .nf-hero{ min-height:0; height:min(78vh,640px); }
-  ${N} .nf-hero__media img{ object-position:center 18%; }
+  ${N} .nf-hero__media img{ object-position:center 10%; }
   ${N} .nf-hero__body{ grid-template-columns:1fr; gap:18px; padding-top:0; padding-bottom:22px; }
   ${N} .nf-hero h1{ font-size:clamp(3.2rem,17vw,4.6rem); margin:10px 0 12px; }
   ${N} .nf-hero__line{ font-size:12px; gap:6px 14px; }
