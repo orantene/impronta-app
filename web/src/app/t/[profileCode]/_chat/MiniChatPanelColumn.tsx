@@ -417,9 +417,8 @@ export function MiniChatPanelColumn({
     onDockViewChange?.("chat");
   };
 
-  // DOCK v2.1 — details sheet and thread switcher are both header-triggered.
-  const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk, contactName: `${firstName} ${lastName}`.trim(), contactEmail: guestContactEmail, contactPhone: capturedChipValues?.contact?.contactPhone ?? inquiryIntent?.requester?.phone ?? null, onRenameSaved: (n) => { onFirstNameChange(n); onLastNameChange(""); } });
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk, inquiryId, onOpenInquiry: (id) => { onSwitchInquiry(id); onDockViewChange?.("chat"); }, contactName: `${firstName} ${lastName}`.trim(), contactEmail: guestContactEmail, contactPhone: capturedChipValues?.contact?.contactPhone ?? inquiryIntent?.requester?.phone ?? null, onRenameSaved: (n) => { onFirstNameChange(n); onLastNameChange(""); } });
+  const [detailsOpen, setDetailsOpen] = useState(false); // header-triggered sheet
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // The header's status line has THREE states, not two. A guest who has opened
   // the panel without starting anything has no thread at all; reporting that as
@@ -506,6 +505,7 @@ export function MiniChatPanelColumn({
           onCheckClaimEmail={onCheckClaimEmail}
           onGuestEmailUpdated={onGuestEmailUpdated}
           {...dock.detailsProps}
+          {...dock.bookAgainHome}
         />
       )}
 
@@ -540,6 +540,7 @@ export function MiniChatPanelColumn({
             onSwitchInquiry(id);
             onDockViewChange?.("chat");
           }}
+          onBookAgain={dock.onBookAgainInquiry}
         />
       )}
 
@@ -639,9 +640,8 @@ export function MiniChatPanelColumn({
       )}
 
       {/* ── U4 / P1: LEGACY detail chips (no unified inquiry) ─────────────── */}
-      {/* Legacy path only (no onEnsureInquiry): chips after an inquiry exists +
-          a direct capture. The unified (extrasEnabled) path uses GuestDetailChipRow
-          below the conversation instead — the single detail surface. */}
+      {/* Legacy path only (no onEnsureInquiry); the unified path uses
+          GuestDetailChipRow below the conversation, the single detail surface. */}
       {!showGate && !extrasEnabled && (onPatchChip || (inquiryId && onCaptureChip)) && (
         <GuestDetailChips
           inquiryId={inquiryId}

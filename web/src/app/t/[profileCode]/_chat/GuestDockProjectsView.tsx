@@ -7,6 +7,7 @@
  * Tap reuses the panel's thread-switch path.
  */
 
+import { isBookAgainFulfilment } from "@/lib/messages-v5/guest-book-again";
 import { useMemo, useState } from "react";
 
 import type { GuestInquirySummary } from "@/lib/inquiry/guest-chat-contract";
@@ -33,6 +34,8 @@ export type GuestDockProjectsViewProps = {
   surfaceMode?: SurfaceMode;
   t: Translator;
   onSelect: (inquiryId: string) => void;
+  /** Book again for a booked inquiry (token writer on the active thread). */
+  onBookAgain?: (inquiryId: string) => void;
 };
 
 const SEGMENTS: readonly GuestInquirySegment[] = ["needs", "wait", "done"];
@@ -92,6 +95,11 @@ function RecordChipView({
   );
 }
 
+/** A booked record (confirmed / fulfilled / seated / checked in) can be booked again (owner decision 13). */
+function isBookedChip(chip: { fulfilmentState?: string | null } | null | undefined): boolean {
+  return Boolean(chip && isBookAgainFulfilment(chip.fulfilmentState ?? null));
+}
+
 export function GuestDockProjectsView({
   inquiries,
   activeInquiryId,
@@ -101,6 +109,7 @@ export function GuestDockProjectsView({
   surfaceMode = "light",
   t,
   onSelect,
+  onBookAgain,
 }: GuestDockProjectsViewProps) {
   const C = paletteFor(surfaceMode);
   const [segment, setSegment] = useState<GuestInquirySegment>("needs");
@@ -210,8 +219,8 @@ export function GuestDockProjectsView({
           const showNew = !isActive && hasNewInbound(inq, seenAtByInquiry);
           const name = (inq.contactName ?? "").trim() || inq.projectLabel;
           return (
+            <div key={inq.inquiryId} style={{ display: "flex", flexDirection: "column" }}>
             <button
-              key={inq.inquiryId}
               type="button"
               role="option"
               aria-selected={isActive}
@@ -247,6 +256,17 @@ export function GuestDockProjectsView({
               </span>
               {inq.recordChip ? <RecordChipView chip={inq.recordChip} t={t} C={C} accent={accent} /> : null}
             </button>
+            {isBookedChip(inq.recordChip) && onBookAgain ? (
+              <button
+                type="button"
+                data-guest-dock-book-again={inq.inquiryId}
+                onClick={() => onBookAgain(inq.inquiryId)}
+                style={{ minHeight: 40, width: "100%", border: `1px solid ${C.borderSoft}`, borderRadius: 10, background: C.surface, color: accent, fontFamily: FONT, fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 6 }}
+              >
+                {t("public.guestChat.dockBookAgain")}
+              </button>
+            ) : null}
+            </div>
           );
         })}
       </div>

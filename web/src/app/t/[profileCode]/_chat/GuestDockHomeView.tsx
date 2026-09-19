@@ -19,7 +19,7 @@
  * dashes. The agency identity lives in the panel header, never repeated here.
  */
 
-import { MessageCircle, Users, Sparkles, LayoutDashboard, ChevronRight } from "lucide-react";
+import { MessageCircle, Users, Sparkles, LayoutDashboard, ChevronRight, Repeat } from "lucide-react";
 
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
@@ -64,6 +64,11 @@ export type GuestDockHomeViewProps = {
   detailsPhone?: string | null;
   detailsToken?: string | null;
   onDetailsSaved?: (name: string) => void;
+  bookAgainRecordId?: string | null;
+  bookAgainEnabled?: boolean;
+  bookAgainBusy?: boolean;
+  bookAgainRefusal?: string | null;
+  onBookAgain?: () => void;
 };
 
 function ActionCard({
@@ -200,6 +205,11 @@ export function GuestDockHomeView({
   detailsPhone = null,
   detailsToken = null,
   onDetailsSaved,
+  bookAgainRecordId = null,
+  bookAgainEnabled = false,
+  bookAgainBusy = false,
+  bookAgainRefusal = null,
+  onBookAgain,
 }: GuestDockHomeViewProps) {
   const isAccount = identity === "account";
   const startTitle = draftExists
@@ -293,6 +303,35 @@ export function GuestDockHomeView({
           C={C}
           onClick={onOpenLineup}
         />
+        {bookAgainRecordId ? (
+          bookAgainEnabled ? (
+            <ActionCard
+              Icon={Repeat}
+              title={bookAgainBusy ? t("public.guestChat.dockBookAgainBusy") : t("public.guestChat.dockBookAgain")}
+              subtitle={bookAgainRefusal ? t("public.guestChat.dockBookAgainFailed") : t("public.guestChat.dockBookAgainSub")}
+              accent={accent}
+              C={C}
+              onClick={() => {
+                if (!bookAgainBusy) onBookAgain?.();
+              }}
+            />
+          ) : (
+            <div
+              data-guest-dock-book-again="unavailable"
+              style={{
+                padding: "13px 14px",
+                borderRadius: 14,
+                border: `1px solid ${C.borderSoft}`,
+                background: C.surface,
+                fontFamily: FONT,
+                fontSize: 12,
+                color: C.inkMuted,
+              }}
+            >
+              {t("public.guestChat.dockBookAgainUnavailable")}
+            </div>
+          )
+        ) : null}
         {isAccount && dashboardHref && (
           <a
             href={dashboardHref}
