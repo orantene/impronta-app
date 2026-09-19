@@ -446,7 +446,9 @@ export async function messagingClientRename(input: { token: string; name: string
   const result = await renameClientContact(l.admin, { tenantId: l.tenantId, inquiryId: l.inquiryId, name: parsed.data.name });
   if (!result.ok) return result;
   return { ok: true, name: result.name };
-/* ---------- 6. book again (P6 / owner decision 13) ---------- */
+}
+
+/* ---------- 7. book again (P6 / owner decision 13) ---------- */
 
 export async function messagingClientBookAgain(input: { token: string; recordId: string }): Promise<ActionResult<{ inquiryId: string }>> {
   const parsed = z.object({ token: z.string().min(1), recordId: z.string().min(1).max(80) }).safeParse(input);
