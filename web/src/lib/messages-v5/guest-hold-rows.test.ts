@@ -20,6 +20,7 @@ test("readHoldFromTimes: picked slot carries expiry; unpicked is ignored", () =>
     pickedStartsAt: "2026-09-20T15:00:00.000Z",
     holdExpiresAt: "2026-09-17T10:15:00.000Z",
     holdId: "h1",
+    timezone: "America/Mexico_City",
   });
   assert.deepEqual(picked, {
     kind: "appointment",
@@ -27,6 +28,7 @@ test("readHoldFromTimes: picked slot carries expiry; unpicked is ignored", () =>
     label: "2026-09-20T15:00:00.000Z",
     holdExpiresAt: "2026-09-17T10:15:00.000Z",
     recordDate: "2026-09-20T15:00:00.000Z",
+    timezone: "America/Mexico_City",
   });
 });
 
