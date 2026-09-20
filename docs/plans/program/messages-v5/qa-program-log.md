@@ -9,7 +9,7 @@ Started: 2026-09-18
 
 **Verdict:** Cloud QA harness is live. **18 Playwright specs passed**, 3 deferred-deep skipped. One product defect fixed and filed as **D-MSG-300** (auto-ack em dash). Human must merge the PR; `program/journeys-2026-09` remains ~52 commits behind `main` (do not force-mirror from agent).
 
-**Fixed:** Auto-ack default + fallbacks no longer use an em dash; QA fixture message bodies + taglines normalized; migration `20261231276000_auto_ack_no_emdash.sql` applied to prod + QA branch projects.
+**Fixed:** Auto-ack default + fallbacks no longer use an em dash; QA fixture message bodies + taglines normalized; migration `20261231277000_auto_ack_no_emdash.sql` applied to prod + QA branch projects.
 
 **Proven green (smoke / happy path on QA host):** inbox, segments, search, chips, composer reply/note/cmd+Enter, new conversation sheet, + tray inventory, add-items → offer editor, times/payment sheets, header affordances, context panel, next-step, ES locale smoke, merge/refund surface smoke, tablet 1194, phone 390, client link render, POS dock mount, guest bubble, inbox↔header parity.
 
