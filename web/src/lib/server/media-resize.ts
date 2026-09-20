@@ -25,18 +25,24 @@ import "server-only";
 import sharp from "sharp";
 
 /** Variant-kind → max longest-edge in CSS pixels. */
+// 2026-09-20: the hero cap of 1400 was sized for a 4:5 cover CARD. The
+// profile templates (Noir, Lumen, Atelier) render `hero` as a full-bleed
+// banner across the viewport, so a 1273px stored hero was stretched over a
+// 2000px Retina screen and read as low quality on every Impronta profile.
+// The optimizer still serves per-device sizes from these masters, so egress
+// per paint is unchanged; only the stored ceiling rises.
 const MAX_LONG_EDGE: Record<string, number> = {
-  hero: 1400,            // 4:5 cover — 1120×1400 portrait
+  hero: 2800,            // full-bleed banner master (Retina 1440 = 2880)
   card: 900,             // headshot thumbnail — 720×900 portrait
-  gallery: 1800,         // lightbox feeds off these
-  lightbox: 1800,        // alias of gallery sizing
+  gallery: 2400,         // first-look tiles + lightbox on large screens
+  lightbox: 2400,        // alias of gallery sizing
   polaroid: 800,         // four-up polaroid grid
-  banner: 1800,          // full-width strip
-  watermarked: 1800,     // post-watermark variant
-  public_watermarked: 1800,
+  banner: 2800,          // full-width strip
+  watermarked: 2400,     // post-watermark variant
+  public_watermarked: 2400,
 };
 
-const DEFAULT_LONG_EDGE = 1800;
+const DEFAULT_LONG_EDGE = 2400;
 
 /** Quality knob — 82 is the visually-transparent sweet spot for JPEG. */
 const JPEG_QUALITY = 82;

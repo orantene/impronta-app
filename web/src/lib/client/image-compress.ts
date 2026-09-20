@@ -14,7 +14,7 @@
  * Function never sees the original pixels.
  *
  * Mirrors the server-side `media-resize.ts` policy:
- *   - Cap longest edge (default 1800, matches gallery sizing).
+ *   - Cap longest edge (default 2800, never below the server masters).
  *   - JPEG q=0.82 for photos, PNG for alpha-bearing inputs.
  *   - Honor EXIF orientation (createImageBitmap imageOrientation).
  *   - Never enlarge.
@@ -64,7 +64,9 @@ export type CompressResult = {
   ext: "jpg" | "png" | string;
 };
 
-const DEFAULT_MAX_LONG_EDGE = 1800;
+// 2400 (was 1800): the server masters now keep up to 2400/2800px so full-bleed
+// banners are not upscaled on large screens; the client cap must not undercut it.
+const DEFAULT_MAX_LONG_EDGE = 2800;
 const DEFAULT_QUALITY = 0.82;
 
 /**
