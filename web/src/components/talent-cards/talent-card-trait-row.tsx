@@ -172,6 +172,22 @@ export function TraitRowBody({
 }
 
 /**
+ * Cinematic's three spec columns. Short values ("178 cm", "6 yrs", "EN · ES")
+ * are what the canvas shows; a long taxonomy list truncates to nothing
+ * useful in a 70px column, so short facts win the slots and long ones fill
+ * in only when nothing shorter is left.
+ */
+export function pickCinematicFacts(
+  attributes: readonly DirectoryCardAttribute[] | undefined,
+  cardFieldKeys: readonly string[],
+): DirectoryCardAttribute[] {
+  const ordered = pickAttributeLines(attributes, cardFieldKeys, 12, 12);
+  const short = ordered.filter((a) => a.value.length <= 16);
+  const long = ordered.filter((a) => a.value.length > 16);
+  return [...short, ...long].slice(0, 3);
+}
+
+/**
  * The fact strip shared by the "showcase" (light panel) and "profile" /
  * Cinematic (dark scrim) styles: up to three labelled columns (HEIGHT /
  * HAIR / LANGUAGES …) ruled top and bottom, an optional Rating column, and

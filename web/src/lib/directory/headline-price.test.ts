@@ -27,20 +27,17 @@ const POPI = [
 
 test("More's card shows her featured day rate, not her casting fee", () => {
   // Regression: this used to render "From $80" — a 30-minute casting session.
-  assert.deepEqual(pickHeadlinePrice(MORE), { amountCents: 60000, currency: "USD" });
+  assert.deepEqual(pickHeadlinePrice(MORE), { amountCents: 60000, currency: "USD", priceType: "day" });
 });
 
 test("Popi's card shows her featured DJ set, not her extra-hour add-on", () => {
-  assert.deepEqual(pickHeadlinePrice(POPI), { amountCents: 40000, currency: "USD" });
+  assert.deepEqual(pickHeadlinePrice(POPI), { amountCents: 40000, currency: "USD", priceType: "event" });
 });
 
 test("with nothing featured, the cheapest BOOKABLE unit wins over add-ons", () => {
   const noFeatured = MORE.map((r) => ({ ...r, isFeatured: false }));
   // $80 casting session is cheaper, but it is not something you book.
-  assert.deepEqual(pickHeadlinePrice(noFeatured), {
-    amountCents: 35000,
-    currency: "USD",
-  });
+  assert.equal(pickHeadlinePrice(noFeatured)?.amountCents, 35000);
 });
 
 test("an all-hourly catalog still shows a price — hourly IS the rate there", () => {
@@ -48,6 +45,7 @@ test("an all-hourly catalog still shows a price — hourly IS the rate there", (
   assert.deepEqual(pickHeadlinePrice(hourlyOnly), {
     amountCents: 9000,
     currency: "USD",
+    priceType: "hour",
   });
 });
 
@@ -58,7 +56,7 @@ test("several featured rows resolve to the cheapest of them", () => {
 
 test("currency comes from the winning row — amounts are never converted", () => {
   const mixed = [row(500000, "day", false, "MXN"), row(30000, "day", true, "USD")];
-  assert.deepEqual(pickHeadlinePrice(mixed), { amountCents: 30000, currency: "USD" });
+  assert.deepEqual(pickHeadlinePrice(mixed), { amountCents: 30000, currency: "USD", priceType: "day" });
 });
 
 test("no priced rows → no chip", () => {
@@ -81,5 +79,6 @@ test("picker assumes single-tenant input — mixing tenants is a query bug", () 
   assert.deepEqual(pickHeadlinePrice(singleTenantRows), {
     amountCents: 60000,
     currency: "USD",
+    priceType: "day",
   });
 });

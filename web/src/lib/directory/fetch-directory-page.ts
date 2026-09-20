@@ -1362,6 +1362,7 @@ export async function fetchDirectoryPage(
           price_from_cents: resolved?.amountCents ?? null,
           price_from_currency: resolved?.currency ?? null,
           price_from_source: resolved?.source ?? null,
+          price_from_unit: resolved?.priceType ?? null,
           bookable: startingPriceResult.bookableIds.has(profile.id),
         };
       })(),

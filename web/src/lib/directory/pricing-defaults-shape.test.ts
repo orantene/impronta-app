@@ -28,10 +28,15 @@ const base = {
 test("the talent's own price always wins, even against a lower default", () => {
   const r = resolveStartingPrice({
     ...base,
-    ownPrice: { amountCents: 12000, currency: "MXN" },
+    ownPrice: { amountCents: 12000, currency: "MXN", priceType: "day" },
     primaryTypeSlug: "fashion-model",
   });
-  assert.deepEqual(r, { amountCents: 12000, currency: "MXN", source: "talent" });
+  assert.deepEqual(r, {
+    amountCents: 12000,
+    currency: "MXN",
+    source: "talent",
+    priceType: "day",
+  });
 });
 
 test("a deliberate quote-only talent is NEVER given a default price", () => {
@@ -53,6 +58,7 @@ test("type-specific tenant default beats the tenant-wide floor", () => {
     amountCents: 15000,
     currency: "USD",
     source: "tenant_default",
+    priceType: null,
   });
 });
 
@@ -72,6 +78,7 @@ test("tenant switch off skips straight to the platform floor", () => {
     amountCents: 9900,
     currency: "USD",
     source: "platform_default",
+    priceType: null,
   });
 });
 

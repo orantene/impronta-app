@@ -110,10 +110,12 @@ export type ResolvedStartingPrice = {
   amountCents: number;
   currency: string;
   source: PriceSource;
+  /** The winning offering's `price_type` (hour/day/…); defaults carry none. */
+  priceType: string | null;
 };
 
 export function resolveStartingPrice(input: {
-  ownPrice: { amountCents: number; currency: string } | null;
+  ownPrice: { amountCents: number; currency: string; priceType?: string } | null;
   hasDeliberateQuoteOnly: boolean;
   primaryTypeSlug: string | null;
   tenantDefaults: TenantPricingDefaults;
@@ -122,7 +124,12 @@ export function resolveStartingPrice(input: {
 }): ResolvedStartingPrice | null {
   // 1. The talent's own published price always wins.
   if (input.ownPrice) {
-    return { ...input.ownPrice, source: "talent" };
+    return {
+      amountCents: input.ownPrice.amountCents,
+      currency: input.ownPrice.currency,
+      priceType: input.ownPrice.priceType ?? null,
+      source: "talent",
+    };
   }
   // 2. Their explicit "ask me" is a decision, not a gap.
   if (input.hasDeliberateQuoteOnly) return null;
@@ -136,7 +143,7 @@ export function resolveStartingPrice(input: {
         : undefined;
     const cents = byType ?? td.globalFromCents;
     if (typeof cents === "number" && cents > 0) {
-      return { amountCents: cents, currency: td.currency, source: "tenant_default" };
+      return { amountCents: cents, currency: td.currency, source: "tenant_default", priceType: null };
     }
   }
 
@@ -146,6 +153,7 @@ export function resolveStartingPrice(input: {
       amountCents: input.platformFromCents,
       currency: input.platformCurrency,
       source: "platform_default",
+      priceType: null,
     };
   }
   return null;

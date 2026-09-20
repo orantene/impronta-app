@@ -9,7 +9,7 @@ import { TalentQuickViewButton } from "@/components/directory/talent-quick-view"
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
-import { formatPriceFromLabel } from "@/lib/directory/format-price-from";
+import { formatPriceFromLabel, formatPriceUnitSuffix } from "@/lib/directory/format-price-from";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
 import {
   type CaptionNorms,
@@ -21,6 +21,7 @@ import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import {
   CardFactStrip,
   pickAttributeLines,
+  pickCinematicFacts,
   pickFitLabels,
   TalentCardTraitRow,
   traitRowMode,
@@ -143,11 +144,13 @@ export function DirectoryCardAdapter({
   // operator's ceiling — this can only ever hide, never reveal.
   const effectiveShow = {
     ...show,
+    // Cinematic reads "Type · City" as one line and anchors its top-left
+    // corner on the availability pill, so the "drop when it repeats the
+    // grid" rule would leave holes in the composition.
     showLocation:
       show.showLocation &&
-      !isRedundant(data.location, captionNorms.dominantLocation),
-    // Cinematic anchors its top-left corner on the availability pill, so
-    // the "drop when it repeats the grid" rule would leave a hole there.
+      (cardStyle === "profile" ||
+        !isRedundant(data.location, captionNorms.dominantLocation)),
     showAvailability:
       show.showAvailability &&
       (cardStyle === "profile" ||
@@ -164,6 +167,7 @@ export function DirectoryCardAdapter({
       card.priceFromCurrency ?? "USD",
       locale,
     );
+    data.priceFromUnitLabel = formatPriceUnitSuffix(card.priceFromUnit, locale);
   }
 
   // STATE must stay visible; only ACTIONS may hide behind hover. When the
@@ -184,7 +188,7 @@ export function DirectoryCardAdapter({
   // line ceiling and takes the first three card-visible fields.
   const traitLines =
     style === "profile"
-      ? pickAttributeLines(data.cardAttributes, cardFieldKeys, 3, 3)
+      ? pickCinematicFacts(data.cardAttributes, cardFieldKeys)
       : pickAttributeLines(data.cardAttributes, cardFieldKeys, maxFieldLines);
   const cinematicRating =
     data.ratingAvg != null && meetsCredibilityFloor(data.ratingCount)

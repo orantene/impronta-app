@@ -70,6 +70,8 @@ export type DirectoryCardData = {
    * `showPriceFrom` knob is off — the renderer shows it iff present.
    */
   priceFromLabel?: string | null;
+  /** Rate unit for the price line ("/ day"); null when the price is not a time rate. */
+  priceFromUnitLabel?: string | null;
   /** Timed request/instant offering on this tenant. Drives the card badge/CTA. */
   bookable?: boolean;
   /**
