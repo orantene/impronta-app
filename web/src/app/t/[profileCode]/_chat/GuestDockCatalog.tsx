@@ -210,7 +210,9 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         const isTalent = row.category === "talent" && row.talentProfileId;
         const inLineup = isTalent ? cart.isInCart(row.talentProfileId as string) : false;
         const added = addedIds.has(row.id);
-        const buyHref = BUY_HREF[row.category] ? clientLocaleHref(pathname ?? "/", BUY_HREF[row.category] as string) : null;
+        // A ticket buys on its own event page when the event has one (D-MSG-224); the list is the fallback.
+        const buyPath = row.category === "ticket" && row.eventSlug ? `/events/${row.eventSlug}` : BUY_HREF[row.category];
+        const buyHref = buyPath ? clientLocaleHref(pathname ?? "/", buyPath) : null;
         const price = row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null;
         return (
           <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>

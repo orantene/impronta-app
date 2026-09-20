@@ -191,7 +191,7 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date): Promi
 
   const [poolsRes, eventsRes, tiersRes] = await Promise.all([
     admin.from("capacity_pools").select("id, subject_id, pool_key, units_total, is_active").eq("tenant_id", tenantId).eq("subject_kind", "session_tier").in("subject_id", sessionIds),
-    eventIds.length ? admin.from("events").select("id, title").eq("tenant_id", tenantId).in("id", eventIds) : Promise.resolve({ data: [], error: null }),
+    eventIds.length ? admin.from("events").select("id, title, slug").eq("tenant_id", tenantId).in("id", eventIds) : Promise.resolve({ data: [], error: null }),
     eventOfferingIds.length
       ? admin.from("talent_offering_variants").select("id, offering_id, label, amount_cents, pool_key, is_hidden, sort_order").in("offering_id", eventOfferingIds).order("sort_order", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
@@ -206,7 +206,11 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date): Promi
     pools.set(`${p.subject_id}:${p.pool_key}`, { id: p.id, unitsTotal: Number(p.units_total) });
   }
   const eventTitle = new Map<string, string>();
-  for (const e of (eventsRes.data ?? []) as { id: string; title: string | null }[]) if (e.title) eventTitle.set(e.id, e.title);
+  const eventSlug = new Map<string, string>();
+  for (const e of (eventsRes.data ?? []) as { id: string; title: string | null; slug: string | null }[]) {
+    if (e.title) eventTitle.set(e.id, e.title);
+    if (e.slug) eventSlug.set(e.id, e.slug);
+  }
   const tiersByOffering = new Map<string, { id: string; label: string; amount_cents: number | null; pool_key: string | null }[]>();
   for (const t of (tiersRes.data ?? []) as { id: string; offering_id: string; label: string; amount_cents: number | null; pool_key: string | null; is_hidden: boolean }[]) {
     if (t.is_hidden) continue;
@@ -255,6 +259,7 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date): Promi
       offeringId: s.offering_id as string,
       sessionId: s.id,
       eventId: s.event_id,
+      eventSlug: eventSlug.get(s.event_id),
       startsAt: s.starts_at,
       endsAt: s.ends_at,
       tiers,

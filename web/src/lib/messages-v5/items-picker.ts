@@ -58,6 +58,8 @@ export type CatalogRow = {
   readonly offeringId?: string;
   readonly sessionId?: string;
   readonly eventId?: string;
+  /** The event page slug (`/events/<slug>`), for a ticket row's Buy now. */
+  readonly eventSlug?: string;
   readonly startsAt?: string;
   readonly endsAt?: string;
   readonly partySize?: number;

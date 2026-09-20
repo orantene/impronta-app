@@ -29,6 +29,7 @@ export type GuestCatalogRow = {
   profileCode: string | null;
   offeringId: string | null;
   sessionId: string | null;
+  eventSlug: string | null;
   startsAt: string | null;
   partySize: number | null;
 };
@@ -86,6 +87,7 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
           profileCode: r.talentProfileId ? codes.get(r.talentProfileId) || null : null,
           offeringId: r.offeringId ?? null,
           sessionId: r.sessionId ?? null,
+          eventSlug: r.eventSlug ?? null,
           startsAt: r.startsAt ?? null,
           partySize: r.partySize ?? null,
         })),
