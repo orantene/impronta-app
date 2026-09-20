@@ -459,7 +459,7 @@ export function TalentCard({
           <span
             data-card-availability
             title={data.availabilityLabel}
-            className="pointer-events-none inline-flex h-[26px] max-w-full items-center gap-1.5 overflow-hidden rounded-full border border-white/[0.28] bg-[rgba(6,6,8,0.62)] px-2.5 text-[10px] font-semibold tracking-[0.02em] text-[#f3efe6] backdrop-blur-md @[280px]:h-[30px] @[280px]:gap-2 @[280px]:px-3 @[280px]:text-[11px] @[280px]:uppercase @[280px]:tracking-[0.14em]"
+            className="pointer-events-none inline-flex h-[26px] max-w-full items-center gap-1.5 overflow-hidden rounded-full border border-white/[0.28] bg-[rgba(6,6,8,0.62)] px-2.5 text-[10px] font-semibold tracking-[0.02em] text-[#f3efe6] backdrop-blur-md @[260px]:uppercase @[260px]:tracking-[0.08em] @[280px]:h-[30px] @[280px]:gap-2 @[280px]:px-3 @[340px]:text-[11px] @[340px]:tracking-[0.14em]"
           >
             <span
               aria-hidden
@@ -482,7 +482,7 @@ export function TalentCard({
       <Root
         {...rootProps}
         data-card-style="profile"
-        className={`${TALENT_CARD_CLASS} @container group/card relative block overflow-hidden rounded-2xl bg-[#141416] @[280px]:rounded-[22px] text-[#f3efe6] outline-none ring-1 ring-white/[0.06] transition-[box-shadow] duration-300 hover:shadow-[0_18px_40px_-22px_rgba(0,0,0,0.7)] focus-visible:ring-2 focus-visible:ring-[var(--dir-accent,#c8a04a)] ${
+        className={`${TALENT_CARD_CLASS} @container group/card relative block overflow-hidden rounded-2xl bg-[#141416] font-[family-name:var(--font-inter-body,ui-sans-serif,system-ui,sans-serif)] @[280px]:rounded-[22px] text-[#f3efe6] outline-none ring-1 ring-white/[0.06] transition-[box-shadow] duration-300 hover:shadow-[0_18px_40px_-22px_rgba(0,0,0,0.7)] focus-visible:ring-2 focus-visible:ring-[var(--dir-accent,#c8a04a)] ${
           rootMode === "button" ? "cursor-pointer" : ""
         }`}
       >
@@ -512,12 +512,12 @@ export function TalentCard({
         ) : null}
 
         <div
-          className={`absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-1 px-3 pb-3 @[280px]:gap-2.5 ${
-            compact ? "@[280px]:px-4 @[280px]:pb-4" : "@[280px]:px-5 @[280px]:pb-5"
+          className={`absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-1.5 px-3.5 pb-3.5 @[280px]:gap-3 ${
+            compact ? "@[280px]:px-4 @[280px]:pb-4" : "@[280px]:px-[22px] @[280px]:pb-[22px]"
           }`}
           data-card-body
         >
-          {show.showBadges && data.isExclusive ? (
+          {data.isExclusive ? (
             <span
               data-card-badge-exclusive
               className="truncate text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--token-card-price-color,var(--dir-accent,#c8a04a))] @[280px]:text-[11px] @[280px]:tracking-[0.2em]"
@@ -547,7 +547,7 @@ export function TalentCard({
             />
           ) : null}
           {typeLine.length > 0 ? (
-            <p className="truncate text-[11px] leading-tight text-[var(--token-card-muted,rgba(243,239,230,0.78))] @[280px]:text-[13px]">
+            <p className="truncate text-[11px] leading-tight text-[rgba(243,239,230,0.78)] @[280px]:text-[14px]">
               {typeLine.join(" · ")}
             </p>
           ) : null}

@@ -251,3 +251,9 @@
     font-size: 12px;
   }
 }
+
+/* Cinematic photo grade: the canvas is cool charcoal; warm studio
+ * backdrops get pulled toward it so every card sits in one register. */
+[data-card-style="profile"] [data-card-media] img {
+  filter: saturate(0.82) contrast(1.04);
+}
