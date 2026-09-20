@@ -1,6 +1,7 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { humaniseFieldToken } from "./humanise-field-token";
+import { resolveSharperBanner } from "./banner-source";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -169,6 +170,7 @@ type MediaAsset = {
   height: number | null;
   variant_kind: string | null;
   sort_order: number | null;
+  source_media_asset_id?: string | null;
 };
 
 type TalentProfile = {
@@ -1874,7 +1876,7 @@ export async function TalentProfileView({
           ? (
               await (await getCachedServerSupabase())
                 ?.from("media_assets")
-                .select("id, bucket_id, storage_path, width, height, variant_kind, sort_order")
+                .select("id, bucket_id, storage_path, width, height, variant_kind, sort_order, source_media_asset_id")
                 .eq("owner_talent_profile_id", profile.id)
                 .in("variant_kind", ["hero", "gallery", "public_watermarked", "card"])
                 .is("deleted_at", null)
@@ -1885,7 +1887,7 @@ export async function TalentProfileView({
           : (
               await pub
                 .from("media_assets")
-                .select("id, bucket_id, storage_path, width, height, variant_kind, sort_order")
+                .select("id, bucket_id, storage_path, width, height, variant_kind, sort_order, source_media_asset_id")
                 .eq("owner_talent_profile_id", profile.id)
                 .in("variant_kind", ["hero", "gallery", "public_watermarked", "card"])
                 .eq("approval_state", "approved")
@@ -1898,13 +1900,11 @@ export async function TalentProfileView({
     : [];
 
   // Build public URLs for media
-  const bannerMedia =
-    media.find((m) => m.variant_kind === "hero") ?? null;
+  const bannerMedia = await resolveSharperBanner(pub, media.find((m) => m.variant_kind === "hero") ?? null);
   const profileImageMedia =
     media.find((m) => m.variant_kind === "card") ??
     media.find((m) => m.variant_kind === "public_watermarked") ??
-    media.find((m) => m.variant_kind === "gallery") ??
-    null;
+    media.find((m) => m.variant_kind === "gallery") ?? null;
 
   const galleryItems = media
     // Portfolio grid should only show gallery assets (not avatar/card/watermarked).

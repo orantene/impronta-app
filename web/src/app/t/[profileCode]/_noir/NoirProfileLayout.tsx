@@ -303,7 +303,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
 
   const tile = (key: string, url: string | null, alt: string) => (
     <div key={key}>
-      {url ? <Image src={url} alt={alt} fill sizes="(min-width: 900px) 20vw, 33vw" /> : <div className="nf-portrait__mono"><Silhouette size="40%" /></div>}
+      {url ? <Image src={url} alt={alt} fill quality={85} sizes="(min-width: 900px) 20vw, 33vw" /> : <div className="nf-portrait__mono"><Silhouette size="40%" /></div>}
     </div>
   );
 
@@ -368,7 +368,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
 
       {!isModal && plan.cinematic ? (
         <section className="nf-cine" data-nf-reveal aria-hidden="true">
-          <Image src={plan.cinematic.url} alt="" fill quality={85} sizes="100vw" />
+          <Image src={plan.cinematic.url} alt="" fill quality={95} sizes="100vw" />
           {availableFor && lead !== availableFor ? <div className="nf-cine__cap">{availableFor}</div> : null}
         </section>
       ) : null}
@@ -519,12 +519,12 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
       {/* ── 1. HERO ── */}
       <header className={`nf-hero${splitHero ? " nf-hero--split" : ""}`} data-profile-section="hero">
         {!splitHero ? (
-          <div className="nf-hero__media"><Image src={bannerUrl!} alt={`${name}, banner`} fill priority quality={90} sizes="100vw" /></div>
+          <div className="nf-hero__media"><Image src={bannerUrl!} alt={`${name}, banner`} fill priority quality={95} sizes="100vw" /></div>
         ) : null}
         <div className="nf-wrap nf-hero__body">
           {splitHero ? (
             <>
-              <div className="nf-portrait">{portraitImg ? <Image src={portraitImg} alt={`${name}, portrait`} fill priority sizes="(min-width: 900px) 440px, 100vw" /> : <div className="nf-portrait__mono" aria-hidden="true"><Silhouette /></div>}</div>
+              <div className="nf-portrait">{portraitImg ? <Image src={portraitImg} alt={`${name}, portrait`} fill priority quality={85} sizes="(min-width: 900px) 440px, 100vw" /> : <div className="nf-portrait__mono" aria-hidden="true"><Silhouette /></div>}</div>
               <div className="nf-hero__side">
                 {heroText}
                 {heroCta}
@@ -576,7 +576,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
             {similarTalent.map((st) => (
               <div key={st.id} className="nf-sim__card">
                 <Link href={st.href} className="nf-sim__media">
-                  {st.thumbnailUrl ? <Image src={st.thumbnailUrl} alt="" fill sizes="(min-width: 900px) 25vw, 50vw" /> : <div className="nf-portrait__mono" aria-hidden="true"><Silhouette /></div>}
+                  {st.thumbnailUrl ? <Image src={st.thumbnailUrl} alt="" fill quality={85} sizes="(min-width: 900px) 25vw, 50vw" /> : <div className="nf-portrait__mono" aria-hidden="true"><Silhouette /></div>}
                   <div className="nf-sim__cap"><div className="n">{st.displayName}</div>{st.primaryType ? <div className="t">{st.primaryType}</div> : null}</div>
                 </Link>
                 <TalentCardActions talentProfileId={st.id} profileCode={st.profileCode} displayName={st.displayName} portraitUrl={st.thumbnailUrl ?? null} sourcePage={profileSourcePage} variant="compact" locale={locale} className="absolute right-2.5 top-2.5 z-[2]" />
@@ -588,7 +588,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
 
       {/* ── 12. CLOSING MOMENT ── */}
       <section className="nf-close" id="nf-book" data-nf-reveal aria-label={t("public.profile.ctaSectionAria")}>
-        {plan.rest[2] ?? plan.look[0] ? <div className="nf-close__bg" aria-hidden="true"><Image src={(plan.rest[2] ?? plan.look[0]).url} alt="" fill sizes="100vw" /></div> : null}
+        {plan.rest[2] ?? plan.look[0] ? <div className="nf-close__bg" aria-hidden="true"><Image src={(plan.rest[2] ?? plan.look[0]).url} alt="" fill quality={85} sizes="100vw" /></div> : null}
         <div className="nf-wrap nf-close__in">
           <span className="nf-meta nf-meta--gold">{labels.closeEyebrow}</span>
           <h2>{t("public.profile.footerCtaTitle").replace("{firstName}", firstName)}</h2>
