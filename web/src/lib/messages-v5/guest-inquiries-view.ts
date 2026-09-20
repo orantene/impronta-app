@@ -62,12 +62,23 @@ function stateInput(row: GuestInquiryRowInput) {
   };
 }
 
-/** Newest live record wins; amount omitted when the reader had none. */
+const SETTLED = new Set(["confirmed", "fulfilled", "seated", "checked_in"]);
+
+/**
+ * ONE chip per row. The most meaningful live record wins, not the newest
+ * (D-MSG-229): a booking, order or reservation outranks an offer, and a paid or
+ * confirmed record outranks an open one; the newest breaks ties. Amount is
+ * omitted when the reader had none.
+ */
 export function pickRecordChip(
   records: readonly GuestInquiryRecordChip[],
 ): GuestInquiryRecordChip | null {
   if (records.length === 0) return null;
-  return records[records.length - 1] ?? null;
+  const rank = (r: GuestInquiryRecordChip) =>
+    (r.kind === "offer" ? 0 : 2) + (r.paymentState === "paid" || SETTLED.has(r.fulfilmentState ?? "") ? 1 : 0);
+  let best: GuestInquiryRecordChip | null = null;
+  for (const r of records) if (!best || rank(r) >= rank(best)) best = r;
+  return best;
 }
 
 export function guestInquirySegment(row: GuestInquiryRowInput): GuestInquirySegment {

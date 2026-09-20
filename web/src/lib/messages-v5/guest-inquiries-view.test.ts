@@ -86,11 +86,18 @@ test("segments partition without double counting", () => {
   assert.deepEqual(rowsForGuestSegment(rows, "needs").map((r) => r.inquiryId), ["n"]);
 });
 
-test("one record chip: last live row wins; empty is null", () => {
+test("one record chip: the most meaningful live record wins, newest breaks ties; empty is null", () => {
   assert.equal(pickRecordChip([]), null);
   const a = orderChip({ recordId: "a", amountCents: 100 });
   const b = orderChip({ recordId: "b", amountCents: 500, kind: "offer" });
-  assert.equal(pickRecordChip([a, b])?.recordId, "b");
+  // An order outranks a newer offer.
+  assert.equal(pickRecordChip([a, b])?.recordId, "a");
+  // Two offers: the newest wins.
+  assert.equal(pickRecordChip([orderChip({ recordId: "o1", kind: "offer" }), b])?.recordId, "b");
+  // A paid, confirmed order outranks an open order and an offer, whatever the order.
+  const paid = orderChip({ recordId: "p", paymentState: "paid", fulfilmentState: "confirmed" });
+  assert.equal(pickRecordChip([paid, a, b])?.recordId, "p");
+  assert.equal(pickRecordChip([b, a, paid])?.recordId, "p");
 });
 
 test("state line is one sentence, payment beats waiting", () => {
