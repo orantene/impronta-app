@@ -82,7 +82,11 @@ async function confirmedLinesForRecord(
     if (bookingErr) return fail("unavailable");
     matched = rows(byBooking as LineRow | null);
   }
-  const confirmed = matched.filter((l) => l.confirmed_at && l.offering_id);
+  // The record's fulfilment state is the gate (checked above). A sale paid at
+  // the counter is confirmed as a whole and never stamps `confirmed_at` on its
+  // lines, so when no line carries one every priced line counts (D-MSG-226).
+  const stamped = matched.filter((l) => l.confirmed_at && l.offering_id);
+  const confirmed = stamped.length > 0 ? stamped : matched.filter((l) => l.offering_id);
   if (confirmed.length === 0) return fail("not_allowed");
   return { ok: true, lines: confirmed, originalBookingId: rec.record_id };
 }
@@ -100,6 +104,8 @@ export async function bookAgainFromRecord(
     inquiryId: string;
     recordId: string;
     createInquiry: BookAgainCreateInquiry;
+    /** Workspace owner lookup for an unassigned thread (the draft's actor). */
+    resolveOwner?: (admin: Admin, tenantId: string) => Promise<string | null>;
   },
 ): Promise<ActionResult<{ inquiryId: string }>> {
   const { data: inquiry, error } = await admin
@@ -123,7 +129,9 @@ export async function bookAgainFromRecord(
   if (row.tenant_id !== input.tenantId) return fail("wrong_tenant");
   const name = row.contact_name?.trim() ?? "";
   if (!name || (!row.contact_email?.trim() && !row.contact_phone?.trim())) return fail("not_allowed");
-  if (!row.owner_user_id) return fail("no_owner");
+  // Unassigned thread: the workspace owner opens the draft (D-MSG-226).
+  const draftActor = row.owner_user_id ?? (await input.resolveOwner?.(admin, input.tenantId) ?? null);
+  if (!draftActor) return fail("no_owner");
 
   const packed = await confirmedLinesForRecord(admin, input);
   if (!packed.ok) return packed;
@@ -159,7 +167,7 @@ export async function bookAgainFromRecord(
 
   const draft = await createDraftOrder(admin, {
     tenantId: input.tenantId,
-    actorUserId: row.owner_user_id,
+    actorUserId: draftActor,
     currency: "USD",
     sourceChannel: "messages",
     context: "messages",

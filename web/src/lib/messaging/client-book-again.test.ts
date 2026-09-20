@@ -114,9 +114,27 @@ test("copies confirmed lines onto a new messages draft; skips unconfirmed; old o
   assert.equal((store as Record<string, unknown[]>).agency_bookings?.length ?? 0, 0);
 });
 
-test("unconfirmed-only record is not_allowed and creates nothing", async () => {
+test("a confirmed record whose lines carry no stamp (counter sale) copies every priced line", async () => {
   const store = seed();
   store.order_lines[0].confirmed_at = null;
+  const result = await bookAgainFromRecord(fakeAdmin(store), {
+    tenantId: TENANT,
+    inquiryId: OLD,
+    recordId: ORDER,
+    createInquiry: async () => {
+      (store as Record<string, unknown[]>).inquiries.push({ id: NEW, tenant_id: TENANT, guest_session_id: "guest-1" });
+      return { ok: true, inquiryId: NEW };
+    },
+  });
+  assert.deepEqual(result, { ok: true, inquiryId: NEW });
+  const created = store.orders.find((o) => o.id !== ORDER);
+  assert.ok(created);
+  assert.equal(store.order_lines.filter((l) => l.order_id === created.id).length, 2);
+});
+
+test("a record with no priced lines is not_allowed and creates nothing", async () => {
+  const store = seed();
+  for (const l of store.order_lines) l.offering_id = null;
   const result = await bookAgainFromRecord(fakeAdmin(store), {
     tenantId: TENANT,
     inquiryId: OLD,
@@ -128,6 +146,21 @@ test("unconfirmed-only record is not_allowed and creates nothing", async () => {
   assert.deepEqual(result, { ok: false, reason: "not_allowed" });
   assert.equal(store.orders.length, 1);
   assert.equal(store.orders[0].id, ORDER);
+});
+
+test("unassigned thread: the workspace owner opens the draft; without one it is no_owner", async () => {
+  const store = seed();
+  (store as Record<string, unknown[]>).inquiries[0] = { ...(store as Record<string, Record<string, unknown>[]>).inquiries[0], owner_user_id: null };
+  const create = async () => {
+    (store as Record<string, unknown[]>).inquiries.push({ id: NEW, tenant_id: TENANT, guest_session_id: "guest-1" });
+    return { ok: true as const, inquiryId: NEW };
+  };
+  const refused = await bookAgainFromRecord(fakeAdmin(store), { tenantId: TENANT, inquiryId: OLD, recordId: ORDER, createInquiry: create, resolveOwner: async () => null });
+  assert.deepEqual(refused, { ok: false, reason: "no_owner" });
+  assert.equal(store.orders.length, 1);
+  const ok = await bookAgainFromRecord(fakeAdmin(store), { tenantId: TENANT, inquiryId: OLD, recordId: ORDER, createInquiry: create, resolveOwner: async () => OWNER });
+  assert.deepEqual(ok, { ok: true, inquiryId: NEW });
+  assert.equal(store.orders.length, 2);
 });
 
 test("writer file does not import the staff shell, calendar, or admissions", () => {

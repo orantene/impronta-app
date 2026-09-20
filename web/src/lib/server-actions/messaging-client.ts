@@ -28,6 +28,7 @@ import { z } from "zod";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { renameClientContact } from "@/lib/messaging/client-rename";
+import { resolveTenantOwnerId } from "@/lib/inquiry/coordinator-assignment";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { bookAgainFromRecord } from "@/lib/messaging/client-book-again";
 import { insertMessage } from "@/lib/messaging/insert-message";
@@ -99,8 +100,10 @@ async function sharedDraft(l: Link): Promise<{ orderId: string } | { ok: false; 
   if (existing) return { orderId: (existing as { id: string }).id };
   // No shared draft yet: open one the way `messagingEnsureSharedDraft` does,
   // on behalf of the conversation's owner (a draft row records who opened it).
+  // An unassigned guest thread (every fresh visitor) has no owner yet: the
+  // workspace owner opens the draft, as the coordinator fallback does (D-MSG-226).
   const { data: inquiry } = await scoped(l.admin, "inquiries", l.tenantId).select("owner_user_id").eq("id", l.inquiryId).maybeSingle();
-  const ownerId = (inquiry as { owner_user_id: string | null } | null)?.owner_user_id ?? null;
+  const ownerId = (inquiry as { owner_user_id: string | null } | null)?.owner_user_id ?? (await resolveTenantOwnerId(l.admin, l.tenantId));
   if (!ownerId) return fail("no_owner");
   const created = await createDraftOrder(l.admin, { tenantId: l.tenantId, actorUserId: ownerId, currency: "USD", context: "messages" });
   if (!created.ok) return fail("unavailable");
@@ -462,5 +465,6 @@ export async function messagingClientBookAgain(input: { token: string; recordId:
     inquiryId: l.inquiryId,
     recordId: parsed.data.recordId,
     createInquiry: createInquiryFromIntent as never,
+    resolveOwner: (admin, tenantId) => resolveTenantOwnerId(admin as never, tenantId),
   });
 }
