@@ -1,104 +1,47 @@
 # Messages v5 QA program log
 
 Host: `https://staging-qa-journeys.tulala.digital`  
-Branch under test (agent): `cursor/qa-messages-v5-11b1`  
+Branch: `cursor/qa-messages-v5-11b1` → PR [#2128](https://github.com/orantene/impronta-app/pull/2128)  
 Isolated DB: `fxlankepwnvelxjrahwk`  
-Started: 2026-09-18
+Updated: 2026-09-20 (wave 2)
 
-## Final summary (2026-09-18 wave 1)
+## Final summary
 
-**Verdict:** Cloud QA harness is live. **18 Playwright specs passed**, 3 deferred-deep skipped. One product defect fixed and filed as **D-MSG-300** (auto-ack em dash). Human must merge the PR; `program/journeys-2026-09` remains ~52 commits behind `main` (do not force-mirror from agent).
+**Wave 1:** harness + smoke (18 pass) + D-MSG-300 em-dash fix.  
+**Wave 2:** rebased onto main (migration renamed `20261231277000_*` after collision with cards_v5), deep specs for times/payment/identity/files/ladder/realtime/phone/client/POS/guest/parity/§7 smokes.
 
-**Fixed:** Auto-ack default + fallbacks no longer use an em dash; QA fixture message bodies + taglines normalized; migration `20261231277000_auto_ack_no_emdash.sql` applied to prod + QA branch projects.
+**Still owed (not green yet):** hold *expiry* after client pick; payment mint on order+Stripe test charge; confirm recheck refusal (POS race); duplicates merge end-to-end; full 12-state ladder proof (sample only); phone pay after client accept; guest cards_v5 toggle matrix; production QA Cursor tenant onboarding; §7 deep overbook/13th-seat/refund-one-ticket journeys.
 
-**Proven green (smoke / happy path on QA host):** inbox, segments, search, chips, composer reply/note/cmd+Enter, new conversation sheet, + tray inventory, add-items → offer editor, times/payment sheets, header affordances, context panel, next-step, ES locale smoke, merge/refund surface smoke, tablet 1194, phone 390, client link render, POS dock mount, guest bubble, inbox↔header parity.
+**Integrator:** merge #2128 when CI green; sync `program/journeys-2026-09` to main; optional `VERCEL_AUTOMATION_BYPASS_SECRET` for this VM.
 
-**Still open (deeper rows, not yet green):** full next-step ladder all 12 states, realtime dual-context, full refund/confirm refusal paths, Stripe test charge on a production QA Cursor tenant, deep client card matrix, §7 product dependency suite, a11y + perf numbers. Tracked as pending below; deferred client specs are intentional `test.skip`.
+## Checklist (wave 2)
 
-**Seams retested / left:** Template tray item coming; email Not sent on QA host; pay-link TTL / Any-service times (known).
-
-**PRs this wave:** [#2128](https://github.com/orantene/impronta-app/pull/2128) (draft; await human merge when CI green)  
-
-## Host SHA skew (Phase 0)
-
-| Ref | SHA |
-|---|---|
-| `origin/main` (agent base) | `62de213a1` |
-| `origin/program/journeys-2026-09` | `7e39c0040` (~52 commits behind main) |
-| Live QA host | staging-qa-journeys (SSO via share-link storage state) |
-
-SSO: share-link storage state (no `VERCEL_AUTOMATION_BYPASS_SECRET` in project env).  
-Sign-in proven: `/api/dev/signin` → 307 → `/admin/messages` loads.
-
-## Checklist
-
-Status: `pending` | `green` | `seam` | `blocked` | `deferred`
-
-### Messages admin desktop 1440
-
-| Row | Status | Date | Spec | Evidence | Defects |
-|---|---|---|---|---|---|
-| inbox load | green | 2026-09-18 | `admin/inbox-load.spec.ts` | `evidence/2026-09-18/admin-inbox-desktop.jpg` | D-MSG-300 |
-| segments | green | 2026-09-18 | `admin/inbox-load.spec.ts` | same | |
-| search | green | 2026-09-18 | `admin/inbox-load.spec.ts` | same | |
-| chips | green | 2026-09-18 | `admin/inbox-load.spec.ts` | same | |
-| unread | green | 2026-09-18 | `admin/inbox-load.spec.ts` | same | |
-| new conversation | green | 2026-09-18 | `admin/new-conversation.spec.ts` | `admin-new-conversation-*` | |
-| reply | green | 2026-09-18 | `admin/composer.spec.ts` | `admin-composer-reply.jpg` | |
-| internal note | green | 2026-09-18 | `admin/composer.spec.ts` | same | |
-| cmd+Enter | green | 2026-09-18 | `admin/composer.spec.ts` | same | |
-| send via channel | green | 2026-09-18 | `admin/composer.spec.ts` | via control present | |
-| failed delivery | seam | 2026-09-18 | — | QA host email off | known |
-| resolve/reopen | green | 2026-09-18 | `admin/identity-header.spec.ts` | `admin-header-actions.jpg` | |
-| + tray all items | green | 2026-09-18 | `admin/tray.spec.ts` | `admin-tray-open.jpg` | |
-| add items (offer / choices / draft) | green | 2026-09-18 | `admin/add-items-offer.spec.ts` | `admin-add-items-*` | |
-| offer editor | green | 2026-09-18 | `admin/add-items-offer.spec.ts` | `admin-offer-editor.jpg` | |
-| offer send (one card) | green | 2026-09-18 | `admin/add-items-offer.spec.ts` | soft / editor path | |
-| times card + hold + expiry | pending | | sheet opens green; hold path deferred | `admin-times-sheet.jpg` | |
-| request payment link | pending | | sheet opens green; mint deferred | `admin-payment-sheet.jpg` | |
-| request payment outside | pending | | | | |
-| collect at counter | pending | | | | |
-| identity capture (match + create) | pending | | | | |
-| rename + history | green | 2026-09-18 | `admin/identity-header.spec.ts` | soft presence | |
-| hand over + Mine | pending | | | | |
-| copy client link | green | 2026-09-18 | `client/thread.spec.ts` | | |
-| close as lost + reopen | pending | | | | |
-| context panel | green | 2026-09-18 | `admin/context-panel.spec.ts` | `admin-context-panel.jpg` | |
-| file upload / voice note | pending | | | | |
-| duplicates merge | pending | | surface smoke only | | |
-| cancel + refund full / partial | pending | | surface smoke only | | |
-| confirm with recheck refusal | pending | | | | |
-| next-step ladder all 12 states | pending | | smoke: next-step present | | |
-| realtime incoming | pending | | | | |
-| ES full pass | green | 2026-09-18 | `admin/locale-es.spec.ts` | smoke | |
-
-### Messages admin tablet / phone
-
-| Row | Status | Date | Spec |
-|---|---|---|---|
-| tablet two columns + drawer | green | 2026-09-18 | `admin/responsive.spec.ts` |
-| phone inbox/thread/next-step/composer | green | 2026-09-18 | `admin/responsive.spec.ts` + `phone-happy-path.spec.ts` |
-| phone full happy path (items→offer→pay) | pending | | |
-
-### Client / POS / Guest / Parity
-
-| Row | Status | Date | Spec |
-|---|---|---|---|
-| client link render | green | 2026-09-18 | `client/thread.spec.ts` |
-| client offer/pay/cards deep | deferred | | skipped placeholders |
-| POS dock mounts | green | 2026-09-18 | `pos/dock.spec.ts` |
-| guest bubble | green | 2026-09-18 | `guest/dock.spec.ts` |
-| parity inbox↔header | green | 2026-09-18 | `parity/state-parity.spec.ts` |
-
-### Product deps (§7)
-
-| Row | Status | Notes |
+| Area | Status | Spec |
 |---|---|---|
-| all §7 rows | deferred | After deeper Messages paths + host mirror catch-up |
+| Inbox / segments / search / chips / unread | green | `admin/inbox-load.spec.ts` |
+| New conversation / composer / tray / add-items / offer | green | admin/* |
+| Times send (person+service+slots) | green | `admin/times-hold-deep.spec.ts` |
+| Times hold expiry after client pick | pending | |
+| Payment sheet affordances | green | `admin/payment-deep.spec.ts` |
+| Payment link mint + outside paid + collect | pending (needs order target) | |
+| Identity / handover / close lost | green | `admin/identity-handover-lost.spec.ts` |
+| File attach + voice control | green | `admin/files-voice.spec.ts` |
+| Merge / cancel / confirm sheets | green (soft) | `admin/merge-refund-confirm-deep.spec.ts` |
+| Confirm recheck refusal | pending | |
+| Next-step diversity sample | green | `admin/ladder-realtime.spec.ts` |
+| Realtime client → admin ≤15s | green | same |
+| Phone happy path items→offer | green | `admin/phone-happy-path-deep.spec.ts` |
+| Client offer actions | green | `client/offer-payment-deep.spec.ts` |
+| Client ES/FR | deferred (skip when no link) | |
+| POS dock deep + phone bar seam | green | `pos/dock-deep.spec.ts` |
+| Guest dock + tulala.digital | green | `guest/dock-deep.spec.ts` |
+| Parity multi-row | green | `parity/five-states.spec.ts` |
+| §7 surface smokes + a11y + perf | green | `product/section7-smokes.spec.ts` |
+| §7 deep journeys | pending | |
 
 ## Scenario run log
 
-| Date | Host | Spec | Result | Evidence | Defects |
-|---|---|---|---|---|---|
-| 2026-09-18 | staging-qa-journeys | Phase 0 sign-in probe | pass | — | — |
-| 2026-09-18 | staging-qa-journeys | `e2e/qa-program` full | 18 pass / 3 skip | `evidence/2026-09-18/` | D-MSG-300 |
+| Date | Result | Notes |
+|---|---|---|
+| 2026-09-18 | 18 pass / 3 skip | wave 1 smoke |
+| 2026-09-20 | deep batch green after fixes | times/payment/ladder/realtime/phone/client/parity/§7 |
