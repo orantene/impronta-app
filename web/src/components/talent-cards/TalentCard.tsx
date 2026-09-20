@@ -539,7 +539,7 @@ export function TalentCard({
             />
           ) : null}
           {typeLine.length > 0 ? (
-            <p className="truncate text-[11px] leading-tight text-[var(--token-card-muted,rgba(243,239,230,0.78))] @[280px]:text-[14px]">
+            <p className="truncate text-[11px] leading-tight text-[var(--token-card-muted,rgba(243,239,230,0.78))] @[280px]:text-[13px]">
               {typeLine.join(" · ")}
             </p>
           ) : null}

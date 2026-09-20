@@ -21,6 +21,7 @@ import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import {
   CardFactStrip,
   pickAttributeLines,
+  pickCinematicFacts,
   pickFitLabels,
   TalentCardTraitRow,
   traitRowMode,
@@ -143,11 +144,13 @@ export function DirectoryCardAdapter({
   // operator's ceiling — this can only ever hide, never reveal.
   const effectiveShow = {
     ...show,
+    // Cinematic reads "Type · City" as one line and anchors its top-left
+    // corner on the availability pill, so the "drop when it repeats the
+    // grid" rule would leave holes in the composition.
     showLocation:
       show.showLocation &&
-      !isRedundant(data.location, captionNorms.dominantLocation),
-    // Cinematic anchors its top-left corner on the availability pill, so
-    // the "drop when it repeats the grid" rule would leave a hole there.
+      (cardStyle === "profile" ||
+        !isRedundant(data.location, captionNorms.dominantLocation)),
     showAvailability:
       show.showAvailability &&
       (cardStyle === "profile" ||
@@ -184,7 +187,7 @@ export function DirectoryCardAdapter({
   // line ceiling and takes the first three card-visible fields.
   const traitLines =
     style === "profile"
-      ? pickAttributeLines(data.cardAttributes, cardFieldKeys, 3, 3)
+      ? pickCinematicFacts(data.cardAttributes, cardFieldKeys)
       : pickAttributeLines(data.cardAttributes, cardFieldKeys, maxFieldLines);
   const cinematicRating =
     data.ratingAvg != null && meetsCredibilityFloor(data.ratingCount)

@@ -193,6 +193,17 @@
   letter-spacing: 0.12em;
   backdrop-filter: none;
 }
+/* Canvas reads "INQUIRE →": the glyph trails the word. The send/check
+ * icons stay in the DOM for the in-lineup state; the resting pill swaps
+ * the leading send glyph for a trailing arrow. */
+[data-card-style="profile"] .talent-card-actions__inquiry-pill[data-in-cart="false"] svg {
+  display: none;
+}
+[data-card-style="profile"] .talent-card-actions__inquiry-pill[data-in-cart="false"]::after {
+  content: "\2192";
+  font-size: 14px;
+  line-height: 1;
+}
 [data-card-style="profile"] .talent-card-actions__inquiry-pill:hover {
   border-color: transparent;
   background: color-mix(in srgb, var(--dir-accent, #c8a04a) 88%, #fff);
