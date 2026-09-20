@@ -556,7 +556,7 @@ export function TalentCard({
           ) : (
             <StandingChip data={data} onScrim showStanding={showStanding} />
           )}
-          <div className="flex items-center justify-between gap-2 @[280px]:gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 @[280px]:gap-x-3">
             {data.priceFromLabel ? (
               <p
                 data-card-price-from
@@ -566,7 +566,7 @@ export function TalentCard({
                 {data.priceFromUnitLabel ? (
                   <span
                     data-card-price-unit
-                    className="ml-1 text-[10px] font-normal text-[var(--token-card-muted,rgba(243,239,230,0.7))] @[280px]:text-[12px]"
+                    className="ml-1 hidden text-[10px] font-normal text-[var(--token-card-muted,rgba(243,239,230,0.7))] @[220px]:inline @[280px]:text-[12px]"
                   >
                     {data.priceFromUnitLabel}
                   </span>
@@ -575,7 +575,7 @@ export function TalentCard({
             ) : (
               <span />
             )}
-            {ctaSlot}
+            {ctaSlot ? <div className="ml-auto shrink-0">{ctaSlot}</div> : null}
           </div>
         </div>
       </Root>

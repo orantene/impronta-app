@@ -199,8 +199,11 @@
 [data-card-style="profile"] .talent-card-actions__inquiry-pill[data-in-cart="false"] svg {
   display: none;
 }
-[data-card-style="profile"] .talent-card-actions__inquiry-pill[data-in-cart="false"]::after {
+/* ::before, not ::after — the coarse-pointer hit surface above owns ::after
+ * on every card action; `order` moves the arrow after the word. */
+[data-card-style="profile"] .talent-card-actions__inquiry-pill[data-in-cart="false"]::before {
   content: "\2192";
+  order: 2;
   font-size: 14px;
   line-height: 1;
 }
