@@ -13,6 +13,8 @@ Updated: 2026-09-20 (wave 3 — remaining checklist)
 
 **Still human / post-deploy:** merge #2128; sync `program/journeys-2026-09` so D-MSG-301 is live on QA host; re-run hold-expired next-step after expire; full POS double-book confirm refusal; Stripe charge + ticket refund-one; 13th-seat / overbook journeys when `JOURNEYS_FIXTURE_READY` capacity fixtures are green.
 
+**2026-09-20 Vercel fix:** preview builds were red because `20261231277000_auto_ack_no_emdash` was not in `schema_migrations` on production (`pluhdapdnuiulvxmyspd`) or qa-journeys (`fxlankepwnvelxjrahwk`). Applied the SQL + recorded the version on both; redeployed the branch preview.
+
 ## Checklist
 
 | Area | Status | Spec |
