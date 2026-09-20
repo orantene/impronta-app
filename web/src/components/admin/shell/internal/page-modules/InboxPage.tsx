@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { DemoBadge as FixtureBadge } from "@/components/demo-badge";
 import { isFixtureInquiryId } from "@/lib/fixtures/is-fixture-id";
 import { interpolate } from "@/i18n/interpolate";
@@ -43,6 +44,12 @@ export function WorkspaceMessagesPage() {
   // mode has no tenant to scope the actions to and keeps the legacy shell.
   const compact = useCompactViewport();
   const { bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
+  // `/admin/messages?inquiry=<id>` is every deep link into a thread (Orders,
+  // notifications, the POS switch). The v5 shell opens it by id whatever the
+  // inbox filter shows (D-MSG-225); only a uuid is honoured.
+  const searchParams = useSearchParams();
+  const linkedInquiry = searchParams.get("inquiry");
+  const initialInquiryId = linkedInquiry && /^[0-9a-f-]{36}$/i.test(linkedInquiry) ? linkedInquiry : null;
   // Messages v5 (L2): env flag for QA; Phase 3 replaces it with the per-tenant
   // `messages_v5` flag (owner decision 10). The old shells stay intact below.
   if (process.env.NEXT_PUBLIC_MESSAGES_V5 === "1" && bridgeTenantIdentity) {
@@ -53,6 +60,7 @@ export function WorkspaceMessagesPage() {
           tenantSlug={bridgeTenantIdentity.slug}
           currentUserId={bridgeSessionIdentity?.userId ?? null}
           workspaceType={bridgeTenantIdentity.workspaceType ?? null}
+          initialInquiryId={initialInquiryId}
         />
       </div>
     );
