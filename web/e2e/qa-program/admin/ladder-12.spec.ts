@@ -31,21 +31,47 @@ const FAMILIES: { id: string; re: RegExp }[] = [
   { id: "resolved_lost", re: /\b(resolved|lost)\b/i },
 ];
 
-async function captureNext(page: import("@playwright/test").Page, found: Set<string>): Promise<void> {
-  await page.waitForSelector("[data-next-step]", { timeout: 10_000 }).catch(() => undefined);
-  await page.waitForTimeout(400);
-  const next = page.locator("[data-next-step]");
-  if ((await next.count()) === 0) return;
-  const text = (await next.first().innerText()).replace(/\s+/g, " ").trim();
-  if (!text || /^next$/i.test(text)) return;
+/** Seeded / known fixture labels that should map to distinct ladder families. */
+const SEARCH_TARGETS = [
+  "C08OP1789671508204", // awaiting_acceptance → Follow up
+  "C08OP1789671359619", // accepted_awaiting_deposit → Collect deposit
+  "QA Guest Renamed", // won → Nothing to do (or deposit if unpaid offer)
+  "C02 DIFF", // needs_reply → Reply
+  "Cora Cuevas", // Lost / gathering variants
+];
+
+async function captureNext(page: import("@playwright/test").Page, found: Set<string>): Promise<string> {
+  await page.waitForSelector("[data-next-step]", { timeout: 8_000 }).catch(() => undefined);
+  await page.waitForTimeout(450);
+  const titleEl = page.locator("[data-next-step] b, [data-next-step] .ttl").first();
+  const title = ((await titleEl.count()) ? await titleEl.innerText().catch(() => "") : "").replace(/\s+/g, " ").trim();
+  const full = ((await page.locator("[data-next-step]").first().innerText().catch(() => "")) || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const text = `${title} ${full}`.trim();
+  if (!text || /^next$/i.test(text) || /loading/i.test(text)) return text;
   for (const f of FAMILIES) {
     if (f.re.test(text)) found.add(f.id);
   }
+  return text;
+}
+
+async function openViaSearch(page: import("@playwright/test").Page, q: string): Promise<boolean> {
+  const search = page.locator("[data-inbox-search] input, input[placeholder*='Search' i], [data-messages-v5] input[type='search']").first();
+  if (!(await search.isVisible().catch(() => false))) return false;
+  await search.fill("");
+  await search.fill(q);
+  await page.waitForTimeout(700);
+  const rows = page.locator("[data-inbox-row]");
+  if ((await rows.count()) === 0) return false;
+  await rows.first().click();
+  await page.waitForTimeout(500);
+  return true;
 }
 
 test.describe("QA remaining: explicit ladder families", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
-  test.setTimeout(240_000);
+  test.setTimeout(180_000);
 
   test("scan + drive until ladder family hits are maximized", async ({ page }) => {
     const { errors } = attachConsoleGuard(page);
@@ -54,27 +80,36 @@ test.describe("QA remaining: explicit ladder families", () => {
     await expect(page.locator("[data-messages-v5]")).toBeVisible({ timeout: 30_000 });
 
     const found = new Set<string>();
+    const seenTitles: string[] = [];
 
-    // 1) Scan existing fixture rows across segments
+    // 1) Quick segment sample (cap rows so we do not burn the timeout)
     for (const seg of ["needs action", "waiting", "all"]) {
       await page.locator("[data-inbox-segments]").getByRole("tab", { name: new RegExp(seg, "i") }).first().click();
-      await page.waitForTimeout(600);
+      await page.waitForTimeout(500);
       const rows = page.locator("[data-inbox-row]");
-      const n = Math.min(await rows.count(), 50);
+      const n = Math.min(await rows.count(), 12);
       for (let i = 0; i < n; i++) {
         await rows.nth(i).click();
-        await captureNext(page, found);
-        if (found.size >= 10) break;
+        const t = await captureNext(page, found);
+        if (t) seenTitles.push(t.slice(0, 60));
+        if (found.size >= 8) break;
       }
-      if (found.size >= 10) break;
+      if (found.size >= 8) break;
     }
 
-    // 2) Drive reachable states on a writable Needs-action thread
+    // 2) Search-known fixture contacts
+    for (const q of SEARCH_TARGETS) {
+      if (await openViaSearch(page, q)) {
+        const t = await captureNext(page, found);
+        if (t) seenTitles.push(`search:${q}:${t.slice(0, 40)}`);
+      }
+    }
+
+    // 3) Drive reachable states on a writable Needs-action thread
     await openAdminMessages(page);
     await openFirstInboxRow(page);
     await captureNext(page, found);
 
-    // Add items → often "Send the offer" or stay on reply
     await openPlusTray(page);
     await page.locator('[data-tray-item="add_items"]').click();
     const items = page.locator("[data-sheet]").first();
@@ -100,7 +135,6 @@ test.describe("QA remaining: explicit ladder families", () => {
       await page.keyboard.press("Escape");
     }
 
-    // Close as lost → Resolved/Lost family
     await openPlusTray(page);
     const lostItem = page.locator('[data-tray-item="close_lost"]');
     if (await lostItem.isVisible().catch(() => false)) {
@@ -126,11 +160,11 @@ test.describe("QA remaining: explicit ladder families", () => {
     const missing = FAMILIES.filter((f) => !found.has(f.id)).map((f) => f.id);
     test.info().annotations.push({
       type: "ladder-coverage",
-      description: `found ${found.size}/${FAMILIES.length} missing=${missing.join(",")}`,
+      description: `found ${found.size}/${FAMILIES.length} hits=[${[...found].join(",")}] missing=${missing.join(",")} titles=${seenTitles.slice(0, 12).join(" || ")}`,
     });
     // Fixture + drive should hit several selling/reply/closed families.
     // hold_expired / confirm_talent / balance need D-MSG-301 deploy + richer readers.
-    expect(found.size, `missing ${missing.join(", ")}`).toBeGreaterThanOrEqual(3);
+    expect(found.size, `missing ${missing.join(", ")} | saw: ${seenTitles.join(" || ")}`).toBeGreaterThanOrEqual(3);
     await assertNoRawI18nKeys(page);
     expect(errors, errors.join("\n")).toEqual([]);
   });

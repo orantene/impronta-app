@@ -31,7 +31,7 @@ Updated: 2026-09-20 (wave 3 — remaining checklist)
 | Realtime client → admin ≤15s | green | `admin/ladder-realtime.spec.ts` |
 | Phone happy path items→offer | green | `admin/phone-happy-path-deep.spec.ts` |
 | Client offer actions | green | `client/offer-payment-deep.spec.ts` |
-| Client ES/FR + pay page | green soft | `client/locale-pay-deep.spec.ts` |
+| Client ES/FR + pay page | green soft (link seam; offer-payment-deep covers when `/c/` present) | `client/locale-pay-deep.spec.ts` + `offer-payment-deep` |
 | POS dock deep + phone bar seam | green | `pos/dock-deep.spec.ts` |
 | Guest dock + tulala.digital | green | `guest/dock-deep.spec.ts` |
 | Parity multi-row harden | green | `parity/harden.spec.ts` |
