@@ -64,6 +64,7 @@ import {
   isReceiptVisibleStatus,
 } from "@/lib/inquiry/inquiry-receipt-data";
 import { getAppUrl } from "@/lib/auth-flow";
+import { CLIENT_CARD_KINDS } from "@/lib/messages-v5/client-thread-view";
 import { resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
 import type {
   AddGuestClaimEmailInput,
@@ -249,19 +250,10 @@ async function resolveCreateRecipientUserIds(
 // Author-role resolution + message mapping (server-side; the UI trusts these).
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Every v5 card kind passes through (D-MSG-223); a kind missing here collapses to a "text" bubble.
 const VISIBLE_KINDS: ReadonlySet<string> = new Set<GuestMessageKind>([
-  "text",
-  "offer_event",
-  "payment_request",
-  "payment_paid",
-  "coordinator_request",
-  "talent_rate",
-  "call_sheet_update",
-  "booking_status",
-  "booking_confirmed",
-  "balance_due",
-  "voice",
-  "system_event",
+  "text", ...CLIENT_CARD_KINDS, "payment_paid", "coordinator_request", "talent_rate", "call_sheet_update",
+  "booking_status", "booking_confirmed", "balance_due", "voice", "system_event",
 ]);
 
 type RawMessageRow = {
