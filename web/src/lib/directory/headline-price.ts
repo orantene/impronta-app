@@ -48,7 +48,7 @@ export type CatalogPriceRow = {
   isFeatured: boolean;
 };
 
-export type HeadlinePrice = { amountCents: number; currency: string };
+export type HeadlinePrice = { amountCents: number; currency: string; priceType: string };
 
 function cheapest(rows: CatalogPriceRow[]): HeadlinePrice | null {
   let best: CatalogPriceRow | null = null;
@@ -57,7 +57,9 @@ function cheapest(rows: CatalogPriceRow[]): HeadlinePrice | null {
   }
   // Currency is taken from the winning row verbatim — amounts are never
   // converted, so a mixed-currency catalog can't produce a fabricated total.
-  return best ? { amountCents: best.amountCents, currency: best.currency } : null;
+  return best
+    ? { amountCents: best.amountCents, currency: best.currency, priceType: best.priceType }
+    : null;
 }
 
 export function pickHeadlinePrice(

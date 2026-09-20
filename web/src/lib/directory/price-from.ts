@@ -32,7 +32,7 @@ import { pickHeadlinePrice, type CatalogPriceRow } from "@/lib/directory/headlin
  * Agency A's negotiated rate on Agency B's public directory. Without a tenant
  * scope we return nothing rather than guess whose price to show.
  */
-export type StartingPrice = { amountCents: number; currency: string };
+export type StartingPrice = { amountCents: number; currency: string; priceType: string };
 
 export type StartingPriceResult = {
   prices: Map<string, StartingPrice>;

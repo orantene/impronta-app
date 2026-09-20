@@ -27,3 +27,27 @@ export function formatPriceFromLabel(
   }
   return locale === "es" ? `Desde ${amount}` : `From ${amount}`;
 }
+
+/**
+ * Rate-unit suffix for a "From $X" line: "/ day", "/ hour", "/ half day",
+ * "/ week". Only time-based offering price types get one; event, per-person
+ * and package prices are not rates and read wrong with a unit.
+ */
+export function formatPriceUnitSuffix(
+  priceType: string | null | undefined,
+  locale: string,
+): string | null {
+  const es = locale === "es";
+  switch (priceType) {
+    case "hour":
+      return es ? "/ hora" : "/ hour";
+    case "day":
+      return es ? "/ día" : "/ day";
+    case "half_day":
+      return es ? "/ medio día" : "/ half day";
+    case "week":
+      return es ? "/ semana" : "/ week";
+    default:
+      return null;
+  }
+}

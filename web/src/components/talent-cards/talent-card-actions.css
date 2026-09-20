@@ -184,11 +184,11 @@
  * canvas), 44px tall; in-lineup inverts to an ink pill with a gold ring. */
 [data-card-style="profile"] .talent-card-actions__inquiry-pill {
   height: 34px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-color: transparent;
   background: var(--dir-accent, #c8a04a);
   color: #151204;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
   backdrop-filter: none;
@@ -245,5 +245,6 @@
   [data-card-style="profile"] .talent-card-actions__inquiry-pill {
     height: 44px;
     padding: 0 18px;
+    font-size: 12px;
   }
 }

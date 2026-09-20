@@ -314,6 +314,14 @@ export function TalentCard({
                   className="truncate text-[15px] font-semibold tabular-nums text-[var(--token-card-price-color,#17160f)]"
                 >
                   {data.priceFromLabel}
+                  {data.priceFromUnitLabel ? (
+                    <span
+                      data-card-price-unit
+                      className="ml-1 text-[11px] font-medium text-[var(--token-card-muted,#6a665c)]"
+                    >
+                      {data.priceFromUnitLabel}
+                    </span>
+                  ) : null}
                 </span>
               ) : null}
               {showAgencyLine ? <AgencyLine data={data} onScrim={false} /> : null}
@@ -552,9 +560,17 @@ export function TalentCard({
             {data.priceFromLabel ? (
               <p
                 data-card-price-from
-                className="text-[13px] font-semibold text-[var(--token-card-name-color,#f3efe6)] @[280px]:text-[15px]"
+                className="whitespace-nowrap text-[12px] font-semibold text-[var(--token-card-name-color,#f3efe6)] @[280px]:text-[15px]"
               >
                 {data.priceFromLabel}
+                {data.priceFromUnitLabel ? (
+                  <span
+                    data-card-price-unit
+                    className="ml-1 text-[10px] font-normal text-[var(--token-card-muted,rgba(243,239,230,0.7))] @[280px]:text-[12px]"
+                  >
+                    {data.priceFromUnitLabel}
+                  </span>
+                ) : null}
               </p>
             ) : (
               <span />

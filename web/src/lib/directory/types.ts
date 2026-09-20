@@ -122,6 +122,8 @@ export type DirectoryCardDTO = {
    * (and presented differently) by source.
    */
   priceFromSource?: "talent" | "tenant_default" | "platform_default" | null;
+  /** The winning offering's `price_type` (hour/day/half_day/week/…); null for defaults. */
+  priceFromUnit?: string | null;
   /** True when this tenant has a timed request/instant offering for them. */
   bookable?: boolean;
 };

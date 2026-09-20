@@ -9,7 +9,7 @@ import { TalentQuickViewButton } from "@/components/directory/talent-quick-view"
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
-import { formatPriceFromLabel } from "@/lib/directory/format-price-from";
+import { formatPriceFromLabel, formatPriceUnitSuffix } from "@/lib/directory/format-price-from";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
 import {
   type CaptionNorms,
@@ -167,6 +167,7 @@ export function DirectoryCardAdapter({
       card.priceFromCurrency ?? "USD",
       locale,
     );
+    data.priceFromUnitLabel = formatPriceUnitSuffix(card.priceFromUnit, locale);
   }
 
   // STATE must stay visible; only ACTIONS may hide behind hover. When the
