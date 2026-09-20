@@ -214,7 +214,8 @@ export function PortfolioGalleryLightbox({
                       alt={`${name} — portfolio image ${i + 1}`}
                       fill
                       className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      sizes={sections ? "(max-width: 820px) 80vw, (max-width: 1400px) 45vw, 620px" : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"}
+                      quality={85}
                       priority={i < 3}
                     />
                     <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/20" />
@@ -308,7 +309,8 @@ export function PortfolioGalleryLightbox({
                 alt={`${name} — portfolio image ${index + 1}`}
                 fill
                 className="object-contain"
-                sizes="(max-width: 1024px) 100vw, 1024px"
+                sizes="(max-width: 1024px) 100vw, 1600px"
+                quality={95}
                 priority
               />
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_80%,rgba(201,162,39,0.10),transparent_70%)]" />

@@ -381,6 +381,12 @@ const nextConfig: NextConfig = {
     // Prefer AVIF (smaller) with WebP fallback. Default order is reversed; AVIF
     // first gives mobile clients the smaller asset when supported.
     formats: ["image/avif", "image/webp"],
+    // Next 16 only honours a `quality` prop that is on this list; anything
+    // else silently falls back to 75. AVIF is encoded at quality - 20, so the
+    // default 75 meant AVIF 55 on full-bleed profile banners (measured
+    // 2026-09-20: a 1066px hero arrived as a 17 KB smear). 95 -> AVIF 75 is
+    // the visually clean tier for hero photography; 85 for editorial tiles.
+    qualities: [75, 85, 95],
   },
   allowedDevOrigins: [
     "marketing.local",
