@@ -3,17 +3,18 @@
 Host: `https://staging-qa-journeys.tulala.digital`  
 Branch: `cursor/qa-messages-v5-11b1` → PR [#2128](https://github.com/orantene/impronta-app/pull/2128)  
 Isolated DB: `fxlankepwnvelxjrahwk`  
-Updated: 2026-09-20 (wave 3 — remaining checklist)
+Updated: 2026-09-21 (rebased onto main; PR ready for review)
 
 ## Final summary
 
 **Wave 1:** harness + smoke (18 pass) + D-MSG-300 em-dash fix.  
-**Wave 2:** rebased onto main; deep specs for times/payment/identity/files/ladder/realtime/phone/client/POS/guest/parity/§7 smokes.  
-**Wave 3:** remaining plan rows — ladder drive+scan, hold pick path, payment mint after accept, confirm+POS tab, client ES/FR+pay, parity harden, §7 deep surface doors; **D-MSG-301** wires `holdExpiresAt` into admin next-step from card payloads.
+**Wave 2:** deep specs for times/payment/identity/files/ladder/realtime/phone/client/POS/guest/parity/§7 smokes.  
+**Wave 3:** remaining plan rows + **D-MSG-301** holdExpiresAt wiring; auto-ack migration applied on prod + qa-journeys.  
+**2026-09-21:** rebased onto `main` (kept D-MSG-225 deep-link from main); PR #2128 marked ready for review.
 
-**Still human / post-deploy:** merge #2128; sync `program/journeys-2026-09` so D-MSG-301 is live on QA host; re-run hold-expired next-step after expire; full POS double-book confirm refusal; Stripe charge + ticket refund-one; 13th-seat / overbook journeys when `JOURNEYS_FIXTURE_READY` capacity fixtures are green.
+**Agent-blocked (human only):** merge #2128; sync `program/journeys-2026-09` so D-MSG-301 is live on QA host.
 
-**2026-09-20 Vercel fix:** preview builds were red because `20261231277000_auto_ack_no_emdash` was not in `schema_migrations` on production (`pluhdapdnuiulvxmyspd`) or qa-journeys (`fxlankepwnvelxjrahwk`). Applied the SQL + recorded the version on both; redeployed the branch preview.
+**After human merge+sync, agent can:** re-prove hold-expired next-step; push POS double-book / Stripe / capacity journeys where fixtures allow.
 
 ## Checklist
 
