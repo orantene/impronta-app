@@ -1,19 +1,34 @@
 /**
  * resolveSharperBanner — swap a small, hand-cropped `hero` asset for its
- * full-resolution source when the source is meaningfully larger.
+ * full-resolution source, but ONLY when that source's framing is still
+ * banner-appropriate.
  *
  * Until 2026-09-20 the upload pipeline capped `hero` masters at 1400px (the
  * cap was sized for a 4:5 cover card), while the profile templates paint the
  * hero full-bleed across the viewport. Every hero stored before the cap was
  * raised is 900–1400px wide and reads as low quality on a Retina screen.
- * Heroes are crops of a gallery asset (`source_media_asset_id`); when that
- * source is ≥ 1.25× wider the templates get the sharper source and frame it
- * with CSS (`object-position`) instead of the baked crop. New heroes cropped
- * after the cap change keep their crop: they are wide enough on their own.
+ * Heroes are crops of a gallery asset (`source_media_asset_id`) — but the
+ * crop tool never stored the crop rectangle, only the source id, so the
+ * source cannot be re-cropped to match; it can only be swapped in whole.
+ *
+ * INCIDENT 2026-09-21: the first version of this function swapped in ANY
+ * sufficiently-wide source, including tall portrait fashion shots (e.g.
+ * 1596x2400, ratio 0.66). `object-fit: cover` on a full-bleed banner scales
+ * that to banner WIDTH, which makes it far taller than the viewport, so
+ * `object-position` only shows a thin horizontal sliver near the top —
+ * Anto's live banner cropped to hairline and headphones, face gone. Higher
+ * resolution, worse photo. Fixed by also requiring the source's aspect
+ * ratio not be meaningfully more portrait than the baked hero crop's own
+ * ratio — a source that fails this check is a real, sharper photo of the
+ * same person that simply cannot serve as this banner without its own crop
+ * coordinates, which the pipeline does not have.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const SHARP_HERO_MIN_WIDTH = 1600;
+
+/** How much more portrait than the hero's own ratio a source may be before it is rejected. */
+const ASPECT_TOLERANCE = 0.75;
 
 type MediaLike = {
   id: string;
@@ -49,6 +64,15 @@ export async function resolveSharperBanner<T extends MediaLike>(
     return hero;
   }
   const source = data as T | null;
-  if (!source?.width || !source.storage_path) return hero;
-  return source.width >= hero.width * 1.25 ? source : hero;
+  if (!source?.width || !source?.height || !source.storage_path) return hero;
+  if (source.width < hero.width * 1.25) return hero;
+
+  // Aspect-ratio guard: reject a source that is meaningfully more portrait
+  // than the hero's own baked crop — it cannot be reframed to a banner
+  // without the original crop rectangle, which is not stored.
+  const heroRatio = hero.width / (hero.height || hero.width);
+  const sourceRatio = source.width / source.height;
+  if (sourceRatio < heroRatio * ASPECT_TOLERANCE) return hero;
+
+  return source;
 }
