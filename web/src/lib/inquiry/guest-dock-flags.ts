@@ -37,11 +37,19 @@ export async function loadGuestDockFlags(
     loadGuestChatSettings(tenantId),
     loadTenantWords(tenantId, locale === "es" ? "es" : "en"),
   ]);
+  // "custom" (every pre-preset workspace, Impronta included) keeps the people
+  // wording; the label follows the same rule so the tab never reads "Items"
+  // above a talent lineup (D-MSG-227).
+  const representsPeople = words.preset.id === "custom" ? true : words.preset.representsPeople;
   return {
     dockItemsTab: settings.itemsTab,
     dockCardsV5: settings.cardsV5,
-    dockItemsLabel: chatItemsLabel(words),
-    // "custom" (every pre-preset workspace) keeps the people wording.
-    dockRepresentsPeople: words.preset.id === "custom" ? true : words.preset.representsPeople,
+    dockItemsLabel: chatItemsLabel({
+      locale: words.locale,
+      preset: { ...words.preset, representsPeople },
+      word: (key) => words.word(key),
+      sourceOf: (key) => words.sourceOf(key),
+    }),
+    dockRepresentsPeople: representsPeople,
   };
 }
