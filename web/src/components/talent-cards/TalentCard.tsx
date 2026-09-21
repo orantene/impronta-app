@@ -496,7 +496,7 @@ export function TalentCard({
         <div
           aria-hidden
           data-card-scrim
-          className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_top,rgba(6,6,8,0.97)_0%,rgba(6,6,8,0.88)_30%,rgba(6,6,8,0.5)_52%,rgba(6,6,8,0.3)_100%)]"
+          className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_top,rgba(6,6,8,0.92)_0%,rgba(6,6,8,0.68)_30%,rgba(6,6,8,0.22)_60%,rgba(6,6,8,0)_85%)]"
         />
 
         {topPill ? (
