@@ -82,6 +82,8 @@ export type GuestRecordChip = {
   label?: string | null;
   /** Hold expiry from the times/table payload. Null when the engine never stamped one. */
   holdExpiresAt?: string | null;
+  /** IANA zone the slot was offered in (the times payload), so the row reads like the card (D-MSG-228). */
+  timezone?: string | null;
 };
 
 export type GuestConversationItems = {

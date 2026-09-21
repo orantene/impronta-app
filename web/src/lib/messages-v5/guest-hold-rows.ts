@@ -25,6 +25,7 @@ export type HoldOverlay = {
   readonly label: string | null;
   readonly holdExpiresAt: string | null;
   readonly recordDate: string | null;
+  readonly timezone?: string | null;
 };
 
 function str(v: unknown): string | null {
@@ -41,6 +42,7 @@ export function readHoldFromTimes(payload: Record<string, unknown> | null): Hold
     label: times.pickedStartsAt,
     holdExpiresAt: times.holdExpiresAt,
     recordDate: times.pickedStartsAt,
+    timezone: times.timezone,
   };
 }
 
@@ -99,6 +101,7 @@ export function decorateHoldChips(
         label: overlay.label ?? prev.label ?? null,
         holdExpiresAt: overlay.holdExpiresAt ?? prev.holdExpiresAt ?? null,
         recordDate: overlay.recordDate ?? prev.recordDate,
+        timezone: overlay.timezone ?? prev.timezone ?? null,
       };
       continue;
     }
@@ -108,6 +111,7 @@ export function decorateHoldChips(
       paymentState: null,
       fulfilmentState: overlay.holdExpiresAt ? "hold" : null,
       recordDate: overlay.recordDate,
+      timezone: overlay.timezone ?? null,
       label: overlay.label,
       holdExpiresAt: overlay.holdExpiresAt,
     });

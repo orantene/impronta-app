@@ -108,7 +108,7 @@ function RecordRow({ chip, t, C, accent, locale, now }: { chip: GuestRecordChip;
   const slot = chip.label
     ? Number.isNaN(Date.parse(chip.label))
       ? chip.label
-      : new Date(chip.label).toLocaleString(locale, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+      : new Date(chip.label).toLocaleString(locale, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", ...(chip.timezone ? { timeZone: chip.timezone } : {}) })
     : null;
   const title = slot ?? kindLabel;
   const pay = chip.paymentState && PAYMENT_KEY[chip.paymentState] ? t(PAYMENT_KEY[chip.paymentState]) : null;
