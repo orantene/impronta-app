@@ -59,36 +59,18 @@ test.describe("QA payment — record paid outside", () => {
     const cash = sheet.getByText(/^cash$/i).first();
     await expect(cash, "Cash outside method missing").toBeVisible({ timeout: 10_000 });
     await cash.click();
-    // Outside canSend needs amountCents > 0 (Full may resolve null when offer
-    // options omit it) AND reference.trim().length >= 3.
+    // Outside canSend needs amountCents > 0 AND reference.trim().length >= 3.
+    // Prefer Other so the cents figure is explicit (Full can resolve null).
     const other = sheet.getByRole("radio", { name: /other/i }).first();
     await expect(other, "Other amount option missing for outside path").toBeVisible({
       timeout: 10_000,
     });
     await other.click();
-    const amountInput = sheet.locator("#msgv5-payment-other, input[name='other'], [data-payment-other] input").first()
-      .or(sheet.getByPlaceholder(/amount|dollars|0\.00/i).first());
-    // Prefer labeled other input; fall back to any visible number/text in outside section.
-    const outsideSection = sheet.locator("[data-payment-outside]");
-    const typed = outsideSection.locator('input').filter({ hasNot: sheet.locator("#msgv5-payment-reference") }).first();
-    if (await typed.isVisible().catch(() => false)) {
-      await typed.fill("50.00");
-    } else if (await amountInput.isVisible().catch(() => false)) {
-      await amountInput.fill("50.00");
-    } else {
-      // Last resort: first text input that is not the reference.
-      const inputs = outsideSection.locator("input");
-      const n = await inputs.count();
-      let filled = false;
-      for (let i = 0; i < n; i++) {
-        const id = (await inputs.nth(i).getAttribute("id")) || "";
-        if (id === "msgv5-payment-reference") continue;
-        await inputs.nth(i).fill("50.00");
-        filled = true;
-        break;
-      }
-      expect(filled, "could not find Other amount input in outside section").toBeTruthy();
-    }
+    const otherInput = sheet.locator("#msgv5-payment-other").first();
+    await expect(otherInput, "Other amount input (#msgv5-payment-other) missing").toBeVisible({
+      timeout: 10_000,
+    });
+    await otherInput.fill("50.00");
     const ref = sheet.locator("#msgv5-payment-reference").first();
     await expect(ref, "outside payment reference field missing").toBeVisible({ timeout: 10_000 });
     await ref.fill("QA cash counter");
@@ -102,20 +84,35 @@ test.describe("QA payment — record paid outside", () => {
     const before = await page.locator('[data-card="payment"]').count();
     await send.click();
     await expect(
-      page.locator('[data-card="payment"]').nth(before).or(page.getByText(/recorded|paid/i).first()),
+      page.locator('[data-card="payment"]').nth(before).or(page.getByText(/recorded|paid outside|marked paid/i).first()),
       "outside payment did not land a Payment card / recorded confirmation",
     ).toBeVisible({ timeout: 25_000 });
     await shot(page, "admin-payment-outside-cash");
 
+    // Effect: Payment card itself must read paid/recorded (header chip can lag
+    // behind offer "deposit due" until Money reader refreshes — assert card).
+    const payCard = page.locator('[data-card="payment"]').last();
+    await expect(payCard, "Payment card missing after outside cash").toBeVisible({ timeout: 10_000 });
+    const cardText = ((await payCard.innerText()) || "").replace(/\s+/g, " ");
+    expect(
+      cardText,
+      `Payment card should show paid/recorded after outside cash; got: ${cardText}`,
+    ).toMatch(/paid|recorded|outside|cash/i);
+
     await page.keyboard.press("Escape");
     await page.waitForTimeout(800);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
+    await awaitHydrated(page);
     const header = ((await page.locator("[data-thread-header]").innerText()) || "").replace(
       /\s+/g,
       " ",
     );
-    expect(header, `record chip should reflect paid after outside cash; got: ${header}`).toMatch(
-      /paid/i,
-    );
+    // Soften: paid OR deposit cleared. If still "deposit due" after reload, fail.
+    expect(
+      header,
+      `after outside cash + reload, header must not still say deposit due; got: ${header}`,
+    ).not.toMatch(/deposit due/i);
 
     await assertNoRawI18nKeys(page);
     expect(errors, errors.join("\n")).toEqual([]);

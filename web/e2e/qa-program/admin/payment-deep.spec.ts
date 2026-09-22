@@ -67,6 +67,30 @@ test.describe("QA 6.1 payment flows", () => {
     await expect(sheet, "Payment request sheet did not open").toBeVisible({ timeout: 20_000 });
     await shot(page, "admin-payment-deep-open");
 
+    // If an open Payment request blocks minting, cancel it from the stream card.
+    const openHint = sheet.getByText(/one open request|open request at a time/i).first();
+    if (await openHint.isVisible().catch(() => false)) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(400);
+      const payCard = page.locator('[data-card="payment"]').last();
+      await expect(
+        payCard,
+        "open-request hint shown but no Payment card to cancel",
+      ).toBeVisible({ timeout: 10_000 });
+      const cancel = payCard
+        .getByRole("button", { name: /cancel/i })
+        .or(payCard.locator('[data-payment-action="cancel"]'))
+        .first();
+      await expect(cancel, "Cancel on open Payment card missing").toBeVisible({ timeout: 10_000 });
+      await cancel.click();
+      await page.waitForTimeout(1500);
+      await openPlusTray(page);
+      await page.locator('[data-tray-item="payment"]').click();
+      await expect(sheet, "Payment sheet did not reopen after cancel").toBeVisible({
+        timeout: 20_000,
+      });
+    }
+
     const link = sheet.getByText(/pay link|send a pay link/i).first();
     await expect(link, "Pay link option missing").toBeVisible({ timeout: 10_000 });
     await link.click();
@@ -77,20 +101,13 @@ test.describe("QA 6.1 payment flows", () => {
     await full.click();
     await shot(page, "admin-payment-link-selected");
 
-    // Surface blockers instead of a mute disabled Send (open request / no target).
-    const openHint = sheet.getByText(/open (payment )?request|already have a request/i).first();
-    if (await openHint.isVisible().catch(() => false)) {
+    const stillBlocked = sheet.getByText(/one open request|open request at a time/i).first();
+    if (await stillBlocked.isVisible().catch(() => false)) {
       throw new Error(
-        `pay-link blocked by open request: ${(await openHint.innerText()).trim()} — cancel/settle existing Payment card first`,
+        `pay-link still blocked after cancel: ${(await stillBlocked.innerText()).trim()}`,
       );
     }
-    const unavailable = sheet.getByText(/not available|cannot mint|no order/i).first();
     const send = sheet.locator("[data-payment-send]").first();
-    if (await unavailable.isVisible().catch(() => false)) {
-      throw new Error(
-        `pay-link unavailable: ${(await unavailable.innerText()).trim()} — need mintable order target after Accept`,
-      );
-    }
     await expect(
       send,
       "Payment Send disabled — need order target + Full/Other amount to mint a pay link",

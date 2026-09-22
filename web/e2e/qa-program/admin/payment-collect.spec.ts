@@ -53,25 +53,22 @@ test.describe("QA payment — collect at the counter", () => {
     await collect.click();
     await shot(page, "admin-payment-collect-selected");
 
-    // Collect CTA is always mounted; href only when canMintLink + target.
-    const cta = sheet.locator("[data-payment-collect]").first();
-    await expect(cta, "Collect primary missing after selecting collect how").toBeVisible({
-      timeout: 15_000,
-    });
     const hrefEl = sheet.locator("[data-payment-collect-href]").first();
     await expect(
       hrefEl,
       "Collect POS href missing — need a mintable order target (canMintLink). Accept offer first.",
     ).toBeVisible({ timeout: 15_000 });
     const href = ((await hrefEl.innerText()) || "").trim();
-    expect(href, "collect href empty").toMatch(/\/pos|order=|inquiry=/i);
+    expect(href, "collect href empty").toMatch(/\/pos|order=/i);
 
-    await cta.click();
-    await page.waitForTimeout(2000);
+    // Collect primary only closes the sheet (PaymentRequest.send); navigation is
+    // via the exposed href — follow it to prove the POS deep-link.
+    const abs = href.startsWith("http") ? href : new URL(href, page.url()).toString();
+    await page.goto(abs, { waitUntil: "domcontentloaded", timeout: 60_000 });
     expect(
       page.url(),
-      `Collect did not reach POS; url=${page.url()}`,
-    ).toMatch(/\/pos|view=|order=/i);
+      `Collect href did not open POS; url=${page.url()}`,
+    ).toMatch(/\/pos|view=sell|order=/i);
     await shot(page, "admin-payment-collect-pos");
 
     await assertNoRawI18nKeys(page);
