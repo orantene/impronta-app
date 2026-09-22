@@ -459,10 +459,15 @@ export async function sendPricedOffer(page: Page, opts?: { fresh?: boolean }): P
 }
 
 /** Open times sheet, pick person + named service + N slots, send. Asserts times card. */
-export async function sendTimesCard(page: Page, slotCount = 3): Promise<void> {
+export async function sendTimesCard(
+  page: Page,
+  slotCount = 3,
+  opts?: { inquiryId?: string },
+): Promise<void> {
   // Times hold requires confirmed identity (D21 / D-MSG-306). Deep-link a
   // seeded inquiry known to have phone+email rather than a fresh draft row.
   const confirmedInquiry =
+    opts?.inquiryId ??
     process.env.QA_CONFIRMED_IDENTITY_INQUIRY_ID ??
     process.env.QA_HOLD_EXPIRED_INQUIRY_ID ??
     "195d4d01-1d63-456b-a6fa-9df523ab0bc9";

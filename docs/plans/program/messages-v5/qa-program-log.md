@@ -32,7 +32,7 @@ Updated: 2026-09-22 (Round 2 — required-assert PR in flight)
 | New conversation / composer / tray / add-items / offer | green | admin/* |
 | Times send (person+service+slots) | green (times card after Send) | `admin/times-hold-deep.spec.ts` |
 | Times hold after client pick | red until remaining-deep re-run | `admin/remaining-deep.spec.ts` |
-| Times hold expiry → next-step | green (`Hold expired` title) | `admin/hold-expired-next.spec.ts` |
+| Times hold expiry → next-step | green (expired + live both directions) | `admin/hold-expired-next.spec.ts` |
 | Payment sheet + mint/outside/collect | green (pay-link mints Payment card; Full amount required — D-MSG-309) | `admin/payment-deep.spec.ts` |
 | Identity / handover / close lost | green | `admin/identity-handover-lost.spec.ts` |
 | File attach + voice control | green | `admin/files-voice.spec.ts` |
