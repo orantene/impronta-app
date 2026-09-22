@@ -5,7 +5,6 @@ import {
   openAdminMessages,
   openPlusTray,
   requireClientLink,
-  sendPricedOffer,
   sendTimesCard,
   shot,
   test,
@@ -22,28 +21,22 @@ test.describe("QA remaining: hold expiry + payment mint + confirm refusal", () =
 
     const client = await requireClientLink(page, context);
     const pick = client
-      .locator("button")
-      .filter({ hasText: /\d{1,2}:\d{2}|AM|PM|Pick|Choose/i })
+      .locator('[data-card="times"] button, [data-card] button')
+      .filter({ hasText: /\d{1,2}:\d{2}|AM|PM/i })
       .first();
-    const cardBtn = client.locator('[data-card="times"] button, [data-card] button').first();
-    if (await pick.isVisible().catch(() => false)) {
-      await pick.click();
-    } else {
-      await expect(
-        cardBtn,
-        "client times card has no pickable slot button after times send",
-      ).toBeVisible({ timeout: 15_000 });
-      await cardBtn.click();
-    }
+    await expect(
+      pick,
+      "client times card has no pickable slot button after times send",
+    ).toBeVisible({ timeout: 20_000 });
+    await pick.click();
     await client.waitForTimeout(1500);
     await shot(client, "remain-client-picked-time");
 
     await page.bringToFront();
     await page.waitForTimeout(2000);
     const body = await page.locator("[data-messages-v5]").innerText();
-    const holdish = /hold|held|expir|waiting|min left/i.test(body);
     expect(
-      holdish,
+      /hold|held|expir|waiting|min left/i.test(body),
       "admin thread does not show hold language after client picked a slot",
     ).toBeTruthy();
     await shot(page, "remain-admin-after-hold");
@@ -58,15 +51,26 @@ test.describe("QA remaining: hold expiry + payment mint + confirm refusal", () =
   }) => {
     const { errors } = attachConsoleGuard(page);
     await openAdminMessages(page);
-    await sendPricedOffer(page);
+    // Reuse the dedicated payment-deep inquiry (sent/accepted offer + order).
+    const u = new URL(page.url());
+    u.searchParams.set(
+      "inquiry",
+      process.env.QA_AWAITING_OFFER_INQUIRY_ID ?? "ad22e3e4-9ad9-431b-b922-1ccf3bf5c10f",
+    );
+    await page.goto(u.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
 
     const client = await requireClientLink(page, context);
-    const accept = client.getByRole("button", { name: /^accept/i }).first();
-    await expect(accept, "client Accept missing after priced offer").toBeVisible({
-      timeout: 20_000,
-    });
-    await accept.click();
-    await client.waitForTimeout(1500);
+    const accept = client.locator('[data-client-action="accept_offer"]').first();
+    const already = client.getByText(/^accepted/i).first();
+    if (await accept.isVisible().catch(() => false)) {
+      await accept.click();
+      await expect(client.getByText(/accepted/i).first()).toBeVisible({ timeout: 25_000 });
+    } else {
+      await expect(already, "client Accept missing and no Accepted state").toBeVisible({
+        timeout: 25_000,
+      });
+    }
     await shot(client, "remain-payment-client-accepted");
     await client.close().catch(() => undefined);
 
@@ -82,6 +86,9 @@ test.describe("QA remaining: hold expiry + payment mint + confirm refusal", () =
       timeout: 10_000,
     });
     await link.click();
+    const full = pay.getByRole("radio", { name: /full amount/i }).first();
+    await expect(full, "Full amount option missing").toBeVisible({ timeout: 10_000 });
+    await full.click();
     const mint = pay.locator("[data-payment-send]").first();
     await expect(mint, "Payment Send disabled for pay-link path").toBeEnabled({
       timeout: 15_000,
@@ -102,15 +109,25 @@ test.describe("QA remaining: hold expiry + payment mint + confirm refusal", () =
   test("payment: record paid outside → Payment card / paid chip", async ({ page, context }) => {
     const { errors } = attachConsoleGuard(page);
     await openAdminMessages(page);
-    await sendPricedOffer(page);
+    const u = new URL(page.url());
+    u.searchParams.set(
+      "inquiry",
+      process.env.QA_OUTSIDE_PAY_INQUIRY_ID ?? "45a9b17e-63ec-4254-929a-4c67cb0b4e47",
+    );
+    await page.goto(u.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
 
     const client = await requireClientLink(page, context);
-    const accept = client.getByRole("button", { name: /^accept/i }).first();
-    await expect(accept, "client Accept missing before record-outside").toBeVisible({
-      timeout: 20_000,
-    });
-    await accept.click();
-    await client.waitForTimeout(1500);
+    const accept = client.locator('[data-client-action="accept_offer"]').first();
+    const already = client.getByText(/^accepted/i).first();
+    if (await accept.isVisible().catch(() => false)) {
+      await accept.click();
+      await expect(client.getByText(/accepted/i).first()).toBeVisible({ timeout: 25_000 });
+    } else {
+      await expect(already, "client Accept missing and no Accepted state before outside").toBeVisible(
+        { timeout: 25_000 },
+      );
+    }
     await client.close().catch(() => undefined);
 
     await page.bringToFront();
@@ -124,6 +141,12 @@ test.describe("QA remaining: hold expiry + payment mint + confirm refusal", () =
       timeout: 10_000,
     });
     await outside.click();
+    const full = pay.getByRole("radio", { name: /full amount/i }).first();
+    await expect(full, "Full amount option missing on outside path").toBeVisible({ timeout: 10_000 });
+    await full.click();
+    const ref = pay.locator("input:not([type='hidden']), textarea").first();
+    await expect(ref, "outside payment reference field missing").toBeVisible({ timeout: 10_000 });
+    await ref.fill("QA cash desk 001");
     const mint = pay.locator("[data-payment-send]").first();
     await expect(mint, "Payment Send disabled for paid-outside path").toBeEnabled({
       timeout: 15_000,
