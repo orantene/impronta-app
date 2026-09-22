@@ -245,7 +245,13 @@ export async function startFreshConversation(page: Page): Promise<string> {
 
 /** Send a priced offer via Add items → Continue → Send. Asserts one offer card. */
 export async function sendPricedOffer(page: Page): Promise<void> {
-  await startFreshConversation(page);
+  // Prefer a live non-Lost thread (confirmed identity helps payment/accept).
+  // Fall back to minting a fresh conversation when the inbox has none.
+  try {
+    await openFirstInboxRow(page);
+  } catch {
+    await startFreshConversation(page);
+  }
   await openPlusTray(page);
   await page.locator('[data-tray-item="add_items"]').click();
   const items = page.locator("[data-sheet]").first();
@@ -265,22 +271,20 @@ export async function sendPricedOffer(page: Page): Promise<void> {
   await cont.first().click();
 
   const editor = page.locator("[data-offer-editor], [data-offer-editor-phase]").first();
-  // Rate-limit / transient refusals: retry Continue once.
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const visible = await editor.isVisible().catch(() => false);
-    if (visible) break;
-    await page.waitForTimeout(1500);
-    if (await cont.first().isEnabled().catch(() => false)) await cont.first().click();
-  }
   await expect(editor, "Offer editor did not open after Continue to offer").toBeVisible({
     timeout: 25_000,
   });
   const refused = page.locator('[data-offer-editor-phase="refused"]');
   if (await refused.isVisible().catch(() => false)) {
     const text = ((await refused.innerText().catch(() => "")) || "").trim();
-    if (/wait a moment|try again|rate/i.test(text) && (await page.locator("[data-offer-editor-phase='refused'] button").count())) {
-      await page.locator("[data-offer-editor-phase='refused'] button").first().click();
-      await page.waitForTimeout(2000);
+    const retry = page.locator("[data-offer-editor-phase='refused'] button").first();
+    if (/wait a moment|try again|rate/i.test(text) && (await retry.count())) {
+      await page.waitForTimeout(2500);
+      await retry.click();
+      await expect(
+        page.locator('[data-offer-editor-phase="ready"], [data-offer-editor]').first(),
+        "Offer editor still refused after Try again",
+      ).toBeVisible({ timeout: 20_000 });
     } else {
       throw new Error(
         `Continue to offer refused (often a Lost/resolved thread): ${text.slice(0, 200) || "unknown"}`,
