@@ -437,6 +437,12 @@ export async function sendPricedOffer(page: Page, opts?: { fresh?: boolean }): P
   }).toPass({ timeout: 45_000, intervals: [500, 1_000, 1_500] });
 
   const before = await page.locator('[data-card="offer"]').count();
+  // Offer card appeared while we were editing (hydrate race) — reuse it.
+  if (before >= 1) {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+    return;
+  }
   await sendOffer.click({ force: true });
   await expect(async () => {
     const after = await page.locator('[data-card="offer"]').count();
