@@ -8,7 +8,7 @@ import type { GuestMessageKind } from "@/lib/inquiry/guest-chat-contract";
 import { CLIENT_CARD_KINDS } from "./client-thread-view";
 
 /**
- * D-MSG-304. Times and offer-state rendered as text bubbles for weeks because
+ * D-MSG-308. Times and offer-state rendered as text bubbles for weeks because
  * GuestMessageKind and VISIBLE_KINDS were hand lists that drifted from
  * CLIENT_CARD_KINDS while every gate stayed green. This assignment is a type
  * error if a card kind is missing from the union, and the source checks fail
