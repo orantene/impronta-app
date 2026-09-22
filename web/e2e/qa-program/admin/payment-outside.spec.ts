@@ -81,38 +81,28 @@ test.describe("QA payment — record paid outside", () => {
     ).toBeEnabled({
       timeout: 20_000,
     });
-    const before = await page.locator('[data-card="payment"]').count();
+    const beforeCards = await page.locator('[data-card="payment"]').count();
     await send.click();
+    // Outside path writes a change_result message (not a Payment card) —
+    // messagingRecordOutsidePayment → insertMessage kind change_result.
     await expect(
-      page.locator('[data-card="payment"]').nth(before).or(page.getByText(/recorded|paid outside|marked paid/i).first()),
-      "outside payment did not land a Payment card / recorded confirmation",
+      page.getByText(/Recorded .+ paid \(cash\)/i).first(),
+      "outside cash did not post Recorded…paid (cash) change_result in the stream",
     ).toBeVisible({ timeout: 25_000 });
     await shot(page, "admin-payment-outside-cash");
-
-    // Effect: Payment card itself must read paid/recorded (header chip can lag
-    // behind offer "deposit due" until Money reader refreshes — assert card).
-    const payCard = page.locator('[data-card="payment"]').last();
-    await expect(payCard, "Payment card missing after outside cash").toBeVisible({ timeout: 10_000 });
-    const cardText = ((await payCard.innerText()) || "").replace(/\s+/g, " ");
-    expect(
-      cardText,
-      `Payment card should show paid/recorded after outside cash; got: ${cardText}`,
-    ).toMatch(/paid|recorded|outside|cash/i);
 
     await page.keyboard.press("Escape");
     await page.waitForTimeout(800);
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
     await awaitHydrated(page);
-    const header = ((await page.locator("[data-thread-header]").innerText()) || "").replace(
-      /\s+/g,
-      " ",
-    );
-    // Soften: paid OR deposit cleared. If still "deposit due" after reload, fail.
-    expect(
-      header,
-      `after outside cash + reload, header must not still say deposit due; got: ${header}`,
-    ).not.toMatch(/deposit due/i);
+    await expect(
+      page.getByText(/Recorded .+ paid \(cash\)/i).first(),
+      "Recorded outside cash line missing after reload",
+    ).toBeVisible({ timeout: 20_000 });
+    // Payment card count must not grow from an open pay-link mint on this path.
+    const afterCards = await page.locator('[data-card="payment"]').count();
+    expect(afterCards, "outside path must not mint a Payment card").toBe(beforeCards);
 
     await assertNoRawI18nKeys(page);
     expect(errors, errors.join("\n")).toEqual([]);
