@@ -210,6 +210,14 @@ function bustSectionTags(tenantId: string, sectionId: string): void {
   // (onboardStarterContent → publishSection). See render-safe-cache.ts.
   safeUpdateTag(tagFor(tenantId, "sections", { id: sectionId }));
   safeUpdateTag(tagFor(tenantId, "sections-all"));
+  // A section's props (show/hide toggles, layout, copy) render inline on
+  // whatever PAGE embeds it — page-reads.ts caches the public page tree
+  // under "pages-all" (5 min TTL). Without this, a section edit invalidates
+  // only the staff-inspector caches ("sections"/"sections-all") and public
+  // visitors keep seeing the pre-edit section for up to the full TTL: a
+  // talent card's price toggle stayed live-wrong on improntamodels.com for
+  // 30+ minutes after a correctly-saved, correctly-published edit.
+  safeUpdateTag(tagFor(tenantId, "pages-all"));
 }
 
 // ---- upsert ---------------------------------------------------------------
