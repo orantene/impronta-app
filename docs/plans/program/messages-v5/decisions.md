@@ -331,3 +331,5 @@ D-MSG-321 · 2026-09-22 (Round 2 payment-outside) · Outside `canSend` requires 
 D-MSG-322 · 2026-09-22 (Round 2 payment-outside) · `messagingRecordOutsidePayment` posts a `change_result` stream line ("Recorded X.XX paid (cash), ref …"), not a Payment card. Spec asserts that line + reload; Payment card count must not grow. Spec: `admin/payment-outside.spec.ts`.
 
 D-MSG-323 · 2026-09-22 (Round 2 payment-deep) · `openRequestFor` blocks minting when `conversation_records.payment_state` is `requested`/`opened` even if `payment_links.status` is already `cancelled` (sync lag). Clear the chip state (or cancel via Cancel sheet) before pay-link. Spec: `admin/payment-deep.spec.ts`. Collect how only closes the sheet — POS proof follows `data-payment-collect-href` (D-MSG-321 companion).
+
+D-MSG-324 · 2026-09-22 (Round 2 payment-outside) · Outside cash with Other amount above the order balance refuses with "That cannot be saved." (`invalid` from `recordVerifiedCollection` amount gate). Spec must use Full (or Other matching the offer total). Spec: `admin/payment-outside.spec.ts`.

@@ -59,22 +59,29 @@ test.describe("QA payment — record paid outside", () => {
     const cash = sheet.getByText(/^cash$/i).first();
     await expect(cash, "Cash outside method missing").toBeVisible({ timeout: 10_000 });
     await cash.click();
-    // Outside canSend needs amountCents > 0 AND reference.trim().length >= 3.
-    // Prefer Other so the cents figure is explicit (Full can resolve null).
+    // Outside canSend needs amountCents > 0 AND reference ≥3. Prefer Full so
+    // amount matches the order (Other $50 on an $18 order → invalid / "That
+    // cannot be saved." via recordVerifiedCollection amount gate).
+    const full = sheet.getByRole("radio", { name: /full amount/i }).first();
     const other = sheet.getByRole("radio", { name: /other/i }).first();
-    await expect(other, "Other amount option missing for outside path").toBeVisible({
-      timeout: 10_000,
-    });
-    await other.click();
-    const otherInput = sheet.locator("#msgv5-payment-other").first();
-    await expect(otherInput, "Other amount input (#msgv5-payment-other) missing").toBeVisible({
-      timeout: 10_000,
-    });
-    await otherInput.fill("50.00");
+    if (await full.isVisible().catch(() => false)) {
+      await full.click();
+      // Full can leave amountCents null in options — fall through to Other if Send stays disabled.
+    }
+    const send = sheet.locator("[data-payment-send]").first();
     const ref = sheet.locator("#msgv5-payment-reference").first();
     await expect(ref, "outside payment reference field missing").toBeVisible({ timeout: 10_000 });
     await ref.fill("QA cash counter");
-    const send = sheet.locator("[data-payment-send]").first();
+    if (!(await send.isEnabled().catch(() => false))) {
+      await expect(other, "Other amount option missing when Full does not enable Send").toBeVisible({
+        timeout: 10_000,
+      });
+      await other.click();
+      const otherInput = sheet.locator("#msgv5-payment-other").first();
+      await expect(otherInput, "Other amount input missing").toBeVisible({ timeout: 10_000 });
+      // Match the accepted offer total on this fixture ($18.00).
+      await otherInput.fill("18.00");
+    }
     await expect(
       send,
       "Payment Send disabled for outside cash — need amount > 0 and reference ≥3 chars",
@@ -83,8 +90,17 @@ test.describe("QA payment — record paid outside", () => {
     });
     const beforeCards = await page.locator('[data-card="payment"]').count();
     await send.click();
-    // Outside path writes a change_result message (not a Payment card) —
-    // messagingRecordOutsidePayment → insertMessage kind change_result.
+    // Surface sheet refusal instead of waiting on a missing stream line.
+    const refused = sheet.locator("[data-phase='refused'], [data-payment-refusal]").first();
+    const tryAgain = sheet.getByText(/could not be completed|try again/i).first();
+    if (
+      (await refused.isVisible().catch(() => false)) ||
+      (await tryAgain.isVisible().catch(() => false))
+    ) {
+      const why = ((await sheet.innerText()) || "").replace(/\s+/g, " ").trim().slice(0, 240);
+      throw new Error(`outside cash refused: ${why}`);
+    }
+    // Outside path writes a change_result message (not a Payment card).
     await expect(
       page.getByText(/Recorded .+ paid \(cash\)/i).first(),
       "outside cash did not post Recorded…paid (cash) change_result in the stream",
