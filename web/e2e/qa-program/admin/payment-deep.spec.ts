@@ -17,8 +17,8 @@ test.describe("QA 6.1 payment flows", () => {
   test("Request payment: pay-link path mints a Payment card", async ({ page, context }) => {
     const { errors } = attachConsoleGuard(page);
     await openAdminMessages(page);
-    // Fresh thread so Accept is against the offer we just sent (D-MSG-307).
-    await sendPricedOffer(page, { fresh: true });
+    // Prefer awaiting-acceptance / live row (not New→Start — D-MSG-308 flaky).
+    await sendPricedOffer(page);
     await expect(
       page.locator('[data-card="offer"]').last(),
       "staff stream missing offer card before client Accept",

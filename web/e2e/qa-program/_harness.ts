@@ -239,6 +239,7 @@ export async function requireClientLink(
 /**
  * Mint a brand-new conversation so offer/payment/times paths are not fighting
  * Lost/Won/existing-offer state on fixture threads (D-MSG-302).
+ * Surfaces the sheet refusal sentence instead of hanging on a missing composer.
  */
 export async function startFreshConversation(page: Page): Promise<string> {
   const newBtn = page
@@ -246,27 +247,75 @@ export async function startFreshConversation(page: Page): Promise<string> {
     .or(page.getByRole("button", { name: /new conversation/i }));
   await expect(newBtn.first(), "New conversation control missing").toBeVisible({ timeout: 15_000 });
   await newBtn.first().click();
-  const sheet = page.locator("[data-sheet], [role='dialog']").first();
+  const sheet = page.locator("[data-sheet], [role='dialog']").filter({ hasText: /new conversation/i }).first();
   await expect(sheet, "New conversation sheet did not open").toBeVisible({ timeout: 15_000 });
   const stamp = Date.now();
   const name = `QA R2 ${stamp}`;
   const email = `qa-r2-${stamp}@impronta.test`;
-  const nameField = sheet.getByLabel(/name/i).or(sheet.locator("input").first());
-  await nameField.first().fill(name);
-  const emailField = sheet.getByLabel(/email/i).or(sheet.locator('input[type="email"]'));
-  if (await emailField.count()) await emailField.first().fill(email);
-  else {
-    const inputs = sheet.locator("input:not([type='hidden'])");
-    if ((await inputs.count()) > 1) await inputs.nth(1).fill(email);
-  }
-  const start = sheet.locator("[data-new-start]").or(sheet.getByRole("button", { name: /start|create|begin/i })).first();
+  await sheet.getByRole("textbox", { name: /^who$/i }).fill(name);
+  await sheet.getByRole("textbox", { name: /^email$/i }).fill(email);
+  const start = sheet.locator("[data-new-start]").first();
   await expect(start, "Start conversation disabled after name+email").toBeEnabled({ timeout: 15_000 });
-  await start.click();
-  await expect(page.locator("[data-composer], [data-composer-wire]").first()).toBeVisible({
-    timeout: 25_000,
+
+  let lastRefusal = "";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await start.click();
+    const composer = page.locator("[data-composer], [data-composer-wire]").first();
+    const opened = await composer.isVisible().catch(() => false);
+    if (opened) {
+      await awaitHydrated(page);
+      return name;
+    }
+    await page.waitForTimeout(1500);
+    if (await composer.isVisible().catch(() => false)) {
+      await awaitHydrated(page);
+      return name;
+    }
+    const alert = sheet.locator("[role='alert'], [data-refusal]").first();
+    lastRefusal = ((await alert.innerText().catch(() => "")) || "").trim();
+    if (lastRefusal) {
+      // Transient unavailable — brief pause then retry Start.
+      await page.waitForTimeout(2000);
+      continue;
+    }
+  }
+  throw new Error(
+    `Start conversation did not open composer after 3 tries` +
+      (lastRefusal ? ` (refusal: ${lastRefusal.slice(0, 160)})` : ""),
+  );
+}
+
+/**
+ * Prefer an inbox row that already awaits client Accept (seeded offer), else
+ * open any live row. Used by payment so we do not depend on New→Start when
+ * createInquiryFromIntent is flaky (D-MSG-308).
+ */
+export async function openAwaitingAcceptanceOrLive(page: Page): Promise<"awaiting" | "live"> {
+  const needs = page.locator("[data-inbox-segments]").getByRole("tab", { name: /needs action/i });
+  if (await needs.count()) {
+    await needs.click().catch(() => undefined);
+    await page.waitForTimeout(400);
+  }
+  const rows = page.locator("[data-inbox-row]");
+  await expect(rows.first(), "inbox has no rows — fixture/seed missing").toBeVisible({
+    timeout: 20_000,
   });
-  await awaitHydrated(page);
-  return name;
+  const n = Math.min(await rows.count(), 40);
+  for (let i = 0; i < n; i++) {
+    const row = rows.nth(i);
+    const label = ((await row.innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+    if (/\blost\b/i.test(label)) continue;
+    if (/awaiting acceptance/i.test(label)) {
+      await row.click();
+      await awaitHydrated(page);
+      await expect(page.locator("[data-composer], [data-composer-wire]").first()).toBeVisible({
+        timeout: 20_000,
+      });
+      return "awaiting";
+    }
+  }
+  await openFirstInboxRow(page);
+  return "live";
 }
 
 /**
@@ -279,10 +328,16 @@ export async function sendPricedOffer(page: Page, opts?: { fresh?: boolean }): P
   if (opts?.fresh) {
     await startFreshConversation(page);
   } else {
-    try {
-      await openFirstInboxRow(page);
-    } catch {
-      await startFreshConversation(page);
+    // Prefer a thread already awaiting Accept so payment can skip a flaky Send
+    // when createInquiryFromIntent is unavailable (D-MSG-308).
+    const kind = await openAwaitingAcceptanceOrLive(page);
+    if (kind === "awaiting") {
+      const offer = page.locator('[data-card="offer"]').first();
+      await expect(
+        offer,
+        "Awaiting acceptance row opened but staff stream has no offer card",
+      ).toBeVisible({ timeout: 20_000 });
+      return;
     }
   }
   await openPlusTray(page);
