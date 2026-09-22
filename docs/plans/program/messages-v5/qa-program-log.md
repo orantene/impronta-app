@@ -18,8 +18,9 @@ Updated: 2026-09-22 (Round 2 — required-assert PR in flight)
 | Confirm sheet opens when door present | D-MSG-304 Lost short-circuits Hold expired (fixed) |
 | | D-MSG-305 Continue-to-offer opens empty offer |
 | | D-MSG-306 identity_unconfirmed on fresh draft times |
+| | D-MSG-307 sendPricedOffer soft-passed without offer card |
 
-**Still owed:** payment mint with client Accept (in progress); POS double-book; Stripe pay+refund; capacity; ES/FR hard; merge/cancel effects; §7 Messages chip; restaurant+salon; permissions; isolation; hostile data.
+**Still owed:** payment mint with client Accept (D-MSG-307 fix in flight); POS double-book; Stripe pay+refund; capacity; ES/FR hard; merge/cancel effects; §7 Messages chip; restaurant+salon; permissions; isolation; hostile data.
 
 ## Checklist
 
@@ -30,7 +31,7 @@ Updated: 2026-09-22 (Round 2 — required-assert PR in flight)
 | Times send (person+service+slots) | green (times card after Send) | `admin/times-hold-deep.spec.ts` |
 | Times hold after client pick | red until remaining-deep re-run | `admin/remaining-deep.spec.ts` |
 | Times hold expiry → next-step | green (`Hold expired` title) | `admin/hold-expired-next.spec.ts` |
-| Payment sheet + mint/outside/collect | red (D-MSG-305 empty offer / Accept path) | payment-deep + remaining-deep |
+| Payment sheet + mint/outside/collect | red (D-MSG-307 — require offer card before Accept) | payment-deep + remaining-deep |
 | Identity / handover / close lost | green | `admin/identity-handover-lost.spec.ts` |
 | File attach + voice control | green | `admin/files-voice.spec.ts` |
 | Merge / cancel / confirm sheets | confirm green; merge skip-if-unseeded | `admin/merge-refund-confirm-deep.spec.ts` |

@@ -12,23 +12,38 @@ import {
 
 test.describe("QA 6.1 payment flows", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
 
   test("Request payment: pay-link path mints a Payment card", async ({ page, context }) => {
     const { errors } = attachConsoleGuard(page);
     await openAdminMessages(page);
-    await sendPricedOffer(page);
+    // Fresh thread so Accept is against the offer we just sent (D-MSG-307).
+    await sendPricedOffer(page, { fresh: true });
+    await expect(
+      page.locator('[data-card="offer"]').last(),
+      "staff stream missing offer card before client Accept",
+    ).toBeVisible({ timeout: 10_000 });
+    await shot(page, "admin-payment-deep-offer-sent");
 
     const client = await requireClientLink(page, context);
-    const accept = client.getByRole("button", { name: /^accept/i }).first();
-    await expect(accept, "client Accept missing after priced offer").toBeVisible({
-      timeout: 20_000,
-    });
+    await expect(client, "client link page did not open").toBeTruthy();
+    expect(client.url(), "client page URL is not /c/t/…").toMatch(/\/c\/t\//);
+
+    const accept = client.locator('[data-client-action="accept_offer"]').first();
+    await expect(
+      accept,
+      "client Accept missing after priced offer — offer card never reached the client thread",
+    ).toBeVisible({ timeout: 25_000 });
+    await shot(client, "client-payment-deep-accept");
     await accept.click();
-    await client.waitForTimeout(1500);
+    await expect(
+      client.getByText(/accepted/i).first(),
+      "client did not show Accepted after Accept",
+    ).toBeVisible({ timeout: 25_000 });
     await client.close().catch(() => undefined);
 
     await page.bringToFront();
+    await page.waitForTimeout(800);
     await openPlusTray(page);
     await page.locator('[data-tray-item="payment"]').click();
     const sheet = page.locator("[data-payment-request-sheet], [data-sheet]").first();

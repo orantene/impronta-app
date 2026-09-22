@@ -269,14 +269,21 @@ export async function startFreshConversation(page: Page): Promise<string> {
   return name;
 }
 
-/** Send a priced offer via Add items → Continue → Send. Asserts one offer card. */
-export async function sendPricedOffer(page: Page): Promise<void> {
-  // Prefer a live non-Lost thread (confirmed identity helps payment/accept).
-  // Fall back to minting a fresh conversation when the inbox has none.
-  try {
-    await openFirstInboxRow(page);
-  } catch {
+/**
+ * Send a priced offer via Add items → Continue → Send.
+ * Effect required: stream `[data-card="offer"]` count must increase.
+ * Optional soft signals (editor gone / "sent" copy) are NOT enough — that is
+ * how payment-deep soft-passed with only "Lines added. Now the offer" (D-MSG-307).
+ */
+export async function sendPricedOffer(page: Page, opts?: { fresh?: boolean }): Promise<void> {
+  if (opts?.fresh) {
     await startFreshConversation(page);
+  } else {
+    try {
+      await openFirstInboxRow(page);
+    } catch {
+      await startFreshConversation(page);
+    }
   }
   await openPlusTray(page);
   await page.locator('[data-tray-item="add_items"]').click();
@@ -356,19 +363,16 @@ export async function sendPricedOffer(page: Page): Promise<void> {
   await sendOffer.click({ force: true });
   await expect(async () => {
     const after = await page.locator('[data-card="offer"]').count();
-    const editorGone = (await page.locator("[data-offer-send]").count()) === 0;
-    const sentCopy = await page.getByText(/offer.*sent|sent v\d+/i).count();
-    if (after > before || editorGone || sentCopy > 0) return;
     const refusal = page.locator("[data-refusal], [data-offer-editor-phase='refused']").first();
     if (await refusal.isVisible().catch(() => false)) {
       const text = ((await refusal.innerText().catch(() => "")) || "").trim();
       throw new Error(`Send offer refused: ${text.slice(0, 200) || "unknown"}`);
     }
     expect(
-      after > before || editorGone,
-      "offer card did not appear / editor stayed open after Send",
-    ).toBeTruthy();
-  }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] });
+      after,
+      `offer card did not appear in the stream after Send (before=${before}, after=${after})`,
+    ).toBeGreaterThan(before);
+  }).toPass({ timeout: 45_000, intervals: [500, 1_000, 2_000] });
 }
 
 /** Open times sheet, pick person + named service + N slots, send. Asserts times card. */
