@@ -28,15 +28,23 @@ test.describe("QA remaining: hold-expired next-step (D-MSG-301)", () => {
     await prepareJourneysPage(page);
     await signInJourneysStaff(page, `/admin/messages?inquiry=${HOLD_EXPIRED_INQUIRY}`);
     await expect(page.locator("[data-messages-v5]")).toBeVisible({ timeout: 30_000 });
-    await page.waitForTimeout(1500);
-
+    // Deep-link opens the seeded inquiry; wait for thread hydrate (not loading).
     const next = page.locator("[data-next-step]");
     await expect(next.first(), "next-step bar missing on expired-hold inquiry").toBeVisible({
       timeout: 20_000,
     });
+    await expect(
+      page.locator('[data-next-step][aria-busy="true"]'),
+      "next-step stuck in loading (Working out the next step) — thread messages never hydrated",
+    ).toHaveCount(0, { timeout: 45_000 });
+    // Prefer title from non-loading bar; fall back to full next-step text.
     const title = (
-      (await page.locator("[data-next-step] b, [data-next-step] .ttl").first().innerText()) || ""
-    ).trim();
+      (await page.locator("[data-next-step] b, [data-next-step] .ttl").first().innerText()) ||
+      (await next.first().innerText()) ||
+      ""
+    )
+      .replace(/\s+/g, " ")
+      .trim();
     await shot(page, "remain-hold-expired-next");
 
     expect(title, `expected next-step "Hold expired", got: ${title}`).toMatch(/hold expired/i);

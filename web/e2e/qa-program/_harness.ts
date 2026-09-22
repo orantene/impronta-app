@@ -111,23 +111,33 @@ export async function openFirstInboxRow(page: Page): Promise<void> {
     await needs.click().catch(() => undefined);
     await page.waitForTimeout(400);
   }
-  const row = page.locator("[data-inbox-row]").first();
-  await expect(row, "inbox has no rows — fixture/seed missing").toBeVisible({ timeout: 20_000 });
-  await row.click();
+  const rows = page.locator("[data-inbox-row]");
+  await expect(rows.first(), "inbox has no rows — fixture/seed missing").toBeVisible({
+    timeout: 20_000,
+  });
+  // Skip Lost / resolved rows — Continue-to-offer refuses on them ("This could
+  // not be completed"), which previously masqueraded as a soft pass.
+  const n = Math.min(await rows.count(), 24);
+  let opened = false;
+  for (let i = 0; i < n; i++) {
+    const row = rows.nth(i);
+    const label = ((await row.innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+    if (/\blost\b/i.test(label)) continue;
+    await row.click();
+    await page.waitForTimeout(400);
+    await awaitHydrated(page);
+    const locked = page.locator('[data-composer="resolved"], [data-composer-locked]');
+    if ((await locked.count()) > 0) continue;
+    opened = true;
+    break;
+  }
+  expect(
+    opened,
+    "no open (non-Lost, unlocked) inbox row — seed an active conversation on the QA tenant",
+  ).toBeTruthy();
   await expect(page.locator("[data-composer], [data-composer-wire]").first()).toBeVisible({
     timeout: 20_000,
   });
-  await awaitHydrated(page);
-  // If this thread locked the composer, try the next few rows.
-  for (let i = 0; i < 5; i++) {
-    const locked = page.locator('[data-composer="resolved"], [data-composer-locked]');
-    if ((await locked.count()) === 0) break;
-    const next = page.locator("[data-inbox-row]").nth(i + 1);
-    if ((await next.count()) === 0) break;
-    await next.click();
-    await page.waitForTimeout(500);
-    await awaitHydrated(page);
-  }
 }
 
 /** Open the + tray (composer "More" / `.plus` control — not Attach). */
@@ -214,15 +224,29 @@ export async function sendPricedOffer(page: Page): Promise<void> {
     timeout: 10_000,
   });
   await cont.first().click();
-  const sendOffer = page
-    .locator("[role='dialog'], [data-sheet]")
-    .last()
-    .getByRole("button", { name: /^send\b/i });
-  await expect(sendOffer.first(), "Send offer button missing after Continue").toBeEnabled({
-    timeout: 15_000,
+
+  const editor = page.locator("[data-offer-editor], [data-offer-editor-phase]").first();
+  await expect(editor, "Offer editor did not open after Continue to offer").toBeVisible({
+    timeout: 25_000,
+  });
+  const refused = page.locator('[data-offer-editor-phase="refused"]');
+  if (await refused.isVisible().catch(() => false)) {
+    const text = ((await refused.innerText().catch(() => "")) || "").trim();
+    throw new Error(
+      `Continue to offer refused (often a Lost/resolved thread): ${text.slice(0, 200) || "unknown"}`,
+    );
+  }
+  await expect(
+    page.locator('[data-offer-editor-phase="ready"], [data-offer-editor]').first(),
+    "Offer editor never reached ready phase",
+  ).toBeVisible({ timeout: 25_000 });
+
+  const sendOffer = page.locator("[data-offer-send]").first();
+  await expect(sendOffer, "Send offer (data-offer-send) missing after Continue").toBeEnabled({
+    timeout: 20_000,
   });
   const before = await page.locator('[data-card="offer"]').count();
-  await sendOffer.first().click({ force: true });
+  await sendOffer.click({ force: true });
   await expect(
     page.locator('[data-card="offer"]').nth(before),
     "offer card did not appear in the stream after Send",
@@ -255,12 +279,21 @@ export async function sendTimesCard(page: Page, slotCount = 3): Promise<void> {
   }
   expect(pickedService || nServices === 0, "could not pick a named service in Times sheet").toBeTruthy();
 
-  await page.waitForTimeout(2000);
-  const refusal = sheet.locator("[data-refusal], [role='alert']");
-  if (await refusal.isVisible().catch(() => false)) {
-    const text = await refusal.innerText();
-    throw new Error(`Times sheet refused before slots: ${text.slice(0, 200)}`);
-  }
+  // Slots load async after person/service pick.
+  await expect(async () => {
+    const loading = sheet.locator("[data-times-slots]").locator("text=/loading|finding/i");
+    if (await loading.count()) return;
+    const n = await sheet.locator("[data-times-slots] button").count();
+    const refusal = sheet.locator("[data-refusal], [role='alert'], [data-times-empty]");
+    if ((await refusal.count()) && n === 0) {
+      const text = ((await refusal.first().innerText().catch(() => "")) || "").trim();
+      throw new Error(`Times sheet refused/empty before slots: ${text.slice(0, 200)}`);
+    }
+    expect(
+      n,
+      `need ≥${slotCount} free slots to exercise this path; fixture has ${n}`,
+    ).toBeGreaterThanOrEqual(slotCount);
+  }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] });
 
   const slots = sheet.locator("[data-times-slots] button");
   const available = await slots.count();
