@@ -19,8 +19,10 @@ Updated: 2026-09-22 (Round 2 — required-assert PR in flight)
 | | D-MSG-305 Continue-to-offer opens empty offer |
 | | D-MSG-306 identity_unconfirmed on fresh draft times |
 | | D-MSG-307 sendPricedOffer soft-passed without offer card |
+| | D-MSG-308 New→Start unavailable on QA |
+| | D-MSG-309 payment Send disabled until Full amount clicked |
 
-**Still owed:** payment mint with client Accept (D-MSG-307 fix in flight); POS double-book; Stripe pay+refund; capacity; ES/FR hard; merge/cancel effects; §7 Messages chip; restaurant+salon; permissions; isolation; hostile data.
+**Still owed:** POS double-book; Stripe pay+refund; capacity; ES/FR hard; merge/cancel effects; §7 Messages chip; restaurant+salon; permissions; isolation; hostile data; outside/collect payment paths as separate specs.
 
 ## Checklist
 
@@ -31,7 +33,7 @@ Updated: 2026-09-22 (Round 2 — required-assert PR in flight)
 | Times send (person+service+slots) | green (times card after Send) | `admin/times-hold-deep.spec.ts` |
 | Times hold after client pick | red until remaining-deep re-run | `admin/remaining-deep.spec.ts` |
 | Times hold expiry → next-step | green (`Hold expired` title) | `admin/hold-expired-next.spec.ts` |
-| Payment sheet + mint/outside/collect | red (D-MSG-307 — require offer card before Accept) | payment-deep + remaining-deep |
+| Payment sheet + mint/outside/collect | green (pay-link mints Payment card; Full amount required — D-MSG-309) | `admin/payment-deep.spec.ts` |
 | Identity / handover / close lost | green | `admin/identity-handover-lost.spec.ts` |
 | File attach + voice control | green | `admin/files-voice.spec.ts` |
 | Merge / cancel / confirm sheets | confirm green; merge skip-if-unseeded | `admin/merge-refund-confirm-deep.spec.ts` |
@@ -51,3 +53,4 @@ Updated: 2026-09-22 (Round 2 — required-assert PR in flight)
 | 2026-09-20 | remaining specs + D-MSG-301 | wave 3 |
 | 2026-09-21 | Round 1 merge #2128 | blockers cleared |
 | 2026-09-22 | Round 2 harden; hold+times green | D-MSG-302–306; PR #2148 |
+| 2026-09-22 | payment-deep green (Accept→Full→pay link→card) | D-MSG-307–309 |
