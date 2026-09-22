@@ -19,7 +19,7 @@ test.describe("QA 6.1 admin — ES locale", () => {
   test("switching to ES keeps Messages free of raw keys", async ({ page, context }) => {
     const { errors } = attachConsoleGuard(page);
     await context.addCookies([
-      { name: "locale", value: "es", url: QA_HOST, path: "/" },
+      { name: "locale", value: "es", url: QA_HOST },
     ]);
     await openAdminMessages(page);
     await openFirstInboxRow(page);
