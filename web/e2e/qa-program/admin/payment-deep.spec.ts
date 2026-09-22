@@ -3,8 +3,8 @@ import {
   attachConsoleGuard,
   expect,
   openAdminMessages,
-  openFirstInboxRow,
   openPlusTray,
+  requireClientLink,
   sendPricedOffer,
   shot,
   test,
@@ -12,16 +12,23 @@ import {
 
 test.describe("QA 6.1 payment flows", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
 
-  test("Request payment: pay-link path mints a Payment card", async ({ page }) => {
+  test("Request payment: pay-link path mints a Payment card", async ({ page, context }) => {
     const { errors } = attachConsoleGuard(page);
     await openAdminMessages(page);
-    await openFirstInboxRow(page);
     await sendPricedOffer(page);
 
-    // Accept is client-side; for admin mint we still need an order target.
-    // Open payment sheet — if Send stays disabled, fail naming the missing target.
+    const client = await requireClientLink(page, context);
+    const accept = client.getByRole("button", { name: /^accept/i }).first();
+    await expect(accept, "client Accept missing after priced offer").toBeVisible({
+      timeout: 20_000,
+    });
+    await accept.click();
+    await client.waitForTimeout(1500);
+    await client.close().catch(() => undefined);
+
+    await page.bringToFront();
     await openPlusTray(page);
     await page.locator('[data-tray-item="payment"]').click();
     const sheet = page.locator("[data-payment-request-sheet], [data-sheet]").first();

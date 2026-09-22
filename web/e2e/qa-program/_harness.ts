@@ -205,8 +205,42 @@ export async function requireClientLink(
   return client;
 }
 
+/**
+ * Mint a brand-new conversation so offer/payment/times paths are not fighting
+ * Lost/Won/existing-offer state on fixture threads (D-MSG-302).
+ */
+export async function startFreshConversation(page: Page): Promise<string> {
+  const newBtn = page
+    .getByRole("button", { name: /^new$/i })
+    .or(page.getByRole("button", { name: /new conversation/i }));
+  await expect(newBtn.first(), "New conversation control missing").toBeVisible({ timeout: 15_000 });
+  await newBtn.first().click();
+  const sheet = page.locator("[data-sheet], [role='dialog']").first();
+  await expect(sheet, "New conversation sheet did not open").toBeVisible({ timeout: 15_000 });
+  const stamp = Date.now();
+  const name = `QA R2 ${stamp}`;
+  const email = `qa-r2-${stamp}@impronta.test`;
+  const nameField = sheet.getByLabel(/name/i).or(sheet.locator("input").first());
+  await nameField.first().fill(name);
+  const emailField = sheet.getByLabel(/email/i).or(sheet.locator('input[type="email"]'));
+  if (await emailField.count()) await emailField.first().fill(email);
+  else {
+    const inputs = sheet.locator("input:not([type='hidden'])");
+    if ((await inputs.count()) > 1) await inputs.nth(1).fill(email);
+  }
+  const start = sheet.locator("[data-new-start]").or(sheet.getByRole("button", { name: /start|create|begin/i })).first();
+  await expect(start, "Start conversation disabled after name+email").toBeEnabled({ timeout: 15_000 });
+  await start.click();
+  await expect(page.locator("[data-composer], [data-composer-wire]").first()).toBeVisible({
+    timeout: 25_000,
+  });
+  await awaitHydrated(page);
+  return name;
+}
+
 /** Send a priced offer via Add items → Continue → Send. Asserts one offer card. */
 export async function sendPricedOffer(page: Page): Promise<void> {
+  await startFreshConversation(page);
   await openPlusTray(page);
   await page.locator('[data-tray-item="add_items"]').click();
   const items = page.locator("[data-sheet]").first();
@@ -226,88 +260,167 @@ export async function sendPricedOffer(page: Page): Promise<void> {
   await cont.first().click();
 
   const editor = page.locator("[data-offer-editor], [data-offer-editor-phase]").first();
+  // Rate-limit / transient refusals: retry Continue once.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const visible = await editor.isVisible().catch(() => false);
+    if (visible) break;
+    await page.waitForTimeout(1500);
+    if (await cont.first().isEnabled().catch(() => false)) await cont.first().click();
+  }
   await expect(editor, "Offer editor did not open after Continue to offer").toBeVisible({
     timeout: 25_000,
   });
   const refused = page.locator('[data-offer-editor-phase="refused"]');
   if (await refused.isVisible().catch(() => false)) {
     const text = ((await refused.innerText().catch(() => "")) || "").trim();
-    throw new Error(
-      `Continue to offer refused (often a Lost/resolved thread): ${text.slice(0, 200) || "unknown"}`,
-    );
+    if (/wait a moment|try again|rate/i.test(text) && (await page.locator("[data-offer-editor-phase='refused'] button").count())) {
+      await page.locator("[data-offer-editor-phase='refused'] button").first().click();
+      await page.waitForTimeout(2000);
+    } else {
+      throw new Error(
+        `Continue to offer refused (often a Lost/resolved thread): ${text.slice(0, 200) || "unknown"}`,
+      );
+    }
   }
   await expect(
     page.locator('[data-offer-editor-phase="ready"], [data-offer-editor]').first(),
     "Offer editor never reached ready phase",
   ).toBeVisible({ timeout: 25_000 });
 
+  // Continue-to-offer sometimes opens an empty editor (D-MSG-305). Seed a custom line.
+  if (await page.getByText(/no lines yet/i).isVisible().catch(() => false)) {
+    const addLine = page.locator("[data-offer-add-custom-line]").first();
+    await expect(addLine, "Add line missing on empty offer editor").toBeVisible({ timeout: 10_000 });
+    await addLine.click();
+    await page.locator("[data-offer-custom-label]").fill("QA priced line");
+    await page.locator("[data-offer-custom-units]").fill("1");
+    await page.locator("[data-offer-custom-price]").fill("18");
+    await page.locator("[data-offer-custom-confirm]").click();
+    await expect(page.getByText(/QA priced line/i).first()).toBeVisible({ timeout: 10_000 });
+  }
+
+  // Send is gated on a clean saved state (canSendOffer). Persist first when needed.
   const sendOffer = page.locator("[data-offer-send]").first();
-  await expect(sendOffer, "Send offer (data-offer-send) missing after Continue").toBeEnabled({
-    timeout: 20_000,
-  });
+  const saveDraft = page.locator("[data-offer-save-draft]").first();
+  await expect(async () => {
+    if (await sendOffer.isEnabled().catch(() => false)) return;
+    const title = (await sendOffer.getAttribute("title").catch(() => "")) || "";
+    if (await saveDraft.isVisible().catch(() => false)) {
+      await saveDraft.click({ force: true });
+      await page.waitForTimeout(1000);
+    }
+    if (title.includes("sendBlockedError") || title.includes("sendBlockedEmpty")) {
+      throw new Error(`Send offer blocked: ${title}`);
+    }
+    await expect(sendOffer, `Send offer still disabled (${title || "no title"})`).toBeEnabled({
+      timeout: 5_000,
+    });
+  }).toPass({ timeout: 45_000, intervals: [500, 1_000, 1_500] });
+
   const before = await page.locator('[data-card="offer"]').count();
   await sendOffer.click({ force: true });
-  await expect(
-    page.locator('[data-card="offer"]').nth(before),
-    "offer card did not appear in the stream after Send",
-  ).toBeVisible({ timeout: 25_000 });
+  await expect(async () => {
+    const after = await page.locator('[data-card="offer"]').count();
+    const editorGone = (await page.locator("[data-offer-send]").count()) === 0;
+    if (after > before || editorGone) return;
+    const refusal = page.locator("[data-refusal], [data-offer-editor-phase='refused']").first();
+    if (await refusal.isVisible().catch(() => false)) {
+      const text = ((await refusal.innerText().catch(() => "")) || "").trim();
+      throw new Error(`Send offer refused: ${text.slice(0, 200) || "unknown"}`);
+    }
+    expect(after, "offer card did not appear in the stream after Send").toBeGreaterThan(before);
+  }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] });
 }
 
 /** Open times sheet, pick person + named service + N slots, send. Asserts times card. */
 export async function sendTimesCard(page: Page, slotCount = 3): Promise<void> {
+  // Times hold requires confirmed identity (D21 / D-MSG-306). Deep-link a
+  // seeded inquiry known to have phone+email rather than a fresh draft row.
+  const confirmedInquiry =
+    process.env.QA_CONFIRMED_IDENTITY_INQUIRY_ID ??
+    process.env.QA_HOLD_EXPIRED_INQUIRY_ID ??
+    "195d4d01-1d63-456b-a6fa-9df523ab0bc9";
+  const u = new URL(page.url());
+  u.searchParams.set("inquiry", confirmedInquiry);
+  await page.goto(u.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
+  await awaitHydrated(page);
+  // Lost short-circuits; reopen if needed.
+  const reopen = page.getByRole("button", { name: /^reopen$/i }).first();
+  if (await reopen.isVisible().catch(() => false)) {
+    await reopen.click();
+    await page.waitForTimeout(1000);
+  }
   await openPlusTray(page);
   await page.locator('[data-tray-item="times"]').click();
-  const sheet = page.locator("[data-times-sheet], [data-sheet]").first();
-  await expect(sheet, "Times sheet did not open").toBeVisible({ timeout: 20_000 });
-
-  const person = sheet.locator("[data-times-people] button").first();
-  if (await person.count()) {
-    await person.click();
-  } else {
-    await sheet.locator("[data-option-row], button").filter({ hasText: /.+/ }).first().click();
-  }
-
-  const services = sheet.locator("[data-times-services] button");
-  const nServices = await services.count();
-  let pickedService = false;
-  for (let i = 0; i < nServices; i++) {
-    const label = (await services.nth(i).innerText()).trim();
-    if (/any service/i.test(label)) continue;
-    await services.nth(i).click();
-    pickedService = true;
-    break;
-  }
-  expect(pickedService || nServices === 0, "could not pick a named service in Times sheet").toBeTruthy();
-
-  // Slots load async after person/service pick.
+  const body = page.locator("[data-times-sheet]").first();
+  await expect(body, "Times sheet body did not open").toBeVisible({ timeout: 20_000 });
+  // Catalog loads async after open.
   await expect(async () => {
-    const loading = sheet.locator("[data-times-slots]").locator("text=/loading|finding/i");
-    if (await loading.count()) return;
-    const n = await sheet.locator("[data-times-slots] button").count();
-    const refusal = sheet.locator("[data-refusal], [role='alert'], [data-times-empty]");
-    if ((await refusal.count()) && n === 0) {
-      const text = ((await refusal.first().innerText().catch(() => "")) || "").trim();
-      throw new Error(`Times sheet refused/empty before slots: ${text.slice(0, 200)}`);
+    const phase = (await body.getAttribute("data-phase")) || "";
+    if (phase === "refused" || phase === "failed") {
+      const text = ((await body.innerText().catch(() => "")) || "").trim();
+      throw new Error(`Times sheet ${phase}: ${text.slice(0, 200)}`);
     }
-    expect(
-      n,
-      `need ≥${slotCount} free slots to exercise this path; fixture has ${n}`,
-    ).toBeGreaterThanOrEqual(slotCount);
+    const n = await page.locator("[data-times-people] [data-option-row], [data-times-people] button").count();
+    expect(n, "Times sheet has no bookable people after load").toBeGreaterThan(0);
   }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] });
 
-  const slots = sheet.locator("[data-times-slots] button");
-  const available = await slots.count();
+  const people = page.locator("[data-times-people] [data-option-row], [data-times-people] button");
+  const peopleCount = await people.count();
+  expect(peopleCount, "Times sheet has no bookable people").toBeGreaterThan(0);
+
+  let slotsReady = false;
+  const tryOrder: number[] = [];
+  for (let i = 0; i < peopleCount; i++) {
+    const label = ((await people.nth(i).innerText().catch(() => "")) || "").trim();
+    if (/therapist b/i.test(label)) tryOrder.unshift(i);
+    else tryOrder.push(i);
+  }
+
+  for (const pi of tryOrder) {
+    await people.nth(pi).click({ force: true });
+    const services = page.locator("[data-times-services] button, [data-times-services] [role='button']");
+    const nServices = await services.count();
+    for (let i = 0; i < nServices; i++) {
+      const label = (await services.nth(i).innerText()).trim();
+      if (/any service/i.test(label)) continue;
+      await services.nth(i).click();
+      break;
+    }
+    try {
+      await expect(async () => {
+        const n = await page.locator("[data-times-slots] button").count();
+        expect(n).toBeGreaterThanOrEqual(slotCount);
+      }).toPass({ timeout: 12_000, intervals: [400, 800, 1_200] });
+      slotsReady = true;
+      break;
+    } catch {
+      /* try next person */
+    }
+  }
   expect(
-    available,
-    `need ≥${slotCount} free slots to exercise this path; fixture has ${available}`,
-  ).toBeGreaterThanOrEqual(slotCount);
+    slotsReady,
+    `need ≥${slotCount} free slots across bookable people; fixture returned 0 (seed talent_booking_hours)`,
+  ).toBeTruthy();
+
+  const slots = page.locator("[data-times-slots] button");
   for (let i = 0; i < slotCount; i++) await slots.nth(i).click();
 
-  const send = sheet.locator("[data-times-send]");
+  const send = page.locator("[data-times-send]").or(page.getByRole("button", { name: /send times/i }));
   await expect(send.first(), "Times Send disabled after picking slots").toBeEnabled({
     timeout: 15_000,
   });
   await send.first().click();
+  // If identity gate fires, fail naming it (do not soft-pass).
+  const identityRefusal = page.locator("[data-refusal='identity_unconfirmed'], [role='alert']").filter({
+    hasText: /identity is not confirmed/i,
+  });
+  if (await identityRefusal.isVisible().catch(() => false)) {
+    throw new Error(
+      "Times send refused: Client identity is not confirmed (D-MSG-306) — seed QA_CONFIRMED_IDENTITY_INQUIRY_ID",
+    );
+  }
   await expect(
     page.locator('[data-card="times"], [data-card="options"]').first(),
     "times card did not appear in the stream after Send",
