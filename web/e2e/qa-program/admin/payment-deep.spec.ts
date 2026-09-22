@@ -128,11 +128,12 @@ test.describe("QA 6.1 payment flows", () => {
       send,
       "Payment Send disabled — need order target + Full/Other amount to mint a pay link",
     ).toBeEnabled({ timeout: 20_000 });
-    const before = await page.locator('[data-card="payment"]').count();
     await send.click();
+    // Effect: a Payment card in Request sent (may update an existing card rather
+    // than increment count when re-minting on the same order).
     await expect(
-      page.locator('[data-card="payment"]').nth(before),
-      "Payment card did not appear after minting pay link",
+      page.locator('[data-card="payment"]').filter({ hasText: /request sent|link sent/i }).first(),
+      "Payment card in Request sent did not appear after minting pay link",
     ).toBeVisible({ timeout: 25_000 });
     await shot(page, "admin-payment-deep-sent");
 

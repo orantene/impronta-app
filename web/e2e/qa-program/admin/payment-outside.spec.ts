@@ -10,11 +10,11 @@ import {
   test,
 } from "../_harness";
 
-/** Accepted/awaiting offer inquiry used by payment-deep. */
+/** Prefer an inquiry with an order chip (canMintLink) so outside records against an order. */
 const PAY_INQUIRY =
   process.env.QA_OUTSIDE_PAY_INQUIRY_ID ??
   process.env.QA_AWAITING_OFFER_INQUIRY_ID ??
-  "45a9b17e-63ec-4254-929a-4c67cb0b4e47";
+  "ad22e3e4-9ad9-431b-b922-1ccf3bf5c10f";
 
 test.describe("QA payment — record paid outside", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
