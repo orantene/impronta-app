@@ -45,6 +45,7 @@ export function GuestNextStep({
   C,
   accent,
   accentInk,
+  bookAgainNotice = false,
 }: {
   v5: GuestThreadV5Extras | null;
   model: GuestClientCardsModel;
@@ -56,6 +57,7 @@ export function GuestNextStep({
   C: ReturnType<typeof paletteFor>;
   accent: string;
   accentInk: string;
+  bookAgainNotice?: boolean;
 }) {
   const step = useMemo(() => {
     if (!v5) return null;
@@ -70,7 +72,13 @@ export function GuestNextStep({
       date: (iso) => new Date(iso).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" }),
     });
   }, [v5, threadStatus, model.messages, now, locale]);
-  if (!step) return null;
+  if (!step && !bookAgainNotice) return null;
+  const notice = bookAgainNotice ? (
+    <div data-book-again-started style={{ padding: "10px 14px 0", fontFamily: FONT, fontSize: 13, fontWeight: 600, color: C.ink }}>
+      {t("public.guestChat.dockBookAgainStarted")}
+    </div>
+  ) : null;
+  if (!step) return notice;
 
   const values = { ...step.values, business: businessName };
   const busy = step.kind === "accept_offer" && step.offer ? model.actions.activity[step.offer.id]?.phase === "busy" : false;
@@ -83,6 +91,8 @@ export function GuestNextStep({
   const buttonKey = step.kind === "pay" || step.kind === "accept_offer" ? BUTTON_KEY[step.kind] : null;
 
   return (
+    <>
+    {notice}
     <div
       data-guest-next-step={step.kind}
       style={{ padding: "10px 14px 8px", borderTop: `1px solid ${C.borderSoft}`, background: C.surface, display: "flex", flexDirection: "column", gap: 3, fontFamily: FONT }}
@@ -103,5 +113,6 @@ export function GuestNextStep({
         </button>
       )}
     </div>
+    </>
   );
 }

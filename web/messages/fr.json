@@ -455,6 +455,7 @@
       "dockBookAgainSub": "Lancez une nouvelle demande avec les mêmes articles",
       "dockBookAgainBusy": "Démarrage…",
       "dockBookAgainFailed": "Impossible de lancer une nouvelle demande. Réessayez.",
+      "dockBookAgainStarted": "Nouvelle demande ouverte avec vos derniers articles",
       "dockBookAgainUnavailable": "Ouvrez cette conversation pour réserver à nouveau.",
       "detailsAddCta": "Ajouter des détails",
       "detailsProgress": "{filled}/{total}",

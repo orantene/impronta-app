@@ -737,7 +737,7 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {!showGate && brand.dockCardsV5 === true && <GuestNextStep {...dock.nextStepProps} />}
+      {!showGate && (brand.dockCardsV5 === true || dock.nextStepProps.bookAgainNotice) && <GuestNextStep {...dock.nextStepProps} />}
 
       {/* ── Composer ─────────────────────────────────────────────────────── */}
       {!showGate && (
