@@ -53,28 +53,26 @@ test.describe("QA payment — collect at the counter", () => {
     await collect.click();
     await shot(page, "admin-payment-collect-selected");
 
-    const hrefEl = sheet.locator("[data-payment-collect-href]").first();
+    // Collect CTA is always mounted; href only when canMintLink + target.
     const cta = sheet.locator("[data-payment-collect]").first();
+    await expect(cta, "Collect primary missing after selecting collect how").toBeVisible({
+      timeout: 15_000,
+    });
+    const hrefEl = sheet.locator("[data-payment-collect-href]").first();
     await expect(
-      hrefEl.or(cta),
-      "Collect path must expose POS href or Collect primary",
+      hrefEl,
+      "Collect POS href missing — need a mintable order target (canMintLink). Accept offer first.",
     ).toBeVisible({ timeout: 15_000 });
+    const href = ((await hrefEl.innerText()) || "").trim();
+    expect(href, "collect href empty").toMatch(/\/pos|order=|inquiry=/i);
 
-    if (await hrefEl.isVisible().catch(() => false)) {
-      const href = ((await hrefEl.innerText()) || "").trim();
-      expect(href, "collect href empty").toMatch(/\/pos|order=|inquiry=/i);
-    }
-
-    // Clicking Collect should navigate to POS (or open it) with inquiry/order.
-    if (await cta.isVisible().catch(() => false)) {
-      await cta.click();
-      await page.waitForTimeout(2000);
-      expect(
-        page.url(),
-        `Collect did not reach POS; url=${page.url()}`,
-      ).toMatch(/\/pos|view=|order=/i);
-      await shot(page, "admin-payment-collect-pos");
-    }
+    await cta.click();
+    await page.waitForTimeout(2000);
+    expect(
+      page.url(),
+      `Collect did not reach POS; url=${page.url()}`,
+    ).toMatch(/\/pos|view=|order=/i);
+    await shot(page, "admin-payment-collect-pos");
 
     await assertNoRawI18nKeys(page);
     expect(errors, errors.join("\n")).toEqual([]);

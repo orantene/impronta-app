@@ -77,7 +77,20 @@ test.describe("QA 6.1 payment flows", () => {
     await full.click();
     await shot(page, "admin-payment-link-selected");
 
+    // Surface blockers instead of a mute disabled Send (open request / no target).
+    const openHint = sheet.getByText(/open (payment )?request|already have a request/i).first();
+    if (await openHint.isVisible().catch(() => false)) {
+      throw new Error(
+        `pay-link blocked by open request: ${(await openHint.innerText()).trim()} — cancel/settle existing Payment card first`,
+      );
+    }
+    const unavailable = sheet.getByText(/not available|cannot mint|no order/i).first();
     const send = sheet.locator("[data-payment-send]").first();
+    if (await unavailable.isVisible().catch(() => false)) {
+      throw new Error(
+        `pay-link unavailable: ${(await unavailable.innerText()).trim()} — need mintable order target after Accept`,
+      );
+    }
     await expect(
       send,
       "Payment Send disabled — need order target + Full/Other amount to mint a pay link",

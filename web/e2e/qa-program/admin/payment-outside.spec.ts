@@ -59,10 +59,44 @@ test.describe("QA payment — record paid outside", () => {
     const cash = sheet.getByText(/^cash$/i).first();
     await expect(cash, "Cash outside method missing").toBeVisible({ timeout: 10_000 });
     await cash.click();
-    const full = sheet.getByRole("radio", { name: /full amount/i }).first();
-    if (await full.isVisible().catch(() => false)) await full.click();
+    // Outside canSend needs amountCents > 0 (Full may resolve null when offer
+    // options omit it) AND reference.trim().length >= 3.
+    const other = sheet.getByRole("radio", { name: /other/i }).first();
+    await expect(other, "Other amount option missing for outside path").toBeVisible({
+      timeout: 10_000,
+    });
+    await other.click();
+    const amountInput = sheet.locator("#msgv5-payment-other, input[name='other'], [data-payment-other] input").first()
+      .or(sheet.getByPlaceholder(/amount|dollars|0\.00/i).first());
+    // Prefer labeled other input; fall back to any visible number/text in outside section.
+    const outsideSection = sheet.locator("[data-payment-outside]");
+    const typed = outsideSection.locator('input').filter({ hasNot: sheet.locator("#msgv5-payment-reference") }).first();
+    if (await typed.isVisible().catch(() => false)) {
+      await typed.fill("50.00");
+    } else if (await amountInput.isVisible().catch(() => false)) {
+      await amountInput.fill("50.00");
+    } else {
+      // Last resort: first text input that is not the reference.
+      const inputs = outsideSection.locator("input");
+      const n = await inputs.count();
+      let filled = false;
+      for (let i = 0; i < n; i++) {
+        const id = (await inputs.nth(i).getAttribute("id")) || "";
+        if (id === "msgv5-payment-reference") continue;
+        await inputs.nth(i).fill("50.00");
+        filled = true;
+        break;
+      }
+      expect(filled, "could not find Other amount input in outside section").toBeTruthy();
+    }
+    const ref = sheet.locator("#msgv5-payment-reference").first();
+    await expect(ref, "outside payment reference field missing").toBeVisible({ timeout: 10_000 });
+    await ref.fill("QA cash counter");
     const send = sheet.locator("[data-payment-send]").first();
-    await expect(send, "Payment Send disabled for outside cash path").toBeEnabled({
+    await expect(
+      send,
+      "Payment Send disabled for outside cash — need amount > 0 and reference ≥3 chars",
+    ).toBeEnabled({
       timeout: 20_000,
     });
     const before = await page.locator('[data-card="payment"]').count();
