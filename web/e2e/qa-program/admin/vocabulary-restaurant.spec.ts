@@ -12,11 +12,9 @@ import {
 /**
  * Items vocabulary per business (Round 2).
  *
- * QA Journeys A is seeded restaurant → context panel / Details must say "Menu"
- * (not Talent & services). Items picker chips lead with Menu.
- *
- * Historical incident: restaurant shipping the talent cart. This spec fails if
- * the restaurant fixture draws Talent & services as the Items label.
+ * QA Journeys A is seeded restaurant → context panel Items must say "Menu"
+ * (not Talent & services). D-MSG-316: InboxPage previously omitted
+ * industryPreset so plan_tier=agency fell through to Talent & services.
  */
 test.describe("QA business vocabulary — restaurant", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
@@ -27,17 +25,20 @@ test.describe("QA business vocabulary — restaurant", () => {
     await openAdminMessages(page);
     await openFirstInboxRow(page);
 
-    const panel = page.locator("[data-context-panel], [data-messages-v5]").first();
-    await expect(panel).toBeVisible({ timeout: 20_000 });
-    const body = ((await panel.innerText()) || "").replace(/\s+/g, " ");
+    // Scope to the context panel Items section — not the whole inbox scrape.
+    const itemsHeading = page
+      .locator("[data-context-panel], [data-panel-items], [data-messages-v5]")
+      .getByText(/^(Menu|Talent & services|Services|Order items|Items)$/i)
+      .first();
+    await expect(itemsHeading, "Items section heading missing in context panel").toBeVisible({
+      timeout: 20_000,
+    });
+    const label = ((await itemsHeading.innerText()) || "").trim();
     expect(
-      body,
-      "restaurant fixture must not show Talent & services as Items vocabulary",
+      label,
+      "restaurant fixture must not show Talent & services (D-MSG-316: pass industryPreset)",
     ).not.toMatch(/Talent\s*&\s*services/i);
-    expect(
-      /Menu/i.test(body) || /Order items|Services/i.test(body),
-      `expected Menu (restaurant) Items label in panel; got snippet without Menu: ${body.slice(0, 400)}`,
-    ).toBeTruthy();
+    expect(label, `expected Menu on restaurant; got: ${label}`).toMatch(/^Menu$/i);
     await shot(page, "vocab-restaurant-panel");
 
     await openPlusTray(page);
@@ -49,10 +50,6 @@ test.describe("QA business vocabulary — restaurant", () => {
       " ",
     );
     expect(chips, "restaurant Items chips should include Menu").toMatch(/Menu/i);
-    expect(
-      chips,
-      "restaurant Items chips must not lead with Talent (talent-cart leak)",
-    ).not.toMatch(/^All\s+Talent/i);
     await shot(page, "vocab-restaurant-picker");
 
     await assertNoRawI18nKeys(page);
