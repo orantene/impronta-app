@@ -296,23 +296,40 @@ export async function openAwaitingAcceptanceOrLive(page: Page): Promise<"awaitin
     await needs.click().catch(() => undefined);
     await page.waitForTimeout(400);
   }
+  // Offers chip narrows to threads that already carry an offer record.
+  const offersChip = page.getByRole("button", { name: /^offers$/i }).first();
+  if (await offersChip.isVisible().catch(() => false)) {
+    await offersChip.click().catch(() => undefined);
+    await page.waitForTimeout(500);
+  }
   const rows = page.locator("[data-inbox-row]");
   await expect(rows.first(), "inbox has no rows — fixture/seed missing").toBeVisible({
     timeout: 20_000,
   });
-  const n = Math.min(await rows.count(), 40);
+  const n = Math.min(await rows.count(), 60);
   for (let i = 0; i < n; i++) {
     const row = rows.nth(i);
     const label = ((await row.innerText().catch(() => "")) || "").replace(/\s+/g, " ");
     if (/\blost\b/i.test(label)) continue;
-    if (/awaiting acceptance/i.test(label)) {
+    if (/accepted|deposit due|paid|won/i.test(label) && !/awaiting acceptance/i.test(label)) {
+      continue;
+    }
+    if (/awaiting acceptance|\boffer\b/i.test(label)) {
       await row.click();
       await awaitHydrated(page);
+      const locked = page.locator('[data-composer="resolved"], [data-composer-locked]');
+      if ((await locked.count()) > 0) continue;
       await expect(page.locator("[data-composer], [data-composer-wire]").first()).toBeVisible({
         timeout: 20_000,
       });
-      return "awaiting";
+      // Confirm the stream actually has a client-visible offer card.
+      if ((await page.locator('[data-card="offer"]').count()) > 0) return "awaiting";
     }
+  }
+  // Clear Offers chip so openFirstInboxRow sees the full Needs-action list.
+  if (await offersChip.isVisible().catch(() => false)) {
+    const pressed = await offersChip.getAttribute("aria-pressed").catch(() => null);
+    if (pressed === "true") await offersChip.click().catch(() => undefined);
   }
   await openFirstInboxRow(page);
   return "live";
@@ -339,6 +356,8 @@ export async function sendPricedOffer(page: Page, opts?: { fresh?: boolean }): P
       ).toBeVisible({ timeout: 20_000 });
       return;
     }
+    // Live row may already carry a sent offer (Offer chip without "Awaiting").
+    if ((await page.locator('[data-card="offer"]').count()) > 0) return;
   }
   await openPlusTray(page);
   await page.locator('[data-tray-item="add_items"]').click();
