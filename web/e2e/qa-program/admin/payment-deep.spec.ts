@@ -70,12 +70,17 @@ test.describe("QA 6.1 payment flows", () => {
     const link = sheet.getByText(/pay link|send a pay link/i).first();
     await expect(link, "Pay link option missing").toBeVisible({ timeout: 10_000 });
     await link.click();
+    // Default amountKind is deposit; with no deposit rule the Send stays disabled
+    // until Full (or Other) is chosen (canSend in PaymentRequest.tsx).
+    const full = sheet.getByRole("radio", { name: /full amount/i }).first();
+    await expect(full, "Full amount option missing on payment sheet").toBeVisible({ timeout: 10_000 });
+    await full.click();
     await shot(page, "admin-payment-link-selected");
 
     const send = sheet.locator("[data-payment-send]").first();
     await expect(
       send,
-      "Payment Send disabled — need an accepted/order target on this thread to mint a pay link",
+      "Payment Send disabled — need order target + Full/Other amount to mint a pay link",
     ).toBeEnabled({ timeout: 20_000 });
     const before = await page.locator('[data-card="payment"]').count();
     await send.click();
