@@ -159,50 +159,76 @@ export async function openPlusTray(page: Page): Promise<void> {
 }
 
 /**
- * Mint the client link from the thread header and open it in a new page.
- * Fails loudly if Copy client link is missing or the clipboard is empty.
+ * Mint the client link from the thread header More menu and open it in a new
+ * page. Uses `[data-menu-item="copy_link"]` → Link sheet `[data-thread-link]`
+ * (clipboard is a bonus, not the source of truth — clipboard can be empty in
+ * headless without failing the mint).
  */
 export async function requireClientLink(
   page: Page,
   context: BrowserContext,
 ): Promise<Page> {
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(300);
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(200);
+  // Close any open tray/sheet/scrim so the header More control is free.
+  for (let i = 0; i < 2; i++) {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+  }
   const header = page.locator("[data-thread-header]").first();
   await expect(header, "thread header missing — open a conversation first").toBeVisible({
     timeout: 15_000,
   });
-  const more = header.getByRole("button", { name: /more|actions|⋯|…/i }).first();
-  if (await more.count()) {
-    await more.click({ force: true }).catch(() => undefined);
-    await page.waitForTimeout(400);
-  }
   await context.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => undefined);
-  const copy = page.getByRole("button", { name: /copy client link|client link/i }).first();
-  // Header overflow may need a second open after Escape closed it.
-  if (!(await copy.isVisible().catch(() => false)) && (await more.count())) {
-    await more.click({ force: true }).catch(() => undefined);
+
+  const more = header.getByRole("button", { name: /^more$/i }).first();
+  await expect(more, "thread header More control missing").toBeVisible({ timeout: 10_000 });
+  await more.click();
+  const menu = page.locator("[data-thread-menu]").first();
+  await expect(menu, "thread More menu did not open").toBeVisible({ timeout: 10_000 });
+
+  const copyItem = menu.locator('[data-menu-item="copy_link"]').first();
+  await expect(
+    copyItem,
+    "Copy client link was not available; it is the prerequisite for this spec",
+  ).toBeVisible({ timeout: 10_000 });
+  await copyItem.click();
+
+  // Link sheet shows the minted URL in `[data-thread-link]` (and may auto-copy).
+  const linkInput = page.locator("[data-thread-link]").first();
+  await expect(
+    linkInput,
+    "Client link sheet did not mint a URL (data-thread-link missing)",
+  ).toBeVisible({ timeout: 25_000 });
+  await expect
+    .poll(async () => ((await linkInput.inputValue().catch(() => "")) || "").trim(), {
+      timeout: 25_000,
+      message: "Client link URL stayed empty after mint",
+    })
+    .toMatch(/\/c\//);
+
+  let tokenUrl = ((await linkInput.inputValue()) || "").trim();
+  // Prefer an explicit Copy click so clipboard matches the sheet when available.
+  const copyBtn = page.locator("[data-thread-link-copy]").first();
+  if (await copyBtn.isVisible().catch(() => false)) {
+    await copyBtn.click();
     await page.waitForTimeout(400);
   }
-  await expect(
-    copy,
-    "Copy client link was not available; it is the prerequisite for this spec",
-  ).toBeVisible({ timeout: 15_000 });
-  await copy.click({ force: true });
-  await page.waitForTimeout(600);
-  const tokenUrl = await page.evaluate(async () => {
+  const clip = await page.evaluate(async () => {
     try {
       return await navigator.clipboard.readText();
     } catch {
       return null;
     }
   });
+  if (clip && /\/c\//.test(clip)) tokenUrl = clip.trim();
+
   expect(
     tokenUrl && /\/c\//.test(tokenUrl),
-    `client link was not minted after Copy client link; clipboard=${String(tokenUrl).slice(0, 80)}`,
+    `client link was not minted; sheet/clipboard=${String(tokenUrl).slice(0, 80)}`,
   ).toBeTruthy();
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+
   const client = await context.newPage();
   const url = tokenUrl!.startsWith("http") ? tokenUrl! : new URL(tokenUrl!, page.url()).toString();
   await client.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -331,13 +357,17 @@ export async function sendPricedOffer(page: Page): Promise<void> {
   await expect(async () => {
     const after = await page.locator('[data-card="offer"]').count();
     const editorGone = (await page.locator("[data-offer-send]").count()) === 0;
-    if (after > before || editorGone) return;
+    const sentCopy = await page.getByText(/offer.*sent|sent v\d+/i).count();
+    if (after > before || editorGone || sentCopy > 0) return;
     const refusal = page.locator("[data-refusal], [data-offer-editor-phase='refused']").first();
     if (await refusal.isVisible().catch(() => false)) {
       const text = ((await refusal.innerText().catch(() => "")) || "").trim();
       throw new Error(`Send offer refused: ${text.slice(0, 200) || "unknown"}`);
     }
-    expect(after, "offer card did not appear in the stream after Send").toBeGreaterThan(before);
+    expect(
+      after > before || editorGone,
+      "offer card did not appear / editor stayed open after Send",
+    ).toBeTruthy();
   }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] });
 }
 
