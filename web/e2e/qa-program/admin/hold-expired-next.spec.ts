@@ -2,7 +2,6 @@ import {
   assertNoRawI18nKeys,
   attachConsoleGuard,
   expect,
-  openAdminMessages,
   prepareJourneysPage,
   shot,
   signInJourneysStaff,
@@ -12,50 +11,74 @@ import {
 /**
  * Hold-expired next-step proof (D-MSG-301).
  *
- * Prefers deep-linking to a seeded inquiry that already has an expired
- * professional_times payload. When D-MSG-301 is live on the QA host, the
- * next-step title must read "Hold expired". Until journeys sync, the test
- * soft-passes with an annotation.
+ * Deep-links to a seeded inquiry whose professional_times payload has
+ * holdExpiresAt in the past. Required: next-step title reads "Hold expired".
+ * Companion assertion: a live-hold inquiry must NOT show that title.
  */
 const HOLD_EXPIRED_INQUIRY =
   process.env.QA_HOLD_EXPIRED_INQUIRY_ID ?? "195d4d01-1d63-456b-a6fa-9df523ab0bc9";
+const HOLD_LIVE_INQUIRY = process.env.QA_HOLD_LIVE_INQUIRY_ID ?? "";
 
 test.describe("QA remaining: hold-expired next-step (D-MSG-301)", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
   test.setTimeout(120_000);
 
-  test("open thread with expired hold payload → next-step Hold expired when wired", async ({ page }) => {
+  test("expired hold payload → next-step reads Hold expired", async ({ page }) => {
     const { errors } = attachConsoleGuard(page);
     await prepareJourneysPage(page);
     await signInJourneysStaff(page, `/admin/messages?inquiry=${HOLD_EXPIRED_INQUIRY}`);
     await expect(page.locator("[data-messages-v5]")).toBeVisible({ timeout: 30_000 });
     await page.waitForTimeout(1500);
 
-    // If deep-link did not select, fall back to scanning for hold language
     const next = page.locator("[data-next-step]");
-    await expect(next.first()).toBeVisible({ timeout: 20_000 }).catch(() => undefined);
+    await expect(next.first(), "next-step bar missing on expired-hold inquiry").toBeVisible({
+      timeout: 20_000,
+    });
     const title = (
-      (await page.locator("[data-next-step] b, [data-next-step] .ttl").first().innerText().catch(() => "")) || ""
+      (await page.locator("[data-next-step] b, [data-next-step] .ttl").first().innerText()) || ""
     ).trim();
-    const body = await page.locator("[data-messages-v5]").innerText();
     await shot(page, "remain-hold-expired-next");
 
-    const hasHoldExpired = /hold expired/i.test(title) || /hold expired/i.test(body);
-    test.info().annotations.push({
-      type: "hold-expired",
-      description: hasHoldExpired
-        ? `next-step title=${title}`
-        : `not yet on QA host (needs merge+journeys sync for D-MSG-301); title=${title.slice(0, 80)}`,
-    });
+    expect(title, `expected next-step "Hold expired", got: ${title}`).toMatch(/hold expired/i);
 
-    // Soft: do not fail the suite until D-MSG-301 is deployed to staging-qa-journeys.
-    // Hard assert flips on once the annotation says green.
-    if (process.env.QA_REQUIRE_HOLD_EXPIRED === "1") {
-      expect(hasHoldExpired, `expected Hold expired, got: ${title}`).toBeTruthy();
+    const action = page.locator("[data-next-step-action]").first();
+    if (await action.count()) {
+      const actionLabel = (await action.innerText()).trim();
+      expect(
+        actionLabel,
+        `primary action should offer new times after hold expired; got: ${actionLabel}`,
+      ).toMatch(/time|offer|send/i);
     }
 
     await assertNoRawI18nKeys(page);
     expect(errors, errors.join("\n")).toEqual([]);
-    void openAdminMessages;
+  });
+
+  test("live hold payload → next-step does NOT say Hold expired", async ({ page }) => {
+    test.skip(
+      !HOLD_LIVE_INQUIRY,
+      "set QA_HOLD_LIVE_INQUIRY_ID to a seeded inquiry with holdExpiresAt in the future",
+    );
+    const { errors } = attachConsoleGuard(page);
+    await prepareJourneysPage(page);
+    await signInJourneysStaff(page, `/admin/messages?inquiry=${HOLD_LIVE_INQUIRY}`);
+    await expect(page.locator("[data-messages-v5]")).toBeVisible({ timeout: 30_000 });
+    await page.waitForTimeout(1500);
+
+    const next = page.locator("[data-next-step]");
+    await expect(next.first(), "next-step bar missing on live-hold inquiry").toBeVisible({
+      timeout: 20_000,
+    });
+    const title = (
+      (await page.locator("[data-next-step] b, [data-next-step] .ttl").first().innerText()) || ""
+    ).trim();
+    await shot(page, "remain-hold-live-next");
+
+    expect(title, `live hold must not read Hold expired; got: ${title}`).not.toMatch(
+      /hold expired/i,
+    );
+
+    await assertNoRawI18nKeys(page);
+    expect(errors, errors.join("\n")).toEqual([]);
   });
 });

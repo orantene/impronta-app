@@ -5,49 +5,46 @@ import {
   openAdminMessages,
   openFirstInboxRow,
   openPlusTray,
+  sendPricedOffer,
   shot,
   test,
 } from "../_harness";
 
 test.describe("QA 6.1 payment flows", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
 
-  test("Request payment sheet: outside cash records; link/collect when order target exists", async ({ page }) => {
+  test("Request payment: pay-link path mints a Payment card", async ({ page }) => {
     const { errors } = attachConsoleGuard(page);
     await openAdminMessages(page);
     await openFirstInboxRow(page);
+    await sendPricedOffer(page);
+
+    // Accept is client-side; for admin mint we still need an order target.
+    // Open payment sheet — if Send stays disabled, fail naming the missing target.
     await openPlusTray(page);
     await page.locator('[data-tray-item="payment"]').click();
-
     const sheet = page.locator("[data-payment-request-sheet], [data-sheet]").first();
-    await expect(sheet).toBeVisible({ timeout: 20_000 });
+    await expect(sheet, "Payment request sheet did not open").toBeVisible({ timeout: 20_000 });
     await shot(page, "admin-payment-deep-open");
 
-    // Soft inventory of how options
-    const how = sheet.locator("[data-payment-how]");
-    await expect(how.or(sheet)).toBeVisible();
-    const outside = sheet.getByText(/record as paid outside|paid outside/i).first();
-    if (await outside.isVisible().catch(() => false)) {
-      await outside.click({ timeout: 5_000 }).catch(() => undefined);
-      await shot(page, "admin-payment-outside-selected");
-    }
     const link = sheet.getByText(/pay link|send a pay link/i).first();
-    const collect = sheet.getByText(/collect here|at the counter/i).first();
-    test.info().annotations.push({
-      type: "payment-affordance",
-      description: `outside=${await outside.count()} link=${await link.count()} collect=${await collect.count()}`,
-    });
+    await expect(link, "Pay link option missing").toBeVisible({ timeout: 10_000 });
+    await link.click();
+    await shot(page, "admin-payment-link-selected");
 
-    // Do not block the suite on minting if the thread has no order target
     const send = sheet.locator("[data-payment-send]").first();
-    if ((await send.count()) && (await send.isEnabled().catch(() => false))) {
-      await send.click({ timeout: 8_000 }).catch(() => undefined);
-      await page.waitForTimeout(1000);
-      await shot(page, "admin-payment-deep-sent");
-    } else {
-      await shot(page, "admin-payment-deep-inventory");
-    }
+    await expect(
+      send,
+      "Payment Send disabled — need an accepted/order target on this thread to mint a pay link",
+    ).toBeEnabled({ timeout: 20_000 });
+    const before = await page.locator('[data-card="payment"]').count();
+    await send.click();
+    await expect(
+      page.locator('[data-card="payment"]').nth(before),
+      "Payment card did not appear after minting pay link",
+    ).toBeVisible({ timeout: 25_000 });
+    await shot(page, "admin-payment-deep-sent");
 
     await page.keyboard.press("Escape");
     await assertNoRawI18nKeys(page);
