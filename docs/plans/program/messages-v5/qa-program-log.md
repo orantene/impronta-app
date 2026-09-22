@@ -1,20 +1,28 @@
 # Messages v5 QA program log
 
 Host: `https://staging-qa-journeys.tulala.digital`  
-Branch: `cursor/qa-messages-v5-11b1` → PR [#2128](https://github.com/orantene/impronta-app/pull/2128)  
+Branch: `cursor/qa-specs-required-11b1` → PR [#2148](https://github.com/orantene/impronta-app/pull/2148)  
 Isolated DB: `fxlankepwnvelxjrahwk`  
-Updated: 2026-09-21 (rebased onto main; PR ready for review)
+Updated: 2026-09-22 (Round 2 — required-assert PR in flight)
 
-## Final summary
+## Final summary (Round 2 in progress)
 
-**Wave 1:** harness + smoke (18 pass) + D-MSG-300 em-dash fix.  
-**Wave 2:** deep specs for times/payment/identity/files/ladder/realtime/phone/client/POS/guest/parity/§7 smokes.  
-**Wave 3:** remaining plan rows + **D-MSG-301** holdExpiresAt wiring; auto-ack migration applied on prod + qa-journeys.  
-**2026-09-21:** rebased onto `main` (kept D-MSG-225 deep-link from main); PR #2128 marked ready for review.
+**Round 1:** merged [#2128](https://github.com/orantene/impronta-app/pull/2128) (`88f7444ce`). Auto-ack migration on both DBs. D-MSG-301 on QA host.
 
-**Agent-blocked (human only):** merge #2128; sync `program/journeys-2026-09` so D-MSG-301 is live on QA host.
+**Round 2 PR1 (#2148):** required asserts; silent soft-bail removed. Suite now fails when path not exercised.
 
-**After human merge+sync, agent can:** re-prove hold-expired next-step; push POS double-book / Stripe / capacity journeys where fixtures allow.
+| Proven this wave | Defects filed |
+|---|---|
+| Hold expired next-step (D-MSG-301) on seeded inquiry after clearing Lost | D-MSG-302 Lost rows refuse Continue-to-offer |
+| Times send → times card on confirmed-identity inquiry | D-MSG-303 empty slots without person iteration |
+| Confirm sheet opens when door present | D-MSG-304 Lost short-circuits Hold expired (fixed) |
+| | D-MSG-305 Continue-to-offer opens empty offer |
+| | D-MSG-306 identity_unconfirmed on fresh draft times |
+| | D-MSG-307 sendPricedOffer soft-passed without offer card |
+| | D-MSG-308 New→Start unavailable on QA |
+| | D-MSG-309 payment Send disabled until Full amount clicked |
+
+**Still owed:** POS double-book; Stripe pay+refund; capacity; ES/FR hard; merge/cancel effects; §7 Messages chip; restaurant+salon; permissions; isolation; hostile data; outside/collect payment paths as separate specs.
 
 ## Checklist
 
@@ -22,26 +30,19 @@ Updated: 2026-09-21 (rebased onto main; PR ready for review)
 |---|---|---|
 | Inbox / segments / search / chips / unread | green | `admin/inbox-load.spec.ts` |
 | New conversation / composer / tray / add-items / offer | green | admin/* |
-| Times send (person+service+slots) | green | `admin/times-hold-deep.spec.ts` |
-| Times hold after client pick | green (signal) | `admin/remaining-deep.spec.ts` |
-| Times hold expiry → next-step | code shipped (D-MSG-301); needs QA deploy | same |
-| Payment sheet + mint/outside/collect | green soft | `admin/remaining-deep.spec.ts` |
+| Times send (person+service+slots) | green (times card after Send) | `admin/times-hold-deep.spec.ts` |
+| Times hold after client pick | red until remaining-deep re-run | `admin/remaining-deep.spec.ts` |
+| Times hold expiry → next-step | green (expired + live both directions) | `admin/hold-expired-next.spec.ts` |
+| Payment sheet + mint/outside/collect | green (pay-link mints Payment card; Full amount required — D-MSG-309) | `admin/payment-deep.spec.ts` |
 | Identity / handover / close lost | green | `admin/identity-handover-lost.spec.ts` |
 | File attach + voice control | green | `admin/files-voice.spec.ts` |
-| Merge / cancel / confirm sheets | green (soft) | `admin/merge-refund-confirm-deep.spec.ts` |
-| Confirm recheck refusal | soft (sheet+POS tab) | `admin/remaining-deep.spec.ts` |
-| Next-step diversity + ladder ≥3 families | green | `admin/ladder-12.spec.ts` + `ladder-realtime` |
-| Realtime client → admin ≤15s | green | `admin/ladder-realtime.spec.ts` |
-| Phone happy path items→offer | green | `admin/phone-happy-path-deep.spec.ts` |
-| Client offer actions | green | `client/offer-payment-deep.spec.ts` |
-| Client ES/FR + pay page | green soft (link seam; offer-payment-deep covers when `/c/` present) | `client/locale-pay-deep.spec.ts` + `offer-payment-deep` |
-| POS dock deep + phone bar seam | green | `pos/dock-deep.spec.ts` |
-| Guest dock + tulala.digital | green | `guest/dock-deep.spec.ts` |
-| Parity multi-row harden | green | `parity/harden.spec.ts` |
-| §7 surface smokes + a11y + perf | green | `product/section7-smokes.spec.ts` |
-| §7 deep doors (storefront/admin) | green soft | `product/section7-deep-smokes.spec.ts` |
-| §7 capacity/Stripe journeys | deferred to e2e/journeys | — |
-| Human merge + journeys sync | pending | integrator |
+| Merge / cancel / confirm sheets | confirm green; merge skip-if-unseeded | `admin/merge-refund-confirm-deep.spec.ts` |
+| Confirm recheck refusal | red — needs POS race seed | remaining-deep |
+| Next-step diversity + ladder | green | ladder-12 + ladder-realtime |
+| Realtime client → admin ≤15s | required client link | `admin/ladder-realtime.spec.ts` |
+| Client offer / ES/FR / pay | required mint | client/* |
+| POS / guest / parity / §7 | required affordances | pos/guest/product |
+| Spec required-assert contract | in #2148 | `_harness.ts` |
 
 ## Scenario run log
 
@@ -50,3 +51,6 @@ Updated: 2026-09-21 (rebased onto main; PR ready for review)
 | 2026-09-18 | 18 pass / 3 skip | wave 1 smoke |
 | 2026-09-20 | deep batch green after fixes | wave 2 |
 | 2026-09-20 | remaining specs + D-MSG-301 | wave 3 |
+| 2026-09-21 | Round 1 merge #2128 | blockers cleared |
+| 2026-09-22 | Round 2 harden; hold+times green | D-MSG-302–306; PR #2148 |
+| 2026-09-22 | payment-deep green (Accept→Full→pay link→card) | D-MSG-307–309 |

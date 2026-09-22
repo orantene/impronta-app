@@ -17,47 +17,44 @@ test.describe("QA 6.1 admin — header / identity / history", () => {
     await openFirstInboxRow(page);
 
     const header = page.locator('[data-thread-header="desktop"], [data-thread-header]').first();
-    await expect(header).toBeVisible({ timeout: 20_000 });
+    await expect(header, "thread header missing").toBeVisible({ timeout: 20_000 });
 
-    // Header menu only — do not click composer "More" (that opens the + tray).
     const more = header.getByRole("button", { name: /more|actions|⋯|…/i }).first();
-    if (await more.isVisible().catch(() => false)) {
+    if (await more.count()) {
       await more.click();
+      await page.waitForTimeout(300);
+    }
+
+    const copyLink = page
+      .getByRole("button", { name: /copy client link|client link|copy link/i })
+      .first();
+    await expect(
+      copyLink,
+      "Copy client link missing from thread header actions",
+    ).toBeVisible({ timeout: 15_000 });
+    await copyLink.click();
+    await page.waitForTimeout(400);
+
+    const history = page.getByRole("button", { name: /^history$/i }).first();
+    if (await history.isVisible().catch(() => false)) {
+      await history.click();
+      await expect(
+        page.locator("[data-sheet], [role='dialog']").first(),
+        "History sheet did not open",
+      ).toBeVisible({ timeout: 10_000 });
+      await page.keyboard.press("Escape");
     }
 
     const resolve = page.getByRole("button", { name: /^resolve$/i }).first();
-    const history = page.getByRole("button", { name: /^history$/i }).first();
-    const copyLink = page.getByRole("button", { name: /copy client link|client link|copy link/i }).first();
-    const rename = page.getByRole("button", { name: /rename/i }).first();
-    const handOver = page.getByRole("button", { name: /hand over|handover|assign/i }).first();
-    const closeLost = page.getByRole("button", { name: /close as lost/i }).first();
+    if (await resolve.isVisible().catch(() => false)) {
+      await resolve.click();
+      await page.waitForTimeout(500);
+      const reopen = page.getByRole("button", { name: /^reopen$/i }).first();
+      await expect(reopen, "Reopen missing after Resolve").toBeVisible({ timeout: 10_000 });
+      await reopen.click();
+    }
 
     await shot(page, "admin-header-actions");
-
-    // Soft: only click when the control is truly enabled and in viewport.
-    async function softClick(label: string, locator: ReturnType<typeof page.getByRole>) {
-      if (!(await locator.isVisible().catch(() => false))) return;
-      if (!(await locator.isEnabled().catch(() => false))) return;
-      await locator.click({ timeout: 8_000 }).catch((err) => {
-        test.info().annotations.push({ type: "soft", description: `${label}: ${err}` });
-      });
-    }
-
-    await softClick("history", history);
-    if (await page.locator("[data-sheet], [role='dialog']").count()) {
-      await page.keyboard.press("Escape");
-    }
-    await softClick("copyLink", copyLink);
-    await page.waitForTimeout(300);
-    await softClick("resolve", resolve);
-    await page.waitForTimeout(500);
-    const reopen = page.getByRole("button", { name: /^reopen$/i }).first();
-    await softClick("reopen", reopen);
-
-    void rename;
-    void handOver;
-    void closeLost;
-
     await assertNoRawI18nKeys(page);
     expect(errors, errors.join("\n")).toEqual([]);
   });

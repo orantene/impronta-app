@@ -4,11 +4,9 @@ import {
   expect,
   openAdminMessages,
   openFirstInboxRow,
+  requireClientLink,
   shot,
-  signInJourneysStaff,
-  prepareJourneysPage,
   test,
-  JOURNEYS_OWNER_EMAIL,
 } from "../_harness";
 
 const LADDER_HINTS = [
@@ -36,7 +34,9 @@ test.describe("QA 6.1 next-step ladder + realtime", () => {
 
     const seen = new Set<string>();
     for (const seg of ["needs action", "waiting", "all"]) {
-      const tab = page.locator("[data-inbox-segments]").getByRole("tab", { name: new RegExp(`^${seg}|${seg}`, "i") });
+      const tab = page
+        .locator("[data-inbox-segments]")
+        .getByRole("tab", { name: new RegExp(`^${seg}|${seg}`, "i") });
       if (await tab.count()) await tab.first().click();
       await page.waitForTimeout(600);
       const rows = page.locator("[data-inbox-row]");
@@ -58,60 +58,36 @@ test.describe("QA 6.1 next-step ladder + realtime", () => {
     for (const hint of LADDER_HINTS) {
       if ([...seen].some((s) => hint.test(s))) hits += 1;
     }
-    test.info().annotations.push({ type: "ladder-hits", description: `${hits}/${LADDER_HINTS.length}: ${[...seen].slice(0, 8).join(" || ")}` });
+    test.info().annotations.push({
+      type: "ladder-hits",
+      description: `${hits}/${LADDER_HINTS.length}: ${[...seen].slice(0, 8).join(" || ")}`,
+    });
 
     await assertNoRawI18nKeys(page);
     expect(errors, errors.join("\n")).toEqual([]);
   });
 
-  test("realtime: client reply appears on open admin thread within 15s", async ({ page, context }) => {
+  test("realtime: client reply appears on open admin thread within 15s", async ({
+    page,
+    context,
+  }) => {
     const { errors } = attachConsoleGuard(page);
     await openAdminMessages(page);
     await openFirstInboxRow(page);
 
-    // Get client link
-    const header = page.locator("[data-thread-header]").first();
-    const more = header.getByRole("button", { name: /more|actions|⋯|…/i }).first();
-    if (await more.isVisible().catch(() => false)) await more.click();
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => undefined);
-    const copy = page.getByRole("button", { name: /copy client link|client link/i }).first();
-    let tokenUrl: string | null = null;
-    if (await copy.isVisible().catch(() => false)) {
-      await copy.click();
-      await page.waitForTimeout(500);
-      tokenUrl = await page.evaluate(async () => {
-        try {
-          return await navigator.clipboard.readText();
-        } catch {
-          return null;
-        }
-      });
-    }
-    if (!tokenUrl || !/\/c\//.test(tokenUrl)) {
-      test.info().annotations.push({ type: "blocked", description: "no client link for realtime test" });
-      return;
-    }
-
+    const client = await requireClientLink(page, context);
     const body = `QA-RT ${Date.now()}`;
-    const client = await context.newPage();
-    const url = tokenUrl.startsWith("http") ? tokenUrl : new URL(tokenUrl, page.url()).toString();
-    await client.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
-    await client.waitForTimeout(1500);
     const input = client.locator("[data-composer-input], textarea, [contenteditable='true']").first();
-    if (!(await input.isVisible().catch(() => false))) {
-      test.info().annotations.push({ type: "blocked", description: "client composer missing" });
-      await shot(client, "admin-realtime-no-client-composer");
-      return;
-    }
+    await expect(input, "client composer missing on minted link").toBeVisible({ timeout: 20_000 });
     await input.fill(body);
     const send = client.locator("[data-composer-send], button").filter({ hasText: /send/i }).first();
+    await expect(send, "client Send missing").toBeEnabled({ timeout: 10_000 });
     await send.click();
-    await expect(page.getByText(body).first()).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByText(body).first(),
+      "admin thread did not receive client reply within 15s",
+    ).toBeVisible({ timeout: 15_000 });
     await shot(page, "admin-realtime-received");
     expect(errors, errors.join("\n")).toEqual([]);
-    void prepareJourneysPage;
-    void signInJourneysStaff;
-    void JOURNEYS_OWNER_EMAIL;
-    void openFirstInboxRow;
   });
 });
