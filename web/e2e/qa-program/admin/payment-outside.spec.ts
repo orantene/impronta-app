@@ -95,7 +95,8 @@ test.describe("QA payment — record paid outside", () => {
     const tryAgain = sheet.getByText(/could not be completed|try again/i).first();
     if (
       (await refused.isVisible().catch(() => false)) ||
-      (await tryAgain.isVisible().catch(() => false))
+      (await tryAgain.isVisible().catch(() => false)) ||
+      (await sheet.getByText(/cannot be saved|not saved/i).first().isVisible().catch(() => false))
     ) {
       const why = ((await sheet.innerText()) || "").replace(/\s+/g, " ").trim().slice(0, 240);
       throw new Error(`outside cash refused: ${why}`);
