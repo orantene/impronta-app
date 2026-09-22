@@ -177,10 +177,15 @@ export async function requireClientLink(
   const more = header.getByRole("button", { name: /more|actions|⋯|…/i }).first();
   if (await more.count()) {
     await more.click({ force: true }).catch(() => undefined);
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
   }
   await context.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => undefined);
   const copy = page.getByRole("button", { name: /copy client link|client link/i }).first();
+  // Header overflow may need a second open after Escape closed it.
+  if (!(await copy.isVisible().catch(() => false)) && (await more.count())) {
+    await more.click({ force: true }).catch(() => undefined);
+    await page.waitForTimeout(400);
+  }
   await expect(
     copy,
     "Copy client link was not available; it is the prerequisite for this spec",
