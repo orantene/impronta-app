@@ -1190,6 +1190,8 @@
       "catalogBuyNow": "Buy now",
       "catalogAsk": "Ask",
       "catalogAskPrefill": "Hi {business}, I have a question about {item}: ",
+      "timesPickAnother": "Pick another time",
+      "timesAskPrefill": "The hold ended. Can we look at another time?",
       "catalogAdded": "{item} added to your inquiry. Nothing is booked until they confirm.",
       "catalogAddFailed": "Could not add that right now. Try again, or just ask in the chat.",
       "catalogUnavailable": "Not available",

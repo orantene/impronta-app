@@ -35,6 +35,7 @@ export function useGuestDockModel(input: {
   readonly onRenameSaved?: (name: string) => void;
   readonly inquiryId?: string | null;
   readonly onOpenInquiry?: (inquiryId: string) => void;
+  readonly onAsk?: (text: string) => void;
 }) {
   const locale = input.brand.locale ?? "en";
   const businessName = input.brand.agencyName;
@@ -58,6 +59,7 @@ export function useGuestDockModel(input: {
     businessName,
     refresh: input.refresh ?? (() => undefined),
     onTick: () => setNow(new Date()),
+    onAsk: input.onAsk,
   });
   const recordId = bookAgainRecordId(input.v5?.items?.records);
   const token = input.v5?.threadToken ?? null;

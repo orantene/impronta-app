@@ -146,7 +146,7 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
     }
     case "professional_times": {
       const a = act(message.id);
-      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} onPick={p.onPickTime ? (startsAt) => p.onPickTime?.(message.id, startsAt) : undefined} />;
+      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} onPick={p.onPickTime ? (startsAt) => p.onPickTime?.(message.id, startsAt) : undefined} onAsk={p.onComposerChange} />;
     }
     case "offer_event":
     case "offer_review":
