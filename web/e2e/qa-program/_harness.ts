@@ -356,8 +356,11 @@ export async function sendPricedOffer(page: Page, opts?: { fresh?: boolean }): P
       ).toBeVisible({ timeout: 20_000 });
       return;
     }
-    // Live row may already carry a sent offer (Offer chip without "Awaiting").
-    if ((await page.locator('[data-card="offer"]').count()) > 0) return;
+    // Stream cards hydrate after the row click — wait briefly for an existing offer.
+    for (let i = 0; i < 8; i++) {
+      if ((await page.locator('[data-card="offer"]').count()) > 0) return;
+      await page.waitForTimeout(400);
+    }
   }
   await openPlusTray(page);
   await page.locator('[data-tray-item="add_items"]').click();
