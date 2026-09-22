@@ -143,11 +143,21 @@ export function loadPublicPage(
       // narrow tagging would require a server-side pageId resolution
       // before the read; deferred for now.
       tags: [tagFor(tenantId, "pages-all")],
-      // Defensive 300s safety-net TTL — Vercel's Data Cache persists
-      // across deploys; `revalidateTag` can't cross runtimes. Bounds
-      // staleness for cross-runtime / older-cached edge cases. Same
-      // pattern as homepage-reads.ts.
-      revalidate: 300,
+      // Safety-net TTL — Vercel's Data Cache persists across deploys and
+      // `revalidateTag`/`updateTag` from one runtime instance is not
+      // guaranteed to reach every other warm instance holding a copy of
+      // this entry. Confirmed in production: a directory section's
+      // "Mostrar precio desde" toggle correctly saved to cms_sections and
+      // correctly baked into cms_pages.published_page_snapshot within
+      // seconds, and the tag bust fired without error, yet the live page
+      // kept serving the pre-edit render for well over an hour — the
+      // previous 300s value was being treated as a soft floor, not a hard
+      // ceiling, on this deployment. 20s keeps the perf benefit (this read
+      // is still far cheaper than one per request) while bounding a "why
+      // doesn't my edit show up" report to a page reload, not a support
+      // ticket. Card Design + section edits promise "applies everywhere"
+      // in the editor's own copy; a 5-minute (or longer) gap breaks that.
+      revalidate: 20,
     },
   )();
 }
