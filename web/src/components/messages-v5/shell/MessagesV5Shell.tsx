@@ -18,6 +18,7 @@ import { draftStorageKey, readDraft, writeDraft } from "@/components/admin/pos/m
 import { useT } from "@/i18n/use-t";
 import { itemsLabelForPreset } from "@/lib/messages-v5/context-view";
 import { duplicateHint } from "@/lib/messages-v5/duplicates";
+import { latestHoldExpiresAt } from "@/lib/messages-v5/hold-expiry-from-messages";
 import { applyInboxRowPatch, useMessagingInboxLive } from "@/lib/messages-v5/use-inbox-live";
 import { keepActiveRow } from "@/lib/messaging/inbox-search";
 import { isGeneratedName } from "@/lib/messaging/inquiry-name-pure";
@@ -327,6 +328,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     () => ({ conversation: activeRow?.conversationState ?? "needs_reply", opportunity: activeRow?.opportunityState ?? null, records: recordChips.map((c) => ({ kind: c.kind, recordId: c.recordId })) }),
     [activeRow?.conversationState, activeRow?.opportunityState, recordChips],
   );
+  const holdExpiresAt = useMemo(() => latestHoldExpiresAt(messages), [messages]);
   const tasks = useMemo(() => {
     if (!activeRow) return [];
     const failed = recordChips.some((c) => c.paymentState === "failed");
@@ -340,10 +342,11 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       talentConfirmationsPending: 0,
       balanceDueAt: null,
       reminderDueAt: null,
-      holdExpiresAt: null,
+      // D-MSG-301: close D-MSG-78 for hold expiry via card payloads on the open thread.
+      holdExpiresAt,
       paymentIssue: failed ? "failed" : expired ? "expired" : null,
     }), copy.kit.taskWords);
-  }, [activeRow, copy.kit.taskWords, essentials?.customer.identityLevel, recordChips]);
+  }, [activeRow, copy.kit.taskWords, essentials?.customer.identityLevel, holdExpiresAt, recordChips]);
   const itemsLabel = props.industryPreset !== undefined ? itemsLabelForPreset(props.industryPreset, copy.kit) : props.workspaceType === "talent" ? copy.shell.itemsTalent : copy.shell.itemsGeneric;
   const counts = useMemo(() => ({ [segment]: rows.length }) as Partial<Record<InboxSegment, number>>, [segment, rows.length]);
 

@@ -38,7 +38,7 @@ const C = {
   amberSoft:  "rgba(138,111,26,0.10)",
 } as const;
 
-const FALLBACK_MESSAGE = "Thanks — we'll get back to you within 4 hours.";
+const FALLBACK_MESSAGE = "Thanks, we'll get back to you within 4 hours.";
 
 export default async function AutoAckPolicyPage({
   params,

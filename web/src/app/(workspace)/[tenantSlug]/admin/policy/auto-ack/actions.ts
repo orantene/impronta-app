@@ -11,10 +11,7 @@ import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
  * membership role — coordinators don't get to flip the auto-ack switch.
  *
  * Reads `enabled` and `message` from the form. Empty message falls back
- * to a sensible default; the DB column is NOT NULL with a default of
- * "Thanks — we'll get back to you within 4 hours." per migration
- * 20260514024818_agencies_auto_ack.sql, so we just substitute that here
- * if the textarea is blank.
+ * to "Thanks, we'll get back to you within 4 hours." (no em dash).
  */
 export async function updateAutoAckPolicy(formData: FormData): Promise<void> {
   const auth = await requireWorkspaceStaffAction();
@@ -45,7 +42,7 @@ export async function updateAutoAckPolicy(formData: FormData): Promise<void> {
   const message =
     rawMessage.length > 0
       ? rawMessage.slice(0, 500)
-      : "Thanks — we'll get back to you within 4 hours.";
+      : "Thanks, we'll get back to you within 4 hours.";
 
   const { error } = await auth.supabase
     .from("agencies")
