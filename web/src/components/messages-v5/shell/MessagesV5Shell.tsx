@@ -34,6 +34,7 @@ import "./shell.css";
 import { type InboxFilterKey, type InboxSegment } from "../kit/InboxSegments";
 import { Avatar, Btn } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
+import { holdSlotLabelFromMessages } from "@/lib/messages-v5/client-thread-view";
 import type { ContextItemLine, ContextMoney, ContextPanelAction, ShellActionId } from "../screens/contracts";
 import { formatCentsUSD } from "@/lib/bookings/commission";
 import { buildScreenCopy } from "../screens/copy";
@@ -543,7 +544,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   // L3 extras the shell can answer today: the notes count comes with essentials.
   // `items`, `money`, `filesCount`, `nextReminderLabel` and `clientHistoryLabel`
   // stay undefined until an engine reader returns them (D-MSG-111).
-  const panelProps = { essentials, state, chips: recordChips, tasks, itemsLabel, items: contextItems, money: contextMoney, loading: activeId !== null && essentials === null, copy: copy.kit, variant, onAction: onPanelAction, notesCount: essentials ? essentials.notes.length : null } as const;
+  const holdSlotLabel = useMemo(() => holdSlotLabelFromMessages(messages ?? [], locale), [messages, locale]);
+  const panelProps = { essentials, state, chips: recordChips, tasks, itemsLabel, items: contextItems, money: contextMoney, loading: activeId !== null && essentials === null, copy: copy.kit, variant, onAction: onPanelAction, notesCount: essentials ? essentials.notes.length : null, holdSlotLabel } as const;
 
   const thread = activeRow ? (
     <Thread

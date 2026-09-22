@@ -139,6 +139,27 @@ export function formatSlot(iso: string, locale = "en", timeZone?: string | null)
   return [date, time].filter(Boolean).join(" · ");
 }
 
+/**
+ * The slot the staff context panel should show for a live hold.
+ * Same formatter as the guest card (`formatSlot` + payload timezone).
+ * Newest professional_times wins; a picked start beats the first offered slot.
+ */
+export function holdSlotLabelFromMessages(
+  messages: readonly { readonly kind: string; readonly payload: Record<string, unknown> | null }[],
+  locale = "en",
+): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.kind !== "professional_times") continue;
+    const times = readTimes(message.payload);
+    const iso = times.pickedStartsAt ?? times.slots[0]?.startsAt ?? null;
+    if (!iso) continue;
+    const label = formatSlot(iso, locale, times.timezone);
+    return label || null;
+  }
+  return null;
+}
+
 export function dayLabelFor(date: Date, copy: { readonly today: string; readonly yesterday: string }, now: Date, locale = "en"): string {
   if (sameDay(date, now)) return copy.today;
   const y = new Date(now);
