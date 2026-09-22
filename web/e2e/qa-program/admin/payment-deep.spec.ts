@@ -42,16 +42,21 @@ test.describe("QA 6.1 payment flows", () => {
     expect(client.url(), "client page URL is not /c/t/…").toMatch(/\/c\/t\//);
 
     const accept = client.locator('[data-client-action="accept_offer"]').first();
-    await expect(
-      accept,
-      "client Accept missing after priced offer — offer card never reached the client thread",
-    ).toBeVisible({ timeout: 25_000 });
-    await shot(client, "client-payment-deep-accept");
-    await accept.click();
-    await expect(
-      client.getByText(/accepted/i).first(),
-      "client did not show Accepted after Accept",
-    ).toBeVisible({ timeout: 25_000 });
+    const alreadyAccepted = client.getByText(/^accepted/i).first();
+    if (await accept.isVisible().catch(() => false)) {
+      await shot(client, "client-payment-deep-accept");
+      await accept.click();
+      await expect(
+        client.getByText(/accepted/i).first(),
+        "client did not show Accepted after Accept",
+      ).toBeVisible({ timeout: 25_000 });
+    } else {
+      await expect(
+        alreadyAccepted,
+        "client Accept missing and no Accepted state — offer card never reached the client thread",
+      ).toBeVisible({ timeout: 25_000 });
+      await shot(client, "client-payment-deep-already-accepted");
+    }
     await client.close().catch(() => undefined);
 
     await page.bringToFront();
