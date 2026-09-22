@@ -50,6 +50,8 @@ export function WorkspaceMessagesPage() {
   const searchParams = useSearchParams();
   const linkedInquiry = searchParams.get("inquiry");
   const initialInquiryId = linkedInquiry && /^[0-9a-f-]{36}$/i.test(linkedInquiry) ? linkedInquiry : null;
+  const linkedOrder = searchParams.get("order");
+  const initialOrderId = linkedOrder && /^[0-9a-f-]{36}$/i.test(linkedOrder) ? linkedOrder : null;
   // Messages v5 (L2): env flag for QA; Phase 3 replaces it with the per-tenant
   // `messages_v5` flag (owner decision 10). The old shells stay intact below.
   if (process.env.NEXT_PUBLIC_MESSAGES_V5 === "1" && bridgeTenantIdentity) {
@@ -62,6 +64,7 @@ export function WorkspaceMessagesPage() {
           workspaceType={bridgeTenantIdentity.workspaceType ?? null}
           industryPreset={bridgeTenantIdentity.industryPreset ?? null}
           initialInquiryId={initialInquiryId}
+          initialOrderId={initialOrderId}
         />
       </div>
     );

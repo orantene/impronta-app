@@ -19,6 +19,7 @@ import { useT } from "@/i18n/use-t";
 import { itemsLabelForPreset } from "@/lib/messages-v5/context-view";
 import { duplicateHint } from "@/lib/messages-v5/duplicates";
 import { latestHoldExpiresAt } from "@/lib/messages-v5/hold-expiry-from-messages";
+import { findConversationForOrder } from "@/lib/messages-v5/pos-continuity";
 import { applyInboxRowPatch, useMessagingInboxLive } from "@/lib/messages-v5/use-inbox-live";
 import { keepActiveRow } from "@/lib/messaging/inbox-search";
 import { isGeneratedName } from "@/lib/messaging/inquiry-name-pure";
@@ -68,6 +69,8 @@ export type MessagesV5ShellProps = {
   /** `agencies.settings.industry_preset` when the mount knows it: L3's finer Items label (Talent & services / Services / Order items / Menu, D-MSG-90). */
   readonly industryPreset?: unknown;
   readonly initialInquiryId?: string | null;
+  /** `/admin/messages?order=<id>`: open the thread whose order chip matches, once the inbox rows are loaded. Inquiry wins when both are set. */
+  readonly initialOrderId?: string | null;
   readonly locale?: string;
   /** Dev preview and tests: a fixture engine and a forced width instead of measuring. */
   readonly engine?: ShellEngine;
@@ -270,6 +273,16 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     initialRef.current = null;
     openThread(id);
   }, [openThread]);
+
+  const orderRef = useRef<string | null>(props.initialInquiryId ? null : props.initialOrderId ?? null);
+  useEffect(() => {
+    const orderId = orderRef.current;
+    if (!orderId) return;
+    const id = findConversationForOrder(rows, orderId);
+    if (!id) return;
+    orderRef.current = null;
+    openThread(id);
+  }, [rows, openThread]);
 
   useMessagingInboxLive({
     tenantId: props.live === false ? null : props.tenantId,
