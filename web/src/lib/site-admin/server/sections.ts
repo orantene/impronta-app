@@ -37,7 +37,7 @@
 
 import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID } from "node:crypto";
-import { safeUpdateTag } from "./render-safe-cache";
+import { safeRevalidateTag, safeUpdateTag } from "./render-safe-cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 
 import {
@@ -211,13 +211,16 @@ function bustSectionTags(tenantId: string, sectionId: string): void {
   safeUpdateTag(tagFor(tenantId, "sections", { id: sectionId }));
   safeUpdateTag(tagFor(tenantId, "sections-all"));
   // A section's props (show/hide toggles, layout, copy) render inline on
-  // whatever PAGE embeds it — page-reads.ts caches the public page tree
-  // under "pages-all" (5 min TTL). Without this, a section edit invalidates
-  // only the staff-inspector caches ("sections"/"sections-all") and public
-  // visitors keep seeing the pre-edit section for up to the full TTL: a
-  // talent card's price toggle stayed live-wrong on improntamodels.com for
-  // 30+ minutes after a correctly-saved, correctly-published edit.
-  safeUpdateTag(tagFor(tenantId, "pages-all"));
+  // whatever PAGE embeds it. The public page loader (page-reads.ts
+  // `loadPublicPage`) reads through `unstable_cache` tagged "pages-all"
+  // with a 5-min `revalidate` PROFILE, not a plain fetch-cache entry —
+  // `updateTag` (the "sections"/"sections-all" calls above) does not clear
+  // that kind of entry; `revalidateTag(tag, profile)` does, exactly as
+  // publishHomepage already does for this same "pages-all" tag. Confirmed
+  // live: without this, a section edit saved correctly to cms_sections
+  // and showed correctly in the editor, but real visitors on
+  // improntamodels.com kept seeing the pre-edit render 30+ minutes later.
+  safeRevalidateTag(tagFor(tenantId, "pages-all"), "default");
 }
 
 // ---- upsert ---------------------------------------------------------------
