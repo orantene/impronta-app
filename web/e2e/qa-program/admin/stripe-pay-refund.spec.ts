@@ -45,6 +45,15 @@ test.describe("QA Stripe pay + refund", () => {
       "Stripe 4242+refund requires QA_ALLOW_AGENT_PROD_HOST=1 on agent-owned production host (D-MSG-313; journeys mints mock)",
     );
 
+    // Preview alias of qa-stripe-r2 is SSO-gated; automation bypass unlocks Checkout.
+    const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    if (bypass) {
+      await context.setExtraHTTPHeaders({
+        "x-vercel-protection-bypass": bypass,
+        "x-vercel-set-bypass-cookie": "true",
+      });
+    }
+
     const { errors } = attachConsoleGuard(page);
 
     await signInAgentOwnedHost(page, { host: AGENT_HOST });
