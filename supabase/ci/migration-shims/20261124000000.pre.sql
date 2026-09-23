@@ -8,7 +8,7 @@
 --
 -- WHERE THE COLUMN LIST COMES FROM
 --   web/src/lib/supabase/database.types.ts, generated FROM production, is the
---   only record of this table's shape. It lists these 38 columns, every one of
+--   only record of this table's shape. It lists these 39 columns, every one of
 --   them nullable and with no primary key — the signature of a
 --   `CREATE TABLE … AS SELECT * FROM impronta_pages` snapshot rather than a
 --   declared table. The source table `impronta_pages` is itself out of band:
