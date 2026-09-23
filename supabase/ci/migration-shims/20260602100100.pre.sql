@@ -1,0 +1,30 @@
+-- 20260602100100_saas_p2_rls_tenant_scoped renames 40 legacy `*_staff` policies
+-- to `*_tenant_staff` inside one DO loop: `DROP POLICY IF EXISTS <old>` then
+-- `CREATE POLICY <new>` (no IF NOT EXISTS, and there is no such clause for
+-- policies). Two of those NEW names are also created by
+-- 20260515184622_d5_2_message_target_owning_party.sql:
+--     inquiry_messages_tenant_staff
+--     inquiry_message_reads_tenant_staff
+--
+-- WHY IT ONLY BREAKS IN A REPLAY
+--   20260515184622 sorts BEFORE 20260602100100, so a version-ordered replay
+--   runs it first and the loop dies at
+--       ERROR:  policy "inquiry_messages_tenant_staff" for table
+--               "inquiry_messages" already exists
+--   Production received them the other way round — 20260602100100 was pushed
+--   first and 20260515184622 followed (this repo pushed several files after
+--   files with later stamps). There the create succeeded and 20260515184622,
+--   which starts with its own DROP POLICY IF EXISTS, later replaced both
+--   policies with the target-aware definitions. Production therefore holds
+--   20260515184622's versions, not this migration's.
+--
+-- WHAT THIS PAIR OF SHIMS DOES
+--   .pre  drops the two policies so 20260602100100's loop completes exactly as
+--         it did in production.
+--   .post puts 20260515184622's definitions back, verbatim, so the end state is
+--         the production end state and not the intermediate one.
+--   Nothing else in the 40-name list collides: every other new name is created
+--   only by this migration (checked by grepping CREATE POLICY for all 40 names
+--   across supabase/migrations/ and keeping the hits with a smaller version).
+DROP POLICY IF EXISTS inquiry_messages_tenant_staff      ON public.inquiry_messages;
+DROP POLICY IF EXISTS inquiry_message_reads_tenant_staff ON public.inquiry_message_reads;

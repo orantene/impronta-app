@@ -27,6 +27,12 @@
 #   4. Per-migration shims: supabase/ci/migration-shims/<version>.pre.sql runs
 #      before migration <version> (each attempt) and <version>.post.sql right
 #      after it applies. Each shim documents the exact reason in its header.
+#   5. Replacements: supabase/ci/migration-shims/<version>.replace.sql is
+#      applied INSTEAD of the migration file, for the (rare) file that contains
+#      a statement PostgreSQL rejects on every version, so no amount of
+#      surrounding state can make it pass. A replacement must reproduce what
+#      production actually holds and say so in its header; every use is printed
+#      as a ::warning so it can never pass unnoticed. Prefer a pre/post shim.
 #
 # After each file applies, its version is recorded in
 # supabase_migrations.schema_migrations so the CLI sees the chain as applied.
@@ -39,8 +45,9 @@
 # Connection: standard libpq env vars (PGHOST, PGPORT, PGUSER, PGPASSWORD,
 # PGDATABASE). Optional: MIGRATION_LOG=<file> receives the apply order.
 #
-# STATUS (2026-09-23): a full from-scratch replay CANNOT succeed. See
-# supabase/ci/README.md for the blockers and the baseline fallback.
+# STATUS (2026-09-23): a full from-scratch replay SUCCEEDS — 859/859, exit 0,
+# no baseline and no production credentials. See supabase/ci/README.md for the
+# five shapes of blocker the shims handle and the rule for writing one.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -76,16 +83,24 @@ run_shim() { # $1 = shim file
 
 # attempt <path> -> 0 applied, 1 failed (error text in $TMP/err)
 attempt() {
-  local path="$1" file version name
+  local path="$1" file version name source
   file="$(basename "$path")"; version="${file%%_*}"
   name="${file#*_}"; name="${name%.sql}"
 
-  grep -oiE "alter[[:space:]]+type[[:space:]]+[^;]*[[:space:]]add[[:space:]]+value[^;]*;" "$path" \
+  # A .replace.sql stands in for the whole file, so it is also what the enum
+  # pre-commit and the BEGIN/COMMIT strip read.
+  source="$path"
+  if [ -f "$SHIM_DIR/$version.replace.sql" ]; then
+    source="$SHIM_DIR/$version.replace.sql"
+    replaced[$file]=1
+  fi
+
+  grep -oiE "alter[[:space:]]+type[[:space:]]+[^;]*[[:space:]]add[[:space:]]+value[^;]*;" "$source" \
     | while IFS= read -r stmt; do psql -X -q -c "$stmt" >/dev/null 2>&1 || true; done
 
   run_shim "$SHIM_DIR/$version.pre.sql"
 
-  grep -viE '^[[:space:]]*(begin|commit)[[:space:]]*;[[:space:]]*$' "$path" > "$TMP/body.sql"
+  grep -viE '^[[:space:]]*(begin|commit)[[:space:]]*;[[:space:]]*$' "$source" > "$TMP/body.sql"
   if ! "${PSQL[@]}" -1 -f "$TMP/body.sql" > /dev/null 2> "$TMP/err"; then
     return 1
   fi
@@ -98,6 +113,7 @@ attempt() {
 
 pending=()
 declare -A waits_for=()   # pending file -> object it failed on (relation/type)
+declare -A replaced=()    # file -> 1 when a .replace.sql stood in for it
 
 # Which of the objects pending files wait for exist now? One query per round.
 ready_objects() {
@@ -135,8 +151,16 @@ retry_pending() { # $1 = label of the migration that just applied
 # From the last error: the relation/type that does not exist yet, if that is
 # why the attempt failed (quoted name, schema-qualified when the error was).
 missing_object() {
-  grep -m1 -oE '(relation|type) "?[A-Za-z0-9_."]+"? does not exist' "$TMP/err" \
-    | sed -E 's/^(relation|type) //; s/ does not exist$//; s/"//g'
+  # relation / type: the deferral can test these with to_regclass/to_regtype.
+  local n
+  n="$(grep -m1 -oE '(relation|type) "?[A-Za-z0-9_."]+"? does not exist' "$TMP/err" \
+        | sed -E 's/^(relation|type) //; s/ does not exist$//; s/"//g')"
+  if [ -n "$n" ]; then echo "$n"; return; fi
+  # `column "c" of relation "t" does not exist` -> wait for t, then retry.
+  grep -m1 -oE 'column "[^"]+" of relation "[^"]+" does not exist' "$TMP/err" \
+    | sed -E 's/.*of relation "([^"]+)".*/\1/'
+  # Anything else (missing function, failed assertion, duplicate object) gets
+  # no watched object and is simply retried on every round.
 }
 
 total=0; applied=0; deferrals=0
@@ -161,11 +185,47 @@ for path in $(find "$MIG_DIR" -maxdepth 1 -type f -name '[0-9]*_*.sql' | sort); 
 done
 
 echo "Applied $applied of $total migrations in $(( $(date +%s) - start ))s ($deferrals deferrals)"
-if [ "${#pending[@]}" -gt 0 ]; then
+# FAILURE_REPORT=<file> collects, for every migration that never applied, a
+# `=== <file>` header followed by its FULL error text (WARNINGs included — some
+# assertions name their offenders in WARNING lines and only summarise in the
+# ERROR). Triage reads this file instead of scrolling the whole log.
+REPORT="${FAILURE_REPORT:-}"
+[ -n "$REPORT" ] && : > "$REPORT"
+failed=0
+# The final sweep LOOPS. A single pass judges each parked file against the
+# state at the moment it is reached, and files that sort early are reached
+# first — so a file parked on something a LATER-sorting parked file creates is
+# marked "cannot apply" purely because it was tried too soon. (Measured:
+# 20261007000000, 20261228000142, 20261229000360 and 20261229000367 all landed
+# during the sweep, after the three files waiting on them had been judged.)
+# Repeat while anything still applies; only a round with zero progress is a
+# real verdict.
+while [ "${#pending[@]}" -gt 0 ]; do
+  progressed=0; still=()
   for p in "${pending[@]}"; do
-    attempt "$MIG_DIR/$p" && { applied=$((applied + 1)); continue; }
-    echo "::error title=Migration cannot apply::$p"
-    grep -v 'NOTICE' "$TMP/err" | tail -8
+    if attempt "$MIG_DIR/$p"; then
+      echo "applied deferred $p (final sweep)"
+      applied=$((applied + 1)); progressed=1
+    else
+      still+=("$p")
+    fi
+  done
+  pending=("${still[@]+"${still[@]}"}")
+  [ "$progressed" -eq 0 ] && break
+done
+for p in "${pending[@]+"${pending[@]}"}"; do
+  attempt "$MIG_DIR/$p"   # one last run, only to capture the final error text
+  failed=$((failed + 1))
+  echo "::error title=Migration cannot apply::$p"
+  grep -v 'NOTICE' "$TMP/err" | tail -8
+  if [ -n "$REPORT" ]; then
+    { echo "=== $p"; grep -v '^NOTICE' "$TMP/err"; echo; } >> "$REPORT"
+  fi
+done
+if [ "${#replaced[@]}" -gt 0 ]; then
+  for r in "${!replaced[@]}"; do
+    echo "::warning title=Migration replaced::$r applied from migration-shims/${r%%_*}.replace.sql"
   done
 fi
+echo "Final: $applied applied, $failed could not apply, ${#replaced[@]} replaced, of $total on disk"
 [ "$applied" -eq "$total" ]

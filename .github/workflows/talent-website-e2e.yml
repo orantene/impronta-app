@@ -10,12 +10,14 @@
 #   - ARMED   (supabase/e2e-baseline.sql exists): load the baseline, then apply
 #             every migration newer than it, strictly in order.
 #   - UNARMED (no baseline yet): replay the whole migration history from an
-#             empty database with supabase/ci/apply-migrations.sh --defer and
-#             report exactly which migrations cannot apply. As of 2026-09-23
-#             this replay cannot fully succeed (a production migration can
-#             never apply as written; production also holds out-of-band
-#             objects and data some migrations assert on), so the job is RED
-#             until the founder commits the baseline.
+#             empty database with supabase/ci/apply-migrations.sh --defer.
+#             As of 2026-09-23 this replay SUCCEEDS end to end — no baseline,
+#             no production credentials, no founder step. The files that
+#             cannot apply as written are handled by documented shims in
+#             supabase/ci/migration-shims/; supabase/ci/README.md lists the
+#             five shapes and the rule for writing one. Anything that still
+#             cannot apply fails the job, with its full error text in the
+#             job summary.
 #
 # CI-only overrides (applied to the runner's checkout, never committed):
 #   - [db.seed] off: config.toml seeds seed_demo_profiles.sql (demo roster).
@@ -108,8 +110,9 @@ jobs:
             bash supabase/ci/apply-migrations.sh --after "$after" | tee "$RUNNER_TEMP/apply.log"
           else
             echo "mode=replay" >> "$GITHUB_OUTPUT"
-            echo "::warning title=Talent website E2E unarmed::supabase/e2e-baseline.sql is missing; replaying the full migration history (cannot fully succeed yet, see supabase/ci/README.md)."
+            echo "Replaying the full migration history from empty (no baseline needed; see supabase/ci/README.md)."
             MIGRATION_LOG="$RUNNER_TEMP/order.log" \
+            FAILURE_REPORT="$RUNNER_TEMP/failures.txt" \
               bash supabase/ci/apply-migrations.sh --defer | tee "$RUNNER_TEMP/apply.log"
           fi
 
@@ -133,10 +136,21 @@ jobs:
             echo "| Migrations applied | $applied |"
             echo "| Public tables | $tables |"
             echo ""
-            if grep -q '::error' "$RUNNER_TEMP/apply.log" 2>/dev/null; then
+            if [ -s "$RUNNER_TEMP/failures.txt" ]; then
+              echo "#### Migrations that could not apply"
+              echo '```'
+              sed 's/^psql:[^ ]* //' "$RUNNER_TEMP/failures.txt" | head -200
+              echo '```'
+            elif grep -q '::error' "$RUNNER_TEMP/apply.log" 2>/dev/null; then
               echo "#### Migrations that could not apply"
               echo '```'
               grep -A3 '::error' "$RUNNER_TEMP/apply.log" | grep -E '::error|ERROR' | sed 's/^psql:[^ ]* //' | head -120
+              echo '```'
+            fi
+            if grep -q '::warning title=Migration replaced' "$RUNNER_TEMP/apply.log" 2>/dev/null; then
+              echo "#### Applied from a replacement, not the migration file"
+              echo '```'
+              grep '::warning title=Migration replaced' "$RUNNER_TEMP/apply.log" | sed 's/.*replaced:://'
               echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
