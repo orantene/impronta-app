@@ -192,7 +192,7 @@ export const MAISON_FIXED_OFFERING = "Maison QA — fixed service";
  *
  *   rosterStatus 'pending'                  -> "pending"    (not linked)
  *   agencyVisibility 'site_visible'|'featured' -> "live"    (linked)
- *   agencyVisibility 'roster_only'          -> "roster_only" (not linked)
+ *   agencyVisibility 'roster_only'          -> "agency_hidden" (not linked)
  *
  * A pending membership is "pending" whatever its visibility says: the agency has
  * not accepted the talent yet, so nothing of theirs is published anywhere.
@@ -200,12 +200,16 @@ export const MAISON_FIXED_OFFERING = "Maison QA — fixed service";
 export interface TalentMembershipFixture {
   slug: string;
   displayName: string;
-  effective: "live" | "roster_only" | "pending";
+  effective: "live" | "agency_hidden" | "pending";
 }
 
 function effectiveVisibility(a: RosterAgencyFixture): TalentMembershipFixture["effective"] {
   if (a.rosterStatus === "pending") return "pending";
-  return a.agencyVisibility === "roster_only" ? "roster_only" : "live";
+  // "agency_hidden", NOT "roster_only". The column is `roster_only`; the chip
+  // the account menu renders is `agency_hidden`. Confirmed against the rendered
+  // DOM (data-effective) rather than assumed from the column name — the first
+  // run of this assertion is what caught the difference.
+  return a.agencyVisibility === "roster_only" ? "agency_hidden" : "live";
 }
 
 export const T_MULTI_ROSTER_MEMBERSHIPS: readonly TalentMembershipFixture[] =
@@ -223,12 +227,20 @@ export const T_MULTI_ROSTER_MEMBERSHIPS: readonly TalentMembershipFixture[] =
 export const NOT_A_MEMBER_SLUG = ACME_AGENCY_SLUG;
 
 /**
- * Absolute URL of a talent's own public page, on the host the run is pointed at.
- * Derived from PLAYWRIGHT_BASE_URL so it follows the run rather than pinning a
- * host that is only correct in one environment.
+ * Absolute URL of a talent's own public page.
+ *
+ * The CANONICAL PUBLIC origin, deliberately not the host the test is pointed at.
+ * A talent's "my page" link is something they share, so the product emits the
+ * real public URL even when the app is being served from localhost — verified
+ * against the rendered href, which is `https://tulala.digital/t/<code>` on a
+ * run served from `http://localhost:3000`.
+ *
+ * Overridable for a run against a different platform origin; it is a fixture
+ * expectation, not a resolver, so the literal here does not fall under the
+ * host-context "no hardcoded production domain" invariant.
  */
 export function selfPageUrlFor(fx: TalentFixture): string {
-  const base = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+  const base = process.env.E2E_PUBLIC_ORIGIN ?? "https://tulala.digital";
   return `${base.replace(/\/$/, "")}/t/${fx.profileCode}`;
 }
 
