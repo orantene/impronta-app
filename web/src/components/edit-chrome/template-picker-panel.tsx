@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import {
@@ -91,6 +91,22 @@ export function TemplatePickerPanel({
   const [applyingKey, setApplyingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Category filter bar (0.C) — only rendered when at least one def carries
+  // a category, so every pre-existing caller (none of which set one) is
+  // byte-identical: no bar, no filtering, `visibleTemplates === templates`.
+  const categories = useMemo(() => {
+    const seen = new Set<string>();
+    for (const t of templates) {
+      if (t.category) seen.add(t.category);
+    }
+    return Array.from(seen);
+  }, [templates]);
+  const [category, setCategory] = useState<string | "all">("all");
+  const visibleTemplates =
+    categories.length === 0 || category === "all"
+      ? templates
+      : templates.filter((t) => t.category === category);
+
   const shouldConfirm = confirmBeforeApply ?? mode === "site";
 
   function handleApply(def: UnifiedTemplateDef) {
@@ -129,6 +145,19 @@ export function TemplatePickerPanel({
         <p style={{ margin: "0 0 10px", fontSize: 12, color: COLORS.criticalDeep }}>{error}</p>
       ) : null}
 
+      {categories.length > 0 ? (
+        <div
+          role="tablist"
+          aria-label="Filter templates by category"
+          style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}
+        >
+          <CategoryChip active={category === "all"} label="All" onClick={() => setCategory("all")} />
+          {categories.map((cat) => (
+            <CategoryChip key={cat} active={category === cat} label={cat} onClick={() => setCategory(cat)} />
+          ))}
+        </div>
+      ) : null}
+
       <div
         style={{
           display: "grid",
@@ -136,7 +165,7 @@ export function TemplatePickerPanel({
           gap: 10,
         }}
       >
-        {templates.map((def) => {
+        {visibleTemplates.map((def) => {
           const selected = !!currentKey && def.key === currentKey;
           const previewFamily = previewFamilyForRegistry(def.registryKind);
           const isApplying = pending && applyingKey === def.key;
@@ -217,6 +246,31 @@ export function TemplatePickerPanel({
         })}
       </div>
     </div>
+  );
+}
+
+function CategoryChip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      style={{
+        minHeight: 32,
+        padding: "0 12px",
+        borderRadius: 999,
+        border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+        background: active ? COLORS.accentSoft : "#fff",
+        color: active ? COLORS.ink : COLORS.inkMuted,
+        fontSize: 12,
+        fontWeight: 600,
+        fontFamily: FONTS.body,
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
