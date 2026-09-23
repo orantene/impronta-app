@@ -83,6 +83,12 @@ export function buildDefaultShellTree(
   };
   const header: BuilderNode = {
     id: makeId(),
+    // A `section` ON PURPOSE, unlike the page blocks in
+    // `buildStarterHomePageTree`. This is a SHELL slot (`slotKey: "header"`),
+    // rendered through the shell path, so it never reaches
+    // `hasRenderableBuilderNodes`. Turning it into a `container` to "finish"
+    // the D-MSG-411 fix would take it out of the header slot and break the
+    // site header. `default-max-site-trees.test.ts` pins this.
     kind: "section",
     props: {
       sectionTypeKey: "site_header",
