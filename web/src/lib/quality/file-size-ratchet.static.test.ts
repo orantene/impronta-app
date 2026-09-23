@@ -591,7 +591,7 @@ const BUDGETS: Record<string, number> = {
   // +2 — P2 SlotPicker instant branch (tenantId + bookingMode).
   // +37 — option labels keep their English key AND their unit; without this
   // the public profile discarded both (TS also needs unit on NewDefEmbed).
-  "src/app/t/[profileCode]/profile-view.tsx": 2691,
+  "src/app/t/[profileCode]/profile-view.tsx": 2671,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:

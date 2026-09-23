@@ -27,17 +27,28 @@ let remotePatterns: NonNullable<
 
 if (supabaseUrl) {
   try {
-    const host = new URL(supabaseUrl).hostname;
+    const parsed = new URL(supabaseUrl);
+    const host = parsed.hostname;
+    // Take the protocol from the URL rather than assuming https. A hosted
+    // Supabase is https and stays https; a LOCAL one (supabase start, which is
+    // what CI's talent-website journeys run against) is
+    // http://127.0.0.1:54321, and hardcoding https meant the hostname matched
+    // while the protocol did not. next/image then threw "hostname not
+    // configured", which is a RENDER error: the page 200s, the error boundary
+    // swallows it, and every journey asserting on that page fails for a reason
+    // that looks nothing like an image config. Found 2026-09-23 when all four
+    // Maison specs failed this way on their first real CI run.
+    const protocol = parsed.protocol === "http:" ? "http" : "https";
     // Allow both public objects and short-lived signed URLs (private docs, gated
      // media). Without the sign pattern, next/image silently 400s on signed URLs.
     remotePatterns = [
       {
-        protocol: "https",
+        protocol,
         hostname: host,
         pathname: "/storage/v1/object/public/**",
       },
       {
-        protocol: "https",
+        protocol,
         hostname: host,
         pathname: "/storage/v1/object/sign/**",
       },

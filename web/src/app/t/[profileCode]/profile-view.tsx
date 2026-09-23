@@ -7,14 +7,7 @@ import { notFound } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 
-import { LightProfileLayout } from "./_light/LightProfileLayout";
-import { NoirProfileLayout } from "./_noir/NoirProfileLayout";
-import { LumenProfileLayout } from "./_lumen/LumenProfileLayout";
-import { AtelierProfileLayout } from "./_atelier/AtelierProfileLayout";
-import {
-  MaisonProfileLayout,
-  type MaisonProfileLayoutProps,
-} from "./_maison/MaisonProfileLayout";
+import { resolveProfileTemplate } from "./_shared/profile-template-dispatch";
 import { ProfileShareRow } from "./_light/ProfileShareRow";
 import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
@@ -2330,40 +2323,10 @@ export async function TalentProfileView({
   // Per-tenant choice of profile-page template — the exact mirror of the Card
   // Design chooser. Card Design stores its pick in the
   // `template.directory-card-family` design token; the profile template uses
-  // the sibling `template.profile-layout-family` token (both live in
-  // agency_branding.theme_json, already loaded above as brandingTheme). A
-  // `?template=noir|classic` query param overrides it for QA/preview. Any
-  // value other than "noir" keeps the classic LightProfileLayout. Both
-  // templates accept identical props.
-  const profileTemplateOverride =
-    sp.template === "noir" ||
-    sp.template === "classic" ||
-    sp.template === "lumen" ||
-    sp.template === "atelier" ||
-    sp.template === "maison"
-      ? sp.template
-      : null;
-  const profileLayoutFamily =
-    typeof brandingTheme["template.profile-layout-family"] === "string"
-      ? (brandingTheme["template.profile-layout-family"] as string)
-      : "classic";
-  const profileTemplateKey = profileTemplateOverride ?? profileLayoutFamily;
-  // Typed at the WIDEST template's props, not the narrowest. Every template
-  // accepts LightProfileLayoutProps, and Maison's props are that plus optional
-  // extras — so each of the five is assignable here (a function taking the
-  // wider type accepts the narrower argument), while the call site may pass
-  // Maison's extras. The templates that do not read them ignore them, exactly
-  // as Classic and Noir already ignore themeMode/themeVars.
-  const ProfileTemplate: React.ComponentType<MaisonProfileLayoutProps> =
-    profileTemplateKey === "noir"
-      ? NoirProfileLayout
-      : profileTemplateKey === "lumen"
-        ? LumenProfileLayout
-        : profileTemplateKey === "atelier"
-          ? AtelierProfileLayout
-          : profileTemplateKey === "maison"
-            ? MaisonProfileLayout
-            : LightProfileLayout;
+  // the sibling `template.profile-layout-family` token in brandingTheme,
+  // overridable with `?template=` for QA. See the dispatcher for the rules.
+  const { key: profileTemplateKey, Template: ProfileTemplate } =
+    resolveProfileTemplate(sp.template, brandingTheme);
 
   // Tenant theme → theme-adaptive templates (Lumen / Atelier). Project the
   // tenant's color design tokens to --token-color-* vars and derive a
@@ -2481,13 +2444,9 @@ export async function TalentProfileView({
         showFooter={!platformChrome}
         themeMode={profileThemeMode}
         themeVars={profileThemeVars}
-        // What this surface can ACTUALLY do. resolveTalentBooking already
-        // accounts for the plan cap (appointments-plan-policy holds a free
-        // talent at "request") and for a non-agency host. Maison steps its CTA
-        // text, its dispatched event intent and the sheet's final button down
-        // together on anything below "instant", so the page never promises a
-        // confirmation the engine cannot deliver. Omitting this defaulted it
-        // to "instant" and the degrade never fired in production.
+        // What this surface can ACTUALLY do (plan cap + host). Maison steps
+        // its CTA, its event intent and the sheet's button down together below
+        // "instant"; omitting it defaulted to "instant" and never degraded.
         surfaceBooking={booking.mode}
         hostCtxKind={hostCtx.kind as "agency" | "app" | "hub" | "platform"}
         tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
