@@ -74,6 +74,26 @@ function requireEnv(name: string): string {
 const SUPABASE_URL = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
 const SERVICE_ROLE_KEY = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 
+// Local-only: this script creates auth users and rewrites talent rows, so it
+// must never reach a hosted project. No override flag on purpose (a bare env
+// flag is not a guard, see web/AGENTS.md "Verification").
+const LOCAL_SUPABASE_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "host.docker.internal"]);
+function assertLocalSupabaseTarget(url: string): void {
+  let host = "";
+  try {
+    host = new URL(url).hostname.replace(/^\[|\]$/g, "");
+  } catch {
+    throw new Error("[seed:talent-website] refusing: NEXT_PUBLIC_SUPABASE_URL is not a valid URL.");
+  }
+  if (!LOCAL_SUPABASE_HOSTS.has(host)) {
+    throw new Error(
+      `[seed:talent-website] refusing: target host "${host}" is not a local Supabase. ` +
+        "This seed only runs against the CLI's local stack (supabase start).",
+    );
+  }
+}
+assertLocalSupabaseTarget(SUPABASE_URL);
+
 const admin: SupabaseClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
