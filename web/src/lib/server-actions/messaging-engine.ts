@@ -7,6 +7,7 @@ import { addLine, createDraftOrder } from "@/lib/pos/draft";
 import { attachPaymentLinkInquiry, createPaymentLink } from "@/lib/payments/links";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logAssignment, logCloseLost, logConversationState } from "@/lib/messaging/action-log";
