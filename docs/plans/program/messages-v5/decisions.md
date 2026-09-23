@@ -324,6 +324,8 @@ D-MSG-317 · 2026-09-22 (Round 2 capacity) · Fixture sessions Morning / Last pl
 
 D-MSG-318 · 2026-09-22 (Round 2 capacity) · POS walk-in for Morning class when the pool is already at 12 units shows a capacity refusal sentence (required) but also throws Minified React error #310 (hooks order) in the console — a crash on the refusal path. Spec: `capacity/class-seat-limit.spec.ts` "morning filled to 12". Product: sell/chooser render must stay hook-stable when `sold_out` lands mid-sale.
 
+D-MSG-319 · 2026-09-22 (Round 2 isolation) · A's session opening `/admin/pos?order=<B's order id>` correctly hides B's line ("cuticle oil" count 0) but throws Minified React error #310 (hooks). Same family as D-MSG-318 on the capacity-full POS path. Isolation of content is proven; crash-on-foreign-id is not. Spec: `isolation/cross-tenant.spec.ts`.
+
 D-MSG-320 · 2026-09-22 (Round 2 hold-live) · Live-hold next-step proof must seed a *future* `holdExpiresAt` on a selected times card. `latestHoldExpiresAt` ignores null expiries and picks the chronologically latest ISO across cards — sending a fresh times card (null expiry) then failing a client pick leaves an older expired selected card in charge, so the bar still reads "Hold expired". Spec now deep-links both directions (`hold-expired-next.spec.ts`); live seed inquiry `45a9b17e-…` kept with holdExpiresAt = now()+7d on QA.
 
 D-MSG-321 · 2026-09-22 (Round 2 payment-outside) · Outside `canSend` requires `amountCents > 0` AND `reference.trim().length >= 3` (`PaymentRequest.tsx`). Specs that only click Cash + Full leave Send disabled. Fix: select Other, type dollars into `#msgv5-payment-other`, fill `#msgv5-payment-reference`. Spec: `admin/payment-outside.spec.ts`.
