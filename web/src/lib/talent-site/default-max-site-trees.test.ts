@@ -5,6 +5,7 @@ import {
   buildDefaultShellTree,
   buildStarterHomePageTree,
 } from "./default-max-site-trees";
+import { hasRenderableBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
 import { siteHeaderSchemaV1 } from "@/lib/site-admin/sections/site_header/schema";
 
@@ -84,7 +85,7 @@ test("starter home page tree has a hero heading (and tagline when given)", () =>
   );
   assert.equal(withTagline.length, 1);
   const section = withTagline[0] as { kind: string; children: { kind: string }[] };
-  assert.equal(section.kind, "section");
+  assert.equal(section.kind, "container");
   assert.deepEqual(
     section.children.map((c) => c.kind),
     ["heading", "paragraph"],
@@ -121,4 +122,18 @@ test("trees use unique ids", () => {
   };
   walk(tree as { id: string; children?: unknown[] }[]);
   assert.equal(new Set(ids).size, ids.length);
+});
+
+test("the starter home tree is RENDERABLE by the public site renderer (D-MSG-411)", () => {
+  // `renderTalentMaxSite` answers 404 when `hasRenderableBuilderNodes` says the
+  // published page is empty. A top-level `section` never renders in freeform
+  // mode, so a starter built from sections produced a published site that 404'd
+  // forever. Assert the app's own starter passes its own renderer.
+  for (const tree of [
+    buildStarterHomePageTree({ displayName: "Morena" }),
+    buildStarterHomePageTree({ displayName: "Morena", tagline: "Model · Cancún" }),
+  ]) {
+    assert.equal(hasRenderableBuilderNodes(tree, { mode: "freeform" }), true);
+    assert.equal(hasRenderableBuilderNodes(tree), true);
+  }
 });
