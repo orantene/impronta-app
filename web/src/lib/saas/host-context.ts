@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import type { NextRequest } from "next/server";
 
+import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
+import { splitTalentSiteHost } from "@/lib/talent-site/site-public-url";
+
 /**
  * SaaS unified host resolver — THE single source of truth for
  * hostname → (context, tenant) mapping.
@@ -58,6 +61,15 @@ export type HostContext =
       tenantId: null;
       hostname: string;
       talentProfileId: string;
+      /**
+       * How this host addresses the site: "custom" for a talent's own domain
+       * (resolved by `talent_site_domain_lookup`), "subdomain" for
+       * `<slug>.tulala.digital` (resolved by `talent_site_subdomain_lookup`,
+       * only when TALENT_SITE_SUBDOMAINS_ENABLED is on). The render is identical;
+       * the distinction exists so downstream code can tell a talent's OWN domain
+       * from a platform-issued one without re-parsing the host.
+       */
+      hostKind: "subdomain" | "custom";
     }
   | { kind: "not_found"; tenantId: null; hostname: string };
 
@@ -191,7 +203,15 @@ export async function resolveTenantContext(
     // so a talent domain can never shadow an agency host. Degrade-safe: any RPC
     // error / empty result / malformed row falls through to the existing
     // not_found (or dev-localhost) behavior. NEVER mis-serves another tenant.
-    const talentSite = await resolveTalentSiteContext(supabase, hostname);
+    const talentSite =
+      (await resolveTalentSiteContext(supabase, hostname)) ??
+      // Phase 2 — `<slug>.tulala.digital`. Tried LAST: `agency_domains` above and
+      // the custom-domain RPC just now both had their turn, so an agency host and
+      // a talent's own domain each still win. Gated on the env switch, so with it
+      // unset this whole branch is dead and resolution is byte-identical to today.
+      (isTalentSiteSubdomainsEnabled()
+        ? await resolveTalentSubdomainContext(supabase, hostname)
+        : null);
     if (talentSite) {
       value = talentSite;
     } else if (
@@ -339,8 +359,8 @@ export async function isProfileCodeOnTenantRoster(
 
 export type TalentSiteEdgeClient = {
   rpc: (
-    fn: "talent_site_domain_lookup",
-    args: { p_host: string },
+    fn: "talent_site_domain_lookup" | "talent_site_subdomain_lookup",
+    args: { p_host: string } | { p_slug: string },
   ) => PromiseLike<{
     data:
       | Array<{ talent_profile_id?: string | null }>
@@ -373,7 +393,56 @@ export async function resolveTalentSiteContext(
     const row = Array.isArray(data) ? data[0] : data;
     const talentProfileId = row?.talent_profile_id;
     if (!talentProfileId || typeof talentProfileId !== "string") return null;
-    return { kind: "talent_site", tenantId: null, hostname, talentProfileId };
+    return {
+      kind: "talent_site",
+      tenantId: null,
+      hostname,
+      talentProfileId,
+      hostKind: "custom",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve `<slug>.tulala.digital` (or `<slug>.lvh.me` locally) to the talent
+ * site that owns the label, via the `talent_site_subdomain_lookup` RPC.
+ *
+ * Runs ONLY after `agency_domains` and the custom-domain RPC have both missed,
+ * so an agency host and a talent's own domain both still win the hostname. The
+ * host is parsed by the strict pure parser first, which means a non-talent host
+ * costs no query at all: anything that is not EXACTLY one label under a known
+ * root returns null before the RPC is reached.
+ *
+ * Callers gate this on `isTalentSiteSubdomainsEnabled()`. It is left ungated
+ * here so the resolver itself stays directly testable with a fake client.
+ *
+ * Hardened identically to the custom-domain resolver: any throw / error / shape
+ * surprise returns null, which is indistinguishable downstream from "host not
+ * registered". A talent subdomain is NEVER allowed to mis-serve.
+ */
+export async function resolveTalentSubdomainContext(
+  supabase: TalentSiteEdgeClient,
+  hostname: string,
+): Promise<Extract<HostContext, { kind: "talent_site" }> | null> {
+  const parts = splitTalentSiteHost(hostname);
+  if (!parts) return null;
+  try {
+    const { data, error } = await supabase.rpc("talent_site_subdomain_lookup", {
+      p_slug: parts.label,
+    });
+    if (error) return null;
+    const row = Array.isArray(data) ? data[0] : data;
+    const talentProfileId = row?.talent_profile_id;
+    if (!talentProfileId || typeof talentProfileId !== "string") return null;
+    return {
+      kind: "talent_site",
+      tenantId: null,
+      hostname,
+      talentProfileId,
+      hostKind: "subdomain",
+    };
   } catch {
     return null;
   }

@@ -25,6 +25,9 @@ test("resolves an active talent custom domain to a talent_site context", async (
     tenantId: null,
     hostname: "jane.com",
     talentProfileId: "talent-42",
+    // Phase 2 — a custom domain is the talent's OWN host, as opposed to a
+    // platform-issued `<slug>.tulala.digital` subdomain.
+    hostKind: "custom",
   });
 });
 
