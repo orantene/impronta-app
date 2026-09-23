@@ -24,7 +24,12 @@ on:
       force:
         description: "Regenerate every node (ignores the content hash). Costs credits; use --nodes normally."
         required: false
-        default: "false"
+        # `type: boolean` constrains the value at the API boundary, so the only
+        # values that can ever reach the job are true and false. Defence in
+        # depth: the real fix is passing it through `env` rather than splicing
+        # it into a run body (see "Draft + verify the delta").
+        type: boolean
+        default: false
 
 concurrency:
   group: guide-sync
@@ -34,6 +39,11 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # The job reads the repo and writes to Supabase. It pushes nothing, opens no
+    # PR and comments nowhere, so it needs no write scope. Without this block it
+    # inherits the repository default, which may be read-write.
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: web
@@ -56,6 +66,11 @@ jobs:
 
       - uses: actions/checkout@v4
         if: steps.secrets.outputs.armed == 'true'
+        with:
+          # Checkout otherwise writes GITHUB_TOKEN into .git/config, and the
+          # `npm ci` below runs third-party postinstall scripts with both that
+          # token and a Supabase service-role key in the environment.
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         if: steps.secrets.outputs.armed == 'true'
@@ -70,8 +85,16 @@ jobs:
 
       - name: Draft + verify the delta
         if: steps.secrets.outputs.armed == 'true'
+        # FORCE arrives as an environment variable, never as a `${{ }}`
+        # interpolation inside the run body. An interpolation is spliced into
+        # the SCRIPT TEXT before bash sees it, so a dispatcher could close the
+        # quote and append commands that run with ANTHROPIC_API_KEY,
+        # OPENAI_API_KEY and SUPABASE_SERVICE_ROLE_KEY in scope. Same rule
+        # db-push.yml states in its own header.
+        env:
+          FORCE: ${{ github.event.inputs.force }}
         run: |
-          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+          if [ "$FORCE" = "true" ]; then
             node --import tsx scripts/guide/generate-guide-articles.mjs --all --force
           else
             node --import tsx scripts/guide/generate-guide-articles.mjs --all
