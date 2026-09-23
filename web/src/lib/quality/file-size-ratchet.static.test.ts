@@ -126,7 +126,13 @@ const BUDGETS: Record<string, number> = {
   // repair trio moved out together as use-section-lock-actions.ts — they share
   // the commit spine and only read correctly against each other. The feature
   // lands NET SMALLER than the code it joined; budget lowered to match.
-  "src/components/edit-chrome/edit-context.tsx": 6290,
+  // RAISED 6290 -> 6308 (Phase 1, talent free website). `EditProvider` owns the
+  // only call site of `guardBuilderNodeMutation`, so the talent structural-edit
+  // lock has to be threaded through here: 18 lines for `structuralEdits`,
+  // `locale` and `onLockedOperation` plus their dependency entries. Everything
+  // that COULD leave did: the CustomEvent payload lives in the new
+  // `edit-chrome/talent-lock-broadcast.ts`, not in this file.
+  "src/components/edit-chrome/edit-context.tsx": 6308,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.

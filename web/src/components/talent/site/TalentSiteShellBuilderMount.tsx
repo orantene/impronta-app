@@ -23,6 +23,7 @@ import { createBoundTalentSiteShellAdapter } from "@/lib/site-admin/builder-core
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import { BuilderMediaScopeProvider } from "@/components/edit-chrome/builder-media-scope";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
+import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { TalentBuilderPageSwitcher } from "./TalentBuilderPageSwitcher";
 
 export interface TalentSiteShellBuilderMountProps {
@@ -34,6 +35,12 @@ export interface TalentSiteShellBuilderMountProps {
   workspacePlan?: string | null;
   /** Display label for the topbar (e.g. talent's display name). */
   talentDisplayName?: string | null;
+  /**
+   * Phase 1 — the talent's per-capability record, threaded into
+   * `buildSiteShellBuilderConfig`. Omitted ⇒ every capability true (the
+   * legacy behaviour — a talent shell was Max-only).
+   */
+  siteCapabilities?: TalentSiteCapabilities;
   /** Locale. */
   locale?: string;
   /** Called when the user clicks "Exit" in the editor chrome. */
@@ -47,6 +54,7 @@ export function TalentSiteShellBuilderMount({
   tenantId,
   workspacePlan = null,
   talentDisplayName = null,
+  siteCapabilities,
   locale,
   onExit,
   sitePages,
@@ -58,10 +66,12 @@ export function TalentSiteShellBuilderMount({
         // X4 — this mount IS the talent Max-site shell, so declare a talent tier:
         // it makes `buildSiteShellBuilderConfig` resolve the precise overlay
         // surface to `talent_shell` (its OWN catalog toggle), no longer riding the
-        // workspace toggle. The Max site is Portfolio-tier by construction.
-        { talentTier: "talent_portfolio" },
+        // workspace toggle. The site's actual tier now comes through
+        // `siteCapabilities` (Phase 1); the talentTier flag itself only needs to
+        // be non-null to mark this shell as talent-owned.
+        { talentTier: "talent_portfolio", siteCapabilities },
       ),
-    [talentProfileId],
+    [talentProfileId, siteCapabilities],
   );
 
   return (
@@ -102,7 +112,12 @@ export function TalentSiteShellBuilderMount({
               ← Exit editor
             </button>
             {sitePages ? (
-              <TalentBuilderPageSwitcher pages={sitePages} currentSlug="__shell__" />
+              <TalentBuilderPageSwitcher
+                pages={sitePages}
+                currentSlug="__shell__"
+                canAddPages={siteCapabilities?.personalSitePages ?? true}
+                locale={locale}
+              />
             ) : (
               <span
                 style={{

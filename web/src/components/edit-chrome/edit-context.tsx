@@ -247,6 +247,7 @@ import {
   type HistoryEntry,
   type HistorySelection,
 } from "./edit-context-internal";
+import { broadcastTalentLockedOperation } from "./talent-lock-broadcast";
 import { useEditorChrome } from "./use-editor-chrome";
 import { useEditorToasts } from "./use-editor-toasts";
 import { useLayoutFlattenWarning } from "./use-layout-flatten-warning";
@@ -368,6 +369,16 @@ export function EditProvider({
   const advancedElementLibraryEnabled = useMemo(
     () => isAdvancedElementLibraryEnabledForPlan(normalizedWorkspacePlan),
     [normalizedWorkspacePlan],
+  );
+
+  // Phase 1 (talent free website) — structural-edit capability + its upsell.
+  // Undefined off talent surfaces, so homepage / workspace / Lab are untouched.
+  const surfaceStructuralEdits = resolvedSurfaceConfig.structuralEdits;
+  const surfaceLockedUpsell = resolvedSurfaceConfig.lockedUpsell ?? null;
+  const reportLockedStructuralOperation = useCallback(
+    (denial: { operation: BuilderNodeOperationKind; message: string }) =>
+      broadcastTalentLockedOperation(denial, surfaceLockedUpsell),
+    [surfaceLockedUpsell],
   );
 
   // P1 — STABLE gallery surface descriptor for the live Add Gallery fetch
@@ -3451,6 +3462,10 @@ export function EditProvider({
         operation: input.operation,
         nodeId: input.nodeId,
         parentId: input.parentId,
+        // Phase 1 talent lock; undefined off talent surfaces, so inert there.
+        structuralEdits: surfaceStructuralEdits,
+        locale,
+        onLockedOperation: reportLockedStructuralOperation,
       });
       if (guarded) {
         reportMutationError({
@@ -3519,6 +3534,9 @@ export function EditProvider({
       canEditSiteShell,
       commitBuilderTreeMutation,
       reportMutationError,
+      locale,
+      surfaceStructuralEdits,
+      reportLockedStructuralOperation,
     ],
   );
   const runBuilderNodeOp = useCallback(

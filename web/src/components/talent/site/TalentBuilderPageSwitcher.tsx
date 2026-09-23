@@ -20,15 +20,30 @@ import { useState, useTransition } from "react";
 
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import { addMaxSitePageAction } from "@/lib/talent-site/server/site-management-actions";
+import { siteCapabilityDeniedMessageClient } from "@/lib/talent-site/free-site-capability-denied-copy";
+import { TalentSiteWebOfficeLockChip } from "./TalentSiteWebOfficeLockChip";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 
 type Props = {
   pages: MaxSiteManagerPage[];
   /** The slug currently open in the editor, or "__shell__" for the shell. */
   currentSlug: string;
+  /**
+   * Phase 1 — `personalSitePages`. Defaults to true (legacy behaviour: every
+   * caller of this switcher was Max-only). When false, "Add page" shows a
+   * "Web Office" lock chip instead of prompting for a title, and a forged
+   * click still hits the server action, which is gated independently.
+   */
+  canAddPages?: boolean;
+  locale?: string;
 };
 
-export function TalentBuilderPageSwitcher({ pages, currentSlug }: Props) {
+export function TalentBuilderPageSwitcher({
+  pages,
+  currentSlug,
+  canAddPages = true,
+  locale,
+}: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [adding, startAdd] = useTransition();
@@ -52,6 +67,10 @@ export function TalentBuilderPageSwitcher({ pages, currentSlug }: Props) {
   }
 
   function handleAdd() {
+    if (!canAddPages) {
+      setError(siteCapabilityDeniedMessageClient("site_pages", locale));
+      return;
+    }
     setError(null);
     const title = window.prompt("New page title");
     if (!title || !title.trim()) return;
@@ -69,6 +88,9 @@ export function TalentBuilderPageSwitcher({ pages, currentSlug }: Props) {
     <div style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 8 }}>
       <button
         type="button"
+        // Stable E2E hook: the journeys open the page menu by attribute, never
+        // by the page title (which is talent data and changes per fixture).
+        data-talent-builder-page-switcher=""
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         style={{
@@ -163,11 +185,20 @@ export function TalentBuilderPageSwitcher({ pages, currentSlug }: Props) {
           <button
             type="button"
             role="menuitem"
+            data-talent-builder-add-page=""
+            data-locked={!canAddPages ? "" : undefined}
             onClick={handleAdd}
             disabled={adding}
-            style={menuActionStyle}
+            style={{
+              ...menuActionStyle,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
           >
-            {adding ? "Adding…" : "＋ Add page"}
+            <span>{adding ? "Adding…" : "＋ Add page"}</span>
+            {!canAddPages ? <TalentSiteWebOfficeLockChip locale={locale} /> : null}
           </button>
           <button
             type="button"

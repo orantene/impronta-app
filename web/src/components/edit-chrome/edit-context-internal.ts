@@ -25,6 +25,7 @@ import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage
 import type { ReactNode } from "react";
 import type { EditDevice } from "./edit-context-types";
 
+import { freeSiteSectionsLockedMessage } from "@/lib/talent-site/free-site-tree-guard";
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import {
   readClasses as readStyleClasses,
@@ -231,6 +232,29 @@ export function guardBuilderNodeMutation(input: {
   advancedElementLibraryEnabled: boolean;
   nodeId?: string;
   parentId?: string | null;
+  /**
+   * Phase 1 — a talent surface's `structuralEdits` capability
+   * (`personalSiteSections`). `undefined` on every non-talent surface, which
+   * keeps this check inert (the pre-Phase-1 behaviour). `false` denies the
+   * SAME operation set `assertAdvancedLibraryAllowsOperation` already denies
+   * (insert / paste / duplicate) — a Free-tier talent surface with the
+   * advanced library ON (it is, pre-launch, for everyone) still cannot add
+   * structure without Web Office.
+   */
+  structuralEdits?: boolean;
+  /** Locale for the "Web Office" denial copy (`freeSiteSectionsLockedMessage`). */
+  locale?: string | null;
+  /**
+   * Phase 1 — called (instead of only returning a message) when a structural
+   * edit is denied for `structuralEdits === false`, so the caller can route
+   * the denial to the upgrade dialog / a "Web Office" lock chip rather than a
+   * plain toast. Never called for the advanced-library gate itself (that
+   * denial is unrelated to plan) or when `structuralEdits` is undefined/true.
+   */
+  onLockedOperation?: (denial: {
+    operation: BuilderNodeOperationKind;
+    message: string;
+  }) => void;
 }): Extract<BuilderNodeMutationResult, { ok: false }> | null {
   const advancedGate = assertAdvancedLibraryAllowsOperation(
     input.operation,
@@ -241,6 +265,21 @@ export function guardBuilderNodeMutation(input: {
       ok: false,
       code: "GUARDED_NODE",
       error: advancedGate.message,
+    };
+  }
+
+  if (
+    input.structuralEdits === false &&
+    (input.operation === "insert" ||
+      input.operation === "paste" ||
+      input.operation === "duplicate")
+  ) {
+    const message = freeSiteSectionsLockedMessage(input.locale);
+    input.onLockedOperation?.({ operation: input.operation, message });
+    return {
+      ok: false,
+      code: "GUARDED_NODE",
+      error: message,
     };
   }
 

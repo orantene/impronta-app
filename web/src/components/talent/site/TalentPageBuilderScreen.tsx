@@ -1,9 +1,14 @@
 "use client";
 
 /**
- * TalentPageBuilderScreen — full-viewport wrapper for the Max-tier freeform
- * Page Builder. Gates on the Max tier (`talent_plan_key='talent_portfolio'`)
- * and either mounts `TalentMaxBuilderMount` or shows an upsell notice.
+ * TalentPageBuilderScreen — full-viewport wrapper for the freeform Page
+ * Builder. Gates on `siteCapabilities.personalSiteEdit` (Phase 1) — while
+ * `TALENT_FREE_WEBSITE_ENABLED` is off that resolves Max-only, so this is
+ * byte-identical to the old `isMax` gate. When it is false, shows the "Web
+ * Office" upsell notice instead of mounting the editor. (The "no site yet"
+ * case is a ROUTING decision, handled by the server route redirecting to the
+ * Public page screen before this component ever mounts — see
+ * `/talent/page-builder/page.tsx`.)
  *
  * Rendered by `/talent/page-builder` (server) which resolves the talent's id,
  * plan key, tier, managing tenant + locale. The talent layout renders this bare
@@ -17,6 +22,8 @@ import { useCallback } from "react";
 import { TalentMaxBuilderMount } from "./TalentMaxBuilderMount";
 import { TalentSiteShellBuilderMount } from "./TalentSiteShellBuilderMount";
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
+import { siteCapabilityDeniedMessageClient } from "@/lib/talent-site/free-site-capability-denied-copy";
+import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 
@@ -28,6 +35,8 @@ type Props = {
   talentPlanKey: string | null;
   /** Dashboard tier label: free | pro | max. */
   talentTier: string | null;
+  /** Phase 1 — the per-capability record (`buildTalentSiteCapabilities`). */
+  siteCapabilities: TalentSiteCapabilities;
   talentDisplayName: string | null;
   locale?: string;
   /** Server-assembled in-editor canvas render data (data sources + islands). */
@@ -38,14 +47,27 @@ type Props = {
   sitePages?: MaxSiteManagerPage[];
 };
 
-const MAX_PLAN_KEY = "talent_portfolio";
+const UPSELL_HEADING = {
+  en: "The Page Builder is a Web Office feature",
+  es: "El editor de páginas es una función de Web Office",
+} as const;
+
+const UPSELL_SEE_PLANS = {
+  en: "See plans",
+  es: "Ver planes",
+} as const;
+
+const UPSELL_BACK = {
+  en: "Back to my site",
+  es: "Volver a mi sitio",
+} as const;
 
 export function TalentPageBuilderScreen({
   talentProfileId,
   pageSlug,
   tenantId,
   talentPlanKey,
-  talentTier,
+  siteCapabilities,
   talentDisplayName,
   locale,
   canvasRenderData = null,
@@ -59,9 +81,10 @@ export function TalentPageBuilderScreen({
     router.push("/talent/site");
   }, [router]);
 
-  const isMax = talentPlanKey === MAX_PLAN_KEY || talentTier === "max";
+  const canEdit = siteCapabilities.personalSiteEdit;
 
-  if (!isMax) {
+  if (!canEdit) {
+    const isEs = locale === "es";
     return (
       <div
         style={{
@@ -102,7 +125,7 @@ export function TalentPageBuilderScreen({
               marginBottom: 16,
             }}
           >
-            MAX FEATURE
+            WEB OFFICE
           </div>
           <h1
             style={{
@@ -111,7 +134,7 @@ export function TalentPageBuilderScreen({
               fontWeight: 700,
             }}
           >
-            The Page Builder is a Max feature
+            {isEs ? UPSELL_HEADING.es : UPSELL_HEADING.en}
           </h1>
           <p
             style={{
@@ -121,9 +144,7 @@ export function TalentPageBuilderScreen({
               color: CHROME.muted,
             }}
           >
-            Upgrade to the Max plan to design a fully custom, freeform page for
-            your profile — drag-and-drop sections, your own media, and a layout
-            that is entirely yours.
+            {siteCapabilityDeniedMessageClient("site_edit", locale)}
           </p>
           <div
             style={{
@@ -138,6 +159,7 @@ export function TalentPageBuilderScreen({
               style={{
                 display: "inline-flex",
                 alignItems: "center",
+                minHeight: 44,
                 padding: "8px 16px",
                 borderRadius: 9,
                 background: CHROME.accent,
@@ -147,13 +169,14 @@ export function TalentPageBuilderScreen({
                 textDecoration: "none",
               }}
             >
-              See plans
+              {isEs ? UPSELL_SEE_PLANS.es : UPSELL_SEE_PLANS.en}
             </Link>
             <Link
               href="/talent/public-page"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
+                minHeight: 44,
                 padding: "8px 16px",
                 borderRadius: 9,
                 border: `1px solid ${CHROME.controlBorder}`,
@@ -164,7 +187,7 @@ export function TalentPageBuilderScreen({
                 textDecoration: "none",
               }}
             >
-              Back to my site
+              {isEs ? UPSELL_BACK.es : UPSELL_BACK.en}
             </Link>
           </div>
         </div>
@@ -185,6 +208,7 @@ export function TalentPageBuilderScreen({
           talentProfileId={talentProfileId}
           tenantId={tenantId}
           talentDisplayName={talentDisplayName}
+          siteCapabilities={siteCapabilities}
           locale={locale}
           onExit={handleExit}
           sitePages={sitePages}
@@ -195,6 +219,7 @@ export function TalentPageBuilderScreen({
           pageSlug={pageSlug}
           tenantId={tenantId}
           talentTier={talentPlanKey}
+          siteCapabilities={siteCapabilities}
           talentDisplayName={talentDisplayName}
           locale={locale}
           onExit={handleExit}
