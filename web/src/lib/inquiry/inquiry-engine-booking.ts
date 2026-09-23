@@ -132,6 +132,37 @@ async function snapshotOfferTermsOntoBooking(
   }
 }
 
+/**
+ * Undo a booking whose post-condition failed: one DELETE of the
+ * `agency_bookings` row removes every FK child, then the inquiry goes back to
+ * its pre-convert state. Same compensating shape the commission-snapshot
+ * failure uses; failures here are logged loudly because they leave a row an
+ * operator must reconcile.
+ */
+async function rollbackConvertedBooking(
+  supabase: SupabaseClient,
+  ctx: { inquiryId: string; tenantId: string; expectedVersion: number },
+  bookingId: string,
+  why: string,
+): Promise<void> {
+  const { createServiceRoleClient: makeAdmin } = await import("@/lib/supabase/admin");
+  const cleanupClient = makeAdmin() ?? supabase;
+  const { error: delErr } = await cleanupClient.from("agency_bookings").delete().eq("id", bookingId).eq("tenant_id", ctx.tenantId);
+  const { error: restoreErr } = await cleanupClient
+    .from("inquiries")
+    .update({ status: "approved" as never, booked_at: null, next_action_by: "coordinator", version: ctx.expectedVersion })
+    .eq("id", ctx.inquiryId)
+    .eq("tenant_id", ctx.tenantId);
+  if (delErr || restoreErr) {
+    await improntaLog("convertToBooking.rollback_failed", {
+      bookingId,
+      why,
+      deleteError: delErr?.message ?? "",
+      restoreError: restoreErr?.message ?? "",
+    });
+  }
+}
+
 export async function convertToBooking(
   supabase: SupabaseClient,
   ctx: {
@@ -472,6 +503,15 @@ export async function convertToBooking(
         bookingId,
         actorUserId: ctx.actorUserId,
       });
+      if (!enriched.ok && enriched.reason === "talent_double_booked") {
+        // D-MSG-312: `talent_bookings_no_overlap` refused the mirror, so this
+        // window belongs to another booking. The agency_bookings row we just
+        // created would be a booking the talent's calendar does not contain —
+        // a double book nobody can see. Undo it and refuse, the way every
+        // other failed post-condition on this path already does.
+        await rollbackConvertedBooking(supabase, ctx, bookingId, "talent_double_booked");
+        return { success: false, conflict: true, reason: "talent_double_booked" };
+      }
       if (!enriched.ok) {
         logServerError("convertToBooking.reservation_enrichment", new Error(enriched.error));
       }

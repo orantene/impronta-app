@@ -29,7 +29,11 @@ export type TransitionBlockReason =
   | "requirement_groups_unfulfilled"
   | "override_not_allowed"
   | "override_reason_too_short"
-  | "contact_policy_blocked";
+  | "contact_policy_blocked"
+  /** The one-talent-one-time exclusion refused the booking mirror after the
+   * pre-write check passed (D-MSG-312). The convert rolls back and the caller
+   * refuses; it is a conflict, not a validation error. */
+  | "talent_double_booked";
 
 export type TransitionCheck =
   | { ok: true }

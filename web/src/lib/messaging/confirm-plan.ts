@@ -193,7 +193,7 @@ export function conflictDate(startsAt: string | null, timezone: string | null): 
   return instant.toISOString().slice(0, 10);
 }
 
-function noLongerFree(label: string, startsAt: string | null, timezone: string | null): string {
+export function noLongerFree(label: string, startsAt: string | null, timezone: string | null): string {
   const date = conflictDate(startsAt, timezone);
   return date ? `${label} is no longer free on ${date}` : `${label} is no longer free`;
 }
