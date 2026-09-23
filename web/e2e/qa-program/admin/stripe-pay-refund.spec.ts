@@ -36,7 +36,8 @@ test.describe("QA Stripe pay + refund", () => {
     viewport: { width: 1440, height: 900 },
     baseURL: AGENT_HOST,
   });
-  test.setTimeout(360_000);
+  // Sign-in (magic link) + Checkout 4242 + refund easily exceeds 6m on prod.
+  test.setTimeout(600_000);
 
   test("mint pay link → 4242 → Paid → full refund → unpaid", async ({ page, context }) => {
     test.skip(
@@ -112,9 +113,10 @@ test.describe("QA Stripe pay + refund", () => {
       });
     }
 
-    // D-MSG-328: createPaymentLink refuses remint when a cancelled row still
-    // owns the PaymentRequest idempotency key (msgv5-pay-<inquiry>-<order>-full).
-    // Retire cancelled operation_keys on the agent Stripe tenant before Send.
+    // D-MSG-328: createPaymentLink refuses remint when a cancelled/expired row
+    // still owns msgv5-pay-<inquiry>-<order>-full. A released collection
+    // reservation with the same key can also return already=true with a past
+    // expires_at, so the new link is born expired ("expires in 0h").
     if (process.env.SUPABASE_SERVICE_ROLE_KEY && USE_AGENT_PROD) {
       const { createClient } = await import("@supabase/supabase-js");
       const sb = createClient(
@@ -123,16 +125,29 @@ test.describe("QA Stripe pay + refund", () => {
         { auth: { persistSession: false } },
       );
       const TENANT = "a1111111-1111-4111-8111-111111111102";
-      const { data: cancelled } = await sb
+      const { data: deadLinks } = await sb
         .from("payment_links")
-        .select("id, operation_key")
+        .select("id, operation_key, status")
         .eq("tenant_id", TENANT)
-        .eq("status", "cancelled");
-      for (const row of cancelled ?? []) {
+        .in("status", ["cancelled", "expired"]);
+      for (const row of deadLinks ?? []) {
         const key = String((row as { operation_key?: string }).operation_key ?? "");
         if (!key || key.includes("-retired-")) continue;
         await sb
           .from("payment_links")
+          .update({ operation_key: `${key}-retired-${(row as { id: string }).id}` })
+          .eq("id", (row as { id: string }).id);
+      }
+      const { data: deadRes } = await sb
+        .from("order_collection_reservations")
+        .select("id, operation_key, state")
+        .eq("tenant_id", TENANT)
+        .in("state", ["released", "settled"]);
+      for (const row of deadRes ?? []) {
+        const key = String((row as { operation_key?: string }).operation_key ?? "");
+        if (!key || key.includes("-retired-")) continue;
+        await sb
+          .from("order_collection_reservations")
           .update({ operation_key: `${key}-retired-${(row as { id: string }).id}` })
           .eq("id", (row as { id: string }).id);
       }
@@ -155,7 +170,6 @@ test.describe("QA Stripe pay + refund", () => {
       send,
       "Payment Send disabled — need order target + Full amount + no open request (D-MSG-309); Stripe mint needs STRIPE_SECRET_KEY (D-MSG-313)",
     ).toBeEnabled({ timeout: 20_000 });
-    const beforeCards = await page.locator('[data-card="payment"]').count();
     await send.click();
     // Wait for sheet to leave Sending / close — do not match a ghost Paid card
     // whose trail still contains "Request sent" (D-MSG-328 remint false positive).
@@ -179,68 +193,36 @@ test.describe("QA Stripe pay + refund", () => {
         { auth: { persistSession: false } },
       );
       // Poll briefly — syncConversationRecord + insert are not always instant in UI.
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 20; i++) {
         const { data: link } = await sb
           .from("payment_links")
-          .select("code, provider, status")
+          .select("code, provider, status, expires_at")
           .eq("tenant_id", TENANT)
           .eq("status", "open")
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (link?.code) {
+        const exp = link?.expires_at ? Date.parse(String(link.expires_at)) : 0;
+        if (link?.code && exp > Date.now() + 60_000) {
           mintedCode = link.code;
           mintedProvider = link.provider;
           break;
         }
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(800);
       }
-      expect(mintedCode, "no open payment_links row after mint on qa-stripe-r2").toBeTruthy();
+      expect(
+        mintedCode,
+        "no open unexpired payment_links row after mint (D-MSG-328: retire released reservation op keys or link is born expired)",
+      ).toBeTruthy();
       expect(mintedProvider, `expected provider=stripe; got ${mintedProvider}`).toBe("stripe");
     }
 
-    // Prefer a non-Paid Payment card (exclude ghost Paid trail that still says Request sent).
-    const payCard = page
-      .locator('[data-card="payment"]')
-      .filter({ hasNotText: /\bpaid\b/i })
-      .filter({ hasText: /request sent|link sent|opened/i })
-      .first();
-    if (await payCard.isVisible().catch(() => false)) {
-      await shot(page, "admin-stripe-pay-card-minted");
-    } else {
-      // Sheet may have closed with only DB proof (reuse existing inquiry).
-      await shot(page, "admin-stripe-pay-card-minted");
-      expect(
-        beforeCards >= 0 && mintedCode,
-        `Payment card missing after mint (had ${beforeCards} cards) but open link ${mintedCode}`,
-      ).toBeTruthy();
-    }
-
-    // Open /pay/<code> — card may expose an <a>, a Copy link control, or only
-    // the code in DB (agent-owned host). Prefer DOM, then service-role lookup.
-    let payHref =
-      (await payCard.locator("a[href*='/pay/']").first().getAttribute("href").catch(() => null)) ||
-      (await page.locator("a[href*='/pay/']").first().getAttribute("href").catch(() => null));
-    if (!payHref) {
-      const copyPay = page
-        .locator('[data-card="payment"]')
-        .filter({ hasNotText: /\bpaid\b/i })
-        .getByRole("button", { name: /copy link/i })
-        .first();
-      if (await copyPay.isVisible().catch(() => false)) {
-        await copyPay.click();
-        const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => "");
-        if (/\/pay\//.test(clip)) payHref = clip.trim();
-      }
-    }
-    if (!payHref && mintedCode) {
-      payHref = new URL(`/pay/${mintedCode}`, AGENT_HOST).toString();
-    }
-    expect(payHref, "could not resolve /pay/<code> URL from Payment card or payment_links").toBeTruthy();
-    const payUrl = payHref!.startsWith("http") ? payHref! : new URL(payHref!, page.url()).toString();
-
+    // Race Checkout before UI polish — sign-in already burned most of the budget.
+    expect(mintedCode, "mintedCode required for Checkout (SUPABASE_SERVICE_ROLE_KEY on agent host)").toBeTruthy();
+    await shot(page, "admin-stripe-pay-card-minted");
+    const payUrl = new URL(`/pay/${mintedCode}`, AGENT_HOST).toString();
     const payPage = await context.newPage();
-    await payPage.goto(payUrl!, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await payPage.goto(payUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await expect(payPage.locator("[data-pos-messages='checkout'], main").first()).toBeVisible({
       timeout: 30_000,
     });
