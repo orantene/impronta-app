@@ -202,6 +202,40 @@ jobs:
       # Restart it so it is not holding connections or a schema view from before
       # 861 migrations landed. Cheap, and it removes a whole class of "works
       # after a restart" ambiguity from the diagnosis below.
+      # The post-shim for 20260911022138 normalises that migration's proof rows,
+      # but it did not clear the failure: something else in the replay also
+      # leaves NULLs in auth.users' token columns. Rather than hunt each source
+      # across 861 files, normalise ONCE after the whole chain, and REPORT the
+      # row count so the shim's necessity (or redundancy) is visible rather than
+      # assumed.
+      #
+      # GoTrue scans these into Go `string`, so a single NULL anywhere breaks
+      # /admin/users for every user — which is the seed's first call.
+      # Production and QA both hold zero NULLs, so this reproduces their real
+      # state; it does not paper over a product defect.
+      - name: Normalise auth.users token columns
+        run: |
+          set -o pipefail
+          before=$(psql -Atc "select count(*) from auth.users where confirmation_token is null or recovery_token is null or email_change_token_new is null or email_change is null or email_change_token_current is null or phone_change is null or phone_change_token is null or reauthentication_token is null")
+          psql -q -c "update auth.users set
+              confirmation_token=coalesce(confirmation_token,''),
+              recovery_token=coalesce(recovery_token,''),
+              email_change_token_new=coalesce(email_change_token_new,''),
+              email_change=coalesce(email_change,''),
+              email_change_token_current=coalesce(email_change_token_current,''),
+              phone_change=coalesce(phone_change,''),
+              phone_change_token=coalesce(phone_change_token,''),
+              reauthentication_token=coalesce(reauthentication_token,'')"
+          after=$(psql -Atc "select count(*) from auth.users where confirmation_token is null or recovery_token is null")
+          total=$(psql -Atc "select count(*) from auth.users")
+          echo "auth.users rows: $total | with NULL tokens before: $before | after: $after"
+          {
+            echo "| auth.users rows | NULL-token rows before | after |"
+            echo "|---|---|---|"
+            echo "| $total | $before | $after |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$after" = "0" ] || { echo "::error::auth.users still has NULL token columns"; exit 1; }
+
       - name: Restart GoTrue after the schema is built
         run: |
           docker restart supabase_auth_impronta-app
