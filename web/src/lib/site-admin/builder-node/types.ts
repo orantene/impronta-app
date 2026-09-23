@@ -119,7 +119,16 @@ export interface BuilderNodeBase {
    * the operator added themselves. SOURCE OF TRUTH = `props.originRole`;
    * mirrored here by validate's base-field allow-list.
    */
-  originRole?: import("./role-bindings").BuilderNodeRole;
+  originRole?:
+    | import("./role-bindings").BuilderNodeRole
+    | import("./section-provenance").BuilderKitSectionRole;
+  /**
+   * KIT SECTION SLOT — the stable slot (`hero`, `contact`) a top-level freeform
+   * kit section fills. SOURCE OF TRUTH = `props.slotKey`; mirrored here by
+   * validate's base-field allow-list (never on `section` nodes, whose schema
+   * owns `props.slotKey`). See section-provenance.ts.
+   */
+  slotKey?: string;
 }
 
 export interface BuilderNodeStyleValue {
