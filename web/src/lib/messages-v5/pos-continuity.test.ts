@@ -11,6 +11,7 @@ import {
   posMessagesDockHref,
   posSwitchHref,
   shouldDockBesideSale,
+  adminBaseForOriginalPath,
   workspaceMessagesHref,
   workspaceSwitchHref,
 } from "./pos-continuity";
@@ -64,6 +65,13 @@ test("posMessagesDockHref carries order and inquiry into the counter dock", () =
 test("workspaceMessagesHref carries the inquiry, omits it when absent", () => {
   assert.equal(workspaceMessagesHref({ adminBasePath: "/w/acme/admin", inquiryId: "i1" }), "/w/acme/admin/messages?inquiry=i1");
   assert.equal(workspaceMessagesHref({ adminBasePath: "/w/acme/admin" }), "/w/acme/admin/messages");
+});
+
+test("adminBaseForOriginalPath drops the slug on a branded /admin path", () => {
+  assert.equal(adminBaseForOriginalPath("/admin/orders", "qa-journeys"), "/admin");
+  assert.equal(adminBaseForOriginalPath("/admin", "qa-journeys"), "/admin");
+  assert.equal(adminBaseForOriginalPath("/qa-journeys/admin/orders", "qa-journeys"), "/qa-journeys/admin");
+  assert.equal(adminBaseForOriginalPath(null, "qa-journeys"), "/qa-journeys/admin");
 });
 
 test("posSwitchHref (workspace -> POS) and workspaceSwitchHref (POS -> workspace) round-trip the thread", () => {

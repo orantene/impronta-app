@@ -372,7 +372,7 @@ export function NotificationsDrawer() {
         if (!n.read && bridgeUserNotifications !== null) {
           import("@/lib/notifications/actions").then((m) => m.markNotificationRead(n.id)).catch(() => {});
         }
-        if (n.targetHref) { closeDrawer(); window.location.assign(n.targetHref); } else { openDrawer(n.targetDrawer, n.targetPayload); }
+        if (n.targetHref) { closeDrawer(); window.location.assign(n.targetHref); } else if (n.inquiryId && n.targetDrawer === "inquiry-workspace") { closeDrawer(); window.location.assign(`${adminBasePath}/messages?inquiry=${encodeURIComponent(n.inquiryId)}`); } else { openDrawer(n.targetDrawer, n.targetPayload); }
       }}
       style={{
         background: !n.read ? "#fff" : "rgba(11,11,13,0.015)",

@@ -10,8 +10,11 @@
 // All filtering and shaping comes from `lib/orders/orders-list.ts`, which is
 // pure and tested; this file reads and renders.
 
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { adminBaseForOriginalPath, workspaceMessagesHref } from "@/lib/messages-v5/pos-continuity";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -120,6 +123,9 @@ export default async function OrdersPage({
 
   const rows: OrderListRow[] = load.ok ? filterOrders(load.rows, { bucket, query }) : [];
   const totals = totalsFor(rows);
+  const originalPath = (await headers()).get(ORIGINAL_PATHNAME_HEADER);
+  const threadHref = (inquiryId: string) =>
+    workspaceMessagesHref({ adminBasePath: adminBaseForOriginalPath(originalPath, tenantSlug), inquiryId });
 
   // Every word the refund form shows, resolved here where the translator is.
   // The component itself holds no English: see its header for the defect that
@@ -305,7 +311,7 @@ export default async function OrdersPage({
                   return (
                     <li key={row.id} className="border-t border-admin-border-soft first:border-t-0">
                       {row.inquiryId ? (
-                        <Link href={`/${tenantSlug}/admin/messages?inquiry=${row.inquiryId}`} title={t("openThread")} className={cls}>
+                        <Link href={threadHref(row.inquiryId)} title={t("openThread")} className={cls}>
                           {body}
                         </Link>
                       ) : (
@@ -340,7 +346,7 @@ export default async function OrdersPage({
                           <td style={{ padding: "12px", fontVariantNumeric: "tabular-nums" }}>
                             {row.inquiryId ? (
                               <Link
-                                href={`/${tenantSlug}/admin/messages?inquiry=${row.inquiryId}`}
+                                href={threadHref(row.inquiryId)}
                                 style={{ color: C.ink }}
                                 title={t("openThread")}
                               >

@@ -37,6 +37,16 @@ export function workspaceMessagesHref(input: { readonly adminBasePath: string; r
   return appendContinuity(`${input.adminBasePath}/messages`, { inquiryId: input.inquiryId });
 }
 
+/**
+ * Admin base for a server-rendered link. A branded host's browser path is
+ * `/admin/...` (no tenant slug). The slug form is the shared app host.
+ * `originalPathname` is `x-impronta-original-pathname`.
+ */
+export function adminBaseForOriginalPath(originalPathname: string | null | undefined, tenantSlug: string): string {
+  if (originalPathname === "/admin" || (originalPathname?.startsWith("/admin/") ?? false)) return "/admin";
+  return `/${tenantSlug}/admin`;
+}
+
 /** `openMode` (PosModeSwitch, workspace → POS): carries the thread the person is on into the counter's dock. */
 export function posSwitchHref(input: { readonly adminBasePath: string; readonly mode: string; readonly inquiryId?: string | null; readonly orderId?: string | null }): string {
   const base = `${input.adminBasePath}/pos?mode=${input.mode}`;
