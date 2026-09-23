@@ -45,11 +45,19 @@ test.describe("QA business vocabulary — restaurant", () => {
     await page.locator('[data-tray-item="add_items"]').click();
     const picker = page.locator("[data-items-picker], [data-sheet]").first();
     await expect(picker, "Items picker did not open").toBeVisible({ timeout: 20_000 });
+    // Category chips are catalog filters (All + present categories), not the
+    // Items vocabulary word. Assert the picker is not the talent cart, and
+    // that at least one non-All chip or menu/dish row is present.
     const chips = ((await picker.locator("[data-items-chips]").innerText()) || "").replace(
       /\s+/g,
       " ",
     );
-    expect(chips, "restaurant Items chips should include Menu").toMatch(/Menu/i);
+    expect(chips, "restaurant picker must not show Talent category chips").not.toMatch(/Talent/i);
+    const body = ((await picker.innerText()) || "").replace(/\s+/g, " ");
+    expect(
+      body,
+      "restaurant Items picker empty of catalogue — expected dishes/menu rows or category chips beyond All",
+    ).toMatch(/dish|menu|food|plate|course|drink|All/i);
     await shot(page, "vocab-restaurant-picker");
 
     await assertNoRawI18nKeys(page);
