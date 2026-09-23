@@ -15,7 +15,7 @@
  * Pure data — no React, no server code. Safe to import from client and server.
  */
 
-export type ProfilePageTemplateKey = "classic" | "noir" | "lumen" | "atelier";
+export type ProfilePageTemplateKey = "classic" | "noir" | "lumen" | "atelier" | "maison";
 
 export type ProfilePageTemplateDef = {
   key: ProfilePageTemplateKey;
@@ -138,6 +138,36 @@ export const PROFILE_PAGE_TEMPLATES: Record<
       typeLabel: "Fraunces · editorial",
     },
   },
+  maison: {
+    key: "maison",
+    tokenValue: "maison",
+    label: "Maison",
+    tagline: "Service professional — menu first",
+    description:
+      "For an independent professional who sells a MENU, not a roster card: porcelain-and-rose editorial hero, a four-fact trust strip, featured services, a signature band for the speciality, the full catalogue with options and add-ons priced in the local currency, a tagged portfolio, the story, how booking works, area + hours (never an exact private address), FAQ, and a booking action that follows the thumb on mobile.",
+    sections: [
+      "Sticky nav + book",
+      "Editorial hero",
+      "Trust strip",
+      "Featured services",
+      "Signature speciality band",
+      "Full menu (options + add-ons)",
+      "Included benefit",
+      "Portfolio (tag filter)",
+      "About",
+      "How booking works",
+      "Hours & area",
+      "FAQ",
+      "Reviews",
+      "Mobile book bar",
+    ],
+    swatch: {
+      bg: "#fbf6f3",
+      ink: "#2b1a1e",
+      accent: "#b4736c",
+      typeLabel: "Fraunces · delicate",
+    },
+  },
 };
 
 export const PROFILE_PAGE_TEMPLATE_ORDER: ProfilePageTemplateKey[] = [
@@ -145,6 +175,7 @@ export const PROFILE_PAGE_TEMPLATE_ORDER: ProfilePageTemplateKey[] = [
   "noir",
   "lumen",
   "atelier",
+  "maison",
 ];
 
 export const DEFAULT_PROFILE_PAGE_TEMPLATE: ProfilePageTemplateKey = "classic";
@@ -153,7 +184,7 @@ export const DEFAULT_PROFILE_PAGE_TEMPLATE: ProfilePageTemplateKey = "classic";
 export function resolveProfilePageTemplateKey(
   raw: string | null | undefined,
 ): ProfilePageTemplateKey {
-  return raw === "noir" || raw === "lumen" || raw === "atelier"
+  return raw === "noir" || raw === "lumen" || raw === "atelier" || raw === "maison"
     ? raw
     : DEFAULT_PROFILE_PAGE_TEMPLATE;
 }

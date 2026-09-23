@@ -12877,6 +12877,28 @@
             "Reseñas",
             "Más de este roster"
           ]
+        },
+        "maison": {
+          "label": "Maison",
+          "tagline": "Profesional de servicios — el menú primero",
+          "description": "Para una profesional independiente que vende un MENÚ, no una ficha de roster: hero editorial en porcelana y rosa, franja con cuatro datos de confianza, servicios destacados, una franja dedicada a su especialidad, el catálogo completo con opciones y extras en la moneda local, portfolio con etiquetas, su historia, cómo reservar, zona y horarios (nunca una dirección privada exacta), preguntas frecuentes y una acción de reserva que sigue al pulgar en el móvil.",
+          "typeLabel": "Fraunces · delicado",
+          "sections": [
+            "Nav fija + reservar",
+            "Hero editorial",
+            "Franja de confianza",
+            "Servicios destacados",
+            "Franja de especialidad",
+            "Menú completo (opciones + extras)",
+            "Beneficio incluido",
+            "Portfolio (filtro por etiqueta)",
+            "Sobre mí",
+            "Cómo reservar",
+            "Horarios y zona",
+            "Preguntas frecuentes",
+            "Reseñas",
+            "Barra de reserva móvil"
+          ]
         }
       }
     },

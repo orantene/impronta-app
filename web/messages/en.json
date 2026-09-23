@@ -12877,6 +12877,28 @@
             "Reviews",
             "More from this roster"
           ]
+        },
+        "maison": {
+          "label": "Maison",
+          "tagline": "Service professional — menu first",
+          "description": "For an independent professional who sells a MENU, not a roster card: porcelain-and-rose editorial hero, a four-fact trust strip, featured services, a signature band for the speciality, the full catalogue with options and add-ons priced in the local currency, a tagged portfolio, the story, how booking works, area + hours (never an exact private address), FAQ, and a booking action that follows the thumb on mobile.",
+          "typeLabel": "Fraunces · delicate",
+          "sections": [
+            "Sticky nav + book",
+            "Editorial hero",
+            "Trust strip",
+            "Featured services",
+            "Signature speciality band",
+            "Full menu (options + add-ons)",
+            "Included benefit",
+            "Portfolio (tag filter)",
+            "About",
+            "How booking works",
+            "Hours & area",
+            "FAQ",
+            "Reviews",
+            "Mobile book bar"
+          ]
         }
       }
     },

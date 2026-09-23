@@ -7,10 +7,7 @@ import { notFound } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 
-import { LightProfileLayout } from "./_light/LightProfileLayout";
-import { NoirProfileLayout } from "./_noir/NoirProfileLayout";
-import { LumenProfileLayout } from "./_lumen/LumenProfileLayout";
-import { AtelierProfileLayout } from "./_atelier/AtelierProfileLayout";
+import { resolveProfileTemplate } from "./_shared/profile-template-dispatch";
 import { ProfileShareRow } from "./_light/ProfileShareRow";
 import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
@@ -2326,31 +2323,10 @@ export async function TalentProfileView({
   // Per-tenant choice of profile-page template — the exact mirror of the Card
   // Design chooser. Card Design stores its pick in the
   // `template.directory-card-family` design token; the profile template uses
-  // the sibling `template.profile-layout-family` token (both live in
-  // agency_branding.theme_json, already loaded above as brandingTheme). A
-  // `?template=noir|classic` query param overrides it for QA/preview. Any
-  // value other than "noir" keeps the classic LightProfileLayout. Both
-  // templates accept identical props.
-  const profileTemplateOverride =
-    sp.template === "noir" ||
-    sp.template === "classic" ||
-    sp.template === "lumen" ||
-    sp.template === "atelier"
-      ? sp.template
-      : null;
-  const profileLayoutFamily =
-    typeof brandingTheme["template.profile-layout-family"] === "string"
-      ? (brandingTheme["template.profile-layout-family"] as string)
-      : "classic";
-  const profileTemplateKey = profileTemplateOverride ?? profileLayoutFamily;
-  const ProfileTemplate =
-    profileTemplateKey === "noir"
-      ? NoirProfileLayout
-      : profileTemplateKey === "lumen"
-        ? LumenProfileLayout
-        : profileTemplateKey === "atelier"
-          ? AtelierProfileLayout
-          : LightProfileLayout;
+  // the sibling `template.profile-layout-family` token in brandingTheme,
+  // overridable with `?template=` for QA. See the dispatcher for the rules.
+  const { key: profileTemplateKey, Template: ProfileTemplate } =
+    resolveProfileTemplate(sp.template, brandingTheme);
 
   // Tenant theme → theme-adaptive templates (Lumen / Atelier). Project the
   // tenant's color design tokens to --token-color-* vars and derive a
@@ -2468,6 +2444,10 @@ export async function TalentProfileView({
         showFooter={!platformChrome}
         themeMode={profileThemeMode}
         themeVars={profileThemeVars}
+        // What this surface can ACTUALLY do (plan cap + host). Maison steps
+        // its CTA, its event intent and the sheet's button down together below
+        // "instant"; omitting it defaulted to "instant" and never degraded.
+        surfaceBooking={booking.mode}
         hostCtxKind={hostCtx.kind as "agency" | "app" | "hub" | "platform"}
         tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
         tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}

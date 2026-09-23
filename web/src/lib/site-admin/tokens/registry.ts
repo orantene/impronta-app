@@ -1025,11 +1025,12 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
       "noir",
       "lumen",
       "atelier",
+      "maison",
     ]),
     defaultValue: "classic",
     group: "Template families",
     description:
-      "Controls the profile hero/layout/section-order. `editorial-bridal` = portrait hero + specialties + event styles + travel + packages + testimonials + related. `noir` = the Noir & Or black-canvas gold-serif editorial profile (Cormorant + Jost, gold accents). `lumen` = modern airy premium profile with a sticky availability/booking rail (adapts to your theme). `atelier` = minimal high-fashion magazine layout with numbered sections (adapts to your theme).",
+      "Controls the profile hero/layout/section-order. `maison` = the service-professional landing page (menu with options + add-ons, signature band, portfolio, booking steps, FAQ, mobile book bar). `editorial-bridal` = portrait hero + specialties + event styles + travel + packages + testimonials + related. `noir` = the Noir & Or black-canvas gold-serif editorial profile (Cormorant + Jost, gold accents). `lumen` = modern airy premium profile with a sticky availability/booking rail (adapts to your theme). `atelier` = minimal high-fashion magazine layout with numbered sections (adapts to your theme).",
   },
 
   // ── Page background ─────────────────────────────────────────────────
