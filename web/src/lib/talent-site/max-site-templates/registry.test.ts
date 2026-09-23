@@ -202,15 +202,14 @@ for (const key of KEYS) {
 
 // ── default template === provisioning builders ────────────────────────────────
 
-test("default template reproduces the platform-default tree (shared source)", async () => {
+test("default template mirrors the platform-default section order (kit-built)", async () => {
   const { buildDefaultTalentProfileTree } = await import("../default-talent-tree");
-  const { homeTree } = buildMaxSiteTemplateTrees("default", CTX);
-  // The default home tree IS the platform default profile tree (same ids).
-  const reference = buildDefaultTalentProfileTree();
-  assert.deepEqual(
-    homeTree.map((n) => n.id),
-    reference.map((n) => n.id),
-  );
+  const { homeTree } = buildMaxSiteTemplateTrees("default", CTX, seqIds("def"));
+  // Built from the section kit (token-only, slot-stamped) in the SAME order as
+  // the provisioned platform default profile tree.
+  const label = (n: BuilderNode) => (n.props as { layerLabel?: string }).layerLabel;
+  assert.deepEqual(homeTree.map(label), buildDefaultTalentProfileTree().map(label));
+  assert.equal(homeTree[0]?.kind, "split");
 });
 
 // ── Variation guarantees ──────────────────────────────────────────────────────

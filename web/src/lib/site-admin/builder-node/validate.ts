@@ -6,6 +6,7 @@ import { normalizeNodeExperimentConfig } from "./experiment";
 import { normalizeAnchorId } from "./anchor-id";
 import { BUILDER_MAX_TREE_DEPTH } from "./tree-depth";
 import { isBuilderNodeRole } from "./role-bindings";
+import { isBuilderKitSectionRole, normalizeKitSlotKey } from "./section-provenance";
 import type { BuilderNode, BuilderNodeTree } from "./types";
 
 /**
@@ -25,6 +26,8 @@ import type { BuilderNode, BuilderNodeTree } from "./types";
 const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
   key: string;
   normalize: (value: unknown) => unknown;
+  /** Kinds whose own props schema owns this key (the carrier stays out). */
+  skipKinds?: ReadonlyArray<string>;
 }> = [
   { key: "locked", normalize: (value) => (value === true ? true : undefined) },
   {
@@ -75,9 +78,20 @@ const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
   // "Restore original styling" knows which child is the headline without
   // guessing. Not a per-kind prop (it is meaningless to the renderer), so it
   // must be carried here or the very next validate pass would strip it.
+  // Also accepts a NAMESPACED kit section role (`talent.hero`) stamped on a
+  // top-level freeform kit section; see section-provenance.ts.
   {
     key: "originRole",
-    normalize: (value) => (isBuilderNodeRole(value) ? value : undefined),
+    normalize: (value) =>
+      isBuilderNodeRole(value) || isBuilderKitSectionRole(value) ? value : undefined,
+  },
+  // KIT SECTION SLOT — the stable slot a freeform kit section fills (`hero`,
+  // `contact`). `section` nodes declare `slotKey` in their own schema, so the
+  // carrier skips them and their shape is untouched. See section-provenance.ts.
+  {
+    key: "slotKey",
+    normalize: (value) => normalizeKitSlotKey(value),
+    skipKinds: ["section"],
   },
 ];
 
@@ -98,6 +112,7 @@ function carryBaseNodeFields(
       ? (raw.props as Record<string, unknown>)
       : undefined;
   for (const carrier of BASE_NODE_FIELD_CARRIERS) {
+    if (carrier.skipKinds?.includes(String(raw.kind))) continue;
     const source =
       rawProps && carrier.key in rawProps
         ? rawProps[carrier.key]
@@ -128,6 +143,7 @@ export function syncBaseNodeFieldsFromProps(node: BuilderNode): void {
       : undefined;
   const base = node as unknown as Record<string, unknown>;
   for (const carrier of BASE_NODE_FIELD_CARRIERS) {
+    if (carrier.skipKinds?.includes(node.kind)) continue;
     const normalized = carrier.normalize(props?.[carrier.key]);
     if (normalized !== undefined) {
       base[carrier.key] = normalized;
