@@ -69,7 +69,14 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # PINNED, not `latest`. `latest` makes the action resolve a release
+          # over the GitHub API on every run, and that call is rate limited:
+          # this lane went red with "Failed to resolve latest Supabase CLI
+          # release: rate limit exceeded" after 31 seconds, before it reached a
+          # single migration. A version the lane does not choose is also a
+          # version the lane cannot reproduce — a CLI release could change the
+          # replay result with no commit here to explain it.
+          version: 2.117.0
 
       - name: CI-only config overrides (seed off, CLI migrations off)
         run: |
