@@ -298,7 +298,7 @@ export function MiniChatPanel({
 
   // When the hook lazily creates the early row, adopt its id so the thread + gate
   // target the same inquiry. A later switch (Book again) already set inquiryId;
-  // do not copy the hook's previous id back over it (D-MSG-307).
+  // do not copy the hook's previous id back over it (D-MSG-331).
   useEffect(() => {
     const next = inquiryIdAfterUnifiedSync(inquiryId, unified.inquiryId);
     if (next && next !== inquiryId) setInquiryId(next);
