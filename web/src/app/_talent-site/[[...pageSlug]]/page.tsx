@@ -42,6 +42,7 @@ import {
   maxSiteSeoToMetadata,
 } from "@/lib/talent-site/server/site-metadata";
 import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
+import { TalentOfferingIntentQuery } from "../TalentOfferingIntentQuery";
 import { TalentSiteMessagesDock } from "../TalentSiteMessagesDock";
 
 export const dynamic = "force-dynamic";
@@ -167,6 +168,7 @@ export default async function TalentSiteHostPage({
         />
       ) : null}
       {result.node}
+      <TalentOfferingIntentQuery />
       <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={locale} />
     </>
   );

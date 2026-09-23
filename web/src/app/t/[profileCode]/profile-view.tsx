@@ -123,6 +123,7 @@ import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
+import { TalentOfferingIntentQuery } from "@/app/_talent-site/TalentOfferingIntentQuery";
 import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
@@ -2556,6 +2557,7 @@ export async function TalentProfileView({
         />
       ) : null}
       {/* Storefront Book now / Buy — armed when a seller tenant resolved. */}
+      <TalentOfferingIntentQuery />
       {slotTenantId ? (
         <ProfileInstantBookingMount
           tenantId={slotTenantId}

@@ -15,6 +15,7 @@ import { LINE_COLUMNS, lineDiscountCents, num, totalsInput, type Admin, type Lin
 import { posGuestSessionId, type PosLineInput } from "./commands";
 import { lockedCustomLineIds } from "./custom-line";
 import { livePhasePrice } from "@/lib/catalog/price-phases";
+import { composeTalentOfferingLabel } from "@/lib/talent/offering-line-label";
 
 export type CreateDraftOrderInput = {
   tenantId: string;
@@ -312,11 +313,17 @@ export async function addLine(
     id: string;
     title: string | null;
     amount_cents: number | null;
+    currency?: string | null;
     talent_profile_id: string | null;
     status: string | null;
   };
   if (off.status !== "published") {
     return { ok: false, reason: "invalid", error: "That item is not for sale." };
+  }
+  const offeringCurrency = (off.currency || "USD").toUpperCase();
+  const orderCurrency = (loaded.order.currency || "USD").toUpperCase();
+  if (off.talent_profile_id && offeringCurrency !== orderCurrency) {
+    return { ok: false, reason: "invalid", error: "That price is in a different currency than this sale." };
   }
 
   let sessionTitle: string | null = null;
@@ -372,7 +379,14 @@ export async function addLine(
     }
     if (v.amount_cents != null) unitCents = Math.max(0, Math.trunc(num(v.amount_cents)));
     catalogCents = unitCents;
-    if (v.label) label = `${label} · ${v.label}`;
+    if (v.label) {
+      if (off.talent_profile_id) {
+        label = composeTalentOfferingLabel({ title: off.title?.trim() || "Item", variantLabel: v.label });
+        if (sessionTitle) label = `${label} · ${sessionTitle}`;
+      } else {
+        label = `${label} · ${v.label}`;
+      }
+    }
   }
 
   // The live price phase, on FIRST price (D-138). The contract stamps the

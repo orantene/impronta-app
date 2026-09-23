@@ -29,7 +29,10 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { loadReserveAvailability } from "@/app/(public)/_reserve/reserve-actions";
-import type { CatalogRow, ItemAvailability, TicketTier } from "@/lib/messages-v5/items-picker";
+import type { CatalogOption, CatalogRow, ItemAvailability, TicketTier } from "@/lib/messages-v5/items-picker";
+import { isTalentOwnedConversation, readInquiryTalentContext, talentOfferingCatalogRow } from "@/lib/messages-v5/talent-catalog";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { loadOfferingChildren } from "@/lib/talent/offerings-children";
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
 import { clampPublicSlotDays, computePublicSlots, parsePublicSlotFrom, type NoSlotsReason } from "@/lib/scheduling/public-slots";
@@ -70,13 +73,13 @@ function dayWindow(date: string, timezone: string): { from: Date; to: Date } | n
 export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; now?: Date }): Promise<ItemsCatalog> {
   const now = input.now ?? new Date();
   const [inqRes, tenantRes, tz] = await Promise.all([
-    admin.from("inquiries").select("event_date, event_timezone").eq("id", input.inquiryId).eq("tenant_id", input.tenantId).maybeSingle(),
+    admin.from("inquiries").select("event_date, event_timezone, source_context").eq("id", input.inquiryId).eq("tenant_id", input.tenantId).maybeSingle(),
     admin.from("agencies").select("settings").eq("id", input.tenantId).maybeSingle(),
     resolveTenantTimezone(input.tenantId),
   ]);
   if (inqRes.error) logServerError("messagesV5.itemsCatalog/inquiry", inqRes.error);
   if (tenantRes.error) logServerError("messagesV5.itemsCatalog/tenant", tenantRes.error);
-  const inq = (inqRes.data ?? null) as { event_date?: string | null; event_timezone?: string | null } | null;
+  const inq = (inqRes.data ?? null) as { event_date?: string | null; event_timezone?: string | null; source_context?: unknown } | null;
   const settings = ((tenantRes.data as { settings?: unknown } | null)?.settings ?? null) as { industry_preset?: unknown } | null;
   const presetRaw = typeof settings?.industry_preset === "string" ? settings.industry_preset : null;
   const preset = resolveIndustryPreset(presetRaw);
@@ -84,9 +87,18 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
   const date = typeof inq?.event_date === "string" && /^\d{4}-\d{2}-\d{2}/.test(inq.event_date) ? inq.event_date.slice(0, 10) : null;
   const window = date ? dayWindow(date, timezone) : null;
 
+  const context = readInquiryTalentContext(inq?.source_context);
+  const hub = await getPlatformHubTenant();
+  const talentOwned = isTalentOwnedConversation({
+    hostKind: context.hostKind,
+    tenantId: input.tenantId,
+    hubTenantId: hub?.tenantId ?? null,
+  });
+  const talentProfileId = talentOwned && context.talentIds.length === 1 ? context.talentIds[0] : null;
+
   const [talent, offerings, sessions, tables] = await Promise.all([
     loadTalentRows(admin, input.tenantId, window, now),
-    loadOfferingRows(admin, input.tenantId),
+    talentProfileId ? loadTalentProfileOfferingRows(admin, input.tenantId, talentProfileId) : loadOfferingRows(admin, input.tenantId),
     loadSessionRows(admin, input.tenantId, now),
     date && preset.features.reservations ? loadTableRows(input.tenantId, date) : Promise.resolve([] as CatalogRow[]),
   ]);
@@ -166,6 +178,61 @@ async function loadOfferingRows(admin: Admin, tenantId: string): Promise<Catalog
       offeringId: row.id,
       durationMinutes: row.duration_minutes,
     } satisfies CatalogRow;
+  });
+}
+
+/** Her published services, with the option as a variant and extras as add-ons. */
+async function loadTalentProfileOfferingRows(admin: Admin, tenantId: string, talentProfileId: string): Promise<CatalogRow[]> {
+  const { data, error } = await admin
+    .from("talent_offerings")
+    .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "published")
+    .eq("moderation_state", "approved")
+    .in("visibility", ["public", "on_request"])
+    .in("kind", ["package", "service", "product"])
+    .order("sort_order", { ascending: true });
+  if (error) {
+    logServerError("messagesV5.itemsCatalog/talentOfferings", error);
+    return [];
+  }
+  type Row = {
+    id: string;
+    title: string | null;
+    amount_cents: number | null;
+    currency: string | null;
+    kind: string;
+    inventory_qty: number | null;
+    capacity_pool_id: string | null;
+    duration_minutes: number | null;
+  };
+  const rows = (data ?? []) as Row[];
+  if (rows.length === 0) return [];
+  const children = await loadOfferingChildren(admin, rows.map((row) => row.id));
+  return rows.map((row) => {
+    const counted = !!row.capacity_pool_id && typeof row.inventory_qty === "number" && Number.isFinite(row.inventory_qty);
+    const variants: CatalogOption[] = (children.variants.get(row.id) ?? []).map((v) => ({
+      id: v.id,
+      label: v.label,
+      amountCents: v.amountCents,
+    }));
+    const addOns: CatalogOption[] = (children.addOns.get(row.id) ?? []).map((a) => ({
+      id: a.id,
+      label: a.label,
+      amountCents: a.amountCents,
+    }));
+    return talentOfferingCatalogRow({
+      id: row.id,
+      title: row.title,
+      amountCents: typeof row.amount_cents === "number" ? row.amount_cents : null,
+      currency: row.currency,
+      kind: row.kind,
+      durationMinutes: row.duration_minutes,
+      soldOut: counted && Math.round(row.inventory_qty as number) <= 0,
+      variants,
+      addOns,
+    });
   });
 }
 

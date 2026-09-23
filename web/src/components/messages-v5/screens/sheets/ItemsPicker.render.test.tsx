@@ -67,6 +67,7 @@ function pickerProps(over: Partial<ItemsPickerViewProps> = {}): ItemsPickerViewP
     onCategory: noop,
     onToggle: noop,
     onTier: noop,
+    onAddons: noop,
     onUnits: noop,
     onCustomOpen: noop,
     onCustom: noop,

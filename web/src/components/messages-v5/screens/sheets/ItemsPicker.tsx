@@ -21,7 +21,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { formatCentsUSD } from "@/lib/bookings/commission";
+import { formatCents, formatCentsUSD } from "@/lib/bookings/commission";
 import {
   categoryOrderForPreset,
   filterCatalog,
@@ -117,6 +117,7 @@ export type ItemsPickerViewProps = {
   readonly onCategory: (c: ItemCategory | "all") => void;
   readonly onToggle: (row: CatalogRow) => void;
   readonly onTier: (row: CatalogRow, variantId: string) => void;
+  readonly onAddons: (row: CatalogRow, addonIds: readonly string[]) => void;
   readonly onUnits: (row: CatalogRow, units: number) => void;
   readonly onCustomOpen: (open: boolean) => void;
   readonly onCustom: (line: CustomLine | null) => void;
@@ -135,9 +136,14 @@ export function ItemsPickerView(p: ItemsPickerViewProps) {
   const groups = useMemo(() => groupCatalog(filterCatalog(rows, p.query, p.category), order), [rows, p.query, p.category, order]);
   const present = useMemo(() => new Set(groupCatalog(rows, order).map((g) => g.category)), [rows, order]);
   const total = selectionTotal(p.selected, p.custom);
+  const totalCurrency = p.selected.find((s) => s.row.currency)?.row.currency ?? null;
+  const money = (cents: number, currency?: string | null) => {
+    const code = (currency ?? totalCurrency)?.trim().toUpperCase();
+    return code && code !== "USD" ? formatCents(cents, code) : formatCentsUSD(cents);
+  };
   const selectedIds = useMemo(() => new Map(p.selected.map((s) => [s.row.id, s])), [p.selected]);
   const busy = p.phase === "busy";
-  const totalLabel = total.count === 0 ? c.none : fill(total.partial ? c.selectedPartial : c.selected, { count: total.count, total: formatCentsUSD(total.totalCents) });
+  const totalLabel = total.count === 0 ? c.none : fill(total.partial ? c.selectedPartial : c.selected, { count: total.count, total: money(total.totalCents, totalCurrency) });
   const sendLabel = p.mode === "offer" ? c.continueOffer : p.mode === "choices" ? c.sendChoices : c.addToDraft;
   const canSend = p.phase === "ready" && total.count > 0 && !p.seam;
 
@@ -188,7 +194,7 @@ export function ItemsPickerView(p: ItemsPickerViewProps) {
                     disabled={!selectable || busy}
                     title={row.title}
                     sub={rowSub(row, copy, p.catalog?.date ?? null, timezone)}
-                    amount={amount == null ? null : formatCentsUSD(amount)}
+                    amount={amount == null ? null : money(amount, row.currency)}
                     leading={row.category === "talent" ? <Avatar name={row.title} size={mobile ? "lg" : "sm"} /> : <Avatar name={null} icon={CATEGORY_ICON[row.category]} size={mobile ? "lg" : "sm"} />}
                     trailing={!selectable ? <Pill tone="lost">{c.busy}</Pill> : null}
                     onSelect={selectable ? () => p.onToggle(row) : undefined}
@@ -210,6 +216,42 @@ export function ItemsPickerView(p: ItemsPickerViewProps) {
                         <label htmlFor={`units-${row.id}`}>{c.units}</label>
                         <input id={`units-${row.id}`} className="in" type="number" min={1} max={50} value={sel.units} disabled={busy} onChange={(e) => p.onUnits(row, Number(e.target.value))} />
                       </div>
+                    </div>
+                  ) : sel && row.variants && row.variants.length > 0 ? (
+                    <div className="split" data-items-variant>
+                      <div className="fld">
+                        <label htmlFor={`variant-${row.id}`}>{c.tier}</label>
+                        <select id={`variant-${row.id}`} className="in" value={sel.variantId ?? ""} disabled={busy} onChange={(e) => p.onTier(row, e.target.value)}>
+                          {row.variants.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.label}
+                              {v.amountCents == null ? "" : ` · ${money(v.amountCents, row.currency)}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {row.addOns && row.addOns.length > 0 ? (
+                        <div className="fld" data-items-addons>
+                          {row.addOns.map((addon) => {
+                            const on = (sel.addonIds ?? []).includes(addon.id);
+                            return (
+                              <label key={addon.id}>
+                                <input
+                                  type="checkbox"
+                                  checked={on}
+                                  disabled={busy}
+                                  onChange={() => {
+                                    const current = sel.addonIds ?? [];
+                                    p.onAddons(row, on ? current.filter((id) => id !== addon.id) : [...current, addon.id]);
+                                  }}
+                                />
+                                {addon.label}
+                                {addon.amountCents == null ? "" : ` + ${money(addon.amountCents, row.currency)}`}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : null}
                     </div>
                   ) : sel && (row.category === "menu" || row.category === "class") ? (
                     <div className="fld" data-items-units>
@@ -357,7 +399,7 @@ export function ItemsPickerSheet({ open, onClose, ctx, copy, variant, actions: i
   const seam = seamCall ? (seamCall.reason === "custom_not_a_choice" ? copy.kit.items.customNotChoice : copy.kit.items.tableSeam) : null;
 
   const onToggle = useCallback((row: CatalogRow) => {
-    setSelected((list) => (list.some((s) => s.row.id === row.id) ? list.filter((s) => s.row.id !== row.id) : [...list, { row, units: 1, variantId: row.tiers?.find((t) => t.seatsLeft == null || t.seatsLeft > 0)?.variantId ?? row.tiers?.[0]?.variantId ?? null }]));
+    setSelected((list) => (list.some((s) => s.row.id === row.id) ? list.filter((s) => s.row.id !== row.id) : [...list, { row, units: 1, variantId: row.tiers?.find((t) => t.seatsLeft == null || t.seatsLeft > 0)?.variantId ?? row.tiers?.[0]?.variantId ?? row.variants?.[0]?.id ?? null, addonIds: [] }]));
   }, []);
 
   const onSend = useCallback(async () => {
@@ -403,6 +445,7 @@ export function ItemsPickerSheet({ open, onClose, ctx, copy, variant, actions: i
       onCategory={setCategory}
       onToggle={onToggle}
       onTier={(row, variantId) => setSelected((list) => list.map((s) => (s.row.id === row.id ? { ...s, variantId } : s)))}
+      onAddons={(row, addonIds) => setSelected((list) => list.map((s) => (s.row.id === row.id ? { ...s, addonIds } : s)))}
       onUnits={(row, units) => setSelected((list) => list.map((s) => (s.row.id === row.id ? { ...s, units: Math.max(1, Math.min(50, Math.round(units) || 1)) } : s)))}
       onCustomOpen={setCustomOpen}
       onCustom={setCustom}

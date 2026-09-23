@@ -14,6 +14,7 @@
  * card yet); that half of the seam is unchanged and filed separately.
  */
 
+import { composeTalentOfferingLabel } from "@/lib/talent/offering-line-label";
 import { resolveIndustryPreset } from "@/lib/words/presets";
 import type { IdentityLevel } from "@/lib/messaging/types";
 
@@ -35,6 +36,13 @@ export type TicketTier = {
   readonly seatsLeft: number | null;
 };
 
+/** One option or extra on a talent service. `amountCents` null means the base price. */
+export type CatalogOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly amountCents: number | null;
+};
+
 /**
  * One row of the picker. `id` is unique across categories
  * (`<category>:<record id>`); the record ids the engine needs ride as
@@ -51,8 +59,10 @@ export type CatalogRow = {
   readonly category: ItemCategory;
   readonly title: string;
   readonly sub: string | null;
-  /** USD cents, or null when the row carries no price (a person, a table time). */
+  /** Cents in `currency`, or null when the row carries no price (a person, a table time). */
   readonly amountCents: number | null;
+  /** The offering's currency. Absent on older rows, which stay USD. */
+  readonly currency?: string | null;
   readonly availability: ItemAvailability;
   readonly talentProfileId?: string;
   readonly offeringId?: string;
@@ -64,6 +74,10 @@ export type CatalogRow = {
   readonly endsAt?: string;
   readonly partySize?: number;
   readonly tiers?: readonly TicketTier[];
+  /** Talent services: the client picks one. */
+  readonly variants?: readonly CatalogOption[];
+  /** Talent services: extras stack. */
+  readonly addOns?: readonly CatalogOption[];
   readonly durationMinutes?: number | null;
 };
 
@@ -120,8 +134,10 @@ export function isSelectable(row: CatalogRow): boolean {
 export type Selection = {
   readonly row: CatalogRow;
   readonly units: number;
-  /** Tickets: the chosen tier. */
+  /** Tickets: the chosen tier. Talent services: the chosen option. */
   readonly variantId?: string | null;
+  /** Talent services: stackable extras. */
+  readonly addonIds?: readonly string[];
 };
 
 /** The "Custom line" row's fields (D05: "anything not in the catalog"). */
@@ -134,12 +150,38 @@ export type SelectionTotal = {
   readonly partial: boolean;
 };
 
+function addonCents(sel: Selection): number | null {
+  let extra = 0;
+  for (const id of sel.addonIds ?? []) {
+    const addon = sel.row.addOns?.find((a) => a.id === id) ?? null;
+    if (!addon || addon.amountCents == null) return null;
+    extra += addon.amountCents;
+  }
+  return extra;
+}
+
 export function lineAmountCents(sel: Selection): number | null {
   if (sel.row.category === "ticket") {
     const tier = sel.row.tiers?.find((t) => t.variantId === sel.variantId) ?? null;
     return tier ? tier.amountCents * sel.units : null;
   }
-  return sel.row.amountCents == null ? null : sel.row.amountCents * sel.units;
+  const variant = sel.variantId ? sel.row.variants?.find((v) => v.id === sel.variantId) ?? null : null;
+  const base = variant ? variant.amountCents : sel.row.amountCents;
+  if (base == null) return null;
+  const extra = addonCents(sel);
+  if (extra == null) return null;
+  return base * sel.units + extra;
+}
+
+/** The currency a shared draft should open in, when every priced row agrees. */
+export function sharedDraftCurrency(selected: readonly Selection[]): string | undefined {
+  const codes = new Set<string>();
+  for (const sel of selected) {
+    const code = sel.row.currency?.trim().toUpperCase();
+    if (code) codes.add(code);
+  }
+  if (codes.size !== 1) return undefined;
+  return [...codes][0];
 }
 
 export function selectionTotal(selected: readonly Selection[], custom: CustomLine | null = null): SelectionTotal {
@@ -168,8 +210,8 @@ export type OptionCardKind = "service_card" | "professional_times" | "class_card
  * existing writer; `seam` names the category no writer serves yet.
  */
 export type EngineCall =
-  | { readonly action: "ensure_shared_draft" }
-  | { readonly action: "add_line"; readonly offeringId: string; readonly units: number; readonly sessionId?: string | null; readonly variantId?: string | null; readonly label: string }
+  | { readonly action: "ensure_shared_draft"; readonly currency?: string }
+  | { readonly action: "add_line"; readonly offeringId: string; readonly units: number; readonly sessionId?: string | null; readonly variantId?: string | null; readonly addonIds?: readonly string[]; readonly label: string }
   | { readonly action: "add_custom_line"; readonly label: string; readonly amountCents: number }
   | { readonly action: "add_talent"; readonly talentProfileId: string; readonly label: string }
   | { readonly action: "send_options"; readonly kind: OptionCardKind; readonly payload: Record<string, unknown> }
@@ -212,6 +254,16 @@ export function holdRefusal(identityLevel: IdentityLevel | null, kinds: readonly
   return kinds.some((k) => HOLDING_CARD_KINDS.includes(k)) ? "identity_unconfirmed" : null;
 }
 
+function serviceLineLabel(sel: Selection): string {
+  const row = sel.row;
+  if (!row.variants?.length && !(sel.addonIds && sel.addonIds.length > 0)) return row.title;
+  const variant = row.variants?.find((v) => v.id === sel.variantId) ?? null;
+  const addonLabels = (sel.addonIds ?? [])
+    .map((id) => row.addOns?.find((a) => a.id === id)?.label ?? "")
+    .filter((label) => label.length > 0);
+  return composeTalentOfferingLabel({ title: row.title, variantLabel: variant?.label, addonLabels });
+}
+
 function lineCalls(selected: readonly Selection[]): EngineCall[] {
   const out: EngineCall[] = [];
   for (const sel of selected) {
@@ -223,7 +275,16 @@ function lineCalls(selected: readonly Selection[]): EngineCall[] {
       case "package":
       case "service":
       case "menu":
-        if (row.offeringId) out.push({ action: "add_line", offeringId: row.offeringId, units: sel.units, label: row.title });
+        if (row.offeringId) {
+          out.push({
+            action: "add_line",
+            offeringId: row.offeringId,
+            units: sel.units,
+            label: serviceLineLabel(sel),
+            ...(sel.variantId ? { variantId: sel.variantId } : {}),
+            ...(sel.addonIds && sel.addonIds.length > 0 ? { addonIds: sel.addonIds } : {}),
+          });
+        }
         break;
       case "class":
         if (row.offeringId && row.sessionId) out.push({ action: "add_line", offeringId: row.offeringId, units: sel.units, sessionId: row.sessionId, label: row.title });
@@ -258,9 +319,9 @@ function optionCalls(selected: readonly Selection[], timezone: string): EngineCa
       payload: {
         offeringIds: serviceLike.map((s) => s.row.offeringId ?? "").filter(Boolean),
         talentProfileIds: serviceLike.map((s) => s.row.talentProfileId ?? "").filter(Boolean),
-        labels: serviceLike.map((s) => s.row.title),
-        pricesCents: serviceLike.map((s) => s.row.amountCents),
-        currency: "USD",
+        labels: serviceLike.map((s) => serviceLineLabel(s)),
+        pricesCents: serviceLike.map((s) => lineAmountCents(s)),
+        currency: serviceLike.find((s) => s.row.currency)?.row.currency ?? "USD",
       },
     });
   }
@@ -271,9 +332,9 @@ function optionCalls(selected: readonly Selection[], timezone: string): EngineCa
       kind: "menu_options",
       payload: {
         offeringIds: menu.map((s) => s.row.offeringId ?? "").filter(Boolean),
-        labels: menu.map((s) => s.row.title),
-        pricesCents: menu.map((s) => s.row.amountCents ?? 0),
-        currency: "USD",
+        labels: menu.map((s) => serviceLineLabel(s)),
+        pricesCents: menu.map((s) => lineAmountCents(s) ?? 0),
+        currency: menu.find((s) => s.row.currency)?.row.currency ?? "USD",
       },
     });
   }
@@ -351,7 +412,10 @@ export function sendModeToEngineCall(input: SendPlanInput): EngineCall[] {
   const lines = lineCalls(selected);
   if (custom) lines.push({ action: "add_custom_line", label: custom.label, amountCents: custom.amountCents });
   const needsDraft = lines.some((c) => c.action === "add_line" || c.action === "add_custom_line");
-  const calls: EngineCall[] = needsDraft ? [{ action: "ensure_shared_draft" }, ...lines] : lines;
+  const currency = sharedDraftCurrency(selected);
+  const calls: EngineCall[] = needsDraft
+    ? [{ action: "ensure_shared_draft", ...(currency ? { currency } : {}) }, ...lines]
+    : lines;
   if (mode === "offer") calls.push({ action: "dispatch", id: "create_offer" });
   return calls;
 }

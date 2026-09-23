@@ -25,8 +25,8 @@ export type ItemsActions = {
   readonly loadPersonSlots: (input: { talentProfileId: string; offeringId?: string | null; from?: string | null; days?: number }) => Promise<PersonSlotsResult>;
   /** The inquiry's current optimistic-lock version (`Essentials.version`), re-read before each roster add. */
   readonly currentVersion: (input: { inquiryId: string }) => Promise<number | null>;
-  readonly ensureSharedDraft: (input: { inquiryId: string }) => Promise<{ ok: true; orderId: string; version: number } | Refused>;
-  readonly addLine: (input: { orderId: string; offeringId: string; units: number; sessionId?: string | null; variantId?: string | null; expectedVersion?: number }) => Promise<{ ok: true } | Refused>;
+  readonly ensureSharedDraft: (input: { inquiryId: string; currency?: string }) => Promise<{ ok: true; orderId: string; version: number } | Refused>;
+  readonly addLine: (input: { orderId: string; offeringId: string; units: number; sessionId?: string | null; variantId?: string | null; addonIds?: readonly string[]; expectedVersion?: number }) => Promise<{ ok: true } | Refused>;
   readonly addCustomLine: (input: { orderId: string; label: string; amountCents: number; expectedVersion?: number; idempotencyKey: string }) => Promise<{ ok: true } | Refused>;
   readonly addTalent: (input: { inquiryId: string; talentProfileId: string; expectedVersion: number }) => Promise<{ ok: true } | Refused>;
   readonly sendOptions: (input: { inquiryId: string; kind: OptionCardKind; payload: Record<string, unknown> }) => Promise<{ ok: true; messageId: string } | Refused>;
@@ -66,7 +66,7 @@ export const engineItemsActions: ItemsActions = {
     return r.ok ? { ok: true, orderId: r.orderId, version: r.version } : { ok: false, reason: r.reason };
   },
   addLine: async (input) => {
-    const r = await posAddLine(input);
+    const r = await posAddLine({ ...input, addonIds: input.addonIds ? [...input.addonIds] : undefined });
     if (r.ok) return { ok: true };
     return { ok: false, reason: toRefusal("reason" in r ? r.reason : "error" in r ? r.error : null) };
   },
@@ -105,7 +105,7 @@ export async function runSendPlan(calls: readonly EngineCall[], actions: ItemsAc
   for (const call of calls) {
     switch (call.action) {
       case "ensure_shared_draft": {
-        const r = await actions.ensureSharedDraft({ inquiryId: ctx.inquiryId });
+        const r = await actions.ensureSharedDraft({ inquiryId: ctx.inquiryId, currency: call.currency });
         if (!r.ok) return r;
         orderId = r.orderId;
         orderVersion = r.version;
@@ -113,7 +113,7 @@ export async function runSendPlan(calls: readonly EngineCall[], actions: ItemsAc
       }
       case "add_line": {
         if (!orderId) return { ok: false, reason: "invalid" };
-        const r = await actions.addLine({ orderId, offeringId: call.offeringId, units: call.units, sessionId: call.sessionId ?? null, variantId: call.variantId ?? null, expectedVersion: orderVersion });
+        const r = await actions.addLine({ orderId, offeringId: call.offeringId, units: call.units, sessionId: call.sessionId ?? null, variantId: call.variantId ?? null, addonIds: call.addonIds, expectedVersion: orderVersion });
         if (!r.ok) return r;
         // The line writer answers no new version; later lines on the same draft go unlocked, the counter's own pattern.
         orderVersion = undefined;

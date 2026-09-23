@@ -78,6 +78,7 @@ export async function posAddLine(input: {
   sessionId?: string | null;
   /** A price variant (`Options` on the tile); the engine prices it (`draft.ts`). */
   variantId?: string | null;
+  addonIds?: string[] | null;
   expectedVersion?: number;
 }) {
   const g = await staff();
@@ -88,6 +89,7 @@ export async function posAddLine(input: {
     units: z.number().int().positive(),
     sessionId: z.string().uuid().nullable().optional(),
     variantId: z.string().uuid().nullable().optional(),
+    addonIds: z.array(z.string().uuid()).max(20).optional(),
     expectedVersion: z.number().int().positive().optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
@@ -100,6 +102,7 @@ export async function posAddLine(input: {
       units: parsed.data.units,
       sessionId: parsed.data.sessionId,
       variantId: parsed.data.variantId,
+      addonIds: parsed.data.addonIds,
     },
   });
 }

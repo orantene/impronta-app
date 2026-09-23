@@ -17,6 +17,9 @@
  */
 
 import { useEffect, useState } from "react";
+import { setPendingOfferingIntent } from "@/app/t/[profileCode]/_chat/pending-offering-intent";
+import { mintTalentOfferingIntent } from "@/lib/messaging/mint-talent-offering-intent";
+import { confirmsByHandCopy } from "@/lib/scheduling/talent-booking-mode";
 import { createInstantBookingAction } from "@/lib/server-actions/instant-book-action";
 import type { OfferingRequestDetail } from "./OfferingCta";
 import { formatOfferingPrice } from "@/lib/talent/offerings-types";
@@ -38,6 +41,7 @@ export function OfferingInstantMount({
   signedIn = false,
   captcha = null,
   hasBookableHours = false,
+  requestOnly = false,
 }: {
   tenantId: string | null;
   sourcePage: string;
@@ -45,6 +49,8 @@ export function OfferingInstantMount({
   signedIn?: boolean;
   captcha?: GuestCaptchaConfig | null;
   hasBookableHours?: boolean;
+  /** Free and Pro never charge from this sheet. She confirms by hand. */
+  requestOnly?: boolean;
 }) {
   const [sheet, setSheet] = useState<OfferingRequestDetail | null>(null);
   const [busy, setBusy] = useState(false);
@@ -132,6 +138,26 @@ export function OfferingInstantMount({
             en: "The final total (including fees) is shown at payment.",
             es: "El total final (con tarifas) se muestra al pagar.",
           });
+
+  const requestByHand = async () => {
+    if (!d.talentProfileId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const minted = await mintTalentOfferingIntent({
+        talentProfileId: d.talentProfileId,
+        offeringId: d.offeringId,
+        variantId: variant?.id ?? null,
+        addonIds: addOnIds,
+        intent: "reserve",
+      });
+      if (minted.ok) setPendingOfferingIntent(minted.token);
+      window.dispatchEvent(new CustomEvent("tulala:offering-request"));
+      setSheet(null);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const book = async (payInPerson: boolean) => {
     setBusy(true);
@@ -295,7 +321,9 @@ export function OfferingInstantMount({
           </div>
         ) : null}
 
-        <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.5, margin: "10px 0 4px" }}>{reserveLine}</p>
+        <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.5, margin: "10px 0 4px" }} data-talent-confirms-by-hand={requestOnly ? "1" : undefined}>
+          {requestOnly ? confirmsByHandCopy(locale) : reserveLine}
+        </p>
         {d.cancellationHours != null ? (
           <p style={{ fontSize: 12, color: MUTED, lineHeight: 1.5, margin: "0 0 16px" }}>
             {pickLocale(locale, {
@@ -339,7 +367,11 @@ export function OfferingInstantMount({
         ) : null}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {signedIn || !d.requireAccountToBook ? (
+          {requestOnly ? (
+            <button type="button" disabled={busy} onClick={() => void requestByHand()} style={btn(true)} data-sheet-action="request">
+              {pickLocale(locale, { en: "Send this request", es: "Enviar esta solicitud", fr: "Envoyer cette demande" })}
+            </button>
+          ) : signedIn || !d.requireAccountToBook ? (
             <>
               <button type="button" disabled={busy} onClick={() => void book(false)} style={btn(true)} data-sheet-action="card">
                 {d.reserveMode === "free"

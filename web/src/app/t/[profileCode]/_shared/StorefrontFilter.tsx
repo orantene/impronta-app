@@ -48,10 +48,12 @@ export function StorefrontFilter({
   visible,
   locale,
   categories,
+  confirmsByHand = false,
 }: {
   visible: TalentOffering[];
   locale: string;
   categories: string[];
+  confirmsByHand?: boolean;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const allLabel = pickLocale(locale, { en: "All", es: "Todos" });
@@ -65,7 +67,7 @@ export function StorefrontFilter({
           <FilterPill key={c} label={c} active={active === c} onClick={() => setActive(c)} />
         ))}
       </div>
-      <StorefrontBody visible={filtered} locale={locale} showFeatured={active === null} />
+      <StorefrontBody visible={filtered} locale={locale} showFeatured={active === null} confirmsByHand={confirmsByHand} />
     </>
   );
 }
