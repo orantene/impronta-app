@@ -55,4 +55,4 @@ A service choice is a signed token (`talent-offering`, no tenant id, no price). 
 
 `appointmentConfirmedBody` names an exact address only when the caller already has one. `talent_profiles` has no street address, so confirmations stay "Appointment confirmed".
 
-D-MSG-400 is still unfixed. This path does not call `normalizeServicesMenu`.
+D-MSG-400 is still unfixed. This path does not call `normalizeServicesMenu`. A failed plan read stays "she confirms by hand". A failed catalog read while minting or seeding returns unavailable or invalid (D-MSG-403). The signed `?service=` mount sits on the guest dock so `profile-view.tsx` stays inside its line budget.

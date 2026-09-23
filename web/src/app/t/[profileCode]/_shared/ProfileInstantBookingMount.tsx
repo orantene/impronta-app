@@ -22,8 +22,10 @@ export async function ProfileInstantBookingMount({
     : false;
   let requestOnly = true;
   if (admin) {
-    const { data } = await admin.from("talent_profiles").select("talent_plan_key").eq("id", talentProfileId).maybeSingle();
-    requestOnly = !talentOffersInstantBooking((data as { talent_plan_key?: string | null } | null)?.talent_plan_key);
+    const { data, error } = await admin.from("talent_profiles").select("talent_plan_key").eq("id", talentProfileId).maybeSingle();
+    if (!error) {
+      requestOnly = !talentOffersInstantBooking((data as { talent_plan_key?: string | null } | null)?.talent_plan_key);
+    }
   }
   return (
     <OfferingInstantMount

@@ -42,8 +42,10 @@ export async function TalentStorefront({
   if (profileId) {
     const admin = createServiceRoleClient();
     if (admin) {
-      const { data } = await admin.from("talent_profiles").select("talent_plan_key").eq("id", profileId).maybeSingle();
-      confirmsByHand = !talentOffersInstantBooking((data as { talent_plan_key?: string | null } | null)?.talent_plan_key);
+      const { data, error } = await admin.from("talent_profiles").select("talent_plan_key").eq("id", profileId).maybeSingle();
+      if (!error) {
+        confirmsByHand = !talentOffersInstantBooking((data as { talent_plan_key?: string | null } | null)?.talent_plan_key);
+      }
     }
   }
 

@@ -32,22 +32,24 @@ export async function mintTalentOfferingIntent(input: {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "That service is not available." };
 
-  const { data: offering } = await admin
+  const { data: offering, error: offeringErr } = await admin
     .from("talent_offerings")
     .select("id, talent_profile_id, status")
     .eq("id", parsed.data.offeringId)
     .maybeSingle();
+  if (offeringErr) return { ok: false, error: "That service is not available." };
   const off = offering as { talent_profile_id?: string | null; status?: string | null } | null;
   if (!off || off.talent_profile_id !== parsed.data.talentProfileId || off.status !== "published") {
     return { ok: false, error: "That service is not available." };
   }
 
   if (parsed.data.variantId) {
-    const { data: variant } = await admin
+    const { data: variant, error: variantErr } = await admin
       .from("talent_offering_variants")
       .select("id, offering_id")
       .eq("id", parsed.data.variantId)
       .maybeSingle();
+    if (variantErr) return { ok: false, error: "That option is not on this service." };
     if (!variant || (variant as { offering_id?: string }).offering_id !== parsed.data.offeringId) {
       return { ok: false, error: "That option is not on this service." };
     }
@@ -55,7 +57,8 @@ export async function mintTalentOfferingIntent(input: {
 
   const addonIds = parsed.data.addonIds ?? [];
   if (addonIds.length > 0) {
-    const { data: addons } = await admin.from("talent_offering_addons").select("id, offering_id").in("id", addonIds);
+    const { data: addons, error: addonErr } = await admin.from("talent_offering_addons").select("id, offering_id").in("id", addonIds);
+    if (addonErr) return { ok: false, error: "That extra is not on this service." };
     const rows = (addons ?? []) as { id: string; offering_id: string | null }[];
     const ok = new Set(rows.filter((row) => row.offering_id === parsed.data.offeringId).map((row) => row.id));
     if (addonIds.some((id) => !ok.has(id))) return { ok: false, error: "That extra is not on this service." };

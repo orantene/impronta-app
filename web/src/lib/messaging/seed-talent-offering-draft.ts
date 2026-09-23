@@ -45,11 +45,12 @@ export async function seedTalentOfferingDraft(
 
   let variantLabel: string | null = null;
   if (choice.variant) {
-    const { data: variant } = await admin
+    const { data: variant, error: variantErr } = await admin
       .from("talent_offering_variants")
       .select("id, label, offering_id")
       .eq("id", choice.variant)
       .maybeSingle();
+    if (variantErr) return { ok: false, reason: "invalid" };
     const row = variant as { label?: string; offering_id?: string } | null;
     if (!row || row.offering_id !== off.id) return { ok: false, reason: "invalid" };
     variantLabel = row.label ?? null;
@@ -57,10 +58,11 @@ export async function seedTalentOfferingDraft(
 
   const addonLabels: string[] = [];
   if (choice.addons.length > 0) {
-    const { data: addons } = await admin
+    const { data: addons, error: addonErr } = await admin
       .from("talent_offering_addons")
       .select("id, label, offering_id")
       .in("id", choice.addons);
+    if (addonErr) return { ok: false, reason: "invalid" };
     const rows = (addons ?? []) as { id: string; label: string | null; offering_id: string | null }[];
     const byId = new Map(rows.map((row) => [row.id, row]));
     for (const id of choice.addons) {
@@ -70,7 +72,8 @@ export async function seedTalentOfferingDraft(
     }
   }
 
-  const { data: talent } = await admin.from("talent_profiles").select("user_id").eq("id", input.talentProfileId).maybeSingle();
+  const { data: talent, error: talentErr } = await admin.from("talent_profiles").select("user_id").eq("id", input.talentProfileId).maybeSingle();
+  if (talentErr) return { ok: false, reason: "unavailable" };
   const talentUserId = (talent as { user_id?: string | null } | null)?.user_id ?? null;
   if (!talentUserId) return { ok: false, reason: "no_actor" };
 
