@@ -133,11 +133,18 @@ jobs:
         if: ${{ inputs.repair_orphans }}
         run: |
           echo "#### Ledger repair" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Note: the ledger repair is a REAL change and is applied even in dry-run mode — \`db push\` (dry run included) refuses while an orphan row exists. Only the migrations themselves are previewed below." >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+          # The ledger table is the only place these versions can appear: they
+          # match no file on disk, so a hit here is always the remote row.
+          # Absent -> already repaired, so re-running this is a no-op.
+          ledger="$(supabase migration list --linked)"
           for v in 20260911232448 20260918215445; do
-            if supabase migration list | grep -q "$v"; then
+            if grep -q "$v" <<< "$ledger"; then
               echo "repairing $v (recorded remotely, no local file)" | tee -a "$GITHUB_STEP_SUMMARY"
-              supabase migration repair --status reverted "$v" 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+              supabase migration repair --linked --status reverted "$v" 2>&1 | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
             else
               echo "skipping $v (not in the ledger, already repaired)" | tee -a "$GITHUB_STEP_SUMMARY"
             fi
@@ -145,7 +152,7 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "#### Local vs. remote (after repair)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          supabase migration list | tee -a "$GITHUB_STEP_SUMMARY"
+          supabase migration list --linked | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Dry run (preview pending migrations, apply nothing)
@@ -153,7 +160,7 @@ jobs:
         run: |
           echo "#### Dry-run output" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          supabase db push --linked --include-all --dry-run | tee -a "$GITHUB_STEP_SUMMARY"
+          supabase db push --linked --include-all --dry-run | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Dry run only — nothing was applied. Re-run with \`dry_run: false\` to apply." >> "$GITHUB_STEP_SUMMARY"
@@ -167,7 +174,7 @@ jobs:
           # (`npx -y supabase@latest db push --linked --include-all --yes`),
           # run here via the CLI action instead of npx so behaviour matches
           # exactly what a developer's local `db:push` would do.
-          supabase db push --linked --include-all --yes | tee -a "$GITHUB_STEP_SUMMARY"
+          supabase db push --linked --include-all --yes | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Migration status (after)
@@ -176,5 +183,5 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "#### Local vs. remote (after apply)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          supabase migration list | tee -a "$GITHUB_STEP_SUMMARY"
+          supabase migration list --linked | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
