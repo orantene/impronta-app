@@ -5,33 +5,55 @@ import {
   expect,
   openAdminMessages,
   requireClientLink,
+  sendPricedOffer,
   shot,
+  signInAgentOwnedHost,
   test,
 } from "../_harness";
 
 /**
- * Client link ES + FR hard (Round 2).
- * Deep-link an unpaid awaiting_acceptance offer (avoid flaky New→Start).
+ * Client link ES + FR hard (Round 2 / D-MSG-337).
+ * Journeys: deep-link unpaid awaiting offer. Agent host (MESSAGES_V5 preview):
+ * fresh conversation + priced offer (journeys seed IDs are not on prod).
  */
 const AWAITING_UNPAID =
   process.env.QA_AWAITING_OFFER_UNPAID_ID ?? "0c489aa2-fe00-4f85-929b-a4ae7edf4b2c";
+const AGENT_HOST =
+  process.env.QA_STRIPE_HOST ?? process.env.PLAYWRIGHT_BASE_URL ?? "https://qa-stripe-r2.tulala.digital";
+const USE_AGENT_PROD = process.env.QA_ALLOW_AGENT_PROD_HOST === "1";
 
 test.describe("QA remaining: client ES/FR + pay page", () => {
-  test.use({ viewport: { width: 1440, height: 900 } });
+  test.use({
+    viewport: { width: 1440, height: 900 },
+    ...(USE_AGENT_PROD ? { baseURL: AGENT_HOST } : {}),
+  });
   test.setTimeout(180_000);
 
   test("offer → mint client link → ES/FR strings + no raw keys", async ({ page, context }) => {
+    const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    if (USE_AGENT_PROD && bypass) {
+      await context.setExtraHTTPHeaders({
+        "x-vercel-protection-bypass": bypass,
+        "x-vercel-set-bypass-cookie": "true",
+      });
+    }
+
     const { errors } = attachConsoleGuard(page);
-    await openAdminMessages(page);
-    const u0 = new URL(page.url());
-    u0.searchParams.set("inquiry", AWAITING_UNPAID);
-    await page.goto(u0.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
-    await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
-    await awaitHydrated(page);
-    await expect(
-      page.locator('[data-card="offer"]').first(),
-      `staff stream missing offer on ${AWAITING_UNPAID}`,
-    ).toBeVisible({ timeout: 20_000 });
+    if (USE_AGENT_PROD) {
+      await signInAgentOwnedHost(page, { host: AGENT_HOST });
+      await sendPricedOffer(page, { fresh: true });
+    } else {
+      await openAdminMessages(page);
+      const u0 = new URL(page.url());
+      u0.searchParams.set("inquiry", AWAITING_UNPAID);
+      await page.goto(u0.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
+      await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
+      await awaitHydrated(page);
+      await expect(
+        page.locator('[data-card="offer"]').first(),
+        `staff stream missing offer on ${AWAITING_UNPAID}`,
+      ).toBeVisible({ timeout: 20_000 });
+    }
 
     const client = await requireClientLink(page, context);
     expect(client.url(), "client link must be /c/…").toMatch(/\/c\//);
