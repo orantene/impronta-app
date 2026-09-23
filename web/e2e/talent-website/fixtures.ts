@@ -245,6 +245,16 @@ export function selfPageUrlFor(fx: TalentFixture): string {
 }
 
 export type TalentFixtureView = TalentFixture & {
+  /**
+   * Slug of the extra published page on this talent's site, for specs that
+   * assert an INNER page renders as well as the home page.
+   *
+   * It is `EXTRA_PAGE_SLUG` because that is the page `seed.ts` actually creates.
+   * Absent it, J0 and J1 navigated to `/t/site/<slug>/undefined`, took a 404,
+   * and failed 30 seconds later as a locator timeout — a missing fixture field
+   * presenting as a hang rather than as "this field does not exist".
+   */
+  innerPageSlug: string;
   /** Roster memberships, present only on `t_multi_roster` (the fixture seeded with any). */
   memberships: readonly TalentMembershipFixture[];
   /** A seeded agency this talent is NOT on. */
@@ -262,6 +272,7 @@ export const fixtures: Readonly<Record<TalentFixture["key"], TalentFixtureView>>
           ...f,
           memberships: f.key === "t_multi_roster" ? T_MULTI_ROSTER_MEMBERSHIPS : [],
           notAMemberSlug: NOT_A_MEMBER_SLUG,
+          innerPageSlug: EXTRA_PAGE_SLUG,
           get selfPageUrl() {
             // A getter, not a value: PLAYWRIGHT_BASE_URL is read when a spec
             // asks, not when this module is first imported, so a config that
