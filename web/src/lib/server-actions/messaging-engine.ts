@@ -7,6 +7,7 @@ import { addLine, createDraftOrder } from "@/lib/pos/draft";
 import { attachPaymentLinkInquiry, createPaymentLink } from "@/lib/payments/links";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logAssignment, logCloseLost, logConversationState } from "@/lib/messaging/action-log";
@@ -72,6 +73,35 @@ export async function messagingLoadInbox(input: { locationSlug: string; filter: 
     filter: input.filter,
     actorUserId: g.userId,
   });
+}
+
+/**
+ * D-MSG-339: resolve `/admin/messages?order=<id>` to its thread.
+ *
+ * `findConversationForOrder` only matches an order chip on a CURRENTLY LOADED
+ * inbox row, so the deep link silently did nothing whenever the thread sat on
+ * another page or behind another filter (proven live: inbox loaded, thread
+ * present, link never opened). This reads the link straight from
+ * `conversation_records`, the same table the chips come from. Reader only.
+ */
+export async function messagingResolveOrderThread(input: { orderId: string }) {
+  const g = await staff();
+  if (!g.ok) return g;
+  const parsed = z.object({ orderId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const { data, error } = await tenantScopedQuery(g.admin, "conversation_records", g.tenantId)
+    .select("inquiry_id, linked_at")
+    .eq("record_kind", "order")
+    .eq("record_id", parsed.data.orderId)
+    .is("unlinked_at", null)
+    .order("linked_at", { ascending: false })
+    .limit(1);
+  if (error) {
+    logServerError("messaging-engine.resolveOrderThread", error);
+    return fail("unavailable");
+  }
+  const inquiryId = ((data ?? []) as Array<{ inquiry_id: string | null }>)[0]?.inquiry_id ?? null;
+  return { ok: true as const, inquiryId };
 }
 
 export async function messagingLoadThread(input: { inquiryId: string }) {
