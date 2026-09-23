@@ -284,7 +284,18 @@ async function ensurePlatformHub(): Promise<string> {
       );
       const { error: updErr } = await admin
         .from("agencies")
-        .update({ plan_tier: "network", status: "active", updated_at: new Date().toISOString() })
+        .update({
+          plan_tier: "network",
+          status: "active",
+          // MUST be cleared in the same statement as plan_tier. The constraint
+          // `agencies_unlimited_tiers_have_no_seat_cap` (20261227000002) is
+          //   plan_tier not in ('agency','network','legacy') OR talent_seat_limit is null
+          // so promoting a seeded hub from `free` (seat cap 5) to `network`
+          // without nulling the cap fails with 23514. A fresh database seeds the
+          // hub as free, so this path is the normal one, not the exotic one.
+          talent_seat_limit: null,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", row.id);
       if (updErr) throw updErr;
     }
@@ -299,6 +310,9 @@ async function ensurePlatformHub(): Promise<string> {
       display_name: "Impronta Hub",
       kind: "hub",
       plan_tier: "network",
+      // Explicit rather than relying on the column default, for the same
+      // constraint as above: an unlimited tier may not carry a seat cap.
+      talent_seat_limit: null,
       status: "active",
       supported_locales: ["en", "es"],
       onboarding_completed_at: new Date().toISOString(),
@@ -437,6 +451,18 @@ const INCOMPLETE_READINESS: ReadinessPlan = {
   workflowStatus: "draft",
 };
 
+/**
+ * A fixture's stable position in TALENT_FIXTURES, used to build values that must
+ * be unique per fixture (today: the phone number, which has a unique index).
+ * Position rather than a hash, so a failure message names a number a human can
+ * trace straight back to a fixture.
+ */
+function fixtureOrdinal(fx: TalentFixture): number {
+  const i = TALENT_FIXTURES.findIndex((f) => f.key === fx.key);
+  if (i < 0) throw new Error(`[seed:talent-website] fixture ${fx.key} is not in TALENT_FIXTURES`);
+  return i;
+}
+
 async function ensureTalentProfile(
   fx: TalentFixture,
   userId: string,
@@ -446,8 +472,13 @@ async function ensureTalentProfile(
   const patch: Record<string, unknown> = {
     display_name: readiness.displayName ? fx.displayName : null,
     first_name: readiness.displayName ? fx.displayName.split(" ")[0] : null,
-    phone: readiness.phone ? "+1-555-0100" : null,
-    phone_e164: readiness.phone ? "+15550100" : null,
+    // UNIQUE per fixture. `talent_profiles_phone_e164_uk` is a unique index, so
+    // a single shared number means the second fixture that wants a phone dies
+    // with 23505 and the seed stops there. Derived from the fixture's position
+    // in TALENT_FIXTURES so the numbers stay stable across runs and readable in
+    // failures (+1555010<n>), rather than random.
+    phone: readiness.phone ? `+1-555-010${fixtureOrdinal(fx)}` : null,
+    phone_e164: readiness.phone ? `+1555010${fixtureOrdinal(fx)}` : null,
     short_bio: readiness.shortBio
       ? `${fx.displayName} is a QA fixture talent for the talent-website e2e suite.`
       : null,

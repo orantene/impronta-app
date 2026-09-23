@@ -61,3 +61,7 @@ scripts/.bootstrap-*.mjs
 .playwright-vercel-storage.json
 e2e/.auth/
 
+
+# Talent-website journey sign-in states (auth.setup.ts). Real session cookies
+# for local fixture users; regenerated on every run.
+e2e/.auth/

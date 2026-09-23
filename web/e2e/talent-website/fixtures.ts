@@ -168,3 +168,144 @@ export const LOOPBACK_HOSTS = ["localhost", "127.0.0.1"] as const;
  */
 export const MAISON_OPTIONED_OFFERING = "Maison QA — optioned service";
 export const MAISON_FIXED_OFFERING = "Maison QA — fixed service";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Spec-facing helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The fixtures keyed by their `key`, so a spec can write `fixtures.t_max`
+ * instead of hunting through the array.
+ *
+ * `TALENT_FIXTURES` stays the source of truth and the iteration order; this is
+ * a lookup over the same objects, not a second copy. Adding a fixture to the
+ * array adds it here with no other change.
+ */
+/**
+ * The "Where I appear" view of a roster membership, as J8 consumes it.
+ *
+ * `effective` is the chip state the account menu is expected to render, DERIVED
+ * here from the two columns the seed actually writes, because the spec's own
+ * header asks for it: "The seed declares `effective` rather than the spec
+ * deriving it." Keeping the derivation next to the data means one place to
+ * change when the visibility model does.
+ *
+ *   rosterStatus 'pending'                  -> "pending"    (not linked)
+ *   agencyVisibility 'site_visible'|'featured' -> "live"    (linked)
+ *   agencyVisibility 'roster_only'          -> "agency_hidden" (not linked)
+ *
+ * A pending membership is "pending" whatever its visibility says: the agency has
+ * not accepted the talent yet, so nothing of theirs is published anywhere.
+ */
+export interface TalentMembershipFixture {
+  slug: string;
+  displayName: string;
+  effective: "live" | "agency_hidden" | "pending";
+}
+
+function effectiveVisibility(a: RosterAgencyFixture): TalentMembershipFixture["effective"] {
+  if (a.rosterStatus === "pending") return "pending";
+  // "agency_hidden", NOT "roster_only". The column is `roster_only`; the chip
+  // the account menu renders is `agency_hidden`. Confirmed against the rendered
+  // DOM (data-effective) rather than assumed from the column name — the first
+  // run of this assertion is what caught the difference.
+  return a.agencyVisibility === "roster_only" ? "agency_hidden" : "live";
+}
+
+export const T_MULTI_ROSTER_MEMBERSHIPS: readonly TalentMembershipFixture[] =
+  MULTI_ROSTER_AGENCIES.map((a) => ({
+    slug: a.slug,
+    displayName: a.displayName,
+    effective: effectiveVisibility(a),
+  }));
+
+/**
+ * A seeded agency `t_multi_roster` is deliberately NOT on, so a spec can assert
+ * that the account menu lists only real memberships. `acme` is seeded by the
+ * same run (ACME_AGENCY_SLUG) and Mona is never added to its roster.
+ */
+export const NOT_A_MEMBER_SLUG = ACME_AGENCY_SLUG;
+
+/**
+ * Absolute URL of a talent's own public page.
+ *
+ * The CANONICAL PUBLIC origin, deliberately not the host the test is pointed at.
+ * A talent's "my page" link is something they share, so the product emits the
+ * real public URL even when the app is being served from localhost — verified
+ * against the rendered href, which is `https://tulala.digital/t/<code>` on a
+ * run served from `http://localhost:3000`.
+ *
+ * Overridable for a run against a different platform origin; it is a fixture
+ * expectation, not a resolver, so the literal here does not fall under the
+ * host-context "no hardcoded production domain" invariant.
+ */
+export function selfPageUrlFor(fx: TalentFixture): string {
+  const base = process.env.E2E_PUBLIC_ORIGIN ?? "https://tulala.digital";
+  return `${base.replace(/\/$/, "")}/t/${fx.profileCode}`;
+}
+
+export type TalentFixtureView = TalentFixture & {
+  /**
+   * Slug of the extra published page on this talent's site, for specs that
+   * assert an INNER page renders as well as the home page.
+   *
+   * It is `EXTRA_PAGE_SLUG` because that is the page `seed.ts` actually creates.
+   * Absent it, J0 and J1 navigated to `/t/site/<slug>/undefined`, took a 404,
+   * and failed 30 seconds later as a locator timeout — a missing fixture field
+   * presenting as a hang rather than as "this field does not exist".
+   */
+  innerPageSlug: string;
+  /** Roster memberships, present only on `t_multi_roster` (the fixture seeded with any). */
+  memberships: readonly TalentMembershipFixture[];
+  /** A seeded agency this talent is NOT on. */
+  notAMemberSlug: string;
+  /** Absolute URL of this talent's own public page on the host under test. */
+  selfPageUrl: string;
+};
+
+export const fixtures: Readonly<Record<TalentFixture["key"], TalentFixtureView>> =
+  Object.freeze(
+    Object.fromEntries(
+      TALENT_FIXTURES.map((f) => [
+        f.key,
+        {
+          ...f,
+          memberships: f.key === "t_multi_roster" ? T_MULTI_ROSTER_MEMBERSHIPS : [],
+          notAMemberSlug: NOT_A_MEMBER_SLUG,
+          innerPageSlug: EXTRA_PAGE_SLUG,
+          get selfPageUrl() {
+            // A getter, not a value: PLAYWRIGHT_BASE_URL is read when a spec
+            // asks, not when this module is first imported, so a config that
+            // sets it later still gets the right host.
+            return selfPageUrlFor(f);
+          },
+        },
+      ]),
+    ),
+  ) as Readonly<Record<TalentFixture["key"], TalentFixtureView>>;
+
+/**
+ * Directory holding one signed-in Playwright storage state per fixture.
+ *
+ * Written by `auth.setup.ts` (the `talent-website-setup` project) and read by
+ * the journeys through `storageStateFor`. Gitignored: these hold real session
+ * cookies for the local fixture users, and they are cheap to regenerate.
+ */
+export const AUTH_STATE_DIR = "e2e/.auth/talent-website";
+
+/**
+ * Path to the signed-in storage state for one fixture.
+ *
+ * Returns a PATH, not a state: Playwright resolves it at context-creation time,
+ * which is after the setup project has run and written the file. A spec calling
+ * this at module scope therefore does not require the file to exist yet, which
+ * is what lets `test.use({ storageState: storageStateFor("t_max") })` sit at the
+ * top of a describe block.
+ *
+ * The file is created by auth.setup.ts. If it is missing when a test actually
+ * runs, Playwright fails with ENOENT naming this path — which means the setup
+ * project did not run (check `--project`), not that the fixture is wrong.
+ */
+export function storageStateFor(key: TalentFixture["key"]): string {
+  return `${AUTH_STATE_DIR}/${key}.json`;
+}

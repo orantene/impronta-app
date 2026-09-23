@@ -155,6 +155,195 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Supabase DB logs on failure
+      # ─────────────────────────────────────────────────────────────────
+      # JOURNEYS. Same job, because the local Supabase above lives in this
+      # runner and jobs do not share services.
+      #
+      # These do NOT gate a merge: this workflow is not one of the four
+      # required checks. That is deliberate — the journeys have never run
+      # before, so their first honest signal is information, not a gate.
+      # ─────────────────────────────────────────────────────────────────
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        working-directory: web
+        run: npm ci
+
+      - name: Read local Supabase keys
+        id: sbkeys
+        run: |
+          set -o pipefail
+          supabase status -o env > "$RUNNER_TEMP/sb.env"
+          # shellcheck disable=SC1090
+          . "$RUNNER_TEMP/sb.env"
+          # Mask before anything can echo them. These are the LOCAL stack's
+          # keys, not production's, but a masked log costs nothing and stops a
+          # copy-paste from training anyone that printing a service role key is
+          # normal.
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          echo "::add-mask::$ANON_KEY"
+          {
+            echo "SUPABASE_URL=$API_URL"
+            echo "ANON_KEY=$ANON_KEY"
+            echo "SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+
+      # GoTrue answers "Database error finding users" (500) without logging a
+      # cause, and the db container logs only the replay's own statements. So
+      # ask the database directly, as the role GoTrue uses, BEFORE the seed.
+      # Non-fatal: this step exists to explain a failure, not to cause one.
+      # GoTrue boots BEFORE the replay runs, and the replay then creates a
+      # trigger on auth.users (20250409000000_init.sql `on_auth_user_created`).
+      # Restart it so it is not holding connections or a schema view from before
+      # 861 migrations landed. Cheap, and it removes a whole class of "works
+      # after a restart" ambiguity from the diagnosis below.
+      # The post-shim for 20260911022138 normalises that migration's proof rows,
+      # but it did not clear the failure: something else in the replay also
+      # leaves NULLs in auth.users' token columns. Rather than hunt each source
+      # across 861 files, normalise ONCE after the whole chain, and REPORT the
+      # row count so the shim's necessity (or redundancy) is visible rather than
+      # assumed.
+      #
+      # GoTrue scans these into Go `string`, so a single NULL anywhere breaks
+      # /admin/users for every user — which is the seed's first call.
+      # Production and QA both hold zero NULLs, so this reproduces their real
+      # state; it does not paper over a product defect.
+      - name: Normalise auth.users token columns
+        run: |
+          set -o pipefail
+          before=$(psql -Atc "select count(*) from auth.users where confirmation_token is null or recovery_token is null or email_change_token_new is null or email_change is null or email_change_token_current is null or phone_change is null or phone_change_token is null or reauthentication_token is null")
+          psql -q -c "update auth.users set
+              confirmation_token=coalesce(confirmation_token,''),
+              recovery_token=coalesce(recovery_token,''),
+              email_change_token_new=coalesce(email_change_token_new,''),
+              email_change=coalesce(email_change,''),
+              email_change_token_current=coalesce(email_change_token_current,''),
+              phone_change=coalesce(phone_change,''),
+              phone_change_token=coalesce(phone_change_token,''),
+              reauthentication_token=coalesce(reauthentication_token,'')"
+          after=$(psql -Atc "select count(*) from auth.users where confirmation_token is null or recovery_token is null")
+          total=$(psql -Atc "select count(*) from auth.users")
+          echo "auth.users rows: $total | with NULL tokens before: $before | after: $after"
+          {
+            echo "| auth.users rows | NULL-token rows before | after |"
+            echo "|---|---|---|"
+            echo "| $total | $before | $after |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$after" = "0" ] || { echo "::error::auth.users still has NULL token columns"; exit 1; }
+
+      - name: Restart GoTrue after the schema is built
+        run: |
+          docker restart supabase_auth_impronta-app
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$SUPABASE_URL/auth/v1/health" || true)
+            [ "$code" = "200" ] && { echo "auth healthy after ${i}s"; break; }
+            sleep 1
+          done
+          curl -s "$SUPABASE_URL/auth/v1/health" || true
+          echo
+
+      - name: Probe auth schema health
+        if: always()
+        continue-on-error: true
+        run: |
+          exec > >(tee -a "$GITHUB_STEP_SUMMARY") 2>&1
+          echo '```'
+          echo "role exists:        $(psql -Atc "select count(*) from pg_roles where rolname='supabase_auth_admin'")"
+          echo "auth.users RLS on:  $(psql -Atc "select relrowsecurity from pg_class where oid='auth.users'::regclass")"
+          echo "select priv:        $(psql -Atc "select has_table_privilege('supabase_auth_admin','auth.users','select')")"
+          echo "auth schema usage:  $(psql -Atc "select has_schema_privilege('supabase_auth_admin','auth','usage')")"
+          echo "public schema usage:$(psql -Atc "select has_schema_privilege('supabase_auth_admin','public','usage')")"
+          echo "auth.users columns: $(psql -Atc "select count(*) from information_schema.columns where table_schema='auth' and table_name='users'")"
+          echo "triggers on auth.users:"
+          psql -Atc "select tgname, tgrelid::regclass::text from pg_trigger where tgrelid='auth.users'::regclass and not tgisinternal" || true
+          echo "auth.identities cols: $(psql -Atc "select count(*) from information_schema.columns where table_schema='auth' and table_name='identities'")"
+          echo "auth tables:        $(psql -Atc "select string_agg(table_name,',' order by table_name) from information_schema.tables where table_schema='auth'")"
+          echo "--- ASK GOTRUE ITSELF (its own error body, not an inference) ---"
+          code=$(curl -s -o "$RUNNER_TEMP/gotrue.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            "$SUPABASE_URL/auth/v1/admin/users?page=1&per_page=1" || echo "curl-failed")
+          echo "HTTP $code"
+          # The body can echo the key back on some errors; scrub before printing.
+          sed -e "s/${SERVICE_ROLE_KEY}/***/g" "$RUNNER_TEMP/gotrue.json" | head -20
+          echo "--- auth container log, last 40 ---"
+          docker logs supabase_auth_impronta-app 2>&1 | tail -40 || true
+          echo '```'
+
+      - name: Seed talent-website fixtures
+        working-directory: web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+        run: |
+          set -o pipefail
+          npx tsx e2e/talent-website/seed.ts
+
+      - name: Install Playwright Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      # Playwright auto-starts `npm run dev` because the base URL is loopback,
+      # waits for it, runs `talent-website-setup` (one dev-signin per fixture),
+      # then the journeys. `localhost` resolves as a host because
+      # 20260922100000_agency_domains_localhost_app_dev.sql registers it and
+      # host-context.ts has the matching branch — otherwise every request would
+      # 404 "Host not registered" before routing.
+      - name: Run talent-website journeys
+        id: journeys
+        working-directory: web
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          PORT: "3000"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+          NODE_ENV: development
+        run: |
+          set -o pipefail
+          npx playwright test --project=talent-website
+
+      - name: Journey result in the summary
+        if: always() && steps.journeys.conclusion != 'skipped'
+        run: |
+          {
+            echo "### Talent website E2E — journeys"
+            echo ""
+            echo "Outcome: **${{ steps.journeys.outcome }}**"
+            echo ""
+            echo "Journeys do not gate a merge; this lane is not a required check."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Playwright report + traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: talent-website-playwright-report
+          path: |
+            web/playwright-report
+            web/test-results
+          if-no-files-found: ignore
+
+      # On failure, show the ERRORS rather than the tail. The tail is dominated
+      # by the replay's own statement log, so it scrolls the actual fault off
+      # the end — a seed failing with GoTrue's opaque "Database error finding
+      # users" produced 80 lines of unrelated migration SQL and no cause.
+      - name: Supabase container logs on failure
         if: failure()
-        run: docker logs supabase_db_impronta-app 2>&1 | tail -80 || true
+        run: |
+          for c in $(docker ps --format '{{.Names}}' | grep -E 'supabase_(db|auth|rest)_' || true); do
+            echo "::group::$c — errors"
+            docker logs "$c" 2>&1 \
+              | grep -iE 'ERROR|FATAL|PANIC|permission denied|does not exist|level=(error|fatal)' \
+              | tail -40 || echo "(no error lines)"
+            echo "::endgroup::"
+            echo "::group::$c — last 30 lines"
+            docker logs "$c" 2>&1 | tail -30 || true
+            echo "::endgroup::"
+          done
