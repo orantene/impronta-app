@@ -209,8 +209,18 @@ jobs:
           echo "auth.users columns: $(psql -Atc "select count(*) from information_schema.columns where table_schema='auth' and table_name='users'")"
           echo "triggers on auth.users:"
           psql -Atc "select tgname, tgrelid::regclass::text from pg_trigger where tgrelid='auth.users'::regclass and not tgisinternal" || true
-          echo "--- the query GoTrue runs, AS supabase_auth_admin ---"
-          psql -v ON_ERROR_STOP=0 -c "set role supabase_auth_admin; select count(*) from auth.users;" 2>&1 | tail -8
+          echo "auth.identities cols: $(psql -Atc "select count(*) from information_schema.columns where table_schema='auth' and table_name='identities'")"
+          echo "auth tables:        $(psql -Atc "select string_agg(table_name,',' order by table_name) from information_schema.tables where table_schema='auth'")"
+          echo "--- ASK GOTRUE ITSELF (its own error body, not an inference) ---"
+          code=$(curl -s -o "$RUNNER_TEMP/gotrue.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            "$SUPABASE_URL/auth/v1/admin/users?page=1&per_page=1" || echo "curl-failed")
+          echo "HTTP $code"
+          # The body can echo the key back on some errors; scrub before printing.
+          sed -e "s/${SERVICE_ROLE_KEY}/***/g" "$RUNNER_TEMP/gotrue.json" | head -20
+          echo "--- auth container log, last 60 ---"
+          docker logs supabase_auth_impronta-app 2>&1 | tail -60 || true
 
       - name: Seed talent-website fixtures
         working-directory: web
