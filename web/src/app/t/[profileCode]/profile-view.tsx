@@ -11,6 +11,7 @@ import { LightProfileLayout } from "./_light/LightProfileLayout";
 import { NoirProfileLayout } from "./_noir/NoirProfileLayout";
 import { LumenProfileLayout } from "./_lumen/LumenProfileLayout";
 import { AtelierProfileLayout } from "./_atelier/AtelierProfileLayout";
+import { MaisonProfileLayout } from "./_maison/MaisonProfileLayout";
 import { ProfileShareRow } from "./_light/ProfileShareRow";
 import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
@@ -2335,7 +2336,8 @@ export async function TalentProfileView({
     sp.template === "noir" ||
     sp.template === "classic" ||
     sp.template === "lumen" ||
-    sp.template === "atelier"
+    sp.template === "atelier" ||
+    sp.template === "maison"
       ? sp.template
       : null;
   const profileLayoutFamily =
@@ -2350,7 +2352,9 @@ export async function TalentProfileView({
         ? LumenProfileLayout
         : profileTemplateKey === "atelier"
           ? AtelierProfileLayout
-          : LightProfileLayout;
+          : profileTemplateKey === "maison"
+            ? MaisonProfileLayout
+            : LightProfileLayout;
 
   // Tenant theme → theme-adaptive templates (Lumen / Atelier). Project the
   // tenant's color design tokens to --token-color-* vars and derive a

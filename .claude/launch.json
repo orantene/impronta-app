@@ -2,6 +2,17 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "jor-beauty-mockup",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "TULALA_ALLOW_DEV_SURFACES=1 npm run dev -- --port 3200"
+      ],
+      "cwd": "web",
+      "port": 3200,
+      "url": "http://localhost:3200"
+    },
+    {
       "name": "locale-qa",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
@@ -28,6 +39,108 @@
       "cwd": ".claude/worktrees/feature-hub/web",
       "port": 3077,
       "url": "http://localhost:3077"
+    },
+    {
+      "name": "onboarding-marketing",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "scripts/onboarding-qa/dev.sh"
+      ],
+      "cwd": "/Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/onb-dev/web",
+      "port": 3105
+    },
+    {
+      "name": "onboarding-app",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "scripts/onboarding-qa/dev.sh"
+      ],
+      "cwd": "/Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/onb-dev/web",
+      "port": 3106
+    },
+    {
+      "name": "noir-worktree-qa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3000"
+      ],
+      "cwd": ".claude/worktrees/noir-banner/web",
+      "port": 3000,
+      "url": "http://localhost:3000"
+    },
+    {
+      "name": "reveal-fix-qa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3123"
+      ],
+      "cwd": ".claude/worktrees/reveal-fix/web",
+      "port": 3123,
+      "url": "http://localhost:3123"
+    },
+    {
+      "name": "support-guide-qa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3000"
+      ],
+      "cwd": ".claude/worktrees/support-guide/web",
+      "port": 3000,
+      "url": "http://localhost:3000"
+    },
+    {
+      "name": "profile-redesign-qa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3030"
+      ],
+      "cwd": ".claude/worktrees/profile-redesign/web",
+      "port": 3030,
+      "url": "http://localhost:3030"
+    },
+    {
+      "name": "noir-editorial-qa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3141"
+      ],
+      "cwd": "/Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/noir-editorial/web",
+      "port": 3141,
+      "url": "http://localhost:3141"
+    },
+    {
+      "name": "card-redesign-qa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3140"
+      ],
+      "cwd": ".claude/worktrees/card-redesign/web",
+      "port": 3140,
+      "url": "http://localhost:3140"
     }
   ]
 }

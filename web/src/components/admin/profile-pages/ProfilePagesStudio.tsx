@@ -47,30 +47,35 @@ const TEMPLATE_LABEL_KEY: Record<ProfilePageTemplateKey, string> = {
   noir: "dashboard.adminProfilePages.templates.noir.label",
   lumen: "dashboard.adminProfilePages.templates.lumen.label",
   atelier: "dashboard.adminProfilePages.templates.atelier.label",
+  maison: "dashboard.adminProfilePages.templates.maison.label",
 };
 const TEMPLATE_TAGLINE_KEY: Record<ProfilePageTemplateKey, string> = {
   classic: "dashboard.adminProfilePages.templates.classic.tagline",
   noir: "dashboard.adminProfilePages.templates.noir.tagline",
   lumen: "dashboard.adminProfilePages.templates.lumen.tagline",
   atelier: "dashboard.adminProfilePages.templates.atelier.tagline",
+  maison: "dashboard.adminProfilePages.templates.maison.tagline",
 };
 const TEMPLATE_DESCRIPTION_KEY: Record<ProfilePageTemplateKey, string> = {
   classic: "dashboard.adminProfilePages.templates.classic.description",
   noir: "dashboard.adminProfilePages.templates.noir.description",
   lumen: "dashboard.adminProfilePages.templates.lumen.description",
   atelier: "dashboard.adminProfilePages.templates.atelier.description",
+  maison: "dashboard.adminProfilePages.templates.maison.description",
 };
 const TEMPLATE_TYPE_LABEL_KEY: Record<ProfilePageTemplateKey, string> = {
   classic: "dashboard.adminProfilePages.templates.classic.typeLabel",
   noir: "dashboard.adminProfilePages.templates.noir.typeLabel",
   lumen: "dashboard.adminProfilePages.templates.lumen.typeLabel",
   atelier: "dashboard.adminProfilePages.templates.atelier.typeLabel",
+  maison: "dashboard.adminProfilePages.templates.maison.typeLabel",
 };
 const TEMPLATE_SECTIONS_KEY: Record<ProfilePageTemplateKey, string> = {
   classic: "dashboard.adminProfilePages.templates.classic.sections",
   noir: "dashboard.adminProfilePages.templates.noir.sections",
   lumen: "dashboard.adminProfilePages.templates.lumen.sections",
   atelier: "dashboard.adminProfilePages.templates.atelier.sections",
+  maison: "dashboard.adminProfilePages.templates.maison.sections",
 };
 
 export function ProfilePagesStudio() {
