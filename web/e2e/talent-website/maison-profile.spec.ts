@@ -24,11 +24,18 @@
  * below); until they exist each affected test SKIPS with a message naming what
  * is missing, rather than failing or silently passing.
  *
- * DEPENDENCY — READ BEFORE MERGING. This file imports `./fixtures`, which
- * lives on the QA-harness branch (Phase Q.3), not on main. Until that lands,
- * Playwright cannot even discover this spec ("Cannot find module './fixtures'"),
- * so THIS BRANCH MUST NOT MERGE AHEAD OF THE HARNESS. Verified in the other
- * direction: with fixtures.ts present, all four tests register.
+ * DEPENDENCY. Imports `./fixtures`, which landed on main with the Phase Q.3
+ * harness (#2164, 9941bc3a0). This branch is not yet rebased onto that commit,
+ * so the import does not resolve in the branch's own tree; collection was
+ * verified by checking main's fixtures.ts out into place, running --list, and
+ * removing it again. Rebase before merging.
+ *
+ * Uses only what is actually on main: `talentFixture` and the two
+ * MAISON_* titles. Deliberately does NOT use `storageStateFor`, an
+ * `AUTH_STATE_DIR`, a `fixtures` object or a `--project=talent-website`
+ * Playwright project — none of those exist at 9941bc3a0, and writing against
+ * a fixture API that is not implemented is precisely what stopped J0/J1/J8
+ * from being collectable. These profile pages are public and need no session.
  *
  * REQUIRED FIXTURES (proposed addition to seed.ts — not applied here, because
  * seed.ts belongs to the QA-harness work):
@@ -42,27 +49,13 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { talentFixture } from "./fixtures";
+import {
+  MAISON_FIXED_OFFERING,
+  MAISON_OPTIONED_OFFERING,
+  talentFixture,
+} from "./fixtures";
 
-/**
- * Titles of the two seeded fixture offerings.
- *
- * These SHOULD be imported rather than restated — but the canonical constants
- * currently live in `seed.ts`, and importing that module from a spec would run
- * the seeder. At module scope seed.ts calls requireEnv() for the Supabase URL
- * and service-role key (throws when unset), asserts the target is a local
- * Supabase (throws when it is not), creates a service-role client, and then
- * calls main() — so `import { … } from "./seed"` either crashes test collection
- * or silently re-seeds the database as a side effect of listing tests.
- *
- * Restated here deliberately, with the values matching seed.ts exactly. The
- * fix is to move both constants into `fixtures.ts`, which exists precisely so
- * specs can import identities "without pulling in @supabase/supabase-js or any
- * server-only module" (its own header). Raised with the harness owner; this
- * comment goes when the constants move.
- */
-const MAISON_OPTIONED_TITLE = "Maison QA — optioned service";
-const MAISON_FIXED_TITLE = "Maison QA — fixed service";
+
 
 const READY = talentFixture("t_ready");
 
@@ -144,8 +137,8 @@ test.describe("Maison profile template", () => {
   test("a required option blocks the booking sheet until it is chosen", async ({ page }) => {
     await gotoMaison(page, READY.profileCode);
 
-    const row = await rowFor(page, MAISON_OPTIONED_TITLE);
-    test.skip(row === null, `fixture "${MAISON_OPTIONED_TITLE}" not seeded — see REQUIRED FIXTURES`);
+    const row = await rowFor(page, MAISON_OPTIONED_OFFERING);
+    test.skip(row === null, `fixture "${MAISON_OPTIONED_OFFERING}" not seeded — see REQUIRED FIXTURES`);
 
     // A service carrying options must invite a CHOICE, never a bare select.
     await expect(row!.locator(".mn-row-action")).toHaveText(/Elegir opciones|Choose options/);
@@ -170,8 +163,8 @@ test.describe("Maison profile template", () => {
     await captureOfferingEvents(page);
     await gotoMaison(page, READY.profileCode);
 
-    const row = await rowFor(page, MAISON_FIXED_TITLE);
-    test.skip(row === null, `fixture "${MAISON_FIXED_TITLE}" not seeded — see REQUIRED FIXTURES`);
+    const row = await rowFor(page, MAISON_FIXED_OFFERING);
+    test.skip(row === null, `fixture "${MAISON_FIXED_OFFERING}" not seeded — see REQUIRED FIXTURES`);
 
     // t_ready is talent_basic with no agency, so this surface cannot confirm
     // on the spot even though the offering row says booking_mode "instant".
