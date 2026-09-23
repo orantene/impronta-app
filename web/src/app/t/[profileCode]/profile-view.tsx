@@ -380,7 +380,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
           .select(
             `
             id,
-            profile_code,
+            profile_code, profile_template,
             display_name,
             first_name,
             last_name,
@@ -442,7 +442,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
     .select(
       `
       id,
-      profile_code,
+      profile_code, profile_template,
       display_name,
       first_name,
       last_name,
@@ -1180,7 +1180,7 @@ async function fetchSimilarTalent(
   const { data: profiles } = await supabase
     .from("talent_profiles")
     .select(
-      `id, profile_code, display_name, first_name, last_name, workflow_status, profile_template,
+      `id, profile_code, display_name, first_name, last_name, workflow_status,
        talent_profile_taxonomy ( is_primary, taxonomy_terms ( kind, name_i18n ) ),
        media_assets ( bucket_id, storage_path, variant_kind, sort_order )`,
     )

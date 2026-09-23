@@ -640,3 +640,68 @@ test("resolveAccountHref labels follow the locale (English by default)", () => {
   assert.equal(resolveAccountHref(true, activeTalent, "es").href, "/talent");
   assert.equal(resolveAccountHref(true, activeTalent, "fr").label, "Profile");
 });
+
+test("post-auth honours a profile CLAIM before role routing", () => {
+  // The bug this pins: a claim invite creates a brand-new account, which has no
+  // app_role, so the destination is /onboarding/role. `/claim?invitation=…` is
+  // not on the onboarding allow-list (workspace onboarding + /client + /talent),
+  // so the token was DROPPED and the invited talent was walked into creating a
+  // SECOND profile. The claim RPC then refuses forever with `claimer_has_profile`
+  // — the invitation becomes permanently unredeemable. Seen twice on real
+  // invites.
+  assert.equal(
+    resolvePostAuthDestination(onboardingUser, "/claim?invitation=abc-123"),
+    "/claim?invitation=abc-123",
+  );
+
+  // The query string carries the only thing that matters here, so a locale
+  // prefix must be stripped without touching it.
+  assert.equal(
+    resolvePostAuthDestination(onboardingUser, "/en/claim?invitation=abc-123"),
+    "/claim?invitation=abc-123",
+  );
+
+  // An ALREADY-onboarded user clicking the same link must also reach the claim,
+  // not their dashboard.
+  assert.equal(
+    resolvePostAuthDestination(activeTalent, "/claim?invitation=abc-123"),
+    "/claim?invitation=abc-123",
+  );
+
+  // Not a prefix match: /claims or /claim-something is a different surface.
+  assert.notEqual(
+    resolvePostAuthDestination(onboardingUser, "/claimed-profiles"),
+    "/claimed-profiles",
+  );
+});
+
+test("an onboarding user may reach /claim instead of being bounced to role selection", () => {
+  // The routing half of the claim bug. Every freshly-invited talent is
+  // account_status "onboarding" with no app_role, so without /claim being an
+  // auth-flow path this decision sent them to /onboarding/role and the claim
+  // page never ran.
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/claim",
+      userId: "user-9",
+      sessionProfile: onboardingUser,
+      routingProfile: onboardingUser,
+      isImpersonating: false,
+      hostKind: "app",
+    }).redirectTo,
+    null,
+  );
+
+  // The bounce still applies to an ordinary page, so this did not widen the gate.
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/directory",
+      userId: "user-9",
+      sessionProfile: onboardingUser,
+      routingProfile: onboardingUser,
+      isImpersonating: false,
+      hostKind: "app",
+    }).redirectTo,
+    "/onboarding/role",
+  );
+});

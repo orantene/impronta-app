@@ -37,6 +37,12 @@ import path from "node:path";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { proposeDefaultBookingHours } from "../src/lib/scheduling/propose-default-booking-hours";
+import {
+  buildDefaultShellTree,
+  buildStarterHomePageTree,
+} from "../src/lib/talent-site/default-max-site-trees";
+
 import {
   JOR_BIO,
   JOR_CATEGORIES,
@@ -72,6 +78,9 @@ const INVITATION_EMAIL = "orantene+jorgbeauty@gmail.com";
 const MEDIA_DIR = path.join(process.cwd(), "public/mockups/jor-beauty");
 const BUCKET = "media-public";
 
+/** Her subdomain label. Verified free across agencies / talent_sites / agency_domains. */
+const SITE_SLUG = "book-jorgelina";
+
 function must<T>(v: T | null | undefined, what: string): T {
   if (v == null) throw new Error(`expected ${what}`);
   return v;
@@ -89,6 +98,14 @@ async function ensureProfile(): Promise<string> {
     home_country_text: "México",
     default_currency: "MXN",
     preferred_locale: "es",
+    // THE FIELD THAT DECIDES WHETHER SHE CAN BE BOOKED AT ALL.
+    // resolveSurfaceGate (appointment-policy.ts) computes
+    // `labor = isResource || booking_terms.directBookingOptIn === true`, and
+    // without `labor` EVERY surface resolves to "inquire" no matter the plan,
+    // the offering or the hours. Hers was null, which is why her page showed no
+    // calendar. This is her consent to be booked directly, so it is set once,
+    // here, deliberately — not inferred from the fact that she has a catalogue.
+    booking_terms: { directBookingOptIn: true },
     // WEB OFFICE, GRANTED — NOT PURCHASED. `talent_profile_has_max` gates on
     // `talent_plan_key = 'talent_portfolio'` alone: there is no subscription
     // row and no Stripe join behind it. That is correct for a gift and wrong to
@@ -279,6 +296,25 @@ async function ensureAddOns(
   if (error) throw error;
 }
 
+/**
+ * The two images that are NOT portfolio work, and which the profile page picks
+ * by variant_kind rather than by order:
+ *
+ *   card — the profile photo. profile-view resolves it as
+ *          card -> public_watermarked -> gallery, so omitting it does not leave
+ *          a blank avatar, it silently falls back to the FIRST GALLERY SHOT.
+ *          That is how Jorgelina's profile came up wearing a lash close-up
+ *          instead of her own face on the first seed.
+ *   hero — the banner behind the header.
+ *
+ * jorgelina-portrait-v2.jpg is her real photograph, supplied by the owner. It
+ * is the one image on this profile that is genuinely her.
+ */
+const IDENTITY_FILES: { file: string; kind: "card" | "hero" }[] = [
+  { file: "jorgelina-portrait-v2.jpg", kind: "card" },
+  { file: "hero.jpg", kind: "hero" },
+];
+
 /** Real images, uploaded — not the placeholder paths the e2e fixtures use. */
 const GALLERY_FILES = [
   "lashes-classic.jpg",
@@ -296,7 +332,11 @@ const GALLERY_FILES = [
 
 async function ensureMedia(talentProfileId: string): Promise<void> {
   let uploaded = 0;
-  for (const [i, file] of GALLERY_FILES.entries()) {
+  const all: { file: string; kind: "card" | "hero" | "gallery" }[] = [
+    ...IDENTITY_FILES,
+    ...GALLERY_FILES.map((file) => ({ file, kind: "gallery" as const })),
+  ];
+  for (const [i, { file, kind }] of all.entries()) {
     const storagePath = `talent/${talentProfileId}/${file}`;
     let bytes: Buffer;
     try {
@@ -329,7 +369,7 @@ async function ensureMedia(talentProfileId: string): Promise<void> {
       tenant_id: TULALA_AGENCY_ID,
       bucket_id: BUCKET,
       storage_path: storagePath,
-      variant_kind: "gallery",
+      variant_kind: kind,
       purpose: "talent",
       approval_state: "approved",
       visible_on_master_profile: true,
@@ -359,6 +399,92 @@ async function ensureServiceArea(talentProfileId: string): Promise<void> {
   });
   if (error) throw error;
   console.log("  service area: Playa del Carmen (home base)");
+}
+
+/**
+ * Booking hours as a PROPOSAL, never as hours.
+ *
+ * 20261231000700_talent_booking_hours_proposals.sql exists because a previous
+ * version wrote `talent_booking_hours` directly on publish: "Nobody agreed to
+ * those hours or that timezone, and the public slots endpoint then offered them
+ * to strangers as if a human had set them." Seeding her hours here would
+ * recreate exactly that. So this writes the proposal the platform itself would
+ * write, and SHE accepts it in the workspace with her own timezone.
+ *
+ * Until she does, the public endpoint keeps answering "no booking hours", which
+ * is the honest answer. `talent_booking_hours` is empty for every talent in
+ * production today — nobody has ever set real hours.
+ */
+async function ensureBookingHoursProposal(talentProfileId: string): Promise<void> {
+  const res = await proposeDefaultBookingHours(admin, {
+    talentProfileId,
+    tenantId: TULALA_AGENCY_ID,
+    actorId: null,
+  });
+  console.log(
+    res.ok
+      ? "  booking hours: proposal written (awaits her acceptance)"
+      : `  ! booking hours proposal skipped: ${res.error}`,
+  );
+}
+
+/**
+ * Her personal site at <SITE_SLUG>.tulala.digital.
+ *
+ * The subdomain resolves through `talent_sites.site_slug` via the
+ * talent_site_subdomain_lookup RPC — NOT through agency_domains. Putting the
+ * host in agency_domains would actively break it: platform_subdomain_label_taken
+ * treats an agency_domains subdomain label as occupying the shared namespace,
+ * so the talent slug would then collide with itself.
+ *
+ * No talent_site_domains row either — that table is for custom apex domains,
+ * which additionally require talent_portfolio.
+ */
+async function ensureTalentSite(talentProfileId: string): Promise<void> {
+  const displayName = "Jorg Beauty";
+  const shellTree = buildDefaultShellTree({ displayName });
+  const homeBlocks = buildStarterHomePageTree({
+    displayName,
+    tagline: JOR_BIO.split("\n\n")[0]?.slice(0, 140) ?? null,
+  });
+  const now = new Date().toISOString();
+
+  const { error: siteErr } = await admin.from("talent_sites").upsert(
+    {
+      talent_profile_id: talentProfileId,
+      site_kind: "talent_personal",
+      status: "published",
+      site_slug: SITE_SLUG,
+      shell_tree: shellTree,
+      shell_published: shellTree,
+      // site_published_at is what the subdomain lookup gates on — distinct from
+      // the legacy published_at, which times the /t/<code> profile snapshot.
+      site_published_at: now,
+      draft_updated_at: now,
+      updated_at: now,
+    },
+    { onConflict: "talent_profile_id" },
+  );
+  if (siteErr) throw siteErr;
+
+  const { error: pageErr } = await admin.from("talent_pages").upsert(
+    {
+      talent_profile_id: talentProfileId,
+      slug: "home",
+      title: displayName,
+      status: "published",
+      blocks: homeBlocks,
+      theme: {},
+      is_home: true,
+      sort_order: 0,
+      nav_label: "Inicio",
+      published_at: now,
+    },
+    { onConflict: "talent_profile_id,slug" },
+  );
+  if (pageErr) throw pageErr;
+
+  console.log(`  site: https://${SITE_SLUG}.tulala.digital (published)`);
 }
 
 async function ensureRoster(talentProfileId: string): Promise<void> {
@@ -409,9 +535,12 @@ async function main(): Promise<void> {
   await ensureOfferings(id);
   await ensureMedia(id);
   await ensureRoster(id);
+  await ensureBookingHoursProposal(id);
+  await ensureTalentSite(id);
 
   console.log(`\nDone. talent_profile_id=${id}`);
   console.log(`Profile: https://tulala.digital/t/${PROFILE_CODE}`);
+  console.log(`Site:    https://${SITE_SLUG}.tulala.digital`);
 }
 
 main().catch((err) => {

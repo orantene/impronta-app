@@ -68,6 +68,14 @@ function isAuthFlowPath(pathname: string): boolean {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname === "/join" ||
+    // PROFILE CLAIM. It lives in the (auth) route group and is the last step of
+    // an invite, but it was missing here — so a signed-in account still in
+    // `onboarding` (which every freshly-invited talent is) got bounced from
+    // /claim to /onboarding/role BEFORE the claim page could run. The invite
+    // then walks them into creating a second profile, which makes the
+    // invitation permanently unredeemable via `claimer_has_profile`. This is
+    // the routing half; the post-auth half is resolvePostAuthDestination.
+    pathname === "/claim" ||
     // Phase 3.14 — role-specific registration entry points on agency domains.
     // These live in the (auth) route group (unauthenticated-accessible) but
     // sit under /talent/ and /client/ URL segments, which auth-routing
