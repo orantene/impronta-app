@@ -15,7 +15,7 @@ import {
   loadBriefForSignupLead,
   resolveSignupBusinessDescription,
 } from "./workspace-signup-brief.server";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { releaseSubdomainReservationForLead } from "./release-subdomain-reservation.server";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -202,35 +202,6 @@ async function loadLead(leadId: string): Promise<MarketingLeadRow | null> {
   }
 
   return (data as MarketingLeadRow | null) ?? null;
-}
-
-/**
- * Release the subdomain TTL reservation this lead was holding.
- *
- * MUST run BEFORE the `agencies` insert. `platform_subdomain_label_taken()`
- * (migration 20261231280000) counts any unexpired reservation as "label taken"
- * and has no lead exclusion — a reservation is keyed by lead and predates the
- * tenant, so `p_exclude_tenant_id` cannot match it either. Held past the insert,
- * a signup collides with its OWN reservation: the namespace trigger rejects the
- * insert (23505), and callers that pre-check the RPC silently rename the
- * workspace to `<slug>-2`. Releasing it here is also what the reservation means
- * — it holds the label only until we claim it, after which `agencies.slug`
- * does. Deletes by `lead_id` so a changed slug still releases the right row.
- * Best-effort: logged, never fatal. Pinned by
- * signup-releases-reservation-before-insert.test.ts.
- */
-async function releaseSubdomainReservationForLead(
-  admin: SupabaseClient,
-  leadId: string,
-): Promise<void> {
-  const { error } = await admin
-    .from("saas_subdomain_reservations")
-    .delete()
-    .eq("lead_id", leadId);
-
-  if (error) {
-    logServerError("workspace-signup.releaseReservation", error);
-  }
 }
 
 async function attachLeadToTenant(params: {
@@ -644,6 +615,15 @@ export async function provisionWorkspaceFromLead(params: {
   }
 
   let slug = await generateAvailableWorkspaceSlug(desiredSlug);
+  // Release THIS lead's own subdomain reservation FIRST — before the namespace
+  // check below and before the insert further down. Both consult
+  // `platform_subdomain_label_taken`, which cannot tell a lead's own reservation
+  // from a rival's, so a reservation still held here makes the signup collide
+  // with ITSELF: the check renames the workspace to `<slug>-2` and the trigger
+  // would reject the insert. The reservation exists to hold the label between
+  // form submit and provisioning, and that window closes here.
+  await releaseSubdomainReservationForLead(admin, lead.id);
+
   // A workspace name and a talent site address share ONE namespace, so the name
   // this function just picked can be free among `agencies` and still be held by
   // a talent site at `<name>.tulala.digital`. The DB trigger would reject the
@@ -678,12 +658,6 @@ export async function provisionWorkspaceFromLead(params: {
   // Brief before insert — industry must be in hand for industry_preset at create.
   const brief = await loadBriefForSignupLead(lead.id);
   const briefIndustry = industryFromBrief(brief);
-
-  // Release THIS lead's own subdomain reservation before the insert below.
-  // The namespace trigger added in 20261231280000 cannot tell a lead's own
-  // reservation from a rival's, so holding it here makes the signup collide
-  // with itself. See releaseSubdomainReservationForLead.
-  await releaseSubdomainReservationForLead(admin, lead.id);
 
   const { data: agency, error: agencyError } = await admin
     .from("agencies")
