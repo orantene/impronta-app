@@ -13,7 +13,7 @@ Updated: 2026-09-23 (Round 2)
 
 **Red (product):** D-MSG-318 POS 13th seat React #310; D-MSG-319 POS foreign-order React #310; D-MSG-312 concurrent confirm TOCTOU.
 
-**Still owed:** Stripe 4242+refund on agent-owned **production** business (D-MSG-313 — journeys is mock; needs `QA_ALLOW_AGENT_PROD_HOST=1`); salon vocab; money-perm live staff; notifications; §7 storefront→Messages chip; event/table capacity host re-run; wait `#2161` production pointer.
+**Still owed:** Stripe 4242+refund finish on `qa-stripe-r2.tulala.digital` (host+tenant live, provider=stripe mint proven; 4242 checkout still in progress); money-perm live staff; notifications; §7 storefront→Messages chip; event/table capacity host re-run; wait `#2161` production pointer.
 
 **Harness:** `assertQaIsolatedTarget` on `prepareJourneysPage` / `openAdminMessages` (Codex P1 on #2155 — refuse Impronta / production Supabase before mutation).
 

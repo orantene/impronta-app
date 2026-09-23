@@ -337,3 +337,7 @@ D-MSG-323 · 2026-09-22 (Round 2 payment-deep) · `openRequestFor` blocks mintin
 D-MSG-324 · 2026-09-22 (Round 2 payment-outside) · Outside cash with Other amount above the order balance refuses with "That cannot be saved." (`invalid` from `recordVerifiedCollection` amount gate). Spec must use Full (or Other matching the offer total). Spec: `admin/payment-outside.spec.ts`.
 
 D-MSG-325 · 2026-09-23 (Round 2 harness) · Codex P1 on #2155: confirm / POS double-book (and all qa-program mutations) must refuse before acting when `PLAYWRIGHT_BASE_URL` / Supabase env is Impronta or production (`pluhdapdnuiulvxmyspd`). `assertQaIsolatedTarget` in `e2e/qa-program/_harness.ts` runs from `prepareJourneysPage` + `openAdminMessages`. Agent-owned Stripe host opts in with `QA_ALLOW_AGENT_PROD_HOST=1`.
+
+D-MSG-326 · 2026-09-23 (Round 2 salon) · Workspace B on `staging-qa-journeys-b.tulala.digital` with `industry_preset=salon_barber` proves Items = Services. Spec: `admin/vocabulary-salon.spec.ts` (green).
+
+D-MSG-327 · 2026-09-23 (Round 2 Stripe) · Agent-owned production tenant `qa-stripe-r2` (`a1111111-1111-4111-8111-111111111102`) + domain `qa-stripe-r2.tulala.digital` aliased to production. `/api/dev/signin` is 403 on production — `signInAgentOwnedHost` mints magic-link cookies. Mint proved `provider=stripe` (code `ciptfqcu66hftguz41yk`). 4242 checkout + refund still owed.

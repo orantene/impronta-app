@@ -42,16 +42,23 @@ export function assertQaIsolatedTarget(baseUrl = QA_HOST): void {
   const supabase = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").toLowerCase();
   const ref = (process.env.SUPABASE_PROJECT_REF ?? "").toLowerCase();
   const blob = `${url}\n${supabase}\n${ref}`;
+  const allowAgentProd = process.env.QA_ALLOW_AGENT_PROD_HOST === "1";
 
-  if (/impronta|pluhdapdnuiulvxmyspd|\.env\.vercel\.local/.test(blob)) {
+  // Impronta host / .env.vercel.local are never allowed. Production Supabase
+  // ref is refused unless this is an explicit agent-owned Stripe host opt-in.
+  if (/impronta|\.env\.vercel\.local/.test(blob)) {
     throw new Error(
-      "QA program refusing production / Impronta target — use staging-qa-journeys (fxlankepwnvelxjrahwk) or set an agent-owned host with QA_ALLOW_AGENT_PROD_HOST=1",
+      "QA program refusing Impronta / .env.vercel.local — use staging-qa-journeys or an agent-owned host with QA_ALLOW_AGENT_PROD_HOST=1",
+    );
+  }
+  if (/pluhdapdnuiulvxmyspd/.test(blob) && !allowAgentProd) {
+    throw new Error(
+      "QA program refusing production Supabase without QA_ALLOW_AGENT_PROD_HOST=1 — use staging-qa-journeys (fxlankepwnvelxjrahwk)",
     );
   }
 
-  const allowAgentProd = process.env.QA_ALLOW_AGENT_PROD_HOST === "1";
   const isLocal = /localhost|127\.0\.0\.1/.test(url);
-  const isJourneysHost = /staging-qa-journeys\.tulala\.digital/.test(url);
+  const isJourneysHost = /staging-qa-journeys(-b)?\.tulala\.digital/.test(url);
   const isQaSupabase =
     ref === "fxlankepwnvelxjrahwk" ||
     supabase.includes("fxlankepwnvelxjrahwk") ||
@@ -115,6 +122,104 @@ export async function openAdminMessages(page: Page, next = "/admin/messages"): P
   assertQaIsolatedTarget();
   await prepareJourneysPage(page);
   await signInJourneysStaff(page, next, JOURNEYS_OWNER_EMAIL);
+  await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
+  await awaitHydrated(page);
+}
+
+/**
+ * Production agent-owned host sign-in (D-MSG-313 Stripe).
+ * `/api/dev/signin` is 403 on VERCEL_ENV=production — mint a magic-link session
+ * via service role and set the @supabase/ssr cookie, then open Messages.
+ * Requires QA_ALLOW_AGENT_PROD_HOST=1 + SUPABASE_SERVICE_ROLE_KEY on production.
+ */
+export async function signInAgentOwnedHost(
+  page: Page,
+  opts: { host: string; email?: string; next?: string } ,
+): Promise<void> {
+  assertQaIsolatedTarget(opts.host);
+  if (process.env.QA_ALLOW_AGENT_PROD_HOST !== "1") {
+    throw new Error("signInAgentOwnedHost requires QA_ALLOW_AGENT_PROD_HOST=1");
+  }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  if (!url.includes("pluhdapdnuiulvxmyspd") || !key || !anon) {
+    throw new Error(
+      "signInAgentOwnedHost needs production NEXT_PUBLIC_SUPABASE_URL + SERVICE_ROLE + ANON (pluhdapdnuiulvxmyspd)",
+    );
+  }
+  const email = opts.email ?? process.env.QA_AGENT_OWNER_EMAIL ?? "qa-admin@impronta.test";
+  const next = opts.next ?? "/admin/messages";
+  const { createClient } = await import("@supabase/supabase-js");
+  const admin = createClient(url, key, { auth: { persistSession: false } });
+  const client = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
+    type: "magiclink",
+    email,
+  });
+  const tokenHash = link?.properties?.hashed_token;
+  if (linkErr || !tokenHash) {
+    throw new Error(`magic link failed: ${linkErr?.message ?? "no hashed_token"}`);
+  }
+  const { data: sess, error: otpErr } = await client.auth.verifyOtp({
+    type: "magiclink",
+    token_hash: tokenHash,
+  });
+  if (otpErr || !sess.session) {
+    throw new Error(`verifyOtp failed: ${otpErr?.message ?? "no session"}`);
+  }
+  const ref = "pluhdapdnuiulvxmyspd";
+  const storageKey = `sb-${ref}-auth-token`;
+  const payload = JSON.stringify({
+    access_token: sess.session.access_token,
+    token_type: sess.session.token_type,
+    expires_in: sess.session.expires_in,
+    expires_at: sess.session.expires_at,
+    refresh_token: sess.session.refresh_token,
+    user: sess.session.user,
+  });
+  const encoded = `base64-${Buffer.from(payload).toString("base64")}`;
+  const hostName = new URL(opts.host).hostname;
+  const CHUNK = 3180;
+  const cookies: {
+    name: string;
+    value: string;
+    domain: string;
+    path: string;
+    secure: boolean;
+    httpOnly: boolean;
+    sameSite: "Lax";
+  }[] = [];
+  if (encoded.length <= CHUNK) {
+    cookies.push({
+      name: storageKey,
+      value: encoded,
+      domain: hostName,
+      path: "/",
+      secure: true,
+      httpOnly: false,
+      sameSite: "Lax",
+    });
+  } else {
+    let i = 0;
+    for (let offset = 0; offset < encoded.length; offset += CHUNK) {
+      cookies.push({
+        name: `${storageKey}.${i}`,
+        value: encoded.slice(offset, offset + CHUNK),
+        domain: hostName,
+        path: "/",
+        secure: true,
+        httpOnly: false,
+        sameSite: "Lax",
+      });
+      i += 1;
+    }
+  }
+  await page.context().addCookies(cookies);
+  await page.goto(new URL(next, opts.host).toString(), {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
   await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
   await awaitHydrated(page);
 }
@@ -312,21 +417,25 @@ export async function startFreshConversation(page: Page): Promise<string> {
   let lastRefusal = "";
   for (let attempt = 0; attempt < 3; attempt++) {
     await start.click();
-    const composer = page.locator("[data-composer], [data-composer-wire]").first();
-    const opened = await composer.isVisible().catch(() => false);
+    // Messages v5 may expose the reply wire as data-composer OR as the
+    // thread header + "Write a reply" textbox (agent-owned prod host).
+    const composer = page.locator(
+      "[data-composer], [data-composer-wire], [data-thread-header]",
+    ).first();
+    const replyBox = page.getByRole("textbox", { name: /write a reply|reply/i }).first();
+    await page.waitForTimeout(1200);
+    const opened =
+      (await composer.isVisible().catch(() => false)) ||
+      (await replyBox.isVisible().catch(() => false));
     if (opened) {
-      await awaitHydrated(page);
-      return name;
-    }
-    await page.waitForTimeout(1500);
-    if (await composer.isVisible().catch(() => false)) {
+      // Dismiss a sticky New sheet if it stayed open over the thread.
+      await page.keyboard.press("Escape").catch(() => undefined);
       await awaitHydrated(page);
       return name;
     }
     const alert = sheet.locator("[role='alert'], [data-refusal]").first();
     lastRefusal = ((await alert.innerText().catch(() => "")) || "").trim();
     if (lastRefusal) {
-      // Transient unavailable — brief pause then retry Start.
       await page.waitForTimeout(2000);
       continue;
     }
