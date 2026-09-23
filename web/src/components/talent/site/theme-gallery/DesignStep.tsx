@@ -20,6 +20,7 @@ import {
   themeGallerySelectDesignAria,
   type ThemeGalleryLocale,
 } from "./theme-gallery-i18n";
+import { themeGalleryEntrySummary, themeGalleryEntryTitle } from "./theme-gallery-builtin-copy";
 
 const RADIO_GROUP_NAME = "theme-gallery-design";
 
@@ -56,8 +57,8 @@ export function DesignStep({
 
       {categories.length > 0 ? (
         <div
-          role="tablist"
-          aria-label={themeGalleryCopy(locale, "designStepHeading")}
+          role="group"
+          aria-label={themeGalleryCopy(locale, "categoryFilterAria")}
           style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}
         >
           <CategoryChip
@@ -115,6 +116,8 @@ function DesignCard({
 }) {
   const isNew = design.isNew;
   const swatch = design.preview?.swatch;
+  const title = themeGalleryEntryTitle(locale, design);
+  const summary = themeGalleryEntrySummary(locale, design);
 
   return (
     <label
@@ -138,8 +141,8 @@ function DesignCard({
         }}
         aria-label={
           design.locked
-            ? themeGalleryLockedAria(locale, design.title)
-            : themeGallerySelectDesignAria(locale, design.title)
+            ? themeGalleryLockedAria(locale, title)
+            : themeGallerySelectDesignAria(locale, title)
         }
         style={{ position: "absolute", opacity: 0, width: 1, height: 1 }}
       />
@@ -175,10 +178,10 @@ function DesignCard({
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-        <span style={cardTitleStyle}>{design.title}</span>
+        <span style={cardTitleStyle}>{title}</span>
         {isCurrent ? <Badge tone="current">{themeGalleryCopy(locale, "currentPill")}</Badge> : null}
       </div>
-      {design.summary ? <p style={cardBlurbStyle}>{design.summary}</p> : null}
+      {summary ? <p style={cardBlurbStyle}>{summary}</p> : null}
     </label>
   );
 }
@@ -187,11 +190,11 @@ function CategoryChip({ active, label, onClick }: { active: boolean; label: stri
   return (
     <button
       type="button"
-      role="tab"
-      aria-selected={active}
+      aria-pressed={active}
+      data-theme-gallery-category-chip=""
       onClick={onClick}
       style={{
-        minHeight: 32,
+        minHeight: 44,
         padding: "0 12px",
         borderRadius: 999,
         border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,

@@ -31,5 +31,10 @@ export async function publishSiteThemeForTalent(input: {
   }
   const siteId = (data as { id?: string } | null)?.id;
   if (!siteId) return { ok: false, code: "site_not_found", error: "Site not found." };
+  const first = await publishSiteTheme(admin, { siteId, profileCode: input.profileCode });
+  if (first.ok || first.code !== "conflict") return first;
+  // Lost the compare-and-swap to a concurrent publish (double click, second
+  // tab). The pages are already live at this point, so re-read and publish
+  // the current draft once instead of reporting a half-published site.
   return publishSiteTheme(admin, { siteId, profileCode: input.profileCode });
 }

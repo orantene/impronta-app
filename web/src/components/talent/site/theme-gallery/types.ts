@@ -24,6 +24,8 @@ export interface ThemeGalleryApplyInput {
 export interface ThemeGalleryApplyResult {
   ok: boolean;
   error?: string;
+  /** The talent declined the confirm prompt: no error is shown. */
+  cancelled?: boolean;
 }
 
 /** The tokens a Look preview can restyle the iframe with instantly, derived

@@ -71,19 +71,31 @@ export function ManagerThemeGallery({
   }, []);
 
   if (!bootstrap?.enabled) return <>{fallback}</>;
+  const current = bootstrap;
 
   async function onApply({ designSlug, lookSlug }: ThemeGalleryApplyInput): Promise<ThemeGalleryApplyResult> {
     const fail = (code: string) => ({ ok: false, error: themeGalleryCopy(locale, themeErrorCopyKey(code)) });
-    if (designSlug && typeof window !== "undefined" && !window.confirm(themeGalleryCopy(locale, "confirmReplaceDesign"))) {
-      return { ok: false };
+    // Re-applying the Design the site already has would rebuild the home page
+    // from the talent's profile and throw away their edits, so a Look-only
+    // change never touches the Design (and never asks to replace content).
+    const designToApply =
+      designSlug && designSlug !== current.currentDesignSlug ? designSlug : undefined;
+    if (
+      designToApply &&
+      typeof window !== "undefined" &&
+      !window.confirm(themeGalleryCopy(locale, "confirmReplaceDesign"))
+    ) {
+      return { ok: false, cancelled: true };
     }
-    if (designSlug) {
-      const res = await applySiteDesignAction({ designSlug });
+    if (designToApply) {
+      const res = await applySiteDesignAction({ designSlug: designToApply });
       if (!res.ok) return fail(res.code);
+      setBootstrap({ ...current, currentDesignSlug: designToApply });
     }
     if (lookSlug) {
       const res = await applySiteLookAction({ lookSlug });
       if (!res.ok) return fail(res.code);
+      setBootstrap((prev) => (prev?.enabled ? { ...prev, currentLookSlug: lookSlug } : prev));
     }
     await onApplied();
     return { ok: true };
@@ -93,12 +105,12 @@ export function ManagerThemeGallery({
     <>
       {wrap(
         <ThemeGallery
-          designs={bootstrap.designs}
-          looks={bootstrap.looks}
-          currentDesignSlug={bootstrap.currentDesignSlug}
-          currentLookSlug={bootstrap.currentLookSlug}
+          designs={current.designs}
+          looks={current.looks}
+          currentDesignSlug={current.currentDesignSlug}
+          currentLookSlug={current.currentLookSlug}
           mode="manager"
-          talentProfileId={bootstrap.talentProfileId}
+          talentProfileId={current.talentProfileId}
           locale={locale}
           onApply={onApply}
         />,

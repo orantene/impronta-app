@@ -108,12 +108,12 @@ describe("ThemeGallery", () => {
       <ThemeGallery designs={DESIGNS} looks={LOOKS} mode="manager" talentProfileId="tp-1" onApply={noopApply} />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Studio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Studio" }));
     const gridAfterFilter = screen.getByRole("radiogroup", { name: "Pick a design" });
     expect(within(gridAfterFilter).queryByText("Editorial")).not.toBeInTheDocument();
     expect(within(gridAfterFilter).getByText("Studio")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: "All" }));
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
     const gridAfterAll = screen.getByRole("radiogroup", { name: "Pick a design" });
     expect(within(gridAfterAll).getByText("Editorial")).toBeInTheDocument();
     expect(within(gridAfterAll).getByText("Studio")).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe("ThemeGallery", () => {
     );
 
     expect(screen.queryByText("Editorial")).not.toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Design" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Design" })).not.toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Select the Warm look/i })).toBeInTheDocument();
   });
 
@@ -156,5 +156,38 @@ describe("ThemeGallery", () => {
 
     await screen.findByText("Theme saved to your draft. Publish your site to make it live.");
     expect(onApply).toHaveBeenCalledWith({ designSlug: "editorial", lookSlug: "warm" });
+  });
+
+  it("a declined confirm shows no error, and a thrown apply re-enables the button with generic copy", async () => {
+    const onApply = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, cancelled: true })
+      .mockRejectedValueOnce(new Error("network"));
+    testRender(
+      <ThemeGallery designs={DESIGNS} looks={LOOKS} mode="manager" talentProfileId="tp-1" onApply={onApply} />,
+    );
+    fireEvent.click(screen.getByRole("radio", { name: /Select the Editorial design/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Next: choose a look/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /Select the Warm look/i }));
+
+    const apply = screen.getByRole("button", { name: /Use this theme/i });
+    fireEvent.click(apply);
+    await vi.waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(screen.getByRole("button", { name: /Use this theme/i })).not.toBeDisabled());
+    expect(screen.queryByText("Something went wrong. Try again.")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Use this theme/i }));
+    await screen.findByText("Something went wrong. Try again.");
+    expect(screen.getByRole("button", { name: /Use this theme/i })).not.toBeDisabled();
+  });
+
+  it("localizes built-in design card copy in Spanish", () => {
+    const builtin: GalleryCatalogEntry = { ...DESIGNS[0]!, slug: "minimal", title: "Minimal", summary: "Type-forward and clean." };
+    testRender(
+      <ThemeGallery designs={[builtin]} looks={LOOKS} mode="manager" talentProfileId="tp-1" locale="es" onApply={noopApply} />,
+    );
+    expect(screen.getByText(/Limpio y centrado en la tipograf/)).toBeInTheDocument();
+    expect(screen.queryByText("Type-forward and clean.")).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Filtrar diseños por categoría" })).toBeInTheDocument();
   });
 });

@@ -18,6 +18,8 @@ import { notFound } from "next/navigation";
 import { TalentSiteRenderer } from "@/components/talent/site/TalentSiteRenderer";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { mergeLookIntoTokens } from "@/lib/talent-site/theme-catalog/look-layer";
+import { validateDesign, validateLook } from "@/lib/talent-site/theme-catalog/validate";
+import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildDesignTrees } from "@/lib/talent-site/server/theme-apply-core";
@@ -48,20 +50,30 @@ export async function ThemeCatalogPreview({
   if (!admin) notFound();
 
   const design = await loadPublishedCatalogRow(admin, "design", designSlug);
-  if (!design) notFound();
+  // Same publish-time validation the apply action runs: a malformed row is a
+  // 404 here, never a thrown render.
+  if (!design || !validateDesign(design.payload).ok) notFound();
 
-  const look =
+  const lookRow =
     lookSlug && SLUG_RE.test(lookSlug)
       ? await loadPublishedCatalogRow(admin, "look", lookSlug)
       : null;
+  const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
 
   const hydration = await resolvePreviewHydration(talentProfileId);
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();
 
   const platformDefault = await loadPlatformDefaultTheme("talent");
+  // Same layering as the live render: the Look lands in the (empty) site
+  // draft layer, then platform < site. A key the Look omits keeps the
+  // platform default, exactly as on the published site.
   const effectiveTokens = look
-    ? mergeLookIntoTokens(platformDefault.tokens, look.payload.tokens)
+    ? resolveEffectiveSiteTokens(
+        {},
+        mergeLookIntoTokens({}, look.payload.tokens),
+        platformDefault.tokens,
+      )
     : platformDefault.tokens;
 
   const snapshot: TalentSiteSnapshot = {
