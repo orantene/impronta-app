@@ -155,6 +155,99 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # ─────────────────────────────────────────────────────────────────
+      # JOURNEYS. Same job, because the local Supabase above lives in this
+      # runner and jobs do not share services.
+      #
+      # These do NOT gate a merge: this workflow is not one of the four
+      # required checks. That is deliberate — the journeys have never run
+      # before, so their first honest signal is information, not a gate.
+      # ─────────────────────────────────────────────────────────────────
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        working-directory: web
+        run: npm ci
+
+      - name: Read local Supabase keys
+        id: sbkeys
+        run: |
+          set -o pipefail
+          supabase status -o env > "$RUNNER_TEMP/sb.env"
+          # shellcheck disable=SC1090
+          . "$RUNNER_TEMP/sb.env"
+          # Mask before anything can echo them. These are the LOCAL stack's
+          # keys, not production's, but a masked log costs nothing and stops a
+          # copy-paste from training anyone that printing a service role key is
+          # normal.
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          echo "::add-mask::$ANON_KEY"
+          {
+            echo "SUPABASE_URL=$API_URL"
+            echo "ANON_KEY=$ANON_KEY"
+            echo "SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Seed talent-website fixtures
+        working-directory: web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+        run: |
+          set -o pipefail
+          npx tsx e2e/talent-website/seed.ts
+
+      - name: Install Playwright Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      # Playwright auto-starts `npm run dev` because the base URL is loopback,
+      # waits for it, runs `talent-website-setup` (one dev-signin per fixture),
+      # then the journeys. `localhost` resolves as a host because
+      # 20260922100000_agency_domains_localhost_app_dev.sql registers it and
+      # host-context.ts has the matching branch — otherwise every request would
+      # 404 "Host not registered" before routing.
+      - name: Run talent-website journeys
+        id: journeys
+        working-directory: web
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          PORT: "3000"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+          NODE_ENV: development
+        run: |
+          set -o pipefail
+          npx playwright test --project=talent-website
+
+      - name: Journey result in the summary
+        if: always() && steps.journeys.conclusion != 'skipped'
+        run: |
+          {
+            echo "### Talent website E2E — journeys"
+            echo ""
+            echo "Outcome: **${{ steps.journeys.outcome }}**"
+            echo ""
+            echo "Journeys do not gate a merge; this lane is not a required check."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Playwright report + traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: talent-website-playwright-report
+          path: |
+            web/playwright-report
+            web/test-results
+          if-no-files-found: ignore
+
       - name: Supabase DB logs on failure
         if: failure()
         run: docker logs supabase_db_impronta-app 2>&1 | tail -80 || true
