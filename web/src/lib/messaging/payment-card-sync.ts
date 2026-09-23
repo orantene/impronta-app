@@ -11,7 +11,7 @@ import type { PaymentState } from "./lifecycle";
  * from `card_payload.state` and defaults it to "sent"; nothing in the product
  * ever wrote "paid" onto a `payment_request` card, so a client who had already
  * paid still read "Request sent" in the chat. `ClientPaymentCard` has rendered
- * the paid and cancelled branches all along - only the writer was missing.
+ * the paid branch all along - only the writer was missing.
  *
  * This runs at the moment the money already settles: `syncConversationRecord`
  * calls the `messaging_sync_record_state` RPC from every payment path (POS
@@ -22,19 +22,29 @@ import type { PaymentState } from "./lifecycle";
  */
 
 type Admin = {
+  /** Optional for the same reason `record-sync` makes `rpc` optional: several
+   * callers type their client as `{ rpc? }` only, and their test fakes inject
+   * one shape or the other. A client with no `from` simply cannot mirror the
+   * card and says so, exactly as the rpc guard does. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (table: string) => any;
+  from?: (table: string) => any;
 };
 
-/** Card states `ClientPaymentCard` draws. Anything else leaves the card alone. */
-const CARD_STATE_FOR: Partial<Record<PaymentState, "paid" | "cancelled">> = {
+/**
+ * Settled payment states, mapped to the card state `ClientPaymentCard` draws.
+ * A refund keeps the card "paid": the money did arrive, and the refund is its
+ * own `change_result` card. Every other state leaves the card alone, so an
+ * in-flight request still shows Pay.
+ */
+const CARD_STATE_FOR: Partial<Record<PaymentState, "paid">> = {
   paid: "paid",
   partially_refunded: "paid",
   refunded: "paid",
-  cancelled: "cancelled",
 };
 
-/** Already settled: never walk a card backwards (a refund must not reopen Pay). */
+/** Already settled: never walk a card backwards (a refund must not reopen Pay).
+ * "cancelled" is a card state staff set directly, not a payment state; a
+ * cancelled card stays cancelled. */
 const TERMINAL = new Set(["paid", "cancelled"]);
 
 export type PaymentCardSyncResult =
@@ -47,9 +57,10 @@ export async function syncPaymentCardsForRecord(
 ): Promise<PaymentCardSyncResult> {
   const target = input.paymentState ? CARD_STATE_FOR[input.paymentState] : undefined;
   if (!target || !input.tenantId || !input.recordId) return { ok: true, updated: 0 };
+  if (typeof admin.from !== "function") return { ok: true, updated: 0 };
+  const from = admin.from;
 
-  const { data: records, error: recordErr } = await admin
-    .from("conversation_records")
+  const { data: records, error: recordErr } = await from("conversation_records")
     .select("inquiry_id")
     .eq("tenant_id", input.tenantId)
     .eq("record_id", input.recordId)
@@ -63,8 +74,7 @@ export async function syncPaymentCardsForRecord(
   ];
   if (inquiryIds.length === 0) return { ok: true, updated: 0 };
 
-  const { data: cards, error: cardErr } = await admin
-    .from("inquiry_messages")
+  const { data: cards, error: cardErr } = await from("inquiry_messages")
     .select("id, card_payload")
     .eq("tenant_id", input.tenantId)
     .eq("message_kind", "payment_request")
@@ -80,8 +90,7 @@ export async function syncPaymentCardsForRecord(
     const payload = row.card_payload && typeof row.card_payload === "object" ? row.card_payload : {};
     const current = typeof payload.state === "string" ? payload.state : "sent";
     if (current === target || TERMINAL.has(current)) continue;
-    const { error: updateErr } = await admin
-      .from("inquiry_messages")
+    const { error: updateErr } = await from("inquiry_messages")
       .update({ card_payload: { ...payload, state: target, settledAt: new Date().toISOString() } })
       .eq("id", row.id);
     if (updateErr) {

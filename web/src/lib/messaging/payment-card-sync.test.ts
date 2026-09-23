@@ -9,6 +9,9 @@ const TENANT = uuid(1);
 const INQUIRY = uuid(2);
 const ORDER = uuid(3);
 
+type CardRow = { id: string; card_payload: Record<string, unknown> | null };
+const payload = (store: Record<string, unknown[]>, i: number) => (store.inquiry_messages[i] as CardRow).card_payload;
+
 function seed(cardState?: string) {
   return fakeAdmin({
     conversation_records: [{ id: "cr-1", tenant_id: TENANT, inquiry_id: INQUIRY, record_kind: "order", record_id: ORDER, unlinked_at: null }],
@@ -23,31 +26,41 @@ test("a paid record flips the thread's payment card to paid; other kinds untouch
   const { admin, store } = seed();
   const result = await syncPaymentCardsForRecord(admin, { tenantId: TENANT, recordId: ORDER, paymentState: "paid" });
   assert.deepEqual(result, { ok: true, updated: 1 });
-  assert.equal(store.inquiry_messages[0].card_payload.state, "paid");
-  assert.equal(store.inquiry_messages[0].card_payload.amountCents, 1800);
-  assert.equal(store.inquiry_messages[1].card_payload, null);
+  assert.equal(payload(store, 0)?.state, "paid");
+  assert.equal(payload(store, 0)?.amountCents, 1800);
+  assert.equal(payload(store, 1), null);
 });
 
 test("a refund keeps the card paid and never reopens Pay", async () => {
   const { admin, store } = seed("paid");
   const result = await syncPaymentCardsForRecord(admin, { tenantId: TENANT, recordId: ORDER, paymentState: "refunded" });
   assert.deepEqual(result, { ok: true, updated: 0 });
-  assert.equal(store.inquiry_messages[0].card_payload.state, "paid");
+  assert.equal(payload(store, 0)?.state, "paid");
 });
 
-test("cancelled closes the card; an unsettled state writes nothing", async () => {
-  const cancelled = seed();
-  assert.deepEqual(await syncPaymentCardsForRecord(cancelled.admin, { tenantId: TENANT, recordId: ORDER, paymentState: "cancelled" }), { ok: true, updated: 1 });
-  assert.equal(cancelled.store.inquiry_messages[0].card_payload.state, "cancelled");
+test("a refund on an unsettled card still marks it paid: the money did arrive", async () => {
+  const { admin, store } = seed();
+  const result = await syncPaymentCardsForRecord(admin, { tenantId: TENANT, recordId: ORDER, paymentState: "partially_refunded" });
+  assert.deepEqual(result, { ok: true, updated: 1 });
+  assert.equal(payload(store, 0)?.state, "paid");
+});
 
-  const pending = seed();
-  assert.deepEqual(await syncPaymentCardsForRecord(pending.admin, { tenantId: TENANT, recordId: ORDER, paymentState: "requested" }), { ok: true, updated: 0 });
-  assert.equal(pending.store.inquiry_messages[0].card_payload.state, undefined);
+test("an in-flight state writes nothing, so the card still shows Pay", async () => {
+  for (const state of ["requested", "opened", "failed", "expired", "none"] as const) {
+    const pending = seed();
+    assert.deepEqual(await syncPaymentCardsForRecord(pending.admin, { tenantId: TENANT, recordId: ORDER, paymentState: state }), { ok: true, updated: 0 });
+    assert.equal(payload(pending.store, 0)?.state, undefined);
+  }
+});
+
+test("a client with no `from` cannot mirror the card and says so without throwing", async () => {
+  const result = await syncPaymentCardsForRecord({}, { tenantId: TENANT, recordId: ORDER, paymentState: "paid" });
+  assert.deepEqual(result, { ok: true, updated: 0 });
 });
 
 test("no linked record writes nothing", async () => {
   const { admin, store } = seed();
   const result = await syncPaymentCardsForRecord(admin, { tenantId: TENANT, recordId: uuid(9), paymentState: "paid" });
   assert.deepEqual(result, { ok: true, updated: 0 });
-  assert.equal(store.inquiry_messages[0].card_payload.state, undefined);
+  assert.equal(payload(store, 0)?.state, undefined);
 });
