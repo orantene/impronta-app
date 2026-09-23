@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import type {
   MaxSitePageRow,
   MaxSiteRow,
@@ -83,6 +84,41 @@ export async function loadMaxSiteByProfileId(
   }
   if (!data) return null;
   return mapSiteRow(data as TalentSiteRowDb);
+}
+
+/**
+ * The site-level THEME tokens (theme gallery Look layer) for a talent's site:
+ * `design_tokens` for the public render, `design_tokens_draft` for the owner
+ * draft preview. Returns `{}` WITHOUT querying while
+ * TALENT_THEME_GALLERY_ENABLED is off, and `{}` on any failure (including the
+ * columns not existing yet), so the render falls back to today's cascade.
+ * Deliberately a separate read: `SITE_COLUMNS` stays untouched, so a site load
+ * can never fail because of these columns.
+ */
+export async function loadMaxSiteThemeTokens(
+  talentProfileId: string,
+  opts: { draft: boolean },
+): Promise<Record<string, string>> {
+  if (!isTalentThemeGalleryEnabled()) return {};
+  const admin = createServiceRoleClient();
+  if (!admin) return {};
+  const column = opts.draft ? "design_tokens_draft" : "design_tokens";
+  const { data, error } = await admin
+    .from("talent_sites")
+    .select(column)
+    .eq("talent_profile_id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("talentMaxSite.load.themeTokens", error);
+    return {};
+  }
+  const raw = (data as Record<string, unknown> | null)?.[column];
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "string") out[key] = value;
+  }
+  return out;
 }
 
 /**
