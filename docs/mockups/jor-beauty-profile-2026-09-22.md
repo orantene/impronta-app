@@ -1,4 +1,39 @@
-# Jor Beauty — flagship service-professional profile (2026-09-22)
+# Jor Beauty — flagship service-professional profile
+
+> **READ THIS FIRST — 2026-09-23.** The design was rebuilt after the first
+> version was rejected as "a generic beige salon template". Everything below
+> the line still describes the FIELD MAPPING and the CAPABILITY GAPS accurately
+> — those did not change — but the *visual and architectural* description is
+> stale. The current design is documented in
+> [`web/docs/talent-website-mockups/maison/HANDOFF.md`](../../web/docs/talent-website-mockups/maison/HANDOFF.md).
+>
+> What changed:
+> - **White-first.** The beige ground and the full-bleed burgundy block are gone.
+> - **Six sections, not thirteen.** Featured cards, a specialty price list and a
+>   full menu were showing the same services three times. Now: hero → the artist
+>   → services → results → your visit → FAQ → closing.
+> - **The artist sits second**, right under the hero. On a one-person practice
+>   the person is the product.
+> - **Every colour and font is a `--token-*` reference** with the shipped value
+>   as its fallback, so any Look can restyle the whole page. Proven by rendering
+>   the identical page under four palettes.
+> - **The booking promise degrades with the surface.** Below `"instant"` the CTA,
+>   the dispatched intent and the sheet's final button step down together.
+> - **Contact channels added** (WhatsApp / Instagram / TikTok / email), reading
+>   `talent_profiles.phone` and `talent_integration_items`. Links are inert until
+>   her handles are confirmed.
+> - **The name is Jorg Beauty**, not Jor Beauty, and her real logo and portrait
+>   are in use.
+> - **Full English**: her copy, all 22 service names, options, captions, facts and
+>   FAQ, via the same `title_i18n` shape the catalogue already has.
+>
+> Measured, not asserted: contrast AA on every pair, one `h1` with no heading
+> jumps, no image without alt, no control without a name, no horizontal scroll
+> and no sub-44px target at 320/390/430/768/1440, focus traps on all three
+> overlays.
+
+---
+
 
 A complete, high-fidelity public profile for **Jor Beauty** (Jorgelina, independent beauty
 professional, Playa del Carmen Centro), built as a **reusable Tulala profile template** rather
