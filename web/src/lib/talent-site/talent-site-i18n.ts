@@ -19,11 +19,13 @@ const COPY = {
       "Build and publish your own personal service website from your profile, media, and services.",
     templateIncluded: "Included",
     templateChange: "Change template",
-    upgradeProTemplates: "Upgrade to Pro to choose premium templates.",
+    // FOLDED 2026-09-23 (Pro fold): one paid tier, Web Office. Never "Pro"
+    // or "Max" in this copy again.
+    upgradeProTemplates: "Upgrade to Web Office to choose premium templates.",
     upgradeMaxBuilder:
-      "Upgrade to Max to customize sections and build a full personal service website.",
+      "Upgrade to Web Office to customize sections and build a full personal service website.",
     upgradeMaxService:
-      "Upgrade to Max to build a custom service website with editable sections.",
+      "Upgrade to Web Office to build a custom service website with editable sections.",
     modeTemplate: "Use a template",
     modeCustom: "Custom builder",
     customBuilderBlurb:
@@ -66,11 +68,11 @@ const COPY = {
       "Crea y publica tu sitio personal de servicios con tu perfil, medios y servicios.",
     templateIncluded: "Incluido",
     templateChange: "Cambiar plantilla",
-    upgradeProTemplates: "Mejora a Pro para elegir plantillas premium.",
+    upgradeProTemplates: "Mejora a Web Office para elegir plantillas premium.",
     upgradeMaxBuilder:
-      "Mejora a Max para personalizar secciones y crear un sitio de servicios completo.",
+      "Mejora a Web Office para personalizar secciones y crear un sitio de servicios completo.",
     upgradeMaxService:
-      "Mejora a Max para crear un sitio de servicios con secciones editables.",
+      "Mejora a Web Office para crear un sitio de servicios con secciones editables.",
     modeTemplate: "Usar plantilla",
     modeCustom: "Editor personalizado",
     customBuilderBlurb:

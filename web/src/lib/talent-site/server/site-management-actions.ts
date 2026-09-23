@@ -16,8 +16,10 @@
  *   - Owner: resolved via `requireTalentSelf()` (the signed-in user's own
  *     talent_profiles row). `talent_sites` + `talent_pages` RLS independently
  *     enforces owner-only writes, so a forged talentProfileId can't write.
- *   - Max: `assertTalentCanUseCustomBuilder(planKey)` — Pro/Free are refused
- *     with `plan_required` (the dashboard renders an upsell, not a 404).
+ *   - Plan: `gate(<capability>)` — each action names the capability it needs
+ *     (`personalSiteEdit` for content/slug/publish, `personalSitePages` for the
+ *     extra-page operations). A plan without it is refused with `plan_required`
+ *     (the dashboard renders an upsell, not a 404).
  *
  * "use server" file — every export is an async action. Pure decisions live in
  * `site-page-management-core.ts`; provisioning in `provision-max-site.ts`.
@@ -31,7 +33,7 @@ import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
-import { assertTalentCanUseCustomBuilder } from "@/lib/server/talent-self-guard";
+import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { gate } from "./site-action-gate";
 import { provisionTalentMaxSite } from "./provision-max-site";
 import { isDnsLabel, slugifySiteName } from "./derive-site-slug";
@@ -95,7 +97,7 @@ function siteUrl(slug: string | null): string | null {
 export async function ensureMaxSiteAction(): Promise<
   MaxSiteActionResult<{ siteSlug: string }>
 > {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   const result = await provisionTalentMaxSite(g.talentProfileId, g.userId);
   if (!result.ok) {
@@ -123,14 +125,21 @@ export async function loadMaxSiteManagerAction(): Promise<
       : scope.planKey === "talent_pro"
         ? ("pro" as const)
         : ("free" as const);
-  const canManage = assertTalentCanUseCustomBuilder(scope.planKey);
+  // Phase 1 — one capability record, threaded straight into the manager state
+  // so the dashboard stops re-deriving gates of its own. `canManage` is now
+  // "may edit my own site" rather than "has Max": every tier qualifies once the
+  // free website is switched on, and only Max does while it is off.
+  const capabilities = buildTalentSiteCapabilities(scope.planKey);
+  const canManage = capabilities.personalSiteEdit;
 
-  // Non-Max talents: return a minimal state so the dashboard renders the upsell.
+  // Talents without even edit rights (the flags-off, non-Max case): return a
+  // minimal state so the dashboard renders the upsell.
   if (!canManage) {
     return {
       ok: true,
       data: {
         canManage: false,
+        capabilities,
         tier,
         talentProfileId: scope.talentProfile.id,
         displayName: scope.talentProfile.displayName,
@@ -203,6 +212,7 @@ export async function loadMaxSiteManagerAction(): Promise<
     ok: true,
     data: {
       canManage: true,
+      capabilities,
       tier,
       talentProfileId: scope.talentProfile.id,
       displayName: scope.talentProfile.displayName,
@@ -229,7 +239,7 @@ export async function addMaxSitePageAction(input: {
   title: string;
   navLabel?: string | null;
 }): Promise<MaxSiteActionResult<{ id: string; slug: string }>> {
-  const g = await gate();
+  const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
   const title = input.title?.trim();
@@ -299,7 +309,7 @@ export async function renameMaxSitePageAction(input: {
   title?: string;
   navLabel?: string | null;
 }): Promise<MaxSiteActionResult> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -338,7 +348,7 @@ export async function renameMaxSitePageAction(input: {
 export async function deleteMaxSitePageAction(input: {
   pageId: string;
 }): Promise<MaxSiteActionResult> {
-  const g = await gate();
+  const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
   const sb = await getCachedServerSupabase();
@@ -393,7 +403,7 @@ export async function deleteMaxSitePageAction(input: {
 export async function reorderMaxSitePagesAction(input: {
   orderedIds: string[];
 }): Promise<MaxSiteActionResult> {
-  const g = await gate();
+  const g = await gate("personalSitePages");
   if (!g.ok) return g;
   if (!Array.isArray(input.orderedIds) || input.orderedIds.length === 0) {
     return { ok: false, code: "invalid_input", error: "No order provided." };
@@ -441,7 +451,7 @@ export async function reorderMaxSitePagesAction(input: {
 export async function setMaxSiteHomePageAction(input: {
   pageId: string;
 }): Promise<MaxSiteActionResult> {
-  const g = await gate();
+  const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
   const sb = await getCachedServerSupabase();
@@ -490,7 +500,7 @@ export async function setMaxSiteHomePageAction(input: {
 export async function setMaxSiteSlugAction(input: {
   slug: string;
 }): Promise<MaxSiteActionResult<{ slug: string }>> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   const desired = slugifySiteName(input.slug ?? "");
@@ -569,7 +579,7 @@ export async function setMaxSiteSlugAction(input: {
 export async function publishMaxSiteAction(): Promise<
   MaxSiteActionResult<{ publishedAt: string }>
 > {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   const sb = await getCachedServerSupabase();
@@ -650,7 +660,7 @@ export async function publishMaxSiteAction(): Promise<
 export async function applyMaxSiteTemplateAction(input: {
   templateKey: string;
 }): Promise<MaxSiteActionResult<{ templateKey: MaxSiteTemplateKey }>> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   if (!isMaxSiteTemplateKey(input.templateKey)) {

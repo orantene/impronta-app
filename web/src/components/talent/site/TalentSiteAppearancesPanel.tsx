@@ -150,8 +150,11 @@ function MetaChip({ label, tone = "neutral" }: { label: string; tone?: "neutral"
  * Plan badge for the Tulala personal-site card. Tones map to talent
  * subscription tier so the visual weight grows with the plan:
  *   free → neutral grey (no chromatic emphasis)
- *   pro  → indigo (cool, informational)
- *   max  → accent deep (the premium forest green)
+ *   pro  → indigo (cool, informational) — grandfathered, shown as Web Office
+ *   max  → accent deep (the premium forest green) — Web Office
+ *
+ * FOLDED 2026-09-23: "Pro" and "Portfolio" never render as labels anymore;
+ * the one paid tier is "Web Office" for both plan keys.
  */
 function TulalaPlanBadge({ tier }: { tier: "free" | "pro" | "max" }) {
   const palette =
@@ -160,7 +163,7 @@ function TulalaPlanBadge({ tier }: { tier: "free" | "pro" | "max" }) {
       : tier === "pro"
         ? { bg: COLORS.indigoSoft, fg: COLORS.indigo }
         : { bg: "rgba(11,11,13,0.06)", fg: COLORS.inkMuted };
-  const label = tier === "max" ? "Portfolio" : tier === "pro" ? "Pro" : "Free";
+  const label = tier === "free" ? "Free" : "Web Office";
   return (
     <span
       style={{

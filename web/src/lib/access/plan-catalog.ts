@@ -14,6 +14,7 @@
  * `plan-capabilities.ts` and `plan-limits.ts`. After Track C, this becomes
  * three SQL inserts instead.
  */
+import { isTalentTierRenameEnabled } from "./talent-tier-label";
 
 export const PLAN_KEYS = [
   // Workspace-audience plans (agencies, hubs, free workspaces)
@@ -223,6 +224,11 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
     isSelfServe: true,
     isArchived: false,
   },
+  // FOLDED 2026-09-23 (decision-log L45 reversal + Pro fold): `talent_pro` is
+  // no longer sold or shown anywhere. Its key, prices, rank and Stripe ids are
+  // kept untouched so existing Pro subscriptions keep resolving; new signups
+  // and the compare view only ever see Free and Web Office. Its capability
+  // set is now a strict subset of talent_portfolio's (see talent-membership.ts).
   talent_pro: {
     key: "talent_pro",
     audience: "talent",
@@ -237,17 +243,21 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
     trialDays: 14,
     badgeColor: "#7d5cff",
     accentColor: "#5b3ed6",
-    isVisible: true,
-    isSelfServe: true,
+    isVisible: false,
+    isSelfServe: false,
     isArchived: false,
   },
+  // RENAMED 2026-09-23 (label only; key/rank/Stripe ids untouched): the one
+  // paid talent tier is now "Web Office" everywhere user-facing. It absorbs
+  // the former Pro perks (embeds, press band, media kit, priority discovery,
+  // badge removal) — see talent-membership.ts for the capability superset.
   talent_portfolio: {
     key: "talent_portfolio",
     audience: "talent",
-    displayName: "Portfolio",
-    tagline: "Your branded talent page",
+    displayName: "Web Office",
+    tagline: "Your website, fully unlocked",
     description:
-      "Personal-site builder access, preview and publish controls, a talent-owned section library, and SEO controls. The canonical URL tulala.digital/t/<slug> remains the first public destination; custom domains come later. Ratified pricing 2026-08-20: $15/mo.",
+      "Add pages and sections, a custom domain, SEO and analytics, custom CSS and motion, badge removal, embeds and press, a media kit, priority discovery, branded invoices, the lowest fee, and design help from the Tulala team. The canonical URL tulala.digital/t/<slug> remains the first public destination. Ratified pricing 2026-08-20: $15/mo.",
     rank: 2,
     monthlyPriceCents: 1500,
     annualPriceCents: 15000,
@@ -265,13 +275,53 @@ export function isKnownPlan(key: string): key is PlanKey {
   return (PLAN_KEYS as readonly string[]).includes(key);
 }
 
+/**
+ * The talent-plan COPY the "Web Office" rename changed, kept here verbatim so
+ * a dark build (`TALENT_FREE_WEBSITE_ENABLED` unset) reads exactly as it did
+ * before Phase 1. `PLAN_CATALOG` above carries the post-rename values; this
+ * overlay restores the pre-rename ones while the switch is off.
+ *
+ * Copy only. Keys, ranks, prices, trial days, Stripe ids, `isVisible` and
+ * `isSelfServe` are identical on both sides of the switch, so neither billing
+ * nor the Pro fold can diverge with it. The Pro fold is unconditional.
+ */
+const TALENT_PLAN_PRE_RENAME_OVERLAY: Partial<Record<PlanKey, Partial<PlanDef>>> = {
+  talent_portfolio: {
+    displayName: "Portfolio",
+    tagline: "Your branded talent page",
+    description:
+      "Personal-site builder access, preview and publish controls, a talent-owned section library, and SEO controls. The canonical URL tulala.digital/t/<slug> remains the first public destination; custom domains come later. Ratified pricing 2026-08-20: $15/mo.",
+  },
+};
+
+/**
+ * Apply the pre-rename overlay while the free-website switch is off. Read at
+ * CALL time, never captured at module load, so tests can exercise both
+ * switch positions in one process.
+ */
+function resolvePlanDef(def: PlanDef): PlanDef {
+  if (isTalentTierRenameEnabled()) return def;
+  const overlay = TALENT_PLAN_PRE_RENAME_OVERLAY[def.key];
+  return overlay ? { ...def, ...overlay } : def;
+}
+
 export function getPlan(key: PlanKey): PlanDef {
-  return PLAN_CATALOG[key];
+  return resolvePlanDef(PLAN_CATALOG[key]);
+}
+
+/**
+ * The name a human reads for a plan. The ONLY supported way to render a plan
+ * name: reading `PLAN_CATALOG[key].displayName` directly skips the fold and
+ * would print "Web Office" in a dark build.
+ */
+export function planDisplayName(key: PlanKey): string {
+  return getPlan(key).displayName;
 }
 
 /** Plans visible on the public pricing page, in display order. Workspace audience. */
 export function getVisibleWorkspacePlans(): PlanDef[] {
   return Object.values(PLAN_CATALOG)
+    .map(resolvePlanDef)
     .filter((p) => p.audience === "workspace" && p.isVisible && !p.isArchived)
     .sort((a, b) => a.rank - b.rank);
 }
@@ -279,6 +329,7 @@ export function getVisibleWorkspacePlans(): PlanDef[] {
 /** Plans visible on the talent self-upgrade UI, in display order. Talent audience. */
 export function getVisibleTalentPlans(): PlanDef[] {
   return Object.values(PLAN_CATALOG)
+    .map(resolvePlanDef)
     .filter((p) => p.audience === "talent" && p.isVisible && !p.isArchived)
     .sort((a, b) => a.rank - b.rank);
 }
@@ -289,6 +340,7 @@ export function getVisibleTalentPlans(): PlanDef[] {
  */
 export function getVisiblePlans(): PlanDef[] {
   return Object.values(PLAN_CATALOG)
+    .map(resolvePlanDef)
     .filter((p) => p.isVisible && !p.isArchived)
     .sort((a, b) => {
       if (a.audience !== b.audience) return a.audience.localeCompare(b.audience);
@@ -304,6 +356,7 @@ export function getVisiblePlans(): PlanDef[] {
 export function getUpgradePathFromPlan(currentPlan: PlanKey): PlanDef[] {
   const current = PLAN_CATALOG[currentPlan];
   return Object.values(PLAN_CATALOG)
+    .map(resolvePlanDef)
     .filter(
       (p) =>
         p.audience === current.audience &&

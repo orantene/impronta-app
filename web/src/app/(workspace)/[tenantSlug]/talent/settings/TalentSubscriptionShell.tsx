@@ -3,8 +3,14 @@
 /**
  * TalentSubscriptionShell — subscription section in talent settings.
  *
- * Shows current tier (Free / Pro / Portfolio), what each tier unlocks,
- * and upgrade / manage CTAs wired through Stripe.
+ * Shows current tier (Free / Web Office), what each tier unlocks, and
+ * upgrade / manage CTAs wired through Stripe.
+ *
+ * FOLDED 2026-09-23 (Pro fold, founder decision: one paid tier). `talent_pro`
+ * is no longer sold and no longer shown as its own tier — grandfathered Pro
+ * subscribers display as Web Office too, with an upgrade nudge for the perks
+ * their plan key doesn't grant yet (multi-page site, custom domain, SEO,
+ * analytics). The plan key itself, Stripe ids and pricing are untouched.
  */
 
 import * as React from "react";
@@ -50,34 +56,37 @@ const PLAN_META = {
       "Eligible for Tulala Discover (toggle in profile)",
     ],
   },
+  // Grandfathered plan key — no longer sold. Displayed as Web Office too
+  // (see file header); the missing perks below are what the upgrade nudge
+  // to talent_portfolio still offers.
   talent_pro: {
-    label: "Pro",
+    label: "Web Office",
     price: "$9 / month",
     tagline: "Richer presentation and media embeds",
     color: C.violet,
     bg: C.violetSoft,
     perks: [
-      "Everything in Basic",
+      "Everything in Free",
       "Video and audio embeds",
       "Enhanced media gallery",
       "Social links surfaced prominently",
-      "Portfolio presentation mode",
+      "Richer page presentation mode",
       "Priority placement on Tulala Discover",
     ],
   },
   talent_portfolio: {
-    label: "Portfolio",
+    label: "Web Office",
     price: "$15 / month",
-    tagline: "Your branded talent page with custom domain",
+    tagline: "Your fully unlocked website with a custom domain",
     color: C.orange,
     bg: C.orangeSoft,
     perks: [
-      "Everything in Pro",
+      "Everything above",
       "Personal-site builder access",
       "Preview and publish controls",
       "Talent-owned section library",
       "SEO controls",
-      "Custom domain reserved for a later Portfolio release",
+      "Custom domain",
     ],
   },
 } as const;
@@ -341,49 +350,41 @@ export function TalentSubscriptionShell({
         )}
       </div>
 
-      {/* Upgrade plans (only shown when on lower tier + Stripe enabled) */}
+      {/* Upgrade (only shown when on Free + Stripe enabled). Pro fold:
+          one paid tier, so this is a single Web Office card, not a
+          two-column Pro/Portfolio picker. */}
       {stripeEnabled && planKey === "talent_basic" && (
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
+            background: C.cardBg,
+            border: `1px solid ${C.border}`,
+            borderRadius: 12,
+            padding: "14px 14px 12px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
           }}
         >
-          {(["talent_pro", "talent_portfolio"] as TalentPlanKey[]).map((p) => {
-            const pm = PLAN_META[p];
-            return (
-              <div
-                key={p}
-                style={{
-                  background: C.cardBg,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 12,
-                  padding: "14px 14px 12px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <PlanChip planKey={p} />
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, fontFamily: FONT }}>
-                    {pm.price}
-                  </span>
-                </div>
-                <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: FONT, lineHeight: 1.4 }}>
-                  {pm.tagline}
-                </div>
-                <UpgradeButton plan={p} tenantSlug={tenantSlug} label={`Upgrade to ${pm.label}`} />
-              </div>
-            );
-          })}
+          <div className="flex items-center gap-2">
+            <PlanChip planKey="talent_portfolio" />
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, fontFamily: FONT }}>
+              {PLAN_META.talent_portfolio.price}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: FONT, lineHeight: 1.4 }}>
+            {PLAN_META.talent_portfolio.tagline}
+          </div>
+          <UpgradeButton
+            plan="talent_portfolio"
+            tenantSlug={tenantSlug}
+            label={`Upgrade to ${PLAN_META.talent_portfolio.label}`}
+          />
         </div>
       )}
 
-      {/* Pro → upgrade to Portfolio */}
+      {/* Grandfathered Pro → the multi-page Web Office perks their plan key doesn't grant yet */}
       {stripeEnabled && planKey === "talent_pro" && !hasActiveSub && (
-        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Upgrade to Portfolio — $15/mo" />
+        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Unlock the rest of Web Office — $15/mo" />
       )}
 
       {/* Manage subscription (paid active subscribers) */}
@@ -392,7 +393,7 @@ export function TalentSubscriptionShell({
       {/* Stripe not configured */}
       {!stripeEnabled && planKey === "talent_basic" && (
         <p style={{ fontSize: 12, color: C.inkMuted, margin: 0, fontFamily: FONT }}>
-          Pro and Portfolio upgrades coming soon.
+          Web Office upgrade coming soon.
         </p>
       )}
     </section>

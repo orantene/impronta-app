@@ -47,13 +47,17 @@ import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 
 /**
- * The compare drawer's paid tiers → the plan keys checkout understands.
+ * The compare drawer's paid tier → the plan key checkout understands.
  * "free" has no checkout, so it is absent rather than mapped to null.
+ * Pro fold (2026-09-23): the "pro" entry is gone — `talent_pro` still exists
+ * as a grandfathered plan key, but is never sold or shown here again.
  */
 const TIER_PLAN_KEY: Partial<Record<TalentSubscriptionTier, TalentPlanKey>> = {
-  pro: "talent_pro",
   max: "talent_portfolio",
 };
+
+/** The two tiers the compare drawer renders, in display order. */
+const COMPARE_TIERS = ["free", "max"] as const;
 
 /** Monthly price for a tier, from the single catalog source. USD only. */
 function tierMonthlyPrice(tier: TalentSubscriptionTier): string | null {
@@ -109,6 +113,7 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
 export function TalentTierCompareDrawer() {
   const { state, closeDrawer, setTalentTier } = useAdminShell();
   const t = useT();
+  const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-tier-compare";
   const current = state.talentTier;
 
@@ -130,14 +135,14 @@ export function TalentTierCompareDrawer() {
           {t("dashboard.talentDrawers.premiumPages.devSwitchHint")}
         </div>
       )}
-      {/* Tier columns */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-        {(["free", "pro", "max"] as const).map((tierId) => {
+      {/* Tier columns — Free and Web Office only (Pro fold, 2026-09-23) */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+        {COMPARE_TIERS.map((tierId) => {
           const meta = TALENT_TIER_META[tierId];
           const isCurrent = tierId === current;
           return (
             <div
-              key={tierId}
+              key={tierId} data-talent-tier-compare-column={tierId}
               style={{
                 padding: "16px 16px",
                 background: tierId === "max" ? COLORS.fill : "#fff",
@@ -238,13 +243,14 @@ export function TalentTierCompareDrawer() {
           }}
         >
           {/* Header */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", padding: "10px 14px", background: "rgba(11,11,13,0.025)", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }} className="text-admin-ink-muted">
+          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr", padding: "10px 14px", background: "rgba(11,11,13,0.025)", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }} className="text-admin-ink-muted">
             <span>{t("dashboard.talentDrawers.premiumPages.colFeature")}</span>
-            <span className="text-center">Free</span>
-            <span className="text-center">Pro</span>
-            <span className="text-center">Portfolio</span>
+            <span className="text-center" data-talent-tier-compare-col="free">{copy.t("Free")}</span>
+            <span className="text-center" data-talent-tier-compare-col="max">{copy.t("Web Office")}</span>
           </div>
-          {/* Rows — grouped by section */}
+          {/* Rows — grouped by section. Pro fold (2026-09-23): the matrix is
+              two columns, Free and Web Office; the catalog's "pro" column is
+              no longer rendered here. */}
           {(["page", "discovery", "money", "tools"] as TalentTierGroup[]).map((group, gi) => {
             const rows = TALENT_TIER_CATALOG.filter((r) => r.group === group);
             if (rows.length === 0) return null;
@@ -258,7 +264,7 @@ export function TalentTierCompareDrawer() {
                     key={f.label}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1.6fr 1fr 1fr 1fr",
+                      gridTemplateColumns: "1.6fr 1fr 1fr",
                       padding: "10px 14px",
                       borderBottom: i < rows.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
                       fontFamily: FONTS.body,
@@ -269,7 +275,6 @@ export function TalentTierCompareDrawer() {
                   >
                     <span className="font-medium">{f.label}</span>
                     <FeatureCell value={f.free} />
-                    <FeatureCell value={f.pro} />
                     <FeatureCell value={f.max} />
                   </div>
                 ))}
@@ -305,9 +310,8 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
   const [pending, setPending] = useState<TalentSubscriptionTier | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const upgradeable = (["pro", "max"] as const).filter(
-    (tier) => tier !== current && !(current === "max" && tier === "pro"),
-  );
+  // Pro fold (2026-09-23): the only upgrade path left is to Web Office.
+  const upgradeable = (["max"] as const).filter((tier) => tier !== current);
 
   const onUpgrade = useCallback(
     async (tier: TalentSubscriptionTier) => {
@@ -472,10 +476,12 @@ export function TalentPageTemplateDrawer() {
     >
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
         {TALENT_PAGE_TEMPLATES.map((tpl) => {
+          // Pro fold (2026-09-23): every template's availableAt is now
+          // "free" or "max" — there is no "pro" tier of templates left to
+          // gate separately.
           const locked = !tierAllows(tier, "template-picker") && tpl.availableAt !== "free";
-          const tierLocked = !tierAllows(tier, "media-embeds") && tpl.availableAt === "pro";
           const sigLocked = !tierAllows(tier, "extra-sections") && tpl.availableAt === "max";
-          const isLocked = locked || tierLocked || sigLocked;
+          const isLocked = locked || sigLocked;
           const isActive = tpl.id === active;
           return (
             <button

@@ -83,6 +83,19 @@ test("membership state exposes UI-safe capability booleans", () => {
       canSetPersonalSiteTemplate: false,
       canConnectPersonalSiteDomain: false,
     },
+    // PHASE 1 — the personal-SITE record. `TALENT_FREE_WEBSITE_ENABLED` is
+    // unset in this lane, so every key resolves Max-only: the flags-off
+    // parity this whole phase rests on.
+    siteCapabilities: {
+      personalSiteEdit: false,
+      personalSitePublish: false,
+      personalSiteDesignPresets: false,
+      personalSiteSections: false,
+      personalSitePages: false,
+      personalSiteSeo: false,
+      personalSiteAnalytics: false,
+      personalSiteCustomDomain: false,
+    },
   });
 
   assert.deepEqual(buildTalentMembershipState("talent_pro"), {
@@ -98,6 +111,19 @@ test("membership state exposes UI-safe capability booleans", () => {
       canSetPersonalSiteTemplate: true,
       canConnectPersonalSiteDomain: false,
     },
+    // PHASE 1 — the personal-SITE record. `TALENT_FREE_WEBSITE_ENABLED` is
+    // unset in this lane, so every key resolves Max-only: the flags-off
+    // parity this whole phase rests on.
+    siteCapabilities: {
+      personalSiteEdit: false,
+      personalSitePublish: false,
+      personalSiteDesignPresets: false,
+      personalSiteSections: false,
+      personalSitePages: false,
+      personalSiteSeo: false,
+      personalSiteAnalytics: false,
+      personalSiteCustomDomain: false,
+    },
   });
 
   assert.deepEqual(buildTalentMembershipState("talent_portfolio"), {
@@ -112,6 +138,19 @@ test("membership state exposes UI-safe capability booleans", () => {
       canUseCustomBuilder: true,
       canSetPersonalSiteTemplate: true,
       canConnectPersonalSiteDomain: true,
+    },
+    // PHASE 1 — the personal-SITE record. `TALENT_FREE_WEBSITE_ENABLED` is
+    // unset in this lane, so every key resolves Max-only: the flags-off
+    // parity this whole phase rests on.
+    siteCapabilities: {
+      personalSiteEdit: true,
+      personalSitePublish: true,
+      personalSiteDesignPresets: true,
+      personalSiteSections: true,
+      personalSitePages: true,
+      personalSiteSeo: true,
+      personalSiteAnalytics: true,
+      personalSiteCustomDomain: true,
     },
   });
 });

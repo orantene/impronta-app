@@ -240,9 +240,13 @@ function ManagerBody({
       </Card>
 
       {/* Custom-domain panel — connect/verify a custom domain for this site.
-          Self-hydrates via its own server action; Max-gated (this manager only
-          renders for Max talents, so canManage is true here). */}
-      <TalentSiteDomainPanel canManage />
+          Self-hydrates via its own server action. Phase 1: a custom domain is
+          a Web Office capability, so this reads the capability RECORD rather
+          than the manager's `canManage` flag — `canManage` now only means
+          "may edit my own site", which is true on every tier once
+          TALENT_FREE_WEBSITE_ENABLED is on. While the switch is off the record
+          is Max-only, so this stays `true` exactly as before. */}
+      <TalentSiteDomainPanel canManage={state.capabilities.personalSiteCustomDomain} />
     </div>
   );
 }

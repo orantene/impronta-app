@@ -7,6 +7,8 @@
  * the shapes from here.
  */
 
+import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
+
 export type MaxSiteManagerPage = {
   id: string;
   slug: string;
@@ -20,8 +22,15 @@ export type MaxSiteManagerPage = {
 };
 
 export type MaxSiteManagerState = {
-  /** True when the talent has Max (the only tier with the builder). */
+  /**
+   * Phase 1 — true when the talent may edit their own site at all
+   * (`personalSiteEdit`). Every tier qualifies once
+   * `TALENT_FREE_WEBSITE_ENABLED` is on; while it is off this is Max-only,
+   * exactly as it was when the field meant "has Max".
+   */
   canManage: boolean;
+  /** Per-capability record; the UI reads this instead of re-deriving gates. */
+  capabilities: TalentSiteCapabilities;
   tier: "free" | "pro" | "max";
   talentProfileId: string;
   displayName: string;

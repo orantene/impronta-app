@@ -7,7 +7,7 @@
  * `builderTree` to `talent_sites.shell_tree` (draft) / publish by baking
  * `shell_tree → shell_published`. NEVER touch `cms_pages` / `cms_page_sections`.
  *
- * AUTH: owner + Max via `requireTalentSelf` + `assertTalentCanUseCustomBuilder`.
+ * AUTH: owner + `personalSiteEdit` via `requireTalentSelf` + `assertTalentCanEditSite`.
  * `talent_sites` RLS (owner-only via `is_talent_profile_owner`) independently
  * backs every write, so a forged `talentProfileId` can't escape the caller's own
  * row. The bound mount also passes the talent's OWN id, so the gate + the
@@ -21,11 +21,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
-import {
-  requireTalentSelf,
-  assertTalentCanUseCustomBuilder,
-} from "@/lib/server/talent-self-guard";
+import { requireTalentSelf, assertTalentCanEditSite } from "@/lib/server/talent-self-guard";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
+import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
+import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
 import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node/normalize-tree-layout";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 import { resolveBuilderTreeClassRefs } from "@/lib/site-admin/builder-node/style-classes";
@@ -47,7 +46,7 @@ import {
 } from "./talent-site-shell-revision-snapshot";
 
 /**
- * Resolve the signed-in talent + assert Max + assert the requested
+ * Resolve the signed-in talent + assert `personalSiteEdit` + assert the requested
  * `talentProfileId` is the caller's own. Returns the owner id on success.
  */
 async function gateOwner(
@@ -58,7 +57,10 @@ async function gateOwner(
 > {
   const scope = await requireTalentSelf();
   if (!scope.ok) return { ok: false, error: scope.error };
-  if (!assertTalentCanUseCustomBuilder(scope.planKey)) {
+  // PHASE 1 — editing the shell (logo, wordmark, footer text) is FREE. The
+  // capability resolves Max-only while `TALENT_FREE_WEBSITE_ENABLED` is off, so
+  // this reads exactly as the old Max check did until the switch flips.
+  if (!assertTalentCanEditSite(scope.planKey)) {
     return { ok: false, error: "Upgrade to Max to edit your site shell." };
   }
   if (talentProfileId && talentProfileId !== scope.talentProfile.id) {
@@ -203,6 +205,23 @@ export async function saveTalentSiteShellRow(
       enforceLockedPropsOnTree(input.patch.shellTree ?? [], currentRow?.shell_tree),
     );
 
+    // PHASE 1 — free personal website: the shell is the SAME chokepoint as the
+    // page save. Without `personalSiteSections` a save may not introduce a new
+    // node id nested under a section; text, images, logo, hide and reorder all
+    // keep their ids and stay allowed. `null` = rules do not apply (switch off,
+    // staff editor, not the owner).
+    const siteCaps = await loadTalentSiteSaveCapabilities(gate.talentProfileId);
+    if (siteCaps) {
+      const structural = assertFreeTalentSiteTreeMutation({
+        previousTree: currentRow?.shell_tree,
+        nextTree: enforced,
+        canInsertSections: siteCaps.personalSiteSections,
+      });
+      if (!structural.ok) {
+        return { ok: false as const, error: structural.message };
+      }
+    }
+
     // STYLE-1 — only set the style columns when the caller touched them.
     const stylePatch: Record<string, unknown> = {};
     if (input.patch.style_classes !== undefined) {
@@ -331,7 +350,7 @@ export async function publishTalentSiteShellRow(
  *   - mints a fresh `kind='draft'` revision so the audit trail is complete
  *     (`talent_site_revisions.kind` has no `rollback` value).
  *
- * AUTH: owner + Max via `gateOwner`. `talent_sites` / `talent_site_revisions`
+ * AUTH: owner + `personalSiteEdit` via `gateOwner`. `talent_sites` / `talent_site_revisions`
  * RLS independently allows only the owner, so a forged id can't escape the
  * caller's own row. The revision lookup is scoped to the owner's site.
  */
@@ -380,6 +399,22 @@ export async function restoreTalentSiteShellRevisionAction(
     const enforced = normalizeUnknownBuilderTreeLayout(
       enforceLockedPropsOnTree(restoredTree, siteRow.shell_tree),
     );
+
+    // 3b. PHASE 1 — a restore writes a tree, so it carries the same free-site
+    //     rule as a save. Without it a lapsed Web Office talent could reinstate
+    //     the shell sections the save path refuses by restoring an old
+    //     revision. `null` = the free-site rules do not apply.
+    const siteCaps = await loadTalentSiteSaveCapabilities(gate.talentProfileId);
+    if (siteCaps) {
+      const structural = assertFreeTalentSiteTreeMutation({
+        previousTree: siteRow.shell_tree,
+        nextTree: enforced,
+        canInsertSections: siteCaps.personalSiteSections,
+      });
+      if (!structural.ok) {
+        return { ok: false as const, error: structural.message };
+      }
+    }
 
     // 4. Write the restored tree back to the DRAFT shell_tree.
     const now = new Date().toISOString();

@@ -7,9 +7,10 @@
  *
  * Gating, in order:
  *   1. `TALENT_THEME_GALLERY_ENABLED` (dark launch; off → `feature_disabled`);
- *   2. the site-action gate (signed-in owner + Max). The plan maps Design to
- *      `personalSiteEdit` and Look to `personalSiteDesignPresets`; until Phase 1
- *      introduces those keys both resolve to this Max gate;
+ *   2. the site-action gate (signed-in owner + capability). Design applies under
+ *      `personalSiteEdit` and Look under `personalSiteDesignPresets` — both FREE
+ *      for every tier once `TALENT_FREE_WEBSITE_ENABLED` is on, and both Max-only
+ *      while it is off;
  *   3. the catalog row must be PUBLISHED and its `required_talent_tier` within
  *      the caller's plan.
  *
@@ -17,6 +18,7 @@
  * site (resolved from the gate, never from input).
  */
 
+import type { TalentSiteCapability } from "@/lib/access/talent-membership";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -33,11 +35,11 @@ const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 type Ready = { ok: true; g: GateOk; admin: NonNullable<ReturnType<typeof createServiceRoleClient>> };
 type NotReady = Extract<ThemeActionResult, { ok: false }>;
 
-async function ready(): Promise<Ready | NotReady> {
+async function ready(capability: TalentSiteCapability): Promise<Ready | NotReady> {
   if (!isTalentThemeGalleryEnabled()) {
     return { ok: false, code: "feature_disabled", error: "Themes are not available yet." };
   }
-  const g = await gate();
+  const g = await gate(capability);
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
@@ -70,7 +72,7 @@ async function ensureSiteId(r: Ready): Promise<{ ok: true; siteId: string } | No
 export async function applySiteDesignAction(input: {
   designSlug: string;
 }): Promise<ThemeActionResult<{ designSlug: string; designVersion: number }>> {
-  const r = await ready();
+  const r = await ready("personalSiteEdit");
   if (!r.ok) return r;
   const loaded = await loadRowFor(r, "design", input?.designSlug);
   if (!loaded.ok) return loaded;
@@ -89,7 +91,7 @@ export async function applySiteDesignAction(input: {
 export async function applySiteLookAction(input: {
   lookSlug: string;
 }): Promise<ThemeActionResult<{ lookSlug: string; draftTokens: Record<string, string> }>> {
-  const r = await ready();
+  const r = await ready("personalSiteDesignPresets");
   if (!r.ok) return r;
   const loaded = await loadRowFor(r, "look", input?.lookSlug);
   if (!loaded.ok) return loaded;
@@ -102,7 +104,7 @@ export async function applySiteLookAction(input: {
 export async function publishSiteThemeAction(): Promise<
   ThemeActionResult<{ themeVersion: number }>
 > {
-  const r = await ready();
+  const r = await ready("personalSiteEdit");
   if (!r.ok) return r;
   const { data, error } = await r.admin
     .from("talent_sites")

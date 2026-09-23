@@ -41,10 +41,17 @@ import {
   hydrateShellNav,
   maxSitePublicGate,
   resolveMaxSiteTitles,
+  scopeMaxSitePagesToPlan,
   selectMaxSitePage,
   type MaxSiteRow,
   type MaxSitePageRow,
 } from "@/lib/talent-site/resolve-max-site-core";
+import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
+import { scrubTalentSiteSeo } from "@/lib/talent-site/free-site-seo";
+import {
+  talentSiteBadgeLabel,
+  talentSiteShowsPlatformBadge,
+} from "@/lib/talent-site/free-site-badge";
 import { buildTalentProfileJsonLd } from "@/lib/seo/talent-json-ld";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
@@ -191,11 +198,11 @@ export async function renderTalentMaxSite(
     }
 
     // ── Plan + publish gate ─────────────────────────────────────────────────
-    // The public path requires Max + a published site. The owner draft preview
-    // bypasses this so the owner can preview an unpublished draft.
-    const planKey = isOwnerDraftPreview
-      ? null
-      : await loadTalentPlanKey(talentProfileId);
+    // The public path requires `personalSitePublish` + a published site. The
+    // owner draft preview bypasses the gate so the owner can preview an
+    // unpublished draft — but the plan is still READ there, because read-time
+    // SEO scoping below needs it on both paths.
+    const planKey = await loadTalentPlanKey(talentProfileId);
     const gateOpen = maxSitePublicGate({
       sitePublishedAt: site.sitePublishedAt,
       planKey,
@@ -207,7 +214,14 @@ export async function renderTalentMaxSite(
     const shellSource = isOwnerDraftPreview ? site.shellTree : site.shellPublished;
     const shellTree = coerceTree(shellSource);
 
-    const pages = await loadMaxSitePages(talentProfileId);
+    const allPages = await loadMaxSitePages(talentProfileId);
+    // PHASE 1 — read-time page scoping. Extra pages are Web Office: a talent
+    // without `personalSitePages` serves HOME ONLY on the public path, while
+    // every row stays in the database. The owner's draft preview is never
+    // scoped — they always see their whole site.
+    const pages = isOwnerDraftPreview
+      ? allPages
+      : scopeMaxSitePagesToPlan(allPages, planKey);
     // Owner draft preview renders draft pages too; the public path requires
     // published (the pure core re-applies this — defense in depth over RLS).
     const requirePublished = !isOwnerDraftPreview;
@@ -260,11 +274,20 @@ export async function renderTalentMaxSite(
       locale: input.locale,
       publicPathPrefix,
       draftPreview: isOwnerDraftPreview,
+      // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan
+      // removes it (same predicate as the /t/[code] profile footer).
+      showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
     });
 
     const seo = buildMaxSiteSeo({
       site,
-      page,
+      // PHASE 1 — SEO is Web Office. A talent without `personalSiteSeo` renders
+      // with their stored SEO IGNORED (never deleted), so a lapsed Web Office
+      // talent's overrides simply stop applying and come back on restore.
+      page: scrubTalentSiteSeo(
+        page,
+        talentPlanGrantsSiteCapability(planKey, "personalSiteSeo"),
+      ),
       identity,
       locale: input.locale,
       noindex: isOwnerDraftPreview,
@@ -378,6 +401,8 @@ async function renderMaxSiteDocument(args: {
   locale: string;
   publicPathPrefix: string;
   draftPreview: boolean;
+  /** PHASE 1 — render the "Made with Tulala" footer mark (free sites only). */
+  showPlatformBadge: boolean;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -389,6 +414,7 @@ async function renderMaxSiteDocument(args: {
     locale,
     publicPathPrefix,
     draftPreview,
+    showPlatformBadge,
   } = args;
 
   // Page-scoped theme cascade — identical to the published talent page route.
@@ -648,6 +674,23 @@ async function renderMaxSiteDocument(args: {
             renderSectionEmbed,
           })}
         </footer>
+      ) : null}
+
+      {/* PHASE 1 — the free site's platform mark. Paid plans remove it. */}
+      {showPlatformBadge ? (
+        <div
+          data-talent-max-site-badge=""
+          style={{
+            padding: "16px",
+            textAlign: "center",
+            fontSize: 12,
+            color: "var(--token-color-ink-muted, rgba(11,11,13,0.45))",
+          }}
+        >
+          <a href="https://tulala.digital" rel="noopener" style={{ color: "inherit" }}>
+            {talentSiteBadgeLabel(locale)}
+          </a>
+        </div>
       ) : null}
     </div>
   );

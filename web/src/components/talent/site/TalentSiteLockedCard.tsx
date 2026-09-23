@@ -28,8 +28,8 @@ export function TalentSiteLockedCard({ state, onUpgrade }: Props) {
         Personal site — {tierLabel} plan
       </h3>
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "rgba(11,11,13,0.55)", lineHeight: 1.5 }}>
-        Upgrade to Max to create, edit, or publish your personal site. Your standard Tulala profile
-        at {state.publicProfileUrl ?? "/t/…"} is unchanged.
+        Upgrade to Web Office to create, edit, or publish your personal site. Your standard Tulala
+        profile at {state.publicProfileUrl ?? "/t/…"} is unchanged.
       </p>
       {state.site?.hasPublishedSnapshot && state.publicSiteUrl ? (
         <p style={{ margin: "0 0 12px", fontSize: 13 }}>
@@ -40,7 +40,7 @@ export function TalentSiteLockedCard({ state, onUpgrade }: Props) {
         </p>
       ) : null}
       <p style={{ margin: "0 0 16px", fontSize: 13, fontWeight: 600, color: "#0B0B0D" }}>
-        Upgrade to Max to edit or publish again.
+        Upgrade to Web Office to edit or publish again.
       </p>
       {onUpgrade ? (
         <button
