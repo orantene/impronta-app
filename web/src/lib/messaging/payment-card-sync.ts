@@ -21,13 +21,18 @@ import type { PaymentState } from "./lifecycle";
  * the card is brought in line with it.
  */
 
+/**
+ * The caller is `record-sync`, whose own `Admin` declares only an optional
+ * `rpc`. `rpc` is carried here purely so the two types share a property:
+ * without it TypeScript's weak-type check rejects an all-optional type that
+ * overlaps in nothing (TS2559). `from` is optional for the same reason
+ * `record-sync` makes `rpc` optional - a client that cannot read simply does
+ * not mirror the card, exactly as the rpc guard does.
+ */
 type Admin = {
-  /** Optional for the same reason `record-sync` makes `rpc` optional: several
-   * callers type their client as `{ rpc? }` only, and their test fakes inject
-   * one shape or the other. A client with no `from` simply cannot mirror the
-   * card and says so, exactly as the rpc guard does. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from?: (table: string) => any;
+  rpc?: unknown;
 };
 
 /**
