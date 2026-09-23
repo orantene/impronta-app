@@ -41,8 +41,21 @@ cd web
 tsx --env-file=.env.local e2e/talent-website/seed.ts
 ```
 
+**Offline, no Docker** — a hermetic database plus a Supabase-compatible HTTP
+surface built entirely from this repo:
+
+```bash
+# see supabase/ci/RUNBOOK.md for the full sequence
+bash supabase/ci/local-postgres.sh up && eval "$(bash supabase/ci/local-postgres.sh env)"
+bash supabase/ci/apply-migrations.sh --defer
+bash supabase/ci/local-services.sh up && eval "$(bash supabase/ci/local-services.sh env)"
+cd web && npx tsx e2e/talent-website/seed.ts
+```
+
 Re-running is safe — every write is select-then-branch or `upsert` on a
 natural/unique key (see "Idempotency" in `seed.ts`'s header comment).
+Verified, not assumed: two consecutive runs against the same database leave
+the row counts unchanged.
 
 ## The fixtures
 
@@ -137,6 +150,16 @@ owns Q.1/Q.4 should decide whether this belongs in a proper follow-up
 migration for production too — filing that decision, not silently fixing
 production, is this script's job.
 
+**The plan_tier flip alone was not enough**, which only showed when this
+script was first actually executed (Phase Q, against a from-scratch database
+built by `supabase/ci/`). `agencies_unlimited_tiers_have_no_seat_cap`
+(`20261227000002_plan_capabilities.sql`) forbids a FINITE `talent_seat_limit`
+on the tiers sold as unlimited — `agency`, `network`, `legacy`. The hub row
+carries the `free`-tier default of 5 seats, so promoting it to `network`
+without clearing the cap fails with a `23514` check violation and the seeder
+stops on its very first write. `ensurePlatformHub()` now sets
+`talent_seat_limit = null` in the same update.
+
 ## Hosts
 
 The task was to seed the host kinds the talent dashboard and marketing `/t/`
@@ -192,9 +215,45 @@ the pure helpers in `web/src/lib/talent-site/default-max-site-trees.ts`
 because that function is Max-gated (`talent_plan_key !== "talent_portfolio"`
 is refused outright) and would reject `t_free_site`.
 
+## First execution (Phase Q) — what actually broke
+
+This folder was written before it could be run: there was no from-scratch
+database to run it against. `supabase/ci/RUNBOOK.md` now builds one without
+Docker, and the first real execution found two bugs, both fixed here:
+
+1. **The platform-hub promotion violated a check constraint** — see the
+   section above (`talent_seat_limit` must be null on an unlimited tier).
+2. **Every fixture shared one phone number.** `talent_profiles_phone_e164_uk`
+   (`20260625130000_saas_p56_m0_talent_phone_e164.sql`) is a UNIQUE index, so
+   the second fixture died with `23505 duplicate key … (phone_e164)=(+15550100)`.
+   `fixtures.ts` now declares one `phoneE164` per identity and `seed.ts`
+   derives the display form from it, so the two columns cannot drift.
+
+3. **The fixture site could not render at all**, for three reasons outside this
+   folder. Two are fixed on this branch (`web/src/app/%5F*` folder renames so the
+   proxy's `/_talent-site` rewrite resolves; `next.config.ts` following the
+   Supabase URL's own scheme so next/image stops throwing on a local `http://`
+   storage URL). The third is reported, not fixed: `buildStarterHomePageTree` —
+   the tree `provisionTalentMaxSite` writes for a NEW Max site — wraps its
+   content in a root `section` that `renderFreeformPageRootTree` does not paint,
+   so a freshly provisioned site renders nothing and is 404ed as empty. That is
+   a product decision, not a fixture detail, so the seed builds a flat renderable
+   tree and says so at the site (`buildHomePageTree`). All three are written up
+   in `supabase/ci/RUNBOOK.md`, "What running it found".
+
+Two things that were *expected* to break and did not, checked rather than
+assumed: the composite-key upserts
+(`talent_pages` on `talent_profile_id,slug`, `talent_profile_taxonomy` on
+`talent_profile_id,taxonomy_term_id`). Both target real constraints —
+`talent_pages_profile_slug_key UNIQUE (talent_profile_id, slug)` and
+`talent_profile_taxonomy`'s composite PRIMARY KEY — and PostgREST resolves
+`on_conflict=a,b` against them. Proven by running the seeder twice against the
+same database: identical row counts, no error.
+
 ## Known gaps / follow-ups for whoever owns Q.2 or the later phases
 
-- No Playwright specs live here yet — only the fixtures they'll need.
+- `smoke.spec.ts` is the only spec here: `t_max`'s site on its custom domain
+  and `/t/<code>`. The J0–J8 journeys in the plan are still unwritten.
 - `t_free_site`'s and `t_max`'s media/gallery blocks are the DEFAULT starter
   tree (hero + tagline), not a rich hydrated profile tree
   (`buildDefaultTalentProfileTree` + `hydrateTalentTree`, used by the real

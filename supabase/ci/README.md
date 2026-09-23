@@ -14,6 +14,9 @@ production — so everything needed to replay them lives in this directory.
 | `migration-shims/<version>.replace.sql` | Applied **instead of** the migration, for a file that holds a statement PostgreSQL rejects on every version, or that production recorded but never actually ran. Every use is printed as a `::warning`. Prefer a pre/post shim. |
 | `production-only-objects.sql` | The objects production holds that **no migration creates** (D-014). Applied once, last, on a full replay only. |
 | `verify-schema.ts` | Diffs the built database against `web/src/lib/supabase/database.types.ts` — the one production-derived artefact in this repo — and fails on anything missing or mismatched. |
+| `local-services.sh` / `local-services.mjs` | The Supabase HTTP surface without Docker: `/rest/v1` reverse-proxied to a real PostgREST binary, `/auth/v1` a minimal stand-in writing `auth.users` directly. What is faithful and what is not is in the `.mjs` header. |
+| `app-env.sh` | Writes `web/.env.local` for a run against this stack — local Supabase URL + keys, dummy third-party values, the three talent-website flags on. Reuses already-exported Supabase env, which is how CI feeds it `supabase start`'s own keys. |
+| `RUNBOOK.md` | Clean checkout → built database → seeded fixtures → running app → passing Playwright journey, offline and without Docker. The command sequence, and what the loop does not prove. |
 
 ## Status: the history replays, and the result is checked
 
@@ -252,8 +255,9 @@ what any check here can reach:
   or allow-lists it with proof.
 
 One optional, one-off schema-only diff against production would close all
-three. `.github/workflows/talent-website-e2e.yml` still switches to "baseline
-mode" if `supabase/e2e-baseline.sql` ever appears, and that path is kept for
-exactly that one-off check. **It is not needed, it is not a dependency, and
-nobody has to produce one: CI does not want a dump and the founder is not
-asked for one.**
+three. The workflow no longer has a "baseline mode" to switch into: the
+`supabase/e2e-baseline.sql` branch was removed on 2026-09-23, because keeping a
+dump-shaped path alive — even an optional one — kept alive the idea that
+somebody must eventually produce a dump. **Nobody does. It is not needed, it is
+not a dependency: CI does not want a dump and the founder is not asked for
+one.**

@@ -33,6 +33,15 @@ export interface TalentFixture {
   email: string;
   profileCode: string;
   displayName: string;
+  /**
+   * E.164 phone, UNIQUE per fixture. `talent_profiles_phone_e164_uk`
+   * (20260625130000_saas_p56_m0_talent_phone_e164.sql) is a unique index, so
+   * two fixtures sharing one number is a 23505 on the second insert — which is
+   * exactly what happened the first time this seed ran against a from-scratch
+   * database (Phase Q). One number per identity, declared here with the rest
+   * of the identity so a spec that asserts on a phone reads it from one place.
+   */
+  phoneE164: string;
   talentPlanKey: "talent_basic" | "talent_pro" | "talent_portfolio";
   /** Set only for fixtures that own a published site (free or Max). */
   siteSlug?: string;
@@ -46,6 +55,7 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
     email: "qa-t-incomplete@impronta.test",
     profileCode: "TAL-QA-INCOMPLETE",
     displayName: "Incomplete Ivy",
+    phoneE164: "+15550101",
     talentPlanKey: "talent_basic",
   },
   {
@@ -53,6 +63,7 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
     email: "qa-t-ready@impronta.test",
     profileCode: "TAL-QA-READY",
     displayName: "Ready Renata",
+    phoneE164: "+15550102",
     talentPlanKey: "talent_basic",
   },
   {
@@ -60,6 +71,7 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
     email: "qa-t-free-site@impronta.test",
     profileCode: "TAL-QA-FREESITE",
     displayName: "Free Site Fiona",
+    phoneE164: "+15550103",
     talentPlanKey: "talent_basic",
     siteSlug: "free-site-fiona",
     customDomain: "free-site.test",
@@ -69,6 +81,7 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
     email: "qa-t-max@impronta.test",
     profileCode: "TAL-QA-MAX",
     displayName: "Max Site Maxine",
+    phoneE164: "+15550104",
     talentPlanKey: "talent_portfolio",
     siteSlug: "max-site-maxine",
     customDomain: "max-site.test",
@@ -78,6 +91,7 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
     email: "qa-t-pro-legacy@impronta.test",
     profileCode: "TAL-QA-PROLEGACY",
     displayName: "Pro Legacy Priya",
+    phoneE164: "+15550105",
     talentPlanKey: "talent_pro",
   },
   {
@@ -85,6 +99,7 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
     email: "qa-t-multi-roster@impronta.test",
     profileCode: "TAL-QA-MULTIROSTER",
     displayName: "Multi Roster Mona",
+    phoneE164: "+15550106",
     talentPlanKey: "talent_basic",
   },
 ] as const;

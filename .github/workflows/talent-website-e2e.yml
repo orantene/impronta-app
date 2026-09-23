@@ -2,22 +2,27 @@
 # Talent website E2E — self-contained, NO repository secrets required.
 #
 # Boots a throwaway local Supabase inside the runner (official supabase CLI,
-# Docker), builds the database schema, and (in later Phase Q steps) runs the
-# talent-website Playwright journey against it. The database is local to the
-# job: this lane never touches production or any shared Supabase project.
+# Docker), builds the database schema from the migration history, seeds the
+# talent-website fixtures and runs the smoke journey against the real app. The
+# database is local to the job: this lane never touches production or any
+# shared Supabase project.
 #
 # How the schema is built (see supabase/ci/README.md):
-#   - ARMED   (supabase/e2e-baseline.sql exists): load the baseline, then apply
-#             every migration newer than it, strictly in order.
-#   - UNARMED (no baseline yet): replay the whole migration history from an
-#             empty database with supabase/ci/apply-migrations.sh --defer.
-#             As of 2026-09-23 this replay SUCCEEDS end to end — no baseline,
-#             no production credentials, no founder step. The files that
-#             cannot apply as written are handled by documented shims in
-#             supabase/ci/migration-shims/; supabase/ci/README.md lists the
-#             five shapes and the rule for writing one. Anything that still
-#             cannot apply fails the job, with its full error text in the
-#             job summary.
+#   ONE WAY, always: replay the whole migration history from an empty database
+#   with supabase/ci/apply-migrations.sh --defer. As of 2026-09-23 that replay
+#   SUCCEEDS end to end — 859/859, no baseline, no production credentials, no
+#   founder step. The files that cannot apply as written are handled by
+#   documented shims in supabase/ci/migration-shims/; supabase/ci/README.md
+#   lists the six shapes and the rule for writing one. Anything that still
+#   cannot apply fails the job, with its full error text in the job summary.
+#
+#   There is NO baseline branch any more. supabase/e2e-baseline.sql was a
+#   production `db dump` this lane would have had to be handed by a human; the
+#   replay removed the need for it, so depending on it — even optionally — kept
+#   alive the idea that someone must eventually produce one. Nobody does.
+#
+# Running it locally, with no Docker at all (same scripts, same seed, same
+# journey): supabase/ci/RUNBOOK.md.
 #
 # CI-only overrides (applied to the runner's checkout, never committed):
 #   - [db.seed] off: config.toml seeds seed_demo_profiles.sql (demo roster).
@@ -98,23 +103,14 @@ jobs:
           psql --version
           psql -Atc "select current_user, version()"
 
-      - name: Build schema (baseline + delta, or full replay)
+      - name: Build schema (full replay from empty)
         id: schema
         run: |
           set -o pipefail
-          if [ -f supabase/e2e-baseline.sql ]; then
-            echo "mode=baseline" >> "$GITHUB_OUTPUT"
-            psql -X -q -v ON_ERROR_STOP=1 -f supabase/e2e-baseline.sql
-            after=$(psql -Atc "select coalesce(max(version), '0') from supabase_migrations.schema_migrations")
-            echo "Baseline loaded; applying migrations after $after"
-            bash supabase/ci/apply-migrations.sh --after "$after" | tee "$RUNNER_TEMP/apply.log"
-          else
-            echo "mode=replay" >> "$GITHUB_OUTPUT"
-            echo "Replaying the full migration history from empty (no baseline needed; see supabase/ci/README.md)."
-            MIGRATION_LOG="$RUNNER_TEMP/order.log" \
-            FAILURE_REPORT="$RUNNER_TEMP/failures.txt" \
-              bash supabase/ci/apply-migrations.sh --defer | tee "$RUNNER_TEMP/apply.log"
-          fi
+          echo "Replaying the full migration history from empty (see supabase/ci/README.md)."
+          MIGRATION_LOG="$RUNNER_TEMP/order.log" \
+          FAILURE_REPORT="$RUNNER_TEMP/failures.txt" \
+            bash supabase/ci/apply-migrations.sh --defer | tee "$RUNNER_TEMP/apply.log"
 
       - name: Report
         if: always() && steps.schema.outcome != 'skipped'
@@ -122,7 +118,6 @@ jobs:
           on_disk=$(ls supabase/migrations | grep -cE '^[0-9]+_.*\.sql$')
           applied=$(psql -Atc "select count(*) from supabase_migrations.schema_migrations" 2>/dev/null || echo 0)
           tables=$(psql -Atc "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'" 2>/dev/null || echo 0)
-          echo "Mode:               ${{ steps.schema.outputs.mode }}"
           echo "Migrations on disk: $on_disk"
           echo "Migrations applied: $applied"
           echo "Public tables:      $tables"
@@ -131,7 +126,6 @@ jobs:
             echo ""
             echo "| Metric | Value |"
             echo "|---|---|"
-            echo "| Mode | ${{ steps.schema.outputs.mode }} |"
             echo "| Migrations on disk | $on_disk |"
             echo "| Migrations applied | $applied |"
             echo "| Public tables | $tables |"
@@ -182,6 +176,80 @@ jobs:
             head -150 "$RUNNER_TEMP/verify.log"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── The journey ─────────────────────────────────────────────────────────
+      # Everything below runs the SAME committed files the no-Docker local loop
+      # runs (supabase/ci/RUNBOOK.md): the same seed script, the same env
+      # builder, the same spec. Only the Supabase underneath differs — a real
+      # `supabase start` here, the PostgREST + auth stand-in locally.
+      - name: Setup Node
+        if: steps.schema.outcome == 'success'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        if: steps.schema.outcome == 'success'
+        working-directory: web
+        run: npm ci
+
+      - name: Seed talent-website fixtures
+        if: steps.schema.outcome == 'success'
+        run: |
+          set -euo pipefail
+          # The CLI's OWN local keys, printed by the stack it just started.
+          # Never a repository secret: this lane has none and needs none.
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          cd web && npx tsx e2e/talent-website/seed.ts
+
+      - name: Build the app against the seeded database
+        if: steps.schema.outcome == 'success'
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          APP_PORT=3400 bash supabase/ci/app-env.sh
+          cd web && npm run build
+
+      # The proxy gates on the Host header and a browser will not let a test
+      # forge it, so the fixture's custom domain has to resolve to the runner.
+      - name: Resolve the fixture custom domains to localhost
+        if: steps.schema.outcome == 'success'
+        run: echo "127.0.0.1 max-site.test free-site.test acme.lvh.me" | sudo tee -a /etc/hosts
+
+      - name: Smoke journey (Playwright)
+        id: journey
+        if: steps.schema.outcome == 'success'
+        working-directory: web
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3400
+          PLAYWRIGHT_SKIP_WEBSERVER: "1"
+        run: |
+          set -euo pipefail
+          npx playwright install --with-deps chromium
+          PORT=3400 npx next start -p 3400 &
+          for i in $(seq 1 60); do
+            curl -fsS "http://localhost:3400/t/TAL-QA-MAX" >/dev/null 2>&1 && break
+            sleep 2
+          done
+          npx playwright test e2e/talent-website/smoke.spec.ts --project=chromium --reporter=line
+
+      - name: Journey evidence
+        if: always() && steps.journey.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: talent-website-smoke-evidence
+          path: |
+            qa-evidence/talent-website/local/
+            web/test-results/
+          if-no-files-found: ignore
 
       - name: Supabase DB logs on failure
         if: failure()

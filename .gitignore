@@ -67,3 +67,6 @@ tmp-*
 .worktree-owner
 docs/plans/impronta-lumina/sweep/*.png
 docs/plans/impronta-lumina/mockup/preset/preset-*.png
+
+# CI-only local services binary (PostgREST); downloaded, never committed — see supabase/ci/local-services.mjs
+supabase/ci/.bin/

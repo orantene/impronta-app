@@ -27,17 +27,26 @@ let remotePatterns: NonNullable<
 
 if (supabaseUrl) {
   try {
-    const host = new URL(supabaseUrl).hostname;
+    const parsed = new URL(supabaseUrl);
+    const host = parsed.hostname;
+    // Follow the URL's own scheme. A hosted project is https; a LOCAL Supabase
+    // — `supabase start` and the no-Docker stack in supabase/ci/ — is
+    // `http://127.0.0.1:54321`, and pinning "https" there left every storage
+    // image unconfigured. next/image then THROWS "hostname … is not configured
+    // under images", and on the talent-site render path that throw is caught
+    // and degraded to a 404, so a whole published site silently disappeared in
+    // local QA. Found running the talent-website smoke journey (Phase Q).
+    const protocol = parsed.protocol === "http:" ? "http" : "https";
     // Allow both public objects and short-lived signed URLs (private docs, gated
      // media). Without the sign pattern, next/image silently 400s on signed URLs.
     remotePatterns = [
       {
-        protocol: "https",
+        protocol,
         hostname: host,
         pathname: "/storage/v1/object/public/**",
       },
       {
-        protocol: "https",
+        protocol,
         hostname: host,
         pathname: "/storage/v1/object/sign/**",
       },

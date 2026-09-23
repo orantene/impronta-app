@@ -43,10 +43,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-import {
-  buildDefaultShellTree,
-  buildStarterHomePageTree,
-} from "../../src/lib/talent-site/default-max-site-trees";
+import { buildDefaultShellTree } from "../../src/lib/talent-site/default-max-site-trees";
 import type { BuilderNode } from "../../src/lib/site-admin/builder-node/types";
 
 import {
@@ -282,7 +279,20 @@ async function ensurePlatformHub(): Promise<string> {
       );
       const { error: updErr } = await admin
         .from("agencies")
-        .update({ plan_tier: "network", status: "active", updated_at: new Date().toISOString() })
+        .update({
+          plan_tier: "network",
+          status: "active",
+          // `agencies_unlimited_tiers_have_no_seat_cap`
+          // (20261227000002_plan_capabilities.sql): a tier sold as unlimited
+          // — agency / network / legacy — may not carry a FINITE
+          // talent_seat_limit. The hub row is seeded at the 'free' default
+          // (talent_seat_limit = 5), so promoting it to 'network' without
+          // clearing the cap fails with a 23514 check violation. Found by
+          // running this seeder against a from-scratch database for the first
+          // time (Phase Q); the plan_tier fix alone was never enough.
+          talent_seat_limit: null,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", row.id);
       if (updErr) throw updErr;
     }
@@ -297,6 +307,9 @@ async function ensurePlatformHub(): Promise<string> {
       display_name: "Impronta Hub",
       kind: "hub",
       plan_tier: "network",
+      // See the update branch above: 'network' is an unlimited tier and may
+      // not carry a finite seat cap (agencies_unlimited_tiers_have_no_seat_cap).
+      talent_seat_limit: null,
       status: "active",
       supported_locales: ["en", "es"],
       onboarding_completed_at: new Date().toISOString(),
@@ -435,6 +448,12 @@ const INCOMPLETE_READINESS: ReadinessPlan = {
   workflowStatus: "draft",
 };
 
+/** `+15550101` → `+1-555-0101`, the display form `talent_profiles.phone` holds. */
+function formatDisplayPhone(e164: string): string {
+  const m = e164.match(/^\+(\d)(\d{3})(\d{4})$/);
+  return m ? `+${m[1]}-${m[2]}-${m[3]}` : e164;
+}
+
 async function ensureTalentProfile(
   fx: TalentFixture,
   userId: string,
@@ -444,8 +463,12 @@ async function ensureTalentProfile(
   const patch: Record<string, unknown> = {
     display_name: readiness.displayName ? fx.displayName : null,
     first_name: readiness.displayName ? fx.displayName.split(" ")[0] : null,
-    phone: readiness.phone ? "+1-555-0100" : null,
-    phone_e164: readiness.phone ? "+15550100" : null,
+    // One number per fixture: `talent_profiles_phone_e164_uk` is unique, so a
+    // shared literal makes the second fixture fail with 23505 (see the
+    // `phoneE164` comment in fixtures.ts). The display form is derived from
+    // the same value so the two columns can never drift apart.
+    phone: readiness.phone ? formatDisplayPhone(fx.phoneE164) : null,
+    phone_e164: readiness.phone ? fx.phoneE164 : null,
     short_bio: readiness.shortBio
       ? `${fx.displayName} is a QA fixture talent for the talent-website e2e suite.`
       : null,
@@ -591,27 +614,59 @@ async function ensurePublishedOffering(talentProfileId: string, title: string): 
 // profile decides which tier gate the render path applies).
 // ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * Page trees for the seeded sites.
+ *
+ * WHY THESE ARE FLAT, AND NOT `buildStarterHomePageTree` WRAPPED IN A SECTION
+ * ─────────────────────────────────────────────────────────────────────────
+ * A talent page's `blocks` are painted by `renderFreeformPageRootTree`
+ * (`lib/site-admin/builder-node/freeform-page-blocks.tsx`). At the ROOT of a
+ * freeform page it renders a `section` node ONLY when that section is an
+ * "unbound gallery" block (`sectionTypeKey: "custom"`); every other root node
+ * goes through `renderBuilderNodes`, which — by design — SKIPS `section` nodes
+ * in freeform mode (`shouldRenderNode`: `if (node.kind === "section") return
+ * false`). A root `section` with `sectionTypeKey: "freeform"` therefore paints
+ * NOTHING, and because `renderTalentMaxSite` refuses to serve a page that
+ * renders nothing ("a published-but-empty page → 404 rather than a blank
+ * document"), the whole site 404s.
+ *
+ * That is exactly the shape `buildStarterHomePageTree` returns, and exactly
+ * what `provisionTalentMaxSite` writes for a newly provisioned Max site — so
+ * this is a REAL product bug, reported rather than papered over (see
+ * README.md, "First execution"). This seeder keeps the fixture honest about
+ * the renderer instead: flat, top-level, renderable nodes, which is what the
+ * freeform root renderer actually paints. When the starter-tree bug is fixed,
+ * a fixture built from `buildStarterHomePageTree` becomes usable again.
+ */
+function buildHomePageTree(displayName: string, tagline: string): BuilderNode[] {
+  return [
+    {
+      id: crypto.randomUUID(),
+      kind: "heading",
+      props: { text: displayName, level: 1, layerLabel: "Title" },
+    },
+    {
+      id: crypto.randomUUID(),
+      kind: "paragraph",
+      props: { text: tagline, layerLabel: "Tagline", style: { tone: "muted" } },
+    },
+  ];
+}
+
 function buildAboutPageTree(displayName: string): BuilderNode[] {
   return [
     {
       id: crypto.randomUUID(),
-      kind: "section",
-      props: { sectionTypeKey: "freeform", label: "About" },
-      children: [
-        {
-          id: crypto.randomUUID(),
-          kind: "heading",
-          props: { text: `About ${displayName}`, level: 1, layerLabel: "Title" },
-        },
-        {
-          id: crypto.randomUUID(),
-          kind: "paragraph",
-          props: {
-            text: "This is the extra published page seeded for the talent-website e2e suite.",
-            layerLabel: "Body",
-          },
-        },
-      ],
+      kind: "heading",
+      props: { text: `About ${displayName}`, level: 1, layerLabel: "Title" },
+    },
+    {
+      id: crypto.randomUUID(),
+      kind: "paragraph",
+      props: {
+        text: "This is the extra published page seeded for the talent-website e2e suite.",
+        layerLabel: "Body",
+      },
     },
   ];
 }
@@ -622,10 +677,7 @@ async function ensurePublishedTalentSite(
 ): Promise<void> {
   const now = new Date().toISOString();
   const shellTree = buildDefaultShellTree({ displayName: opts.displayName });
-  const homeBlocks = buildStarterHomePageTree({
-    displayName: opts.displayName,
-    tagline: "Talent website e2e fixture",
-  });
+  const homeBlocks = buildHomePageTree(opts.displayName, "Talent website e2e fixture");
   const aboutBlocks = buildAboutPageTree(opts.displayName);
 
   // `talent_sites.talent_profile_id` is unique (one site per talent) —
