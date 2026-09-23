@@ -1,0 +1,160 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Talent website E2E — self-contained, NO repository secrets required.
+#
+# Boots a throwaway local Supabase inside the runner (official supabase CLI,
+# Docker), builds the database schema, and (in later Phase Q steps) runs the
+# talent-website Playwright journey against it. The database is local to the
+# job: this lane never touches production or any shared Supabase project.
+#
+# How the schema is built (see supabase/ci/README.md):
+#   - ARMED   (supabase/e2e-baseline.sql exists): load the baseline, then apply
+#             every migration newer than it, strictly in order.
+#   - UNARMED (no baseline yet): replay the whole migration history from an
+#             empty database with supabase/ci/apply-migrations.sh --defer.
+#             As of 2026-09-23 this replay SUCCEEDS end to end — no baseline,
+#             no production credentials, no founder step. The files that
+#             cannot apply as written are handled by documented shims in
+#             supabase/ci/migration-shims/; supabase/ci/README.md lists the
+#             five shapes and the rule for writing one. Anything that still
+#             cannot apply fails the job, with its full error text in the
+#             job summary.
+#
+# CI-only overrides (applied to the runner's checkout, never committed):
+#   - [db.seed] off: config.toml seeds seed_demo_profiles.sql (demo roster).
+#   - [db.migrations] off: `supabase start` would stop at the first migration
+#     that cannot replay; the runner script applies them instead.
+#   - services the smoke does not need are excluded with -x to save time.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Talent website E2E
+
+on:
+  pull_request:
+    paths:
+      - "web/src/lib/talent-site/**"
+      - "web/src/lib/talent-site/theme-catalog/**"
+      - "web/src/lib/site-admin/builder-core/**"
+      - "web/src/lib/saas/host-context.ts"
+      - "web/src/proxy.ts"
+      - "web/src/components/talent/**"
+      - "web/src/components/admin/shell/**"
+      - "web/e2e/talent-website/**"
+      - "supabase/migrations/**"
+      - "supabase/ci/**"
+      - ".github/workflows/talent-website-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: talent-website-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migrations:
+    name: Local Supabase + migration chain
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "54322"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: CI-only config overrides (seed off, CLI migrations off)
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+          p = pathlib.Path("supabase/config.toml")
+          s = p.read_text()
+          for section in ("db.seed", "db.migrations"):
+              pat = r"(\[" + re.escape(section) + r"\]\s*(?:#[^\n]*\n|\s)*enabled\s*=\s*)true"
+              s, n = re.subn(pat, r"\1false", s)
+              assert n == 1, f"could not find [{section}] enabled = true"
+          p.write_text(s)
+          PY
+          grep -n -A3 -E '^\[db\.(seed|migrations)\]' supabase/config.toml
+          echo "Migrations on disk: $(ls supabase/migrations | grep -cE '^[0-9]+_.*\.sql$')"
+
+      - name: Start local Supabase
+        run: |
+          supabase --version
+          supabase start \
+            -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime
+
+      - name: psql client
+        run: |
+          command -v psql || { sudo apt-get update -q && sudo apt-get install -y -q postgresql-client; }
+          psql --version
+          psql -Atc "select current_user, version()"
+
+      - name: Build schema (baseline + delta, or full replay)
+        id: schema
+        run: |
+          set -o pipefail
+          if [ -f supabase/e2e-baseline.sql ]; then
+            echo "mode=baseline" >> "$GITHUB_OUTPUT"
+            psql -X -q -v ON_ERROR_STOP=1 -f supabase/e2e-baseline.sql
+            after=$(psql -Atc "select coalesce(max(version), '0') from supabase_migrations.schema_migrations")
+            echo "Baseline loaded; applying migrations after $after"
+            bash supabase/ci/apply-migrations.sh --after "$after" | tee "$RUNNER_TEMP/apply.log"
+          else
+            echo "mode=replay" >> "$GITHUB_OUTPUT"
+            echo "Replaying the full migration history from empty (no baseline needed; see supabase/ci/README.md)."
+            MIGRATION_LOG="$RUNNER_TEMP/order.log" \
+            FAILURE_REPORT="$RUNNER_TEMP/failures.txt" \
+              bash supabase/ci/apply-migrations.sh --defer | tee "$RUNNER_TEMP/apply.log"
+          fi
+
+      - name: Report
+        if: always() && steps.schema.outcome != 'skipped'
+        run: |
+          on_disk=$(ls supabase/migrations | grep -cE '^[0-9]+_.*\.sql$')
+          applied=$(psql -Atc "select count(*) from supabase_migrations.schema_migrations" 2>/dev/null || echo 0)
+          tables=$(psql -Atc "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'" 2>/dev/null || echo 0)
+          echo "Mode:               ${{ steps.schema.outputs.mode }}"
+          echo "Migrations on disk: $on_disk"
+          echo "Migrations applied: $applied"
+          echo "Public tables:      $tables"
+          {
+            echo "### Talent website E2E — schema"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---|"
+            echo "| Mode | ${{ steps.schema.outputs.mode }} |"
+            echo "| Migrations on disk | $on_disk |"
+            echo "| Migrations applied | $applied |"
+            echo "| Public tables | $tables |"
+            echo ""
+            if [ -s "$RUNNER_TEMP/failures.txt" ]; then
+              echo "#### Migrations that could not apply"
+              echo '```'
+              sed 's/^psql:[^ ]* //' "$RUNNER_TEMP/failures.txt" | head -200
+              echo '```'
+            elif grep -q '::error' "$RUNNER_TEMP/apply.log" 2>/dev/null; then
+              echo "#### Migrations that could not apply"
+              echo '```'
+              grep -A3 '::error' "$RUNNER_TEMP/apply.log" | grep -E '::error|ERROR' | sed 's/^psql:[^ ]* //' | head -120
+              echo '```'
+            fi
+            if grep -q '::warning title=Migration replaced' "$RUNNER_TEMP/apply.log" 2>/dev/null; then
+              echo "#### Applied from a replacement, not the migration file"
+              echo '```'
+              grep '::warning title=Migration replaced' "$RUNNER_TEMP/apply.log" | sed 's/.*replaced:://'
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Supabase DB logs on failure
+        if: failure()
+        run: docker logs supabase_db_impronta-app 2>&1 | tail -80 || true

@@ -1,0 +1,47 @@
+-- REPLACEMENT for 20260413120000_analytics_internal_tables.sql
+-- A NO-OP.
+--
+-- THIS MIGRATION WAS NEVER APPLIED TO PRODUCTION, and the repo says so in two
+-- independent places.
+--
+--   1. 20260625140000_saas_p56_m0_analytics_events_bootstrap.sql, header:
+--        "On the linked DB as of 2026-04-21 this table does NOT exist — writes
+--         silently fail … The original creation migration
+--         (`20260413120000_analytics_internal_tables`) WAS NEVER APPLIED ON
+--         THIS PROJECT. The later tenantise step
+--         (`20260601200300_saas_p1_tenant_id_analytics`) is already guarded by
+--         to_regclass(...) and no-ops when the table is missing."
+--      It then creates `analytics_events` ALONE and says why the other five
+--      are deliberately left out: "The companion tables from the original
+--      migration (analytics_daily_rollups, analytics_funnel_steps,
+--      analytics_search_sessions, analytics_kpi_snapshots,
+--      analytics_api_cache) are not created here because no production caller
+--      currently depends on them."
+--
+--   2. web/src/lib/supabase/database.types.ts, generated FROM production,
+--      contains `analytics_events` and NONE of the other five. Production
+--      really does not have them.
+--
+-- WHAT REPLAYING IT COSTS
+--   Creating the five phantom tables is not merely redundant, it makes the
+--   copy WRONG in a way that shows up: they arrive with the policies
+--   analytics_kpi_snapshots_service / analytics_api_cache_service /
+--   analytics_daily_rollups_service, all gating on is_agency_staff(), and
+--   20260601200300 then gives them a tenant_id. 20260918000000's invariant —
+--   "no policy on a table with tenant_id may reference is_agency_staff()" —
+--   is therefore violated by three tables that do not exist in production, and
+--   that migration cannot apply. It passed in production precisely because
+--   the tables were absent.
+--
+-- WHAT THIS FILE REPRODUCES
+--   Exactly what production got from this migration: nothing. The version is
+--   recorded — production's ledger must hold it, or every later `db push`
+--   would have retried it — while the effect stays absent, which is the pair
+--   of facts a faithful copy has to reproduce. `analytics_events` is created
+--   by 20260625140000 in its final shape, tenant_id included. The three other
+--   files that mention the companion tables (20260601200300, 20260601200700,
+--   20260601200800, 20260602100100) all guard on to_regclass and no-op.
+--
+--   If the companion tables are ever actually wanted, they need a NEW
+--   migration — not this one, which production has already recorded as done.
+SELECT 1 WHERE false;

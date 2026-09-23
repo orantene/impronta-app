@@ -1,0 +1,203 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Q.4 — Production migrations workflow (agent path for CLAUDE.md step 2).
+#
+# CLAUDE.md's "Schema + code shipping protocol" makes `npm run db:push`
+# mandatory *before* merging any PR that adds a migration — otherwise the
+# production deploy 500s on a feature whose schema was never applied. That
+# script (`npx -y supabase@latest db push --linked --include-all --yes`,
+# see web/package.json) needs SUPABASE_ACCESS_TOKEN + SUPABASE_DB_PASSWORD +
+# SUPABASE_PROJECT_REF, none of which exist in a sandboxed agent's shell (see
+# CLAUDE.md "Full deploy topology" — no Supabase credentials in most agent
+# environments). This workflow is the substitute: it runs the identical
+# `supabase` CLI commands against the linked production project using repo
+# secrets, so an agent that cannot reach Supabase directly can still satisfy
+# step 2 of the protocol before its PR merges.
+#
+# Required repository secrets (all three; the job fails fast if any is
+# missing rather than silently no-op'ing):
+#   - SUPABASE_ACCESS_TOKEN   personal/CI access token (`supabase login` equiv.)
+#   - SUPABASE_DB_PASSWORD    the linked project's Postgres password
+#   - SUPABASE_PROJECT_REF    the production project ref (`supabase link -p`)
+#
+# This workflow is workflow_dispatch-only — it never runs automatically on a
+# push or PR. An agent (or a human) triggers it by hand once code + migration
+# are ready, with `dry_run: true` (the default) to preview, then again with
+# `dry_run: false` to actually apply. It does not touch `supabase/migrations/`
+# (never edit an applied migration — see CLAUDE.md) and it does not do any
+# migration-ordering or park-file handling itself: that is the responsibility
+# of whoever authors the migration (see CLAUDE.md "Branch workflow" step 3,
+# the park-restore pattern for timestamp collisions, and
+# `web/scripts/check-migration-version-collisions.mjs`, which CI's structural
+# gate already runs against local files). This workflow only pushes whatever
+# is committed in `supabase/migrations/` on the ref it's run against — same
+# as `db:push` would from a developer's own machine.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: DB push (production)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview only (supabase db push --dry-run). Set false to actually apply pending migrations."
+        type: boolean
+        default: true
+      repair_orphans:
+        description: "Also drop the two orphan ledger rows (20260911232448, 20260918215445) that match no file. This is a REAL ledger change and runs even when dry_run is true, because db push refuses (dry run included) while they exist. See web/docs/talent-website-execution-plan-2026-09-23.md."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Only one push (or preview) against production at a time, on any ref. A
+# concurrent `db push` and `db push --dry-run` could race the shadow-diff
+# supabase computes, and two real pushes must never overlap on the same
+# project. Queue, don't cancel — a dry-run and a real push are each too
+# meaningful to just throw away.
+concurrency:
+  group: db-push-production
+  cancel-in-progress: false
+
+jobs:
+  push:
+    name: ${{ inputs.dry_run && 'Dry run' || 'Apply' }} migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # SHOULD-FIX 5: schema may only be pushed from `main`. Without this, a branch
+    # can push its own supabase/migrations/ to production without ever passing
+    # the structural gate that CLAUDE.md makes the precondition for a release —
+    # a side door around the `production` pointer. It also pins the workflow
+    # file and the scrubber to main's copies rather than the dispatched ref's.
+    if: github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        # BLOCKER 1: GitHub's DEFAULT shell for an unspecified `run` is
+        # `bash -e {0}` — -e but NOT pipefail. Every supabase call below is
+        # `... | $SCRUB | tee`, so the step's status was tee's, which is always
+        # 0. A failed production `db push` reported a GREEN job, and an agent
+        # following CLAUDE.md step 2 would merge on it and deploy code against
+        # schema that was never applied. Naming `shell: bash` explicitly is what
+        # gets `-eo pipefail`.
+        shell: bash
+    env:
+      # Secrets reach the job ONLY as environment variables — never as `${{ }}`
+      # interpolations inside a `run:` body, which would splice their value
+      # into the script text the runner executes.
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      # Every command whose output reaches $GITHUB_STEP_SUMMARY is piped
+      # through this first (see the script's header for why).
+      SCRUB: bash .github/scripts/scrub-secrets.sh SUPABASE_DB_PASSWORD SUPABASE_ACCESS_TOKEN PROJECT_REF
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD, SUPABASE_PROJECT_REF
+        run: |
+          missing=()
+          [ -z "${SUPABASE_ACCESS_TOKEN}" ] && missing+=("SUPABASE_ACCESS_TOKEN")
+          [ -z "${SUPABASE_DB_PASSWORD}" ] && missing+=("SUPABASE_DB_PASSWORD")
+          [ -z "${PROJECT_REF}" ] && missing+=("SUPABASE_PROJECT_REF")
+          if [ "${#missing[@]}" -gt 0 ]; then
+            for name in "${missing[@]}"; do
+              echo "::error title=Missing secret::$name is not set on this repo. See CLAUDE.md 'Full deploy topology' for where these live."
+            done
+            exit 1
+          fi
+          echo "All required secrets present."
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1.6.0  # SHOULD-FIX 6: pinned — `v1` is a mutable tag on a third-party org, and this job holds SUPABASE_ACCESS_TOKEN + SUPABASE_DB_PASSWORD
+        with:
+          version: latest
+
+      - name: Link production project
+        run: |
+          supabase --version
+          supabase link --project-ref "$PROJECT_REF" 2>&1 >/dev/null | $SCRUB
+
+      - name: Migration status (before)
+        id: list_before
+        run: |
+          echo "Migrations on disk: $(ls supabase/migrations | grep -cE '^[0-9]+_.*\.sql$')"
+          echo "### DB push (production) — migration status" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Mode: **${{ inputs.dry_run && 'dry run (preview only)' || 'apply' }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "#### Local vs. remote (before)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          # `supabase migration list --linked` prints a table of every local
+          # migration version alongside whether it's recorded on the linked
+          # remote project — this is the authoritative applied/pending source,
+          # same one a developer running `db:check`-adjacent commands would
+          # see. `--linked` is explicit so the command can never fall back to
+          # a local database that does not exist on this runner.
+          supabase migration list --linked 2>&1 | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # Two versions were applied straight to the database rather than through
+      # `db push`, so the ledger stamped its own timestamps while the repo kept
+      # the future-dated names the convention requires. The result is two rows
+      # matching no file, and `db push` refuses outright whenever the remote
+      # knows a version the tree does not. Marking them reverted drops the rows;
+      # it applies no SQL and touches no schema or data. The equivalent files
+      # stay recorded under 20261231231006 and 20261231277000. Guarded by its
+      # own input so it never runs as a side effect of an ordinary push.
+      - name: Repair orphan ledger rows
+        if: ${{ inputs.repair_orphans }}
+        run: |
+          echo "#### Ledger repair" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Note: the ledger repair is a REAL change and is applied even in dry-run mode — \`db push\` (dry run included) refuses while an orphan row exists. Only the migrations themselves are previewed below." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          # The ledger table is the only place these versions can appear: they
+          # match no file on disk, so a hit here is always the remote row.
+          # Absent -> already repaired, so re-running this is a no-op.
+          ledger="$(supabase migration list --linked 2>&1 | $SCRUB)"
+          for v in 20260911232448 20260918215445; do
+            if grep -q "$v" <<< "$ledger"; then
+              echo "repairing $v (recorded remotely, no local file)" | tee -a "$GITHUB_STEP_SUMMARY"
+              supabase migration repair --linked --status reverted "$v" 2>&1 | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "skipping $v (not in the ledger, already repaired)" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "#### Local vs. remote (after repair)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          supabase migration list --linked 2>&1 | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dry run (preview pending migrations, apply nothing)
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "#### Dry-run output" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          supabase db push --linked --include-all --dry-run 2>&1 | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Dry run only — nothing was applied. Re-run with \`dry_run: false\` to apply." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Apply pending migrations
+        if: ${{ !inputs.dry_run }}
+        run: |
+          echo "#### Apply output" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          # Same invocation as `npm run db:push` in web/package.json
+          # (`npx -y supabase@latest db push --linked --include-all --yes`),
+          # run here via the CLI action instead of npx so behaviour matches
+          # exactly what a developer's local `db:push` would do.
+          supabase db push --linked --include-all --yes 2>&1 | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Migration status (after)
+        if: ${{ !inputs.dry_run }}
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "#### Local vs. remote (after apply)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          supabase migration list --linked 2>&1 | $SCRUB | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
