@@ -15,6 +15,7 @@ import {
   loadBriefForSignupLead,
   resolveSignupBusinessDescription,
 } from "./workspace-signup-brief.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -202,6 +203,35 @@ async function loadLead(leadId: string): Promise<MarketingLeadRow | null> {
   return (data as MarketingLeadRow | null) ?? null;
 }
 
+/**
+ * Release the subdomain TTL reservation this lead was holding.
+ *
+ * MUST run BEFORE the `agencies` insert. `platform_subdomain_label_taken()`
+ * (migration 20261231280000) counts any unexpired reservation as "label taken"
+ * and has no lead exclusion — a reservation is keyed by lead and predates the
+ * tenant, so `p_exclude_tenant_id` cannot match it either. Held past the insert,
+ * a signup collides with its OWN reservation: the namespace trigger rejects the
+ * insert (23505), and callers that pre-check the RPC silently rename the
+ * workspace to `<slug>-2`. Releasing it here is also what the reservation means
+ * — it holds the label only until we claim it, after which `agencies.slug`
+ * does. Deletes by `lead_id` so a changed slug still releases the right row.
+ * Best-effort: logged, never fatal. Pinned by
+ * signup-releases-reservation-before-insert.test.ts.
+ */
+async function releaseSubdomainReservationForLead(
+  admin: SupabaseClient,
+  leadId: string,
+): Promise<void> {
+  const { error } = await admin
+    .from("saas_subdomain_reservations")
+    .delete()
+    .eq("lead_id", leadId);
+
+  if (error) {
+    logServerError("workspace-signup.releaseReservation", error);
+  }
+}
+
 async function attachLeadToTenant(params: {
   leadId: string;
   userId: string;
@@ -233,19 +263,10 @@ async function attachLeadToTenant(params: {
     logServerError("workspace-signup.backfillGuestTickets", ticketError);
   }
 
-  // Release any subdomain TTL reservation this lead was holding. The slug is
-  // now claimed by a real agencies row, so the reservation is redundant. We
-  // delete by lead_id rather than slug to defensively handle the edge case
-  // where the user changed their slug between form submit and provisioning
-  // (shouldn't happen today, but the lead is the source of truth).
-  const { error: releaseError } = await admin
-    .from("saas_subdomain_reservations")
-    .delete()
-    .eq("lead_id", params.leadId);
-
-  if (releaseError) {
-    logServerError("workspace-signup.releaseReservation", releaseError);
-  }
+  // Backstop only. The reservation is normally released before the `agencies`
+  // insert (see releaseSubdomainReservationForLead). Re-running it here costs
+  // one no-op delete and covers any path that reached provisioning without it.
+  await releaseSubdomainReservationForLead(admin, params.leadId);
 }
 
 function buildSignupSettings(
@@ -631,6 +652,12 @@ export async function provisionWorkspaceFromLead(params: {
   // Brief before insert — industry must be in hand for industry_preset at create.
   const brief = await loadBriefForSignupLead(lead.id);
   const briefIndustry = industryFromBrief(brief);
+
+  // Release THIS lead's own subdomain reservation before the insert below.
+  // The namespace trigger added in 20261231280000 cannot tell a lead's own
+  // reservation from a rival's, so holding it here makes the signup collide
+  // with itself. See releaseSubdomainReservationForLead.
+  await releaseSubdomainReservationForLead(admin, lead.id);
 
   const { data: agency, error: agencyError } = await admin
     .from("agencies")
