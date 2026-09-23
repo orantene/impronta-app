@@ -640,3 +640,37 @@ test("resolveAccountHref labels follow the locale (English by default)", () => {
   assert.equal(resolveAccountHref(true, activeTalent, "es").href, "/talent");
   assert.equal(resolveAccountHref(true, activeTalent, "fr").label, "Profile");
 });
+
+test("post-auth honours a profile CLAIM before role routing", () => {
+  // The bug this pins: a claim invite creates a brand-new account, which has no
+  // app_role, so the destination is /onboarding/role. `/claim?invitation=…` is
+  // not on the onboarding allow-list (workspace onboarding + /client + /talent),
+  // so the token was DROPPED and the invited talent was walked into creating a
+  // SECOND profile. The claim RPC then refuses forever with `claimer_has_profile`
+  // — the invitation becomes permanently unredeemable. Seen twice on real
+  // invites.
+  assert.equal(
+    resolvePostAuthDestination(onboardingUser, "/claim?invitation=abc-123"),
+    "/claim?invitation=abc-123",
+  );
+
+  // The query string carries the only thing that matters here, so a locale
+  // prefix must be stripped without touching it.
+  assert.equal(
+    resolvePostAuthDestination(onboardingUser, "/en/claim?invitation=abc-123"),
+    "/claim?invitation=abc-123",
+  );
+
+  // An ALREADY-onboarded user clicking the same link must also reach the claim,
+  // not their dashboard.
+  assert.equal(
+    resolvePostAuthDestination(activeTalent, "/claim?invitation=abc-123"),
+    "/claim?invitation=abc-123",
+  );
+
+  // Not a prefix match: /claims or /claim-something is a different surface.
+  assert.notEqual(
+    resolvePostAuthDestination(onboardingUser, "/claimed-profiles"),
+    "/claimed-profiles",
+  );
+});

@@ -304,6 +304,33 @@ export function resolvePostAuthDestination(
     return "/update-password";
   }
 
+  // PROFILE CLAIM: honor before role routing, for the same reason recovery is.
+  //
+  // A claim invite means the talent profile ALREADY EXISTS and this person was
+  // invited to take it over. A brand-new account has no app_role, so without
+  // this branch `destination` is "/onboarding/role" and `/claim?invitation=…`
+  // falls through `isOnboardingNextAllowed` (which allows only workspace
+  // onboarding and the /client + /talent surfaces) and is DROPPED — silently,
+  // because nothing logs a discarded next.
+  //
+  // The invited talent then lands on role selection, picks "I'm Talent", and is
+  // walked into creating a SECOND profile. That is not merely a detour: the
+  // claim RPC refuses with `claimer_has_profile` once the claimer owns a live
+  // profile, so completing onboarding makes the invitation permanently
+  // unredeemable and the original profile unreachable by its owner. Observed
+  // twice on real invites before it was traced here.
+  //
+  // `normalizeNextPath` keeps the query string, so the token survives to here;
+  // it is only this function that used to discard it.
+  // Locale-stripped, because an invite link may arrive as /es/claim?… — the
+  // same comparison isOnboardingNextAllowed makes.
+  const claimPathname = stripLocaleFromPathname(
+    postAuthPathnameOnly(safeNext),
+  ).pathnameWithoutLocale;
+  if (claimPathname === "/claim") {
+    return stripDefaultLocalePrefixFromPath(safeNext);
+  }
+
   const destination = resolveAuthenticatedDestination(profile);
 
   if (destination === "/onboarding/role") {
