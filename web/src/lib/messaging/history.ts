@@ -9,6 +9,8 @@ type Admin = {
 
 type ActionLogRow = {
   actor_user_id: string | null;
+  /** D-MSG-340: who acted when there is no user id ("client" | "system"). */
+  actor_kind?: string | null;
   action_type: string;
   metadata: Record<string, unknown> | null;
   created_at: string;
@@ -68,7 +70,7 @@ export async function loadConversationHistory(
   const [{ data: actionRows }, { data: eventRows }] = await Promise.all([
     admin
       .from("inquiry_action_log")
-      .select("actor_user_id, action_type, result, metadata, created_at")
+      .select("actor_user_id, actor_kind, action_type, result, metadata, created_at")
       .eq("inquiry_id", input.inquiryId)
       .eq("result", "success")
       .order("created_at", { ascending: true }),
@@ -99,7 +101,13 @@ export async function loadConversationHistory(
 }
 
 function renderActionLogEntry(row: ActionLogRow, labels: Map<string, string>): ConversationHistoryEntry | null {
-  const actorLabel = row.actor_user_id ? (labels.get(row.actor_user_id) ?? "Staff") : "System";
+  // D-MSG-340: a guest acting through a thread token has no user id; without
+  // `actor_kind` their edit used to read as "System", which is not who did it.
+  const actorLabel = row.actor_user_id
+    ? (labels.get(row.actor_user_id) ?? (row.actor_kind === "client" ? "The client" : "Staff"))
+    : row.actor_kind === "client"
+      ? "The client"
+      : "System";
   const meta = row.metadata ?? {};
   switch (row.action_type) {
     case "messaging_rename": {

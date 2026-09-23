@@ -1,5 +1,7 @@
 import "server-only";
 
+import { logServerError } from "@/lib/server/safe-error";
+
 import type { ActionResult } from "./types";
 
 type Admin = {
@@ -65,19 +67,21 @@ export async function renameClientContact(
       .eq("email", email);
   }
 
-  // `inquiry_action_log.actor_user_id` and `tenant_id` are NOT NULL: a guest
-  // (no client user) cannot own a log row, so the caller posts the thread line
-  // instead (D-MSG-220). The row silently failed before this guard.
-  if (row.client_user_id) {
-    await admin.from("inquiry_action_log").insert({
-      inquiry_id: input.inquiryId,
-      tenant_id: input.tenantId,
-      actor_user_id: row.client_user_id,
-      action_type: "messaging_client_edit",
-      result: "success",
-      metadata: { fields: ["name"] },
-    });
-  }
+  // D-MSG-340 closes the D-MSG-220 workaround: `actor_user_id` is nullable now
+  // and `actor_kind` carries the answer, so a guest edit is in staff history
+  // like any other action. The thread line stays: it is what the person
+  // reading the conversation sees.
+  const { error: logError } = await admin.from("inquiry_action_log").insert({
+    inquiry_id: input.inquiryId,
+    tenant_id: input.tenantId,
+    actor_user_id: row.client_user_id,
+    actor_kind: "client",
+    action_type: "messaging_client_edit",
+    result: "success",
+    metadata: { fields: ["name"] },
+  });
+  // A missing history line must never cost the client their own name change.
+  if (logError) logServerError("messaging.client-rename/log", logError);
 
   return { ok: true, name, email: (updated as { contact_email: string }).contact_email ?? email, previousName };
 }

@@ -44,14 +44,20 @@ test("rename writes contact_name, bumps version, logs client_edit; email and pho
   assert.equal(store.inquiry_action_log[0].action_type, "messaging_client_edit");
   assert.deepEqual(store.inquiry_action_log[0].metadata, { fields: ["name"] });
   assert.equal(store.inquiry_action_log[0].tenant_id, TENANT);
+  assert.equal(store.inquiry_action_log[0].actor_kind, "client");
 });
 
-test("a guest (no client user) renames without a log row: actor_user_id is NOT NULL in production", async () => {
+test("a guest (no client user) still owns a history row, marked actor_kind client (D-MSG-340)", async () => {
   const { admin, store } = seed({ clientUserId: null });
   const result = await renameClientContact(admin, { tenantId: TENANT, inquiryId: INQUIRY, name: "Ana Ruiz" });
   assert.equal(result.ok, true);
   assert.equal(store.inquiries[0].contact_name, "Ana Ruiz");
-  assert.equal(store.inquiry_action_log.length, 0);
+  assert.equal(store.inquiry_action_log.length, 1);
+  const row = store.inquiry_action_log[0];
+  assert.equal(row.actor_user_id, null);
+  assert.equal(row.actor_kind, "client");
+  assert.equal(row.tenant_id, TENANT);
+  assert.equal(row.action_type, "messaging_client_edit");
 });
 
 test("same name is a no-op: no version bump, no log, email untouched", async () => {
