@@ -73,7 +73,7 @@ Goal: make that engine the **free** personal website at `<name>.tulala.digital`,
 
 `kind` column lets Look split into `palette` + `typography` (+ `finish`) later with no migration.
 
-- **Catalog table** `talent_theme_catalog`: `id, kind ('design'|'look'), slug, title, summary, category, tags text[], payload jsonb, preview jsonb, required_talent_tier, status ('draft'|'published'|'archived'), source ('builtin'|'authored'), version, schema_version, sort_order, is_new_until, created_by, updated_by, timestamps`; unique `(kind, slug)`; RLS: published rows readable by anon/authenticated, writes service role. Built-ins in code (`lib/talent-site/theme-catalog/builtins/{designs,looks}/*`), synced by `syncBuiltinTalentThemes()` (pattern `syncBuiltinLooks`).
+- **Catalog table** `talent_theme_catalog`: `id, kind ('design'|'look'), slug, title, summary, category, tags text[], audience_category_groups text[], payload jsonb, preview jsonb, required_talent_tier, status ('draft'|'published'|'archived'), source ('builtin'|'authored'), version, schema_version, sort_order, is_new_until, created_by, updated_by, timestamps`; unique `(kind, slug)`; RLS: published rows readable by anon/authenticated, writes service role. Built-ins in code (`lib/talent-site/theme-catalog/builtins/{designs,looks}/*`), synced by `syncBuiltinTalentThemes()` (pattern `syncBuiltinLooks`).
 - **Site-level theme** (on `talent_sites`): `theme_design_slug`, `theme_design_version`, `theme_look_slug`, `design_tokens`, `design_tokens_draft`, `theme_version`, `site_created_via`, `site_created_at`. Render order: registry defaults → platform default → site tokens → page `__design` (Web Office per-page override).
 - **Apply core** `lib/talent-site/server/theme-apply-core.ts`: `applyDesign` (hydrate + write trees, pin slug + version), `applyLook` (merge into draft tokens, content untouched), `publishSiteTheme` (draft → published, bump version, bust cache). The five Max templates become built-in designs (hex → `token:` refs); `applyMaxSiteTemplateAction` becomes a wrapper.
 - **Builder compatibility:** designs are kit sections bound to profile + theme tokens; Free edits are prop patches, hide toggles and reorders; a Look is a CSS-variable token write. Validator for authored designs, static test for built-ins.
@@ -146,6 +146,33 @@ Follow-ups outside this plan: Builder Lab "Talent themes" authoring tab (draft/p
 Orchestrator posts a launch report (all journeys green, screenshots, flags-off parity, open risks) and asks the founder one question. On yes: set the three switches to `true` in Vercel production via the Vercel connector, redeploy through the normal pipeline, run production checks (existing Max site 200, a test talent subdomain 200, badge renders), and watch errors for 24 hours via runtime logs.
 
 ---
+
+## Theme intake: approved mockup to live gallery theme (recurring)
+
+Founder decision (2026-09-23): the founder works with a design agent on Web Office mockups. Each approved design becomes a gallery theme, then the next vertical, **private chef**, starts.
+
+**Targeting.** The catalog gets `audience_category_groups text[]` (taxonomy `category_group` slugs such as `private-chefs`; empty = everyone). The gallery loader ranks matching themes first for a talent whose primary talent type belongs to that group ("Recommended for chefs"), and still shows the rest. The column is added to the Phase 0 migration before it merges.
+
+**Runbook per approved design** (trigger: founder says "design `<slug>` approved"; input: `web/docs/talent-website-mockups/<slug>/` + `HANDOFF.md`, per the design brief):
+1. **Map (Opus):** map each mockup section to a kit section. List gaps (new sections, new props, new tokens), map the colors and fonts to Look tokens, and check contrast. Output a short intake spec in the mockup folder.
+2. **Kit extension (Opus, only when there are gaps):** new kit sections bound to profile tokens (extend `talentProfileTokens` for any new profile fields), and add them to the validator allow-list. Free-builder compatible by construction.
+3. **Build (Sonnet):** `builtins/designs/<slug>.ts` + `builtins/looks/<slug>-*.ts`, with `audience_category_groups`, `is_new_until` = two weeks out, and `required_talent_tier` (`talent_basic` if it should be in the free gallery, else `talent_portfolio`).
+4. **Visual QA (Sonnet runs, Opus judges):** hermetic e2e renders the theme with a fixture talent of the target category at 1440 and 390. The screenshots are compared side by side with the mockup frames and the differences listed, then fixed until the Opus judge signs off. The comparison sheet goes back to the founder and design agent.
+5. **Ship:** PR through the normal merge gate; the deploy sync publishes it to the gallery.
+
+**Going live before the full launch.** Phase 0 exposes the gallery to Web Office talents only. After Phase 0 merges, the first approved design can go live by switching `TALENT_THEME_GALLERY_ENABLED` on in production, which affects only Web Office talents' Public page, ahead of the free-website launch. The founder confirms that switch.
+
+### Vertical 2: private chef
+- **Data already exists:** taxonomy `chefs-culinary` / `private-chefs` (villa-chef, yacht-chef, family-chef, ...), industry pack `chef` (`chef.cuisine`, `chef.group_size`, `chef.dietary`, `chef.event_types`, `chef.travel`, `chef.private_chef_day_rate`).
+- **Kit additions (Opus design, Sonnet build):**
+  - cuisine and dietary chip row
+  - experiences as services (reuses offerings)
+  - sample menus / signature dishes (from offerings with menu details or a gallery subset)
+  - area served
+  - inquiry CTA carrying date and guest count
+- **Token projection:** `talentProfileTokens` gains the chef fields when present (empty for other talents, so existing designs are unaffected).
+- **QA:** fixture `t_chef` (talent_basic, `villa-chef`, chef fields filled, three experiences, eight food photos), a chef demo persona for anonymous previews, and journey J9: the chef sees chef themes first, applies one, and the site renders the chef sections.
+- **Readiness:** the unlock gate is unchanged. Chef-specific fields are recommended, not required.
 
 ## Agent execution model
 

@@ -77,3 +77,40 @@ Desktop 1440 and mobile 390. Check English and Spanish copy length. No em dashes
 - PNG frames named `<screen>--<state>--<viewport>.png` in `web/docs/talent-website-mockups/`, or a shared link.
 - A short list of any copy changes.
 - Reuse the dashboard design tokens (`COLORS`, `FONTS` in `web/src/components/admin/shell/internal/state`) so the frames match the implementation.
+
+## Theme handoff: from an approved mockup to a live theme in the gallery
+
+Every Web Office design you mock up and the founder approves becomes a **gallery theme**: one **Design** (the layout) plus one or more **Looks** (color and font variants). Engineering builds it from your handoff, publishes it to the gallery, and sends back a screenshot of the live version for you to compare against your frames.
+
+### What to hand over for each approved design
+
+1. **Frames**: the full home page top to bottom, desktop 1440 and mobile 390, filled with realistic talent content (not lorem).
+2. **Section list, in order.** For each section give its purpose and the profile data it shows. Use these names where they fit: hero, about, services, gallery, reviews, press, contact/inquiry, header, footer. If a section is new (for example "sample menus" for a chef), mark it **NEW** and say which profile field feeds it.
+3. **Tokens for the main Look:**
+   - Colors as hex for each role: background, surface, ink (main text), muted text, primary, accent, line/border.
+   - Heading and body fonts (Google Fonts family names and weights).
+   - Corner radius (sharp, soft or rounded) and density (compact, comfortable or airy).
+4. **Alternative Looks** (optional, 2 to 4): the same design in other palettes or font pairings. Each becomes a swatch in the Look step.
+5. **Header and footer** variants, and the image treatment (crop ratios, full-bleed or framed).
+6. **Who it is for**: the talent categories it targets, for example `private-chefs`, `models`, `photographers`. The gallery shows these themes first to matching talents.
+7. **Name**: a design name and a one-line description for the gallery card.
+
+### How it gets to the engineering session
+
+- Put frames in `web/docs/talent-website-mockups/<design-slug>/` with the handoff notes in `HANDOFF.md` next to them, or share a link.
+- The founder then tells the engineering session "design `<slug>` approved". If you are a Claude session running on the same machine, you can also message the engineering session directly.
+
+### Rules that keep a theme working with the free page builder
+
+- Build pages from sections. Talents can edit text and images, hide or reorder sections, and change colors and fonts. On the free website they cannot add new sections, so every design must look complete with only its own sections.
+- Every color and font must come from the Look tokens: no one-off colors inside a section. That is what lets one design take any Look.
+- Every section must still look right when its data is short or missing (one service instead of six, no reviews yet, three photos instead of twelve).
+
+## Next vertical: private chef
+
+After the first Web Office design is live, the next focus is **private chefs**: the `private-chefs` category, covering villa, yacht and family chefs. Mock up a chef-first design using the chef profile data that already exists: cuisine, group size, dietary options, event types and travel area. Sections to consider:
+- signature dishes or sample menus
+- experiences as services (dinner party, weekly meal prep, yacht charter)
+- dietary chips
+- an area served map or list
+- an inquiry with date and guest count
