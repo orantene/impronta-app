@@ -16,6 +16,7 @@ import { appointmentConfirmedBody } from "./appointment-confirmed";
 import { insertMessage } from "./insert-message";
 import {
   buildConfirmPlan,
+  noLongerFree,
   runConfirmChecks,
   type ConfirmConflict,
   type ConfirmLineInput,
@@ -404,6 +405,20 @@ async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInp
     expectedVersion: input.expectedVersion,
   });
   if (!converted.success) {
+    // D-MSG-312: the one-talent-one-time exclusion refused the mirror between
+    // our check and the write. Say which line is no longer free, the way a
+    // pre-write conflict does, instead of a bare "conflict".
+    if (converted.reason === "talent_double_booked") {
+      const raced: ConfirmConflict[] = plan.checks
+        .filter((check) => check.kind === "person")
+        .map((check) => ({
+          line: check.label,
+          why: noLongerFree(check.label, check.startsAt, check.timezone),
+          at: check.startsAt,
+          code: "person_busy" as const,
+        }));
+      return refuseUnavailable(c, input, plan, raced.length > 0 ? raced : [{ line: "This appointment", why: "That time is already booked for this talent.", at: null, code: "person_busy" }]);
+    }
     if (converted.conflict || converted.reason === "version_conflict") return fail("conflict");
     if (converted.rateLimited) return fail("rate_limited");
     if (converted.forbidden) return fail("not_allowed");

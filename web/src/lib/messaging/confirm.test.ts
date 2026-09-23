@@ -316,6 +316,23 @@ test("offer: convertToBooking version_conflict maps to conflict and nothing is l
   assert.equal(d.calls.cards.length, 0);
 });
 
+test("offer: a talent_double_booked convert refuses with the line's own 'no longer free' sentence, links nothing (D-MSG-312)", async () => {
+  const d = deps({
+    convertToBooking: (async () => ({ success: false as const, conflict: true, reason: "talent_double_booked" })) as unknown as ConfirmDeps["convertToBooking"],
+  });
+  const { result, store } = await run(seed(), {}, d);
+  assert.equal(result.ok, false);
+  // Not a bare "conflict": the operator is told which line lost the window.
+  assert.equal((result as { reason?: string }).reason, "unavailable");
+  const conflicts = (result as { conflicts?: { code?: string; why?: string }[] }).conflicts ?? [];
+  assert.ok(conflicts.length > 0, "the refusal must name at least one conflicting line");
+  assert.equal(conflicts[0]?.code, "person_busy");
+  assert.match(String(conflicts[0]?.why ?? ""), /no longer free|already booked/i);
+  // Nothing may be linked or announced for a booking that was rolled back.
+  assert.equal(store.conversation_records.length, 0);
+  assert.equal(d.calls.cards.length, 0);
+});
+
 test("draft happy path (money owed): POS hold, commit, link order, log, order card; order stays open for payment", async () => {
   const store = seed();
   const { result, calls } = await run(store, { source: "draft", offerId: null, orderId: ORDER });

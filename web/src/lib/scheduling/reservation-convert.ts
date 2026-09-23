@@ -14,7 +14,7 @@ import { isExclusionViolation, releaseHoldsForInquiry } from "./reservation-hold
 
 export type EnrichBookingFromReservationResult =
   | { ok: true; applied: boolean }
-  | { ok: false; error: string };
+  | { ok: false; error: string; reason?: "talent_double_booked" };
 
 export async function enrichBookingFromReservation(
   admin: SupabaseClient,
@@ -93,7 +93,15 @@ export async function enrichBookingFromReservation(
         // this window by another tenant or by staff on the calendar. Say that,
         // rather than handing a raw Postgres exclusion message to a person.
         if (isExclusionViolation(insErr)) {
-          return { ok: false, error: "That time is already booked for this talent. Pick another time." };
+          // `talent_bookings_no_overlap` is the one-talent-one-time truth
+          // (SQLSTATE 23P01). The CALLER must refuse on this, never log and
+          // carry on: a booking whose mirror was rejected is a double book
+          // the calendar cannot see (D-MSG-312).
+          return {
+            ok: false,
+            reason: "talent_double_booked",
+            error: "That time is already booked for this talent. Pick another time.",
+          };
         }
         return { ok: false, error: insErr.message };
       }
