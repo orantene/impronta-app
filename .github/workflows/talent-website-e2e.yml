@@ -331,6 +331,20 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           PORT: "3000"
+          # THE JOURNEYS REQUIRE THE FEATURE SWITCHES ON. The lane set none of
+          # them, so the dev server ran with every talent-website feature dark:
+          # `/t/site/<slug>` answered 404 (observed for both free-site-fiona and
+          # max-site-maxine), the gallery did not exist, and the plan surfaces
+          # had nothing to assert against. j2's own header states the
+          # expectation: "Server: started with TALENT_FREE_WEBSITE_ENABLED=true
+          # (the harness default)".
+          #
+          # j0 is the deliberate exception: it asserts flags-OFF parity and
+          # skips unless E2E_TALENT_FLAGS=off, so it stays skipped here and
+          # needs its own run to be meaningful.
+          TALENT_THEME_GALLERY_ENABLED: "true"
+          TALENT_FREE_WEBSITE_ENABLED: "true"
+          TALENT_SITE_SUBDOMAINS_ENABLED: "true"
           NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
