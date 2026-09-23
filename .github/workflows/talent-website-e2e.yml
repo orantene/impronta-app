@@ -248,6 +248,20 @@ jobs:
             web/test-results
           if-no-files-found: ignore
 
-      - name: Supabase DB logs on failure
+      # On failure, show the ERRORS rather than the tail. The tail is dominated
+      # by the replay's own statement log, so it scrolls the actual fault off
+      # the end — a seed failing with GoTrue's opaque "Database error finding
+      # users" produced 80 lines of unrelated migration SQL and no cause.
+      - name: Supabase container logs on failure
         if: failure()
-        run: docker logs supabase_db_impronta-app 2>&1 | tail -80 || true
+        run: |
+          for c in $(docker ps --format '{{.Names}}' | grep -E 'supabase_(db|auth|rest)_' || true); do
+            echo "::group::$c — errors"
+            docker logs "$c" 2>&1 \
+              | grep -iE 'ERROR|FATAL|PANIC|permission denied|does not exist|level=(error|fatal)' \
+              | tail -40 || echo "(no error lines)"
+            echo "::endgroup::"
+            echo "::group::$c — last 30 lines"
+            docker logs "$c" 2>&1 | tail -30 || true
+            echo "::endgroup::"
+          done
