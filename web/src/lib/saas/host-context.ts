@@ -64,7 +64,7 @@ export type HostContext =
       /**
        * How this host addresses the site: "custom" for a talent's own domain
        * (resolved by `talent_site_domain_lookup`), "subdomain" for
-       * `<slug>.tulala.digital` (resolved by `talent_site_subdomain_lookup`,
+       * `<slug>.<platform apex>` (resolved by `talent_site_subdomain_lookup`,
        * only when TALENT_SITE_SUBDOMAINS_ENABLED is on). The render is identical;
        * the distinction exists so downstream code can tell a talent's OWN domain
        * from a platform-issued one without re-parsing the host.
@@ -205,7 +205,7 @@ export async function resolveTenantContext(
     // not_found (or dev-localhost) behavior. NEVER mis-serves another tenant.
     const talentSite =
       (await resolveTalentSiteContext(supabase, hostname)) ??
-      // Phase 2 — `<slug>.tulala.digital`. Tried LAST: `agency_domains` above and
+      // Phase 2 — `<slug>.<platform apex>`. Tried LAST: `agency_domains` above and
       // the custom-domain RPC just now both had their turn, so an agency host and
       // a talent's own domain each still win. Gated on the env switch, so with it
       // unset this whole branch is dead and resolution is byte-identical to today.
@@ -406,7 +406,7 @@ export async function resolveTalentSiteContext(
 }
 
 /**
- * Resolve `<slug>.tulala.digital` (or `<slug>.lvh.me` locally) to the talent
+ * Resolve `<slug>.<platform apex>` (or the loopback alias locally) to the talent
  * site that owns the label, via the `talent_site_subdomain_lookup` RPC.
  *
  * Runs ONLY after `agency_domains` and the custom-domain RPC have both missed,
