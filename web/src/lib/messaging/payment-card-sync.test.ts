@@ -64,3 +64,28 @@ test("no linked record writes nothing", async () => {
   assert.deepEqual(result, { ok: true, updated: 0 });
   assert.equal(payload(store, 0)?.state, undefined);
 });
+
+test("calls `from` as a method: a client whose from() needs `this` still works (D-MSG-342)", async () => {
+  // The real SupabaseClient.from uses `this`. `const from = admin.from` detaches
+  // it, which threw and was swallowed upstream, so the card silently never moved.
+  const { admin } = seed();
+  let sawThis = false;
+  const clientLike = {
+    _self: null as unknown,
+    from(table: string) {
+      // Throws exactly like the real client would when called detached.
+      if (this === undefined || (this as { _self?: unknown })._self === undefined) {
+        throw new TypeError("Cannot read properties of undefined (reading '_self')");
+      }
+      sawThis = true;
+      return (admin as unknown as { from: (t: string) => unknown }).from(table);
+    },
+  };
+  const result = await syncPaymentCardsForRecord(clientLike as never, {
+    tenantId: TENANT,
+    recordId: ORDER,
+    paymentState: "paid",
+  });
+  assert.deepEqual(result, { ok: true, updated: 1 });
+  assert.equal(sawThis, true);
+});

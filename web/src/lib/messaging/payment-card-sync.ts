@@ -63,7 +63,11 @@ export async function syncPaymentCardsForRecord(
   const target = input.paymentState ? CARD_STATE_FOR[input.paymentState] : undefined;
   if (!target || !input.tenantId || !input.recordId) return { ok: true, updated: 0 };
   if (typeof admin.from !== "function") return { ok: true, updated: 0 };
-  const from = admin.from;
+  // Call it AS A METHOD. `const from = admin.from` detaches it, and
+  // `SupabaseClient.from` uses `this` internally, so the detached call threw;
+  // `syncConversationRecord`'s outer catch swallowed it and the card silently
+  // never moved while the chip did (D-MSG-342).
+  const from = (table: string) => admin.from!(table);
 
   const { data: records, error: recordErr } = await from("conversation_records")
     .select("inquiry_id")
