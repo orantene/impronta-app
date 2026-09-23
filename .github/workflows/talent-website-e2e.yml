@@ -46,9 +46,6 @@ on:
 
 permissions:
   contents: read
-  # Needed for `docker login ghcr.io` with the job's own token, which moves
-  # the Supabase image pulls off the runner's shared anonymous quota.
-  packages: read
 
 concurrency:
   group: talent-website-e2e-${{ github.event.pull_request.number || github.ref }}
@@ -96,36 +93,43 @@ jobs:
           grep -n -A3 -E '^\[db\.(seed|migrations)\]' supabase/config.toml
           echo "Migrations on disk: $(ls supabase/migrations | grep -cE '^[0-9]+_.*\.sql$')"
 
-      # `supabase start` pulls its images from ghcr.io unauthenticated, on a
-      # shared GitHub runner IP. That gets rate limited — "toomanyrequests ...
-      # failed to pull docker image from all registries" killed this lane three
-      # times in one evening, always before a single migration ran, so every
-      # failure looked like a new problem and cost someone an investigation.
+      # `supabase start` pulls its images from ghcr.io (SUPABASE_INTERNAL_IMAGE_
+      # REGISTRY), and this lane died THREE times in one evening on:
       #
-      # Authenticating with the job's own GITHUB_TOKEN moves the pull onto this
-      # repo's quota instead of the runner's shared one. The token is already
-      # present and needs no new secret; `permissions: packages: read` is not
-      # required for public images but the login is what lifts the limit.
-      - name: Authenticate to ghcr.io (lifts the anonymous pull rate limit)
-        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
+      #   Error response from daemon: toomanyrequests: retry-after: 225µs,
+      #   allowed: 44000/minute
+      #
+      # That 44000/minute is a SHARED burst bucket keyed on the runner's egress
+      # IP, not on our account. MEASURED: `docker login ghcr.io` with the job's
+      # own GITHUB_TOKEN does NOT lift it — tried on this branch, the login
+      # succeeded and the pull still failed 50 times. So authenticating is not
+      # the fix and the login step was removed rather than left in place looking
+      # like one.
+      #
+      # What is left is honest backoff. The bucket refills per MINUTE, so a 30s
+      # retry is too fast to help; this waits 75s and tries five times, which
+      # spans six minutes of refills. A run that dies here measures the RUNNER,
+      # not our fixtures, so it is worth spending minutes to avoid producing a
+      # misleading number.
       - name: Start local Supabase
         run: |
           set -o pipefail
           supabase --version
           # Retry the pull-heavy start: even authenticated, a transient registry
           # failure should cost 30 seconds, not the whole run.
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             if supabase start \
                  -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime; then
               echo "supabase start succeeded on attempt $attempt"
               exit 0
             fi
-            echo "::warning title=supabase start failed::attempt $attempt of 3, retrying in 30s"
-            supabase stop --no-backup || true
-            sleep 30
+            if [ "$attempt" -lt 5 ]; then
+              echo "::warning title=supabase start failed::attempt $attempt of 5, waiting 75s for the registry bucket to refill"
+              supabase stop --no-backup || true
+              sleep 75
+            fi
           done
-          echo "::error title=supabase start::failed three times — see the log above for the registry error"
+          echo "::error title=supabase start::failed 5 times over ~6 minutes. If the log shows toomanyrequests this is the shared ghcr bucket, NOT our code — the run proves nothing about the fixtures."
           exit 1
 
       - name: psql client
