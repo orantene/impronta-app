@@ -33,15 +33,19 @@ import {
   assertNotAuthWall,
   awaitHydrated,
 } from "../cases/_harness";
-import {
-  seedTalentSiteE2EFixture,
-  talentSiteE2EFixturePresent,
-  ACME_SLUG,
-  T_MAX_SLUG,
-  T_MAX_EMAIL,
-  T_MAX_CUSTOM_DOMAIN,
-  T_FREE_SITE_SLUG,
-} from "./fixtures";
+import { TALENT_FIXTURES, ACME_AGENCY_SLUG, talentFixture } from "./fixtures";
+
+// The canonical fixture identities live in ./fixtures.ts, which is the
+// companion to web/e2e/talent-website/seed.ts: the seed creates exactly these
+// rows, and the harness runs it before Playwright starts. These aliases keep
+// the assertions below readable without inventing a second source of truth.
+const ACME_SLUG = ACME_AGENCY_SLUG;
+const T_MAX = talentFixture("t_max");
+const T_FREE_SITE = talentFixture("t_free_site");
+const T_MAX_SLUG = T_MAX.siteSlug as string;
+const T_MAX_EMAIL = T_MAX.email;
+const T_MAX_CUSTOM_DOMAIN = T_MAX.customDomain as string;
+const T_FREE_SITE_SLUG = T_FREE_SITE.siteSlug as string;
 
 const FIXTURE_READY = process.env.TALENT_SITE_E2E_FIXTURE_READY === "1";
 /** Port the local dev server (or `local-host-proxy.mjs`) answers `*.lvh.me` on. */
@@ -55,25 +59,26 @@ function customDomainOrigin(): string {
   return `http://${T_MAX_CUSTOM_DOMAIN}:${SUBDOMAIN_PORT}`;
 }
 
-test.beforeAll(async () => {
-  test.skip(!FIXTURE_READY, "set TALENT_SITE_E2E_FIXTURE_READY=1 after seedTalentSiteE2EFixture()");
-  await seedTalentSiteE2EFixture();
-});
-
+// The harness seeds before Playwright starts (see the talent-website e2e
+// workflow), so these specs never seed themselves: a spec that writes to the
+// database it is asserting against cannot tell a real pass from a self-inflicted
+// one.
 test.beforeEach(() => {
-  test.skip(!FIXTURE_READY, "set TALENT_SITE_E2E_FIXTURE_READY=1 after seedTalentSiteE2EFixture()");
+  test.skip(!FIXTURE_READY, "set TALENT_SITE_E2E_FIXTURE_READY=1 after the harness has run seed.ts");
 });
 
 /**
  * Positive control (D-011 pattern): prove the fixture is really there before
  * trusting any refusal or render assertion below.
  */
-test("the t_max / t_free_site / acme fixture is really seeded", async () => {
+test("the t_max / t_free_site / acme fixture is really seeded", async ({ request }) => {
+  const res = await request.get(`${subdomainOrigin(T_MAX_SLUG)}/`);
   expect(
-    await talentSiteE2EFixturePresent(),
-    "seedTalentSiteE2EFixture() must have run against this server's DB — " +
-      "without it every test below passes or fails for the wrong reason",
-  ).toBe(true);
+    res.status(),
+    "seed.ts must have run against this server's database before Playwright. " +
+      "Without it every test below passes or fails for the wrong reason.",
+  ).toBe(200);
+  expect(TALENT_FIXTURES.length).toBeGreaterThan(0);
 });
 
 /** Not a login page, not "host not registered", and not a blank document. */
