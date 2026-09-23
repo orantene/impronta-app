@@ -350,11 +350,12 @@ async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInp
   // The lines: the offer's people, dated by the appointment window — reservation
   // stamp when present, otherwise a live talent_holds row from client pick-time
   // (D-MSG-413). Without a window the people stay undated (no_date skip).
-  const { data: inqMeta } = await c.admin
+  const { data: inqMeta, error: inqMetaErr } = await c.admin
     .from("inquiries")
     .select("event_timezone")
     .eq("id", input.inquiryId)
     .maybeSingle();
+  if (inqMetaErr) return unavailable();
   const windowRes = await resolveAppointmentMirrorSource(c.admin, {
     inquiryId: input.inquiryId,
     tenantId: c.tenantId,
