@@ -171,6 +171,7 @@ type MediaAsset = {
 };
 
 type TalentProfile = {
+  /** Per-talent template; NULL inherits the tenant token. */ profile_template?: string | null;
   id: string;
   profile_code: string;
   display_name: string | null;
@@ -1179,7 +1180,7 @@ async function fetchSimilarTalent(
   const { data: profiles } = await supabase
     .from("talent_profiles")
     .select(
-      `id, profile_code, display_name, first_name, last_name, workflow_status,
+      `id, profile_code, display_name, first_name, last_name, workflow_status, profile_template,
        talent_profile_taxonomy ( is_primary, taxonomy_terms ( kind, name_i18n ) ),
        media_assets ( bucket_id, storage_path, variant_kind, sort_order )`,
     )
@@ -2322,11 +2323,10 @@ export async function TalentProfileView({
   // ── Profile template dispatch ─────────────────────────────────────────
   // Per-tenant choice of profile-page template — the exact mirror of the Card
   // Design chooser. Card Design stores its pick in the
-  // `template.directory-card-family` design token; the profile template uses
-  // the sibling `template.profile-layout-family` token in brandingTheme,
-  // overridable with `?template=` for QA. See the dispatcher for the rules.
+  // Card family is a separate token; the profile template's own resolution
+  // order is documented on resolveProfileTemplate.
   const { key: profileTemplateKey, Template: ProfileTemplate } =
-    resolveProfileTemplate(sp.template, brandingTheme);
+    resolveProfileTemplate(sp.template, profile.profile_template, brandingTheme);
 
   // Tenant theme → theme-adaptive templates (Lumen / Atelier). Project the
   // tenant's color design tokens to --token-color-* vars and derive a

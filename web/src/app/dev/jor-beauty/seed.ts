@@ -388,6 +388,13 @@ function toOffering(s: Seed, index: number, locale = "es"): TalentOffering {
 }
 
 export const JOR_OFFERINGS: TalentOffering[] = SEEDS.map((x, i) => toOffering(x, i, "es"));
+/**
+ * The same catalogue in English. Exported so the production seed can write
+ * `title_i18n`/`description_i18n` with BOTH locales in one pass — the live page
+ * picks per visitor, and a menu that exists only in Spanish would silently give
+ * an English visitor Spanish service names with English chrome around them.
+ */
+export const JOR_OFFERINGS_EN: TalentOffering[] = SEEDS.map((x, i) => toOffering(x, i, "en"));
 
 /** The same catalogue resolved for a locale, exactly as the loader would. */
 export function jorOfferings(locale: string): TalentOffering[] {
