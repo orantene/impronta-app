@@ -193,17 +193,34 @@ test.describe("Maison profile template", () => {
     );
   });
 
-  test("hides every section whose data is absent", async ({ page }) => {
-    // t_incomplete has no catalogue, no gallery and a thin profile: the page
-    // must still render as a complete page rather than a skeleton of headings.
+  test("a DRAFT talent has no public profile at all", async ({ page }) => {
+    // t_incomplete is workflow_status 'draft' with no hub roster row. This test
+    // originally asked it to render an empty-state Maison page, which was a
+    // misreading of the fixture: profile-view filters workflow_status to
+    // published|approved, so a draft has no public page to render a template
+    // into. The honest assertion is the gate itself — and it is worth pinning,
+    // because a template override in the query string must never be a way to
+    // view a profile its owner has not published.
     const incomplete = talentFixture("t_incomplete");
-    await gotoMaison(page, incomplete.profileCode);
+    await page.goto(maisonUrl(incomplete.profileCode));
+    await expect(page.locator("main[data-profile-template='maison']")).toHaveCount(0);
+  });
 
-    await expect(page.locator("main[data-profile-template='maison']")).toBeVisible();
+  test("hides every section whose data is absent", async ({ page }) => {
+    // t_ready IS public and has no reviews and no testimonials, so this is the
+    // real empty-state case: the sections that have data render, the ones that
+    // do not hide themselves, and the page still reads as a finished page
+    // rather than a skeleton of headings.
+    await gotoMaison(page, READY.profileCode);
+
     await expect(page.locator("h1")).toHaveCount(1);
 
-    // No empty section headings left stranded.
-    for (const id of ["#resultados", "#tu-cita", "#preguntas"]) {
+    // Reviews are seeded nowhere, and the template hides them below the
+    // credibility floor rather than showing an empty or a one-review rail.
+    await expect(page.locator("#reviews")).toHaveCount(0);
+
+    // Nothing that DID render may be a stranded heading.
+    for (const id of ["#servicios", "#resultados", "#tu-cita", "#preguntas"]) {
       const section = page.locator(id);
       if ((await section.count()) > 0) {
         await expect(section).not.toBeEmpty();
