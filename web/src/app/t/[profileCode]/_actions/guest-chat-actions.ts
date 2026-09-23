@@ -35,6 +35,7 @@ import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { resolveTalentSiteHostTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
@@ -194,6 +195,11 @@ async function resolveTenantIdBySlug(
   admin: SupabaseClient,
   tenantSlug: string,
 ): Promise<string | null> {
+  // A talent vanity host carries no tenant header. The profile id on the
+  // proxy header is the only input; a client-supplied slug is ignored.
+  const hosted = await resolveTalentSiteHostTenant(admin);
+  if (hosted.kind === "talent_site") return hosted.tenantId;
+
   const normalized = tenantSlug.trim().toLowerCase();
   if (!normalized) return null;
   const { data, error } = await admin

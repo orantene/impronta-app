@@ -73,6 +73,12 @@ type TalentProfileChatLauncherMountProps = {
   tenantSlug: string;
   /** Tenant uuid for the realtime channel filter (P1-T3 inbound reconcile). */
   tenantId?: string | null;
+  /**
+   * Talent-site hosts must not put a tenant id in the client bundle. The
+   * server still uses `tenantId` for dock flags and the edit-mode gate.
+   * Guest actions re-resolve the tenant from the host header.
+   */
+  exposeTenantToClient?: boolean;
   /** Agency display name for the header + opener. */
   agencyName: string;
   /** Brand accent color (agency_branding primary/accent). Null → neutral fallback. */
@@ -105,6 +111,7 @@ export async function TalentProfileChatLauncherMount({
   talentDisplayName,
   tenantSlug,
   tenantId = null,
+  exposeTenantToClient = true,
   agencyName,
   accentColor = null,
   logoUrl = null,
@@ -184,7 +191,7 @@ export async function TalentProfileChatLauncherMount({
   return (
     <TalentProfileChatLauncher
       tenantSlug={tenantSlug}
-      tenantId={tenantId}
+      tenantId={exposeTenantToClient ? tenantId : null}
       talentProfileId={talentProfileId}
       talentProfileCode={talentProfileCode}
       sourcePage={sourcePage}
