@@ -13,7 +13,7 @@ Updated: 2026-09-23 (Round 2)
 
 **Red (product):** D-MSG-318 POS 13th seat React #310; D-MSG-319 POS foreign-order React #310; D-MSG-312 concurrent confirm TOCTOU.
 
-**Still owed:** Stripe 4242+refund finish on `qa-stripe-r2.tulala.digital` (D-MSG-328 remint born-expired fixed on #2163 — retire reservation keys; 4242+refund re-run in progress); money-perm live staff; notifications; §7 storefront→Messages chip; event/table capacity host re-run; merge `#2163` when CLEAN.
+**Still owed:** Stripe 4242+refund on `qa-stripe-r2` blocked until D-MSG-329 is on **production** (`STRIPE_SECRET_KEY` is production-only; preview alias SSO'd and `getStripe()` 404'd). Merge `#2163` when CI green → wait production pointer → remint + 4242 + refund. Also: money-perm live staff; notifications; §7 storefront→Messages chip; event/table capacity host re-run.
 
 **Harness:** `assertQaIsolatedTarget` on `prepareJourneysPage` / `openAdminMessages` (Codex P1 on #2155 — refuse Impronta / production Supabase before mutation).
 
