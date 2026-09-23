@@ -31,6 +31,7 @@ import {
   findLeadOwnedFreeWorkspace,
 } from "./workspace-signup-free-limit";
 import { generateAvailableWorkspaceSlug } from "./workspace-signup-slug.server";
+import { isPlatformSubdomainLabelTaken } from "./platform-subdomain-namespace.server";
 import { PLAN_TIER_LABEL, isWorkspacePlanTier } from "@/lib/platform/plan-override";
 import { PLAN_SEAT_CAPS } from "./plan-seat-caps";
 import {
@@ -642,7 +643,23 @@ export async function provisionWorkspaceFromLead(params: {
     };
   }
 
-  const slug = await generateAvailableWorkspaceSlug(desiredSlug);
+  let slug = await generateAvailableWorkspaceSlug(desiredSlug);
+  // A workspace name and a talent site address share ONE namespace, so the name
+  // this function just picked can be free among `agencies` and still be held by
+  // a talent site at `<name>.tulala.digital`. The DB trigger would reject the
+  // insert; this walks to the next free name instead of failing a signup that
+  // has already been paid for. A `null` answer (check unavailable) is treated as
+  // free, exactly as it was before this namespace existed.
+  if ((await isPlatformSubdomainLabelTaken(slug)) === true) {
+    const base = slug;
+    for (let n = 2; n <= 9; n += 1) {
+      const candidate = await generateAvailableWorkspaceSlug(`${base}-${n}`);
+      if ((await isPlatformSubdomainLabelTaken(candidate)) !== true) {
+        slug = candidate;
+        break;
+      }
+    }
+  }
   // The workspace is born named after the BUSINESS the user typed on
   // /get-started (e.g. "Riviera Maya Work"), falling back to the person's
   // name only for legacy leads that predate the business_name column.

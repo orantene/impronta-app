@@ -3,7 +3,9 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { deriveSiteSlug } from "./derive-site-slug";
+import { isPlatformSubdomainLabelTaken } from "@/lib/saas/platform-subdomain-namespace.server";
+
+import { deriveAvailableSiteSlug } from "./derive-site-slug";
 import {
   buildDefaultShellTree,
   buildStarterHomePageTree,
@@ -135,7 +137,18 @@ export async function provisionTalentMaxSite(
     const taken = (takenRows ?? [])
       .map((r) => (r as { site_slug: string | null }).site_slug)
       .filter((s): s is string => !!s);
-    return deriveSiteSlug(profile.display_name, profile.profile_code, taken);
+    // The slug is about to become a hostname label, so it must clear the SHARED
+    // namespace (agency slugs, agency subdomain hosts, live signup reservations,
+    // reserved platform words), not just the other talent sites. The DB trigger
+    // would reject a collision anyway; asking first means provisioning picks the
+    // next free name instead of failing.
+    return deriveAvailableSiteSlug(profile.display_name, profile.profile_code, {
+      taken,
+      isTaken: async (candidate) =>
+        (await isPlatformSubdomainLabelTaken(candidate, {
+          excludeTalentProfileId: talentProfileId,
+        })) === true,
+    });
   }
 
   const defaultShell: BuilderNode[] = buildDefaultShellTree({ displayName });

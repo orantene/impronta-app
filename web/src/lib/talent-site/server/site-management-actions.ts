@@ -34,7 +34,16 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { assertTalentCanUseCustomBuilder } from "@/lib/server/talent-self-guard";
 import { gate } from "./site-action-gate";
 import { provisionTalentMaxSite } from "./provision-max-site";
-import { deriveSiteSlug, slugifySiteName } from "./derive-site-slug";
+import { isDnsLabel, slugifySiteName } from "./derive-site-slug";
+import {
+  isPlatformSubdomainLabelTaken,
+  requestSubdomainNamespaceCopy,
+} from "@/lib/saas/platform-subdomain-namespace.server";
+import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
+import {
+  talentSitePathUrl,
+  talentSitePublicUrl,
+} from "@/lib/talent-site/site-public-url";
 import {
   derivePageSlug,
   isReservedPageSlug,
@@ -61,8 +70,18 @@ const PAGE_COLUMNS =
 // Shared owner+Max gate lives in ./site-action-gate so the logo actions
 // (./site-logo-actions, a separate "use server" module) can reuse it.
 
+/**
+ * The address the dashboard shows and links to. With the subdomain switch on the
+ * site's real home is `<slug>.tulala.digital`; with it off (and for a slug that
+ * is not a usable hostname label) this is exactly today's path.
+ */
 function siteUrl(slug: string | null): string | null {
-  return slug ? `/t/site/${encodeURIComponent(slug)}` : null;
+  if (!slug) return null;
+  if (isTalentSiteSubdomainsEnabled()) {
+    const hostUrl = talentSitePublicUrl(slug);
+    if (hostUrl) return hostUrl;
+  }
+  return talentSitePathUrl(slug);
 }
 
 // ── Ensure / provision ───────────────────────────────────────────────────────
@@ -475,7 +494,9 @@ export async function setMaxSiteSlugAction(input: {
   if (!g.ok) return g;
 
   const desired = slugifySiteName(input.slug ?? "");
-  if (!desired) {
+  // The slug is a hostname label now, so a value that is not one is rejected
+  // here rather than by the CHECK constraint after a round-trip.
+  if (!desired || !isDnsLabel(desired)) {
     return { ok: false, code: "invalid_input", error: "Enter a valid site address." };
   }
 
@@ -492,12 +513,21 @@ export async function setMaxSiteSlugAction(input: {
     .map((r) => r.site_slug)
     .filter((s): s is string => !!s);
 
+  const copy = await requestSubdomainNamespaceCopy();
+
   if (taken.includes(desired)) {
-    return {
-      ok: false,
-      code: "slug_taken",
-      error: "That address is taken. Try another.",
-    };
+    return { ok: false, code: "slug_taken", error: copy.siteAddressTaken };
+  }
+
+  // The SHARED namespace: an agency slug, an agency subdomain host, a live
+  // signup reservation or a reserved platform word all block this address too.
+  // `null` means the check could not run (un-migrated DB) — continue and let the
+  // trigger decide, which the 23505 mapping below already handles.
+  const namespaceTaken = await isPlatformSubdomainLabelTaken(desired, {
+    excludeTalentProfileId: g.talentProfileId,
+  });
+  if (namespaceTaken === true) {
+    return { ok: false, code: "slug_taken", error: copy.siteAddressTaken };
   }
 
   const sb = await getCachedServerSupabase();
@@ -512,8 +542,10 @@ export async function setMaxSiteSlugAction(input: {
     .eq("talent_profile_id", g.talentProfileId);
   if (error) {
     // 23505 = unique_violation — a concurrent claim grabbed the slug.
+    // 23505 covers BOTH the unique index and the namespace triggers, which raise
+    // unique_violation on purpose so this one mapping keeps working.
     if ((error as { code?: string }).code === "23505") {
-      return { ok: false, code: "slug_taken", error: "That address is taken. Try another." };
+      return { ok: false, code: "slug_taken", error: copy.siteAddressTaken };
     }
     logServerError("maxSiteManager.setSlug", error);
     return { ok: false, code: "server_error", error: "Could not update the address." };
