@@ -43,6 +43,13 @@ import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 
 import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
 import { MAISON_DEFAULT_TOKENS } from "./maison-tokens";
+import {
+  derivedVisiting,
+  pick,
+  priceNoteFor,
+  publicOfferings,
+  resolveMaisonContent,
+} from "./maison-derive";
 import { MaisonStyles } from "./maison-styles";
 import { MaisonMenu } from "./MaisonMenu";
 import { MaisonGallery, type MaisonShot } from "./MaisonGallery";
@@ -72,111 +79,6 @@ export type MaisonProfileLayoutProps = LightProfileLayoutProps & {
   surfaceBooking?: "inquire" | "request" | "instant";
 };
 
-// ── Copy ────────────────────────────────────────────────────────────────────
-
-const COPY = {
-  es: {
-    navAbout: "Sobre mí",
-    navServices: "Servicios",
-    navResults: "Resultados",
-    navVisit: "Tu cita",
-    navFaq: "Preguntas",
-    book: "Reservar",
-    heroPrimary: "Ver servicios y reservar",
-    heroSecondary: "Conóceme",
-    servicesTitle: "Servicios",
-    servicesAccent: "y precios",
-    servicesLead: "Todos los precios en pesos mexicanos (MXN).",
-    menuKicker: "El menú",
-    metaServices: "servicios",
-    metaCategories: "categorías",
-    requestOnlyNote: "Las citas quedan sujetas a confirmación.",
-    select: "Seleccionar",
-    options: "Elegir opciones",
-    consult: "Consultar",
-    selected: "Seleccionado",
-    from: "Desde",
-    durationNote: "duración estimada",
-    barIdleTitle: "Elige tu servicio",
-    barIdleHint: "Del menú completo, con sus opciones",
-    barSeeServices: "Ver servicios",
-    barContinue: "Continuar",
-    menuEmptyTitle: "El menú llega pronto",
-    menuEmptyBody: "Los servicios, precios y opciones se publican desde el catálogo del panel.",
-    resultsTitle: "Trabajos",
-    resultsAccent: "recientes",
-    galleryEmptyTitle: "Las fotos llegan pronto",
-    galleryEmptyBody: "Se publican desde el panel y aparecen aquí automáticamente.",
-    close: "Cerrar",
-    prev: "Anterior",
-    next: "Siguiente",
-    visitTitle: "Tu",
-    visitAccent: "cita",
-    faqTitle: "Antes de tu cita",
-    stepsTitle: "Cómo reservar",
-    askLead: "¿No encontrás tu respuesta? Escribime y lo vemos juntas.",
-    askCta: "Hacer una pregunta",
-    contactEmail: "Correo",
-    reviews: "Reseñas",
-    portraitPending: "El retrato aparece en cuanto se sube desde el panel.",
-    artistFallbackGreeting: "Sobre mí",
-    moreLabel: "Leer más",
-  },
-  en: {
-    navAbout: "About",
-    navServices: "Services",
-    navResults: "Results",
-    navVisit: "Your visit",
-    navFaq: "FAQ",
-    book: "Book",
-    heroPrimary: "See services and book",
-    heroSecondary: "Meet me",
-    servicesTitle: "Services",
-    servicesAccent: "and prices",
-    servicesLead: "All prices in Mexican pesos (MXN).",
-    menuKicker: "The menu",
-    metaServices: "services",
-    metaCategories: "categories",
-    requestOnlyNote: "Appointments are subject to confirmation.",
-    select: "Select",
-    options: "Choose options",
-    consult: "Ask",
-    selected: "Selected",
-    from: "From",
-    durationNote: "estimated duration",
-    barIdleTitle: "Choose your service",
-    barIdleHint: "From the full menu, with its options",
-    barSeeServices: "See services",
-    barContinue: "Continue",
-    menuEmptyTitle: "Menu coming soon",
-    menuEmptyBody: "Services, prices and options are published from the dashboard catalogue.",
-    resultsTitle: "Recent",
-    resultsAccent: "work",
-    galleryEmptyTitle: "Photos coming soon",
-    galleryEmptyBody: "They are published from the dashboard and appear here automatically.",
-    close: "Close",
-    prev: "Previous",
-    next: "Next",
-    visitTitle: "Your",
-    visitAccent: "visit",
-    faqTitle: "Before your appointment",
-    stepsTitle: "How to book",
-    askLead: "Not here? Message me and we will work it out.",
-    askCta: "Ask a question",
-    contactEmail: "Email",
-    reviews: "Reviews",
-    portraitPending: "The portrait appears as soon as it is uploaded from the dashboard.",
-    artistFallbackGreeting: "About",
-    moreLabel: "Read more",
-  },
-} as const;
-
-type Copy = { [K in keyof (typeof COPY)["es"]]: string };
-
-function pick(locale: string): Copy {
-  return locale.toLowerCase().startsWith("es") ? COPY.es : COPY.en;
-}
-
 /** The appointment rows read as facts, not as a spreadsheet, once each has a mark. */
 function FactIcon({ kind }: { kind?: string }) {
   const common = { size: 18, strokeWidth: 1.5, "aria-hidden": true } as const;
@@ -186,102 +88,6 @@ function FactIcon({ kind }: { kind?: string }) {
   if (kind === "clock") return <Clock3 {...common} />;
   if (kind === "languages") return <Languages {...common} />;
   return <Heart {...common} />;
-}
-
-// ── Derivations ─────────────────────────────────────────────────────────────
-
-function publicOfferings(offerings: TalentOffering[]): TalentOffering[] {
-  return offerings
-    .filter(
-      (o) =>
-        o.status === "published" &&
-        o.moderationState === "approved" &&
-        o.visibility !== "agency_only",
-    )
-    .sort((a, b) => a.sortOrder - b.sortOrder);
-}
-
-function categoriesFrom(
-  offerings: TalentOffering[],
-  override: MaisonContent["menuCategories"],
-): { id: string; label: string; note?: string | null }[] {
-  if (override?.length) return override.filter((c) => offerings.some((o) => o.category === c.id));
-  const seen: string[] = [];
-  for (const o of offerings) {
-    const c = o.category?.trim();
-    if (c && !seen.includes(c)) seen.push(c);
-  }
-  return seen.map((c) => ({ id: c, label: c }));
-}
-
-/** Facts for the hero, from the structured skills model when not authored. */
-function derivedFacts(props: MaisonProfileLayoutProps): string[] {
-  const es = props.locale.toLowerCase().startsWith("es");
-  const out: string[] = [];
-  const years = props.resolvedSkills.reduce(
-    (max, s) => (s.years_experience && s.years_experience > max ? s.years_experience : max),
-    0,
-  );
-  if (years > 0) out.push(es ? `${years} años de experiencia` : `${years} years of experience`);
-  const primary =
-    props.resolvedSkills.find((s) => s.relationship_type === "primary_role") ??
-    props.resolvedSkills[0];
-  if (primary) {
-    const term = (es ? primary.skill_name_es : null) ?? primary.skill_name_en;
-    // "Lash Artist" already names the role — appending "specialist" to it
-    // produced "Lash Artist specialist".
-    const namesRole = /\b(artist|specialist|stylist|technician|pro)\b/i.test(term);
-    out.push(
-      es
-        ? `Especialista en ${term.toLowerCase()}`
-        : namesRole
-          ? term
-          : `${term} specialist`,
-    );
-  } else if (props.primaryType) {
-    out.push(props.primaryType);
-  }
-  return out;
-}
-
-function paragraphsOf(text: string): string[] {
-  return text
-    .trim()
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-}
-
-function resolveMaisonContent(props: MaisonProfileLayoutProps, c: Copy): MaisonContent {
-  const m = props.maison ?? {};
-  const offerings = publicOfferings(props.storefrontOfferings);
-  const bio = paragraphsOf(props.aboutText);
-  const categories = categoriesFrom(offerings, m.menuCategories);
-  return {
-    ...m,
-    heroKicker: m.heroKicker ?? props.livesIn ?? null,
-    heroTitle: m.heroTitle ?? props.name,
-    heroTitleAccent: m.heroTitleAccent ?? null,
-    heroLead: m.heroLead ?? bio[0] ?? null,
-    heroImageUrl: m.heroImageUrl ?? props.bannerUrl ?? props.galleryItems[0]?.url ?? null,
-    heroInsetUrl: m.heroInsetUrl ?? props.galleryItems[1]?.url ?? null,
-    heroFacts: m.heroFacts ?? derivedFacts(props),
-    marquee: m.marquee ?? categories.map((x) => x.label),
-    artist:
-      m.artist ??
-      (bio.length
-        ? { greeting: c.artistFallbackGreeting, paragraphs: bio.slice(0, 2), more: bio.slice(2) }
-        : null),
-    menuCategories: categories,
-    gallery:
-      m.gallery ??
-      props.galleryItems.map<MaisonShot>((g, i) => ({
-        id: g.id,
-        url: g.url,
-        label: props.name,
-        wide: i === 2,
-      })),
-  };
 }
 
 // ── Layout ──────────────────────────────────────────────────────────────────
@@ -329,6 +135,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
   const c = pick(locale);
   const content = resolveMaisonContent(props, c);
   const offerings = publicOfferings(props.storefrontOfferings);
+  const priceNote = priceNoteFor(offerings, locale, c.servicesLead);
   const categories = content.menuCategories ?? [];
   // 12 keeps the 4-up desktop grid landing on whole rows (a wide shot counts
   // as two cells), so the band never ends with a lone orphan tile.
@@ -506,7 +313,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
                 {c.servicesTitle} <em>{c.servicesAccent}</em>
               </h2>
               <p className="mn-lead">
-                {content.menuNote ?? c.servicesLead}
+                {content.menuNote ?? priceNote}
                 {surfaceBooking !== "instant" ? ` ${c.requestOnlyNote}` : ""}
               </p>
             </div>
