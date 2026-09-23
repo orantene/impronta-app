@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPaymentLinkByCode, markPaymentLinkPaid } from "@/lib/payments/links";
@@ -8,6 +9,22 @@ import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 
 import { CheckoutView } from "./CheckoutView";
+
+/**
+ * Absolute origin for Stripe success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL
+ * when set; otherwise the request host (agent-owned QA hosts like
+ * qa-stripe-r2.tulala.digital have no BASE_URL — empty origin made Stripe
+ * reject relative success_url and /pay?confirm=stripe 500'd).
+ */
+async function checkoutOrigin(): Promise<string> {
+  const fromEnv = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "";
+  if (fromEnv) return fromEnv;
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  if (!host) return "";
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${host}`;
+}
 
 /**
  * The signed `/c/t/<token>` path for the conversation behind a sale: the
@@ -160,7 +177,7 @@ export default async function PayByCodePage({
     );
   }
 
-  const origin = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") || "";
+  const origin = await checkoutOrigin();
   const successUrl = `${origin}/pay/${code}?status=paid`;
   const cancelUrl = `${origin}/pay/${code}`;
 
@@ -187,6 +204,7 @@ export default async function PayByCodePage({
 
   let stripeUrl: string | null = null;
   if (loaded.provider === "stripe" && query.confirm === "stripe") {
+    if (!origin) notFound();
     const stripe = getStripe();
     if (!stripe) notFound();
     const session = await stripe.checkout.sessions.create({

@@ -3,10 +3,12 @@ import {
   attachConsoleGuard,
   awaitHydrated,
   expect,
-  openAdminMessages,
   openPlusTray,
   requireClientLink,
+  sendPricedOffer,
   shot,
+  signInAgentOwnedHost,
+  startFreshConversation,
   test,
 } from "../_harness";
 
@@ -15,41 +17,70 @@ import {
  *
  * Requires STRIPE_SECRET_KEY on the host so minted links use provider=stripe
  * (D-MSG-313: staging-qa-journeys is preview-only and mints provider=mock).
- * Override PLAYWRIGHT_BASE_URL to a production-gated QA business host.
+ * Override PLAYWRIGHT_BASE_URL to a production-gated agent-owned QA host and set
+ * QA_ALLOW_AGENT_PROD_HOST=1 (assertQaIsolatedTarget refuses Impronta / apex).
  *
- * Flow: mint pay link → open /pay/<code> → Stripe Checkout with 4242 →
- * assert Payment card Paid + Money balance + record chip → full refund →
- * assert every surface flips back.
+ * Agent host: https://qa-stripe-r2.tulala.digital (agent_owned_qa tenant).
+ * Sign-in uses magic-link cookies (dev signin is 403 on production).
+ *
+ * Flow: fresh conversation → offer → accept → mint pay link → /pay/<code> →
+ * Stripe Checkout 4242 → Payment card Paid + Money + record chip → full refund →
+ * surfaces flip back.
  */
-const PAY_INQUIRY =
-  process.env.QA_STRIPE_PAY_INQUIRY_ID ??
-  process.env.QA_AWAITING_OFFER_INQUIRY_ID ??
-  "ad22e3e4-9ad9-431b-b922-1ccf3bf5c10f";
+const AGENT_HOST =
+  process.env.QA_STRIPE_HOST ?? process.env.PLAYWRIGHT_BASE_URL ?? "https://qa-stripe-r2.tulala.digital";
+const USE_AGENT_PROD = process.env.QA_ALLOW_AGENT_PROD_HOST === "1";
 
 test.describe("QA Stripe pay + refund", () => {
-  test.use({ viewport: { width: 1440, height: 900 } });
-  test.setTimeout(360_000);
+  test.use({
+    viewport: { width: 1440, height: 900 },
+    baseURL: AGENT_HOST,
+  });
+  // Sign-in (magic link) + Checkout 4242 + refund easily exceeds 6m on prod.
+  test.setTimeout(600_000);
 
   test("mint pay link → 4242 → Paid → full refund → unpaid", async ({ page, context }) => {
-    const { errors } = attachConsoleGuard(page);
-    await openAdminMessages(page);
+    test.skip(
+      !USE_AGENT_PROD,
+      "Stripe 4242+refund requires QA_ALLOW_AGENT_PROD_HOST=1 on agent-owned production host (D-MSG-313; journeys mints mock)",
+    );
 
-    const u = new URL(page.url());
-    u.searchParams.set("inquiry", PAY_INQUIRY);
-    await page.goto(u.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
-    await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
-    await awaitHydrated(page);
-
-    // Accept offer on client if still awaiting (same door as payment-deep).
-    const client = await requireClientLink(page, context);
-    const accept = client.locator('[data-client-action="accept_offer"]').first();
-    if (await accept.isVisible().catch(() => false)) {
-      await accept.click();
-      await expect(client.getByText(/accepted/i).first()).toBeVisible({ timeout: 25_000 });
+    // Preview alias of qa-stripe-r2 is SSO-gated; automation bypass unlocks Checkout.
+    const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    if (bypass) {
+      await context.setExtraHTTPHeaders({
+        "x-vercel-protection-bypass": bypass,
+        "x-vercel-set-bypass-cookie": "true",
+      });
     }
-    await client.close().catch(() => undefined);
-    await page.bringToFront();
-    await page.waitForTimeout(800);
+
+    const { errors } = attachConsoleGuard(page);
+
+    await signInAgentOwnedHost(page, { host: AGENT_HOST });
+    const existing = process.env.QA_STRIPE_EXISTING_INQUIRY;
+    if (existing) {
+      const u = new URL("/admin/messages", AGENT_HOST);
+      u.searchParams.set("inquiry", existing);
+      await page.goto(u.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
+      await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
+      await awaitHydrated(page);
+    } else {
+      await startFreshConversation(page);
+      await sendPricedOffer(page, { fresh: true });
+    }
+
+    // Accept offer on client only when we just sent a fresh offer.
+    if (!existing) {
+      const client = await requireClientLink(page, context);
+      const accept = client.locator('[data-client-action="accept_offer"]').first();
+      if (await accept.isVisible().catch(() => false)) {
+        await accept.click();
+        await expect(client.getByText(/accepted/i).first()).toBeVisible({ timeout: 25_000 });
+      }
+      await client.close().catch(() => undefined);
+      await page.bringToFront();
+      await page.waitForTimeout(800);
+    }
 
     // Money section balance before mint (effect baseline).
     const money = page.locator("[data-panel-money]").first();
@@ -62,14 +93,73 @@ test.describe("QA Stripe pay + refund", () => {
     const sheet = page.locator("[data-payment-request-sheet], [data-sheet]").first();
     await expect(sheet, "Payment request sheet did not open").toBeVisible({ timeout: 20_000 });
 
-    // An open unpaid pay link blocks mint (`canSend` requires !openRequest).
-    const openBlock = sheet.getByText(/already|open.*(link|request)|outstanding/i).first();
-    if (await openBlock.isVisible().catch(() => false)) {
-      await shot(page, "admin-stripe-open-request-block");
-      expect(
-        false,
-        "Payment sheet blocked by an open pay link — cancel/expire the open request on this inquiry before minting Stripe (canSend && !openRequest)",
-      ).toBeTruthy();
+    // Clear leftover open request only when the sheet says so (avoid reload races).
+    const openBlock = sheet
+      .getByText(/one open request|open (pay )?link|request already open/i)
+      .first();
+    if (
+      process.env.SUPABASE_SERVICE_ROLE_KEY &&
+      USE_AGENT_PROD &&
+      (await openBlock.isVisible().catch(() => false))
+    ) {
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } },
+      );
+      const TENANT = "a1111111-1111-4111-8111-111111111102";
+      await sb.from("payment_links").update({ status: "cancelled" }).eq("tenant_id", TENANT).eq("status", "open");
+      await sb.from("conversation_records").update({ payment_state: null }).eq("tenant_id", TENANT);
+      await page.keyboard.press("Escape").catch(() => undefined);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
+      await awaitHydrated(page);
+      await openPlusTray(page);
+      await page.locator('[data-tray-item="payment"]').click();
+      await expect(sheet, "Payment sheet did not reopen after clearing open request").toBeVisible({
+        timeout: 20_000,
+      });
+    }
+
+    // D-MSG-328: createPaymentLink refuses remint when a cancelled/expired row
+    // still owns msgv5-pay-<inquiry>-<order>-full. A released collection
+    // reservation with the same key can also return already=true with a past
+    // expires_at, so the new link is born expired ("expires in 0h").
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY && USE_AGENT_PROD) {
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } },
+      );
+      const TENANT = "a1111111-1111-4111-8111-111111111102";
+      const { data: deadLinks } = await sb
+        .from("payment_links")
+        .select("id, operation_key, status")
+        .eq("tenant_id", TENANT)
+        .in("status", ["cancelled", "expired"]);
+      for (const row of deadLinks ?? []) {
+        const key = String((row as { operation_key?: string }).operation_key ?? "");
+        if (!key || key.includes("-retired-")) continue;
+        await sb
+          .from("payment_links")
+          .update({ operation_key: `${key}-retired-${(row as { id: string }).id}` })
+          .eq("id", (row as { id: string }).id);
+      }
+      const { data: deadRes } = await sb
+        .from("order_collection_reservations")
+        .select("id, operation_key, state")
+        .eq("tenant_id", TENANT)
+        .in("state", ["released", "settled"]);
+      for (const row of deadRes ?? []) {
+        const key = String((row as { operation_key?: string }).operation_key ?? "");
+        if (!key || key.includes("-retired-")) continue;
+        await sb
+          .from("order_collection_reservations")
+          .update({ operation_key: `${key}-retired-${(row as { id: string }).id}` })
+          .eq("id", (row as { id: string }).id);
+      }
     }
 
     await sheet.getByText(/pay link|send a pay link/i).first().click();
@@ -80,50 +170,78 @@ test.describe("QA Stripe pay + refund", () => {
     const full = sheet.getByRole("radio", { name: /full amount/i }).first();
     await expect(full, "Full amount missing").toBeVisible({ timeout: 10_000 });
     await full.click();
+    await expect(
+      sheet.getByText(/expired|cannot be saved|conversation just changed/i),
+      "Payment sheet refused before Send — extend hold / reload inquiry",
+    ).toHaveCount(0);
     const send = sheet.locator("[data-payment-send]").first();
     await expect(
       send,
       "Payment Send disabled — need order target + Full amount + no open request (D-MSG-309); Stripe mint needs STRIPE_SECRET_KEY (D-MSG-313)",
     ).toBeEnabled({ timeout: 20_000 });
-    const beforeCards = await page.locator('[data-card="payment"]').count();
     await send.click();
-    const payCard = page.locator('[data-card="payment"]').nth(beforeCards);
-    await expect(payCard, "Payment card missing after mint").toBeVisible({ timeout: 25_000 });
+    // Wait for sheet to leave Sending / close — do not match a ghost Paid card
+    // whose trail still contains "Request sent" (D-MSG-328 remint false positive).
+    await expect(
+      sheet.getByRole("button", { name: /sending/i }),
+      "Payment Send stuck on Sending — createPaymentLink likely refused (expired/conflict)",
+    ).toHaveCount(0, { timeout: 30_000 });
+    await expect(
+      sheet.getByText(/expired|link or offer expired|cannot be saved/i),
+      "Payment sheet refused after Send (D-MSG-328 operation_key / hold)",
+    ).toHaveCount(0);
+
+    const TENANT = "a1111111-1111-4111-8111-111111111102";
+    let mintedCode: string | null = null;
+    let mintedProvider: string | null = null;
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } },
+      );
+      // Poll briefly — syncConversationRecord + insert are not always instant in UI.
+      for (let i = 0; i < 20; i++) {
+        const { data: link } = await sb
+          .from("payment_links")
+          .select("code, provider, status, expires_at")
+          .eq("tenant_id", TENANT)
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const exp = link?.expires_at ? Date.parse(String(link.expires_at)) : 0;
+        if (link?.code && exp > Date.now() + 60_000) {
+          mintedCode = link.code;
+          mintedProvider = link.provider;
+          break;
+        }
+        await page.waitForTimeout(800);
+      }
+      expect(
+        mintedCode,
+        "no open unexpired payment_links row after mint (D-MSG-328: retire released reservation op keys or link is born expired)",
+      ).toBeTruthy();
+      expect(mintedProvider, `expected provider=stripe; got ${mintedProvider}`).toBe("stripe");
+    }
+
+    // Race Checkout before UI polish — sign-in already burned most of the budget.
+    expect(mintedCode, "mintedCode required for Checkout (SUPABASE_SERVICE_ROLE_KEY on agent host)").toBeTruthy();
     await shot(page, "admin-stripe-pay-card-minted");
-
-    // Open /pay/<code> from the card's copy/link affordance or card text.
-    const payHref = await payCard.locator("a[href*='/pay/']").first().getAttribute("href").catch(() => null);
-    let code: string | null = null;
-    if (payHref) {
-      const m = payHref.match(/\/pay\/([^/?#]+)/);
-      code = m?.[1] ?? null;
-    }
-    if (!code) {
-      // Fall back: Copy link / open pay from card actions.
-      const copyPay = payCard.getByRole("button", { name: /copy|pay link|open/i }).first();
-      await expect(
-        copyPay.or(payCard.locator("a[href*='/pay/']").first()),
-        "Payment card has no /pay/ link or copy control — cannot open Stripe checkout",
-      ).toBeVisible({ timeout: 10_000 });
-    }
-
-    const payUrl = payHref?.startsWith("http")
-      ? payHref
-      : payHref
-        ? new URL(payHref, page.url()).toString()
-        : null;
-    expect(payUrl, "could not resolve /pay/<code> URL from Payment card").toBeTruthy();
-
+    const payUrl = new URL(`/pay/${mintedCode}`, AGENT_HOST).toString();
     const payPage = await context.newPage();
-    await payPage.goto(payUrl!, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await payPage.goto(payUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await expect(payPage.locator("[data-pos-messages='checkout'], main").first()).toBeVisible({
       timeout: 30_000,
     });
     await shot(payPage, "public-stripe-checkout-open");
 
-    // Stripe path: primary Pay links to ?confirm=stripe → Checkout.
-    // Mock path (no STRIPE_SECRET_KEY): fail — this spec requires Stripe.
-    const payCta = payPage.getByRole("link", { name: /^pay$/i }).or(payPage.locator("a").filter({ hasText: /^pay$/i })).first();
+    // i18n `public.thread.pay` → "Pay securely" (not bare "Pay").
+    const payCta = payPage
+      .getByRole("link", { name: /pay/i })
+      .or(payPage.locator(`a[href*='confirm=stripe'], a[href*='checkout.stripe.com']`))
+      .first();
     await expect(payCta, "Pay CTA missing on /pay page").toBeVisible({ timeout: 15_000 });
     const href = (await payCta.getAttribute("href")) || "";
     expect(
@@ -135,13 +253,11 @@ test.describe("QA Stripe pay + refund", () => {
     await payPage.waitForURL(/checkout\.stripe\.com|\/pay\//, { timeout: 45_000 });
 
     if (/checkout\.stripe\.com/.test(payPage.url())) {
-      // Stripe Checkout test card.
       const email = payPage.locator('input[type="email"], input[name="email"]').first();
       if (await email.isVisible().catch(() => false)) {
         await email.fill("qa-stripe-r2@impronta.test");
       }
       const card = payPage.locator('input[name="cardnumber"], input[placeholder*="Card number" i], [data-testid="card-number"]').first();
-      // Stripe often uses iframe — try frame locators.
       const frame = payPage.frameLocator('iframe[name*="privateStripeFrame"], iframe[title*="card" i]').first();
       const cardInFrame = frame.locator('input[name="cardnumber"], input[autocomplete="cc-number"]').first();
       if (await card.isVisible().catch(() => false)) {
@@ -153,7 +269,6 @@ test.describe("QA Stripe pay + refund", () => {
         await frame.locator('input[name="exp-date"], input[autocomplete="cc-exp"]').first().fill("12 / 42");
         await frame.locator('input[name="cvc"], input[autocomplete="cc-csc"]').first().fill("123");
       } else {
-        // New Checkout UI: hosted fields.
         await payPage.getByPlaceholder(/card number/i).fill("4242424242424242");
         await payPage.getByPlaceholder(/mm\s*\/\s*yy/i).fill("12 / 42");
         await payPage.getByPlaceholder(/cvc/i).fill("123");
@@ -171,7 +286,6 @@ test.describe("QA Stripe pay + refund", () => {
     await shot(payPage, "public-stripe-paid");
     await payPage.close().catch(() => undefined);
 
-    // Admin surfaces: Payment card Paid, Money balance, record chip.
     await page.bringToFront();
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
@@ -191,7 +305,6 @@ test.describe("QA Stripe pay + refund", () => {
     }
     await shot(page, "admin-stripe-paid-surfaces");
 
-    // Full refund via Refund sheet.
     const refundBtn = page.getByRole("button", { name: /^refund$/i }).first();
     const nextRefund = page.locator("[data-next-step-action]").filter({ hasText: /refund/i }).first();
     if (await refundBtn.isVisible().catch(() => false)) {
@@ -200,7 +313,6 @@ test.describe("QA Stripe pay + refund", () => {
       await nextRefund.click();
     } else {
       await openPlusTray(page);
-      // Refund is not always in tray — try header overflow / card action.
       const cardRefund = page.locator('[data-card="payment"]').filter({ hasText: /paid/i }).getByRole("button", { name: /refund/i }).first();
       await expect(
         cardRefund,

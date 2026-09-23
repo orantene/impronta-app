@@ -96,7 +96,17 @@ VALUES (
   'default',
   ARRAY['en','es']::TEXT[],
   now(),
-  jsonb_build_object('business_type_id', 'nail-salon', 'notify_sink', 'test')
+  jsonb_build_object(
+    'business_type_id', 'nail-salon',
+    'industry_preset', 'salon_barber',
+    'notify_sink', 'test',
+    'appointments', jsonb_build_object(
+      'enabled', true,
+      'allowTalentDirectBooking', true,
+      'terminology', 'appointments',
+      'timezone', 'America/Mexico_City'
+    )
+  )
 )
 ON CONFLICT (id) DO UPDATE
   SET display_name = EXCLUDED.display_name,
