@@ -121,8 +121,24 @@ export default defineConfig({
       : {}),
   },
   projects: [
+    // ── Talent website journeys ──────────────────────────────────────────
+    // Split from `chromium` so the journeys can depend on a sign-in step and
+    // so the broader suite never pays for it. `testMatch` keeps chromium from
+    // also collecting these (it would run them without a session).
+    {
+      name: "talent-website-setup",
+      testMatch: /talent-website\/auth\.setup\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "talent-website",
+      testMatch: /talent-website\/.*\.spec\.ts/,
+      dependencies: ["talent-website-setup"],
+      use: { ...devices["Desktop Chrome"] },
+    },
     {
       name: useGoogleChrome ? "google-chrome" : "chromium",
+      testIgnore: /talent-website\//,
       use: {
         ...devices["Desktop Chrome"],
         ...(useGoogleChrome ? { channel: "chrome" as const } : {}),

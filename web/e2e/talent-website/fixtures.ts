@@ -168,3 +168,46 @@ export const LOOPBACK_HOSTS = ["localhost", "127.0.0.1"] as const;
  */
 export const MAISON_OPTIONED_OFFERING = "Maison QA — optioned service";
 export const MAISON_FIXED_OFFERING = "Maison QA — fixed service";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Spec-facing helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The fixtures keyed by their `key`, so a spec can write `fixtures.t_max`
+ * instead of hunting through the array.
+ *
+ * `TALENT_FIXTURES` stays the source of truth and the iteration order; this is
+ * a lookup over the same objects, not a second copy. Adding a fixture to the
+ * array adds it here with no other change.
+ */
+export const fixtures: Readonly<Record<TalentFixture["key"], TalentFixture>> =
+  Object.freeze(
+    Object.fromEntries(TALENT_FIXTURES.map((f) => [f.key, f])),
+  ) as Readonly<Record<TalentFixture["key"], TalentFixture>>;
+
+/**
+ * Directory holding one signed-in Playwright storage state per fixture.
+ *
+ * Written by `auth.setup.ts` (the `talent-website-setup` project) and read by
+ * the journeys through `storageStateFor`. Gitignored: these hold real session
+ * cookies for the local fixture users, and they are cheap to regenerate.
+ */
+export const AUTH_STATE_DIR = "e2e/.auth/talent-website";
+
+/**
+ * Path to the signed-in storage state for one fixture.
+ *
+ * Returns a PATH, not a state: Playwright resolves it at context-creation time,
+ * which is after the setup project has run and written the file. A spec calling
+ * this at module scope therefore does not require the file to exist yet, which
+ * is what lets `test.use({ storageState: storageStateFor("t_max") })` sit at the
+ * top of a describe block.
+ *
+ * The file is created by auth.setup.ts. If it is missing when a test actually
+ * runs, Playwright fails with ENOENT naming this path — which means the setup
+ * project did not run (check `--project`), not that the fixture is wrong.
+ */
+export function storageStateFor(key: TalentFixture["key"]): string {
+  return `${AUTH_STATE_DIR}/${key}.json`;
+}
