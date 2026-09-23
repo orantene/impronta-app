@@ -146,7 +146,7 @@ export type ContextPanelProps = {
   readonly nextReminderLabel?: string | null;
   /** "{count} past bookings · {amount}" from a customers rollup, or omitted (not zero) when no reader carries one (D-MSG-92). */
   readonly clientHistoryLabel?: string | null;
-  /** Held slot in the payload timezone (D-MSG-306). Null when the thread has no times card. */
+  /** Held slot in the payload timezone (D-MSG-330). Null when the thread has no times card. */
   readonly holdSlotLabel?: string | null;
 };
 
