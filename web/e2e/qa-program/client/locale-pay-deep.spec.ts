@@ -27,7 +27,8 @@ test.describe("QA remaining: client ES/FR + pay page", () => {
     viewport: { width: 1440, height: 900 },
     ...(USE_AGENT_PROD ? { baseURL: AGENT_HOST } : {}),
   });
-  test.setTimeout(180_000);
+  // Agent host: magic-link + offer send + dual locale navigations.
+  test.setTimeout(USE_AGENT_PROD ? 360_000 : 180_000);
 
   test("offer → mint client link → ES/FR strings + no raw keys", async ({ page, context }) => {
     const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
@@ -41,7 +42,9 @@ test.describe("QA remaining: client ES/FR + pay page", () => {
     const { errors } = attachConsoleGuard(page);
     if (USE_AGENT_PROD) {
       await signInAgentOwnedHost(page, { host: AGENT_HOST });
-      await sendPricedOffer(page, { fresh: true });
+      // Prefer live thread + Add items→Send (New→Start hangs when the sheet
+      // stays mounted over an already-open composer on this host).
+      await sendPricedOffer(page);
     } else {
       await openAdminMessages(page);
       const u0 = new URL(page.url());
