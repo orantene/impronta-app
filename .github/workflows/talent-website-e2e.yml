@@ -197,10 +197,28 @@ jobs:
       # cause, and the db container logs only the replay's own statements. So
       # ask the database directly, as the role GoTrue uses, BEFORE the seed.
       # Non-fatal: this step exists to explain a failure, not to cause one.
+      # GoTrue boots BEFORE the replay runs, and the replay then creates a
+      # trigger on auth.users (20250409000000_init.sql `on_auth_user_created`).
+      # Restart it so it is not holding connections or a schema view from before
+      # 861 migrations landed. Cheap, and it removes a whole class of "works
+      # after a restart" ambiguity from the diagnosis below.
+      - name: Restart GoTrue after the schema is built
+        run: |
+          docker restart supabase_auth_impronta-app
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$SUPABASE_URL/auth/v1/health" || true)
+            [ "$code" = "200" ] && { echo "auth healthy after ${i}s"; break; }
+            sleep 1
+          done
+          curl -s "$SUPABASE_URL/auth/v1/health" || true
+          echo
+
       - name: Probe auth schema health
         if: always()
         continue-on-error: true
         run: |
+          exec > >(tee -a "$GITHUB_STEP_SUMMARY") 2>&1
+          echo '```'
           echo "role exists:        $(psql -Atc "select count(*) from pg_roles where rolname='supabase_auth_admin'")"
           echo "auth.users RLS on:  $(psql -Atc "select relrowsecurity from pg_class where oid='auth.users'::regclass")"
           echo "select priv:        $(psql -Atc "select has_table_privilege('supabase_auth_admin','auth.users','select')")"
@@ -219,8 +237,9 @@ jobs:
           echo "HTTP $code"
           # The body can echo the key back on some errors; scrub before printing.
           sed -e "s/${SERVICE_ROLE_KEY}/***/g" "$RUNNER_TEMP/gotrue.json" | head -20
-          echo "--- auth container log, last 60 ---"
-          docker logs supabase_auth_impronta-app 2>&1 | tail -60 || true
+          echo "--- auth container log, last 40 ---"
+          docker logs supabase_auth_impronta-app 2>&1 | tail -40 || true
+          echo '```'
 
       - name: Seed talent-website fixtures
         working-directory: web
