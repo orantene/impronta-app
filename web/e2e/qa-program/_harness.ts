@@ -416,19 +416,23 @@ export async function startFreshConversation(page: Page): Promise<string> {
 
   let lastRefusal = "";
   for (let attempt = 0; attempt < 3; attempt++) {
-    await start.click();
+    // Sheet can stay mounted over an already-open thread; click with a bound
+    // timeout so a sticky overlay cannot burn the whole test budget.
+    await start.click({ timeout: 8_000 }).catch(() => undefined);
+    await page.waitForTimeout(800);
+    // Dismiss sticky New sheet so the composer under it is visible.
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await page.waitForTimeout(400);
     // Messages v5 may expose the reply wire as data-composer OR as the
     // thread header + "Write a reply" textbox (agent-owned prod host).
     const composer = page.locator(
       "[data-composer], [data-composer-wire], [data-thread-header]",
     ).first();
     const replyBox = page.getByRole("textbox", { name: /write a reply|reply/i }).first();
-    await page.waitForTimeout(1200);
     const opened =
       (await composer.isVisible().catch(() => false)) ||
       (await replyBox.isVisible().catch(() => false));
     if (opened) {
-      // Dismiss a sticky New sheet if it stayed open over the thread.
       await page.keyboard.press("Escape").catch(() => undefined);
       await awaitHydrated(page);
       return name;
@@ -515,11 +519,21 @@ export async function sendPricedOffer(page: Page, opts?: { fresh?: boolean }): P
         offer,
         "Awaiting acceptance row opened but staff stream has no offer card",
       ).toBeVisible({ timeout: 20_000 });
-      return;
+      // Draft offer cards also match data-card=offer — only reuse a sent/viewed card
+      // (client Accept needs status=sent). Draft falls through to Send.
+      const label = ((await offer.innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+      // Reuse only a sent/viewed (not draft, not already-accepted) card — client
+      // Accept needs status=sent. Draft/accepted fall through to Send/revise.
+      if (label && !/\bdraft\b/i.test(label) && !/\baccepted\b/i.test(label)) return;
     }
-    // Stream cards hydrate after the row click — wait briefly for an existing offer.
+    // Stream cards hydrate after the row click — wait briefly for a sent offer.
     for (let i = 0; i < 8; i++) {
-      if ((await page.locator('[data-card="offer"]').count()) > 0) return;
+      const cards = page.locator('[data-card="offer"]');
+      const n = await cards.count();
+      for (let c = 0; c < n; c++) {
+        const label = ((await cards.nth(c).innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+        if (label && !/\bdraft\b/i.test(label) && !/\baccepted\b/i.test(label)) return;
+      }
       await page.waitForTimeout(400);
     }
   }
@@ -597,25 +611,33 @@ export async function sendPricedOffer(page: Page, opts?: { fresh?: boolean }): P
     });
   }).toPass({ timeout: 45_000, intervals: [500, 1_000, 1_500] });
 
-  const before = await page.locator('[data-card="offer"]').count();
-  // Offer card appeared while we were editing (hydrate race) — reuse it.
-  if (before >= 1) {
+  const sentOffer = async () => {
+    const cards = page.locator('[data-card="offer"]');
+    const n = await cards.count();
+    for (let c = 0; c < n; c++) {
+      const label = ((await cards.nth(c).innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+      if (label && !/\bdraft\b/i.test(label) && !/\baccepted\b/i.test(label)) return true;
+    }
+    return false;
+  };
+  // Offer card appeared while we were editing (hydrate race) — reuse only if sent.
+  if (await sentOffer()) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(300);
     return;
   }
+  const before = await page.locator('[data-card="offer"]').count();
   await sendOffer.click({ force: true });
   await expect(async () => {
-    const after = await page.locator('[data-card="offer"]').count();
     const refusal = page.locator("[data-refusal], [data-offer-editor-phase='refused']").first();
     if (await refusal.isVisible().catch(() => false)) {
       const text = ((await refusal.innerText().catch(() => "")) || "").trim();
       throw new Error(`Send offer refused: ${text.slice(0, 200) || "unknown"}`);
     }
     expect(
-      after,
-      `offer card did not appear in the stream after Send (before=${before}, after=${after})`,
-    ).toBeGreaterThan(before);
+      await sentOffer(),
+      `sent offer card did not appear in the stream after Send (before=${before})`,
+    ).toBe(true);
   }).toPass({ timeout: 45_000, intervals: [500, 1_000, 2_000] });
 }
 

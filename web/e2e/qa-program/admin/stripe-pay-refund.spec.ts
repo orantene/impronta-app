@@ -249,35 +249,44 @@ test.describe("QA Stripe pay + refund", () => {
       `expected Stripe checkout (confirm=stripe); got href=${href} — QA host likely mints provider=mock (D-MSG-313: STRIPE_SECRET_KEY is production-only)`,
     ).toBeTruthy();
 
-    await payCta.click();
-    await payPage.waitForURL(/checkout\.stripe\.com|\/pay\//, { timeout: 45_000 });
+    // Do NOT match `/pay/` here — `?confirm=stripe` still matches and resolves
+    // before the Checkout redirect, then 4242 fill races on the wrong page.
+    await Promise.all([
+      payPage.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 }),
+      payCta.click(),
+    ]);
+    const checkoutUrl = payPage.url();
+    expect(
+      /cs_test_/.test(checkoutUrl),
+      `D-MSG-330: 4242 requires test-mode Checkout (cs_test_); got ${checkoutUrl} — STRIPE_SECRET_KEY is livemode`,
+    ).toBeTruthy();
 
-    if (/checkout\.stripe\.com/.test(payPage.url())) {
-      const email = payPage.locator('input[type="email"], input[name="email"]').first();
-      if (await email.isVisible().catch(() => false)) {
-        await email.fill("qa-stripe-r2@impronta.test");
-      }
-      const card = payPage.locator('input[name="cardnumber"], input[placeholder*="Card number" i], [data-testid="card-number"]').first();
-      const frame = payPage.frameLocator('iframe[name*="privateStripeFrame"], iframe[title*="card" i]').first();
-      const cardInFrame = frame.locator('input[name="cardnumber"], input[autocomplete="cc-number"]').first();
-      if (await card.isVisible().catch(() => false)) {
-        await card.fill("4242424242424242");
-        await payPage.locator('input[name="exp-date"], input[placeholder*="MM" i]').first().fill("1242");
-        await payPage.locator('input[name="cvc"], input[placeholder*="CVC" i]').first().fill("123");
-      } else if (await cardInFrame.isVisible().catch(() => false)) {
-        await cardInFrame.fill("4242424242424242");
-        await frame.locator('input[name="exp-date"], input[autocomplete="cc-exp"]').first().fill("12 / 42");
-        await frame.locator('input[name="cvc"], input[autocomplete="cc-csc"]').first().fill("123");
-      } else {
-        await payPage.getByPlaceholder(/card number/i).fill("4242424242424242");
-        await payPage.getByPlaceholder(/mm\s*\/\s*yy/i).fill("12 / 42");
-        await payPage.getByPlaceholder(/cvc/i).fill("123");
-      }
-      const submit = payPage.getByRole("button", { name: /pay|submit|complete/i }).first();
-      await expect(submit, "Stripe submit missing").toBeVisible({ timeout: 20_000 });
-      await submit.click();
-      await payPage.waitForURL(/\/pay\/.*status=paid|\/pay\//, { timeout: 90_000 });
+    const email = payPage.locator('input[type="email"], input[name="email"]').first();
+    if (await email.isVisible().catch(() => false)) {
+      await email.fill("qa-stripe-r2@impronta.test");
     }
+    const card = payPage
+      .locator('input[name="cardnumber"], input[placeholder*="Card number" i], [data-testid="card-number"]')
+      .first();
+    const frame = payPage.frameLocator('iframe[name*="privateStripeFrame"], iframe[title*="card" i]').first();
+    const cardInFrame = frame.locator('input[name="cardnumber"], input[autocomplete="cc-number"]').first();
+    if (await card.isVisible().catch(() => false)) {
+      await card.fill("4242424242424242");
+      await payPage.locator('input[name="exp-date"], input[placeholder*="MM" i]').first().fill("1242");
+      await payPage.locator('input[name="cvc"], input[placeholder*="CVC" i]').first().fill("123");
+    } else if (await cardInFrame.isVisible().catch(() => false)) {
+      await cardInFrame.fill("4242424242424242");
+      await frame.locator('input[name="exp-date"], input[autocomplete="cc-exp"]').first().fill("12 / 42");
+      await frame.locator('input[name="cvc"], input[autocomplete="cc-csc"]').first().fill("123");
+    } else {
+      await payPage.getByPlaceholder(/card number/i).fill("4242424242424242");
+      await payPage.getByPlaceholder(/mm\s*\/\s*yy/i).fill("12 / 42");
+      await payPage.getByPlaceholder(/cvc/i).fill("123");
+    }
+    const submit = payPage.getByRole("button", { name: /pay|submit|complete/i }).first();
+    await expect(submit, "Stripe submit missing").toBeVisible({ timeout: 20_000 });
+    await submit.click();
+    await payPage.waitForURL(/\/pay\/.*status=paid|\/pay\//, { timeout: 90_000 });
 
     await expect(
       payPage.getByText(/paid|processing/i).first(),

@@ -34,10 +34,14 @@ test.describe("QA remaining §7 deep smokes", () => {
     await prepareJourneysPage(page);
     await signInJourneysStaff(page, "/admin/events");
     await expect(page.getByText(/host not registered/i)).toHaveCount(0);
-    await expect(
-      page.getByText(/event|ticket|admission/i).first(),
-      "admin events surface empty / wrong page",
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page, "did not land on /admin/events").toHaveURL(/\/admin\/events/i);
+    // Prefer headings / main — bare getByText(/ticket/i) can hit a hidden
+    // handoff chip ("A ticket is ready for handoff") and fail visibility.
+    const title = page
+      .getByRole("heading", { name: /event|ticket|admission/i })
+      .or(page.locator("main h1, main h2, [data-page-title]").filter({ hasText: /event|ticket|admission/i }))
+      .first();
+    await expect(title, "admin events surface empty / wrong page").toBeVisible({ timeout: 30_000 });
     await shot(page, "remain-s7-events");
   });
 

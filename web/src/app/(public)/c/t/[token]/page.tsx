@@ -22,7 +22,7 @@ export default async function PublicConversationPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ board?: string; kit?: string; screen?: string }>;
+  searchParams: Promise<{ board?: string; kit?: string; screen?: string; lang?: string }>;
 }) {
   const { token } = await params;
   const query = await searchParams;
@@ -47,10 +47,13 @@ export default async function PublicConversationPage({
   ]);
   // `customerVisibleMessages` is the client reader (D-MSG-2): client thread only, no internal notes.
   const messages = customerVisibleMessages(thread.messages).map(({ render: _render, ...message }) => message);
+  // D-MSG-337: honor ?lang=es|fr for QA / share links; fall back to business.locale.
+  const lang = (query.lang || "").toLowerCase();
+  const locale = lang === "es" || lang === "fr" || lang === "en" ? lang : business.locale;
   return (
     <ClientThread
       token={token}
-      locale={business.locale}
+      locale={locale}
       business={{ name: business.name, handlerFirstName: business.handlerFirstName }}
       messages={messages}
       offers={offers}
