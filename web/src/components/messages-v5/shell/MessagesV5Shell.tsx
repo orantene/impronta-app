@@ -19,6 +19,7 @@ import { useT } from "@/i18n/use-t";
 import { itemsLabelForPreset } from "@/lib/messages-v5/context-view";
 import { duplicateHint } from "@/lib/messages-v5/duplicates";
 import { latestHoldExpiresAt } from "@/lib/messages-v5/hold-expiry-from-messages";
+import { messagingResolveOrderThread } from "@/lib/server-actions/messaging-engine";
 import { findConversationForOrder } from "@/lib/messages-v5/pos-continuity";
 import { applyInboxRowPatch, useMessagingInboxLive } from "@/lib/messages-v5/use-inbox-live";
 import { keepActiveRow } from "@/lib/messaging/inbox-search";
@@ -280,10 +281,28 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     const orderId = orderRef.current;
     if (!orderId) return;
     const id = findConversationForOrder(rows, orderId);
-    if (!id) return;
-    orderRef.current = null;
-    openThread(id);
-  }, [rows, openThread]);
+    if (id) {
+      orderRef.current = null;
+      openThread(id);
+      return;
+    }
+    // D-MSG-339: the chip match only sees the CURRENTLY LOADED rows, so a
+    // thread on another page or behind another filter never opened. Ask the
+    // server once; `conversation_records` is the same source the chips use.
+    if (props.live === false) return;
+    let cancelled = false;
+    void (async () => {
+      const res = await messagingResolveOrderThread({ orderId });
+      if (cancelled || orderRef.current !== orderId) return;
+      const resolved = res.ok ? res.inquiryId : null;
+      if (!resolved) return;
+      orderRef.current = null;
+      openThread(resolved);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rows, openThread, props.live]);
 
   useMessagingInboxLive({
     tenantId: props.live === false ? null : props.tenantId,
