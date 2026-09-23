@@ -417,7 +417,7 @@ export function MiniChatPanelColumn({
     onDockViewChange?.("chat");
   };
 
-  const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk, inquiryId, onOpenInquiry: (id) => { onSwitchInquiry(id); onDockViewChange?.("chat"); }, contactName: `${firstName} ${lastName}`.trim(), contactEmail: guestContactEmail, contactPhone: capturedChipValues?.contact?.contactPhone ?? inquiryIntent?.requester?.phone ?? null, onRenameSaved: (n) => { onFirstNameChange(n); onLastNameChange(""); } });
+  const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk, inquiryId, onOpenInquiry: (id) => { onSwitchInquiry(id); onDockViewChange?.("chat"); }, onAsk: (text) => onDraftChange(text), contactName: `${firstName} ${lastName}`.trim(), contactEmail: guestContactEmail, contactPhone: capturedChipValues?.contact?.contactPhone ?? inquiryIntent?.requester?.phone ?? null, onRenameSaved: (n) => { onFirstNameChange(n); onLastNameChange(""); } });
   const [detailsOpen, setDetailsOpen] = useState(false); // header-triggered sheet
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // The header's status line has THREE states, not two. A guest who has opened

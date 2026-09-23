@@ -66,10 +66,22 @@ test("times: sent lets the client pick; picked shows the hold countdown and bloc
   assert.match(picked, /is held for you · 12:41 left/);
   assert.match(picked, /cx-pick rad on"[^>]*aria-checked="true"[^>]*disabled/);
   assert.match(picked, /cx-pick rad off"[^>]*disabled/);
-  const ended = renderToStaticMarkup(<ClientTimesCard {...base} view={{ ...times, pickedStartsAt: "2026-09-20T15:00:00.000Z", holdExpiresAt: "2026-09-17T09:00:00.000Z" }} now={now} onPick={() => {}} />);
+  const endedView = { ...times, slots: [...times.slots, { startsAt: "2026-09-17T09:00:00.000Z" }], pickedStartsAt: "2026-09-20T15:00:00.000Z", holdExpiresAt: "2026-09-17T09:00:00.000Z" };
+  const ended = renderToStaticMarkup(<ClientTimesCard {...base} view={endedView} now={now} onPick={() => {}} onAsk={() => {}} />);
   assert.match(ended, /The hold ended\. Pick another time, or write to Impronta\./);
   assert.match(ended, />Expired</);
-  assert.doesNotMatch(ended, /cx-pick rad[^"]*"[^>]*disabled/);
+  assert.match(ended, /data-client-action="pick_another_time"/);
+  assert.match(ended, /data-client-action="ask_hold"/);
+  assert.match(ended, /Pick another time/);
+  const slotTag = (html: string, iso: string) => {
+    const tag = html.match(new RegExp(`<button[^>]*data-slot="${iso}"[^>]*>`));
+    assert.ok(tag, iso);
+    return tag[1] ? tag[0] : tag[0];
+  };
+  assert.match(slotTag(ended, "2026-09-20T15:00:00.000Z"), /disabled/);
+  const reopened = renderToStaticMarkup(<ClientTimesCard {...base} view={endedView} now={now} onPick={() => {}} onAsk={() => {}} startReopened />);
+  assert.doesNotMatch(slotTag(reopened, "2026-09-20T15:00:00.000Z"), /disabled/);
+  assert.match(slotTag(reopened, "2026-09-17T09:00:00.000Z"), /disabled/);
   const refused = renderToStaticMarkup(<ClientTimesCard {...base} view={times} now={now} phase="refused" refusal="unavailable" onPick={() => {}} />);
   assert.match(refused, /data-refusal="unavailable"/);
   assert.match(refused, /That time was just taken\. Pick another, or write to Impronta\./);

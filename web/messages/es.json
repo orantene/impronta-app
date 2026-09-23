@@ -1190,6 +1190,8 @@
       "catalogBuyNow": "Comprar ahora",
       "catalogAsk": "Preguntar",
       "catalogAskPrefill": "Hola {business}, tengo una pregunta sobre {item}: ",
+      "timesPickAnother": "Elegir otro horario",
+      "timesAskPrefill": "La reserva temporal terminó. ¿Podemos elegir otro horario?",
       "catalogAdded": "{item} añadido a tu solicitud. Nada queda reservado hasta que confirmen.",
       "catalogAddFailed": "No se pudo añadir ahora. Intenta de nuevo o pregunta en el chat.",
       "catalogUnavailable": "No disponible",

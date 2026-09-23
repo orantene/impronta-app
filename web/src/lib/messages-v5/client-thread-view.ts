@@ -259,6 +259,19 @@ export function timesState(view: TimesView, now: Date): TimesState {
 }
 
 /**
+ * A slot the guest can still hold. `messagingClientPickTime` refuses a
+ * `startsAt` that is already past. After a hold ends the remaining slots stay
+ * closed until the guest presses Pick another time (`reopened`).
+ */
+export function timesSlotOpen(state: TimesState, startsAt: string, now: Date, reopened: boolean): boolean {
+  if (state === "picked") return false;
+  const at = Date.parse(startsAt);
+  if (!Number.isFinite(at) || at <= now.getTime()) return false;
+  if (state === "hold_ended" && !reopened) return false;
+  return true;
+}
+
+/**
  * The client-safe offer summary the page loads beside the thread
  * (`lib/messaging/client-link.ts`). Total, deposit, validity, lines with a
  * label and a client price. No net, no commission, no payout, no discount or

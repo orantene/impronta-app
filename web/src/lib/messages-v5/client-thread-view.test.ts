@@ -20,6 +20,7 @@ import {
   readTickets,
   readTimes,
   ticketsIssued,
+  timesSlotOpen,
   timesState,
   type ClientOfferSummary,
 } from "./client-thread-view";
@@ -84,6 +85,14 @@ test("times reader and state: sent, picked with countdown, hold ended", () => {
   const ended = readTimes({ slots: [], pickedStartsAt: "2026-09-20T15:00:00.000Z", holdExpiresAt: "2026-09-17T09:59:00.000Z" });
   assert.equal(timesState(ended, now), "hold_ended");
   assert.equal(holdCountdown(ended.holdExpiresAt, now), null);
+  const future = "2026-09-20T15:00:00.000Z";
+  const past = "2026-09-17T09:00:00.000Z";
+  assert.equal(timesSlotOpen("sent", future, now, false), true);
+  assert.equal(timesSlotOpen("sent", past, now, false), false);
+  assert.equal(timesSlotOpen("picked", future, now, true), false);
+  assert.equal(timesSlotOpen("hold_ended", future, now, false), false);
+  assert.equal(timesSlotOpen("hold_ended", future, now, true), true);
+  assert.equal(timesSlotOpen("hold_ended", past, now, true), false);
 });
 
 const offer: ClientOfferSummary = { id: "of1", version: 2, status: "sent", totalCents: 380000, currency: "USD", depositPct: 30, depositCents: null, refundPolicy: "flexible", validUntil: "2026-09-30T00:00:00.000Z", noteToClient: null, lines: [{ label: "Hostess", units: 2, amountCents: 140000 }] };

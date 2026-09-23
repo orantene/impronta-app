@@ -25,6 +25,7 @@ import {
   money,
   offerCardState,
   offerDepositCents,
+  timesSlotOpen,
   timesState,
   type ChangeView,
   type ChoicesView,
@@ -120,11 +121,11 @@ export function ClientTicketsCard({ view, copy, business, onOpen }: Omit<Common,
 
 /* ---------- times ---------- */
 
-export function ClientTimesCard({ view, copy, kit, business, locale, now, phase = "idle", refusal, onPick }: Common & { readonly view: TimesView; readonly now: Date; readonly onPick?: (startsAt: string) => void }) {
+export function ClientTimesCard({ view, copy, kit, business, locale, now, phase = "idle", refusal, onPick, onAsk, startReopened = false }: Common & { readonly view: TimesView; readonly now: Date; readonly onPick?: (startsAt: string) => void; readonly onAsk?: (text: string) => void; readonly startReopened?: boolean }) {
   const state = timesState(view, now);
+  const [reopened, setReopened] = useState(startReopened);
   const left = holdCountdown(view.holdExpiresAt, now);
   const pickedLabel = view.pickedStartsAt ? formatSlot(view.pickedStartsAt, locale, view.timezone) : "";
-  const canPick = state !== "picked" && phase !== "busy" && !!onPick;
   const pill = state === "picked" ? <Pill tone="opp">{copy.times.holding}</Pill> : state === "hold_ended" ? <Pill tone="lost">{kit.card.state.expired}</Pill> : null;
   const foot =
     state === "picked"
@@ -136,12 +137,20 @@ export function ClientTimesCard({ view, copy, kit, business, locale, now, phase 
         : view.slots.length === 0
           ? copy.times.noSlots
           : fill(copy.times.hint, { business });
+  const hasFree = view.slots.some((s) => timesSlotOpen("hold_ended", s.startsAt, now, true));
+  const endedActions = state === "hold_ended" ? (
+    <>
+      <Btn size="sm" variant="primary" disabled={!hasFree} onClick={() => setReopened(true)} data-client-action="pick_another_time">{copy.times.pickAnother}</Btn>
+      {onAsk ? <Btn size="sm" onClick={() => onAsk(copy.times.askPrefill)} data-client-action="ask_hold">{copy.times.ask}</Btn> : null}
+    </>
+  ) : null;
   return (
-    <Card category="appt" label={copy.times.cat} title={view.professionalName ? fill(copy.times.titleWith, { name: view.professionalName }) : copy.times.title} variant="mobile" testId="client-times" busy={phase === "busy"} pills={pill} foot={foot}>
+    <Card category="appt" label={copy.times.cat} title={view.professionalName ? fill(copy.times.titleWith, { name: view.professionalName }) : copy.times.title} variant="mobile" testId="client-times" busy={phase === "busy"} pills={pill} foot={foot} actions={endedActions}>
       {view.slots.map((s) => {
         const on = view.pickedStartsAt === s.startsAt && state === "picked";
+        const open = phase !== "busy" && !!onPick && timesSlotOpen(state, s.startsAt, now, reopened);
         return (
-          <button key={s.startsAt} type="button" className={`cx-pick rad${on ? " on" : ""}${state === "picked" && !on ? " off" : ""}`} role="radio" aria-checked={on} disabled={!canPick} onClick={() => onPick?.(s.startsAt)} data-slot={s.startsAt}>
+          <button key={s.startsAt} type="button" className={`cx-pick rad${on ? " on" : ""}${!open && !on ? " off" : ""}`} role="radio" aria-checked={on} disabled={!open} onClick={() => onPick?.(s.startsAt)} data-slot={s.startsAt}>
             <span className="tx">
               <b>{formatSlot(s.startsAt, locale, view.timezone)}</b>
             </span>

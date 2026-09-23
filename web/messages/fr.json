@@ -407,6 +407,8 @@
       "catalogBuyNow": "Acheter",
       "catalogAsk": "Demander",
       "catalogAskPrefill": "Bonjour {business}, j'ai une question sur {item} : ",
+      "timesPickAnother": "Choisir un autre horaire",
+      "timesAskPrefill": "La retenue a expiré. Pouvons-nous choisir un autre horaire ?",
       "catalogAdded": "{item} ajouté à votre demande. Rien n'est réservé avant confirmation.",
       "catalogAddFailed": "Impossible d'ajouter pour le moment. Réessayez ou posez la question dans le chat.",
       "catalogUnavailable": "Indisponible",

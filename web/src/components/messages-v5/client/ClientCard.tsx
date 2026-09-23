@@ -42,6 +42,8 @@ export type ClientCardProps = {
   /** Ids of the offer rows that draw the live offer card (`offerCardMessageIds`). */
   readonly offerCards: ReadonlySet<string>;
   readonly actions: ClientCardActions;
+  /** Prefills the composer. The expired-hold Ask button uses it. */
+  readonly onAsk?: (text: string) => void;
 };
 
 /** The activity key a card reads: its message id, or the offer / record it is about. */
@@ -52,7 +54,7 @@ export function clientCardActivityKey(message: Pick<ThreadMessage, "id" | "paylo
   return offerId ?? recordId ?? message.id;
 }
 
-export function ClientCard({ message, kind, copy, kit, locale, business, now, offers, payCode, offerCards, actions }: ClientCardProps) {
+export function ClientCard({ message, kind, copy, kit, locale, business, now, offers, payCode, offerCards, actions, onAsk }: ClientCardProps) {
   const act = (key: string): CardActivity => actions.activity[key] ?? { phase: "idle" };
   const payload = message.payload;
   switch (kind) {
@@ -81,7 +83,7 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
     }
     case "professional_times": {
       const a = act(message.id);
-      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} onPick={(startsAt) => void actions.onPickTime(message.id, startsAt)} />;
+      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} onPick={(startsAt) => void actions.onPickTime(message.id, startsAt)} onAsk={onAsk} />;
     }
     case "offer_event":
     case "offer_review":

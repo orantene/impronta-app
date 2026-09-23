@@ -63,15 +63,16 @@ export function useGuestClientCards(input: {
   readonly businessName: string;
   readonly refresh: () => void;
   readonly onTick?: () => void;
+  readonly onAsk?: (text: string) => void;
 }) {
-  const { rows, v5, locale, businessName, refresh, onTick } = input;
+  const { rows, v5, locale, businessName, refresh, onTick, onAsk } = input;
   const t = useMemo(() => translatorFor(locale), [locale]);
   const kit = useMemo(() => buildKitCopy(t), [t]);
   const copy = useMemo(() => buildClientCopy(t), [t]);
   const messages = useMemo(() => rows.map(toThreadMessage), [rows]);
   const offerCards = useMemo(() => offerCardMessageIds(messages), [messages]);
   const actions = useClientCardActions({ token: v5?.threadToken ?? null, messages, refresh, onTick });
-  return { kit, copy, messages, offerCards, actions, offers: v5?.offers ?? [], payCode: v5?.payCode ?? null, businessName, locale };
+  return { kit, copy, messages, offerCards, actions, offers: v5?.offers ?? [], payCode: v5?.payCode ?? null, businessName, locale, onAsk };
 }
 
 export function GuestClientCardRow({ row, model, now }: { readonly row: GuestThreadMessage; readonly model: GuestClientCardsModel; readonly now: Date }) {
@@ -91,6 +92,7 @@ export function GuestClientCardRow({ row, model, now }: { readonly row: GuestThr
         payCode={model.payCode}
         offerCards={model.offerCards}
         actions={model.actions}
+        onAsk={model.onAsk}
       />
     </div>
   );
