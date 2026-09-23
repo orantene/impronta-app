@@ -36,6 +36,7 @@ export function MaisonGallery({
   closeLabel,
   prevLabel,
   nextLabel,
+  enlargeLabel,
 }: {
   shots: MaisonShot[];
   name: string;
@@ -44,6 +45,8 @@ export function MaisonGallery({
   closeLabel: string;
   prevLabel: string;
   nextLabel: string;
+  /** Verb in the page's language for the thumbnail's accessible name. */
+  enlargeLabel: string;
 }) {
   const [open, setOpen] = useState<number | null>(null);
   const openerRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -100,7 +103,7 @@ export function MaisonGallery({
                 openerRefs.current[i] = el;
               }}
               onClick={() => setOpen(i)}
-              aria-label={`${s.label} — ampliar imagen ${i + 1} de ${shots.length}`}
+              aria-label={`${s.label} — ${enlargeLabel} ${i + 1}/${shots.length}`}
             >
               <Image
                 src={s.url}

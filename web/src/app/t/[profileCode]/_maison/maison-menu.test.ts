@@ -18,7 +18,7 @@ import { describe, it } from "node:test";
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
-import { asSellable } from "./MaisonMenu";
+import { asSellable, railFor } from "./MaisonMenu";
 
 function offering(bookingMode: TalentOffering["bookingMode"]): TalentOffering {
   // Only the field under test matters; the cast keeps this from restating the
@@ -55,5 +55,39 @@ describe("asSellable", () => {
     // object each time would defeat any memoisation downstream.
     const o = offering("request");
     assert.equal(asSellable(o, "request"), o);
+  });
+});
+
+describe("railFor", () => {
+  const detail = (intent: "request" | "instant") => ({ intent }) as never;
+  const svc = (over: Record<string, unknown> = {}) =>
+    ({ kind: "service", durationMinutes: 60, variants: [], addOns: [], ...over }) as never;
+
+  it("sends an instant offering to the instant rail", () => {
+    assert.equal(railFor(svc(), detail("instant"), "instant"), "tulala:offering-instant");
+  });
+
+  it("uses the slot rail for a plain timed service on a surface that mounts it", () => {
+    assert.equal(railFor(svc(), detail("request"), "request"), "tulala:offering-slot");
+  });
+
+  it("does NOT use the slot rail on an inquire surface", () => {
+    // profile-view mounts ProfileSlotPickerChrome only when bookingMode is not
+    // "inquire", so a slot event there has no listener and the click dies.
+    assert.equal(railFor(svc(), detail("request"), "inquire"), "tulala:offering-request");
+  });
+
+  it("does NOT use the slot rail for an offering with options", () => {
+    // BookableComposer's slot listener drops variants and addOns, so a booking
+    // made this way would carry the base configuration and the base price.
+    const withVariants = svc({ variants: [{ id: "v1", label: "L", amountCents: 100 }] });
+    assert.equal(railFor(withVariants, detail("request"), "request"), "tulala:offering-request");
+    const withAddOns = svc({ addOns: [{ id: "a1", label: "A", amountCents: 50 }] });
+    assert.equal(railFor(withAddOns, detail("request"), "request"), "tulala:offering-request");
+  });
+
+  it("does not use the slot rail for a product or an untimed service", () => {
+    assert.equal(railFor(svc({ kind: "product" }), detail("request"), "request"), "tulala:offering-request");
+    assert.equal(railFor(svc({ durationMinutes: 0 }), detail("request"), "request"), "tulala:offering-request");
   });
 });

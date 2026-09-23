@@ -14,7 +14,7 @@ import { describe, it } from "node:test";
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
-import { derivedVisiting, priceNoteFor } from "./maison-derive";
+import { categoriesFrom, derivedVisiting, priceNoteFor, UNCATEGORISED } from "./maison-derive";
 
 function priced(currency: string): TalentOffering {
   return { id: currency, title: "s", currency } as TalentOffering;
@@ -124,5 +124,53 @@ describe("derivedVisiting", () => {
     const v = derivedVisiting(props({ languages: ["Español", "English"] }), C);
     assert.equal(v?.facts[0]?.label, "Languages");
     assert.equal(v?.facts[0]?.value, "Español · English");
+  });
+});
+
+describe("categoriesFrom", () => {
+  const off = (category: string | null, id = String(Math.random())) =>
+    ({ id, category }) as never;
+
+  it("lists each category once, in first-seen order", () => {
+    const out = categoriesFrom([off("Lashes"), off("Nails"), off("Lashes")], undefined, "Other");
+    assert.deepEqual(out.map((c) => c.id), ["Lashes", "Nails"]);
+  });
+
+  it("gives UNCATEGORISED offerings a bucket", () => {
+    // talent_offerings.category is free text and nullable and the editor does
+    // not require it, so these are normal rows. MaisonMenu groups them under
+    // the empty key; without a matching category they rendered NOWHERE.
+    const out = categoriesFrom([off("Lashes"), off(null)], undefined, "Other");
+    assert.deepEqual(out.map((c) => c.id), ["Lashes", UNCATEGORISED]);
+    assert.equal(out[1]?.label, "Other");
+  });
+
+  it("gives an ALL-uncategorised catalogue one bucket rather than none", () => {
+    // This was the worst case: a nonempty catalogue rendered an empty menu.
+    const out = categoriesFrom([off(null), off(null)], undefined, "Other");
+    assert.equal(out.length, 1);
+    assert.equal(out[0]?.id, UNCATEGORISED);
+  });
+
+  it("treats a whitespace-only category as uncategorised", () => {
+    const out = categoriesFrom([off("   ")], undefined, "Other");
+    assert.deepEqual(out.map((c) => c.id), [UNCATEGORISED]);
+  });
+
+  it("adds the bucket even when an override names the categories", () => {
+    const out = categoriesFrom(
+      [off("Lashes"), off(null)],
+      [{ id: "Lashes", label: "Pestañas" }],
+      "Other",
+    );
+    assert.deepEqual(out.map((c) => c.id), ["Lashes", UNCATEGORISED]);
+  });
+
+  it("drops an override category no offering uses", () => {
+    const out = categoriesFrom([off("Lashes")], [
+      { id: "Lashes", label: "Pestañas" },
+      { id: "Gone", label: "Nada" },
+    ], "Other");
+    assert.deepEqual(out.map((c) => c.id), ["Lashes"]);
   });
 });

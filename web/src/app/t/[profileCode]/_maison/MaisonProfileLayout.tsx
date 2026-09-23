@@ -177,6 +177,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
         wordmarkImageRatio={content.wordmarkImageRatio}
         links={navLinks}
         cta={<div className="mn-slot">{inquireButtonHeader}</div>}
+        navLabel={c.a11ySections}
         localeSwitch={localeSwitch}
       />
 
@@ -341,6 +342,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
               surfaceBooking={surfaceBooking}
               labels={{
                 select: c.select,
+                a11yCategories: c.a11yCategories,
                 options: c.options,
                 consult: c.consult,
                 selected: c.selected,
@@ -371,6 +373,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
           closeLabel={ui.preview.close || c.close}
           prevLabel={c.prev}
           nextLabel={c.next}
+          enlargeLabel={c.a11yEnlarge}
         />
         {content.galleryNote ? <p className="mn-disclaimer">{content.galleryNote}</p> : null}
       </section>

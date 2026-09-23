@@ -80,6 +80,7 @@ export function MaisonHeader({
   wordmarkImageRatio,
   links,
   cta,
+  navLabel,
   localeSwitch,
 }: {
   wordmarkLead: string;
@@ -88,6 +89,8 @@ export function MaisonHeader({
   wordmarkImageRatio?: number | null;
   links: MaisonNavLink[];
   cta: React.ReactNode;
+  /** Accessible name for the nav landmark, in the page's language. */
+  navLabel: string;
   /** Slot for the caller's own language switch. Hidden when not supplied. */
   localeSwitch?: React.ReactNode;
 }) {
@@ -125,7 +128,7 @@ export function MaisonHeader({
             ratio={wordmarkImageRatio}
           />
         </a>
-        <nav className="mn-nav" aria-label="Secciones">
+        <nav className="mn-nav" aria-label={navLabel}>
           {links.map((l) => (
             <a key={l.href} href={l.href}>
               {l.label}

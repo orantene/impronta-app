@@ -57,6 +57,10 @@ export const COPY = {
     next: "Siguiente",
     visitTitle: "Tu",
     visitAccent: "cita",
+    menuAllLabel: "Otros servicios",
+    a11yCategories: "Categorías",
+    a11ySections: "Secciones",
+    a11yEnlarge: "ampliar imagen",
     visitWhere: "Dónde",
     visitTravels: "Va a",
     visitLanguages: "Idiomas",
@@ -108,6 +112,10 @@ export const COPY = {
     next: "Next",
     visitTitle: "Your",
     visitAccent: "visit",
+    menuAllLabel: "Other services",
+    a11yCategories: "Categories",
+    a11ySections: "Sections",
+    a11yEnlarge: "enlarge image",
     visitWhere: "Where",
     visitTravels: "Travels to",
     visitLanguages: "Languages",
@@ -143,17 +151,39 @@ export function publicOfferings(offerings: TalentOffering[]): TalentOffering[] {
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
+/** MaisonMenu groups an offering with no category under the empty key. */
+export const UNCATEGORISED = "";
+
 export function categoriesFrom(
   offerings: TalentOffering[],
   override: MaisonContent["menuCategories"],
+  uncategorisedLabel: string,
 ): { id: string; label: string; note?: string | null }[] {
-  if (override?.length) return override.filter((c) => offerings.some((o) => o.category === c.id));
+  if (override?.length) {
+    const kept = override.filter((c) => offerings.some((o) => (o.category ?? "") === c.id));
+    // An override that names no home for the uncategorised rows would hide
+    // them, so the fallback bucket is appended here too.
+    return offerings.some((o) => !o.category?.trim()) &&
+      !kept.some((c) => c.id === UNCATEGORISED)
+      ? [...kept, { id: UNCATEGORISED, label: uncategorisedLabel }]
+      : kept;
+  }
   const seen: string[] = [];
   for (const o of offerings) {
     const c = o.category?.trim();
     if (c && !seen.includes(c)) seen.push(c);
   }
-  return seen.map((c) => ({ id: c, label: c }));
+  const out = seen.map((c) => ({ id: c, label: c }));
+  // `talent_offerings.category` is free text and nullable, and the catalogue
+  // editor does not require it — so an uncategorised offering is a NORMAL row,
+  // not a broken one. It groups under the empty key in MaisonMenu, and before
+  // this bucket existed no category ever matched that key: a talent whose
+  // services all lacked a category got an empty menu, and in a mixed catalogue
+  // only those rows vanished. Found in review 2026-09-23.
+  if (offerings.some((o) => !o.category?.trim())) {
+    out.push({ id: UNCATEGORISED, label: uncategorisedLabel });
+  }
+  return out;
 }
 
 /** Facts for the hero, from the structured skills model when not authored. */
@@ -266,7 +296,7 @@ export function resolveMaisonContent(props: MaisonProfileLayoutProps, c: Copy): 
   const m = props.maison ?? {};
   const offerings = publicOfferings(props.storefrontOfferings);
   const bio = paragraphsOf(props.aboutText);
-  const categories = categoriesFrom(offerings, m.menuCategories);
+  const categories = categoriesFrom(offerings, m.menuCategories, c.menuAllLabel);
   return {
     ...m,
     heroKicker: m.heroKicker ?? props.livesIn ?? null,

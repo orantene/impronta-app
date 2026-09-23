@@ -73,19 +73,58 @@ function detailFor(o: TalentOffering): OfferingRequestDetail {
     variants: o.variants ?? [],
     addOns: o.addOns ?? [],
     inventoryQty: o.inventoryQty,
+    // Without this a pooled service reads as unlimited and single-quantity in
+    // the shared sheet, so the seat cap silently stops applying.
+    capacityPoolId: o.capacityPoolId,
     intent: instant ? "instant" : "request",
   };
 }
 
-function dispatchOffering(o: TalentOffering, step?: "when", inclusion?: string | null) {
+/**
+ * Which rail this click belongs on.
+ *
+ * Two ways the slot rail silently swallows a click, both found in review:
+ *
+ *   1. profile-view mounts ProfileSlotPickerChrome only when
+ *      `bookingMode !== "inquire"` (profile-cta-precedence), so on an
+ *      inquire-only surface NOTHING listens for "tulala:offering-slot" and
+ *      clicking an ordinary service does nothing at all.
+ *   2. BookableComposer's slot listener keeps offeringId, durationMinutes,
+ *      talentProfileId and requireAccountToBook, and DROPS variants and
+ *      addOns. An offering whose row says "Choose options" would therefore
+ *      open a calendar that has forgotten the options, and the booking would
+ *      carry the base configuration and the base price — the wrong service for
+ *      the wrong money.
+ *
+ * So the slot rail is used only when it can both receive the event and carry
+ * the whole offering. Anything else goes to the inquiry rail, which takes the
+ * full detail (variants and addOns included) and lets a person confirm the
+ * configuration before any money is named.
+ *
+ * The real fix for (2) is to widen the slot contract so BookableComposer keeps
+ * the selection; that is a shared booking surface used by other templates and
+ * belongs in its own change, not smuggled in behind a profile template.
+ */
+export function railFor(
+  o: TalentOffering,
+  detail: OfferingRequestDetail,
+  surface: "inquire" | "request" | "instant",
+): string {
+  if (detail.intent === "instant") return "tulala:offering-instant";
+  const hasOptions = (o.variants ?? []).length > 0 || (o.addOns ?? []).length > 0;
+  const slotCanReceive = surface !== "inquire" && !hasOptions;
+  const slotEligible = o.kind !== "product" && (o.durationMinutes ?? 0) > 0;
+  return slotCanReceive && slotEligible ? "tulala:offering-slot" : "tulala:offering-request";
+}
+
+function dispatchOffering(
+  o: TalentOffering,
+  surface: "inquire" | "request" | "instant",
+  step?: "when",
+  inclusion?: string | null,
+) {
   const detail = detailFor(o);
-  const instant = detail.intent === "instant";
-  const slotEligible = !instant && o.kind !== "product" && (o.durationMinutes ?? 0) > 0;
-  const name = instant
-    ? "tulala:offering-instant"
-    : slotEligible
-      ? "tulala:offering-slot"
-      : "tulala:offering-request";
+  const name = railFor(o, detail, surface);
   window.dispatchEvent(
     new CustomEvent(name, { detail: { ...detail, startAt: step, inclusion: inclusion ?? null } }),
   );
@@ -132,6 +171,7 @@ export function MaisonMenu({
   surfaceBooking?: "inquire" | "request" | "instant";
   labels: {
     select: string;
+    a11yCategories: string;
     options: string;
     consult: string;
     selected: string;
@@ -205,7 +245,7 @@ export function MaisonMenu({
   const onRowAction = (raw: TalentOffering, hasOptions: boolean, inclusion?: string | null) => {
     const o = asSellable(raw, surfaceBooking);
     if (hasOptions || o.visibility === "on_request") {
-      dispatchOffering(o, undefined, inclusion);
+      dispatchOffering(o, surfaceBooking, undefined, inclusion);
       return;
     }
     // A service with nothing to configure still has to LEAD somewhere. Marking
@@ -218,7 +258,7 @@ export function MaisonMenu({
       totalCents: o.amountCents ?? 0,
       currency: o.currency,
     });
-    dispatchOffering(o, "when", inclusion);
+    dispatchOffering(o, surfaceBooking, "when", inclusion);
   };
 
   const continueFromBar = () => {
@@ -226,12 +266,18 @@ export function MaisonMenu({
     const found = offerings.find((o) => o.id === selection.offeringId);
     if (!found) return;
     const note = categories.find((x) => x.id === found.category)?.note ?? null;
-    dispatchOffering(asSellable(found, surfaceBooking), "when", note);
+    dispatchOffering(asSellable(found, surfaceBooking), surfaceBooking, "when", note);
   };
 
   return (
     <div className="mn-menu">
-      <div className="mn-tabs" role="tablist" aria-label="Categorías">
+      {/* One bucket is not a choice — the strip would be a single dead tab. */}
+      <div
+        className="mn-tabs"
+        role="tablist"
+        aria-label={labels.a11yCategories}
+        hidden={categories.length < 2}
+      >
         {categories.map((c) => (
           <button
             key={c.id}
@@ -265,7 +311,12 @@ export function MaisonMenu({
                   const onRequest = o.visibility === "on_request";
                   const isSelected = selection?.offeringId === o.id;
                   const min = basePrice(o);
-                  const ladder = (o.variants ?? []).length > 1;
+                  // "From" is a property of the OFFERING, not of how many
+                  // variants it happens to have: priceDisplay "from" is the
+                  // canonical setting, and a starting price with one variant
+                  // (or none) must still read as a starting price.
+                  const ladder =
+                    o.priceDisplay === "from" || (o.variants ?? []).length > 1;
                   return (
                     <li key={o.id} className="mn-row" data-selected={isSelected} data-offering={o.id}>
                       <div className="mn-row-in">
