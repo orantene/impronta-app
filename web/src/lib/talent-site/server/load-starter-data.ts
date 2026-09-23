@@ -31,6 +31,10 @@ export async function loadTalentStarterProfileData(
       first_name,
       last_name,
       profile_code,
+      phone,
+      phone_e164,
+      social_links,
+      talent_plan_key,
       short_bio,
       bio_i18n,
       services_menu,
@@ -58,6 +62,10 @@ export async function loadTalentStarterProfileData(
     first_name: string | null;
     last_name: string | null;
     profile_code: string | null;
+    phone: string | null;
+    phone_e164: string | null;
+    social_links: unknown;
+    talent_plan_key: string | null;
     short_bio: string | null;
     bio_i18n: LocalizedMap | null;
     services_menu: unknown;
@@ -196,6 +204,10 @@ export async function loadTalentStarterProfileData(
     serviceAreaLabels,
     serviceNames,
     headshotUrl,
+    phone: p.phone,
+    phoneE164: p.phone_e164,
+    socialLinks: p.social_links,
+    talentPlanKey: p.talent_plan_key,
   };
 }
 

@@ -127,6 +127,16 @@
         "errorMessageRequired": "Ajoutez un court message pour que l’agence sache comment vous aider."
       }
     },
+    "talentSite": {
+      "contact": {
+        "heading": "La joindre",
+        "ask": "Poser une question",
+        "whatsapp": "WhatsApp",
+        "email": "E-mail",
+        "confirmByHand": "Elle confirme à la main.",
+        "bookInstant": "Vous pouvez réserver un horaire sur cette page."
+      }
+    },
     "guestChat": {
       "noMessagesYet": "Aucun message pour l'instant. Envoyez le premier ci-dessous et l'équipe répondra par e-mail.",
       "replyPlaceholder": "Écrire une réponse…",

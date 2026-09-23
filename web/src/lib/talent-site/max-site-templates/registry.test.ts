@@ -185,7 +185,8 @@ for (const key of KEYS) {
     const hydrated = hydrateTalentTree(homeTree, TOKENS);
     const text = allText(hydrated);
     assert.match(text, /Orlando Tene/, `${key} must render the talent's name`);
-    assert.match(text, /\/t\/TAL-92026\?inquire=1/, `${key} must wire the inquiry CTA`);
+    assert.match(text, /#talent-ask/, `${key} must open Ask on this page`);
+    assert.doesNotMatch(text, /\/t\/TAL-92026\?inquire=1/, `${key} must not send the visitor to the hub profile`);
     assert.doesNotMatch(text, /\{\{/, `${key} must leave no raw {{token}} after hydration`);
   });
 

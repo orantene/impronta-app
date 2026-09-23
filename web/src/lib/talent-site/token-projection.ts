@@ -8,6 +8,7 @@
  * own, and so neither module grows past the max-lines budget. No server imports
  * — safe on the edge and unit-testable.
  */
+import { contactCopyForPlan, talentContactHrefs } from "./contact-channels";
 import {
   selectServiceFocusLabels,
   type TalentProfileTokens,
@@ -76,6 +77,12 @@ export function talentProfileTokens(
     ? `Languages: ${profile.languagesLabel.trim()}`
     : "";
 
+  const contact = talentContactHrefs({
+    phone: profile.phone,
+    phoneE164: profile.phoneE164,
+    socialLinks: profile.socialLinks,
+  });
+
   return {
     displayName,
     primaryTypeLabel,
@@ -91,6 +98,9 @@ export function talentProfileTokens(
     headshotUrl,
     profilePath,
     inquireHref: `${profilePath}?inquire=1`,
+    whatsappHref: contact.whatsappHref,
+    emailHref: contact.emailHref,
+    contactCopy: contactCopyForPlan(profile.talentPlanKey),
     service1: services[0] ?? "",
     service2: services[1] ?? "",
     service3: services[2] ?? "",

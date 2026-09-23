@@ -40,6 +40,13 @@ export type TalentPortfolioStarterProfile = {
    * not loaded. Optional + additive — shown as a small About line when present.
    */
   languagesLabel?: string;
+  /** Public phone. Used for WhatsApp when she has not published a WhatsApp link. */
+  phone?: string | null;
+  phoneE164?: string | null;
+  /** Public social links. mailto and WhatsApp only. Never an invitation address. */
+  socialLinks?: unknown;
+  /** `talent_basic` | `talent_pro` | `talent_portfolio`. Missing means she confirms by hand. */
+  talentPlanKey?: string | null;
 };
 
 export type TalentPortfolioStarterMedia = {

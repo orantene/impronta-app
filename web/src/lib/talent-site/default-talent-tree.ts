@@ -15,6 +15,12 @@
  * seed script can import it directly.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import {
+  CONTACT_COPY,
+  contactSectionNode,
+  pruneEmptyContactChannels,
+  TALENT_ASK_HREF,
+} from "./contact-channels";
 // STYLE-3 — the talent default profile binds its typography to the SHARED
 // storefront-grade type scale (one source of truth, also consumed by the
 // premium storefront page-designs). TMPL-2's B5 lift hardcoded these px values
@@ -70,8 +76,14 @@ export interface TalentProfileTokens {
   headshotUrl: string;
   /** `/t/<code>` profile path. */
   profilePath: string;
-  /** `/t/<code>?inquire=1` inquiry CTA href. */
+  /** `/t/<code>?inquire=1` inquiry CTA href. Kept for older trees. New buttons use `#talent-ask`. */
   inquireHref: string;
+  /** `https://wa.me/...` when she published a number. Empty hides the button. */
+  whatsappHref?: string;
+  /** `mailto:...` when she published an address. Empty hides the button. */
+  emailHref?: string;
+  /** Honest booking sentence. Defaults to hand confirmation. */
+  contactCopy?: string;
   /** First three service / focus labels (already de-duped + capped). */
   service1: string;
   service2: string;
@@ -151,6 +163,9 @@ export function hydrateTalentTree(
     headshotUrl: talent.headshotUrl,
     profilePath: talent.profilePath,
     inquireHref: talent.inquireHref,
+    whatsappHref: talent.whatsappHref ?? "",
+    emailHref: talent.emailHref ?? "",
+    contactCopy: talent.contactCopy ?? CONTACT_COPY.confirmByHand,
     service1: talent.service1,
     service2: talent.service2,
     service3: talent.service3,
@@ -180,7 +195,9 @@ export function hydrateTalentTree(
     } as BuilderNode;
   };
 
-  return pruneEmptyMaxBadge(pruneEmptyServiceCards(tree.map(visit)));
+  return pruneEmptyContactChannels(
+    pruneEmptyMaxBadge(pruneEmptyServiceCards(tree.map(visit))),
+  );
 }
 
 /**
@@ -552,9 +569,10 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
               id: id("hero-cta"),
               kind: "button",
               props: {
-                label: "Send an inquiry",
-                href: "{{inquireHref}}",
+                label: "Ask a question",
+                href: TALENT_ASK_HREF,
                 tone: "primary",
+                layerLabel: "Ask a question",
                 style: { marginTop: "s" },
               },
             },
@@ -748,52 +766,6 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
         },
       ],
     },
-    // ── CONTACT ─────────────────────────────────────────────────────────────
-    {
-      id: id("contact"),
-      kind: "container",
-      props: {
-        layout: "stack",
-        gap: "m",
-        align: "center",
-        layerLabel: "Contact",
-        style: {
-          maxWidth: "reading",
-          paddingY: "l",
-          paddingX: "m",
-          marginTop: "m",
-          marginBottom: "l",
-        },
-      },
-      children: [
-        {
-          id: id("contact-heading"),
-          kind: "heading",
-          props: {
-            text: "Let's work together",
-            level: 2,
-            style: { ...SECTION_HEADING_STYLE, align: "center" },
-          },
-        },
-        {
-          id: id("contact-copy"),
-          kind: "paragraph",
-          props: {
-            text: "Send an inquiry to start the conversation.",
-            style: { tone: "muted", align: "center" },
-          },
-        },
-        {
-          id: id("contact-cta"),
-          kind: "button",
-          props: {
-            label: "Send an inquiry",
-            href: "{{inquireHref}}",
-            tone: "primary",
-            style: { marginTop: "s" },
-          },
-        },
-      ],
-    },
+    contactSectionNode(id, SECTION_HEADING_STYLE),
   ];
 }
