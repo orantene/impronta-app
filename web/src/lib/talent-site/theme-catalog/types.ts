@@ -108,6 +108,15 @@ export interface CatalogEntry {
   isNew: boolean;
 }
 
+/**
+ * A `CatalogEntry` as one caller sees it: `locked` is true when that caller's
+ * plan may not apply the row. Computed per call by `loadTalentThemeCatalog`
+ * (never cached with the row) and rendered as-is by the gallery UI.
+ */
+export interface TalentThemeCatalogEntry extends CatalogEntry {
+  locked: boolean;
+}
+
 /** Result shape shared by `validateDesign` / `validateLook`. */
 export interface ThemeValidationResult {
   ok: boolean;

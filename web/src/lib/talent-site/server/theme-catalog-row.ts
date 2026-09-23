@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { isTalentThemeRequiredTier } from "../theme-catalog/tier";
+import { builtinCatalogRow } from "./builtin-catalog-row";
 import type {
   TalentThemeCatalogRow,
   TalentThemeKind,
@@ -12,7 +13,9 @@ import type {
 /**
  * Load ONE published catalog row by (kind, slug) for the apply actions.
  * Service-role read (the actions already resolved the owner); returns null on
- * a miss, a non-published row, a malformed row or any error. The listing +
+ * a non-published row, a malformed row or any error. When the table has no
+ * row for (kind, slug) at all, the in-code built-in is returned
+ * (`builtinCatalogRow`), matching the listing's pre-sync fallback. The listing +
  * tier-filtered gallery loader (`load-catalog.server.ts`, cache tag
  * `talent-theme-catalog`) is Phase 0.B and should reuse `coerceCatalogRow`.
  */
@@ -63,12 +66,15 @@ export async function loadPublishedCatalogRow<K extends TalentThemeKind>(
     .select(CATALOG_ROW_COLUMNS)
     .eq("kind", kind)
     .eq("slug", slug)
-    .eq("status", "published")
     .maybeSingle();
   if (error) {
     logServerError("talentTheme.catalog.loadRow", error);
     return null;
   }
+  // No row at all for this (kind, slug): serve the in-code built-in, the same
+  // fallback the gallery listing uses before the first sync. A row that
+  // exists in any other status (draft / archived) is never overridden.
+  if (!data) return builtinCatalogRow(kind, slug);
   const row = coerceCatalogRow(data);
   if (!row || row.kind !== kind || row.status !== "published") return null;
   return row as Extract<TalentThemeCatalogRow, { kind: K }>;
