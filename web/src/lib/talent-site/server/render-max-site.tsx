@@ -91,6 +91,14 @@ export interface RenderTalentMaxSiteInput {
   locale: string;
   /** Locale path prefix (e.g. "/es") for hrefs. */
   publicPathPrefix?: string;
+  /**
+   * How the site's own nav links are addressed. The `/t/site/[siteSlug]` routes
+   * keep "path" (the default). The `_talent-site` HOST route passes "host-root",
+   * because on a talent host the site IS the root: a `/t/site/<slug>/<page>`
+   * href there is a 3-segment path, which `isTalentSiteHostPathAllowed` rejects,
+   * so every inner nav link 404s. Default preserved so no existing caller moves.
+   */
+  hrefMode?: "path" | "host-root";
   /** Owner draft preview (`?preview=draft`). Renders draft shell + draft pages. */
   previewDraft?: boolean;
   /**
@@ -226,6 +234,7 @@ export async function renderTalentMaxSite(
       nav,
       site.siteSlug,
       publicPathPrefix,
+      input.hrefMode ?? "path",
     );
 
     // ── Managing tenant — section-embed render context for the page body ─────

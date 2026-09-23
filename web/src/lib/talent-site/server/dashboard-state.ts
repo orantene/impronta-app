@@ -13,6 +13,8 @@ import { listTemplatesForTier } from "@/lib/talent-site/templates/registry";
 import { provisionTalentPersonalSiteIfMissing } from "@/lib/talent-site/server/provision";
 import type { TalentSiteDashboardState, TalentSiteRow } from "@/lib/talent-site/types";
 import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
+import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
+import { talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
 import { assertTalentCanEditPersonalSite } from "@/lib/server/talent-self-guard";
 
 function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
@@ -49,6 +51,8 @@ export async function loadTalentPersonalSiteDashboardState(
 
   const admin = createServiceRoleClient();
   let site: TalentSiteDashboardState["site"] = null;
+  /** The talent's own site address, when the subdomain switch is on. */
+  let subdomainSiteUrl: string | null = null;
   let templateKey: string | null = null;
   let compositionMode: TalentSiteDashboardState["compositionMode"] = null;
 
@@ -64,7 +68,7 @@ export async function loadTalentPersonalSiteDashboardState(
     const { data } = await admin
       .from("talent_sites")
       .select(
-        "id, talent_profile_id, site_kind, status, draft_snapshot, published_snapshot, version, draft_updated_at, published_at, unpublished_at, plan_locked, pending_template_reset, created_by, updated_by, created_at, updated_at",
+        "id, talent_profile_id, site_kind, site_slug, site_published_at, status, draft_snapshot, published_snapshot, version, draft_updated_at, published_at, unpublished_at, plan_locked, pending_template_reset, created_by, updated_by, created_at, updated_at",
       )
       .eq("talent_profile_id", scope.talentProfile.id)
       .maybeSingle();
@@ -84,6 +88,24 @@ export async function loadTalentPersonalSiteDashboardState(
         }
       }
       site = mapSiteRow(row);
+      if (isTalentSiteSubdomainsEnabled()) {
+        // With the switch on, the talent's site lives at its own host. With it
+        // off (or with no slug yet) this stays null and the profile path below
+        // is emitted exactly as before.
+        //
+        // `site_published_at` is required, not decorative: the host resolver
+        // (`talent_site_subdomain_lookup`) returns a row only for a PUBLISHED
+        // site, so emitting the subdomain before publish would put a link in the
+        // dashboard that resolves to "host not registered". Until then the
+        // profile path below is the address that actually works.
+        const row = data as {
+          site_slug?: string | null;
+          site_published_at?: string | null;
+        };
+        subdomainSiteUrl = row.site_published_at
+          ? talentSitePublicUrl(row.site_slug ?? null)
+          : null;
+      }
     }
   }
 
@@ -105,7 +127,7 @@ export async function loadTalentPersonalSiteDashboardState(
     canUseCustomBuilder: membership.capabilities.canUseCustomBuilder,
     profileCode,
     talentProfileId: scope.talentProfile.id,
-    publicSiteUrl: profileCode ? `/t/${profileCode}` : null,
+    publicSiteUrl: subdomainSiteUrl ?? (profileCode ? `/t/${profileCode}` : null),
     // `preview=1` forces the standard profile renderer when a published site exists.
     publicProfileUrl: profileCode ? `/t/${profileCode}?preview=1` : null,
     isPubliclyHidden: scope.talentProfile.isPubliclyHidden,

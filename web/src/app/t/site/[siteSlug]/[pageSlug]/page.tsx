@@ -12,12 +12,14 @@
  */
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicPathPrefix } from "@/lib/saas/scope";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
+import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { talentSitePathRedirectTarget } from "@/lib/talent-site/site-public-url";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import {
   maxSiteJsonLdString,
@@ -70,6 +72,18 @@ export default async function TalentMaxSiteInnerPage({
   if (!isSupabaseConfigured()) notFound();
   const { siteSlug, pageSlug } = await params;
   const { preview } = await searchParams;
+
+  // Same permanent move as the home route — see its comment. The inner page
+  // lands on `<slug>.tulala.digital/<pageSlug>`.
+  const redirectTo = talentSitePathRedirectTarget({
+    slug: siteSlug,
+    pageSlug,
+    preview,
+    enabled: isTalentSiteSubdomainsEnabled(),
+    isProduction: process.env.NODE_ENV === "production",
+  });
+  if (redirectTo) permanentRedirect(redirectTo);
+
   const [locale, publicPathPrefix] = await Promise.all([
     getRequestLocale(),
     getPublicPathPrefix(),
@@ -80,6 +94,7 @@ export default async function TalentMaxSiteInnerPage({
     pageSlug,
     locale,
     publicPathPrefix,
+    hrefMode: "path",
     previewDraft: preview === "draft",
     canonicalOrigin: publicSiteMetadataBase().origin,
     canonicalPath: innerPath(siteSlug, pageSlug),

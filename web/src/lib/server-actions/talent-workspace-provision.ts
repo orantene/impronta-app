@@ -32,6 +32,10 @@ import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
+import {
+  isPlatformSubdomainLabelTaken,
+  requestSubdomainNamespaceCopy,
+} from "@/lib/saas/platform-subdomain-namespace.server";
 
 export type ProvisionFreeWorkspaceResult =
   | { ok: true; slug: string }
@@ -130,6 +134,15 @@ export async function provisionFreeWorkspaceFromTalent(params: {
   const taken = await isSlugTaken(admin, normalizedSlug);
   if (taken) {
     return { ok: false, error: "That slug is already taken. Please choose a different one." };
+  }
+
+  // A workspace name and a talent site address are ONE namespace: whoever takes
+  // `acme` takes `acme.tulala.digital` with it. The DB trigger enforces that on
+  // insert; asking first turns a unique violation into a sentence the person can
+  // act on. `null` = check unavailable, so we continue and let the trigger rule.
+  if ((await isPlatformSubdomainLabelTaken(normalizedSlug)) === true) {
+    const copy = await requestSubdomainNamespaceCopy();
+    return { ok: false, error: copy.workspaceNameTaken };
   }
 
   // ── Step 1: Create agencies row ───────────────────────────────────────────

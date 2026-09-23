@@ -69,6 +69,11 @@ test("dashboard public URL is canonical /t/code without /site", () => {
     join(process.cwd(), "src/lib/talent-site/server/dashboard-state.ts"),
     "utf8",
   );
-  assert.match(dashState, /publicSiteUrl: profileCode \? `\/t\/\$\{profileCode\}`/);
+  // Phase 2 prefers the talent's own host when the subdomain switch is on, but
+  // the canonical fallback MUST stay `/t/<code>` (never `/t/<code>/site`).
+  assert.match(
+    dashState,
+    /publicSiteUrl: subdomainSiteUrl \?\? \(profileCode \? `\/t\/\$\{profileCode\}` : null\)/,
+  );
   assert.equal(dashState.includes("/site`"), false);
 });
