@@ -86,7 +86,7 @@ test.describe("J1 theme gallery", () => {
     const total = await cards.count();
     expect(total).toBeGreaterThanOrEqual(5);
 
-    const chips = page.locator("[data-theme-gallery-design-step] [role=tab]");
+    const chips = page.locator("[data-theme-gallery-design-step] [data-theme-gallery-category-chip]");
     expect(await chips.count()).toBeGreaterThan(1);
     await chips.nth(1).click();
     const filtered = await cards.count();

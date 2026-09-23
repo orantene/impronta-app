@@ -104,10 +104,22 @@ export function ThemeGallery({
     const input: ThemeGalleryApplyInput = {};
     if (mode !== "look-only" && selectedDesignSlug) input.designSlug = selectedDesignSlug;
     if (selectedLookSlug) input.lookSlug = selectedLookSlug;
-    const result = await onApply(input);
-    setApplying(false);
+    let result: ThemeGalleryApplyResult;
+    try {
+      result = await onApply(input);
+    } catch {
+      // A thrown server action (network drop, deploy skew) must not strand
+      // the button in "Applying.".
+      result = { ok: false };
+    } finally {
+      setApplying(false);
+    }
     if (!result.ok) {
-      setApplyError(result.error || themeGalleryCopy(locale, "applyErrorGeneric"));
+      // A declined confirm prompt is not an error; anything else without
+      // copy falls back to the generic message.
+      if (!result.cancelled) {
+        setApplyError(result.error || themeGalleryCopy(locale, "applyErrorGeneric"));
+      }
       return;
     }
     setApplySuccess(true);
@@ -119,7 +131,7 @@ export function ThemeGallery({
   return (
     <div data-theme-gallery="" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {mode !== "look-only" ? (
-        <div role="tablist" aria-label={themeGalleryCopy(locale, "stepsAria")} style={{ display: "flex", gap: 8 }}>
+        <div role="group" aria-label={themeGalleryCopy(locale, "stepsAria")} style={{ display: "flex", gap: 8 }}>
           <StepTab active={step === "design"} label={themeGalleryCopy(locale, "stepDesign")} onClick={() => setStep("design")} />
           <StepTab active={step === "look"} label={themeGalleryCopy(locale, "stepLook")} onClick={() => setStep("look")} />
         </div>
@@ -192,8 +204,8 @@ function StepTab({ active, label, onClick }: { active: boolean; label: string; o
   return (
     <button
       type="button"
-      role="tab"
-      aria-selected={active}
+      aria-current={active ? "step" : undefined}
+      data-theme-gallery-step-tab=""
       onClick={onClick}
       style={{
         minHeight: 44,
