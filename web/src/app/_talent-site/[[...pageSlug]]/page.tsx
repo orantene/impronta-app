@@ -42,6 +42,7 @@ import {
   maxSiteSeoToMetadata,
 } from "@/lib/talent-site/server/site-metadata";
 import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
+import { TalentSiteMessagesDock } from "../TalentSiteMessagesDock";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -166,6 +167,7 @@ export default async function TalentSiteHostPage({
         />
       ) : null}
       {result.node}
+      <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={locale} />
     </>
   );
 }
