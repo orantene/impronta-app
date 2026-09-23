@@ -34,7 +34,7 @@ portrait, her approved biography.
 | 5 | Services | `talent_offerings` + `_variants` + `_addons`, `category` | The flagship. Category tabs, full-width rows, one action each, selected state in blush + check. Counted meta block (22 services · 4 categories). |
 | 6 | Results | `media_assets` | 8–12 shots, controlled ratios, one wide, per-shot service label, lightbox with focus trap. |
 | 7 | Your visit | `talent_service_areas`, `talent_booking_hours`, `talent_languages` | **NEW:** an AREA map (neighbourhood halo, no pin) beside the facts. Optional — absent map renders facts alone. |
-| 8 | Before your appointment | **no model yet** | FAQ. One narrow centred column. An answer may be a numbered sequence ("How do I book?"). **Gap:** needs `talent_profiles.public_faq jsonb`. |
+| 8 | Before your appointment | **no model yet — OPEN DECISION** | FAQ. One narrow centred column. Note the shape input: one answer is an ordered sequence ("How do I book?"), not a paragraph. See the open question below. |
 | 9 | Reviews | `loadTalentReviews` + credibility floor | Hidden entirely until real ones exist. |
 | 10 | Closing | `talent_profiles.phone`, `talent_integration_items` (instagram/tiktok, `public_profile_enabled`) | Book, or ask, or reach her directly — the three ways to make contact, together. Satisfies the gallery's "contact present" rule. |
 | 11 | Footer | nav + location + languages | Deliberately small. |
@@ -110,8 +110,19 @@ already does the job.
 
 ## What this design needs that the platform does not have yet
 
-1. **Per-profile FAQ.** Section 8 has no model. Smallest fix:
-   `talent_profiles.public_faq jsonb` = `[{ q, a, steps? }]`.
+1. **Per-profile FAQ — an open decision, not a proposal.** Section 8 has no
+   model behind it. Two different answers with two different migrations:
+   a new **profile field**, or free text the builder holds on the **site**.
+   The talent-website session is raising it with the plan and I am
+   deliberately not proposing a shape.
+
+   What the design contributes to that decision, as input only: one answer
+   ("How do I book?") renders as an ordered list of four titled steps rather
+   than a paragraph. If FAQ lands as site free text, that is just rich text
+   and the template renders whatever is authored. If it lands as a profile
+   field, the field has to carry that structure or the answer flattens.
+   `MaisonContent.faq` is the template's presentation contract, not a schema
+   proposal — the template will read whatever shape is chosen.
 2. **Media tags.** The gallery shows a service label per shot; today that map
    is passed in by hand. Smallest fix: `media_assets.tags text[]`.
 3. **Location privacy.** "Area public, exact address on confirmation" is the

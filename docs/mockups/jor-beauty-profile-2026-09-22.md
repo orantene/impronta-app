@@ -140,13 +140,13 @@ booking sheet all move together.
 | Social links | footer | `talent_integrations` | Not supplied by Jorgelina → section hidden | Nothing to do; it appears when she connects one |
 | Contact methods | booking sheet | inquiry rail (Tulala inbox) | No phone/WhatsApp confirmed | Nothing to do; never invent one |
 | Reviews | reviews band | `loadTalentReviews` + credibility floor | None yet → band hidden | Invite reviews after her first bookings |
-| FAQ | FAQ accordion | **none** | **No per-profile FAQ model** | Add `talent_profiles.public_faq jsonb` (`[{q,a}]`) + an editor row; `faq_accordion` already exists for sites, reuse its editor shape |
+| FAQ | FAQ accordion | **none** | **No FAQ model — OPEN DECISION** | Profile field vs site free text: two migrations, two owners. Being raised with the talent-website plan; no shape proposed here. `faq_accordion` already exists for sites and is one of the two candidates |
 | Booking steps | "Cómo reservar" | **none** | Template-level copy | Keep as template copy (it describes the platform flow, not the talent) |
 | Image roles | hero / cards / portfolio | `media_assets` + `talent_offering_media` | No "hero/banner" role on the profile beyond `bannerUrl` | Reuse `bannerUrl` for the hero; the template already falls back banner → first gallery item |
 
 ## Missing reusable capabilities found
 
-1. **Per-profile FAQ** — nothing stores a talent's Q&A. Smallest fix: `talent_profiles.public_faq jsonb`.
+1. **FAQ** — nothing stores a talent's Q&A. Whether that becomes a profile field or site content is an open decision with the talent-website plan; this document no longer proposes a shape.
 2. **Media tags** — the portfolio filter has no data model behind it. Smallest fix: `media_assets.tags text[]`.
 3. **Location privacy** — "area public, address on confirmation" is a real pattern for home studios and is not modelled anywhere. Smallest fix: a `location_privacy` enum + address release on confirmation.
 4. **Offering categories as records** — free-text `category` cannot carry order, a note ("manicura rusa incluida"), or a specialty flag.
