@@ -133,10 +133,16 @@ export function buildStarterHomePageTree(
   input: StarterHomePageInput,
   makeId: NodeIdFactory = defaultIdFactory,
 ): BuilderNode[] {
+  // A CONTAINER, not a `section`. The public renderer treats a top-level
+  // `section` as a slot-mode construct: `shouldRenderNode` returns false for
+  // every section before it looks at children, so `hasRenderableBuilderNodes`
+  // reported this tree as EMPTY and `renderTalentMaxSite` answered 404 for a
+  // site that looked published everywhere else (D-MSG-411). The talent section
+  // kit builds every top-level block as a container for the same reason.
   const hero: BuilderNode = {
     id: makeId(),
-    kind: "section",
-    props: { sectionTypeKey: "freeform", label: "Hero" },
+    kind: "container",
+    props: { layout: "stack", gap: "m", align: "center", layerLabel: "Hero" },
     children: [
       {
         id: makeId(),
