@@ -42,6 +42,10 @@ on:
         description: "Preview only (supabase db push --dry-run). Set false to actually apply pending migrations."
         type: boolean
         default: true
+      repair_orphans:
+        description: "Also drop the two orphan ledger rows (20260911232448, 20260918215445) that match no file. See web/docs/talent-website-execution-plan-2026-09-23.md."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -105,6 +109,33 @@ jobs:
           # version alongside whether it's recorded on the linked remote
           # project — this is the authoritative applied/pending source, same
           # one a developer running `db:check`-adjacent commands would see.
+          supabase migration list | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # Two versions were applied straight to the database rather than through
+      # `db push`, so the ledger stamped its own timestamps while the repo kept
+      # the future-dated names the convention requires. The result is two rows
+      # matching no file, and `db push` refuses outright whenever the remote
+      # knows a version the tree does not. Marking them reverted drops the rows;
+      # it applies no SQL and touches no schema or data. The equivalent files
+      # stay recorded under 20261231231006 and 20261231277000. Guarded by its
+      # own input so it never runs as a side effect of an ordinary push.
+      - name: Repair orphan ledger rows
+        if: ${{ inputs.repair_orphans }}
+        run: |
+          echo "#### Ledger repair" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          for v in 20260911232448 20260918215445; do
+            if supabase migration list | grep -q "$v"; then
+              echo "repairing $v (recorded remotely, no local file)" | tee -a "$GITHUB_STEP_SUMMARY"
+              supabase migration repair --status reverted "$v" 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "skipping $v (not in the ledger, already repaired)" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "#### Local vs. remote (after repair)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
           supabase migration list | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
