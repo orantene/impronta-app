@@ -148,14 +148,16 @@ test.describe("QA Stripe pay + refund", () => {
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
         { auth: { persistSession: false } },
       );
+      const TENANT = "a1111111-1111-4111-8111-111111111102";
       const { data: link } = await sb
         .from("payment_links")
         .select("code, provider, status")
+        .eq("tenant_id", TENANT)
         .eq("status", "open")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      expect(link?.code, "no open payment_links row after mint").toBeTruthy();
+      expect(link?.code, "no open payment_links row after mint on qa-stripe-r2").toBeTruthy();
       expect(link?.provider, `expected provider=stripe; got ${link?.provider}`).toBe("stripe");
       payHref = new URL(`/pay/${link!.code}`, AGENT_HOST).toString();
     }
