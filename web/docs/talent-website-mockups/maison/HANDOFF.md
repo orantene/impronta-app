@@ -93,11 +93,16 @@ Same layout, same markup, tokens only. `frames/looks-hero.jpg`, `frames/looks-me
 ## 4b. Address form — current, not target
 
 Every frame and every string here uses the **path** form,
-`tulala.digital/t/<code>`, because that is what is live. Phase 2 subdomain
-routing (`<name>.tulala.digital`) is **held** pending PR #2179 — the namespace
-trigger counted a signup's own 15-minute slug reservation as a collision with
-itself. Nothing in this handoff assumes a subdomain; if a later frame shows one,
-mark it target-state.
+`tulala.digital/t/<code>`.
+
+**Updated 2026-09-23:** Phase 2 subdomain routing is now merged and switched on
+in production, and `*.tulala.digital` is attached to the Vercel project with a
+valid certificate. So `<name>.tulala.digital` is reachable rather than
+hypothetical — but **no talent site is published on one yet**, so the frames
+stay on the path form: a frame showing a subdomain would be showing an address
+that resolves to nothing. When a talent publishes, the subdomain becomes the
+honest address and these strings should follow it. Treat the path form as
+current-state, not as the target.
 
 ## 5. Target categories
 

@@ -24,18 +24,16 @@
  * below); until they exist each affected test SKIPS with a message naming what
  * is missing, rather than failing or silently passing.
  *
- * DEPENDENCY. Imports `./fixtures`, which landed on main with the Phase Q.3
- * harness (#2164, 9941bc3a0). This branch is not yet rebased onto that commit,
- * so the import does not resolve in the branch's own tree; collection was
- * verified by checking main's fixtures.ts out into place, running --list, and
- * removing it again. Rebase before merging.
+ * DEPENDENCY. Imports `./fixtures` from the Phase Q.3 harness. This branch is
+ * merged up to 74e74676a, where the whole harness now lives: `storageStateFor`,
+ * `auth.setup.ts` and the `talent-website` Playwright project all exist (they
+ * did not at 9941bc3a0, when this file was written).
  *
- * Uses only what is actually on main: `talentFixture` and the two
- * MAISON_* titles. Deliberately does NOT use `storageStateFor`, an
- * `AUTH_STATE_DIR`, a `fixtures` object or a `--project=talent-website`
- * Playwright project — none of those exist at 9941bc3a0, and writing against
- * a fixture API that is not implemented is precisely what stopped J0/J1/J8
- * from being collectable. These profile pages are public and need no session.
+ * This spec still uses none of the auth plumbing, and that is deliberate
+ * rather than historical: these profile pages are PUBLIC. A spec that signs in
+ * to read a public page proves less than one that does not, because it can no
+ * longer tell a page that is public from a page that merely works when you are
+ * logged in. It takes `talentFixture` and the two MAISON_* titles, nothing more.
  *
  * REQUIRED FIXTURES (proposed addition to seed.ts — not applied here, because
  * seed.ts belongs to the QA-harness work):
