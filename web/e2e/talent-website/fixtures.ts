@@ -153,3 +153,18 @@ export const MULTI_ROSTER_AGENCIES: readonly RosterAgencyFixture[] = [
  * additional host row is needed for those two surfaces on loopback.
  */
 export const LOOPBACK_HOSTS = ["localhost", "127.0.0.1"] as const;
+
+/**
+ * Maison catalogue offering titles.
+ *
+ * Identities, not seeding logic, so they live here with the other fixture
+ * identities: a spec must be able to select on them WITHOUT importing
+ * `seed.ts`, which runs `requireEnv`, builds a service-role client and calls
+ * `main()` at module scope. Importing the seeder from a spec would either break
+ * test collection (env unset) or turn `playwright test --list` into a database
+ * write (env set).
+ *
+ * `seed.ts` imports these from here and writes rows with exactly these titles.
+ */
+export const MAISON_OPTIONED_OFFERING = "Maison QA — optioned service";
+export const MAISON_FIXED_OFFERING = "Maison QA — fixed service";

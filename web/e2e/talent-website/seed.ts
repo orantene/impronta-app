@@ -58,6 +58,8 @@ import {
   MULTI_ROSTER_AGENCIES,
   TALENT_FIXTURES,
   type TalentFixture,
+  MAISON_OPTIONED_OFFERING,
+  MAISON_FIXED_OFFERING,
 } from "./fixtures";
 
 function requireEnv(name: string): string {
@@ -569,12 +571,11 @@ async function ensureApprovedMedia(
  * path under test. Seeding them as "request" would make the journey pass
  * without ever exercising it.
  *
- * Titles are exported because web/e2e/talent-website/maison-profile.spec.ts
- * selects on them; restating the strings in two files is how fixtures drift.
+ * Titles come from `fixtures.ts`, which specs import directly. They cannot
+ * live here: this module calls `requireEnv`, builds a service-role client and
+ * runs `main()` at import, so a spec importing it would either fail to collect
+ * or re-seed the database on `playwright test --list`.
  */
-export const MAISON_OPTIONED_OFFERING = "Maison QA — optioned service";
-export const MAISON_FIXED_OFFERING = "Maison QA — fixed service";
-
 async function ensureMaisonCatalogue(talentProfileId: string): Promise<void> {
   // (a) Optioned: two length variants + one shared-style add-on, in `unas`.
   const optioned = await upsertOffering(talentProfileId, {
