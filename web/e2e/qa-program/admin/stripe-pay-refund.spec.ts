@@ -59,16 +59,18 @@ test.describe("QA Stripe pay + refund", () => {
       await sendPricedOffer(page, { fresh: true });
     }
 
-    // Accept offer on client if still awaiting (same door as payment-deep).
-    const client = await requireClientLink(page, context);
-    const accept = client.locator('[data-client-action="accept_offer"]').first();
-    if (await accept.isVisible().catch(() => false)) {
-      await accept.click();
-      await expect(client.getByText(/accepted/i).first()).toBeVisible({ timeout: 25_000 });
+    // Accept offer on client only when we just sent a fresh offer.
+    if (!existing) {
+      const client = await requireClientLink(page, context);
+      const accept = client.locator('[data-client-action="accept_offer"]').first();
+      if (await accept.isVisible().catch(() => false)) {
+        await accept.click();
+        await expect(client.getByText(/accepted/i).first()).toBeVisible({ timeout: 25_000 });
+      }
+      await client.close().catch(() => undefined);
+      await page.bringToFront();
+      await page.waitForTimeout(800);
     }
-    await client.close().catch(() => undefined);
-    await page.bringToFront();
-    await page.waitForTimeout(800);
 
     // Money section balance before mint (effect baseline).
     const money = page.locator("[data-panel-money]").first();
@@ -81,8 +83,15 @@ test.describe("QA Stripe pay + refund", () => {
     const sheet = page.locator("[data-payment-request-sheet], [data-sheet]").first();
     await expect(sheet, "Payment request sheet did not open").toBeVisible({ timeout: 20_000 });
 
-    // Clear any leftover open request on the agent Stripe tenant so mint canSend.
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY && USE_AGENT_PROD) {
+    // Clear leftover open request only when the sheet says so (avoid reload races).
+    const openBlock = sheet
+      .getByText(/one open request|open (pay )?link|request already open/i)
+      .first();
+    if (
+      process.env.SUPABASE_SERVICE_ROLE_KEY &&
+      USE_AGENT_PROD &&
+      (await openBlock.isVisible().catch(() => false))
+    ) {
       const { createClient } = await import("@supabase/supabase-js");
       const sb = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -92,6 +101,7 @@ test.describe("QA Stripe pay + refund", () => {
       const TENANT = "a1111111-1111-4111-8111-111111111102";
       await sb.from("payment_links").update({ status: "cancelled" }).eq("tenant_id", TENANT).eq("status", "open");
       await sb.from("conversation_records").update({ payment_state: null }).eq("tenant_id", TENANT);
+      await page.keyboard.press("Escape").catch(() => undefined);
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
       await awaitHydrated(page);
@@ -110,6 +120,10 @@ test.describe("QA Stripe pay + refund", () => {
     const full = sheet.getByRole("radio", { name: /full amount/i }).first();
     await expect(full, "Full amount missing").toBeVisible({ timeout: 10_000 });
     await full.click();
+    await expect(
+      sheet.getByText(/expired|cannot be saved|conversation just changed/i),
+      "Payment sheet refused before Send — extend hold / reload inquiry",
+    ).toHaveCount(0);
     const send = sheet.locator("[data-payment-send]").first();
     await expect(
       send,
