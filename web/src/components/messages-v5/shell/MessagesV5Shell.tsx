@@ -284,32 +284,35 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   }, [openThread]);
 
   const orderRef = useRef<string | null>(props.initialInquiryId ? null : props.initialOrderId ?? null);
+  // Fast path: the order already has a chip on a loaded row.
   useEffect(() => {
     const orderId = orderRef.current;
     if (!orderId) return;
     const id = findConversationForOrder(rows, orderId);
-    if (id) {
-      orderRef.current = null;
-      openThread(id);
-      return;
-    }
-    // D-MSG-339: the chip match only sees the CURRENTLY LOADED rows, so a
-    // thread on another page or behind another filter never opened. Ask the
-    // server once; `conversation_records` is the same source the chips use.
-    if (props.live === false) return;
-    let cancelled = false;
+    if (!id) return;
+    orderRef.current = null;
+    openThread(id);
+  }, [rows, openThread]);
+
+  // D-MSG-343: the server resolve must NOT depend on `rows`. Keyed on rows it
+  // re-ran on every inbox patch and its cleanup aborted the in-flight action
+  // (visible as repeated ERR_ABORTED POSTs), so the deep link never opened -
+  // cancelled by exactly the row churn it exists to bypass. One shot, guarded
+  // by a ref, no cleanup: whichever path resolves first clears `orderRef`.
+  const orderResolveStarted = useRef(false);
+  useEffect(() => {
+    const orderId = orderRef.current;
+    if (!orderId || orderResolveStarted.current || props.live === false) return;
+    orderResolveStarted.current = true;
     void (async () => {
       const res = await messagingResolveOrderThread({ orderId });
-      if (cancelled || orderRef.current !== orderId) return;
+      if (orderRef.current !== orderId) return;
       const resolved = res.ok ? res.inquiryId : null;
       if (!resolved) return;
       orderRef.current = null;
       openThread(resolved);
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [rows, openThread, props.live]);
+  }, [openThread, props.live]);
 
   useMessagingInboxLive({
     tenantId: props.live === false ? null : props.tenantId,
