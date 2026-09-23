@@ -16,6 +16,12 @@ Goal: make that engine the **free** personal website at `<name>.tulala.digital`,
 5. The gallery is a foundation: new designs and looks get added over time with no rework.
 6. Execution: agents implement, test, QA and **merge when all gates pass**; QA runs on a **hermetic local Supabase in CI**.
 
+### Pre-launch amendments (2026-09-23, no customers and no traffic yet)
+7. **Merge gate relaxed:** a phase merges on the structural CI gate + unit tests + Opus code review. Browser journeys are still written per phase but run as a batch once the test database exists; a phase is not re-opened for them, defects become follow-up fixes.
+8. **Switch on as each phase lands:** the env switches stay in code as an escape hatch, but are set to `true` in Vercel production as each phase merges, so the founder sees each piece live instead of a big-bang launch. The Launch phase becomes a review checkpoint rather than a flip.
+9. **Database access:** the founder adds `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` and `SUPABASE_PROJECT_REF` as GitHub repository secrets. Agents then generate `supabase/e2e-baseline.sql` in CI, run the browser journeys, and apply migrations through `db-push.yml`.
+10. **Phases run in parallel** in separate worktrees where files allow (0, 2 and 5 concurrently), rebasing onto `main` as each merges.
+
 ### Verification of the "already finished" items (answer to the original ask)
 - **Profile page on registration: done.** `ensurePlatformHubRoster` (`lib/saas/registration-policy.ts`) makes `/t/<code>` live immediately.
 - **Join other free hubs: partial.** Only one hub exists (the platform hub). Joining an agency works through the tenant registration engine. The separate apply flow (L48, `/talent/discover-agencies`) is broken: approval never creates a roster row, the hub list is always empty, it is not linked from the sidebar, and dashboard copy says the opposite ("agencies invite talent"). Tracked as a follow-up, not in this plan.
@@ -201,7 +207,7 @@ Founder decision (2026-09-23): the founder works with a design agent on Web Offi
 9. Migration phases: `db-push.yml` (or founder runs `npm run db:push` when secrets are absent), then confirm with the drift check.
 10. Merge when all green; watch main CI and the production pointer; if main goes red, fix forward or revert immediately (CLAUDE.md), then continue.
 
-**Merge gate (all required):** CI structural gate green; hermetic e2e green (current + previous journeys); code review with no unresolved findings; security review clean (1, 2); Opus sign-off report committed; migration applied to production; switches default off in production.
+**Merge gate (amended 2026-09-23, pre-launch):** CI structural gate green; unit and static tests green; code review with no unresolved findings; security review clean (1, 2); migration applied to production. Browser journeys are written per phase and run as a batch once the test database exists. After merge, the phase's switch is set to `true` in Vercel production.
 
 **Founder touchpoints (only these):** one-time repo secrets for `db-push.yml` (or run `npm run db:push` per migration PR: phases 0, 1, 2, 4); schema snapshot only if Q.1 fails; launch yes/no; renaming the Stripe product display name to "Web Office" in the Stripe dashboard; design review of mockups with the design agent.
 
