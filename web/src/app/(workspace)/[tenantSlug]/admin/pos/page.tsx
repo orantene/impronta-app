@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 // Copy comes from `pos-copy` and NOT the `@/components/admin/pos` barrel: the
 // barrel re-exports every "use client" component of the frame, and a server
@@ -84,6 +84,7 @@ import { loadCounterLinks } from "./counter-reads";
 import { ClassesClient, DoorClient, PosClient } from "./mode-clients";
 import { collectionMethods, currentAdminPath, loadCashierName, posRole } from "./page-helpers";
 import { messagesModeView, readMessagesUnread } from "./messages-view";
+import { PosModeUrlSync } from "./pos-mode-url-sync";
 import { ProjectsModePage } from "./_projects/projects-mode-page";
 
 export const dynamic = "force-dynamic";
@@ -231,19 +232,19 @@ export default async function PosPage({
   }
 
   const requested = parsePosMode(q.mode);
-  const mode: PosMode | null =
-    requested && usableModes.includes(requested) ? requested : null;
-  if (!mode) {
-    // A mode this person cannot use — a stale bookmark, a demoted cashier's
-    // remembered tablet, a hand-typed URL — lands on the first one they can,
-    // carrying whatever sale was already open.
-    const path = await currentAdminPath(tenantSlug);
-    const order = typeof q.order === "string" && q.order ? `&order=${encodeURIComponent(q.order)}` : "";
-    // `/admin/pos?view=messages` (the contract's address, MSG-P1) keeps its
-    // view across the mode fill-in; dropping it landed the inbox on Sell.
-    const view = q.view === "messages" ? "&view=messages" : "";
-    redirect(`${path}?mode=${usableModes[0]}${order}${view}`);
-  }
+  // Resolve the mode IN PLACE. A `redirect()` that filled `?mode=` when the
+  // query was bare (or named a mode this person cannot use) raced the App
+  // Router's thenables and threw React #310 on every cold load of `/admin/pos`
+  // and `/admin/pos?order=…` (D-MSG-318 / D-MSG-319, same family as D-155).
+  // `PosModeUrlSync` writes the resolved mode into the address with
+  // `history.replaceState` so bookmarks and the mode chip still see it.
+  const mode: PosMode =
+    requested && usableModes.includes(requested) ? requested : usableModes[0]!;
+  const orderIdForSync = typeof q.order === "string" && q.order ? q.order : null;
+  const viewMessages = q.view === "messages";
+  const modeUrlSync = (
+    <PosModeUrlSync mode={mode} orderId={orderIdForSync} viewMessages={viewMessages} />
+  );
 
   const railLabels = railCopy(tr);
   const frameCopy = { navLabel: railNavLabel(tr), destinationLabels: railLabels };
@@ -256,6 +257,7 @@ export default async function PosPage({
     return (
       <>
         <PageRouteSyncer page="pos" />
+        {modeUrlSync}
         <main className="flex min-h-[60vh] w-full flex-col gap-4 p-4">
           <h1 className="m-0 text-[18px] font-semibold text-admin-ink">
             {posModeLabel(tr, mode)}
@@ -308,6 +310,7 @@ export default async function PosPage({
       return (
         <>
           <PageRouteSyncer page="pos" />
+          {modeUrlSync}
           <main className="flex min-h-[60vh] w-full flex-col gap-4 p-4">
             <h1 className="m-0 text-[18px] font-semibold text-admin-ink">{posModeLabel(tr, mode)}</h1>
             <p role="alert" className="m-0 text-[14px] text-admin-ink-muted">
@@ -330,6 +333,7 @@ export default async function PosPage({
     return (
       <>
         <PageRouteSyncer page="pos" />
+        {modeUrlSync}
         <ClassesClient
           tenantId={scope.tenantId}
           messagesUnread={messagesUnread}
@@ -386,6 +390,7 @@ export default async function PosPage({
     return (
       <>
         <PageRouteSyncer page="pos" />
+        {modeUrlSync}
         <DoorClient
           tenantId={scope.tenantId}
           messagesUnread={messagesUnread}
@@ -439,6 +444,7 @@ export default async function PosPage({
     return (
       <>
         <PageRouteSyncer page="pos" />
+        {modeUrlSync}
         <FloorScreen
           admin={admin}
           tenantId={scope.tenantId}
@@ -472,6 +478,7 @@ export default async function PosPage({
     return (
       <>
         <PageRouteSyncer page="pos" />
+        {modeUrlSync}
         <ProjectsModePage
           tenantId={scope.tenantId}
           workspaceName={workspaceName}
@@ -630,6 +637,7 @@ export default async function PosPage({
         route has not.
       */}
       <PageRouteSyncer page="pos" />
+      {modeUrlSync}
       <PosClient
         mode={mode}
         tenantId={scope.tenantId}

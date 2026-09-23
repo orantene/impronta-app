@@ -179,12 +179,32 @@ test("the route validates its mode against the modes this person may use", () =>
     "the workspace's own modes come from its settings, never a literal",
   );
   assert.match(page, /parsePosMode\(/, "the query string is parsed, not trusted");
-  assert.match(page, /redirect\(/, "an unusable mode redirects to the first allowed one");
+  // D-MSG-318 / D-MSG-319: filling `?mode=` via `redirect()` threw React #310
+  // from the App Router. The mode is resolved in place; PosModeUrlSync writes
+  // it into the address without a navigation.
+  assert.doesNotMatch(
+    page,
+    /redirect\(/,
+    "a missing or unusable mode must not redirect (App Router #310)",
+  );
+  assert.match(page, /PosModeUrlSync/, "the resolved mode is synced into the address");
   // Someone with no modes gets a SCREEN, not a 404: they are signed in, on a
   // workspace they belong to, at a real address.
   const gate = page.slice(page.indexOf("usableModes.length === 0"));
   assert.match(gate.slice(0, 600), /dashboard\.pos\.counter\.gate\.title/);
   assert.doesNotMatch(gate.slice(0, 600), /notFound\(\)/);
+});
+
+test("D-MSG-318/319: a bare /admin/pos does not redirect to fill ?mode=", () => {
+  // Live repro: `/admin/pos` and `/admin/pos?order=<id>` each threw React #310
+  // once; the same URLs with `mode=counter` already present did not. Cause:
+  // page.tsx redirected to add `?mode=`. The syncer replaces that redirect.
+  const page = code("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
+  const sync = code("src/app/(workspace)/[tenantSlug]/admin/pos/pos-mode-url-sync.tsx");
+  assert.match(sync, /history\.replaceState/);
+  assert.doesNotMatch(sync, /router\.(push|replace)/);
+  assert.match(page, /modeUrlSync/);
+  assert.doesNotMatch(page, /\bredirect\s*\(/);
 });
 
 test("no tender is offered as working without the provider behind it", () => {

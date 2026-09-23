@@ -1,0 +1,38 @@
+[
+  {
+    "label": "bare-pos",
+    "path": "/admin/pos",
+    "hit": 1,
+    "final": "https://staging-qa-journeys.tulala.digital/admin/pos?mode=counter"
+  },
+  {
+    "label": "order-only",
+    "path": "/admin/pos?order=33330031-0000-4000-8000-0000000000b1",
+    "hit": 1,
+    "final": "https://staging-qa-journeys.tulala.digital/admin/pos?mode=counter&order=33330031-0000-4000-8000-0000000000b1"
+  },
+  {
+    "label": "mode-only",
+    "path": "/admin/pos?mode=counter",
+    "hit": 0,
+    "final": "https://staging-qa-journeys.tulala.digital/admin/pos?mode=counter"
+  },
+  {
+    "label": "mode+order",
+    "path": "/admin/pos?mode=counter&order=33330031-0000-4000-8000-0000000000b1",
+    "hit": 0,
+    "final": "https://staging-qa-journeys.tulala.digital/admin/pos?mode=counter&order=33330031-0000-4000-8000-0000000000b1"
+  },
+  {
+    "label": "view-messages",
+    "path": "/admin/pos?view=messages",
+    "hit": 1,
+    "final": "https://staging-qa-journeys.tulala.digital/admin/pos?mode=counter&view=messages"
+  },
+  {
+    "label": "order+view",
+    "path": "/admin/pos?order=33330031-0000-4000-8000-0000000000b1&view=messages",
+    "hit": 1,
+    "final": "https://staging-qa-journeys.tulala.digital/admin/pos?mode=counter&order=33330031-0000-4000-8000-0000000000b1&view=messages"
+  }
+]

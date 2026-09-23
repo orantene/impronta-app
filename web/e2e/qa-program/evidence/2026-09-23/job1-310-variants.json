@@ -1,0 +1,35 @@
+[
+  {
+    "label": "no-order",
+    "path": "/admin/pos?mode=counter",
+    "url": "https://staging-qa-journeys.tulala.digital/admin/pos?mode=counter",
+    "errors": [],
+    "hit": 0
+  },
+  {
+    "label": "foreign-order",
+    "path": "/admin/pos?mode=counter&order=33330031-0000-4000-8000-0000000000b1",
+    "url": "https://staging-qa-journeys.tulala.digital/admin/pos?mode=counter&order=33330031-0000-4000-8000-0000000000b1",
+    "errors": [],
+    "hit": 0
+  },
+  {
+    "label": "foreign-order-no-mode",
+    "path": "/admin/pos?order=33330031-0000-4000-8000-0000000000b1",
+    "url": "https://staging-qa-journeys.tulala.digital/admin/pos?mode=counter&order=33330031-0000-4000-8000-0000000000b1",
+    "errors": [
+      {
+        "message": "Minified React error #310; visit https://react.dev/errors/310 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+        "stack": "Error: Minified React error #310; visit https://react.dev/errors/310 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.\n    at ik (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:134307)\n    at Object.oo [as useMemo] (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:141774)\n    at r.useMemo (https://staging-qa-journeys.tulala.digital/_next/static/chunks/06l04cqfmg0u-.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:2:13163)\n    at I (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:50:9216)\n    at i_ (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:133022)\n    at o0 (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:153279)\n    at lu (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:164881)\n    at uf (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:208121)\n    at https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:207966\n    at ud (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:207974)\n    at ue (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:203895)\n    at uq (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:229672)\n    at MessagePort.R (https://staging-qa-journeys.tulala.digital/_next/static/chunks/117dz5nknp4ei.js?dpl=dpl_6bPCKZT7BiwPRm3QsPqHm9LYaQbz:20:77830)"
+      }
+    ],
+    "hit": 1
+  },
+  {
+    "label": "own-fake-order",
+    "path": "/admin/pos?mode=counter&order=00000000-0000-4000-8000-000000000099",
+    "url": "https://staging-qa-journeys.tulala.digital/admin/pos?mode=counter&order=00000000-0000-4000-8000-000000000099",
+    "errors": [],
+    "hit": 0
+  }
+]

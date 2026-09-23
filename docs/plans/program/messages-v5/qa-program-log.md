@@ -17,7 +17,7 @@ Updated: 2026-09-23 (Round 2 — CLEAN)
 
 **Still owed (non-blocking):** 4242+refund once `sk_test_` exists. Forever-skip client placeholders removed — covered by `*-deep` + locale-pay-deep.
 
-**Red (product, logged):** D-MSG-318 POS 13th seat React #310; D-MSG-319 POS foreign-order React #310; D-MSG-312 concurrent confirm TOCTOU.
+**Red (product, logged):** D-MSG-312 concurrent confirm TOCTOU (remaining hole: offer with no reservation stamp — Round 3 Job 4). D-MSG-318 / D-MSG-319 POS React #310 closed in Round 3 Job 1 (`fix/msg-310-pos-remount`): cause was `page.tsx` mode-fill `redirect()`, not sell/chooser hooks.
 
 
 ## Checklist
@@ -29,12 +29,12 @@ Updated: 2026-09-23 (Round 2 — CLEAN)
 | Payment pay-link / collect / outside | green | payment-*.spec.ts |
 | Confirm / double-book loser | green (#2155) | confirm / pos-double-book |
 | Class last-place busy | green | `capacity/class-seat-limit.spec.ts` |
-| Class 13th POS | red (D-MSG-318) | same |
+| Class 13th POS | fixed Round 3 Job 1 (D-MSG-318/412) | same — #310 was mode `redirect()`, not capacity |
 | Event tier sold-out | green (D-MSG-332) | `capacity/event-tier-sold-out.spec.ts` |
 | Table overbook | green (D-MSG-333) | `capacity/table-overbook.spec.ts` |
 | Restaurant Menu | green (D-MSG-316) | `vocabulary-restaurant.spec.ts` |
 | Isolation Messages/link/pay | green (#2158) | `isolation/cross-tenant.spec.ts` |
-| Isolation POS foreign | red (D-MSG-319) | same |
+| Isolation POS foreign | fixed Round 3 Job 1 (D-MSG-319/412) | same — line still hidden; #310 gone |
 | Hostile + reload | green | isolation/* |
 | Money-perm live staff | green (D-MSG-331) | `permissions-money.spec.ts` |
 | §7 storefront + admin doors | green | section7-*.spec.ts |
