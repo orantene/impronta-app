@@ -699,6 +699,10 @@ export function buildKitCopy(t: Translator) {
       methodTerminal: t("dashboard.messagesV5.paymentRequest.methodTerminal"),
       referenceLabel: t("dashboard.messagesV5.paymentRequest.referenceLabel"),
       referencePlaceholder: t("dashboard.messagesV5.paymentRequest.referencePlaceholder"),
+      // D-MSG-344: "Record as paid outside" needs >= 3 chars here or Send stays
+      // disabled. The field never said so, so Send looked broken.
+      referenceLabelRequired: t("dashboard.messagesV5.paymentRequest.referenceLabelRequired"),
+      referenceHint: t("dashboard.messagesV5.paymentRequest.referenceHint"),
       messageLabel: t("dashboard.messagesV5.paymentRequest.messageLabel"),
       messagePreview: t("dashboard.messagesV5.paymentRequest.messagePreview"),
       messagePreviewFull: t("dashboard.messagesV5.paymentRequest.messagePreviewFull"),
