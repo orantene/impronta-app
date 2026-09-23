@@ -89,10 +89,18 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
     case "offer_review":
     case "offer_state": {
       const offer = clientOfferForMessage(payload, offers);
-      // Only the last "sent" event per offer draws the live offer; every other offer row reads as one line.
-      if (!offer || !offerCards.has(message.id)) {
-        return <SystemLine text={message.body || copy.generic.message} variant="mobile" />;
+      // Only the last "sent" event per offer draws the live offer. D-MSG-346:
+      // every OTHER offer row used to echo `message.body`, which is written in
+      // the staff's voice about the client ("Offer sent to client.", "Accepted
+      // offer v4"). The client was reading notes about themselves, and the
+      // card directly below already states the live status. So the duplicate
+      // rows are dropped for this audience rather than re-voiced: one offer,
+      // one card. A row whose offer is not loaded at all still reads as a
+      // neutral line so nothing silently disappears.
+      if (!offer) {
+        return <SystemLine text={copy.generic.message} variant="mobile" />;
       }
+      if (!offerCards.has(message.id)) return null;
       const a = act(offer.id);
       return <ClientOfferCard offer={offer} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={payCode} onAccept={actions.onAcceptOffer} onDecline={actions.onDeclineOffer} onChange={(o, text) => actions.onChangeRecord("offer", o.id, text, o.id)} onPay={actions.onPay} />;
     }
