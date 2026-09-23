@@ -77,11 +77,11 @@ test.describe("QA 6.1 next-step ladder + realtime", () => {
 
     const client = await requireClientLink(page, context);
     const body = `QA-RT ${Date.now()}`;
-    const input = client.locator("[data-composer-input], textarea, [contenteditable='true']").first();
-    await expect(input, "client composer missing on minted link").toBeVisible({ timeout: 20_000 });
-    await input.fill(body);
-    const send = client.locator("[data-composer-send], button").filter({ hasText: /send/i }).first();
-    await expect(send, "client Send missing").toBeEnabled({ timeout: 10_000 });
+    const composer = client.locator("[data-client-composer]");
+    await expect(composer, "client composer missing on minted link").toBeVisible({ timeout: 20_000 });
+    await composer.locator("textarea").fill(body);
+    const send = composer.locator('[data-client-action="send_message"]');
+    await expect(send, "client send_message missing/disabled").toBeEnabled({ timeout: 10_000 });
     await send.click();
     await expect(
       page.getByText(body).first(),
