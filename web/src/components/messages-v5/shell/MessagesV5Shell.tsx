@@ -469,7 +469,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
               setLink({ url: null, copied: false, refusal: r.reason });
               return;
             }
-            const url = customerThreadUrl(window.location.origin, r.token);
+            const url = r.url ?? customerThreadUrl(window.location.origin, r.token);
             const copied = url ? await copyText(url) : false;
             setLink({ url, copied, refusal: null });
           });

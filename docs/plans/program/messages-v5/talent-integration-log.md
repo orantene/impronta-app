@@ -22,3 +22,9 @@ Branch `cursor/msg-inquiry-tenant-0d94`.
 No migration.
 
 Filed D-MSG-400 (USD label on the hub legacy menu). That render is not on this path.
+
+## 2026-09-23 · Gap 3 · client link for a talent-host conversation
+
+Branch `cursor/msg-hub-client-link-0d94`.
+
+`threadLinkUrl` mints `https://tulala.digital/c/t/<token>` when `source_context.host_kind` is `talent_site`. Any other host kind keeps the request origin. `messagingThreadLink` returns that absolute `url`. Copy link uses it, and falls back to the request origin only when the server did not return one.
