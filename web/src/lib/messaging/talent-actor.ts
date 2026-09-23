@@ -28,7 +28,9 @@ export async function loadTalentActor(): Promise<TalentActor | { ok: false; reas
   if (!supabase) return fail("unavailable");
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+  if (authError) return fail("unavailable");
   if (!user) return fail("not_allowed");
   const admin = createServiceRoleClient();
   if (!admin) return fail("unavailable");
@@ -160,7 +162,7 @@ export async function loadTalentSale(
   | { ok: true; empty: true }
   | { ok: false; reason: MessagingRefusal }
 > {
-  const { data: order } = await admin
+  const { data: order, error: orderErr } = await admin
     .from("orders")
     .select("id, status, currency, total_cents, tenant_id")
     .eq("inquiry_id", inquiryId)
@@ -168,6 +170,7 @@ export async function loadTalentSale(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (orderErr) return fail("unavailable");
   const sale = order as {
     id: string;
     status: string;
@@ -176,11 +179,12 @@ export async function loadTalentSale(
     tenant_id: string;
   } | null;
   if (!sale || sale.tenant_id !== tenantId) return { ok: true, empty: true };
-  const { data: rows } = await admin
+  const { data: rows, error: lineErr } = await admin
     .from("order_lines")
     .select("id, label, units, unit_cents, talent_profile_id, talent_cost_cents, proposed_by, confirmed_at")
     .eq("order_id", sale.id)
     .order("created_at", { ascending: true });
+  if (lineErr) return fail("unavailable");
   const raw = ((rows ?? []) as Array<{
     id: string;
     label: string | null;
@@ -203,15 +207,21 @@ export async function loadTalentSale(
       | null,
     confirmed: line.confirmed_at != null,
   }));
-  const { data: inquiry } = await admin.from("inquiries").select("current_offer_id").eq("id", inquiryId).maybeSingle();
+  const { data: inquiry, error: inquiryErr } = await admin
+    .from("inquiries")
+    .select("current_offer_id")
+    .eq("id", inquiryId)
+    .maybeSingle();
+  if (inquiryErr) return fail("unavailable");
   const offerId = (inquiry as { current_offer_id?: string | null } | null)?.current_offer_id ?? null;
   let offerNet: number | null = null;
   if (offerId) {
-    const { data: offerLines } = await admin
+    const { data: offerLines, error: offerErr } = await admin
       .from("inquiry_offer_line_items")
       .select("talent_cost")
       .eq("offer_id", offerId)
       .eq("talent_profile_id", talentProfileId);
+    if (offerErr) return fail("unavailable");
     if (offerLines && offerLines.length > 0) {
       const major = (offerLines as { talent_cost: number | null }[]).reduce((sum, row) => sum + (Number(row.talent_cost) || 0), 0);
       if (major > 0) offerNet = Math.round(major * 100);
