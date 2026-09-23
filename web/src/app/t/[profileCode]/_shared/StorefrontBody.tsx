@@ -39,7 +39,7 @@ function DurationChip({ minutes, locale }: { minutes: number; locale: string }) 
   );
 }
 
-function ServiceRow({ it, locale }: { it: TalentOffering; locale: string }) {
+function ServiceRow({ it, locale, confirmsByHand = false }: { it: TalentOffering; locale: string; confirmsByHand?: boolean }) {
   // Sold out is a POOL fact, not a kind fact. Gating on `kind === "product"`
   // meant a seat-limited package never showed sold out, because it never sold
   // down. `inventoryQty` is the pool mirror maintained by the stock RPCs, so a
@@ -75,13 +75,13 @@ function ServiceRow({ it, locale }: { it: TalentOffering; locale: string }) {
           {locale === "es" ? "Agotado" : "Sold out"}
         </span>
       ) : (
-        <OfferingCta offering={it} locale={locale} compact />
+        <OfferingCta offering={it} locale={locale} compact confirmsByHand={confirmsByHand} />
       )}
     </div>
   );
 }
 
-function PackageCard({ it, locale }: { it: TalentOffering; locale: string }) {
+function PackageCard({ it, locale, confirmsByHand = false }: { it: TalentOffering; locale: string; confirmsByHand?: boolean }) {
   return (
     <div
       className="overflow-hidden rounded-[var(--plt-radius-md)] border"
@@ -106,14 +106,14 @@ function PackageCard({ it, locale }: { it: TalentOffering; locale: string }) {
           <p className="text-sm font-medium tabular-nums" style={{ color: "var(--plt-ink)" }}>
             {offeringPriceLabel(it, locale)}
           </p>
-          <OfferingCta offering={it} locale={locale} compact />
+          <OfferingCta offering={it} locale={locale} compact confirmsByHand={confirmsByHand} />
         </div>
       </div>
     </div>
   );
 }
 
-function ProductTile({ it, locale }: { it: TalentOffering; locale: string }) {
+function ProductTile({ it, locale, confirmsByHand = false }: { it: TalentOffering; locale: string; confirmsByHand?: boolean }) {
   const soldOut = it.capacityPoolId != null && it.inventoryQty === 0;
   // A product with no image degrades to a service-style row upstream; here we
   // always have an image or render a quiet ground (never an empty gray box).
@@ -141,7 +141,7 @@ function ProductTile({ it, locale }: { it: TalentOffering; locale: string }) {
               {locale === "es" ? "Agotado" : "Sold out"}
             </span>
           ) : (
-            <OfferingCta offering={it} locale={locale} compact />
+            <OfferingCta offering={it} locale={locale} compact confirmsByHand={confirmsByHand} />
           )}
         </div>
       </div>
@@ -149,7 +149,7 @@ function ProductTile({ it, locale }: { it: TalentOffering; locale: string }) {
   );
 }
 
-function FeaturedRail({ it, locale }: { it: TalentOffering; locale: string }) {
+function FeaturedRail({ it, locale, confirmsByHand = false }: { it: TalentOffering; locale: string; confirmsByHand?: boolean }) {
   const tag = pickLocale(locale, { en: "Signature", es: "Insignia" });
   return (
     <div
@@ -178,7 +178,7 @@ function FeaturedRail({ it, locale }: { it: TalentOffering; locale: string }) {
           <p className="text-sm font-medium tabular-nums" style={{ color: "var(--plt-ink)" }}>
             {offeringPriceLabel(it, locale)}
           </p>
-          <OfferingCta offering={it} locale={locale} />
+          <OfferingCta offering={it} locale={locale} confirmsByHand={confirmsByHand} />
         </div>
       </div>
     </div>
@@ -194,10 +194,12 @@ export function StorefrontBody({
   visible,
   locale,
   showFeatured = true,
+  confirmsByHand = false,
 }: {
   visible: TalentOffering[];
   locale: string;
   showFeatured?: boolean;
+  confirmsByHand?: boolean;
 }) {
   if (visible.length === 0) return null;
 
@@ -213,7 +215,12 @@ export function StorefrontBody({
 
   return (
     <>
-      {featured ? <FeaturedRail it={featured} locale={locale} /> : null}
+      {confirmsByHand ? (
+        <p className="mb-3 text-sm" data-talent-confirms-by-hand style={{ color: "var(--plt-muted-soft)" }}>
+          {pickLocale(locale, { en: "She confirms by hand.", es: "Ella confirma a mano.", fr: "Elle confirme à la main." })}
+        </p>
+      ) : null}
+      {featured ? <FeaturedRail it={featured} locale={locale} confirmsByHand={confirmsByHand} /> : null}
 
       {groups.map((g) => (
         <div key={g.kind} className="mb-6 last:mb-0">
@@ -232,19 +239,19 @@ export function StorefrontBody({
               style={{ borderColor: "var(--plt-hairline)", background: "var(--plt-bg-raised)" }}
             >
               {g.items.map((it) => (
-                <ServiceRow key={it.id} it={it} locale={locale} />
+                <ServiceRow key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} />
               ))}
             </div>
           ) : g.kind === "package" ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {g.items.map((it) => (
-                <PackageCard key={it.id} it={it} locale={locale} />
+                <PackageCard key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} />
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {g.items.map((it) => (
-                <ProductTile key={it.id} it={it} locale={locale} />
+                <ProductTile key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} />
               ))}
             </div>
           )}

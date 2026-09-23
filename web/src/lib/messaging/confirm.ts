@@ -12,6 +12,7 @@ import { parseReservationStamp } from "@/lib/scheduling/reservation-intent";
 import { DEFAULT_TIER_KEY } from "@/lib/sessions/tier-pools";
 
 import { logAction } from "./action-log";
+import { appointmentConfirmedBody } from "./appointment-confirmed";
 import { insertMessage } from "./insert-message";
 import {
   buildConfirmPlan,
@@ -414,7 +415,7 @@ async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInp
 
   return finish(c, deps, input, plan, "project", bookingId, gate.overrode, {
     kind: "appointment_confirmation",
-    body: "Appointment confirmed",
+    body: appointmentConfirmedBody(null),
     payload: {
       bookingId,
       offerId: offer.id,

@@ -21,6 +21,7 @@
 imports no backend module.
  */
 
+import { clearPendingOfferingIntent, peekPendingOfferingIntent } from "./pending-offering-intent";
 import { clearPendingOffering, pendingOfferingPayload } from "./pending-offering-store";
 import { useRef } from "react";
 import type { MutableRefObject } from "react";
@@ -55,6 +56,7 @@ export type MiniChatSendArgs = {
   talentProfileId: string;
   talentProfileCode: string;
   sourcePage: string;
+  locale?: string | null;
   // Unified record (early-row create + contact promotion).
   contactPromoted: boolean;
   promoteContact: (value: {
@@ -240,9 +242,14 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       sourcePage,
       honeypot: honeypot || null,
       offering: pendingOfferingPayload() ?? null,
+      offeringIntent: peekPendingOfferingIntent(),
+      locale: args.locale ?? null,
     });
     setSending(false);
-    if (res.ok) clearPendingOffering();
+    if (res.ok) {
+      clearPendingOffering();
+      clearPendingOfferingIntent();
+    }
     if (!res.ok) {
       setRows((cur) => markRowFailed(cur, tmpId));
       setDraft(body);
@@ -294,9 +301,14 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       sourcePage,
       honeypot: honeypot || null,
       offering: pendingOfferingPayload() ?? null,
+      offeringIntent: peekPendingOfferingIntent(),
+      locale: args.locale ?? null,
     });
     setSending(false);
-    if (res.ok) clearPendingOffering();
+    if (res.ok) {
+      clearPendingOffering();
+      clearPendingOfferingIntent();
+    }
     if (!res.ok) {
       setRows((cur) => markRowFailed(cur, tmpId));
       setDraft(body);

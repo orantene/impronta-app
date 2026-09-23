@@ -343,6 +343,13 @@ export type StartGuestChatInput = {
     price_type: string;
     kind: string;
   } | null;
+  /**
+   * Signed service choice (`signTalentOfferingIntent`). The server reloads
+   * the price. A raw offering id or a price in this field is ignored.
+   */
+  offeringIntent?: string | null;
+  /** Guest locale for the hand-confirmation line. */
+  locale?: string | null;
 };
 
 export type StartGuestChatResult =

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  lineAmountCents,
   cardKindForCategory,
   categoryOrderForPreset,
   filterCatalog,
@@ -203,6 +204,41 @@ test("timesSelectionState: 3 to 6 slots, or every slot when fewer than 3 are fre
   assert.equal(timesSelectionState(7, 10), "many");
   assert.equal(timesSelectionState(2, 2), "ok");
   assert.equal(timesSelectionState(1, 2), "few");
+});
+
+test("a talent service drafts in its own currency with the option and the extra on one line", () => {
+  const service: CatalogRow = {
+    id: "service:gel",
+    category: "service",
+    title: "Soft Gel Largo",
+    sub: "90 min",
+    amountCents: 50_000,
+    currency: "MXN",
+    availability: { kind: "free" },
+    offeringId: "gel",
+    variants: [
+      { id: "v2", label: "#2", amountCents: 50_000 },
+      { id: "v3", label: "#3", amountCents: 55_000 },
+    ],
+    addOns: [
+      { id: "ojo", label: "ojo de gato", amountCents: 10_000 },
+      { id: "french", label: "french", amountCents: 10_000 },
+    ],
+  };
+  const selected: Selection = { row: service, units: 1, variantId: "v3", addonIds: ["ojo"] };
+  assert.equal(lineAmountCents(selected), 65_000);
+  const calls = sendModeToEngineCall({ mode: "draft", selected: [selected], custom: null, timezone: "America/Mexico_City" });
+  assert.deepEqual(calls, [
+    { action: "ensure_shared_draft", currency: "MXN" },
+    {
+      action: "add_line",
+      offeringId: "gel",
+      units: 1,
+      variantId: "v3",
+      addonIds: ["ojo"],
+      label: "Soft Gel Largo #3 + ojo de gato",
+    },
+  ]);
 });
 
 test("timesPayload: the professional_times shape ThreadCards reads (slots[].startsAt / professionalName)", () => {

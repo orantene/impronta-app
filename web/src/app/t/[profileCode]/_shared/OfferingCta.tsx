@@ -56,13 +56,17 @@ export function OfferingCta({
   offering,
   locale,
   compact = false,
+  confirmsByHand = false,
 }: {
   offering: TalentOffering;
   locale: string;
   compact?: boolean;
+  /** Free and Pro confirm by hand. Book opens the chooser, not a charge. */
+  confirmsByHand?: boolean;
 }) {
-  const cta = resolveOfferingCta(offering);
-  const instant = cta === "book_now" || cta === "buy_now";
+  const raw = resolveOfferingCta(offering);
+  const cta = confirmsByHand && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
+  const instant = !confirmsByHand && (cta === "book_now" || cta === "buy_now");
   const slotEligible =
     cta === "request_to_book" &&
     offering.kind !== "product" &&
@@ -91,7 +95,7 @@ export function OfferingCta({
       capacityPoolId: offering.capacityPoolId,
       intent: instant ? "instant" : "request",
     };
-    const eventName = instant
+    const eventName = instant || (confirmsByHand && raw !== "ask_quote")
       ? "tulala:offering-instant"
       : slotEligible
         ? "tulala:offering-slot"

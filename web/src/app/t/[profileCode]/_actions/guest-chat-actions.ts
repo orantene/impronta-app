@@ -92,6 +92,8 @@ import type {
   StartGuestChatInput,
   StartGuestChatResult,
 } from "@/lib/inquiry/guest-chat-contract";
+import { seedTalentOfferingDraft } from "@/lib/messaging/seed-talent-offering-draft";
+import { confirmsByHandCopy } from "@/lib/scheduling/talent-booking-mode";
 
 const MAX_BODY = 10_000;
 
@@ -629,7 +631,7 @@ export async function startGuestChatInquiry(
   // Storefront carry: when the guest clicked a specific offering, make the
   // request VISIBLE in the thread (coordinator + guest both see exactly what
   // was asked for) and persist the structured payload in source_context below.
-  const offering = input.offering ?? null;
+  const offering = input.offeringIntent ? null : (input.offering ?? null);
   const offeringPrefix = offering
     ? `Requesting: ${offering.title}${
         offering.amount_cents != null
@@ -886,6 +888,25 @@ export async function startGuestChatInquiry(
   }
 
   const inquiryId = created.inquiryId;
+  let seededChoice: { label: string; intent: "ask" | "reserve"; talentUserId: string } | null = null;
+
+  if (input.offeringIntent && talentProfileId) {
+    const seeded = await seedTalentOfferingDraft(admin, {
+      token: input.offeringIntent,
+      tenantId,
+      inquiryId,
+      talentProfileId,
+    });
+    if (seeded.ok) {
+      seededChoice = seeded;
+      const { error: subjectErr } = await admin
+        .from("inquiries")
+        .update({ message: seeded.label })
+        .eq("id", inquiryId)
+        .eq("tenant_id", tenantId);
+      if (subjectErr) logServerError("guest-chat-actions.offeringSubject", subjectErr);
+    }
+  }
 
   // Seed the FIRST provisioned account as the initial claim candidate so the
   // "use a different/additional email" path (sendGuestClaimToEmail) and the
@@ -915,6 +936,16 @@ export async function startGuestChatInquiry(
     threadType: "private",
     body: firstMessage,
   });
+
+  if (seededChoice?.intent === "reserve") {
+    await sendMessage(admin, {
+      inquiryId,
+      tenantId,
+      actorUserId: seededChoice.talentUserId,
+      threadType: "private",
+      body: confirmsByHandCopy(input.locale),
+    });
+  }
 
   // Honest auto-ack (Lane E / P2): post a system_event bubble into the GROUP
   // thread confirming receipt, with the real "typically replies in ~X" latency

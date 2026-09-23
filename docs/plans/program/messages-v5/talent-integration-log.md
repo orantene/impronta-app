@@ -42,3 +42,17 @@ WhatsApp comes from a published `shell://whatsapp/` link, a `wa.me` link, or her
 Booking copy calls `getAppointmentsPlanPolicy`: `talent_portfolio` is the website plan (instant), every other talent plan is free (she confirms by hand). The page sentence is that result. EN, ES, and FR are in `public.talentSite.contact`.
 
 Smallest edits on Lane A files: `theme-catalog/section-kit.ts` (`inquiryCta` and `contactBlock`; `sections.ts` only re-exports the kit), `default-talent-tree.ts`, `token-projection.ts`, `starter.ts`, `load-starter-data.ts`, and the registry assertion that used to require the hub inquiry URL.
+
+## 2026-09-23 · Gap 4 · talent offerings on the shared draft
+
+Branch `cursor/msg-talent-offerings-0d94`.
+
+A talent-owned conversation (`host_kind` talent_site, or the inquiry tenant is the platform hub, and exactly one talent id on `source_context.talent_ids`) loads her published offerings with variants and add-ons. An agency conversation keeps the tenant catalog.
+
+Add items writes one draft line through `addLine`. The label is `Soft Gel Largo #3 + ojo de gato`. The unit price is the variant in cents. Extras add once per line. The draft opens in the offering currency. A talent price in another currency than the open sale is refused. Agency options still join with a middot.
+
+A service choice is a signed token (`talent-offering`, no tenant id, no price). `mintTalentOfferingIntent` checks the offering, option, and extras belong to her. `seedTalentOfferingDraft` reloads the price and calls `createDraftOrder` + `addLine`. The thread subject becomes that label. A reserve intent adds "She confirms by hand." Portfolio can still book a time. Free, Pro, and a missing plan cannot.
+
+`appointmentConfirmedBody` names an exact address only when the caller already has one. `talent_profiles` has no street address, so confirmations stay "Appointment confirmed".
+
+D-MSG-400 is still unfixed. This path does not call `normalizeServicesMenu`. A failed plan read stays "she confirms by hand". A failed catalog read while minting or seeding returns unavailable or invalid (D-MSG-403). The signed `?service=` mount sits on the guest dock so `profile-view.tsx` stays inside its line budget.

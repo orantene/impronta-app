@@ -16,11 +16,13 @@
  */
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { StorefrontBody } from "./StorefrontBody";
 import { StorefrontFilter } from "./StorefrontFilter";
 import { LightSectionLabel } from "../_light/section-label";
 
-export function TalentStorefront({
+export async function TalentStorefront({
   offerings,
   locale,
   heading,
@@ -34,6 +36,18 @@ export function TalentStorefront({
     (o) => o.status === "published" && o.visibility !== "agency_only" && o.moderationState === "approved",
   );
   if (visible.length === 0) return null;
+
+  const profileId = visible.find((o) => o.talentProfileId)?.talentProfileId ?? null;
+  let confirmsByHand = true;
+  if (profileId) {
+    const admin = createServiceRoleClient();
+    if (admin) {
+      const { data, error } = await admin.from("talent_profiles").select("talent_plan_key").eq("id", profileId).maybeSingle();
+      if (!error) {
+        confirmsByHand = !talentOffersInstantBooking((data as { talent_plan_key?: string | null } | null)?.talent_plan_key);
+      }
+    }
+  }
 
   // Distinct non-empty categories, in first-seen order. The filter island mounts
   // only when 2+ are present (a single category needs no filter).
@@ -50,9 +64,9 @@ export function TalentStorefront({
 
       <div className="mt-5">
         {showFilter ? (
-          <StorefrontFilter visible={visible} locale={locale} categories={categories} />
+          <StorefrontFilter visible={visible} locale={locale} categories={categories} confirmsByHand={confirmsByHand} />
         ) : (
-          <StorefrontBody visible={visible} locale={locale} />
+          <StorefrontBody visible={visible} locale={locale} confirmsByHand={confirmsByHand} />
         )}
       </div>
     </section>
