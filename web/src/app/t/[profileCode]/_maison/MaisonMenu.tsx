@@ -100,7 +100,13 @@ function basePrice(o: TalentOffering): number | null {
 }
 
 /** The offering as this surface can actually sell it. */
-function asSellable(o: TalentOffering, surface: "inquire" | "request" | "instant"): TalentOffering {
+/**
+ * Exported ONLY so it can be tested directly. This is the single function that
+ * stops the page promising a confirmation the engine cannot deliver, and it is
+ * three lines with an early return — exactly the shape that survives review
+ * while being subtly wrong. See maison-menu.test.ts.
+ */
+export function asSellable(o: TalentOffering, surface: "inquire" | "request" | "instant"): TalentOffering {
   if (surface === "instant" || o.bookingMode !== "instant") return o;
   return { ...o, bookingMode: "request" };
 }
