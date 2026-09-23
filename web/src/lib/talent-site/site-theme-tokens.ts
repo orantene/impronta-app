@@ -6,20 +6,23 @@
  * `talent_sites.design_tokens`) → the page's own `__design` tokens (Web Office
  * per-page override, which today replaces the whole map).
  *
- *   page tokens non-empty  → page tokens            (unchanged behaviour)
- *   else site tokens set   → platform default + site tokens
- *   else                   → platform default       (unchanged behaviour)
+ *   no site tokens         → page non-empty ? page : platform default
+ *                            (exactly the pre-gallery expression, same object)
+ *   site tokens set        → platform default + site tokens + page tokens,
+ *                            so a page override wins key by key and the Look
+ *                            fills every key the page does not set
  *
- * With empty site tokens this is exactly the pre-gallery expression
- * `page non-empty ? page : platformDefault`, so every existing site renders
- * byte-identically.
+ * Every site without gallery tokens therefore renders byte-identically.
  */
 export function resolveEffectiveSiteTokens(
   pageTokens: Record<string, string>,
   siteTokens: Readonly<Record<string, string>>,
   platformTokens: Record<string, string>,
 ): Record<string, string> {
-  if (Object.keys(pageTokens).length > 0) return pageTokens;
-  if (Object.keys(siteTokens).length > 0) return { ...platformTokens, ...siteTokens };
-  return platformTokens;
+  const hasPage = Object.keys(pageTokens).length > 0;
+  const hasSite = Object.keys(siteTokens).length > 0;
+  if (!hasSite) return hasPage ? pageTokens : platformTokens;
+  return hasPage
+    ? { ...platformTokens, ...siteTokens, ...pageTokens }
+    : { ...platformTokens, ...siteTokens };
 }

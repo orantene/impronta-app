@@ -150,7 +150,7 @@ test("resolveEffectiveSiteTokens: empty site tokens reproduce today's expression
   assert.equal(resolveEffectiveSiteTokens({}, {}, platform), platform);
 });
 
-test("resolveEffectiveSiteTokens layers site tokens over the platform default; page still wins", () => {
+test("resolveEffectiveSiteTokens layers platform < site < page", () => {
   const platform = { "color.primary": "#111111", "radius.scale-preset": "soft" };
   const site = { "color.primary": "#8a6d3b" };
   assert.deepEqual(resolveEffectiveSiteTokens({}, site, platform), {
@@ -158,7 +158,11 @@ test("resolveEffectiveSiteTokens layers site tokens over the platform default; p
     "radius.scale-preset": "soft",
   });
   const page = { "color.primary": "#000000" };
-  assert.equal(resolveEffectiveSiteTokens(page, site, platform), page);
+  // Page override wins key by key; the site Look fills the rest.
+  assert.deepEqual(
+    resolveEffectiveSiteTokens(page, { ...site, "color.ink": "#222222" }, platform),
+    { "color.primary": "#000000", "color.ink": "#222222", "radius.scale-preset": "soft" },
+  );
 });
 
 // ── Catalog tier gate ────────────────────────────────────────────────────────

@@ -48,6 +48,7 @@ import { buildStarterHomePageTree } from "../default-max-site-trees";
 import { isMaxSiteTemplateKey } from "../max-site-templates/registry";
 import type { MaxSiteTemplateKey } from "../max-site-templates/types";
 import { buildAppliedTemplateTrees } from "./apply-template-core";
+import { publishSiteThemeForTalent } from "./theme-publish-hook";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
@@ -589,6 +590,16 @@ export async function publishMaxSiteAction(): Promise<
     return { ok: false, code: "server_error", error: "Could not publish your site." };
   }
   if (!count) return { ok: false, code: "site_not_found", error: "Site not found." };
+
+  // 4. Theme gallery: draft site tokens go live with the pages (no-op, no
+  //    query, while TALENT_THEME_GALLERY_ENABLED is off).
+  const theme = await publishSiteThemeForTalent({
+    talentProfileId: g.talentProfileId,
+    profileCode: g.profileCode,
+  });
+  if (!theme.ok) {
+    return { ok: false, code: "server_error", error: "Your pages are live, but the theme could not be published. Try again." };
+  }
 
   return { ok: true, data: { publishedAt: now } };
 }

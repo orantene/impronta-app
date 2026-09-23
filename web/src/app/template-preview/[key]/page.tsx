@@ -71,13 +71,17 @@ import {
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { WorkspaceTemplatePreview } from "./workspace-template-preview";
 import { LookPreview, parseSitePageRole } from "./look-preview";
+import { ThemeCatalogPreview } from "./theme-preview";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 
 export const dynamic = "force-dynamic";
 
-function parseFamily(raw: string | undefined): TemplatePreviewFamily | "look" {
+function parseFamily(raw: string | undefined): TemplatePreviewFamily | "look" | "talent-theme" {
   if (raw === "look") return "look";
+  // Theme gallery (0.C): `key` is a published Design slug from
+  // `talent_theme_catalog`, not a registry key — its own branch below.
+  if (raw === "talent-theme") return "talent-theme";
   if (raw === "max-site") return "max-site";
   if (raw === "talent-site") return "talent-site";
   if (raw === "db-template") return "db-template";
@@ -94,6 +98,8 @@ export default async function TemplatePreviewPage({
   searchParams: Promise<{
     kind?: string;
     talent?: string;
+    talentProfileId?: string;
+    look?: string;
     tenant?: string;
     type?: string;
     page?: string;
@@ -103,6 +109,20 @@ export default async function TemplatePreviewPage({
 }) {
   const [{ key }, sp] = await Promise.all([params, searchParams]);
   const family = parseFamily(sp.kind);
+
+  if (family === "talent-theme") {
+    // Theme gallery (0.C) — `key` is a published Design slug; `?look=` an
+    // optional published Look slug. Owner-gated hydration same as every
+    // other family (`?talent=` OR `?talentProfileId=`, either name).
+    return (
+      <ThemeCatalogPreview
+        designSlug={key}
+        lookSlug={sp.look}
+        talentProfileId={sp.talentProfileId ?? sp.talent}
+        locale={sp.locale === "es" ? "es" : "en"}
+      />
+    );
+  }
 
   if (family === "look") {
     // Look × business-type preview (Templates & Imagery, Layer 1 + 2). Example

@@ -22,6 +22,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
+import { ManagerThemeGallery } from "@/components/talent/site/theme-gallery/ManagerThemeGallery";
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import {
@@ -55,7 +56,7 @@ import {
 
 type Props = { locale?: "en" | "es" };
 
-export function TalentMaxSiteManager(_props: Props) {
+export function TalentMaxSiteManager({ locale = "en" }: Props) {
   const [state, setState] = useState<MaxSiteManagerState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export function TalentMaxSiteManager(_props: Props) {
     return <UpsellCard />;
   }
 
-  return <ManagerBody state={state} onReload={reload} />;
+  return <ManagerBody state={state} onReload={reload} locale={locale} />;
 }
 
 // ── Upsell (non-Max) ─────────────────────────────────────────────────────────
@@ -112,7 +113,15 @@ function UpsellCard() {
 
 // ── Manager body (Max) ───────────────────────────────────────────────────────
 
-function ManagerBody({ state, onReload }: { state: MaxSiteManagerState; onReload: () => Promise<void> }) {
+function ManagerBody({
+  state,
+  onReload,
+  locale,
+}: {
+  state: MaxSiteManagerState;
+  onReload: () => Promise<void>;
+  locale: "en" | "es";
+}) {
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [publishedJustNow, setPublishedJustNow] = useState(false);
@@ -199,8 +208,14 @@ function ManagerBody({ state, onReload }: { state: MaxSiteManagerState; onReload
         ) : null}
       </Card>
 
-      {/* Starter template gallery */}
-      <TemplateGallery talentProfileId={state.talentProfileId} onReload={onReload} />
+      {/* Starter template gallery; the theme gallery replaces it only when
+          TALENT_THEME_GALLERY_ENABLED is on (read server-side). */}
+      <ManagerThemeGallery
+        locale={locale}
+        onApplied={onReload}
+        wrap={(gallery) => <Card>{gallery}</Card>}
+        fallback={<TemplateGallery talentProfileId={state.talentProfileId} onReload={onReload} />}
+      />
 
       {/* Site address (slug) */}
       <SlugEditor state={state} onSaved={onReload} />

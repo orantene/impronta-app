@@ -77,6 +77,19 @@ export interface UnifiedTemplateDef {
    * starters; absent for surface-specific registries.
    */
   target?: TemplateSurfaceTarget;
+  /**
+   * Theme gallery (0.C) — optional category for the picker's filter bar
+   * (e.g. "Editorial", "Minimal"). Absent for registries with no category
+   * concept; `template-picker-panel.tsx` only renders the bar when at least
+   * one def in the list has one, so every existing caller is unaffected.
+   */
+  category?: string | null;
+  /** Theme gallery (0.C) — free-form tags, not yet surfaced by any picker. */
+  tags?: string[];
+  /** Theme gallery (0.C) — true while the catalog row's `is_new_until` is in the future. */
+  isNew?: boolean;
+  /** Theme gallery (0.C) — `"design" | "look"`, absent for the 3 pre-existing registries. */
+  kind?: "design" | "look";
 }
 
 // ---------------------------------------------------------------------------
