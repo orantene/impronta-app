@@ -112,6 +112,32 @@ test.describe("QA Stripe pay + refund", () => {
       });
     }
 
+    // D-MSG-328: createPaymentLink refuses remint when a cancelled row still
+    // owns the PaymentRequest idempotency key (msgv5-pay-<inquiry>-<order>-full).
+    // Retire cancelled operation_keys on the agent Stripe tenant before Send.
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY && USE_AGENT_PROD) {
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } },
+      );
+      const TENANT = "a1111111-1111-4111-8111-111111111102";
+      const { data: cancelled } = await sb
+        .from("payment_links")
+        .select("id, operation_key")
+        .eq("tenant_id", TENANT)
+        .eq("status", "cancelled");
+      for (const row of cancelled ?? []) {
+        const key = String((row as { operation_key?: string }).operation_key ?? "");
+        if (!key || key.includes("-retired-")) continue;
+        await sb
+          .from("payment_links")
+          .update({ operation_key: `${key}-retired-${(row as { id: string }).id}` })
+          .eq("id", (row as { id: string }).id);
+      }
+    }
+
     await sheet.getByText(/pay link|send a pay link/i).first().click();
     const orderTarget = sheet.getByRole("radio", { name: /order/i }).first();
     if (await orderTarget.isVisible().catch(() => false)) {
