@@ -181,10 +181,85 @@ export const MAISON_FIXED_OFFERING = "Maison QA — fixed service";
  * a lookup over the same objects, not a second copy. Adding a fixture to the
  * array adds it here with no other change.
  */
-export const fixtures: Readonly<Record<TalentFixture["key"], TalentFixture>> =
+/**
+ * The "Where I appear" view of a roster membership, as J8 consumes it.
+ *
+ * `effective` is the chip state the account menu is expected to render, DERIVED
+ * here from the two columns the seed actually writes, because the spec's own
+ * header asks for it: "The seed declares `effective` rather than the spec
+ * deriving it." Keeping the derivation next to the data means one place to
+ * change when the visibility model does.
+ *
+ *   rosterStatus 'pending'                  -> "pending"    (not linked)
+ *   agencyVisibility 'site_visible'|'featured' -> "live"    (linked)
+ *   agencyVisibility 'roster_only'          -> "roster_only" (not linked)
+ *
+ * A pending membership is "pending" whatever its visibility says: the agency has
+ * not accepted the talent yet, so nothing of theirs is published anywhere.
+ */
+export interface TalentMembershipFixture {
+  slug: string;
+  displayName: string;
+  effective: "live" | "roster_only" | "pending";
+}
+
+function effectiveVisibility(a: RosterAgencyFixture): TalentMembershipFixture["effective"] {
+  if (a.rosterStatus === "pending") return "pending";
+  return a.agencyVisibility === "roster_only" ? "roster_only" : "live";
+}
+
+export const T_MULTI_ROSTER_MEMBERSHIPS: readonly TalentMembershipFixture[] =
+  MULTI_ROSTER_AGENCIES.map((a) => ({
+    slug: a.slug,
+    displayName: a.displayName,
+    effective: effectiveVisibility(a),
+  }));
+
+/**
+ * A seeded agency `t_multi_roster` is deliberately NOT on, so a spec can assert
+ * that the account menu lists only real memberships. `acme` is seeded by the
+ * same run (ACME_AGENCY_SLUG) and Mona is never added to its roster.
+ */
+export const NOT_A_MEMBER_SLUG = ACME_AGENCY_SLUG;
+
+/**
+ * Absolute URL of a talent's own public page, on the host the run is pointed at.
+ * Derived from PLAYWRIGHT_BASE_URL so it follows the run rather than pinning a
+ * host that is only correct in one environment.
+ */
+export function selfPageUrlFor(fx: TalentFixture): string {
+  const base = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+  return `${base.replace(/\/$/, "")}/t/${fx.profileCode}`;
+}
+
+export type TalentFixtureView = TalentFixture & {
+  /** Roster memberships, present only on `t_multi_roster` (the fixture seeded with any). */
+  memberships: readonly TalentMembershipFixture[];
+  /** A seeded agency this talent is NOT on. */
+  notAMemberSlug: string;
+  /** Absolute URL of this talent's own public page on the host under test. */
+  selfPageUrl: string;
+};
+
+export const fixtures: Readonly<Record<TalentFixture["key"], TalentFixtureView>> =
   Object.freeze(
-    Object.fromEntries(TALENT_FIXTURES.map((f) => [f.key, f])),
-  ) as Readonly<Record<TalentFixture["key"], TalentFixture>>;
+    Object.fromEntries(
+      TALENT_FIXTURES.map((f) => [
+        f.key,
+        {
+          ...f,
+          memberships: f.key === "t_multi_roster" ? T_MULTI_ROSTER_MEMBERSHIPS : [],
+          notAMemberSlug: NOT_A_MEMBER_SLUG,
+          get selfPageUrl() {
+            // A getter, not a value: PLAYWRIGHT_BASE_URL is read when a spec
+            // asks, not when this module is first imported, so a config that
+            // sets it later still gets the right host.
+            return selfPageUrlFor(f);
+          },
+        },
+      ]),
+    ),
+  ) as Readonly<Record<TalentFixture["key"], TalentFixtureView>>;
 
 /**
  * Directory holding one signed-in Playwright storage state per fixture.
