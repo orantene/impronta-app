@@ -13,7 +13,7 @@ Updated: 2026-09-23 (Round 2)
 
 **Stripe on `qa-stripe-r2`:** mint + `confirm=stripe` → Checkout proven (D-MSG-329). **4242+refund blocked (D-MSG-330):** `cs_live_…` — need `sk_test_`.
 
-**Still owed:** merge `#2165` when CI green; 4242 once test key exists.
+**Still owed:** merge `#2165` when CI green; 4242 once test key exists. Forever-skip client placeholders (`cards` / `locale-phone` / `offer-payment`) removed — covered by `*-deep` + locale-pay-deep.
 
 **Red (product):** D-MSG-318 POS 13th seat React #310; D-MSG-319 POS foreign-order React #310; D-MSG-312 concurrent confirm TOCTOU.
 
@@ -39,6 +39,9 @@ Updated: 2026-09-23 (Round 2)
 | Notifications IncomingToast + hub | green (D-MSG-334) | `admin/notifications.spec.ts` |
 | Merge / Confirm / Paid card required | green (D-MSG-335/336) | `admin/merge-refund-confirm*.spec.ts` |
 | Appointment double-book refuse | green | `capacity/appointment-double-book.spec.ts` |
+| Context panel Client/Items/Money | green | `admin/context-panel.spec.ts` |
+| New conversation Start → thread | green | `admin/new-conversation.spec.ts` |
+| POS messages dock | green | `pos/dock.spec.ts` |
 | Stripe mint + confirm=stripe | green (D-MSG-329) | `stripe-pay-refund.spec.ts` |
 | Stripe 4242+refund | blocked (D-MSG-330 livemode) | same |
 
@@ -52,3 +55,4 @@ Updated: 2026-09-23 (Round 2)
 | 2026-09-23 | event+table capacity green (D-MSG-332/333); qa-stripe-r2 still on dpl_7UXH8f |
 | 2026-09-23 | notifications IncomingToast + hub popover green (D-MSG-334) |
 | 2026-09-23 | merge soft→required; D-MSG-336 matchCustomers identity-key fix; merge card green |
+| 2026-09-23 | context-panel / new-conversation / POS dock soft→required |
