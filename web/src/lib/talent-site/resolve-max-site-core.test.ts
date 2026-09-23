@@ -13,6 +13,7 @@ import {
 } from "./resolve-max-site-core";
 import { buildDefaultShellTree } from "./default-max-site-trees";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { isTalentSiteHostPathAllowed } from "@/lib/saas/talent-site-host-routing";
 
 function page(partial: Partial<MaxSitePageRow> & { slug: string }): MaxSitePageRow {
   return {
@@ -275,6 +276,116 @@ test("hydrateShellNav with no published pages returns the shell unchanged", () =
   const shell = buildDefaultShellTree({ displayName: "Morena" });
   const out = hydrateShellNav(shell, [], "morena");
   assert.deepEqual(out, shell);
+});
+
+// ── maxSitePageHref: hrefMode ───────────────────────────────────────────────
+//
+// Phase 2 (subdomain routing). "path" (the default) is unchanged so every
+// existing `/t/site/<slug>` caller keeps working with the switch off.
+// "host-root" is what a talent host (subdomain or custom domain) must emit:
+// no `/t/site/<slug>` prefix at all, because the host itself already IS the
+// site — that prefix is what `isTalentSiteHostPathAllowed` rejects (it only
+// allows "/" or a single bare segment).
+
+test("maxSitePageHref: hrefMode host-root emits the bare root for home", () => {
+  assert.equal(
+    maxSitePageHref("morena", { slug: "home", isHome: true }, "", "host-root"),
+    "/",
+  );
+});
+
+test("maxSitePageHref: hrefMode host-root emits a bare single segment for an inner page", () => {
+  assert.equal(
+    maxSitePageHref("morena", { slug: "gallery", isHome: false }, "", "host-root"),
+    "/gallery",
+  );
+});
+
+test("maxSitePageHref: hrefMode path (default) is unchanged for home and inner pages", () => {
+  assert.equal(
+    maxSitePageHref("morena", { slug: "home", isHome: true }),
+    "/t/site/morena",
+  );
+  assert.equal(
+    maxSitePageHref("morena", { slug: "gallery", isHome: false }),
+    "/t/site/morena/gallery",
+  );
+});
+
+test("maxSitePageHref: hrefMode host-root still honors a locale path prefix", () => {
+  assert.equal(
+    maxSitePageHref("morena", { slug: "home", isHome: true }, "/es", "host-root"),
+    "/es/",
+  );
+  assert.equal(
+    maxSitePageHref("morena", { slug: "gallery", isHome: false }, "/es", "host-root"),
+    "/es/gallery",
+  );
+});
+
+test("every host-root href for home + an inner page satisfies isTalentSiteHostPathAllowed", () => {
+  const home = maxSitePageHref("morena", { slug: "home", isHome: true }, "", "host-root");
+  const inner = maxSitePageHref("morena", { slug: "gallery", isHome: false }, "", "host-root");
+
+  assert.deepEqual(isTalentSiteHostPathAllowed(home), { kind: "render", pageSlug: null });
+  assert.deepEqual(isTalentSiteHostPathAllowed(inner), { kind: "render", pageSlug: "gallery" });
+
+  // The regression this hrefMode exists to fix: a "path"-mode href on a
+  // talent host has more than one segment and is NOT allowed.
+  const pathModeInner = maxSitePageHref("morena", { slug: "gallery", isHome: false });
+  assert.equal(
+    isTalentSiteHostPathAllowed(pathModeInner),
+    null,
+    "a /t/site/<slug>/<page> href must never be emitted for a talent host — " +
+      "it 404s at the middleware allow-list",
+  );
+});
+
+// ── hydrateShellNav: hrefMode ───────────────────────────────────────────────
+
+test("hydrateShellNav: hrefMode host-root hydrates the site_header landmark with bare hrefs", () => {
+  const shell = buildDefaultShellTree({ displayName: "Morena" });
+  const nav = buildMaxSiteNav([
+    page({ slug: "home", isHome: true, sortOrder: 0, title: "Home" }),
+    page({ slug: "gallery", sortOrder: 1, title: "Gallery" }),
+  ]);
+  const hydrated = hydrateShellNav(shell, nav, "morena", "", "host-root");
+
+  const cfg = headerConfig(hydrated);
+  assert.deepEqual(
+    (cfg.navItems ?? []).map((l) => [l.label, l.href]),
+    [
+      ["Home", "/"],
+      ["Gallery", "/gallery"],
+    ],
+  );
+  assert.equal(cfg.brand?.href, "/");
+
+  // Every emitted href must independently satisfy the host allow-list.
+  for (const item of cfg.navItems ?? []) {
+    assert.notEqual(
+      isTalentSiteHostPathAllowed(item.href),
+      null,
+      `host-root href "${item.href}" must be allowed on a talent host`,
+    );
+  }
+});
+
+test("hydrateShellNav: default hrefMode (path) is unchanged when the caller passes nothing", () => {
+  const shell = buildDefaultShellTree({ displayName: "Morena" });
+  const nav = buildMaxSiteNav([
+    page({ slug: "home", isHome: true, sortOrder: 0, title: "Home" }),
+    page({ slug: "gallery", sortOrder: 1, title: "Gallery" }),
+  ]);
+  const hydratedDefault = hydrateShellNav(shell, nav, "morena");
+  const hydratedExplicitPath = hydrateShellNav(shell, nav, "morena", "", "path");
+  assert.deepEqual(hydratedDefault, hydratedExplicitPath);
+
+  const cfg = headerConfig(hydratedDefault);
+  assert.deepEqual(
+    (cfg.navItems ?? []).map((l) => l.href),
+    ["/t/site/morena", "/t/site/morena/gallery"],
+  );
 });
 
 // ── coerceTree ───────────────────────────────────────────────────────────────
