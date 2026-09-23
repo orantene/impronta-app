@@ -193,6 +193,25 @@ jobs:
             echo "SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
 
+      # GoTrue answers "Database error finding users" (500) without logging a
+      # cause, and the db container logs only the replay's own statements. So
+      # ask the database directly, as the role GoTrue uses, BEFORE the seed.
+      # Non-fatal: this step exists to explain a failure, not to cause one.
+      - name: Probe auth schema health
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "role exists:        $(psql -Atc "select count(*) from pg_roles where rolname='supabase_auth_admin'")"
+          echo "auth.users RLS on:  $(psql -Atc "select relrowsecurity from pg_class where oid='auth.users'::regclass")"
+          echo "select priv:        $(psql -Atc "select has_table_privilege('supabase_auth_admin','auth.users','select')")"
+          echo "auth schema usage:  $(psql -Atc "select has_schema_privilege('supabase_auth_admin','auth','usage')")"
+          echo "public schema usage:$(psql -Atc "select has_schema_privilege('supabase_auth_admin','public','usage')")"
+          echo "auth.users columns: $(psql -Atc "select count(*) from information_schema.columns where table_schema='auth' and table_name='users'")"
+          echo "triggers on auth.users:"
+          psql -Atc "select tgname, tgrelid::regclass::text from pg_trigger where tgrelid='auth.users'::regclass and not tgisinternal" || true
+          echo "--- the query GoTrue runs, AS supabase_auth_admin ---"
+          psql -v ON_ERROR_STOP=0 -c "set role supabase_auth_admin; select count(*) from auth.users;" 2>&1 | tail -8
+
       - name: Seed talent-website fixtures
         working-directory: web
         env:
