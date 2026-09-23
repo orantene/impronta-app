@@ -8,7 +8,7 @@ import { completeZeroTotalOrder } from "@/lib/orders/complete-order";
 import { holdDraftOrderCapacity } from "@/lib/pos/hold-capacity";
 import { collectBusyIntervals, type BookingBusyRow, type BusySourceRow, type HoldBusyRow } from "@/lib/scheduling/load-busy";
 import { unexpiredHoldOrFilter } from "@/lib/scheduling/hold-expiry";
-import { parseReservationStamp } from "@/lib/scheduling/reservation-intent";
+import { resolveAppointmentMirrorSource } from "@/lib/scheduling/reservation-convert";
 import { DEFAULT_TIER_KEY } from "@/lib/sessions/tier-pools";
 
 import { logAction } from "./action-log";
@@ -347,10 +347,22 @@ async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInp
   const gate = await applyDepositRule(c, input, depositRequired, depositRequired ? await inquiryDepositPaid(c.admin, c.tenantId, input.inquiryId) : false);
   if (!gate.ok) return gate;
 
-  // The lines: the offer's people, dated by the inquiry's reservation stamp
-  // (the one window an appointment offer carries); the stamp's offering may
-  // also consume a pool (a room, a chair).
-  const stamp = parseReservationStamp(inquiry.source_context);
+  // The lines: the offer's people, dated by the appointment window — reservation
+  // stamp when present, otherwise a live talent_holds row from client pick-time
+  // (D-MSG-413). Without a window the people stay undated (no_date skip).
+  const { data: inqMeta } = await c.admin
+    .from("inquiries")
+    .select("event_timezone")
+    .eq("id", input.inquiryId)
+    .maybeSingle();
+  const windowRes = await resolveAppointmentMirrorSource(c.admin, {
+    inquiryId: input.inquiryId,
+    tenantId: c.tenantId,
+    sourceContext: inquiry.source_context,
+    eventTimezone: (inqMeta as { event_timezone?: string | null } | null)?.event_timezone ?? null,
+  });
+  if (!windowRes.ok) return unavailable();
+  const window = windowRes.source;
   const { data: itemRows } = await c.admin
     .from("inquiry_offer_line_items")
     .select("id, label, talent_profile_id, units")
@@ -362,30 +374,53 @@ async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInp
       label: item.label?.trim() || "This line",
       talentProfileId: item.talent_profile_id,
       units: num(item.units),
-      startsAt: stamp?.starts_at ?? null,
-      endsAt: stamp?.ends_at ?? null,
-      timezone: stamp?.timezone ?? null,
+      startsAt: window?.startsAt ?? null,
+      endsAt: window?.endsAt ?? null,
+      timezone: window?.timezone ?? null,
     }),
   );
-  if (stamp) {
-    const { data: offering } = await c.admin
-      .from("talent_offerings")
-      .select("id, title, talent_profile_id, capacity_pool_id")
-      .eq("id", stamp.offering_id)
-      .eq("tenant_id", c.tenantId)
-      .maybeSingle();
-    const off = offering as { id: string; title: string | null; talent_profile_id: string | null; capacity_pool_id: string | null } | null;
-    if (off && (off.talent_profile_id || off.capacity_pool_id)) {
+  if (window) {
+    // Ensure the window's own talent is on the plan even when the offer lines
+    // omitted them (Messages pick-time hold; stamp offering).
+    const already = lines.some((l) => l.talentProfileId === window.talentProfileId);
+    if (!already) {
       lines.push({
-        id: `offering:${off.id}`,
-        label: off.title?.trim() || "This appointment",
-        talentProfileId: off.talent_profile_id,
-        poolId: off.capacity_pool_id,
+        id: `mirror:${window.talentProfileId}`,
+        label: window.title || "This appointment",
+        talentProfileId: window.talentProfileId,
         units: 1,
-        startsAt: stamp.starts_at,
-        endsAt: stamp.ends_at,
-        timezone: stamp.timezone,
+        startsAt: window.startsAt,
+        endsAt: window.endsAt,
+        timezone: window.timezone,
       });
+    }
+    // Stamp path: the offering may also consume a pool (room / chair).
+    const stampOfferingId = (() => {
+      const ctx = inquiry.source_context;
+      if (!ctx || typeof ctx !== "object" || Array.isArray(ctx)) return null;
+      const raw = (ctx as { reservation?: { offering_id?: unknown } }).reservation;
+      return raw && typeof raw.offering_id === "string" ? raw.offering_id : null;
+    })();
+    if (stampOfferingId) {
+      const { data: offering } = await c.admin
+        .from("talent_offerings")
+        .select("id, title, talent_profile_id, capacity_pool_id")
+        .eq("id", stampOfferingId)
+        .eq("tenant_id", c.tenantId)
+        .maybeSingle();
+      const off = offering as { id: string; title: string | null; talent_profile_id: string | null; capacity_pool_id: string | null } | null;
+      if (off?.capacity_pool_id) {
+        lines.push({
+          id: `offering:${off.id}`,
+          label: off.title?.trim() || "This appointment",
+          talentProfileId: off.talent_profile_id,
+          poolId: off.capacity_pool_id,
+          units: 1,
+          startsAt: window.startsAt,
+          endsAt: window.endsAt,
+          timezone: window.timezone,
+        });
+      }
     }
   }
 
@@ -434,9 +469,9 @@ async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInp
     payload: {
       bookingId,
       offerId: offer.id,
-      startsAt: stamp?.starts_at ?? null,
-      endsAt: stamp?.ends_at ?? null,
-      timezone: stamp?.timezone ?? null,
+      startsAt: window?.startsAt ?? null,
+      endsAt: window?.endsAt ?? null,
+      timezone: window?.timezone ?? null,
     },
   });
 }

@@ -17,7 +17,7 @@ Updated: 2026-09-23 (Round 2 — CLEAN)
 
 **Still owed (non-blocking):** 4242+refund once `sk_test_` exists. Forever-skip client placeholders removed — covered by `*-deep` + locale-pay-deep.
 
-**Red (product, logged):** D-MSG-312 concurrent confirm TOCTOU (remaining hole: offer with no reservation stamp — Round 3 Job 4). D-MSG-318 / D-MSG-319 POS React #310 closed in Round 3 Job 1 (`fix/msg-310-pos-remount`): cause was `page.tsx` mode-fill `redirect()`, not sell/chooser hooks.
+**Red (product, logged):** D-MSG-312 concurrent confirm TOCTOU closed in Round 2 (D-MSG-340); remaining no-stamp mirror hole closed in Round 3 Job 4 (D-MSG-413 — mirror from live hold). D-MSG-318 / D-MSG-319 POS React #310 closed in Round 3 Job 1 (`fix/msg-310-pos-remount` / #2204): cause was `page.tsx` mode-fill `redirect()`, not sell/chooser hooks.
 
 
 ## Checklist

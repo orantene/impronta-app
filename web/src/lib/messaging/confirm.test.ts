@@ -333,6 +333,45 @@ test("offer: a talent_double_booked convert refuses with the line's own 'no long
   assert.equal(d.calls.cards.length, 0);
 });
 
+test("offer: a live hold with no reservation stamp still dates the talent for recheck (D-MSG-413)", async () => {
+  const HOLD = uuid(41);
+  const store = seed({
+    inquiries: [{ id: INQUIRY, tenant_id: TENANT, version: 3, status: "approved", source_context: {}, event_timezone: "America/Mexico_City" }],
+    talent_holds: [
+      {
+        id: HOLD,
+        inquiry_id: INQUIRY,
+        tenant_id: TENANT,
+        talent_profile_id: ANA,
+        starts_at: T0,
+        ends_at: T1,
+        title: "Client pick",
+        expires_at: "2099-01-01T00:00:00.000Z",
+        created_at: "2026-09-01T00:00:00.000Z",
+      },
+    ],
+  });
+  let busyCalls = 0;
+  const d = deps({
+    readers: {
+      busy: async (check) => {
+        busyCalls += 1;
+        assert.equal(check.talentProfileId, ANA);
+        assert.equal(check.startsAt, T0);
+        assert.equal(check.endsAt, T1);
+        return [];
+      },
+    },
+  });
+  const { result, calls } = await run(store, {}, d);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.plan.checks.length, 1, "hold window must produce a person check");
+  assert.equal(busyCalls, 1);
+  assert.equal(calls.convert, 1);
+  assert.equal(calls.cards[0]?.payload?.startsAt, T0);
+});
+
 test("draft happy path (money owed): POS hold, commit, link order, log, order card; order stays open for payment", async () => {
   const store = seed();
   const { result, calls } = await run(store, { source: "draft", offerId: null, orderId: ORDER });

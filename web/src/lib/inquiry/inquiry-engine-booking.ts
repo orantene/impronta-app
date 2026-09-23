@@ -495,7 +495,10 @@ export async function convertToBooking(
     }
 
     // Appointments: stamp agency_bookings times + talent_bookings mirror.
-    // No-op when the inquiry has no reservation stamp. RPC is untouched.
+    // No-op when there is neither a reservation stamp nor a live hold
+    // (M0 / non-appointment). Any enrich failure rolls the booking back —
+    // a booking whose mirror was refused or never reached is undefended
+    // time the calendar cannot see (D-MSG-312 / D-MSG-413).
     try {
       const enrichClient = createServiceRoleClient() ?? supabase;
       const enriched = await enrichBookingFromReservation(enrichClient, {
@@ -503,20 +506,22 @@ export async function convertToBooking(
         bookingId,
         actorUserId: ctx.actorUserId,
       });
-      if (!enriched.ok && enriched.reason === "talent_double_booked") {
-        // D-MSG-312: `talent_bookings_no_overlap` refused the mirror, so this
-        // window belongs to another booking. The agency_bookings row we just
-        // created would be a booking the talent's calendar does not contain —
-        // a double book nobody can see. Undo it and refuse, the way every
-        // other failed post-condition on this path already does.
-        await rollbackConvertedBooking(supabase, ctx, bookingId, "talent_double_booked");
-        return { success: false, conflict: true, reason: "talent_double_booked" };
-      }
       if (!enriched.ok) {
+        const why = enriched.reason === "talent_double_booked" ? "talent_double_booked" : "reservation_enrichment_failed";
         logServerError("convertToBooking.reservation_enrichment", new Error(enriched.error));
+        await rollbackConvertedBooking(supabase, ctx, bookingId, why);
+        if (enriched.reason === "talent_double_booked") {
+          return { success: false, conflict: true, reason: "talent_double_booked" };
+        }
+        return { success: false, error: enriched.error };
       }
     } catch (enrichErr) {
       logServerError("convertToBooking.reservation_enrichment", enrichErr);
+      await rollbackConvertedBooking(supabase, ctx, bookingId, "reservation_enrichment_threw");
+      return {
+        success: false,
+        error: enrichErr instanceof Error ? enrichErr.message : "Reservation enrichment failed.",
+      };
     }
 
     // Messages v5 / S2: the conversation's appointment chip follows the
