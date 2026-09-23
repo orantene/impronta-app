@@ -78,6 +78,12 @@ test("tickets_card, checked in: N of M pill from capacity/checkedIn", () => {
   assert.match(html, /Checked in 1 of 2/);
 });
 
+test("professional_times formats the slot in the payload timezone, not the browser zone", () => {
+  const html = render("professional_times", { slots: [{ startsAt: "2026-09-20T15:00:00.000Z", professionalName: "Dani" }], timezone: "America/Mexico_City", state: "sent" });
+  assert.match(html, /9:00 AM/);
+  assert.doesNotMatch(html, /10:00 AM/);
+});
+
 test("professional_times, picked: countdown from holdExpiresAt (S2 states reused, not recomputed)", () => {
   const html = render("professional_times", { slots: [{ startsAt: "2026-09-18T10:00:00.000Z", professionalName: "Sofía" }], timezone: "UTC", state: "selected", holdExpiresAt: "2026-09-17T12:12:00.000Z" });
   assert.match(html, /held 15 min · 12 left/);

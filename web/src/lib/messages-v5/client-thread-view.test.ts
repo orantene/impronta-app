@@ -7,7 +7,9 @@ import {
   buildClientStream,
   clientOfferForMessage,
   firstName,
+  formatSlot,
   holdCountdown,
+  holdSlotLabelFromMessages,
   offerCardMessageIds,
   offerCardState,
   offerDepositCents,
@@ -143,6 +145,19 @@ test("tickets reader: chooser until paid/issued; code from /q/ path or short sta
   const cancelled = readTickets({ state: "cancelled", title: "Friday night" });
   assert.equal(ticketsIssued(cancelled), false);
   assert.equal(cancelled.state, "cancelled");
+});
+
+test("formatSlot and the context hold chip use the payload timezone", () => {
+  const iso = "2026-09-20T15:00:00.000Z";
+  assert.match(formatSlot(iso, "en", "America/Mexico_City"), /9:00 AM/);
+  const label = holdSlotLabelFromMessages(
+    [
+      { kind: "text", payload: null },
+      { kind: "professional_times", payload: { slots: [{ startsAt: iso, professionalName: "Dani" }], timezone: "America/Mexico_City", state: "selected", pickedStartsAt: iso } },
+    ],
+    "en",
+  );
+  assert.match(label ?? "", /9:00 AM/);
 });
 
 test("firstName", () => {

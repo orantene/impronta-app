@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { formatClientDate, formatClientTime } from "@/lib/messages-v5/client-thread-view";
 import { holdRefusal, timesPayload, timesSelectionState, TIMES_MAX, TIMES_MIN, type CatalogRow } from "@/lib/messages-v5/items-picker";
 import type { ItemsCatalog } from "@/lib/messages-v5/items-catalog";
 import type { MessagingRefusal } from "@/lib/messaging/types";
@@ -35,19 +36,11 @@ export type TimesPhase = "loading" | "ready" | "slots" | "busy" | "refused" | "d
 export type TimesSlotsState = { readonly starts: readonly string[]; readonly timezone: string; readonly reason: NoSlotsReason | "hours_unreadable" | null } | null;
 
 function dayOf(iso: string, timezone: string): string {
-  try {
-    return new Intl.DateTimeFormat("en", { weekday: "short", month: "short", day: "numeric", timeZone: timezone }).format(new Date(iso));
-  } catch {
-    return iso.slice(0, 10);
-  }
+  return formatClientDate(iso, "en", timezone) || iso.slice(0, 10);
 }
 
 function timeOf(iso: string, timezone: string): string {
-  try {
-    return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: timezone }).format(new Date(iso));
-  } catch {
-    return iso.slice(11, 16);
-  }
+  return formatClientTime(iso, "en", timezone) || iso.slice(11, 16);
 }
 
 export type TimesSheetViewProps = {

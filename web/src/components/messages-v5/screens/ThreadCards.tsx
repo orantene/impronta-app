@@ -13,6 +13,7 @@
 import { readCardState, renderCard, type BasketPayload, type ChangeRequestPayload, type ConfirmationPayload, type OfferReviewPayload, type OfferStatePayload, type PaymentRequestPayload, type ProfessionalTimesPayload, type ServiceCardPayload, type TicketsCardPayload } from "@/lib/messaging/cards";
 import type { CardKind, ThreadMessage } from "@/lib/messaging/types";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import { formatSlot } from "@/lib/messages-v5/client-thread-view";
 import { formatHoldCountdown, holdCountdown, ladderFor } from "@/lib/messages-v5/record-cards";
 
 import { AppointmentCard } from "../kit/AppointmentCard";
@@ -72,6 +73,11 @@ function paymentState(payload: Record<string, unknown> | null): PaymentCardState
 
 function money(cents: unknown, currency: unknown): string {
   return formatOrderMoney(typeof cents === "number" ? cents : 0, typeof currency === "string" ? currency : "USD");
+}
+
+function strTz(payload: Record<string, unknown> | null): string | null {
+  const tz = payload && typeof payload.timezone === "string" ? payload.timezone.trim() : "";
+  return tz || null;
 }
 
 export function ThreadCard({ message, cardKind, clientName, copy, variant, locale = "en", onAction, onCopyText, origin, now }: ThreadCardProps) {
@@ -169,7 +175,7 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
         <TimesCard
           withName={slots[0]?.professionalName ?? model.title}
           clientName={clientName}
-          slots={slots.map((s, i) => ({ id: `${message.id}:${i}`, label: formatTime(s.startsAt, locale), picked: state === "selected" && i === 0 }))}
+          slots={slots.map((s, i) => ({ id: `${message.id}:${i}`, label: formatSlot(s.startsAt, locale, t.timezone), picked: state === "selected" && i === 0 }))}
           state={state === "selected" ? "picked" : state === "expired" ? "hold_ended" : state === "paid" ? "confirmed" : "sent"}
           holdLeft={state === "selected" ? holdLeft : null}
           copy={{ ...kit, times: { ...kit.times, offerNew: kit.times.seeAlternatives } }}
@@ -190,7 +196,7 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
           <TableCard
             clientName={clientName}
             partySize={first?.partySize ?? null}
-            whenLabel={first ? formatTime(first.startsAt, locale) : null}
+            whenLabel={first ? formatSlot(first.startsAt, locale, strTz(p)) : null}
             tableLabel={first?.label ?? null}
             ladder={ladderFor("reservation", chip, kit.ladder)}
             step={step}
@@ -238,7 +244,7 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
           title={model.title}
           clientName={clientName}
           state="confirmed"
-          lines={c.when ? [{ label: formatTime(c.when, locale) }] : []}
+          lines={c.when ? [{ label: formatSlot(c.when, locale, strTz(p)) }] : []}
           copy={kit}
           mine={mine}
           variant={variant}
@@ -250,8 +256,8 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
     case "change_result": {
       const c = p as ChangeRequestPayload;
       const rows = [
-        c.oldWhen ? { label: kit.change.from, value: formatTime(c.oldWhen, locale) } : null,
-        c.newWhen ? { label: kit.change.to, value: formatTime(c.newWhen, locale) } : null,
+        c.oldWhen ? { label: kit.change.from, value: formatSlot(c.oldWhen, locale, strTz(p)) } : null,
+        c.newWhen ? { label: kit.change.to, value: formatSlot(c.newWhen, locale, strTz(p)) } : null,
       ].filter((r): r is { label: string; value: string } => r !== null);
       return (
         <ChangeRequestCard

@@ -109,6 +109,9 @@ export function ContextPanel(props: ContextPanelProps) {
         <Btn size="sm" icon="plus" onClick={() => onAction("add_items")} data-add-items>
           {copy.panel.addItem}
         </Btn>
+        {props.holdSlotLabel ? (
+          <div data-hold-slot>{props.holdSlotLabel}</div>
+        ) : null}
       </PanelSection>
 
       <PanelSection title={copy.panel.money.title} open={openMoney} copy={copy} onToggle={() => setOpenMoney((v) => !v)}>
