@@ -1,23 +1,23 @@
 # Messages v5 QA program log
 
 Host: `https://staging-qa-journeys.tulala.digital`  
-Branch: Round 2 — `#2163` on main + production (`8007c1dd`); `#2165` rebased (D-MSG-330–337)  
+Branch: Round 2 — `#2165` merged to main (`68f9eef2a`, D-MSG-330–337); production pointer advances on green CI  
 Isolated DB: `fxlankepwnvelxjrahwk`  
-Updated: 2026-09-23 (Round 2)
+Updated: 2026-09-23 (Round 2 — CLEAN)
 
-## Final summary (Round 2 — nearly CLEAN)
+## Final summary (Round 2 — CLEAN)
 
-**Merged to main:** `#2148` → `#2155` → `#2156` → `#2157` → `#2158` → `#2161` → `#2163` (isolated-target + D-MSG-328/329). Production pointer at `8007c1dd`. `STRIPE_SECRET_KEY` production-only (confirmed).
+**Merged to main:** `#2148` → `#2155` → `#2156` → `#2157` → `#2158` → `#2161` → `#2163` → **`#2165`** (D-MSG-330–337). Squash commit `68f9eef2a`. `STRIPE_SECRET_KEY` production-only (confirmed).
 
-**Proven green on QA host:** hold expired + live; confirm recheck; double-book loser; payment collect / pay-link / outside cash; locale ES; last-place class busy; restaurant Items = Menu; isolation Messages/link/pay; hostile + reload; §7 shallow + deep; money-perm Refund hidden (D-MSG-331); event door sold-out + Messages door tier disabled (D-MSG-332); table overbook Fully booked + Tables chip absent (D-MSG-333); IncomingToast + shell notifications hub (D-MSG-334); **Confirm + Merge card + Paid payment card required asserts (D-MSG-335/336)**; appointment double-book refusal; ladder realtime client reply.
+**Proven green on QA host:** hold expired + live; confirm recheck; double-book loser; payment collect / pay-link / outside cash; locale ES; last-place class busy; restaurant Items = Menu; isolation Messages/link/pay; hostile + reload; §7 shallow + deep; money-perm Refund hidden (D-MSG-331); event door sold-out + Messages door tier disabled (D-MSG-332); table overbook Fully booked + Tables chip absent (D-MSG-333); IncomingToast + shell notifications hub (D-MSG-334); **Confirm + Merge card + Paid payment card required asserts (D-MSG-335/336)**; appointment double-book refusal; ladder realtime client reply; context-panel / new-conversation / POS dock required.
 
-**Stripe on `qa-stripe-r2`:** mint + `confirm=stripe` → Checkout proven (D-MSG-329). **4242+refund blocked (D-MSG-330):** `cs_live_…` — need `sk_test_`.
+**Stripe on `qa-stripe-r2`:** mint + `confirm=stripe` → Checkout proven (D-MSG-329). **4242+refund blocked (D-MSG-330):** `cs_live_…` — need `sk_test_` on agent QA path (does not block CLEAN).
 
 **Locale (D-MSG-337):** client `?lang=es|fr` proven on agent-host preview (`qa-stripe-r2` → `dpl_E79aQPv…` with `NEXT_PUBLIC_MESSAGES_V5` + `GUEST_COOKIE_SECRET`). Evidence: `remain-client-locale-es.jpg` (**Aceptar esta oferta**), `remain-client-locale-fr.jpg` (**Accepter cette offre**). Offer accepted on agent tenant after Accept click.
 
-**Still owed:** merge `#2165` when CI green on rebased head; 4242 once test key exists. Forever-skip client placeholders removed — covered by `*-deep` + locale-pay-deep.
+**Still owed (non-blocking):** 4242+refund once `sk_test_` exists. Forever-skip client placeholders removed — covered by `*-deep` + locale-pay-deep.
 
-**Red (product):** D-MSG-318 POS 13th seat React #310; D-MSG-319 POS foreign-order React #310; D-MSG-312 concurrent confirm TOCTOU.
+**Red (product, logged):** D-MSG-318 POS 13th seat React #310; D-MSG-319 POS foreign-order React #310; D-MSG-312 concurrent confirm TOCTOU.
 
 
 ## Checklist
@@ -60,3 +60,4 @@ Updated: 2026-09-23 (Round 2)
 | 2026-09-23 | merge soft→required; D-MSG-336 matchCustomers identity-key fix; merge card green |
 | 2026-09-23 | context-panel / new-conversation / POS dock soft→required |
 | 2026-09-23 | D-MSG-337 `?lang=` on `/c/t`; ES/FR Accept proven on qa-stripe-r2 preview; #2165 rebase onto main |
+| 2026-09-23 | **#2165 squashed to main** (`68f9eef2a`); Round 2 Final summary → **CLEAN** (4242 blocked; reds 318/319/312) |
