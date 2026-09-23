@@ -27,6 +27,17 @@
 #   4. Per-migration shims: supabase/ci/migration-shims/<version>.pre.sql runs
 #      before migration <version> (each attempt) and <version>.post.sql right
 #      after it applies. Each shim documents the exact reason in its header.
+#      A .pre.sql that fails does NOT kill the run in --defer mode: the
+#      migration is deferred like any other failure, because a pre-shim can
+#      legitimately reference an object a later file creates. A .post.sql
+#      failure is always fatal — the migration is already committed at that
+#      point, so there is no clean state to defer back to.
+#   5. Full substitutes: supabase/ci/migration-shims/<version>.replace.sql is
+#      applied INSTEAD of the migration file, for the (rare) file that cannot
+#      apply from scratch on any PostgreSQL — see 20260409093000. The file
+#      must open with "-- REPLACEMENT for <migration filename>" stating why;
+#      the runner refuses an undocumented substitute. The ledger still records
+#      the migration's own version, never the shim's.
 #
 # After each file applies, its version is recorded in
 # supabase_migrations.schema_migrations so the CLI sees the chain as applied.
@@ -66,32 +77,63 @@ trap 'rm -rf "$TMP"' EXIT
   create table if not exists supabase_migrations.schema_migrations (
     version text primary key, statements text[], name text);" >/dev/null || exit 1
 
-run_shim() { # $1 = shim file
+# run_shim <shim file> -> 0 ran (or absent), 1 failed (error text in $TMP/err)
+run_shim() {
   [ -f "$1" ] || return 0
-  if ! "${PSQL[@]}" -f "$1" >/dev/null; then
-    echo "::error title=Migration shim failed::$(basename "$1")"
-    exit 1
-  fi
+  "${PSQL[@]}" -f "$1" >/dev/null 2> "$TMP/err"
 }
 
 # attempt <path> -> 0 applied, 1 failed (error text in $TMP/err)
 attempt() {
-  local path="$1" file version name
+  local path="$1" file version name src replace
   file="$(basename "$path")"; version="${file%%_*}"
   name="${file#*_}"; name="${name%.sql}"
 
-  grep -oiE "alter[[:space:]]+type[[:space:]]+[^;]*[[:space:]]add[[:space:]]+value[^;]*;" "$path" \
+  # A documented full substitute replaces the migration body. The header line
+  # must name the file it stands in for, so a substitute can never be dropped
+  # in silently.
+  src="$path"
+  replace="$SHIM_DIR/$version.replace.sql"
+  if [ -f "$replace" ]; then
+    if ! head -n 1 "$replace" | grep -qxF "-- REPLACEMENT for $file"; then
+      echo "::error title=Undocumented substitute::$(basename "$replace") must start with '-- REPLACEMENT for $file' and explain why."
+      exit 1
+    fi
+    src="$replace"
+    echo "substituting $file with $(basename "$replace")"
+  fi
+
+  grep -oiE "alter[[:space:]]+type[[:space:]]+[^;]*[[:space:]]add[[:space:]]+value[^;]*;" "$src" \
     | while IFS= read -r stmt; do psql -X -q -c "$stmt" >/dev/null 2>&1 || true; done
 
-  run_shim "$SHIM_DIR/$version.pre.sql"
+  # A failing .pre.sql defers the migration (see header note 4) rather than
+  # ending the run; in strict mode the caller turns that into a hard failure.
+  if ! run_shim "$SHIM_DIR/$version.pre.sql"; then
+    echo "pre-shim for $version failed" >> "$TMP/err"
+    return 1
+  fi
 
-  grep -viE '^[[:space:]]*(begin|commit)[[:space:]]*;[[:space:]]*$' "$path" > "$TMP/body.sql"
+  grep -viE '^[[:space:]]*(begin|commit)[[:space:]]*;[[:space:]]*$' "$src" > "$TMP/body.sql"
   if ! "${PSQL[@]}" -1 -f "$TMP/body.sql" > /dev/null 2> "$TMP/err"; then
     return 1
   fi
-  run_shim "$SHIM_DIR/$version.post.sql"
-  "${PSQL[@]}" -c "insert into supabase_migrations.schema_migrations (version, name)
-    values ('$version', '$name') on conflict (version) do nothing;" >/dev/null
+  # Fatal: the migration is committed, so there is nothing to defer back to.
+  if ! run_shim "$SHIM_DIR/$version.post.sql"; then
+    echo "::error title=Migration shim failed::$version.post.sql (after $file applied)"
+    grep -v 'NOTICE' "$TMP/err" | tail -8
+    exit 1
+  fi
+  # The ledger MUST record the file's own version — a wrong version here is
+  # the production bug this runner exists to prevent — so the insert is
+  # parameterised (never string-spliced) and a failure is fatal rather than a
+  # migration silently counted as applied with no ledger row.
+  if ! "${PSQL[@]}" -v ver="$version" -v nm="$name" \
+      -c "insert into supabase_migrations.schema_migrations (version, name)
+          values (:'ver', :'nm') on conflict (version) do nothing;" >/dev/null 2> "$TMP/err"; then
+    echo "::error title=Ledger insert failed::$file applied but could not be recorded"
+    tail -5 "$TMP/err"
+    exit 1
+  fi
   echo "$file" >> "$LOG"
   return 0
 }
