@@ -28,7 +28,7 @@ const PRUNED_LAYERS = new Set<string>([CONTACT_LAYER.whatsapp, CONTACT_LAYER.ema
 /** The default-tree Contact section. Same three channels as `contactBlock`. */
 export function contactSectionNode(
   id: (suffix: string) => string,
-  headingStyle: Record<string, unknown>,
+  headingStyle: object,
 ): BuilderNode {
   const names = ["contact-ask", "contact-whatsapp", "contact-email"];
   let cursor = 0;
