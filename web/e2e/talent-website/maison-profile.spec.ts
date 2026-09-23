@@ -32,23 +32,37 @@
  *
  * REQUIRED FIXTURES (proposed addition to seed.ts — not applied here, because
  * seed.ts belongs to the QA-harness work):
- *   On `t_ready` (talent_basic, no agency), in addition to today's row:
- *     a) an offering `MAISON_OPTIONED_TITLE` with booking_mode "instant",
- *        price_display "exact", duration_minutes 90, category "unas",
- *        two `talent_offering_variants` and one `talent_offering_addons`;
- *     b) an offering `MAISON_FIXED_TITLE` with booking_mode "instant",
- *        duration_minutes 60, category "pestanas", no variants, no add-ons.
- *   Both must be status "published", moderation_state "approved",
- *   visibility "public".
+ * SEEDED as of 7a98d77a3 on the harness branch: `ensureMaisonCatalogue()`
+ * creates both rows on every talent with `readiness.offering`, so they land on
+ * `t_ready` — a talent_basic, agency-less profile, i.e. the surface that
+ * cannot confirm. Both rows are booking_mode "instant" ON PURPOSE: seeded as
+ * "request" there would be nothing to degrade from and test 3 would pass
+ * vacuously.
  */
 
 import { expect, test, type Page } from "@playwright/test";
 
 import { talentFixture } from "./fixtures";
 
-/** Titles the proposed fixture rows use. Keep in sync with seed.ts. */
-export const MAISON_OPTIONED_TITLE = "Maison QA — optioned service";
-export const MAISON_FIXED_TITLE = "Maison QA — fixed service";
+/**
+ * Titles of the two seeded fixture offerings.
+ *
+ * These SHOULD be imported rather than restated — but the canonical constants
+ * currently live in `seed.ts`, and importing that module from a spec would run
+ * the seeder. At module scope seed.ts calls requireEnv() for the Supabase URL
+ * and service-role key (throws when unset), asserts the target is a local
+ * Supabase (throws when it is not), creates a service-role client, and then
+ * calls main() — so `import { … } from "./seed"` either crashes test collection
+ * or silently re-seeds the database as a side effect of listing tests.
+ *
+ * Restated here deliberately, with the values matching seed.ts exactly. The
+ * fix is to move both constants into `fixtures.ts`, which exists precisely so
+ * specs can import identities "without pulling in @supabase/supabase-js or any
+ * server-only module" (its own header). Raised with the harness owner; this
+ * comment goes when the constants move.
+ */
+const MAISON_OPTIONED_TITLE = "Maison QA — optioned service";
+const MAISON_FIXED_TITLE = "Maison QA — fixed service";
 
 const READY = talentFixture("t_ready");
 
@@ -166,7 +180,12 @@ test.describe("Maison profile template", () => {
     // ASSERTION 1 — the dispatched INTENT degraded. This is the one that
     // matters most: it is what the booking engine would act on.
     const events = await offeringEvents(page);
-    expect(events.length).toBeGreaterThan(0);
+    // Named explicitly: a click that dispatches nothing at all is its own
+    // defect, and without this the next line fails as a type error instead.
+    expect(
+      events.length,
+      "the row action dispatched no storefront event at all",
+    ).toBeGreaterThan(0);
     const last = events[events.length - 1]!;
     expect(
       last.intent,
