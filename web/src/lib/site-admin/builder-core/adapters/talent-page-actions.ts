@@ -110,6 +110,30 @@ export async function ensureTalentPageAction(
     }
     if (existing) return existing as unknown as TalentPageRow;
 
+    // PHASE 1 — creating a page is Web Office (`personalSitePages`). This
+    // action is a `"use server"` export, so it is callable directly with any
+    // slug regardless of what the builder UI offers; RLS alone would happily
+    // let a Free talent mint extra rows under their own profile. `null` = the
+    // free-site rules do not apply (switch off, staff editor, not the owner),
+    // in which case this is byte-identical to before.
+    //
+    // A talent with NO page row yet is exempt: that first row IS their home
+    // page, not an extra one, and the free-site wizard depends on it.
+    const siteCaps = await loadTalentSiteSaveCapabilities(input.talentProfileId);
+    if (siteCaps && !siteCaps.personalSitePages) {
+      const { count, error: countError } = await sb
+        .from("talent_pages")
+        .select("id", { count: "exact", head: true })
+        .eq("talent_profile_id", input.talentProfileId);
+      // Fail CLOSED on an unreadable count: we could not prove this is the
+      // bootstrap page, so we do not create one.
+      if (countError) {
+        logServerError("talentPageAdapter/ensurePage/pageCount", countError);
+        return null;
+      }
+      if ((count ?? 0) > 0) return null;
+    }
+
     // 2. No row — INSERT a draft. Re-select with graceful fallback.
     const insertReturning = async (cols: string) =>
       sb
@@ -333,6 +357,22 @@ export async function restoreTalentPageRevisionAction(
         (live as { blocks: unknown } | null)?.blocks,
       ),
     );
+
+    // PHASE 1 — a restore writes a tree, so it is the same chokepoint as a
+    // save and carries the same rule. Without it, a lapsed Web Office talent
+    // could reinstate the sections the save path refuses simply by restoring
+    // an older revision. `null` = the free-site rules do not apply.
+    const siteCaps = await loadTalentSiteSaveCapabilities(talentProfileId);
+    if (siteCaps) {
+      const structural = assertFreeTalentSiteTreeMutation({
+        previousTree: (live as { blocks: unknown } | null)?.blocks,
+        nextTree: restoredBlocks,
+        canInsertSections: siteCaps.personalSiteSections,
+      });
+      if (!structural.ok) {
+        return { ok: false as const, error: structural.message };
+      }
+    }
 
     const now = new Date().toISOString();
     const { data, error } = await sb

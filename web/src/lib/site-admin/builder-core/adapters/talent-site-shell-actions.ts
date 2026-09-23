@@ -400,6 +400,22 @@ export async function restoreTalentSiteShellRevisionAction(
       enforceLockedPropsOnTree(restoredTree, siteRow.shell_tree),
     );
 
+    // 3b. PHASE 1 — a restore writes a tree, so it carries the same free-site
+    //     rule as a save. Without it a lapsed Web Office talent could reinstate
+    //     the shell sections the save path refuses by restoring an old
+    //     revision. `null` = the free-site rules do not apply.
+    const siteCaps = await loadTalentSiteSaveCapabilities(gate.talentProfileId);
+    if (siteCaps) {
+      const structural = assertFreeTalentSiteTreeMutation({
+        previousTree: siteRow.shell_tree,
+        nextTree: enforced,
+        canInsertSections: siteCaps.personalSiteSections,
+      });
+      if (!structural.ok) {
+        return { ok: false as const, error: structural.message };
+      }
+    }
+
     // 4. Write the restored tree back to the DRAFT shell_tree.
     const now = new Date().toISOString();
     const { data, error } = await sb

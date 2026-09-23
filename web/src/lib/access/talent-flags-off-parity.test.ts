@@ -306,6 +306,35 @@ test("flags off: no refusal string advertises Web Office", () => {
   });
 });
 
+test("flags off: a perk talent_pro already grants still upsells to Pro, not Portfolio", () => {
+  // These three sentences sell `profile.enhanced` / `personalSiteTemplate`,
+  // both of which `talent_pro` holds. Naming the $15 tier in a dark build
+  // would send a Free talent to the wrong plan for a $9 feature. Byte-for-byte
+  // the pre-Phase-1 strings.
+  withSwitch(false, () => {
+    assert.equal(
+      planDeniedMessage("profile_extras", "en"),
+      "Upgrade to Pro to add social and video embeds and a press band to your profile.",
+    );
+    assert.equal(
+      planDeniedMessage("template", "en"),
+      "Upgrade to Pro to choose premium templates.",
+    );
+    assert.equal(
+      planDeniedMessage("media_kit", "en"),
+      "Upgrade to Pro to download your media kit.",
+    );
+  });
+});
+
+test("flags on: the same three perks fold into the one paid tier", () => {
+  withSwitch(true, () => {
+    for (const capability of ["profile_extras", "template", "media_kit"] as const) {
+      assert.match(planDeniedMessage(capability, "en"), /Upgrade to Web Office\b/);
+    }
+  });
+});
+
 test("flags on: tier labels read Free / Web Office and Pro is folded", () => {
   withSwitch(true, () => {
     assert.equal(isTalentTierRenameEnabled(), true);

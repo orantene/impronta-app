@@ -5,6 +5,7 @@ import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node
 import {
   assertFreeTalentSiteTreeMutation,
   collectTalentSiteSectionChildIds,
+  collectTalentSiteTreeShape,
   freeSiteSectionsLockedMessage,
 } from "./free-site-tree-guard";
 
@@ -195,4 +196,51 @@ test("junk trees on either side never throw", () => {
     }).ok,
     true,
   );
+});
+
+// ── DENY: the forged-payload shapes a set comparison cannot see ─────────────
+
+test("DENY: duplicating a whole section subtree while REUSING every id", () => {
+  // The set of nested ids is unchanged; only their multiplicity grows. This is
+  // the cheapest forgery against the save action: copy a section's JSON and
+  // append it verbatim.
+  const next = [...baseTree(), JSON.parse(JSON.stringify(baseTree()[0]))] as BuilderNodeTree;
+  const result = run(next);
+  assert.equal(result.ok, false);
+  assert.equal(result.ok === false && result.code, "sections_locked");
+});
+
+test("DENY: duplicating one block inside a section while reusing its id", () => {
+  const next = baseTree();
+  const hero = next[0] as unknown as { children: BuilderNode[] };
+  hero.children.push(JSON.parse(JSON.stringify(hero.children[0])));
+  assert.equal(run(next).ok, false);
+});
+
+test("DENY: appending an EMPTY new section (no nested id appears at all)", () => {
+  const next = [...baseTree(), section("s-empty", [])] as BuilderNodeTree;
+  const result = run(next);
+  assert.equal(result.ok, false);
+  assert.equal(result.ok === false && result.code, "sections_locked");
+});
+
+test("ALLOW: Web Office short-circuits the duplicate and empty-section checks", () => {
+  const next = [...baseTree(), section("s-empty", [])] as BuilderNodeTree;
+  assert.equal(
+    assertFreeTalentSiteTreeMutation({
+      previousTree: baseTree(),
+      nextTree: next,
+      canInsertSections: true,
+    }).ok,
+    true,
+  );
+});
+
+test("collectTalentSiteTreeShape counts sections and nested ids", () => {
+  const shape = collectTalentSiteTreeShape(baseTree());
+  assert.equal(shape.sectionCount, 2);
+  assert.equal(shape.childCounts.get("n-heading"), 1);
+  const doubled = [...baseTree(), JSON.parse(JSON.stringify(baseTree()[0]))] as BuilderNodeTree;
+  assert.equal(collectTalentSiteTreeShape(doubled).childCounts.get("n-heading"), 2);
+  assert.equal(collectTalentSiteTreeShape(doubled).sectionCount, 3);
 });

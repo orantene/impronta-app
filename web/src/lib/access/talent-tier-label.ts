@@ -71,5 +71,19 @@ export function talentPaidTierLabel(): string {
  *     switch off -> "Upgrade to Portfolio to add pages."
  */
 export function withTalentPaidTierLabel(template: string): string {
-  return template.split("{tier}").join(talentPaidTierLabel());
+  return withTalentTierLabel(template, "max");
+}
+
+/**
+ * Fill `{tier}` with a SPECIFIC tier bucket's label.
+ *
+ * Needed for the copy that sells a perk `talent_pro` already grants today
+ * (profile embeds, the press band, premium templates, the media kit). Those
+ * sentences named "Pro" before the fold and must keep naming "Pro" while the
+ * switch is off, or a dark build points a Free talent at the $15 plan for a
+ * $9 feature. Once the switch is on both buckets resolve to "Web Office",
+ * which is exactly the fold.
+ */
+export function withTalentTierLabel(template: string, tier: TalentTierLabelTier): string {
+  return template.split("{tier}").join(talentTierLabel(tier));
 }

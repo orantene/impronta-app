@@ -8,7 +8,7 @@ import {
   type TalentPlanKey,
 } from "@/lib/access/talent-membership";
 import { isTalentSiteTierExpansionEnabled } from "@/lib/access/talent-site-tier-expansion";
-import { withTalentPaidTierLabel } from "@/lib/access/talent-tier-label";
+import { withTalentPaidTierLabel, withTalentTierLabel } from "@/lib/access/talent-tier-label";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import {
   isTemplateAllowedForTier,
@@ -294,17 +294,25 @@ export function planDeniedMessage(
   }
   // Pro fold (2026-09-23): these four used to name "Pro" / "Portfolio" / "Max"
   // directly. They now resolve through the one tier-label source, so a dark
-  // build still reads "Portfolio" and a live build reads "Web Office".
+  // build reads exactly what it read before the fold and a live build reads
+  // "Web Office".
+  //
+  // The first three sell perks `talent_pro` ALREADY grants (`profile.enhanced`
+  // / `personalSiteTemplate`), so they fill from the PRO bucket: "Pro" while
+  // the switch is off, "Web Office" once it is on. Filling them from the paid
+  // bucket would have a dark build tell a Free talent to buy the $15 plan for
+  // a $9 feature.
   if (capability === "profile_extras") {
-    return withTalentPaidTierLabel(
+    return withTalentTierLabel(
       "Upgrade to {tier} to add social and video embeds and a press band to your profile.",
+      "pro",
     );
   }
   if (capability === "template") {
-    return withTalentPaidTierLabel("Upgrade to {tier} to choose premium templates.");
+    return withTalentTierLabel("Upgrade to {tier} to choose premium templates.", "pro");
   }
   if (capability === "media_kit") {
-    return withTalentPaidTierLabel("Upgrade to {tier} to download your media kit.");
+    return withTalentTierLabel("Upgrade to {tier} to download your media kit.", "pro");
   }
   if (capability === "custom_builder") {
     return withTalentPaidTierLabel(

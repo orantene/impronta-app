@@ -47,11 +47,34 @@ plan-catalog}.ts`, `web/src/lib/server/talent-self-guard.ts`,
 `web/src/components/talent/site/**`, `web/messages/{en,es}.json`,
 `supabase/migrations/20261231279000_talent_site_domain_requires_max.sql`.
 
-**Backward compatible:** Yes. Flags-off parity is a required regression
-journey (J0); only Web Office (nee Max) talents render/manage a personal
-site until the switch flips. Grandfathered `talent_pro` rows keep every
-capability they had before, plus the folded-in superset once the switch is
-on.
+**Backward compatible:** Yes, for every gate and every capability. Flags-off
+parity is a required regression journey (J0); only Web Office (nee Max)
+talents render/manage a personal site until the switch flips. Grandfathered
+`talent_pro` rows keep every capability they had before, plus the folded-in
+superset once the switch is on.
+
+**Reviewer note (2026-09-23), scope of "byte-identical" — the LABEL half of
+the fold is NOT switch-gated.** The capability, gate and render behaviour is
+byte-identical with the switch off; the NAMING is not, in two places, and
+both are deliberate:
+
+1. `talent_pro.isVisible` / `isSelfServe` are `false` on both switch
+   positions, so the plan stops being sold the moment this ships, not when
+   the switch flips.
+2. The client components that name a tier (the compare drawer, the plan
+   badge on the personal-site card, the domain panel, the builder lock
+   chips) say "Web Office" on both switch positions.
+
+Reason: `TALENT_FREE_WEBSITE_ENABLED` is not a `NEXT_PUBLIC_*` variable, so
+a client bundle inlines it as `undefined`; a client component that resolved
+it would hydrate a different label than the server rendered. Gating the
+server half alone would make the pricing page and the compare drawer
+disagree about which plans exist, which is worse than a consistent early
+rename. The server-resolved labels (membership `displayName`,
+`planDisplayName`, every guard refusal string) ARE switch-gated and still
+read "Portfolio"/"Pro" while dark. To close the gap, thread the resolved
+label from each server boundary into these components as a prop; do not add
+a second `NEXT_PUBLIC_` switch that can disagree with this one.
 
 **Migration:** `20261231279000_talent_site_domain_requires_max.sql` —
 `talent_site_domain_lookup` now also requires `talent_profile_has_max`,
