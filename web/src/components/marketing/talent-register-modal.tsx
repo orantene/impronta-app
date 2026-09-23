@@ -88,7 +88,12 @@ function brandWord(tenant: TenantRegisterContext): string {
   return tenant.whitelabel ? tenant.displayName : "Tulala";
 }
 
-const DEFAULT_NEXT_PATH = "/onboarding/talent-location";
+// Retired: this used to be "/onboarding/talent-location", the legacy talent
+// onboarding. /join -> /talent/register -> /register?intent=talent already lands
+// on /talent/profile/fields, so the two signup entry points produced different
+// post-signup experiences depending on which button the person clicked. The
+// legacy ROUTE stays alive as a redirect for confirmation emails already sent.
+const DEFAULT_NEXT_PATH = "/talent/profile/fields";
 
 /** Re-theme the modal to a tenant storefront by remapping `--plt-*` onto the
  *  storefront's design tokens. Unmapped vars fall back to platform defaults. */
