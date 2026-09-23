@@ -95,7 +95,7 @@ attempt() {
   src="$path"
   replace="$SHIM_DIR/$version.replace.sql"
   if [ -f "$replace" ]; then
-    if ! head -n 1 "$replace" | grep -qxF "-- REPLACEMENT for $file"; then
+    if ! head -n 1 "$replace" | grep -qxF -e "-- REPLACEMENT for $file"; then
       echo "::error title=Undocumented substitute::$(basename "$replace") must start with '-- REPLACEMENT for $file' and explain why."
       exit 1
     fi
@@ -124,12 +124,15 @@ attempt() {
     exit 1
   fi
   # The ledger MUST record the file's own version — a wrong version here is
-  # the production bug this runner exists to prevent — so the insert is
-  # parameterised (never string-spliced) and a failure is fatal rather than a
-  # migration silently counted as applied with no ledger row.
-  if ! "${PSQL[@]}" -v ver="$version" -v nm="$name" \
+  # the production bug this runner exists to prevent — so a failure is fatal
+  # rather than a migration silently counted as applied with no ledger row.
+  # `version` is digits by construction (the filename glob), but `name` is
+  # free text, so its quotes are doubled for the SQL literal. (psql does not
+  # expand `:'var'` in a `-c` string, only in files/stdin.)
+  local version_sql="${version//\'/\'\'}" name_sql="${name//\'/\'\'}"
+  if ! "${PSQL[@]}" \
       -c "insert into supabase_migrations.schema_migrations (version, name)
-          values (:'ver', :'nm') on conflict (version) do nothing;" >/dev/null 2> "$TMP/err"; then
+          values ('$version_sql', '$name_sql') on conflict (version) do nothing;" >/dev/null 2> "$TMP/err"; then
     echo "::error title=Ledger insert failed::$file applied but could not be recorded"
     tail -5 "$TMP/err"
     exit 1
