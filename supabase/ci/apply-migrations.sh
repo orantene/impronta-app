@@ -74,6 +74,32 @@ MIG_DIR="$ROOT/supabase/migrations"
 SHIM_DIR="$ROOT/supabase/ci/migration-shims"
 LOG="${MIGRATION_LOG:-/dev/null}"
 PSQL=(psql -X -q -v ON_ERROR_STOP=1)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REFUSE A NON-LOOPBACK TARGET.
+#
+# This runner names no host: it inherits libpq env entirely, and the header's
+# "CI-only" was enforced by nothing. Pointed at a real project it would replay
+# the whole history with --defer retries, run ALTER TYPE ... ADD VALUE in
+# autocommit, substitute .replace.sql bodies for real migrations, and write
+# ledger rows.
+#
+# --after makes it worse rather than safer: that mode derives its starting point
+# from max(version) in the ledger, so against an up-to-date database it computes
+# "nothing pending" and exits 0 — a green run that touched a live database and
+# proved nothing.
+# ─────────────────────────────────────────────────────────────────────────────
+case "${PGHOST:-}" in
+  127.0.0.1|localhost|::1|"[::1]") ;;
+  "")
+    echo "apply-migrations.sh: refusing to run with PGHOST unset — it would fall back to a local socket or an inherited target." >&2
+    exit 1
+    ;;
+  *)
+    echo "apply-migrations.sh: refusing non-loopback PGHOST=\"${PGHOST}\". This replays the full migration history; it only runs against a throwaway local database." >&2
+    exit 1
+    ;;
+esac
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 

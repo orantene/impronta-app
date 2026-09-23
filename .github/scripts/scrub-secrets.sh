@@ -17,13 +17,25 @@ set -euo pipefail
 
 python3 -c '
 import os, sys
+from urllib.parse import quote
 
 names = sys.argv[1:]
-values = sorted(
-    (v for v in (os.environ.get(n, "") for n in names) if v),
-    key=len,
-    reverse=True,
-)
+
+# A secret does not always appear literally. The Supabase CLI prints connection
+# targets like
+#   postgresql://postgres.<ref>:<password>@...pooler.supabase.com:5432/postgres
+# and a password containing any of @ # / : ? + & or a space arrives
+# PERCENT-ENCODED. A literal substring replace misses that form -- and so does
+# GitHub own log masking, which only matches the raw secret string. So each
+# value is scrubbed in its raw form AND in its URL-quoted form.
+raw = [v for v in (os.environ.get(n, "") for n in names) if v]
+variants = set()
+for v in raw:
+    variants.add(v)
+    variants.add(quote(v, safe=""))
+# Longest first, so a value containing another is masked whole rather than
+# partially rewritten by the shorter one.
+values = sorted(variants, key=len, reverse=True)
 for line in sys.stdin:
     for v in values:
         line = line.replace(v, "***")

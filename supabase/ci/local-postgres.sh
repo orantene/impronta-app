@@ -56,6 +56,29 @@ PGDATABASE="${PGDATABASE:-postgres}"
 PGUSER="${PGUSER:-postgres}"
 PGHOST="${PGHOST:-127.0.0.1}"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# REFUSE A NON-LOOPBACK TARGET.
+#
+# Every PG* variable above is inherited from the environment with only a
+# default. `cmd_reset` calls `pg_running` first, so if an INHERITED host answers
+# it skips cluster creation entirely and goes straight to pg_terminate_backend
+# on every session followed by `drop database`. A shell that happens to carry
+# PGHOST/PGPASSWORD from other Supabase tooling would therefore drop whatever
+# that host is — production included.
+#
+# web/e2e/talent-website/seed.ts refuses exactly this class of mistake for the
+# same reason; this is the same guard for the psql side. Allowlist of parsed
+# hosts, no override flag, fails closed.
+# ─────────────────────────────────────────────────────────────────────────────
+case "$PGHOST" in
+  127.0.0.1|localhost|::1|"[::1]") ;;
+  *)
+    echo "supabase/ci/local-postgres.sh: refusing to operate on non-loopback PGHOST=\"$PGHOST\"." >&2
+    echo "This script creates, RESETS and DROPS a throwaway cluster. It only runs against loopback." >&2
+    exit 1
+    ;;
+esac
+
 find_bin() {
   if [ -n "${PGBIN:-}" ]; then echo "$PGBIN"; return; fi
   local v
