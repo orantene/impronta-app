@@ -153,7 +153,7 @@ async function persistMaxSiteLogoUrl(input: {
 export async function uploadMaxSiteLogoAction(
   formData: FormData,
 ): Promise<MaxSiteActionResult<{ logoUrl: string }>> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   const file = formData.get("logo") as File | null;
@@ -220,7 +220,7 @@ export async function uploadMaxSiteLogoAction(
 export async function createMaxSiteLogoUploadUrlAction(
   ext: string,
 ): Promise<MaxSiteActionResult<{ uploadUrl: string; storagePath: string }>> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   const normalized = ext.toLowerCase().replace(/^\./, "").replace("jpeg", "jpg");
@@ -253,7 +253,7 @@ export async function createMaxSiteLogoUploadUrlAction(
 export async function finalizeMaxSiteLogoAction(
   storagePath: string,
 ): Promise<MaxSiteActionResult<{ logoUrl: string }>> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   const prefix = `talent-site-logos/${g.talentProfileId}/`;
@@ -321,7 +321,7 @@ export async function finalizeMaxSiteLogoAction(
 export async function uploadMaxSiteLogoSvgAction(
   svgText: string,
 ): Promise<MaxSiteActionResult<{ logoUrl: string }>> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   if (!svgText.trim()) {
@@ -374,7 +374,7 @@ export async function uploadMaxSiteLogoSvgAction(
 
 /** Remove the site logo (clears `talent_sites.logo_url`). */
 export async function removeMaxSiteLogoAction(): Promise<MaxSiteActionResult> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   const sb = await getCachedServerSupabase();
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };

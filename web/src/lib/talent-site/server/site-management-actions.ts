@@ -76,7 +76,7 @@ function siteUrl(slug: string | null): string | null {
 export async function ensureMaxSiteAction(): Promise<
   MaxSiteActionResult<{ siteSlug: string }>
 > {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   const result = await provisionTalentMaxSite(g.talentProfileId, g.userId);
   if (!result.ok) {
@@ -210,7 +210,7 @@ export async function addMaxSitePageAction(input: {
   title: string;
   navLabel?: string | null;
 }): Promise<MaxSiteActionResult<{ id: string; slug: string }>> {
-  const g = await gate();
+  const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
   const title = input.title?.trim();
@@ -280,7 +280,7 @@ export async function renameMaxSitePageAction(input: {
   title?: string;
   navLabel?: string | null;
 }): Promise<MaxSiteActionResult> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -319,7 +319,7 @@ export async function renameMaxSitePageAction(input: {
 export async function deleteMaxSitePageAction(input: {
   pageId: string;
 }): Promise<MaxSiteActionResult> {
-  const g = await gate();
+  const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
   const sb = await getCachedServerSupabase();
@@ -374,7 +374,7 @@ export async function deleteMaxSitePageAction(input: {
 export async function reorderMaxSitePagesAction(input: {
   orderedIds: string[];
 }): Promise<MaxSiteActionResult> {
-  const g = await gate();
+  const g = await gate("personalSitePages");
   if (!g.ok) return g;
   if (!Array.isArray(input.orderedIds) || input.orderedIds.length === 0) {
     return { ok: false, code: "invalid_input", error: "No order provided." };
@@ -422,7 +422,7 @@ export async function reorderMaxSitePagesAction(input: {
 export async function setMaxSiteHomePageAction(input: {
   pageId: string;
 }): Promise<MaxSiteActionResult> {
-  const g = await gate();
+  const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
   const sb = await getCachedServerSupabase();
@@ -471,7 +471,7 @@ export async function setMaxSiteHomePageAction(input: {
 export async function setMaxSiteSlugAction(input: {
   slug: string;
 }): Promise<MaxSiteActionResult<{ slug: string }>> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   const desired = slugifySiteName(input.slug ?? "");
@@ -537,7 +537,7 @@ export async function setMaxSiteSlugAction(input: {
 export async function publishMaxSiteAction(): Promise<
   MaxSiteActionResult<{ publishedAt: string }>
 > {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   const sb = await getCachedServerSupabase();
@@ -618,7 +618,7 @@ export async function publishMaxSiteAction(): Promise<
 export async function applyMaxSiteTemplateAction(input: {
   templateKey: string;
 }): Promise<MaxSiteActionResult<{ templateKey: MaxSiteTemplateKey }>> {
-  const g = await gate();
+  const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
   if (!isMaxSiteTemplateKey(input.templateKey)) {
