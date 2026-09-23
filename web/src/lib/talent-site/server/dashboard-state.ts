@@ -68,7 +68,7 @@ export async function loadTalentPersonalSiteDashboardState(
     const { data } = await admin
       .from("talent_sites")
       .select(
-        "id, talent_profile_id, site_kind, site_slug, status, draft_snapshot, published_snapshot, version, draft_updated_at, published_at, unpublished_at, plan_locked, pending_template_reset, created_by, updated_by, created_at, updated_at",
+        "id, talent_profile_id, site_kind, site_slug, site_published_at, status, draft_snapshot, published_snapshot, version, draft_updated_at, published_at, unpublished_at, plan_locked, pending_template_reset, created_by, updated_by, created_at, updated_at",
       )
       .eq("talent_profile_id", scope.talentProfile.id)
       .maybeSingle();
@@ -92,8 +92,19 @@ export async function loadTalentPersonalSiteDashboardState(
         // With the switch on, the talent's site lives at its own host. With it
         // off (or with no slug yet) this stays null and the profile path below
         // is emitted exactly as before.
-        const siteSlug = (data as { site_slug?: string | null }).site_slug ?? null;
-        subdomainSiteUrl = talentSitePublicUrl(siteSlug);
+        //
+        // `site_published_at` is required, not decorative: the host resolver
+        // (`talent_site_subdomain_lookup`) returns a row only for a PUBLISHED
+        // site, so emitting the subdomain before publish would put a link in the
+        // dashboard that resolves to "host not registered". Until then the
+        // profile path below is the address that actually works.
+        const row = data as {
+          site_slug?: string | null;
+          site_published_at?: string | null;
+        };
+        subdomainSiteUrl = row.site_published_at
+          ? talentSitePublicUrl(row.site_slug ?? null)
+          : null;
       }
     }
   }

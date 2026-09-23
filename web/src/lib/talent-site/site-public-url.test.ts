@@ -115,21 +115,37 @@ test("talentSitePathRedirectTarget only fires when the switch is on in productio
   assert.equal(talentSitePathRedirectTarget({ ...base, slug: null }), null);
 });
 
-test("talentSitePathRedirectTarget preserves ?preview=draft across the hop", () => {
-  assert.equal(
-    talentSitePathRedirectTarget({
-      slug: "sofia",
-      pageSlug: "about",
-      preview: "draft",
-      enabled: true,
-      isProduction: true,
-    }),
-    "https://sofia.tulala.digital/about?preview=draft",
-  );
+test("talentSitePathRedirectTarget never redirects a preview request", () => {
+  // The subdomain resolves only for a PUBLISHED site, so an owner previewing a
+  // site that has never been published must keep the path address. Redirecting
+  // would send them to a host that does not resolve.
+  for (const preview of ["draft", "1", "anything"]) {
+    assert.equal(
+      talentSitePathRedirectTarget({
+        slug: "sofia",
+        pageSlug: "about",
+        preview,
+        enabled: true,
+        isProduction: true,
+      }),
+      null,
+      preview,
+    );
+  }
+  // A blank / absent param is not a preview and still moves.
   assert.equal(
     talentSitePathRedirectTarget({
       slug: "sofia",
       preview: "",
+      enabled: true,
+      isProduction: true,
+    }),
+    "https://sofia.tulala.digital",
+  );
+  assert.equal(
+    talentSitePathRedirectTarget({
+      slug: "sofia",
+      preview: null,
       enabled: true,
       isProduction: true,
     }),

@@ -140,8 +140,15 @@ export function splitTalentSiteHost(
  *
  * Pure so the decision is testable without a request: the route passes the two
  * environment facts in. Returns the absolute target, or null to keep serving the
- * path (switch off, not production, or an unusable slug). `preview` is carried
- * across so an owner's `?preview=draft` link keeps previewing after the hop.
+ * path (switch off, not production, an unusable slug, or a PREVIEW request).
+ *
+ * Preview never redirects. `talent_site_subdomain_lookup` resolves a host only
+ * for a site whose `site_published_at` is set, so `<slug>.tulala.digital` does
+ * not exist yet for a site that has never been published — which is exactly the
+ * site an owner opens `?preview=draft` on. Sending that request to the host
+ * would turn the owner's only preview address into a 404, so the path route
+ * keeps serving it. Once a site IS published its public links point at the host
+ * anyway, so nothing is gained by moving the preview too.
  */
 export function talentSitePathRedirectTarget(input: {
   slug: string | null | undefined;
@@ -153,11 +160,9 @@ export function talentSitePathRedirectTarget(input: {
   root?: TalentSiteSubdomainRoot;
 }): string | null {
   if (!input.enabled || !input.isProduction) return null;
-  const url = talentSitePublicUrl(input.slug, {
+  if ((input.preview ?? "").trim()) return null;
+  return talentSitePublicUrl(input.slug, {
     pageSlug: input.pageSlug,
     root: input.root,
   });
-  if (!url) return null;
-  const preview = (input.preview ?? "").trim();
-  return preview ? `${url}?preview=${encodeURIComponent(preview)}` : url;
 }

@@ -83,9 +83,10 @@ export default async function TalentMaxSiteHomePage({
 
   // Once the site lives at `<slug>.tulala.digital`, this path is its OLD
   // address: one canonical home, one set of links people share. 308 so the move
-  // is permanent for crawlers, with `?preview=draft` carried across so an
-  // owner's preview link keeps previewing. Dev keeps serving the path (no
-  // wildcard DNS locally), and with the switch off nothing changes at all.
+  // is permanent for crawlers. A `?preview=...` request is NEVER redirected —
+  // the subdomain resolves only for a published site, so the path stays the
+  // owner's preview address. Dev keeps serving the path (no wildcard DNS
+  // locally), and with the switch off nothing changes at all.
   const redirectTo = talentSitePathRedirectTarget({
     slug: siteSlug,
     preview,

@@ -652,13 +652,22 @@ export async function provisionWorkspaceFromLead(params: {
   // free, exactly as it was before this namespace existed.
   if ((await isPlatformSubdomainLabelTaken(slug)) === true) {
     const base = slug;
+    let free: string | null = null;
     for (let n = 2; n <= 9; n += 1) {
       const candidate = await generateAvailableWorkspaceSlug(`${base}-${n}`);
       if ((await isPlatformSubdomainLabelTaken(candidate)) !== true) {
-        slug = candidate;
+        free = candidate;
         break;
       }
     }
+    // Every numbered name is spoken for too. Leaving `slug` on the name we
+    // KNOW is taken would hand the trigger a signup that has already been paid
+    // for, so fall back to a stamped name that cannot collide.
+    slug =
+      free ??
+      (await generateAvailableWorkspaceSlug(
+        `${base}-${Date.now().toString(36)}`,
+      ));
   }
   // The workspace is born named after the BUSINESS the user typed on
   // /get-started (e.g. "Riviera Maya Work"), falling back to the person's
