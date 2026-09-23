@@ -33,4 +33,4 @@ Branch `cursor/msg-hub-client-link-0d94`.
 
 Branch `cursor/msg-migration-stamp-0d94`. Filed D-MSG-401.
 
-`20261231278000_talent_theme_catalog.sql` and `20261231278000_inquiry_action_log_client_actor.sql` share a version, so the structural gate is red on every open Messages PR. Production recorded `talent_theme_catalog`. QA recorded the actor file. The actor file is renamed to `20261231278001_inquiry_action_log_client_actor.sql`. The theme catalog file is not renamed. Neither database has been written by this change.
+`20261231278000_talent_theme_catalog.sql` and `20261231278000_inquiry_action_log_client_actor.sql` share a version, so the structural gate is red on every open Messages PR. The actor SQL is already live on production and QA under ledger version `20261231279000` (`actor_user_id` nullable, `actor_kind` present, both actor checks present). The file is renamed to that version. The theme catalog file stays at `20261231278000`. No SQL was re-run. QA still has no `talent_theme_catalog` ledger row.
