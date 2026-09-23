@@ -178,7 +178,15 @@ export function TalentProfileChatLauncher({
       setOpen(true);
     };
     window.addEventListener("tulala:offering-request", onOfferingRequest);
-    return () => window.removeEventListener("tulala:offering-request", onOfferingRequest);
+    const onOpenClean = () => {
+      setPendingOffering(null);
+      setOpen(true);
+    };
+    window.addEventListener("tulala:open-guest-chat", onOpenClean);
+    return () => {
+      window.removeEventListener("tulala:offering-request", onOfferingRequest);
+      window.removeEventListener("tulala:open-guest-chat", onOpenClean);
+    };
   }, []);
   // Jon 360 Phase 7 — wire the pill's (previously dead) transform transition to a
   // real hover/active lift. Reduced-motion-safe: the transitions/transforms are

@@ -1,8 +1,15 @@
 import "server-only";
 
 import { TalentProfileChatLauncherMount } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncherMount";
+import { createTranslator } from "@/i18n/messages";
 import { loadTalentSiteInquiryTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
+import {
+  talentContactHrefs,
+  talentOffersInstantBooking,
+} from "@/lib/talent-site/contact-channels";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+
+import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
 
 /**
  * Guest Messages dock for a talent vanity host. The tenant is resolved on
@@ -23,27 +30,56 @@ export async function TalentSiteMessagesDock({
     loadTalentSiteInquiryTenant(admin, talentProfileId),
     admin
       .from("talent_profiles")
-      .select("profile_code, display_name")
+      .select("profile_code, display_name, phone, phone_e164, social_links, talent_plan_key")
       .eq("id", talentProfileId)
       .maybeSingle(),
   ]);
   if (!resolved.ok) return null;
-  const profile = profileRes.data as { profile_code: string | null; display_name: string | null } | null;
+  const profile = profileRes.data as {
+    profile_code: string | null;
+    display_name: string | null;
+    phone: string | null;
+    phone_e164: string | null;
+    social_links: unknown;
+    talent_plan_key: string | null;
+  } | null;
   const code = profile?.profile_code?.trim();
   if (!code) return null;
   const displayName = profile?.display_name?.trim() || code;
+  const hrefs = talentContactHrefs({
+    phone: profile?.phone,
+    phoneE164: profile?.phone_e164,
+    socialLinks: profile?.social_links,
+  });
+  const t = createTranslator(locale);
+  const instant = talentOffersInstantBooking(profile?.talent_plan_key);
 
   return (
-    <TalentProfileChatLauncherMount
-      talentProfileId={talentProfileId}
-      talentProfileCode={code}
-      talentDisplayName={displayName}
-      tenantSlug={resolved.tenant.slug}
-      tenantId={resolved.tenant.tenantId}
-      exposeTenantToClient={false}
-      agencyName={resolved.tenant.displayName}
-      sourcePage="/"
-      locale={locale}
-    />
+    <>
+      <TalentSiteContactBridge
+        heading={t("public.talentSite.contact.heading")}
+        askLabel={t("public.talentSite.contact.ask")}
+        whatsappLabel={t("public.talentSite.contact.whatsapp")}
+        emailLabel={t("public.talentSite.contact.email")}
+        truth={t(
+          instant
+            ? "public.talentSite.contact.bookInstant"
+            : "public.talentSite.contact.confirmByHand",
+        )}
+        whatsappHref={hrefs.whatsappHref}
+        emailHref={hrefs.emailHref}
+      />
+      <TalentProfileChatLauncherMount
+        talentProfileId={talentProfileId}
+        talentProfileCode={code}
+        talentDisplayName={displayName}
+        tenantSlug={resolved.tenant.slug}
+        tenantId={resolved.tenant.tenantId}
+        exposeTenantToClient={false}
+        agencyName={resolved.tenant.displayName}
+        sourcePage="/"
+        locale={locale}
+      />
+    </>
   );
 }

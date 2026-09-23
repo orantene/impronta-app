@@ -21,6 +21,7 @@
  * the template registry, the built-in designs and the apply core.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { CONTACT_LAYER, TALENT_ASK_HREF, contactChannelButtons } from "../contact-channels";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
 
 export type KitIdFactory = MaxSiteTemplateIdFactory;
@@ -140,16 +141,22 @@ function disciplineChips(
   } as BuilderNode;
 }
 
-/** The primary inquiry CTA button (resolves to `{{inquireHref}}`). */
+/** Ask opens Messages on this page. It does not send the visitor to the hub profile. */
 function inquiryCta(
   makeId: KitIdFactory,
   marginTop: "s" | "m" = "s",
-  label = "Send an inquiry",
+  label = CONTACT_LAYER.ask,
 ): BuilderNode {
   return {
     id: makeId(),
     kind: "button",
-    props: { label, href: "{{inquireHref}}", tone: "primary", style: { marginTop } },
+    props: {
+      label,
+      href: TALENT_ASK_HREF,
+      tone: "primary",
+      layerLabel: CONTACT_LAYER.ask,
+      style: { marginTop },
+    },
   } as BuilderNode;
 }
 
@@ -571,11 +578,11 @@ export function contactBlock(
         id: makeId(),
         kind: "paragraph",
         props: {
-          text: opts.copy ?? "Send an inquiry to start the conversation.",
+          text: opts.copy ?? "{{contactCopy}}",
           style: { tone: "muted", align: "center" },
         },
       },
-      inquiryCta(makeId),
+      ...contactChannelButtons(makeId),
     ],
   } as BuilderNode;
 }

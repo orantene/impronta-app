@@ -83,7 +83,9 @@ test("hydrate substitutes {{tokens}} and leaves no raw placeholders", () => {
   assert.match(joined, /Orlando Tene/);
   // About renders the FULL bio (`{{richBio}}`), not the short `{{bio}}` token.
   assert.match(joined, /a full paragraph of editorial detail\./);
-  assert.match(joined, /\/t\/TAL-92026\?inquire=1/);
+  assert.match(joined, /#talent-ask/);
+  assert.match(joined, /She confirms by hand\./);
+  assert.doesNotMatch(joined, /\/t\/TAL-92026\?inquire=1/);
   assert.match(joined, /Editorial/);
   assert.match(joined, /headshot\.jpg/);
   // No raw {{...}} placeholder should survive hydration.

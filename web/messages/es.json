@@ -861,6 +861,16 @@
         "errorMessageRequired": "Agrega un mensaje breve para que la agencia sepa cómo ayudarte."
       }
     },
+    "talentSite": {
+      "contact": {
+        "heading": "Escríbele",
+        "ask": "Hacer una pregunta",
+        "whatsapp": "WhatsApp",
+        "email": "Correo",
+        "confirmByHand": "Ella confirma a mano.",
+        "bookInstant": "Puedes reservar un horario en esta página."
+      }
+    },
     "guestChat": {
       "noMessagesYet": "Aún no hay mensajes. Envía el primero abajo y el equipo te responderá por correo.",
       "replyPlaceholder": "Escribe una respuesta…",
