@@ -17,6 +17,8 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   TALENT_SITE_CAPABILITY_KEYS,
@@ -364,6 +366,84 @@ test("billing-shaped plan fields never move with the switch", () => {
       }).join(";"),
     );
   assert.equal(snapshot(false), snapshot(true));
+});
+
+// ── 4. The switch is server-side only ────────────────────────────────────────
+
+/**
+ * `TALENT_FREE_WEBSITE_ENABLED` is not a `NEXT_PUBLIC_*` variable, so a client
+ * bundle inlines it as undefined. A "use client" component that calls one of
+ * the switch-aware readers would therefore render a different label than the
+ * server did and mismatch on hydration once the switch is on. This is not a
+ * style rule: it already bit once, on a platform-admin trials list.
+ *
+ * Client components take the RESOLVED value as data (props, or a server
+ * action's payload) and never resolve it themselves.
+ */
+const SWITCH_AWARE_READERS = [
+  "isTalentFreeWebsiteEnabled",
+  "isTalentTierRenameEnabled",
+  "talentTierLabel",
+  "talentPaidTierLabel",
+  "withTalentPaidTierLabel",
+  "planDisplayName",
+  "getVisibleTalentPlans",
+  "getUpgradePathFromPlan",
+  "buildTalentMembershipState",
+  "talentPlanGrantsSiteCapability",
+  "buildTalentSiteCapabilities",
+] as const;
+
+function collectSourceFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) collectSourceFiles(full, out);
+    else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+/** The value-import bindings a module pulls in, e.g. `{ a, b as c }` -> a, b. */
+function importedBindings(source: string): Set<string> {
+  const names = new Set<string>();
+  for (const match of source.matchAll(/import\s+(type\s+)?\{([^}]*)\}\s*from\s*["'][^"']+["']/g)) {
+    if (match[1]) continue; // `import type` cannot be called
+    for (const part of match[2].split(",")) {
+      const binding = part.trim().replace(/^type\s+/, "").split(/\s+as\s+/)[0]?.trim();
+      if (binding) names.add(binding);
+    }
+  }
+  return names;
+}
+
+test("importedBindings reads a real import list (self-test)", () => {
+  const names = importedBindings(
+    'import { planDisplayName, getPlan as g } from "@/lib/access/plan-catalog";\n' +
+      'import type { PlanKey } from "@/lib/access/plan-catalog";\n',
+  );
+  assert.ok(names.has("planDisplayName"));
+  assert.ok(names.has("getPlan"));
+  assert.equal(names.has("PlanKey"), false, "type-only imports cannot be called");
+});
+
+test('no "use client" component resolves the free-website switch itself', () => {
+  const srcRoot = join(__dirname, "..", "..");
+  const offenders: string[] = [];
+
+  for (const file of collectSourceFiles(srcRoot)) {
+    const source = readFileSync(file, "utf8");
+    if (!/^\s*["']use client["']/.test(source)) continue;
+    const bindings = importedBindings(source);
+    for (const reader of SWITCH_AWARE_READERS) {
+      if (bindings.has(reader)) offenders.push(`${file.slice(srcRoot.length + 1)} -> ${reader}`);
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    "a client component imports a server-side switch reader; pass the resolved value in as data instead",
+  );
 });
 
 /** `withSwitch`, but returning the body's value. */

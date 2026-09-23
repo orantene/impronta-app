@@ -24,15 +24,20 @@
 import { useState, useTransition } from "react";
 import type { TrialOffer } from "@/lib/plan-trials/offers";
 import { upsertTrialOffer } from "@/lib/server-actions/admin-trial-offers";
-import { isKnownPlan, planDisplayName } from "@/lib/access/plan-catalog";
+import { PLAN_CATALOG, type PlanKey } from "@/lib/access/plan-catalog";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { HQ, F, FD } from "../_tokens";
 import { SectionLabel, Field, Toggle, inputStyle, EmptyHint } from "../_primitives";
 
 function planLabel(planKey: string): string {
-  // planDisplayName, not a raw catalog read: it applies the talent Pro fold.
-  return isKnownPlan(planKey) ? planDisplayName(planKey) : planKey;
+  // Deliberately the RAW catalog read, not `planDisplayName`: this is a "use
+  // client" component, and `planDisplayName` resolves the talent tier rename
+  // from `TALENT_FREE_WEBSITE_ENABLED`, which a client bundle inlines as
+  // undefined. Reading it here would print a different label than the server
+  // rendered and mismatch on hydration. The raw value is the post-rename one,
+  // which is what this platform-admin tool should show regardless.
+  return PLAN_CATALOG[planKey as PlanKey]?.displayName ?? planKey;
 }
 
 export function TrialsSection({ offers }: { offers: TrialOffer[] }) {
