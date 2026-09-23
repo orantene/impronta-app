@@ -1,16 +1,21 @@
 import {
   assertNoRawI18nKeys,
   attachConsoleGuard,
+  awaitHydrated,
   expect,
   openAdminMessages,
-  openPlusTray,
   requireClientLink,
   sendTimesCard,
   shot,
   test,
 } from "../_harness";
 
-test.describe("QA remaining: hold expiry + payment mint + confirm refusal", () => {
+const RACE_B = process.env.QA_DOUBLE_BOOK_B ?? "08f2a0b7-1312-4f17-9ec4-f154aaa2e502";
+
+/**
+ * Remaining deep: hold + confirm. Payment mint/outside live in payment-*.spec.ts.
+ */
+test.describe("QA remaining: hold expiry + confirm", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
   test.setTimeout(240_000);
 
@@ -45,159 +50,23 @@ test.describe("QA remaining: hold expiry + payment mint + confirm refusal", () =
     expect(errors, errors.join("\n")).toEqual([]);
   });
 
-  test("payment: offer → client accept → mint pay link → Payment card", async ({
-    page,
-    context,
-  }) => {
-    const { errors } = attachConsoleGuard(page);
-    await openAdminMessages(page);
-    // Reuse the dedicated payment-deep inquiry (sent/accepted offer + order).
-    const u = new URL(page.url());
-    u.searchParams.set(
-      "inquiry",
-      process.env.QA_AWAITING_OFFER_INQUIRY_ID ?? "ad22e3e4-9ad9-431b-b922-1ccf3bf5c10f",
-    );
-    await page.goto(u.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
-    await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
-
-    const client = await requireClientLink(page, context);
-    const accept = client.locator('[data-client-action="accept_offer"]').first();
-    const already = client.getByText(/^accepted/i).first();
-    if (await accept.isVisible().catch(() => false)) {
-      await accept.click();
-      await expect(client.getByText(/accepted/i).first()).toBeVisible({ timeout: 25_000 });
-    } else {
-      await expect(already, "client Accept missing and no Accepted state").toBeVisible({
-        timeout: 25_000,
-      });
-    }
-    await shot(client, "remain-payment-client-accepted");
-    await client.close().catch(() => undefined);
-
-    await page.bringToFront();
-    await openPlusTray(page);
-    await page.locator('[data-tray-item="payment"]').click();
-    const pay = page.locator("[data-payment-request-sheet], [data-sheet]").first();
-    await expect(pay, "Payment request sheet did not open").toBeVisible({ timeout: 20_000 });
-    await shot(page, "remain-payment-after-offer");
-
-    const link = pay.getByText(/pay link|send a pay link/i).first();
-    await expect(link, "Pay link option missing on payment sheet").toBeVisible({
-      timeout: 10_000,
-    });
-    await link.click();
-    const full = pay.getByRole("radio", { name: /full amount/i }).first();
-    await expect(full, "Full amount option missing").toBeVisible({ timeout: 10_000 });
-    await full.click();
-    const mint = pay.locator("[data-payment-send]").first();
-    await expect(mint, "Payment Send disabled for pay-link path").toBeEnabled({
-      timeout: 15_000,
-    });
-    const before = await page.locator('[data-card="payment"]').count();
-    await mint.click();
-    await expect(
-      page.locator('[data-card="payment"]').nth(before),
-      "Payment card did not appear after minting pay link",
-    ).toBeVisible({ timeout: 25_000 });
-    await shot(page, "remain-payment-link-minted");
-
-    await page.keyboard.press("Escape");
-    await assertNoRawI18nKeys(page);
-    expect(errors, errors.join("\n")).toEqual([]);
-  });
-
-  test("payment: record paid outside → Payment card / paid chip", async ({ page, context }) => {
+  test("confirm sheet opens from race-B times Confirm door", async ({ page }) => {
     const { errors } = attachConsoleGuard(page);
     await openAdminMessages(page);
     const u = new URL(page.url());
-    u.searchParams.set(
-      "inquiry",
-      process.env.QA_OUTSIDE_PAY_INQUIRY_ID ?? "45a9b17e-63ec-4254-929a-4c67cb0b4e47",
-    );
+    u.searchParams.set("inquiry", RACE_B);
     await page.goto(u.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
     await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
+    await awaitHydrated(page);
 
-    const client = await requireClientLink(page, context);
-    const accept = client.locator('[data-client-action="accept_offer"]').first();
-    const already = client.getByText(/^accepted/i).first();
-    if (await accept.isVisible().catch(() => false)) {
-      await accept.click();
-      await expect(client.getByText(/accepted/i).first()).toBeVisible({ timeout: 25_000 });
-    } else {
-      await expect(already, "client Accept missing and no Accepted state before outside").toBeVisible(
-        { timeout: 25_000 },
-      );
-    }
-    await client.close().catch(() => undefined);
-
-    await page.bringToFront();
-    await openPlusTray(page);
-    await page.locator('[data-tray-item="payment"]').click();
-    const pay = page.locator("[data-payment-request-sheet], [data-sheet]").first();
-    await expect(pay).toBeVisible({ timeout: 20_000 });
-
-    const outside = pay.getByText(/record as paid outside|paid outside/i).first();
-    await expect(outside, "Record as paid outside option missing").toBeVisible({
-      timeout: 10_000,
-    });
-    await outside.click();
-    const full = pay.getByRole("radio", { name: /full amount/i }).first();
-    await expect(full, "Full amount option missing on outside path").toBeVisible({ timeout: 10_000 });
-    await full.click();
-    const ref = pay.locator("input:not([type='hidden']), textarea").first();
-    await expect(ref, "outside payment reference field missing").toBeVisible({ timeout: 10_000 });
-    await ref.fill("QA cash desk 001");
-    const mint = pay.locator("[data-payment-send]").first();
-    await expect(mint, "Payment Send disabled for paid-outside path").toBeEnabled({
-      timeout: 15_000,
-    });
-    await mint.click();
-    await page.waitForTimeout(1500);
-    const body = await page.locator("[data-messages-v5]").innerText();
-    expect(
-      /paid|outside|cash|transfer|terminal/i.test(body) ||
-        (await page.locator('[data-card="payment"]').count()) > 0,
-      "after record paid outside, expected Payment card or paid chip in thread",
-    ).toBeTruthy();
-    await shot(page, "remain-payment-outside");
-
-    await page.keyboard.press("Escape");
-    await assertNoRawI18nKeys(page);
-    expect(errors, errors.join("\n")).toEqual([]);
-  });
-
-  test("confirm sheet: open and attempt confirm when door present", async ({ page }) => {
-    const { errors } = attachConsoleGuard(page);
-    await openAdminMessages(page);
-
-    const rows = page.locator("[data-inbox-row]");
-    const n = Math.min(await rows.count(), 16);
-    expect(n, "inbox empty — cannot hunt for Confirm door").toBeGreaterThan(0);
-
-    let opened = false;
-    for (let i = 0; i < n; i++) {
-      await rows.nth(i).click();
-      await page.waitForTimeout(400);
-      const confirm = page.getByRole("button", { name: /^confirm/i }).first();
-      const next = page.locator("[data-next-step-action]");
-      if (await confirm.isVisible().catch(() => false)) {
-        await confirm.click();
-        opened = true;
-        break;
-      }
-      if ((await next.count()) && /confirm/i.test(await next.first().innerText())) {
-        await next.first().click();
-        opened = true;
-        break;
-      }
-    }
-    test.skip(
-      !opened,
-      "no Confirm door on scanned threads — seed an accepted offer ready to confirm on the QA tenant",
-    );
-
+    const timesConfirm = page.locator('[data-times-action="confirm"]').first();
     await expect(
-      page.locator("[data-sheet], [role='dialog']").first(),
+      timesConfirm,
+      "Confirm door missing on race-B — seed picked professional_times (D-MSG-310)",
+    ).toBeVisible({ timeout: 20_000 });
+    await timesConfirm.click();
+    await expect(
+      page.locator("[data-confirm-sheet]").first(),
       "Confirm sheet did not open",
     ).toBeVisible({ timeout: 15_000 });
     await shot(page, "remain-confirm-sheet");

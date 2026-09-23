@@ -1,7 +1,7 @@
 # Messages v5 QA program log
 
 Host: `https://staging-qa-journeys.tulala.digital`  
-Branch: Round 2 — `#2163` on main + production (`8007c1dd`); `#2165` open (D-MSG-330–336)  
+Branch: Round 2 — `#2163` on main + production (`8007c1dd`); `#2165` open (D-MSG-330–337)  
 Isolated DB: `fxlankepwnvelxjrahwk`  
 Updated: 2026-09-23 (Round 2)
 
@@ -13,7 +13,7 @@ Updated: 2026-09-23 (Round 2)
 
 **Stripe on `qa-stripe-r2`:** mint + `confirm=stripe` → Checkout proven (D-MSG-329). **4242+refund blocked (D-MSG-330):** `cs_live_…` — need `sk_test_`.
 
-**Still owed:** merge `#2165` when CI green; 4242 once test key exists. Forever-skip client placeholders (`cards` / `locale-phone` / `offer-payment`) removed — covered by `*-deep` + locale-pay-deep.
+**Locale:** client `?lang=` honored (D-MSG-337, needs deploy). **Still owed:** merge `#2165` when CI green; 4242 once test key exists. Forever-skip client placeholders (`cards` / `locale-phone` / `offer-payment`) removed — covered by `*-deep` + locale-pay-deep.
 
 **Red (product):** D-MSG-318 POS 13th seat React #310; D-MSG-319 POS foreign-order React #310; D-MSG-312 concurrent confirm TOCTOU.
 
