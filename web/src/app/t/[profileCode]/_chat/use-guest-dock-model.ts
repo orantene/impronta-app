@@ -63,16 +63,19 @@ export function useGuestDockModel(input: {
   const token = input.v5?.threadToken ?? null;
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [bookAgainStarted, setBookAgainStarted] = useState(false);
   const run = useCallback(async () => {
     if (!token || !recordId || busy) return;
     setBusy(true);
     setRefusal(null);
+    setBookAgainStarted(false);
     const result = await messagingClientBookAgain({ token, recordId });
     setBusy(false);
     if (!result.ok) {
       setRefusal(result.reason);
       return;
     }
+    setBookAgainStarted(true);
     input.onOpenInquiry?.(result.inquiryId);
   }, [token, recordId, busy, input]);
   const onBookInquiry = useCallback(
@@ -100,6 +103,7 @@ export function useGuestDockModel(input: {
       C: input.C,
       accent: input.accent,
       accentInk: input.accentInk,
+      bookAgainNotice: bookAgainStarted,
     },
     /** Props for the Items shelf inside the Lineup view. */
     lineupItemsProps: { items: input.v5?.items ?? null, businessName, locale, representsPeople: input.brand.dockRepresentsPeople !== false, now },

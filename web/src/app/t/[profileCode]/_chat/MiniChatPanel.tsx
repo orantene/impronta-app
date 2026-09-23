@@ -29,6 +29,7 @@ import type {
   InquiryReceiptData,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
+import { inquiryIdAfterUnifiedSync } from "@/lib/messages-v5/adopt-panel-inquiry";
 
 import { createTranslator } from "@/i18n/messages";
 
@@ -296,11 +297,11 @@ export function MiniChatPanel({
   });
 
   // When the hook lazily creates the early row, adopt its id so the thread + gate
-  // target the same inquiry.
+  // target the same inquiry. A later switch (Book again) already set inquiryId;
+  // do not copy the hook's previous id back over it (D-MSG-331).
   useEffect(() => {
-    if (unified.inquiryId && unified.inquiryId !== inquiryId) {
-      setInquiryId(unified.inquiryId);
-    }
+    const next = inquiryIdAfterUnifiedSync(inquiryId, unified.inquiryId);
+    if (next && next !== inquiryId) setInquiryId(next);
   }, [unified.inquiryId, inquiryId]);
 
   // Report the resolved inquiry id up so the launcher's rail X-remove can patch

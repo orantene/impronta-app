@@ -1238,6 +1238,7 @@
       "dockBookAgainSub": "Empieza una nueva solicitud con los mismos artículos",
       "dockBookAgainBusy": "Empezando…",
       "dockBookAgainFailed": "No se pudo empezar una nueva solicitud. Inténtalo de nuevo.",
+      "dockBookAgainStarted": "Nueva solicitud iniciada con tus últimos artículos",
       "dockBookAgainUnavailable": "Abre esta conversación para reservar de nuevo.",
       "detailsAddCta": "Agregar detalles",
       "detailsProgress": "{filled}/{total}",

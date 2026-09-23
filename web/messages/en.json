@@ -1239,6 +1239,7 @@
       "dockBookAgainBusy": "Starting…",
       "dockBookAgainFailed": "Could not start a new inquiry. Try again.",
       "dockBookAgainUnavailable": "Open this conversation to book again.",
+      "dockBookAgainStarted": "New inquiry started with your last items",
       "detailsAddCta": "Add details",
       "detailsProgress": "{filled}/{total}",
       "detailsSheetTitle": "Event details",
