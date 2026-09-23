@@ -15,7 +15,8 @@ import {
  *
  * Requires STRIPE_SECRET_KEY on the host so minted links use provider=stripe
  * (D-MSG-313: staging-qa-journeys is preview-only and mints provider=mock).
- * Override PLAYWRIGHT_BASE_URL to a production-gated QA business host.
+ * Override PLAYWRIGHT_BASE_URL to a production-gated agent-owned QA host and set
+ * QA_ALLOW_AGENT_PROD_HOST=1 (assertQaIsolatedTarget refuses Impronta / apex).
  *
  * Flow: mint pay link → open /pay/<code> → Stripe Checkout with 4242 →
  * assert Payment card Paid + Money balance + record chip → full refund →

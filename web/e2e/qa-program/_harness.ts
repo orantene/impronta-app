@@ -12,7 +12,7 @@ import {
   assertNotAuthWall,
   awaitHydrated,
   JOURNEYS_OWNER_EMAIL,
-  prepareJourneysPage,
+  prepareJourneysPage as prepareJourneysPageRaw,
   signInJourneysStaff,
   test,
 } from "../cases/_harness";
@@ -22,13 +22,64 @@ export {
   awaitHydrated,
   expect,
   JOURNEYS_OWNER_EMAIL,
-  prepareJourneysPage,
   signInJourneysStaff,
   test,
 };
 
 export const QA_HOST = process.env.PLAYWRIGHT_BASE_URL ?? "https://staging-qa-journeys.tulala.digital";
 export const EVIDENCE_DIR = "e2e/qa-program/evidence/2026-09-18";
+
+/**
+ * Codex P1 / AGENTS.md: refuse before any Messages mutation when the base URL
+ * or Supabase env points at production / Impronta. Throws (Playwright) rather
+ * than process.exit (scripts/isolated-target-guard.mjs).
+ *
+ * Stripe 4242 on an agent-owned production business must set
+ * `QA_ALLOW_AGENT_PROD_HOST=1` and use a host that is not Impronta.
+ */
+export function assertQaIsolatedTarget(baseUrl = QA_HOST): void {
+  const url = (baseUrl || "").toLowerCase();
+  const supabase = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").toLowerCase();
+  const ref = (process.env.SUPABASE_PROJECT_REF ?? "").toLowerCase();
+  const blob = `${url}\n${supabase}\n${ref}`;
+
+  if (/impronta|pluhdapdnuiulvxmyspd|\.env\.vercel\.local/.test(blob)) {
+    throw new Error(
+      "QA program refusing production / Impronta target — use staging-qa-journeys (fxlankepwnvelxjrahwk) or set an agent-owned host with QA_ALLOW_AGENT_PROD_HOST=1",
+    );
+  }
+
+  const allowAgentProd = process.env.QA_ALLOW_AGENT_PROD_HOST === "1";
+  const isLocal = /localhost|127\.0\.0\.1/.test(url);
+  const isJourneysHost = /staging-qa-journeys\.tulala\.digital/.test(url);
+  const isQaSupabase =
+    ref === "fxlankepwnvelxjrahwk" ||
+    supabase.includes("fxlankepwnvelxjrahwk") ||
+    !supabase; // remote Playwright often only sets PLAYWRIGHT_BASE_URL
+
+  if (isJourneysHost || isLocal) {
+    if (supabase && !isQaSupabase && !allowAgentProd) {
+      throw new Error(
+        "QA program refusing: PLAYWRIGHT_BASE_URL is journeys but NEXT_PUBLIC_SUPABASE_URL is not fxlankepwnvelxjrahwk",
+      );
+    }
+    return;
+  }
+
+  if (allowAgentProd && /\.tulala\.digital/.test(url) && !/impronta/.test(url)) {
+    return;
+  }
+
+  throw new Error(
+    `QA program refusing base URL ${baseUrl || "(empty)"} — expected staging-qa-journeys.tulala.digital (or QA_ALLOW_AGENT_PROD_HOST=1 for an agent-owned *.tulala.digital)`,
+  );
+}
+
+/** prepareJourneysPage with isolated-target refusal first (Codex P1 on #2155). */
+export async function prepareJourneysPage(page: Page): Promise<void> {
+  assertQaIsolatedTarget();
+  await prepareJourneysPageRaw(page);
+}
 
 /** Fail the test naming what was missing — never soft-bail. */
 export async function requireVisible(
@@ -61,6 +112,7 @@ export async function requireCountAtLeast(
 
 /** Open workspace admin Messages v5 and wait for the shell. */
 export async function openAdminMessages(page: Page, next = "/admin/messages"): Promise<void> {
+  assertQaIsolatedTarget();
   await prepareJourneysPage(page);
   await signInJourneysStaff(page, next, JOURNEYS_OWNER_EMAIL);
   await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });

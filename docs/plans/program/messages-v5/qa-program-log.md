@@ -1,19 +1,22 @@
 # Messages v5 QA program log
 
 Host: `https://staging-qa-journeys.tulala.digital`  
-Branch: Round 2 — `#2148`–`#2157` on production (`c596e5c2`); `#2158` merged `630819f7` (CI); vocab assert `#2161`  
+Branch: Round 2 — `#2161` on main (`41fabb00b`); production catching up from `#2158` (`630819f7`)  
 Isolated DB: `fxlankepwnvelxjrahwk`  
 Updated: 2026-09-23 (Round 2)
 
 ## Final summary (Round 2 in progress)
 
-**Merged to main:** `#2148` required asserts → `#2155` confirm/double-book → `#2156` Stripe spec → `#2157` capacity/locale/payment → `#2158` isolation/hostile/reload.
+**Merged to main:** `#2148` required asserts → `#2155` confirm/double-book → `#2156` Stripe spec → `#2157` capacity/locale/payment → `#2158` isolation/hostile/reload → `#2161` vocab picker assert.
 
 **Proven green on QA host (required asserts):** hold expired + live; confirm recheck; double-book loser; payment collect / pay-link / outside cash; locale ES; last-place class busy; restaurant Items = Menu (D-MSG-316 live); isolation Messages/link/pay; hostile + reload.
 
 **Red (product):** D-MSG-318 POS 13th seat React #310; D-MSG-319 POS foreign-order React #310; D-MSG-312 concurrent confirm TOCTOU.
 
-**Still owed:** Stripe 4242+refund on agent-owned **production** business (D-MSG-313 — journeys is mock); salon vocab; money-perm live staff; notifications; §7 storefront→Messages chip; event/table capacity host re-run; `#2161` merge after `#2158` pointer.
+**Still owed:** Stripe 4242+refund on agent-owned **production** business (D-MSG-313 — journeys is mock; needs `QA_ALLOW_AGENT_PROD_HOST=1`); salon vocab; money-perm live staff; notifications; §7 storefront→Messages chip; event/table capacity host re-run; wait `#2161` production pointer.
+
+**Harness:** `assertQaIsolatedTarget` on `prepareJourneysPage` / `openAdminMessages` (Codex P1 on #2155 — refuse Impronta / production Supabase before mutation).
+
 
 ## Checklist
 
