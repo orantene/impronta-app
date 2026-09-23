@@ -31,6 +31,7 @@ import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import { BuilderMediaScopeProvider } from "@/components/edit-chrome/builder-media-scope";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
+import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { TalentBuilderPageSwitcher } from "./TalentBuilderPageSwitcher";
 
 export interface TalentMaxBuilderMountProps {
@@ -48,6 +49,14 @@ export interface TalentMaxBuilderMountProps {
   tenantId: string;
   /** Talent tier (talent_basic | talent_pro | talent_portfolio). */
   talentTier?: string | null;
+  /**
+   * Phase 1 — the talent's per-capability record. Threaded into
+   * `buildTalentPageBuilderConfig` so `structuralEdits`/`themeTokens`/`seo`
+   * map from the ACTUAL capability record instead of a Max-or-not guess.
+   * Omitted ⇒ the config factory falls back to its legacy `talentTier` rule
+   * (byte-identical to today).
+   */
+  siteCapabilities?: TalentSiteCapabilities;
   /** Workspace plan tier — passed through to the editor for gallery gating. */
   workspacePlan?: string | null;
   /** Display label for the topbar (e.g. talent's display name). */
@@ -71,6 +80,7 @@ export function TalentMaxBuilderMount({
   pageSlug,
   tenantId,
   talentTier = null,
+  siteCapabilities,
   workspacePlan = null,
   talentDisplayName = null,
   locale,
@@ -79,14 +89,14 @@ export function TalentMaxBuilderMount({
   sitePages,
 }: TalentMaxBuilderMountProps) {
   // Create a per-mount adapter with talentProfileId in closure.
-  // Config rebuilds on talentProfileId or tier change.
+  // Config rebuilds on talentProfileId, tier or capability record change.
   const surfaceConfig = useMemo(
     () =>
       buildTalentPageBuilderConfig(
         createBoundTalentPageAdapter(talentProfileId),
-        { talentTier },
+        { talentTier, siteCapabilities },
       ),
-    [talentProfileId, talentTier],
+    [talentProfileId, talentTier, siteCapabilities],
   );
 
   return (
@@ -127,7 +137,12 @@ export function TalentMaxBuilderMount({
             ← Exit editor
           </button>
           {sitePages ? (
-            <TalentBuilderPageSwitcher pages={sitePages} currentSlug={pageSlug} />
+            <TalentBuilderPageSwitcher
+              pages={sitePages}
+              currentSlug={pageSlug}
+              canAddPages={siteCapabilities?.personalSitePages ?? true}
+              locale={locale}
+            />
           ) : (
             talentDisplayName && (
               <span

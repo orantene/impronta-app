@@ -2244,43 +2244,43 @@ export const TALENT_TIER_META: Record<
     accent: "gold",
   },
   max: {
-    label: "Portfolio",
+    label: "Web Office",
     tagline: "Your own brand",
     monthlyPrice: "$15 / mo",
-    blurb: "A multi-section page builder, custom domain, SEO controls, branded invoices, full analytics — and the lowest fee on direct bookings.",
+    blurb: "Template choices, video + social embeds, press band, media kit, priority discovery, a multi-section page builder, custom domain, SEO controls, branded invoices, full analytics — and the lowest fee on direct bookings.",
     accent: "deep",
   },
 };
 
 /**
- * The single talent-tier catalog — the source of truth for the
- * Free / Pro / Portfolio split. Drives the compare-drawer matrix, the
- * per-feature gates (`tierAllows`), and per-plan lock states. Change
- * a feature's split here and every consumer follows.
+ * The single talent-tier catalog — source of truth for the Free / Web Office
+ * split (Pro fold, 2026-09-23: `unlockedAt: "pro"` rows collapsed into
+ * `"max"`). Drives the compare matrix, per-feature gates (`tierAllows`), and
+ * lock states. Change a feature's split here and every consumer follows.
  */
 export const TALENT_TIER_CATALOG: TalentTierCatalogRow[] = [
   // ── Your Tulala page ──
   { group: "page", label: "Personal page at tulala.digital/t/<code>", free: true, pro: true, max: true },
-  { group: "page", label: "Page templates", free: "Roster only", pro: "+ Editorial, Studio", max: "All 6 templates", feature: "template-picker", unlockedAt: "pro" },
+  { group: "page", label: "Page templates", free: "Roster only", pro: "+ Editorial, Studio", max: "All 6 templates", feature: "template-picker", unlockedAt: "max" },
   { group: "page", label: "Photo gallery", free: "Standard", pro: "Large", max: "Unlimited" },
-  { group: "page", label: "Video + social embeds", free: false, pro: "Up to 6", max: "Unlimited", feature: "media-embeds", unlockedAt: "pro" },
-  { group: "page", label: "Animated cover", free: false, pro: true, max: true, feature: "video-hero", unlockedAt: "pro" },
-  { group: "page", label: "Press / clippings band", free: false, pro: true, max: true, feature: "press-band", unlockedAt: "pro" },
+  { group: "page", label: "Video + social embeds", free: false, pro: "Up to 6", max: "Unlimited", feature: "media-embeds", unlockedAt: "max" },
+  { group: "page", label: "Animated cover", free: false, pro: true, max: true, feature: "video-hero", unlockedAt: "max" },
+  { group: "page", label: "Press / clippings band", free: false, pro: true, max: true, feature: "press-band", unlockedAt: "max" },
   { group: "page", label: "Soften / hide agency branding", free: false, pro: true, max: true },
   { group: "page", label: "Multi-section page builder", free: false, pro: false, max: true, feature: "extra-sections", unlockedAt: "max" },
   { group: "page", label: "Custom domain (yourname.com)", free: false, pro: false, max: true, feature: "custom-domain", unlockedAt: "max" },
   { group: "page", label: "SEO controls + meta", free: false, pro: false, max: true, feature: "seo-controls", unlockedAt: "max" },
   // ── Getting found ──
-  { group: "discovery", label: "Listed in Tulala Discover", free: "Standard", pro: "Priority", max: "Top + featured", feature: "priority-discovery", unlockedAt: "pro" },
-  { group: "discovery", label: "Plan badge on cards & inquiries", free: false, pro: "Pro badge", max: "Portfolio badge" },
+  { group: "discovery", label: "Listed in Tulala Discover", free: "Standard", pro: "Priority", max: "Top + featured", feature: "priority-discovery", unlockedAt: "max" },
+  { group: "discovery", label: "Plan badge on cards & inquiries", free: false, pro: "Pro badge", max: "Web Office badge" },
   // ── Bookings & money ──
   { group: "money", label: "Inquiry inbox + bookings", free: true, pro: true, max: true },
   { group: "money", label: "Tulala fee on direct bookings", free: "Standard", pro: "Reduced", max: "Lowest" },
   { group: "money", label: "Deposit requests", free: false, pro: true, max: true },
   { group: "money", label: "Branded invoices / quotes", free: false, pro: false, max: true },
   { group: "money", label: "Page analytics", free: false, pro: "Basic", max: "Full" },
-  // ── Pro tools ──
-  { group: "tools", label: "Auto media kit (EPK PDF)", free: false, pro: true, max: "Branded", feature: "media-kit", unlockedAt: "pro" },
+  // ── Web Office tools ──
+  { group: "tools", label: "Auto media kit (EPK PDF)", free: false, pro: true, max: "Branded", feature: "media-kit", unlockedAt: "max" },
   { group: "tools", label: "Priority support", free: false, pro: false, max: true },
 ];
 
@@ -2289,7 +2289,7 @@ export const TALENT_TIER_GROUP_LABELS: Record<TalentTierGroup, string> = {
   page: "Your Tulala page",
   discovery: "Getting found",
   money: "Bookings & money",
-  tools: "Pro tools",
+  tools: "Web Office tools",
 };
 
 const TALENT_TIER_RANK: Record<TalentSubscriptionTier, number> = { free: 0, pro: 1, max: 2 };
@@ -2303,8 +2303,8 @@ export function tierAllows(current: TalentSubscriptionTier, feature: TalentTierF
 
 export const TALENT_PAGE_TEMPLATES: TalentPageTemplate[] = [
   { id: "roster", label: "Roster", blurb: "Classic comp-card layout — what agencies use.", thumb: "🎴", availableAt: "free" },
-  { id: "editorial", label: "Editorial", blurb: "Magazine spread feel — large hero, generous white space.", thumb: "📰", availableAt: "pro" },
-  { id: "studio", label: "Studio", blurb: "Tight grid, big imagery — for fashion + lifestyle.", thumb: "🖼️", availableAt: "pro" },
+  { id: "editorial", label: "Editorial", blurb: "Magazine spread feel — large hero, generous white space.", thumb: "📰", availableAt: "max" },
+  { id: "studio", label: "Studio", blurb: "Tight grid, big imagery — for fashion + lifestyle.", thumb: "🖼️", availableAt: "max" },
   { id: "stage", label: "Stage", blurb: "Video-first hero with show / tour / gig dates.", thumb: "🎤", availableAt: "max" },
   { id: "creator", label: "Creator", blurb: "Social-first — TikTok / IG / YouTube embeds drive the page.", thumb: "📱", availableAt: "max" },
   { id: "epk", label: "EPK", blurb: "Press-kit feel — bio, credits, downloads, contact CTA.", thumb: "📄", availableAt: "max" },
@@ -2343,7 +2343,7 @@ export const REPRESENTATION_META: Record<
  * notified.
  *
  * Tier is passed through but does NOT change ownership in v1 — it's
- * available for future rules (e.g., Portfolio talent on freelance status
+ * available for future rules (e.g., a Web Office talent on freelance status
  * may eventually opt into an "agency-blind" mode, but that is not
  * specified yet).
  */
@@ -2824,9 +2824,9 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     earnings90d: 3600,
     earningsCurrency: "€",
     toggleable: true,
-    badge: "Pro tier",
+    badge: "Web Office tier",
     description:
-      "Your premium personal page on Tulala. The only channel you fully own — clients reach you directly, no platform routing. Custom domain available on Portfolio tier.",
+      "Your premium personal page on Tulala. The only channel you fully own — clients reach you directly, no platform routing. Custom domain available on Web Office tier.",
     feeRate: 0,
   },
   // 2 — Tulala Hub

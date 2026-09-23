@@ -20,9 +20,21 @@
 import type { AddGalleryAllowTab } from "@/lib/site-admin/add-gallery/types";
 import type { BuilderDataSourceKey } from "@/lib/site-admin/builder-node/data-bindings";
 import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
+import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
 
 import type { BuilderSurfaceAdapter } from "./surface-adapter";
 import type { BuilderSurfaceKind } from "./surface-kind";
+
+/**
+ * Phase 1 — the paid tier a locked control should upsell to, threaded onto a
+ * talent surface's config so lock chips never hard-code the plan key or the
+ * "Web Office" label themselves. Present only on talent-subject surfaces
+ * (`talent_page` and a talent-owned `site_shell`); omitted elsewhere.
+ */
+export interface BuilderLockedUpsell {
+  planKey: "talent_portfolio";
+  label: "Web Office";
+}
 
 /** Subject a connected/data-bound node hydrates against in the editor canvas.
  *  `null` → render against the active tenant (the published-storefront default,
@@ -177,6 +189,25 @@ export interface BuilderContextConfig {
    * entirely from `surfaceConfig`.
    */
   surfaceTalentTier?: string | null;
+  /**
+   * Phase 1 — true when the operator may insert/paste/duplicate nested blocks
+   * and sections on this surface (`personalSiteSections` for a talent
+   * surface). Distinct from `capabilities.customCss`/`capabilities.motion`,
+   * which happen to be driven by the same site capability on talent surfaces
+   * today but are conceptually separate flags. The client chokepoint
+   * (`guardBuilderNodeMutation` / `assertAdvancedLibraryAllowsOperation`)
+   * reads this to deny structural edits with a lock chip instead of a bare
+   * message. Undefined ⇒ no additional gate beyond the existing advanced-
+   * library check (every non-talent surface).
+   */
+  structuralEdits?: boolean;
+  /**
+   * Phase 1 — which paid plan a locked control on this surface should upsell
+   * to, and the label to show ("Web Office"). Present only on talent-subject
+   * surfaces; omitted elsewhere. UI must read this instead of hard-coding a
+   * plan key or a "Portfolio"/"Max" label.
+   */
+  lockedUpsell?: BuilderLockedUpsell | null;
 }
 
 /** Every data source the storefront homepage editor can bind today. */
@@ -432,17 +463,33 @@ export function buildPrintBuilderConfig(
  *   - `allowDbTemplates: true` + the Designs tab (page_templates gate) — talent
  *     Max can apply DB-backed page templates.
  *   - `canEditShell: false` — talent pages don't own the shared site shell.
- *   - `canInsertRawHtmlElements: false` — raw HTML off for talent tier.
- *   - Capability gating by `talentTier` (e.g. custom CSS only on Max):
- *     pass `opts.tier` to reduce capabilities for lower tiers.
+ *   - `canInsertRawHtmlElements: false` — raw HTML off for EVERY talent
+ *     surface, unconditionally — talent-authored pages now render on the
+ *     cookie-shared apex (Phase 2), so this is a security boundary, never a
+ *     capability. Static test: `config-talent-raw-html.static.test.ts`.
+ *   - Capability gating by `siteCapabilities` (Phase 1) when provided:
+ *     `themeTokens` ← `personalSiteDesignPresets`, `customCss`/`motion` ←
+ *     `personalSiteSections`, `seo` ← `personalSiteSeo`. `structuralEdits` and
+ *     `lockedUpsell` are threaded through unconditionally for the client
+ *     chokepoint + lock chips. When `siteCapabilities` is omitted (legacy
+ *     call sites, or the switch off) the old `talentTier`-only rule applies —
+ *     byte-identical to today: every capability true unless `talentTier` is a
+ *     non-Max value.
  *
  * The adapter is passed IN to keep `config.ts` free of server-action edges.
  */
 export function buildTalentPageBuilderConfig(
   talentPageSurfaceAdapter: BuilderSurfaceAdapter,
   opts?: {
-    /** Talent tier — reduces capabilities for lower tiers. */
+    /** Talent tier — reduces capabilities for lower tiers (legacy path). */
     talentTier?: string | null;
+    /**
+     * Phase 1 — the talent's per-capability record (`buildTalentSiteCapabilities`).
+     * When present, this is the ONLY source the config reads for site-scoped
+     * capabilities — `talentTier` is then used solely for `surfaceTalentTier`
+     * (gallery §E gating).
+     */
+    siteCapabilities?: TalentSiteCapabilities;
   },
 ): BuilderContextConfig {
   const kind: BuilderSurfaceKind = talentPageSurfaceAdapter.kind;
@@ -451,11 +498,14 @@ export function buildTalentPageBuilderConfig(
       `buildTalentPageBuilderConfig requires a talent_page adapter, got "${kind}".`,
     );
   }
-  // Capability gating: Max (talent_portfolio) gets all; lower tiers may be
-  // restricted in future. For now all tiers get the same capabilities —
-  // the plan intent is that only Max can reach this builder surface at all.
+  // Legacy fallback (no capability record threaded through): Max gets all,
+  // lower tiers are restricted — the byte-identical pre-Phase-1 rule.
   const isMaxTier =
     !opts?.talentTier || opts.talentTier === "talent_portfolio";
+  const caps = opts?.siteCapabilities ?? null;
+  const themeTokens = caps ? caps.personalSiteDesignPresets : isMaxTier;
+  const structuralEdits = caps ? caps.personalSiteSections : isMaxTier;
+  const seo = caps ? caps.personalSiteSeo : true;
 
   return {
     surface: talentPageSurfaceAdapter,
@@ -464,6 +514,7 @@ export function buildTalentPageBuilderConfig(
       canPublish: true,
       canRestoreRevision: true,
       canEditShell: false,
+      // Security boundary, not a capability — never varies by tier or plan.
       canInsertRawHtmlElements: false,
     },
     galleryPolicy: {
@@ -476,14 +527,18 @@ export function buildTalentPageBuilderConfig(
     dataSources: { allowed: TALENT_PAGE_DATA_SOURCES },
     previewSubjectKind: "talent",
     surfaceTalentTier: opts?.talentTier ?? null,
+    structuralEdits,
+    lockedUpsell: { planKey: "talent_portfolio", label: "Web Office" },
     capabilities: {
-      motion: isMaxTier,
-      themeTokens: isMaxTier,
-      customCss: isMaxTier,
+      motion: structuralEdits,
+      themeTokens,
+      customCss: structuralEdits,
       responsiveBreakpoints: true,
       // Talent Max pages are public SSR surfaces; the SEO-1 talent_pages
       // migration adds the columns SEO-2 wires into the route + adapter.
-      seo: true,
+      // Render-time ignores stored SEO for a talent who cannot edit it
+      // (`scrubTalentSiteSeo`); this flag governs whether the SEO TAB shows.
+      seo,
       serverRenderedEditTarget: false,
     },
   };
@@ -527,6 +582,13 @@ export function buildSiteShellBuilderConfig(
      * for §E required_talent_tier gating, mirroring the talent_page factory.
      */
     talentTier?: string | null;
+    /**
+     * Phase 1 — the talent's per-capability record, threaded through on a
+     * TALENT shell only (mirrors `buildTalentPageBuilderConfig`). Ignored on
+     * an agency shell (`talentTier` omitted). Absent ⇒ every capability true
+     * (byte-identical pre-Phase-1 behaviour — a talent shell was Max-only).
+     */
+    siteCapabilities?: TalentSiteCapabilities;
   },
 ): BuilderContextConfig {
   const kind: BuilderSurfaceKind = siteShellSurfaceAdapter.kind;
@@ -540,6 +602,9 @@ export function buildSiteShellBuilderConfig(
   // toggle (that was the lossy 3-on-1 collapse X1 documented).
   const isTalentShell =
     opts?.talentTier !== undefined && opts.talentTier !== null;
+  const talentCaps = isTalentShell ? opts?.siteCapabilities ?? null : null;
+  const shellThemeTokens = talentCaps ? talentCaps.personalSiteDesignPresets : true;
+  const shellStructuralEdits = talentCaps ? talentCaps.personalSiteSections : true;
   return {
     surface: siteShellSurfaceAdapter,
     permissions: {
@@ -574,10 +639,14 @@ export function buildSiteShellBuilderConfig(
     previewSubjectKind: null,
     // §E required_talent_tier gating for a talent-subject shell (null on agency).
     surfaceTalentTier: opts?.talentTier ?? null,
+    structuralEdits: isTalentShell ? shellStructuralEdits : undefined,
+    lockedUpsell: isTalentShell
+      ? { planKey: "talent_portfolio", label: "Web Office" }
+      : null,
     capabilities: {
-      motion: true,
-      themeTokens: true,
-      customCss: true,
+      motion: shellStructuralEdits,
+      themeTokens: shellThemeTokens,
+      customCss: shellStructuralEdits,
       responsiveBreakpoints: true,
       // site_shell is the shared header/footer, not a public page — suppress the
       // SEO tab here (the wrapping page carries SEO, the shell never does).

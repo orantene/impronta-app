@@ -4,6 +4,84 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-09-23 — Talent free website, Pro fold, Web Office rename (L45 reversal)
+
+**Founder decision.** The talent personal site becomes a free product for
+every talent (dark-launched behind `TALENT_FREE_WEBSITE_ENABLED`), and the
+two paid talent tiers (`talent_pro`, `talent_portfolio`) fold into **one**
+paid tier, sold and shown everywhere as **"Web Office"**. "Pro", "Portfolio"
+and "Max" disappear from every screen; the plan keys, ranks, Stripe ids and
+`talent_portfolio`'s internal `TalentPlanTier` value `"max"` are untouched —
+this is a label and capability change, not a data-model rename. See
+`web/docs/talent-website-execution-plan-2026-09-23.md`, Phase 1, for the
+full plan.
+
+**L45 reversal — personal sites are free, not Max-only.** L45 (below,
+2026-05-25) gated a talent's own multi-page site to the Max tier. That is
+reversed: every talent tier gets a free, real personal site (auto-built from
+the profile, one design + one look, full text/image/section-visibility
+editing, republish). What stays paid (Web Office) is the *expansion* of that
+site — extra pages, inserting new sections/blocks, a custom domain, SEO,
+analytics, custom CSS/motion — via the new `TalentSiteCapability` matrix in
+`talent-membership.ts` (`personalSiteEdit`/`personalSitePublish`/
+`personalSiteDesignPresets` free on every tier; `personalSiteSections`/
+`personalSitePages`/`personalSiteSeo`/`personalSiteAnalytics`/
+`personalSiteCustomDomain` Web Office only). While
+`TALENT_FREE_WEBSITE_ENABLED` is unset, every one of those resolves exactly
+as L45 specified (Max-only) — flags-off parity is byte-identical to today.
+
+**Pro fold.** `talent_pro` is no longer sold (`isVisible: false`,
+`isSelfServe: false` in `plan-catalog.ts`) or shown as its own tier anywhere.
+Existing Pro subscribers are grandfathered — their plan key, Stripe
+subscription and price keep resolving — and `talent_portfolio`'s capability
+set becomes a strict superset of what `talent_pro` granted (profile
+extras — embeds, press band, media kit, priority discovery — plus badge
+removal), so nobody who upgrades to Web Office loses a Pro-era perk. The
+compare view (`TalentTierCompareDrawer` in `premium-pages.tsx`,
+`TalentPlanCard`) renders exactly two columns: Free and Web Office.
+
+**Paths:** `web/src/lib/access/{talent-free-website,talent-membership,
+plan-catalog}.ts`, `web/src/lib/server/talent-self-guard.ts`,
+`web/src/lib/talent-site/**`, `web/src/components/admin/shell/internal/
+{state/fixtures,talent-drawers/premium-pages,dashboard-i18n}.ts`,
+`web/src/components/talent/site/**`, `web/messages/{en,es}.json`,
+`supabase/migrations/20261231279000_talent_site_domain_requires_max.sql`.
+
+**Backward compatible:** Yes, for every gate and every capability. Flags-off
+parity is a required regression journey (J0); only Web Office (nee Max)
+talents render/manage a personal site until the switch flips. Grandfathered
+`talent_pro` rows keep every capability they had before, plus the folded-in
+superset once the switch is on.
+
+**Reviewer note (2026-09-23), scope of "byte-identical" — the LABEL half of
+the fold is NOT switch-gated.** The capability, gate and render behaviour is
+byte-identical with the switch off; the NAMING is not, in two places, and
+both are deliberate:
+
+1. `talent_pro.isVisible` / `isSelfServe` are `false` on both switch
+   positions, so the plan stops being sold the moment this ships, not when
+   the switch flips.
+2. The client components that name a tier (the compare drawer, the plan
+   badge on the personal-site card, the domain panel, the builder lock
+   chips) say "Web Office" on both switch positions.
+
+Reason: `TALENT_FREE_WEBSITE_ENABLED` is not a `NEXT_PUBLIC_*` variable, so
+a client bundle inlines it as `undefined`; a client component that resolved
+it would hydrate a different label than the server rendered. Gating the
+server half alone would make the pricing page and the compare drawer
+disagree about which plans exist, which is worse than a consistent early
+rename. The server-resolved labels (membership `displayName`,
+`planDisplayName`, every guard refusal string) ARE switch-gated and still
+read "Portfolio"/"Pro" while dark. To close the gap, thread the resolved
+label from each server boundary into these components as a prop; do not add
+a second `NEXT_PUBLIC_` switch that can disagree with this one.
+
+**Migration:** `20261231279000_talent_site_domain_requires_max.sql` —
+`talent_site_domain_lookup` now also requires `talent_profile_has_max`,
+additive and idempotent.
+
+---
+
 ## 2026-09-08 — L52 occupancy column
 
 **Clarification, not a reopen.** `orders.space_id` remains the physical table (`spaces.id`). Occupancy and QR identity live on `visits` and `orders.visit_id`. Stuffing a visit UUID into `space_id` would collide with the space identity that column was reserved for. One visit still has one order until bill-splitting proves otherwise.

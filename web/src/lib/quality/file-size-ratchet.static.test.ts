@@ -126,7 +126,13 @@ const BUDGETS: Record<string, number> = {
   // repair trio moved out together as use-section-lock-actions.ts — they share
   // the commit spine and only read correctly against each other. The feature
   // lands NET SMALLER than the code it joined; budget lowered to match.
-  "src/components/edit-chrome/edit-context.tsx": 6290,
+  // RAISED 6290 -> 6308 (Phase 1, talent free website). `EditProvider` owns the
+  // only call site of `guardBuilderNodeMutation`, so the talent structural-edit
+  // lock has to be threaded through here: 18 lines for `structuralEdits`,
+  // `locale` and `onLockedOperation` plus their dependency entries. Everything
+  // that COULD leave did: the CustomEvent payload lives in the new
+  // `edit-chrome/talent-lock-broadcast.ts`, not in this file.
+  "src/components/edit-chrome/edit-context.tsx": 6308,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
@@ -428,7 +434,13 @@ const BUDGETS: Record<string, number> = {
   // appear", "Set up your public page", "View", "Hub") plus their header
   // comment. Same reasoning as above: ES_TEXT is a flat map keyed by the
   // English literal, so a translated string has nowhere else to live.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3608,
+  // 3609, not 3608: Phase 1 adds exactly one line, the es translation
+  // `"Web Office": "Oficina Web"`, required by the tier rename. A translation
+  // dictionary gaining one entry because a tier was renamed is the growth a
+  // ratchet should absorb, not block — and the alternative, deleting one of
+  // this file's 89 blank lines to stay under, is cosmetic churn to dodge a
+  // guard rather than a real trim.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3609,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
