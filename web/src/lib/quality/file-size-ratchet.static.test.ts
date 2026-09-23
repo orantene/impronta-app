@@ -423,7 +423,12 @@ const BUDGETS: Record<string, number> = {
   // comment lines saying why an empty name is printed rather than a user id.
   // ES_TEXT is a flat map keyed by the English literal; a translated string has
   // nowhere else to live, so there is nothing here to extract.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3601,
+  // 2026-09-23 Phase 5 "Where I appear": +7 — six ES_TEXT entries for the
+  // talent account-menu section ("My website", "My Tulala profile", "Where I
+  // appear", "Set up your public page", "View", "Hub") plus their header
+  // comment. Same reasoning as above: ES_TEXT is a flat map keyed by the
+  // English literal, so a translated string has nowhere else to live.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3608,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.

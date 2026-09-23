@@ -236,6 +236,14 @@ const ES_TEXT: Record<string, string> = {
   "Search": "Buscar",
   "Search anything (⌘K)": "Buscar en todo (⌘K)",
   "Workspace settings": "Ajustes del espacio",
+  // Phase 5 — talent account-menu "Where I appear" section.
+  "My website": "Mi sitio web",
+  "My Tulala profile": "Mi perfil de Tulala",
+  "Where I appear": "Dónde aparezco",
+  "Set up your public page": "Configura tu página pública",
+  "View": "Ver",
+  // Kind badge on a "Where I appear" row; a product noun, unchanged in es.
+  "Hub": "Hub",
   "Operational defaults — language, currency, timezone.": "Valores operativos: idioma, moneda y zona horaria.",
   "Language & localization": "Idioma y localización",
   "Default public language": "Idioma público predeterminado",
