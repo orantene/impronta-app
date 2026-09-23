@@ -8,7 +8,8 @@
  * without pulling the Supabase / Next.js server graph:
  *
  *   a) the read-time PLAN GATE — the public site serves ONLY when the site is
- *      published AND the talent currently has Max (a lapsed plan stops serving),
+ *      published AND the talent's plan grants `personalSitePublish` (Max-only
+ *      while `TALENT_FREE_WEBSITE_ENABLED` is off, every tier once it is on),
  *   b) the PAGE selection — pick the home page (is_home) for a bare site URL, or
  *      the page whose `slug` matches `pageSlug`, with the published-status gate
  *      (defense-in-depth; anon RLS already hides drafts), and
@@ -19,6 +20,7 @@
  * `plan-permits-snapshot.ts` gate (which we reuse for the snapshot path).
  */
 
+import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
 import type { BuilderNode, BuilderNavLink } from "@/lib/site-admin/builder-node/types";
 
 /** Effective tier for the gate. `talent_portfolio` is the Max plan key. */
@@ -73,7 +75,9 @@ export interface MaxSiteNavItem {
  *
  * The public site renders only when:
  *   - the site has been published (`sitePublishedAt` is set), AND
- *   - the talent currently holds the Max plan (`talent_portfolio`).
+ *   - the talent's plan grants `personalSitePublish`. While
+ *     `TALENT_FREE_WEBSITE_ENABLED` is off that is Max-only (`talent_portfolio`),
+ *     which is exactly the check this replaced.
  *
  * A lapsed-plan talent (Max trial → Pro/Free) stops serving the premium site
  * — mirroring `planPermitsPublishedTalentSite` (the snapshot-path gate). The
@@ -93,7 +97,42 @@ export function maxSitePublicGate(input: {
 }): boolean {
   if (input.isOwnerDraftPreview) return true;
   if (!input.sitePublishedAt) return false;
-  return input.planKey === TALENT_MAX_PLAN_KEY;
+  // Fail closed on an unresolved plan: we could not confirm anything, so we do
+  // not serve. (`normalizeTalentPlanKey` would read null as Free, which is a
+  // SERVING tier once the free website is on — the opposite of failing closed.)
+  if (input.planKey == null) return false;
+  return talentPlanGrantsSiteCapability(input.planKey, "personalSitePublish");
+}
+
+/**
+ * PHASE 1 — read-time PAGE SCOPING for the public path.
+ *
+ * Extra pages are Web Office (`personalSitePages`). A talent without that
+ * capability — a free talent, or a lapsed Web Office talent — serves their HOME
+ * PAGE ONLY: the extra pages 404 and never appear in the nav, while every row
+ * stays exactly where it is in the database. Restoring the plan restores the
+ * whole site with no republish.
+ *
+ * Applied BEFORE page selection and nav building, and only on the public path:
+ * the owner's draft preview always sees their full site.
+ *
+ * Pure. "Home" is resolved the same way `selectMaxSitePage` resolves a bare
+ * site URL — the `is_home` row, else the lowest `sort_order` — so the page a
+ * scoped visitor lands on is the page they would have landed on anyway.
+ */
+export function scopeMaxSitePagesToPlan(
+  pages: readonly MaxSitePageRow[],
+  planKey: string | null | undefined,
+): MaxSitePageRow[] {
+  if (talentPlanGrantsSiteCapability(planKey, "personalSitePages")) {
+    return pages.slice();
+  }
+  const published = pages.filter((p) => p.status === "published");
+  const pool = published.length > 0 ? published : pages;
+  const home =
+    pool.find((p) => p.isHome) ??
+    [...pool].sort((a, b) => a.sortOrder - b.sortOrder || a.slug.localeCompare(b.slug))[0];
+  return home ? [home] : [];
 }
 
 /**
