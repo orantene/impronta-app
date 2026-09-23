@@ -8,6 +8,7 @@ import {
   type TalentPlanKey,
 } from "@/lib/access/talent-membership";
 import { isTalentSiteTierExpansionEnabled } from "@/lib/access/talent-site-tier-expansion";
+import { withTalentPaidTierLabel } from "@/lib/access/talent-tier-label";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import {
   isTemplateAllowedForTier,
@@ -231,28 +232,32 @@ export function assertTemplateAllowedForPlan(
 
 /**
  * Phase 1 — refusal copy for the personal-website capabilities, in en + es.
- * Named "Web Office" (the single paid talent tier), never "Portfolio"/"Max".
+ *
+ * `{tier}` is filled at read time by `withTalentPaidTierLabel`: "Web Office"
+ * once `TALENT_FREE_WEBSITE_ENABLED` is on, the legacy "Portfolio" while it is
+ * off, so a dark build never advertises a tier that does not exist yet. One
+ * sentence per capability, never two drifting copies.
  */
 const SITE_DENIED_COPY = {
   site_pages: {
-    en: "Extra pages are part of Web Office. Upgrade to add pages to your website.",
-    es: "Las páginas adicionales son parte de Web Office. Mejora tu plan para añadir páginas a tu sitio.",
+    en: "Extra pages are part of {tier}. Upgrade to add pages to your website.",
+    es: "Las páginas adicionales son parte de {tier}. Mejora tu plan para añadir páginas a tu sitio.",
   },
   site_sections: {
-    en: "Adding sections and blocks is part of Web Office. Upgrade to build beyond your free layout.",
-    es: "Añadir secciones y bloques es parte de Web Office. Mejora tu plan para ir más allá de tu diseño gratuito.",
+    en: "Adding sections and blocks is part of {tier}. Upgrade to build beyond your free layout.",
+    es: "Añadir secciones y bloques es parte de {tier}. Mejora tu plan para ir más allá de tu diseño gratuito.",
   },
   site_seo: {
-    en: "SEO settings are part of Web Office. Upgrade to control how your site appears in search.",
-    es: "Los ajustes de SEO son parte de Web Office. Mejora tu plan para controlar cómo aparece tu sitio en las búsquedas.",
+    en: "SEO settings are part of {tier}. Upgrade to control how your site appears in search.",
+    es: "Los ajustes de SEO son parte de {tier}. Mejora tu plan para controlar cómo aparece tu sitio en las búsquedas.",
   },
   site_analytics: {
-    en: "Website analytics are part of Web Office. Upgrade to see how visitors use your site.",
-    es: "Las estadísticas del sitio son parte de Web Office. Mejora tu plan para ver cómo usan tu sitio las visitas.",
+    en: "Website analytics are part of {tier}. Upgrade to see how visitors use your site.",
+    es: "Las estadísticas del sitio son parte de {tier}. Mejora tu plan para ver cómo usan tu sitio las visitas.",
   },
   site_custom_domain: {
-    en: "A custom domain is part of Web Office. Upgrade to connect your own address.",
-    es: "Un dominio propio es parte de Web Office. Mejora tu plan para conectar tu propia dirección.",
+    en: "A custom domain is part of {tier}. Upgrade to connect your own address.",
+    es: "Un dominio propio es parte de {tier}. Mejora tu plan para conectar tu propia dirección.",
   },
   site_edit: {
     en: "You cannot edit this website right now.",
@@ -271,7 +276,7 @@ export function siteCapabilityDeniedMessage(
   capability: TalentSiteDeniedCapability,
   locale?: string | null,
 ): string {
-  return pickLocale(locale, SITE_DENIED_COPY[capability]);
+  return withTalentPaidTierLabel(pickLocale(locale, SITE_DENIED_COPY[capability]));
 }
 
 export function planDeniedMessage(
@@ -287,22 +292,31 @@ export function planDeniedMessage(
   if (capability in SITE_DENIED_COPY) {
     return siteCapabilityDeniedMessage(capability as TalentSiteDeniedCapability, locale);
   }
+  // Pro fold (2026-09-23): these four used to name "Pro" / "Portfolio" / "Max"
+  // directly. They now resolve through the one tier-label source, so a dark
+  // build still reads "Portfolio" and a live build reads "Web Office".
   if (capability === "profile_extras") {
-    return "Upgrade to Pro to add social and video embeds and a press band to your profile.";
+    return withTalentPaidTierLabel(
+      "Upgrade to {tier} to add social and video embeds and a press band to your profile.",
+    );
   }
   if (capability === "template") {
-    return "Upgrade to Pro to choose premium templates.";
+    return withTalentPaidTierLabel("Upgrade to {tier} to choose premium templates.");
   }
   if (capability === "media_kit") {
-    return "Upgrade to Pro to download your media kit.";
+    return withTalentPaidTierLabel("Upgrade to {tier} to download your media kit.");
   }
   if (capability === "custom_builder") {
-    return "Upgrade to Portfolio to customize sections and build your service website.";
+    return withTalentPaidTierLabel(
+      "Upgrade to {tier} to customize sections and build your service website.",
+    );
   }
   if (!isTalentSiteTierExpansionEnabled()) {
     return "Personal site editing is temporarily unavailable. Please try again later.";
   }
-  return "Upgrade to Max to customize sections and build your service website.";
+  return withTalentPaidTierLabel(
+    "Upgrade to {tier} to customize sections and build your service website.",
+  );
 }
 
 export type { TalentPlanKey };

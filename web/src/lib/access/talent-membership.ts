@@ -1,6 +1,7 @@
 import type { CapabilityKey } from "./capabilities";
 import type { PlanKey } from "./plan-catalog";
 import { isTalentFreeWebsiteEnabled } from "./talent-free-website";
+import { talentTierLabel } from "./talent-tier-label";
 import { isTalentSiteTierExpansionEnabled } from "./talent-site-tier-expansion";
 
 export const TALENT_PLAN_KEYS = [
@@ -76,7 +77,13 @@ const FREE_WEBSITE_CAPABILITIES: ReadonlySet<TalentPlanCapability> = new Set([
 export type TalentMembershipState = {
   planKey: TalentPlanKey;
   tier: TalentPlanTier;
-  displayName: "Free" | "Pro" | "Portfolio";
+  /**
+   * The tier label a talent reads. Resolved through `talentTierLabel`, so it
+   * is "Free" / "Pro" / "Portfolio" while `TALENT_FREE_WEBSITE_ENABLED` is off
+   * and "Free" / "Web Office" / "Web Office" once it is on (Pro fold,
+   * 2026-09-23). Never a plan key, never "Max".
+   */
+  displayName: "Free" | "Pro" | "Portfolio" | "Web Office";
   capabilities: {
     /** @deprecated Use canUseCustomBuilder — Portfolio custom section composer only */
     canBuildPersonalSite: boolean;
@@ -104,11 +111,14 @@ const TIER_TO_PLAN: Record<TalentPlanTier, TalentPlanKey> = {
   max: "talent_portfolio",
 };
 
-const DISPLAY_NAME: Record<TalentPlanTier, TalentMembershipState["displayName"]> = {
-  free: "Free",
-  pro: "Pro",
-  max: "Portfolio",
-};
+/**
+ * The tier label, read at CALL time (never captured at module load) so the
+ * Pro fold flips with `TALENT_FREE_WEBSITE_ENABLED` and tests can exercise
+ * both positions. `talent-tier-label.ts` is the single source of truth.
+ */
+function displayNameForTier(tier: TalentPlanTier): TalentMembershipState["displayName"] {
+  return talentTierLabel(tier) as TalentMembershipState["displayName"];
+}
 
 const TALENT_PLAN_CAPABILITIES: Record<TalentPlanKey, ReadonlySet<TalentPlanCapability>> = {
   talent_basic: new Set<TalentPlanCapability>([
@@ -259,7 +269,7 @@ export function buildTalentMembershipState(
   return {
     planKey,
     tier,
-    displayName: DISPLAY_NAME[tier],
+    displayName: displayNameForTier(tier),
     capabilities: {
       canBuildPersonalSite: canUseCustomBuilder,
       canEditPersonalSite,

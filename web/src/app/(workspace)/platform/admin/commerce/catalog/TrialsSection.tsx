@@ -24,14 +24,15 @@
 import { useState, useTransition } from "react";
 import type { TrialOffer } from "@/lib/plan-trials/offers";
 import { upsertTrialOffer } from "@/lib/server-actions/admin-trial-offers";
-import { PLAN_CATALOG, type PlanKey } from "@/lib/access/plan-catalog";
+import { isKnownPlan, planDisplayName } from "@/lib/access/plan-catalog";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { HQ, F, FD } from "../_tokens";
 import { SectionLabel, Field, Toggle, inputStyle, EmptyHint } from "../_primitives";
 
 function planLabel(planKey: string): string {
-  return PLAN_CATALOG[planKey as PlanKey]?.displayName ?? planKey;
+  // planDisplayName, not a raw catalog read: it applies the talent Pro fold.
+  return isKnownPlan(planKey) ? planDisplayName(planKey) : planKey;
 }
 
 export function TrialsSection({ offers }: { offers: TrialOffer[] }) {
