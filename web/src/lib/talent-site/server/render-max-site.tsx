@@ -47,11 +47,13 @@ import {
 } from "@/lib/talent-site/resolve-max-site-core";
 import { buildTalentProfileJsonLd } from "@/lib/seo/talent-json-ld";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
+import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 
 import {
   loadMaxSiteByProfileId,
   loadMaxSiteBySlug,
   loadMaxSitePages,
+  loadMaxSiteThemeTokens,
   loadTalentManagingTenantId,
   loadTalentOwnerUserId,
   loadTalentPlanKey,
@@ -232,7 +234,14 @@ export async function renderTalentMaxSite(
     // ── Talent identity for the SITE's JSON-LD + OG image (degrade-safe) ──────
     const identity = await loadTalentSiteIdentity(talentProfileId);
 
+    // ── Site-level theme tokens (theme gallery). `{}` while the switch is off
+    //    or nothing is applied → the cascade below is exactly today's. ────────
+    const siteTokens = await loadMaxSiteThemeTokens(talentProfileId, {
+      draft: isOwnerDraftPreview,
+    });
+
     const node = await renderMaxSiteDocument({
+      siteTokens,
       shellTree: hydratedShell,
       logoUrl: site.logoUrl,
       page,
@@ -349,6 +358,8 @@ function buildMaxSiteSeo(args: {
  * page in place of `PublicHeader`.
  */
 async function renderMaxSiteDocument(args: {
+  /** Site-level theme tokens (theme gallery); `{}` = today's cascade. */
+  siteTokens: Readonly<Record<string, string>>;
   shellTree: BuilderNode[];
   logoUrl: string | null;
   page: MaxSitePageRow;
@@ -360,6 +371,7 @@ async function renderMaxSiteDocument(args: {
   draftPreview: boolean;
 }): Promise<ReactNode> {
   const {
+    siteTokens,
     shellTree,
     page,
     blocks,
@@ -428,8 +440,11 @@ async function renderMaxSiteDocument(args: {
     Object.keys(talentComponentStyleDefaults).length > 0
       ? talentComponentStyleDefaults
       : platformDefault.componentStyles;
-  const effectiveTokens =
-    Object.keys(designTokens).length > 0 ? designTokens : platformDefault.tokens;
+  const effectiveTokens = resolveEffectiveSiteTokens(
+    designTokens,
+    siteTokens,
+    platformDefault.tokens,
+  );
   const hasTokens = Object.keys(effectiveTokens).length > 0;
   const cssVars = hasTokens ? designTokensToCssVars(effectiveTokens) : {};
   const headingFamily = effectiveTokens["typography.heading-font-family"]?.trim();
