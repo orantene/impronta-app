@@ -6,6 +6,7 @@
  * `messaging-engine.ts` (800-line cap); same guard, same refusal codes.
  */
 
+import { headers } from "next/headers";
 import { z } from "zod";
 
 import { reopenOfferForAmendment } from "@/lib/inquiry/inquiry-engine-offers";
@@ -19,6 +20,7 @@ import {
   loadThreadDelivery,
 } from "@/lib/messaging/sheets";
 import { messagingStaff } from "@/lib/messaging/staff-guard";
+import { conversationHostKind, threadLinkUrl } from "@/lib/messaging/thread-link";
 import { refreshThreadToken } from "@/lib/messaging/thread-token";
 import { cancelPaymentLink } from "@/lib/payments/links";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
@@ -161,14 +163,28 @@ export async function messagingThreadLink(input: { inquiryId: string }) {
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const { data, error } = await tenantScopedQuery(g.admin, "inquiries", g.tenantId)
-    .select("id")
+    .select("id, source_context")
     .eq("id", parsed.data.inquiryId)
     .maybeSingle();
   if (error) return fail("unavailable");
   if (!data) return fail("not_found");
   const token = await refreshThreadToken(g.admin, parsed.data.inquiryId, g.tenantId);
   if (!token) return fail("unavailable");
-  return { ok: true as const, token };
+  let requestOrigin = "";
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host")?.split(",")[0]?.trim() || h.get("host")?.trim() || "";
+    const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+    if (host) requestOrigin = `${proto}://${host}`;
+  } catch {
+    requestOrigin = "";
+  }
+  const url = threadLinkUrl({
+    token,
+    requestOrigin,
+    conversationHostKind: conversationHostKind((data as { source_context?: unknown }).source_context),
+  });
+  return { ok: true as const, token, url };
 }
 
 /**

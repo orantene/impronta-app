@@ -50,7 +50,7 @@ export type ShellEngine = {
   readonly handOverTargets: () => Promise<ActionResult<{ targets: HandOverTarget[] }>>;
   readonly rename: (input: Versioned & { name: string }) => Promise<ActionResult<{ version?: number }>>;
   readonly closeLost: (input: Versioned & { reason: string }) => Promise<ActionResult<{ version?: number }>>;
-  readonly threadLink: (input: { inquiryId: string }) => Promise<ActionResult<{ token: string }>>;
+  readonly threadLink: (input: { inquiryId: string }) => Promise<ActionResult<{ token: string; url?: string | null }>>;
   /** D14: merges `duplicateInquiryId` into `intoInquiryId`; `expectedVersion` is the DUPLICATE's lock (`lib/messaging/merge.ts`). */
   readonly merge: (input: { duplicateInquiryId: string; intoInquiryId: string; expectedVersion: number }) => Promise<{ ok: true } | { ok: false; reason: MessagingRefusal }>;
   readonly history: (input: { inquiryId: string }) => Promise<{ ok: true; entries: ConversationHistoryEntry[] } | { ok: false; reason: string }>;

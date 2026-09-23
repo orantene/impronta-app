@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { customerThreadUrl } from "./thread-link";
+import { customerThreadUrl, threadLinkUrl } from "./thread-link";
 
 // D-145: `messagingStartConversation` mints a token for a new conversation
 // and `MessagesShell` used to drop it. This is the pure half of the fix —
@@ -21,4 +21,34 @@ test("encodes a token that carries separator-shaped characters", () => {
 
 test("no token (no GUEST_COOKIE_SECRET on the server) is no link, not a broken one", () => {
   assert.equal(customerThreadUrl("https://tulala.digital", null), null);
+});
+
+test("a talent-host conversation's link is hub-absolute", () => {
+  assert.equal(
+    threadLinkUrl({
+      token: "v1.abc.def",
+      requestOrigin: "https://jor-beauty.tulala.digital",
+      conversationHostKind: "talent_site",
+    }),
+    "https://tulala.digital/c/t/v1.abc.def",
+  );
+});
+
+test("a tenant-host conversation's link stays on the request origin", () => {
+  assert.equal(
+    threadLinkUrl({
+      token: "v1.abc.def",
+      requestOrigin: "https://impronta.tulala.digital",
+      conversationHostKind: "agency",
+    }),
+    "https://impronta.tulala.digital/c/t/v1.abc.def",
+  );
+  assert.equal(
+    threadLinkUrl({
+      token: "v1.abc.def",
+      requestOrigin: "https://app.tulala.digital",
+      conversationHostKind: null,
+    }),
+    "https://app.tulala.digital/c/t/v1.abc.def",
+  );
 });
