@@ -260,3 +260,27 @@ Saved as [`talent-website-design-brief-2026-09-23.md`](talent-website-design-bri
 - `web/src/components/admin/shell/internal/page-modules/IdentityBar-1.tsx`
 - `web/src/lib/talent/agency-roster-profile-url.ts`, `web/src/lib/talent/load-representation.ts`
 - `.github/workflows/talent-website-e2e.yml`, `.github/workflows/db-push.yml`, `web/e2e/talent-website/*` (new)
+
+## Known blocker: two orphan rows in the remote migration ledger (found 2026-09-23)
+
+A read-only check of production (`pluhdapdnuiulvxmyspd`, ACTIVE_HEALTHY) found 861 recorded versions against 859 local files. All 859 local files are applied, so nothing is pending. The two extras are:
+
+| Remote version | Matching file in the repo |
+|---|---|
+| `20260911232448 channel_connections_outbox` | `20261231231006_channel_connections_outbox.sql` |
+| `20260918215445 auto_ack_no_emdash` | `20261231277000_auto_ack_no_emdash.sql` |
+
+Neither version ever existed as a file: `git log --all --diff-filter=A` finds nothing under those names. They were applied straight to the database (an `apply_migration` call stamps its own timestamp) while the repo kept the future-dated names the convention requires.
+
+**Why it blocks us.** `npm run db:push` refuses with `LegacyDbPushMissingLocalError` when the remote knows a version the tree does not (`web/docs/migrations-and-remote-history.md`). Rebasing, the documented fix, cannot help here because no such file exists to rebase onto. Phases 0, 1, 2 and 4 all carry migrations and would each hit this.
+
+**The fix** is the ledger realignment the same doc prescribes, using the supported CLI path rather than a raw delete, and only after confirming the renamed files are recorded:
+
+```
+supabase migration repair --status reverted 20260911232448 20260918215445
+supabase migration list        # expect local and remote to agree
+```
+
+This removes two stale ledger rows. It applies no SQL and changes no schema or data. It needs production credentials, so it is done either by the `db-push.yml` workflow once the repo secrets exist, or by an agent on the founder's machine.
+
+**Prevention:** never apply a migration with `apply_migration` or by hand. Applying through `npm run db:push` records the version under the file's own name, which is what keeps the ledger and the repo in step.
