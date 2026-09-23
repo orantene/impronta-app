@@ -568,7 +568,7 @@ export function attachConsoleGuard(page: Page): { errors: string[] } {
     // resource: net::ERR_FAILED without naming a product bug. Ignore those;
     // keep real pageerrors and named console.error strings.
     if (
-      /\/api\/health|vercel|Content Security Policy|favicon|net::ERR_FAILED|Failed to load resource/i.test(
+      /\/api\/health|vercel|Content Security Policy|favicon|net::ERR_FAILED|Failed to load resource|script resource is behind a redirect/i.test(
         text,
       )
     ) {
