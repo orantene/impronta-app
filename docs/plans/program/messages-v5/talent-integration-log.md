@@ -28,3 +28,9 @@ Filed D-MSG-400 (USD label on the hub legacy menu). That render is not on this p
 Branch `cursor/msg-hub-client-link-0d94`.
 
 `threadLinkUrl` mints `https://tulala.digital/c/t/<token>` when `source_context.host_kind` is `talent_site`. Any other host kind keeps the request origin. `messagingThreadLink` returns that absolute `url`. Copy link uses it, and falls back to the request origin only when the server did not return one.
+
+## 2026-09-23 · CI · migration version collision
+
+Branch `cursor/msg-migration-stamp-0d94`. Filed D-MSG-401.
+
+`20261231278000_talent_theme_catalog.sql` and `20261231278000_inquiry_action_log_client_actor.sql` share a version, so the structural gate is red on every open Messages PR. Production recorded `talent_theme_catalog`. QA recorded the actor file. The actor file is renamed to `20261231278001_inquiry_action_log_client_actor.sql`. The theme catalog file is not renamed. Neither database has been written by this change.
