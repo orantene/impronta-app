@@ -95,6 +95,8 @@ export type MessagingRefusal =
   | "hold_ended"
   | "basket_changed"
   | "not_allowed"
+  /** A rostered talent asked for a payment on a sale the agency owns. */
+  | "not_her_sale"
   | "expired"
   | "already"
   | "deposit_required"

@@ -4125,6 +4125,7 @@
           "hold_ended": "La retenue pour ce creneau est terminee.",
           "basket_changed": "Le panier a change apres le debut du paiement.",
           "not_allowed": "Vous ne pouvez pas faire cela ici.",
+          "not_her_sale": "Ce paiement appartient a l agence. Vous ne pouvez pas le demander d ici.",
           "expired": "Ce lien ou cette offre a expire.",
           "already": "C est deja fait.",
           "no_payout_receiver": "Impossible d enregistrer ceci comme paye pour l instant: personne n est configure pour recevoir le paiement. Configurez un destinataire de paiement, puis reessayez.",

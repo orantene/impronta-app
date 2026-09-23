@@ -23,6 +23,7 @@ import { matchCustomers } from "@/lib/messaging/match-customers";
 import { mergeInquiries } from "@/lib/messaging/merge";
 import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { fail } from "@/lib/messaging/refusals";
+import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 import { renameInquiry } from "@/lib/messaging/rename";
 import { searchMessaging } from "@/lib/messaging/search";
 import { loadMessagingThread } from "@/lib/messaging/thread";
@@ -499,8 +500,6 @@ export async function messagingRequestPayment(input: {
   publicOrigin: string;
   expectedVersion: number;
 }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z
     .object({
       inquiryId: uuid,
@@ -513,6 +512,12 @@ export async function messagingRequestPayment(input: {
     })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
+  const gated = await staff();
+  // A talent is not workspace staff. She may request payment only when she
+  // is the seller (the inquiry's tenant is the platform hub). An agency sale
+  // answers not_her_sale. The mint below is the same writer.
+  const g = gated.ok ? gated : await talentSellerPaymentActor(parsed.data.inquiryId);
+  if (!g.ok) return g;
   if (parsed.data.amountKind === "none") {
     return { ok: true as const, amountKind: "none" as const };
   }
