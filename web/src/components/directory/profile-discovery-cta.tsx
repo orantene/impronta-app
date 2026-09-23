@@ -54,7 +54,7 @@ export function ProfileDiscoveryCta({
           portalInquiryHref={portalInquiryHref}
           inquiry={inquiry}
           label={profileCta.contactAboutTalent}
-          className="bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
+          className="bg-[var(--impronta-gold)] text-[var(--impronta-gold-ink)] hover:bg-[var(--impronta-gold-bright)]"
         />
       </>
     );
@@ -69,7 +69,7 @@ export function ProfileDiscoveryCta({
           initialSaved={initialSaved}
           variant="default"
           inquiry={inquiry}
-          className="w-full bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
+          className="w-full bg-[var(--impronta-gold)] text-[var(--impronta-gold-ink)] hover:bg-[var(--impronta-gold-bright)]"
         />
         <OpenInquiryCartButton
           inquiry={inquiry}
@@ -89,7 +89,7 @@ export function ProfileDiscoveryCta({
         initialSaved={initialSaved}
         variant="default"
         inquiry={inquiry}
-        className="bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
+        className="bg-[var(--impronta-gold)] text-[var(--impronta-gold-ink)] hover:bg-[var(--impronta-gold-bright)]"
       />
       <Button
         asChild

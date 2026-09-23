@@ -272,7 +272,7 @@ export function TalentDirectoryListRow({
           <Button
             asChild
             size="sm"
-            className="h-8 rounded-lg bg-[var(--impronta-gold)] px-3 text-[10px] font-semibold uppercase tracking-wider text-black hover:bg-[var(--impronta-gold-bright)]"
+            className="h-8 rounded-lg bg-[var(--impronta-gold)] px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--impronta-gold-ink)] hover:bg-[var(--impronta-gold-bright)]"
           >
             <Link href={profileHref}>{lc.view}</Link>
           </Button>

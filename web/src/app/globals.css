@@ -26,6 +26,10 @@
   --impronta-black: #ffffff;
   --impronta-surface: #ffffff;
   --impronta-gold: #171717;
+  /* Readable ink for anything painted with --impronta-gold. The alias is dark
+   * ink in every neutral context and real gold only in Impronta's own site
+   * themes, so a hardcoded text-black on it disappears (D-MSG-410). */
+  --impronta-gold-ink: #ffffff;
   --impronta-gold-bright: #171717;
   --impronta-gold-dim: #525252;
   --impronta-gold-border: rgba(23, 23, 23, 0.14);
@@ -165,6 +169,7 @@ html[data-public-font-preset="editorial"] {
     --impronta-black: #0a0a0a;
     --impronta-surface: #0f0f0f;
     --impronta-gold: #c9a227;
+    --impronta-gold-ink: #111111;
     --impronta-gold-bright: #d4af37;
     --impronta-gold-dim: #9a7b2c;
     --impronta-gold-border: rgba(201, 162, 39, 0.18);
@@ -196,6 +201,7 @@ html[data-public-font-preset="editorial"] {
     --impronta-black: #faf7f0;
     --impronta-surface: #fffdf9;
     --impronta-gold: #96731a;
+    --impronta-gold-ink: #ffffff;
     --impronta-gold-bright: #b3891d;
     --impronta-gold-dim: #826827;
     --impronta-gold-border: rgba(150, 115, 26, 0.18);
@@ -266,6 +272,7 @@ html[data-public-font-preset="editorial"] {
     --impronta-black: #0a0a0a;
     --impronta-surface: #141416;
     --impronta-gold: #fafafa;
+    --impronta-gold-ink: #18181b;
     --impronta-gold-bright: #ffffff;
     --impronta-gold-dim: #a1a1aa;
     --impronta-gold-border: rgba(255, 255, 255, 0.12);
@@ -297,6 +304,7 @@ html[data-public-font-preset="editorial"] {
     --impronta-black: #fafafa;
     --impronta-surface: #ffffff;
     --impronta-gold: #18181b;
+    --impronta-gold-ink: #ffffff;
     --impronta-gold-bright: #09090b;
     --impronta-gold-dim: #52525b;
     --impronta-gold-border: rgba(24, 24, 27, 0.12);
@@ -338,6 +346,7 @@ html[data-public-font-preset="editorial"] {
    */
   .site-theme-tenant-override {
     --impronta-gold: var(--token-color-primary, var(--impronta-gold));
+    --impronta-gold-ink: var(--token-color-primary-on, #ffffff);
     --impronta-gold-bright: var(--token-color-primary, var(--impronta-gold-bright));
     --impronta-gold-dim: var(--token-color-primary, var(--impronta-gold-dim));
     --impronta-gold-border: color-mix(
@@ -969,6 +978,7 @@ html[data-public-font-preset="editorial"] {
   --impronta-foreground: #18181b;
   --impronta-muted: #60606a;
   --impronta-gold: #18181b;
+  --impronta-gold-ink: #ffffff;
   --impronta-gold-bright: #09090b;
   --impronta-gold-border: rgba(24, 24, 27, 0.18);
 }
