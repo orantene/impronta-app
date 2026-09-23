@@ -12,7 +12,10 @@ are never edited: they are already applied in production.
 
 ## Status (2026-09-23): the full history cannot be replayed
 
-Replaying all 859 migrations from an empty database cannot fully succeed:
+Confirmed on a real local Supabase in GitHub Actions
+(run https://github.com/orantene/impronta-app/actions/runs/35818716802):
+`--defer` applies **825 of 859** migrations (348 public tables); **34 cannot
+apply**. Root causes:
 
 1. **One migration can never apply as written.**
    `20260409093000_locations_taxonomy_sync.sql` creates
@@ -22,23 +25,28 @@ Replaying all 859 migrations from an empty database cannot fully succeed:
    trigger"), and the file wraps everything in one transaction, so no pre- or
    post-shim can make it pass. Production records it as applied, so production
    history was repaired by hand at that point (the function exists there as
-   `RETURNS void` and later migrations redefine it the same way).
+   `RETURNS void`; later migrations redefine it the same way).
 2. **Production holds objects that no migration creates**, which later
-   migrations alter: `public._backfill_is_primary_20260805`,
-   `public._impronta_pages_backup_20260817`,
-   `public.find_taxonomy_assignment_drift()`.
-3. **Some migrations assert on production data**, for example
-   `20260906030257` (Spanish labels on existing comparison rows),
-   `20260907160000` (the role slug `singer` must exist),
-   `20261230001900` and `20261230010100` (a talent profile must exist).
-4. **History was pushed out of timestamp order**: files stamped in May 2026
-   depend on tables created by files stamped June 2026, and some later-stamped
-   files expect state that the earlier-stamped files then replaced (for example
-   `20260602100100` renames a policy that `20260515184622` already created).
-   `--defer` resolves missing-object cases but cannot recover the true
-   production order.
+   migrations alter: `public.find_taxonomy_assignment_drift()`
+   (`20260906031100`), `public._backfill_is_primary_20260805`
+   (`20261113000000`), `public._impronta_pages_backup_20260817`
+   (`20261124000000`).
+3. **Some migrations assert on production data**: `20260906030257` (Spanish
+   labels on existing comparison rows), `20260907160000` (the role slug
+   `singer` must exist), `20261230001900` and `20261230010100` (a talent
+   profile must exist).
+4. **History was pushed out of timestamp order**: files stamped May 2026
+   depend on tables created by files stamped June 2026, and some files expect
+   state that another file already replaced, e.g. `20260602100100` and
+   `20260615200005` create policies that `20260515184622` / others already
+   created, and `20260918000000` then asserts that 53 policies were rewritten.
+   `--defer` resolves the missing-object cases (228 deferrals) but cannot
+   recover the true production order.
+5. The remaining failures cascade from the above (for example
+   `20260615211200` fails, so every later view that reads
+   `taxonomy_terms.name_i18n` fails too).
 
-The exact list of files that fail is printed in each run's job summary.
+The exact list of failing files is printed in each run's job summary.
 
 ## Fallback: a schema baseline from production (founder action)
 
