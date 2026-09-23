@@ -282,6 +282,29 @@ jobs:
           docker logs supabase_auth_impronta-app 2>&1 | tail -40 || true
           echo '```'
 
+      # The journeys navigate to the fixtures' CUSTOM DOMAINS, which are
+      # `.test` names with no DNS anywhere by design. Without these entries the
+      # run dies at
+      #   page.goto: net::ERR_NAME_NOT_RESOLVED at http://free-site.test:3000/
+      # which reads as a broken test rather than a missing hosts file.
+      #
+      # `.test` is reserved by RFC 6761 precisely so it can never resolve
+      # publicly, so mapping it locally is the intended way to use it — not a
+      # workaround. The `lvh.me` names DO resolve to 127.0.0.1 publicly, but are
+      # pinned here too so the lane does not depend on a third party's DNS.
+      - name: Map the fixture custom domains to loopback
+        run: |
+          set -o pipefail
+          sudo tee -a /etc/hosts >/dev/null <<'HOSTS'
+          127.0.0.1 free-site.test
+          127.0.0.1 max-site.test
+          127.0.0.1 impronta.lvh.me
+          127.0.0.1 acme.lvh.me
+          HOSTS
+          for h in free-site.test max-site.test impronta.lvh.me acme.lvh.me; do
+            getent hosts "$h" || { echo "::error::$h did not resolve after the hosts edit"; exit 1; }
+          done
+
       - name: Seed talent-website fixtures
         working-directory: web
         env:
