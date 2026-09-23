@@ -86,18 +86,52 @@ function effectiveVisibilityLabel(effective: EffectiveVisibility, isSpanish: boo
 const ROW_SHELL_CLASS =
   "flex w-full min-h-[44px] items-center gap-[10px] rounded-[8px] border-none bg-transparent px-[12px] py-[8px] text-left font-admin-body cursor-pointer box-border hover:bg-[rgba(11,11,13,0.04)]";
 
-/** A clickable menu row, 44px min height for a comfortable mobile target. */
+/**
+ * A menu row, 44px min height for a comfortable mobile target.
+ *
+ * With `href` it renders a real anchor rather than a button that calls
+ * `window.open`: a link is what this is, so middle-click, "copy link address"
+ * and the screen-reader link role all work, and the URL is inspectable in the
+ * DOM instead of living only inside a click handler.
+ */
 function RowShell({
   children,
   onClick,
   ariaLabel,
+  href,
+  testId,
 }: {
   children: ReactNode;
   onClick: () => void;
   ariaLabel: string;
+  href?: string;
+  testId?: string;
 }) {
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        role="menuitem"
+        aria-label={ariaLabel}
+        onClick={onClick}
+        data-talent-menu-row={testId}
+        className={`${ROW_SHELL_CLASS} no-underline`}
+      >
+        {children}
+      </a>
+    );
+  }
   return (
-    <button type="button" role="menuitem" aria-label={ariaLabel} onClick={onClick} className={ROW_SHELL_CLASS}>
+    <button
+      type="button"
+      role="menuitem"
+      aria-label={ariaLabel}
+      onClick={onClick}
+      data-talent-menu-row={testId}
+      className={ROW_SHELL_CLASS}
+    >
       {children}
     </button>
   );
@@ -134,10 +168,17 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
   const appearances = (bridgeTalentRepresentation?.entries ?? []).filter((e) => e.kind !== "self_page");
 
   return (
-    <div data-tulala-talent-account-menu>
+    // `role="none"` on every non-menuitem wrapper: this subtree is rendered
+    // INSIDE the `role="menu"` container in IdentityBar-1, and a bare <div>
+    // between a menu and its menuitems breaks the ownership chain, so screen
+    // readers stop announcing the items as menu items at all.
+    <div data-tulala-talent-account-menu role="none">
       {/* Signed-in header — headshot avatar instead of the generic text-only
           header, since a talent is proud to see their own photo here. */}
-      <div className="mb-[4px] flex items-center gap-[10px] border-b border-admin-border-soft px-[12px] pt-[10px] pb-[12px]">
+      <div
+        role="none"
+        className="mb-[4px] flex items-center gap-[10px] border-b border-admin-border-soft px-[12px] pt-[10px] pb-[12px]"
+      >
         <Avatar initials={initials} size={40} tone="ink" hashSeed={name} photoUrl={photoUrl} />
         <div className="min-w-0">
           <div className="text-admin-13 font-semibold text-admin-ink">{name}</div>
@@ -147,12 +188,12 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
 
       {/* My website */}
       <RowShell
+        testId="website"
         ariaLabel={copy.t("My website")}
+        href={hasSite && site?.publicSiteUrl ? site.publicSiteUrl : undefined}
         onClick={() => {
           onNavigate();
-          if (hasSite && site?.publicSiteUrl) {
-            window.open(site.publicSiteUrl, "_blank", "noopener,noreferrer");
-          } else {
+          if (!(hasSite && site?.publicSiteUrl)) {
             window.location.assign("/talent/public-page");
           }
         }}
@@ -173,11 +214,10 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
       {/* My Tulala profile */}
       {selfEntry?.publicUrl ? (
         <RowShell
+          testId="self-profile"
           ariaLabel={copy.t("My Tulala profile")}
-          onClick={() => {
-            onNavigate();
-            window.open(selfEntry.publicUrl, "_blank", "noopener,noreferrer");
-          }}
+          href={selfEntry.publicUrl}
+          onClick={onNavigate}
         >
           <RowIcon>
             <Icon name="external" size={14} stroke={1.7} color="var(--color-admin-ink-muted)" />
@@ -193,23 +233,46 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
 
       {/* Where I appear */}
       {appearances.length > 0 && (
-        <div className="mt-[4px]">
-          <div className="px-[12px] pt-[6px] pb-[4px] text-admin-10h font-bold tracking-[0.6px] text-admin-ink-muted uppercase">
+        <div className="mt-[4px]" role="group" aria-label={copy.t("Where I appear")}>
+          <div
+            aria-hidden
+            className="px-[12px] pt-[6px] pb-[4px] text-admin-10h font-bold tracking-[0.6px] text-admin-ink-muted uppercase"
+          >
             {copy.t("Where I appear")}
           </div>
           {appearances.map((entry) => {
             const statusLabel = effectiveVisibilityLabel(entry.effective, copy.isSpanish);
+            // Kind badge, not a hardcoded "Agency": `loadRepresentation` folds
+            // the platform hub into the self entry, but a SECOND hub membership
+            // (if one ever exists) is deliberately kept as its own row.
+            const kindLabel = entry.kind === "hub" ? copy.t("Hub") : copy.t("Agency");
             return (
-              <div key={entry.tenantId} className="box-border flex min-h-[44px] items-center gap-[8px] px-[12px] py-[6px]">
+              <div
+                key={entry.tenantId}
+                role="none"
+                // Test hooks: J8 asserts the rendered rows against the seeded
+                // memberships by slug, and that exactly the live ones carry a
+                // link. Keyed on slug (stable across seeds) rather than the
+                // tenant UUID (regenerated on every hermetic seed run).
+                data-talent-appearance-row={entry.slug}
+                data-effective={entry.effective}
+                data-kind={entry.kind}
+                className="box-border flex min-h-[44px] items-center gap-[8px] px-[12px] py-[6px]"
+              >
                 <span aria-hidden className={`h-[7px] w-[7px] shrink-0 rounded-full ${dotClass(entry.effective)}`} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-[6px] overflow-hidden text-admin-12h font-medium text-ellipsis whitespace-nowrap text-admin-ink">
                     {entry.name}
                     <span className="shrink-0 rounded-[4px] bg-admin-surface-alt px-[5px] py-px text-admin-9 font-bold tracking-[0.4px] text-admin-ink-muted uppercase">
-                      {copy.t("Agency")}
+                      {kindLabel}
                     </span>
                   </span>
-                  <span className="mt-px block text-admin-10h text-admin-ink-muted">{statusLabel}</span>
+                  <span
+                    data-talent-appearance-status
+                    className="mt-px block text-admin-10h text-admin-ink-muted"
+                  >
+                    {statusLabel}
+                  </span>
                 </span>
                 {entry.publicUrl ? (
                   <a
@@ -217,6 +280,7 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
                     target="_blank"
                     rel="noopener noreferrer"
                     role="menuitem"
+                    data-talent-appearance-view={entry.slug}
                     aria-label={`${copy.t("View")} ${entry.name}`}
                     onClick={onNavigate}
                     className="shrink-0 px-[4px] py-[6px] text-admin-11h font-semibold text-admin-accent-deep no-underline"
@@ -227,7 +291,11 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
                 <button
                   type="button"
                   role="menuitem"
-                  aria-label={`${copy.t("Manage")} ${entry.name}`}
+                  data-talent-appearance-manage={entry.slug}
+                  // The status line sits in a non-focusable span, which menu
+                  // browse mode skips, so repeat it here: otherwise a screen
+                  // reader user cannot tell why some rows have no View link.
+                  aria-label={`${copy.t("Manage")} ${entry.name}: ${statusLabel}`}
                   onClick={() => {
                     onNavigate();
                     openDrawer("representation", {
@@ -245,7 +313,7 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
         </div>
       )}
 
-      <div className="mt-1 mb-1 border-t border-admin-border-soft" />
+      <div role="none" aria-hidden className="mt-1 mb-1 border-t border-admin-border-soft" />
     </div>
   );
 }

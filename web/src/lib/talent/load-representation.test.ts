@@ -221,3 +221,173 @@ test("a live agency entry with no registered domain falls back to the /w/<slug> 
   const acmeEntry = result.entries.find((e) => e.tenantId === REAL_AGENCY.id);
   assert.equal(acmeEntry?.publicUrl, "https://tulala.digital/w/acme/t/sofia-001");
 });
+
+const SECOND_HUB = {
+  id: "tenant-hub-2",
+  display_name: "Partner Hub",
+  slug: "partner-hub",
+  plan_tier: null,
+  kind: "hub",
+};
+
+test("a SECOND hub membership is still listed; only the first is folded away", async () => {
+  const rosterRows = [
+    {
+      status: "active",
+      created_at: "2026-01-01T00:00:00Z",
+      is_primary: false,
+      agency_visibility: "site_visible",
+      talent_site_hidden: false,
+      agencies: HUB_AGENCY,
+    },
+    {
+      status: "active",
+      created_at: "2026-03-01T00:00:00Z",
+      is_primary: false,
+      agency_visibility: "site_visible",
+      talent_site_hidden: false,
+      agencies: SECOND_HUB,
+    },
+  ];
+
+  const supabase = fakeSupabase(baseResponses(rosterRows));
+  const result = await loadRepresentation("talent-1", "sofia-001", { client: supabase });
+
+  assert.equal(result.entries.filter((e) => e.kind === "self_page").length, 1);
+  const second = result.entries.find((e) => e.tenantId === SECOND_HUB.id);
+  assert.ok(second, "a real second hub membership must not vanish into the dedupe");
+  assert.equal(second?.kind, "hub");
+  assert.equal(second?.publicUrl, "https://tulala.digital/t/sofia-001");
+});
+
+test("the self link follows talent_has_public_roster, not the hub row's own visibility", async () => {
+  // Hub row is roster-only, so the hub chip says "agency_hidden" — but
+  // tulala.digital/t/<code> is gated by talent_select_public, which is true as
+  // soon as ANY active roster row is site_visible. The link resolves; hiding
+  // it would be a false negative.
+  const rosterRows = [
+    {
+      status: "active",
+      created_at: "2026-01-01T00:00:00Z",
+      is_primary: false,
+      agency_visibility: "roster_only",
+      talent_site_hidden: false,
+      agencies: HUB_AGENCY,
+    },
+    {
+      status: "active",
+      created_at: "2026-02-01T00:00:00Z",
+      is_primary: true,
+      agency_visibility: "site_visible",
+      talent_site_hidden: false,
+      agencies: REAL_AGENCY,
+    },
+  ];
+
+  const supabase = fakeSupabase(baseResponses(rosterRows));
+  const result = await loadRepresentation("talent-1", "sofia-001", { client: supabase });
+
+  const selfEntry = result.entries.find((e) => e.kind === "self_page");
+  assert.equal(selfEntry?.effective, "agency_hidden", "chip keeps the hub row's truth");
+  assert.equal(selfEntry?.publicUrl, "https://tulala.digital/t/sofia-001");
+});
+
+test("talent_site_hidden on the hub row does not kill the self link", async () => {
+  // talent_has_public_roster() does not consult talent_site_hidden at all.
+  const rosterRows = [
+    {
+      status: "active",
+      created_at: "2026-01-01T00:00:00Z",
+      is_primary: false,
+      agency_visibility: "site_visible",
+      talent_site_hidden: true,
+      agencies: HUB_AGENCY,
+    },
+  ];
+
+  const supabase = fakeSupabase(baseResponses(rosterRows));
+  const result = await loadRepresentation("talent-1", "sofia-001", { client: supabase });
+
+  const selfEntry = result.entries.find((e) => e.kind === "self_page");
+  assert.equal(selfEntry?.effective, "you_hid");
+  assert.equal(selfEntry?.publicUrl, "https://tulala.digital/t/sofia-001");
+});
+
+test("a globally hidden talent gets no links at all", async () => {
+  const rosterRows = [
+    {
+      status: "active",
+      created_at: "2026-01-01T00:00:00Z",
+      is_primary: false,
+      agency_visibility: "site_visible",
+      talent_site_hidden: false,
+      agencies: HUB_AGENCY,
+    },
+    {
+      status: "active",
+      created_at: "2026-02-01T00:00:00Z",
+      is_primary: true,
+      agency_visibility: "site_visible",
+      talent_site_hidden: false,
+      agencies: REAL_AGENCY,
+    },
+  ];
+
+  const responses = baseResponses(rosterRows);
+  responses.talent_profiles = { data: { is_publicly_hidden: true }, error: null };
+
+  const supabase = fakeSupabase(responses);
+  const result = await loadRepresentation("talent-1", "sofia-001", { client: supabase });
+
+  assert.ok(result.globalHidden);
+  for (const entry of result.entries) {
+    assert.equal(entry.publicUrl, "", `${entry.kind}/${entry.slug} must not link while hidden`);
+    assert.equal(entry.effective, "global_hidden");
+  }
+});
+
+test("only memberships on this talent's roster are returned", async () => {
+  // The query is `.eq("talent_profile_id", ...)`; the loader must not invent
+  // entries from anywhere else. With one roster row there is exactly one
+  // agency entry plus the talent's own self entry, and nothing more.
+  const rosterRows = [
+    {
+      status: "active",
+      created_at: "2026-02-01T00:00:00Z",
+      is_primary: true,
+      agency_visibility: "site_visible",
+      talent_site_hidden: false,
+      agencies: REAL_AGENCY,
+    },
+  ];
+
+  const supabase = fakeSupabase(baseResponses(rosterRows));
+  const result = await loadRepresentation("talent-1", "sofia-001", { client: supabase });
+
+  assert.deepEqual(
+    result.entries.map((e) => `${e.kind}:${e.tenantId}`).sort(),
+    ["agency:tenant-acme", "self_page:talent-1"].sort(),
+  );
+});
+
+test("a roster row whose agency join came back empty produces no link", async () => {
+  // No agency row means no slug and no tenant id, so there is no host to send
+  // anyone to. Previously this built `tulala.digital/w//t/<code>`.
+  const rosterRows = [
+    {
+      status: "active",
+      created_at: "2026-02-01T00:00:00Z",
+      is_primary: false,
+      agency_visibility: "site_visible",
+      talent_site_hidden: false,
+      agencies: null,
+    },
+  ];
+
+  const supabase = fakeSupabase(baseResponses(rosterRows));
+  const result = await loadRepresentation("talent-1", "sofia-001", { client: supabase });
+
+  const orphan = result.entries.find((e) => e.kind === "agency");
+  assert.ok(orphan);
+  assert.equal(orphan?.publicUrl, "");
+});

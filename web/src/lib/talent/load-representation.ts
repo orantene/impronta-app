@@ -10,6 +10,7 @@ import {
   type AgencyVisibility,
   type EffectiveVisibility,
   type RepresentationEntry,
+  type RepresentationKind,
   type RosterStatus,
 } from "@/lib/talent/representation";
 import { byName } from "@/lib/field-engine/sort-comparators";
@@ -149,15 +150,18 @@ export async function loadRepresentation(
     // fall back to the `/w/<slug>` path form inside `agencyRosterProfileUrl`.
     const originByTenant = await resolveAgencyPublicOrigins(trusted, tenantIds);
 
+    const allRows = (data ?? []) as unknown as RosterRow[];
+
+    // The platform hub is not a separate place the talent "appears" — it IS
+    // the Tulala self page, and listing both showed the same /t/<code> URL
+    // twice. Fold it into the self entry below. Only the FIRST hub row is
+    // folded: the M0 migration asserts exactly one kind='hub' org today, but
+    // if a second hub ever exists, that is a real, separate membership and it
+    // must stay visible rather than be silently swallowed by the dedupe.
     let hubRow: RosterRow | null = null;
-    const rows = ((data ?? []) as unknown as RosterRow[]).filter((row) => {
+    const rows = allRows.filter((row) => {
       const agency = Array.isArray(row.agencies) ? row.agencies[0] : row.agencies;
-      if (agency?.kind === "hub") {
-        // The platform hub is not a separate place the talent "appears" — it
-        // IS the Tulala self page. Fold it into the self entry below instead
-        // of listing it a second time (previously both rows showed the same
-        // /t/<code> URL). The hub's roster row stays the source of truth for
-        // that entry's visibility.
+      if (agency?.kind === "hub" && !hubRow) {
         hubRow = row;
         return false;
       }
@@ -170,6 +174,7 @@ export async function loadRepresentation(
       const status = asRosterStatus(row.status);
       const talentSiteHidden = row.talent_site_hidden ?? false;
       const slug = agency?.slug ?? "";
+      const kind: RepresentationKind = agency?.kind === "hub" ? "hub" : "agency";
 
       const effective = resolveEffectiveVisibility({
         status,
@@ -178,13 +183,14 @@ export async function loadRepresentation(
         globalHidden,
       });
       const resolvedOrigin = agency?.id ? originByTenant.get(agency.id) ?? null : null;
-      const url = agencyRosterProfileUrl(slug, profileCode, false, resolvedOrigin) ?? "";
+      const url =
+        agencyRosterProfileUrl(slug, profileCode, kind === "hub", resolvedOrigin) ?? "";
 
       return {
         tenantId: agency?.id ?? row.created_at,
         slug,
         name: agency?.display_name ?? "Unknown agency",
-        kind: "agency" as const,
+        kind,
         planTier: agency?.plan_tier ?? null,
         status,
         agencyVisibility,
@@ -192,8 +198,9 @@ export async function loadRepresentation(
         isPrimary: row.is_primary ?? false,
         takeRatePct: null,
         joinedAt: row.created_at,
-        // A pending or otherwise non-visible entry's public page 404s — show
-        // its status (already covered by `effective`) instead of a link.
+        // A pending or otherwise non-visible entry's page on THAT agency host
+        // 404s (`assertTalentVisibleOnAgencySurface`), so show the status the
+        // `effective` field already carries instead of a link to a 404.
         publicUrl: isEffectivelyVisible(effective) ? url : "",
         logoUrl: agency?.id ? logoByTenant.get(agency.id) ?? null : null,
         effective,
@@ -202,6 +209,10 @@ export async function loadRepresentation(
 
     const selfUrl = platformSelfProfileUrl(profileCode) ?? "";
     const hub = hubRow as RosterRow | null;
+
+    // Visibility TRUTH for the merged entry comes from the hub roster row —
+    // that is what the talent and the hub actually toggled, and it is what the
+    // chip must say.
     const selfEffective: EffectiveVisibility = hub
       ? resolveEffectiveVisibility({
           status: asRosterStatus(hub.status),
@@ -212,6 +223,23 @@ export async function loadRepresentation(
       : globalHidden
         ? "global_hidden"
         : "live";
+
+    // Whether the LINK resolves is a different question, and the apex answers
+    // it differently from an agency host. `tulala.digital/t/<code>` is gated by
+    // `talent_select_public`: `is_publicly_hidden = false` AND
+    // `talent_has_public_roster()`, i.e. ANY active roster row with
+    // site_visible/featured — not the hub row specifically, and
+    // `talent_site_hidden` is not consulted at all. Deriving the self link from
+    // `selfEffective` instead would hide a working link whenever the talent is
+    // roster-only on the hub but site-visible at an agency (and vice versa).
+    const selfPageResolves =
+      !globalHidden &&
+      allRows.some((row) => {
+        const status = asRosterStatus(row.status);
+        const visibility = asAgencyVisibility(row.agency_visibility ?? "roster_only");
+        return status === "active" && visibility !== "roster_only";
+      });
+
     const selfEntry: RepresentationEntry = {
       tenantId: hub
         ? (Array.isArray(hub.agencies) ? hub.agencies[0] : hub.agencies)?.id ?? talentProfileId
@@ -226,7 +254,7 @@ export async function loadRepresentation(
       isPrimary: hub ? hub.is_primary ?? false : false,
       takeRatePct: null,
       joinedAt: hub ? hub.created_at : null,
-      publicUrl: isEffectivelyVisible(selfEffective) ? selfUrl : "",
+      publicUrl: selfPageResolves ? selfUrl : "",
       logoUrl: null,
       effective: selfEffective,
     };

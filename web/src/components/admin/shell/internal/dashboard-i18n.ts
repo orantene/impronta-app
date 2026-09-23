@@ -242,6 +242,8 @@ const ES_TEXT: Record<string, string> = {
   "Where I appear": "Dónde aparezco",
   "Set up your public page": "Configura tu página pública",
   "View": "Ver",
+  // Kind badge on a "Where I appear" row; a product noun, unchanged in es.
+  "Hub": "Hub",
   "Operational defaults — language, currency, timezone.": "Valores operativos: idioma, moneda y zona horaria.",
   "Language & localization": "Idioma y localización",
   "Default public language": "Idioma público predeterminado",

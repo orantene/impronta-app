@@ -55,10 +55,28 @@ export function agencyRosterProfileUrl(
     return `${resolvedOrigin}${path}`;
   }
 
-  return `https://${workspacePathHost(agencySlug)}${path}`;
+  // Without a resolved origin the only form left is path-scoped, and that form
+  // needs a slug. An empty slug builds `tulala.digital/w//t/<code>`, a 404
+  // dressed up as a link, so refuse instead and let the caller show status.
+  const slug = agencySlug?.trim();
+  if (!slug) return null;
+
+  return `https://${workspacePathHost(slug)}${path}`;
 }
 
-const READY_DOMAIN_STATUSES = new Set(["active", "ssl_provisioned", "verified"]);
+/**
+ * The ONLY domain status a public visitor can route on.
+ *
+ * `resolveAgencyPublicOrigins` runs with the service-role client, which sees
+ * every row. Host routing does not: `resolveHostContext` builds its client from
+ * NEXT_PUBLIC_SUPABASE_ANON_KEY, and the anon policy on `agency_domains` is
+ * `USING (status = 'active')` (20260601100200). So although host-context's own
+ * query lists `active | ssl_provisioned | verified`, RLS only ever hands it the
+ * active rows: a "verified" hostname 404s with "Host not registered" for the
+ * public. Emitting one here would put a dead link in the talent's menu, which
+ * is the exact class of bug this helper exists to fix. Keep this at `active`.
+ */
+const READY_DOMAIN_STATUSES = new Set(["active"]);
 
 type AgencyDomainRow = {
   tenant_id: string;
@@ -74,6 +92,10 @@ type AgencyDomainRow = {
  * as `fetchOtherHubsForTalent` in `app/t/[profileCode]/profile-view.tsx` —
  * kept here as the single shared implementation so both call sites agree.
  *
+ * ONE query for every tenant on the roster (`.in("tenant_id", ids)`), never one
+ * per row: the caller resolves the whole map once per render and then reads it
+ * synchronously while mapping rows.
+ *
  * Best-effort: any query failure yields an empty map, so callers fall back to
  * the path form rather than throwing.
  */
@@ -85,11 +107,16 @@ export async function resolveAgencyPublicOrigins(
   const ids = Array.from(new Set(tenantIds.filter(Boolean)));
   if (!client || ids.length === 0) return originByTenant;
 
-  const { data } = await client
+  const { data, error } = await client
     .from("agency_domains")
     .select("tenant_id, hostname, kind, status, is_primary")
     .in("tenant_id", ids)
     .in("kind", ["custom", "subdomain"]);
+
+  // A denied policy, a renamed column and "this tenant has no domain rows" all
+  // arrive as `data: null`. Only the last one may fall through to the path
+  // form; the other two are bugs and must not masquerade as a clean miss.
+  if (error) return originByTenant;
 
   const rowsByTenant = (data ?? []) as AgencyDomainRow[];
   for (const tid of ids) {
