@@ -62,7 +62,8 @@ Derived shades (`--mn-rose-hover`, `--mn-blush-deep`, `--mn-tint-deep`,
 
 Two colours are deliberately **not** themeable, because a Look must not repaint
 a brand: `--mn-brand-heart` (the pink heart inside her real logo) and
-`--mn-brand-whatsapp`.
+`--mn-brand-whatsapp`. **These must never appear in a Look's token map** — an
+audit that flags them as "hex literals to fix" would be wrong.
 
 Contrast, measured: ink/white 16.17, ink/tint 15.14, muted/white 6.15,
 muted/tint 5.76, primary/white 6.87, white-on-primary 6.87. All pass AA.
@@ -77,6 +78,15 @@ Same layout, same markup, tokens only. `frames/looks-hero.jpg`, `frames/looks-me
 | **noir-champagne** | `#FFFFFF` | `#17151A` | `#6E6873` | `#1F1B22` | `#E7DAC4` | `#F7F4EF` | `#E8E3DB` | Playfair Display |
 | **sage-linen** | `#FFFFFF` | `#1F2621` | `#606B63` | `#2F6B4F` | `#CFE0D4` | `#F2F7F3` | `#E4EBE6` | Fraunces |
 | **cacao-cream** | `#FFFDFB` | `#2A201A` | `#7A6A5F` | `#8A4A2B` | `#EFD9C4` | `#FBF2E9` | `#EDE2D6` | Cinzel |
+
+## 4b. Address form — current, not target
+
+Every frame and every string here uses the **path** form,
+`tulala.digital/t/<code>`, because that is what is live. Phase 2 subdomain
+routing (`<name>.tulala.digital`) is **held** pending PR #2179 — the namespace
+trigger counted a signup's own 15-minute slug reservation as a collision with
+itself. Nothing in this handoff assumes a subdomain; if a later frame shows one,
+mark it target-state.
 
 ## 5. Target categories
 

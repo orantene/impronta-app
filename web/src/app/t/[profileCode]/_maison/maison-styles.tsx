@@ -44,6 +44,13 @@ export const MAISON_CSS = `
   --mn-tint-deep: color-mix(in oklab, var(--mn-tint) 86%, var(--mn-rose));
   --mn-line-strong: color-mix(in oklab, var(--mn-line) 62%, var(--mn-ink));
 
+  /* BRAND, NOT THEME — these two are deliberately NOT tokens and must never
+     appear in a Look's token map. The heart is part of her actual logo and the
+     green is WhatsApp's; a Look repainting either would be a bug, not a
+     feature. They stay vars so they remain overridable by hand, but an audit
+     that finds "hex literals here" should leave them alone. Declared at their
+     point of use: --mn-brand-heart, --mn-brand-whatsapp, --mn-brand-whatsapp-ink. */
+
   --mn-display: var(--token-typography-heading-font-family, var(--font-fraunces), "Fraunces", Georgia, serif);
   --mn-sans: var(--token-typography-body-font-family, var(--font-inter-body), Inter, ui-sans-serif, system-ui, sans-serif);
 
