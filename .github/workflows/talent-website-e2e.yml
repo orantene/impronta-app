@@ -282,6 +282,29 @@ jobs:
           docker logs supabase_auth_impronta-app 2>&1 | tail -40 || true
           echo '```'
 
+      # The journeys navigate to the fixtures' CUSTOM DOMAINS, which are
+      # `.test` names with no DNS anywhere by design. Without these entries the
+      # run dies at
+      #   page.goto: net::ERR_NAME_NOT_RESOLVED at http://free-site.test:3000/
+      # which reads as a broken test rather than a missing hosts file.
+      #
+      # `.test` is reserved by RFC 6761 precisely so it can never resolve
+      # publicly, so mapping it locally is the intended way to use it — not a
+      # workaround. The `lvh.me` names DO resolve to 127.0.0.1 publicly, but are
+      # pinned here too so the lane does not depend on a third party's DNS.
+      - name: Map the fixture custom domains to loopback
+        run: |
+          set -o pipefail
+          sudo tee -a /etc/hosts >/dev/null <<'HOSTS'
+          127.0.0.1 free-site.test
+          127.0.0.1 max-site.test
+          127.0.0.1 impronta.lvh.me
+          127.0.0.1 acme.lvh.me
+          HOSTS
+          for h in free-site.test max-site.test impronta.lvh.me acme.lvh.me; do
+            getent hosts "$h" || { echo "::error::$h did not resolve after the hosts edit"; exit 1; }
+          done
+
       - name: Seed talent-website fixtures
         working-directory: web
         env:
@@ -308,6 +331,20 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           PORT: "3000"
+          # THE JOURNEYS REQUIRE THE FEATURE SWITCHES ON. The lane set none of
+          # them, so the dev server ran with every talent-website feature dark:
+          # `/t/site/<slug>` answered 404 (observed for both free-site-fiona and
+          # max-site-maxine), the gallery did not exist, and the plan surfaces
+          # had nothing to assert against. j2's own header states the
+          # expectation: "Server: started with TALENT_FREE_WEBSITE_ENABLED=true
+          # (the harness default)".
+          #
+          # j0 is the deliberate exception: it asserts flags-OFF parity and
+          # skips unless E2E_TALENT_FLAGS=off, so it stays skipped here and
+          # needs its own run to be meaningful.
+          TALENT_THEME_GALLERY_ENABLED: "true"
+          TALENT_FREE_WEBSITE_ENABLED: "true"
+          TALENT_SITE_SUBDOMAINS_ENABLED: "true"
           NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
