@@ -120,7 +120,7 @@ export function TalentSiteDomainPanel({ initialDomains, canManage = true }: Prop
       <Card>
         <Header />
         <p style={{ margin: "10px 0 0", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-          Connecting your own domain is a Max feature. Upgrade to Max to point a
+          Connecting your own domain is a Web Office feature. Upgrade to Web Office to point a
           custom domain at your site.
         </p>
       </Card>

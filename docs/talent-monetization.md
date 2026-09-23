@@ -1,6 +1,12 @@
 # Talent Subscriptions & Premium Talent Pages — Architecture Direction
 
 > **Direction revised 2026-05-25** — see **L45** in [`docs/decision-log.md`](decision-log.md). Premium personal pages are backed by `public.talent_sites` + `talent_profiles.talent_plan_key`, **not** a solo workspace. The "talent_solo workspace" sections below are historical context only.
+>
+> **Direction reversed 2026-09-23** — see the **L45 reversal** entry in [`docs/decision-log.md`](decision-log.md) and `web/docs/talent-website-execution-plan-2026-09-23.md`. Two changes contradict the "Talent Pro" / "Talent Portfolio" naming and Max-only gating used throughout the rest of this document, which is now **historical** on those two points:
+> - **The personal site is free on every tier**, not gated to a paid tier. What's paid is its *expansion* (extra pages, sections/blocks, custom domain, SEO, analytics) — see `TalentSiteCapability` in `talent-membership.ts`.
+> - **"Talent Pro" and "Talent Portfolio" are folded into one paid tier, "Web Office."** `talent_pro` is no longer sold (grandfathered subscribers keep it); the plan keys `talent_pro` / `talent_portfolio` and the `talent_portfolio` = Max mapping below are still the correct internal identifiers — only the **user-facing names** "Pro" and "Portfolio" are retired, in favor of "Web Office" for the one paid tier and "Free" for the base tier.
+>
+> Read every "Talent Pro" / "Talent Portfolio" / "Max" mention below as the corresponding plan key or capability, not as a name to display.
 
 **Status:** Architecture direction. Author: founder (product direction); architecture written 2026-04-25, **revised 2026-04-25** with founder's resolved decisions.
 

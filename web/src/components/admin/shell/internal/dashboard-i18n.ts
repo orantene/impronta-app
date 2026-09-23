@@ -296,6 +296,7 @@ const ES_TEXT: Record<string, string> = {
   "Primary agency": "Agencia principal",
   "Free": "Gratis",
   "Pro": "Pro",
+  "Web Office": "Oficina Web",
   "Enterprise": "Enterprise",
   "viewer": "lector",
   "editor": "editor",
