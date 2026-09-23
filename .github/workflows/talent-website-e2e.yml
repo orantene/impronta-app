@@ -155,6 +155,34 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # A green replay proves the 859 files APPLY. It does not prove the result
+      # is production's schema — a shim that quietly papered over a real
+      # difference would be just as green. This diffs the built database
+      # against web/src/lib/supabase/database.types.ts, which is generated FROM
+      # production and is the only production-derived artefact in this repo.
+      # Missing or mismatched objects fail the job; extra ones are only listed.
+      - name: Verify schema fidelity against database.types.ts
+        if: always() && steps.schema.outcome == 'success'
+        run: |
+          set -o pipefail
+          # Only the two modules the script needs, not all of web/.
+          mkdir -p "$RUNNER_TEMP/verifydeps"
+          npm install --no-save --no-audit --no-fund \
+            --prefix "$RUNNER_TEMP/verifydeps" typescript pg >/dev/null
+          VERIFY_SCHEMA_DEPS="$RUNNER_TEMP/verifydeps" \
+            node supabase/ci/verify-schema.ts 2>&1 | tee "$RUNNER_TEMP/verify.log"
+
+      - name: Schema fidelity summary
+        if: always() && hashFiles(format('{0}/verify.log', runner.temp)) != ''
+        run: |
+          {
+            echo "### Schema fidelity vs database.types.ts"
+            echo ""
+            echo '```'
+            head -150 "$RUNNER_TEMP/verify.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Supabase DB logs on failure
         if: failure()
         run: docker logs supabase_db_impronta-app 2>&1 | tail -80 || true

@@ -36,6 +36,14 @@
 #     20261213000008_support_realtime_private.sql takes its real branch instead
 #     of the `to_regclass IS NULL` skip branch. No realtime server runs.
 #
+# PREREQUISITES
+#   The postgresql-16 server binaries, and pgvector: talent_embeddings.embedding
+#   is a `vector` column, and pgvector is the one extension the history needs
+#   that a stock PostgreSQL does not ship.
+#     apt-get install -y postgresql-16 postgresql-16-pgvector
+#   A real Supabase project ships pgvector, so CI against `supabase start`
+#   needs nothing extra. The bootstrap below says so by name if it is missing.
+#
 # USAGE
 #   source supabase/ci/local-postgres.sh          # exports PG* into the shell
 #   bash   supabase/ci/local-postgres.sh up       # create + start + bootstrap
@@ -198,6 +206,21 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto  WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS citext    WITH SCHEMA public;
 CREATE EXTENSION IF NOT EXISTS pg_trgm   WITH SCHEMA public;
 CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;
+-- pgvector is the one extension a stock PostgreSQL install does NOT ship, and
+-- talent_embeddings.embedding is a `vector` column, so the replay cannot build
+-- production's schema without it. Say which package is missing instead of
+-- failing with a bare "extension is not available".
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector') THEN
+    RAISE EXCEPTION
+      'pgvector is not installed. This cluster cannot reproduce '
+      'public.talent_embeddings.embedding (type `vector`). Install it: '
+      'apt-get install -y postgresql-%-pgvector  (a real Supabase project '
+      'ships it, so CI against `supabase start` needs nothing.)',
+      current_setting('server_version_num')::int / 10000;
+  END IF;
+END $$;
 CREATE EXTENSION IF NOT EXISTS vector    WITH SCHEMA public;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
 -- Unqualified crypt()/gen_salt()/digest() appear too, so `extensions` has to

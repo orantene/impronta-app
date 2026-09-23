@@ -33,6 +33,11 @@
 #      surrounding state can make it pass. A replacement must reproduce what
 #      production actually holds and say so in its header; every use is printed
 #      as a ::warning so it can never pass unnoticed. Prefer a pre/post shim.
+#   6. Production-only objects: supabase/ci/production-only-objects.sql is
+#      applied once, last, on a full replay. It holds what production has and
+#      NO migration creates (D-014) — objects applied to production by hand,
+#      with nothing in the history to replay and no migration to hang a shim
+#      on. Skipped in --after mode, where the baseline already carries them.
 #
 # After each file applies, its version is recorded in
 # supabase_migrations.schema_migrations so the CLI sees the chain as applied.
@@ -46,8 +51,10 @@
 # PGDATABASE). Optional: MIGRATION_LOG=<file> receives the apply order.
 #
 # STATUS (2026-09-23): a full from-scratch replay SUCCEEDS — 859/859, exit 0,
-# no baseline and no production credentials. See supabase/ci/README.md for the
-# five shapes of blocker the shims handle and the rule for writing one.
+# no baseline and no production credentials, and supabase/ci/verify-schema.ts
+# then reports 0 mismatches against database.types.ts. See supabase/ci/README.md
+# for the six shapes of blocker the substitutes handle and the rule for writing
+# one.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -95,10 +102,17 @@ attempt() {
     replaced[$file]=1
   fi
 
+  # The pre-shim runs FIRST — before the enum pre-commit below, not after it.
+  # A pre-shim's job is to put the database in the state production was in when
+  # this file ran, and the enum pre-commit is already part of running the file.
+  # Getting this backwards silently defeats an enum-ORDER shim: the file's own
+  # ADD VALUEs land first and the shim's value lands after them, in the wrong
+  # position, with no error anywhere. (Measured 2026-09-23: it put `pitch` at
+  # position 17 of inquiry_source_channel instead of 8.)
+  run_shim "$SHIM_DIR/$version.pre.sql"
+
   grep -oiE "alter[[:space:]]+type[[:space:]]+[^;]*[[:space:]]add[[:space:]]+value[^;]*;" "$source" \
     | while IFS= read -r stmt; do psql -X -q -c "$stmt" >/dev/null 2>&1 || true; done
-
-  run_shim "$SHIM_DIR/$version.pre.sql"
 
   grep -viE '^[[:space:]]*(begin|commit)[[:space:]]*;[[:space:]]*$' "$source" > "$TMP/body.sql"
   if ! "${PSQL[@]}" -1 -f "$TMP/body.sql" > /dev/null 2> "$TMP/err"; then
@@ -227,5 +241,27 @@ if [ "${#replaced[@]}" -gt 0 ]; then
     echo "::warning title=Migration replaced::$r applied from migration-shims/${r%%_*}.replace.sql"
   done
 fi
+
+# 6. Objects production holds that NO migration creates (D-014, recorded in
+#    docs/plans/qa-evidence/schema-drift/isolated-branch-repair.md). They were
+#    applied to production by hand, so there is nothing in the history to
+#    replay and no migration to hang a pre/post shim on. Applied last — nothing
+#    in the history references them — and only on a full from-scratch replay:
+#    after a baseline (`--after`) the database already has them, because the
+#    baseline came from production.
+PRODUCTION_ONLY="$ROOT/supabase/ci/production-only-objects.sql"
+if [ -z "$AFTER" ] && [ -f "$PRODUCTION_ONLY" ]; then
+  if "${PSQL[@]}" -1 -f "$PRODUCTION_ONLY" >/dev/null 2> "$TMP/err"; then
+    echo "::warning title=Production-only objects::applied supabase/ci/production-only-objects.sql (objects no migration creates — D-014)"
+  else
+    grep -v 'NOTICE' "$TMP/err" | tail -20
+    echo "::error title=Production-only objects failed::supabase/ci/production-only-objects.sql"
+    if [ -n "$REPORT" ]; then
+      { echo "=== production-only-objects.sql"; grep -v '^NOTICE' "$TMP/err"; echo; } >> "$REPORT"
+    fi
+    failed=$((failed + 1))
+  fi
+fi
+
 echo "Final: $applied applied, $failed could not apply, ${#replaced[@]} replaced, of $total on disk"
-[ "$applied" -eq "$total" ]
+[ "$applied" -eq "$total" ] && [ "$failed" -eq 0 ]
