@@ -26,6 +26,7 @@ import { messagingLoadInbox } from "@/lib/server-actions/messaging-engine";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import { PageRouteSyncer } from "../_page-route-syncer";
+import { PosModeUrlSync } from "./pos-mode-url-sync";
 
 import { projectsModeCopy } from "./_projects/projects-copy";
 import { saleReference } from "./counter-model";
@@ -112,6 +113,11 @@ export async function messagesModeView(input: {
   return (
     <>
       <PageRouteSyncer page="pos" />
+      <PosModeUrlSync
+        mode={mode}
+        orderId={sale ? sale.orderId : input.orderId}
+        viewMessages
+      />
       <MessagesModeClient
         mode={mode}
         tenantId={input.tenantId}

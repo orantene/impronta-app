@@ -1,0 +1,90 @@
+TAP version 13
+# Subtest: D-MSG-318/319: missing mode is written with replaceState, not a navigation
+ok 1 - D-MSG-318/319: missing mode is written with replaceState, not a navigation
+  ---
+  duration_ms: 12.241625
+  ...
+# Subtest: layer 1 — the POS page exists and is capability-gated
+ok 2 - layer 1 — the POS page exists and is capability-gated
+  ---
+  duration_ms: 0.482041
+  ...
+# Subtest: layer 2 — a canonical-route matcher claims /admin/pos
+ok 3 - layer 2 — a canonical-route matcher claims /admin/pos
+  ---
+  duration_ms: 0.111083
+  ...
+# Subtest: layer 3 — 'pos' is an allowed workspace segment
+ok 4 - layer 3 — 'pos' is an allowed workspace segment
+  ---
+  duration_ms: 0.150625
+  ...
+# Subtest: layer 4 — the destination registry routes New sale to the POS route
+ok 5 - layer 4 — the destination registry routes New sale to the POS route
+  ---
+  duration_ms: 0.083042
+  ...
+# Subtest: every return of the POS route tells the shell it is the point of sale
+ok 6 - every return of the POS route tells the shell it is the point of sale
+  ---
+  duration_ms: 0.26725
+  ...
+# Subtest: POS actions require workspace staff and booking.payment.request
+ok 7 - POS actions require workspace staff and booking.payment.request
+  ---
+  duration_ms: 0.160459
+  ...
+# Subtest: shift cash-up lives on POS, not a new destination
+ok 8 - shift cash-up lives on POS, not a new destination
+  ---
+  duration_ms: 0.361833
+  ...
+# Subtest: the collection key is DERIVED from the sale, never minted per call
+ok 9 - the collection key is DERIVED from the sale, never minted per call
+  ---
+  duration_ms: 0.256333
+  ...
+# Subtest: every refusal reaches the cashier as a sentence, never as a reason word
+ok 10 - every refusal reaches the cashier as a sentence, never as a reason word
+  ---
+  duration_ms: 0.232334
+  ...
+# Subtest: the route validates its mode against the modes this person may use
+ok 11 - the route validates its mode against the modes this person may use
+  ---
+  duration_ms: 0.237792
+  ...
+# Subtest: D-MSG-318/319: a bare /admin/pos does not redirect to fill ?mode=
+ok 12 - D-MSG-318/319: a bare /admin/pos does not redirect to fill ?mode=
+  ---
+  duration_ms: 0.180958
+  ...
+# Subtest: no tender is offered as working without the provider behind it
+ok 13 - no tender is offered as working without the provider behind it
+  ---
+  duration_ms: 0.19775
+  ...
+# Subtest: walk-in class places pick a tenant-scoped session
+ok 14 - walk-in class places pick a tenant-scoped session
+  ---
+  duration_ms: 0.213584
+  ...
+# Subtest: D-155: every push that follows a write on the counter waits for the router to settle
+ok 15 - D-155: every push that follows a write on the counter waits for the router to settle
+  ---
+  duration_ms: 0.824083
+  ...
+# Subtest: D-156: the hold after a write is bounded and released by the re-read, not by a newer version
+ok 16 - D-156: the hold after a write is bounded and released by the re-read, not by a newer version
+  ---
+  duration_ms: 0.604166
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1569.247292
