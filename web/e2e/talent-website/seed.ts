@@ -284,7 +284,18 @@ async function ensurePlatformHub(): Promise<string> {
       );
       const { error: updErr } = await admin
         .from("agencies")
-        .update({ plan_tier: "network", status: "active", updated_at: new Date().toISOString() })
+        .update({
+          plan_tier: "network",
+          status: "active",
+          // MUST be cleared in the same statement as plan_tier. The constraint
+          // `agencies_unlimited_tiers_have_no_seat_cap` (20261227000002) is
+          //   plan_tier not in ('agency','network','legacy') OR talent_seat_limit is null
+          // so promoting a seeded hub from `free` (seat cap 5) to `network`
+          // without nulling the cap fails with 23514. A fresh database seeds the
+          // hub as free, so this path is the normal one, not the exotic one.
+          talent_seat_limit: null,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", row.id);
       if (updErr) throw updErr;
     }
@@ -299,6 +310,9 @@ async function ensurePlatformHub(): Promise<string> {
       display_name: "Impronta Hub",
       kind: "hub",
       plan_tier: "network",
+      // Explicit rather than relying on the column default, for the same
+      // constraint as above: an unlimited tier may not carry a seat cap.
+      talent_seat_limit: null,
       status: "active",
       supported_locales: ["en", "es"],
       onboarding_completed_at: new Date().toISOString(),
