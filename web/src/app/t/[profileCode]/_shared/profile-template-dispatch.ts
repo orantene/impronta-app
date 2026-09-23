@@ -45,15 +45,38 @@ export function isProfileTemplateKey(raw: unknown): raw is ProfileTemplateKey {
   return typeof raw === "string" && raw in TEMPLATES;
 }
 
+/**
+ * Resolution order, widest override first:
+ *
+ *   1. `?template=`                      — per-request, for QA and preview
+ *   2. `talent_profiles.profile_template` — this talent's own choice
+ *   3. `template.profile-layout-family`   — the tenant's default
+ *   4. classic
+ *
+ * (2) exists because (3) is TENANT-level: on a hub with 94 talent profiles,
+ * giving one of them a different design used to mean repainting all of them.
+ * NULL at (2) inherits the tenant's choice, so this is additive.
+ *
+ * Every layer is validated against the SAME shipped list via
+ * `isProfileTemplateKey`. That matters more than it looks: on main the query
+ * allow-list was a hand-written union that had never been widened for `maison`,
+ * so `?template=maison` was silently inert. One list, checked everywhere, is
+ * what stops that recurring — and it means a stored value naming a template
+ * this deploy does not have degrades to the tenant's choice rather than to a
+ * blank page.
+ */
 export function resolveProfileTemplate(
   queryOverride: unknown,
+  profileTemplate: unknown,
   brandingTheme: Record<string, unknown>,
 ): { key: ProfileTemplateKey; Template: React.ComponentType<MaisonProfileLayoutProps> } {
   const family = brandingTheme["template.profile-layout-family"];
   const key = isProfileTemplateKey(queryOverride)
     ? queryOverride
-    : isProfileTemplateKey(family)
-      ? family
-      : "classic";
+    : isProfileTemplateKey(profileTemplate)
+      ? profileTemplate
+      : isProfileTemplateKey(family)
+        ? family
+        : "classic";
   return { key, Template: TEMPLATES[key] };
 }
