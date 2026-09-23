@@ -29,7 +29,11 @@ function src(relative: string): string {
   return readFileSync(join(process.cwd(), relative), "utf8");
 }
 
-const HOST_ROUTE = "src/app/_talent-site/[[...pageSlug]]/page.tsx";
+// The folder is `%5Ftalent-site` on disk: the URL-encoded underscore that keeps
+// the public path `/_talent-site` while staying out of Next's private-folder
+// rule. A plain `_folder` is excluded from routing, which silently 404ed every
+// talent custom domain until 2026-09-23.
+const HOST_ROUTE = "src/app/%5Ftalent-site/[[...pageSlug]]/page.tsx";
 
 test("the talent host route never reads the visitor's session", () => {
   const source = src(HOST_ROUTE);
