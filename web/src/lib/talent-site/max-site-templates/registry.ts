@@ -5,9 +5,9 @@
  * varies the LAYOUT + EMPHASIS while staying fully data-driven (every home tree
  * is `{{token}}`-hydrated from the talent's profile by the caller — name, photo,
  * bio, services, gallery, inquiry CTA). The shell + home builders are composed
- * from the shared section builders (`./sections`) and, for `default`, from the
- * EXISTING platform-default builders so the gallery + provisioning share one
- * source of truth.
+ * from the talent SECTION KIT (`../theme-catalog/section-kit`, re-exported by
+ * `./sections`): token-only styles + slotKey/originRole provenance on every
+ * section, so each template doubles as a theme-gallery built-in Design.
  *
  * Pure (injectable id factory) → unit-testable and importable by the apply-
  * template server action and the provisioning helper.
@@ -25,10 +25,10 @@ import {
   buildDefaultShellTree,
   buildStarterHomePageTree,
 } from "../default-max-site-trees";
-import { buildDefaultTalentProfileTree } from "../default-talent-tree";
 import {
   aboutBlock,
-  buildShell,
+  buildKitShell,
+  buildKitStandardShell,
   contactBlock,
   defaultIdFactory,
   galleryBlock,
@@ -44,14 +44,12 @@ import type {
   MaxSiteTemplateKey,
 } from "./types";
 
-const EDITORIAL_ACCENT = "#8a6d3b";
-const BOLD_ACCENT = "#f4d58d";
-
 /**
- * DEFAULT — the platform's premium all-rounder. Reuses the EXACT builders the
- * provisioning helper seeds (`buildDefaultShellTree` + `buildDefaultTalentProfileTree`)
- * so picking "default" reproduces a freshly-provisioned site. The home tree
- * already carries the full `{{token}}` set (incl. the Max VIP badge container).
+ * DEFAULT — the platform's premium all-rounder, composed from the section kit
+ * in the SAME order as the provisioned default (`buildDefaultTalentProfileTree`:
+ * split hero + chips, about, services, masonry gallery, contact) around the
+ * standard `site_header` shell. The provisioned tree's Max VIP badge is left
+ * out: it links to the talent's own site, so on that site it always prunes.
  */
 const DEFAULT_TEMPLATE: MaxSiteTemplateDef = {
   key: "default",
@@ -61,13 +59,18 @@ const DEFAULT_TEMPLATE: MaxSiteTemplateDef = {
   emphasis: "Split hero · masonry gallery",
   thumbnailUrl: "/marketing/photos/talent-services-hero.jpg",
   buildShellTree: (ctx, makeId = defaultIdFactory) =>
-    buildDefaultShellTree(
-      { displayName: ctx.displayName, logoUrl: ctx.logoUrl, homeHref: ctx.homeHref },
-      makeId,
-    ),
-  // The platform default tree builds its own stable ids; the home tree does not
-  // take an id factory (its ids are content-prefixed + deterministic by design).
-  buildHomeTree: () => buildDefaultTalentProfileTree(),
+    buildKitStandardShell(makeId, {
+      displayName: ctx.displayName,
+      logoUrl: ctx.logoUrl,
+      homeHref: ctx.homeHref,
+    }),
+  buildHomeTree: (_ctx, makeId = defaultIdFactory) => [
+    heroSplit(makeId, { ratio: "50-50", chips: true }),
+    aboutBlock(makeId, { align: "start" }),
+    servicesBlock(makeId, { columns: 3 }),
+    galleryBlock(makeId, { mode: "masonry", columns: 3 }),
+    contactBlock(makeId),
+  ],
 };
 
 /**
@@ -83,16 +86,17 @@ const EDITORIAL_TEMPLATE: MaxSiteTemplateDef = {
   emphasis: "Image-led 40-60 hero · centered chrome",
   thumbnailUrl: "/marketing/photos/independent-singer-booking.jpg",
   buildShellTree: (ctx, makeId = defaultIdFactory) =>
-    buildShell(makeId, {
+    buildKitShell(makeId, {
       displayName: ctx.displayName,
       logoUrl: ctx.logoUrl,
       homeHref: ctx.homeHref,
       headerAlign: "center",
-      headerStyle: { paddingY: "m", borderColor: EDITORIAL_ACCENT, borderWidth: "0 0 1px 0", borderStyle: "solid" },
+      headerPaddingY: "m",
+      headerRule: true,
     }),
   buildHomeTree: (_ctx, makeId = defaultIdFactory) => [
-    heroSplit(makeId, { ratio: "40-60", chips: true, accent: EDITORIAL_ACCENT, minHeight: "78vh" }),
-    aboutBlock(makeId, { align: "center", accent: EDITORIAL_ACCENT }),
+    heroSplit(makeId, { ratio: "40-60", chips: true, accent: true, minHeight: "78vh" }),
+    aboutBlock(makeId, { align: "center", accent: true }),
     servicesBlock(makeId, { columns: 3 }),
     galleryBlock(makeId, { mode: "masonry", columns: 3, heading: "Portfolio" }),
     contactBlock(makeId),
@@ -112,12 +116,12 @@ const MINIMAL_TEMPLATE: MaxSiteTemplateDef = {
   emphasis: "Centered type hero · no headshot",
   thumbnailUrl: "/marketing/photos/service-pros-lifestyle.jpg",
   buildShellTree: (ctx, makeId = defaultIdFactory) =>
-    buildShell(makeId, {
+    buildKitShell(makeId, {
       displayName: ctx.displayName,
       logoUrl: ctx.logoUrl,
       homeHref: ctx.homeHref,
       headerAlign: "space-between",
-      headerStyle: { paddingY: "s" },
+      headerPaddingY: "s",
     }),
   buildHomeTree: (_ctx, makeId = defaultIdFactory) => [
     heroCentered(makeId, { chips: true }),
@@ -141,7 +145,7 @@ const PORTFOLIO_TEMPLATE: MaxSiteTemplateDef = {
   emphasis: "Gallery-first · 60-40 hero",
   thumbnailUrl: "/marketing/photos/mk-models-runway.jpg",
   buildShellTree: (ctx, makeId = defaultIdFactory) =>
-    buildShell(makeId, {
+    buildKitShell(makeId, {
       displayName: ctx.displayName,
       logoUrl: ctx.logoUrl,
       homeHref: ctx.homeHref,
@@ -169,18 +173,16 @@ const BOLD_TEMPLATE: MaxSiteTemplateDef = {
   emphasis: "Full-bleed cover hero · dark chrome",
   thumbnailUrl: "/marketing/photos/mk-hero-perform.jpg",
   buildShellTree: (ctx, makeId = defaultIdFactory) =>
-    buildShell(makeId, {
+    buildKitShell(makeId, {
       displayName: ctx.displayName,
       logoUrl: ctx.logoUrl,
       homeHref: ctx.homeHref,
       headerAlign: "space-between",
-      headerStyle: { paddingX: "l", paddingY: "m", backgroundColor: "#111111", textColor: "#ffffff" },
-      footerStyle: { paddingY: "l", backgroundColor: "#111111" },
-      footerTone: "muted",
+      contrastChrome: true,
     }),
   buildHomeTree: (_ctx, makeId = defaultIdFactory) => [
-    heroCover(makeId, { accent: BOLD_ACCENT }),
-    aboutBlock(makeId, { align: "start", accent: BOLD_ACCENT }),
+    heroCover(makeId, { accent: true }),
+    aboutBlock(makeId, { align: "start", accent: true }),
     servicesBlock(makeId, { columns: 3 }),
     galleryBlock(makeId, { mode: "grid", columns: 3, heading: "Selected work" }),
     contactBlock(makeId),
