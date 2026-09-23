@@ -137,3 +137,15 @@ test("the starter home tree is RENDERABLE by the public site renderer (D-MSG-411
     assert.equal(hasRenderableBuilderNodes(tree), true);
   }
 });
+
+test("the shell header stays a SHELL SECTION, not a page block (D-MSG-411)", () => {
+  // The page-block fix must not be "finished" by flipping the header too: the
+  // header is a shell slot and only renders through the shell path. Pin both
+  // its kind and its slot so a bulk section-to-container sweep fails here.
+  const shell = buildDefaultShellTree({ displayName: "Morena" });
+  const header = shell.find(
+    (node) => (node.props as { slotKey?: string } | undefined)?.slotKey === "header",
+  );
+  assert.ok(header, "the default shell tree must carry a header slot");
+  assert.equal(header?.kind, "section");
+});
