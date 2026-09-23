@@ -37,3 +37,14 @@ test("the pay page leads back to the link's conversation when the order names no
   assert.match(expiredView, /props\.threadHref/);
   assert.match(expiredView, /public\.thread\.backToThread/);
 });
+
+test("Stripe confirm=stripe builds absolute success_url from request host when BASE_URL unset (D-MSG-329)", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/page.tsx"), "utf8");
+  assert.match(src, /async function checkoutOrigin/);
+  assert.match(src, /x-forwarded-host/);
+  assert.match(src, /const origin = await checkoutOrigin\(\)/);
+  assert.doesNotMatch(
+    src,
+    /const origin = process\.env\.NEXT_PUBLIC_BASE_URL\?\.replace\(\\\/\\\\\$\/, ""\) \|\| ""/,
+  );
+});
