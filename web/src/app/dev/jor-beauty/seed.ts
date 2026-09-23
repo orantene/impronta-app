@@ -351,6 +351,15 @@ function toOffering(s: Seed, index: number, locale = "es"): TalentOffering {
     depositPct: null,
     allowPayInPerson: true,
     requireAccountToBook: false,
+    // A one-person beauty studio sells no product that demands a named buyer
+    // of itself — the booking flow collects her client's name and contact
+    // anyway. Identity stays off, so nothing refuses a sale for want of a name.
+    requiresIdentity: false,
+    identityReason: null,
+    // No shared capacity pool: one artist, one chair, one appointment at a
+    // time, so each booking consumes a single unit of her own calendar.
+    capacityPoolId: null,
+    consumesUnits: 1,
     cancellationHours: null,
     freeReserveExpiresDays: null,
     durationMinutes: s.minutes,
