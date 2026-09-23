@@ -67,26 +67,73 @@ test.describe("QA 6.1 payment flows", () => {
     await expect(sheet, "Payment request sheet did not open").toBeVisible({ timeout: 20_000 });
     await shot(page, "admin-payment-deep-open");
 
+    // openRequestFor reads conversation_records.payment_state requested|opened.
+    // There is no Cancel on PaymentCard — clear via Cancel/refund sheet if blocked.
+    const openHint = sheet.getByText(/one open request|open request at a time/i).first();
+    if (await openHint.isVisible().catch(() => false)) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(400);
+      await openPlusTray(page);
+      const cancelItem = page.locator('[data-tray-item="cancel"], [data-tray-item="cancel_refund"]').first();
+      if (await cancelItem.isVisible().catch(() => false)) {
+        await cancelItem.click();
+      } else {
+        // Fallback: open Cancel from More / next-step.
+        const moreCancel = page.getByRole("button", { name: /^cancel/i }).first();
+        await expect(
+          moreCancel,
+          "open request blocks pay-link and Cancel control is missing — clear conversation_records.payment_state requested|opened on the QA order",
+        ).toBeVisible({ timeout: 10_000 });
+        await moreCancel.click();
+      }
+      const cancelSheet = page.locator("[data-cancel-sheet], [data-sheet]").first();
+      await expect(cancelSheet, "Cancel sheet did not open to clear open request").toBeVisible({
+        timeout: 15_000,
+      });
+      // Prefer keeping money / voiding the open request without a refund if offered.
+      const keep = cancelSheet.getByText(/keep|no refund|cancel without/i).first();
+      if (await keep.isVisible().catch(() => false)) await keep.click();
+      const primary = cancelSheet.locator("[data-cancel-primary], [data-sheet-primary]").first();
+      if (await primary.isVisible().catch(() => false)) {
+        await primary.click();
+        await page.waitForTimeout(2000);
+      } else {
+        throw new Error(
+          "Cancel sheet has no primary — clear open request via SQL on conversation_records.payment_state before this spec",
+        );
+      }
+      await openPlusTray(page);
+      await page.locator('[data-tray-item="payment"]').click();
+      await expect(sheet, "Payment sheet did not reopen after clearing open request").toBeVisible({
+        timeout: 20_000,
+      });
+    }
+
     const link = sheet.getByText(/pay link|send a pay link/i).first();
     await expect(link, "Pay link option missing").toBeVisible({ timeout: 10_000 });
     await link.click();
-    // Default amountKind is deposit; with no deposit rule the Send stays disabled
-    // until Full (or Other) is chosen (canSend in PaymentRequest.tsx).
     const full = sheet.getByRole("radio", { name: /full amount/i }).first();
     await expect(full, "Full amount option missing on payment sheet").toBeVisible({ timeout: 10_000 });
     await full.click();
     await shot(page, "admin-payment-link-selected");
 
+    const stillBlocked = sheet.getByText(/one open request|open request at a time/i).first();
+    if (await stillBlocked.isVisible().catch(() => false)) {
+      throw new Error(
+        `pay-link still blocked after cancel: ${(await stillBlocked.innerText()).trim()}`,
+      );
+    }
     const send = sheet.locator("[data-payment-send]").first();
     await expect(
       send,
       "Payment Send disabled — need order target + Full/Other amount to mint a pay link",
     ).toBeEnabled({ timeout: 20_000 });
-    const before = await page.locator('[data-card="payment"]').count();
     await send.click();
+    // Effect: a Payment card in Request sent (may update an existing card rather
+    // than increment count when re-minting on the same order).
     await expect(
-      page.locator('[data-card="payment"]').nth(before),
-      "Payment card did not appear after minting pay link",
+      page.locator('[data-card="payment"]').filter({ hasText: /request sent|link sent/i }).first(),
+      "Payment card in Request sent did not appear after minting pay link",
     ).toBeVisible({ timeout: 25_000 });
     await shot(page, "admin-payment-deep-sent");
 

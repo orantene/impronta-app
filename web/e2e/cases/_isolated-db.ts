@@ -828,6 +828,42 @@ export async function releaseLastPlaceClassSeat(): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+export const MORNING_CLASS_POOL_ID = "33330020-0000-4000-8000-000000000001";
+
+/** Release live Morning class seats so a 13th-refusal seed can re-fill cleanly. */
+export async function releaseMorningClassSeats(): Promise<void> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+  const admin = isolatedService();
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("capacity_allocations")
+    .update({ state: "released", released_at: now })
+    .eq("pool_id", MORNING_CLASS_POOL_ID)
+    .in("state", ["hold", "committed"]);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Fill Morning class (units_total=12) with one committed allocation of 12 units
+ * so the next seat attempt is the "13th" and must refuse.
+ */
+export async function fillMorningClassToCapacity(): Promise<void> {
+  const admin = isolatedService();
+  await releaseMorningClassSeats();
+  const { error } = await admin.from("capacity_allocations").insert({
+    tenant_id: JOURNEYS_TENANT_ID,
+    pool_id: MORNING_CLASS_POOL_ID,
+    pool_path: [MORNING_CLASS_POOL_ID],
+    units: 12,
+    state: "committed",
+    starts_at: null,
+    ends_at: null,
+    expires_at: null,
+    released_at: null,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export type ClassWalkIn = {
   orderId: string;
   status: string;
@@ -1142,6 +1178,19 @@ export const QA_NIGHT_SESSION_ID = "33330013-0000-4000-8000-000000000002";
 export const QA_NIGHT_POOL_ID = "33330020-0000-4000-8000-000000000004";
 export const QA_NIGHT_DOOR_POOL_ID = "33330020-0000-4000-8000-000000000005";
 export const QA_NIGHT_SLUG = "qa-night";
+
+/** Release the Paid/door tier (units_total=1) so event sold-out specs are re-runnable. */
+export async function releaseQaNightDoorSeat(): Promise<void> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+  const admin = isolatedService();
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("capacity_allocations")
+    .update({ state: "released", released_at: now })
+    .eq("pool_id", QA_NIGHT_DOOR_POOL_ID)
+    .in("state", ["hold", "committed"]);
+  if (error) throw new Error(error.message);
+}
 
 export type TicketPickerNight = {
   orderId: string;

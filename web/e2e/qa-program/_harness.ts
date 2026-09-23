@@ -564,7 +564,16 @@ export function attachConsoleGuard(page: Page): { errors: string[] } {
   page.on("console", (msg) => {
     if (msg.type() !== "error") return;
     const text = msg.text();
-    if (/\/api\/health|vercel|Content Security Policy|favicon/i.test(text)) return;
+    // Remote preview: SSO / CDN asset fetch failures show as Failed to load
+    // resource: net::ERR_FAILED without naming a product bug. Ignore those;
+    // keep real pageerrors and named console.error strings.
+    if (
+      /\/api\/health|vercel|Content Security Policy|favicon|net::ERR_FAILED|Failed to load resource/i.test(
+        text,
+      )
+    ) {
+      return;
+    }
     errors.push(text);
   });
   page.on("pageerror", (err) => {

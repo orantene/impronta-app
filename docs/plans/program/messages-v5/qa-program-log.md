@@ -1,56 +1,54 @@
 # Messages v5 QA program log
 
 Host: `https://staging-qa-journeys.tulala.digital`  
-Branch: `cursor/qa-confirm-pos-11b1` (confirm/POS) · `cursor/qa-specs-required-11b1` merged as [#2148](https://github.com/orantene/impronta-app/pull/2148) → `2705dc324`  
+Branch: Round 2 — `#2148`/`#2155` on production (`ba7db4de`); Stripe `#2156` merged `22b34ddd` (awaiting pointer); capacity/locale `#2157`; isolation `#2158`  
 Isolated DB: `fxlankepwnvelxjrahwk`  
 Updated: 2026-09-22 (Round 2)
 
 ## Final summary (Round 2 in progress)
 
-**Round 1:** merged [#2128](https://github.com/orantene/impronta-app/pull/2128) (`88f7444ce`). Auto-ack migration on both DBs. D-MSG-301 on QA host.
+**Round 1:** [#2128](https://github.com/orantene/impronta-app/pull/2128). Auto-ack both DBs. D-MSG-301 on QA host.
 
-**Round 2 PR1 (#2148):** required asserts; silent soft-bail removed. **Merged** `2705dc324` (awaiting main CI → production pointer → journeys sync).
+**PR1 #2148** required asserts — on production. **PR2 #2155** confirm+double-book — on production `ba7db4de`; journeys synced; **re-proven green** on QA host (confirm, both hold directions, double-book loser) with `VERCEL_AUTOMATION_BYPASS_SECRET`.
 
-**Round 2 PR2 (confirm/POS):** confirm recheck refusal + double-book loser path green on QA host.
+**PR3 #2156** Stripe spec — merged `22b34ddd`; structural queued behind `#2159`. Live 4242+refund still owed on production-ref host (D-MSG-313).
 
-| Proven this wave | Defects filed |
+**PR4 #2157** capacity/locale/payment paths — open. Collect + pay-link + outside cash green against QA host from this branch's specs; restaurant Menu red until D-MSG-316 lands on host; class 13th POS red D-MSG-318.
+
+**PR5 #2158** isolation — open; Messages/link/pay green; POS foreign order red D-MSG-319.
+
+| Proven on QA host | Defects |
 |---|---|
-| Hold expired next-step both directions | D-MSG-302–309 (see decisions) |
-| Payment-deep Accept→Full→pay link→card | D-MSG-309 Full amount required |
-| Confirm recheck refusal (conflict sentence, no record) | D-MSG-310 Confirm door = Times card, not tray |
-| Double-book loser refuses when slot taken | D-MSG-311 shortfall→generic unavailable; D-MSG-312 concurrent TOCTOU both-win |
+| Hold expired + live (D-MSG-320 seed); confirm; double-book loser | D-MSG-302–312, 320 |
+| Payment collect href→POS; pay-link Request sent; outside cash change_result | D-MSG-321–324 |
+| Collect path | — |
+| Restaurant Menu | red until #2157 on host (D-MSG-316) |
+| 13th POS / foreign POS | D-MSG-318 / D-MSG-319 |
 
-**Still owed:** Stripe pay+refund; capacity; ES/FR hard; merge/cancel effects; §7 Messages chip; restaurant+salon; permissions; isolation; hostile data; outside/collect as separate specs; concurrent double-book lock fix (D-MSG-312).
+**Still owed:** Stripe 4242+refund live; event/table capacity green on host; salon vocab; money-perm live; notifications; §7 chip; D-MSG-312 lock; merge #2157/#2158 after pointer.
 
 ## Checklist
 
 | Area | Status | Spec |
 |---|---|---|
-| Inbox / segments / search / chips / unread | green | `admin/inbox-load.spec.ts` |
-| New conversation / composer / tray / add-items / offer | green | admin/* |
-| Times send (person+service+slots) | green (times card after Send) | `admin/times-hold-deep.spec.ts` |
-| Times hold after client pick | red until remaining-deep re-run | `admin/remaining-deep.spec.ts` |
-| Times hold expiry → next-step | green (expired + live both directions) | `admin/hold-expired-next.spec.ts` |
-| Payment sheet + mint/outside/collect | green (pay-link mints Payment card; Full amount — D-MSG-309) | `admin/payment-deep.spec.ts` |
-| Identity / handover / close lost | green | `admin/identity-handover-lost.spec.ts` |
-| File attach + voice control | green | `admin/files-voice.spec.ts` |
-| Merge / cancel / confirm sheets | confirm green; merge skip-if-unseeded | `admin/merge-refund-confirm-deep.spec.ts` |
-| Confirm recheck refusal | green (conflict sentence + no record) | `admin/confirm-recheck-refusal.spec.ts` |
-| Double-book (slot already taken) | green (loser refuses); concurrent both-win = D-MSG-312 | `admin/pos-double-book.spec.ts` |
-| Next-step diversity + ladder | green | ladder-12 + ladder-realtime |
-| Realtime client → admin ≤15s | required client link | `admin/ladder-realtime.spec.ts` |
-| Client offer / ES/FR / pay | required mint | client/* |
-| POS / guest / parity / §7 | required affordances | pos/guest/product |
-| Spec required-assert contract | green (#2148 merged) | `_harness.ts` |
+| Spec required-assert | green (#2148) | `_harness.ts` |
+| Hold expired both ways | green (QA host) | `hold-expired-next.spec.ts` |
+| Payment pay-link | green (QA host) | `payment-deep.spec.ts` |
+| Payment collect | green (QA host) | `payment-collect.spec.ts` |
+| Payment outside cash | green (QA host) | `payment-outside.spec.ts` |
+| Confirm recheck / double-book loser | green (#2155 + QA re-run) | confirm / pos-double-book |
+| Class last-place busy | green (pre-merge) | `capacity/class-seat-limit.spec.ts` |
+| Class 13th POS | red (D-MSG-318) | same |
+| Isolation Messages/link/pay | green | `isolation/cross-tenant.spec.ts` |
+| Isolation POS foreign order | red (D-MSG-319) | same |
+| Hostile + reload | green | isolation/* |
+| Stripe pay+refund | required (prod host) | `stripe-pay-refund.spec.ts` |
+| Restaurant Menu | red until #2157 on host | `vocabulary-restaurant.spec.ts` |
 
 ## Scenario run log
 
-| Date | Result | Notes |
-|---|---|---|
-| 2026-09-18 | 18 pass / 3 skip | wave 1 smoke |
-| 2026-09-20 | deep batch green after fixes | wave 2 |
-| 2026-09-20 | remaining specs + D-MSG-301 | wave 3 |
-| 2026-09-21 | Round 1 merge #2128 | blockers cleared |
-| 2026-09-22 | Round 2 harden; hold+times green | D-MSG-302–306; PR #2148 |
-| 2026-09-22 | payment-deep green (Accept→Full→pay link→card) | D-MSG-307–309 |
-| 2026-09-22 | #2148 merged `2705dc324` | confirm-recheck + double-book loser green |
+| Date | Notes |
+|---|---|
+| 2026-09-22 | #2148+#2155 on production; journeys sync; confirm/hold/double-book re-green |
+| 2026-09-22 | #2156 merged; waiting structural behind #2159 |
+| 2026-09-22 | payment collect/deep/outside green; D-MSG-320–324; capacity PR iterating |

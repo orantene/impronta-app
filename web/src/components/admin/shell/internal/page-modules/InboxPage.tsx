@@ -60,6 +60,7 @@ export function WorkspaceMessagesPage() {
           tenantSlug={bridgeTenantIdentity.slug}
           currentUserId={bridgeSessionIdentity?.userId ?? null}
           workspaceType={bridgeTenantIdentity.workspaceType ?? null}
+          industryPreset={bridgeTenantIdentity.industryPreset ?? null}
           initialInquiryId={initialInquiryId}
         />
       </div>
