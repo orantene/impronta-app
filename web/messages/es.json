@@ -19227,6 +19227,8 @@
         "methodTerminal": "Terminal (sin conexión)",
         "referenceLabel": "Referencia",
         "referencePlaceholder": "Número de recibo o confirmación",
+        "referenceLabelRequired": "Referencia (obligatoria)",
+        "referenceHint": "Escribe al menos 3 caracteres para poder conciliar este pago más tarde.",
         "messageLabel": "Mensaje con el enlace",
         "messagePreview": "Aquí tienes un enlace seguro para pagar {amount}.",
         "messagePreviewFull": "Aquí tienes un enlace seguro para pagar el saldo total.",

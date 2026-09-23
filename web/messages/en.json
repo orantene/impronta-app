@@ -19227,6 +19227,8 @@
         "methodTerminal": "Terminal (offline)",
         "referenceLabel": "Reference",
         "referencePlaceholder": "Receipt or confirmation number",
+        "referenceLabelRequired": "Reference (required)",
+        "referenceHint": "Add at least 3 characters so this payment can be reconciled later.",
         "messageLabel": "Message with the link",
         "messagePreview": "Here is a secure link to pay {amount}.",
         "messagePreviewFull": "Here is a secure link to pay the full balance.",

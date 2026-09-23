@@ -8122,6 +8122,8 @@
         "methodTerminal": "Terminal (hors ligne)",
         "referenceLabel": "Référence",
         "referencePlaceholder": "Numéro de reçu ou de confirmation",
+        "referenceLabelRequired": "Référence (obligatoire)",
+        "referenceHint": "Saisissez au moins 3 caractères pour pouvoir rapprocher ce paiement plus tard.",
         "messageLabel": "Message avec le lien",
         "messagePreview": "Voici un lien sécurisé pour payer {amount}.",
         "messagePreviewFull": "Voici un lien sécurisé pour payer le solde complet.",

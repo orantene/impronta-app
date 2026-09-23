@@ -233,15 +233,23 @@ export function PaymentRequestView(props: PaymentRequestViewProps) {
                   />
                 ))}
                 <div className="fld">
-                  <label htmlFor="msgv5-payment-reference">{c.referenceLabel}</label>
+                  <label htmlFor="msgv5-payment-reference">{c.referenceLabelRequired}</label>
                   <input
                     id="msgv5-payment-reference"
                     className="in"
                     placeholder={c.referencePlaceholder}
                     value={reference}
                     disabled={busy}
+                    required
+                    aria-describedby="msgv5-payment-reference-hint"
                     onChange={(e) => onReferenceChange(e.target.value)}
                   />
+                  {/* D-MSG-344: the hint appears once they start typing but are
+                      still short, so an empty form is not scolded and a stuck
+                      Send always has a reason on screen. */}
+                  <p id="msgv5-payment-reference-hint" data-payment-reference-hint className="hint" hidden={reference.trim().length === 0 || reference.trim().length >= 3}>
+                    {c.referenceHint}
+                  </p>
                 </div>
               </section>
             ) : null}
