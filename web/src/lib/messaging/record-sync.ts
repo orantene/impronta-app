@@ -2,6 +2,8 @@ import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
 
+import { syncPaymentCardsForRecord } from "./payment-card-sync";
+
 import type { FulfilmentState, PaymentState } from "./lifecycle";
 
 /**
@@ -78,10 +80,19 @@ export async function syncConversationRecord(
       }
       return { ok: false, reason };
     }
+    const paymentState = (row.payment_state ?? null) as PaymentState | null;
+    // D-MSG-338: bring the thread's Payment card in line with the chip at the
+    // same moment. A failure here is logged inside the helper and never fails
+    // the sync: the chip is the record of truth, the card is a mirror.
+    await syncPaymentCardsForRecord(admin, {
+      tenantId: input.tenantId,
+      recordId: input.recordId,
+      paymentState,
+    });
     return {
       ok: true,
       linked: typeof row.linked === "number" ? row.linked : 0,
-      paymentState: (row.payment_state ?? null) as PaymentState | null,
+      paymentState,
       fulfilmentState: (row.fulfilment_state ?? null) as FulfilmentState | null,
       recordDate: row.record_date ?? null,
     };

@@ -41,6 +41,9 @@ test("calls messaging_sync_record_state with p_tenant / p_record_kind / p_record
       op: "rpc",
       args: { p_tenant: TENANT, p_record_kind: "order", p_record_id: ORDER },
     },
+    // D-MSG-338: a settled payment state also mirrors onto the thread's
+    // Payment card, which starts by reading the record's linked inquiries.
+    { op: "select", table: "conversation_records" },
   ]);
 });
 
