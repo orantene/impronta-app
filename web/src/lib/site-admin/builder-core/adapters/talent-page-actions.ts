@@ -18,6 +18,9 @@ import { logServerError } from "@/lib/server/safe-error";
 import { mergeStyleClassesPreservingDesign } from "@/lib/site-admin/edit-mode/talent-design-store";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node/normalize-tree-layout";
+import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
+import { stripTalentSiteSeoPatch } from "@/lib/talent-site/free-site-seo";
+import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
 
 import type {
   TalentPageAdapterActions,
@@ -189,6 +192,21 @@ export async function saveTalentPageAction(
       ),
     );
 
+    // PHASE 1 — free personal website. `null` = the free-site rules do not
+    // apply to this save (switch off, staff editor, or not the row's owner),
+    // in which case everything below behaves exactly as it did before.
+    const siteCaps = await loadTalentSiteSaveCapabilities(talentProfileId);
+    if (siteCaps) {
+      const structural = assertFreeTalentSiteTreeMutation({
+        previousTree: (existing as { blocks: unknown } | null)?.blocks,
+        nextTree: enforcedBlocks,
+        canInsertSections: siteCaps.personalSiteSections,
+      });
+      if (!structural.ok) {
+        return { ok: false as const, error: structural.message };
+      }
+    }
+
     const updatePayload: Record<string, unknown> = {
       blocks: enforcedBlocks,
       theme: mergedTheme,
@@ -220,10 +238,20 @@ export async function saveTalentPageAction(
         .select("updated_at")
         .single();
 
-    let { data, error } = await runUpdate({ ...updatePayload, ...stylePatch });
+    // PHASE 1 — SEO is Web Office. Without `personalSiteSeo` the SEO columns are
+    // STRIPPED from the patch rather than failing the save: a free talent
+    // editing text must never be told their save failed because of a field
+    // they cannot see. Stored values are left untouched, so a restored plan
+    // brings them straight back.
+    const scopedPayload = stripTalentSiteSeoPatch(
+      updatePayload,
+      siteCaps ? siteCaps.personalSiteSeo : true,
+    );
+
+    let { data, error } = await runUpdate({ ...scopedPayload, ...stylePatch });
     // STYLE-1 graceful fallback — style columns not yet migrated → retry without.
     if (error && Object.keys(stylePatch).length > 0) {
-      ({ data, error } = await runUpdate(updatePayload));
+      ({ data, error } = await runUpdate(scopedPayload));
     }
 
     if (error || !data)
