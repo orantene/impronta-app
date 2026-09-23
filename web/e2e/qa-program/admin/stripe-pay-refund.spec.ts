@@ -228,7 +228,11 @@ test.describe("QA Stripe pay + refund", () => {
     });
     await shot(payPage, "public-stripe-checkout-open");
 
-    const payCta = payPage.getByRole("link", { name: /^pay$/i }).or(payPage.locator("a").filter({ hasText: /^pay$/i })).first();
+    // i18n `public.thread.pay` → "Pay securely" (not bare "Pay").
+    const payCta = payPage
+      .getByRole("link", { name: /pay/i })
+      .or(payPage.locator(`a[href*='confirm=stripe'], a[href*='checkout.stripe.com']`))
+      .first();
     await expect(payCta, "Pay CTA missing on /pay page").toBeVisible({ timeout: 15_000 });
     const href = (await payCta.getAttribute("href")) || "";
     expect(
