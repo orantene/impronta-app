@@ -152,14 +152,35 @@ export function buildMaxSiteNav(
 }
 
 /**
- * The public href for a page within a site (home → the bare site URL).
- * `publicPathPrefix` carries the locale prefix (e.g. "/es") when set.
+ * How a site's internal links are addressed.
+ *
+ *  - "path"      — `/t/site/<siteSlug>[/<page>]`, the address the site has when
+ *                  it is reached through the platform path route.
+ *  - "host-root" — `/` and `/<page>`, the address the site has when the HOST is
+ *                  the site (a talent custom domain, or `<slug>.tulala.digital`).
+ *
+ * This is not cosmetic. `isTalentSiteHostPathAllowed` rejects any path with more
+ * than one segment, so a shell rendered on a talent host with "path" hrefs emits
+ * nav links that 404 at the middleware allow-list — the bug this mode fixes.
+ */
+export type MaxSiteHrefMode = "path" | "host-root";
+
+/**
+ * The public href for a page within a site (home → the site's own root).
+ * `publicPathPrefix` carries the locale prefix (e.g. "/es") when set; a talent
+ * host has no locale path split, so it passes "".
  */
 export function maxSitePageHref(
   siteSlug: string,
   item: Pick<MaxSiteNavItem, "slug" | "isHome">,
   publicPathPrefix = "",
+  hrefMode: MaxSiteHrefMode = "path",
 ): string {
+  if (hrefMode === "host-root") {
+    return item.isHome
+      ? `${publicPathPrefix}/`
+      : `${publicPathPrefix}/${encodeURIComponent(item.slug)}`;
+  }
   const base = `${publicPathPrefix}/t/site/${encodeURIComponent(siteSlug)}`;
   return item.isHome ? base : `${base}/${encodeURIComponent(item.slug)}`;
 }
@@ -225,17 +246,18 @@ export function hydrateShellNav(
   nav: readonly MaxSiteNavItem[],
   siteSlug: string,
   publicPathPrefix = "",
+  hrefMode: MaxSiteHrefMode = "path",
 ): BuilderNode[] {
   if (nav.length === 0) return tree.slice();
 
   const links: BuilderNavLink[] = nav.map((item) => ({
     id: `maxsite-nav-${item.slug}`,
     label: item.label,
-    href: maxSitePageHref(siteSlug, item, publicPathPrefix),
+    href: maxSitePageHref(siteSlug, item, publicPathPrefix, hrefMode),
   }));
 
   const home = nav.find((n) => n.isHome) ?? nav[0]!;
-  const brandHref = maxSitePageHref(siteSlug, home, publicPathPrefix);
+  const brandHref = maxSitePageHref(siteSlug, home, publicPathPrefix, hrefMode);
 
   // The `site_header` config shape: schema-legal `{label, href}` pairs, capped
   // and truncated so `safeParse` can never reject the header (see the constants
@@ -244,7 +266,7 @@ export function hydrateShellNav(
     .slice(0, SITE_HEADER_MAX_NAV_ITEMS)
     .map((item) => ({
       label: item.label.slice(0, SITE_HEADER_MAX_NAV_LABEL),
-      href: maxSitePageHref(siteSlug, item, publicPathPrefix),
+      href: maxSitePageHref(siteSlug, item, publicPathPrefix, hrefMode),
     }))
     // A blank label fails the schema's `min(1)`; buildMaxSiteNav already falls
     // back to the slug, so this only guards a hand-edited row.

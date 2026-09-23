@@ -150,8 +150,10 @@ export default async function TalentSiteHostPage({
     talentProfileId,
     pageSlug: seg,
     locale,
-    // Custom-domain host: pages resolve at the domain root, no locale/path
-    // prefix (the talent owns the whole apex), so publicPathPrefix stays "".
+    // Talent HOST (custom domain or `<slug>.tulala.digital`): pages resolve at
+    // the host root, no locale/path prefix (the talent owns the whole apex), so
+    // publicPathPrefix stays "" and the shell nav is addressed from the root.
+    hrefMode: "host-root",
     previewDraft: preview === "draft",
     canonicalOrigin,
     canonicalPath: apexPath(seg),

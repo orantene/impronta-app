@@ -19,12 +19,14 @@
  */
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicPathPrefix } from "@/lib/saas/scope";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
+import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { talentSitePathRedirectTarget } from "@/lib/talent-site/site-public-url";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import {
   maxSiteJsonLdString,
@@ -78,6 +80,20 @@ export default async function TalentMaxSiteHomePage({
   if (!isSupabaseConfigured()) notFound();
   const { siteSlug } = await params;
   const { preview } = await searchParams;
+
+  // Once the site lives at `<slug>.tulala.digital`, this path is its OLD
+  // address: one canonical home, one set of links people share. 308 so the move
+  // is permanent for crawlers, with `?preview=draft` carried across so an
+  // owner's preview link keeps previewing. Dev keeps serving the path (no
+  // wildcard DNS locally), and with the switch off nothing changes at all.
+  const redirectTo = talentSitePathRedirectTarget({
+    slug: siteSlug,
+    preview,
+    enabled: isTalentSiteSubdomainsEnabled(),
+    isProduction: process.env.NODE_ENV === "production",
+  });
+  if (redirectTo) permanentRedirect(redirectTo);
+
   const [locale, publicPathPrefix] = await Promise.all([
     getRequestLocale(),
     getPublicPathPrefix(),
@@ -87,6 +103,7 @@ export default async function TalentMaxSiteHomePage({
     siteSlug,
     locale,
     publicPathPrefix,
+    hrefMode: "path",
     previewDraft: preview === "draft",
     canonicalOrigin: publicSiteMetadataBase().origin,
     canonicalPath: homePath(siteSlug),
