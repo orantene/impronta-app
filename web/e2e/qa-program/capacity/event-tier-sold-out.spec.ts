@@ -18,13 +18,14 @@ import {
 /**
  * Event ticket tier sold out (Round 2).
  * Door tier pool units_total=1: first guest holds → second sees sold out;
- * Messages Items Tickets row shows busy/sold out.
+ * Messages Items tier chooser disables the door tier (session row stays free
+ * while GA still has seats — D-MSG-332).
  */
 test.describe("QA capacity — event tier sold out", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
   test.setTimeout(240_000);
 
-  test("door tier held → second guest sold out + Messages Tickets busy", async ({
+  test("door tier held → second guest sold out + Messages door tier disabled", async ({
     page,
     context,
   }) => {
@@ -55,7 +56,9 @@ test.describe("QA capacity — event tier sold out", () => {
     await picker.locator("input[autocomplete=name]").fill("QA door hold");
     await picker.locator("input[name=payHow]").last().check();
     await picker.getByRole("button", { name: /hold my seats, pay at the door/i }).click();
-    await expect(picker.locator("[data-ticket-picker=held]")).toBeVisible({ timeout: 45_000 });
+    // Island stamps state on the same node (`data-ticket-picker={state}`), so
+    // `held` replaces `root` — do not nest under `[data-ticket-picker=root]`.
+    await expect(page.locator("[data-ticket-picker=held]")).toBeVisible({ timeout: 45_000 });
     const held = await latestTicketPickerNight(marker);
     expect(held, "door hold order missing").not.toBeNull();
     expect(held?.poolId).toBe(QA_NIGHT_DOOR_POOL_ID);
@@ -97,14 +100,24 @@ test.describe("QA capacity — event tier sold out", () => {
     const ticketsChip = items.locator("[data-items-chips]").getByText(/^tickets$/i).first();
     await expect(ticketsChip, "Tickets category chip missing").toBeVisible({ timeout: 15_000 });
     await ticketsChip.click();
-    const busy = items.locator("[data-items-row][data-availability='busy']").first();
+    // Multi-tier session stays free while any tier has seats (D-MSG-332).
+    // Messages proof is the sold-out door tier disabled in the chooser.
+    const night = items.locator("[data-items-row]").filter({ hasText: /qa night/i }).first();
+    await expect(night, "QA Night ticket row missing").toBeVisible({ timeout: 15_000 });
+    await night.getByRole("checkbox").click();
+    const tier = items.locator("[data-items-tier] select").first();
+    await expect(tier, "ticket tier chooser missing after selecting QA Night").toBeVisible({
+      timeout: 10_000,
+    });
+    const doorOpt = tier.locator("option").filter({ hasText: /paid admission|door/i }).first();
+    await expect(doorOpt, "door / paid admission tier option missing").toBeAttached({
+      timeout: 10_000,
+    });
     await expect(
-      busy,
-      "Messages Tickets row not busy after door tier sold out",
-    ).toBeVisible({ timeout: 20_000 });
-    const sub = ((await busy.innerText()) || "").replace(/\s+/g, " ");
-    expect(sub, `expected sold out in Tickets busy row; got: ${sub}`).toMatch(/sold out|full/i);
-    await shot(page, "cap-event-messages-tickets-busy");
+      doorOpt,
+      "door tier must be disabled (seatsLeft 0) after storefront hold",
+    ).toBeDisabled();
+    await shot(page, "cap-event-messages-door-tier-disabled");
 
     expect(errors, errors.join("\n")).toEqual([]);
   });

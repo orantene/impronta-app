@@ -14,10 +14,13 @@ import { isolatedService, JOURNEYS_TENANT_ID } from "../../cases/_isolated-db";
 /**
  * Table overbooking (Round 2).
  * Space-group pool units_total=4: fill to capacity via SQL, then storefront
- * reserve and Messages Tables row must refuse with a sentence (not crash).
+ * reserve must refuse with a sentence (not crash).
+ *
+ * Messages Items: `loadTableRows` only emits free slots (D-MSG-333), so a full
+ * pool yields no Tables chip — prove that absence, not a busy row.
  *
  * SEAM D-MSG-156: table LINE writer still missing on Messages Confirm; this
- * spec proves storefront refusal + Items picker busy, not Confirm conflict.
+ * spec proves storefront refusal + Items omits full tables, not Confirm conflict.
  */
 async function fillTableGroupToCapacity(): Promise<void> {
   const admin = isolatedService();
@@ -47,7 +50,7 @@ test.describe("QA capacity — table overbook", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
   test.setTimeout(180_000);
 
-  test("table pool full → reserve refuses + Messages Tables busy", async ({ page }) => {
+  test("table pool full → reserve refuses + Messages omits Tables chip", async ({ page }) => {
     const { errors } = attachConsoleGuard(page);
     test.skip(
       !process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -57,29 +60,19 @@ test.describe("QA capacity — table overbook", () => {
 
     await prepareJourneysPage(page);
     await page.goto("/", { waitUntil: "domcontentloaded", timeout: 60_000 });
-    const reserve = page.getByText(/reservar|reserve|book a table|party of/i).first();
-    await expect(reserve, "storefront reservation door missing").toBeVisible({ timeout: 20_000 });
-    await reserve.click();
-    await page.waitForTimeout(800);
-    // Attempt a party that would need a table — expect sold out / not available.
-    const submit = page
-      .getByRole("button", { name: /reserve|book|request|continue|find/i })
-      .first();
-    const alreadyRefused = page
-      .getByText(/sold out|not available|no tables|fully booked|just taken|no longer free/i)
-      .first();
-    if (await alreadyRefused.isVisible().catch(() => false)) {
-      // Widget already shows refusal without a further click.
-    } else {
-      await expect(
-        submit,
-        "reservation submit missing and no sold-out sentence yet — cannot prove table overbook",
-      ).toBeVisible({ timeout: 15_000 });
-      await submit.click();
-    }
+    // Same door C06 uses — loose getByText(/reservar|party of/) races the
+    // availability probe and then looks for a submit that never appears when
+    // the day is already full ("Pick a time" stays disabled).
+    const board = page.locator("[data-builder-node-kind='reserve_table']");
+    await expect(board, "storefront reserve_table block missing").toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(board.getByText(/checking the book/i)).toHaveCount(0, { timeout: 20_000 });
     await expect(
-      alreadyRefused,
-      "table overbook must refuse with a readable sentence",
+      board.getByText(
+        /sold out|not available|no tables|fully booked|just taken|no longer free|try another date/i,
+      ).first(),
+      "table overbook must refuse with a readable sentence on the reserve_table board",
     ).toBeVisible({ timeout: 30_000 });
     await shot(page, "cap-table-storefront-refused");
 
@@ -89,15 +82,12 @@ test.describe("QA capacity — table overbook", () => {
     await page.locator('[data-tray-item="add_items"]').click();
     const items = page.locator("[data-items-picker], [data-sheet]").first();
     await expect(items, "Items picker did not open").toBeVisible({ timeout: 20_000 });
-    const tablesChip = items.locator("[data-items-chips]").getByText(/^tables$/i).first();
-    await expect(tablesChip, "Tables category chip missing").toBeVisible({ timeout: 15_000 });
-    await tablesChip.click();
-    const busy = items.locator("[data-items-row][data-availability='busy']").first();
+    // D-MSG-333: full pool → loadTableRows returns [] → Tables chip absent.
     await expect(
-      busy,
-      "Messages Tables row not busy after pool filled to 4",
-    ).toBeVisible({ timeout: 20_000 });
-    await shot(page, "cap-table-messages-busy");
+      items.locator("[data-items-chips]").getByText(/^tables$/i),
+      "Tables chip must stay absent when every free slot is gone (catalog omits full slots)",
+    ).toHaveCount(0);
+    await shot(page, "cap-table-messages-no-tables-chip");
 
     expect(errors, errors.join("\n")).toEqual([]);
   });
