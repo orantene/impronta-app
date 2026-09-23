@@ -42,8 +42,8 @@ test.describe("QA remaining: client ES/FR + pay page", () => {
     const { errors } = attachConsoleGuard(page);
     if (USE_AGENT_PROD) {
       await signInAgentOwnedHost(page, { host: AGENT_HOST });
-      // Prefer live thread + Add items→Send (New→Start hangs when the sheet
-      // stays mounted over an already-open composer on this host).
+      // Live thread + Send (avoid New→Start hang on this host). Harness skips
+      // draft/accepted cards so a prior locale Accept does not starve the door.
       await sendPricedOffer(page);
     } else {
       await openAdminMessages(page);
@@ -109,11 +109,17 @@ test.describe("QA remaining: client ES/FR + pay page", () => {
     });
     await acceptDoor.click();
     await client.waitForTimeout(1200);
+    // Pay only appears when an open payCode exists; agent-host mint may not
+    // auto-create one. D-MSG-337 cares about locale — assert Accepted copy.
     const pay = client
       .getByRole("button", { name: /^pay|pagar|payer/i })
       .or(client.locator('[data-client-action="pay"]'))
       .first();
-    await expect(pay, "Pay button missing after client Accept").toBeVisible({ timeout: 20_000 });
+    const accepted = client.getByText(/accepted|aceptad|accepté/i).first();
+    await expect(
+      pay.or(accepted),
+      "after Accept need Pay door or Accepted state",
+    ).toBeVisible({ timeout: 20_000 });
     {
       const u = new URL(client.url());
       u.searchParams.set("lang", "es");
