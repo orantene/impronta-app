@@ -42,6 +42,7 @@ import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 
 import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { MAISON_DEFAULT_TOKENS } from "./maison-tokens";
 import { MaisonStyles } from "./maison-styles";
 import { MaisonMenu } from "./MaisonMenu";
 import { MaisonGallery, type MaisonShot } from "./MaisonGallery";
@@ -306,6 +307,25 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
     surfaceBooking = "instant",
   } = props;
 
+  // The tenant's theme. page.tsx projects agency_branding.theme_json onto
+  // `--token-color-*` vars and passes them here; every colour in maison-styles
+  // reads one of those with the shipped value as its fallback, so applying
+  // them on the root is the whole of what makes a Look reach this page.
+  // WITHOUT this spread the stylesheet's token references resolve to their
+  // fallbacks forever and the template is un-themeable — which is exactly what
+  // it did until 2026-09-23.
+  // Maison's OWN palette first, the tenant's theme over the top. The shell
+  // sets a full default token set inline on <html>, so the fallbacks written
+  // into maison-styles can never fire on a real page — see maison-tokens.ts.
+  // Declaring the palette here, deeper in the tree, is what makes the shipped
+  // design actually render; themeVars still wins key by key when a tenant has
+  // chosen colours of its own.
+  const themeMode = props.themeMode ?? "light";
+  const themeStyle = {
+    ...MAISON_DEFAULT_TOKENS,
+    ...(props.themeVars ?? {}),
+  } as React.CSSProperties;
+
   const c = pick(locale);
   const content = resolveMaisonContent(props, c);
   const offerings = publicOfferings(props.storefrontOfferings);
@@ -337,6 +357,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
       // screen reader pronounces her Spanish copy with a Spanish voice even on
       // an English-locale page.
       lang={locale}
+      style={themeStyle}
     >
       <MaisonStyles />
       <MaisonMotion />
@@ -639,7 +660,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
           <TalentReviewsSection
             summary={ratingSummary}
             reviews={talentReviews}
-            theme="light"
+            theme={themeMode}
             heading={c.reviews}
             talentName={name}
           />
@@ -647,7 +668,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
       ) : null}
       {testimonials?.length ? (
         <section className="mn-shell" style={{ paddingBottom: 48 }}>
-          <TestimonialsSection testimonials={testimonials} theme="light" />
+          <TestimonialsSection testimonials={testimonials} theme={themeMode} />
         </section>
       ) : null}
 

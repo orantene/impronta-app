@@ -44,6 +44,26 @@ export const MAISON_CSS = `
   --mn-tint-deep: color-mix(in oklab, var(--mn-tint) 86%, var(--mn-rose));
   --mn-line-strong: color-mix(in oklab, var(--mn-line) 62%, var(--mn-ink));
 
+  /* The profile passes in nodes this template does not own — the inquire
+     buttons and the slot picker — and those are styled from the marketing
+     system's --plt-* tokens, whose primary is FOREST GREEN. Left alone they
+     render a green control on a rose page. Re-point the ones they actually
+     read (verified in profile-view.tsx: --plt-forest, -deep, -on,
+     --plt-shadow-forest) at this template's own palette, which follows the
+     Look because it is itself token-derived. */
+  --plt-forest: var(--mn-rose);
+  --plt-forest-deep: var(--mn-rose-hover);
+  --plt-forest-bright: var(--mn-rose);
+  --plt-forest-ring: var(--mn-rose);
+  --plt-forest-on: var(--mn-on-primary, #fff);
+  --plt-accent: var(--mn-rose);
+  --plt-shadow-forest: none;
+  --plt-bg: var(--mn-white);
+  --plt-bg-raised: var(--mn-tint);
+  --plt-ink: var(--mn-ink);
+  --plt-muted: var(--mn-ink-2);
+  --plt-hairline: var(--mn-line);
+
   /* BRAND, NOT THEME — these two are deliberately NOT tokens and must never
      appear in a Look's token map. The heart is part of her actual logo and the
      green is WhatsApp's; a Look repainting either would be a bug, not a
@@ -109,8 +129,8 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
 }
 
 /* ── Header ───────────────────────────────────────────────────────────── */
-.mn-header { position: sticky; top: 0; z-index: 40; background: rgba(255,255,255,0.86); backdrop-filter: saturate(180%) blur(14px); border-bottom: 1px solid transparent; transition: border-color 250ms ease, background-color 250ms ease; }
-.mn-header[data-stuck="true"] { border-bottom-color: var(--mn-line); background: rgba(255,255,255,0.96); }
+.mn-header { position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--mn-white) 86%, transparent); backdrop-filter: saturate(180%) blur(14px); border-bottom: 1px solid transparent; transition: border-color 250ms ease, background-color 250ms ease; }
+.mn-header[data-stuck="true"] { border-bottom-color: var(--mn-line); background: color-mix(in srgb, var(--mn-white) 96%, transparent); }
 .mn-header-in { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 84px; }
 .mn-wordmark { display: inline-flex; align-items: center; min-height: 56px; font-family: var(--mn-display); font-size: 1.4375rem; letter-spacing: -0.03em; color: var(--mn-ink); text-decoration: none; white-space: nowrap; }
 .mn-wordmark em { font-style: italic; font-weight: 400; }
@@ -140,7 +160,7 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
 .mn-hero-media { position: relative; margin-top: 40px; }
 .mn-hero-main { position: relative; aspect-ratio: 4 / 5; border-radius: var(--mn-rs); overflow: hidden; background: var(--mn-tint); }
 .mn-hero-main img { object-fit: cover; }
-.mn-hero-inset { position: absolute; right: -6px; bottom: -30px; width: 43%; max-width: 200px; aspect-ratio: 1 / 1; border-radius: var(--mn-rs); overflow: hidden; border: 6px solid #fff; background: var(--mn-tint); }
+.mn-hero-inset { position: absolute; right: -6px; bottom: -30px; width: 43%; max-width: 200px; aspect-ratio: 1 / 1; border-radius: var(--mn-rs); overflow: hidden; border: 6px solid var(--mn-white); background: var(--mn-tint); }
 .mn-hero-inset img { object-fit: cover; }
 
 /* ── Marquee ──────────────────────────────────────────────────────────── */
@@ -204,13 +224,13 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
 .mn-row-buy { flex: 1 0 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .mn-row-price { font-size: 1.125rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -0.01em; }
 .mn-row-price small { display: block; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mn-ink-2); }
-.mn-row-action { appearance: none; cursor: pointer; font-family: inherit; font-size: 0.9375rem; font-weight: 600; min-height: 46px; padding: 0 20px; border-radius: var(--mn-r); border: 1px solid var(--mn-ink); background: #fff; color: var(--mn-ink); white-space: nowrap; transition: background-color 200ms var(--mn-ease), color 200ms var(--mn-ease), border-color 200ms var(--mn-ease); }
+.mn-row-action { appearance: none; cursor: pointer; font-family: inherit; font-size: 0.9375rem; font-weight: 600; min-height: 46px; padding: 0 20px; border-radius: var(--mn-r); border: 1px solid var(--mn-ink); background: var(--mn-white); color: var(--mn-ink); white-space: nowrap; transition: background-color 200ms var(--mn-ease), color 200ms var(--mn-ease), border-color 200ms var(--mn-ease); }
 .mn-row-action:hover { background: var(--mn-ink); color: var(--mn-white); }
 .mn-row[data-selected="true"] .mn-row-action { border-color: var(--mn-rose); background: var(--mn-blush); color: var(--mn-ink); }
 .mn-row-quote { font-size: 0.9375rem; color: var(--mn-ink-2); }
 
 /* ── Selection bar ────────────────────────────────────────────────────── */
-.mn-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; background: rgba(255,255,255,0.97); backdrop-filter: blur(12px); border-top: 1px solid var(--mn-line); padding: 12px var(--mn-gutter) calc(12px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 14px; transform: translateY(140%); transition: transform 380ms var(--mn-ease); }
+.mn-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; background: color-mix(in srgb, var(--mn-white) 97%, transparent); backdrop-filter: blur(12px); border-top: 1px solid var(--mn-line); padding: 12px var(--mn-gutter) calc(12px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 14px; transform: translateY(140%); transition: transform 380ms var(--mn-ease); }
 .mn-bar[data-show="true"] { transform: none; }
 .mn-bar-text { flex: 1; min-width: 0; }
 .mn-bar-text strong { display: block; font-size: 0.9375rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -222,7 +242,7 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
 .mn-shot button { display: block; width: 100%; padding: 0; border: 0; cursor: pointer; background: var(--mn-tint); border-radius: 14px; overflow: hidden; position: relative; aspect-ratio: 4 / 5; }
 .mn-shot img { object-fit: cover; transition: transform 700ms var(--mn-ease); }
 .mn-shot button:hover img { transform: scale(1.05); }
-.mn-shot-label { position: absolute; left: 10px; bottom: 10px; background: rgba(255,255,255,0.94); color: var(--mn-ink); font-size: 0.75rem; font-weight: 600; padding: 7px 12px; border-radius: 99px; transform: translateY(6px); opacity: 0; transition: opacity 280ms var(--mn-ease), transform 280ms var(--mn-ease); }
+.mn-shot-label { position: absolute; left: 10px; bottom: 10px; background: color-mix(in srgb, var(--mn-white) 94%, transparent); color: var(--mn-ink); font-size: 0.75rem; font-weight: 600; padding: 7px 12px; border-radius: 99px; transform: translateY(6px); opacity: 0; transition: opacity 280ms var(--mn-ease), transform 280ms var(--mn-ease); }
 .mn-shot button:hover .mn-shot-label, .mn-shot button:focus-visible .mn-shot-label { opacity: 1; transform: none; }
 .mn-shot-wide { grid-column: span 2; }
 .mn-shot-wide button { aspect-ratio: 16 / 10; }
@@ -249,7 +269,7 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
 .mn-areamap img { object-fit: cover; }
 .mn-areamap-chip {
   position: absolute; left: 16px; top: 16px; display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,0.94); color: var(--mn-ink); border-radius: 999px;
+  background: color-mix(in srgb, var(--mn-white) 94%, transparent); color: var(--mn-ink); border-radius: 999px;
   padding: 9px 15px; font-size: 0.8125rem; font-weight: 600;
 }
 .mn-areamap-chip svg { color: var(--mn-rose); }

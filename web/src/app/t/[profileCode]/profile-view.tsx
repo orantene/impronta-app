@@ -11,7 +11,10 @@ import { LightProfileLayout } from "./_light/LightProfileLayout";
 import { NoirProfileLayout } from "./_noir/NoirProfileLayout";
 import { LumenProfileLayout } from "./_lumen/LumenProfileLayout";
 import { AtelierProfileLayout } from "./_atelier/AtelierProfileLayout";
-import { MaisonProfileLayout } from "./_maison/MaisonProfileLayout";
+import {
+  MaisonProfileLayout,
+  type MaisonProfileLayoutProps,
+} from "./_maison/MaisonProfileLayout";
 import { ProfileShareRow } from "./_light/ProfileShareRow";
 import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
@@ -2345,7 +2348,13 @@ export async function TalentProfileView({
       ? (brandingTheme["template.profile-layout-family"] as string)
       : "classic";
   const profileTemplateKey = profileTemplateOverride ?? profileLayoutFamily;
-  const ProfileTemplate =
+  // Typed at the WIDEST template's props, not the narrowest. Every template
+  // accepts LightProfileLayoutProps, and Maison's props are that plus optional
+  // extras — so each of the five is assignable here (a function taking the
+  // wider type accepts the narrower argument), while the call site may pass
+  // Maison's extras. The templates that do not read them ignore them, exactly
+  // as Classic and Noir already ignore themeMode/themeVars.
+  const ProfileTemplate: React.ComponentType<MaisonProfileLayoutProps> =
     profileTemplateKey === "noir"
       ? NoirProfileLayout
       : profileTemplateKey === "lumen"
@@ -2472,6 +2481,14 @@ export async function TalentProfileView({
         showFooter={!platformChrome}
         themeMode={profileThemeMode}
         themeVars={profileThemeVars}
+        // What this surface can ACTUALLY do. resolveTalentBooking already
+        // accounts for the plan cap (appointments-plan-policy holds a free
+        // talent at "request") and for a non-agency host. Maison steps its CTA
+        // text, its dispatched event intent and the sheet's final button down
+        // together on anything below "instant", so the page never promises a
+        // confirmation the engine cannot deliver. Omitting this defaulted it
+        // to "instant" and the degrade never fired in production.
+        surfaceBooking={booking.mode}
         hostCtxKind={hostCtx.kind as "agency" | "app" | "hub" | "platform"}
         tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
         tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}

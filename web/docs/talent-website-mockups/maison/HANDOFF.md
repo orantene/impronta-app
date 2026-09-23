@@ -43,7 +43,18 @@ Every section hides itself when its data is absent — see `?state=empty`.
 
 ## 3. Colour and type
 
-All seven are token references; the hex below is the **fallback** each ships with.
+All seven are token references. The hex below is what the template **declares**
+in `_maison/maison-tokens.ts` as `MAISON_DEFAULT_TOKENS`, applied on `.mn-root`
+underneath the tenant's `themeVars`.
+
+> The same hexes also appear as CSS fallbacks in `maison-styles.tsx`, but those
+> are **unreachable on any shell-rendered page** and must not be treated as the
+> source of truth: `src/app/layout.tsx` sets a full default token set inline on
+> `<html>` (primary `#111111`, accent `#0ea5e9`, ink `#111111`, …), and a CSS
+> fallback only applies when the property is set nowhere up the tree. Until
+> 2026-09-23 the template had no token map of its own, so it rendered near-black
+> with a sky-blue accent. Change a colour in `maison-tokens.ts`, not in the
+> stylesheet's fallback.
 
 | Role | Token | Hex |
 |---|---|---|
