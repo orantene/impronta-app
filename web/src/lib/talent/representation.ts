@@ -35,6 +35,16 @@ export type RepresentationEntry = {
   effective: EffectiveVisibility;
 };
 
+/**
+ * Whether a public link to this entry actually resolves. Anything other than
+ * `"live"` is pending, hidden or winding down, and its public page 404s — the
+ * UI must render the status instead of a link. Single source for that rule;
+ * do not re-derive it from `status`/`agencyVisibility` at a call site.
+ */
+export function isEffectivelyVisible(effective: EffectiveVisibility): boolean {
+  return effective === "live";
+}
+
 export function resolveEffectiveVisibility(args: {
   status: RosterStatus;
   agencyVisibility: AgencyVisibility;
