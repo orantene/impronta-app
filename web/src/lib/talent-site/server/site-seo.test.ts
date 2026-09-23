@@ -141,8 +141,12 @@ const ROUTES: { label: string; page: string; ogDir: string; hreflang: boolean }[
   },
   {
     label: "_talent-site/[[...pageSlug]] (custom domain)",
-    page: `${APP}/_talent-site/[[...pageSlug]]/page.tsx`,
-    ogDir: `${APP}/_talent-site/opengraph-image.tsx`,
+    // The folder is `%5Ftalent-site` on disk — the URL-encoded underscore that
+    // keeps the public path `/_talent-site` while staying OUT of Next's
+    // private-folder rule (a plain `_folder` is excluded from routing, which
+    // silently 404ed every talent custom domain until 2026-09-23).
+    page: `${APP}/%5Ftalent-site/[[...pageSlug]]/page.tsx`,
+    ogDir: `${APP}/%5Ftalent-site/opengraph-image.tsx`,
     hreflang: false,
   },
 ];

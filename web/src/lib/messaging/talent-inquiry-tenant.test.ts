@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import { pickTalentSiteInquiryTenant, type TalentRosterFact } from "./talent-inquiry-tenant";
@@ -89,7 +90,15 @@ test("the talent-site dock mount does not hand a tenant id to the client", () =>
     new URL("../../app/t/[profileCode]/_chat/TalentProfileChatLauncherMount.tsx", import.meta.url),
     "utf8",
   );
-  const dock = readFileSync(new URL("../../app/_talent-site/TalentSiteMessagesDock.tsx", import.meta.url), "utf8");
+  // NOT `new URL(...)`: it percent-DECODES, so "%5Ftalent-site" resolves back to
+  // "_talent-site" and misses the real folder. The directory is literally named
+  // `%5Ftalent-site` on disk — the encoded underscore that keeps the public path
+  // `/_talent-site` while staying out of Next's private-folder rule. Read it by
+  // an un-decoded filesystem path instead.
+  const dock = readFileSync(
+    join(process.cwd(), "src/app/%5Ftalent-site/TalentSiteMessagesDock.tsx"),
+    "utf8",
+  );
   assert.match(mount, /exposeTenantToClient \? tenantId : null/);
   assert.match(dock, /exposeTenantToClient=\{false\}/);
   assert.doesNotMatch(dock, /tenantId=\{resolved\.tenantId\}[\s\S]*exposeTenantToClient=\{true\}/);

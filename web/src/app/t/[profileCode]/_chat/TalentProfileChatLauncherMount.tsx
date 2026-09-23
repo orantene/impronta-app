@@ -61,7 +61,7 @@ import {
 } from "@/app/t/[profileCode]/_actions/guest-roster-actions";
 import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
-import { TalentOfferingIntentQuery } from "@/app/_talent-site/TalentOfferingIntentQuery";
+import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
 
 type TalentProfileChatLauncherMountProps = {
   /** talent_profiles.id — the single talent the guest is messaging (MVP). */

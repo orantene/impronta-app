@@ -8,7 +8,9 @@
  * surface.
  *
  * The matched request is internally rewritten to the host route at
- * `app/_talent-site/[[...pageSlug]]/page.tsx`, which reads the resolved
+ * `app/%5Ftalent-site/[[...pageSlug]]/page.tsx` (the `%5F` is the encoded
+ * underscore that keeps this a ROUTE — a plain `_folder` is private in Next
+ * and is excluded from routing), which reads the resolved
  * talent_profile_id from the host header and renders via `renderTalentMaxSite`.
  */
 
