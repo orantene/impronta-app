@@ -505,6 +505,9 @@ async function ensureTalentProfile(
 
   if (readiness.offering) {
     await ensurePublishedOffering(talentProfileId, `${fx.displayName}'s signature service`);
+    // The Maison catalogue needs a tabbable, optioned, instant-asking menu that
+    // the single signature service above cannot provide. See ensureMaisonCatalogue.
+    await ensureMaisonCatalogue(talentProfileId);
   }
 
   return talentProfileId;
@@ -551,6 +554,115 @@ async function ensureApprovedMedia(
 
   const { error } = await admin.from("media_assets").insert(rows);
   if (error) throw error;
+}
+
+/**
+ * The Maison catalogue rows, on t_ready (talent_basic, no agency — Jorgelina's
+ * shape). `ensurePublishedOffering` seeds ONE request-mode offering with no
+ * variants, no add-ons and no category, which cannot exercise a tabbed menu, a
+ * required option, or a booking promise that degrades: there is nothing to tab
+ * between, nothing to require, and nothing to degrade FROM.
+ *
+ * These two rows are `booking_mode: "instant"` ON PURPOSE. t_ready is
+ * talent_basic and agency-less, so the surface cannot actually confirm, and the
+ * row asking for instant while the surface answers "request" IS the degrade
+ * path under test. Seeding them as "request" would make the journey pass
+ * without ever exercising it.
+ *
+ * Titles are exported because web/e2e/talent-website/maison-profile.spec.ts
+ * selects on them; restating the strings in two files is how fixtures drift.
+ */
+export const MAISON_OPTIONED_OFFERING = "Maison QA — optioned service";
+export const MAISON_FIXED_OFFERING = "Maison QA — fixed service";
+
+async function ensureMaisonCatalogue(talentProfileId: string): Promise<void> {
+  // (a) Optioned: two length variants + one shared-style add-on, in `unas`.
+  const optioned = await upsertOffering(talentProfileId, {
+    title: MAISON_OPTIONED_OFFERING,
+    category: "unas",
+    duration_minutes: 90,
+    amount_cents: 45000,
+  });
+
+  const { data: variants, error: vSel } = await admin
+    .from("talent_offering_variants")
+    .select("id")
+    .eq("offering_id", optioned);
+  if (vSel) throw vSel;
+  if ((variants ?? []).length === 0) {
+    const { error } = await admin.from("talent_offering_variants").insert([
+      { offering_id: optioned, label: "Corto", amount_cents: 45000, sort_order: 1 },
+      { offering_id: optioned, label: "Largo", amount_cents: 55000, sort_order: 2 },
+    ]);
+    if (error) throw error;
+  }
+
+  const { data: addons, error: aSel } = await admin
+    .from("talent_offering_addons")
+    .select("id")
+    .eq("offering_id", optioned);
+  if (aSel) throw aSel;
+  if ((addons ?? []).length === 0) {
+    const { error } = await admin
+      .from("talent_offering_addons")
+      .insert([{ offering_id: optioned, label: "Diseño", amount_cents: 8000, sort_order: 1 }]);
+    if (error) throw error;
+  }
+
+  // (b) Fixed: no variants, no add-ons, a SECOND category so the menu has
+  //     something to tab between.
+  await upsertOffering(talentProfileId, {
+    title: MAISON_FIXED_OFFERING,
+    category: "pestanas",
+    duration_minutes: 60,
+    amount_cents: 30000,
+  });
+}
+
+/** Insert-or-republish one offering, returning its id. */
+async function upsertOffering(
+  talentProfileId: string,
+  fields: { title: string; category: string; duration_minutes: number; amount_cents: number },
+): Promise<string> {
+  const { data: existing, error: selErr } = await admin
+    .from("talent_offerings")
+    .select("id")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("title", fields.title)
+    .maybeSingle();
+  if (selErr) throw selErr;
+
+  if (existing) {
+    const id = (existing as { id: string }).id;
+    const { error } = await admin
+      .from("talent_offerings")
+      .update({ status: "published", updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+    return id;
+  }
+
+  const { data, error } = await admin
+    .from("talent_offerings")
+    .insert({
+      talent_profile_id: talentProfileId,
+      owner_kind: "talent",
+      kind: "service",
+      title: fields.title,
+      category: fields.category,
+      duration_minutes: fields.duration_minutes,
+      price_type: "flat_package",
+      price_display: "exact",
+      amount_cents: fields.amount_cents,
+      currency: "MXN",
+      booking_mode: "instant",
+      status: "published",
+      visibility: "public",
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return (data as { id: string }).id;
 }
 
 async function ensurePublishedOffering(talentProfileId: string, title: string): Promise<void> {
