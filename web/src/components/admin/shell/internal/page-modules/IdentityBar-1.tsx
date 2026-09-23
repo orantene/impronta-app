@@ -18,6 +18,7 @@ import { TulalaBrandLockup } from "@/components/brand/tulala-logo";
 import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./IdentityBar-2";
+import { TalentAccountMenuSection } from "./TalentAccountMenuSection";
 import { WhatsAppTopBarButton } from "@/components/admin/channels/WhatsAppChrome";
 import { CreateMenu } from "./CreateMenu";
 import { LanguageMenu } from "./LanguageMenu";
@@ -115,7 +116,9 @@ export function TulalaIdentityBar() {
   const userInitials = (inWorkspace && realUserInitials)
       ? realUserInitials
       : (talentBridgeInitials ?? realUserInitials ?? MY_TALENT_PROFILE.initials);
-  const userPhotoUrl = undefined;
+  // The talent's own headshot doubles as their account-menu avatar photo;
+  // workspace members (no talent profile in context) show initials only.
+  const userPhotoUrl = bridgeTalentSelfProfile?.headshotUrl ?? undefined;
 
   // Acting-as context flips with surface. For the workspace surface, use
   // effectiveTenant.name (derived from bridge in production, mock in demo).
@@ -532,41 +535,56 @@ function AccountMenuTrigger({
           className={`absolute ${align === "right" ? "right-0" : "left-0"} top-[calc(100%_+_6px)] z-[200] min-w-[240px] rounded-[12px] border border-admin-border-soft bg-white p-[6px] font-admin-body shadow-[0_10px_40px_rgba(11,11,13,0.16)] [animation:tulala-menu-fade_.14s_ease]`}
         >
           <style>{`@keyframes tulala-menu-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-          {/* Header — signed-in-as identity */}
-          <div
-            className="mb-[4px] border-b border-admin-border-soft px-[12px] pt-[10px] pb-[10px]"
-          >
-            <div className="mb-[2px] text-[10.5px] font-bold uppercase tracking-[0.7px] text-admin-ink-muted">
-              {copy.t("Signed in as")}
-            </div>
-            <div className="text-admin-ink text-admin-13 font-semibold">{userName}</div>
-            <div className="mt-px text-[11.5px] text-admin-ink-muted">{bridgeSessionIdentity?.email ?? ""}</div>
-            {/* Tenant meta — plan / role, shown on mobile where the identity
-                bar chips are hidden (#2) */}
-            {state.surface === "workspace" && (
+          {isTalentSurface ? (
+            // Talent-only account-menu content — its own headshot header,
+            // "My website", "My Tulala profile" and "Where I appear"
+            // (Phase 5). Replaces the generic text-only header below, which
+            // has no room for a photo and no roster-visibility context.
+            <TalentAccountMenuSection onNavigate={() => setOpen(false)} />
+          ) : (
+            <>
+              {/* Header — signed-in-as identity */}
               <div
-                data-tulala-tenant-meta-mobile
-                className="mt-[8px] hidden gap-[6px] rounded-[7px] bg-admin-surface-alt px-[8px] py-[6px] text-[11px] font-medium text-admin-ink"
+                className="mb-[4px] border-b border-admin-border-soft px-[12px] pt-[10px] pb-[10px]"
               >
-                <span className="capitalize">{copy.t(PLAN_META[state.plan].label)}</span>
-                <span className="text-admin-ink-muted">·</span>
-                <span className="capitalize">{copy.t(state.entityType)}</span>
-                <span className="text-admin-ink-muted">·</span>
-                <span className="capitalize">{copy.t(state.role)}</span>
+                <div className="mb-[2px] text-[10.5px] font-bold uppercase tracking-[0.7px] text-admin-ink-muted">
+                  {copy.t("Signed in as")}
+                </div>
+                <div className="text-admin-ink text-admin-13 font-semibold">{userName}</div>
+                <div className="mt-px text-[11.5px] text-admin-ink-muted">{bridgeSessionIdentity?.email ?? ""}</div>
+                {/* Tenant meta — plan / role, shown on mobile where the identity
+                    bar chips are hidden (#2) */}
+                {state.surface === "workspace" && (
+                  <div
+                    data-tulala-tenant-meta-mobile
+                    className="mt-[8px] hidden gap-[6px] rounded-[7px] bg-admin-surface-alt px-[8px] py-[6px] text-[11px] font-medium text-admin-ink"
+                  >
+                    <span className="capitalize">{copy.t(PLAN_META[state.plan].label)}</span>
+                    <span className="text-admin-ink-muted">·</span>
+                    <span className="capitalize">{copy.t(state.entityType)}</span>
+                    <span className="text-admin-ink-muted">·</span>
+                    <span className="capitalize">{copy.t(state.role)}</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <AccountMenuItem
-            label="Profile"
-            sub="View / edit your public profile"
-            onClick={() => { setOpen(false); openDrawer("my-profile"); }}
-          />
-          <AccountMenuItem
-            label="Workspace settings"
-            sub="Name, domain, branding, team"
-            onClick={() => { setOpen(false); openDrawer("workspace-settings"); }}
-          />
+              <AccountMenuItem
+                label="Profile"
+                sub="View / edit your public profile"
+                onClick={() => { setOpen(false); openDrawer("my-profile"); }}
+              />
+            </>
+          )}
+          {/* Workspace settings is a workspace-admin surface — a talent has
+              no workspace to configure here (their equivalent is "My
+              website"/"My Tulala profile" above). */}
+          {!isTalentSurface && (
+            <AccountMenuItem
+              label="Workspace settings"
+              sub="Name, domain, branding, team"
+              onClick={() => { setOpen(false); openDrawer("workspace-settings"); }}
+            />
+          )}
           {/* Plan & billing — absorbs the old top-bar plan chip (the sidebar
               tenant chip still shows the plan name at a glance). */}
           {isWorkspaceSurface && (
