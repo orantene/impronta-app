@@ -47,7 +47,10 @@ export function MaisonWordmark({
         alt={`${lead} ${accent}`.trim()}
         width={Math.round(58 * r)}
         height={58}
-        quality={100}
+        // 95, not 100: next.config's images.qualities allows [75, 85, 95] and
+        // an unlisted value warns on every request. The wordmark is a small
+        // flat PNG, so the difference is invisible and the warning is not.
+        quality={95}
         priority
       />
     );
