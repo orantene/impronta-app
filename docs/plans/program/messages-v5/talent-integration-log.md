@@ -56,3 +56,11 @@ A service choice is a signed token (`talent-offering`, no tenant id, no price). 
 `appointmentConfirmedBody` names an exact address only when the caller already has one. `talent_profiles` has no street address, so confirmations stay "Appointment confirmed".
 
 D-MSG-400 is still unfixed. This path does not call `normalizeServicesMenu`. A failed plan read stays "she confirms by hand". A failed catalog read while minting or seeding returns unavailable or invalid (D-MSG-403). The signed `?service=` mount sits on the guest dock so `profile-view.tsx` stays inside its line budget.
+
+## 2026-09-23 · Gap 5 · her own Messages is v5
+
+Branch `cursor/msg-talent-inbox-0d94`.
+
+`/talent/inbox` mounts `MessagesV5Shell` with `talentShellEngine` when `NEXT_PUBLIC_MESSAGES_V5=1`. The old shell stays only when the flag is off.
+
+Readers: she sees inquiries where she is a talent participant, plus a guest chat that names only her (`source_context.talent_ids` or `interpreted_query.talent.selected_ids`). A shared lineup she was not invited to is hidden. `talentIsSeller` is true only when the inquiry tenant is the platform hub. On that sale she sees the client total and the private thread. On an agency sale she sees her net, her own lines, and the group thread with money stripped. Request payment on an agency sale returns `not_her_sale` ("That payment belongs to the agency. You cannot request it from here.") and still uses `createPaymentLink` when she is the seller. Approve and decline call `acceptTalentInvitation` / `declineTalentInvitation` with the inquiry's tenant, not a client tenant. A failed order, line, or offer read returns `unavailable` (D-MSG-402). An empty order is still an empty sale.

@@ -20,6 +20,7 @@ export const MESSAGING_REFUSAL_CODES = [
   "hold_ended",
   "basket_changed",
   "not_allowed",
+  "not_her_sale",
   "expired",
   "already",
   "deposit_required",

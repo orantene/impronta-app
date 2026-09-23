@@ -33,21 +33,34 @@ type InquiryRow = {
 
 export async function loadMessagingInbox(
   admin: Admin,
-  input: { tenantId: string; locationSlug: string; filter: InboxFilter; actorUserId: string },
+  input: {
+    tenantId: string;
+    locationSlug: string;
+    filter: InboxFilter;
+    actorUserId: string;
+    /** When set, the inbox is these inquiries only, across tenants. Empty means no rows. */
+    onlyInquiryIds?: readonly string[];
+  },
 ): Promise<{ ok: true; rows: InboxRow[]; unreadCount: number } | { ok: false; reason: "unavailable" }> {
-  const { data, error } = await admin
+  if (input.onlyInquiryIds && input.onlyInquiryIds.length === 0) {
+    return { ok: true, rows: [], unreadCount: 0 };
+  }
+  let query = admin
     .from("inquiries")
     .select(
       "id, tenant_id, location_slug, contact_name, contact_phone, contact_email, conversation_state, opportunity_state, channel, owner_user_id, last_customer_message_at, last_staff_message_at, resolved_at, lost_reason, status, current_offer_id, message, updated_at, version",
     )
-    .eq("tenant_id", input.tenantId)
     .order("updated_at", { ascending: false });
+  query = input.onlyInquiryIds
+    ? query.in("id", [...input.onlyInquiryIds])
+    : query.eq("tenant_id", input.tenantId);
+  const { data, error } = await query;
   if (error) return { ok: false, reason: "unavailable" };
 
   const inquiries = (data ?? []) as InquiryRow[];
   const ids = inquiries.map((row) => row.id);
   const reads = await loadReads(admin, input.actorUserId, ids);
-  const chips = await loadChips(admin, input.tenantId, ids);
+  const chips = await loadChips(admin, input.onlyInquiryIds ? null : input.tenantId, ids);
   const previews = await loadPreviews(admin, ids);
   const owners = await loadOwnerLabels(admin, inquiries.map((row) => row.owner_user_id));
 
@@ -220,14 +233,15 @@ async function loadReads(admin: Admin, userId: string, inquiryIds: string[]): Pr
   return map;
 }
 
-async function loadChips(admin: Admin, tenantId: string, inquiryIds: string[]): Promise<Map<string, RecordChip[]>> {
+async function loadChips(admin: Admin, tenantId: string | null, inquiryIds: string[]): Promise<Map<string, RecordChip[]>> {
   const map = new Map<string, RecordChip[]>();
   if (inquiryIds.length === 0) return map;
-  const { data, error } = await admin
+  let query = admin
     .from("conversation_records")
     .select("inquiry_id, record_kind, record_id, payment_state, fulfilment_state, record_date")
-    .eq("tenant_id", tenantId)
     .is("unlinked_at", null);
+  query = tenantId ? query.eq("tenant_id", tenantId) : query.in("inquiry_id", inquiryIds);
+  const { data, error } = await query;
   if (error) return map;
   const wanted = new Set(inquiryIds);
   for (const row of (data ?? []) as (ConversationRecordRow & { inquiry_id: string })[]) {

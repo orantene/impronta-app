@@ -37,7 +37,7 @@ import { Avatar, Btn } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
 import { holdSlotLabelFromMessages } from "@/lib/messages-v5/client-thread-view";
 import type { ContextItemLine, ContextMoney, ContextPanelAction, ShellActionId } from "../screens/contracts";
-import { formatCentsUSD } from "@/lib/bookings/commission";
+import { formatCents } from "@/lib/bookings/commission";
 import { buildScreenCopy } from "../screens/copy";
 import { IdentityCaptureWire } from "../screens/IdentityCaptureWire";
 import { TASK_ACTION, routeShellAction } from "../screens/NextStep";
@@ -85,6 +85,8 @@ export type MessagesV5ShellProps = {
    * Absent/false: unchanged.
    */
   readonly hideInboxRail?: boolean;
+  /** Talent inbox: the open conversation, so her approve or decline can follow it. */
+  readonly onActiveInquiry?: (inquiryId: string | null) => void;
 };
 
 type SheetName = "assign" | "handover" | "lost" | "link" | "history" | "tasks" | "client" | "details" | "new" | null;
@@ -200,6 +202,9 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   useEffect(() => {
     activeIdRef.current = activeId;
   }, [activeId]);
+  useEffect(() => {
+    props.onActiveInquiry?.(activeId);
+  }, [activeId, props.onActiveInquiry]);
 
   /* ------------------------------------------------------------ thread */
   const loadThread = useCallback(
@@ -218,14 +223,16 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       }
       if (ess.ok) setEssentials(ess.essentials);
       if (ctxLines && ctxLines.ok) {
+        const currency = ctxLines.money?.currency || "USD";
+        const moneyLabel = (cents: number) => formatCents(cents, currency);
         setContextItems(
           ctxLines.lines
-            ? ctxLines.lines.map((l) => ({ id: l.id, name: l.label, units: String(l.units), price: formatCentsUSD(l.unitCents * l.units), proposedBy: l.proposedBy, confirmed: l.confirmed }))
+            ? ctxLines.lines.map((l) => ({ id: l.id, name: l.label, units: String(l.units), price: moneyLabel(l.unitCents * l.units), proposedBy: l.proposedBy, confirmed: l.confirmed }))
             : null,
         );
         setContextMoney(
           ctxLines.money
-            ? { totalLabel: formatCentsUSD(ctxLines.money.totalCents), paidLabel: formatCentsUSD(ctxLines.money.paidCents), balanceLabel: formatCentsUSD(ctxLines.money.balanceCents), balanceDueCents: ctxLines.money.balanceCents }
+            ? { totalLabel: moneyLabel(ctxLines.money.totalCents), paidLabel: moneyLabel(ctxLines.money.paidCents), balanceLabel: moneyLabel(ctxLines.money.balanceCents), balanceDueCents: ctxLines.money.balanceCents }
             : null,
         );
       }
