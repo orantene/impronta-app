@@ -674,3 +674,34 @@ test("post-auth honours a profile CLAIM before role routing", () => {
     "/claimed-profiles",
   );
 });
+
+test("an onboarding user may reach /claim instead of being bounced to role selection", () => {
+  // The routing half of the claim bug. Every freshly-invited talent is
+  // account_status "onboarding" with no app_role, so without /claim being an
+  // auth-flow path this decision sent them to /onboarding/role and the claim
+  // page never ran.
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/claim",
+      userId: "user-9",
+      sessionProfile: onboardingUser,
+      routingProfile: onboardingUser,
+      isImpersonating: false,
+      hostKind: "app",
+    }).redirectTo,
+    null,
+  );
+
+  // The bounce still applies to an ordinary page, so this did not widen the gate.
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/directory",
+      userId: "user-9",
+      sessionProfile: onboardingUser,
+      routingProfile: onboardingUser,
+      isImpersonating: false,
+      hostKind: "app",
+    }).redirectTo,
+    "/onboarding/role",
+  );
+});
