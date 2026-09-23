@@ -434,7 +434,13 @@ const BUDGETS: Record<string, number> = {
   // appear", "Set up your public page", "View", "Hub") plus their header
   // comment. Same reasoning as above: ES_TEXT is a flat map keyed by the
   // English literal, so a translated string has nowhere else to live.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3608,
+  // 3609, not 3608: Phase 1 adds exactly one line, the es translation
+  // `"Web Office": "Oficina Web"`, required by the tier rename. A translation
+  // dictionary gaining one entry because a tier was renamed is the growth a
+  // ratchet should absorb, not block — and the alternative, deleting one of
+  // this file's 89 blank lines to stay under, is cosmetic churn to dodge a
+  // guard rather than a real trim.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3609,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.

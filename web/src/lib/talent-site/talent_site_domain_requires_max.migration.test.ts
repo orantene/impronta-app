@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const MIGRATION_PATH = join(
   fileURLToPath(new URL(".", import.meta.url)),
-  "../../../../supabase/migrations/20261231279000_talent_site_domain_requires_max.sql",
+  "../../../../supabase/migrations/20261231282000_talent_site_domain_requires_max.sql",
 );
 const MIGRATION = readFileSync(MIGRATION_PATH, "utf8");
 
