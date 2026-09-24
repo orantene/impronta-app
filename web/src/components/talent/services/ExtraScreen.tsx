@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { upsertAddonGroup, type AddonGroup } from "@/lib/talent/services-settings-actions";
+import { listTalentPortfolioPhotos, type PortfolioPhoto } from "@/lib/talent/offerings-actions";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 export function ExtraScreen({
@@ -25,6 +26,9 @@ export function ExtraScreen({
   const [price, setPrice] = useState(existing ? String(existing.amountCents / 100) : "");
   const [minutes, setMinutes] = useState(existing?.durationMinutes ? String(existing.durationMinutes) : "");
   const [ids, setIds] = useState<string[]>(existing?.offeringIds ?? (source.id ? [source.id] : []));
+  const [mediaAssetId, setMediaAssetId] = useState<string | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(existing?.mediaUrl ?? null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -64,6 +68,7 @@ export function ExtraScreen({
                 amountCents: extraCents,
                 durationMinutes: extraMin || null,
                 offeringIds: ids,
+                mediaAssetId,
               });
               setBusy(false);
               if (!res.ok) {
@@ -96,6 +101,38 @@ export function ExtraScreen({
                 {copy.t("Adds to the time")}
                 <input className="mt-1.5 w-full rounded-lg border border-admin-border-soft px-3 py-2.5" type="number" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
               </label>
+            </div>
+            <div className="mt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-admin-ink-dim">{copy.t("Photo")}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                {mediaUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={mediaUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                ) : (
+                  <div className="grid h-16 w-16 place-items-center rounded-lg border border-dashed border-admin-border-soft text-[11px] text-admin-ink-dim">
+                    {copy.t("None")}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="rounded-full border border-admin-border-soft px-3 py-1.5 text-[13px] font-semibold"
+                  onClick={() => setPickerOpen(true)}
+                >
+                  {copy.t("Pick from portfolio")}
+                </button>
+                {mediaUrl && (
+                  <button
+                    type="button"
+                    className="text-[13px] text-admin-ink-muted underline"
+                    onClick={() => {
+                      setMediaAssetId(null);
+                      setMediaUrl(null);
+                    }}
+                  >
+                    {copy.t("Remove")}
+                  </button>
+                )}
+              </div>
             </div>
             <p className="mt-3 text-[12.5px] text-admin-ink-dim">
               {copy.t("One photo is enough here; it shows as a small square next to the checkbox. Change")}
@@ -134,6 +171,10 @@ export function ExtraScreen({
           <p className="mt-3 text-[15px] font-semibold">{preview.title}</p>
           <label className="mt-3 flex items-start gap-2 rounded-xl border border-admin-border-soft px-3 py-2 text-[13px]">
             <input type="checkbox" defaultChecked readOnly />
+            {mediaUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={mediaUrl} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded object-cover" />
+            ) : null}
             <span>
               <span className="block font-semibold">{name || copy.t("Extra")}</span>
               <span className="text-admin-ink-dim">
@@ -145,6 +186,71 @@ export function ExtraScreen({
             {copy.t("Total")} · {totalMin} min ${Math.round(totalCents / 100).toLocaleString("en-US")} {preview.currency}
           </p>
         </aside>
+      </div>
+      {pickerOpen && (
+        <ExtraPortfolioPicker
+          talentId={talentId}
+          onClose={() => setPickerOpen(false)}
+          onPick={(photo) => {
+            setMediaAssetId(photo.id);
+            setMediaUrl(photo.url);
+            setPickerOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ExtraPortfolioPicker({
+  talentId,
+  onClose,
+  onPick,
+}: {
+  talentId: string;
+  onClose: () => void;
+  onPick: (photo: PortfolioPhoto) => void;
+}) {
+  const copy = useDashboardText();
+  const [photos, setPhotos] = useState<PortfolioPhoto[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void listTalentPortfolioPhotos(talentId).then((res) => {
+      if (alive && res.ok) setPhotos(res.photos);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [talentId]);
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 md:items-center md:p-4" onClick={onClose}>
+      <div
+        style={{ maxWidth: 680 }}
+        className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white md:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="border-b border-admin-border-soft px-5 py-4">
+          <h2 className="font-admin-body text-[18px] font-semibold tracking-normal text-admin-ink">
+            {copy.t("Pick photos from your portfolio")}
+          </h2>
+        </div>
+        <div className="grid flex-1 grid-cols-3 gap-2.5 overflow-auto p-5 sm:grid-cols-4">
+          {photos === null && <p className="col-span-full text-[13px] text-admin-ink-dim">{copy.t("Loading")}…</p>}
+          {photos?.length === 0 && (
+            <p className="col-span-full text-[13px] text-admin-ink-dim">{copy.t("Your portfolio has no photos yet.")}</p>
+          )}
+          {(photos ?? []).map((photo) => (
+            <button key={photo.id} type="button" onClick={() => onPick(photo)} className="overflow-hidden rounded-lg text-left">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photo.url} alt="" className="aspect-square w-full object-cover" />
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-end border-t border-admin-border-soft px-5 py-3">
+          <button type="button" className="text-[14px] text-admin-ink" onClick={onClose}>
+            {copy.t("Cancel")}
+          </button>
+        </div>
       </div>
     </div>
   );

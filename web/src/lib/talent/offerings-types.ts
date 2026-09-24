@@ -67,6 +67,8 @@ export type OfferingAddOn = {
   id: string;
   label: string;
   amountCents: number;
+  /** Minutes added when the guest selects this extra. Group extras carry this. */
+  durationMinutes?: number | null;
 };
 
 export type OfferingOwnerKind = "talent" | "workspace";

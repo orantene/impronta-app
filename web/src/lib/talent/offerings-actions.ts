@@ -27,6 +27,10 @@ import {
 } from "@/lib/talent/offerings-types";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { loadOfferingChildren, replaceOfferingChildren } from "@/lib/talent/offerings-children";
+import {
+  loadAddonGroupsForOfferings,
+  mergeAddonGroupsIntoAddOns,
+} from "@/lib/talent/merge-addon-groups";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -197,12 +201,18 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
     const rows = (data ?? []) as TalentOfferingRow[];
     const images = await loadImageAssets(admin, rows.map((r) => r.id));
     const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
+    const groups = await loadAddonGroupsForOfferings(
+      admin,
+      talentProfileId,
+      rows.map((r) => r.id),
+    );
+    const addOnsByOffering = mergeAddonGroupsIntoAddOns(children.addOns, groups);
     const items = rows.map((r) => {
       const assets = images.get(r.id) ?? [];
       const item = rowToOffering(r, "en", assets.map((a) => a.url));
       item.imageAssets = assets;
       item.variants = children.variants.get(r.id) ?? [];
-      item.addOns = children.addOns.get(r.id) ?? [];
+      item.addOns = addOnsByOffering.get(r.id) ?? [];
       return item;
     });
 

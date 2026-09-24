@@ -60,8 +60,8 @@ export async function loadSellingDefaults(
       where: Array.isArray(raw.where) ? raw.where.filter((v): v is string => typeof v === "string") : ["studio"],
       travelRadiusKm: typeof raw.travelRadiusKm === "number" ? raw.travelRadiusKm : null,
       travelFeeCents: typeof raw.travelFeeCents === "number" ? raw.travelFeeCents : null,
-      bufferAfterMin: typeof raw.bufferAfterMin === "number" ? raw.bufferAfterMin : 10,
-      minNoticeMin: typeof raw.minNoticeMin === "number" ? raw.minNoticeMin : 120,
+      bufferAfterMin: typeof raw.bufferAfterMin === "number" ? raw.bufferAfterMin : null,
+      minNoticeMin: typeof raw.minNoticeMin === "number" ? raw.minNoticeMin : null,
     },
   };
 }
@@ -241,13 +241,21 @@ export async function loadAddonGroups(
 
 export async function upsertAddonGroup(
   talentProfileId: string,
-  input: { id?: string; name: string; amountCents: number; durationMinutes: number | null; offeringIds: string[] },
+  input: {
+    id?: string;
+    name: string;
+    amountCents: number;
+    durationMinutes: number | null;
+    offeringIds: string[];
+    mediaAssetId?: string | null;
+  },
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const name = input.name.trim().slice(0, 80);
   if (!name) return { ok: false, error: "Name the extra." };
   let groupId = input.id ?? "";
+  const mediaAssetId = input.mediaAssetId === undefined ? undefined : input.mediaAssetId;
   if (!groupId) {
     const { data, error } = await auth.admin
       .from("talent_addon_groups")
@@ -256,6 +264,7 @@ export async function upsertAddonGroup(
         name,
         amount_cents: Math.max(0, Math.round(input.amountCents)),
         duration_minutes: input.durationMinutes,
+        ...(mediaAssetId !== undefined ? { media_asset_id: mediaAssetId } : {}),
       })
       .select("id")
       .maybeSingle();
@@ -268,6 +277,7 @@ export async function upsertAddonGroup(
         name,
         amount_cents: Math.max(0, Math.round(input.amountCents)),
         duration_minutes: input.durationMinutes,
+        ...(mediaAssetId !== undefined ? { media_asset_id: mediaAssetId } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", groupId)
