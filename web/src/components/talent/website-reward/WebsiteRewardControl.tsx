@@ -7,8 +7,41 @@ import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i1
 import { websiteRewardCopy, websiteRewardState } from "@/lib/talent/website-reward";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 
+// Missing-item keys come from buildTalentChecklist (src/lib/talent-dashboard.ts).
+const MISSING_SECTION: Record<string, string> = {
+  display_name: "identity",
+  first_name: "identity",
+  last_name: "identity",
+  phone: "identity",
+  gender: "identity",
+  date_of_birth: "identity",
+  origin: "location",
+  location: "location",
+  short_bio: "about",
+  taxonomy: "services",
+  media: "media",
+  fields_required: "profile_fields",
+  fields_recommended: "profile_fields",
+};
+
+const MISSING_TIME: Record<string, string> = {
+  display_name: "30 seconds",
+  first_name: "30 seconds",
+  last_name: "30 seconds",
+  phone: "30 seconds",
+  gender: "30 seconds",
+  date_of_birth: "30 seconds",
+  origin: "30 seconds",
+  location: "30 seconds",
+  short_bio: "about 2 min",
+  taxonomy: "about 1 min",
+  media: "about 2 min",
+  fields_required: "about 2 min",
+  fields_recommended: "about 2 min",
+};
+
 export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mobile" }) {
-  const { bridgeTalentCompletion, setTalentPage } = useAdminShell();
+  const { bridgeTalentCompletion, bridgeTalentSelfProfile, openDrawer, setTalentPage, state } = useAdminShell();
   const siteLoad = useTalentSiteDashboardInitialLoad();
   const copy = useDashboardText();
   const router = useRouter();
@@ -24,9 +57,38 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     router.push("/talent/site");
   };
 
+  const missing = bridgeTalentCompletion?.missing ?? [];
+  // Tapping a missing item opens the self-profile drawer at its section
+  // (the drawer honours payload.section and scrolls to #pshell-<section>),
+  // then focuses the first empty field there once it has rendered.
+  const openMissing = (key: string | null) => {
+    setOpen(false);
+    const section = key ? MISSING_SECTION[key] ?? "identity" : "identity";
+    const talentId = bridgeTalentSelfProfile?.id;
+    if (!talentId) {
+      setTalentPage("profile");
+      router.push("/talent/profile");
+      return;
+    }
+    openDrawer("talent-profile-shell", { mode: "edit-self", talentId, section });
+    const focusFirst = (attempt: number) => {
+      const root = document.querySelector(`[data-tulala-pshell] #pshell-${section}`);
+      const fields = root
+        ? Array.from(root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+            "input:not([type=hidden]):not([disabled]), textarea:not([disabled])",
+          ))
+        : [];
+      const target = fields.find((f) => !f.value) ?? fields[0];
+      if (target) target.focus({ preventScroll: false });
+      else if (attempt < 8) setTimeout(() => focusFirst(attempt + 1), 150);
+    };
+    setTimeout(() => focusFirst(0), 350);
+  };
+
   const siteUrl = siteLoad?.ok ? siteLoad.state.publicSiteUrl : null;
   const siteHost = siteUrl ? siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : null;
   const isLive = reward === "live";
+  const onWebOffice = state.talentTier === "max";
   const action =
     reward === "unlocked_not_activated"
       ? copy.isSpanish ? "Activar" : "Activate"
@@ -36,11 +98,15 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
           ? copy.isSpanish ? "Ver y publicar" : "Preview & publish"
           : null;
   const onPress = () => {
+    if (isLive && onWebOffice) {
+      goWebsite();
+      return;
+    }
     if (isLive && siteUrl) {
       window.open(siteUrl, "_blank", "noopener");
       return;
     }
-    if (placement === "topbar" && reward === "profile_unfinished") setOpen(true);
+    if (reward === "profile_unfinished") setOpen(true);
     else goWebsite();
   };
   const chevron = (
@@ -56,12 +122,12 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
           type="button"
           onClick={onPress}
           className="inline-flex items-center gap-2.5 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 text-left font-admin-body"
-          aria-label={copy.isSpanish ? "Sitio en vivo" : "Website live"}
+          aria-label={onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
         >
           <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
           <span className="min-w-0">
             <span className="block text-[12.5px] font-semibold leading-tight text-admin-ink">
-              {copy.isSpanish ? "Sitio en vivo" : "Website live"}
+              {onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
             </span>
             {siteHost && (
               <span className="block max-w-[180px] truncate text-[11px] leading-tight text-admin-ink-dim">{siteHost}</span>
@@ -90,38 +156,84 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
         </button>
       )}
       {open && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/30 md:items-center" onClick={() => setOpen(false)}>
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/30 md:items-center"
+          onClick={() => setOpen(false)}
+        >
           <div
             role="dialog"
-            aria-label={copy.t("Website reward")}
-            className="w-full max-w-[420px] rounded-t-2xl bg-white p-5 font-admin-body md:rounded-2xl"
+            aria-modal="true"
+            aria-label={copy.t("Your free website")}
+            className="flex w-full flex-col rounded-t-2xl bg-white font-admin-body md:rounded-2xl"
+            style={{ maxWidth: 420, maxHeight: "88vh" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-admin-ink-dim">
-              {copy.t("Website reward")}
-            </p>
-            <h2 className="mt-2 font-admin-display text-[22px] text-admin-ink">{labels.title}</h2>
-            <p className="mt-1 text-[13px] text-admin-ink-muted">{labels.detail}</p>
-            <p className="mt-3 text-[13px] text-admin-ink">
-              {copy.t("What is left")} · {bridgeTalentCompletion?.missing.length ?? 0}
-            </p>
-            <ul className="mt-2 max-h-[220px] space-y-1 overflow-auto text-[13px]">
-              {(bridgeTalentCompletion?.missing ?? []).map((item) => (
-                <li key={item.key} className="text-admin-ink-muted">
-                  {item.label}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-4 flex gap-2">
+            <div className="flex justify-center pt-2 md:hidden">
+              <span aria-hidden className="h-1 w-9 rounded-full bg-black/15" />
+            </div>
+            <div className="flex-1 overflow-auto px-5 pb-4 pt-3">
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-[16px] font-semibold text-admin-ink">{copy.t("Your free website")}</h2>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  aria-label={copy.t("Close")}
+                  className="-mr-1 rounded-full px-2 text-[18px] leading-none text-admin-ink-dim"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="mt-3 flex gap-3 border-b border-admin-border-soft pb-4">
+                <span
+                  aria-hidden
+                  className="flex h-[76px] w-[76px] shrink-0 flex-col gap-1 overflow-hidden rounded-md border border-admin-border-soft bg-stone-50 p-1.5"
+                >
+                  <span className="h-6 rounded-sm bg-stone-300" />
+                  <span className="h-1 w-3/4 rounded-full bg-stone-300" />
+                  <span className="h-1 w-1/2 rounded-full bg-stone-200" />
+                  <span className="mt-auto h-2 w-8 rounded-sm bg-emerald-900" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[13.5px] font-semibold text-admin-ink">{copy.t("A real page at your own address")}</p>
+                  {siteHost && <p className="truncate text-[12.5px] text-emerald-900">{siteHost}</p>}
+                  <p className="mt-0.5 text-[12.5px] leading-snug text-admin-ink-muted">
+                    {copy.t("Built from your profile and the things you sell. Free, and yours to keep.")}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-4 text-[13.5px] font-semibold text-admin-ink">
+                {copy.t("What is left")}{" "}
+                <span className="ml-1 text-[12px] font-normal text-admin-ink-dim">{missing.length}</span>
+              </p>
+              <ul className="mt-2 space-y-0.5">
+                {missing.map((item) => (
+                  <li key={item.key}>
+                    <button
+                      type="button"
+                      onClick={() => openMissing(item.key)}
+                      className="flex w-full items-center gap-2.5 rounded-md py-1.5 text-left text-[13.5px] text-admin-ink hover:bg-black/[0.03]"
+                    >
+                      <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white" />
+                      <span className="min-w-0 flex-1 truncate">{copy.t(item.label)}</span>
+                      {MISSING_TIME[item.key] && (
+                        <span className="shrink-0 text-[11.5px] text-admin-ink-dim">{copy.t(MISSING_TIME[item.key])}</span>
+                      )}
+                      {chevron}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-[12px] leading-snug text-admin-ink-dim">
+                {copy.t("Stop whenever you like. What you have written is saved and this sheet picks up where you left off.")}
+              </p>
+            </div>
+            <div className="border-t border-admin-border-soft px-5 py-4">
               <button
                 type="button"
-                onClick={goWebsite}
-                className="rounded-full bg-admin-brand px-4 py-2 text-[13px] font-semibold text-white"
+                onClick={() => openMissing(missing[0]?.key ?? null)}
+                className="w-full rounded-lg bg-emerald-900 px-4 py-3 text-[14px] font-semibold text-white"
               >
                 {copy.t("Continue your profile")}
-              </button>
-              <button type="button" onClick={() => setOpen(false)} className="rounded-full px-3 py-2 text-[13px]">
-                {copy.t("Close")}
               </button>
             </div>
           </div>

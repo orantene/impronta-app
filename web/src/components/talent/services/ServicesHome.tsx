@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import {
   deleteTalentOfferingForever,
   duplicateTalentOffering,
+  setOfferingImages,
   setOfferingPublication,
+  upsertTalentOffering,
 } from "@/lib/talent/offerings-actions";
 import {
   loadAddonGroups,
@@ -201,19 +203,19 @@ export function ServicesHome({ talentId }: { talentId: string }) {
         talentId={talentId}
         rates={editor.usdRates}
         onBack={() => setScreen("list")}
-        onSave={async (next, publish) => {
-          const payload = { ...next, status: publish ? "published" : next.status };
-          if (!payload.id) {
-            const saved = await editor.saveDraft(payload);
-            if (saved) {
-              setBannerId(saved.id);
-              setScreen("list");
-            }
-          } else {
-            editor.persistItem(payload);
-            setBannerId(payload.id);
-            setScreen("list");
+        onSave={async (next, publish, pendingImageIds) => {
+          // Direct write, not editor.saveDraft: saveDraft reads the hook's own
+          // draft state, which this screen never starts, so a new item saved
+          // through it returned null and nothing was written.
+          const payload: TalentOffering = { ...next, status: publish ? "published" : next.status };
+          const res = await upsertTalentOffering(talentId, payload);
+          if (!res.ok) throw new Error(res.error);
+          if (pendingImageIds?.length) {
+            await setOfferingImages(talentId, res.item.id, pendingImageIds);
           }
+          editor.reload();
+          if (publicationWord(res.item) === "live") setBannerId(res.item.id);
+          setScreen("list");
         }}
         onRefreshAddons={async () => {
           const a = await loadAddonGroups(talentId);
@@ -276,7 +278,7 @@ export function ServicesHome({ talentId }: { talentId: string }) {
               onClick={() => setFilter(chip.id)}
               className={`rounded-full px-2.5 py-1 text-[12px] ${filter === chip.id ? "bg-admin-ink text-white" : "bg-[rgba(11,11,13,0.06)] text-admin-ink"}`}
             >
-              {chip.label} {chip.count}
+              {chip.label}{editor.loading ? "" : ` ${chip.count}`}
             </button>
           ))}
         </div>
@@ -298,6 +300,10 @@ export function ServicesHome({ talentId }: { talentId: string }) {
           item={items.find((i) => i.id === bannerId) ?? null}
           destinations={destinations}
           onClose={() => setBannerId(null)}
+          onAddAnother={() => {
+            setBannerId(null);
+            setTypeOpen(true);
+          }}
         />
       )}
 
@@ -312,9 +318,9 @@ export function ServicesHome({ talentId }: { talentId: string }) {
         </div>
       )}
 
-      <ul className="mt-4 divide-y divide-admin-border-soft">
+      <ul className="mt-4 divide-y divide-admin-border-soft overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
         {derived.map((item) => (
-          <li key={item.id} className={`relative flex items-center gap-3 py-3 ${bannerId === item.id ? "bg-[rgba(15,79,62,0.06)]" : ""}`}>
+          <li key={item.id} className={`relative flex items-center gap-3 px-3 py-3 ${bannerId === item.id ? "bg-[rgba(15,79,62,0.06)]" : ""}`}>
             <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => openEditor(item)}>
               {item.imageUrls[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
