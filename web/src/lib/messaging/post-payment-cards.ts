@@ -39,14 +39,19 @@ export async function postVerifiedCollectionCards(
 
     for (const inquiryId of inquiryIds) {
       const { data: existing } = await from("inquiry_messages")
-        .select("id, message_kind")
+        .select("id, message_kind, card_payload")
         .eq("tenant_id", input.tenantId)
         .eq("inquiry_id", inquiryId)
         .in("message_kind", ["order_confirmation", "tickets_card"])
         .is("deleted_at", null);
-      const kinds = new Set(((existing ?? []) as Array<{ message_kind: string }>).map((r) => r.message_kind));
+      const rows = (existing ?? []) as Array<{ message_kind: string; card_payload?: { orderId?: string; recordId?: string } | null }>;
+      const confirmedThisOrder = rows.some((r) =>
+        r.message_kind === "order_confirmation"
+        && (r.card_payload?.orderId === input.orderId || r.card_payload?.recordId === input.orderId),
+      );
+      const kinds = new Set(rows.map((r) => r.message_kind));
 
-      if (!kinds.has("order_confirmation")) {
+      if (!confirmedThisOrder) {
         await from("inquiry_messages").insert({
           inquiry_id: inquiryId,
           tenant_id: input.tenantId,
@@ -67,9 +72,9 @@ export async function postVerifiedCollectionCards(
 
       if (kinds.has("tickets_card")) continue;
       const { data: lines } = await from("order_lines")
-        .select("id, label")
+        .select("id, label, unit_cents")
         .eq("order_id", input.orderId);
-      const lineRows = (lines ?? []) as Array<{ id: string; label?: string }>;
+      const lineRows = (lines ?? []) as Array<{ id: string; label?: string; unit_cents?: number | null }>;
       if (lineRows.length === 0) continue;
       const { data: admissions } = await from("admissions")
         .select("id, order_line_id, status")
@@ -79,7 +84,11 @@ export async function postVerifiedCollectionCards(
       if (tickets.length === 0) continue;
       const tiers = lineRows
         .filter((l) => tickets.some((t) => t.order_line_id === l.id))
-        .map((l) => ({ id: l.id, label: l.label ?? "Ticket", priceCents: 0 }));
+        .map((l) => {
+          const tier: { id: string; label: string; priceCents?: number } = { id: l.id, label: l.label ?? "Ticket" };
+          if (typeof l.unit_cents === "number") tier.priceCents = l.unit_cents;
+          return tier;
+        });
       await from("inquiry_messages").insert({
         inquiry_id: inquiryId,
         tenant_id: input.tenantId,

@@ -196,3 +196,9 @@ test("a declined change_result stays declined", () => {
   const view = readChange("change_result", { state: "declined", summary: "Offer declined" }, "");
   assert.equal(view.state, "declined");
 });
+
+test("a failed payment stays failed", () => {
+  const view = readChange("change_result", { state: "failed", summary: "Payment failed" }, "");
+  assert.equal(view.state, "failed");
+  assert.equal(view.body, "Payment failed");
+});

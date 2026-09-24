@@ -48,6 +48,7 @@ import { executeBookingRefund, type RefundReason } from "@/lib/payments/refund-e
 import { recordVerifiedCollection } from "@/lib/pos/collection";
 import { markInquiryPaidInCash } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { RECORD_KINDS, type ActionFail, type ActionResult, type RecordKind } from "@/lib/messaging/types";
+import { stampInquiryPaidCards } from "@/lib/messaging/payment-card-sync";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
@@ -429,6 +430,13 @@ export async function messagingRecordOutsidePayment(input: {
     return fail("unavailable");
   }
   await recordOutsidePaymentFollowUp(g, parsed.data, "appointment");
+  const method = parsed.data.method === "transfer" ? "wire" : parsed.data.method === "terminal_offline" ? "card" : "cash";
+  await stampInquiryPaidCards(g.admin, {
+    tenantId: g.tenantId,
+    inquiryId: parsed.data.inquiryId,
+    method,
+    paidCents: parsed.data.amountCents,
+  });
   return { ok: true, recordId: parsed.data.recordId };
 }
 

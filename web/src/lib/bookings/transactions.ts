@@ -1034,7 +1034,7 @@ export async function markFailed(
     if (result.ok && result.data.sourceInquiryId && result.data.sourceTenantId) {
       const sb = createServiceRoleClient();
       if (sb) {
-        await sb.from("inquiry_messages").insert({
+        const { error } = await sb.from("inquiry_messages").insert({
           inquiry_id: result.data.sourceInquiryId,
           tenant_id: result.data.sourceTenantId,
           thread_type: "private",
@@ -1043,6 +1043,7 @@ export async function markFailed(
           message_kind: "change_result",
           card_payload: { state: "failed", summary: "Payment failed", reason: failureReason },
         });
+        if (error) logServerError("transactions.markFailed.card", error);
       }
     }
     return result;

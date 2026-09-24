@@ -417,7 +417,7 @@ export function ticketsIssued(view: TicketsView): boolean {
 export type ChangeView = {
   readonly title: string | null;
   readonly body: string | null;
-  readonly state: "sent" | "applied" | "declined" | "cancelled";
+  readonly state: "sent" | "applied" | "declined" | "cancelled" | "failed";
   readonly oldWhen: string | null;
   readonly newWhen: string | null;
   readonly refundedCents: number | null;
@@ -438,8 +438,10 @@ export function readChange(kind: ClientCardKind, payload: Record<string, unknown
   let state: ChangeView["state"];
   if (kind === "change_result" && isCancelOrRefundPayload(p)) {
     state = "cancelled";
+  } else if (kind === "change_result" && raw === "failed") {
+    state = "failed";
   } else if (kind === "change_result") {
-    state = raw === "declined" || raw === "failed" || raw === "cancelled" || raw === "unavailable" ? "declined" : "applied";
+    state = raw === "declined" || raw === "cancelled" || raw === "unavailable" ? "declined" : "applied";
   } else if (raw === "selected" || raw === "paid") {
     state = "applied";
   } else if (raw === "cancelled" || raw === "unavailable") {
