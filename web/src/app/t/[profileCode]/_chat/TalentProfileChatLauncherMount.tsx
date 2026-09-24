@@ -29,6 +29,7 @@
 
 import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
+import { categoryChipLabel } from "./category-chip-label";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
 import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
@@ -208,6 +209,9 @@ export async function TalentProfileChatLauncherMount({
       sourcePage={sourcePage}
       brand={{
         ...dockFlags,
+        dockServiceMenu: publicOfferings
+          .map((o) => ({ title: o.title, category: categoryChipLabel(o.category) }))
+          .filter((o) => o.category),
         agencyName,
         talentDisplayName,
         accentColor,

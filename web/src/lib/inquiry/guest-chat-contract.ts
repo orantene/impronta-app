@@ -754,6 +754,8 @@ export type MiniChatBrand = {
   dockRepresentsPeople?: boolean;
   /** Progress-rail trade. Null keeps the numeric details chip. */
   dockIntake?: "beauty" | "chef" | "massage" | "agency" | null;
+  /** This talent's own services, grouped into catalogue chips by category name. */
+  dockServiceMenu?: readonly { title: string; category: string }[];
 };
 
 export type MiniChatPanelProps = {

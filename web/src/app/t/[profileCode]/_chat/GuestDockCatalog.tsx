@@ -62,6 +62,8 @@ export type GuestDockCatalogProps = {
   onRefresh: () => void;
   /** Prefill the composer and jump to Chat. */
   onAsk: (text: string) => void;
+  /** This talent's services. When present, chips are their category names. */
+  serviceMenu?: readonly { title: string; category: string }[];
 };
 
 function Chip({ on, label, onClick, C, accent }: { on: boolean; label: string; onClick: () => void; C: Palette; accent: string }) {
@@ -113,7 +115,18 @@ function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, 
 }
 
 export function GuestDockCatalog(p: GuestDockCatalogProps) {
-  const { tenantSlug, businessName, t, C, accent, accentInk, inquiryId, threadToken, sourcePage, onEnsureInquiry, onRefresh, onAsk } = p;
+  const { tenantSlug, businessName, t, C, accent, accentInk, inquiryId, threadToken, sourcePage, onEnsureInquiry, onRefresh, onAsk, serviceMenu = [] } = p;
+  const serviceChips = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of serviceMenu) {
+      if (!item.category || seen.has(item.category)) continue;
+      seen.add(item.category);
+      out.push(item.category);
+    }
+    return out;
+  }, [serviceMenu]);
+  const [serviceChip, setServiceChip] = useState<string | null>(null);
   const pathname = usePathname();
   const cart = useInquiryCart();
   const [groups, setGroups] = useState<GuestCatalogGroup[] | null>(null);
@@ -188,25 +201,39 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
 
   const visible = useMemo(() => groups?.find((g) => g.category === category)?.rows ?? [], [groups, category]);
 
+  const usingServices = serviceChips.length > 0;
+  const activeService = serviceChip ?? serviceChips[0] ?? null;
   if (failed) return null;
-  if (!groups) {
+  if (!usingServices && !groups) {
     return <div style={{ padding: "8px 14px", fontSize: 12, color: C.inkDim, fontFamily: FONT }}>{t("public.guestChat.dockLoading")}</div>;
   }
-  if (groups.length === 0) return null;
+  if (!usingServices && groups && groups.length === 0) return null;
 
   return (
     <div data-guest-dock-catalog style={{ display: "flex", flexDirection: "column", gap: 8, paddingBottom: 6 }}>
       <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "4px 14px 2px", scrollbarWidth: "none" }}>
-        {groups.map((g) => (
-          <Chip key={g.category} on={g.category === category} label={t(CATEGORY_KEY[g.category])} onClick={() => setCategory(g.category)} C={C} accent={accent} />
-        ))}
+        {usingServices
+          ? serviceChips.map((label) => (
+              <Chip key={label} on={label === activeService} label={label} onClick={() => setServiceChip(label)} C={C} accent={accent} />
+            ))
+          : (groups ?? []).map((g) => (
+              <Chip key={g.category} on={g.category === category} label={t(CATEGORY_KEY[g.category])} onClick={() => setCategory(g.category)} C={C} accent={accent} />
+            ))}
       </div>
       {notice && (
         <div role="status" style={{ margin: "0 14px", padding: "7px 10px", borderRadius: 10, background: `${accent}14`, color: accent, fontSize: 12.5, fontWeight: 600, fontFamily: FONT }}>
           {notice}
         </div>
       )}
-      {visible.map((row) => {
+      {usingServices
+        ? serviceMenu.filter((item) => item.category === activeService).map((item) => (
+            <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink }}>{item.title}</div>
+              <SmallButton label={t("public.guestChat.catalogAsk")} onClick={() => onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: item.title, business: businessName }))} C={C} accent={accent} accentInk={accentInk} />
+            </div>
+          ))
+        : null}
+      {!usingServices && visible.map((row) => {
         const isTalent = row.category === "talent" && row.talentProfileId;
         const inLineup = isTalent ? cart.isInCart(row.talentProfileId as string) : false;
         const added = addedIds.has(row.id);
