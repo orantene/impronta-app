@@ -22,6 +22,7 @@ imports no backend module.
  */
 
 import { clearPendingOfferingIntent, peekPendingOfferingIntent } from "./pending-offering-intent";
+import { firstSendPlan } from "./retry-same-inquiry";
 import { clearPendingOffering, pendingOfferingPayload } from "./pending-offering-store";
 import { useRef } from "react";
 import type { MutableRefObject } from "react";
@@ -212,7 +213,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     // to that id instead of creating a second/shadow inquiry; this is also the
     // contact-gate (the real contact is written before the message lands).
     const earlyId = inquiryId;
-    if (earlyId && !contactPromoted) {
+    if (firstSendPlan(earlyId, contactPromoted) === "continue" && earlyId) {
       const ok = await continueEarlyInquiry(earlyId, body);
       if (ok && sendToAgencyPendingRef.current) {
         sendToAgencyPendingRef.current = false;
@@ -395,7 +396,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     // promoted), NOT on inquiryId alone. An un-promoted early row carries the
     // synthetic seed contact, so it must pass through handleFirstSend (which forces
     // the ContactCard gate + promotes the row) rather than handleReply.
-    if (inquiryId && contactPromoted) void handleReply();
+    if (firstSendPlan(inquiryId, contactPromoted) === "reply") void handleReply();
     else void handleFirstSend();
   }
 
