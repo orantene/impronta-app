@@ -46,7 +46,7 @@ import { useCartTalents } from "./use-cart-talents";
 import { registerCartTalent, useCartTalentRegistry } from "./cart-talent-registry";
 import { useResolveCartPortraits } from "./use-resolve-cart-portraits";
 import { useNarrowLauncherViewport } from "./use-compact-viewport";
-import { ChatGlyph, CloseGlyph } from "./chat-launcher-glyphs";
+import { ChatGlyph } from "./chat-launcher-glyphs";
 import { useLauncherSessionRestore } from "./use-launcher-session-restore";
 import { useLauncherScrollCollapse } from "./use-launcher-scroll-collapse";
 import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
@@ -641,7 +641,9 @@ export function TalentProfileChatLauncher({
             </div>
           )}
 
-        <button
+        {/* While the panel is open the round launcher is hidden. The client
+            closes with the X in the panel corner, on phone and desktop. */}
+        {!open && <button
           ref={pillRef}
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -701,24 +703,16 @@ export function TalentProfileChatLauncher({
           {!open && unseenAgencyReply && (
             <NewMessagePulse active={repliedPulse} accent={accent} />
           )}
-          {open ? (
-            <CloseGlyph color={accentInk} />
-          ) : (
-            <ChatGlyph color={accentInk} />
-          )}
-          {/* D-MSG-430: the open label read "Close" in English inside an
-              otherwise translated panel, so a Spanish site's launcher said
-              Close. Reuses the header X's own key rather than adding a
-              synonym. */}
-          {collapsedByScroll && !open ? null : (
-            <span>{open ? t("public.guestChat.closeAria") : launcherLabel}</span>
+          <ChatGlyph color={accentInk} />
+          {collapsedByScroll ? null : (
+            <span>{launcherLabel}</span>
           )}
           {/* W1-D — the separate cart count chip (the "9" bubble) was REMOVED. It
               double-counted against the avatar stack (faces + a single "+N" chip
               ARE the count) and, in states like `sent_awaiting`, `labelShowsCount`
               left BOTH visible. The count is now carried by the faces, or — when
               there are no faces — by the label's own "(N)" in the lineup states. */}
-        </button>
+        </button>}
       </div>
 
       {/* Faint scrim behind the panel when expanded (non-blocking — aria-modal="false") */}
