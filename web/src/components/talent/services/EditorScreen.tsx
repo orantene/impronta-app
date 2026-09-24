@@ -19,7 +19,7 @@ import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { ProductEditorCard } from "./ProductEditorCard";
-import { foldAccent } from "@/lib/talent/publication-state";
+import { categoryNearMatch } from "@/lib/talent/publication-state";
 
 type Photo = { id: string; url: string };
 type Where = "studio" | "client" | "remote" | "agreed";
@@ -293,8 +293,8 @@ export function EditorScreen({
                     <option key={name} value={name} />
                   ))}
                 </datalist>
-                {item.category && (catalogNames ?? []).some((name) => name !== item.category && foldAccent(name) === foldAccent(item.category ?? "")) && (
-                  <p className="mt-1 text-[12.5px] text-amber-800">{copy.t("That looks like")} {(catalogNames ?? []).find((name) => foldAccent(name) === foldAccent(item.category ?? ""))}.</p>
+                {item.category && (catalogNames ?? []).some((name) => name !== item.category && categoryNearMatch(name, item.category ?? "")) && (
+                  <p className="mt-1 text-[12.5px] text-amber-800">{copy.t("That looks like")} {(catalogNames ?? []).find((name) => name !== item.category && categoryNearMatch(name, item.category ?? ""))}.</p>
                 )}
               </label>
             </div>

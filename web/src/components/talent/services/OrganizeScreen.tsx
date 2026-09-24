@@ -3,6 +3,7 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { listCategoryUndos } from "@/lib/talent/category-undo";
+import { categoryNearMatch } from "@/lib/talent/publication-state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
 const NAME_MAX = 80;
@@ -117,13 +118,22 @@ export function OrganizeScreen({
           className="rounded-lg border border-admin-border-soft px-3 py-2 text-[13px] font-semibold"
           onClick={() => {
             const next = newName.trim();
-            if (!next || names.includes(next)) return;
+            if (!next || names.includes(next) || names.some((name) => categoryNearMatch(next, name))) return;
             void onOrder([...names, next]);
             setNewName("");
           }}
         >
           {copy.t("Add")}
         </button>
+        {(() => {
+          const typed = newName.trim();
+          const hit = typed && !names.includes(typed) ? names.find((name) => categoryNearMatch(typed, name)) : undefined;
+          return hit ? (
+            <p className="w-full text-[12.5px] text-amber-800">
+              {copy.t("That looks like")} {hit}.
+            </p>
+          ) : null;
+        })()}
         {onUndo && undos[0] && (
           <button
             type="button"
