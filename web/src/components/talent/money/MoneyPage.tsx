@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page
 import { AdminFinancialsCurrencyTabs } from "@/components/admin/applications/AdminFinancialsCurrencyTabs";
 import type { TalentEarnings } from "@/lib/talent/earnings-types";
 
+import { CollectMethodsPanel } from "./CollectMethodsPanel";
 import { EarningsLedger } from "./EarningsLedger";
 import { MoneyAgencyCards } from "./MoneyAgencyCards";
 import { MoneyKpiStrip } from "./MoneyKpiStrip";
@@ -91,6 +92,7 @@ export function MoneyPage() {
       />
 
       {earningsContent}
+      <CollectMethodsPanel />
 
       <section
         style={{

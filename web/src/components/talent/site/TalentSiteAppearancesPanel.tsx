@@ -19,6 +19,8 @@ import {
   type EffectiveVisibility,
 } from "@/lib/talent/representation";
 import { talentSiteCopy, type TalentSiteLocale } from "@/lib/talent-site/talent-site-i18n";
+import { AppearStudioTools } from "@/components/talent/studio/AppearStudioTools";
+import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 
 type WorkspaceAppearance = {
   id: string;
@@ -573,6 +575,7 @@ function WorkspaceAppearanceCard({
  */
 export function TalentSiteAppearancesPanel({ locale = "en" }: { locale?: TalentSiteLocale }) {
   const { state, openDrawer, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
+  const studio = useTalentStudioV2();
 
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   const profile =
@@ -676,6 +679,11 @@ export function TalentSiteAppearancesPanel({ locale = "en" }: { locale?: TalentS
             />
           ))}
         </div>
+      )}
+      {studio && (
+        <AppearStudioTools
+          url={profileCode ? `https://tulala.digital/t/${encodeURIComponent(profileCode)}` : null}
+        />
       )}
     </section>
   );

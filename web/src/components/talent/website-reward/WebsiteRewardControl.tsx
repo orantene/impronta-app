@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { websiteRewardCopy, websiteRewardState } from "@/lib/talent/website-reward";
-import { getWebsiteEligibility } from "@/lib/talent/website-eligibility";
-import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
+import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 
 // Missing-item keys come from buildTalentChecklist (src/lib/talent-dashboard.ts).
@@ -59,31 +58,8 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
   const copy = useDashboardText();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [bookableCount, setBookableCount] = useState<number | null>(null);
-  const talentId = bridgeTalentSelfProfile?.id ?? null;
-  useEffect(() => {
-    if (!studio || !talentId) return;
-    let cancelled = false;
-    void loadTalentOfferingsForEditor(talentId).then((res) => {
-      if (cancelled) return;
-      setBookableCount(res.ok ? res.items.filter((item) => item.status !== "archived").length : null);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [studio, talentId]);
-  const eligibility = studio
-    ? getWebsiteEligibility({
-        hasNameAndWork: bridgeTalentSelfProfile
-          ? Boolean(bridgeTalentSelfProfile.displayName?.trim() && bridgeTalentSelfProfile.primaryTypeLabel)
-          : null,
-        photoCount: bridgeTalentSelfProfile ? bridgeTalentSelfProfile.portfolioCount : null,
-        bookableCount,
-        hasIntro: bridgeTalentSelfProfile ? bridgeTalentSelfProfile.hasBio : null,
-        hasAvailability: null,
-        hasPlace: bridgeTalentSelfProfile ? Boolean(bridgeTalentSelfProfile.homeCity) : null,
-      })
-    : null;
+  const loaded = useWebsiteEligibility();
+  const eligibility = studio ? loaded : null;
   const percent = eligibility?.percent ?? bridgeTalentCompletion?.percent ?? null;
   const knownPercent = percent ?? bridgeTalentCompletion?.percent ?? 0;
   const siteStatus = siteLoad?.ok ? siteLoad.state.site?.status ?? null : null;

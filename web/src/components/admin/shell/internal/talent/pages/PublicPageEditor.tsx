@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { TalentSiteDashboardPanel } from "@/components/talent/site/TalentSiteDashboardPanel";
 import { TalentMaxSiteManager } from "@/components/talent/site/TalentMaxSiteManager";
+import { DiscoverNetworksPanel } from "@/components/talent/studio/DiscoverNetworksPanel";
+import { WebsiteEligibilityPanel } from "@/components/talent/studio/WebsiteEligibilityPanel";
+import { WebOfficeReturnBanner } from "@/components/talent/studio/WebOfficeStates";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { talentSiteCopy } from "@/lib/talent-site/talent-site-i18n";
+import { useAdminShell } from "../../state";
 import { useDashboardText } from "../../dashboard-i18n";
 import { PageHeader } from "../shared/page-chrome-1";
 
@@ -25,6 +29,7 @@ type PresenceTab = "site" | "appear" | "nets";
 export function PublicPageEditor({ locale = "en" }: Props) {
   const studio = useTalentStudioV2();
   const copy = useDashboardText();
+  const { bridgeTalentSelfProfile } = useAdminShell();
   const [tab, setTab] = useState<PresenceTab>("site");
   if (!studio) {
     return (
@@ -61,17 +66,17 @@ export function PublicPageEditor({ locale = "en" }: Props) {
       </div>
       {tab === "site" && (
         <>
+          <Suspense fallback={null}>
+            <WebOfficeReturnBanner />
+          </Suspense>
+          <WebsiteEligibilityPanel />
           <TalentMaxSiteManager locale={locale} />
           <div className="mt-8" />
           <TalentSiteDashboardPanel locale={locale} />
         </>
       )}
       {tab === "appear" && <TalentSiteAppearancesPanel locale={locale} />}
-      {tab === "nets" && (
-        <p className="text-[14px] text-admin-ink-muted">
-          {copy.t("Discover networks")} · {copy.t("Not available")}
-        </p>
-      )}
+      {tab === "nets" && <DiscoverNetworksPanel talentId={bridgeTalentSelfProfile?.id ?? null} />}
     </>
   );
 }

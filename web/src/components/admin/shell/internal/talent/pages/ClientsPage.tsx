@@ -13,6 +13,7 @@ export function TalentClientsPage() {
   const router = useRouter();
   const [items, setItems] = useState<TalentClientRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   const talentId = bridgeTalentSelfProfile?.id ?? null;
 
   useEffect(() => {
@@ -62,9 +63,7 @@ export function TalentClientsPage() {
             <li key={row.id}>
               <button
                 type="button"
-                onClick={() => {
-                  if (row.conversationHref) router.push(row.conversationHref);
-                }}
+                onClick={() => setOpenId(openId === row.id ? null : row.id)}
                 className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left font-admin-body"
               >
                 <span>
@@ -84,6 +83,27 @@ export function TalentClientsPage() {
                     : `${row.currency ?? ""} ${Math.round(row.amountOwedCents / 100)}`}
                 </span>
               </button>
+              {openId === row.id && (
+                <div className="border-t border-admin-border-soft bg-[rgba(11,11,13,0.03)] px-4 py-3 text-[13px] text-admin-ink">
+                  <p className="font-semibold">{copy.t("Client record")}</p>
+                  <p className="mt-1 text-admin-ink-muted">
+                    {row.source === "booking" ? copy.t("From a booking") : copy.t("From a message")}
+                    {row.visitCount > 0 ? ` · ${row.visitCount} ${copy.t("visits")}` : ""}
+                  </p>
+                  <p className="mt-1 text-admin-ink-muted">
+                    {row.amountOwedCents == null ? copy.t("Nothing owed on file") : copy.t("Balance on file")}
+                  </p>
+                  {row.conversationHref && (
+                    <button
+                      type="button"
+                      className="mt-2 font-semibold text-admin-brand"
+                      onClick={() => router.push(row.conversationHref!)}
+                    >
+                      {copy.t("Open conversation")}
+                    </button>
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>

@@ -326,3 +326,61 @@ export async function withdrawOwnApplication(
   }
   return { ok: true };
 }
+
+export type OwnApplicationRow = {
+  id: string;
+  kind: ApplyKind;
+  status: string;
+  tenantId: string;
+  createdAt: string | null;
+};
+
+/** Talent's own agency and hub applications. Same tables. No parallel model. */
+export async function listOwnApplications(): Promise<
+  { ok: true; items: OwnApplicationRow[] } | { ok: false; error: string }
+> {
+  const guard = await requireTalentSelf();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, error: "Supabase unavailable." };
+
+  const [agencies, hubs] = await Promise.all([
+    supabase
+      .from("talent_agency_applications")
+      .select("id, tenant_id, status, created_at")
+      .eq("talent_profile_id", guard.talentProfile.id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("talent_hub_applications")
+      .select("id, tenant_id, status, created_at")
+      .eq("talent_profile_id", guard.talentProfile.id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
+  if (agencies.error) {
+    logServerError("apply/list_own_agency", agencies.error);
+    return { ok: false, error: agencies.error.message };
+  }
+  if (hubs.error) {
+    logServerError("apply/list_own_hub", hubs.error);
+    return { ok: false, error: hubs.error.message };
+  }
+  const items: OwnApplicationRow[] = [
+    ...((agencies.data ?? []) as Array<{ id: string; tenant_id: string; status: string; created_at: string | null }>).map((row) => ({
+      id: row.id,
+      kind: "agency" as const,
+      status: row.status,
+      tenantId: row.tenant_id,
+      createdAt: row.created_at,
+    })),
+    ...((hubs.data ?? []) as Array<{ id: string; tenant_id: string; status: string; created_at: string | null }>).map((row) => ({
+      id: row.id,
+      kind: "hub" as const,
+      status: row.status,
+      tenantId: row.tenant_id,
+      createdAt: row.created_at,
+    })),
+  ];
+  return { ok: true, items };
+}
