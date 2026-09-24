@@ -55,7 +55,7 @@ function setup(over: Partial<ClassTimetableDeps> = {}) {
     createPurchase: async (_a, input) => {
       purchases.push(input);
       return {
-        ok: true, orderId: uuid(50), customerId: uuid(51), totalCents: 1500, collectCents: 1500, payInPerson: false,
+        ok: true, orderId: uuid(50), customerId: uuid(51), totalCents: 1500, collectCents: 1500, currency: "USD", payInPerson: false,
         allocationIds: [uuid(52)], transactionId: uuid(53), bookingId: uuid(54), inquiryId: null, reservationHoldId: null,
       } satisfies PurchaseResult;
     },
@@ -145,7 +145,7 @@ test("act book: sold_out → full; session_already_ended → past; a refused key
     createPurchase: async () => {
       purchases.push(reason);
       if (reason) return { ok: false, reason: reason as "sold_out" } as PurchaseResult;
-      return { ok: true, orderId: uuid(50), customerId: null, totalCents: 0, collectCents: 0, payInPerson: true, allocationIds: [], transactionId: null, bookingId: null, inquiryId: null, reservationHoldId: null };
+      return { ok: true, orderId: uuid(50), customerId: null, totalCents: 0, collectCents: 0, currency: "USD", payInPerson: true, allocationIds: [], transactionId: null, bookingId: null, inquiryId: null, reservationHoldId: null };
     },
   });
   const full = await actClassTimetableCore(deps, BOOK);

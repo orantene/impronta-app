@@ -339,6 +339,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
               offerings={offerings}
               categories={categories}
               locale={locale}
+              usdRates={props.usdRates ?? null}
               surfaceBooking={surfaceBooking}
               labels={{
                 select: c.select,

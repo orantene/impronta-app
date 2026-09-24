@@ -83,7 +83,7 @@ function setup(over: Partial<AppointmentPickerDeps> = {}) {
         orderId: uuid(50),
         customerId: uuid(51),
         totalCents: 3000,
-        collectCents: 1500,
+        collectCents: 1500, currency: "USD",
         payInPerson: false,
         allocationIds: [],
         transactionId: uuid(52),
@@ -223,7 +223,7 @@ test("act: pipeline refusals are mapped — slot_taken → full, no_contact → 
       placed.push(reason);
       if (reason) return { ok: false, reason, error: "x" } as InstantPurchaseResult;
       return {
-        ok: true, orderId: uuid(60), customerId: null, totalCents: 0, collectCents: 0, payInPerson: true,
+        ok: true, orderId: uuid(60), customerId: null, totalCents: 0, collectCents: 0, currency: "USD", payInPerson: true,
         allocationIds: [], transactionId: null, bookingId: null, inquiryId: null, reservationHoldId: null,
       };
     },

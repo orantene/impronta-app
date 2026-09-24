@@ -16,6 +16,7 @@
  * to the Menu actions (with the stock RPC). Nothing here renders.
  */
 
+import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import {
   loadTalentOfferingsForEditor,
@@ -48,6 +49,8 @@ export type OfferingsEditor = {
   items: TalentOffering[];
   defaultCurrency: string;
   legacyImportable: boolean;
+  /** Rates for the "≈ US$" preview beside a non-dollar price (talent only). */
+  usdRates: UsdRates | null;
   loading: boolean;
   saving: boolean;
   /** The last refusal, in the action's own words; null when the last write went through. */
@@ -90,6 +93,7 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
   const [items, setItems] = useState<TalentOffering[]>([]);
   const [defaultCurrency, setDefaultCurrency] = useState("USD");
   const [legacyImportable, setLegacyImportable] = useState(false);
+  const [usdRates, setUsdRates] = useState<UsdRates | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +114,7 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
           setItems(res.items);
           setDefaultCurrency(res.defaultCurrency);
           setLegacyImportable("legacyImportable" in res ? !!res.legacyImportable : false);
+          setUsdRates("usdRates" in res ? ((res.usdRates as UsdRates | null | undefined) ?? null) : null);
         } else {
           setError(res.error);
         }
@@ -334,6 +339,7 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     workspaceTenantId,
     items,
     defaultCurrency,
+    usdRates,
     legacyImportable,
     loading,
     saving,

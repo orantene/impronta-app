@@ -15,6 +15,7 @@ import type { TalentOffering, OfferingKind } from "@/lib/talent/offerings-types"
 import { offeringPriceLabel } from "@/lib/talent/offerings-types";
 import { OfferingCta } from "./OfferingCta";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 
 const GROUP_ORDER: OfferingKind[] = ["service", "package", "product"];
 const GROUP_LABELS: Record<OfferingKind, { en: string; es: string }> = {
@@ -22,6 +23,27 @@ const GROUP_LABELS: Record<OfferingKind, { en: string; es: string }> = {
   package: { en: "Packages", es: "Paquetes" },
   product: { en: "Shop", es: "Tienda" },
 };
+
+/**
+ * "≈ US$51" under a price in another currency (owner ruling 2026-09-23). Only
+ * for a price that is actually printed as a number; quote and on-request rows
+ * have nothing to convert. Renders nothing when rates are unavailable.
+ */
+function UsdLine({ it, locale, fx }: { it: TalentOffering; locale: string; fx: UsdRates | null }) {
+  if (it.visibility === "on_request" || it.priceDisplay === "quote" || it.priceType === "custom") return null;
+  const line = usdEquivalentLabel(it.amountCents, it.currency, fx, locale);
+  if (!line) return null;
+  return (
+    <span
+      className="block text-xs font-normal"
+      style={{ color: "var(--plt-muted-soft)" }}
+      data-usd-equivalent
+      title={pickLocale(locale, { en: `Approximate, at the ${fx?.rateDate} exchange rate`, es: `Aproximado, al tipo de cambio del ${fx?.rateDate}` })}
+    >
+      {line}
+    </span>
+  );
+}
 
 function DurationChip({ minutes, locale }: { minutes: number; locale: string }) {
   const label =
@@ -39,7 +61,7 @@ function DurationChip({ minutes, locale }: { minutes: number; locale: string }) 
   );
 }
 
-function ServiceRow({ it, locale, confirmsByHand = false }: { it: TalentOffering; locale: string; confirmsByHand?: boolean }) {
+function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null }) {
   // Sold out is a POOL fact, not a kind fact. Gating on `kind === "product"`
   // meant a seat-limited package never showed sold out, because it never sold
   // down. `inventoryQty` is the pool mirror maintained by the stock RPCs, so a
@@ -69,6 +91,7 @@ function ServiceRow({ it, locale, confirmsByHand = false }: { it: TalentOffering
       </div>
       <p className="shrink-0 text-sm font-medium tabular-nums" style={{ color: "var(--plt-ink)" }}>
         {offeringPriceLabel(it, locale)}
+        <UsdLine it={it} locale={locale} fx={usdRates} />
       </p>
       {soldOut ? (
         <span className="plt-mono inline-flex shrink-0 items-center rounded-full border px-2 py-1 text-[0.625rem] uppercase tracking-[0.1em]" style={{ borderColor: "var(--plt-hairline-strong)", color: "var(--plt-muted-soft)" }}>
@@ -81,7 +104,7 @@ function ServiceRow({ it, locale, confirmsByHand = false }: { it: TalentOffering
   );
 }
 
-function PackageCard({ it, locale, confirmsByHand = false }: { it: TalentOffering; locale: string; confirmsByHand?: boolean }) {
+function PackageCard({ it, locale, confirmsByHand = false, usdRates = null }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null }) {
   return (
     <div
       className="overflow-hidden rounded-[var(--plt-radius-md)] border"
@@ -105,6 +128,7 @@ function PackageCard({ it, locale, confirmsByHand = false }: { it: TalentOfferin
         <div className="mt-3 flex items-center justify-between gap-3">
           <p className="text-sm font-medium tabular-nums" style={{ color: "var(--plt-ink)" }}>
             {offeringPriceLabel(it, locale)}
+        <UsdLine it={it} locale={locale} fx={usdRates} />
           </p>
           <OfferingCta offering={it} locale={locale} compact confirmsByHand={confirmsByHand} />
         </div>
@@ -113,7 +137,7 @@ function PackageCard({ it, locale, confirmsByHand = false }: { it: TalentOfferin
   );
 }
 
-function ProductTile({ it, locale, confirmsByHand = false }: { it: TalentOffering; locale: string; confirmsByHand?: boolean }) {
+function ProductTile({ it, locale, confirmsByHand = false, usdRates = null }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null }) {
   const soldOut = it.capacityPoolId != null && it.inventoryQty === 0;
   // A product with no image degrades to a service-style row upstream; here we
   // always have an image or render a quiet ground (never an empty gray box).
@@ -134,6 +158,7 @@ function ProductTile({ it, locale, confirmsByHand = false }: { it: TalentOfferin
         </p>
         <p className="mt-0.5 text-sm font-medium tabular-nums" style={{ color: "var(--plt-ink)" }}>
           {offeringPriceLabel(it, locale)}
+        <UsdLine it={it} locale={locale} fx={usdRates} />
         </p>
         <div className="mt-2">
           {soldOut ? (
@@ -149,7 +174,7 @@ function ProductTile({ it, locale, confirmsByHand = false }: { it: TalentOfferin
   );
 }
 
-function FeaturedRail({ it, locale, confirmsByHand = false }: { it: TalentOffering; locale: string; confirmsByHand?: boolean }) {
+function FeaturedRail({ it, locale, confirmsByHand = false, usdRates = null }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null }) {
   const tag = pickLocale(locale, { en: "Signature", es: "Insignia" });
   return (
     <div
@@ -177,6 +202,7 @@ function FeaturedRail({ it, locale, confirmsByHand = false }: { it: TalentOfferi
         <div className="mt-auto flex items-center justify-between gap-3 pt-2">
           <p className="text-sm font-medium tabular-nums" style={{ color: "var(--plt-ink)" }}>
             {offeringPriceLabel(it, locale)}
+        <UsdLine it={it} locale={locale} fx={usdRates} />
           </p>
           <OfferingCta offering={it} locale={locale} confirmsByHand={confirmsByHand} />
         </div>
@@ -195,11 +221,14 @@ export function StorefrontBody({
   locale,
   showFeatured = true,
   confirmsByHand = false,
+  usdRates = null,
 }: {
   visible: TalentOffering[];
   locale: string;
   showFeatured?: boolean;
   confirmsByHand?: boolean;
+  /** Rates for the "≈ US$" line; null prints no line. */
+  usdRates?: UsdRates | null;
 }) {
   if (visible.length === 0) return null;
 
@@ -220,7 +249,7 @@ export function StorefrontBody({
           {pickLocale(locale, { en: "She confirms by hand.", es: "Ella confirma a mano.", fr: "Elle confirme à la main." })}
         </p>
       ) : null}
-      {featured ? <FeaturedRail it={featured} locale={locale} confirmsByHand={confirmsByHand} /> : null}
+      {featured ? <FeaturedRail it={featured} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} /> : null}
 
       {groups.map((g) => (
         <div key={g.kind} className="mb-6 last:mb-0">
@@ -239,19 +268,19 @@ export function StorefrontBody({
               style={{ borderColor: "var(--plt-hairline)", background: "var(--plt-bg-raised)" }}
             >
               {g.items.map((it) => (
-                <ServiceRow key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} />
+                <ServiceRow key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} />
               ))}
             </div>
           ) : g.kind === "package" ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {g.items.map((it) => (
-                <PackageCard key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} />
+                <PackageCard key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} />
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {g.items.map((it) => (
-                <ProductTile key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} />
+                <ProductTile key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} />
               ))}
             </div>
           )}

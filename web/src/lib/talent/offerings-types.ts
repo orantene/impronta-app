@@ -349,7 +349,13 @@ export function validateOffering(o: TalentOffering): string[] {
   const errors: string[] = [];
   if (!str(o.title, MAX_TITLE)) errors.push("Give it a name (e.g. “60-min massage”).");
   const quoteOnly = o.priceDisplay === "quote" || o.priceType === "custom";
-  if (!quoteOnly && (o.amountCents == null || o.amountCents < 0)) {
+  // A DRAFT may be saved before it has a price (2026-09-23), so photos can be
+  // attached first: the photo is the second question, the price the third.
+  // Only on "request" booking; instant booking still needs its exact price,
+  // which the database also enforces (talent_offerings_instant_needs_price).
+  // A negative amount is refused in every status.
+  const priceLaterDraft = o.status === "draft" && o.bookingMode !== "instant" && o.amountCents == null;
+  if (!quoteOnly && !priceLaterDraft && (o.amountCents == null || o.amountCents < 0)) {
     errors.push(`“${o.title || "This service"}” needs a price — or switch it to “Contact for price.”`);
   }
   if (o.bookingMode === "instant") {

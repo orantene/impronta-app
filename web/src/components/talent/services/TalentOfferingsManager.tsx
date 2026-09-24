@@ -19,7 +19,7 @@
  */
 
 import { useState } from "react";
-import { setOfferingImages } from "@/lib/talent/offerings-actions";
+import { setOfferingImages, listTalentPortfolioPhotos, type PortfolioPhoto } from "@/lib/talent/offerings-actions";
 import { setMenuItemStockAction } from "@/lib/talent/menu-offerings-actions";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { actionUploadAndAssignMedia } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
@@ -38,7 +38,8 @@ import {
 } from "@/lib/talent/offerings-types";
 import { OfferingOptionsEditor } from "./OfferingOptionsEditor";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
-import { DEFAULT_CURRENCY_OPTIONS, CURRENCY_LABELS } from "@/lib/billing/currencies";
+import { DEFAULT_CURRENCY_OPTIONS, CURRENCY_LABELS, TALENT_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
+import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 
 const C = {
   ink: "#0B0B0D",
@@ -95,6 +96,61 @@ const KIND_LABELS: Record<OfferingKind, string> = {
   package: "Package",
   product: "Product",
 };
+
+type SellFilter = "all" | OfferingKind | "attention";
+const SELL_FILTERS: { id: SellFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "service", label: "Services" },
+  { id: "package", label: "Packages" },
+  { id: "product", label: "Products" },
+  { id: "attention", label: "Needs attention" },
+];
+const KIND_ADD_LABEL: Record<OfferingKind, string> = {
+  service: "A service",
+  package: "A package",
+  product: "A product",
+};
+const KIND_HELP: Record<OfferingKind, { what: string; eg: string }> = {
+  service: { what: "Something you do at an agreed time. It goes on your calendar.", eg: "acrylic set, lash lift, a haircut" },
+  package: { what: "Several visits or sessions sold together for one price.", eg: "3 gel appointments, bridal trial + wedding day" },
+  product: { what: "A thing the client takes home or you send. No appointment.", eg: "press-on sets, cuticle oil, a print" },
+};
+/** Live with no photo, or anything still missing its price. */
+function needsAttention(i: TalentOffering): boolean {
+  const missingPrice = i.amountCents == null && i.priceDisplay !== "quote" && i.priceType !== "custom";
+  return missingPrice || (i.status === "published" && i.imageUrls.length === 0) || (i.kind === "product" && i.inventoryQty === 0);
+}
+
+/** "What kind of thing?" — the first question of Add (talent). */
+function KindMenu({ onPick, onClose }: { onPick: (k: OfferingKind) => void; onClose: () => void }) {
+  return (
+    <div
+      role="menu"
+      aria-label="What kind of thing?"
+      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+      style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 20, width: 320, maxWidth: "calc(100vw - 32px)", background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 12px 32px rgba(11,11,13,0.14)", padding: 6 }}
+    >
+      {(["service", "package", "product"] as OfferingKind[]).map((k) => (
+        <button
+          key={k}
+          type="button"
+          role="menuitem"
+          onClick={() => onPick(k)}
+          style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", fontFamily: FONT }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = C.surface; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+        >
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{KIND_ADD_LABEL[k]}</div>
+          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2, lineHeight: 1.4 }}>{KIND_HELP[k].what}</div>
+          <div style={{ fontSize: 11, color: C.inkSoft, marginTop: 2 }}>For example: {KIND_HELP[k].eg}</div>
+        </button>
+      ))}
+      <div style={{ fontSize: 11.5, color: C.inkMuted, padding: "8px 12px 6px", borderTop: `1px solid ${C.borderSoft}`, marginTop: 4, lineHeight: 1.45 }}>
+        An extra, like glitter or nail art, is added inside the service it goes with: open the service, then Options &amp; extras.
+      </div>
+    </div>
+  );
+}
 
 const STARTERS: { title: string; priceType: ServicePricingType; mode: PriceMode }[] = [
   { title: "60-min session", priceType: "per_contact", mode: "fixed" },
@@ -241,12 +297,21 @@ function OfferingForm({
   onImages,
   onOptionsSynced,
   workspaceTenantId,
+  usdRates = null,
+  onEnsureSaved,
 }: {
   value: TalentOffering;
   onPatch: (p: Partial<TalentOffering>) => void;
   isDraft: boolean;
   saving: boolean;
   defaultCurrency: string;
+  /** Rates for the "about US$" preview beside a non-dollar price. */
+  usdRates?: UsdRates | null;
+  /**
+   * Draft only: save the draft (hidden) so photos can attach before the rest
+   * is filled in. Resolves to the saved row, or null when it could not save.
+   */
+  onEnsureSaved?: () => Promise<TalentOffering | null>;
   talentId: string;
   /** When false, hide photo/options that require a talent profile id. */
   allowTalentMedia?: boolean;
@@ -268,8 +333,58 @@ function OfferingForm({
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const assets = value.imageAssets ?? [];
+  const [portfolio, setPortfolio] = useState<PortfolioPhoto[] | null>(null);
+  const [picking, setPicking] = useState(false);
+  async function openPortfolio() {
+    const talentProfileId = value.talentProfileId;
+    if (!talentProfileId) return;
+    setPicking(true);
+    setUploadError(null);
+    if (portfolio === null) {
+      const res = await listTalentPortfolioPhotos(talentProfileId);
+      if (!res.ok) {
+        setUploadError(res.error);
+        setPicking(false);
+        return;
+      }
+      setPortfolio(res.photos);
+    }
+  }
+  async function togglePortfolioPhoto(p: PortfolioPhoto) {
+    const talentProfileId = value.talentProfileId;
+    if (!talentProfileId) return;
+    const has = assets.some((a) => a.id === p.id);
+    if (!has && assets.length >= 12) {
+      setUploadError("A service can show up to 12 photos. Remove one first.");
+      return;
+    }
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const offeringId = await targetId();
+      if (!offeringId) {
+        setUploadError("Give it a name first, then add photos.");
+        return;
+      }
+      const next = has ? assets.filter((a) => a.id !== p.id) : [...assets, { id: p.id, url: p.url }];
+      const res = await setOfferingImages(talentProfileId, offeringId, next.map((a) => a.id));
+      if (!res.ok) {
+        setUploadError(res.error ?? "Failed to update the photos.");
+        return;
+      }
+      onImages?.(offeringId, next);
+    } finally {
+      setUploading(false);
+    }
+  }
+  /** The row photos attach to; a new item is saved as a hidden draft first. */
+  async function targetId(): Promise<string | null> {
+    if (value.id) return value.id;
+    if (!onEnsureSaved) return null;
+    const saved = await onEnsureSaved();
+    return saved?.id ?? null;
+  }
   async function uploadPhoto(file: File) {
-    if (!value.id) return; // drafts save first
     const talentProfileId = value.talentProfileId;
     if (!talentProfileId) {
       setUploadError("Photos for workspace menu items are not available yet.");
@@ -278,6 +393,11 @@ function OfferingForm({
     setUploading(true);
     setUploadError(null);
     try {
+      const offeringId = await targetId();
+      if (!offeringId) {
+        setUploadError("Give it a name first, then add photos.");
+        return;
+      }
       // Signed pipeline first (works for staff AND talent-self since the
       // sign/register actions are dual-auth) — the legacy FormData action
       // rejects photos over the 4 MB Server Action body cap before it runs.
@@ -303,12 +423,12 @@ function OfferingForm({
         return;
       }
       const next = [...assets, { id: up.data.id, url: up.data.publicUrl }];
-      const res = await setOfferingImages(talentProfileId, value.id, next.map((a) => a.id));
+      const res = await setOfferingImages(talentProfileId, offeringId, next.map((a) => a.id));
       if (!res.ok) {
         setUploadError(res.error ?? "Failed to attach the photo.");
         return;
       }
-      onImages?.(value.id, next);
+      onImages?.(offeringId, next);
     } finally {
       setUploading(false);
     }
@@ -332,11 +452,21 @@ function OfferingForm({
     }
   }
   const unitOptions = moreUnits ? [...UNIT_PILLS, ...UNIT_MORE] : UNIT_PILLS;
+  // Owner ruling 2026-09-23: a talent prices in pesos or dollars, and a peso
+  // price shows its dollar equivalent. A workspace menu keeps the full list.
+  // An item already saved in another code keeps it visible, so the picker
+  // never displays a currency the row does not have.
+  const currencyOptions: readonly string[] = workspaceTenantId
+    ? DEFAULT_CURRENCY_OPTIONS
+    : TALENT_CURRENCY_OPTIONS.includes(value.currency as (typeof TALENT_CURRENCY_OPTIONS)[number]) || !value.currency
+      ? TALENT_CURRENCY_OPTIONS
+      : [...TALENT_CURRENCY_OPTIONS, value.currency];
+  const usdHint = mode === "contact" ? null : usdEquivalentLabel(value.amountCents, value.currency, usdRates, "en");
   const priceSentence =
     mode === "contact"
       ? "Clients will see “Contact for price” and message you first."
       : value.amountCents
-        ? `Clients see ${offeringPriceLabel(value, "en")}.`
+        ? `Clients see ${offeringPriceLabel(value, "en")}${usdHint ? `, with ${usdHint} beside it` : ""}.`
         : "Type a price to see how clients will read it.";
 
   return (
@@ -362,7 +492,7 @@ function OfferingForm({
         <span style={labelStyle}>
           Photos <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>— optional, but it sells. First photo is the cover.</span>
         </span>
-        {value.id ? (
+        {(value.id || (onEnsureSaved && value.talentProfileId)) ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             {assets.map((a, i) => (
               <span key={a.id} style={{ position: "relative", display: "inline-block" }}>
@@ -402,8 +532,61 @@ function OfferingForm({
             </label>
           </div>
         ) : (
-          <div style={{ fontSize: 12, color: C.inkSoft, padding: "8px 0 2px" }}>Save the service first, then add photos.</div>
+          <div style={{ fontSize: 12, color: C.inkSoft, padding: "8px 0 2px" }}>Photos for workspace menu items are added after saving.</div>
         )}
+        {value.talentProfileId ? (
+          <div style={{ marginTop: 8 }}>
+            {!picking ? (
+              <button type="button" disabled={uploading} onClick={() => void openPortfolio()} style={{ ...pillStyle(false) }} data-testid="offering-photos-from-portfolio">
+                Choose from your portfolio
+              </button>
+            ) : (
+              <div style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 10, padding: 10, background: C.surface }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: C.ink, flex: 1 }}>
+                    Your portfolio {portfolio ? `· ${portfolio.length}` : ""}
+                    <span style={{ fontWeight: 400, color: C.inkMuted }}> · tap to add or remove · {assets.length} of 12</span>
+                  </span>
+                  <button type="button" onClick={() => setPicking(false)} style={{ ...pillStyle(false), padding: "4px 10px" }}>Done</button>
+                </div>
+                {portfolio === null ? (
+                  <div style={{ fontSize: 12, color: C.inkMuted }}>Loading your photos…</div>
+                ) : portfolio.length === 0 ? (
+                  <div style={{ fontSize: 12, color: C.inkMuted }}>No portfolio photos yet. Upload one above; it can be reused on other services later.</div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))", gap: 8, maxHeight: 260, overflowY: "auto" }}>
+                    {portfolio.map((p) => {
+                      const pos = assets.findIndex((a) => a.id === p.id);
+                      const others = p.onOfferings.filter((o) => o.id !== value.id);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          disabled={uploading}
+                          onClick={() => void togglePortfolioPhoto(p)}
+                          title={others.length ? `Also on: ${others.map((o) => o.title).join(", ")}` : undefined}
+                          aria-pressed={pos >= 0}
+                          style={{ position: "relative", aspectRatio: "1", padding: 0, borderRadius: 9, overflow: "hidden", cursor: "pointer", border: pos >= 0 ? `2.5px solid ${C.accent}` : `1px solid ${C.borderSoft}`, background: "#fff" }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          {pos >= 0 ? (
+                            <span style={{ position: "absolute", top: 4, left: 4, width: 18, height: 18, borderRadius: 9, background: C.accent, color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{pos + 1}</span>
+                          ) : null}
+                          {others.length ? (
+                            <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "3px 5px", background: "linear-gradient(transparent, rgba(11,11,13,.7))", color: "#fff", fontSize: 8.5, fontWeight: 600, textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              On {others[0]!.title}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
         <div style={{ minHeight: 13, marginTop: 4 }}>
           {uploading && <span style={{ fontSize: 11, color: C.inkMuted }}>Uploading…</span>}
           {uploadError && <span style={{ fontSize: 11, color: C.error }}>{uploadError}</span>}
@@ -444,15 +627,15 @@ function OfferingForm({
               style={{ ...inputStyle, width: 120, fontWeight: 700, fontSize: 15 }}
             />
             <select
-              value={(DEFAULT_CURRENCY_OPTIONS as readonly string[]).includes(value.currency) ? value.currency : defaultCurrency}
+              value={currencyOptions.includes(value.currency) ? value.currency : defaultCurrency}
               disabled={saving}
               onChange={(e) => onPatch({ currency: e.target.value })}
               style={{ ...inputStyle, cursor: "pointer" }}
             >
-              {DEFAULT_CURRENCY_OPTIONS.map((c) => (
+              {currencyOptions.map((c) => (
                 <option key={c} value={c}>
                   {c}
-                  {CURRENCY_LABELS[c] ? ` — ${CURRENCY_LABELS[c]}` : ""}
+                  {CURRENCY_LABELS[c as keyof typeof CURRENCY_LABELS] ? ` — ${CURRENCY_LABELS[c as keyof typeof CURRENCY_LABELS]}` : ""}
                 </option>
               ))}
             </select>
@@ -821,6 +1004,7 @@ export function TalentOfferingsManager(
     workspaceTenantId,
     items,
     defaultCurrency,
+    usdRates,
     legacyImportable,
     loading,
     saving,
@@ -840,6 +1024,21 @@ export function TalentOfferingsManager(
   } = editor;
   /** One-open accordion: the id currently expanded. */
   const [openId, setOpenId] = useState<string | null>(null);
+  /** "What you sell" list filter (talent only). */
+  const [filter, setFilter] = useState<SellFilter>("all");
+  /** The Add menu: which kind of thing (talent only). */
+  const [kindMenu, setKindMenu] = useState(false);
+
+  /** Save a new item as a HIDDEN draft so photos can attach before the rest. */
+  function ensureDraftSaved(): Promise<TalentOffering | null> {
+    return editor.saveDraft({ status: "draft" }).then((saved) => {
+      if (saved) {
+        setDraft(null);
+        setOpenId(saved.id);
+      }
+      return saved;
+    });
+  }
 
   function saveDraft() {
     void editor.saveDraft().then((saved) => {
@@ -864,6 +1063,29 @@ export function TalentOfferingsManager(
   if (loading) return null;
 
   const { inputStyle, pillStyle } = makeStyles(saving);
+  const attention = items.filter(needsAttention);
+  const counts: Record<SellFilter, number> = {
+    all: items.length,
+    service: items.filter((i) => i.kind === "service").length,
+    package: items.filter((i) => i.kind === "package").length,
+    product: items.filter((i) => i.kind === "product").length,
+    attention: attention.length,
+  };
+  const shown = isWorkspace || filter === "all"
+    ? items
+    : filter === "attention"
+      ? attention
+      : items.filter((i) => i.kind === filter);
+  const noPhoto = items.filter((i) => i.status === "published" && i.imageUrls.length === 0).length;
+  const noPrice = items.filter((i) => i.amountCents == null && i.priceDisplay !== "quote" && i.priceType !== "custom").length;
+  const hidden = items.filter((i) => i.status !== "published").length;
+
+  function addKind(kind: OfferingKind) {
+    setKindMenu(false);
+    const b = editor.startAdd({ kind });
+    setDraft({ ...b, kind });
+    setOpenId(null);
+  }
 
   return (
     <div
@@ -873,15 +1095,30 @@ export function TalentOfferingsManager(
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 4 }}>
         <div style={{ flex: "1 1 260px", minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>
-            {isWorkspace ? "Menu" : "Your services"}
+            {isWorkspace ? "Menu" : "Your catalogue"}
           </div>
           <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 3, lineHeight: 1.5 }}>
             {isWorkspace
               ? "What customers can order from your site. Each item belongs to the workspace, not to a person on the roster."
-              : "What clients can book or buy from your page. You choose per service how they book — send an inquiry first, or reserve instantly."}
+              : "Everything clients can book or buy from your page: services, packages and products. A photo on each one is what gets it booked."}
           </div>
         </div>
-        {items.length > 0 && (
+        {items.length > 0 && !isWorkspace && (
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <button
+              type="button"
+              disabled={saving || draft !== null}
+              aria-expanded={kindMenu}
+              onClick={() => setKindMenu((v) => !v)}
+              data-testid="sell-add"
+              style={{ padding: "9px 14px", borderRadius: 9, border: `1px solid ${C.accent}`, background: C.accent, color: "#fff", fontSize: 12.5, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}
+            >
+              + Add something to sell
+            </button>
+            {kindMenu && <KindMenu onPick={addKind} onClose={() => setKindMenu(false)} />}
+          </div>
+        )}
+        {items.length > 0 && isWorkspace && (
           <button
             type="button"
             disabled={saving || draft !== null}
@@ -902,16 +1139,25 @@ export function TalentOfferingsManager(
           <div style={{ fontSize: 12.5, color: C.inkMuted, margin: "6px auto 14px", maxWidth: 380, lineHeight: 1.5 }}>
             {isWorkspace
               ? "Add your first menu item. It will only appear on your site once you publish it."
-              : "Add your first service — it takes about twenty seconds. Nothing shows publicly until you save it."}
+              : "Start with the one clients ask for most. Add a photo and a price; nothing shows publicly until you publish it."}
           </div>
-          <button
+          {!isWorkspace ? (
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+              {(["service", "package", "product"] as OfferingKind[]).map((k) => (
+                <button key={k} type="button" disabled={saving} onClick={() => addKind(k)} style={{ padding: "10px 16px", borderRadius: 9, border: `1px solid ${k === "service" ? C.accent : C.border}`, background: k === "service" ? C.accent : "#fff", color: k === "service" ? "#fff" : C.ink, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>
+                  + {KIND_ADD_LABEL[k]}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {isWorkspace ? <button
             type="button"
             disabled={saving}
             onClick={() => startAdd()}
             style={{ padding: "10px 16px", borderRadius: 9, border: `1px solid ${C.accent}`, background: C.accent, color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}
           >
             {isWorkspace ? "+ Add your first menu item" : "+ Add your first service"}
-          </button>
+          </button> : null}
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 14 }}>
             {STARTERS.map((s) => (
               <button key={s.title} type="button" disabled={saving} onClick={() => startAdd(s)} style={{ ...pillStyle(false), borderRadius: 20 }}>
@@ -937,17 +1183,48 @@ export function TalentOfferingsManager(
         </div>
       )}
 
+      {/* Filter + readiness (talent) */}
+      {!isWorkspace && items.length > 0 && (
+        <>
+          <div role="tablist" aria-label="Filter what you sell" style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
+            {SELL_FILTERS.filter((f) => f.id === "all" || f.id === "attention" || counts[f.id] > 0).map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                role="tab"
+                aria-selected={filter === f.id}
+                onClick={() => setFilter(f.id)}
+                style={{ ...pillStyle(filter === f.id), borderRadius: 20, padding: "5px 12px", fontSize: 12, ...(f.id === "attention" && counts.attention > 0 && filter !== f.id ? { color: C.amber, borderColor: C.amberSoft } : null) }}
+              >
+                {f.label} · {counts[f.id]}
+              </button>
+            ))}
+          </div>
+          {(noPhoto > 0 || noPrice > 0) && (
+            <div data-testid="sell-readiness" style={{ marginTop: 10, padding: "10px 12px", borderRadius: 10, background: C.amberSoft, fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
+              {[
+                noPhoto > 0 ? `${noPhoto} live ${noPhoto === 1 ? "item has" : "items have"} no photo. A photo is what clients tap on.` : null,
+                noPrice > 0 ? `${noPrice} ${noPrice === 1 ? "draft needs" : "drafts need"} a price before ${noPrice === 1 ? "it" : "they"} can go on your page.` : null,
+                hidden > 0 ? `${hidden} hidden from your page.` : null,
+              ].filter(Boolean).join(" ")}
+            </div>
+          )}
+        </>
+      )}
+
       {/* New-service composer */}
       {draft && (
         <div style={{ marginTop: 14, border: `1px solid ${C.accentLine}`, borderRadius: 12, padding: "14px 14px 16px", background: "#fff" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.accentDeep, letterSpacing: 0.3, textTransform: "uppercase" }}>New service</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.accentDeep, letterSpacing: 0.3, textTransform: "uppercase" }}>New {KIND_LABELS[draft.kind].toLowerCase()}</div>
           <OfferingForm
             value={draft}
             isDraft
             saving={saving}
             defaultCurrency={defaultCurrency}
+            usdRates={usdRates}
             talentId={talentId}
             onPatch={(p) => setDraft((d) => (d ? { ...d, ...p } : d))}
+            onEnsureSaved={isWorkspace ? undefined : ensureDraftSaved}
             onSaveDraft={saveDraft}
             onCancelDraft={() => {
               setDraft(null);
@@ -960,16 +1237,33 @@ export function TalentOfferingsManager(
       {/* Rows */}
       {items.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
-          {items.map((it, idx) => {
+          {shown.length === 0 && (
+            <div style={{ fontSize: 12.5, color: C.inkMuted, padding: "10px 2px" }}>
+              {filter === "attention" ? "Nothing needs attention. Every live item has a photo and a price." : "Nothing here yet."}
+            </div>
+          )}
+          {shown.map((it) => {
+            const idx = items.findIndex((x) => x.id === it.id);
             const open = openId === it.id;
             const live = it.status === "published";
+            const missingPhoto = it.imageUrls.length === 0;
+            const missingPrice = it.amountCents == null && it.priceDisplay !== "quote" && it.priceType !== "custom";
             return (
               <div key={it.id} style={{ border: `1px solid ${open ? C.accentLine : C.borderSoft}`, borderRadius: 12, background: live ? "#fff" : C.surface }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px" }}>
                   {it.imageUrls[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={it.imageUrls[0]} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0, border: `1px solid ${C.borderSoft}` }} />
-                  ) : null}
+                    <img src={it.imageUrls[0]} alt="" style={{ width: 48, height: 48, borderRadius: 9, objectFit: "cover", flexShrink: 0, border: `1px solid ${C.borderSoft}` }} />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(it.id)}
+                      aria-label={`Add a photo to ${it.title || "this item"}`}
+                      style={{ width: 48, height: 48, borderRadius: 9, flexShrink: 0, border: `1.5px dashed ${C.border}`, background: C.surface, color: C.inkSoft, fontSize: 9.5, fontWeight: 600, lineHeight: 1.15, cursor: "pointer", fontFamily: FONT, padding: 2 }}
+                    >
+                      ＋<br />photo
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setOpenId(open ? null : it.id)}
@@ -990,8 +1284,17 @@ export function TalentOfferingsManager(
                           color: live ? C.good : C.amber,
                         }}
                       >
-                        {live ? "Live" : "Hidden"}
+                        {live ? "Live" : "Hidden from page"}
                       </span>
+                      {!isWorkspace && live && missingPhoto && (
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: C.amberSoft, color: C.amber }}>No photo</span>
+                      )}
+                      {!isWorkspace && missingPrice && (
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: C.amberSoft, color: C.amber }}>Needs a price</span>
+                      )}
+                      {it.kind === "product" && it.inventoryQty === 0 && (
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: "rgba(220,38,38,0.10)", color: C.error }}>Sold out</span>
+                      )}
                       {it.bookingMode === "instant" && (
                         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: C.accentSoft, color: C.accentDeep }}>
                           Direct booking
@@ -1012,11 +1315,15 @@ export function TalentOfferingsManager(
                     </div>
                   </button>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
-                    {offeringPriceLabel(it, "en")}
+                    {missingPrice ? "No price yet" : offeringPriceLabel(it, "en")}
+                    {(() => {
+                      const usd = missingPrice ? null : usdEquivalentLabel(it.amountCents, it.currency, usdRates, "en");
+                      return usd ? <div style={{ fontSize: 11, fontWeight: 500, color: C.inkMuted, textAlign: "right" }}>{usd}</div> : null;
+                    })()}
                   </div>
                   <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-                    <button type="button" aria-label="Move up" disabled={saving || idx === 0} onClick={() => move(it.id, -1)} style={{ ...inputStyle, padding: "5px 8px", cursor: "pointer", opacity: idx === 0 ? 0.35 : 1 }}>↑</button>
-                    <button type="button" aria-label="Move down" disabled={saving || idx === items.length - 1} onClick={() => move(it.id, 1)} style={{ ...inputStyle, padding: "5px 8px", cursor: "pointer", opacity: idx === items.length - 1 ? 0.35 : 1 }}>↓</button>
+                    <button type="button" aria-label="Move up" disabled={saving || idx <= 0 || (!isWorkspace && filter !== "all")} onClick={() => move(it.id, -1)} style={{ ...inputStyle, padding: "5px 8px", cursor: "pointer", opacity: idx <= 0 ? 0.35 : 1 }}>↑</button>
+                    <button type="button" aria-label="Move down" disabled={saving || idx === items.length - 1 || (!isWorkspace && filter !== "all")} onClick={() => move(it.id, 1)} style={{ ...inputStyle, padding: "5px 8px", cursor: "pointer", opacity: idx === items.length - 1 ? 0.35 : 1 }}>↓</button>
                   </div>
                 </div>
 
@@ -1028,6 +1335,7 @@ export function TalentOfferingsManager(
                       isDraft={false}
                       saving={saving}
                       defaultCurrency={defaultCurrency}
+                      usdRates={usdRates}
                       talentId={talentId}
                       onPatch={(p) => patchItem(it.id, p)}
                       onImages={syncImages}

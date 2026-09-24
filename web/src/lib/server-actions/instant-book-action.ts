@@ -150,7 +150,12 @@ export async function createInstantBookingAction(
           const session = await createCheckoutSessionForTransaction({
             transactionId: booked.transactionId,
             amountCents: booked.collectCents,
-            currency: operatingCurrency || "USD",
+            // The ORDER's currency, never the platform's. The transaction row
+            // is already in it, and the webhook refuses a session whose
+            // currency differs from the transaction's, so charging the
+            // operating currency both overcharged (950 MXN → US$950) and left
+            // the booking unpaid.
+            currency: booked.currency,
             payerEmail: engineInput.contactEmail,
             inquiryId: booked.inquiryId ?? null,
             bookingId: booked.bookingId,

@@ -24,8 +24,12 @@ export function ServicesPage() {
       <PageHeader
         guideNodeId="talent-rate-card"
         eyebrow={copy.t("Catalog")}
-        title={copy.t("Catalog & Pricing")}
-        subtitle={copy.t("What clients can book or buy from your page — you choose per service whether they inquire first or reserve instantly.")}
+        title={copy.t("Services")}
+        subtitle={
+          copy.isSpanish
+            ? "Administra tus servicios, paquetes y productos"
+            : "Manage your services, packages and products"
+        }
       />
       {bridgeTalentSelfProfile ? (
         <>

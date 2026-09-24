@@ -612,6 +612,7 @@ export async function createPurchase(
       collectCents,
       window: appointmentWindow,
       subtotalCents: priced.subtotalCents,
+      currency: orderCurrency,
       contact: input.contact,
     });
     if (!anchor.ok) {
@@ -776,6 +777,7 @@ export async function createPurchase(
       customerId,
       totalCents: priced.subtotalCents,
       collectCents,
+      currency: orderCurrency,
       payInPerson: policy.payInPerson,
       allocationIds: heldAllocationIds,
       transactionId,

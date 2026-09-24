@@ -1,4 +1,5 @@
 import { improntaLog } from "@/lib/server/structured-log";
+import { loadProfileStorefrontPayload } from "./profile-storefront-payload";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { humaniseFieldToken } from "./humanise-field-token";
 import { resolveSharperBanner } from "./banner-source";
@@ -117,7 +118,6 @@ import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
 import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligibility";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
-import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
 import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
@@ -1817,38 +1817,12 @@ export async function TalentProfileView({
     instantBook.currencyCode || "USD",
   ).filter((it) => it.isActive && it.visibility !== "agency_only");
 
-  // Storefront — the offerings catalog (talent_offerings). When present it
-  // REPLACES the legacy services menu on the layouts; when empty the legacy
-  // ServiceMenuBlock keeps rendering (zero-regression fallback).
-  const storefrontOfferings = await loadPublicOfferingsForProfile(
+  // Storefront — offerings catalog, USD line for non-USD prices, Offer JSON-LD.
+  const { storefrontOfferings, usdRates, offerJsonLd } = await loadProfileStorefrontPayload(
     profile.id,
     locale,
-    // Agency host → that agency's catalog only. The talent's own premium site
-    // and platform hosts pass null and see everything they offer.
     hostCtx.kind === "agency" ? hostCtx.tenantId : null,
   );
-
-  // W3-7 — schema.org Offer JSON-LD for the storefront (SEO). Only published,
-  // exactly-priced offerings are emitted; quote/on-request carry no price.
-  const offerJsonLd =
-    storefrontOfferings.length > 0
-      ? {
-          "@context": "https://schema.org",
-          "@type": "ItemList",
-          itemListElement: storefrontOfferings
-            .filter((o) => o.amountCents != null && o.priceDisplay === "exact")
-            .slice(0, 20)
-            .map((o, i) => ({
-              "@type": "Offer",
-              position: i + 1,
-              name: o.title,
-              ...(o.description ? { description: o.description } : {}),
-              price: (o.amountCents! / 100).toFixed(2),
-              priceCurrency: o.currency,
-              availability: "https://schema.org/InStock",
-            })),
-        }
-      : null;
 
   // S6 — id → label for any discipline a service is scoped to (talent_type terms).
   const disciplineLabels: Record<string, string> = {};
@@ -2413,6 +2387,7 @@ export async function TalentProfileView({
         bookingNote={profile.booking_note ?? null}
         serviceMenuItems={serviceMenuItems}
         storefrontOfferings={storefrontOfferings}
+        usdRates={usdRates}
         disciplineLabels={disciplineLabels}
         fitLabels={fitLabels}
         skills={skills}
