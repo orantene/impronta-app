@@ -9,7 +9,8 @@ import {
   COLORS,
   FAB_PALETTE_OPEN_EVENT,
   FONTS,
-  TALENT_PAGES,
+  TALENT_MOBILE_MORE,
+  TALENT_MOBILE_TABS,
   TALENT_PAGE_META,
   TRANSITION,
   WORKSPACE_PAGES,
@@ -410,17 +411,16 @@ export function MobileBottomNav() {
     const TALENT_TAB_BADGE: Partial<Record<TalentPage, number>> = {
       messages: bridgeTalentUnread || undefined,
     };
-    const tabs = TALENT_PAGES.map((p) => ({
+    const toTab = (p: TalentPage) => ({
       id: p,
       label: copy.t(TALENT_PAGE_META[p].label),
       active: state.talentPage === p,
-      run: () => setTalentPage(p as TalentPage),
-      icon: TALENT_TAB_ICON[p as TalentPage] ?? "info",
-      badge: TALENT_TAB_BADGE[p as TalentPage],
-    }));
-
-    const visible = tabs.slice(0, MOBILE_TAB_LIMIT - 1);
-    const overflow = tabs.slice(MOBILE_TAB_LIMIT - 1);
+      run: () => setTalentPage(p),
+      icon: TALENT_TAB_ICON[p] ?? "info",
+      badge: TALENT_TAB_BADGE[p],
+    });
+    const visible = TALENT_MOBILE_TABS.map(toTab);
+    const overflow = TALENT_MOBILE_MORE.map(toTab);
     const hasOverflow = overflow.length > 0;
     const moreActive = overflow.some((t) => t.active);
 
@@ -595,6 +595,7 @@ const TALENT_TAB_ICON: Partial<Record<TalentPage, AdminShellIconName>> = {
   profile: "user",
   "public-page": "globe",
   services: "briefcase", // mirrors desktop rail (talent.tsx)
+  clients: "team",
   reviews: "star",
   settings: "info",
   // legacy aliases

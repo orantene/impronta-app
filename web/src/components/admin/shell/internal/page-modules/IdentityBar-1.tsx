@@ -28,6 +28,7 @@ import { MobileTopBar } from "./MobileTopBar";
 import { PosModeSwitch } from "./PosModeSwitch";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
 import { useWorkspaceNav } from "./workspace-nav";
+import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 
 
 export function TulalaIdentityBar() {
@@ -377,6 +378,8 @@ export function TulalaIdentityBar() {
             {/* Mode toggle — only for hybrid users (talent who also have a
                 workspace). Hidden on the client surface — clients are
                 single-mode and don't have a talent/workspace dual identity. */}
+            {inTalent && <WebsiteRewardControl placement="topbar" />}
+
             {alsoTalent && (
               <ModeTogglePill
                 surface={surface}

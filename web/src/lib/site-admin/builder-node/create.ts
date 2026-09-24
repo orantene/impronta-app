@@ -239,6 +239,7 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           emptyMessage: "Menu items are not published yet.",
         },
       };
+    case "services_catalog": return { id: makeId("services_catalog"), kind: "services_catalog", props: { layout: "rows", categoryNav: "pills", eyebrow: "The menu", title: "Services {i}and prices{/i}", showStats: true, showPhoto: true, showDuration: true, showUsdEquivalent: true, emptyMessage: "No services are published yet." } };
     // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
     case "qr_code": return { id: makeId("qr_code"), kind: "qr_code", props: { linkCode: "" } };
     case "ticket_picker": return { id: makeId("ticket_picker"), kind: "ticket_picker", props: { eventId: "", title: "" } };

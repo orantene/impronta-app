@@ -1556,6 +1556,32 @@ function BuilderNodeContentInspectorBody({
     );
   }
 
+  if (node.kind === "services_catalog") {
+    const catalog = node.props;
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Copy">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Title</label>
+            <input
+              className={KIT.input}
+              value={catalog.title ?? ""}
+              onChange={(e) => commitPatch({ title: e.target.value })}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Eyebrow</label>
+            <input
+              className={KIT.input}
+              value={catalog.eyebrow ?? ""}
+              onChange={(e) => commitPatch({ eyebrow: e.target.value })}
+            />
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
   // ── menu_board (workspace-owned orderable menu) ───────────────────────────
   if (node.kind === "menu_board") {
     const menu = node.props;
@@ -5123,6 +5149,8 @@ function childSecondaryLabel(node: BuilderNode): string {
         : "Search hero";
     case "menu_board":
       return "Menu · orderable items";
+    case "services_catalog":
+      return "Services menu · your catalogue";
     case "reserve_table":
       return "Reserve · books a real table";
     case "session_picker":

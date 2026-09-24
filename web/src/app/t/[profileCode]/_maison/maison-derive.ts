@@ -160,7 +160,15 @@ export function categoriesFrom(
   uncategorisedLabel: string,
 ): { id: string; label: string; note?: string | null }[] {
   if (override?.length) {
-    const kept = override.filter((c) => offerings.some((o) => (o.category ?? "") === c.id));
+    const kept = override.filter((c) =>
+      offerings.some((o) => {
+        const cat = o.category ?? "";
+        return cat === c.id || cat === c.label;
+      }),
+    ).map((c) => {
+      const match = offerings.find((o) => o.category === c.id || o.category === c.label);
+      return { ...c, id: match?.category ?? c.id, label: match?.category ?? c.label };
+    });
     // An override that names no home for the uncategorised rows would hide
     // them, so the fallback bucket is appended here too.
     return offerings.some((o) => !o.category?.trim()) &&

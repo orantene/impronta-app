@@ -44,6 +44,7 @@ export type BuilderNodeKind =
   // data-driven blocks. Structural leaves (`children: { type: "none" }`).
   | "hero_search"
   | "menu_board"
+  | "services_catalog"
   | "reserve_table"
   | "session_picker"
   | "ticket_picker"
@@ -1274,6 +1275,23 @@ export interface BuilderQrCodeNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderServicesCatalogNode extends BuilderNodeBase {
+  kind: "services_catalog";
+  props: {
+    layout?: "rows" | "cards" | "grid" | "compact_list" | "editorial";
+    categoryNav?: "pills" | "tabs" | "jump_strip" | "sections" | "none";
+    eyebrow?: string;
+    title?: string;
+    subtitle?: string;
+    showStats?: boolean;
+    showPhoto?: boolean;
+    showDuration?: boolean;
+    showUsdEquivalent?: boolean;
+    emptyMessage?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderMenuBoardNode extends BuilderNodeBase {
   kind: "menu_board";
   props: {
@@ -2218,6 +2236,7 @@ export type BuilderNode =
   | BuilderSocialFeedNode
   | BuilderHeroSearchNode
   | BuilderMenuBoardNode
+  | BuilderServicesCatalogNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode
   | BuilderTicketPickerNode

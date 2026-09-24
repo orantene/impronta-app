@@ -9,7 +9,7 @@
  * card as the single door to pricing.
  */
 
-import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
+import { ServicesHome } from "@/components/talent/services/ServicesHome";
 import { TalentOrdersQueue } from "@/components/talent/services/TalentOrdersQueue";
 import { useDashboardText } from "../../dashboard-i18n";
 import { useAdminShell } from "../../state";
@@ -33,7 +33,7 @@ export function ServicesPage() {
       />
       {bridgeTalentSelfProfile ? (
         <>
-          <TalentOfferingsManager talentId={bridgeTalentSelfProfile.id} />
+          <ServicesHome talentId={bridgeTalentSelfProfile.id} />
           <TalentOrdersQueue talentId={bridgeTalentSelfProfile.id} />
         </>
       ) : (

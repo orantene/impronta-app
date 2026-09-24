@@ -15,6 +15,7 @@ import { TalentTodayPage } from "./talent/pages/TodayPage";
 import { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { MoneyPage } from "@/components/talent/money/MoneyPage";
+import { TalentClientsPage } from "./talent/pages/ClientsPage";
 
 // ── Re-export barrel: public API preserved for external importers ──
 export { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
@@ -62,7 +63,7 @@ export function TalentSurface() {
 
 const TALENT_SIDEBAR_GROUPS: Array<{ label: string | null; pages: TalentPage[] }> = [
   { label: null, pages: ["today"] },
-  { label: "Work", pages: ["messages", "calendar", "money"] },
+  { label: "Work", pages: ["messages", "calendar", "clients", "money"] },
   { label: "Presence", pages: ["profile", "public-page", "services", "reviews"] },
 ];
 
@@ -70,6 +71,7 @@ const TALENT_SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = 
   today: "home",
   messages: "mail",
   calendar: "calendar",
+  clients: "team",
   money: "credit",
   profile: "user",
   "public-page": "globe",
@@ -297,6 +299,9 @@ function TalentRouter() {
       break;
     case "money":
       page = <MoneyPage />;
+      break;
+    case "clients":
+      page = <TalentClientsPage />;
       break;
     case "payouts":
       page = <TalentPayoutsPage />;

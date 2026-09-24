@@ -133,6 +133,8 @@ export type TalentOffering = {
   /** Units of the pool one purchase consumes. A "table for 4" consumes 4. */
   consumesUnits: number;
   status: OfferingStatus;
+  /** Set on the first publish. Distinguishes Draft from Hidden. */
+  firstPublishedAt: string | null;
   visibility: OfferingVisibility;
   moderationState: OfferingModerationState;
   isFeatured: boolean;
@@ -177,6 +179,7 @@ export type TalentOfferingRow = {
   capacity_pool_id?: string | null;
   consumes_units?: number | null;
   status: string;
+  first_published_at?: string | null;
   visibility: string;
   moderation_state: string;
   is_featured: boolean;
@@ -263,6 +266,7 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
         ? Math.round(row.consumes_units)
         : 1,
     status: isOneOf(row.status, ["draft", "published", "archived"] as const) ? row.status : "draft",
+    firstPublishedAt: typeof row.first_published_at === "string" ? row.first_published_at : null,
     visibility: isOneOf(row.visibility, ["public", "agency_only", "on_request"] as const)
       ? row.visibility
       : "public",
@@ -474,6 +478,7 @@ export function blankOffering(
     capacityPoolId: null,
     consumesUnits: 1,
     status: "published",
+    firstPublishedAt: null,
     visibility: "public",
     moderationState: "approved",
     isFeatured: false,

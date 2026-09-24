@@ -79,6 +79,7 @@ export type TalentPage =
   | "reach"         // Legacy — kept for URL compat; nav routes to money
   | "agencies"      // Legacy — kept for URL compat; nav routes to money
   | "money"         // Phase E — earnings + agency relationships
+  | "clients"       // People who booked or messaged this talent
   | "payouts"       // Embedded Stripe Connect payout onboarding. In-shell section (not in nav; reached from Settings).
   | "public-page"   // WS-8.2: split from reach (personal page editor)
   | "settings";

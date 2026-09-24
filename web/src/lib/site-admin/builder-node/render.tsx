@@ -270,6 +270,25 @@ export interface BuilderNodeRenderDataSources {
       href?: string;
     };
   };
+  talentOfferings?: ReadonlyArray<{
+    id: string;
+    title: string;
+    description: string | null;
+    amountCents: number | null;
+    currency: string;
+    priceDisplay: string;
+    priceType: string;
+    kind: string;
+    durationMinutes: number | null;
+    category: string | null;
+    imageUrls: string[];
+    status: string;
+    firstPublishedAt?: string | null;
+    bookingMode: string;
+    visibility: string;
+    inventoryQty: number | null;
+    addOns?: { id: string; label: string; amountCents: number }[];
+  }>;
   menuOfferings?: ReadonlyArray<{
     id: string;
     title: string;
@@ -5530,6 +5549,47 @@ function renderBuilderNodeElement(
     // and `reserve_table` do. What decays (price, stock) is re-read by the
     // island after paint; see `menu-board-actions.ts` for why that split, and
     // why a re-read never reorders or re-groups what is emitted here.
+    case "services_catalog": {
+      const p = node.props;
+      const offerings = options.dataSources.talentOfferings ?? [];
+      const title = (p.title ?? "Services").replace("{i}", "").replace("{/i}", "");
+      return (
+        <section
+          key={node.id}
+          data-builder-node-kind="services_catalog"
+          className="site-builder-node site-builder-node--services-catalog"
+        >
+          {p.eyebrow ? <p>{p.eyebrow}</p> : null}
+          <h2>{title}</h2>
+          {p.subtitle ? <p>{p.subtitle}</p> : null}
+          {p.showStats && offerings.length >= 2 ? (
+            <p>
+              {offerings.length} · {new Set(offerings.map((o) => o.category).filter(Boolean)).size}
+            </p>
+          ) : null}
+          {offerings.length === 0 ? (
+            <p>{p.emptyMessage ?? "No services are published yet."}</p>
+          ) : (
+            <ul>
+              {offerings.map((item) => (
+                <li key={item.id}>
+                  {p.showPhoto !== false && item.imageUrls[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={item.imageUrls[0]} alt="" />
+                  ) : null}
+                  <strong>{item.title}</strong>
+                  {item.amountCents != null ? <span> {(item.amountCents / 100).toFixed(0)} {item.currency}</span> : null}
+                  {p.showDuration !== false && item.durationMinutes ? <span> · {item.durationMinutes} min</span> : null}
+                  <button type="button" data-offering-id={item.id}>
+                    Select
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      );
+    }
     case "menu_board": {
       const p = node.props;
       const offerings = options.dataSources.menuOfferings ?? [];

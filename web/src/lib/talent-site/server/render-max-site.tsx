@@ -444,7 +444,7 @@ async function renderMaxSiteDocument(args: {
   const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings] =
     await Promise.all([
       tenantId
-        ? loadBuilderNodeDataSources(blocks, tenantId, locale)
+        ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
         : Promise.resolve({} as BuilderNodeRenderDataSources),
       tenantId && treeHasInstances(blocks)
         ? loadBuilderComponentsForTenant(tenantId)

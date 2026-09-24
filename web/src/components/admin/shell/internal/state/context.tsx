@@ -901,6 +901,7 @@ function talentPageToSegment(p: TalentPage): string {
     reviews:   "reviews",
     calendar:  "calendar",
     money:     "money",
+    clients:   "clients",
     payouts:   "payouts",
     agencies:  "money",   // legacy alias
     activity:  "money",   // legacy alias

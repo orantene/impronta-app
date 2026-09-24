@@ -8,6 +8,7 @@
  * in one parallel batch — returning `{}` (no round-trips) when nothing is bound.
  */
 import { headers } from "next/headers";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import {
   collectBuilderCollectionSourceKeys,
   collectBuilderImageMediaIds,
@@ -106,6 +107,7 @@ export async function loadBuilderNodeDataSources(
    * `tenantId`, keeping the homepage path byte-identical.
    */
   previewSubject?: { kind: string; id: string } | null,
+  talentProfileId?: string | null,
 ): Promise<BuilderNodeRenderDataSources> {
   const dataTenantId = previewSubject?.id ?? tenantId;
   // The public origin the qr_code block composes `<origin>/q/<code>` from. Read
@@ -158,6 +160,7 @@ export async function loadBuilderNodeDataSources(
     !needsSocialLinks &&
     !nativeNeeds.needsTalentCount &&
     !nativeNeeds.menuBoard &&
+    !nativeNeeds.servicesCatalog &&
     nativeNeeds.disciplines == null &&
     nativeNeeds.directories.length === 0 &&
     mediaIds.length === 0 &&
@@ -338,5 +341,8 @@ export async function loadBuilderNodeDataSources(
     ...(featuredTalentProfilesByNodeId === undefined
       ? {}
       : { featuredTalentProfilesByNodeId }),
+    ...(nativeNeeds.servicesCatalog && talentProfileId
+      ? { talentOfferings: await loadPublicOfferingsForProfile(talentProfileId, locale) }
+      : {}),
   };
 }

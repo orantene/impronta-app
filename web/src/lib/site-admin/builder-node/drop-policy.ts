@@ -32,6 +32,7 @@ const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   // well as inside a layout shell.
   "hero_search",
   "menu_board",
+  "services_catalog",
   // RESERVATIONS — the booking block is a whole page band like the others.
   "reserve_table",
   "session_picker",
