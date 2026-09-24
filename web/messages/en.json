@@ -924,6 +924,7 @@
       "greetingTalentPickFirst": "Hi, I'm here to help you find the right talent. Want someone specific, or should we recommend a fit?",
       "greetingDefault": "Hi, I'm {name}'s booking assistant. What's the event? Tell me a little and I'll line up the right talent for you.",
       "closeAria": "Close",
+      "messageBrandAria": "Message {brand}",
       "captchaNotice": "Quick human check required to continue. (Verification widget loads here.)",
       "composerReply": "Write a reply…",
       "composerFirst": "Type your message…",

@@ -706,8 +706,12 @@ export function TalentProfileChatLauncher({
           ) : (
             <ChatGlyph color={accentInk} />
           )}
+          {/* D-MSG-430: the open label read "Close" in English inside an
+              otherwise translated panel, so a Spanish site's launcher said
+              Close. Reuses the header X's own key rather than adding a
+              synonym. */}
           {collapsedByScroll && !open ? null : (
-            <span>{open ? "Close" : launcherLabel}</span>
+            <span>{open ? t("public.guestChat.closeAria") : launcherLabel}</span>
           )}
           {/* W1-D — the separate cart count chip (the "9" bubble) was REMOVED. It
               double-counted against the avatar stack (faces + a single "+N" chip

@@ -17,6 +17,7 @@ import "server-only";
 import { loadGuestChatSettings } from "./guest-chat-settings";
 import { GUEST_CHAT_DEFAULTS } from "./guest-chat-settings-shape";
 import { chatItemsLabel } from "@/lib/words/chat-items-label";
+import type { IndustryPresetId } from "@/lib/words/presets";
 import { loadTenantWords } from "@/lib/words/server";
 
 export type GuestDockFlags = {
@@ -29,13 +30,18 @@ export type GuestDockFlags = {
 export async function loadGuestDockFlags(
   tenantId: string | null | undefined,
   locale: string | null | undefined,
+  /**
+   * A talent's own trade preset, replacing the tenant's for this dock only
+   * (D-MSG-430). Null keeps the tenant's preset. See `resolveTalentTradePreset`.
+   */
+  presetOverride?: IndustryPresetId | null,
 ): Promise<GuestDockFlags> {
   if (!tenantId) {
     return { dockItemsTab: GUEST_CHAT_DEFAULTS.itemsTab, dockCardsV5: GUEST_CHAT_DEFAULTS.cardsV5, dockItemsLabel: null, dockRepresentsPeople: true };
   }
   const [settings, words] = await Promise.all([
     loadGuestChatSettings(tenantId),
-    loadTenantWords(tenantId, locale === "es" ? "es" : "en"),
+    loadTenantWords(tenantId, locale === "es" ? "es" : "en", presetOverride),
   ]);
   // "custom" (every pre-preset workspace, Impronta included) keeps the people
   // wording; the label follows the same rule so the tab never reads "Items"

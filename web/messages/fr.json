@@ -190,6 +190,7 @@
       "greetingTalentPickFirst": "Bonjour, je suis là pour vous aider à trouver le bon talent. Vous cherchez quelqu'un en particulier ou souhaitez-vous une recommandation ?",
       "greetingDefault": "Bonjour, je suis l'assistant de réservation de {name}. Quel est l'événement ? Donnez-moi quelques détails et je trouverai le bon talent pour vous.",
       "closeAria": "Fermer",
+      "messageBrandAria": "Écrire à {brand}",
       "captchaNotice": "Une vérification rapide est requise pour continuer. (Le widget de vérification se charge ici.)",
       "composerReply": "Écrire une réponse…",
       "composerFirst": "Tapez votre message…",

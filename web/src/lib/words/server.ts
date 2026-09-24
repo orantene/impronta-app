@@ -96,7 +96,23 @@ function loadTenantWordsInput(tenantId: string): Promise<TenantWordsInput> {
 export async function loadTenantWords(
   tenantId: string,
   locale: WordLocale,
+  /**
+   * Replaces the tenant's own `industry_preset` for THIS read only.
+   *
+   * A talent vanity host is served by the platform hub tenant, so the hub's
+   * preset would otherwise decide the voice on a solo talent's own site — an
+   * agency voice about other people's talent on a lash artist's booking page
+   * (D-MSG-430). The caller resolves her trade with `resolveTalentTradePreset`
+   * and passes it here. Null/undefined keeps the tenant's preset, so every
+   * agency surface is untouched.
+   *
+   * Applied AFTER the cached settings read, never before: the cache key stays
+   * keyed on the tenant alone, and one talent's trade can never be served to
+   * another host from the Data Cache.
+   */
+  presetOverride?: IndustryPresetId | null,
 ): Promise<WordsLookup> {
   const input = await loadTenantWordsInput(tenantId);
-  return resolveWords(input, locale);
+  const effective = presetOverride ? { ...input, presetId: presetOverride } : input;
+  return resolveWords(effective, locale);
 }
