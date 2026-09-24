@@ -1,0 +1,31 @@
+Round 3 Job 6 — dock post-payment cards (A6) live proof
+Host: staging-qa-journeys.tulala.digital
+Date: 2026-09-24
+
+POS cash sale
+  inquiry: 92276440-2a77-493b-8e5e-7bd4a4612c70 (Sofia Demo Marin)
+  order:   86179547-7b87-4522-a531-4066c1d41655  (Garlic bread $6.50 + QA gala ticket $12.00)
+  action:  Customer "QA A6 Paid Proof" → Charge $18.50 → Cash received → Done · receipt
+  POS heading after: Paid
+
+DB after syncConversationRecord / payment-card-sync (D-MSG-338/342)
+  orders.status            = paid
+  conversation_records     = payment_state paid, fulfilment_state confirmed
+  payment_request card     = state paid, settledAt 2026-09-24T00:55:14.500Z
+  other card kinds on thread (order_confirmation | tickets_card | change_result) = 0
+
+Client link EN
+  Offer card: Accepted · $18.50
+  Payment card: Paid · Full amount $18.50
+  No tickets_card, no order_confirmation, no change_result
+
+Client link ES (?lang=es)
+  Oferta: Aceptada
+  Pago / Solicitud de pago: Pagado · Importe total $18.50
+
+Seams (no producer — do not fake from chip)
+  order_confirmation: POS cash path never inserts this kind
+  tickets_card:       ticket line paid at counter still writes no tickets_card (D-MSG-215 door-code seam still holds)
+  cancel / partial refund change_result: engine writers exist (messagingCancelRecord / messagingRefund)
+    but NextStep ROUTES still map cancel_record + refund → coming (D-MSG-335 door still unwired);
+    staff cannot reach those sheets from the primary bar / tray today
