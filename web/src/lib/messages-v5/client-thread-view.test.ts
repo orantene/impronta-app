@@ -125,7 +125,7 @@ test("one offer card per offer: the LAST sent offer_event draws it; non-sent eve
 
 test("payment, confirmation and change readers read client-safe fields only", () => {
   const pay = readPayment({ paymentLinkCode: "abc", amountCents: 114000, amountKind: "deposit", expiresAt: "2026-09-20T00:00:00.000Z", state: "sent" });
-  assert.deepEqual(pay, { code: "abc", amountCents: 114000, currency: "USD", amountKind: "deposit", expiresAt: "2026-09-20T00:00:00.000Z", state: "sent" });
+  assert.deepEqual(pay, { code: "abc", amountCents: 114000, currency: "USD", amountKind: "deposit", expiresAt: "2026-09-20T00:00:00.000Z", state: "sent", totalCents: null, paidCents: null, dueCents: null, method: null });
   const conf = readConfirmation({ recordKind: "appointment", recordId: "r1", when: "2026-09-20T15:00:00.000Z", lines: [{ label: "Cut", units: 2, unitCents: 4000 }], currency: "USD" });
   assert.equal(conf.lines[0].amountCents, 8000);
   assert.equal(conf.recordId, "r1");
@@ -173,4 +173,26 @@ test("firstName", () => {
   assert.equal(firstName("Sofía Herrera"), "Sofía");
   assert.equal(firstName("  "), null);
   assert.equal(firstName(null), null);
+});
+
+test("readPayment returns the paid money line", () => {
+  const view = readPayment({
+    paymentLinkCode: "abc",
+    amountCents: 2000,
+    currency: "MXN",
+    state: "paid",
+    totalCents: 5000,
+    paidCents: 2000,
+    dueCents: 3000,
+    method: "card",
+  });
+  assert.equal(view.totalCents, 5000);
+  assert.equal(view.paidCents, 2000);
+  assert.equal(view.dueCents, 3000);
+  assert.equal(view.method, "card");
+});
+
+test("a declined change_result stays declined", () => {
+  const view = readChange("change_result", { state: "declined", summary: "Offer declined" }, "");
+  assert.equal(view.state, "declined");
 });

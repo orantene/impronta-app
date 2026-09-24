@@ -252,6 +252,7 @@ export type GuestChatErrorCode =
   | "talent_unavailable"
   | "db_unavailable"      // service-role client missing
   | "limit_reached"       // active-conversation trust gate tripped (U3)
+  | "slot_taken"          // the requested time is no longer free
   | "engine_error";       // catch-all engine/insert failure
 
 export type GuestChatFailure = {
@@ -263,6 +264,8 @@ export type GuestChatFailure = {
   retryAfterMs?: number;
   /** Only set when code === "validation_failed" (field paths, e.g. "requester.email"). */
   missingFields?: string[];
+  /** Only set when code === "slot_taken". Empty when the calendar has no open time. */
+  nextFreeTimes?: string[];
   /**
    * Only set when code === "limit_reached". The resolved identity tier from the
    * trust gate decision — drives the copy in TrustGateNudge. Optional so that

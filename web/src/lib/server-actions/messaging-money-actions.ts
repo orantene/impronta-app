@@ -331,10 +331,11 @@ export async function messagingRefund(input: {
     kind: "change_result",
     body: "",
     payload: {
-      state: "sent",
+      state: "cancelled",
       summary: `Refunded ${(result.amountCents / 100).toFixed(2)} ${result.currency}`,
       paymentId: parsed.data.paymentId,
       refundedCents: result.amountCents,
+      currency: result.currency,
       reason: parsed.data.reason,
     },
     senderUserId: g.userId,
@@ -355,6 +356,8 @@ export async function messagingRecordOutsidePayment(input: {
   method: OffPlatformMethod;
   reference: string;
   expectedVersion: number;
+  /** Booking path only. Omitted callers keep today's whole-sale settlement. */
+  amountKind?: "deposit" | "full";
 }): Promise<ActionResult<{ recordId: string }>> {
   const g = await messagingStaff();
   if (!g.ok) return g;
@@ -366,6 +369,7 @@ export async function messagingRecordOutsidePayment(input: {
       method: z.enum(OFF_PLATFORM_METHODS),
       reference: z.string().trim().min(3).max(200),
       expectedVersion: version,
+      amountKind: z.enum(["deposit", "full"]).optional(),
     })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -418,7 +422,8 @@ export async function messagingRecordOutsidePayment(input: {
   // (implicitly) this inquiry's own booking is silently ignored rather than
   // checked, because the function offers nothing to check it against.
   const cashMethod = parsed.data.method === "transfer" ? "wire" : parsed.data.method === "terminal_offline" ? "other" : "cash";
-  const wrapped = await markInquiryPaidInCash(g.tenantSlug, parsed.data.inquiryId, cashMethod, parsed.data.reference, "full");
+  const checkoutType = parsed.data.amountKind === "deposit" ? "deposit" : "full";
+  const wrapped = await markInquiryPaidInCash(g.tenantSlug, parsed.data.inquiryId, cashMethod, parsed.data.reference, checkoutType);
   if (!wrapped.ok) {
     if (wrapped.error && /payout/i.test(wrapped.error)) return fail("no_payout_receiver");
     return fail("unavailable");

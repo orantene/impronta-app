@@ -57,6 +57,7 @@ import {
 import { isBlocked } from "@/lib/inquiry/recipient-safety";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
+import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
@@ -113,7 +114,7 @@ const MAX_BODY = 10_000;
 function fail(
   code: GuestChatErrorCode,
   message: string,
-  extra?: { retryAfterMs?: number; missingFields?: string[] },
+  extra?: { retryAfterMs?: number; missingFields?: string[]; nextFreeTimes?: string[] },
 ): GuestChatFailure {
   return { ok: false, code, message, ...extra };
 }
@@ -298,7 +299,7 @@ function deriveAuthorRole(
     return "guest";
   }
   // System / platform-authored (no sender, no guest) → system bubble.
-  if (!row.sender_user_id) {
+  if (!row.sender_user_id || row.message_kind === "payment_paid") {
     return "system";
   }
   // Engine-authored lines ("Offer v3 sent", auto-ack) carry
@@ -882,7 +883,10 @@ export async function startGuestChatInquiry(
       return fail("forbidden", "You don't have permission to do that.");
     }
     if (created.reason === "slot_taken") {
-      return fail("engine_error", created.error ?? "That time was just taken. Pick another time.");
+      const nextFreeTimes = talentProfileId
+        ? await nextFreeTimesForTalent(admin, talentProfileId).catch(() => [])
+        : [];
+      return fail("slot_taken", created.error ?? "That time was just taken. Pick another time.", { nextFreeTimes });
     }
     return fail("engine_error", created.error ?? "Could not start the conversation.");
   }

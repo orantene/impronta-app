@@ -130,6 +130,7 @@ export function PaymentRequestSheet(props: ActionSheetProps) {
         method: outsideMethod,
         reference: reference.trim(),
         expectedVersion: ctx.version,
+        amountKind: amountKind === "full" ? "full" : "deposit",
       });
       if (!result.ok) {
         setPhase("refused");

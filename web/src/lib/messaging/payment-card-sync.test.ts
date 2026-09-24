@@ -89,3 +89,29 @@ test("calls `from` as a method: a client whose from() needs `this` still works (
   assert.deepEqual(result, { ok: true, updated: 1 });
   assert.equal(sawThis, true);
 });
+
+test("a paid order stamps total, paid, due, currency, and method", async () => {
+  const { admin, store } = fakeAdmin({
+    conversation_records: [{ id: "cr-1", tenant_id: TENANT, inquiry_id: INQUIRY, record_kind: "order", record_id: ORDER, unlinked_at: null }],
+    orders: [{ id: ORDER, total_cents: 5000, currency: "MXN" }],
+    inquiry_messages: [
+      {
+        id: "m-1",
+        tenant_id: TENANT,
+        inquiry_id: INQUIRY,
+        message_kind: "payment_request",
+        card_payload: { amountCents: 2000, currency: "MXN", paymentLinkCode: "pay_1", state: "sent" },
+        deleted_at: null,
+      },
+    ],
+  });
+  const result = await syncPaymentCardsForRecord(admin, { tenantId: TENANT, recordId: ORDER, paymentState: "paid" });
+  assert.equal(result.ok, true);
+  const card = (store.inquiry_messages[0] as { card_payload: Record<string, unknown> }).card_payload;
+  assert.equal(card.state, "paid");
+  assert.equal(card.totalCents, 5000);
+  assert.equal(card.paidCents, 2000);
+  assert.equal(card.dueCents, 3000);
+  assert.equal(card.currency, "MXN");
+  assert.equal(card.method, "card");
+});

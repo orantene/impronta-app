@@ -1275,6 +1275,16 @@ export async function clientRejectOffer(
       },
     });
 
+    await supabase.from("inquiry_messages").insert({
+      inquiry_id: ctx.inquiryId,
+      tenant_id: ctx.tenantId,
+      thread_type: "private",
+      sender_user_id: null,
+      body: "Offer declined",
+      message_kind: "change_result",
+      card_payload: { state: "declined", summary: "Offer declined", offerId: ctx.offerId },
+    });
+
     return { success: true };
   });
 }

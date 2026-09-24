@@ -56,9 +56,33 @@ export type PaymentCardSyncResult =
   | { ok: true; updated: number }
   | { ok: false; reason: "unavailable" };
 
+export type PaidMoney = {
+  totalCents: number;
+  paidCents: number;
+  currency: string;
+  method: string;
+};
+
+/** One payload the guest Paid line can read. Due is never negative. */
+export function paidMoneyFields(input: PaidMoney): {
+  totalCents: number;
+  paidCents: number;
+  dueCents: number;
+  currency: string;
+  method: string;
+} {
+  return {
+    totalCents: input.totalCents,
+    paidCents: input.paidCents,
+    dueCents: Math.max(0, input.totalCents - input.paidCents),
+    currency: input.currency,
+    method: input.method,
+  };
+}
+
 export async function syncPaymentCardsForRecord(
   admin: Admin,
-  input: { tenantId: string; recordId: string; paymentState: PaymentState | null },
+  input: { tenantId: string; recordId: string; paymentState: PaymentState | null; method?: string | null },
 ): Promise<PaymentCardSyncResult> {
   const target = input.paymentState ? CARD_STATE_FOR[input.paymentState] : undefined;
   if (!target || !input.tenantId || !input.recordId) return { ok: true, updated: 0 };
@@ -94,13 +118,40 @@ export async function syncPaymentCardsForRecord(
     return { ok: false, reason: "unavailable" };
   }
 
+  let orderTotal: { totalCents: number; currency: string } | null = null;
+  if (target === "paid") {
+    const { data: order } = await from("orders")
+      .select("total_cents, currency")
+      .eq("id", input.recordId)
+      .maybeSingle();
+    const row = order as { total_cents?: number; currency?: string } | null;
+    if (row && typeof row.total_cents === "number" && typeof row.currency === "string") {
+      orderTotal = { totalCents: row.total_cents, currency: row.currency };
+    }
+  }
+
   let updated = 0;
   for (const row of (cards ?? []) as Array<{ id: string; card_payload: Record<string, unknown> | null }>) {
     const payload = row.card_payload && typeof row.card_payload === "object" ? row.card_payload : {};
     const current = typeof payload.state === "string" ? payload.state : "sent";
-    if (current === target || TERMINAL.has(current)) continue;
+    const needsMoney = input.paymentState === "paid" && typeof payload.totalCents !== "number";
+    if ((current === target || TERMINAL.has(current)) && !needsMoney) continue;
+    const paidCents = typeof payload.amountCents === "number" ? payload.amountCents : orderTotal?.totalCents;
+    const method =
+      input.method ??
+      (typeof payload.method === "string" ? payload.method : null) ??
+      (typeof payload.paymentLinkCode === "string" ? "card" : null);
+    const money =
+      target === "paid" && orderTotal && typeof paidCents === "number" && method
+        ? paidMoneyFields({
+            totalCents: orderTotal.totalCents,
+            paidCents,
+            currency: typeof payload.currency === "string" ? payload.currency : orderTotal.currency,
+            method,
+          })
+        : {};
     const { error: updateErr } = await from("inquiry_messages")
-      .update({ card_payload: { ...payload, state: target, settledAt: new Date().toISOString() } })
+      .update({ card_payload: { ...payload, ...money, state: target, settledAt: new Date().toISOString() } })
       .eq("id", row.id);
     if (updateErr) {
       logServerError("messaging.payment-card-sync/update", updateErr);

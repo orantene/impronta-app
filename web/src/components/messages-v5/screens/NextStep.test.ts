@@ -19,7 +19,7 @@ test("every shell action has a route, and the coming set is exactly the later la
   // barrel is imported.
   assert.deepEqual(
     comingActions().sort(),
-    ["add_items", "book_again", "cancel_record", "confirm", "create_offer", "link_record", "open_record", "refund", "remind", "request_payment", "revise_offer", "send_times"].sort(),
+    ["add_items", "book_again", "confirm", "create_offer", "link_record", "open_record", "remind", "request_payment", "revise_offer", "send_times"].sort(),
   );
   for (const id of comingActions()) {
     const route = routeShellAction(id);
