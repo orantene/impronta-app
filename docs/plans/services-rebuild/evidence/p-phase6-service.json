@@ -1,0 +1,17 @@
+{
+  "service": {
+    "id": "28223093-53d2-40e7-bca4-28bc2dc555f7",
+    "title_es": "Extensiones clásicas",
+    "title_en": "Classic lash extensions",
+    "amount_cents": 70000,
+    "duration_minutes": 120,
+    "currency": "MXN"
+  },
+  "hub": {
+    "row": "Extensiones clásicas 2 H Una extensión por pestaña natural. El efecto más discreto, ideal para el día a día. 700 MXN ≈ US$40 Reservar ya",
+    "startingFrom": "Desde: $300"
+  },
+  "widget_row": "Extensiones clásicas Una extensión por pestaña natural. El efecto más discreto, ideal para el día a día. 2 h · duración estimada $700 Seleccionar",
+  "directory_card": "docs/plans/services-rebuild/evidence/p-phase6-directory.png (tulala.digital/directory?q=Jorg)",
+  "loader_fix": "profile-view startingFrom uses pickHeadlinePrice(storefrontOfferings)+formatMoney; ServicesBlock label localized"
+}
