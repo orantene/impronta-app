@@ -246,6 +246,16 @@ export interface BuilderNodeStyleValue {
   // split / card / cta_group / carousel / masonry by reassigning the --bn-gap
   // CSS variable, so every consumer (incl. child tracks) picks it up.
   gap?: string;
+  // Independent per-axis gap overrides (CSS length strings, e.g. "24px").
+  // Applied inline as the `column-gap` / `row-gap` longhands AFTER `gap`, so
+  // they win over the shorthand for that one axis only — on both a `row`
+  // (flexbox) and a `grid` layout container, since both accept the same
+  // longhands. Purely additive: undefined emits nothing, so a node that never
+  // sets these renders byte-identical CSS. Does NOT replace the existing
+  // two-value shorthand escape (e.g. `gap: "16px 30px"`), which still works
+  // via the --bn-gap variable above.
+  columnGap?: string;
+  rowGap?: string;
   // Container-query registration — applied to a wrapper node so descendants can
   // respond to that slot's width via BuilderNodeStyle.containerQueries.
   containerType?: "normal" | "inline-size" | "size";

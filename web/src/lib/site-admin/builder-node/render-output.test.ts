@@ -119,6 +119,49 @@ test("escapes: surface + transform + blend escapes emit correct CSS", () => {
   assert.ok(html.toLowerCase().includes("backdrop-filter"), "backdrop-filter");
 });
 
+test("escapes: columnGap/rowGap set independent axis CSS on a grid container, gap untouched", () => {
+  const html = render([
+    {
+      id: "grid-1",
+      kind: "container",
+      props: {
+        layout: "grid",
+        columns: 3,
+        style: { gap: "16px", columnGap: "30px", rowGap: "8px" },
+      },
+      children: [{ id: "h", kind: "heading", props: { text: "Hi", level: 2 } }],
+    } as BuilderNode,
+  ]);
+  // The token gap still reassigns --bn-gap exactly as before (unchanged).
+  assert.ok(html.includes("--bn-gap:16px"), "gap still sets --bn-gap");
+  // The new axes are distinct inline longhands, not derived from --bn-gap.
+  assert.ok(html.includes("column-gap:30px"), "columnGap emits column-gap");
+  assert.ok(html.includes("row-gap:8px"), "rowGap emits row-gap");
+});
+
+test("escapes: columnGap/rowGap also apply to a row (flex) layout container", () => {
+  const html = render([
+    container({ columnGap: "12px", rowGap: "40px" }),
+  ]);
+  assert.ok(html.includes("column-gap:12px"), "columnGap on row/stack container");
+  assert.ok(html.includes("row-gap:40px"), "rowGap on row/stack container");
+});
+
+test("escapes: columnGap/rowGap absent emits neither column-gap nor row-gap (purely additive)", () => {
+  const html = render([container({ gap: "16px 30px" })]);
+  // Scope to the node's OWN inline style attribute — the page also emits the
+  // shared static stylesheet, which legitimately contains "column-gap:" for
+  // unrelated kinds (e.g. .sf-masonry), so a whole-page substring check would
+  // false-positive on those.
+  const styleAttr = html.match(/data-builder-node-id="c1"[^>]*\sstyle="([^"]*)"/)?.[1] ?? "";
+  assert.ok(styleAttr.length > 0, "found the node's style attribute");
+  // The existing two-value shorthand escape hatch is untouched: a raw
+  // "16px 30px" string still flows into --bn-gap unchanged.
+  assert.ok(styleAttr.includes("--bn-gap:16px 30px"), "two-value gap shorthand still works");
+  assert.ok(!styleAttr.includes("column-gap"), "no column-gap without columnGap set");
+  assert.ok(!styleAttr.includes("row-gap"), "no row-gap without rowGap set");
+});
+
 test("B9: per-side border style/color shorthand and named blend modes emit as CSS", () => {
   const html = render([
     container({
