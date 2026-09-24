@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Brief — front door replacement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,460&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #faf7f0;
+    --panel: #fffdf9;
+    --panel-2: #ffffff;
+    --line: #e7e0d4;
+    --gold: #c9a227;
+    --gold-2: #5c4614;
+    --gold-ink: #5c4614;
+    --ink: #231d10;
+    --mute: #746957;
+    --faint: #5e564e;
+    --chip: #f2ede2;
+    --you: #fff;
+    --them: #fff;
+    --ok: #1f4a3a;
+    --shadow: 0 18px 40px rgba(35, 29, 16, 0.08);
+    --on: #1a160c;
+  }
+  body[data-brand="jorg"] {
+    --bg: #f7f1ee;
+    --panel: #fffdfb;
+    --panel-2: #ffffff;
+    --line: #eadfe2;
+    --gold: #8d3a4e;
+    --gold-2: #6e2c3e;
+    --gold-ink: #6e2c3e;
+    --ink: #24181c;
+    --mute: #5e4c52;
+    --faint: #6e5a60;
+    --chip: #f8eef1;
+    --you: #fff;
+    --them: #fff;
+    --ok: #2f6b45;
+    --shadow: 0 18px 40px rgba(80, 40, 48, 0.08);
+    --on: #ffffff;
+    --gold-ink: #6e2c3e;
+  }
+  body[data-brand="chef"] {
+    --bg: #f7f3ec; --panel: #fffdf8; --line: #e6dccb;
+    --gold: #8a5a2b; --gold-2: #6a3f18; --gold-ink: #6a3f18;
+    --ink: #24180f; --mute: #6b5844; --faint: #6e5c48;
+    --chip: #f3eadc; --on: #ffffff; --ok: #2f6b45;
+  }
+  body[data-brand="massage"] {
+    --bg: #f3f6f4; --panel: #fffeff; --line: #d7e4dc;
+    --gold: #2f6b56; --gold-2: #1e4a3c; --gold-ink: #1e4a3c;
+    --ink: #14241e; --mute: #4d6358; --faint: #5c6e64;
+    --chip: #e7f2ec; --on: #ffffff; --ok: #1e4a3c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Figtree, system-ui, sans-serif;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: auto auto;
+    min-height: 100%;
+  }
+  body[data-brand="jorg"] {
+    background:
+      radial-gradient(800px 420px at 0% 0%, rgba(122,39,64,.08), transparent 60%),
+      var(--bg);
+  }
+  aside.notes {
+    padding: 36px 32px;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .kicker {
+    letter-spacing: .28em;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--gold-ink);
+    font-weight: 500;
+  }
+  h1 {
+    font-family: Fraunces, Georgia, serif;
+    font-weight: 400;
+    font-size: 52px;
+    line-height: .92;
+    margin: 8px 0 0;
+    letter-spacing: -0.03em;
+  }
+  h1 em { font-style: italic; color: var(--gold-ink); }
+  .lede { color: var(--mute); font-size: 14.5px; line-height: 1.55; margin: 0; font-weight: 300; }
+  .switch {
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 4px;
+    border: 1px solid var(--line); border-radius: 18px; width: 100%;
+    background: #fff;
+  }
+  body[data-brand="jorg"] .switch { background: #fff; }
+  .switch button {
+    border: 0; background: transparent; color: var(--mute);
+    font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  }
+  .switch button.on { background: var(--gold); color: #fff; font-weight: 600; }
+  body[data-brand="jorg"] .switch button.on { color: #fff; }
+  ol.why { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; }
+  .screens { display: flex; flex-wrap: wrap; gap: 6px; }
+  .screens button {
+    border: 1px solid var(--line); background: transparent; color: var(--mute);
+    border-radius: 999px; padding: 6px 10px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .screens button.on { background: var(--gold); color: #fff; border-color: transparent; }
+  body[data-brand="jorg"] .screens button.on { color: #fff; }
+  .sys { text-align: center; color: var(--faint); font-size: 11px; margin: 10px 0; }
+  .turn { font-size: 12px; color: var(--gold-ink); margin: 0 0 8px; }
+  .offer {
+    border: 1px solid var(--gold); border-radius: 18px; padding: 18px 18px 16px; margin-top: 12px;
+    background: var(--chip);
+  }
+  .offer h3 { margin: 0 0 8px; font-size: 16px; }
+  .offer p { margin: 0 0 6px; color: var(--mute); font-size: 13px; font-weight: 400; line-height: 1.4; }
+  .offer .row-actions { margin-top: 14px; }
+  .gate label { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-ink); margin: 8px 0 4px; }
+  .gate input {
+    width: 100%; background: transparent; border: 1px solid var(--line); color: var(--ink);
+    border-radius: 12px; padding: 8px 10px; font: inherit; font-size: 13px;
+  }
+  .shelf { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-ink); margin: 18px 0 8px; }
+  .done {
+    position: relative;
+    margin: 8px 0 4px;
+    padding: 22px 18px 18px;
+    text-align: center;
+    border-radius: 28px;
+    background:
+      radial-gradient(120px 80px at 50% 0%, color-mix(in srgb, var(--gold) 22%, transparent), transparent 70%),
+      #fff;
+    box-shadow: 0 16px 40px color-mix(in srgb, var(--gold) 16%, transparent);
+    overflow: hidden;
+  }
+  .done .spark {
+    position: absolute; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gold); opacity: .85;
+  }
+  .done .spark.a { top: 18px; left: 22px; }
+  .done .spark.b { top: 36px; right: 28px; width: 4px; height: 4px; background: var(--gold-ink); }
+  .done .spark.c { top: 64px; left: 16px; width: 3px; height: 3px; }
+  .done .spark.d { top: 14px; right: 54px; width: 5px; height: 5px; opacity: .45; }
+  .done .mark {
+    width: 44px; height: 44px; margin: 0 auto 10px; border-radius: 50%;
+    background: var(--gold); color: var(--on);
+    display: grid; place-items: center;
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--gold) 35%, transparent);
+  }
+  body[data-brand="jorg"] .done .mark { color: #fff; }
+  .done .mark svg { width: 22px; height: 22px; }
+  .done .kicker {
+    margin: 0; font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--gold-ink); font-weight: 600;
+  }
+  .done h2 {
+    margin: 6px 0 0; font-family: Fraunces, Georgia, serif; font-weight: 500;
+    font-size: 40px; line-height: .95; letter-spacing: -0.03em; color: var(--ink);
+  }
+  .done .what { margin: 10px 0 0; font-size: 15px; font-weight: 500; color: var(--ink); }
+  .done figure {
+    margin: 14px 0 0; border-radius: 16px; overflow: hidden; height: 92px;
+    background: var(--chip);
+  }
+  .done figure img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .done .where { margin: 12px 0 0; font-size: 13px; line-height: 1.35; color: var(--mute); }
+  .done .money { margin: 8px 0 0; font-size: 13px; color: var(--ink); }
+  .done .money span { display: block; margin-top: 2px; color: var(--ok); font-size: 12px; font-weight: 500; }
+  .done .add.wide {
+    display: block; width: 100%; margin-top: 16px; padding: 14px 16px;
+    font-size: 15px; font-weight: 600;
+  }
+  .done .links { display: flex; justify-content: center; gap: 18px; margin-top: 12px; }
+  .done .links .ask { font-size: 13px; color: var(--gold-ink); text-decoration: none; font-weight: 500; }
+  .ways { display: grid; gap: 8px; margin-top: 14px; }
+  .ways button {
+    display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: center;
+    width: 100%; text-align: left; cursor: pointer; font: inherit; color: inherit;
+    border: 1px solid var(--line); background: #fff; border-radius: 16px; padding: 12px;
+  }
+  .ways button:hover { border-color: var(--gold); }
+  .ways button:active { transform: scale(0.99); }
+  .ways .ico {
+    width: 40px; height: 40px; border-radius: 12px; background: var(--chip); color: var(--gold-ink);
+    display: grid; place-items: center;
+  }
+  .ways .ico svg { width: 18px; height: 18px; }
+  .ways strong { display: block; font-size: 14px; font-weight: 600; }
+  .ways em { display: block; margin-top: 2px; font-style: normal; font-size: 12px; color: var(--mute); font-weight: 400; }
+  .done .method {
+    display: inline-block; margin: 12px 0 0; padding: 5px 10px; border-radius: 999px;
+    background: var(--gold); color: var(--on); font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  }
+  body[data-brand="jorg"] .done .method { color: #fff; }
+  ol.why li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+  ol.why b { display: block; font-weight: 500; font-size: 14px; }
+  ol.why span { color: var(--mute); font-size: 13px; line-height: 1.45; font-weight: 300; }
+  .num {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid var(--line); color: var(--gold-ink);
+    display: grid; place-items: center; font-size: 12px;
+  }
+  .stage {
+    display: grid;
+    place-items: center;
+    padding: 28px;
+    position: relative;
+  }
+  .phone-bg {
+    position: absolute; inset: 36px 6% 72px;
+    border-radius: 32px;
+    background:
+      radial-gradient(420px 240px at 72% 30%, rgba(140,106,61,.12), transparent 70%),
+      linear-gradient(180deg, #f3eee6, #e7e0d4);
+    border: 1px solid rgba(42,36,28,.08);
+    opacity: 1;
+  }
+  .phone-bg::after {
+    content: "FACES THAT CARRY THE RIVIERA MAYA";
+    position: absolute; left: 7%; top: 12%;
+    font-family: "Instrument Serif", serif;
+    font-size: 42px; line-height: .95; letter-spacing: -.03em;
+    color: rgba(36,30,24,.18); max-width: 280px;
+  }
+  body[data-brand="jorg"] .phone-bg {
+    background:
+      radial-gradient(380px 240px at 75% 30%, rgba(122,39,64,.12), transparent 70%),
+      linear-gradient(180deg, #f7f1ea, #efe4da);
+    border-color: rgba(122,39,64,.1);
+  }
+  body[data-brand="jorg"] .phone-bg::after {
+    content: "Tu mirada, tu estilo.";
+    color: rgba(122,39,64,.28);
+  }
+  .panel {
+    position: relative;
+    width: 392px;
+    height: min(760px, calc(100vh - 56px));
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.06);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  body[data-brand="jorg"] .panel {
+    background: linear-gradient(180deg, #fffdfb, var(--panel));
+  }
+  header.bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--line);
+    min-height: 52px;
+  }
+  .brandlock { display: flex; align-items: center; gap: 6px; }
+  .mark { display: none; }
+  .tools { justify-self: end; display: flex; gap: 6px; }
+  .mark { display: none; }
+  .mark svg { width: 18px; height: 18px; display: block; }
+  .brandlock strong { font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 17px; letter-spacing: -0.02em; white-space: nowrap; }
+  .who { min-width: 0; flex: 1; }
+  .who strong { display: block; }
+  .status {
+    border: 0; background: transparent; cursor: pointer; padding: 0; white-space: nowrap;
+    font: 500 10px/1 Figtree, system-ui, sans-serif;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--ink);
+  }
+  .panel:not(.shut) ~ .launcher { display: none; }
+  body.phone .panel {
+    position: fixed; left: 0; right: 0; bottom: 0; top: 8vh;
+    width: min(420px, 100%); height: auto; margin: 0 auto;
+    border-radius: 20px 20px 0 0;
+  }
+  .keyboard {
+    display: none; margin-top: 8px; height: 42px; border-radius: 10px;
+    background: #ece7df; color: var(--mute); font-size: 11px; text-align: center; line-height: 42px;
+  }
+  body.phone .keyboard { display: block; }
+  body.link .launcher, body.link .rail, body.link .modes, body.link .dock { display: none; }
+  body.link .panel { width: min(440px, 96vw); }
+  .panel.shut ~ .launcher { display: grid; }
+  .status:hover { color: var(--ink); }
+  .iconbtn {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid var(--line); background: transparent; color: var(--ink);
+    cursor: pointer; display: grid; place-items: center;
+  }
+  .iconbtn svg { width: 14px; height: 14px; }
+  .rail {
+    margin: 8px 20px 12px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer; text-align: left;
+  }
+  .segs { display: flex; gap: 4px; flex: 1; }
+  .segs i {
+    height: 4px; flex: 1; border-radius: 99px; background: #e6dfd6;
+  }
+  body[data-brand="jorg"] .segs i { background: #eadfe2; }
+  .segs i.on { background: var(--gold); }
+  .rail small { color: var(--mute); font-size: 12px; white-space: nowrap; }
+  .modes {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    margin: 0 20px 12px;
+    padding: 4px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid var(--line);
+  }
+  body[data-brand="jorg"] .modes { background: #fff; }
+  .modes button {
+    border: 0; background: transparent; color: var(--mute);
+    font: inherit; font-size: 12.5px; padding: 7px 0; border-radius: 999px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .modes button svg { width: 15px; height: 15px; }
+  .modes button .badge {
+    min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px;
+    background: var(--gold); color: var(--on); font-size: 10px; font-weight: 600;
+    display: inline-grid; place-items: center;
+  }
+  .modes button .badge[hidden] { display: none; }
+  .modes button:hover { color: var(--ink); }
+  .modes button:active { transform: scale(0.98); }
+  .modes button.on { background: #fff; color: var(--gold-ink); font-weight: 600; box-shadow: inset 0 0 0 1px var(--gold); }
+  .body { flex: 1; overflow: auto; padding: 16px 20px 28px; }
+  .body::-webkit-scrollbar { width: 0; }
+  .view { display: none; }
+  .view.on { display: block; }
+  .bubble {
+    max-width: 86%;
+    padding: 12px 14px;
+    border-radius: 16px;
+    font-size: 13.5px; line-height: 1.45; font-weight: 300;
+    margin: 8px 0;
+  }
+  .them { background: var(--them); border: 1px solid var(--line); border-bottom-left-radius: 5px; }
+  .you {
+    margin-left: auto; background: #f4eee4; color: var(--ink);
+    border: 1px solid var(--line); border-bottom-right-radius: 6px;
+  }
+  body[data-brand="jorg"] .you { background: #f8eef1; color: var(--ink); }
+  .time { text-align: right; color: var(--faint); font-size: 10px; margin-top: -4px; }
+  .suggest {
+    margin-top: 14px;
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-ink, var(--ink));
+  }
+  .card {
+    margin-top: 8px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,.03), transparent);
+    display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center;
+  }
+  .card h3 { margin: 0; font-size: 14.5px; font-weight: 500; }
+  .card p { margin: 2px 0 0; color: var(--mute); font-size: 12px; font-weight: 300; grid-column: 1; }
+  .price { font-family: Fraunces, Georgia, serif; font-size: 18px; color: var(--ink); }
+  .add {
+    border: 0; cursor: pointer;
+    background: var(--gold); color: var(--on);
+    border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 12px; font-weight: 500;
+  }
+  .add:hover { filter: brightness(1.12); }
+  .add:active { transform: scale(0.96); }
+  body[data-brand="jorg"] .add { color: #fff; }
+  .add.ghost {
+    background: transparent; color: var(--ink); border: 1px solid var(--line);
+  }
+  .filters { display: flex; gap: 6px; overflow: auto; padding-bottom: 8px; }
+  .filters button {
+    flex: none; border: 1px solid var(--line); background: transparent; color: var(--mute);
+    border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .filters button:hover { color: var(--ink); border-color: var(--gold-ink); }
+  .filters button:active { transform: scale(0.97); }
+  .filters button.on { border-color: var(--gold-ink); color: var(--gold-ink); background: var(--chip); }
+  .row {
+    display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center;
+    padding: 14px 0; border-bottom: 1px solid var(--line);
+  }
+  .ava {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: #ece7df center/cover no-repeat; color: var(--mute);
+    display: grid; place-items: center; font-size: 13px; overflow: hidden;
+  }
+  .ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .typeico {
+    width: 22px; height: 22px; border-radius: 7px; background: var(--chip); color: var(--gold-2);
+    display: inline-grid; place-items: center; vertical-align: -6px; margin-right: 6px;
+  }
+  .typeico svg { width: 14px; height: 14px; display: block; }
+  .ava .typeico { width: 28px; height: 28px; margin: 0; background: transparent; }
+  .ava .typeico svg { width: 18px; height: 18px; }
+  .filters button { display: inline-flex; align-items: center; gap: 6px; }
+  .filters .typeico { width: 16px; height: 16px; margin: 0; background: transparent; vertical-align: 0; }
+  .filters .typeico svg { width: 14px; height: 14px; }
+  .iconx, .heart {
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line);
+    background: #fff; color: var(--mute); cursor: pointer; display: grid; place-items: center;
+  }
+  .heart.on { color: var(--gold-2); border-color: var(--gold-ink); }
+  .heart svg, .iconx svg { width: 14px; height: 14px; }
+  .move {
+    border: 0; background: var(--gold); color: var(--on); border-radius: 999px;
+    padding: 7px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .row .tools2 { display: flex; align-items: center; gap: 6px; }
+  .row h3 { margin: 0; font-size: 14px; font-weight: 500; }
+  .row p { margin: 1px 0 0; color: var(--mute); font-size: 12px; font-weight: 300; }
+  .plus {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid var(--gold); background: transparent; color: var(--gold-ink);
+    cursor: pointer; font-size: 18px; line-height: 1;
+  }
+  .row-actions { display: flex; gap: 6px; align-items: center; }
+  .ask {
+    border: 0; background: transparent; color: var(--mute); cursor: pointer;
+    font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 3px;
+  }
+  .plus:hover { background: var(--chip); }
+  .plus:active { transform: scale(0.9); }
+  .plus.in { background: var(--gold); color: var(--on); }
+  .panel.wide { width: min(680px, 92vw); }
+  .panel.shut { visibility: hidden; pointer-events: none; }
+  .inq { cursor: pointer; width: 100%; text-align: left; color: inherit; font: inherit; }
+  .save {
+    margin-top: 8px; font-size: 12px; color: var(--mute); font-weight: 300;
+  }
+  .save button { border: 0; background: none; color: var(--gold-ink); cursor: pointer; font: inherit; font-size: 12px; padding: 0; }
+  body[data-brand="jorg"] .plus.in { color: #fff; }
+  .inq {
+    border: 1px solid var(--line); border-radius: 18px; padding: 16px 16px; margin-bottom: 12px;
+    background: rgba(255,255,255,.02);
+  }
+  .inq .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .inq h3 { margin: 0; font-size: 14px; font-weight: 500; }
+  .pill {
+    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--gold-ink); border: 1px solid var(--line); border-radius: 99px; padding: 3px 7px;
+  }
+  .inq p { margin: 6px 0 0; color: var(--mute); font-size: 12.5px; font-weight: 300; }
+  .dock {
+    border-top: 1px solid var(--line);
+    padding: 14px 20px 16px;
+    background: #fff;
+  }
+  .lineup { display: flex; gap: 6px; align-items: center; min-height: 28px; margin-bottom: 8px; }
+  .chip {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--chip); border: 1px solid var(--line);
+    border-radius: 999px; padding: 3px 8px 3px 3px; font-size: 12px;
+  }
+  .chip i {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--chip);
+    display: grid; place-items: center; font-style: normal; font-size: 9px; color: var(--gold-ink);
+  }
+  .composer {
+    display: flex; gap: 8px; align-items: flex-end;
+  }
+  .composer textarea {
+    flex: 1; background: #fff; resize: none; overflow: hidden;
+    border: 1px solid #cfc6bb; color: var(--ink);
+    border-radius: 20px; padding: 10px 14px; font: inherit; font-size: 16px;
+    line-height: 1.35; height: 40px; outline: none;
+    transition: height .22s ease, border-radius .22s ease, border-color .22s ease;
+  }
+  .composer.open textarea,
+  .composer:focus-within textarea {
+    height: 88px; border-radius: 16px; border-color: var(--gold-ink);
+  }
+  .composer textarea::placeholder { color: #6f675f; }
+  body[data-brand="jorg"] .composer textarea { background: #fff; }
+  .send {
+    width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
+    background: var(--gold); color: var(--on);
+    display: grid; place-items: center;
+  }
+  body[data-brand="jorg"] .send { color: #fff; }
+  .send svg { width: 16px; height: 16px; }
+  .empty-note { color: var(--faint); font-size: 12px; font-weight: 300; }
+  .moods { display: flex; gap: 6px; margin: 12px 0 4px; flex-wrap: wrap; }
+  .moods button {
+    border: 1px solid var(--line); background: transparent; color: var(--mute);
+    border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .moods button:hover { color: var(--ink); border-color: var(--gold-ink); }
+  .moods button:active { transform: scale(0.97); }
+  .moods button.on { background: var(--gold); color: var(--on); border-color: transparent; }
+  body[data-brand="jorg"] .moods button.on { color: #fff; }
+  .whisper { color: var(--ok); font-size: 11px; font-weight: 400; }
+  .faces { display: flex; align-items: center; min-height: 32px; }
+  .faces button {
+    width: 28px; height: 28px; margin-right: -8px; border-radius: 50%;
+    border: 2px solid #fff; background: var(--chip); color: var(--gold-ink);
+    font: inherit; font-size: 11px; cursor: pointer; position: relative;
+  }
+  .faces button:hover { z-index: 2; transform: translateY(-2px); }
+  .face-count { margin-left: 16px; color: var(--mute); font-size: 12px; }
+  .briefbtn {
+    width: 100%; margin-bottom: 8px; border: 0; cursor: pointer;
+    background: var(--gold); color: var(--on); border-radius: 999px;
+    padding: 10px 14px; font: inherit; font-size: 13px; font-weight: 500;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .briefbtn[hidden] { display: none; }
+  .add, .briefbtn, .send, .plus.in, .moods button.on, .move {
+    background: var(--gold); color: var(--on); border-color: var(--gold-ink);
+  }
+  body[data-brand="jorg"] .add,
+  body[data-brand="jorg"] .briefbtn,
+  body[data-brand="jorg"] .send,
+  body[data-brand="jorg"] .plus.in,
+  body[data-brand="jorg"] .moods button.on,
+  body[data-brand="jorg"] .move { color: #fff; }
+  .switch button.on, .screens button.on {
+    background: var(--gold); color: #fff; border-color: var(--gold-ink);
+  }
+  .briefbtn:hover { filter: brightness(1.02); }
+  .briefbtn:active { transform: translateY(1px); }
+  body[data-brand="jorg"] .briefbtn { color: #fff; }
+  .sheet {
+    display: none; margin: 4px 20px 8px; padding: 0;
+    border: 0; background: transparent;
+  }
+  .sheet.on { display: block; }
+  .sheet h4 {
+    margin: 12px 0 6px; font-size: 13px; letter-spacing: 0;
+    text-transform: none; color: var(--ink); font-weight: 500;
+  }
+  .sheet h4:first-child { margin-top: 2px; }
+  .sheet .filters { padding-bottom: 2px; }
+  .sheet .filters button { padding: 8px 14px; font-size: 13px; color: var(--ink); background: #fff; }
+  .sheet .filters button.on {
+    background: var(--gold); color: var(--on); border-color: var(--gold); font-weight: 600;
+  }
+  .days { display: flex; gap: 6px; overflow: auto; padding-bottom: 8px; }
+  .days button {
+    flex: none; min-width: 64px; border: 1px solid var(--line); background: transparent;
+    color: var(--ink); border-radius: 14px; padding: 8px 8px 7px; cursor: pointer; font: inherit;
+  }
+  .days b { display: block; font-size: 12px; font-weight: 500; }
+  .days span { color: var(--mute); font-size: 11px; font-weight: 300; }
+  .days button:hover { border-color: var(--gold-ink); }
+  .days button:active { transform: scale(0.97); }
+  .days button.on { border-color: var(--gold-ink); background: var(--chip); }
+  .ask:hover { color: var(--ink); }
+  .iconbtn:hover { border-color: var(--gold-ink); color: var(--gold-ink); }
+  .iconbtn:active { transform: scale(0.92); }
+  .launcher:hover { filter: brightness(1.08); }
+  .launcher:active { transform: translateY(1px); }
+  .themeboard {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line);
+    padding: 28px 32px 40px;
+    background: var(--panel);
+  }
+  .themeboard h2 {
+    font-family: Fraunces, Georgia, serif;
+    font-weight: 400; font-size: 28px; margin: 0 0 6px;
+  }
+  .themeboard .sub { color: var(--mute); font-size: 13px; font-weight: 300; margin: 0 0 18px; max-width: 640px; }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 22px; }
+  .swatch {
+    display: grid; grid-template-columns: 36px 1fr; gap: 8px; align-items: center;
+    border: 1px solid var(--line); border-radius: 12px; padding: 8px;
+  }
+  .swatch i { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--line); display: block; }
+  .swatch b { display: block; font-size: 12px; font-weight: 500; }
+  .swatch span, .swatch small { display: block; color: var(--mute); font-size: 11px; font-weight: 300; }
+  .settings { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+  .settings span {
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px;
+    font-size: 12px; color: var(--mute);
+  }
+  .states { display: grid; grid-template-columns: 140px repeat(4, 1fr); gap: 8px 12px; align-items: center; }
+  .states .h { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-ink); }
+  .states .lab { font-size: 13px; }
+  .spec { display: flex; gap: 8px; align-items: center; min-height: 40px; }
+  .launcher {
+    position: absolute; right: 7%; bottom: 28px;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  .launcher svg { width: 22px; height: 22px; }
+  body[data-brand="jorg"] .launcher { background: #7a2740; color: #fff; border-color: transparent; }
+</style>
+</head>
+<body data-brand="impronta">
+<aside class="notes">
+  <div>
+    <div class="kicker">Replacement · The Brief</div>
+    <h1>One conversation.<br><em>It becomes the order.</em></h1>
+  </div>
+  <p class="lede">A stranger asks, picks lines, gets one offer, holds a time and pays. No account to start. The chat never keeps its own prices. The same engine that runs the point of sale writes every line.</p>
+  <div class="switch" role="tablist">
+    <button class="on" data-brand="impronta">Impronta</button>
+    <button data-brand="jorg">Jorg Beauty</button>
+    <button data-brand="chef">Private chef</button>
+    <button data-brand="massage">Massage</button>
+  </div>
+  <div class="screens" id="screens">
+    <button type="button" class="on" data-screen="draft">Draft</button>
+    <button type="button" data-screen="gate">Sent</button>
+    <button type="button" data-screen="thread">Thread</button>
+    <button type="button" data-screen="offer">Offer</button>
+    <button type="button" data-screen="time">Time</button>
+    <button type="button" data-screen="pay">Pay</button>
+    <button type="button" data-screen="booked">Paid</button>
+    <button type="button" data-screen="first">First visit</button>
+    <button type="button" data-screen="retry">Not sent</button>
+    <button type="button" data-screen="change">Change</button>
+    <button type="button" data-screen="declined">Declined</button>
+    <button type="button" data-screen="taken">Slot taken</button>
+    <button type="button" data-screen="hold">Hold ended</button>
+    <button type="button" data-screen="failed">Pay failed</button>
+    <button type="button" data-screen="refunded">Refunded</button>
+    <button type="button" data-screen="return">From email</button>
+    <button type="button" data-screen="link">Client link</button>
+    <button type="button" data-screen="lineup">Browse</button>
+    <button type="button" data-screen="projects">Yours</button>
+    <button type="button" id="phoneToggle">Phone</button>
+  </div>
+  <ol class="why">
+    <li><div class="num">1</div><div><b>Ask with no account</b><span>The first message sends. Email is only “Save this conversation”, and on Jorg’s site it never says Tulala.</span></div></li>
+    <li><div class="num">2</div><div><b>Lines, not a cart</b><span>A talent, a package, a ticket or a service becomes a line on one draft order. Send request sends the words and the lines together.</span></div></li>
+    <li><div class="num">3</div><div><b>One offer</b><span>Accept, ask for a change, or decline. A revision replaces the card. It does not stack.</span></div></li>
+    <li><div class="num">4</div><div><b>Then time, then pay</b><span>The slot is held. Pay sits in the thread and flips to Paid. Each trade asks for its own facts: a chef asks how many guests, a massage asks the session length, a lash artist asks the day and the hour.</span></div></li>
+  </ol>
+</aside>
+<main class="stage">
+  <div class="phone-bg" aria-hidden="true"></div>
+  <section class="panel" id="panel" aria-label="The Brief">
+    <header class="bar">
+      <div class="brandlock">
+        <div class="mark" id="mark" aria-hidden="true"></div>
+        <strong id="name">Impronta</strong>
+      </div>
+      <button class="status" id="statusBtn" type="button"><span id="status">Draft · not sent</span></button>
+      <div class="tools">
+      <button class="iconbtn" id="expand" aria-label="Expand" title="Expand">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2h4v4M6 12H2V8M12 2 8.5 5.5M2 12l3.5-3.5"/></svg>
+      </button>
+      <button class="iconbtn" id="close" aria-label="Close" title="Close">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 3l8 8M11 3 3 11"/></svg>
+      </button>
+      </div>
+    </header>
+    <button class="rail" id="rail" type="button">
+      <div class="segs" id="segs"></div>
+      <small id="railLabel">Brief 1 / 6</small>
+    </button>
+    <div class="sheet" id="sheet"></div>
+    <nav class="modes">
+      <button class="on" data-view="talk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 6.5h14v8.2a1.5 1.5 0 0 1-1.5 1.5H9l-4 2.6v-2.6H6.5A1.5 1.5 0 0 1 5 14.7V6.5z"/></svg><span id="tabTalk">Talk</span></button>
+      <button data-view="browse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/></svg><span id="tabBrowse">Browse</span><span class="badge" id="browseCount" hidden></span></button>
+      <button data-view="yours"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg><span id="tabYours">Yours</span><span class="badge" id="yoursCount" hidden></span></button>
+    </nav>
+    <div class="body">
+      <div class="view on" id="talk"></div>
+      <div class="view" id="browse"></div>
+      <div class="view" id="yours"></div>
+    </div>
+    <footer class="dock">
+      <div class="lineup" id="lineup"></div>
+      <button class="briefbtn" id="briefbtn" type="button" hidden></button>
+      <form class="composer" id="composer">
+        <textarea id="input" rows="1" placeholder="Tell them the date, the city, the mood…"></textarea>
+        <button class="send" type="submit" aria-label="Send">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 8h12M9 3l5 5-5 5"/></svg>
+        </button>
+      </form>
+      <div class="keyboard" id="keyboard">Keyboard</div>
+    </footer>
+  </section>
+  <button class="launcher" id="launcher" type="button" aria-label="Message">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 6.5h14v9.2a1.5 1.5 0 0 1-1.5 1.5H9l-4 2.8v-2.8H6.5A1.5 1.5 0 0 1 5 15.7V6.5z"/></svg>
+  </button>
+</main>
+<section class="themeboard" aria-label="Theme">
+  <h2>Theme, then states</h2>
+  <p class="sub" id="themeLead">Every screen is painted from these tokens. Switch the brand and the sheet updates. Hover and press are drawn out, because a still mockup cannot show them.</p>
+  <div class="swatches" id="swatches"></div>
+  <div class="settings" id="settings"></div>
+  <div class="states" id="states"></div>
+</section>
+<script>
+const DATA = {
+  impronta: {
+    name: "Impronta", status: "Not sent",
+    placeholder: "A sentence is enough. Saturday, Tulum, forty people.",
+    who: "Tell us the night. A coordinator replies within a day.",
+    moods: {
+      Launch: {
+        k: "For a launch",
+        card: ["Fiesta de lanzamiento LUMINA", "Sat 21 Nov · Playa del Carmen", "Ticket", "ticket"],
+        talent: [
+          ["Berni", "Free that Saturday", "B"],
+          ["Morena", "Brand ambassador · PDC", "M"],
+          ["Natasha", "Fashion · Spanish", "N"],
+          ["Chiara", "Commercial · Tulum", "C"],
+        ],
+      },
+      Wedding: {
+        k: "For a wedding",
+        card: ["Wedding full-night", "$900 · 420 min", "$900", "package"],
+        talent: [
+          ["Morena", "Host · door to last dance", "M"],
+          ["Loba", "Performance, not the aisle", "L"],
+          ["Berni", "Fashion, if you want faces", "B"],
+        ],
+      },
+      Hotel: {
+        k: "For a hotel",
+        card: ["Show Impronta", "Hotels, resorts, clubs", "Show", "show"],
+        talent: [
+          ["Loba", "Cultural dancer · PDC", "L"],
+          ["Mile", "Aerial · travels", "M"],
+          ["Natasha", "Guest activation", "N"],
+        ],
+      },
+      Campaign: {
+        k: "For a campaign",
+        card: ["Model for a Day", "27 Sep · studio", "$2,500", "service"],
+        talent: [
+          ["Natasha", "Lookbook · Spanish", "N"],
+          ["Chiara", "Beauty · EN / ES", "C"],
+          ["Berni", "Content on the day", "B"],
+        ],
+      },
+    },
+    filters: ["Talent", "Packages", "Services", "Tickets"],
+    rows: {
+      Packages: [["Wedding full-night", "$900 · 420 min", "package"], ["Show Impronta", "Hotels, resorts, clubs", "show"]],
+      Services: [["Model for a Day", "27 Sep 2026 · $2,500", "service"], ["Posing Course", "October 2026 · $7,000", "course"]],
+      Tickets: [["LUMINA launch", "21 Nov · Playa del Carmen", "ticket"]],
+    },
+    fields: [
+      ["when", "When", ["Sat 21 Nov", "This Friday", "Flexible"]],
+      ["where", "Where", ["Playa", "Tulum", "Cancún"]],
+      ["guests", "How many", ["10", "40", "100+"]],
+    ],
+    yours: [
+      { title: "Lumina launch lineup", pill: "Offer", body: "Berni held for Saturday. Your turn to accept.", time: "10:57" },
+      { title: "Wedding full-night", pill: "Draft", body: "Only you can see it. Not sent.", time: "09:12" },
+      { title: "Berni + Morena", pill: "Awaiting", body: "Sent. Sofia has not replied yet.", time: "Yesterday" },
+      { title: "Tulum Saturday", pill: "Booked", body: "Faces held. Call sheet follows.", time: "Mon" },
+    ],
+    seed: [{ k: "Berni", s: "B", img: "g-01.jpg" }, { k: "Morena", s: "M", img: "g-02.jpg" }],
+    saved: [{ k: "Anto", img: "g-03.jpg" }, { k: "Kristina", img: "g-04.jpg" }, { k: "Barto", img: "g-05.jpg" }],
+    sentLines: [{ k: "Berni", s: "B", img: "g-01.jpg" }, { k: "Morena", s: "M", img: "g-02.jpg" }, { k: "LUMINA ticket", s: "ticket" }],
+    tabs: ["Talk", "Browse", "Yours"],
+    sent: "Sofia has the lineup. She’ll answer inside 24 hours.",
+  },
+  jorg: {
+    name: "Jorg Beauty", status: "Borrador",
+    placeholder: "Una frase alcanza. Viernes, lifting, después del trabajo.",
+    who: "Agenda una cita o pregúntame.",
+    moods: {
+      Pestañas: {
+        k: "Lo más pedido",
+        card: ["Set lifting + Lami Brows", "105 min · estudio privado", "$500", "lash"],
+        talent: [
+          ["Lifting de pestañas", "$400 · 1 h", "lash"],
+          ["Lami Brows", "$260 · 1 h", "brow"],
+          ["Set lifting + Lami", "$500 · juntos", "lash"],
+        ],
+      },
+      Uñas: {
+        k: "Manicura rusa incluida",
+        card: ["Soft Gel", "Desde $500 · 2 h 30", "$500", "nail"],
+        talent: [
+          ["Soft Gel", "Desde $500 · 2 h 30", "nail"],
+          ["Gel semipermanente", "$300 · 1 h 30", "nail"],
+          ["Rubber Gel", "$350 · 2 h", "nail"],
+        ],
+      },
+      Cejas: {
+        k: "Cejas",
+        card: ["Lami Brows", "1 h · estudio", "$260", "brow"],
+        talent: [
+          ["Lami Brows", "$260 · 1 h", "brow"],
+          ["Henna Brows", "$300 · 45 min", "brow"],
+        ],
+      },
+      Depilación: {
+        k: "Si tienes media hora",
+        card: ["Rostro completo", "45 min · un solo turno", "$300", "wax"],
+        talent: [
+          ["Rostro completo", "$300 · 45 min", "wax"],
+          ["Perfilado de cejas", "$100 · 20 min", "brow"],
+          ["Bozo", "$100 · 15 min", "wax"],
+        ],
+      },
+    },
+    filters: ["Pestañas", "Uñas", "Cejas", "Depilación"],
+    rows: {
+      Uñas: [["Soft Gel", "Desde $500 · 2 h 30", "nail"], ["Gel semipermanente", "$300 · 1 h 30", "nail"]],
+      Cejas: [["Lami Brows", "$260 · 1 h", "brow"], ["Henna Brows", "$300 · 45 min", "brow"]],
+      Depilación: [["Rostro completo", "$300 · 45 min", "wax"], ["Bozo", "$100 · 15 min", "wax"]],
+    },
+    fields: [
+      ["when", "Día", ["Mañana", "Viernes", "Sábado"]],
+      ["where", "Hora", ["11:00", "16:30", "18:00"]],
+    ],
+    days: [
+      ["Lun", "11:00"], ["Mar", "16:30"], ["Mié", "lleno"], ["Jue", "12:00"], ["Vie", "18:00"], ["Sáb", "10:30"],
+    ],
+    yours: [
+      { title: "Lifting viernes", pill: "Oferta", body: "Viernes 18:00 · $500 MXN · ≈ US$28. Te toca confirmar.", time: "10:51" },
+      { title: "Soft Gel", pill: "Borrador", body: "Guardado. Sin horario. Solo tú lo ves.", time: "09:02" },
+      { title: "Lami Brows", pill: "Pagada", body: "Sábado 10:30 en el estudio.", time: "Ayer" },
+    ],
+    seed: [{ k: "Lifting", s: "lash", img: "lashes-classic.jpg" }],
+    saved: [{ k: "Soft Gel", img: "nails-softgel.jpg" }, { k: "Lami Brows", img: "cat-brows.jpg" }],
+    sentLines: [{ k: "Lifting", s: "lash", img: "lashes-classic.jpg" }],
+    tabs: ["Hablar", "Servicios", "Mis citas"],
+    sent: "Jorgelina tiene el horario. Te confirma por correo.",
+  },
+  chef: {
+    name: "Mateo", status: "Borrador",
+    placeholder: "Cuéntame de la cena: la fecha, cuántas personas y si hay alergias.",
+    who: "Cuéntame de la cena: la fecha, cuántas personas y si hay alergias.",
+    moods: {
+      Cena: { k: "Menú de la costa", card: ["Cena para la villa", "4 tiempos · en tu cocina", "$1,800", "package"], talent: [["Pescado a la sal", "$1,800 · por persona", "package"], ["Tacos de ribeye", "$1,600 · por persona", "package"]] },
+      Brunch: { k: "Mañana larga", card: ["Brunch de domingo", "2 horas · mesa puesta", "$900", "service"], talent: [["Huevos y pan", "$900 · por persona", "service"], ["Fruta y granola", "$700 · por persona", "service"]] },
+      Parrilla: { k: "Fuego", card: ["Parrilla", "Cortes · en tu terraza", "$1,400", "show"], talent: [["Ribeye", "$1,400 · por persona", "show"], ["Verduras al fuego", "$900 · por persona", "service"]] },
+      Postre: { k: "Cierre", card: ["Mesa de postres", "Para compartir", "$450", "course"], talent: [["Tarta de limón", "$450 · para 8", "course"], ["Helado de coco", "$380 · para 8", "course"]] },
+    },
+    filters: ["Cena", "Brunch", "Parrilla", "Postre"],
+    rows: {
+      Brunch: [["Huevos y pan", "$900 · por persona", "service"]],
+      Parrilla: [["Ribeye", "$1,400 · por persona", "show"]],
+      Postre: [["Tarta de limón", "$450 · para 8", "course"]],
+    },
+    fields: [
+      ["when", "Fecha", ["Sábado", "Viernes", "Domingo"]],
+      ["guests", "Cuántos", ["4", "8", "12"]],
+      ["where", "Cocina", ["Villa", "Hotel", "Mi casa"]],
+      ["note", "Alergias", ["Ninguna", "Sin gluten", "Mariscos"]],
+    ],
+    yours: [
+      { title: "Cena sábado", pill: "Oferta", body: "Sábado · 8 personas · villa. Te toca confirmar.", time: "10:51" },
+      { title: "Brunch", pill: "Borrador", body: "Guardado. Sin fecha.", time: "09:02" },
+    ],
+    seed: [{ k: "Cena para la villa", s: "package", img: "" }],
+    saved: [{ k: "Parrilla", img: "" }, { k: "Tarta de limón", img: "" }],
+    sentLines: [{ k: "Cena para la villa", s: "package" }],
+    tabs: ["Hablar", "Menús", "Mis eventos"],
+    sent: "Mateo tiene la fecha. Te confirma el menú.",
+  },
+  massage: {
+    name: "Luz", status: "Borrador",
+    placeholder: "Agenda una sesión o pregúntame. Día, hora y si es en el estudio.",
+    who: "Agenda una sesión o pregúntame.",
+    moods: {
+      Relajante: { k: "La más pedida", card: ["Relajante 60", "Estudio o a domicilio", "$900", "service"], talent: [["Relajante 60", "$900 · 60 min", "service"], ["Relajante 90", "$1,200 · 90 min", "service"]] },
+      "Tejido profundo": { k: "Si hay tensión", card: ["Tejido profundo 60", "Presión firme", "$1,000", "service"], talent: [["Tejido profundo 60", "$1,000 · 60 min", "service"], ["Tejido profundo 90", "$1,350 · 90 min", "service"]] },
+      Deportivo: { k: "Después de entrenar", card: ["Deportivo 60", "Piernas y espalda", "$1,000", "service"], talent: [["Deportivo 60", "$1,000 · 60 min", "service"]] },
+      Prenatal: { k: "Con cuidado", card: ["Prenatal 60", "De lado, en el estudio", "$1,100", "service"], talent: [["Prenatal 60", "$1,100 · 60 min", "service"]] },
+    },
+    filters: ["Relajante", "Tejido profundo", "Deportivo", "Prenatal"],
+    rows: {
+      "Tejido profundo": [["Tejido profundo 60", "$1,000 · 60 min", "service"]],
+      Deportivo: [["Deportivo 60", "$1,000 · 60 min", "service"]],
+      Prenatal: [["Prenatal 60", "$1,100 · 60 min", "service"]],
+    },
+    fields: [
+      ["when", "Día", ["Mañana", "Viernes", "Sábado"]],
+      ["where", "Hora", ["11:00", "16:30", "18:00"]],
+      ["length", "Duración", ["60 min", "90 min"]],
+      ["place", "Lugar", ["Estudio", "Hotel", "Villa"]],
+    ],
+    yours: [
+      { title: "Relajante viernes", pill: "Oferta", body: "Viernes 18:00 · 60 min · estudio. Te toca confirmar.", time: "10:51" },
+      { title: "Tejido profundo", pill: "Borrador", body: "Guardado. Sin horario.", time: "09:02" },
+    ],
+    seed: [{ k: "Relajante 60", s: "service" }],
+    saved: [{ k: "Tejido profundo 60", img: "" }],
+    sentLines: [{ k: "Relajante 60", s: "service" }],
+    tabs: ["Hablar", "Tratamientos", "Mis citas"],
+    sent: "Luz tiene el horario. Te confirma por este chat.",
+  },
+};
+
+const state = {
+  brand: "impronta", view: "talk", filter: null, lineup: [], extra: [],
+  mood: "Launch", sheet: false, sent: false, screen: "draft",
+  brief: { when: "", where: "", guests: "" },
+  pay: "deposit",
+  saved: [
+    { k: "Anto", img: "g-03.jpg" },
+    { k: "Kristina", img: "g-04.jpg" },
+    { k: "Barto", img: "g-05.jpg" },
+  ],
+};
+const IMG = "faces/";
+const FACE = { Berni: "g-01.jpg", Morena: "g-02.jpg", Natasha: "g-03.jpg", Chiara: "g-04.jpg", Loba: "g-05.jpg", Mile: "g-06.jpg" };
+const ICONS = {
+  ticket: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5V11a2 2 0 0 0 0 4v2.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5V15a2 2 0 0 0 0-4V8.5z"/><path d="M12 6v14" stroke-dasharray="2 2"/></svg>`,
+  package: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z"/><path d="M12 12l8-4M12 12v8M12 12L4 8"/></svg>`,
+  show: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 16V8l6 3V8l10-4v16l-10-4v3L4 16z"/></svg>`,
+  service: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg>`,
+  course: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M7 10.5V16c2 1.5 8 1.5 10 0v-5.5"/></svg>`,
+  lash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 14c2-5 5-7 9-7s7 2 9 7"/><path d="M8 13V8M12 12V6M16 13V8"/></svg>`,
+  brow: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 14c3-5 6-6 8-6s5 1 8 6"/><path d="M9 16c1 .8 5 .8 6 0"/></svg>`,
+  nail: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 14V8a3 3 0 0 1 6 0v6"/><path d="M8 14h8v3a4 4 0 0 1-8 0v-3z"/></svg>`,
+  wax: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 4c2 3 4 5 4 8a4 4 0 0 1-8 0c0-3 2-5 4-8z"/></svg>`,
+};
+function mark(kind) {
+  return ICONS[kind] ? `<span class="typeico">${ICONS[kind]}</span>` : "";
+}
+function face(name, img) {
+  const src = img || FACE[name];
+  if (!src) return `<div class="ava" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="3.2"/><path d="M5 19c1.4-3 3.8-4.5 7-4.5S17.6 16 19 19"/></svg></div>`;
+  return `<div class="ava"><img src="${IMG}${src}" alt=""></div>`;
+}
+
+function $(id) { return document.getElementById(id); }
+
+function moodPack() {
+  const d = DATA[state.brand];
+  return d.moods[state.mood] || Object.values(d.moods)[0];
+}
+function briefParts() {
+  const b = state.brief;
+  const brand = state.brand;
+  const dated = ["thread","gate","offer","time","pay","booked","change","declined","taken","hold","failed","refunded","return","link"].includes(state.screen);
+  const bit = (on, filled, missing) => ({ on, label: on ? filled : missing });
+  if (brand === "massage") {
+    return [
+      bit(!!b.when || dated, b.when || "Viernes", "el día"),
+      bit(!!b.where || dated, b.where || "18:00", "la hora"),
+      bit(!!b.length || dated, b.length || "60 min", "60 o 90"),
+      bit(!!b.place || dated, b.place || "Estudio", "el lugar"),
+      bit(state.lineup.length > 0 || dated, (state.lineup[0] && state.lineup[0].k) || "Relajante 60", "la sesión"),
+    ];
+  }
+  if (brand === "jorg") {
+    return [
+      bit(!!b.when || dated, b.when || "Viernes", "el día"),
+      bit(!!b.where || dated, b.where || "18:00", "la hora"),
+      bit(state.lineup.length > 0 || dated, (state.lineup[0] && state.lineup[0].k) || "un servicio", "el servicio"),
+      bit(state.extra.length > 0 || state.sent || dated, "un mensaje", "un mensaje"),
+    ];
+  }
+  if (brand === "chef") {
+    return [
+      bit(!!b.when || dated, b.when || "Sábado", "la fecha"),
+      bit(!!b.guests || dated, b.guests || "8", "cuántos"),
+      bit(!!b.note || dated, b.note || "Sin gluten", "alergias"),
+      bit(!!b.where || dated, b.where || "Villa", "la cocina"),
+      bit(state.lineup.length > 0 || dated, (state.lineup[0] && state.lineup[0].k) || "un menú", "el menú"),
+    ];
+  }
+  return [
+    bit(!!b.when || dated, b.when || "Sat 21 Nov", "the date"),
+    bit(!!b.where || dated, b.where || "Tulum", "the place"),
+    bit(!!b.guests || dated, b.guests || "40", "how many"),
+    bit(state.lineup.length > 0 || dated, (state.lineup[0] && state.lineup[0].k) || "someone pinned", "a lineup"),
+    bit(state.extra.length > 0 || state.sent || dated, "a message", "a message"),
+  ];
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function peso(s) {
+  if (state.brand === "impronta") return esc(s);
+  return esc(s).replace(/\$(\d[\d,]*)/g, (_, n) => {
+    const usd = Math.max(1, Math.round(Number(n.replace(/,/g, "")) / 18));
+    return `$${n} MXN · ≈ US$${usd}`;
+  });
+}
+
+function render() {
+  if (state.screen === "first") {
+    state.lineup = [];
+    state.saved = [];
+  }
+  const d = DATA[state.brand];
+  const pack = moodPack();
+  document.body.dataset.brand = state.brand;
+  $("mark").innerHTML = state.brand === "jorg"
+    ? `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M16 27s-9-5.6-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.4-9 12-9 12z"/></svg>`
+    : `<svg viewBox="0 0 32 32" fill="currentColor"><path d="M16 3l2.2 8.2L26 12l-6.2 3.2L18 24l-2-7.2L8 14l7.8-2.8L16 3z"/><path d="M16 14l1.2 4.2L21 19l-3.4 1.6L16 25l-1.2-4.4L11 19l3.8-1.6L16 14z" fill="#100e0c"/></svg>`;
+  $("name").textContent = d.name;
+  const es = state.brand !== "impronta";
+  const tabs = d.tabs || ["Talk", "Browse", "Yours"];
+  $("tabTalk").textContent = tabs[0];
+  $("tabBrowse").textContent = tabs[1];
+  $("tabYours").textContent = tabs[2];
+  $("status").textContent = state.sent ? (state.brand === "jorg" ? "Enviada" : "Sent") : d.status;
+  $("input").placeholder = d.placeholder;
+  const parts = briefParts();
+  const next = parts.find(p => !p.on);
+  const railNamed = {
+    booked: state.brand === "chef" ? "Cena confirmada" : state.brand === "massage" ? "Sesión confirmada" : es ? "Cita confirmada" : "Booked",
+    refunded: es ? "Seña devuelta" : "Deposit returned",
+    declined: es ? "Oferta rechazada" : "Declined",
+    failed: es ? "Pago rechazado" : "Pay failed",
+    pay: es ? "Falta el pago" : "Add the payment",
+    time: es ? "Horario en espera" : "Time held",
+  };
+  if (railNamed[state.screen]) $("railLabel").textContent = railNamed[state.screen];
+  else if (state.screen === "first") $("railLabel").textContent = es ? "Nada todavía" : "Nothing yet";
+  else $("railLabel").textContent = next
+    ? (es ? `Falta ${next.label}` : `Add ${next.label}`)
+    : (es ? "Lista para enviar" : "Ready to send");
+  $("segs").innerHTML = parts.map(p => `<i class="${p.on ? "on" : ""}" title="${esc(p.label)}"></i>`).join("");
+  $("sheet").classList.toggle("on", state.sheet);
+  $("sheet").innerHTML = d.fields.map(([key, label, opts]) => `
+    <h4>${label}</h4>
+    <div class="filters">${opts.map(o => `<button data-field="${key}" data-value="${o}" class="${state.brief[key] === o ? "on" : ""}">${o}</button>`).join("")}</div>
+  `).join("");
+
+  document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("on", b.dataset.view === state.view));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === state.view));
+
+  const [title, meta, price, initial] = pack.card;
+  $("talk").innerHTML = `
+    <div class="bubble them">${esc(d.who)}</div>
+    ${state.extra.map(m => `<div class="bubble you">${esc(m)}</div>`).join("")}
+    ${state.sent ? `<div class="bubble them">${esc(d.sent)}</div><p class="save">${es ? "Guarda esta conversación en tu correo." : "Save this conversation on every device."} <button type="button" id="saveLink">${es ? "Enviarme el enlace" : "Email me a link"}</button></p>` : ""}
+    <div class="moods">${Object.keys(d.moods).map(m => `<button data-mood="${m}" class="${m === state.mood ? "on" : ""}">${m}</button>`).join("")}</div>
+    <div class="suggest">${esc(pack.k)}</div>
+    <article class="card">
+      <h3>${mark(initial)}${esc(title)}</h3>
+      <div class="price">${peso(price)}</div>
+      <p>${esc(meta)}</p>
+      <button class="add" data-add="${esc(title)}" data-s="${esc(initial)}">${es ? "Guardar" : "Pin"}</button>
+    </article>`;
+
+  const filter = state.filter && (state.filter === "Talent" || d.rows[state.filter] || d.moods[state.filter]) ? state.filter : (d.filters[0] || "Talent");
+  const rows = filter === "Talent" || filter === "Sugerido" ? pack.talent : (d.rows[filter] || pack.talent);
+  const filters = d.filters;
+  const days = d.days ? `<div class="days">${d.days.map(([day, slot]) => `
+    <button data-add="${day} ${slot}" data-s="${day[0]}" class="${state.lineup.some(x => x.k === day + " " + slot) ? "on" : ""}" ${slot === "lleno" ? "disabled" : ""}>
+      <b>${day}</b><span>${slot}</span>
+    </button>`).join("")}</div>` : "";
+  $("browse").innerHTML = `
+    ${days}
+    <div class="filters">${filters.map(f => `<button data-filter="${f}" class="${f === filter ? "on" : ""}">${mark({ Talent: "", Packages: "package", Services: "service", Tickets: "ticket", Sugerido: "lash", Uñas: "nail", Cejas: "brow", Depilación: "wax" }[f] || "")}${f}</button>`).join("")}</div>
+    ${rows.map(([t, m, s]) => `
+      <div class="row">
+        ${ICONS[s] ? `<div class="ava">${mark(s)}</div>` : face(t)}
+        <div><h3>${esc(t)}</h3><p class="${/free|libre/i.test(m) ? "whisper" : ""}">${peso(m)}</p></div>
+        <div class="row-actions">
+          <button class="ask" type="button" data-ask="${esc(t)}">${state.brand === "jorg" ? "Preguntar" : "Ask"}</button>
+          <button class="plus ${state.lineup.some(x => x.k === t) ? "in" : ""}" data-add="${esc(t)}" data-s="${esc(s)}" aria-label="${es ? "Guardar" : "Pin"} ${esc(t)}">${state.lineup.some(x => x.k === t) ? "✓" : "+"}</button>
+        </div>
+      </div>`).join("")}`;
+
+  $("yours").innerHTML = d.yours.map((y, i) => `
+    <button class="inq" type="button" data-open="${i}"><div class="top"><h3>${esc(y.title)}</h3><span class="pill">${esc(y.pill)}</span></div><p>${esc(y.body)}</p><div class="time">${esc(y.time || "")}</div></button>`).join("");
+  const bc = $("browseCount");
+  const yc = $("yoursCount");
+  bc.hidden = state.lineup.length === 0;
+  bc.textContent = String(state.lineup.length);
+  yc.hidden = d.yours.length === 0;
+  yc.textContent = String(d.yours.length);
+
+  const btn = $("briefbtn");
+  if (state.lineup.length && !state.sent) {
+    btn.hidden = false;
+    btn.textContent = es
+      ? `Enviar pedido · ${state.lineup.length}`
+      : `Send request · ${state.lineup.length}`;
+  } else btn.hidden = true;
+
+  const lineup = $("lineup");
+  if (!state.lineup.length) {
+    lineup.innerHTML = `<span class="empty-note">${state.brand === "jorg" ? "Nada en la cita todavía." : "Pin a face. The lineup stays here."}</span>`;
+  } else {
+    lineup.innerHTML = `<div class="faces">${state.lineup.map(x => {
+      const src = x.img || FACE[x.k];
+      const ico = ICONS[x.s] ? mark(x.s) : "";
+      return `<button type="button" data-ask="${esc(x.k)}" title="${esc(x.k)}" ${src ? `style="background-image:url('${IMG}${src}');background-size:cover"` : ""}>${src ? "" : ico || esc(x.s || x.k[0])}</button>`;
+    }).join("")}<span class="face-count">${state.lineup.map(x => x.k).join(" · ")}</span></div>`;
+  }
+  applyScreen();
+}
+
+function paintTrade() {
+  const brand = state.brand;
+  if (brand !== "chef" && brand !== "massage") return;
+  const chef = brand === "chef";
+  const who = chef ? "Mateo" : "Luz";
+  const line = chef ? "Cena para la villa · 8 personas · $1,800 MXN por persona" : "Relajante 60 · $900 MXN · ≈ US$50";
+  const when = chef ? "Sábado" : "Viernes 18:00";
+  const where = chef ? "Cocina de la villa, Tulum" : "Estudio, o en tu hotel";
+  const check = `<span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg></span>`;
+  const sparks = `<i class="spark a"></i><i class="spark b"></i><i class="spark c"></i><i class="spark d"></i>`;
+  const method = state.pay === "cash" ? "Pagado en efectivo" : state.pay === "transfer" ? "Pagado por transferencia" : "Seña con tarjeta";
+  const money = chef
+    ? `<p class="money">$14,400 MXN · ≈ US$800<span>Total, 8 × $1,800 MXN. Seña $4,320 MXN · ≈ US$240. Saldo $10,080 MXN · ≈ US$560 el día de la cena.</span></p>`
+    : `<p class="money">$900 MXN · ≈ US$50<span>Total. Seña $300 MXN · ≈ US$17. Saldo $600 MXN · ≈ US$33 el día de la sesión.</span></p>`;
+  if (state.screen === "booked") {
+    $("talk").innerHTML = `<div class="done">${sparks}${check}<p class="kicker">${chef ? "La cena está confirmada" : "La sesión está confirmada"}</p><h2>${when}</h2><p class="what">${line}</p><p class="where">${where}</p><span class="method">${method}</span>${money}<button class="add wide" type="button">Agregar al calendario</button><div class="links"><button class="ask" type="button">Reprogramar</button></div></div>`;
+  }
+  if (state.screen === "offer") {
+    $("talk").innerHTML = `<article class="offer"><h3>Oferta · v1</h3><p>${line}</p><p>${chef ? "Seña 30%. Si cancelas con menos de 48 h, la seña no se devuelve." : "Seña $300 MXN. Si cancelas con menos de 24 h, la seña no se devuelve."}</p><div class="row-actions"><button class="add" type="button" data-screen-jump="time">Aceptar</button><button class="ask" type="button">Pedir un cambio</button><button class="ask" type="button">Rechazar</button></div></article>`;
+  }
+  if (state.screen === "pay") {
+    $("talk").innerHTML = `<article class="offer"><h3>Cómo se paga</h3><p>${line}</p><div class="ways"><button type="button" data-pay="deposit" data-screen-jump="booked"><span><strong>Pagar la seña</strong><em>Tarjeta ahora. El saldo queda para el día.</em></span></button><button type="button" data-pay="cash" data-screen-jump="booked"><span><strong>Efectivo</strong><em>${who} lo anota como pagado.</em></span></button><button type="button" data-pay="transfer" data-screen-jump="booked"><span><strong>Transferencia</strong><em>${who} te pasa la cuenta en este chat.</em></span></button></div></article>`;
+  }
+  if (state.screen === "declined") {
+    $("talk").innerHTML = `<article class="offer"><h3>Oferta rechazada</h3><p>No se cobró nada. Puedes pedir otra fecha.</p></article>`;
+  }
+  if (state.screen === "failed") {
+    $("talk").innerHTML = `<article class="offer"><h3>El pago no pasó</h3><p>La tarjeta fue rechazada. No se cobró.</p><button class="add" type="button">Intentar de nuevo</button></article>`;
+  }
+  if (state.screen === "refunded") {
+    $("talk").innerHTML = `<article class="offer"><h3>Seña devuelta</h3><p>${chef ? "Cancelaste con más de 48 h. La seña vuelve a tu tarjeta." : "Cancelaste con más de 24 h. La seña vuelve a tu tarjeta."}</p></article>`;
+  }
+  if (state.screen === "time") {
+    $("talk").innerHTML = `<article class="offer"><h3>${when}</h3><p>${chef ? "La cocina queda apartada 30 minutos." : "El horario queda reservado 30 minutos."}</p><div class="filters"><button class="on">${chef ? "20:00" : "18:00"}</button><button>${chef ? "18:00" : "16:30"}</button></div></article>`;
+  }
+  if (state.screen === "thread" || state.screen === "return") {
+    $("talk").innerHTML = `<div class="sys">${state.screen === "return" ? "Volviste desde el correo" : "Solicitud recibida"}</div><div class="bubble you">${chef ? "Sábado, ocho personas, sin gluten. En la villa." : "Viernes 18:00, relajante de 60, en el estudio."}</div><div class="bubble them"><b>${who}</b><br>${chef ? "Puedo. Te mando el menú de la costa." : "Hay lugar. Te confirmo la sala."}</div>`;
+  }
+  if (state.screen === "change") {
+    $("talk").innerHTML = `<article class="offer"><h3>Oferta · v1</h3><p class="empty-note">Pediste un cambio. ${who} está armando la v2. Esta tarjeta se reemplaza, no se apila.</p></article>`;
+  }
+  if (state.screen === "taken") {
+    $("talk").innerHTML = `<article class="offer"><h3>Ese horario se tomó</h3><p>${chef ? "20:00 ya no está. 18:00 sigue libre." : "18:00 ya no está. 16:30 sigue libre."}</p><button class="add" type="button">${chef ? "18:00" : "16:30"}</button></article>`;
+  }
+  if (state.screen === "hold") {
+    $("talk").innerHTML = `<article class="offer"><h3>La reserva de 30 min venció</h3><p>${when} volvió a estar libre. Elige de nuevo.</p></article>`;
+  }
+  if (state.screen === "link") {
+    $("talk").innerHTML = `<article class="offer"><p class="empty-note">${who} te escribió</p><h3>${when}</h3><p>${line}</p><p>${where}</p><div class="row-actions"><button class="add" type="button">Aceptar</button><button class="ask" type="button">Pedir un cambio</button></div></article>`;
+  }
+  if (state.screen === "retry") {
+    $("talk").innerHTML = `<div class="bubble you">${chef ? "Sábado, ocho personas." : "Viernes 18:00, relajante de 60."}</div><p class="turn">No se envió.</p><button class="add" type="button">Reintentar</button>`;
+  }
+  if (state.screen === "first") {
+    $("talk").innerHTML = `<div class="bubble them">${esc(DATA[brand].who)}</div><p class="empty-note">${chef ? "Todavía no hay cenas ni menús guardados." : "Todavía no hay sesiones guardadas."}</p>`;
+  }
+}
+
+function applyScreen() {
+  const es = state.brand !== "impronta";
+  const j = es;
+  const d = DATA[state.brand];
+  document.querySelectorAll("#screens button").forEach(b => b.classList.toggle("on", b.dataset.screen === state.screen));
+  if (state.screen === "draft") return;
+  const thread = j
+    ? `<div class="sys">Solicitud recibida · 24 sept, 10:48</div>
+       <div class="bubble you">Viernes después del trabajo, lifting si hay lugar.</div>
+       <div class="time">10:48</div>
+       <div class="bubble them"><b>Jorgelina</b><br>Hay lugar el viernes a las 18:00. El set con Lami Brows son $500 MXN · ≈ US$28.</div>
+       <div class="bubble you">Sí, el set. ¿La dirección la pasas al confirmar?</div>
+       <div class="bubble them"><b>Jorgelina</b><br>Sí. Te la mando cuando quede confirmada la cita.</div>
+       <div class="sys">Jorgelina lo está viendo</div>`
+    : `<div class="sys">Inquiry received · 24 Sep, 10:48</div>
+       <div class="bubble you">Saturday in Tulum, about forty people. Berni if she is free.</div>
+       <div class="time">10:48</div>
+       <div class="bubble them"><b>Sofia</b><br>Berni is free Saturday. I can hold her until tomorrow noon.</div>
+       <div class="bubble you">Please hold her. We also need a host for the door.</div>
+       <div class="bubble them"><b>Sofia</b><br>Morena can host. I will send the offer once you confirm the hour.</div>
+       <div class="sys">Sofia is on it</div>`;
+  if (state.screen === "thread") {
+    state.view = "talk";
+    $("talk").innerHTML = thread + state.extra.map(m => `<div class="bubble you">${esc(m)}</div>`).join("");
+    $("status").textContent = j ? "En conversación" : "In conversation";
+  }
+  if (state.screen === "gate" && d.sentLines) {
+    state.lineup = d.sentLines.map(x => ({ ...x }));
+    const n = state.lineup.length;
+    $("talk").innerHTML = `<div class="bubble you">${es ? (state.brand === "chef" ? "Sábado, ocho personas, sin gluten." : state.brand === "massage" ? "Viernes 18:00, relajante de 60." : "Viernes, lifting.") : "Saturday in Tulum, forty people. Berni if she is free."}</div>
+      <div class="time">10:48</div>
+      <article class="offer"><h3>${es ? `Pedido · ${n} ${n === 1 ? "línea" : "líneas"}` : `Request · ${n} lines`}</h3>
+      <p>${esc(state.lineup.map(x => x.k).join(" · "))}</p>
+      <p class="save">${es ? "Guarda esta conversación en tu correo. No hace falta una cuenta." : "Save this conversation. No account needed to ask."} <button type="button" id="saveLink">${es ? "Enviarme el enlace" : "Email me a link"}</button></p></article>`;
+    $("lineup").innerHTML = `<div class="faces">${state.lineup.map(x => {
+      const src = x.img || FACE[x.k];
+      return `<button type="button" title="${esc(x.k)}" ${src ? `style="background-image:url('${IMG}${src}');background-size:cover"` : ""}>${src ? "" : esc(x.k[0])}</button>`;
+    }).join("")}<span class="face-count">${state.lineup.map(x => x.k).join(" · ")}</span></div>`;
+    $("briefbtn").hidden = true;
+    $("browseCount").hidden = n === 0;
+    $("browseCount").textContent = String(n);
+    $("status").textContent = es ? "Enviada" : "Sent";
+  } else if (state.screen === "gate") {
+    state.view = "talk";
+    $("talk").innerHTML = `<div class="bubble you">${j ? "Viernes, lifting." : "Saturday in Tulum, forty people. Berni if she is free."}</div>
+      <div class="time">10:48</div>
+      <article class="offer"><h3>${j ? "Pedido · 1 línea" : "Request · 3 lines"}</h3>
+      <p>${j ? "Set lifting + Lami Brows" : "Berni · Morena · LUMINA ticket"}</p>
+      <p class="save">${j ? "Guarda esta conversación en tu correo. No hace falta una cuenta." : "Save this conversation. No account needed to ask."} <button type="button" id="saveLink">${j ? "Enviarme el enlace" : "Email me a link"}</button></p></article>`;
+    $("briefbtn").hidden = true;
+    $("status").textContent = j ? "Enviada" : "Sent";
+  }
+  if (state.screen === "offer") {
+    state.view = "talk";
+    $("talk").innerHTML = thread + `<p class="turn">${j ? "Te toca · una sola oferta" : "Your turn · one offer"}</p>
+      <article class="offer"><h3>${j ? "Oferta · v1" : "Offer · v2"}</h3>
+      <p>${j ? "Set lifting + Lami Brows · $500 MXN · ≈ US$28" : "Berni, Saturday · $900"}</p>
+      <p>${j ? "Seña $200 MXN · ≈ US$11. Si cancelas con menos de 24 h, la seña no se devuelve." : "Deposit $300. Cancel more than 48h ahead and the deposit returns."}</p>
+      <div class="row-actions"><button class="add" type="button" data-screen-jump="time">${j ? "Aceptar" : "Accept"}</button><button class="ask" type="button">${j ? "Pedir un cambio" : "Ask a change"}</button><button class="ask" type="button">${j ? "Rechazar" : "Decline"}</button></div></article>`;
+    $("briefbtn").hidden = true;
+    $("status").textContent = j ? "Oferta" : "Offer";
+  }
+  if (state.screen === "time") {
+    state.view = "talk";
+    $("talk").innerHTML = `<p class="turn">${j ? "Elige un horario. Queda reservado 30 minutos." : "Pick a time. It is held for 30 minutes."}</p>
+      <article class="offer"><h3>${j ? "Viernes" : "Sat 21 Nov"}</h3>
+      <div class="filters"><button class="on">18:00</button><button>16:30</button><button disabled>12:00</button></div>
+      <p>${j ? "12:00 ya está tomado. 16:30 sigue libre." : "12:00 is taken. 16:30 is still free."}</p></article>`;
+    $("briefbtn").hidden = true;
+    $("status").textContent = j ? "Horario en espera" : "Time held";
+  }
+  if (state.screen === "pay") {
+    state.view = "talk";
+    const cardIco = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>`;
+    const cashIco = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>`;
+    const bankIco = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 10h16M6 10v7M10 10v7M14 10v7M18 10v7M3 17h18M12 3 3 8h18L12 3z"/></svg>`;
+    $("talk").innerHTML = j
+      ? `<article class="offer"><h3>Cómo se paga</h3>
+      <p>Total $500 MXN · ≈ US$28. La seña es $200 MXN · ≈ US$11. El saldo queda para el estudio.</p>
+      <div class="ways">
+        <button type="button" data-pay="deposit" data-screen-jump="booked"><span class="ico">${cardIco}</span><span><strong>Pagar la seña</strong><em>Tarjeta ahora · $200 MXN · saldo $300 MXN en el estudio</em></span></button>
+        <button type="button" data-pay="cash" data-screen-jump="booked"><span class="ico">${cashIco}</span><span><strong>Efectivo</strong><em>Pagas en el estudio. Jorgelina lo anota como pagado.</em></span></button>
+        <button type="button" data-pay="transfer" data-screen-jump="booked"><span class="ico">${bankIco}</span><span><strong>Transferencia</strong><em>Jorgelina te pasa la cuenta en este chat. Queda anotada al llegar.</em></span></button>
+      </div></article>`
+      : `<article class="offer"><h3>How this is paid</h3>
+      <p>Total $900. The deposit is $300. The rest is due on the day.</p>
+      <div class="ways">
+        <button type="button" data-pay="deposit" data-screen-jump="booked"><span class="ico">${cardIco}</span><span><strong>Pay the deposit</strong><em>Card now · $300 · balance $600 on the day</em></span></button>
+        <button type="button" data-pay="cash" data-screen-jump="booked"><span class="ico">${cashIco}</span><span><strong>Cash</strong><em>Paid in cash. The team marks it on the thread.</em></span></button>
+        <button type="button" data-pay="transfer" data-screen-jump="booked"><span class="ico">${bankIco}</span><span><strong>Transfer</strong><em>Bank transfer. Marked paid when it lands.</em></span></button>
+      </div></article>`;
+    $("briefbtn").hidden = true;
+    $("status").textContent = j ? "Pago" : "Pay";
+  }
+  if (state.screen === "booked") {
+    state.view = "talk";
+    const check = `<span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg></span>`;
+    const sparks = `<i class="spark a"></i><i class="spark b"></i><i class="spark c"></i><i class="spark d"></i>`;
+    const paidAs = {
+      deposit: j
+        ? [`Seña con tarjeta`, `$200 MXN · ≈ US$11`, `Pagada. Saldo $300 MXN · ≈ US$17 en el estudio.`]
+        : [`Deposit by card`, `$300`, `Paid. Balance $600 is due on the day.`],
+      cash: j
+        ? [`Pagado en efectivo`, `$500 MXN · ≈ US$28`, `Anotado en el estudio. Nada pendiente.`]
+        : [`Paid in cash`, `$900`, `Collected. Nothing left to pay.`],
+      transfer: j
+        ? [`Pagado por transferencia`, `$200 MXN · ≈ US$11`, `Seña recibida. Saldo $300 MXN en el estudio.`]
+        : [`Paid by transfer`, `$300`, `Deposit received. Balance $600 on the day.`],
+    }[state.pay] || (j
+      ? [`Seña con tarjeta`, `$200 MXN · ≈ US$11`, `Pagada. Saldo $300 MXN · ≈ US$17 en el estudio.`]
+      : [`Deposit by card`, `$300`, `Paid. Balance $600 is due on the day.`]);
+    const stamp = `<span class="method">${paidAs[0]}</span><p class="money">${paidAs[1]}<span>${paidAs[2]}</span></p>`;
+    $("talk").innerHTML = j
+      ? `<div class="done">${sparks}${check}<p class="kicker">Listo. Tu cita está confirmada</p><h2>Viernes<br>18:00</h2><p class="what">Set lifting + Lami Brows</p><figure><img src="${IMG}lashes-classic.jpg" alt=""></figure><p class="where">Calle 38 norte, estudio 2<br>Playa del Carmen</p>${stamp}<button class="add wide" type="button">Agregar al calendario</button><div class="links"><button class="ask" type="button">Reprogramar</button><button class="ask" type="button">Cómo llegar</button></div></div>`
+      : `<div class="done">${sparks}${check}<p class="kicker">You're booked</p><h2>Sat 21 Nov</h2><p class="what">Berni · dinner in Tulum</p><figure><img src="${IMG}g-01.jpg" alt=""></figure><p class="where">Sofia sends the call sheet tonight.</p>${stamp}<button class="add wide" type="button">Add to calendar</button><div class="links"><button class="ask" type="button">Book again</button></div></div>`;
+    $("briefbtn").hidden = true;
+    $("status").textContent = j ? "Pagado" : "Paid";
+  }
+  if (state.screen === "first") {
+    state.view = "talk";
+    state.lineup = [];
+    state.saved = [];
+    $("talk").innerHTML = `<div class="bubble them">${esc(DATA[state.brand].who)}</div><p class="empty-note">${j ? "Todavía no hay citas ni servicios guardados." : "Nothing saved yet. Tell us the night, or browse the roster."}</p>`;
+    $("lineup").innerHTML = `<span class="empty-note">${j ? "Nada guardado." : "Nothing pinned yet."}</span>`;
+    $("yours").innerHTML = `<p class="empty-note">${j ? "Todavía no tienes citas." : "No conversations yet."}</p>`;
+    $("browseCount").hidden = true;
+    $("yoursCount").hidden = true;
+    $("briefbtn").hidden = true;
+    $("status").textContent = j ? "Nueva" : "New";
+  }
+  if (state.screen === "retry") {
+    state.view = "talk";
+    $("talk").innerHTML = `<div class="bubble you">${j ? "Viernes, lifting." : "Saturday in Tulum."}</div><p class="turn">${j ? "No se envió." : "Not sent."}</p><button class="add" type="button">${j ? "Reintentar" : "Retry"}</button>`;
+    $("status").textContent = j ? "No enviado" : "Not sent";
+  }
+  if (state.screen === "change") {
+    state.view = "talk";
+    $("talk").innerHTML = `<article class="offer"><h3>${j ? "Oferta · v1" : "Offer · v1"}</h3><p class="empty-note">${j ? "Pediste un cambio. Jorgelina está armando la v2. Esta tarjeta se reemplaza, no se apila." : "You asked for a change. Sofia is writing v2. This card will be replaced, not stacked."}</p></article>`;
+    $("status").textContent = j ? "Cambio pedido" : "Change asked";
+  }
+  if (state.screen === "declined") {
+    state.view = "talk";
+    $("talk").innerHTML = `<article class="offer"><h3>${j ? "Oferta rechazada" : "Offer declined"}</h3><p>${j ? "No se cobró nada. Puedes pedir otro horario." : "Nothing was charged. You can start another request."}</p></article>`;
+    $("status").textContent = j ? "Rechazada" : "Declined";
+  }
+  if (state.screen === "taken") {
+    state.view = "talk";
+    $("talk").innerHTML = `<article class="offer"><h3>${j ? "Ese horario se tomó" : "That time was taken"}</h3><p>${j ? "18:00 ya no está. 16:30 sigue libre." : "18:00 is gone. 16:30 is still free."}</p><button class="add" type="button">16:30</button></article>`;
+    $("status").textContent = j ? "Horario tomado" : "Slot taken";
+  }
+  if (state.screen === "hold") {
+    state.view = "talk";
+    $("talk").innerHTML = `<article class="offer"><h3>${j ? "La reserva de 30 min venció" : "The 30-minute hold ended"}</h3><p>${j ? "18:00 volvió a estar libre. Elige de nuevo." : "18:00 is open again. Pick it again if you still want it."}</p></article>`;
+    $("status").textContent = j ? "Reserva vencida" : "Hold ended";
+  }
+  if (state.screen === "failed") {
+    state.view = "talk";
+    $("talk").innerHTML = `<article class="offer"><h3>${j ? "El pago no pasó" : "Payment failed"}</h3><p>${j ? "La tarjeta fue rechazada. No se cobró. Puedes intentar otra." : "The card was declined. Nothing was charged. Try another card."}</p><button class="add" type="button">${j ? "Intentar de nuevo" : "Try again"}</button></article>`;
+    $("status").textContent = j ? "Pago rechazado" : "Pay failed";
+  }
+  if (state.screen === "refunded") {
+    state.view = "talk";
+    $("talk").innerHTML = `<article class="offer"><h3>${j ? "Seña devuelta" : "Deposit returned"}</h3><p>${j ? "Cancelaste con más de 24 h. $200 MXN · ≈ US$11 vuelven a tu tarjeta." : "You cancelled in time. The $300 deposit is on its way back."}</p></article>`;
+    $("status").textContent = j ? "Cancelada" : "Cancelled";
+  }
+  if (state.screen === "return") {
+    state.view = "talk";
+    $("talk").innerHTML = `<div class="sys">${j ? "Volviste desde el correo" : "You are back from the email link"}</div>` + thread;
+    $("status").textContent = j ? "Guardada" : "Saved";
+  }
+  if (state.screen === "link") {
+    state.view = "talk";
+    document.body.classList.add("link");
+    $("talk").innerHTML = `<article class="offer"><p class="empty-note">${j ? "Jorgelina te escribió" : "Sofia sent this"}</p><h3>${j ? "Viernes 18:00" : "Saturday · Berni"}</h3><p>${j ? "Set lifting + Lami Brows" : "Hold until tomorrow noon"}</p><p>${j ? "$500 MXN · ≈ US$28 · seña $200 MXN" : "$900 · deposit $300"}</p><div class="row-actions"><button class="add" type="button">${j ? "Aceptar" : "Accept"}</button><button class="ask" type="button">${j ? "Pedir un cambio" : "Ask a change"}</button></div></article>`;
+    $("status").textContent = j ? "Enlace" : "Client link";
+  } else document.body.classList.remove("link");
+  if (state.screen === "lineup") {
+    state.view = "browse";
+    const inquiry = state.lineup.length
+      ? state.lineup.map(x => `<div class="row">${face(x.k, x.img)}<div><h3>${esc(x.k)}</h3></div><button class="iconx" type="button" data-remove="${esc(x.k)}" aria-label="Remove ${esc(x.k)}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>`).join("")
+      : `<p class="empty-note">${j ? "Nada en la cita." : "Nothing in the inquiry yet."}</p>`;
+    const saved = state.saved.map(x => `<div class="row">${face(x.k, x.img)}<div><h3>${esc(x.k)}</h3></div><div class="tools2"><button class="heart on" type="button" aria-label="Saved" data-unsave="${esc(x.k)}"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 13s-5-3.1-5-6.2A2.8 2.8 0 0 1 8 5a2.8 2.8 0 0 1 5 1.8C13 9.9 8 13 8 13z"/></svg></button><button class="move" type="button" data-move="${esc(x.k)}">${j ? "A la cita" : "Add"}</button></div></div>`).join("");
+    const n = state.lineup.length;
+    $("browse").innerHTML = `
+      <div class="shelf">${j ? "En la cita" : "In your inquiry"} (${n})</div>
+      ${inquiry}
+      <div class="shelf">${j ? "Guardado" : "Saved"} (${state.saved.length})</div>
+      ${saved || `<p class="empty-note">${j ? "Sin favoritos." : "No favorites yet."}</p>`}`;
+  }
+  if (state.screen === "projects") {
+    state.view = "yours";
+    const rows = state.brand === "chef"
+      ? [["Cena sábado", "Esperando", "Enviada hoy. Mateo todavía no confirma."], ["Brunch", "Borrador", "Guardado. Sin fecha."]]
+      : state.brand === "massage"
+      ? [["Relajante viernes", "Esperando", "Enviada hoy. Luz todavía no confirma."], ["Tejido profundo", "Borrador", "Guardado. Sin horario."]]
+      : j
+      ? [["Lifting viernes", "Esperando", "Enviada hoy. Jorgelina todavía no confirma."], ["Soft Gel", "Borrador", "Guardado. Sin horario."], ["Lami Brows", "Confirmada", "Sábado 10:30 en el estudio."]]
+      : [["Lumina lineup", "Awaiting", "Sent. Sofia has not replied yet."], ["Wedding package", "Draft", "Only you can see it."], ["Berni + Morena", "Replied", "Sofia sent an offer."], ["Tulum Saturday", "Booked", "Faces held. Call sheet next."]];
+    $("yours").innerHTML = rows.map(([t, p, b]) => `<article class="inq"><div class="top"><h3>${t}</h3><span class="pill">${p}</span></div><p>${b}</p></article>`).join("");
+  }
+  paintTrade();
+  const dock = {
+    booked: es ? "Agregar al calendario" : "Add to calendar",
+    refunded: es ? "Pedir de nuevo" : "Book again",
+    declined: es ? "Otro pedido" : "Start another request",
+    failed: es ? "Intentar de nuevo" : "Try again",
+  };
+  const btn = $("briefbtn");
+  if (state.screen === "first") {
+    btn.hidden = true;
+    $("browseCount").hidden = true;
+    $("yoursCount").hidden = true;
+    $("browseCount").textContent = "0";
+    $("yoursCount").textContent = "0";
+  } else if (dock[state.screen]) {
+    btn.hidden = false;
+    btn.textContent = dock[state.screen];
+  }
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === state.view));
+  document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("on", b.dataset.view === state.view));
+}
+
+document.querySelector(".switch").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  state.brand = b.dataset.brand;
+  state.screen = "draft";
+  state.filter = null;
+  state.extra = [];
+  state.sent = false;
+  state.sheet = false;
+  state.mood = Object.keys(DATA[state.brand].moods)[0];
+  state.brief = { when: "", where: "", guests: "" };
+  state.lineup = DATA[state.brand].seed.map(x => ({ ...x }));
+  state.saved = (DATA[state.brand].saved || []).map(x => ({ ...x }));
+  document.querySelectorAll(".switch button").forEach(x => x.classList.toggle("on", x === b));
+  render();
+});
+
+document.getElementById("screens").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-screen]");
+  if (!b) return;
+  if (state.screen === "first" && b.dataset.screen !== "first") {
+    state.lineup = DATA[state.brand].seed.map(x => ({ ...x }));
+    state.saved = (DATA[state.brand].saved || []).map(x => ({ ...x }));
+  }
+  state.screen = b.dataset.screen;
+  if (state.screen === "draft") state.view = "talk";
+  render();
+});
+
+document.querySelector(".modes").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  state.view = b.dataset.view;
+  render();
+});
+
+document.querySelector(".panel").addEventListener("click", (e) => {
+  const jump = e.target.closest("[data-screen-jump]");
+  if (jump) {
+    if (jump.dataset.pay) state.pay = jump.dataset.pay;
+    state.screen = jump.dataset.screenJump;
+    state.view = "talk";
+    render();
+    return;
+  }
+  const mood = e.target.closest("[data-mood]");
+  if (mood) { state.mood = mood.dataset.mood; state.filter = null; render(); return; }
+  const field = e.target.closest("[data-field]");
+  if (field) {
+    state.brief[field.dataset.field] = state.brief[field.dataset.field] === field.dataset.value ? "" : field.dataset.value;
+    render(); return;
+  }
+  const open = e.target.closest("[data-open]");
+  if (open) {
+    const y = DATA[state.brand].yours[Number(open.dataset.open)];
+    state.view = "talk";
+    state.extra = [y.body];
+    state.sent = /wait|sofia|esperando|jorgelina/i.test(y.pill + y.body);
+    render();
+    return;
+  }
+  const ask = e.target.closest("[data-ask]");
+  if (ask && !e.target.closest("[data-add]")) {
+    $("input").value = state.brand === "jorg" ? `¿Hay lugar para ${ask.dataset.ask}?` : `Is ${ask.dataset.ask} free then?`;
+    $("input").focus();
+    return;
+  }
+  const f = e.target.closest("[data-filter]");
+  if (f) { state.filter = f.dataset.filter; render(); return; }
+  const remove = e.target.closest("[data-remove]");
+  if (remove) {
+    state.lineup = state.lineup.filter(x => x.k !== remove.dataset.remove);
+    render(); return;
+  }
+  const move = e.target.closest("[data-move]");
+  if (move) {
+    const item = state.saved.find(x => x.k === move.dataset.move);
+    if (item && !state.lineup.some(x => x.k === item.k)) state.lineup.push({ k: item.k, s: item.k[0], img: item.img });
+    state.saved = state.saved.filter(x => x.k !== move.dataset.move);
+    render(); return;
+  }
+  const unsave = e.target.closest("[data-unsave]");
+  if (unsave) {
+    state.saved = state.saved.filter(x => x.k !== unsave.dataset.unsave);
+    render(); return;
+  }
+  if (e.target.id === "lineupSend") {
+    state.sent = true; state.screen = "thread"; state.view = "talk"; render(); return;
+  }
+  const a = e.target.closest("[data-add]");
+  if (!a || a.disabled) return;
+  const k = a.dataset.add, s = a.dataset.s;
+  const i = state.lineup.findIndex(x => x.k === k);
+  if (i >= 0) state.lineup.splice(i, 1);
+  else state.lineup.push({ k, s });
+  state.sent = false;
+  render();
+});
+
+$("phoneToggle").addEventListener("click", () => {
+  document.body.classList.toggle("phone");
+  $("phoneToggle").classList.toggle("on", document.body.classList.contains("phone"));
+});
+$("expand").addEventListener("click", () => $("panel").classList.toggle("wide"));
+$("close").addEventListener("click", () => $("panel").classList.add("shut"));
+$("launcher").addEventListener("click", () => $("panel").classList.remove("shut"));
+$("statusBtn").addEventListener("click", () => { state.view = "yours"; state.sheet = false; render(); });
+document.querySelector(".panel").addEventListener("click", (e) => {
+  if (e.target.id !== "saveLink") return;
+  e.target.textContent = state.brand === "jorg" ? "Enlace enviado" : "Link sent";
+});
+
+$("rail").addEventListener("click", () => {
+  state.sheet = !state.sheet;
+  render();
+});
+
+$("briefbtn").addEventListener("click", () => {
+  state.sent = true;
+  state.view = "talk";
+  state.sheet = false;
+  render();
+});
+
+const field = $("input");
+field.addEventListener("focus", () => $("composer").classList.add("open"));
+field.addEventListener("blur", () => { if (!field.value.trim()) $("composer").classList.remove("open"); });
+$("composer").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const v = $("input").value.trim();
+  if (!v) return;
+  const low = v.toLowerCase();
+  if (/tulum/.test(low)) state.brief.where = "Tulum";
+  if (/playa|pdc/.test(low)) state.brief.where = "Playa";
+  if (/canc[uú]n/.test(low)) state.brief.where = "Cancún";
+  if (/saturday|s[aá]bado/.test(low)) state.brief.when = state.brand === "jorg" ? "Sábado" : "Sat 21 Nov";
+  if (/friday|viernes/.test(low)) state.brief.when = state.brand === "jorg" ? "Viernes" : "This Friday";
+  if (/\b40\b|forty|cuarenta/.test(low)) state.brief.guests = "40";
+  state.extra.push(v);
+  $("input").value = "";
+  $("composer").classList.remove("open");
+  state.view = "talk";
+  if (state.brief.when || state.brief.where) state.sheet = true;
+  render();
+});
+
+const TOKENS = [
+  ["--gold", "accent", "Send, pin, selected mood, filled rail, links"],
+  ["--gold-2", "accent.deep", "Pressed accent, mark ring"],
+  ["--ink", "ink", "Primary text, selected Talk pill on Impronta"],
+  ["--mute", "ink.muted", "Meta, placeholders, Ask"],
+  ["--faint", "ink.dim", "Empty dock, timestamps"],
+  ["--panel", "surface", "Panel"],
+  ["--panel-2", "surface.raised", "Chip sheet, cards"],
+  ["--bg", "canvas", "Page behind the panel"],
+  ["--line", "border", "Hairline on every control"],
+  ["--chip", "accent.wash", "Hover on plus, selected filter"],
+  ["--you", "bubble.guest", "Sent sentences"],
+  ["--them", "bubble.them", "Sofia or Jorgelina"],
+  ["--ok", "status.free", "Free that day"],
+];
+
+function paintTheme() {
+  const cs = getComputedStyle(document.body);
+  const val = (name) => cs.getPropertyValue(name).trim();
+  $("swatches").innerHTML = TOKENS.map(([name, role, use]) => `
+    <div class="swatch"><i style="background:${val(name)}"></i><div><b>${role}</b><span>${val(name)}</span><small>${use}</small></div></div>`).join("");
+  const onInk = getComputedStyle(document.body).getPropertyValue("--on").trim() || "#fff";
+  $("settings").innerHTML = [
+    ["type.display", "Fraunces"],
+    ["type.body", "Figtree"],
+    ["radius.panel", "28px"],
+    ["radius.control", "999px"],
+    ["radius.card", "18px"],
+    ["space.pad", "14px"],
+    ["motion.press", "scale 0.96"],
+    ["accent.on", onInk],
+  ].map(([k, v]) => `<span><b style="color:var(--ink);font-weight:500">${k}</b> ${v}</span>`).join("");
+
+  const gold = val("--gold");
+  const ink = val("--ink");
+  const panel = val("--panel");
+  const line = val("--line");
+  const chip = val("--chip");
+  const pillOn = state.brand === "jorg" ? gold : ink;
+  const pillOnInk = state.brand === "jorg" ? "#fff" : panel;
+  const cell = (label, style) => `<span class="spec"><button type="button" style="${style}">${label}</button></span>`;
+  const rows = [
+    ["Mood", "Launch",
+      `border:1px solid ${line};background:transparent;color:${val("--mute")};border-radius:999px;padding:5px 10px;font:inherit;font-size:12px`,
+      `border:1px solid ${gold};background:transparent;color:${ink};border-radius:999px;padding:5px 10px;font:inherit;font-size:12px`,
+      `border:1px solid ${gold};background:transparent;color:${ink};border-radius:999px;padding:5px 10px;font:inherit;font-size:12px;transform:scale(.97)`,
+      `border:0;background:${gold};color:${onInk};border-radius:999px;padding:5px 10px;font:inherit;font-size:12px;font-weight:500`],
+    ["Pin", state.brand === "impronta" ? "Pin" : "Guardar",
+      `border:0;background:${gold};color:${onInk};border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;font-weight:500`,
+      `border:0;background:${gold};color:${onInk};border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;font-weight:500;filter:brightness(1.12)`,
+      `border:0;background:${val("--gold-2")};color:${onInk};border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;transform:scale(.96)`,
+      `border:0;background:${gold};color:${onInk};border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;outline:2px solid ${gold}`],
+    ["Plus", "+",
+      `width:32px;height:32px;border-radius:50%;border:1px solid ${gold};background:transparent;color:${val("--gold-ink")};font-size:18px`,
+      `width:32px;height:32px;border-radius:50%;border:1px solid ${gold};background:${chip};color:${val("--gold-ink")};font-size:18px`,
+      `width:32px;height:32px;border-radius:50%;border:1px solid ${gold};background:${chip};color:${val("--gold-ink")};font-size:18px;transform:scale(.9)`,
+      `width:32px;height:32px;border-radius:50%;border:0;background:${gold};color:${onInk};font-size:16px`],
+    ["Talk", state.brand === "jorg" ? "Hablar" : "Talk",
+      `border:0;background:transparent;color:${val("--faint")};border-radius:999px;padding:7px 14px;font:inherit;font-size:12.5px`,
+      `border:0;background:transparent;color:${ink};border-radius:999px;padding:7px 14px;font:inherit;font-size:12.5px`,
+      `border:0;background:transparent;color:${ink};border-radius:999px;padding:7px 14px;font:inherit;font-size:12.5px;transform:scale(.98)`,
+      `border:1px solid ${gold};background:#fff;color:${val("--gold-ink")};border-radius:999px;padding:7px 14px;font:inherit;font-size:12.5px;font-weight:600`],
+    ["Send request", state.brand === "jorg" ? "Enviar pedido" : "Send request",
+      `border:0;background:${gold};color:${onInk};border-radius:999px;padding:10px 14px;font:inherit;font-size:13px;font-weight:500`,
+      `border:0;background:${gold};color:${onInk};border-radius:999px;padding:10px 14px;font:inherit;font-size:13px;filter:brightness(1.08)`,
+      `border:0;background:${val("--gold-2")};color:${onInk};border-radius:999px;padding:10px 14px;font:inherit;font-size:13px;transform:translateY(1px)`,
+      `border:0;background:${gold};color:${onInk};border-radius:999px;padding:10px 14px;font:inherit;font-size:13px;opacity:.45`],
+  ];
+  $("states").innerHTML = `<div></div><div class="h">Rest</div><div class="h">Hover</div><div class="h">Pressed</div><div class="h">Selected</div>`
+    + rows.map(([name, label, a, b, c, d]) => `<div class="lab">${name}</div>${cell(label, a)}${cell(label, b)}${cell(label, c)}${cell(label, d)}`).join("");
+}
+
+state.lineup = DATA.impronta.seed.map(x => ({ ...x }));
+const _render = render;
+render = function () { _render(); paintTheme(); };
+render();
+</script>
+</body>
+</html>
