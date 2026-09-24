@@ -47,6 +47,7 @@ Updated: 2026-09-23 (Round 2 — CLEAN)
 | Client ES/FR `?lang=` | green (D-MSG-337) | `client/locale-pay-deep.spec.ts` |
 | Stripe mint + confirm=stripe | green (D-MSG-329) | `stripe-pay-refund.spec.ts` |
 | Stripe 4242+refund | blocked (D-MSG-330 livemode) | same |
+| A6 post-payment Paid card | green (D-MSG-415) | `client/post-payment-cards.spec.ts` — live cash proof 2026-09-24; order_confirmation / tickets_card / cancel door still no producer |
 
 ## Scenario run log
 
