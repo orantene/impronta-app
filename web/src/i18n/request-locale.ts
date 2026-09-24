@@ -4,6 +4,12 @@ import { defaultLocale } from "@/i18n/config";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
+import {
+  HOST_CONTEXT_HEADER,
+  HOST_TALENT_PROFILE_HEADER,
+} from "@/lib/saas/host-context";
+import { loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
+import { talentSiteShouldUsePreferredLocale } from "./talent-site-preferred-locale";
 
 const LOCALE_HEADER = "x-impronta-locale";
 
@@ -52,7 +58,22 @@ export async function getRequestLocale(): Promise<Locale> {
 
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER);
   if (originalPath) {
-    const { locale } = stripLocaleFromPathname(originalPath, settings);
+    const { locale, hasLocalePrefix } = stripLocaleFromPathname(originalPath, settings);
+    if (hasLocalePrefix) return locale;
+    if (
+      talentSiteShouldUsePreferredLocale({
+        hostContext: h.get(HOST_CONTEXT_HEADER),
+        hasLocalePrefix,
+      })
+    ) {
+      const talentId = h.get(HOST_TALENT_PROFILE_HEADER)?.trim();
+      if (talentId) {
+        const preferred = await loadTalentPreferredLocale(talentId);
+        if (isAllowedPublicLocale(preferred, settings.publicLocales, settings.defaultLocale)) {
+          return preferred;
+        }
+      }
+    }
     return locale;
   }
 
