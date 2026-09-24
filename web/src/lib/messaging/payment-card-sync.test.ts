@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { fakeAdmin, uuid } from "@/lib/storefront/__fixtures__/fake-admin";
 
-import { syncPaymentCardsForRecord } from "./payment-card-sync";
+import { stampInquiryPaidCards, syncPaymentCardsForRecord } from "./payment-card-sync";
 
 const TENANT = uuid(1);
 const INQUIRY = uuid(2);
@@ -114,4 +114,59 @@ test("a paid order stamps total, paid, due, currency, and method", async () => {
   assert.equal(card.dueCents, 3000);
   assert.equal(card.currency, "MXN");
   assert.equal(card.method, "card");
+});
+
+test("a booking deposit stamps the sale total and the method that settled", async () => {
+  const booking = uuid(4);
+  const { admin, store } = fakeAdmin({
+    conversation_records: [{ id: "cr-1", tenant_id: TENANT, inquiry_id: INQUIRY, record_kind: "appointment", record_id: booking, unlinked_at: null }],
+    agency_bookings: [{ id: booking, total_client_revenue: 50, currency_code: "MXN" }],
+    inquiry_messages: [
+      {
+        id: "m-1",
+        tenant_id: TENANT,
+        inquiry_id: INQUIRY,
+        message_kind: "payment_request",
+        card_payload: { amountCents: 2000, currency: "MXN", state: "sent" },
+        deleted_at: null,
+      },
+    ],
+  });
+  const result = await syncPaymentCardsForRecord(admin, {
+    tenantId: TENANT,
+    recordId: booking,
+    paymentState: "paid",
+    method: "wire",
+  });
+  assert.equal(result.ok, true);
+  const card = (store.inquiry_messages[0] as { card_payload: Record<string, unknown> }).card_payload;
+  assert.equal(card.state, "paid");
+  assert.equal(card.totalCents, 5000);
+  assert.equal(card.paidCents, 2000);
+  assert.equal(card.dueCents, 3000);
+  assert.equal(card.currency, "MXN");
+  assert.equal(card.method, "wire");
+});
+
+test("cash on an inquiry fills a paid card once and does not rewrite a refund", async () => {
+  const { admin, store } = fakeAdmin({
+    agency_bookings: [{ id: uuid(5), tenant_id: TENANT, source_inquiry_id: INQUIRY, total_client_revenue: 40, currency_code: "USD", created_at: "2026-09-24T00:00:00Z" }],
+    inquiry_messages: [
+      {
+        id: "m-1",
+        tenant_id: TENANT,
+        inquiry_id: INQUIRY,
+        message_kind: "payment_request",
+        card_payload: { amountCents: 1500, state: "paid" },
+        deleted_at: null,
+      },
+    ],
+  });
+  await stampInquiryPaidCards(admin, { tenantId: TENANT, inquiryId: INQUIRY, method: "cash", paidCents: 1500 });
+  const card = (store.inquiry_messages[0] as { card_payload: Record<string, unknown> }).card_payload;
+  assert.equal(card.method, "cash");
+  assert.equal(card.dueCents, 2500);
+  const before = JSON.stringify(card);
+  await stampInquiryPaidCards(admin, { tenantId: TENANT, inquiryId: INQUIRY, method: "wire", paidCents: 1500 });
+  assert.equal(JSON.stringify((store.inquiry_messages[0] as { card_payload: unknown }).card_payload), before);
 });

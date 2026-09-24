@@ -334,9 +334,11 @@ export function ClientChangeCard({ view, copy, business }: { readonly view: Chan
     ? <Pill tone="lost">{copy.cancel.pill}</Pill>
     : view.state === "applied"
       ? <Pill tone="won">{copy.change.applied}</Pill>
-      : view.state === "declined"
-        ? <Pill tone="lost">{copy.change.declined}</Pill>
-        : <Pill tone="due">{copy.change.sent}</Pill>;
+      : view.state === "failed"
+        ? <Pill tone="lost">{view.body || copy.pay.cancelled}</Pill>
+        : view.state === "declined"
+          ? <Pill tone="lost">{copy.change.declined}</Pill>
+          : <Pill tone="due">{copy.change.sent}</Pill>;
   const body = cancelled
     ? refundOnly
       ? fill(copy.cancel.refundOnly, { amount: money(view.refundedCents, view.currency) })
@@ -345,9 +347,11 @@ export function ClientChangeCard({ view, copy, business }: { readonly view: Chan
         : copy.cancel.noRefund
     : view.state === "applied"
       ? copy.change.appliedBody
-      : view.state === "declined"
-        ? fill(copy.change.declinedBody, { business })
-        : fill(copy.change.sentBody, { business });
+      : view.state === "failed"
+        ? view.body || copy.pay.cancelled
+        : view.state === "declined"
+          ? fill(copy.change.declinedBody, { business })
+          : fill(copy.change.sentBody, { business });
   return (
     <Card category="change" label={cancelled ? copy.cancel.cat : copy.change.cat} title={view.title ?? view.body ?? (cancelled ? copy.cancel.title : copy.change.title)} variant="mobile" testId={cancelled ? "client-cancel" : "client-change"} pills={pill}>
       {view.title && view.body && !cancelled ? <CardLine label={view.body} /> : null}

@@ -118,17 +118,7 @@ export async function syncPaymentCardsForRecord(
     return { ok: false, reason: "unavailable" };
   }
 
-  let orderTotal: { totalCents: number; currency: string } | null = null;
-  if (target === "paid") {
-    const { data: order } = await from("orders")
-      .select("total_cents, currency")
-      .eq("id", input.recordId)
-      .maybeSingle();
-    const row = order as { total_cents?: number; currency?: string } | null;
-    if (row && typeof row.total_cents === "number" && typeof row.currency === "string") {
-      orderTotal = { totalCents: row.total_cents, currency: row.currency };
-    }
-  }
+  const orderTotal = target === "paid" ? await loadSaleTotal(from, input.recordId) : null;
 
   let updated = 0;
   for (const row of (cards ?? []) as Array<{ id: string; card_payload: Record<string, unknown> | null }>) {
@@ -160,4 +150,80 @@ export async function syncPaymentCardsForRecord(
     updated += 1;
   }
   return { ok: true, updated };
+}
+
+/** Order totals are cents. Booking totals are major units. */
+export async function loadSaleTotal(
+  from: (table: string) => {
+    select: (cols: string) => {
+      eq: (col: string, val: string) => { maybeSingle: () => Promise<{ data: unknown }> };
+    };
+  },
+  recordId: string,
+): Promise<{ totalCents: number; currency: string } | null> {
+  const { data: order } = await from("orders").select("total_cents, currency").eq("id", recordId).maybeSingle();
+  const orderRow = order as { total_cents?: number; currency?: string } | null;
+  if (orderRow && typeof orderRow.total_cents === "number" && typeof orderRow.currency === "string") {
+    return { totalCents: orderRow.total_cents, currency: orderRow.currency };
+  }
+  const { data: booking } = await from("agency_bookings")
+    .select("total_client_revenue, currency_code")
+    .eq("id", recordId)
+    .maybeSingle();
+  const bookingRow = booking as { total_client_revenue?: number | string; currency_code?: string } | null;
+  if (bookingRow && bookingRow.total_client_revenue != null && bookingRow.total_client_revenue !== "") {
+    const major = Number(bookingRow.total_client_revenue);
+    if (Number.isFinite(major)) {
+      return { totalCents: Math.round(major * 100), currency: bookingRow.currency_code || "USD" };
+    }
+  }
+  return null;
+}
+
+/** Fill a paid card on this inquiry from its booking. Used after cash or a transfer. */
+export async function stampInquiryPaidCards(
+  admin: Admin,
+  input: { tenantId: string; inquiryId: string; method: string; paidCents?: number | null },
+): Promise<void> {
+  if (typeof admin.from !== "function") return;
+  const from = (table: string) => admin.from!(table);
+  const { data: booking } = await from("agency_bookings")
+    .select("total_client_revenue, currency_code")
+    .eq("tenant_id", input.tenantId)
+    .eq("source_inquiry_id", input.inquiryId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const row = booking as { total_client_revenue?: number | string; currency_code?: string } | null;
+  if (!row || row.total_client_revenue == null) return;
+  const major = Number(row.total_client_revenue);
+  if (!Number.isFinite(major)) return;
+  const totalCents = Math.round(major * 100);
+  const currency = row.currency_code || "USD";
+  const { data: cards } = await from("inquiry_messages")
+    .select("id, card_payload")
+    .eq("tenant_id", input.tenantId)
+    .eq("inquiry_id", input.inquiryId)
+    .eq("message_kind", "payment_request")
+    .is("deleted_at", null);
+  for (const card of (cards ?? []) as Array<{ id: string; card_payload: Record<string, unknown> | null }>) {
+    const payload = card.card_payload && typeof card.card_payload === "object" ? card.card_payload : {};
+    if (typeof payload.totalCents === "number" && typeof payload.method === "string") continue;
+    const paidCents = typeof input.paidCents === "number"
+      ? input.paidCents
+      : typeof payload.amountCents === "number"
+        ? payload.amountCents
+        : totalCents;
+    const { error } = await from("inquiry_messages")
+      .update({
+        card_payload: {
+          ...payload,
+          ...paidMoneyFields({ totalCents, paidCents, currency, method: input.method }),
+          state: "paid",
+          settledAt: new Date().toISOString(),
+        },
+      })
+      .eq("id", card.id);
+    if (error) logServerError("messaging.stampInquiryPaidCards", error);
+  }
 }
