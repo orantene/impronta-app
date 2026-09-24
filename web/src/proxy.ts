@@ -31,6 +31,7 @@ import {
 import { marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { boundTalentFallbackLocale, loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import {
   PREVIEW_COOKIE_OPTIONS,
@@ -197,10 +198,14 @@ export async function proxy(request: NextRequest) {
   // or auth. The render path reads the talent_profile_id from a host header set
   // here, so a client can never spoof it.
   if (hostContext.kind === "talent_site") {
-    const talentLangSettings = await getLanguageSettingsForMiddleware();
-    const localeStripped = isNonDefaultLocalePrefixedPath(pathname, talentLangSettings)
-      ? stripNonDefaultLocalePrefix(pathname, talentLangSettings)
-      : stripDefaultLocalePrefixFromPath(pathname, talentLangSettings);
+    // A talent's own preferred_locale as the fallback locale, see
+    // boundTalentFallbackLocale (2026-09-24). Genuinely parallel.
+    const [talentLangSettings, talentPreferredLocaleRaw] = await Promise.all([
+      getLanguageSettingsForMiddleware(),
+      loadTalentPreferredLocale(hostContext.talentProfileId),
+    ]);
+    const talentFallbackLocale = boundTalentFallbackLocale(talentPreferredLocaleRaw, talentLangSettings.publicLocales);
+    const localeStripped = isNonDefaultLocalePrefixedPath(pathname, talentLangSettings) ? stripNonDefaultLocalePrefix(pathname, talentLangSettings) : stripDefaultLocalePrefixFromPath(pathname, talentLangSettings);
 
     const decision = isTalentSiteHostPathAllowed(localeStripped);
     if (!decision) {
@@ -211,7 +216,7 @@ export async function proxy(request: NextRequest) {
     }
 
     const talentHeaders = new Headers(sanitizedInboundHeaders);
-    const locale = resolveLocaleForPathname(pathname, request, talentLangSettings);
+    const locale = resolveLocaleForPathname(pathname, request, talentLangSettings, talentFallbackLocale);
     talentHeaders.set(LOCALE_HEADER, locale);
     talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
     talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
@@ -231,7 +236,7 @@ export async function proxy(request: NextRequest) {
     const res = NextResponse.rewrite(rewriteUrl, {
       request: { headers: talentHeaders },
     });
-    syncLocaleCookieForPath(res, request.nextUrl.pathname, talentLangSettings, request);
+    syncLocaleCookieForPath(res, request.nextUrl.pathname, talentLangSettings, request, talentFallbackLocale);
     return res;
   }
 

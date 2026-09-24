@@ -197,14 +197,33 @@ export function isUnprefixedPublicDefaultPath(
  */
 
 /**
- * Spanish public URL → that locale. Default-locale public URL → default.
- * Dashboards / auth → cookie for UI language.
+ * Spanish public URL → that locale. Default-locale public URL → default (or
+ * `fallbackLocale`, see below). Dashboards / auth → cookie for UI language.
+ *
+ * `fallbackLocale` (2026-09-24): the locale to use once every signal this
+ * function already checks has been checked and found nothing. It stands in
+ * for `settings.defaultLocale` in exactly those four terminal branches, never
+ * earlier: an explicit `/es/...` path always wins over it, and so does a
+ * cookie on any branch that already checked one before this change — it is
+ * never LESS overridable than the default it replaces. (The unprefixed
+ * public-path branch never checked a cookie either way, by design — see
+ * `locale-precedence.test.ts`'s "cookie es does not override" case; that is
+ * also the one every real talent-site path goes through.) This is how a
+ * talent vanity host
+ * (`book-jorgelina.tulala.digital`) can fall back to THAT TALENT's own
+ * `preferred_locale` instead of the platform-wide default for a guest who
+ * has given no signal of their own — the caller resolves and validates that
+ * value (see `proxy.ts`'s `talent_site` branch) and passes it here; every
+ * other caller omits it and gets byte-identical behaviour to before.
  */
 export function resolveLocaleForPathname(
   pathname: string,
   request: NextRequest,
   settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+  fallbackLocale?: string,
 ): string {
+  const ambientDefault = fallbackLocale ?? settings.defaultLocale;
+
   if (isNonDefaultLocalePrefixedPath(pathname, settings)) {
     const inner = stripNonDefaultLocalePrefix(pathname, settings);
     if (!isDashboardInnerPathForLocalePrefix(inner)) {
@@ -213,7 +232,7 @@ export function resolveLocaleForPathname(
   }
 
   if (isDashboardInnerPath(pathname)) {
-    return readLocaleCookie(request, settings) ?? settings.defaultLocale;
+    return readLocaleCookie(request, settings) ?? ambientDefault;
   }
 
   const seg = firstSegment(pathname);
@@ -225,14 +244,14 @@ export function resolveLocaleForPathname(
     seg === "onboarding" ||
     seg === "update-password"
   ) {
-    return readLocaleCookie(request, settings) ?? settings.defaultLocale;
+    return readLocaleCookie(request, settings) ?? ambientDefault;
   }
 
   if (isUnprefixedPublicDefaultPath(pathname, settings)) {
-    return settings.defaultLocale;
+    return ambientDefault;
   }
 
-  return readLocaleCookie(request, settings) ?? settings.defaultLocale;
+  return readLocaleCookie(request, settings) ?? ambientDefault;
 }
 
 export function shouldRewriteLocalePublicPath(
@@ -249,6 +268,17 @@ export function syncLocaleCookieForPath(
   originalPathname: string,
   settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
   request?: import("next/server").NextRequest,
+  /**
+   * Same meaning as `resolveLocaleForPathname`'s `fallbackLocale` (2026-09-24):
+   * what a FRESH visitor's auto-stamped cookie should read once no real
+   * signal exists, instead of the bare platform default. Without this the
+   * header fix alone renders a talent's first page correctly but still
+   * stamps `locale=en` on their very first response — a latent mismatch the
+   * next reader of `document.cookie` (not the SSR path, which re-derives the
+   * header every request) would see. Omitted by every caller except the
+   * `talent_site` branch in `proxy.ts`.
+   */
+  fallbackLocale?: string,
 ): void {
   if (isNonDefaultLocalePrefixedPath(originalPathname, settings)) {
     const inner = stripNonDefaultLocalePrefix(originalPathname, settings);
@@ -288,7 +318,7 @@ export function syncLocaleCookieForPath(
     // that whole sequence hop by hop and asserts the cookie the browser holds
     // at the DESTINATION, not just after the first hop.
     if (existingIsSupported) return;
-    res.cookies.set(LOCALE_COOKIE, settings.defaultLocale, localeCookieOptions);
+    res.cookies.set(LOCALE_COOKIE, fallbackLocale ?? settings.defaultLocale, localeCookieOptions);
     // AUTO. Nobody chose this — it is the bookkeeping write that gives a fresh
     // visitor a 400-day `locale=en` cookie on their very first response. The
     // marker is what lets the language suggestion banner tell this apart from
