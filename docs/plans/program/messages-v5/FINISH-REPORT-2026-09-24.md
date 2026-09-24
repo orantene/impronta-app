@@ -100,3 +100,83 @@ Unblock: put a `pk_test_` (and matching secret) on an environment this lane can 
 ## Out of this run
 
 `proxy.ts`, CI 50% profile, `services_catalog` on Jorgelina, attachments / notes / talent-started threads, free-plan booking eligibility, #2202, #2127.
+
+---
+
+# Round 5 (24 September 2026, QA host proofs)
+
+Cited against `origin/main` = `origin/production` = `cd27278d1` (Merge #2227). Worktree `.claude/worktrees/round5-qa-proofs` on `docs/round5-qa-proofs`. Shared checkout was not the source.
+
+## Pointers
+
+| Ref | Sha | Note |
+|---|---|---|
+| `origin/main` | `cd27278d1` | Merge #2227 |
+| `origin/production` | `cd27278d1` | `git merge-base --is-ancestor cd27278d1 origin/production` = 0 |
+| `origin/program/journeys-2026-09` before this run | `825f69f42` | #2213; missing #2222 / #2225 / #2226 / #2227 |
+| `origin/program/journeys-2026-09` after mirror | `cd27278d1` | `git push -f origin origin/main:program/journeys-2026-09` |
+| QA alias before | `dpl_AbxsNHiWjqdezCBPKBJXmQEzgAuH` | sha `825f69f42` |
+| QA alias after | `dpl_BMP8ryuJvTZuSrm5zrsp2126S6y8` | sha `cd27278d1`; Ready; aliases include `staging-qa-journeys.tulala.digital` |
+
+## Step 1. QA host on current main
+
+**Proven.** Feature pointer force-mirror (the established exception). New preview Ready on `cd27278d1`. `dpl_` changed. Did not start dashboard proofs against the old build.
+
+## Step 2. Vercel protection bypass
+
+**Not proven. Stopped as specified.**
+
+`web/.env.capacity-isolated.local` was missing in the shared checkout and in this worktree when Step 2 started. The key `VERCEL_AUTOMATION_BYPASS_SECRET` is also absent from `.env.local` / `.env.prod` / `.env.vercel.local`. No value was read, written, rotated, or printed.
+
+Bare request (no header):
+
+- URL: `https://staging-qa-journeys.tulala.digital/`
+- Status: `302`
+- Location: `https://vercel.com/sso-api?url=https%3A%2F%2Fstaging-qa-journeys.tulala.digital%2F&nonce=…`
+
+That is Deployment Protection working. `/api/dev/signin` was not called. Playwright was not run.
+
+Unblock (owner, one line): put the existing Protection Bypass for Automation value into `web/.env.capacity-isolated.local` as `VERCEL_AUTOMATION_BYPASS_SECRET=…` (gitignored). Do not rotate. Do not paste it into chat, a PR, a commit, a log, or this report.
+
+No new product defect. No D-MSG-423.
+
+## Step 3. Stripe on journeys (D-MSG-330 / D-MSG-418)
+
+**Not proven.** Blocked on Step 2. `pk_test_` prefix was not read from a mounted pay sheet. `stripe-pay-refund.spec.ts` was not edited and not run. No card, no refund, no production pay.
+
+## Step 4. Talent dashboard (QA fixtures only)
+
+**Not proven.** No fixture agency or fixture talent was created. Jorgelina was not written.
+
+| # | Proof | Status | Reason |
+|---|---|---|---|
+| 1 | Money split (agency net vs hub client total) | not proven | Step 2 stop |
+| 2 | Group thread silent on amounts | not proven | Step 2 stop |
+| 3 | Accept / decline bar | not proven | Step 2 stop |
+| 4 | Ask in place | not proven | Step 2 stop |
+| 5 | Request-only copy | not proven | Step 2 stop |
+| 6 | Named refusals stay visible | not proven | Step 2 stop |
+| 7 | Builder publish | not proven | Step 2 stop |
+
+## Step 5. Workspace matrix
+
+**Not proven.** No `/get-started` restaurant or services fixture. Capacity, race, permissions, cross-tenant, links, reload, vocabulary, and hostile-data specs were not run.
+
+| # | Proof | Status | Reason |
+|---|---|---|---|
+| 1 | Capacity refusals (class / tier / table / appointment) | not proven | Step 2 stop |
+| 2 | Race: one win, one refusal, one row | not proven | Step 2 stop |
+| 3 | Permissions money | not proven | Step 2 stop |
+| 4 | Cross-tenant | not proven | Step 2 stop |
+| 5 | Expired / flipped / other-tenant links | not proven | Step 2 stop |
+| 6 | Reload and resume | not proven | Step 2 stop |
+| 7 | Restaurant vs services vocabulary | not proven | Step 2 stop |
+| 8 | Hostile data | not proven | Step 2 stop |
+
+## Not proven (must stay non-empty)
+
+Everything after Step 1. Next run starts at Step 2 once the gitignored env file exists on the machine that will run Playwright.
+
+## Out of this run
+
+`proxy.ts`, Jorgelina catalogue, free-plan booking eligibility, #2202, #2127, CI 50% profile, attachments / talent notes / talent-started threads, frozen `$700` without ≈ US$. Production pointer was not moved by hand.
