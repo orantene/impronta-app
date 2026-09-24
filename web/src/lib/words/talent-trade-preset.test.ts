@@ -140,7 +140,7 @@ test("survives an embedded parent returned as an array", async () => {
 });
 
 test("a massage group speaks as a spa, and beauty stays a salon", async () => {
-  const exploding = { from() { throw new Error("L2 hit must not query"); } } as any;
+  const exploding = { from() { throw new Error("L2 hit must not query"); } } as unknown as Parameters<typeof resolveTalentTradePreset>[0];
   assert.equal(await resolveTalentTradePreset(exploding, "massage-spa"), "spa_wellness");
   assert.equal(await resolveTalentTradePreset(fakeAdmin({ "beauty-services": "wellness-beauty" }), "beauty-services"), "salon_barber");
   assert.equal(await resolveTalentTradePreset(fakeAdmin({ "massage-therapist": "massage-spa" }), "massage-therapist"), "spa_wellness");
@@ -148,7 +148,7 @@ test("a massage group speaks as a spa, and beauty stays a salon", async () => {
 });
 
 test("a private chef speaks as a chef, not a consultation", async () => {
-  const exploding = { from() { throw new Error("L2 hit must not query"); } } as any;
+  const exploding = { from() { throw new Error("L2 hit must not query"); } } as unknown as Parameters<typeof resolveTalentTradePreset>[0];
   assert.equal(await resolveTalentTradePreset(exploding, "private-chefs"), "private_chef");
   assert.equal(await resolveTalentTradePreset(exploding, "chefs-culinary"), "private_chef");
   assert.equal(await resolveTalentTradePreset(fakeAdmin({ "not-a-term": null }), "not-a-term"), null);
