@@ -752,6 +752,8 @@ export type MiniChatBrand = {
   dockItemsLabel?: string | null;
   /** L13: the industry preset represents people (agency, act); false for a restaurant, venue, salon. */
   dockRepresentsPeople?: boolean;
+  /** Progress-rail trade. Null keeps the numeric details chip. */
+  dockIntake?: "beauty" | "chef" | "massage" | "agency" | null;
 };
 
 export type MiniChatPanelProps = {

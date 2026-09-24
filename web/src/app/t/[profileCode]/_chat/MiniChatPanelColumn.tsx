@@ -42,6 +42,7 @@ import type { StreamRow } from "./MiniChatMessageBubble";
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
 import { GuestConversationBody } from "./GuestConversationBody";
 import { countCoreDetails } from "./guest-detail-progress";
+import { intakeFactsFromInquiry, intakeRailLabel } from "./guest-intake-rail";
 import { GuestDockHomeView } from "./GuestDockHomeView";
 import { GuestDockLineupView } from "./GuestDockLineupView";
 import { GuestDockProjectsView } from "./GuestDockProjectsView";
@@ -429,6 +430,14 @@ export function MiniChatPanelColumn({
     detailsEnabled && inquiryIntent
       ? countCoreDetails(inquiryIntent, capturedChipValues)
       : null;
+  const railLabel = brand.dockIntake
+    ? intakeRailLabel(
+        brand.dockIntake,
+        intakeFactsFromInquiry(inquiryIntent, capturedChipValues, threadStatus === "booked"),
+        Boolean(inquiryId),
+        t,
+      )
+    : null;
 
   return (
     <>
@@ -453,6 +462,7 @@ export function MiniChatPanelColumn({
         }
         detailsFilled={detailsProgress?.filled ?? 0}
         detailsTotal={detailsProgress?.total ?? 0}
+        railLabel={railLabel}
         t={t}
         onClose={onClose}
       />

@@ -16,6 +16,7 @@ import "server-only";
 
 import { loadGuestChatSettings } from "./guest-chat-settings";
 import { GUEST_CHAT_DEFAULTS } from "./guest-chat-settings-shape";
+import { intakeTradeForPreset, type IntakeTrade } from "@/app/t/[profileCode]/_chat/guest-intake-rail";
 import { chatItemsLabel } from "@/lib/words/chat-items-label";
 import type { IndustryPresetId } from "@/lib/words/presets";
 import { loadTenantWords } from "@/lib/words/server";
@@ -25,6 +26,8 @@ export type GuestDockFlags = {
   dockCardsV5: boolean;
   dockItemsLabel: string | null;
   dockRepresentsPeople: boolean;
+  /** Which facts the progress rail names. Null keeps the count chip. */
+  dockIntake: IntakeTrade | null;
 };
 
 export async function loadGuestDockFlags(
@@ -37,7 +40,7 @@ export async function loadGuestDockFlags(
   presetOverride?: IndustryPresetId | null,
 ): Promise<GuestDockFlags> {
   if (!tenantId) {
-    return { dockItemsTab: GUEST_CHAT_DEFAULTS.itemsTab, dockCardsV5: GUEST_CHAT_DEFAULTS.cardsV5, dockItemsLabel: null, dockRepresentsPeople: true };
+    return { dockItemsTab: GUEST_CHAT_DEFAULTS.itemsTab, dockCardsV5: GUEST_CHAT_DEFAULTS.cardsV5, dockItemsLabel: null, dockRepresentsPeople: true, dockIntake: null };
   }
   const [settings, words] = await Promise.all([
     loadGuestChatSettings(tenantId),
@@ -57,5 +60,6 @@ export async function loadGuestDockFlags(
       sourceOf: (key) => words.sourceOf(key),
     }),
     dockRepresentsPeople: representsPeople,
+    dockIntake: intakeTradeForPreset(words.preset.id),
   };
 }

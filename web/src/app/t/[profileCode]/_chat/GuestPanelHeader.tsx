@@ -74,6 +74,8 @@ export type GuestPanelHeaderProps = {
   onOpenDetails?: (() => void) | null;
   detailsFilled?: number;
   detailsTotal?: number;
+  /** Named next fact. When set, the chip shows this instead of a count. */
+  railLabel?: string | null;
   /** Whether the panel is currently expanded (label + icon). */
   expanded?: boolean;
   t: Translator;
@@ -95,6 +97,7 @@ export function GuestPanelHeader({
   onOpenDetails = null,
   detailsFilled = 0,
   detailsTotal = 6,
+  railLabel = null,
   t,
   onClose,
 }: GuestPanelHeaderProps) {
@@ -141,6 +144,7 @@ export function GuestPanelHeader({
           onOpenDetails={onOpenDetails}
           filled={detailsFilled}
           total={detailsTotal}
+          railLabel={railLabel}
           accent={accent}
           accentInk={accentInk}
           C={C}
@@ -382,6 +386,7 @@ function DetailsChip({
   onOpenDetails,
   filled,
   total,
+  railLabel = null,
   accent,
   accentInk,
   C,
@@ -390,13 +395,16 @@ function DetailsChip({
   onOpenDetails: () => void;
   filled: number;
   total: number;
+  railLabel?: string | null;
   accent: string;
   accentInk: string;
   C: Palette;
   t: Translator;
 }) {
   const started = total > 0 && filled > 0;
-  const label = started
+  const label = railLabel
+    ? railLabel
+    : started
     ? interpolate(t("public.guestChat.detailsChipProgress"), {
         filled: String(filled),
         total: String(total),
