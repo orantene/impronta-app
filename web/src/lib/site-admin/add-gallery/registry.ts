@@ -209,6 +209,10 @@ export function filterGalleryItemsFrom(
       return false;
     }
     if (!q) return true;
+    // A search widens past the active category, which would otherwise surface
+    // both a real item and its "rec:"-prefixed Recommended alias (same label,
+    // same haystack) as two separate cards for the same query.
+    if (item.id.startsWith("rec:")) return false;
     return itemSearchHaystack(item).includes(q);
   });
 }

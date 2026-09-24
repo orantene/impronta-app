@@ -22,12 +22,14 @@
  * matching the talent's tier (§E).
  */
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildTalentPageBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { createBoundTalentPageAdapter } from "@/lib/site-admin/builder-core/adapters/talent-page-adapter";
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
+import { TALENT_LOCKED_OPERATION_EVENT } from "@/components/edit-chrome/talent-lock-broadcast";
 import { BuilderMediaScopeProvider } from "@/components/edit-chrome/builder-media-scope";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
@@ -98,6 +100,29 @@ export function TalentMaxBuilderMount({
       ),
     [talentProfileId, talentTier, siteCapabilities],
   );
+
+  // Phase 1 stopgap — the real Phase 4 upgrade dialog isn't shipped yet, so a
+  // sections-lock refusal would otherwise leave the talent with the denial
+  // toast and no path forward. Until that dialog exists, route to the plan
+  // card on Settings instead of leaving the event unheard. `navigatedRef`
+  // stops a second denial (e.g. a repeated click while the toast is still up)
+  // from firing a second navigation.
+  const router = useRouter();
+  const navigatedRef = useRef(false);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onLocked = () => {
+      if (navigatedRef.current) return;
+      navigatedRef.current = true;
+      // Give the existing denial toast a moment on screen before leaving.
+      timer = setTimeout(() => router.push("/talent/settings"), 1200);
+    };
+    window.addEventListener(TALENT_LOCKED_OPERATION_EVENT, onLocked);
+    return () => {
+      window.removeEventListener(TALENT_LOCKED_OPERATION_EVENT, onLocked);
+      if (timer) clearTimeout(timer);
+    };
+  }, [router]);
 
   return (
     <BuilderMediaScopeProvider talentProfileId={talentProfileId}>
