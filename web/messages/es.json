@@ -4806,7 +4806,7 @@
         "hoursNobody": "Agrega primero a una persona o recurso.",
         "hoursReadOnly": "Esta persona define sus propios horarios.",
         "proposalBannerTitle": "Horario propuesto para revisar",
-        "proposalBannerDesc": "Publicar este servicio sugirió un calendario semanal porque todavía no había uno. Elegí un huso horario y aceptalo, o definí el horario abajo.",
+        "proposalBannerDesc": "Publicar este servicio sugirió un calendario semanal porque todavía no había uno. Elige un huso horario y acéptalo, o define el horario abajo.",
         "proposalTimezoneLabel": "Huso horario para este horario",
         "proposalAccept": "Aceptar horario propuesto",
         "proposalAccepting": "Aceptando…",
