@@ -187,6 +187,25 @@ test("ctaLabel overrides the OfferingCta text", () => {
   assert.match(html, />Seleccionar</);
 });
 
+test("row with extras uses Elegir opciones unless inspector overrides", () => {
+  const html = render([catalogNode()], {
+    talentOfferings: [
+      offering({
+        addOns: [{ id: "x1", label: "French", amountCents: 8000 }],
+      }),
+    ],
+  });
+  assert.match(html, />Choose options</);
+  assert.match(html, /data-offering-cta=/);
+});
+
+test("the catalog island mounts the booking sheet and bar", () => {
+  const html = render([catalogNode()], { talentOfferings: [offering({})] });
+  assert.match(html, /class="cb-island"/);
+  assert.match(html, /class="cb-bar"/);
+  assert.match(html, /Choose a service/);
+});
+
 test("category_order wins over first-seen order in the pill strip", () => {
   const html = render([catalogNode()], {
     talentOfferings: [
