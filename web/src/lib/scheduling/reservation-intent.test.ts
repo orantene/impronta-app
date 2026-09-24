@@ -73,8 +73,12 @@ test("enrichBookingFromReservation no-ops without a stamp (M0 unchanged)", async
         select: () => ({
           eq: () => ({
             maybeSingle: async () => ({
-              data: table === "inquiries" ? { id: "i1", tenant_id: "t1", source_context: {} } : null,
+              data: table === "inquiries" ? { id: "i1", tenant_id: "t1", source_context: {}, event_timezone: null } : null,
               error: null,
+            }),
+            // Live-hold fallback (D-MSG-413): M0 has neither stamp nor hold.
+            order: () => ({
+              limit: async () => ({ data: [], error: null }),
             }),
           }),
         }),
