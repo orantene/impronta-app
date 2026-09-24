@@ -13,7 +13,12 @@ import {
   wantsAccessProfileRefresh,
 } from "@/lib/auth/access-profile-refresh";
 import { IMPERSONATION_COOKIE_NAME } from "@/lib/impersonation/constants";
-import { signGuestCookie, verifyGuestCookie } from "@/lib/guest-cookie";
+import {
+  GUEST_COOKIE_NAME,
+  GUEST_COOKIE_OPTIONS,
+  GUEST_HEADER_NAME,
+  resolveGuestIdentity,
+} from "@/lib/guest-cookie";
 import { clearImpersonationCookieOnResponse } from "@/lib/impersonation/cookie";
 import { resolveImpersonationRoutingForMiddleware } from "@/lib/impersonation/dashboard-identity";
 import { NextRequest, NextResponse } from "next/server";
@@ -22,8 +27,6 @@ import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-langua
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 
 
-const GUEST_COOKIE = "impronta_guest";
-const GUEST_HEADER = "x-impronta-guest";
 const LOCALE_HEADER = "x-impronta-locale";
 
 /**
@@ -177,18 +180,12 @@ export async function updateSession(
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   // The `impronta_guest` cookie is an HMAC-signed bearer token
-  // (`${id}.${sig}`). Verify the inbound value before trusting it: a valid
-  // signature yields the PLAIN id (forwarded downstream); an invalid OR
-  // legacy-unsigned value is treated as absent so we mint a fresh signed
-  // cookie + new id. When GUEST_COOKIE_SECRET is unset, verify/sign degrade
-  // to the legacy raw-UUID behavior (see @/lib/guest-cookie).
-  const rawGuestCookie = request.cookies.get(GUEST_COOKIE)?.value;
-  const verifiedGuestId = verifyGuestCookie(rawGuestCookie);
-  const guestKey = verifiedGuestId ?? crypto.randomUUID();
-  // Re-mint the cookie whenever the inbound value didn't verify to the exact
-  // plain id we'll forward (absent, forged, or legacy-unsigned). When the
-  // signature is valid we leave the existing signed cookie in place.
-  const needsGuestCookie = verifiedGuestId === null || rawGuestCookie !== signGuestCookie(guestKey);
+  // (`${id}.${sig}`). See `resolveGuestIdentity` for the verify-or-mint
+  // contract — it is the ONLY place this logic may live, shared with any
+  // surface (a talent vanity host's rewrite in proxy.ts) that must resolve
+  // a guest identity without running this function at all.
+  const rawGuestCookie = request.cookies.get(GUEST_COOKIE_NAME)?.value;
+  const { guestKey, needsGuestCookie, signedGuestCookie } = resolveGuestIdentity(rawGuestCookie);
 
   const pathnameForAuth = options?.pathnameForAuth ?? request.nextUrl.pathname;
   const lang = options?.languageSettings ?? FALLBACK_LANGUAGE_SETTINGS;
@@ -198,7 +195,7 @@ export async function updateSession(
   // BEFORE we copy them downstream. Only middleware (post-getUser) is
   // allowed to write these.
   for (const h of ACTOR_HEADERS_TO_STRIP) forwardedHeaders.delete(h);
-  forwardedHeaders.set(GUEST_HEADER, guestKey);
+  forwardedHeaders.set(GUEST_HEADER_NAME, guestKey);
   const presetLocale = request.headers.get(LOCALE_HEADER);
   const fromPath = stripLocaleFromPathname(pathnameForAuth, lang).locale;
   const presetOk =
@@ -206,22 +203,13 @@ export async function updateSession(
     (lang.publicLocales.includes(presetLocale!) || presetLocale === lang.defaultLocale);
   forwardedHeaders.set(LOCALE_HEADER, presetOk && presetLocale ? presetLocale : fromPath);
 
-  const guestCookieOptions = {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: 60 * 60 * 24 * 400,
-    secure: process.env.NODE_ENV === "production",
-  };
-
   const authDebugEnabled = shouldAttachAuthDebug(request.nextUrl.searchParams);
 
   // Store the SIGNED token in the cookie; the PLAIN id travels downstream via
   // the x-impronta-guest header (set on forwardedHeaders above).
-  const signedGuestCookie = signGuestCookie(guestKey);
   const attachGuestCookie = (res: NextResponse) => {
     if (needsGuestCookie) {
-      res.cookies.set(GUEST_COOKIE, signedGuestCookie, guestCookieOptions);
+      res.cookies.set(GUEST_COOKIE_NAME, signedGuestCookie, GUEST_COOKIE_OPTIONS);
     }
     return res;
   };

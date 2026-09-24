@@ -17,6 +17,7 @@ import { eventPathRedirectResponse } from "@/lib/events/event-path-middleware";
 import { resolveEventPathRewrite } from "@/lib/events/event-page-paths";
 import { rateLimitHtmlResponse, rateLimitJsonResponse, tryConsumeRateLimit } from "@/lib/rate-limit";
 import { updateSession } from "@/lib/supabase/middleware";
+import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
@@ -227,15 +228,14 @@ export async function proxy(request: NextRequest) {
     talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
     talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
 
+    const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
     if (decision.kind === "passthrough") {
-      return NextResponse.next({ request: { headers: talentHeaders } });
+      return attachGuestCookie(NextResponse.next({ request: { headers: talentHeaders } }));
     }
 
     const rewriteUrl = request.nextUrl.clone();
     rewriteUrl.pathname = talentSiteHostRewritePath(decision.pageSlug);
-    const res = NextResponse.rewrite(rewriteUrl, {
-      request: { headers: talentHeaders },
-    });
+    const res = attachGuestCookie(NextResponse.rewrite(rewriteUrl, { request: { headers: talentHeaders } }));
     syncLocaleCookieForPath(res, request.nextUrl.pathname, talentLangSettings, request, talentFallbackLocale);
     return res;
   }
