@@ -895,6 +895,7 @@
       "errGeneric": "Algo salió mal. Inténtalo de nuevo.",
       "tryAgainIn": "Inténtalo de nuevo en {secs}s.",
       "sendMessageAria": "Enviar mensaje",
+      "statusDraft": "Borrador",
       "statusOpen": "Conversación abierta",
       "statusOfferPending": "Tienes una oferta",
       "statusApproved": "Aprobada",

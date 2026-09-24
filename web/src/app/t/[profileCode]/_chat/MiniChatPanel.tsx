@@ -712,8 +712,10 @@ export function MiniChatPanel({
     showSentAirlock,
     // Finding #2: the explicit "Send to agency" CTA. Hidden once the thread is a
     // live, contact-promoted conversation (the composer carries the reply flow).
+    // First visit has no inquiry, so there is no Send button. Send appears
+    // only once a draft row exists and the contact is not yet promoted.
     onSendToAgency:
-      onEnsureInquiry && !(inquiryId && unified.contactPromoted)
+      onEnsureInquiry && inquiryId && !unified.contactPromoted
         ? () => void sendToAgency()
         : undefined,
     sentNote,
