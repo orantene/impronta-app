@@ -35,7 +35,7 @@ export type OfferingRequestDetail = {
   /** D4 — selectable options (client picks one; null price = base applies). */
   variants?: { id: string; label: string; amountCents: number | null }[];
   /** D4 — stackable extras (client picks any). */
-  addOns?: { id: string; label: string; amountCents: number }[];
+  addOns?: { id: string; label: string; amountCents: number; durationMinutes?: number | null }[];
   /** D5 — null = unlimited; products with stock cap the qty stepper. */
   inventoryQty?: number | null;
   /** Set when the offering sells from a capacity pool; null = unlimited. */

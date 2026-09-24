@@ -4438,7 +4438,7 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-photo{width:120px;height:120px;border-radius:0;object-fit:cover;flex-shrink:0;background:color-mix(in srgb,var(--token-color-ink) 6%,transparent)}
 @media (max-width:560px){.site-builder-node--services-catalog-photo{width:72px;height:72px}}
 .site-builder-node--services-catalog-copy{min-width:0;display:flex;flex-direction:column;gap:.25rem}
-.site-builder-node--services-catalog-name{font-weight:600;font-size:1rem;line-height:1.3}
+.site-builder-node--services-catalog-name{font-weight:600;font-size:1rem;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
 .site-builder-node--services-catalog-desc{font-size:.8125rem;line-height:1.45;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .site-builder-node--services-catalog-duration{font-size:.75rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-price{text-align:right;white-space:nowrap;font-size:1rem}

@@ -296,7 +296,7 @@ export function CatalogRow({
         <span className="site-builder-node--services-catalog-photo" aria-hidden />
       )}
       <span className="site-builder-node--services-catalog-copy">
-        <strong className="site-builder-node--services-catalog-name">
+        <strong className="site-builder-node--services-catalog-name" title={item.title}>
           {item.title}
           {selected ? (
             <span className="site-builder-node--services-catalog-check" aria-hidden>
