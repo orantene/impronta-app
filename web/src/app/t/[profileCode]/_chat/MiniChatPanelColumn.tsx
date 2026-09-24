@@ -457,6 +457,20 @@ export function MiniChatPanelColumn({
         onClose={onClose}
       />
 
+      {dockEnabled && onDockViewChange && (
+        <GuestDockNav
+          active={activeDockView}
+          onChange={onDockViewChange}
+          accent={accent}
+          C={C}
+          t={t}
+          lineupCount={cartTalentNames.length}
+          projectsCount={inquiries.length}
+          itemsTab={brand.dockItemsTab !== false}
+          itemsLabel={brand.dockItemsLabel ?? null}
+        />
+      )}
+
       {/* ── In-chat thread switcher: slide-over drawer OVER the chat (one tap
           on the header title). Extracted to GuestThreadSwitcherDrawer. ───── */}
       <GuestThreadSwitcherDrawer
@@ -780,20 +794,6 @@ export function MiniChatPanelColumn({
         </>
       )}
 
-      {/* ── DOCK v2: bottom tab bar (Home · Chat · Lineup · Projects) ─────── */}
-      {dockEnabled && onDockViewChange && (
-        <GuestDockNav
-          active={activeDockView}
-          onChange={onDockViewChange}
-          accent={accent}
-          C={C}
-          t={t}
-          lineupCount={cartTalentNames.length}
-          projectsCount={inquiries.length}
-          itemsTab={brand.dockItemsTab !== false}
-          itemsLabel={brand.dockItemsLabel ?? null}
-        />
-      )}
     </>
   );
 }

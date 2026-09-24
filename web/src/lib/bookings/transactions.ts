@@ -632,7 +632,12 @@ export async function markPaid(
         sender_user_id: null,
         body: `Payment received: ${amountLabel}`.trim(),
         message_kind: "payment_paid",
-        card_payload: { amount_label: amountLabel, transaction_id: result.data.id },
+        card_payload: {
+          amount_label: amountLabel,
+          transaction_id: result.data.id,
+          checkout_type: result.data.checkoutType,
+          provider: result.data.provider,
+        },
       }).then((r) => {
         if (r.error) logServerError("transactions.markPaid.chatCard", r.error);
       });
@@ -720,7 +725,7 @@ export async function markPaid(
           sender_user_id: null,
           body: "Payment received — your booking is confirmed.",
           message_kind: "payment_paid",
-          card_payload: { amount_label: "", transaction_id: result.data.id },
+          card_payload: { amount_label: "", transaction_id: result.data.id, checkout_type: result.data.checkoutType },
         }).then((r) => {
           if (r.error) logServerError("transactions.markPaid.chatCard.group", r.error);
         });
