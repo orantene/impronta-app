@@ -90,6 +90,14 @@ export type PurchaseInput = {
    */
   openThread?: boolean;
   /**
+   * Cookie-backed `guest_sessions.id` (via `resolveGuestSessionId`). When
+   * `openThread` creates an inquiry for a guest (no `actorUserId`), this is
+   * stamped on `inquiries.guest_session_id` so `/c/[inquiryId]` survives refresh.
+   * Contact-backed customers still need it: `resolvePurchaseBuyer` returns
+   * `guestSessionId: null` once an email is known.
+   */
+  guestSessionId?: string | null;
+  /**
    * A CALENDAR SLOT this purchase must hold, distinct from capacity units.
    *
    * Capacity answers "are there seats left"; a slot answers "is this person

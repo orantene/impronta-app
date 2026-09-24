@@ -21,6 +21,7 @@ import {
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
+import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -35,6 +36,17 @@ const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"
 const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function shouldSkipGuestCaptchaOnHost(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  if (host !== "localhost" && host !== "127.0.0.1") return false;
+  // Mirrors instant-book-guest: only with the same flag that unlocks /dev.
+  return (
+    process.env.NEXT_PUBLIC_TULALA_ALLOW_DEV_SURFACES === "1" ||
+    process.env.NODE_ENV === "development"
+  );
+}
 
 async function fetchLiveSlots(offeringId: string): Promise<{ slots: string[]; timezone: string }> {
   const from = new Date().toISOString().slice(0, 10);
@@ -58,6 +70,7 @@ export function CatalogBookingSheet({
   slotsFn,
   showAsk = false,
   onAsk,
+  captcha = null,
 }: {
   locale?: string;
   mode?: CatalogBookingMode;
@@ -66,6 +79,7 @@ export function CatalogBookingSheet({
   slotsFn?: CatalogSlotsFn;
   showAsk?: boolean;
   onAsk?: (detail: CatalogBookingDetail) => void;
+  captcha?: GuestCaptchaConfig | null;
 }) {
   const es = locale.startsWith("es");
   const DAYS = es ? DAYS_ES : DAYS_EN;
@@ -80,6 +94,7 @@ export function CatalogBookingSheet({
   const [liveTz, setLiveTz] = useState("UTC");
   const [liveDays, setLiveDays] = useState<Array<{ key: string; date: Date; starts: string[] }>>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsReady, setSlotsReady] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -87,6 +102,11 @@ export function CatalogBookingSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wrote, setWrote] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+
+  const skipCaptcha = shouldSkipGuestCaptchaOnHost();
+  const captchaRequired =
+    !skipCaptcha && captcha != null && captcha.provider !== "none" && Boolean(captcha.siteKey);
 
   const days = useMemo(() => catalogNextDays(), []);
   const trapRef = useFocusTrap<HTMLDivElement>(detail !== null);
@@ -139,6 +159,11 @@ export function CatalogBookingSheet({
 
   const variant = (detail?.variants ?? []).find((v) => v.id === variantId) ?? null;
   const extras = (detail?.addOns ?? []).filter((a) => addOnIds.includes(a.id));
+  const extrasMinutes = extras.reduce(
+    (sum, a) => sum + (typeof a.durationMinutes === "number" && a.durationMinutes > 0 ? a.durationMinutes : 0),
+    0,
+  );
+  const bookingDurationMinutes = (detail?.durationMinutes ?? 60) + extrasMinutes;
   const needsVariant = (detail?.variants ?? []).length > 0;
   const base = variant?.amountCents ?? detail?.amountCents ?? 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
@@ -163,6 +188,7 @@ export function CatalogBookingSheet({
   useEffect(() => {
     if (!detail || step !== "when" || mode !== "live") return;
     let cancelled = false;
+    setSlotsReady(false);
     setSlotsLoading(true);
     const run = slotsFn ?? fetchLiveSlots;
     run(detail.offeringId)
@@ -178,7 +204,10 @@ export function CatalogBookingSheet({
         if (!cancelled) setLiveDays([]);
       })
       .finally(() => {
-        if (!cancelled) setSlotsLoading(false);
+        if (!cancelled) {
+          setSlotsLoading(false);
+          setSlotsReady(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -199,6 +228,10 @@ export function CatalogBookingSheet({
   const confirm = async () => {
     setTouched(true);
     if (!nameValid || !emailValid || !phoneValid) return;
+    if (captchaRequired && !captchaToken.trim()) {
+      setError(es ? "Completá la verificación." : "Complete the verification.");
+      return;
+    }
     setBusy(true);
     setError(null);
     const submitted = await submitCatalogBooking(mode, detail.intent, async () => {
@@ -209,12 +242,12 @@ export function CatalogBookingSheet({
         ? {
             startsAt: liveStarts,
             endsAt: new Date(
-              new Date(liveStarts).getTime() + (detail.durationMinutes ?? 60) * 60_000,
+              new Date(liveStarts).getTime() + bookingDurationMinutes * 60_000,
             ).toISOString(),
             timezone: liveTz,
           }
         : time
-          ? demoReservationIso(day, time, detail.durationMinutes)
+          ? demoReservationIso(day, time, bookingDurationMinutes)
           : null;
       const run =
         bookFn ??
@@ -226,10 +259,12 @@ export function CatalogBookingSheet({
         contactEmail: email.trim(),
         contactPhone: phone.trim() || null,
         offeringId: detail.offeringId,
-        payInPerson: true,
+        payInPerson:
+          detail.reserveMode === "free" && detail.allowPayInPerson !== false,
         variantId,
         addOnIds,
         reservation,
+        captchaToken: captchaRequired ? captchaToken || null : null,
         sourcePage: typeof window !== "undefined" ? window.location.pathname : null,
       });
     });
@@ -248,6 +283,11 @@ export function CatalogBookingSheet({
       return;
     }
     setWrote(true);
+    const redirect = result.redirectPath?.trim();
+    if (redirect) {
+      window.location.href = redirect;
+      return;
+    }
     setStep("done");
   };
 
@@ -349,7 +389,12 @@ export function CatalogBookingSheet({
                             )
                           }
                         />
-                        <span>{a.label}</span>
+                        <span>
+                          {a.label}
+                          {typeof a.durationMinutes === "number" && a.durationMinutes > 0
+                            ? ` · +${a.durationMinutes} min`
+                            : ""}
+                        </span>
                         <b>+ {money(a.amountCents, detail.currency)}</b>
                       </label>
                     );
@@ -380,7 +425,7 @@ export function CatalogBookingSheet({
               <button type="button" className="jb-back-link" onClick={() => setStep("choose")}>
                 {es ? "← Cambiar servicio u opciones" : "← Change service or options"}
               </button>
-              {mode === "live" && slotsLoading ? (
+              {mode === "live" && (slotsLoading || !slotsReady) ? (
                 <p className="jb-fixture">{es ? "Cargando horarios…" : "Loading times…"}</p>
               ) : mode === "live" ? (
                 <>
@@ -543,6 +588,13 @@ export function CatalogBookingSheet({
                   ? "No se cobra nada ahora. El pago se realiza en el estudio."
                   : "Nothing is charged now. Pay at the studio."}
               </p>
+              {captchaRequired ? (
+                <GuestCaptchaField
+                  captcha={captcha}
+                  locale={locale}
+                  onToken={(token) => setCaptchaToken(token)}
+                />
+              ) : null}
               {showAsk && onAsk ? (
                 <button type="button" className="jb-ask" onClick={() => onAsk(detail)}>
                   {es ? "¿Tenés una duda? Preguntá antes de reservar →" : "Have a question? Ask first →"}

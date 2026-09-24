@@ -170,7 +170,9 @@ export async function resolveInstantBookActor(input: {
       contactName: (input.contactName || input.user.email || "Client").toString(),
       contactEmail: (input.contactEmail || input.user.email || "").toString(),
       contactPhone: input.contactPhone ?? null,
-      useServiceRoleConvert: false,
+      // `customers` has no INSERT policy; the purchase pipeline always needs
+      // the service role for ensureCustomer, session or guest.
+      useServiceRoleConvert: true,
     };
   }
 
@@ -262,7 +264,13 @@ export function convertClientForActor(
 ): SupabaseClient {
   if (!actor.useServiceRoleConvert) return sessionClient;
   const admin = createServiceRoleClient();
-  return admin ?? sessionClient;
+  // Do not fall back to the anon/session client: guest writes need the
+  // service role (`customers` has no INSERT policy by design). Falling back
+  // surfaces as `42501 permission denied for table customers`.
+  if (!admin) {
+    throw new Error("Service role client unavailable for guest booking.");
+  }
+  return admin;
 }
 
 export async function notifyGuestInstantBooking(input: {

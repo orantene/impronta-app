@@ -1,0 +1,21 @@
+{
+  "inquiryId": "a297f744-6211-4310-80f6-d3943928d6a1",
+  "orderId": "98d64c71-65ba-437c-b558-fc66ae24f73d",
+  "holdIds": [
+    "2bec8682-9646-4806-9cef-c606ab361521"
+  ],
+  "customerId": "6eb6db9d-e239-45c3-96fd-6f8a1f3079c1",
+  "guest_session_id": "d775ccb6-65cd-4b60-a147-f8f7b67c0bb5",
+  "redirect": "/c/a297f744-6211-4310-80f6-d3943928d6a1?instant_booked=1",
+  "refreshed": true,
+  "deleted": [
+    "lines:ok",
+    "holds:ok",
+    "order:ok",
+    "customer:ok",
+    "msgs:ok",
+    "inquiry:ok",
+    "hours:ok",
+    "marathon customers:ok"
+  ]
+}

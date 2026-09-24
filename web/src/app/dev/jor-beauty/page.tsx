@@ -38,6 +38,7 @@ import { DemoBookingSheet } from "./DemoBookingSheet";
 import { DEMO_SHEET_CSS } from "./demo-sheet-styles";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { loadTalentManagingTenantId } from "@/lib/talent-site/server/load-max-site";
+import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
 import {
   JOR_BEAUTY_PROFILE_CODE,
@@ -104,9 +105,12 @@ export default async function JorBeautyMockupPage({
 
   const liveBook = sp.book === "live";
   let liveTenantId: string | null = null;
+  let liveCaptcha = null as Awaited<ReturnType<typeof loadGuestInstantChrome>>["captcha"] | null;
   let offerings: TalentOffering[] = jorOfferings(locale);
   if (liveBook) {
     liveTenantId = await loadTalentManagingTenantId(JOR_PROFILE_ID);
+    const chrome = await loadGuestInstantChrome(liveTenantId);
+    liveCaptcha = chrome.captcha;
     const real = await loadPublicOfferingsForProfile(JOR_PROFILE_ID, locale);
     if (real.length) offerings = real;
   }
@@ -240,7 +244,12 @@ export default async function JorBeautyMockupPage({
     <>
       <style dangerouslySetInnerHTML={{ __html: DEMO_SHEET_CSS }} />
       <MaisonProfileLayout {...props} />
-      <DemoBookingSheet locale={locale} mode={liveBook ? "live" : "demo"} tenantId={liveTenantId} />
+      <DemoBookingSheet
+        locale={locale}
+        mode={liveBook ? "live" : "demo"}
+        tenantId={liveTenantId}
+        captcha={liveCaptcha}
+      />
       <DemoAskPanel />
     </>
   );
