@@ -74,7 +74,16 @@ jobs:
   gate:
     name: Structural quality gate
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 45, not 25. At 25 this job was killed mid-flight at 25m15s on a main
+    # commit. GitHub reports a timeout as `cancelled`, not `failure`, and
+    # promote-production.yml requires `success` on that exact commit, so the
+    # pointer silently did not advance: the merge landed and nothing shipped.
+    # This job's own clock on the five most recent successful main runs:
+    # 22m42s, 23m41s, 23m53s, 24m4s, 15m43s. Four of five sat within 70
+    # seconds of the cap, so the outcome was decided by runner variance
+    # rather than by the work. This does not make CI slower; it stops a slow
+    # run being killed. See the "Main CI cancelled itself" incident.
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: web
