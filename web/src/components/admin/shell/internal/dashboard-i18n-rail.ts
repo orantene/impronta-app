@@ -49,4 +49,8 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Setup is owner-only · ask the owner": "La configuración es solo del propietario · pídesela",
   // The tagline under the wordmark at the head of the rail.
   "Sell what you do, not what you ship": "Vende lo que haces, no lo que envías",
+  "A newer version is live. Reload to keep editing.": "Hay una versión más reciente. Recargá para seguir editando.",
+  Reload: "Recargar",
+  "A newer version was published while this was open. Reload and try again.":
+    "Se publicó una versión más reciente mientras esto estaba abierto. Recargá e intentá de nuevo.",
 };

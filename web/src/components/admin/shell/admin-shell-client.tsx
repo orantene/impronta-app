@@ -47,8 +47,8 @@ import { AdminShellProvider, useAdminShell, COLORS, FONTS, TRANSITION, Z, meetsR
 // FeedbackButton intentionally NOT imported — it was the legacy bottom-right
 // FAB and now lives dormant in _primitives. The new unified BottomActionFab
 // owns that screen position; feedback is reachable via the FAB's Ask AI tab.
-import { Icon, ToastHost, BackToTop, OfflineBanner, ShortcutsModal, type AdminShellIconName } from "./internal/primitives";
-import { StaleDeploymentBanner } from "@/components/admin/stale-deployment-banner";
+import { Icon, ToastHost, BackToTop, ShortcutsModal, type AdminShellIconName } from "./internal/primitives";
+import { AdminChromeAlerts } from "./internal/admin-chrome-alerts";
 import { AdminTour } from "./internal/admin-tour";
 import { ControlBar, MobileBottomNav, SurfaceRouter } from "./internal/pages";
 import { DrawerRoot } from "./internal/drawers";
@@ -2144,14 +2144,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
           <ToastBridge />
           <TabTitleBridge />
 
-          {/* Offline banner — fixed at top, asserts connection loss (#23) */}
-          <OfflineBanner />
-
-          {/* Stale-deployment banner — a tab open since before the last
-              deploy can't reach today's Server Actions; any catch that
-              recognizes that shape raises this instead of a dead-end
-              generic error. See lib/client/stale-deployment.ts. */}
-          <StaleDeploymentBanner />
+          <AdminChromeAlerts />
 
           {/* Layered on top: command palette (⌘K / Ctrl+K) */}
           <CommandPalette />
