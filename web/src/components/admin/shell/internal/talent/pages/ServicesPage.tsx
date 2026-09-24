@@ -25,7 +25,11 @@ export function ServicesPage() {
         guideNodeId="talent-rate-card"
         eyebrow={copy.t("Catalog")}
         title={copy.t("Services")}
-        subtitle={copy.t("Manage your services, packages and products")}
+        subtitle={
+          copy.isSpanish
+            ? "Administra tus servicios, paquetes y productos"
+            : "Manage your services, packages and products"
+        }
       />
       {bridgeTalentSelfProfile ? (
         <>
