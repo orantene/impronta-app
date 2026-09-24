@@ -8,6 +8,8 @@ import {
   talentOffersInstantBooking,
 } from "@/lib/talent-site/contact-channels";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveIndustryPreset } from "@/lib/words/presets";
+import { resolveTalentTradePreset } from "@/lib/words/talent-trade-preset";
 
 import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
 
@@ -16,6 +18,23 @@ import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
  * the server from the talent profile id and passed into the mount for
  * server-side reads only. `exposeTenantToClient={false}` keeps that id out
  * of the client bundle; guest actions re-read the host header.
+ *
+ * THIS HOST IS HERS, SO THE VOICE AND THE NAME ARE HERS (D-MSG-430).
+ * This mount used to hand the dock the INQUIRY TENANT'S display name and no
+ * voice at all. A free talent's inquiry tenant is the platform hub, so a lash
+ * artist's own booking page launched "Message Tulala", headed the panel
+ * "Tulala", and — with no greeting and no preset reaching
+ * `GuestDockHomeView` — fell through to the catalog opener that asks about an
+ * event and a talent lineup. The fallback was not the defect; this caller
+ * never supplying the real values was. Three things now come from the talent:
+ *   - `agencyName` is her display name, which drives the launcher label and the
+ *     panel header. On her host there is no other business to name.
+ *   - `wordsPresetOverride` is her trade, rolled up from
+ *     `service_category_slug`, which drives the catalog tab label and whether
+ *     the dock talks about people at all.
+ *   - `greeting` is that preset's chat voice, so the opener speaks her trade.
+ * A talent whose trade the taxonomy does not know resolves to null and keeps the
+ * tenant's preset, exactly as before.
  */
 export async function TalentSiteMessagesDock({
   talentProfileId,
@@ -30,7 +49,9 @@ export async function TalentSiteMessagesDock({
     loadTalentSiteInquiryTenant(admin, talentProfileId),
     admin
       .from("talent_profiles")
-      .select("profile_code, display_name, phone, phone_e164, social_links, talent_plan_key")
+      .select(
+        "profile_code, display_name, phone, phone_e164, social_links, talent_plan_key, service_category_slug",
+      )
       .eq("id", talentProfileId)
       .maybeSingle(),
   ]);
@@ -42,6 +63,7 @@ export async function TalentSiteMessagesDock({
     phone_e164: string | null;
     social_links: unknown;
     talent_plan_key: string | null;
+    service_category_slug: string | null;
   } | null;
   const code = profile?.profile_code?.trim();
   if (!code) return null;
@@ -53,6 +75,16 @@ export async function TalentSiteMessagesDock({
   });
   const t = createTranslator(locale);
   const instant = talentOffersInstantBooking(profile?.talent_plan_key);
+
+  // Her trade, or null when the taxonomy does not know it (most profiles carry
+  // no category). A null leaves the tenant preset in place.
+  const tradePreset = await resolveTalentTradePreset(admin, profile?.service_category_slug);
+  // "custom" is the pre-preset default and is not a voice (the agency mount
+  // makes the same exclusion), so it must not become an opener.
+  const tradeVoice =
+    tradePreset && tradePreset !== "custom"
+      ? resolveIndustryPreset(tradePreset).chatVoice[locale === "es" ? "es" : "en"]
+      : null;
 
   return (
     <>
@@ -76,9 +108,11 @@ export async function TalentSiteMessagesDock({
         tenantSlug={resolved.tenant.slug}
         tenantId={resolved.tenant.tenantId}
         exposeTenantToClient={false}
-        agencyName={resolved.tenant.displayName}
+        agencyName={displayName}
         sourcePage="/"
         locale={locale}
+        greeting={tradeVoice}
+        wordsPresetOverride={tradePreset}
       />
     </>
   );

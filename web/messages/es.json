@@ -924,6 +924,7 @@
       "greetingTalentPickFirst": "Hola, estoy aquí para ayudarte a encontrar el talento ideal. ¿Buscas a alguien en específico o prefieres que te recomendemos una opción?",
       "greetingDefault": "Hola, soy el asistente de reservas de {name}. ¿Cuál es el evento? Cuéntame un poco y te armo la lista del talento ideal.",
       "closeAria": "Cerrar",
+      "messageBrandAria": "Escribir a {brand}",
       "captchaNotice": "Se requiere una verificación rápida para continuar. (Aquí se carga el widget de verificación.)",
       "composerReply": "Escribe una respuesta…",
       "composerFirst": "Escribe tu mensaje…",

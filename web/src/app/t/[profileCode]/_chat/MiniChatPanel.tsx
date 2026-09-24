@@ -32,6 +32,7 @@ import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { inquiryIdAfterUnifiedSync } from "@/lib/messages-v5/adopt-panel-inquiry";
 
 import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 import { ExpandedChatLayout } from "./ExpandedChatLayout";
 import { MiniChatPanelColumn } from "./MiniChatPanelColumn";
@@ -766,7 +767,7 @@ export function MiniChatPanel({
         accentInk={accentInk}
         surfaceMode={surfaceMode}
         locale={brand.locale}
-        ariaLabel={`Message ${brand.agencyName}`}
+        ariaLabel={interpolate(t("public.guestChat.messageBrandAria"), { brand: brand.agencyName })}
         inquiries={inquiries}
         activeInquiryId={inquiryId}
         seenAtByInquiry={seenAtByInquiry}
@@ -781,7 +782,7 @@ export function MiniChatPanel({
     <div
       role="dialog"
       aria-modal="false"
-      aria-label={`Message ${brand.agencyName}`}
+      aria-label={interpolate(t("public.guestChat.messageBrandAria"), { brand: brand.agencyName })}
       style={miniPanelContainerStyle(P, compactSheet)}
     >
       <MiniChatPanelColumn {...columnProps} />

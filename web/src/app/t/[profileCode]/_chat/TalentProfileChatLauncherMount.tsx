@@ -62,6 +62,7 @@ import {
 import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
+import type { IndustryPresetId } from "@/lib/words/presets";
 
 type TalentProfileChatLauncherMountProps = {
   /** talent_profiles.id — the single talent the guest is messaging (MVP). */
@@ -104,6 +105,12 @@ type TalentProfileChatLauncherMountProps = {
    * popping a white card on the dark page. Null/undefined → light (safe default).
    */
   backgroundMode?: string | null;
+  /**
+   * A words preset that replaces the tenant's for this dock only — the talent's
+   * own trade on her own vanity host (D-MSG-430). Null keeps the tenant's, which
+   * is what every agency surface wants. See `resolveTalentTradePreset`.
+   */
+  wordsPresetOverride?: IndustryPresetId | null;
 };
 
 export async function TalentProfileChatLauncherMount({
@@ -121,6 +128,7 @@ export async function TalentProfileChatLauncherMount({
   greeting = null,
   locale = null,
   backgroundMode = null,
+  wordsPresetOverride = null,
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
@@ -135,7 +143,7 @@ export async function TalentProfileChatLauncherMount({
 
   const t = createTranslator(locale ?? "en");
   // L13: the tenant-wide dock switches + the per-business Items label.
-  const dockFlags = await loadGuestDockFlags(tenantId, locale);
+  const dockFlags = await loadGuestDockFlags(tenantId, locale, wordsPresetOverride);
 
   // Returning-guest resume (B1): reopen the live thread from the cookie instead
   // of starting fresh. Always { active } | failure; any failure → fresh start.
