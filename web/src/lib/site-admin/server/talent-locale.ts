@@ -107,3 +107,23 @@ export async function loadTalentPreferredLocale(
 
   return isLocale(data?.preferred_locale) ? data.preferred_locale : null;
 }
+
+/**
+ * Bounds a talent's raw stored preference to a VANITY HOST's own public-locale
+ * set (2026-09-24) — not an agency's `supportedLocales`, since a vanity host
+ * has no agency. Same shape `getRequestLocale`'s `isAllowedPublicLocale`
+ * already checks. Returns `undefined` (not `null`) so a caller can pass it
+ * straight through as an optional `resolveLocaleForPathname` /
+ * `syncLocaleCookieForPath` argument.
+ *
+ * Pure and synchronous ON PURPOSE: the caller fetches the raw preference
+ * (`loadTalentPreferredLocale`) and the settings in parallel — genuinely
+ * parallel, since this needs BOTH before it can decide, an async version
+ * taking one id would have to await them serially instead.
+ */
+export function boundTalentFallbackLocale(
+  preferred: string | null,
+  publicLocales: readonly string[],
+): string | undefined {
+  return preferred && publicLocales.includes(preferred) ? preferred : undefined;
+}
