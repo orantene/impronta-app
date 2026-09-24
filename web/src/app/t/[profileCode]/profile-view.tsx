@@ -117,6 +117,7 @@ import {
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
 import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligibility";
+import { servicesMenuForPublicHost } from "@/lib/talent/services-menu-for-host";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
@@ -1812,10 +1813,14 @@ export async function TalentProfileView({
   // S12 — talent-configured services menu. Read from the column (always
   // dual-written alongside catalog commerce.servicesMenu) so the public render
   // needs no extra RLS path. Public surface shows active, non-agency_only items.
-  const serviceMenuItems = normalizeServicesMenu(
-    profile.services_menu,
-    instantBook.currencyCode || "USD",
-  ).filter((it) => it.isActive && it.visibility !== "agency_only");
+  // D-MSG-400/417: hub/talent hosts never resolve eligibility currency, so a
+  // USD fallback would mis-label MXN amounts — strip prices outside agency.
+  const serviceMenuItems = servicesMenuForPublicHost(
+    normalizeServicesMenu(profile.services_menu, instantBook.currencyCode || "USD").filter(
+      (it) => it.isActive && it.visibility !== "agency_only",
+    ),
+    hostCtx.kind,
+  );
 
   // Storefront — offerings catalog, USD line for non-USD prices, Offer JSON-LD.
   const { storefrontOfferings, usdRates, offerJsonLd } = await loadProfileStorefrontPayload(
