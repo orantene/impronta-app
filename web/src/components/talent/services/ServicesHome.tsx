@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   deleteTalentOfferingForever,
   duplicateTalentOffering,
@@ -62,6 +62,16 @@ export function ServicesHome({ talentId }: { talentId: string }) {
   const [toast, setToast] = useState<string | null>(null);
   const [hideTarget, setHideTarget] = useState<TalentOffering | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [slowLoad, setSlowLoad] = useState(false);
+
+  useEffect(() => {
+    if (!editor.loading) {
+      setSlowLoad(false);
+      return;
+    }
+    const id = window.setTimeout(() => setSlowLoad(true), 8000);
+    return () => window.clearTimeout(id);
+  }, [editor.loading]);
 
   const items = editor.items;
   const derived = useMemo(() => {
@@ -228,11 +238,13 @@ export function ServicesHome({ talentId }: { talentId: string }) {
   return (
     <div className="font-admin-body">
       <WebsiteRewardControl placement="mobile" />
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3" data-tulala-page-header>
         <div>
           <h1 className="font-admin-display text-[28px] font-semibold text-admin-ink">{copy.t("Services")}</h1>
           <p className="text-[13px] text-admin-ink-muted">
-            {copy.t("Manage your services, packages and products")} · {counts.all} {copy.t("items")}
+            {editor.loading
+              ? copy.t("Your services are loading.")
+              : `${copy.t("Manage your services, packages and products")} · ${counts.all} ${copy.t("items")}`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -307,14 +319,46 @@ export function ServicesHome({ talentId }: { talentId: string }) {
         />
       )}
 
-      {editor.loading && <p className="mt-6 text-[13px] text-admin-ink-muted">{copy.t("Loading")}</p>}
-      {editor.error && <p className="mt-4 text-[13px] text-admin-ink">{editor.error}</p>}
-      {!editor.loading && derived.length === 0 && (
+      {editor.loading && (
+        <div className="mt-6 text-[13px] text-admin-ink-muted" role="status">
+          <p>{slowLoad ? copy.t("Still trying") : copy.t("Loading")}</p>
+          <p className="mt-1">
+            {slowLoad
+              ? copy.t("This is taking longer than usual. Still trying. Nothing is lost.")
+              : copy.t("Your services are loading. No number is shown until they arrive.")}
+          </p>
+          {slowLoad && (
+            <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => editor.reload()}>
+              {copy.t("Try now")}
+            </button>
+          )}
+        </div>
+      )}
+      {!editor.loading && editor.error && (
+        <div className="mt-4 rounded-[12px] border border-admin-border-soft bg-white px-4 py-3 text-[13px]" role="alert">
+          <p className="font-semibold">{copy.t("Failed")}</p>
+          <p className="mt-1 text-admin-ink-muted">
+            {items.length > 0
+              ? copy.t("We could not refresh your services. You are looking at the last version we had. Nothing was changed.")
+              : copy.t("We could not refresh your services. Nothing was changed.")}
+          </p>
+          <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => editor.reload()}>
+            {copy.t("Try again")}
+          </button>
+        </div>
+      )}
+      {!editor.loading && !editor.error && items.length === 0 && (
+        <div className="mt-8 text-[13px] text-admin-ink-muted">
+          <p className="font-semibold text-admin-ink">{copy.t("Genuinely empty")}</p>
+          <p className="mt-1">{copy.t("No services yet. Add your first one. It takes about twenty seconds and nothing is public until you save.")}</p>
+          <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => setTypeOpen(true)}>
+            + {copy.t("Add a service")}
+          </button>
+        </div>
+      )}
+      {!editor.loading && !editor.error && items.length > 0 && derived.length === 0 && (
         <div className="mt-8 text-[13px] text-admin-ink-muted">
           <p>{copy.t("No items match.")}</p>
-          <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => setTypeOpen(true)}>
-            + {copy.t("Add item")}
-          </button>
         </div>
       )}
 

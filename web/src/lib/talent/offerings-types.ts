@@ -463,7 +463,7 @@ export function blankOffering(
     priceDisplay: "exact",
     amountCents: null,
     currency: defaultCurrency,
-    bookingMode: "request",
+    bookingMode: "instant",
     reserveMode: "full",
     depositPct: null,
     allowPayInPerson: false,

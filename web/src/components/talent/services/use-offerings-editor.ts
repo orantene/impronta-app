@@ -103,7 +103,10 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
   const [perf, setPerf] = useState<Record<string, ServicePerformanceStat>>({});
   const [, startTransition] = useTransition();
   const [loadTick, setLoadTick] = useState(0);
-  const reload = useCallback(() => setLoadTick((n) => n + 1), []);
+  const reload = useCallback(() => {
+    setLoading(true);
+    setLoadTick((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +117,7 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
       .then((res) => {
         if (cancelled) return;
         if (res.ok) {
+          setError(null);
           setItems(res.items);
           setDefaultCurrency(res.defaultCurrency);
           setLegacyImportable("legacyImportable" in res ? !!res.legacyImportable : false);
@@ -124,7 +128,10 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
         setLoading(false);
       })
       .catch(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setError("Could not refresh your services.");
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
