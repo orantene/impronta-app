@@ -113,3 +113,54 @@ export function verifyGuestCookie(value: string | null | undefined): string | nu
 
   return id;
 }
+
+/**
+ * Single source of truth for the guest cookie's wire name, header name, and
+ * `Set-Cookie` options. `updateSession` (the normal auth path) and any
+ * surface that bypasses it must read these from here, never redeclare them —
+ * see `resolveGuestIdentity` below for why a redeclaration is dangerous.
+ */
+export const GUEST_COOKIE_NAME = "impronta_guest";
+export const GUEST_HEADER_NAME = "x-impronta-guest";
+export const GUEST_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  path: "/",
+  maxAge: 60 * 60 * 24 * 400,
+  secure: process.env.NODE_ENV === "production",
+};
+
+export interface GuestIdentity {
+  /** The plain guest id — travels downstream on the `x-impronta-guest` header. */
+  guestKey: string;
+  /** True when the inbound cookie was absent, forged, or legacy-unsigned. */
+  needsGuestCookie: boolean;
+  /** The signed value to write back if `needsGuestCookie` is true. */
+  signedGuestCookie: string;
+}
+
+/**
+ * Resolve (or mint) the guest identity for a request, from the raw
+ * `impronta_guest` cookie value.
+ *
+ * THIS IS THE ONLY PLACE THIS LOGIC MAY LIVE. `updateSession` runs it for
+ * every ordinary request. A surface that returns from middleware BEFORE
+ * `updateSession` runs — a talent vanity host's rewrite in `proxy.ts` is the
+ * known case — must call this directly instead of skipping guest identity
+ * entirely. Two independent implementations of "verify or mint a guest id"
+ * WILL drift (a `session_key` minted by one that the other's cookie options
+ * don't match, a re-mint on every request because the two disagree on when
+ * a cookie "needs" replacing), and a guest that never gets a stable session
+ * id can never open a second server action successfully — every one of them
+ * reads `x-impronta-guest`, gets nothing or a fresh id each time, and
+ * refuses as `forbidden`. See the 2026-09-24 incident: a talent vanity host
+ * never called this at all and no guest could start a conversation.
+ */
+export function resolveGuestIdentity(rawGuestCookie: string | null | undefined): GuestIdentity {
+  const verifiedGuestId = verifyGuestCookie(rawGuestCookie);
+  const guestKey = verifiedGuestId ?? crypto.randomUUID();
+  const needsGuestCookie =
+    verifiedGuestId === null || rawGuestCookie !== signGuestCookie(guestKey);
+  const signedGuestCookie = signGuestCookie(guestKey);
+  return { guestKey, needsGuestCookie, signedGuestCookie };
+}
