@@ -39,6 +39,20 @@ export const DEFAULT_CURRENCY_OPTIONS = [
 
 export type DefaultCurrencyCode = (typeof DEFAULT_CURRENCY_OPTIONS)[number];
 
+/**
+ * What a TALENT may price an offering in (owner ruling 2026-09-23): pesos for
+ * the Mexican market, dollars for everything else. A peso price is shown with
+ * its dollar equivalent (lib/pricing/usd-equivalent.ts). Workspace menus keep
+ * the full list above.
+ */
+export const TALENT_CURRENCY_OPTIONS = ["MXN", "USD"] as const satisfies readonly DefaultCurrencyCode[];
+
+/** Server gate for a talent-owned offering's currency (the picker is only the UI gate). */
+export function isTalentCurrency(candidate: unknown): boolean {
+  return typeof candidate === "string"
+    && (TALENT_CURRENCY_OPTIONS as readonly string[]).includes(candidate.trim().toUpperCase());
+}
+
 /** Human-readable labels for the picker — symbol + ISO code + country/region. */
 export const CURRENCY_LABELS: Record<DefaultCurrencyCode, string> = {
   EUR: "EUR · € · Euro",

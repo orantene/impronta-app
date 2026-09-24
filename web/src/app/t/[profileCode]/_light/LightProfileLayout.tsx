@@ -26,6 +26,7 @@ import { ProfileHeader } from "./ProfileHeader";
 import { ServicesBlock } from "./ServicesBlock";
 import { ServiceMenuBlock } from "./ServiceMenuBlock";
 import { TalentStorefront } from "../_shared/TalentStorefront";
+import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { SkillsExperienceBlock } from "./SkillsExperienceBlock";
 import { BookingCard } from "./BookingCard";
@@ -147,6 +148,8 @@ export type LightProfileLayoutProps = {
   /** S12 — talent-configured services menu (public/on-request items). */
   serviceMenuItems: ServiceMenuItem[];
   storefrontOfferings: TalentOffering[];
+  /** "≈ US$" rates for prices outside USD (2026-09-23); null prints no line. */
+  usdRates?: UsdRates | null;
   /** S6 — discipline term id → label, for per-service scoping chips. */
   disciplineLabels: Record<string, string>;
 

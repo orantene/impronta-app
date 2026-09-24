@@ -59,6 +59,8 @@ export async function openPurchaseBooking(
     readonly collectCents: number;
     readonly window: AppointmentWindow | null;
     readonly subtotalCents: number;
+    /** The order's currency. The row used to say "USD" whatever was sold. */
+    readonly currency: string;
     readonly contact: {
       readonly displayName?: string | null;
       readonly email?: string | null;
@@ -91,7 +93,7 @@ export async function openPurchaseBooking(
       contact_email: input.contact.email ?? null,
       contact_phone: input.contact.phone ?? null,
       total_client_revenue: input.subtotalCents / 100,
-      currency_code: "USD",
+      currency_code: input.currency,
     })
     .select("id")
     .single();

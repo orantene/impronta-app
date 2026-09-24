@@ -114,7 +114,10 @@ async function seedOfferFromSharedDraft(g: Extract<Awaited<ReturnType<typeof sta
     offerExpectedVersion: draft.version,
     total_client_price: total,
     coordinator_fee: 0,
-    currency_code: draft.currencyCode || o.currency || "USD",
+    // The lines were priced in the ORDER's currency, so the offer must be in
+    // it too. A new offer defaults to USD; preferring that default copied
+    // 950 MXN into a US$950 offer.
+    currency_code: o.currency || draft.currencyCode || "USD",
     notes: null,
     lineItems,
   });

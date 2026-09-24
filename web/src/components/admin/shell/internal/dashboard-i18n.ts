@@ -2387,6 +2387,7 @@ const ES_TEXT: Record<string, string> = {
   "Career analytics": "Analítica de carrera",
   "Casting": "Casting",
   "Catalog & Pricing": "Catálogo y precios",
+  "Manage your services, packages and products": "Administra tus servicios, paquetes y productos",
   "Choose which to reply to": "Elige a cuál responder",
   "Client budget": "Presupuesto del cliente",
   "Close info panel": "Cerrar panel de información",

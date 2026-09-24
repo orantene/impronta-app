@@ -31,7 +31,7 @@ function setup(over: Partial<PackageSelectorDeps> = {}) {
     livePrice: async () => ({ ok: true, priceCents: 800, phaseId: uuid(7) }),
     createPurchase: async (_a, input) => {
       purchases.push(input);
-      return { ok: true, orderId: uuid(50), customerId: uuid(51), totalCents: 800, collectCents: 800, payInPerson: false, allocationIds: [], transactionId: uuid(52), bookingId: uuid(53), inquiryId: null, reservationHoldId: null } satisfies PurchaseResult;
+      return { ok: true, orderId: uuid(50), customerId: uuid(51), totalCents: 800, collectCents: 800, currency: "USD", payInPerson: false, allocationIds: [], transactionId: uuid(52), bookingId: uuid(53), inquiryId: null, reservationHoldId: null } satisfies PurchaseResult;
     },
     createCheckout: async (i) => ({ ok: true, url: `https://pay.test/${i.transactionId}`, sessionId: "s", mock: true }),
     ...over,

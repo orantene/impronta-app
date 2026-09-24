@@ -1,4 +1,6 @@
 import { improntaLog } from "@/lib/server/structured-log";
+import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
+import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { humaniseFieldToken } from "./humanise-field-token";
 import { resolveSharperBanner } from "./banner-source";
@@ -1827,6 +1829,7 @@ export async function TalentProfileView({
     // and platform hosts pass null and see everything they offer.
     hostCtx.kind === "agency" ? hostCtx.tenantId : null,
   );
+  const usdRates = needsUsdRates(storefrontOfferings) ? await loadUsdRates() : null;
 
   // W3-7 — schema.org Offer JSON-LD for the storefront (SEO). Only published,
   // exactly-priced offerings are emitted; quote/on-request carry no price.
@@ -2413,6 +2416,7 @@ export async function TalentProfileView({
         bookingNote={profile.booking_note ?? null}
         serviceMenuItems={serviceMenuItems}
         storefrontOfferings={storefrontOfferings}
+        usdRates={usdRates}
         disciplineLabels={disciplineLabels}
         fitLabels={fitLabels}
         skills={skills}

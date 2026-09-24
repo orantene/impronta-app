@@ -17,6 +17,7 @@ import { useState } from "react";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { StorefrontBody } from "./StorefrontBody";
+import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 
 function FilterPill({
   label,
@@ -49,11 +50,13 @@ export function StorefrontFilter({
   locale,
   categories,
   confirmsByHand = false,
+  usdRates = null,
 }: {
   visible: TalentOffering[];
   locale: string;
   categories: string[];
   confirmsByHand?: boolean;
+  usdRates?: UsdRates | null;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const allLabel = pickLocale(locale, { en: "All", es: "Todos" });
@@ -67,7 +70,7 @@ export function StorefrontFilter({
           <FilterPill key={c} label={c} active={active === c} onClick={() => setActive(c)} />
         ))}
       </div>
-      <StorefrontBody visible={filtered} locale={locale} showFeatured={active === null} confirmsByHand={confirmsByHand} />
+      <StorefrontBody visible={filtered} locale={locale} showFeatured={active === null} confirmsByHand={confirmsByHand} usdRates={usdRates} />
     </>
   );
 }

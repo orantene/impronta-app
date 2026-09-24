@@ -59,7 +59,7 @@ function setup(over: Partial<CartCheckoutDeps> = {}, rows: FakeStore = {}) {
     createPurchase: async (_a, input) => {
       purchases.push(input);
       return {
-        ok: true, orderId: uuid(50), customerId: CUSTOMER, totalCents: 600, collectCents: 600, payInPerson: false,
+        ok: true, orderId: uuid(50), customerId: CUSTOMER, totalCents: 600, collectCents: 600, currency: "USD", payInPerson: false,
         allocationIds: [], transactionId: uuid(51), bookingId: uuid(52), inquiryId: null, reservationHoldId: null,
       } satisfies PurchaseResult;
     },
@@ -156,7 +156,7 @@ test("act start_payment: identity-before-payment is the pipeline's no_contact; s
     createPurchase: async (_a, input) => {
       purchases.push(input);
       if (refuse) return { ok: false, reason: refuse as "no_contact" } as PurchaseResult;
-      return { ok: true, orderId: uuid(50), customerId: CUSTOMER, totalCents: 600, collectCents: 600, payInPerson: false, allocationIds: [], transactionId: uuid(51), bookingId: uuid(52), inquiryId: null, reservationHoldId: null };
+      return { ok: true, orderId: uuid(50), customerId: CUSTOMER, totalCents: 600, collectCents: 600, currency: "USD", payInPerson: false, allocationIds: [], transactionId: uuid(51), bookingId: uuid(52), inquiryId: null, reservationHoldId: null };
     },
   });
   const anon = await actCartCheckoutCore(deps, { op: "start_payment", tenantId: TENANT, orderId: CART, payment: "full" });

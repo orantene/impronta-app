@@ -13,6 +13,9 @@
  * table is read-only for anon/owner); auth is enforced here at the app layer.
  */
 
+import { isTalentCurrency } from "@/lib/billing/currencies";
+import { loadUsdRates } from "@/lib/pricing/usd-rates";
+import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -162,7 +165,14 @@ async function loadImageAssets(
 }
 
 type LoadResult =
-  | { ok: true; items: TalentOffering[]; defaultCurrency: string; legacyImportable: boolean }
+  | {
+      ok: true;
+      items: TalentOffering[];
+      defaultCurrency: string;
+      legacyImportable: boolean;
+      /** Rates for the editor's "≈ US$" preview; null when the feed is down. */
+      usdRates: UsdRates | null;
+    }
   | { ok: false; error: string };
 
 /** Editor load: ALL statuses (drafts included), hero-first images resolved. */
@@ -172,6 +182,9 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
+    // Started now, awaited last: the rate feed is cached for hours and never
+    // blocks the list, and a failure only removes the "≈ US$" preview.
+    const usdRatesPending = loadUsdRates().catch(() => null);
 
     const { data, error } = await offeringsTable(admin)
       .select("*")
@@ -200,7 +213,7 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
     if (items.length === 0) {
       legacyImportable = (await collectLegacySources(admin, talentProfileId, auth.defaultCurrency)).length > 0;
     }
-    return { ok: true, items, defaultCurrency: auth.defaultCurrency, legacyImportable };
+    return { ok: true, items, defaultCurrency: auth.defaultCurrency, legacyImportable, usdRates: await usdRatesPending };
   } catch (err) {
     logServerError("talent.offerings.load", err);
     return { ok: false, error: "Unexpected error." };
@@ -224,6 +237,12 @@ export async function upsertTalentOffering(
 
     const errors = validateOffering(offering);
     if (errors.length > 0) return { ok: false, error: errors[0] };
+    // Owner ruling 2026-09-23: a talent prices in MXN or USD. Every live talent
+    // row is one of the two, so this refuses nothing that exists today; it
+    // stops a third currency reaching checkout, where it was never priced.
+    if (!isTalentCurrency(offering.currency)) {
+      return { ok: false, error: "Set the price in Mexican pesos (MXN) or US dollars (USD)." };
+    }
 
     const patch = {
       ...offeringToRowPatch({ ...offering, ownerKind: "talent", tenantId: auth.tenantId }),
@@ -381,13 +400,36 @@ export async function setOfferingImages(
     .maybeSingle();
   if (!own) return { ok: false, error: "Not found." };
 
+  // Guard: every photo must be HERS. This action used to trust the ids it was
+  // given, so any media asset on the platform (another talent's portfolio,
+  // a workspace's branding) could be attached to her service by id. The
+  // portfolio picker (2026-09-23) makes reusing ids the normal path, so the
+  // check has to live here, where every caller passes through.
+  const wanted = [...new Set(mediaAssetIds)].slice(0, 12);
+  if (wanted.length > 0) {
+    const { data: mine, error: ownErr } = await admin
+      .from("media_assets")
+      .select("id")
+      .in("id", wanted)
+      .eq("owner_talent_profile_id", talentProfileId)
+      .is("deleted_at", null);
+    if (ownErr) {
+      logServerError("talent.offerings.mediaOwner", ownErr);
+      return { ok: false, error: "Failed to update photos." };
+    }
+    const owned = new Set(((mine ?? []) as { id: string }[]).map((m) => m.id));
+    if (wanted.some((id) => !owned.has(id))) {
+      return { ok: false, error: "One of those photos is not in your portfolio." };
+    }
+  }
+
   const { error: delErr } = await offeringMediaTable(admin).delete().eq("offering_id", offeringId);
   if (delErr) {
     logServerError("talent.offerings.mediaClear", delErr);
     return { ok: false, error: "Failed to update photos." };
   }
-  if (mediaAssetIds.length > 0) {
-    const rows = mediaAssetIds.slice(0, 12).map((mid, i) => ({
+  if (wanted.length > 0) {
+    const rows = wanted.map((mid, i) => ({
       offering_id: offeringId,
       media_asset_id: mid,
       sort_order: i,
@@ -400,6 +442,80 @@ export async function setOfferingImages(
   }
   revalidatePath("/talent/services");
   return { ok: true };
+}
+
+export type PortfolioPhoto = {
+  id: string;
+  url: string;
+  /** Services this photo already shows on, so the picker can say "On Volumen ruso 4D". */
+  onOfferings: { id: string; title: string }[];
+};
+
+/**
+ * Her portfolio, for choosing a service's photos from what she already
+ * uploaded (2026-09-23). The shipped editor could only upload new files.
+ *
+ * Approved gallery images in the public bucket, newest order first by her own
+ * sort. A photo on several services lists every one; picking it again never
+ * moves it, it is only shown there too.
+ */
+export async function listTalentPortfolioPhotos(
+  talentProfileId: string,
+): Promise<{ ok: true; photos: PortfolioPhoto[] } | { ok: false; error: string }> {
+  try {
+    const auth = await authorizeForTalent(talentProfileId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+
+    const { data, error } = await admin
+      .from("media_assets")
+      .select("id, public_url, bucket_id, storage_path")
+      .eq("owner_talent_profile_id", talentProfileId)
+      .eq("variant_kind", "gallery")
+      .eq("approval_state", "approved")
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true })
+      .limit(120);
+    if (error) {
+      logServerError("talent.offerings.portfolio", error);
+      return { ok: false, error: "Could not load your photos." };
+    }
+    type Row = { id: string; public_url: string | null; bucket_id: string | null; storage_path: string | null };
+    const rows = (data ?? []) as Row[];
+    const ids = rows.map((r) => r.id);
+
+    const usedOn = new Map<string, { id: string; title: string }[]>();
+    if (ids.length > 0) {
+      const { data: links, error: linkErr } = await offeringMediaTable(admin)
+        .select("media_asset_id, offering_id, talent_offerings:offering_id ( title, talent_profile_id, status )")
+        .in("media_asset_id", ids);
+      if (linkErr) logServerError("talent.offerings.portfolioLinks", linkErr);
+      type Off = { title: string | null; talent_profile_id: string | null; status: string | null };
+      type Link = { media_asset_id: string; offering_id: string; talent_offerings: Off | Off[] | null };
+      for (const l of (links ?? []) as Link[]) {
+        const o = Array.isArray(l.talent_offerings) ? l.talent_offerings[0] : l.talent_offerings;
+        if (!o || o.talent_profile_id !== talentProfileId || o.status === "archived") continue;
+        const list = usedOn.get(l.media_asset_id) ?? [];
+        list.push({ id: l.offering_id, title: o.title ?? "" });
+        usedOn.set(l.media_asset_id, list);
+      }
+    }
+
+    const photos: PortfolioPhoto[] = [];
+    for (const r of rows) {
+      let url = r.public_url ?? null;
+      if (!url && r.bucket_id === "media-public" && r.storage_path) {
+        url = (admin as SupabaseClient).storage.from("media-public").getPublicUrl(r.storage_path).data.publicUrl;
+      }
+      if (!url) continue;
+      photos.push({ id: r.id, url, onOfferings: usedOn.get(r.id) ?? [] });
+    }
+    return { ok: true, photos };
+  } catch (err) {
+    logServerError("talent.offerings.portfolio", err);
+    return { ok: false, error: "Could not load your photos." };
+  }
 }
 
 /**

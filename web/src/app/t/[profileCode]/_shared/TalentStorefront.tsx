@@ -21,6 +21,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { StorefrontBody } from "./StorefrontBody";
 import { StorefrontFilter } from "./StorefrontFilter";
 import { LightSectionLabel } from "../_light/section-label";
+import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
+import { loadUsdRates } from "@/lib/pricing/usd-rates";
 
 export async function TalentStorefront({
   offerings,
@@ -58,15 +60,19 @@ export async function TalentStorefront({
   }
   const showFilter = categories.length >= 2;
 
+  // "≈ US$" beside prices in another currency. Fetched only when one exists;
+  // a failed fetch prints no line rather than a guessed one.
+  const usdRates = needsUsdRates(visible) ? await loadUsdRates() : null;
+
   return (
     <section aria-labelledby="storefront-heading" data-profile-section="storefront">
       <LightSectionLabel id="storefront-heading">{heading}</LightSectionLabel>
 
       <div className="mt-5">
         {showFilter ? (
-          <StorefrontFilter visible={visible} locale={locale} categories={categories} confirmsByHand={confirmsByHand} />
+          <StorefrontFilter visible={visible} locale={locale} categories={categories} confirmsByHand={confirmsByHand} usdRates={usdRates} />
         ) : (
-          <StorefrontBody visible={visible} locale={locale} confirmsByHand={confirmsByHand} />
+          <StorefrontBody visible={visible} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} />
         )}
       </div>
     </section>

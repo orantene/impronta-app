@@ -186,6 +186,13 @@ export type PurchaseResult =
       totalCents: number;
       /** What the pipeline decided to collect now. Derived, never sent. */
       collectCents: number;
+      /**
+       * The ISO currency the order, its lines and its transaction are in. The
+       * caller MUST charge in this currency: charging `collectCents` in any
+       * other one (the platform operating currency, say) turns 950 MXN into
+       * US$950. Added 2026-09-23 after exactly that path was found live.
+       */
+      currency: string;
       /** True when the order is reserved with no card. */
       payInPerson: boolean;
       allocationIds: string[];

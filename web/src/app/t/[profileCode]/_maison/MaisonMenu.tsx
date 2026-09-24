@@ -31,6 +31,7 @@ import Image from "next/image";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { resolveOfferingCta } from "@/lib/talent/offerings-types";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import type { OfferingRequestDetail } from "../_shared/OfferingCta";
 
 export type MaisonMenuCategory = { id: string; label: string; note?: string | null };
@@ -156,10 +157,13 @@ export function MaisonMenu({
   locale,
   surfaceBooking = "instant",
   labels,
+  usdRates = null,
 }: {
   offerings: TalentOffering[];
   categories: MaisonMenuCategory[];
   locale: string;
+  /** "≈ US$" beside prices in another currency; null prints nothing. */
+  usdRates?: UsdRates | null;
   /**
    * What this SURFACE can actually do, from resolveTalentBooking — which is
    * capped by the talent's plan (appointments-plan-policy: free tops out at
@@ -349,6 +353,14 @@ export function MaisonMenu({
                               <>
                                 {ladder ? <small>{labels.from}</small> : null}
                                 {money(min, o.currency)}
+                                {(() => {
+                                  const usd = usdEquivalentLabel(min, o.currency, usdRates, locale);
+                                  return usd ? (
+                                    <span className="mn-row-usd" data-usd-equivalent style={{ display: "block", fontSize: "0.72em", fontWeight: 400, opacity: 0.62, letterSpacing: 0 }}>
+                                      {usd}
+                                    </span>
+                                  ) : null;
+                                })()}
                               </>
                             )}
                           </p>
@@ -386,7 +398,10 @@ export function MaisonMenu({
           <strong>{selection ? selection.title : labels.barIdleTitle}</strong>
           <span>
             {selection
-              ? `${selection.detail ? `${selection.detail} · ` : ""}${money(selection.totalCents, selection.currency)}`
+              ? `${selection.detail ? `${selection.detail} · ` : ""}${money(selection.totalCents, selection.currency)}${(() => {
+                  const usd = usdEquivalentLabel(selection.totalCents, selection.currency, usdRates, locale);
+                  return usd ? ` (${usd})` : "";
+                })()}`
               : labels.barIdleHint}
           </span>
         </div>
