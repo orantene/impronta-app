@@ -125,6 +125,7 @@ const ES_TEXT: Record<string, string> = {
   "Not yet": "Todavía no",
   "This is how it looks on your pages. Nothing is booked from here.": "Así se ve en tus páginas. Desde aquí no se reserva nada.",
   "Back to editing": "Volver a editar",
+  "Last saved {when}": "Último guardado {when}",
   "Pick photos from your portfolio": "Elige fotos de tu portafolio",
   "For": "Para",
   "this item": "este servicio",

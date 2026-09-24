@@ -135,6 +135,8 @@ export type TalentOffering = {
   status: OfferingStatus;
   /** Set on the first publish. Distinguishes Draft from Hidden. */
   firstPublishedAt: string | null;
+  /** Present when the row was read with `updated_at`. */
+  updatedAt?: string | null;
   visibility: OfferingVisibility;
   moderationState: OfferingModerationState;
   isFeatured: boolean;
@@ -180,6 +182,7 @@ export type TalentOfferingRow = {
   consumes_units?: number | null;
   status: string;
   first_published_at?: string | null;
+  updated_at?: string | null;
   visibility: string;
   moderation_state: string;
   is_featured: boolean;
@@ -267,6 +270,7 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
         : 1,
     status: isOneOf(row.status, ["draft", "published", "archived"] as const) ? row.status : "draft",
     firstPublishedAt: typeof row.first_published_at === "string" ? row.first_published_at : null,
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
     visibility: isOneOf(row.visibility, ["public", "agency_only", "on_request"] as const)
       ? row.visibility
       : "public",

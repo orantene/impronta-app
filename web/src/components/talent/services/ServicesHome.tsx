@@ -48,7 +48,15 @@ import { WebsiteRewardControl } from "@/components/talent/website-reward/Website
 type Filter = "all" | "service" | "package" | "product" | "draft" | "hidden" | "archived" | "attention";
 type Screen = "list" | "editor" | "defaults" | "organize" | "addMany" | "camera" | "firstRun" | "patterns";
 
-export function ServicesHome({ talentId }: { talentId: string }) {
+export function ServicesHome({
+  talentId,
+  sellerName,
+  sellerCity,
+}: {
+  talentId: string;
+  sellerName?: string | null;
+  sellerCity?: string | null;
+}) {
   const copy = useDashboardText();
   const locale = copy.isSpanish ? "es" : "en";
   const editor = useOfferingsEditor({ kind: "talent", talentProfileId: talentId });
@@ -296,6 +304,8 @@ export function ServicesHome({ talentId }: { talentId: string }) {
         addons={addons}
         items={items}
         talentId={talentId}
+        sellerName={sellerName}
+        sellerCity={sellerCity}
         rates={editor.usdRates}
         onBack={() => setScreen("list")}
         onSave={async (next, publish, pendingImageIds) => {

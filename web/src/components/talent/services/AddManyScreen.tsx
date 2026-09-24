@@ -1,11 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { importLegacyToOfferings, upsertTalentOffering } from "@/lib/talent/offerings-actions";
+import { useEffect, useState } from "react";
+import {
+  importLegacyToOfferings,
+  listTalentPortfolioPhotos,
+  setOfferingImages,
+  upsertTalentOffering,
+  type PortfolioPhoto,
+} from "@/lib/talent/offerings-actions";
 import { foldAccent, parseOfferingLine } from "@/lib/talent/publication-state";
 import { blankOffering } from "@/lib/talent/offerings-types";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+
+type RowPhoto = { id: string; url: string };
 
 type Row = {
   key: string;
@@ -13,6 +21,7 @@ type Row = {
   kind: "service" | "product";
   minutes: string;
   price: string;
+  photo: RowPhoto | null;
 };
 
 type RowState = "exists" | "noPrice" | "needsMinutes" | "ready" | "readyPickup";
@@ -39,6 +48,7 @@ export function AddManyScreen({
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pickerKey, setPickerKey] = useState<string | null>(null);
   const currency = editor.defaultCurrency;
 
   const readList = () => {
@@ -53,6 +63,7 @@ export function AddManyScreen({
         kind: r.kind,
         minutes: r.durationMinutes != null ? String(r.durationMinutes) : "",
         price: r.amountCents != null ? String(r.amountCents / 100) : "",
+        photo: null,
       })),
     );
     setMessage(null);
@@ -94,8 +105,10 @@ export function AddManyScreen({
         bookingMode: "instant",
         priceDisplay: "exact",
       });
-      if (res.ok) done += 1;
-      else if (!firstError) firstError = res.error;
+      if (res.ok) {
+        done += 1;
+        if (r.photo) await setOfferingImages(talentId, res.item.id, [r.photo.id]);
+      } else if (!firstError) firstError = res.error;
     }
     setBusy(false);
     editor.reload();
@@ -227,7 +240,19 @@ export function AddManyScreen({
                       return (
                         <tr key={r.key} className="border-b border-admin-border-soft last:border-b-0">
                           <td className="px-3 py-2">
-                            <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded border border-dashed border-admin-border-soft text-[13px] text-admin-ink-dim">+</span>
+                            <button
+                              type="button"
+                              aria-label={copy.t("Add a photo")}
+                              onClick={() => setPickerKey(r.key)}
+                              className="flex h-7 w-7 items-center justify-center overflow-hidden rounded border border-dashed border-admin-border-soft text-[13px] text-admin-ink-dim"
+                            >
+                              {r.photo ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={r.photo.url} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                "+"
+                              )}
+                            </button>
                           </td>
                           <td className="max-w-0 truncate px-2 py-2 font-medium" title={r.title}>{r.title}</td>
                           <td className="px-2 py-2">
@@ -275,6 +300,60 @@ export function AddManyScreen({
             </>
           )}
           {message ? <p className="mt-3 text-[13px] text-red-700">{message}</p> : null}
+        </div>
+      </div>
+      {pickerKey ? (
+        <RowPhotoPicker
+          talentId={talentId}
+          onClose={() => setPickerKey(null)}
+          onPick={(photo) => {
+            patchRow(pickerKey, { photo });
+            setPickerKey(null);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function RowPhotoPicker({
+  talentId,
+  onClose,
+  onPick,
+}: {
+  talentId: string;
+  onClose: () => void;
+  onPick: (photo: RowPhoto) => void;
+}) {
+  const copy = useDashboardText();
+  const [photos, setPhotos] = useState<PortfolioPhoto[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void listTalentPortfolioPhotos(talentId).then((res) => {
+      if (alive && res.ok) setPhotos(res.photos);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [talentId]);
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 md:items-center md:p-4" onClick={onClose}>
+      <div style={{ maxWidth: 680 }} className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="border-b border-admin-border-soft px-5 py-4">
+          <h2 className="font-admin-body text-[18px] font-semibold tracking-normal text-admin-ink">{copy.t("Pick photos from your portfolio")}</h2>
+        </div>
+        <div className="grid flex-1 grid-cols-3 gap-2.5 overflow-auto p-5 sm:grid-cols-4">
+          {photos === null && <p className="col-span-full text-[13px] text-admin-ink-dim">{copy.t("Loading")}…</p>}
+          {photos?.length === 0 && <p className="col-span-full text-[13px] text-admin-ink-dim">{copy.t("Your portfolio has no photos yet.")}</p>}
+          {(photos ?? []).map((photo) => (
+            <button key={photo.id} type="button" onClick={() => onPick({ id: photo.id, url: photo.url })} className="overflow-hidden rounded-lg text-left">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photo.url} alt="" className="aspect-square w-full object-cover" />
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-end border-t border-admin-border-soft px-5 py-3">
+          <button type="button" className="text-[14px] text-admin-ink" onClick={onClose}>{copy.t("Cancel")}</button>
         </div>
       </div>
     </div>

@@ -33,7 +33,11 @@ export function ServicesPage() {
       />
       {bridgeTalentSelfProfile ? (
         <>
-          <ServicesHome talentId={bridgeTalentSelfProfile.id} />
+          <ServicesHome
+            talentId={bridgeTalentSelfProfile.id}
+            sellerName={bridgeTalentSelfProfile.displayName}
+            sellerCity={bridgeTalentSelfProfile.homeCity}
+          />
           <TalentOrdersQueue talentId={bridgeTalentSelfProfile.id} />
         </>
       ) : (

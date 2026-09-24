@@ -58,6 +58,8 @@ export function EditorScreen({
   destinations,
   addons,
   talentId,
+  sellerName,
+  sellerCity,
   rates,
   onBack,
   onSave,
@@ -73,6 +75,8 @@ export function EditorScreen({
   addons: AddonGroup[];
   items: TalentOffering[];
   talentId: string;
+  sellerName?: string | null;
+  sellerCity?: string | null;
   rates: ReturnType<typeof useOfferingsEditor>["usdRates"];
   onBack: () => void;
   onSave: (next: TalentOffering, publish: boolean, pendingImageIds?: string[]) => Promise<void>;
@@ -511,7 +515,15 @@ export function EditorScreen({
               <p className="mt-0.5 text-[13px] text-admin-ink-dim">{copy.t("This is how it looks on your pages. Nothing is booked from here.")}</p>
             </div>
             <div className="px-5 py-4">
-              <ClientCard item={item} locale={locale} rates={rates} depositCents={depositCents} cancelHours={cancelHours} />
+              <ClientCard
+                item={item}
+                locale={locale}
+                rates={rates}
+                depositCents={depositCents}
+                cancelHours={cancelHours}
+                sellerName={sellerName}
+                sellerCity={sellerCity}
+              />
               {destinations.length > 0 && (
                 <ul className="mt-4 space-y-2 text-[13px]">
                   {destinations.map((d) => (
@@ -567,14 +579,26 @@ function RuleRow({ title, line, open, onEdit, editLabel, children }: { title: st
   );
 }
 
-function ClientCard({ item, locale, rates, depositCents, cancelHours }: {
+function savedWhen(iso: string | null | undefined, es: boolean): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString(es ? "es-MX" : "en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function ClientCard({ item, locale, rates, depositCents, cancelHours, sellerName, sellerCity }: {
   item: TalentOffering;
   locale: string;
   rates: ReturnType<typeof useOfferingsEditor>["usdRates"];
   depositCents: number | null;
   cancelHours: number | null;
+  sellerName?: string | null;
+  sellerCity?: string | null;
 }) {
+  const copy = useDashboardText();
   const es = locale.startsWith("es");
+  const who = [sellerName?.trim(), sellerCity?.trim()].filter(Boolean).join(" · ");
+  const saved = savedWhen(item.updatedAt, es);
   const cover = item.imageUrls[0];
   const quote = item.priceDisplay === "quote";
   const usd = quote ? null : usdEquivalentLabel(item.amountCents, item.currency, rates ?? null, locale);
@@ -596,6 +620,7 @@ function ClientCard({ item, locale, rates, depositCents, cancelHours }: {
       )}
       <div className="px-4 pb-4 pt-3">
         <p className="text-[18px] font-semibold text-admin-ink">{item.title || (es ? "Sin nombre" : "Untitled")}</p>
+        {who ? <p className="text-[13px] text-admin-ink-dim">{who}</p> : null}
         {item.category && <p className="text-[13px] text-admin-ink-dim">{item.category}</p>}
         {item.description && <p className="mt-2 text-[14px] leading-snug text-admin-ink-muted">{item.description}</p>}
         <p className="mt-3 flex flex-wrap items-baseline gap-x-2 text-[13px] text-admin-ink-dim">
@@ -619,6 +644,11 @@ function ClientCard({ item, locale, rates, depositCents, cancelHours }: {
             {es ? `Cambios gratis hasta ${cancelHours} h antes` : `Free changes until ${cancelHours} h before`}
           </p>
         )}
+        {saved ? (
+          <p className="mt-2 text-center text-[12px] text-admin-ink-dim">
+            {copy.t("Last saved {when}").replace("{when}", saved)}
+          </p>
+        ) : null}
       </div>
     </div>
   );
