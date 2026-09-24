@@ -3,6 +3,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
 import { isPlatformSubdomainLabelTaken } from "@/lib/saas/platform-subdomain-namespace.server";
 
 import { deriveAvailableSiteSlug } from "./derive-site-slug";
@@ -108,8 +109,18 @@ export async function provisionTalentMaxSite(
     talent_plan_key: string | null;
   };
 
-  if (profile.talent_plan_key !== "talent_portfolio") {
-    return { ok: false, error: "Talent Portfolio plan required." };
+  // Phase 1: a FREE talent gets a website, so this gate asks the capability
+  // matrix rather than hard-coding a tier. `talentPlanGrantsSiteCapability`
+  // falls back to `talent_portfolio` only when TALENT_FREE_WEBSITE_ENABLED is
+  // off, so a dark build behaves exactly as this literal did.
+  //
+  // The literal made free sites IMPOSSIBLE TO CREATE: every read-time gate had
+  // been moved onto the capability matrix (which grants talent_basic
+  // personalSiteEdit and personalSitePublish), but provisioning still refused
+  // anything that was not Max — so a free talent could be shown a site they
+  // could never have, and nothing downstream ever ran.
+  if (!talentPlanGrantsSiteCapability(profile.talent_plan_key, "personalSiteEdit")) {
+    return { ok: false, error: "This plan does not include a personal website." };
   }
 
   const displayName = profile.display_name?.trim() || profile.profile_code?.trim() || "Site";
