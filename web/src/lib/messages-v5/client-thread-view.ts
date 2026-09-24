@@ -330,11 +330,33 @@ export function clientOfferForMessage(payload: Record<string, unknown> | null, o
   return offers.find((o) => o.id === id) ?? null;
 }
 
-export type PaymentView = { readonly code: string | null; readonly amountCents: number | null; readonly currency: string; readonly amountKind: string | null; readonly expiresAt: string | null; readonly state: string };
+export type PaymentView = {
+  readonly code: string | null;
+  readonly amountCents: number | null;
+  readonly currency: string;
+  readonly amountKind: string | null;
+  readonly expiresAt: string | null;
+  readonly state: string;
+  readonly totalCents: number | null;
+  readonly paidCents: number | null;
+  readonly dueCents: number | null;
+  readonly method: string | null;
+};
 
 export function readPayment(payload: Record<string, unknown> | null): PaymentView {
   const p = payload ?? {};
-  return { code: str(p.paymentLinkCode), amountCents: num(p.amountCents), currency: str(p.currency) ?? "USD", amountKind: str(p.amountKind), expiresAt: str(p.expiresAt), state: str(p.state) ?? "sent" };
+  return {
+    code: str(p.paymentLinkCode),
+    amountCents: num(p.amountCents),
+    currency: str(p.currency) ?? "USD",
+    amountKind: str(p.amountKind),
+    expiresAt: str(p.expiresAt),
+    state: str(p.state) ?? "sent",
+    totalCents: num(p.totalCents),
+    paidCents: num(p.paidCents),
+    dueCents: num(p.dueCents),
+    method: str(p.method),
+  };
 }
 
 export type ConfirmationView = { readonly recordKind: string | null; readonly recordId: string | null; readonly when: string | null; readonly title: string | null; readonly summary: string | null; readonly receiptCode: string | null; readonly lines: readonly { readonly label: string; readonly units: number; readonly amountCents: number }[]; readonly currency: string };
@@ -417,7 +439,7 @@ export function readChange(kind: ClientCardKind, payload: Record<string, unknown
   if (kind === "change_result" && isCancelOrRefundPayload(p)) {
     state = "cancelled";
   } else if (kind === "change_result") {
-    state = raw === "cancelled" || raw === "unavailable" ? "declined" : "applied";
+    state = raw === "declined" || raw === "failed" || raw === "cancelled" || raw === "unavailable" ? "declined" : "applied";
   } else if (raw === "selected" || raw === "paid") {
     state = "applied";
   } else if (raw === "cancelled" || raw === "unavailable") {

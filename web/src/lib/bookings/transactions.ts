@@ -1030,7 +1030,23 @@ export async function markFailed(
     ["payment_requested", "pending", "payout_pending"],
     "failed",
     { failure_reason: failureReason },
-  );
+  ).then(async (result) => {
+    if (result.ok && result.data.sourceInquiryId && result.data.sourceTenantId) {
+      const sb = createServiceRoleClient();
+      if (sb) {
+        await sb.from("inquiry_messages").insert({
+          inquiry_id: result.data.sourceInquiryId,
+          tenant_id: result.data.sourceTenantId,
+          thread_type: "private",
+          sender_user_id: null,
+          body: "Payment failed",
+          message_kind: "change_result",
+          card_payload: { state: "failed", summary: "Payment failed", reason: failureReason },
+        });
+      }
+    }
+    return result;
+  });
 }
 
 /**

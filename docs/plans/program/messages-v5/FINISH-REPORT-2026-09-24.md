@@ -190,3 +190,29 @@ Playwright from `.claude/worktrees/round5-qa-proofs`, Node 20, `PLAYWRIGHT_BASE_
 ## Out of this run
 
 `proxy.ts`, Jorgelina catalogue, free-plan booking eligibility, #2202, #2127, CI 50% profile, attachments / talent notes / talent-started threads, frozen `$700` without ≈ US$. Production pointer was not moved by hand. No D-MSG-423.
+
+## Round 5 remainder (24 Sep, later pass)
+
+Host check before this pass: `https://staging-qa-journeys.tulala.digital/` with the bypass header returned 200 and `dpl_BMP8ryuJvTZuSrm5zrsp2126S6y8`. The anonymous homepage HTML did not contain `pk_test_` or `pk_live_`.
+
+| Item | Status | Reason |
+|---|---|---|
+| Stripe pay, full refund, partial refund | not proven | `stripe-pay-refund.spec.ts` skips unless `QA_ALLOW_AGENT_PROD_HOST=1`, and that path targets `qa-stripe-r2.tulala.digital`. This pass did not set that flag. The spec also requires `SUPABASE_SERVICE_ROLE_KEY` to read the minted pay code and the database rows. That key for `fxlankepwnvelxjrahwk` is not on this machine. `web/.env.local` was not sourced. |
+| Talent money split, group silence, accept/decline, ask in place, request-only, refusals, builder publish | not proven | No QA service-role key, and the seeded talent `QA-JNY-T1` has no login email. No fixture talent was created. #2198 and #2205 were not re-read as a substitute for the proof. |
+| Capacity, race, permissions, cross-tenant, expired/flipped/other-tenant links | not proven | Each of these needs a database row or a second fixture. No QA service-role key. |
+| Hostile cases beyond the quick wins | not proven | The passing spec covers a 4000-character message and a `$0` line. It does not cover a 60-character name, 30 offer lines, emoji and right-to-left text, or a `$99,999` line. |
+
+No new defect id. D-MSG-423 was not opened. The not-proven list above stays.
+
+## Shell writers (same branch)
+
+These are unit-tested. They are not on the QA host until this branch merges and the journeys preview is rebuilt.
+
+- A recorded transfer or cash payment on a booking can stay a deposit. `messagingRecordOutsidePayment` passes `amountKind` through. Omitted callers still settle in full.
+- A paid `payment_request` card can carry `totalCents`, `paidCents`, `dueCents`, `currency`, and `method` when the order total and a method are known. `readPayment` returns them.
+- A system `payment_paid` row is classified as a system note.
+- Refund and cancel are wired routes. A refund card carries `refundedCents` and `currency`.
+- An offer decline and a failed payment each insert a guest `change_result`.
+- `slot_taken` is its own guest error and includes `nextFreeTimes`, or an empty list.
+- A verified cash collection inserts `order_confirmation`, and `tickets_card` when the order already has admissions. No door code is invented.
+

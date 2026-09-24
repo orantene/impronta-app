@@ -10,6 +10,7 @@ import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { settleAtDoor } from "@/lib/orders/settle-at-door";
+import { postVerifiedCollectionCards } from "@/lib/messaging/post-payment-cards";
 import { bookingShellForOrder } from "@/lib/orders/booking-shell";
 import { completeZeroTotalOrder, type OnOrderPaid } from "@/lib/orders/complete-order";
 import { stripeCollectionAdapter } from "@/lib/payments/stripe-collection";
@@ -782,6 +783,7 @@ export async function recordVerifiedCollection(
     // is resumable and may have a half-written money row this key will finish.
     return { ok: false, reason: "unavailable", error: "Could not record the collection." };
   }
+  await postVerifiedCollectionCards(admin, { tenantId: input.tenantId, orderId: row.id });
   return {
     ok: true,
     orderId: settled.orderId,

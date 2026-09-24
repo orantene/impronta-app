@@ -67,8 +67,8 @@ const ROUTES: Readonly<Record<ShellActionId, ShellRoute>> = {
   // is imported — they exist only so `ROUTES` (a `Record<ShellActionId, ...>`)
   // stays exhaustive and a future caller that dispatches before the sheets
   // import runs still opens "Coming in this program", never nothing.
-  cancel_record: { kind: "coming", seam: "L7" },
-  refund: { kind: "coming", seam: "L7" },
+  cancel_record: { kind: "wired" },
+  refund: { kind: "wired" },
 };
 
 export function routeShellAction(id: ShellActionId): ShellRoute {
