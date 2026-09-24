@@ -59,6 +59,7 @@ export const INDUSTRY_PRESET_IDS = [
   // migration, because a tenant's stored `industry_preset` is keyed by it.
   "dropoff_service",
   "practice",
+  "private_chef",
   "act",
   "portfolio",
   "agency",
@@ -84,8 +85,13 @@ export type IndustryPreset = {
   readonly words: Readonly<Record<string, WordText>>;
   readonly features: PresetFeatures;
   readonly headerVerb: HeaderVerb;
-  /** The chat launcher's opening line. */
+  /** The chat launcher's opening line. Plural: this is what a business says. */
   readonly chatVoice: WordText;
+  /**
+   * Opening line on a solo talent's own site, where "we" invents a team.
+   * Absent means the business greeting is used. Never read on a business host.
+   */
+  readonly chatVoiceSolo?: WordText;
   /**
    * `PAGE_DESIGNS` id this preset's signup lands on, or null to keep the
    * Lab-managed platform default. Every id here must survive the dead-href
@@ -178,6 +184,7 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     features: { menu: true, reservations: false, events: false, appointments: true },
     headerVerb: "book",
     chatVoice: { en: "Book a time or ask us", es: "Agenda una cita o pregúntanos" },
+    chatVoiceSolo: { en: "Book a session or ask me", es: "Agenda una sesión o pregúntame" },
     designId: "services",
     representsPeople: false,
   },
@@ -196,6 +203,7 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     features: { menu: true, reservations: false, events: false, appointments: true },
     headerVerb: "book",
     chatVoice: { en: "Book a time or ask us", es: "Agenda una cita o pregúntanos" },
+    chatVoiceSolo: { en: "Book a time or ask me", es: "Agenda una cita o pregúntame" },
     designId: "services",
     representsPeople: false,
   },
@@ -430,6 +438,35 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     designId: "services",
     representsPeople: false,
   },
+  private_chef: {
+    id: "private_chef",
+    label: { en: "Private chef", es: "Chef privado" },
+    blurb: { en: "dinners, menus, guest counts", es: "cenas, menús, comensales" },
+    words: {
+      ...STAFF_WORDS,
+      "menu.item": { en: "Menu", es: "Menú" },
+      "menu.items": { en: "Menus", es: "Menús" },
+      "customers.chat_items": { en: "Menus", es: "Menús" },
+      "appointments.item": { en: "Event", es: "Evento" },
+      "appointments.items": { en: "Events", es: "Eventos" },
+      "appointments.provider": { en: "Chef", es: "Chef" },
+      "appointments.cta": { en: "Book", es: "Agendar" },
+      "customers.person": { en: "Client", es: "Cliente" },
+      "customers.people": { en: "Clients", es: "Clientes" },
+    },
+    features: { menu: true, reservations: false, events: true, appointments: true },
+    headerVerb: "book",
+    chatVoice: {
+      en: "Tell us about the dinner: the date, how many guests, and any allergies.",
+      es: "Cuéntanos de la cena: la fecha, cuántas personas y si hay alergias.",
+    },
+    chatVoiceSolo: {
+      en: "Tell me about the dinner: the date, how many guests, and any allergies.",
+      es: "Cuéntame de la cena: la fecha, cuántas personas y si hay alergias.",
+    },
+    designId: "services",
+    representsPeople: false,
+  },
   act: {
     id: "act",
     label: { en: "Performer or act", es: "Artista o espectáculo" },
@@ -537,6 +574,11 @@ export function parseIndustryPresetId(raw: unknown): IndustryPresetId {
 
 export function resolveIndustryPreset(raw: unknown): IndustryPreset {
   return PRESETS[parseIndustryPresetId(raw)];
+}
+
+/** Greeting on a talent's own site. Businesses keep `chatVoice` (plural). */
+export function talentSiteChatVoice(preset: IndustryPreset, locale: "en" | "es"): string {
+  return preset.chatVoiceSolo?.[locale] ?? preset.chatVoice[locale];
 }
 
 /**

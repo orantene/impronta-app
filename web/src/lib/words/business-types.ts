@@ -1,7 +1,7 @@
 /**
  * Business-type registry — searchable types over 12 families.
  *
- * Orthogonal to `INDUSTRY_PRESET_IDS` (the 20 word/feature bundles).
+ * Orthogonal to `INDUSTRY_PRESET_IDS` (the word/feature bundles).
  * A type picks a family; a family suggests a preset; vocabulary and
  * capabilities are resolved separately (theme-layers.ts).
  *
@@ -100,7 +100,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   t("social-media-agency", "agency", "Social media agency", "Agencia de redes", ["influencer agency"]),
   t("provisional-service", "agency", "Provisional service profile", "Perfil provisional", []),
   t("immigration-practice", "professional", "Immigration practice", "Gestión migratoria", []),
-  t("private-chef", "professional", "Private chef", "Chef privado", ["chef at home", "chef privado"]),
+  t("private-chef", "professional", "Private chef", "Chef privado", ["chef at home", "chef privado"], "private_chef"),
   t("house-cleaner", "professional", "House cleaner", "Limpieza", ["home cleaning", "limpieza de casas"]),
   t("handyman", "professional", "Handyman", "mantenimiento del hogar", ["handyman service", "home repairs", "mantenimiento del hogar"]),
   t("translator", "professional", "Translator", "Traductor", ["translation", "traductor"]),
