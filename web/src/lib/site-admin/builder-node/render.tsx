@@ -17,6 +17,7 @@ import {
   parseSocialPostUrl,
 } from "@/lib/social-embed/social-post-url";
 
+import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
@@ -285,6 +286,11 @@ export interface BuilderNodeRenderDataSources {
     /** Operator grouping ("Tacos", "Postres"), or null when ungrouped. */
     category?: string | null;
   }>;
+  /**
+   * D-MSG-421 — rates for the ≈ US$ line beside a non-dollar price. Absent
+   * means print the local amount only; never invent a dollar figure.
+   */
+  usdRates?: UsdRates | null;
   /**
    * The tenant's operator-editable menu nouns, resolved through the words
    * engine. Absent falls back to the message catalog, so a tenant that never
@@ -1413,6 +1419,7 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--menu-board-item-copy{min-width:0}
 .site-builder-node--menu-board-item-title{font-weight:600}
 .site-builder-node--menu-board-item-price{white-space:nowrap;font-variant-numeric:tabular-nums}
+.site-builder-node--menu-board-usd-hint{display:block;font-weight:400;opacity:0.62;font-size:0.72em}
 .site-builder-node--menu-board[data-menu-board-live="1"] .site-builder-node--menu-board-list{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .site-builder-node--menu-board-catnav{margin:0 0 16px}
 .site-builder-node--menu-board-catnav ul{display:flex;gap:8px;list-style:none;margin:0;padding:0 0 4px;overflow-x:auto}
@@ -5581,6 +5588,34 @@ function renderBuilderNodeElement(
           return item.priceDisplay === "from" ? `from ${fallback}` : fallback;
         }
       };
+      const usdLine = (item: {
+        amountCents: number | null;
+        currency: string;
+      }): string | null =>
+        usdEquivalentLabel(
+          item.amountCents,
+          item.currency,
+          options.dataSources.usdRates,
+          options.contentLocale?.locale ?? "en",
+        );
+      const priceCell = (item: {
+        amountCents: number | null;
+        currency: string;
+        priceType: string;
+        priceDisplay: string;
+      }) => {
+        const usd = usdLine(item);
+        return (
+          <span className="site-builder-node--menu-board-item-price">
+            {formatPriceLabel(item)}
+            {usd ? (
+              <span data-usd-equivalent className="site-builder-node--menu-board-usd-hint">
+                {usd}
+              </span>
+            ) : null}
+          </span>
+        );
+      };
       if (offerings.length === 0) {
         return (
           <section
@@ -5648,9 +5683,7 @@ function renderBuilderNodeElement(
                             {item.title}
                           </span>
                         </div>
-                        <span className="site-builder-node--menu-board-item-price">
-                          {formatPriceLabel(item)}
-                        </span>
+                        {priceCell(item)}
                       </li>
                     ))}
                   </ul>
@@ -5664,9 +5697,7 @@ function renderBuilderNodeElement(
                 <div className="site-builder-node--menu-board-item-copy">
                   <span className="site-builder-node--menu-board-item-title">{item.title}</span>
                 </div>
-                <span className="site-builder-node--menu-board-item-price">
-                  {formatPriceLabel(item)}
-                </span>
+                {priceCell(item)}
               </li>
             ))}
           </ul>
@@ -5676,6 +5707,7 @@ function renderBuilderNodeElement(
             offerings={offerings}
             copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
             locale={options.contentLocale?.locale}
+            usdRates={options.dataSources.usdRates ?? null}
           />
         </section>
       );

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import {
   MAX_QTY,
   REFRESH_MIN_INTERVAL_MS,
@@ -82,6 +83,7 @@ export interface MenuBoardIslandProps {
    * the same defect the `copy` prop exists to prevent.
    */
   locale?: string | null;
+  usdRates?: UsdRates | null;
 }
 
 const STORAGE_PREFIX = "impronta.menu-order.";
@@ -166,6 +168,7 @@ const MB_CSS = `
 .site-builder-node--menu-board-stepper-controls>button:disabled{opacity:0.35;cursor:not-allowed}
 .site-builder-node--menu-board-stepper-controls>output{min-width:1.6rem;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
 .site-builder-node--menu-board-stepper-price{margin-left:auto;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.site-builder-node--menu-board-usd-hint{display:block;font-weight:400;opacity:0.62;font-size:0.72em}
 .site-builder-node--menu-board-stepper-stock{flex-basis:100%;font-size:0.78rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--token-color-primary)}
 @media (min-width:640px){.site-builder-node--menu-board-stepper-stock{flex-basis:auto}}
 .site-builder-node--menu-board-stepper-stock[data-sold-out="true"]{color:var(--token-color-muted);text-decoration:line-through}
@@ -190,6 +193,7 @@ export function MenuBoardIsland({
   offerings: rendered,
   copy,
   locale,
+  usdRates = null,
 }: MenuBoardIslandProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [contactName, setContactName] = useState("");
@@ -405,6 +409,12 @@ export function MenuBoardIsland({
       <div className="site-builder-node--menu-board-stepper-group" aria-label={copy.selectQuantities}>
         {offerings.map((offering) => {
           const quantity = clampQty(quantities[offering.id] ?? 0);
+          const usd = usdEquivalentLabel(
+            offering.amountCents,
+            offering.currency,
+            usdRates,
+            locale ?? "en",
+          );
           return (
             <div key={offering.id} className="site-builder-node--menu-board-stepper-row">
               <div className="site-builder-node--menu-board-stepper-copy">
@@ -453,6 +463,11 @@ export function MenuBoardIsland({
                           price: formatMenuMoney(offering.amountCents, offering.currency),
                         })
                       : formatMenuMoney(offering.amountCents, offering.currency)}
+                  {usd ? (
+                    <span data-usd-equivalent className="site-builder-node--menu-board-usd-hint">
+                      {usd}
+                    </span>
+                  ) : null}
                 </span>
                 {isSoldOut(offering) ? (
                   <span className="site-builder-node--menu-board-stepper-stock" data-sold-out="true">
