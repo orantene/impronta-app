@@ -169,6 +169,7 @@ export function ServicesHome({ talentId }: { talentId: string }) {
     return (
       <DefaultsScreen
         defaults={defaults}
+        currency={items.find((i) => i.currency)?.currency ?? "MXN"}
         onChange={setDefaults}
         onBack={() => setScreen("list")}
         onSave={async () => {

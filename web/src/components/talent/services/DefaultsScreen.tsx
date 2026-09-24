@@ -108,11 +108,13 @@ function clock(totalMin: number): string {
 
 export function DefaultsScreen({
   defaults,
+  currency = "MXN",
   onChange,
   onBack,
   onSave,
 }: {
   defaults: SellingDefaults;
+  currency?: string;
   onChange: (next: SellingDefaults) => void;
   onBack: () => void;
   onSave: () => void;
@@ -189,8 +191,8 @@ export function DefaultsScreen({
               <p className="text-[13.5px] leading-snug text-admin-ink">
                 {pct > 0 ? (
                   <>
-                    {copy.t("On a {price} MXN service that is").replace("{price}", String(EXAMPLE_PRICE))}{" "}
-                    <strong>{depositNow} MXN</strong> {copy.t("now and")} <strong>{depositLater} MXN</strong>{" "}
+                    {copy.t("On a {price} MXN service that is").replace("{price}", String(EXAMPLE_PRICE)).replaceAll("MXN", currency)}{" "}
+                    <strong>{depositNow} {currency}</strong> {copy.t("now and")} <strong>{depositLater} {currency}</strong>{" "}
                     {copy.t("at the studio.")}
                   </>
                 ) : (
@@ -207,7 +209,8 @@ export function DefaultsScreen({
                 )
                 .replace("{fee}", String(EXAMPLE_TRAVEL_FEE))
                 .replace("{now}", String(depositNow))
-                .replace("{later}", String(depositLater + EXAMPLE_TRAVEL_FEE))}
+                .replace("{later}", String(depositLater + EXAMPLE_TRAVEL_FEE))
+                .replaceAll("MXN", currency)}
             </p>
           ) : null}
         </Card>
@@ -283,7 +286,7 @@ export function DefaultsScreen({
                   <UnitInput
                     label={copy.t("Travel fee")}
                     value={defaults.travelFeeCents === null ? null : defaults.travelFeeCents / 100}
-                    unit="MXN"
+                    unit={currency}
                     onValue={(n) => patch({ travelFeeCents: n === null ? null : Math.round(n * 100) })}
                   />
                 </div>
@@ -325,7 +328,7 @@ export function DefaultsScreen({
             {copy
               .t("A 60 minute service booked at 10:00 therefore ends at 11:00 for the client and {end} for you.")
               .replace("{end}", clock(660 + buffer))}{" "}
-            {copy.t("Changing this affects new bookings only.")}
+            {copy.t("These times are saved on your defaults. They do not change open slots yet.")}
           </p>
         </Card>
       </div>
