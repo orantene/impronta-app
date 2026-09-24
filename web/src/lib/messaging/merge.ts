@@ -131,10 +131,11 @@ async function moveByInquiryId(admin: Admin, table: string, fromId: string, toId
  * with new data lost.
  */
 async function mergeMessageReads(admin: Admin, fromId: string, toId: string) {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("inquiry_message_reads")
     .select("thread_type, user_id, last_read_at, last_read_message_id")
     .eq("inquiry_id", fromId);
+  if (error) return;
   const rows = (data ?? []) as Array<{
     thread_type: string;
     user_id: string;
@@ -142,13 +143,14 @@ async function mergeMessageReads(admin: Admin, fromId: string, toId: string) {
     last_read_message_id: string | null;
   }>;
   for (const row of rows) {
-    const { data: existing } = await admin
+    const { data: existing, error: existingErr } = await admin
       .from("inquiry_message_reads")
       .select("last_read_at")
       .eq("inquiry_id", toId)
       .eq("thread_type", row.thread_type)
       .eq("user_id", row.user_id)
       .maybeSingle();
+    if (existingErr) continue;
     if (existing) {
       const cur = existing as { last_read_at: string };
       if (row.last_read_at > cur.last_read_at) {
@@ -178,25 +180,29 @@ async function mergeMessageReads(admin: Admin, fromId: string, toId: string) {
 }
 
 async function eitherHasPaidOrConfirmedRecord(admin: Admin, tenantId: string, inquiryIds: string[]): Promise<boolean> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("conversation_records")
     .select("inquiry_id, record_kind, record_id")
     .eq("tenant_id", tenantId)
     .in("inquiry_id", inquiryIds)
     .is("unlinked_at", null);
+  // Unreadable links → refuse the merge (fail closed), never treat as "no paid records".
+  if (error) return true;
   const links = (data ?? []) as Array<{ inquiry_id: string; record_kind: RecordKind; record_id: string }>;
   for (const link of links) {
     if (link.record_kind === "order") {
-      const { data: order } = await admin.from("orders").select("status").eq("id", link.record_id).maybeSingle();
+      const { data: order, error: orderErr } = await admin.from("orders").select("status").eq("id", link.record_id).maybeSingle();
+      if (orderErr) return true;
       const status = (order as { status: string } | null)?.status;
       if (status && PAID_ORDER_STATUSES.has(status)) return true;
     }
     if (link.record_kind === "offer") {
-      const { data: offer } = await admin
+      const { data: offer, error: offerErr } = await admin
         .from("inquiry_offers")
         .select("status")
         .eq("id", link.record_id)
         .maybeSingle();
+      if (offerErr) return true;
       const status = (offer as { status: string } | null)?.status;
       if (status && CONFIRMED_OFFER_STATUSES.has(status)) return true;
     }
