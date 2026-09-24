@@ -7,18 +7,17 @@ import type { ServiceMenuItem } from "./services-menu-types";
 function item(partial: Partial<ServiceMenuItem> & Pick<ServiceMenuItem, "id" | "name">): ServiceMenuItem {
   return {
     description: null,
-    pricingType: "fixed",
+    pricingType: "flat_package",
     amountCents: 25000,
     currency: "USD",
-    durationMinutes: null,
     visibility: "public",
     isActive: true,
     isInstantBook: false,
     sortOrder: 0,
     taxonomyTermIds: null,
-    addOnIds: null,
-    packageIncludes: null,
-    tiers: null,
+    addOns: [],
+    childServiceIds: null,
+    tiers: [],
     ...partial,
   };
 }
