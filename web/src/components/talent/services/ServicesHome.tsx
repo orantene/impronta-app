@@ -43,6 +43,7 @@ import {
 import { listCategoryUndos, popCategoryUndo, pushCategoryUndo } from "@/lib/talent/category-undo";
 import { ExtraScreen } from "./ExtraScreen";
 import { DuplicateReviewScreen } from "./DuplicateReviewScreen";
+import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 
 type Filter = "all" | "service" | "package" | "product" | "draft" | "hidden" | "archived" | "attention";
 type Screen = "list" | "editor" | "defaults" | "organize" | "addMany" | "camera" | "firstRun" | "patterns";
@@ -69,6 +70,7 @@ export function ServicesHome({ talentId }: { talentId: string }) {
   const [slowLoad, setSlowLoad] = useState(false);
   const [extraOpen, setExtraOpen] = useState(false);
   const [dupPair, setDupPair] = useState<{ original: TalentOffering; copy: TalentOffering } | null>(null);
+  const [hideFailedIds, setHideFailedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!editor.loading) {
@@ -456,6 +458,8 @@ export function ServicesHome({ talentId }: { talentId: string }) {
         </div>
       )}
 
+      <WebsiteRewardControl placement="services" />
+
       <ul className="mt-4 divide-y divide-admin-border-soft overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
         {derived.map((item) => (
           <li key={item.id} className={`relative flex items-center gap-3 px-3 py-3 ${bannerId === item.id ? "bg-[rgba(15,79,62,0.06)]" : ""}`}>
@@ -483,7 +487,7 @@ export function ServicesHome({ talentId }: { talentId: string }) {
                 </span>
               </span>
             </button>
-            <ItemStateChips item={item} locale={locale} />
+            <ItemStateChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} />
             <button type="button" aria-label={copy.t("Row menu")} className="px-2" onClick={() => setMenuId(menuId === item.id ? null : item.id)}>
               ⋯
             </button>
@@ -617,9 +621,15 @@ export function ServicesHome({ talentId }: { talentId: string }) {
                   setHideTarget(null);
                   const res = await setOfferingPublication(talentId, target.id, "draft");
                   if (!res.ok) {
+                    setHideFailedIds((prev) => new Set(prev).add(target.id));
                     setToast(res.error ?? copy.t("Could not hide it. It is still public. Try again."));
                     return;
                   }
+                  setHideFailedIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(target.id);
+                    return next;
+                  });
                   editor.reload();
                 }}
               >

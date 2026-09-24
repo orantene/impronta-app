@@ -51,7 +51,7 @@ const MISSING_TIME: Record<string, string> = {
   fields_recommended: "about 2 min",
 };
 
-export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mobile" }) {
+export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mobile" | "services" }) {
   const { bridgeTalentCompletion, bridgeTalentSelfProfile, openDrawer, setTalentPage, state } = useAdminShell();
   const studio = useTalentStudioV2();
   const siteLoad = useTalentSiteDashboardInitialLoad();
@@ -130,13 +130,20 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     </svg>
   );
 
+  const wrapClass =
+    placement === "topbar"
+      ? "hidden md:block"
+      : placement === "services"
+        ? "md:hidden mb-4 w-full"
+        : "md:hidden";
+
   return (
-    <div className={placement === "topbar" ? "hidden md:block" : "md:hidden"}>
+    <div className={wrapClass}>
       {isLive ? (
         <button
           type="button"
           onClick={onPress}
-          className="inline-flex items-center gap-2.5 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 text-left font-admin-body"
+          className={`inline-flex items-center gap-2.5 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 text-left font-admin-body ${placement === "services" ? "w-full" : ""}`}
           aria-label={onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
         >
           <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
@@ -154,7 +161,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
         <button
           type="button"
           onClick={onPress}
-          className="inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-emerald-900/15 bg-emerald-900/[0.06] px-3 py-1.5 text-left font-admin-body"
+          className={`inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-emerald-900/15 bg-emerald-900/[0.06] px-3 py-1.5 text-left font-admin-body ${placement === "services" ? "w-full" : ""}`}
           aria-label={labels.title}
         >
           <span className="min-w-0 flex-1">
@@ -220,7 +227,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                 {eligibility
                   ? eligibility.percent == null
                     ? copy.t("Not available")
-                    : `${eligibility.percent}%`
+                    : `${eligibility.slices.filter((s) => s.done).length} ${copy.isSpanish ? "de" : "of"} ${eligibility.slices.length}`
                   : (
                     <>
                       {copy.t("What is left")}{" "}

@@ -9,10 +9,12 @@ export function ItemStateChips({
   item,
   locale,
   showBooking = true,
+  hideFailed = false,
 }: {
   item: TalentOffering;
   locale: string;
   showBooking?: boolean;
+  hideFailed?: boolean;
 }) {
   const word = publicationWord({ status: item.status, firstPublishedAt: item.firstPublishedAt });
   const soldOut = item.inventoryQty === 0;
@@ -54,6 +56,11 @@ export function ItemStateChips({
       {agencyOnly && (
         <span className="text-[11px] text-admin-ink-muted">
           {locale.startsWith("es") ? "Solo agencias" : "Agencies only"}
+        </span>
+      )}
+      {hideFailed && (
+        <span className="rounded-full bg-[rgba(176,32,32,0.1)] px-2 py-0.5 text-[10px] font-semibold text-[#8A1F1F]">
+          {locale.startsWith("es") ? "No se ocultó" : "Hide failed"}
         </span>
       )}
     </span>

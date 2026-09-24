@@ -1,32 +1,40 @@
 # Services rebuild report (2026-09-24)
 
-Worktree `feat/services-rebuild`. No merge. No production pointer. Jor's live site was not published from this pass.
+Worktree `feat/services-rebuild`. No merge. No PR. Jor's live site (`book-jorgelina.tulala.digital`) was not published.
 
-## Done
+## Done (with evidence)
 
-- Tree cleaned: presence commit `357eb92be`, services commit `fac84c3be`. Typecheck, lint, and the three test files exited 0.
-- `services_catalog` now matches the menu spec in code: italic `{i}` titles, filter pills (first category visible, others `hidden` in HTML), `ctaLabel` defaulting to Select / Seleccionar, 120px photo rows, hairline dividers, computed stats, `category_order`, inspector fields, 10 render tests.
-- Editor canvas was empty because `talentProfileId` was not passed into `loadBuilderNodeDataSources`. It now also reads a talent `previewSubject`.
-- Product editor card (p23 fields): stock, whenSoldOut, variants, fulfillment. Saved on the item; `upsertTalentOffering` already writes variants via `setOfferingOptions`.
-- New extra screen and duplicate review screen are wired. Hide dialog subtitle is `Hiding "…"`.
-- Public storefront and the widget sort categories by `category_order`. Organize no longer says order is not saved.
-- Camera dropped "1 of 3". New Spanish strings added.
+- Session: localhost:3000, Jor via magic-link confirm (no password). Hub `/talent/services` loaded 21 services + 1 package.
+- Hub desktop: `docs/plans/services-rebuild/evidence/p04-hub-desktop.png`
+- Product QA: created draft **QA test cuticle oil** (180 MXN, 15 ml size in editor, pickup/ship/handover fields shown). Reopened as Product · Draft. Archived, then Delete forever. Hub back to 22 items. Write: `upsertTalentOffering` draft `44717f38-bc83-4d52-8aa7-56368ef6aa60` then `setOfferingPublication` archived then `deleteTalentOfferingForever`. `attributes` on save was `{}` — size/fulfillment did not persist to that row.
+- Product editor shot: `docs/plans/services-rebuild/evidence/p24-product-editor.png`
+- Hub public storefront `/t/TAL-JORGBEAUTY`: category pills Pestañas/Uñas/Cejas/Depilación; gel MX$300 ≈ US$17; package Set $500. `docs/plans/services-rebuild/evidence/p38-hub-profile.png`
+- Phone 390: bottom nav Today / Messages / Calendar / Money / More; + Add item; live website card `/t/TAL-JORGBEAUTY`. `docs/plans/services-rebuild/evidence/p04-services-390.png`
+- Code this pass: `WebsiteRewardControl` `placement="services"` (full-width phone card above the list, hidden while editor is open because the list screen unmounts); sheet heading `N of 6` when eligibility slices exist; `ItemStateChips` Hide failed chip; hide dialog writes `hideFailedIds`.
+- Widget: Add → Data → Booking → Services menu. Draft saved. Structure search `catalog` returned no layer. `docs/plans/services-rebuild/evidence/p-widget-insert-no-layer.png`. Not published.
 
-## Not done / not proven in a browser
+## Not done (reason)
 
-- Widget live click-through: the block inserts in `/talent/page-builder` (Data tab, search catalog). Before the data-source fix it rendered "No services are published yet." Re-insert and click Select after a server refresh. Do not publish.
-- Product test row on Jor was not created in this pass. Create, reopen, delete.
-- Extra was not created and not shown on a public card.
-- Duplicate review, hide failure chip, Publishing… retry, p17/p20/p21 reward, phone 360/390 frames, Spanish walk, three-surface parity: not re-shot.
-- Checkout does not read `attributes.fulfillment`. Shipping is stored only. Do not fake checkout.
-- Guest access-link bug (P) stays off this worktree.
-- Live `#servicios` band swap is an owner decision.
+- Select → dock: catalog node never landed in the canvas DOM (two tries). Static `#servicios` menu was already on the draft; live widget not proven.
+- Extra on two nail services: skipped so live extras are not left on Jor's menu.
+- Duplicate review screen: not opened (would leave a copy).
+- Hide failure forced: chip is coded; not forced offline this pass.
+- Publishing… / Retry / PublishedBanner: not re-shot.
+- p20 Keep it / Write my own and p21 Intro saved: not built (Jor already has an intro; no draft-bio task UI).
+- Phone 360 and frames p07/p17-edit/p29/p34: only 390 home.
+- Directory card vs hub vs widget: hub only. Widget not in DOM.
+- Checkout still ignores `attributes.fulfillment`.
+- Guest access-link (P): other branch.
+- Spanish walk: not a separate pass.
+
+Gates: `typecheck` 0, `lint` 0, catalog render tests 0, `test:builder-node-bindings` 0. `test:billing` 1 fail in `offerings-types.test.ts` (`validateOffering` expects no errors on a zero-price instant “Fade”) — not from this pass’s files.
 
 ## Owner decisions
 
-1. Swap Jor's live `#servicios` band for `services_catalog` (keeps booking on her site). Prepare on localhost only.
-2. Open a PR when asked.
+1. Live `#servicios` band swap — localhost only; stop.
+2. Open PR — skip until asked.
 
-## Jor writes this session
+## Jor writes
 
-None besides browsing. A Services menu block was inserted then removed in the page-builder draft. Confirm the draft did not keep it.
+- Draft product `44717f38-bc83-4d52-8aa7-56368ef6aa60` created then archived then deleted.
+- Page-builder draft may still contain a failed Services menu insert (unpublished).
