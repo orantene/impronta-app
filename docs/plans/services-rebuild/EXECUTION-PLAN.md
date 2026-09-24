@@ -1,18 +1,15 @@
-# Services rebuild execution status (2026-09-24)
+# Services rebuild execution status (2026-09-24, round 2)
 
-Port **3000** only. Branch `feat/services-rebuild`, rebased onto `origin/main`. No PR. No live publish.
+Port 3000 only. Branch `feat/services-rebuild`, rebased onto `origin/main`. No PR.
 
-Evidence: `docs/plans/services-rebuild/evidence/`. Stop report: `REPORT.md`.
-
-## This finish
+Home page `bad420b5-13cc-45ab-a915-841e775b1a7c` matches restored revision `79ef2414` (sha256 prefix `6d83ddc965`, no `services_catalog`). The named token `f8156c9405` is not that digest. This round does not edit that page.
 
 | Item | Result |
 |---|---|
-| Unblock + Jor session | Done. Magic-link confirm. |
-| Widget live Select→dock | Not proven. `p-widget-insert-no-layer.png` |
-| Product + extra | Product prior pass. Extra not written. `p24-product-editor.png` |
-| Dup / hide / publish | Dup review `p13-duplicate-review.png`. Hide dialog cancelled `p14-hide-dialog.png`. Publish retry not shot. |
-| Reward / cats / p37 / phone | p20 `p20-intro-task.png`, p21 `p21-intro-saved.png`. Organize `p34-organize.png`. p37 menu on live row. 390 only. |
-| Report + rebase + gates | Rebased. REPORT rewritten. Gates run from `web/`. |
-
-Owner: live `#servicios` swap and PR wait.
+| Commits + rebase | Done. Upstream is `origin/main`. |
+| Widget sheet | Code committed. Editor screenshots from round 1. Live write not clicked yet. |
+| Category note | Wired from group note / `selling_defaults.categoryNotes`. The manicure line is static page copy, not a column. |
+| Near-match | `categoryNearMatch` on Organize and the editor. |
+| Ship | Coming soon. Checkout does not charge it. |
+| Defaults currency | Uses the talent item currency. Buffer does not change slots; the screen says so. |
+| Remaining proofs | See REPORT.md. |
