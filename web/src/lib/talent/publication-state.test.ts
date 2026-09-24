@@ -34,6 +34,7 @@ describe("bookingModeLabel", () => {
 
 describe("categoryNearMatch", () => {
   it("matches accent and punctuation drift", () => {
+    assert.equal(categoryNearMatch("Unas", "Uñas"), true);
     assert.equal(categoryNearMatch("Uñas", "unas"), true);
     assert.equal(categoryNearMatch("Uñas gel", "Uñas · gel"), true);
     assert.equal(foldAccent("Pestañas"), "pestanas");

@@ -65,5 +65,10 @@ export function useWebsiteEligibility() {
     hasAvailability,
     hasPlace: bridgeTalentSelfProfile ? Boolean(bridgeTalentSelfProfile.homeCity) : null,
   };
-  return getWebsiteEligibility(input);
+  return {
+    ...getWebsiteEligibility(input),
+    bookableCount,
+    hasAvailability,
+    photoCount: bridgeTalentSelfProfile ? bridgeTalentSelfProfile.portfolioCount ?? null : null,
+  };
 }

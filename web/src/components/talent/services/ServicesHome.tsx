@@ -44,6 +44,13 @@ import { listCategoryUndos, popCategoryUndo, pushCategoryUndo } from "@/lib/tale
 import { ExtraScreen } from "./ExtraScreen";
 import { DuplicateReviewScreen } from "./DuplicateReviewScreen";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
+import { useAdminShell } from "@/components/admin/shell/internal/state";
+import {
+  ServicesHoursNeededBanner,
+  useHasBookableHours,
+  useNeedsWorkingHoursBanner,
+} from "./ServicesHoursNeeded";
+import { HideOutcome, RowMenu, listPrice } from "./ServicesHomeRowChrome";
 
 type Filter = "all" | "service" | "package" | "product" | "draft" | "hidden" | "archived" | "attention";
 type Screen = "list" | "editor" | "defaults" | "organize" | "addMany" | "camera" | "firstRun" | "patterns";
@@ -59,6 +66,7 @@ export function ServicesHome({
 }) {
   const copy = useDashboardText();
   const locale = copy.isSpanish ? "es" : "en";
+  const { setTalentPage } = useAdminShell();
   const editor = useOfferingsEditor({ kind: "talent", talentProfileId: talentId });
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -80,6 +88,7 @@ export function ServicesHome({
   const [dupPair, setDupPair] = useState<{ original: TalentOffering; copy: TalentOffering } | null>(null);
   const [hideFailedIds, setHideFailedIds] = useState<Set<string>>(new Set());
   const [shownIds, setShownIds] = useState<Set<string>>(new Set());
+  const hasBookableHours = useHasBookableHours(talentId);
 
   const failHide = (id: string) => {
     setHideFailedIds((prev) => new Set(prev).add(id));
@@ -142,6 +151,8 @@ export function ServicesHome({
   }, [editor.loading]);
 
   const items = editor.items;
+  const hasInstantWithoutHours = useNeedsWorkingHoursBanner(items, hasBookableHours);
+  const openWorkingHours = () => setTalentPage("calendar");
   const derived = useMemo(() => {
     const q = foldAccent(query);
     return items.filter((item) => {
@@ -359,6 +370,8 @@ export function ServicesHome({
         sellerName={sellerName}
         sellerCity={sellerCity}
         rates={editor.usdRates}
+        needsWorkingHours={hasBookableHours === false}
+        onOpenWorkingHours={openWorkingHours}
         onBack={() => setScreen("list")}
         onSave={async (next, publish, pendingImageIds) => {
           // Direct write, not editor.saveDraft: saveDraft reads the hook's own
@@ -430,6 +443,8 @@ export function ServicesHome({
           </div>
         </div>
       </div>
+
+      {hasInstantWithoutHours && <ServicesHoursNeededBanner onOpen={openWorkingHours} />}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <label className="min-w-[200px] flex-1">
@@ -534,7 +549,7 @@ export function ServicesHome({
                 <span className="grid h-12 w-12 place-items-center rounded-md border border-dashed border-admin-border text-lg text-admin-ink-muted">+</span>
               )}
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold text-admin-ink">{item.title}</span>
+                <span className="block line-clamp-2 font-semibold text-admin-ink" title={item.title}>{item.title}</span>
                 <span className="block truncate text-[12px] text-admin-ink-muted">
                   {[item.category, item.durationMinutes ? `${item.durationMinutes} min` : null, item.imageUrls.length === 0 ? copy.t("add a photo") : null, (item.addOns?.length ?? 0) > 0 ? `${item.addOns?.length} ${copy.t("extras")}` : null]
                     .filter(Boolean)
@@ -582,8 +597,20 @@ export function ServicesHome({
                   setHideTarget(item);
                   if (destinations.length === 0) void refreshExtras();
                 }}
-                onShow={() => void applyShow(item)}
+                onShow={() => {
+                  setHideFailedIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(item.id);
+                    return next;
+                  });
+                  void applyShow(item);
+                }}
                 onArchive={async () => {
+                  setHideFailedIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(item.id);
+                    return next;
+                  });
                   await setOfferingPublication(talentId, item.id, "archived");
                   editor.reload();
                   setToast(copy.t("Archived"));
@@ -593,6 +620,15 @@ export function ServicesHome({
                   editor.reload();
                 }}
                 onDelete={async () => {
+                  const ok = window.confirm(
+                    `${copy.t("Delete forever")} “${item.title}”? ${copy.t("This cannot be undone.")}`,
+                  );
+                  if (!ok) return;
+                  setHideFailedIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(item.id);
+                    return next;
+                  });
                   const res = await deleteTalentOfferingForever(talentId, item.id);
                   setToast(res.ok ? copy.t("Deleted") : res.error ?? copy.t("Could not delete"));
                   editor.reload();
@@ -701,111 +737,5 @@ export function ServicesHome({
         <div className="fixed bottom-20 right-4 rounded-full bg-admin-ink px-3 py-2 text-[12px] text-white">{toast}</div>
       )}
     </div>
-  );
-}
-
-function HideOutcome({
-  item,
-  failed,
-  shown,
-  onRetry,
-  onShow,
-  onHide,
-}: {
-  item: TalentOffering;
-  failed: boolean;
-  shown: boolean;
-  onRetry: () => void;
-  onShow: () => void;
-  onHide: () => void;
-}) {
-  const copy = useDashboardText();
-  const locale = copy.isSpanish ? "es" : "en";
-  const word = publicationWord(item);
-  if (!failed && word !== "hidden" && !shown) return null;
-  const label = failed ? copy.t("Could not hide it") : publicationLabel(failed ? "live" : word === "hidden" ? "hidden" : "live", locale);
-  const sentence = failed
-    ? copy.t("It is still public and nothing was lost. Try again, or we will chase the hub.")
-    : word === "hidden"
-      ? copy.t("Off every public page. Your bookings for it still stand.")
-      : copy.t("Back on both pages with the same link, so nothing you shared is broken.");
-  const action = failed ? copy.t("Try again") : word === "hidden" ? copy.t("Show again") : copy.t("Hide");
-  const run = failed ? onRetry : word === "hidden" ? onShow : onHide;
-  return (
-    <div className="flex w-full items-center gap-3 pl-[60px]">
-      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${failed ? "bg-[rgba(176,32,32,0.1)] text-[#8A1F1F]" : word === "hidden" ? "bg-[rgba(11,11,13,0.08)] text-admin-ink-muted" : "bg-[rgba(15,79,62,0.12)] text-[#0F4F3E]"}`}>
-        {label}
-      </span>
-      <span className="min-w-0 flex-1 text-[12px] text-admin-ink-muted">{sentence}</span>
-      <button type="button" className="shrink-0 rounded-full border border-admin-border-soft px-3 py-1.5 text-[13px]" onClick={run}>
-        {action}
-      </button>
-    </div>
-  );
-}
-
-function RowMenu({
-  item,
-  filter,
-  onClose,
-  onEdit,
-  onPreview,
-  onShare,
-  onDuplicate,
-  onHide,
-  onShow,
-  onArchive,
-  onRestore,
-  onDelete,
-  onMove,
-}: {
-  item: TalentOffering;
-  filter: Filter;
-  onClose: () => void;
-  onEdit: () => void;
-  onPreview: () => void;
-  onShare: () => void;
-  onDuplicate: () => void;
-  onHide: () => void;
-  onShow: () => void;
-  onArchive: () => void;
-  onRestore: () => void;
-  onDelete: () => void;
-  onMove: (dir: -1 | 1) => void;
-}) {
-  const copy = useDashboardText();
-  const word = publicationWord(item);
-  return (
-    <div className="absolute right-0 top-10 z-20 w-52 rounded-xl border border-admin-border-soft bg-white py-1 shadow-admin-rest">
-      <MenuBtn onClick={() => { onEdit(); onClose(); }}>{copy.t("Edit")}</MenuBtn>
-      <MenuBtn onClick={() => { onPreview(); onClose(); }}>{copy.t("Preview as customer")}</MenuBtn>
-      {word === "live" && <MenuBtn onClick={() => { onShare(); onClose(); }}>{copy.t("Share")}</MenuBtn>}
-      <MenuBtn onClick={() => { onDuplicate(); onClose(); }}>{copy.t("Duplicate")}</MenuBtn>
-      {word === "live" && <MenuBtn onClick={() => { onHide(); onClose(); }}>{copy.t("Hide")}</MenuBtn>}
-      {word === "hidden" && <MenuBtn onClick={() => { onShow(); onClose(); }}>{copy.t("Show again")}</MenuBtn>}
-      {word !== "archived" && <MenuBtn onClick={() => { onArchive(); onClose(); }}>{copy.t("Archive")}</MenuBtn>}
-      {word === "archived" && <MenuBtn onClick={() => { onRestore(); onClose(); }}>{copy.t("Restore")}</MenuBtn>}
-      {word === "archived" && <MenuBtn onClick={() => { onDelete(); onClose(); }}>{copy.t("Delete forever")}</MenuBtn>}
-      {filter === "all" && (
-        <>
-          <MenuBtn onClick={() => { onMove(-1); onClose(); }}>{copy.t("Move up")}</MenuBtn>
-          <MenuBtn onClick={() => { onMove(1); onClose(); }}>{copy.t("Move down")}</MenuBtn>
-        </>
-      )}
-    </div>
-  );
-}
-
-function listPrice(item: TalentOffering, quoted: string): string {
-  if (item.amountCents == null || item.priceDisplay === "quote") return quoted;
-  const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(item.amountCents / 100);
-  return `$${amount} ${item.currency}`;
-}
-
-function MenuBtn({ children, onClick }: { children: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className="block w-full px-3 py-2 text-left text-[13px] hover:bg-[rgba(11,11,13,0.04)]">
-      {children}
-    </button>
   );
 }

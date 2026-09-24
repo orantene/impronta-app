@@ -334,7 +334,10 @@ function RenameView({
   const [to, setTo] = useState(from);
   const next = to.trim();
   const clash = taken.find((n) => n.toLowerCase() === next.toLowerCase());
-  const canSave = next.length > 0 && next !== from && !busy;
+  const near = !clash
+    ? taken.find((n) => n !== next && categoryNearMatch(n, next))
+    : undefined;
+  const canSave = next.length > 0 && next !== from && !busy && !clash;
   const shown = next || from;
 
   return (
@@ -368,6 +371,11 @@ function RenameView({
           {clash && (
             <p className="mt-2 text-[13px] text-admin-ink-muted">
               {copy.t("You already have this category. Renaming into it merges the two.")}
+            </p>
+          )}
+          {!clash && near && (
+            <p className="mt-2 text-[13px] text-amber-800">
+              {copy.t("That looks like")} {near}.
             </p>
           )}
         </div>

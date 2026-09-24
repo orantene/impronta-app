@@ -66,6 +66,8 @@ export function EditorScreen({
   onRefreshAddons,
   onOpenExtra,
   catalogNames,
+  needsWorkingHours = false,
+  onOpenWorkingHours,
 }: {
   item: TalentOffering;
   setItem: (next: TalentOffering) => void;
@@ -83,6 +85,8 @@ export function EditorScreen({
   onRefreshAddons: () => Promise<void>;
   onOpenExtra?: (existingId?: string) => void;
   catalogNames?: string[];
+  needsWorkingHours?: boolean;
+  onOpenWorkingHours?: () => void;
 }) {
   const copy = useDashboardText();
   const es = copy.isSpanish;
@@ -361,6 +365,21 @@ export function EditorScreen({
                 );
               })}
             </div>
+
+            {activeMode === "instant" && needsWorkingHours && onOpenWorkingHours ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
+                {copy.t(
+                  "Instant booking needs your working hours before clients can pick a time. Set them on Calendar.",
+                )}{" "}
+                <button
+                  type="button"
+                  className="font-semibold underline"
+                  onClick={onOpenWorkingHours}
+                >
+                  {copy.t("Open Calendar")}
+                </button>
+              </p>
+            ) : null}
 
             {kind !== "product" && (
               <div>

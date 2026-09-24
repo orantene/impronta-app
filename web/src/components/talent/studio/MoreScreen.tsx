@@ -6,18 +6,39 @@ import { WebsiteRewardControl } from "@/components/talent/website-reward/Website
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useAdminShell, type TalentPage } from "@/components/admin/shell/internal/state";
 import { openGuideArticle } from "@/lib/guide/open-guide";
+import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 
 type Row = { label: string; detail: string; page?: TalentPage; run?: () => void };
 
 export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
   const copy = useDashboardText();
   const { setTalentPage, bridgeTalentSelfProfile, bridgeTalentCompletion } = useAdminShell();
+  const eligibility = useWebsiteEligibility();
   const [signingOut, setSigningOut] = useState(false);
   const name = bridgeTalentSelfProfile?.displayName?.trim() || copy.t("Not available");
   const city = bridgeTalentSelfProfile?.homeCity?.trim() || "";
   const profileLeft = bridgeTalentCompletion
     ? `${bridgeTalentCompletion.missing.length} ${copy.t("things left")}`
     : copy.t("Not available");
+  const bookable =
+    eligibility.bookableCount == null
+      ? copy.t("Not available")
+      : eligibility.bookableCount === 0
+        ? copy.t("None yet")
+        : `${eligibility.bookableCount} ${copy.t("items")}`;
+  const hoursDetail =
+    eligibility.hasAvailability == null
+      ? copy.t("Not available")
+      : eligibility.hasAvailability
+        ? copy.t("Hours set")
+        : copy.t("Not set yet");
+  const photosDetail =
+    eligibility.photoCount == null
+      ? copy.t("Not available")
+      : eligibility.photoCount === 0
+        ? copy.t("None yet")
+        : String(eligibility.photoCount);
+  const publicPageDetail = eligibility.unlocked ? copy.t("Ready") : copy.t("In progress");
 
   const go = (page: TalentPage) => {
     setTalentPage(page);
@@ -28,19 +49,19 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
     {
       title: "Presence",
       rows: [
-        { label: "My public page", detail: copy.t("Not available"), page: "public-page" },
-        { label: "Where I appear", detail: copy.t("Not available"), page: "public-page" },
+        { label: "My public page", detail: publicPageDetail, page: "public-page" },
+        { label: "Where I appear", detail: publicPageDetail, page: "public-page" },
         { label: "Edit my profile", detail: profileLeft, page: "profile" },
-        { label: "Photos of my work", detail: copy.t("Not available"), page: "profile" },
-        { label: "Reviews", detail: copy.t("Not available"), page: "reviews" },
+        { label: "Photos of my work", detail: photosDetail, page: "profile" },
+        { label: "Reviews", detail: copy.t("Open"), page: "reviews" },
       ],
     },
     {
       title: "Work",
       rows: [
-        { label: "Services", detail: copy.t("Not available"), page: "services" },
-        { label: "Clients", detail: copy.t("Not available"), page: "clients" },
-        { label: "Working hours", detail: copy.t("Not available"), page: "settings" },
+        { label: "Services", detail: bookable, page: "services" },
+        { label: "Clients", detail: copy.t("Open"), page: "clients" },
+        { label: "Working hours", detail: hoursDetail, page: "calendar" },
       ],
     },
     {
