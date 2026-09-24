@@ -30,3 +30,8 @@ Amounts are cents or the same unit the order already uses. `currency` is `MXN` w
 
 - POS cash writes no `order_confirmation`.
 - A paid ticket writes no `tickets_card`.
+
+## Still open after #2230
+
+- `markPaid` writes `provider` on the paid card (`web/src/lib/bookings/transactions.ts`, the `payment_paid` insert). The dock reads `card_payload.method`. Put `method` (`card`, `cash`, or `transfer`) on that payload.
+- A `payment_paid` row with no `sender_user_id` is classified as a system note in `web/src/app/t/[profileCode]/_actions/guest-chat-actions.ts` (the no-sender branch). The guest should see the paid card, not only a system note.
