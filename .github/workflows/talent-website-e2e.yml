@@ -93,11 +93,44 @@ jobs:
           grep -n -A3 -E '^\[db\.(seed|migrations)\]' supabase/config.toml
           echo "Migrations on disk: $(ls supabase/migrations | grep -cE '^[0-9]+_.*\.sql$')"
 
+      # `supabase start` pulls its images from ghcr.io (SUPABASE_INTERNAL_IMAGE_
+      # REGISTRY), and this lane died THREE times in one evening on:
+      #
+      #   Error response from daemon: toomanyrequests: retry-after: 225µs,
+      #   allowed: 44000/minute
+      #
+      # That 44000/minute is a SHARED burst bucket keyed on the runner's egress
+      # IP, not on our account. MEASURED: `docker login ghcr.io` with the job's
+      # own GITHUB_TOKEN does NOT lift it — tried on this branch, the login
+      # succeeded and the pull still failed 50 times. So authenticating is not
+      # the fix and the login step was removed rather than left in place looking
+      # like one.
+      #
+      # What is left is honest backoff. The bucket refills per MINUTE, so a 30s
+      # retry is too fast to help; this waits 75s and tries five times, which
+      # spans six minutes of refills. A run that dies here measures the RUNNER,
+      # not our fixtures, so it is worth spending minutes to avoid producing a
+      # misleading number.
       - name: Start local Supabase
         run: |
+          set -o pipefail
           supabase --version
-          supabase start \
-            -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime
+          # Retry the pull-heavy start: even authenticated, a transient registry
+          # failure should cost 30 seconds, not the whole run.
+          for attempt in 1 2 3 4 5; do
+            if supabase start \
+                 -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime; then
+              echo "supabase start succeeded on attempt $attempt"
+              exit 0
+            fi
+            if [ "$attempt" -lt 5 ]; then
+              echo "::warning title=supabase start failed::attempt $attempt of 5, waiting 75s for the registry bucket to refill"
+              supabase stop --no-backup || true
+              sleep 75
+            fi
+          done
+          echo "::error title=supabase start::failed 5 times over ~6 minutes. If the log shows toomanyrequests this is the shared ghcr bucket, NOT our code — the run proves nothing about the fixtures."
+          exit 1
 
       - name: psql client
         run: |
