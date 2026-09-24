@@ -38,6 +38,7 @@ import {
 } from "./animation-presets";
 import { hasRenderableBackgroundMedia } from "./background-media";
 import { BuilderNodeCarouselTrack } from "./carousel";
+import { BuilderNodeTabsView } from "./tabs";
 import { carouselSlideVars } from "./carousel-slides-per-view";
 import { SocialFeedWidget } from "./social-feed";
 import { BuilderNodeCodeFrame } from "./code-frame";
@@ -493,6 +494,8 @@ type NormalizedBuilderNodeRenderOptions = Required<
   >
 > & {
   currentPath?: string;
+  /** Set by an `accordion` for its own items; undefined means every item opens. */
+  accordionOpenIds?: readonly string[];
   availableLocales?: ReadonlyArray<{ code: string; href: string; current?: boolean }>;
   renderSectionEmbed: BuilderSectionEmbedRenderer | null;
   // BUILDER 2027 · P2A — null when no server caller injected a live engine;
@@ -4477,7 +4480,10 @@ function renderBuilderNodeElement(
             gap: GAP_BY_SIZE.m,
           })}
         >
-          {renderChildren(node, options)}
+          {renderChildren(node, {
+            ...options,
+            accordionOpenIds: node.props.defaultOpenItemIds,
+          })}
         </div>
       );
     case "accordion_item": {
@@ -4500,7 +4506,7 @@ function renderBuilderNodeElement(
           {...builderNodeStyleAttrs(node.props.style)}
           {...titleCue.attrs}
           className="site-builder-node site-builder-node--accordion-item"
-          open
+          open={options.accordionOpenIds ? options.accordionOpenIds.includes(node.id) : true}
           style={inlineNodeStyle(node.props.style, {
             border: "1px solid rgba(18, 18, 18, 0.14)",
             borderRadius: "0",
@@ -4518,8 +4524,37 @@ function renderBuilderNodeElement(
     }
     case "tabs": {
       const panels = nodeChildren(node).filter((child) => child.kind === "tab_panel");
-      const activePanel =
-        panels.find((panel) => panel.id === node.props.defaultTabId) ?? panels[0] ?? null;
+      const activeIndex = Math.max(
+        0,
+        panels.findIndex((panel) => panel.id === node.props.defaultTabId),
+      );
+      const tabs = panels.map((panel) => {
+        const panelTitle = resolveNodeLocalizedText(
+          panel,
+          "title",
+          panel.props.title,
+          options.contentLocale,
+        );
+        const panelCue = localeFallbackCue(panelTitle.isFallback, options.contentLocale);
+        return {
+          id: panel.id,
+          label: panelTitle.value,
+          attrs: {
+            ...(anchorIdAttrs(panel) as Record<string, string | undefined>),
+            "data-builder-node-id": panel.id,
+            "data-builder-node-kind": panel.kind,
+            ...(panelCue.attrs as Record<string, string | undefined>),
+          },
+          style: {
+            border: "1px solid rgba(18, 18, 18, 0.14)",
+            borderRadius: "0",
+            padding: "0.45rem 0.75rem",
+            fontSize: "0.875rem",
+            color: "inherit",
+            ...panelCue.style,
+          },
+        };
+      });
       return (
         <div
           key={node.id}
@@ -4533,46 +4568,14 @@ function renderBuilderNodeElement(
             gap: GAP_BY_SIZE.m,
           })}
         >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-            {panels.map((panel) => {
-              const panelTitle = resolveNodeLocalizedText(
-                panel,
-                "title",
-                panel.props.title,
-                options.contentLocale,
-              );
-              const panelCue = localeFallbackCue(
-                panelTitle.isFallback,
-                options.contentLocale,
-              );
-              return (
-                <span
-                  key={`${panel.id}:tab`}
-                  {...anchorIdAttrs(panel)}
-                  data-builder-node-id={panel.id}
-                  data-builder-node-kind={panel.kind}
-                  {...panelCue.attrs}
-                  style={{
-                    border: "1px solid rgba(18, 18, 18, 0.14)",
-                    borderRadius: "0",
-                    padding: "0.45rem 0.75rem",
-                    fontSize: "0.875rem",
-                    fontWeight: panel.id === activePanel?.id ? 700 : 500,
-                    ...panelCue.style,
-                  }}
-                >
-                  {panelTitle.value}
-                </span>
-              );
-            })}
-          </div>
-          {activePanel ? (
-            <BuilderNodeView
-              key={activePanel.id}
-              node={activePanel}
-              options={options}
-            />
-          ) : null}
+          <BuilderNodeTabsView
+            tabs={tabs}
+            defaultIndex={activeIndex}
+            listStyle={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}
+            panels={panels.map((panel) => (
+              <BuilderNodeView key={panel.id} node={panel} options={options} />
+            ))}
+          />
         </div>
       );
     }
