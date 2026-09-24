@@ -4402,9 +4402,15 @@ function withExperimentAttrs(
 // `tulala:offering-request` / `-instant` / `-slot` events the hub profile's
 // storefront and the Max/vanity-domain chat dock (`TalentSiteMessagesDock` →
 // `TalentProfileChatLauncherMount`) already listen for — so Select works
-// without any new wiring.
+// without any new wiring. That reuse has one cost: `OfferingCta`'s own
+// inline styles hardcode `--plt-ink` / `--plt-bg` / `--plt-hairline-strong`
+// (the hub-profile namespace), which are never defined on a Max/builder
+// site. The root rule below ALIASES those three onto their `--token-color-*`
+// equivalents, scoped to this block only — the button asks for `--plt-ink`,
+// the cascade hands it `--token-color-ink`. Do not remove this without first
+// confirming the button still has a visible fill and legible text.
 const SERVICES_CATALOG_CSS = `
-.site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit}
+.site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
 .site-builder-node--services-catalog-header{margin-bottom:1.25rem}
 .site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
 .site-builder-node--services-catalog-title{margin:0;font-size:1.5rem;font-weight:600;line-height:1.2}
