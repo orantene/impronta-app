@@ -9,6 +9,9 @@
  */
 import { headers } from "next/headers";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
+import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
+import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import {
   collectBuilderCollectionSourceKeys,
   collectBuilderImageMediaIds,
@@ -342,7 +345,43 @@ export async function loadBuilderNodeDataSources(
       ? {}
       : { featuredTalentProfilesByNodeId }),
     ...(nativeNeeds.servicesCatalog && talentProfileId
-      ? { talentOfferings: await loadPublicOfferingsForProfile(talentProfileId, locale) }
+      ? await loadServicesCatalogSources(talentProfileId, locale)
       : {}),
+  };
+}
+
+/**
+ * `services_catalog` needs two things `loadPublicOfferingsForProfile` alone
+ * doesn't carry: whether this talent confirms bookings by hand (their plan
+ * tier — same rule `TalentStorefront` uses on the hub profile, so the widget
+ * behaves identically there and on a Max site) and the USD-equivalent rates,
+ * fetched once here rather than per-render. Both are optional reads that
+ * degrade to the safe default (confirm-by-hand; no USD line) on any failure,
+ * never to a thrown error.
+ */
+async function loadServicesCatalogSources(
+  talentProfileId: string,
+  locale: string,
+): Promise<Pick<BuilderNodeRenderDataSources, "talentOfferings" | "talentOfferingsConfirmsByHand" | "talentOfferingsUsdRates">> {
+  const offerings = await loadPublicOfferingsForProfile(talentProfileId, locale);
+  let confirmsByHand = true;
+  const admin = createServiceRoleClient();
+  if (admin) {
+    const { data, error } = await admin
+      .from("talent_profiles")
+      .select("talent_plan_key")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    if (!error) {
+      confirmsByHand = !talentOffersInstantBooking(
+        (data as { talent_plan_key?: string | null } | null)?.talent_plan_key,
+      );
+    }
+  }
+  const usdRates = needsUsdRates(offerings) ? await loadUsdRates() : null;
+  return {
+    talentOfferings: offerings,
+    talentOfferingsConfirmsByHand: confirmsByHand,
+    ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
   };
 }

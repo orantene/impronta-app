@@ -139,6 +139,9 @@ import { TicketPickerIsland } from "./ticket-picker-island";
 import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
+import { OfferingCta } from "@/app/t/[profileCode]/_shared/OfferingCta";
+import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
+import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -270,25 +273,18 @@ export interface BuilderNodeRenderDataSources {
       href?: string;
     };
   };
-  talentOfferings?: ReadonlyArray<{
-    id: string;
-    title: string;
-    description: string | null;
-    amountCents: number | null;
-    currency: string;
-    priceDisplay: string;
-    priceType: string;
-    kind: string;
-    durationMinutes: number | null;
-    category: string | null;
-    imageUrls: string[];
-    status: string;
-    firstPublishedAt?: string | null;
-    bookingMode: string;
-    visibility: string;
-    inventoryQty: number | null;
-    addOns?: { id: string; label: string; amountCents: number }[];
-  }>;
+  /**
+   * Full `TalentOffering` rows (`loadPublicOfferingsForProfile`), not a
+   * narrowed projection — `services_catalog` reuses `OfferingCta`
+   * (`app/t/[profileCode]/_shared`), the SAME click-to-book island the hub
+   * profile's storefront uses, and that component reads reserveMode /
+   * depositPct / variants / addOns / talentProfileId off the full shape.
+   */
+  talentOfferings?: ReadonlyArray<TalentOffering>;
+  /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
+  talentOfferingsConfirmsByHand?: boolean;
+  /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
+  talentOfferingsUsdRates?: UsdRates;
   menuOfferings?: ReadonlyArray<{
     id: string;
     title: string;
@@ -4398,6 +4394,40 @@ function withExperimentAttrs(
   } as Record<string, string>);
 }
 
+// `services_catalog` — token-based (`--token-color-*`), matching every other
+// native builder block's theming, NOT the `--plt-*` hub-profile namespace
+// `OfferingCta`'s sibling public-profile markup (StorefrontBody) uses. The
+// server-rendered list is the content (SEO, no-JS); `OfferingCta` is the one
+// client island, and it is the SAME component + the same
+// `tulala:offering-request` / `-instant` / `-slot` events the hub profile's
+// storefront and the Max/vanity-domain chat dock (`TalentSiteMessagesDock` →
+// `TalentProfileChatLauncherMount`) already listen for — so Select works
+// without any new wiring.
+const SERVICES_CATALOG_CSS = `
+.site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit}
+.site-builder-node--services-catalog-header{margin-bottom:1.25rem}
+.site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
+.site-builder-node--services-catalog-title{margin:0;font-size:1.5rem;font-weight:600;line-height:1.2}
+.site-builder-node--services-catalog-subtitle{margin:.5rem 0 0;color:var(--token-color-muted);font-size:.9rem;line-height:1.5}
+.site-builder-node--services-catalog-stats{margin:.6rem 0 0;font-size:.75rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-empty{margin:0;padding:1.5rem 0;color:var(--token-color-muted);font-size:.9rem}
+.site-builder-node--services-catalog-nav{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1.5rem}
+.site-builder-node--services-catalog-pill{display:inline-flex;align-items:center;border:1px solid var(--token-color-line);border-radius:999px;padding:.35rem .9rem;font-size:.75rem;font-weight:600;color:var(--token-color-ink);text-decoration:none;transition:background-color 160ms ease,border-color 160ms ease}
+.site-builder-node--services-catalog-pill:hover{border-color:var(--token-color-primary);background:color-mix(in srgb,var(--token-color-primary) 10%,transparent)}
+.site-builder-node--services-catalog-group{margin-bottom:1.75rem}
+.site-builder-node--services-catalog-group:last-child{margin-bottom:0}
+.site-builder-node--services-catalog-group-title{margin:0 0 .75rem;font-size:1.05rem;font-weight:600;scroll-margin-top:5rem}
+.site-builder-node--services-catalog-list{list-style:none;margin:0;padding:0;display:grid;gap:.9rem}
+.site-builder-node--services-catalog-row{display:grid;grid-template-columns:auto 1fr auto;gap:.9rem;align-items:center;padding:.9rem 1rem;border:1px solid var(--token-color-line);border-radius:14px;background:color-mix(in srgb,var(--token-color-ink) 3%,var(--token-color-surface-raised,transparent))}
+@media (max-width:560px){.site-builder-node--services-catalog-row{grid-template-columns:auto 1fr;grid-template-areas:"photo copy" "photo price" "cta cta"}.site-builder-node--services-catalog-row>:nth-child(1){grid-area:photo}.site-builder-node--services-catalog-row>:nth-child(2){grid-area:copy}.site-builder-node--services-catalog-row>:nth-child(3){grid-area:price}.site-builder-node--services-catalog-row>:nth-child(4){grid-area:cta;justify-self:start}}
+.site-builder-node--services-catalog-photo{width:3.25rem;height:3.25rem;border-radius:10px;object-fit:cover;flex-shrink:0}
+.site-builder-node--services-catalog-copy{min-width:0;display:flex;flex-direction:column;gap:.2rem}
+.site-builder-node--services-catalog-name{font-weight:600;font-size:.95rem;line-height:1.3}
+.site-builder-node--services-catalog-desc{font-size:.8125rem;line-height:1.4;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.site-builder-node--services-catalog-price{text-align:right;white-space:nowrap;font-size:.875rem}
+.site-builder-node--services-catalog-usd{display:block;font-size:.75rem;color:var(--token-color-muted)}
+`;
+
 function renderBuilderNode(
   rawNode: BuilderNode,
   options: NormalizedBuilderNodeRenderOptions,
@@ -5551,41 +5581,118 @@ function renderBuilderNodeElement(
     // why a re-read never reorders or re-groups what is emitted here.
     case "services_catalog": {
       const p = node.props;
-      const offerings = options.dataSources.talentOfferings ?? [];
-      const title = (p.title ?? "Services").replace("{i}", "").replace("{/i}", "");
+      const locale = options.contentLocale?.locale ?? "en";
+      const es = locale.startsWith("es");
+      const text = (prop: string, value: string | undefined) =>
+        value ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value : "";
+      const rawTitle = text("title", p.title) || (p.title ?? "Services");
+      const title = rawTitle.replace(/\{\/?i\}/g, "");
+      const eyebrow = text("eyebrow", p.eyebrow);
+      const subtitle = text("subtitle", p.subtitle);
+      const emptyMessage =
+        text("emptyMessage", p.emptyMessage) ||
+        (es ? "Todavía no hay servicios publicados." : "No services are published yet.");
+
+      // Defensive re-filter — `loadPublicOfferingsForProfile` already applies
+      // the public policy, but a render path never trusts a data source alone
+      // (same rule `TalentStorefront` follows on the hub profile).
+      const visible = (options.dataSources.talentOfferings ?? []).filter(
+        (o) => o.status === "published" && o.visibility !== "agency_only" && o.moderationState === "approved",
+      );
+      const confirmsByHand = options.dataSources.talentOfferingsConfirmsByHand ?? true;
+      const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
+
+      // Categories, first-seen order; the nav strip (any mode but "none")
+      // shows only once 2+ are present — a single category needs no filter.
+      const categories: string[] = [];
+      for (const o of visible) {
+        const c = o.category?.trim();
+        if (c && !categories.includes(c)) categories.push(c);
+      }
+      const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
+      const slug = (c: string) => `${node.id}-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+      const groups: Array<{ name: string | null; items: TalentOffering[] }> = showCategoryNav
+        ? [
+            ...categories.map((c) => ({ name: c, items: visible.filter((o) => o.category?.trim() === c) })),
+            ...(visible.some((o) => !o.category?.trim())
+              ? [{ name: null, items: visible.filter((o) => !o.category?.trim()) }]
+              : []),
+          ]
+        : [{ name: null, items: visible }];
+
       return (
         <section
           key={node.id}
+          {...anchorIdAttrs(node)}
+          data-builder-node-id={node.id}
           data-builder-node-kind="services_catalog"
+          {...builderNodeStyleAttrs(p.style)}
           className="site-builder-node site-builder-node--services-catalog"
+          style={inlineNodeStyle(p.style, undefined)}
         >
-          {p.eyebrow ? <p>{p.eyebrow}</p> : null}
-          <h2>{title}</h2>
-          {p.subtitle ? <p>{p.subtitle}</p> : null}
-          {p.showStats && offerings.length >= 2 ? (
-            <p>
-              {offerings.length} · {new Set(offerings.map((o) => o.category).filter(Boolean)).size}
-            </p>
-          ) : null}
-          {offerings.length === 0 ? (
-            <p>{p.emptyMessage ?? "No services are published yet."}</p>
+          <style>{SERVICES_CATALOG_CSS}</style>
+          <header className="site-builder-node--services-catalog-header">
+            {eyebrow ? <p className="site-builder-node--services-catalog-eyebrow">{eyebrow}</p> : null}
+            <h2 className="site-builder-node--services-catalog-title">{title}</h2>
+            {subtitle ? <p className="site-builder-node--services-catalog-subtitle">{subtitle}</p> : null}
+            {p.showStats !== false && visible.length >= 2 ? (
+              <p className="site-builder-node--services-catalog-stats">
+                {visible.length} {es ? "servicios" : "services"}
+                {categories.length >= 2 ? ` · ${categories.length} ${es ? "categorías" : "categories"}` : ""}
+              </p>
+            ) : null}
+          </header>
+
+          {visible.length === 0 ? (
+            <p className="site-builder-node--services-catalog-empty">{emptyMessage}</p>
           ) : (
-            <ul>
-              {offerings.map((item) => (
-                <li key={item.id}>
-                  {p.showPhoto !== false && item.imageUrls[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrls[0]} alt="" />
+            <>
+              {showCategoryNav ? (
+                <nav aria-label={es ? "Categorías" : "Categories"} className="site-builder-node--services-catalog-nav">
+                  {groups.map((g) => (
+                    <a key={g.name ?? "_"} href={`#${slug(g.name ?? "_")}`} className="site-builder-node--services-catalog-pill">
+                      {g.name ?? (es ? "Otros" : "Other")}
+                    </a>
+                  ))}
+                </nav>
+              ) : null}
+              {groups.map((g) => (
+                <div key={g.name ?? "_"} id={showCategoryNav ? slug(g.name ?? "_") : undefined} className="site-builder-node--services-catalog-group">
+                  {showCategoryNav ? (
+                    <h3 className="site-builder-node--services-catalog-group-title">{g.name ?? (es ? "Otros" : "Other")}</h3>
                   ) : null}
-                  <strong>{item.title}</strong>
-                  {item.amountCents != null ? <span> {(item.amountCents / 100).toFixed(0)} {item.currency}</span> : null}
-                  {p.showDuration !== false && item.durationMinutes ? <span> · {item.durationMinutes} min</span> : null}
-                  <button type="button" data-offering-id={item.id}>
-                    Select
-                  </button>
-                </li>
+                  <ul className="site-builder-node--services-catalog-list">
+                    {g.items.map((item) => {
+                      const cover = p.showPhoto !== false ? item.imageUrls[0] : undefined;
+                      const price = offeringPriceLabel(item, locale);
+                      const usd = usdEquivalentLabel(item.amountCents, item.currency, usdRates, locale);
+                      return (
+                        <li key={item.id} className="site-builder-node--services-catalog-row">
+                          {cover ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
+                          ) : null}
+                          <span className="site-builder-node--services-catalog-copy">
+                            <strong className="site-builder-node--services-catalog-name">{item.title}</strong>
+                            {item.description ? (
+                              <span className="site-builder-node--services-catalog-desc">{item.description}</span>
+                            ) : null}
+                          </span>
+                          <span className="site-builder-node--services-catalog-price">
+                            <strong>{price}</strong>
+                            {p.showDuration !== false && item.durationMinutes && item.kind !== "product" ? (
+                              <span> · {item.durationMinutes} min</span>
+                            ) : null}
+                            {p.showUsdEquivalent !== false && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
+                          </span>
+                          <OfferingCta offering={item} locale={locale} compact confirmsByHand={confirmsByHand} />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </>
           )}
         </section>
       );
