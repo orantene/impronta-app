@@ -23,23 +23,32 @@ function item(partial: Partial<ServiceMenuItem> & Pick<ServiceMenuItem, "id" | "
   };
 }
 
-test("agency host keeps priced menu lines (D-MSG-400)", () => {
+test("USD on a hub host keeps its amount", () => {
   const priced = item({ id: "a", name: "Walk", amountCents: 180000, currency: "USD" });
-  const out = servicesMenuForPublicHost([priced], "agency");
+  const out = servicesMenuForPublicHost([priced], "platform");
   assert.equal(out[0].amountCents, 180000);
-  assert.equal(out[0].pricingType, "fixed");
+  assert.equal(out[0].currency, "USD");
 });
 
-test("hub host strips amounts instead of labelling MXN as USD (D-MSG-400)", () => {
-  const priced = item({ id: "b", name: "Show", amountCents: 500000, currency: "USD" });
+test("MXN on a hub host keeps its amount so the US$ line can print", () => {
+  const priced = item({ id: "b", name: "Show", amountCents: 500000, currency: "MXN" });
   const out = servicesMenuForPublicHost([priced], "platform");
+  assert.equal(out[0].amountCents, 500000);
+  assert.equal(out[0].currency, "MXN");
+});
+
+test("missing or unknown currency shows no price and no labelled guess", () => {
+  const missing = item({ id: "c", name: "Set", amountCents: 100, currency: "" });
+  const unknown = item({ id: "d", name: "Cut", amountCents: 200, currency: "XXX" });
+  const out = servicesMenuForPublicHost([missing, unknown], "talent");
   assert.equal(out[0].amountCents, null);
   assert.equal(out[0].pricingType, "custom");
-  assert.equal(out[0].name, "Show");
+  assert.equal(out[1].amountCents, null);
+  assert.equal(out[1].name, "Cut");
 });
 
-test("talent host also strips — eligibility only resolves on agency", () => {
-  const priced = item({ id: "c", name: "Set", amountCents: 100, currency: "MXN" });
-  const out = servicesMenuForPublicHost([priced], "talent");
-  assert.equal(out[0].amountCents, null);
+test("agency host keeps every priced line including an unknown code", () => {
+  const priced = item({ id: "e", name: "Agency", amountCents: 99, currency: "XXX" });
+  const out = servicesMenuForPublicHost([priced], "agency");
+  assert.equal(out[0].amountCents, 99);
 });
