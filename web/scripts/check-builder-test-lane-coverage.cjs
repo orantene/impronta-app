@@ -53,6 +53,12 @@ const BUILDER_ROOTS = [
   "src/components/edit-chrome",
   "src/components/builder-lab",
   "src/lib/site-admin",
+  // Added 2026-09-23: talent-site was NOT policed, and 17 of its 38 test files
+  // had drifted out of every lane — including `actions.security.test.ts`, and a
+  // migration test whose relative path was off by one `../` so it could never
+  // have run anywhere. Exactly the failure this guard was built to catch, in a
+  // tree it simply wasn't pointed at.
+  "src/lib/talent-site",
 ];
 
 /** `$(node scripts/list-test-files.cjs …)` inside a lane script. */
