@@ -60,7 +60,7 @@ export function ItemStateChips({
       )}
       {hideFailed && (
         <span className="rounded-full bg-[rgba(176,32,32,0.1)] px-2 py-0.5 text-[10px] font-semibold text-[#8A1F1F]">
-          {locale.startsWith("es") ? "No se ocultó" : "Hide failed"}
+          {locale.startsWith("es") ? "No se pudo ocultar" : "Could not hide it"}
         </span>
       )}
     </span>

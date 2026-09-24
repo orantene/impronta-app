@@ -328,7 +328,7 @@ export function DefaultsScreen({
             {copy
               .t("A 60 minute service booked at 10:00 therefore ends at 11:00 for the client and {end} for you.")
               .replace("{end}", clock(660 + buffer))}{" "}
-            {copy.t("These times are saved on your defaults. They do not change open slots yet.")}
+            {copy.t("These times are saved on your defaults. A buffer hides the next slot that would overlap, and the notice hides anything sooner.")}
           </p>
         </Card>
       </div>

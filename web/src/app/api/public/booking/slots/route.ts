@@ -112,7 +112,16 @@ export async function GET(request: Request) {
       ? reqHeaders.get(HOST_TALENT_PROFILE_HEADER)?.trim() || null
       : null;
 
-  if (host.kind !== "agency" && host.kind !== "talent_site" && host.kind !== "hub") {
+  // App and marketing hosts book too (localhost, the talent shell, the apex).
+  // The offering's own tenant is the scope there. Agency and talent-site hosts
+  // still have to match the host, below.
+  if (
+    host.kind !== "agency" &&
+    host.kind !== "talent_site" &&
+    host.kind !== "hub" &&
+    host.kind !== "app" &&
+    host.kind !== "marketing"
+  ) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
   if (host.kind === "talent_site" && !talentSiteId) {
@@ -128,7 +137,7 @@ export async function GET(request: Request) {
     const { data: offering, error: offeringErr } = await admin
       .from("talent_offerings")
       .select(
-        "id, talent_profile_id, tenant_id, status, visibility, kind, booking_mode, reserve_mode, duration_minutes",
+        "id, talent_profile_id, tenant_id, status, visibility, kind, booking_mode, reserve_mode, duration_minutes, attributes",
       )
       .eq("id", offeringId)
       .maybeSingle();
@@ -148,7 +157,7 @@ export async function GET(request: Request) {
 
     const { data: talent, error: talentErr } = await admin
       .from("talent_profiles")
-      .select("id, profile_kind, booking_terms, created_by_agency_id")
+      .select("id, profile_kind, booking_terms, created_by_agency_id, selling_defaults")
       .eq("id", offering.talent_profile_id)
       .maybeSingle();
 
@@ -224,6 +233,11 @@ export async function GET(request: Request) {
       now,
     });
 
+    const attr = offering.attributes;
+    const offeringBuffer =
+      attr && typeof attr === "object" && !Array.isArray(attr)
+        ? (attr as { bufferAfterMin?: unknown }).bufferAfterMin
+        : null;
     const { starts: slots, reason } = computePublicSlots({
       hours,
       durationMinutes:
@@ -233,6 +247,8 @@ export async function GET(request: Request) {
       from,
       days: horizon,
       busy,
+      sellingDefaults: talent.selling_defaults,
+      offeringBufferAfterMin: typeof offeringBuffer === "number" ? offeringBuffer : null,
     });
     return slotsJson(slots, 200, { timezone: hours.timezone, reason });
   } catch (err) {

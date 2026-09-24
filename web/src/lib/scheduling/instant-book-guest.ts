@@ -59,6 +59,16 @@ async function verifyTenantCaptchaToken(input: {
   token: string | null | undefined;
   ip: string | null;
 }): Promise<{ configured: boolean; ok: boolean | null }> {
+  // Localhost proof of the widget. The catalog sheet has no challenge widget,
+  // and the dev flag is what already unlocks /dev surfaces. A production host
+  // still has to pass the tenant challenge.
+  if (process.env.TULALA_ALLOW_DEV_SURFACES === "1") {
+    const h = await headers();
+    const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "").split(",")[0]?.trim() ?? "";
+    if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) {
+      return { configured: false, ok: true };
+    }
+  }
   const captcha = await resolveTenantCaptcha(input.tenantId);
   if (captcha.provider === "none" || !captcha.siteKey) {
     return { configured: false, ok: true };

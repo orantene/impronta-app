@@ -90,6 +90,41 @@ test("open hours fully consumed by busy time are 'fully_booked'", () => {
   );
 });
 
+test("a saved 10 minute buffer removes the slot that would overlap the previous booking", () => {
+  const busy = [{ startsAt: new Date("2027-03-01T09:00:00Z"), endsAt: new Date("2027-03-01T10:00:00Z") }];
+  const open = computePublicSlots({
+    hours: hours({ slotMinutes: 60 }),
+    durationMinutes: 60,
+    from: MONDAY,
+    days: 1,
+    busy,
+    sellingDefaults: { bufferAfterMin: 0 },
+  });
+  assert.equal(open.starts[0], "2027-03-01T10:00:00.000Z");
+  const buffered = computePublicSlots({
+    hours: hours({ slotMinutes: 60 }),
+    durationMinutes: 60,
+    from: MONDAY,
+    days: 1,
+    busy,
+    sellingDefaults: { bufferAfterMin: 10 },
+  });
+  assert.equal(buffered.starts.includes("2027-03-01T10:00:00.000Z"), false);
+  assert.equal(buffered.starts[0], "2027-03-01T11:00:00.000Z");
+});
+
+test("a saved minimum notice hides slots that start too soon", () => {
+  const from = new Date("2027-03-01T09:00:00Z");
+  const slots = computePublicSlots({
+    hours: hours({ slotMinutes: 60 }),
+    durationMinutes: 60,
+    from,
+    days: 1,
+    sellingDefaults: { minNoticeMin: 120 },
+  });
+  assert.equal(slots.starts[0], "2027-03-01T11:00:00.000Z");
+});
+
 test("the old export is byte-identical, so no caller moved", () => {
   for (const input of [
     { hours: null, durationMinutes: 60, from: MONDAY, days: 7 },

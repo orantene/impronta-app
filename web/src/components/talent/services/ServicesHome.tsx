@@ -20,7 +20,7 @@ import {
   type OfferingDestination,
   type SellingDefaults,
 } from "@/lib/talent/services-settings-actions";
-import { foldAccent, publicationWord } from "@/lib/talent/publication-state";
+import { foldAccent, publicationLabel, publicationWord } from "@/lib/talent/publication-state";
 import {
   blankOffering,
   type OfferingKind,
@@ -79,6 +79,58 @@ export function ServicesHome({
   const [extraOpen, setExtraOpen] = useState(false);
   const [dupPair, setDupPair] = useState<{ original: TalentOffering; copy: TalentOffering } | null>(null);
   const [hideFailedIds, setHideFailedIds] = useState<Set<string>>(new Set());
+  const [shownIds, setShownIds] = useState<Set<string>>(new Set());
+
+  const failHide = (id: string) => {
+    setHideFailedIds((prev) => new Set(prev).add(id));
+    setShownIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const applyHide = async (target: TalentOffering) => {
+    try {
+      const res = await setOfferingPublication(talentId, target.id, "draft");
+      if (!res.ok) {
+        failHide(target.id);
+        return;
+      }
+      setHideFailedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(target.id);
+        return next;
+      });
+      setShownIds((prev) => {
+        const next = new Set(prev);
+        next.delete(target.id);
+        return next;
+      });
+      editor.reload();
+    } catch {
+      failHide(target.id);
+    }
+  };
+
+  const applyShow = async (target: TalentOffering) => {
+    try {
+      const res = await setOfferingPublication(talentId, target.id, "published");
+      if (!res.ok) {
+        setToast(res.error ?? copy.t("Could not hide it. It is still public. Try again."));
+        return;
+      }
+      setHideFailedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(target.id);
+        return next;
+      });
+      setShownIds((prev) => new Set(prev).add(target.id));
+      editor.reload();
+    } catch {
+      setToast(copy.t("Could not hide it. It is still public. Try again."));
+    }
+  };
 
   useEffect(() => {
     if (!editor.loading) {
@@ -473,7 +525,7 @@ export function ServicesHome({
 
       <ul className="mt-4 divide-y divide-admin-border-soft overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
         {derived.map((item) => (
-          <li key={item.id} className={`relative flex items-center gap-3 px-3 py-3 ${bannerId === item.id ? "bg-[rgba(15,79,62,0.06)]" : ""}`}>
+          <li key={item.id} className={`relative flex flex-wrap items-center gap-3 px-3 py-3 ${bannerId === item.id ? "bg-[rgba(15,79,62,0.06)]" : ""}`}>
             <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => openEditor(item)}>
               {item.imageUrls[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -530,10 +582,7 @@ export function ServicesHome({
                   setHideTarget(item);
                   if (destinations.length === 0) void refreshExtras();
                 }}
-                onShow={async () => {
-                  await setOfferingPublication(talentId, item.id, "published");
-                  editor.reload();
-                }}
+                onShow={() => void applyShow(item)}
                 onArchive={async () => {
                   await setOfferingPublication(talentId, item.id, "archived");
                   editor.reload();
@@ -551,6 +600,14 @@ export function ServicesHome({
                 onMove={(dir) => editor.move(item.id, dir)}
               />
             )}
+            <HideOutcome
+              item={item}
+              failed={hideFailedIds.has(item.id)}
+              shown={shownIds.has(item.id)}
+              onRetry={() => void applyHide(item)}
+              onShow={() => void applyShow(item)}
+              onHide={() => setHideTarget(item)}
+            />
           </li>
         ))}
       </ul>
@@ -627,21 +684,10 @@ export function ServicesHome({
               <button
                 type="button"
                 className="rounded-full bg-admin-brand px-4 py-2 text-[13px] text-white"
-                onClick={async () => {
+                onClick={() => {
                   const target = hideTarget;
                   setHideTarget(null);
-                  const res = await setOfferingPublication(talentId, target.id, "draft");
-                  if (!res.ok) {
-                    setHideFailedIds((prev) => new Set(prev).add(target.id));
-                    setToast(res.error ?? copy.t("Could not hide it. It is still public. Try again."));
-                    return;
-                  }
-                  setHideFailedIds((prev) => {
-                    const next = new Set(prev);
-                    next.delete(target.id);
-                    return next;
-                  });
-                  editor.reload();
+                  void applyHide(target);
                 }}
               >
                 {copy.t("Hide it")}
@@ -654,6 +700,46 @@ export function ServicesHome({
       {toast && (
         <div className="fixed bottom-20 right-4 rounded-full bg-admin-ink px-3 py-2 text-[12px] text-white">{toast}</div>
       )}
+    </div>
+  );
+}
+
+function HideOutcome({
+  item,
+  failed,
+  shown,
+  onRetry,
+  onShow,
+  onHide,
+}: {
+  item: TalentOffering;
+  failed: boolean;
+  shown: boolean;
+  onRetry: () => void;
+  onShow: () => void;
+  onHide: () => void;
+}) {
+  const copy = useDashboardText();
+  const locale = copy.isSpanish ? "es" : "en";
+  const word = publicationWord(item);
+  if (!failed && word !== "hidden" && !shown) return null;
+  const label = failed ? copy.t("Could not hide it") : publicationLabel(failed ? "live" : word === "hidden" ? "hidden" : "live", locale);
+  const sentence = failed
+    ? copy.t("It is still public and nothing was lost. Try again, or we will chase the hub.")
+    : word === "hidden"
+      ? copy.t("Off every public page. Your bookings for it still stand.")
+      : copy.t("Back on both pages with the same link, so nothing you shared is broken.");
+  const action = failed ? copy.t("Try again") : word === "hidden" ? copy.t("Show again") : copy.t("Hide");
+  const run = failed ? onRetry : word === "hidden" ? onShow : onHide;
+  return (
+    <div className="flex w-full items-center gap-3 pl-[60px]">
+      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${failed ? "bg-[rgba(176,32,32,0.1)] text-[#8A1F1F]" : word === "hidden" ? "bg-[rgba(11,11,13,0.08)] text-admin-ink-muted" : "bg-[rgba(15,79,62,0.12)] text-[#0F4F3E]"}`}>
+        {label}
+      </span>
+      <span className="min-w-0 flex-1 text-[12px] text-admin-ink-muted">{sentence}</span>
+      <button type="button" className="shrink-0 rounded-full border border-admin-border-soft px-3 py-1.5 text-[13px]" onClick={run}>
+        {action}
+      </button>
     </div>
   );
 }
