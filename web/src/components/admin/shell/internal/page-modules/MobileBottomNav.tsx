@@ -17,6 +17,8 @@ import {
   Z,
   useAdminShell,
 } from "../state";
+import { TalentMoreScreen } from "@/components/talent/studio/MoreScreen";
+import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { MOBILE_NAV_CSS } from "./mobile-nav-css";
 import { MOBILE_BUTTON_SECONDARY, MobileSheet } from "./MobileSheet";
 import { WORKSPACE_SWITCH_OPEN_EVENT, WorkspaceSwitchSheet } from "./WorkspaceSwitchSheet";
@@ -89,6 +91,7 @@ export function MobileBottomNav() {
     effectiveTenant,
   } = useAdminShell();
   const copy = useDashboardText();
+  const studioV2 = useTalentStudioV2();
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
@@ -458,7 +461,8 @@ export function MobileBottomNav() {
             )}
           </div>
         </nav>
-        {moreOpen && (
+        {moreOpen && studioV2 && <TalentMoreScreen onClose={() => setMoreOpen(false)} />}
+        {moreOpen && !studioV2 && (
           <div
             onClick={() => setMoreOpen(false)}
             style={{

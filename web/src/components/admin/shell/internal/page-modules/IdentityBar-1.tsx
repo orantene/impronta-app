@@ -29,6 +29,7 @@ import { PosModeSwitch } from "./PosModeSwitch";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
 import { useWorkspaceNav } from "./workspace-nav";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
+import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 
 
 export function TulalaIdentityBar() {
@@ -52,6 +53,7 @@ export function TulalaIdentityBar() {
     tenantDefaultLocale,
   } = useAdminShell();
   const copy = useDashboardText();
+  const studioV2 = useTalentStudioV2();
   const { surface, alsoTalent, role, entityType } = state;
   // The breadcrumb's page word, from the rail's own projection of the
   // registry (preset-aware label, translated); the page meta is the fallback
@@ -127,11 +129,7 @@ export function TulalaIdentityBar() {
   // hosting this rostered talent) over Marta's hardcoded primaryAgency.
   const actingLabel = inWorkspace
     ? effectiveTenant.name
-    : agencyCount === 1
-      ? (bridgeTalentAgencies?.[0]?.agencyName ?? bridgeTalentSelfProfile?.agencyName?.trim() ?? MY_TALENT_PROFILE.primaryAgency)
-      : copy.isSpanish
-        ? "Tus agencias"
-        : "Your agencies";
+    : (talentBridgeName ?? realUserName ?? MY_TALENT_PROFILE.name);
   // Subtext stays terse — the plan tier now has its own badge inline,
   // so this just clarifies the role + entity context.
   const actingRoleLabel = bridgeSessionIdentity?.role ?? role;
@@ -343,33 +341,41 @@ export function TulalaIdentityBar() {
             {/* A talent with no agency has nothing to "act as"; the platform
                 hub is filtered out upstream (loadTalentAgencies). Hide the
                 block rather than show "Your agencies · 0 agencies". */}
-            {!(inTalent && agencyCount === 0) && (
+            {(inWorkspace || inTalent) && (
             <button
               type="button"
-              onClick={onActingClick}
-              aria-label={copy.isSpanish ? `Actuando como ${actingLabel} — cambiar` : `Acting as ${actingLabel} — switch`}
-              title={actingSubLabel}
-              className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border-none bg-transparent px-[9px] py-[5px] font-admin-body hover:bg-[rgba(11,11,13,0.04)] [transition:background_var(--transition-admin-micro)]"
+              onClick={inTalent ? undefined : onActingClick}
+              aria-label={copy.isSpanish ? `Actuando como ${actingLabel}` : `Acting as ${actingLabel}`}
+              title={inTalent ? undefined : actingSubLabel}
+              className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border border-admin-border-soft bg-white px-[10px] py-[5px] font-admin-body hover:bg-[rgba(11,11,13,0.04)] [transition:background_var(--transition-admin-micro)]"
             >
+              {inWorkspace && (
               <span
                 aria-hidden
                 className="h-[6px] w-[6px] shrink-0 rounded-full bg-admin-green"
               />
+              )}
               <span
                 data-tulala-acting-label
                 className="inline-flex max-w-[220px] min-w-0 flex-col items-start overflow-hidden"
               >
                 <span className="inline-flex items-center gap-[6px] font-admin-body text-[13px] font-medium tracking-[-0.05px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.15] text-admin-ink">
-                  <span className="overflow-hidden text-ellipsis">{actingLabel}</span>
+                  <span className="overflow-hidden text-ellipsis">
+                    {inTalent ? `${copy.t("Acting as")} ${actingLabel}` : actingLabel}
+                  </span>
                 </span>
+                {inWorkspace && (
                 <span data-tulala-acting-detail className="mt-px font-admin-body text-[10px] font-medium tracking-[0px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.1] text-admin-ink-muted">{actingDetail}</span>
+                )}
               </span>
+              {inWorkspace && (
               <span
                 aria-hidden
                 className="tulala-acting-chevron inline-flex [transition:transform_var(--transition-admin-layout)]"
               >
                 <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
               </span>
+              )}
             </button>
             )}
 
@@ -392,12 +398,21 @@ export function TulalaIdentityBar() {
 
             <NotificationsBell />
 
-            {/* Preview public site — opens the agency homepage in a new tab.
-                Not for a talent with no agency: their own page is the
-                sidebar's "Preview profile", and /tulala is not their site. */}
-            {!(inTalent && agencyCount === 0) && (
+            {/* Preview. Studio v2 opens the talent's own public page.
+                The previous bar opened the agency homepage, and hid the
+                eye when the talent had no agency. */}
+            {(() => {
+              const ownPage = bridgeTalentSelfProfile?.profileCode
+                ? `https://tulala.digital/t/${bridgeTalentSelfProfile.profileCode}`
+                : null;
+              const show = studioV2
+                ? (inTalent ? Boolean(ownPage) : true)
+                : !(inTalent && agencyCount === 0);
+              if (!show) return null;
+              const href = studioV2 && inTalent && ownPage ? ownPage : (tenantSlug ? `/${tenantSlug}` : "/");
+              return (
             <a
-              href={tenantSlug ? `/${tenantSlug}` : "/"}
+              href={href}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Preview site"
@@ -409,7 +424,8 @@ export function TulalaIdentityBar() {
                 <circle cx="12" cy="12" r="3" />
               </svg>
             </a>
-            )}
+              );
+            })()}
 
             {/* User identity — avatar-only menu trigger; the full name + email
                 live in the dropdown header, the aria-label, and a tooltip. */}

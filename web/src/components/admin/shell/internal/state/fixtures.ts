@@ -325,7 +325,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   money:       { label: "Money" },
   clients:     { label: "Clients" },
   payouts:     { label: "Payouts" },       // in-shell section, reached from Settings
-  "public-page": { label: "Public page" }, // canonical URL segment: /talent/site
+  "public-page": { label: "My presence" }, // canonical URL segment: /talent/site
   settings:    { label: "Settings" },
 };
 

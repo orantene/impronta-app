@@ -98,6 +98,8 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // server component (talent.tsx mega-shell stays untouched). The
   // talent shell now uses ConditionalAdminShellRoot so this yields.
   (s) => s[0] === "talent" && s[1] === "trust",
+  // Dev-only primitive gallery. The page itself 404s outside development.
+  (s) => s[0] === "talent" && (s[1] === "_studio-kit" || s[1] === "studio-kit"),
   // /<tenant>/talent/discover — T2+T4+T5 Discover control panel
   // (card preview + travel reach + 30-day stats). Standalone server
   // component; talent.tsx mega-shell untouched.

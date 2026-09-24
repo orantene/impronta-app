@@ -214,6 +214,8 @@ export type BridgeData = {
    * `null` when not in talent-surface canonical mode.
    */
   talentSelfProfile?: TalentSelfProfile | null;
+  /** Active trial grant for the plan chip. Absent when the layout did not look. */
+  talentPlanTrial?: { active: boolean; expiresAt: string | null } | null;
   /**
    * The talent's REAL profile completeness, from the same loader the guided
    * wizard uses (`loadTalentDashboardData`: DB columns + field catalog). The

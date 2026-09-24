@@ -331,6 +331,23 @@ export const FLAG_GROUPS: ReadonlyArray<FlagGroup> = [
       },
     ],
   },
+  {
+    id: "talent-studio",
+    title: "Talent Studio",
+    blurb: "The talent dashboard rebuild. Off until a talent is opted in.",
+    titleKey: "dashboard.platform.operations.groupTalentStudioTitle",
+    blurbKey: "dashboard.platform.operations.groupTalentStudioBlurb",
+    flags: [
+      {
+        key: "talent_studio_v2",
+        label: "Talent Studio v2",
+        description: "New talent dashboard. Default off. Local dev turns it on with TALENT_STUDIO_V2=1.",
+        labelKey: "dashboard.platform.operations.flagTalentStudioV2Label",
+        descriptionKey: "dashboard.platform.operations.flagTalentStudioV2Desc",
+        control: { kind: "toggle" },
+      },
+    ],
+  },
 ] as const;
 
 // Flat registry for O(1) validation lookups in the write action.

@@ -456,6 +456,11 @@ const nextConfig: NextConfig = {
    *  /platform/admin/commerce. `permanent: false` on purpose — the consolidation
    *  is still in flight (Billing folds in next), and a 308 would be cached by
    *  every admin's browser long after the shape settles. */
+  async rewrites() {
+    return [
+      { source: "/talent/_studio-kit", destination: "/talent/studio-kit" },
+    ];
+  },
   async redirects() {
     return [
       {

@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { websiteRewardCopy, websiteRewardState } from "@/lib/talent/website-reward";
+import { getWebsiteEligibility } from "@/lib/talent/website-eligibility";
+import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
+import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 
 // Missing-item keys come from buildTalentChecklist (src/lib/talent-dashboard.ts).
@@ -24,6 +27,15 @@ const MISSING_SECTION: Record<string, string> = {
   fields_recommended: "profile_fields",
 };
 
+const SLICE_LABEL = {
+  who: "Your name and what you do",
+  photos: "Three photos of your work",
+  offer: "One thing clients can book or ask about",
+  intro: "A short intro",
+  when: "When you are available",
+  where: "Where you work",
+} as const;
+
 const MISSING_TIME: Record<string, string> = {
   display_name: "30 seconds",
   first_name: "30 seconds",
@@ -42,14 +54,41 @@ const MISSING_TIME: Record<string, string> = {
 
 export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mobile" }) {
   const { bridgeTalentCompletion, bridgeTalentSelfProfile, openDrawer, setTalentPage, state } = useAdminShell();
+  const studio = useTalentStudioV2();
   const siteLoad = useTalentSiteDashboardInitialLoad();
   const copy = useDashboardText();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const percent = bridgeTalentCompletion?.percent ?? 0;
+  const [bookableCount, setBookableCount] = useState<number | null>(null);
+  const talentId = bridgeTalentSelfProfile?.id ?? null;
+  useEffect(() => {
+    if (!studio || !talentId) return;
+    let cancelled = false;
+    void loadTalentOfferingsForEditor(talentId).then((res) => {
+      if (cancelled) return;
+      setBookableCount(res.ok ? res.items.filter((item) => item.status !== "archived").length : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [studio, talentId]);
+  const eligibility = studio
+    ? getWebsiteEligibility({
+        hasNameAndWork: bridgeTalentSelfProfile
+          ? Boolean(bridgeTalentSelfProfile.displayName?.trim() && bridgeTalentSelfProfile.primaryTypeLabel)
+          : null,
+        photoCount: bridgeTalentSelfProfile ? bridgeTalentSelfProfile.portfolioCount : null,
+        bookableCount,
+        hasIntro: bridgeTalentSelfProfile ? bridgeTalentSelfProfile.hasBio : null,
+        hasAvailability: null,
+        hasPlace: bridgeTalentSelfProfile ? Boolean(bridgeTalentSelfProfile.homeCity) : null,
+      })
+    : null;
+  const percent = eligibility?.percent ?? bridgeTalentCompletion?.percent ?? null;
+  const knownPercent = percent ?? bridgeTalentCompletion?.percent ?? 0;
   const siteStatus = siteLoad?.ok ? siteLoad.state.site?.status ?? null : null;
-  const reward = websiteRewardState({ completionPercent: percent, siteStatus });
-  const labels = websiteRewardCopy(reward, percent, copy.isSpanish ? "es" : "en");
+  const reward = websiteRewardState({ completionPercent: knownPercent, siteStatus });
+  const labels = websiteRewardCopy(reward, knownPercent, copy.isSpanish ? "es" : "en");
 
   const goWebsite = () => {
     setOpen(false);
@@ -145,7 +184,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[12.5px] font-semibold leading-tight text-emerald-900">{labels.title}</span>
             <span className="block truncate text-[11px] leading-tight text-admin-ink-muted">{labels.detail}</span>
-            {reward === "profile_unfinished" && (
+            {reward === "profile_unfinished" && percent != null && (
               <span aria-hidden className="mt-1 block h-[3px] w-full overflow-hidden rounded-full bg-black/10">
                 <span className="block h-full rounded-full bg-emerald-900" style={{ width: `${Math.min(100, percent)}%` }} />
               </span>
@@ -202,11 +241,31 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                 </div>
               </div>
               <p className="mt-4 text-[13.5px] font-semibold text-admin-ink">
-                {copy.t("What is left")}{" "}
-                <span className="ml-1 text-[12px] font-normal text-admin-ink-dim">{missing.length}</span>
+                {eligibility
+                  ? eligibility.percent == null
+                    ? copy.t("Not available")
+                    : `${eligibility.percent}%`
+                  : (
+                    <>
+                      {copy.t("What is left")}{" "}
+                      <span className="ml-1 text-[12px] font-normal text-admin-ink-dim">{missing.length}</span>
+                    </>
+                  )}
               </p>
               <ul className="mt-2 space-y-0.5">
-                {missing.map((item) => (
+                {eligibility
+                  ? eligibility.slices.map((slice) => (
+                      <li key={slice.key} className="flex items-center gap-2.5 py-1.5 text-[13.5px] text-admin-ink">
+                        <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white text-center text-[11px] leading-4">
+                          {slice.done ? "✓" : ""}
+                        </span>
+                        <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}</span>
+                        <span className="shrink-0 text-[11.5px] text-admin-ink-dim">
+                          {slice.done == null ? copy.t("Not available") : `${slice.weight}`}
+                        </span>
+                      </li>
+                    ))
+                  : missing.map((item) => (
                   <li key={item.key}>
                     <button
                       type="button"

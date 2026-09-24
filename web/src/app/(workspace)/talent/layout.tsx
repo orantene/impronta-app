@@ -35,6 +35,8 @@ import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
+import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
+import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +55,7 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   activity: "money",
   reach: "money",
   site: "public-page",
+  presence: "public-page",
   "public-page": "public-page",
   settings: "settings",
 };
@@ -219,6 +222,7 @@ export default async function PlatformTalentLayout({
   // Platform currency policy: unless a super-admin has turned multi-currency
   // display ON, collapse the talent's earnings to the single operating currency
   // (default USD) so the dashboard shows one clean figure, not EUR/USD tabs.
+  const talentPlanGrants = await loadTalentPlanGrants(talentSelfProfile.id).catch(() => null);
   const operatingCurrency = await loadPlatformOperatingCurrency();
   const displayEarnings = applyOperatingCurrencyToEarnings(talentEarnings, operatingCurrency);
 
@@ -239,6 +243,7 @@ export default async function PlatformTalentLayout({
     <TalentShellClient
       tenantSlug={activeAgency?.slug}
       platformTalentRoutes
+      talentStudioV2={talentStudioV2Enabled()}
       initialTalentPage={initialTalentPage}
       initialBridgeData={{
         roster: null,
@@ -267,6 +272,10 @@ export default async function PlatformTalentLayout({
           : PLATFORM_TENANT_IDENTITY,
         sessionIdentity,
         talentSelfProfile,
+        talentPlanTrial:
+          talentPlanGrants?.active?.grantKind === "trial"
+            ? { active: true, expiresAt: talentPlanGrants.active.expiresAt }
+            : null,
         talentCompletion:
           talentDashboardLoad && talentDashboardLoad.ok
             ? {
