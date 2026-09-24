@@ -61,6 +61,7 @@ import {
 } from "./mini-chat-styles";
 import { miniPanelContainerStyle } from "./mini-chat-panel-geometry";
 import { useCompactViewport } from "./use-compact-viewport";
+import { useVisualViewportInset } from "./use-visual-viewport-inset";
 import type { MiniChatPanelLocalProps } from "./mini-chat-panel-props";
 import { offeringDraftPrefix, type ChatOffering } from "./OfferingQuickPicker";
 import { setPendingOffering } from "./pending-offering-store";
@@ -165,6 +166,9 @@ export function MiniChatPanel({
   // threaded to the column + 2-pane shell; + full-screen mobile sheet signal.
   const P = paletteFor(surfaceMode);
   const compactSheet = useCompactViewport();
+  // Front-door v27 Phone: lift the sheet above the soft keyboard using only
+  // the browser Visual Viewport (never an invented height). Desktop ignores it.
+  const keyboardInsetPx = useVisualViewportInset();
   const talentFirst = firstNameOf(brand.talentDisplayName);
   // Guest UI locale rides along on `brand` (resolved server-side from the
   // tenant's default_locale, since guests have no LOCALE_COOKIE).
@@ -785,7 +789,7 @@ export function MiniChatPanel({
       role="dialog"
       aria-modal="false"
       aria-label={interpolate(t("public.guestChat.messageBrandAria"), { brand: brand.agencyName })}
-      style={miniPanelContainerStyle(P, compactSheet)}
+      style={miniPanelContainerStyle(P, compactSheet, keyboardInsetPx)}
     >
       <MiniChatPanelColumn {...columnProps} />
     </div>
