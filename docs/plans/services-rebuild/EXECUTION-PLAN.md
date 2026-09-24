@@ -26,7 +26,7 @@ No merge to main, no production pointer, no live-site restyle (owner decides).
 | G10 | 23-29 | product, extras, portfolio picker, add many, camera | matches |
 | G11 | 31-35 | categories, organize, rename (unas -> Uñas) | matches, persisted |
 | G12 | 37 | state chips | matches |
-| G13 | 38 | public card + services_catalog widget | renders her live items on localhost |
+| G13 | 38 | public card + services_catalog widget | renders her live items on localhost — CODE DONE, structural render test 7/7 green (services-catalog-render.test.tsx). Reuses OfferingCta (real click-to-book, same tulala:offering-request/-instant/-slot events TalentSiteMessagesDock already listens for on every talent-site page — zero new wiring needed). Caught + fixed a real bug pre-browser: OfferingCta hardcodes --plt-* vars that don't exist on Max sites; aliased to --token-color-* in the widget's own CSS. NOT YET DONE: a real click in a real browser against Jor's page — the shared dev server/Browser pane was too unstable tonight (heavy multi-session load, one Turbopack panic, /talent/site hanging in the Browser pane specifically). Next session: open /talent/site, drop a services_catalog block on a page, Preview, click Select, confirm the chat dock opens with the offering attached. |
 | G14 | all | Spanish copy parity | es screens render, no raw keys |
 
 ## Out of scope tonight (owner)
