@@ -8,7 +8,6 @@
  *   - `surface`           — the adapter (kind + load/save/publish/restore).
  *   - `permissions`       — what the operator may do on this surface.
  *   - `galleryPolicy`     — which Add Gallery tabs/targets are offered.
- *   - `dataSources`       — which connected data sources this surface may bind.
  *   - `previewSubjectKind`— whom connected nodes hydrate against in-canvas.
  *   - `capabilities`      — feature flags (motion / custom CSS / responsive…).
  *
@@ -18,7 +17,6 @@
  */
 
 import type { AddGalleryAllowTab } from "@/lib/site-admin/add-gallery/types";
-import type { BuilderDataSourceKey } from "@/lib/site-admin/builder-node/data-bindings";
 import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
 import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
 
@@ -131,15 +129,6 @@ export interface BuilderGalleryPolicy {
 }
 
 /**
- * Connected/data-bound source policy. WS4's preview-context work uses this to
- * decide which resolvers are allowed + how they scope data.
- */
-export interface BuilderDataSourcePolicy {
-  /** Data sources a connected node may bind on this surface. */
-  allowed: readonly BuilderDataSourceKey[];
-}
-
-/**
  * Surface capability flags. These mirror the existing builder capability gates
  * (motion, theme tokens, custom CSS, per-breakpoint responsive). Homepage
  * config enables exactly what the storefront editor enables today.
@@ -178,7 +167,6 @@ export interface BuilderContextConfig {
   surface: BuilderSurfaceAdapter;
   permissions: BuilderSurfacePermissions;
   galleryPolicy: BuilderGalleryPolicy;
-  dataSources: BuilderDataSourcePolicy;
   previewSubjectKind: BuilderPreviewSubjectKind;
   capabilities: BuilderSurfaceCapabilities;
   /**
@@ -209,18 +197,6 @@ export interface BuilderContextConfig {
    */
   lockedUpsell?: BuilderLockedUpsell | null;
 }
-
-/** Every data source the storefront homepage editor can bind today. */
-const HOMEPAGE_DATA_SOURCES: readonly BuilderDataSourceKey[] = [
-  "workspace_profile",
-  "featured_talent_profiles",
-  "tenant_directory_search",
-  "talent_locations",
-  "inquiry_path",
-  "cms_page",
-  "asset",
-  "custom_field",
-];
 
 /**
  * The homepage config — the default the EditProvider falls back to when no
@@ -271,7 +247,6 @@ export function buildHomepageBuilderConfig(
       surfaceKey: "workspace_page",
       surfaceTarget: "workspace",
     },
-    dataSources: { allowed: HOMEPAGE_DATA_SOURCES },
     previewSubjectKind: null,
     capabilities: {
       motion: true,
@@ -285,40 +260,9 @@ export function buildHomepageBuilderConfig(
   };
 }
 
-/** Every data source the Platform Builder Lab may bind. The Lab authors
- *  templates for ALL consumer surfaces, so it can preview every connected
- *  source against the chosen subject. (Same set the homepage editor binds.) */
-const PLATFORM_LAB_DATA_SOURCES: readonly BuilderDataSourceKey[] =
-  HOMEPAGE_DATA_SOURCES;
-
 // ── Agency-page data sources ──────────────────────────────────────────────────
 
-/** Data sources available on the cms_page (agency freeform) surface. Agency
- *  pages can bind the workspace profile + featured talent data (same as the
- *  homepage), but not talent-personal sources. */
-const AGENCY_PAGE_DATA_SOURCES: readonly BuilderDataSourceKey[] = [
-  "workspace_profile",
-  "featured_talent_profiles",
-  "tenant_directory_search",
-  "talent_locations",
-  "inquiry_path",
-  "cms_page",
-  "asset",
-  "custom_field",
-];
-
 // ── Talent-page data sources ──────────────────────────────────────────────────
-
-/** Data sources available on the talent_page surface. Talent pages bind
- *  talent-personal data (the talent's own profile / services). */
-const TALENT_PAGE_DATA_SOURCES: readonly BuilderDataSourceKey[] = [
-  "workspace_profile",
-  "asset",
-  "custom_field",
-  // talent_profile and talent_services are implied by the previewSubjectKind
-  // "talent" set on this surface's config — the connected resolvers scope
-  // to the talent when previewSubject.kind === "talent".
-];
 
 /**
  * The cms_page FREEFORM config (Wave 4.1) — specialises the ONE Page Builder
@@ -367,7 +311,6 @@ export function buildCmsPageBuilderConfig(
       // site shell, which is the site_shell surface).
       surfaceKey: "workspace_page",
     },
-    dataSources: { allowed: AGENCY_PAGE_DATA_SOURCES },
     previewSubjectKind: null,
     capabilities: {
       motion: true,
@@ -437,7 +380,6 @@ export function buildPrintBuilderConfig(
       // else.
       blockAllowList: PRINT_BLOCK_KINDS,
     },
-    dataSources: { allowed: [] },
     previewSubjectKind: null,
     capabilities: {
       motion: false,
@@ -524,7 +466,6 @@ export function buildTalentPageBuilderConfig(
       // Max-site shell, which is the site_shell surface).
       surfaceKey: "talent_profile",
     },
-    dataSources: { allowed: TALENT_PAGE_DATA_SOURCES },
     previewSubjectKind: "talent",
     surfaceTalentTier: opts?.talentTier ?? null,
     structuralEdits,
@@ -635,7 +576,6 @@ export function buildSiteShellBuilderConfig(
       // OWN toggle (`talent_shell`), no longer riding the workspace toggle.
       surfaceKey: isTalentShell ? "talent_shell" : "workspace_shell",
     },
-    dataSources: { allowed: AGENCY_PAGE_DATA_SOURCES },
     previewSubjectKind: null,
     // §E required_talent_tier gating for a talent-subject shell (null on agency).
     surfaceTalentTier: opts?.talentTier ?? null,
@@ -739,7 +679,6 @@ export function buildPlatformLabBuilderConfig(
       // the lab axis only).
       isLab: true,
     },
-    dataSources: { allowed: PLATFORM_LAB_DATA_SOURCES },
     previewSubjectKind,
     // The Lab author is a super-admin authoring/previewing across ALL tiers, so
     // present the gallery as the top tier — otherwise tier-gated templates
