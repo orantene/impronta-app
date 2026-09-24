@@ -19079,7 +19079,16 @@
             "expiresAt": "Link valid until {date}",
             "keepSlot": "Paying keeps your booking.",
             "cancelled": "This payment was cancelled. Ask {business} if you still want to pay.",
-            "cancelledPill": "Cancelled"
+            "cancelledPill": "Cancelled",
+            "total": "Total",
+            "paidAmount": "Paid",
+            "balanceDue": "Balance due",
+            "paidBalanceDue": "{paid} paid. Balance {due} still due.",
+            "paidInFull": "{paid} paid. Nothing left.",
+            "methodCard": "Paid by card",
+            "methodCardDeposit": "Deposit by card",
+            "methodCash": "Paid in cash",
+            "methodTransfer": "Paid by transfer"
           },
           "tickets": {
             "cat": "Tickets",

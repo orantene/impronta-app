@@ -19079,7 +19079,16 @@
             "expiresAt": "Enlace válido hasta el {date}",
             "keepSlot": "Pagar mantiene tu reserva.",
             "cancelled": "Este pago se canceló. Pregunta a {business} si aún quieres pagar.",
-            "cancelledPill": "Cancelado"
+            "cancelledPill": "Cancelado",
+            "total": "Total",
+            "paidAmount": "Pagado",
+            "balanceDue": "Saldo",
+            "paidBalanceDue": "{paid} pagada. Saldo {due} en el estudio.",
+            "paidInFull": "{paid} pagada. Nada pendiente.",
+            "methodCard": "Pagado con tarjeta",
+            "methodCardDeposit": "Seña con tarjeta",
+            "methodCash": "Pagado en efectivo",
+            "methodTransfer": "Pagado por transferencia"
           },
           "tickets": {
             "cat": "Entradas",
