@@ -138,7 +138,7 @@ export function CameraAddScreen({
         </button>
         <div>
           <h1 className="text-[18px] font-semibold leading-tight">{copy.t("New service")}</h1>
-          <p className="text-[12px] text-admin-ink-dim">{copy.t("Photo first · 1 of 3")}</p>
+          <p className="text-[12px] text-admin-ink-dim">{copy.t("Photo first")}</p>
         </div>
       </div>
 

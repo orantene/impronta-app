@@ -18,6 +18,8 @@ import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
+import { ProductEditorCard } from "./ProductEditorCard";
+import { foldAccent } from "@/lib/talent/publication-state";
 
 type Photo = { id: string; url: string };
 type Where = "studio" | "client" | "remote" | "agreed";
@@ -60,6 +62,8 @@ export function EditorScreen({
   onBack,
   onSave,
   onRefreshAddons,
+  onOpenExtra,
+  catalogNames,
 }: {
   item: TalentOffering;
   setItem: (next: TalentOffering) => void;
@@ -73,6 +77,8 @@ export function EditorScreen({
   onBack: () => void;
   onSave: (next: TalentOffering, publish: boolean, pendingImageIds?: string[]) => Promise<void>;
   onRefreshAddons: () => Promise<void>;
+  onOpenExtra?: (existingId?: string) => void;
+  catalogNames?: string[];
 }) {
   const copy = useDashboardText();
   const es = copy.isSpanish;
@@ -281,11 +287,22 @@ export function EditorScreen({
               </label>
               <label className="block">
                 <span className={LABEL}>{copy.t("Category")}</span>
-                <input className={INPUT} maxLength={80} value={item.category ?? ""} onChange={(e) => patch({ category: e.target.value || null })} />
+                <input list="services-category-names" className={INPUT} maxLength={80} value={item.category ?? ""} onChange={(e) => patch({ category: e.target.value || null })} />
+                <datalist id="services-category-names">
+                  {(catalogNames ?? []).map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+                {item.category && (catalogNames ?? []).some((name) => name !== item.category && foldAccent(name) === foldAccent(item.category ?? "")) && (
+                  <p className="mt-1 text-[12.5px] text-amber-800">{copy.t("That looks like")} {(catalogNames ?? []).find((name) => foldAccent(name) === foldAccent(item.category ?? ""))}.</p>
+                )}
               </label>
             </div>
 
-            <div className={`grid gap-4 ${kind === "product" ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+            {kind === "product" ? (
+              <ProductEditorCard item={item} onChange={setItem} />
+            ) : (
+            <div className="grid gap-4 sm:grid-cols-3">
               {!quote && (
                 <label className="block">
                   <span className={LABEL}>{copy.t("Price")}</span>
@@ -295,13 +312,7 @@ export function EditorScreen({
                   </div>
                 </label>
               )}
-              {kind === "product" ? (
-                <label className="block">
-                  <span className={LABEL}>{copy.t("How many do you have?")}</span>
-                  <input type="number" min={0} className={INPUT} placeholder={copy.t("Leave empty if it never runs out")} value={item.inventoryQty ?? ""} onChange={(e) => patch({ inventoryQty: e.target.value === "" ? null : Number(e.target.value) })} />
-                </label>
-              ) : (
-                <>
+              <>
                   <label className="block">
                     <span className={LABEL}>{copy.t("How long it takes")}</span>
                     <div className="relative">
@@ -317,8 +328,8 @@ export function EditorScreen({
                     </div>
                   </label>
                 </>
-              )}
             </div>
+            )}
 
             <label className="block">
               <span className={LABEL}>{copy.t("Short description")}</span>
@@ -448,6 +459,9 @@ export function EditorScreen({
                 <input className={INPUT} placeholder={copy.t("Extra name, like glitter")} value={extra.name} onChange={(e) => setExtra({ ...extra, name: e.target.value })} />
                 <input className={INPUT} type="number" min={0} placeholder={item.currency} value={extra.price} onChange={(e) => setExtra({ ...extra, price: e.target.value })} />
                 <input className={INPUT} type="number" min={0} placeholder="+ min" value={extra.minutes} onChange={(e) => setExtra({ ...extra, minutes: e.target.value })} />
+                <button type="button" className="mt-1.5 rounded-lg border border-admin-border-soft px-4 text-[14px] font-semibold" onClick={() => onOpenExtra?.()}>
+                  {copy.t("Create an extra")}
+                </button>
                 <button type="button" disabled={!extra.name.trim()} className="mt-1.5 rounded-lg bg-emerald-900 px-4 text-[14px] font-semibold text-white disabled:opacity-50" onClick={async () => {
                   const res = await upsertAddonGroup(talentId, {
                     name: extra.name,

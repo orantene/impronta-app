@@ -29,19 +29,23 @@ import {
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { ItemStateChips } from "./ItemStateChips";
-import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import {
   AddManyScreen,
   CameraAddScreen,
   DefaultsScreen,
   EditorScreen,
+  FirstRunScreen,
   OrganizeScreen,
   PublishedBanner,
+  SellingPatternsScreen,
 } from "./ServicesScreens";
+import { listCategoryUndos, popCategoryUndo, pushCategoryUndo } from "@/lib/talent/category-undo";
+import { ExtraScreen } from "./ExtraScreen";
+import { DuplicateReviewScreen } from "./DuplicateReviewScreen";
 
 type Filter = "all" | "service" | "package" | "product" | "draft" | "hidden" | "archived" | "attention";
-type Screen = "list" | "editor" | "defaults" | "organize" | "addMany" | "camera";
+type Screen = "list" | "editor" | "defaults" | "organize" | "addMany" | "camera" | "firstRun" | "patterns";
 
 export function ServicesHome({ talentId }: { talentId: string }) {
   const copy = useDashboardText();
@@ -63,6 +67,8 @@ export function ServicesHome({ talentId }: { talentId: string }) {
   const [hideTarget, setHideTarget] = useState<TalentOffering | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [slowLoad, setSlowLoad] = useState(false);
+  const [extraOpen, setExtraOpen] = useState(false);
+  const [dupPair, setDupPair] = useState<{ original: TalentOffering; copy: TalentOffering } | null>(null);
 
   useEffect(() => {
     if (!editor.loading) {
@@ -179,9 +185,18 @@ export function ServicesHome({ talentId }: { talentId: string }) {
       <OrganizeScreen
         names={ordered}
         items={items}
+        talentId={talentId}
         onBack={() => setScreen("list")}
         onRename={async (from, to) => {
+          const ids = items.filter((i) => i.category === from).map((i) => i.id);
           await renameCategory(talentId, from, to);
+          pushCategoryUndo(talentId, { from, to, itemIds: ids });
+          editor.reload?.();
+        }}
+        onUndo={async () => {
+          const last = popCategoryUndo(talentId);
+          if (!last) return;
+          await renameCategory(talentId, last.to, last.from);
           editor.reload?.();
         }}
         onOrder={async (next) => {
@@ -198,6 +213,73 @@ export function ServicesHome({ talentId }: { talentId: string }) {
 
   if (screen === "camera") {
     return <CameraAddScreen talentId={talentId} editor={editor} onBack={() => setScreen("list")} locale={locale} />;
+  }
+
+  if (screen === "firstRun") {
+    return (
+      <FirstRunScreen
+        itemCount={items.length}
+        onBack={() => setScreen("list")}
+        onPick={(path) => {
+          if (path === "list") setScreen("addMany");
+          else if (path === "camera") setScreen("camera");
+          else {
+            setKind("service");
+            openEditor(null, "service");
+          }
+        }}
+      />
+    );
+  }
+
+  if (screen === "patterns") {
+    return <SellingPatternsScreen onBack={() => setScreen("list")} />;
+  }
+
+  if (extraOpen && editing) {
+    return (
+      <ExtraScreen
+        talentId={talentId}
+        source={editing}
+        items={items}
+        onBack={() => setExtraOpen(false)}
+        onSaved={async () => {
+          const a = await loadAddonGroups(talentId);
+          if (a.ok) setAddons(a.groups);
+        }}
+      />
+    );
+  }
+
+  if (dupPair) {
+    return (
+      <DuplicateReviewScreen
+        original={dupPair.original}
+        copyItem={dupPair.copy}
+        bookingCount={null}
+        reviewCount={null}
+        onDiscard={async () => {
+          await deleteTalentOfferingForever(talentId, dupPair.copy.id);
+          editor.reload();
+          setDupPair(null);
+        }}
+        onSaveDraft={async () => {
+          setDupPair(null);
+          setScreen("list");
+        }}
+        onPublish={async () => {
+          await setOfferingPublication(talentId, dupPair.copy.id, "published");
+          editor.reload();
+          setDupPair(null);
+          setScreen("list");
+        }}
+        onEdit={() => {
+          setEditing(dupPair.copy);
+          setDupPair(null);
+          setScreen("editor");
+        }}
+      />
+    );
   }
 
   if (screen === "editor" && editing) {
@@ -231,18 +313,21 @@ export function ServicesHome({ talentId }: { talentId: string }) {
           const a = await loadAddonGroups(talentId);
           if (a.ok) setAddons(a.groups);
         }}
+        onOpenExtra={() => setExtraOpen(true)}
+        catalogNames={Array.from(new Set(items.map((i) => i.category).filter((v): v is string => Boolean(v))))}
       />
     );
   }
 
   return (
     <div className="font-admin-body">
-      <WebsiteRewardControl placement="mobile" />
       <div className="flex flex-wrap items-end justify-between gap-3" data-tulala-page-header>
         <div>
           <h1 className="font-admin-display text-[28px] font-semibold text-admin-ink">{copy.t("Services")}</h1>
           <p className="text-[13px] text-admin-ink-muted">
-            {editor.loading
+            {hideTarget
+              ? `${copy.t("Hiding")} "${hideTarget.title}"`
+              : editor.loading
               ? copy.t("Your services are loading.")
               : `${copy.t("Manage your services, packages and products")} · ${counts.all} ${copy.t("items")}`}
           </p>
@@ -262,9 +347,18 @@ export function ServicesHome({ talentId }: { talentId: string }) {
               ···
             </button>
             {moreOpen && (
-              <div className="absolute right-0 z-20 mt-1 w-40 rounded-xl border border-admin-border-soft bg-white py-1 shadow-admin-rest">
+              <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-admin-border-soft bg-white py-1 shadow-admin-rest">
                 <button type="button" className="block w-full px-3 py-2 text-left text-[13px]" onClick={() => { setMoreOpen(false); setScreen("addMany"); }}>
                   {copy.t("Add many")}
+                </button>
+                <button type="button" className="block w-full px-3 py-2 text-left text-[13px]" onClick={() => { setMoreOpen(false); setScreen("camera"); }}>
+                  {copy.t("From the camera")}
+                </button>
+                <button type="button" className="block w-full px-3 py-2 text-left text-[13px]" onClick={() => { setMoreOpen(false); setScreen("firstRun"); }}>
+                  {copy.t("First run")}
+                </button>
+                <button type="button" className="block w-full px-3 py-2 text-left text-[13px]" onClick={() => { setMoreOpen(false); setScreen("patterns"); }}>
+                  {copy.t("Selling patterns")}
                 </button>
               </div>
             )}
@@ -414,7 +508,7 @@ export function ServicesHome({ talentId }: { talentId: string }) {
                   const res = await duplicateTalentOffering(talentId, item.id);
                   if (res.ok) {
                     editor.reload();
-                    openEditor(res.item);
+                    setDupPair({ original: item, copy: res.item });
                   } else setToast(res.error ?? copy.t("Could not duplicate"));
                 }}
                 onHide={() => {

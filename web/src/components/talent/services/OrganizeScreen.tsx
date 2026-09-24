@@ -2,6 +2,7 @@
 
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { listCategoryUndos } from "@/lib/talent/category-undo";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
 const NAME_MAX = 80;
@@ -16,22 +17,28 @@ type Mode = { kind: "list" } | { kind: "rename"; from: string } | { kind: "merge
 export function OrganizeScreen({
   names,
   items,
+  talentId,
   onBack,
   onRename,
   onOrder,
   onMerge,
+  onUndo,
 }: {
   names: string[];
   items: TalentOffering[];
+  talentId?: string;
   onBack: () => void;
   onRename: (from: string, to: string) => Promise<void>;
   onOrder: (next: string[]) => Promise<void>;
   onMerge?: (from: string, into: string) => Promise<void>;
+  onUndo?: () => Promise<void>;
 }) {
   const copy = useDashboardText();
   const [mode, setMode] = useState<Mode>({ kind: "list" });
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [newName, setNewName] = useState("");
+  const undos = talentId ? listCategoryUndos(talentId) : [];
 
   const inCategory = (name: string) => items.filter((i) => i.category === name);
   const uncategorised = items.filter((i) => !i.category || !names.includes(i.category));
@@ -93,6 +100,39 @@ export function OrganizeScreen({
         >
           {copy.t("Done")}
         </button>
+      </div>
+      <div className="mt-4 flex flex-wrap items-end gap-2">
+        <label className="min-w-[200px] flex-1">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-admin-ink-dim">{copy.t("New category")}</span>
+          <input
+            value={newName}
+            maxLength={NAME_MAX}
+            onChange={(e) => setNewName(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-admin-border-soft px-3 py-2 text-[14px]"
+            placeholder={copy.t("A word you type on an item")}
+          />
+        </label>
+        <button
+          type="button"
+          className="rounded-lg border border-admin-border-soft px-3 py-2 text-[13px] font-semibold"
+          onClick={() => {
+            const next = newName.trim();
+            if (!next || names.includes(next)) return;
+            void onOrder([...names, next]);
+            setNewName("");
+          }}
+        >
+          {copy.t("Add")}
+        </button>
+        {onUndo && undos[0] && (
+          <button
+            type="button"
+            className="rounded-lg px-3 py-2 text-[13px] font-semibold text-admin-brand"
+            onClick={() => void onUndo()}
+          >
+            {copy.t("Undo")} · {undos[0].to} → {undos[0].from}
+          </button>
+        )}
       </div>
 
       <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-start">
@@ -219,14 +259,14 @@ export function OrganizeScreen({
             <span className="font-semibold">!</span>
             <div>
               <p className="text-[14px] font-semibold">
-                <span className="hidden sm:inline">{copy.t("Category order is not saved yet")}</span>
-                <span className="sm:hidden">{copy.t("Order is not saved yet")}</span>
+                <span className="hidden sm:inline">{copy.t("Category order is saved")}</span>
+                <span className="sm:hidden">{copy.t("Order is saved")}</span>
               </p>
               <p className="mt-0.5 hidden text-[13px] text-admin-ink-muted sm:block">
-                {copy.t("Right now the order follows the first item in each category, so moving a heading really moves that item. Proper category ordering is coming; until it lands, this screen tells you what it is actually doing.")}
+                {copy.t("This order is used on your public pages and in the services menu block.")}
               </p>
               <p className="mt-0.5 text-[13px] text-admin-ink-muted sm:hidden">
-                {copy.t("It follows the first item in each category.")}
+                {copy.t("This order is used on your public pages.")}
               </p>
             </div>
           </div>
