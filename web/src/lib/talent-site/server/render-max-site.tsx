@@ -465,7 +465,12 @@ async function renderMaxSiteDocument(args: {
     ...talentOfferings,
     ...(dataSources.menuOfferings ?? []),
   ]);
-  const pricedDataSources = { ...dataSources, usdRates };
+  const pricedDataSources = {
+    ...dataSources,
+    usdRates,
+    tenantId: dataSources.tenantId ?? tenantId ?? undefined,
+    catalogBookingLive: Boolean(tenantId) && !draftPreview,
+  };
 
   const captchaConfig = pageCaptcha
     ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }

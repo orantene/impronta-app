@@ -140,8 +140,7 @@ import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
-import { type UsdRates } from "@/lib/pricing/usd-equivalent";
-import { ServicesCatalogFilter, CatalogRow } from "./services-catalog-filter";
+import { ServicesCatalogFilter } from "./services-catalog-filter";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 
 export interface BuilderNodeRenderDataSources {
@@ -288,6 +287,8 @@ export interface BuilderNodeRenderDataSources {
   talentOfferingsUsdRates?: UsdRates;
   /** Saved `category_order` from the talent profile. Missing names append after. */
   talentOfferingsCategoryOrder?: string[];
+  /** Published talent site: write bookings. Editor / draft: demo sheet. */
+  catalogBookingLive?: boolean;
   menuOfferings?: ReadonlyArray<{
     id: string;
     title: string;
@@ -4440,6 +4441,8 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-duration{font-size:.75rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-price{text-align:right;white-space:nowrap;font-size:1rem}
 .site-builder-node--services-catalog-usd{display:block;font-size:.75rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.4rem .85rem;font-size:.75rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff)}
+.site-builder-node--services-catalog-cta[data-selected="true"]{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
 `;
 
 function renderBuilderNode(
@@ -5603,8 +5606,8 @@ function renderBuilderNodeElement(
       const title = renderItalicMarkedTitle(rawTitle);
       const eyebrow = text("eyebrow", p.eyebrow);
       const subtitle = text("subtitle", p.subtitle);
-      const ctaLabel =
-        p.ctaLabel?.trim() || (es ? "Seleccionar" : "Select");
+      const ctaLabel = p.ctaLabel?.trim() || undefined;
+      const bookingMode = options.dataSources.catalogBookingLive ? "live" : "demo";
       const emptyMessage =
         text("emptyMessage", p.emptyMessage) ||
         (es ? "Todavía no hay servicios publicados." : "No services are published yet.");
@@ -5673,55 +5676,28 @@ function renderBuilderNodeElement(
           {visible.length === 0 ? (
             <p className="site-builder-node--services-catalog-empty">{emptyMessage}</p>
           ) : (
-            <>
-              {showCategoryNav && filterNav ? (
-                <ServicesCatalogFilter
-                  groups={groups}
-                  locale={locale}
-                  nav={p.categoryNav === "tabs" ? "tabs" : "pills"}
-                  showPhoto={p.showPhoto !== false}
-                  showDuration={p.showDuration !== false}
-                  showUsdEquivalent={p.showUsdEquivalent !== false}
-                  confirmsByHand={confirmsByHand}
-                  usdRates={usdRates}
-                  ctaLabel={ctaLabel}
-                />
-              ) : (
-                <>
-                  {showCategoryNav ? (
-                    <nav aria-label={es ? "Categorías" : "Categories"} className="site-builder-node--services-catalog-nav">
-                      {groups.map((g) => (
-                        <a key={g.name ?? "_"} href={`#${slug(g.name ?? "_")}`} className="site-builder-node--services-catalog-pill">
-                          {g.name ?? (es ? "Otros" : "Other")}
-                        </a>
-                      ))}
-                    </nav>
-                  ) : null}
-                  {groups.map((g) => (
-                    <div key={g.name ?? "_"} id={showCategoryNav ? slug(g.name ?? "_") : undefined} className="site-builder-node--services-catalog-group">
-                      {showCategoryNav ? (
-                        <h3 className="site-builder-node--services-catalog-group-title">{g.name ?? (es ? "Otros" : "Other")}</h3>
-                      ) : null}
-                      <ul className="site-builder-node--services-catalog-list">
-                        {g.items.map((item) => (
-                          <CatalogRow
-                            key={item.id}
-                            item={item}
-                            locale={locale}
-                            showPhoto={p.showPhoto !== false}
-                            showDuration={p.showDuration !== false}
-                            showUsdEquivalent={p.showUsdEquivalent !== false}
-                            confirmsByHand={confirmsByHand}
-                            usdRates={usdRates}
-                            ctaLabel={ctaLabel}
-                          />
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </>
-              )}
-            </>
+            <ServicesCatalogFilter
+              groups={groups}
+              locale={locale}
+              nav={
+                showCategoryNav && filterNav
+                  ? p.categoryNav === "tabs"
+                    ? "tabs"
+                    : "pills"
+                  : showCategoryNav
+                    ? "jump"
+                    : "flat"
+              }
+              showPhoto={p.showPhoto !== false}
+              showDuration={p.showDuration !== false}
+              showUsdEquivalent={p.showUsdEquivalent !== false}
+              confirmsByHand={confirmsByHand}
+              usdRates={usdRates}
+              ctaLabel={ctaLabel}
+              bookingMode={bookingMode}
+              tenantId={options.dataSources.tenantId ?? null}
+              jumpSlug={slug}
+            />
           )}
         </section>
       );
