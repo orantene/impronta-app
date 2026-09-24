@@ -32,12 +32,13 @@ type Admin = {
  * `staff_permissions` lookup (the table itself carries no `tenant_id`) and to
  * decide whether a tenant has opted into gating a given key at all.
  */
-async function activeStaffIds(admin: Admin, tenantId: string): Promise<string[]> {
-  const { data } = await admin
+async function activeStaffIds(admin: Admin, tenantId: string): Promise<string[] | null> {
+  const { data, error } = await admin
     .from("agency_memberships")
     .select("profile_id")
     .eq("tenant_id", tenantId)
     .eq("status", "active");
+  if (error) return null;
   return ((data ?? []) as { profile_id: string | null }[])
     .map((r) => r.profile_id)
     .filter((v): v is string => Boolean(v));
@@ -63,11 +64,12 @@ export async function hasMessagingMoneyPermission(
   admin: Admin,
   input: { tenantId: string; userId: string; permission: MessagingMoneyPermission },
 ): Promise<boolean> {
-  const { data: profile } = await admin
+  const { data: profile, error: profileErr } = await admin
     .from("profiles")
     .select("app_role")
     .eq("id", input.userId)
     .maybeSingle();
+  if (profileErr) return false;
   if ((profile as { app_role?: string } | null)?.app_role === "super_admin") return true;
 
   const staffIds = await activeStaffIds(admin, input.tenantId);
@@ -75,13 +77,15 @@ export async function hasMessagingMoneyPermission(
   // staff of this tenant before this ever runs, but this function is a
   // standalone gate and should not answer `true` for a caller who isn't on
   // the roster at all just because the tenant hasn't configured the key yet.
-  if (staffIds.length === 0 || !staffIds.includes(input.userId)) return false;
+  // An unreadable roster is also a deny — never "open because empty" (D-MSG-414).
+  if (staffIds == null || staffIds.length === 0 || !staffIds.includes(input.userId)) return false;
 
-  const { data: rows } = await admin
+  const { data: rows, error: permErr } = await admin
     .from("staff_permissions")
     .select("user_id")
     .eq("permission", input.permission)
     .in("user_id", staffIds);
+  if (permErr) return false;
   const grantedIds = new Set(((rows ?? []) as { user_id: string }[]).map((r) => r.user_id));
 
   if (grantedIds.size === 0) return true; // unconfigured tenant: open

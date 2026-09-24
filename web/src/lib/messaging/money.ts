@@ -43,46 +43,53 @@ async function loadOrderAndLines(
   tenantId: string,
   orderId: string,
 ): Promise<{ order: OrderRow; lines: LineRow[] } | null> {
-  const { data: order } = await admin
+  const { data: order, error: orderErr } = await admin
     .from("orders")
     .select("id, tenant_id, inquiry_id, status, discount_cents, tip_cents")
     .eq("id", orderId)
     .maybeSingle();
+  if (orderErr) return null;
   const row = order as OrderRow | null;
   if (!row || row.tenant_id !== tenantId) return null;
-  const { data: lines } = await admin
+  const { data: lines, error: linesErr } = await admin
     .from("order_lines")
     .select("id, order_id, total_cents, refunded_cents, variant_id, offering_id")
     .eq("order_id", orderId);
+  if (linesErr) return null;
   return { order: row, lines: ((lines ?? []) as LineRow[]) };
 }
 
 /** Resolve the single admission a non-order money record kind points at. */
 async function loadAdmission(admin: Admin, tenantId: string, admissionId: string): Promise<AdmissionRow | null> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("admissions")
     .select("id, order_line_id, starts_at, status, tenant_id")
     .eq("id", admissionId)
     .maybeSingle();
+  if (error) return null;
   const row = data as (AdmissionRow & { tenant_id: string }) | null;
   if (!row || row.tenant_id !== tenantId) return null;
   return row;
 }
 
-async function loadPaidTransactions(admin: Admin, orderId: string): Promise<PaidTransaction[]> {
-  const { data: txnRows } = await admin
+/** Paid legs for an order. `null` means the ledger could not be read — never
+ * treat that as "nothing paid" (D-MSG-414). */
+async function loadPaidTransactions(admin: Admin, orderId: string): Promise<PaidTransaction[] | null> {
+  const { data: txnRows, error: txnErr } = await admin
     .from("booking_transactions")
     .select("id, gross_amount_cents")
     .eq("order_id", orderId)
     .eq("status", "paid")
     .order("created_at", { ascending: true });
+  if (txnErr) return null;
   const paid = ((txnRows ?? []) as { id: string; gross_amount_cents: number }[]);
   if (paid.length === 0) return [];
-  const { data: refundRows } = await admin
+  const { data: refundRows, error: refundErr } = await admin
     .from("booking_transactions")
     .select("refund_of_transaction_id, gross_amount_cents")
     .in("refund_of_transaction_id", paid.map((t) => t.id))
     .eq("status", "refunded");
+  if (refundErr) return null;
   const refunded = new Map<string, number>();
   for (const r of (refundRows ?? []) as { refund_of_transaction_id: string; gross_amount_cents: number }[]) {
     refunded.set(r.refund_of_transaction_id, (refunded.get(r.refund_of_transaction_id) ?? 0) + Number(r.gross_amount_cents ?? 0));
@@ -109,20 +116,22 @@ async function cancellationWindowForLines(
   // No `.not("starts_at", "is", null)` here on purpose: filtered client-side
   // instead, so this reads correctly against the in-memory PostgREST test
   // fixture too (`fake-admin.ts` models `eq`/`in`/`order`/`limit`, not `not`).
-  const { data: admRows } = await admin
+  const { data: admRows, error: admErr } = await admin
     .from("admissions")
     .select("order_line_id, starts_at")
     .in("order_line_id", lineIds)
     .order("starts_at", { ascending: true });
+  if (admErr) return { cancellationHours: null, startsAt: null };
   const first = ((admRows ?? []) as { order_line_id: string | null; starts_at: string | null }[]).find((r) => r.starts_at);
   if (!first?.starts_at) return { cancellationHours: null, startsAt: null };
   const line = lines.find((l) => l.id === first.order_line_id);
   if (!line?.offering_id) return { cancellationHours: null, startsAt: first.starts_at };
-  const { data: offRow } = await admin
+  const { data: offRow, error: offErr } = await admin
     .from("talent_offerings")
     .select("cancellation_hours")
     .eq("id", line.offering_id)
     .maybeSingle();
+  if (offErr) return { cancellationHours: null, startsAt: first.starts_at };
   const hours = (offRow as { cancellation_hours: number | null } | null)?.cancellation_hours ?? null;
   return { cancellationHours: hours, startsAt: first.starts_at };
 }
@@ -168,22 +177,25 @@ export async function messagingPreviewCancelRead(
   } else {
     const admission = await loadAdmission(admin, input.tenantId, input.recordId);
     if (!admission || !admission.order_line_id) return { ok: false, reason: "not_found" };
-    const { data: lineRow } = await admin
+    const { data: lineRow, error: lineErr } = await admin
       .from("order_lines")
       .select("id, order_id, total_cents, refunded_cents, variant_id, offering_id")
       .eq("id", admission.order_line_id)
       .maybeSingle();
+    if (lineErr) return { ok: false, reason: "not_found" };
     const line = lineRow as LineRow | null;
     if (!line) return { ok: false, reason: "not_found" };
     lines = [line];
     orderId = line.order_id;
   }
-  const { data: orderCurrency } = await admin.from("orders").select("currency, discount_cents, tip_cents").eq("id", orderId).maybeSingle();
+  const { data: orderCurrency, error: curErr } = await admin.from("orders").select("currency, discount_cents, tip_cents").eq("id", orderId).maybeSingle();
+  if (curErr) return { ok: false, reason: "not_found" };
   const oc = orderCurrency as { currency: string; discount_cents: number; tip_cents: number } | null;
   currency = oc?.currency ?? "USD";
 
   const refundable = toRefundableLines(lines);
   const transactions = await loadPaidTransactions(admin, orderId);
+  if (transactions == null) return { ok: false, reason: "not_found" };
   const scope: PromoScope = {};
   const plan = planRefund({
     lines: refundable,
@@ -198,11 +210,12 @@ export async function messagingPreviewCancelRead(
   const { cancellationHours, startsAt } = await cancellationWindowForLines(admin, input.tenantId, lines);
   const verdict = resolveCancellationWindow({ cancellationHours, startsAt, eventDate: null, nowMs: Date.now() });
 
-  const { data: admRows } = await admin
+  const { data: admRows, error: admListErr } = await admin
     .from("admissions")
     .select("id")
     .in("order_line_id", lines.map((l) => l.id))
     .eq("status", "valid");
+  if (admListErr) return { ok: false, reason: "not_found" };
   const freesAdmissionIds = ((admRows ?? []) as { id: string }[]).map((r) => r.id);
 
   return {
@@ -229,7 +242,8 @@ export async function resolveMoneyRecordLines(
   }
   const admission = await loadAdmission(admin, input.tenantId, input.recordId);
   if (!admission || !admission.order_line_id) return { ok: false, reason: "not_found" };
-  const { data: lineRow } = await admin.from("order_lines").select("id, order_id").eq("id", admission.order_line_id).maybeSingle();
+  const { data: lineRow, error: lineErr } = await admin.from("order_lines").select("id, order_id").eq("id", admission.order_line_id).maybeSingle();
+  if (lineErr) return { ok: false, reason: "not_found" };
   const line = lineRow as { id: string; order_id: string } | null;
   if (!line) return { ok: false, reason: "not_found" };
   return { ok: true, orderId: line.order_id, lineIds: [line.id] };
@@ -256,10 +270,11 @@ export async function isCancelTargetAlready(
   input: { tenantId: string; recordKind: RecordKind; recordId: string; orderId: string },
 ): Promise<boolean> {
   if (input.recordKind === "order") {
-    const { data } = await tenantScopedQuery(admin as never, "orders", input.tenantId)
+    const { data, error } = await tenantScopedQuery(admin as never, "orders", input.tenantId)
       .select("status")
       .eq("id", input.orderId)
       .maybeSingle();
+    if (error) return false;
     const status = (data as { status: string } | null)?.status ?? null;
     return status === "cancelled" || status === "refunded";
   }
@@ -279,9 +294,10 @@ export async function stampOrderCancelStatus(
 
 export async function releaseOrderLinesCapacity(admin: Admin, tenantId: string, lineIds: readonly string[]): Promise<void> {
   if (lineIds.length === 0) return;
-  const { data: lines } = await tenantScopedQuery(admin as never, "order_lines", tenantId)
+  const { data: lines, error: linesErr } = await tenantScopedQuery(admin as never, "order_lines", tenantId)
     .select("allocation_ids")
     .in("id", lineIds);
+  if (linesErr) return;
   const allocationIds = ((lines ?? []) as { allocation_ids: string[] | null }[]).flatMap((l) => l.allocation_ids ?? []);
   if (allocationIds.length === 0) return;
   const rpcAdmin = admin as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown> };
@@ -307,12 +323,13 @@ export async function refundArbitraryAmount(
   actorUserId: string,
   note: string,
 ): Promise<{ ok: true; movedCents: number } | { ok: false }> {
-  const { data: txnRows } = await admin
+  const { data: txnRows, error: txnErr } = await admin
     .from("booking_transactions")
     .select("id, gross_amount_cents, order_id")
     .eq("order_id", orderId)
     .eq("status", "paid")
     .order("created_at", { ascending: true });
+  if (txnErr) return { ok: false };
   const paid = (txnRows ?? []) as { id: string; gross_amount_cents: number }[];
   let left = amountCents;
   let moved = 0;
@@ -342,17 +359,19 @@ export async function loadOwnedTransaction(
   tenantId: string,
   transactionId: string,
 ): Promise<OwnedTransaction | null> {
-  const { data: txnRow } = await admin
+  const { data: txnRow, error: txnErr } = await admin
     .from("booking_transactions")
     .select("id, order_id, source_tenant_id")
     .eq("id", transactionId)
     .maybeSingle();
+  if (txnErr) return null;
   const txn = txnRow as { id: string; order_id: string | null; source_tenant_id: string | null } | null;
   if (!txn || !txn.order_id || txn.source_tenant_id !== tenantId) return null;
-  const { data: orderRow } = await tenantScopedQuery(admin as never, "orders", tenantId)
+  const { data: orderRow, error: orderErr } = await tenantScopedQuery(admin as never, "orders", tenantId)
     .select("id, inquiry_id")
     .eq("id", txn.order_id)
     .maybeSingle();
+  if (orderErr) return null;
   const order = orderRow as { id: string; inquiry_id: string | null } | null;
   if (!order) return null;
   return { id: txn.id, orderId: order.id };
@@ -361,18 +380,20 @@ export async function loadOwnedTransaction(
 /** Whether `orderId` is linked to `inquiryId`, either by the legacy direct
  * FK (`orders.inquiry_id`) or by a live `conversation_records` link (S3+). */
 export async function orderLinkedToInquiry(admin: Admin, tenantId: string, orderId: string, inquiryId: string): Promise<boolean> {
-  const { data: orderRow } = await tenantScopedQuery(admin as never, "orders", tenantId)
+  const { data: orderRow, error: orderErr } = await tenantScopedQuery(admin as never, "orders", tenantId)
     .select("inquiry_id")
     .eq("id", orderId)
     .maybeSingle();
+  if (orderErr) return false;
   if ((orderRow as { inquiry_id: string | null } | null)?.inquiry_id === inquiryId) return true;
-  const { data: linkRows } = await admin
+  const { data: linkRows, error: linkErr } = await admin
     .from("conversation_records")
     .select("id")
     .eq("inquiry_id", inquiryId)
     .eq("record_kind", "order")
     .eq("record_id", orderId)
     .is("unlinked_at", null);
+  if (linkErr) return false;
   return ((linkRows ?? []) as { id: string }[]).length > 0;
 }
 
@@ -392,6 +413,7 @@ export async function loadRefundableTransaction(
   const resolved = await resolveMoneyRecordLines(admin, input);
   if (!resolved.ok) return null;
   const transactions = await loadPaidTransactions(admin, resolved.orderId);
+  if (transactions == null) return null;
   const refundable = transactions.map((t) => ({ id: t.id, refundableCents: t.grossAmountCents - t.refundedCents })).filter((t) => t.refundableCents > 0);
   if (refundable.length === 0) return null;
   const last = refundable[refundable.length - 1];

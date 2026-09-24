@@ -121,14 +121,16 @@ async function resolveRecordDateMs(
 ): Promise<number | null> {
   try {
     if (recordKind === "order") {
-      const { data } = await admin.from("orders").select("created_at").eq("id", recordId).maybeSingle();
+      const { data, error } = await admin.from("orders").select("created_at").eq("id", recordId).maybeSingle();
+      if (error) return null;
       const createdAt = (data as { created_at?: string } | null)?.created_at;
       if (!createdAt) return null;
       const ms = Date.parse(createdAt);
       return Number.isFinite(ms) ? ms : null;
     }
     if (RECORD_KINDS_ON_ADMISSIONS.has(recordKind)) {
-      const { data } = await admin.from("admissions").select("starts_at").eq("id", recordId).maybeSingle();
+      const { data, error } = await admin.from("admissions").select("starts_at").eq("id", recordId).maybeSingle();
+      if (error) return null;
       const startsAt = (data as { starts_at?: string | null } | null)?.starts_at;
       if (!startsAt) return null;
       const ms = Date.parse(startsAt);
@@ -153,11 +155,12 @@ export async function resolveThreadTokenExpiry(
   nowMs = Date.now(),
 ): Promise<number> {
   const fallback = nowMs + DEFAULT_TTL_MS;
-  const { data: links } = await admin
+  const { data: links, error: linkErr } = await admin
     .from("conversation_records")
     .select("record_kind, record_id")
     .eq("inquiry_id", inquiryId)
     .is("unlinked_at", null);
+  if (linkErr) return fallback;
   const rows = (links ?? []) as { record_kind: string; record_id: string }[];
   if (rows.length === 0) return fallback;
 

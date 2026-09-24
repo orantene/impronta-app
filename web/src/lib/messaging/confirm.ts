@@ -202,26 +202,30 @@ async function hasLiveLink(admin: SupabaseClient, tenantId: string, inquiryId: s
 }
 
 async function identityAtLeastLinked(admin: SupabaseClient, inquiryId: string) {
-  const { data } = await admin.from("conversation_identity").select("level").eq("inquiry_id", inquiryId).maybeSingle();
+  const { data, error } = await admin.from("conversation_identity").select("level").eq("inquiry_id", inquiryId).maybeSingle();
+  if (error) return false;
   const level = (data as { level?: string } | null)?.level ?? "none";
   return level === "linked" || level === "confirmed" || level === "granted";
 }
 
 async function inquiryDepositPaid(admin: SupabaseClient, tenantId: string, inquiryId: string) {
-  const [{ data: links }, { data: txns }] = await Promise.all([
+  const [linksRes, txnsRes] = await Promise.all([
     admin.from("payment_links").select("id").eq("tenant_id", tenantId).eq("inquiry_id", inquiryId).eq("status", "paid").limit(1),
     admin.from("booking_transactions").select("id").eq("source_inquiry_id", inquiryId).eq("status", "paid").limit(1),
   ]);
-  return (links ?? []).length > 0 || (txns ?? []).length > 0;
+  if (linksRes.error || txnsRes.error) return false;
+  return (linksRes.data ?? []).length > 0 || (txnsRes.data ?? []).length > 0;
 }
 
 async function orderDepositPaid(admin: SupabaseClient, tenantId: string, orderId: string) {
-  const { data } = await admin.from("payment_links").select("id").eq("tenant_id", tenantId).eq("order_id", orderId).eq("status", "paid").limit(1);
+  const { data, error } = await admin.from("payment_links").select("id").eq("tenant_id", tenantId).eq("order_id", orderId).eq("status", "paid").limit(1);
+  if (error) return false;
   return (data ?? []).length > 0;
 }
 
 async function readInquiryVersion(admin: SupabaseClient, inquiryId: string): Promise<number | null> {
-  const { data } = await admin.from("inquiries").select("version").eq("id", inquiryId).maybeSingle();
+  const { data, error } = await admin.from("inquiries").select("version").eq("id", inquiryId).maybeSingle();
+  if (error) return null;
   const v = (data as { version?: number } | null)?.version;
   return typeof v === "number" ? v : null;
 }
@@ -326,11 +330,12 @@ async function finish(
 
 async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInput, inquiry: InquiryRow): Promise<ConfirmResult> {
   if (!input.offerId) return fail("invalid");
-  const { data: offerRow } = await c.admin
+  const { data: offerRow, error: offerErr } = await c.admin
     .from("inquiry_offers")
     .select("id, inquiry_id, tenant_id, status, deposit_pct, deposit_amount_cents")
     .eq("id", input.offerId)
     .maybeSingle();
+  if (offerErr) return unavailable();
   if (!offerRow) return fail("not_found");
   const offer = offerRow as { id: string; inquiry_id: string; tenant_id: string; status: string; deposit_pct: number | null; deposit_amount_cents: number | null };
   if (offer.tenant_id !== c.tenantId || offer.inquiry_id !== input.inquiryId) return fail("wrong_tenant");
@@ -364,11 +369,12 @@ async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInp
   });
   if (!windowRes.ok) return unavailable();
   const window = windowRes.source;
-  const { data: itemRows } = await c.admin
+  const { data: itemRows, error: itemErr } = await c.admin
     .from("inquiry_offer_line_items")
     .select("id, label, talent_profile_id, units")
     .eq("offer_id", offer.id)
     .order("sort_order", { ascending: true });
+  if (itemErr) return unavailable();
   const lines: ConfirmLineInput[] = ((itemRows ?? []) as Array<{ id: string; label: string | null; talent_profile_id: string | null; units: number | string }>).map(
     (item) => ({
       id: item.id,
@@ -403,12 +409,13 @@ async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInp
       return raw && typeof raw.offering_id === "string" ? raw.offering_id : null;
     })();
     if (stampOfferingId) {
-      const { data: offering } = await c.admin
+      const { data: offering, error: offeringErr } = await c.admin
         .from("talent_offerings")
         .select("id, title, talent_profile_id, capacity_pool_id")
         .eq("id", stampOfferingId)
         .eq("tenant_id", c.tenantId)
         .maybeSingle();
+      if (offeringErr) return unavailable();
       const off = offering as { id: string; title: string | null; talent_profile_id: string | null; capacity_pool_id: string | null } | null;
       if (off?.capacity_pool_id) {
         lines.push({
@@ -481,11 +488,12 @@ async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInp
 
 async function confirmFromDraft(c: Clients, deps: ConfirmDeps, input: ConfirmInput): Promise<ConfirmResult> {
   if (!input.orderId) return fail("invalid");
-  const { data: orderRow } = await c.admin
+  const { data: orderRow, error: orderErr } = await c.admin
     .from("orders")
     .select("id, tenant_id, inquiry_id, status, total_cents, currency")
     .eq("id", input.orderId)
     .maybeSingle();
+  if (orderErr) return unavailable();
   if (!orderRow) return fail("not_found");
   const order = orderRow as { id: string; tenant_id: string; inquiry_id: string | null; status: string; total_cents: number | string; currency: string };
   if (order.tenant_id !== c.tenantId || order.inquiry_id !== input.inquiryId) return fail("wrong_tenant");
@@ -496,19 +504,21 @@ async function confirmFromDraft(c: Clients, deps: ConfirmDeps, input: ConfirmInp
   if (order.status === "paid" || order.status === "fulfilled") return fail("already");
   if (order.status !== "draft" && order.status !== "pending_payment") return fail("invalid");
 
-  const { data: lineRows } = await c.admin
+  const { data: lineRows, error: lineErr } = await c.admin
     .from("order_lines")
     .select("id, label, offering_id, session_id, variant_id, units")
     .eq("order_id", order.id);
+  if (lineErr) return unavailable();
   const rawLines = (lineRows ?? []) as Array<{ id: string; label: string | null; offering_id: string | null; session_id: string | null; variant_id: string | null; units: number | string }>;
   if (rawLines.length === 0) return fail("invalid");
 
   const lineIds = rawLines.map((l) => l.id);
-  const { data: allocRows } = await c.admin
+  const { data: allocRows, error: allocErr } = await c.admin
     .from("capacity_allocations")
     .select("id, order_line_id, released_at")
     .eq("tenant_id", c.tenantId)
     .in("order_line_id", lineIds);
+  if (allocErr) return unavailable();
   const heldLineIds = new Set(
     ((allocRows ?? []) as Array<{ order_line_id: string; released_at: string | null }>).filter((a) => !a.released_at).map((a) => a.order_line_id),
   );
@@ -521,12 +531,13 @@ async function confirmFromDraft(c: Clients, deps: ConfirmDeps, input: ConfirmInp
       lines.push({ id: line.id, label });
       continue;
     }
-    const { data: offeringRow } = await c.admin
+    const { data: offeringRow, error: offeringErr } = await c.admin
       .from("talent_offerings")
       .select("id, talent_profile_id, capacity_pool_id, reserve_mode, deposit_pct")
       .eq("id", line.offering_id)
       .eq("tenant_id", c.tenantId)
       .maybeSingle();
+    if (offeringErr) return unavailable();
     const off = offeringRow as { talent_profile_id: string | null; capacity_pool_id: string | null; reserve_mode: string | null; deposit_pct: number | null } | null;
     if (!off) {
       lines.push({ id: line.id, label });
@@ -538,18 +549,20 @@ async function confirmFromDraft(c: Clients, deps: ConfirmDeps, input: ConfirmInp
     let startsAt: string | null = null;
     let endsAt: string | null = null;
     if (line.session_id) {
-      const { data: sessionRow } = await c.admin.from("sessions").select("id, starts_at, ends_at").eq("id", line.session_id).maybeSingle();
+      const { data: sessionRow, error: sessionErr } = await c.admin.from("sessions").select("id, starts_at, ends_at").eq("id", line.session_id).maybeSingle();
+      if (sessionErr) return unavailable();
       const sess = sessionRow as { id: string; starts_at: string; ends_at: string } | null;
       if (sess) {
         startsAt = sess.starts_at;
         endsAt = sess.ends_at;
         let tierKey = DEFAULT_TIER_KEY;
         if (line.variant_id) {
-          const { data: variant } = await c.admin.from("talent_offering_variants").select("pool_key").eq("id", line.variant_id).maybeSingle();
+          const { data: variant, error: variantErr } = await c.admin.from("talent_offering_variants").select("pool_key").eq("id", line.variant_id).maybeSingle();
+          if (variantErr) return unavailable();
           const key = (variant as { pool_key?: string | null } | null)?.pool_key;
           if (typeof key === "string" && key) tierKey = key;
         }
-        const { data: pool } = await c.admin
+        const { data: pool, error: poolErr } = await c.admin
           .from("capacity_pools")
           .select("id")
           .eq("tenant_id", c.tenantId)
@@ -557,6 +570,7 @@ async function confirmFromDraft(c: Clients, deps: ConfirmDeps, input: ConfirmInp
           .eq("subject_id", sess.id)
           .eq("pool_key", tierKey)
           .maybeSingle();
+        if (poolErr) return unavailable();
         if (pool) poolId = (pool as { id: string }).id;
       }
     }

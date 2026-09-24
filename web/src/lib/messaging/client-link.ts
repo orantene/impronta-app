@@ -38,11 +38,12 @@ export async function loadClientOfferSummaries(admin: Admin, input: { tenantId: 
   const offers = (data as Array<Record<string, unknown>>).filter((row) => CLIENT_VISIBLE_OFFER_STATUSES.has(String(row.status ?? "")));
   if (offers.length === 0) return [];
   const ids = offers.map((row) => String(row.id));
-  const { data: lineRows } = await admin
+  const { data: lineRows, error: lineErr } = await admin
     .from("inquiry_offer_line_items")
     .select("offer_id, label, units, total_price, sort_order")
     .in("offer_id", ids)
     .order("sort_order", { ascending: true });
+  if (lineErr) return [];
   const linesByOffer = new Map<string, ClientOfferSummary["lines"][number][]>();
   for (const row of ((lineRows ?? []) as Array<Record<string, unknown>>)) {
     const offerId = String(row.offer_id);
@@ -105,8 +106,10 @@ export async function loadClientLinkBusiness(admin: Admin, input: { tenantId: st
   const ownerId = ((inquiryRes?.data ?? null) as { owner_user_id?: string | null } | null)?.owner_user_id ?? null;
   let handler: string | null = null;
   if (ownerId) {
-    const { data } = await admin.from("profiles").select("display_name").eq("id", ownerId).maybeSingle();
-    handler = firstName((data as { display_name?: string | null } | null)?.display_name ?? null);
+    const { data, error } = await admin.from("profiles").select("display_name").eq("id", ownerId).maybeSingle();
+    if (!error) {
+      handler = firstName((data as { display_name?: string | null } | null)?.display_name ?? null);
+    }
   }
   const raw = (identity?.default_locale ?? "en").toLowerCase();
   const locale = raw.startsWith("es") ? "es" : raw.startsWith("fr") ? "fr" : "en";

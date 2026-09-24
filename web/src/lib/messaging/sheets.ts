@@ -220,6 +220,9 @@ export async function loadOfferForEditor(
   ];
   const catalogNowById = new Map<string, number | null>();
   if (sourceServiceIds.length > 0) {
+    // supabase-read-unchecked-ok: catalog-now is a drift HINT only — a failed
+    // or empty read means no line shows a hint, never a blocked offer load
+    // (D-MSG-136 / sheets.ts comment above).
     const { data: offerings } = await admin.from("talent_offerings").select("id, amount_cents").in("id", sourceServiceIds);
     for (const o of (offerings ?? []) as Array<{ id: string; amount_cents: number | string | null }>) {
       catalogNowById.set(String(o.id), o.amount_cents == null ? null : Number(o.amount_cents));

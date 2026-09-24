@@ -34,7 +34,8 @@ export async function logAction(
 
 export async function resolveDisplayName(admin: Admin, userId: string | null): Promise<string | null> {
   if (!userId) return null;
-  const { data } = await admin.from("profiles").select("display_name").eq("id", userId).maybeSingle();
+  const { data, error } = await admin.from("profiles").select("display_name").eq("id", userId).maybeSingle();
+  if (error) return null;
   return (data as { display_name: string | null } | null)?.display_name ?? null;
 }
 
