@@ -36,6 +36,9 @@ import {
 import { DemoAskPanel } from "./DemoAskPanel";
 import { DemoBookingSheet } from "./DemoBookingSheet";
 import { DEMO_SHEET_CSS } from "./demo-sheet-styles";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { loadTalentManagingTenantId } from "@/lib/talent-site/server/load-max-site";
+
 import {
   JOR_BEAUTY_PROFILE_CODE,
   JOR_BIO,
@@ -46,9 +49,11 @@ import {
   JOR_SKILLS,
 } from "./seed";
 
+const JOR_PROFILE_ID = "f048e578-cbae-45db-9a3b-34239abea136";
+
 export const dynamic = "force-dynamic";
 
-type SP = { state?: string; lang?: string };
+type SP = { state?: string; lang?: string; book?: string };
 
 /** ES / EN switch. Same page, `?lang=` swapped — the template chrome follows. */
 function LocaleSwitch({ locale, state }: { locale: string; state: string }) {
@@ -97,7 +102,14 @@ export default async function JorBeautyMockupPage({
   const t = createTranslator(locale);
   const ui = buildDirectoryUiCopy(t, "Jorg Beauty");
 
+  const liveBook = sp.book === "live";
+  let liveTenantId: string | null = null;
   let offerings: TalentOffering[] = jorOfferings(locale);
+  if (liveBook) {
+    liveTenantId = await loadTalentManagingTenantId(JOR_PROFILE_ID);
+    const real = await loadPublicOfferingsForProfile(JOR_PROFILE_ID, locale);
+    if (real.length) offerings = real;
+  }
   if (state === "empty") offerings = [];
   if (state === "edge") {
     offerings = jorOfferings(locale).map((o) =>
@@ -228,7 +240,7 @@ export default async function JorBeautyMockupPage({
     <>
       <style dangerouslySetInnerHTML={{ __html: DEMO_SHEET_CSS }} />
       <MaisonProfileLayout {...props} />
-      <DemoBookingSheet locale={locale} />
+      <DemoBookingSheet locale={locale} mode={liveBook ? "live" : "demo"} tenantId={liveTenantId} />
       <DemoAskPanel />
     </>
   );
