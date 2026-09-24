@@ -24,27 +24,71 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     router.push("/talent/site");
   };
 
+  const siteUrl = siteLoad?.ok ? siteLoad.state.publicSiteUrl : null;
+  const siteHost = siteUrl ? siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : null;
+  const isLive = reward === "live";
+  const action =
+    reward === "unlocked_not_activated"
+      ? copy.isSpanish ? "Activar" : "Activate"
+      : reward === "setup_unfinished"
+        ? copy.isSpanish ? "Continuar" : "Continue"
+        : reward === "ready_to_publish"
+          ? copy.isSpanish ? "Ver y publicar" : "Preview & publish"
+          : null;
+  const onPress = () => {
+    if (isLive && siteUrl) {
+      window.open(siteUrl, "_blank", "noopener");
+      return;
+    }
+    if (placement === "topbar" && reward === "profile_unfinished") setOpen(true);
+    else goWebsite();
+  };
+  const chevron = (
+    <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0 text-admin-ink-dim">
+      <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+
   return (
     <div className={placement === "topbar" ? "hidden md:block" : "md:hidden"}>
-      <button
-        type="button"
-        onClick={() => (placement === "topbar" ? setOpen(true) : goWebsite())}
-        className="inline-flex items-center gap-2 rounded-full border border-admin-border-soft bg-white px-2.5 py-1 text-left font-admin-body"
-        aria-label={labels.title}
-      >
-        <span
-          aria-hidden
-          className="grid h-7 w-7 place-items-center rounded-full border-2 border-admin-brand text-[10px] font-bold text-admin-brand"
+      {isLive ? (
+        <button
+          type="button"
+          onClick={onPress}
+          className="inline-flex items-center gap-2.5 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 text-left font-admin-body"
+          aria-label={copy.isSpanish ? "Sitio en vivo" : "Website live"}
         >
-          {percent}%
-        </span>
-        <span className="max-w-[160px]">
-          <span className="block truncate text-[12px] font-semibold text-admin-ink">{labels.title}</span>
-          {placement === "mobile" && (
-            <span className="block truncate text-[11px] text-admin-ink-muted">{labels.detail}</span>
-          )}
-        </span>
-      </button>
+          <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
+          <span className="min-w-0">
+            <span className="block text-[12.5px] font-semibold leading-tight text-admin-ink">
+              {copy.isSpanish ? "Sitio en vivo" : "Website live"}
+            </span>
+            {siteHost && (
+              <span className="block max-w-[180px] truncate text-[11px] leading-tight text-admin-ink-dim">{siteHost}</span>
+            )}
+          </span>
+          {chevron}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onPress}
+          className="inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-emerald-900/15 bg-emerald-900/[0.06] px-3 py-1.5 text-left font-admin-body"
+          aria-label={labels.title}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[12.5px] font-semibold leading-tight text-emerald-900">{labels.title}</span>
+            <span className="block truncate text-[11px] leading-tight text-admin-ink-muted">{labels.detail}</span>
+            {reward === "profile_unfinished" && (
+              <span aria-hidden className="mt-1 block h-[3px] w-full overflow-hidden rounded-full bg-black/10">
+                <span className="block h-full rounded-full bg-emerald-900" style={{ width: `${Math.min(100, percent)}%` }} />
+              </span>
+            )}
+          </span>
+          {action && <span className="shrink-0 text-[12px] font-semibold text-emerald-900">{action}</span>}
+          {chevron}
+        </button>
+      )}
       {open && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/30 md:items-center" onClick={() => setOpen(false)}>
           <div

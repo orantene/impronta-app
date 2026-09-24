@@ -33,18 +33,18 @@ export function websiteRewardCopy(
       };
     case "ready_to_publish":
       return {
-        title: es ? "Listo para publicar" : "Ready to publish",
-        detail: es ? "Publica cuando quieras." : "Publish when you are ready.",
+        title: es ? "Tu sitio está listo" : "Your website is ready",
+        detail: es ? "Míralo y publícalo" : "Have a look, then publish it",
       };
     case "setup_unfinished":
       return {
-        title: es ? "Sigue armando tu sitio" : "Finish setting up your website",
-        detail: es ? "Aún faltan pasos." : "A few steps left.",
+        title: es ? "Termina tu sitio" : "Finish setting up your website",
+        detail: es ? "Elegiste tu dirección y te detuviste ahí" : "You chose your address and stopped there",
       };
     case "unlocked_not_activated":
       return {
-        title: es ? "Sitio desbloqueado" : "Website unlocked",
-        detail: es ? "Actívalo para empezar." : "Activate it to start.",
+        title: es ? "Sitio gratis desbloqueado" : "Free website unlocked",
+        detail: es ? "Actívalo y lo armamos con tu perfil" : "Activate it and we build it from your profile",
       };
     default:
       return {
