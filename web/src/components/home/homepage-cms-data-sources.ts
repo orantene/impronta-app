@@ -372,16 +372,18 @@ async function loadServicesCatalogSources(
     | "talentOfferingsConfirmsByHand"
     | "talentOfferingsUsdRates"
     | "talentOfferingsCategoryOrder"
+    | "talentOfferingsCategoryNotes"
   >
 > {
   const offerings = await loadPublicOfferingsForProfile(talentProfileId, locale);
   let confirmsByHand = true;
   let categoryOrder: string[] = [];
+  let categoryNotes: Record<string, string> | undefined;
   const admin = createServiceRoleClient();
   if (admin) {
     const { data, error } = await admin
       .from("talent_profiles")
-      .select("talent_plan_key, category_order")
+      .select("talent_plan_key, category_order, selling_defaults")
       .eq("id", talentProfileId)
       .maybeSingle();
     if (!error) {
@@ -390,6 +392,15 @@ async function loadServicesCatalogSources(
       );
       const raw = (data as { category_order?: string[] | null } | null)?.category_order;
       if (Array.isArray(raw)) categoryOrder = raw.filter((name): name is string => typeof name === "string");
+      const defaults = (data as { selling_defaults?: { categoryNotes?: unknown } | null } | null)?.selling_defaults;
+      const notes = defaults?.categoryNotes;
+      if (notes && typeof notes === "object" && !Array.isArray(notes)) {
+        const next: Record<string, string> = {};
+        for (const [key, value] of Object.entries(notes)) {
+          if (typeof value === "string" && value.trim()) next[key] = value.trim();
+        }
+        if (Object.keys(next).length) categoryNotes = next;
+      }
     }
   }
   const usdRates = needsUsdRates(offerings) ? await loadUsdRates() : null;
@@ -398,5 +409,6 @@ async function loadServicesCatalogSources(
     talentOfferingsConfirmsByHand: confirmsByHand,
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
     ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),
+    ...(categoryNotes ? { talentOfferingsCategoryNotes: categoryNotes } : {}),
   };
 }

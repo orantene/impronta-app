@@ -287,6 +287,8 @@ export interface BuilderNodeRenderDataSources {
   talentOfferingsUsdRates?: UsdRates;
   /** Saved `category_order` from the talent profile. Missing names append after. */
   talentOfferingsCategoryOrder?: string[];
+  /** Optional inclusion line per category name. Omitted when the talent has none. */
+  talentOfferingsCategoryNotes?: Record<string, string>;
   /** Published talent site: write bookings. Editor / draft: demo sheet. */
   catalogBookingLive?: boolean;
   menuOfferings?: ReadonlyArray<{
@@ -5631,9 +5633,14 @@ function renderBuilderNodeElement(
       const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
       const filterNav = p.categoryNav === "tabs" || p.categoryNav === "pills" || p.categoryNav == null;
       const slug = (c: string) => `${node.id}-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
-      const groups: Array<{ name: string | null; items: TalentOffering[] }> = showCategoryNav
+      const notes = options.dataSources.talentOfferingsCategoryNotes;
+      const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = showCategoryNav
         ? [
-            ...categories.map((c) => ({ name: c, items: visible.filter((o) => o.category?.trim() === c) })),
+            ...categories.map((c) => ({
+              name: c,
+              note: notes?.[c] ?? null,
+              items: visible.filter((o) => o.category?.trim() === c),
+            })),
             ...(visible.some((o) => !o.category?.trim())
               ? [{ name: null, items: visible.filter((o) => !o.category?.trim()) }]
               : []),

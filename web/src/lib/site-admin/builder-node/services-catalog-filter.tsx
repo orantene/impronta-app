@@ -13,7 +13,7 @@ import {
 } from "@/components/public-booking/catalog-booking-logic";
 import { catalogDurationPhrase } from "./services-catalog-title";
 
-export type CatalogGroup = { name: string | null; items: TalentOffering[] };
+export type CatalogGroup = { name: string | null; items: TalentOffering[]; note?: string | null };
 
 function detailFor(offering: TalentOffering, confirmsByHand: boolean): OfferingRequestDetail {
   const raw = resolveOfferingCta(offering);
@@ -149,9 +149,10 @@ export function ServicesCatalogFilter({
   };
 
   const continueFromBar = () => {
-    const found = groups.flatMap((g) => g.items).find((o) => o.id === selectedId);
+    const group = groups.find((g) => g.items.some((o) => o.id === selectedId));
+    const found = group?.items.find((o) => o.id === selectedId);
     if (!found) return;
-    dispatchOffering(found, confirmsByHand, "when");
+    dispatchOffering(found, confirmsByHand, "when", group?.note);
   };
 
   return (
@@ -221,7 +222,7 @@ export function ServicesCatalogFilter({
                   usdRates={usdRates}
                   ctaLabel={ctaLabel}
                   selected={selectedId === item.id}
-                  onSelect={() => onRowAction(item)}
+                  onSelect={() => onRowAction(item, g.note)}
                 />
               ))}
             </ul>
