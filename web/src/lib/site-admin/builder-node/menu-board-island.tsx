@@ -168,6 +168,7 @@ const MB_CSS = `
 .site-builder-node--menu-board-stepper-controls>button:disabled{opacity:0.35;cursor:not-allowed}
 .site-builder-node--menu-board-stepper-controls>output{min-width:1.6rem;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
 .site-builder-node--menu-board-stepper-price{margin-left:auto;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.site-builder-node--menu-board-usd-hint{display:block;font-weight:400;opacity:0.62;font-size:0.72em}
 .site-builder-node--menu-board-stepper-stock{flex-basis:100%;font-size:0.78rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--token-color-primary)}
 @media (min-width:640px){.site-builder-node--menu-board-stepper-stock{flex-basis:auto}}
 .site-builder-node--menu-board-stepper-stock[data-sold-out="true"]{color:var(--token-color-muted);text-decoration:line-through}
@@ -463,7 +464,7 @@ export function MenuBoardIsland({
                         })
                       : formatMenuMoney(offering.amountCents, offering.currency)}
                   {usd ? (
-                    <span data-usd-equivalent style={{ display: "block", fontWeight: 400, opacity: 0.62, fontSize: "0.72em" }}>
+                    <span data-usd-equivalent className="site-builder-node--menu-board-usd-hint">
                       {usd}
                     </span>
                   ) : null}

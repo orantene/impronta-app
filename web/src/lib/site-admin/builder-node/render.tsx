@@ -1419,6 +1419,7 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--menu-board-item-copy{min-width:0}
 .site-builder-node--menu-board-item-title{font-weight:600}
 .site-builder-node--menu-board-item-price{white-space:nowrap;font-variant-numeric:tabular-nums}
+.site-builder-node--menu-board-usd-hint{display:block;font-weight:400;opacity:0.62;font-size:0.72em}
 .site-builder-node--menu-board[data-menu-board-live="1"] .site-builder-node--menu-board-list{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .site-builder-node--menu-board-catnav{margin:0 0 16px}
 .site-builder-node--menu-board-catnav ul{display:flex;gap:8px;list-style:none;margin:0;padding:0 0 4px;overflow-x:auto}
@@ -5608,7 +5609,7 @@ function renderBuilderNodeElement(
           <span className="site-builder-node--menu-board-item-price">
             {formatPriceLabel(item)}
             {usd ? (
-              <span data-usd-equivalent style={{ display: "block", fontSize: "0.72em", fontWeight: 400, opacity: 0.62 }}>
+              <span data-usd-equivalent className="site-builder-node--menu-board-usd-hint">
                 {usd}
               </span>
             ) : null}
