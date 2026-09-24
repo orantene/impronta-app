@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -8,6 +8,7 @@ import { websiteRewardCopy, websiteRewardState } from "@/lib/talent/website-rewa
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
 
 // Missing-item keys come from buildTalentChecklist (src/lib/talent-dashboard.ts).
 const MISSING_SECTION: Record<string, string> = {
@@ -58,7 +59,35 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
   const copy = useDashboardText();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
+  const [introSaved, setIntroSaved] = useState(false);
+  const [introText, setIntroText] = useState("");
+  const [introDraft, setIntroDraft] = useState("");
+  const [introOwn, setIntroOwn] = useState(false);
+  const [introPending, startIntro] = useTransition();
   const loaded = useWebsiteEligibility();
+  const openIntroTask = useCallback(() => {
+    setOpen(false);
+    setIntroOwn(false);
+    setIntroOpen(true);
+    startIntro(async () => {
+      const r = await loadMyBio();
+      if (r.ok) {
+        setIntroDraft(r.text);
+        setIntroText(r.text);
+      }
+    });
+  }, [startIntro]);
+
+  useEffect(() => {
+    if (placement !== "services") return;
+    const openFromHash = () => {
+      if (window.location.hash === "#write-intro") openIntroTask();
+    };
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    return () => window.removeEventListener("hashchange", openFromHash);
+  }, [placement, openIntroTask]);
   const eligibility = studio ? loaded : null;
   const percent = eligibility?.percent ?? bridgeTalentCompletion?.percent ?? null;
   const knownPercent = percent ?? bridgeTalentCompletion?.percent ?? 0;
@@ -73,11 +102,12 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
   };
 
   const missing = bridgeTalentCompletion?.missing ?? [];
-  // Tapping a missing item opens the self-profile drawer at its section
-  // (the drawer honours payload.section and scrolls to #pshell-<section>),
-  // then focuses the first empty field there once it has rendered.
   const openMissing = (key: string | null) => {
     setOpen(false);
+    if (key === "short_bio") {
+      openIntroTask();
+      return;
+    }
     const section = key ? MISSING_SECTION[key] ?? "identity" : "identity";
     const talentId = bridgeTalentSelfProfile?.id;
     if (!talentId) {
@@ -137,8 +167,21 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
         ? "md:hidden mb-4 w-full"
         : "md:hidden";
 
+  const leftCount = eligibility
+    ? eligibility.slices.filter((s) => s.done === false).length
+    : missing.length;
+
   return (
     <div className={wrapClass}>
+      {introSaved && (
+        <p
+          role="status"
+          className="mb-2 flex items-center gap-2 rounded-xl bg-emerald-900/[0.08] px-3 py-2 text-[13px] font-semibold text-emerald-900"
+        >
+          <span aria-hidden className="grid h-5 w-5 place-items-center rounded-full bg-emerald-900 text-[11px] text-white">✓</span>
+          {copy.t("Intro saved")}
+        </p>
+      )}
       {isLive ? (
         <button
           type="button"
@@ -238,14 +281,33 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
               <ul className="mt-2 space-y-0.5">
                 {eligibility
                   ? eligibility.slices.map((slice) => (
-                      <li key={slice.key} className="flex items-center gap-2.5 py-1.5 text-[13.5px] text-admin-ink">
-                        <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white text-center text-[11px] leading-4">
-                          {slice.done ? "✓" : ""}
-                        </span>
-                        <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}</span>
-                        <span className="shrink-0 text-[11.5px] text-admin-ink-dim">
-                          {slice.done == null ? copy.t("Not available") : `${slice.weight}`}
-                        </span>
+                      <li key={slice.key}>
+                        {slice.key === "intro" ? (
+                          <button
+                            type="button"
+                            onClick={openIntroTask}
+                            className="flex w-full items-center gap-2.5 rounded-md py-1.5 text-left text-[13.5px] text-admin-ink hover:bg-black/[0.03]"
+                          >
+                            <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white text-center text-[11px] leading-4">
+                              {slice.done ? "✓" : ""}
+                            </span>
+                            <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}</span>
+                            <span className="shrink-0 text-[11.5px] text-admin-ink-dim">
+                              {slice.done == null ? copy.t("Not available") : `${slice.weight}`}
+                            </span>
+                            {chevron}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2.5 py-1.5 text-[13.5px] text-admin-ink">
+                            <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white text-center text-[11px] leading-4">
+                              {slice.done ? "✓" : ""}
+                            </span>
+                            <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}</span>
+                            <span className="shrink-0 text-[11.5px] text-admin-ink-dim">
+                              {slice.done == null ? copy.t("Not available") : `${slice.weight}`}
+                            </span>
+                          </div>
+                        )}
                       </li>
                     ))
                   : missing.map((item) => (
@@ -278,6 +340,91 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                 {copy.t("Continue your profile")}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {introOpen && (
+        <div className="fixed inset-0 z-[80] flex flex-col bg-white font-admin-body">
+          <header className="flex items-center gap-3 border-b border-admin-border-soft px-4 py-3">
+            <button
+              type="button"
+              onClick={() => setIntroOpen(false)}
+              aria-label={copy.t("Back")}
+              className="text-[20px] leading-none text-admin-ink"
+            >
+              ←
+            </button>
+            <div className="min-w-0">
+              <h2 className="text-[16px] font-semibold text-admin-ink">{copy.t("Write your intro")}</h2>
+              <p className="text-[12px] text-admin-ink-dim">
+                {leftCount} {copy.t("of")} {eligibility?.slices.length ?? 6} {copy.t("left")}
+              </p>
+            </div>
+          </header>
+          <div className="flex-1 overflow-auto px-4 py-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-ink-dim">
+              {copy.t("Your introduction")}
+              <span className="ml-2 font-normal normal-case tracking-normal">
+                {introOwn ? copy.t("Your words") : copy.t("Tulala drafted this")}
+              </span>
+            </p>
+            <textarea
+              value={introText}
+              onChange={(e) => {
+                setIntroText(e.target.value);
+                setIntroOwn(true);
+              }}
+              rows={5}
+              className="mt-2 w-full rounded-xl border border-admin-border-soft bg-stone-50 px-3 py-3 text-[14px] leading-relaxed text-admin-ink"
+            />
+            <p className="mt-2 text-[12.5px] text-admin-ink-muted">
+              {copy.t("Written from what you told us when you signed up. Keep it or write your own.")}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIntroOwn(false);
+                  setIntroText(introDraft);
+                }}
+                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-semibold ${introOwn ? "border-admin-border-soft bg-white text-admin-ink" : "border-emerald-900 bg-emerald-900 text-white"}`}
+              >
+                {copy.t("Keep it")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIntroOwn(true);
+                  setIntroText("");
+                }}
+                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-semibold ${introOwn ? "border-emerald-900 bg-emerald-900 text-white" : "border-admin-border-soft bg-white text-admin-ink"}`}
+              >
+                {copy.t("Write my own")}
+              </button>
+            </div>
+            <p className="mt-8 text-[12.5px] text-admin-ink-muted">
+              {copy.t("Next: your working hours, then your studio address. About 90 seconds for both.")}
+            </p>
+          </div>
+          <div className="border-t border-admin-border-soft px-4 py-4">
+            <button
+              type="button"
+              disabled={introPending || !introText.trim()}
+              onClick={() => {
+                startIntro(async () => {
+                  const r = await saveMyBio({ text: introText, locale: copy.isSpanish ? "es" : "en" });
+                  if (!r.ok) return;
+                  setIntroOpen(false);
+                  setIntroSaved(true);
+                  if (window.location.hash === "#write-intro") {
+                    history.replaceState(null, "", window.location.pathname + window.location.search);
+                  }
+                });
+              }}
+              className="w-full rounded-full bg-emerald-900 px-4 py-3 text-[14px] font-semibold text-white disabled:opacity-50"
+            >
+              {copy.t("Save and continue")}
+            </button>
           </div>
         </div>
       )}
