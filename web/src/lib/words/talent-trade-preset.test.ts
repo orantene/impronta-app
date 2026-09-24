@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { chatItemsLabel } from "./chat-items-label";
-import { INDUSTRY_PRESET_IDS, resolveIndustryPreset } from "./presets";
+import { INDUSTRY_PRESET_IDS, resolveIndustryPreset, talentSiteChatVoice } from "./presets";
 import { resolveWords } from "./resolve";
-import { PARENT_CATEGORY_PRESET, resolveTalentTradePreset } from "./talent-trade-preset";
+import { L2_CATEGORY_PRESET, PARENT_CATEGORY_PRESET, resolveTalentTradePreset } from "./talent-trade-preset";
 
 /**
  * The nineteen active `parent_category` terms, read off production taxonomy on
@@ -137,6 +137,36 @@ test("survives an embedded parent returned as an array", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
   assert.equal(await resolveTalentTradePreset(arrayShaped, "beauty-services"), "salon_barber");
+});
+
+test("a massage group speaks as a spa, and beauty stays a salon", async () => {
+  const exploding = { from() { throw new Error("L2 hit must not query"); } } as any;
+  assert.equal(await resolveTalentTradePreset(exploding, "massage-spa"), "spa_wellness");
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "beauty-services": "wellness-beauty" }), "beauty-services"), "salon_barber");
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "massage-therapist": "massage-spa" }), "massage-therapist"), "spa_wellness");
+  assert.notEqual(L2_CATEGORY_PRESET["massage-spa"], "agency");
+});
+
+test("a private chef speaks as a chef, not a consultation", async () => {
+  const exploding = { from() { throw new Error("L2 hit must not query"); } } as any;
+  assert.equal(await resolveTalentTradePreset(exploding, "private-chefs"), "private_chef");
+  assert.equal(await resolveTalentTradePreset(exploding, "chefs-culinary"), "private_chef");
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "not-a-term": null }), "not-a-term"), null);
+  const words = resolveWords({ presetId: "private_chef", overrides: {}, terminologyId: null }, "es");
+  assert.equal(chatItemsLabel(words), "Menús");
+  const preset = resolveIndustryPreset("private_chef");
+  assert.equal(preset.words["appointments.provider"]?.es, "Chef");
+  assert.equal(talentSiteChatVoice(preset, "es"), "Cuéntame de la cena: la fecha, cuántas personas y si hay alergias.");
+  assert.match(preset.chatVoice.es, /Cuéntanos/);
+});
+
+test("the singular greeting is only the talent-site helper", () => {
+  const salon = resolveIndustryPreset("salon_barber");
+  assert.equal(talentSiteChatVoice(salon, "en"), "Book a time or ask me");
+  assert.match(salon.chatVoice.en, /ask us/);
+  const spa = resolveIndustryPreset("spa_wellness");
+  assert.equal(talentSiteChatVoice(spa, "es"), "Agenda una sesión o pregúntame");
+  assert.equal(spa.words["appointments.provider"]?.en, "Therapist");
 });
 
 test("a taxonomy error is a null, never a throw", async () => {

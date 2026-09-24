@@ -8,7 +8,7 @@ import {
   talentOffersInstantBooking,
 } from "@/lib/talent-site/contact-channels";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { resolveIndustryPreset } from "@/lib/words/presets";
+import { resolveIndustryPreset, talentSiteChatVoice } from "@/lib/words/presets";
 import { resolveTalentTradePreset } from "@/lib/words/talent-trade-preset";
 
 import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
@@ -83,7 +83,10 @@ export async function TalentSiteMessagesDock({
   // makes the same exclusion), so it must not become an opener.
   const tradeVoice =
     tradePreset && tradePreset !== "custom"
-      ? resolveIndustryPreset(tradePreset).chatVoice[locale === "es" ? "es" : "en"]
+      ? talentSiteChatVoice(
+          resolveIndustryPreset(tradePreset),
+          locale === "es" ? "es" : "en",
+        )
       : null;
 
   return (

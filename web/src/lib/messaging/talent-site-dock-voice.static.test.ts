@@ -45,6 +45,7 @@ test("the dock is given a voice, so it cannot reach the catalog fallback", () =>
   const dock = dockSource();
   // Both halves matter: the opener line AND the vocabulary the tabs derive from.
   assert.match(dock, /greeting=\{tradeVoice\}/);
+  assert.match(dock, /talentSiteChatVoice\(/);
   assert.match(dock, /wordsPresetOverride=\{tradePreset\}/);
   assert.match(dock, /resolveTalentTradePreset\(/);
   // The trade can only be resolved if the column is actually selected.

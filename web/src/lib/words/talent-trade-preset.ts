@@ -42,10 +42,25 @@ import type { IndustryPresetId } from "./presets";
  * `agency`, because `agency` is the one preset that talks about OTHER people's
  * talent and is never right on a solo operator's own site.
  */
+/**
+ * L2 groups that must not inherit their L1 parent. Massage and beauty share
+ * `wellness-beauty`; rolling massage up to that parent called a therapist a
+ * stylist. Checked before the parent map, and again on the parent slug so an
+ * L3 talent type (parent `massage-spa`) does not fall through to null.
+ */
+export const L2_CATEGORY_PRESET: Readonly<Record<string, IndustryPresetId>> = {
+  "massage-spa": "spa_wellness",
+  "private-chefs": "private_chef",
+  "cuisine-specialists": "private_chef",
+  "pastry-dessert": "private_chef",
+  "beverage-talent": "private_chef",
+  "culinary-experiences": "private_chef",
+};
+
 export const PARENT_CATEGORY_PRESET: Readonly<Record<string, IndustryPresetId>> = {
   "wellness-beauty": "salon_barber",
   "sports-fitness": "studio_gym",
-  "chefs-culinary": "practice",
+  "chefs-culinary": "private_chef",
   "photo-video-creative": "practice",
   "speakers-coaches-experts": "practice",
   "kids-family-services": "practice",
@@ -78,8 +93,11 @@ export async function resolveTalentTradePreset(
   const slug = serviceCategorySlug?.trim();
   if (!slug) return null;
 
-  // The slug may itself be an L1 (nothing stops a profile carrying one), so try
-  // the direct map before spending a join on the parent walk.
+  // L2 wins over the L1 roll-up. A profile that stores the L1 slug still hits
+  // the parent map below.
+  const l2 = L2_CATEGORY_PRESET[slug];
+  if (l2) return l2;
+
   const direct = PARENT_CATEGORY_PRESET[slug];
   if (direct) return direct;
 
@@ -97,5 +115,6 @@ export async function resolveTalentTradePreset(
   const parentSlug = Array.isArray(parent) ? parent[0]?.slug : parent?.slug;
   if (!parentSlug) return null;
 
-  return PARENT_CATEGORY_PRESET[parentSlug.trim()] ?? null;
+  const resolved = parentSlug.trim();
+  return L2_CATEGORY_PRESET[resolved] ?? PARENT_CATEGORY_PRESET[resolved] ?? null;
 }
