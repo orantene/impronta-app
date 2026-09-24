@@ -27,7 +27,8 @@ export function ProductEditorCard({
 
   const setAttr = (key: string, value: unknown) =>
     onChange({ ...item, attributes: { ...(item.attributes ?? {}), [key]: value } });
-  const setFulfillment = (next: Fulfillment) => setAttr("fulfillment", next);
+  const setFulfillment = (next: Fulfillment) =>
+    setAttr("fulfillment", { ...next, ship: { ...next.ship, enabled: false } });
 
   return (
     <div className="space-y-5">
@@ -159,47 +160,12 @@ export function ProductEditorCard({
               />
             )}
           </label>
-          <label className={`rounded-xl border px-4 py-3 text-[14px] ${fulfillment.ship?.enabled ? "border-emerald-900/50 bg-emerald-900/[0.04]" : "border-admin-border-soft"}`}>
-            <input
-              type="checkbox"
-              className="mr-2"
-              checked={Boolean(fulfillment.ship?.enabled)}
-              onChange={(e) =>
-                setFulfillment({
-                  ...fulfillment,
-                  ship: {
-                    enabled: e.target.checked,
-                    feeCents: fulfillment.ship?.feeCents ?? 12000,
-                    leadTime: fulfillment.ship?.leadTime ?? "3–5 days",
-                    region: "MX",
-                  },
-                })
-              }
-            />
+          <label className="rounded-xl border border-admin-border-soft px-4 py-3 text-[14px] opacity-70">
+            <input type="checkbox" className="mr-2" checked={false} disabled />
             {copy.t("Ship it")}
-            {fulfillment.ship?.enabled && (
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <input
-                  type="number"
-                  className={INPUT}
-                  value={(fulfillment.ship.feeCents ?? 0) / 100}
-                  onChange={(e) =>
-                    setFulfillment({
-                      ...fulfillment,
-                      ship: { ...fulfillment.ship, enabled: true, feeCents: Math.round(Number(e.target.value) * 100) },
-                    })
-                  }
-                />
-                <input
-                  className={INPUT}
-                  value={fulfillment.ship.leadTime ?? ""}
-                  onChange={(e) =>
-                    setFulfillment({ ...fulfillment, ship: { ...fulfillment.ship, enabled: true, leadTime: e.target.value } })
-                  }
-                />
-              </div>
-            )}
-            <p className="mt-1 text-[12.5px] text-admin-ink-dim">{copy.t("Mexico only · 120 MXN · 3–5 days")}</p>
+            <p className="mt-1 text-[12.5px] text-admin-ink-dim">
+              {copy.t("Coming soon. Checkout does not charge a shipping fee yet, so this stays off.")}
+            </p>
           </label>
           <label className={`rounded-xl border px-4 py-3 text-[14px] ${fulfillment.appointment?.enabled ? "border-emerald-900/50 bg-emerald-900/[0.04]" : "border-admin-border-soft"}`}>
             <input
