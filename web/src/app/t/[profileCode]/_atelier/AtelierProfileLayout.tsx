@@ -242,7 +242,6 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
     livesIn,
     languages,
     locale,
-    talentPlanKey,
     maxSiteUrl,
     galleryItems,
     watermarkPreset,
@@ -292,7 +291,6 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
   const themeStyle = buildAdaptiveThemeStyle(mode, props.themeVars);
   const reviewsTheme = mode === "dark" ? "dark" : "light";
 
-  const isFreePlan = !talentPlanKey || talentPlanKey === "talent_basic";
   const agency = agencyDisplayName ?? agencyName;
   const hasCover = Boolean(bannerUrl);
   const hasPortrait = Boolean(profileImageUrl);
@@ -328,14 +326,16 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
     (fieldVisibility.showEventTypes && eventTypes.length > 0) ||
     (fieldVisibility.showTags && tags.length > 0);
 
+  // Free-plan parity ruling, owner, 2026-09-24: a talent's services and prices
+  // are public on every hub profile once she completes her profile — the same
+  // access her own activated site already had (Maison never gated this).
   const hasServices =
-    !isFreePlan &&
-    (packageTeasers.length > 0 ||
-      serviceAreas.length > 0 ||
-      Boolean(startingFrom) ||
-      Boolean(bookingNote));
-  const hasStorefront = !isFreePlan && storefrontOfferings.length > 0;
-  const hasServiceMenu = hasStorefront || (!isFreePlan && serviceMenuItems.length > 0);
+    packageTeasers.length > 0 ||
+    serviceAreas.length > 0 ||
+    Boolean(startingFrom) ||
+    Boolean(bookingNote);
+  const hasStorefront = storefrontOfferings.length > 0;
+  const hasServiceMenu = hasStorefront || serviceMenuItems.length > 0;
   const hasFeaturedMedia = featuredMediaItems.length > 0;
   const hasPortfolio = galleryItems.length > 0;
   const hasReviews = ratingSummary.count > 0;

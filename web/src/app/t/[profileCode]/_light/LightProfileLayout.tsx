@@ -321,7 +321,6 @@ export function LightProfileLayout({
   originallyFrom,
   languages,
   locale,
-  talentPlanKey,
   maxSiteUrl,
   galleryItems,
   watermarkPreset,
@@ -373,9 +372,6 @@ export function LightProfileLayout({
   discoveryCta3,
   slotPicker,
 }: LightProfileLayoutProps) {
-  // Free-tier gating: talent_basic = gate social/embeds
-  const isFreePlan = !talentPlanKey || talentPlanKey === "talent_basic";
-
   // Primary skill for the experience line
   const primarySkill =
     resolvedSkills.find((s) => s.relationship_type === "primary_role") ?? null;
@@ -544,9 +540,12 @@ export function LightProfileLayout({
               />
             </div>
 
-            {/* Services block */}
+            {/* Services block. Free-plan parity ruling, owner, 2026-09-24: a
+                talent's services and prices are public on every hub profile
+                once she completes it — the same access her own activated
+                site already had (Maison never gated this). */}
             <ServicesBlock
-              packageTeasers={isFreePlan ? [] : packageTeasers}
+              packageTeasers={packageTeasers}
               serviceAreas={serviceAreas}
               startingFrom={startingFrom}
               bookingNote={bookingNote}
@@ -558,7 +557,7 @@ export function LightProfileLayout({
 
             {/* Storefront (offerings) takes precedence; legacy services menu
                 is the zero-regression fallback for talents without offerings. */}
-            {!isFreePlan && storefrontOfferings.length > 0 ? (
+            {storefrontOfferings.length > 0 ? (
               <TalentStorefront
                 offerings={storefrontOfferings}
                 locale={locale}
@@ -566,7 +565,7 @@ export function LightProfileLayout({
               />
             ) : (
               <ServiceMenuBlock
-                items={isFreePlan ? [] : serviceMenuItems}
+                items={serviceMenuItems}
                 locale={locale}
                 heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
                 disciplineLabels={disciplineLabels}

@@ -152,7 +152,7 @@ const LEVEL: Record<string, { en: string; es: string }> = {
 export function NoirProfileLayout(props: LightProfileLayoutProps) {
   const {
     name, firstName, profileCode, profileImageUrl, bannerUrl, isFeatured, aboutText,
-    allTalentTypes, primaryType, livesIn, languages, locale, talentPlanKey, maxSiteUrl,
+    allTalentTypes, primaryType, livesIn, languages, locale, maxSiteUrl,
     galleryItems, watermarkPreset, watermarkLogoUrl, featuredMediaItems, resolvedSkills,
     availableDaysInNext30, availabilityDots14d, nextAvailableDate, packageTeasers,
     serviceAreas, startingFrom, bookingNote, serviceMenuItems, storefrontOfferings,
@@ -165,7 +165,6 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
   } = props;
 
   const isModal = variant === "modal";
-  const isFreePlan = !talentPlanKey || talentPlanKey === "talent_basic";
   const agency = agencyDisplayName ?? agencyName;
   const es = locale === "es";
   const L = (en: string, esText: string) => pickLocale(locale, { en, es: esText });
@@ -210,9 +209,12 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
   const dots = availabilityDots14d ? availabilityDots14d.slice(0, 14).split("") : null;
 
   // ── Commerce ───────────────────────────────────────────────────────────
-  const hasServices = !isFreePlan && (packageTeasers.length > 0 || serviceAreas.length > 0 || Boolean(startingFrom) || Boolean(bookingNote));
-  const hasStorefront = !isFreePlan && storefrontOfferings.length > 0;
-  const hasServiceMenu = hasStorefront || (!isFreePlan && serviceMenuItems.length > 0);
+  // Free-plan parity ruling, owner, 2026-09-24: a talent's services and prices
+  // are public on every hub profile once she completes her profile — the same
+  // access her own activated site already had (Maison never gated this).
+  const hasServices = packageTeasers.length > 0 || serviceAreas.length > 0 || Boolean(startingFrom) || Boolean(bookingNote);
+  const hasStorefront = storefrontOfferings.length > 0;
+  const hasServiceMenu = hasStorefront || serviceMenuItems.length > 0;
   const hasCommerce = hasServices || hasServiceMenu;
   const bookable = Boolean(slotPicker) || hasStorefront;
   const primaryLabel = bookable ? L("Check availability", "Ver disponibilidad") : L(`Inquire about ${firstName}`, `Consultar por ${firstName}`);
