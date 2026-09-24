@@ -62,3 +62,17 @@ export type MaxSiteActionResult<T = void> =
         | "server_error";
       error: string;
     };
+
+/**
+ * Phase 3 — the read-only answer to "should Today invite this talent to set up
+ * their free website?". Produced by `site-activation-state.ts`, which is a
+ * "use server" module and so cannot export this shape itself.
+ */
+export type TalentSiteActivationState = {
+  /** The plan grants "edit my own site". False → render nothing on Today. */
+  canManage: boolean;
+  /** A site row with a real slug exists (i.e. it has been provisioned). */
+  hasSite: boolean;
+  /** The site has been published at least once. */
+  isPublished: boolean;
+};

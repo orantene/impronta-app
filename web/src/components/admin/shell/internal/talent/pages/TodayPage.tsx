@@ -19,6 +19,7 @@ import { WeekRhythmStrip } from "../shared/week-rhythm-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { TalentReviewsCard } from "../shared/reviews-card-1";
 import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
+import { TalentSiteActivateNudge } from "@/components/talent/site/TalentSiteActivateNudge";
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
@@ -414,6 +415,13 @@ export function TalentTodayPage() {
           talentId={bridgeTalentSelfProfile.id}
           onAddService={() => setTalentPage("services")}
         />
+      )}
+
+      {/* Phase 3 — "activate your free website". Hides itself unless the plan
+          grants site editing and the site is still unpublished, so it never
+          fires for mock sessions or for a talent already live. */}
+      {bridgeTalentSelfProfile && (
+        <TalentSiteActivateNudge onOpenSite={() => setTalentPage("public-page")} />
       )}
 
       <TalentTodayHero
