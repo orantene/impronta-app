@@ -20,6 +20,7 @@ import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { StorefrontBody } from "./StorefrontBody";
 import { StorefrontFilter } from "./StorefrontFilter";
+import { orderCategoryNames } from "@/lib/site-admin/builder-node/services-catalog-title";
 import { LightSectionLabel } from "../_light/section-label";
 import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
@@ -41,23 +42,26 @@ export async function TalentStorefront({
 
   const profileId = visible.find((o) => o.talentProfileId)?.talentProfileId ?? null;
   let confirmsByHand = true;
+  let savedOrder: string[] = [];
   if (profileId) {
     const admin = createServiceRoleClient();
     if (admin) {
-      const { data, error } = await admin.from("talent_profiles").select("talent_plan_key").eq("id", profileId).maybeSingle();
+      const { data, error } = await admin.from("talent_profiles").select("talent_plan_key, category_order").eq("id", profileId).maybeSingle();
       if (!error) {
         confirmsByHand = !talentOffersInstantBooking((data as { talent_plan_key?: string | null } | null)?.talent_plan_key);
+        const raw = (data as { category_order?: string[] | null } | null)?.category_order;
+        if (Array.isArray(raw)) savedOrder = raw.filter((name): name is string => typeof name === "string");
       }
     }
   }
 
-  // Distinct non-empty categories, in first-seen order. The filter island mounts
-  // only when 2+ are present (a single category needs no filter).
-  const categories: string[] = [];
+  // Distinct non-empty categories, saved order first.
+  const seen: string[] = [];
   for (const o of visible) {
     const c = o.category?.trim();
-    if (c && !categories.includes(c)) categories.push(c);
+    if (c && !seen.includes(c)) seen.push(c);
   }
+  const categories = orderCategoryNames(seen, savedOrder);
   const showFilter = categories.length >= 2;
 
   // "≈ US$" beside prices in another currency. Fetched only when one exists;

@@ -1287,6 +1287,7 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     showPhoto?: boolean;
     showDuration?: boolean;
     showUsdEquivalent?: boolean;
+    ctaLabel?: string;
     emptyMessage?: string;
     style?: BuilderNodeStyle;
   };

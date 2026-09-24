@@ -138,8 +138,12 @@ test("category nav appears only at 2+ categories; a single category renders flat
     ],
   });
   assert.match(twoCategories, /<nav[^>]*services-catalog-nav/);
+  assert.match(twoCategories, /data-category-nav="pills"/);
+  assert.match(twoCategories, /data-catalog-tab="Uñas"/);
+  assert.match(twoCategories, /data-catalog-tab="Pestañas"/);
   assert.match(twoCategories, />Uñas</);
   assert.match(twoCategories, />Pestañas</);
+  assert.match(twoCategories, /hidden="" data-catalog-category="Pestañas"/);
 });
 
 test("categoryNav: 'none' always renders flat, even at 2+ categories", () => {
@@ -166,6 +170,32 @@ test("a product's price row omits '· N min', a service's does not", () => {
       offering({ id: "prod", title: "Serum", kind: "product", durationMinutes: null, priceDisplay: "exact" }),
     ],
   });
-  assert.match(html, /Facial[\s\S]*?60 min/);
-  assert.doesNotMatch(html.split("Serum")[1]?.slice(0, 200) ?? "", /\d+ min/);
+  assert.match(html, /Facial[\s\S]*?1 h · estimated duration/);
+  assert.doesNotMatch(html.split("Serum")[1]?.slice(0, 280) ?? "", /\d+ min|estimated duration/);
+});
+
+test("italic {i} markers render as em, never as raw braces", () => {
+  const html = render([catalogNode({ title: "Servicios {i}y precios{/i}" })]);
+  assert.match(html, /Servicios <em>y precios<\/em>/);
+  assert.doesNotMatch(html, /\{i\}|\{\/i\}/);
+});
+
+test("ctaLabel overrides the OfferingCta text", () => {
+  const html = render([catalogNode({ ctaLabel: "Seleccionar" })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, />Seleccionar</);
+});
+
+test("category_order wins over first-seen order in the pill strip", () => {
+  const html = render([catalogNode()], {
+    talentOfferings: [
+      offering({ id: "a", title: "Manicure", category: "Uñas" }),
+      offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
+    ],
+    talentOfferingsCategoryOrder: ["Pestañas", "Uñas"],
+  });
+  const pest = html.indexOf('data-catalog-tab="Pestañas"');
+  const unas = html.indexOf('data-catalog-tab="Uñas"');
+  assert.ok(pest >= 0 && unas >= 0 && pest < unas);
 });

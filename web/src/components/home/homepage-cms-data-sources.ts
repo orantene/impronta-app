@@ -324,6 +324,9 @@ export async function loadBuilderNodeDataSources(
       ]
     : undefined;
 
+  const catalogTalentId =
+    talentProfileId ?? (previewSubject?.kind === "talent" ? previewSubject.id : null);
+
   return {
     tenantId: dataTenantId,
     publicOrigin,
@@ -344,8 +347,8 @@ export async function loadBuilderNodeDataSources(
     ...(featuredTalentProfilesByNodeId === undefined
       ? {}
       : { featuredTalentProfilesByNodeId }),
-    ...(nativeNeeds.servicesCatalog && talentProfileId
-      ? await loadServicesCatalogSources(talentProfileId, locale)
+    ...(nativeNeeds.servicesCatalog && catalogTalentId
+      ? await loadServicesCatalogSources(catalogTalentId, locale)
       : {}),
   };
 }
@@ -362,20 +365,31 @@ export async function loadBuilderNodeDataSources(
 async function loadServicesCatalogSources(
   talentProfileId: string,
   locale: string,
-): Promise<Pick<BuilderNodeRenderDataSources, "talentOfferings" | "talentOfferingsConfirmsByHand" | "talentOfferingsUsdRates">> {
+): Promise<
+  Pick<
+    BuilderNodeRenderDataSources,
+    | "talentOfferings"
+    | "talentOfferingsConfirmsByHand"
+    | "talentOfferingsUsdRates"
+    | "talentOfferingsCategoryOrder"
+  >
+> {
   const offerings = await loadPublicOfferingsForProfile(talentProfileId, locale);
   let confirmsByHand = true;
+  let categoryOrder: string[] = [];
   const admin = createServiceRoleClient();
   if (admin) {
     const { data, error } = await admin
       .from("talent_profiles")
-      .select("talent_plan_key")
+      .select("talent_plan_key, category_order")
       .eq("id", talentProfileId)
       .maybeSingle();
     if (!error) {
       confirmsByHand = !talentOffersInstantBooking(
         (data as { talent_plan_key?: string | null } | null)?.talent_plan_key,
       );
+      const raw = (data as { category_order?: string[] | null } | null)?.category_order;
+      if (Array.isArray(raw)) categoryOrder = raw.filter((name): name is string => typeof name === "string");
     }
   }
   const usdRates = needsUsdRates(offerings) ? await loadUsdRates() : null;
@@ -383,5 +397,6 @@ async function loadServicesCatalogSources(
     talentOfferings: offerings,
     talentOfferingsConfirmsByHand: confirmsByHand,
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
+    ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),
   };
 }

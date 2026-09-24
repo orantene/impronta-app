@@ -57,12 +57,15 @@ export function OfferingCta({
   locale,
   compact = false,
   confirmsByHand = false,
+  label: labelOverride,
 }: {
   offering: TalentOffering;
   locale: string;
   compact?: boolean;
   /** Free and Pro confirm by hand. Book opens the chooser, not a charge. */
   confirmsByHand?: boolean;
+  /** Widget override (e.g. Seleccionar). Empty keeps the behavior label. */
+  label?: string;
 }) {
   const raw = resolveOfferingCta(offering);
   const cta = confirmsByHand && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
@@ -71,7 +74,7 @@ export function OfferingCta({
     cta === "request_to_book" &&
     offering.kind !== "product" &&
     (offering.durationMinutes ?? 0) > 0;
-  const label = pickLocale(locale, CTA_COPY[cta]);
+  const label = labelOverride?.trim() || pickLocale(locale, CTA_COPY[cta]);
 
   const onClick = () => {
     const detail: OfferingRequestDetail = {

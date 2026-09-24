@@ -1037,6 +1037,7 @@ export const servicesCatalogPropsSchema = z.object({
   showPhoto: z.boolean().optional(),
   showDuration: z.boolean().optional(),
   showUsdEquivalent: z.boolean().optional(),
+  ctaLabel: z.string().max(40).optional(),
   emptyMessage: z.string().max(240).optional(),
   style: builderNodeStyleSchema,
 });
