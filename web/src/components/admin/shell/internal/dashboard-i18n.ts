@@ -58,6 +58,11 @@ const ES_TEXT: Record<string, string> = {
   "A service": "Un servicio",
   "A package": "Un paquete",
   "A product": "Un producto",
+  "Work you do for a client. Usually booked for a time, but it can also be agreed and delivered.":
+    "Un trabajo que haces para un cliente. Normalmente se reserva con horario, pero también puede acordarse y entregarse.",
+  "Several visits or sessions sold together for one price.": "Varias visitas o sesiones vendidas juntas por un precio.",
+  "Something the client takes away or you send. Has stock, not a length.":
+    "Algo que el cliente se lleva o que envías. Tiene stock, no duración.",
   "Adding an extra, like glitter or a home visit? Open the service it belongs to and add it there, so it can never be booked on its own.":
     "¿Agregas un extra, como glitter o una visita a domicilio? Ábrelo desde el servicio al que pertenece, para que no se reserve solo.",
   "Continue": "Continuar",

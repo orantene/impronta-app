@@ -397,25 +397,54 @@ export function ServicesHome({ talentId }: { talentId: string }) {
       </ul>
 
       {typeOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setTypeOpen(false)}>
-          <div role="dialog" aria-label={copy.t("What are you adding?")} className="w-full max-w-[480px] rounded-2xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-admin-display text-[22px]">{copy.t("What are you adding?")}</h2>
-            {(["service", "package", "product"] as const).map((k) => (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setTypeOpen(false)}>
+          <div role="dialog" aria-label={copy.t("What are you adding?")} style={{ maxWidth: 640 }} className="w-full overflow-hidden rounded-2xl bg-white font-admin-body shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 pb-4 pt-5">
+            <h2 className="text-[19px] font-semibold text-admin-ink">{copy.t("What are you adding?")}</h2>
+            {(["service", "package", "product"] as const).map((k) => {
+              const on = kind === k;
+              return (
               <button
                 key={k}
                 type="button"
                 onClick={() => setKind(k)}
-                className={`mt-3 block w-full rounded-xl border px-3 py-3 text-left ${kind === k ? "border-admin-brand bg-[rgba(15,79,62,0.06)]" : "border-admin-border-soft"}`}
+                aria-pressed={on}
+                className={`mt-3 flex w-full items-center gap-4 rounded-xl border px-4 py-3 text-left ${on ? "border-emerald-900/60 bg-emerald-900/[0.06]" : "border-admin-border-soft bg-white"}`}
               >
-                <span className="font-semibold">{k === "service" ? copy.t("A service") : k === "package" ? copy.t("A package") : copy.t("A product")}</span>
+                <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-admin-ink-muted" fill="none" stroke="currentColor" strokeWidth="1.4">
+                  {k === "service" ? (
+                    <><rect x="2.5" y="6" width="15" height="10.5" rx="1.5" /><path d="M7 6V4.5A1 1 0 0 1 8 3.5h4a1 1 0 0 1 1 1V6M7.5 6v10.5M12.5 6v10.5" /></>
+                  ) : k === "package" ? (
+                    <path d="m10 2.8 2.2 4.5 4.9.7-3.6 3.5.9 4.9L10 14.1l-4.4 2.3.9-4.9L2.9 8l4.9-.7z" strokeLinejoin="round" />
+                  ) : (
+                    <><rect x="2.5" y="4.5" width="15" height="11" rx="1.5" /><path d="M2.5 8.5h15M5.5 12.5h3" /></>
+                  )}
+                </svg>
+                <span className="min-w-0 flex-1">
+                  <span className={`block text-[15px] font-semibold ${on ? "text-emerald-900" : "text-admin-ink"}`}>
+                    {k === "service" ? copy.t("A service") : k === "package" ? copy.t("A package") : copy.t("A product")}
+                  </span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-admin-ink-muted">
+                    {k === "service"
+                      ? copy.t("Work you do for a client. Usually booked for a time, but it can also be agreed and delivered.")
+                      : k === "package"
+                        ? copy.t("Several visits or sessions sold together for one price.")
+                        : copy.t("Something the client takes away or you send. Has stock, not a length.")}
+                  </span>
+                </span>
+                {on && (
+                  <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4 shrink-0 text-emerald-900" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3.5 8.5 3 3 6-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                )}
               </button>
-            ))}
-            <p className="mt-3 text-[12px] text-admin-ink-muted">
+              );
+            })}
+            <p className="mt-4 text-[12px] leading-relaxed text-admin-ink-dim">
               {copy.t("Adding an extra, like glitter or a home visit? Open the service it belongs to and add it there, so it can never be booked on its own.")}
             </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => setTypeOpen(false)}>{copy.t("Cancel")}</button>
-              <button type="button" className="rounded-full bg-admin-brand px-4 py-2 text-white" onClick={() => { void refreshExtras(); openEditor(null, kind); }}>
+            </div>
+            <div className="flex items-center justify-end gap-4 border-t border-admin-border-soft px-5 py-3">
+              <button type="button" className="text-[14px] text-admin-ink" onClick={() => setTypeOpen(false)}>{copy.t("Cancel")}</button>
+              <button type="button" className="rounded-lg bg-emerald-900 px-4 py-2 text-[14px] font-semibold text-white" onClick={() => { void refreshExtras(); openEditor(null, kind); }}>
                 {copy.t("Continue")}
               </button>
             </div>
