@@ -216,3 +216,16 @@ These are unit-tested. They are not on the QA host until this branch merges and 
 - `slot_taken` is its own guest error and includes `nextFreeTimes`, or an empty list.
 - A verified cash collection inserts `order_confirmation`, and `tickets_card` when the order already has admissions. No door code is invented.
 
+## Guest card gaps (24 Sep, after #2240)
+
+Merged as `25fc7c250` ([#2240](https://github.com/orantene/impronta-app/pull/2240)). `program/journeys-2026-09` fast-forwarded to that commit. The live host `https://staging-qa-journeys.tulala.digital/` returned 200 with `dpl_C4vxn4tsVy3wQiQbyqgEDt7tqKHq` in the HTML, and that deployment's commit is `25fc7c250`. `origin/production` does not contain `25fc7c250`. The pointer was not moved by hand.
+
+| Item | Status | What happened |
+|---|---|---|
+| Transfer recorded as a deposit, paid card method wire, due greater than 0 | not proven | Signed in as `qa-journeys-owner@impronta.test`. The Appointments filter listed no conversations. On inquiry `eccf0969-7e93-4420-8be1-6fe72c361201` (accepted offer, deposit due, no order) identity was confirmed, then Record as paid outside / Transfer / other amount $200 / reference `WIRE-QA-2240` returned "This could not be completed. Try again." The paid card was not written. |
+| One cash order confirmation, then a second order in the same thread | not proven | The Orders filter shows paid and gathering-details POS threads. No second order was created in one thread. No QA service-role key to seed two orders. |
+| Stripe pay, full refund, partial refund | not proven | `web/.env.capacity-isolated.local` is still the bypass secret only. It has no `SUPABASE_SERVICE_ROLE_KEY` for `fxlankepwnvelxjrahwk`. The spec was not retargeted and was not run. |
+| Talent dashboard seven items, workspace matrix remainder | not proven | Same missing key. No fixture talent was created. |
+
+No new defect id. D-MSG-423 was not opened.
+
