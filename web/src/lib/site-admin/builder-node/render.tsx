@@ -3358,6 +3358,14 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   // exact value wins, and inherited by child tracks (carousel) automatically.
   // May bind to a `token:space.*` var; a raw length is emitted unchanged.
   if (style.gap) out["--bn-gap" as keyof CSSProperties] = styleToken(style.gap) as never;
+  // Independent gap axes — plain inline `column-gap`/`row-gap` longhands, set
+  // AFTER the --bn-gap var above so they win over the stylesheet's `gap`
+  // shorthand (which reads --bn-gap) for that one axis only. Works on both
+  // flex ("row" layout) and grid containers; a no-op elsewhere, same as the
+  // other flex/grid-only escapes below (justifyContent, alignItems, …). May
+  // bind to a `token:space.*` var like `gap` does; a raw length is unchanged.
+  if (style.columnGap) out.columnGap = styleToken(style.columnGap);
+  if (style.rowGap) out.rowGap = styleToken(style.rowGap);
   // Positioning escapes — a position context plus inset offsets. Applied after
   // layout so an explicit position/offset wins; negatives enable overlaps.
   if (style.position) out.position = style.position;
