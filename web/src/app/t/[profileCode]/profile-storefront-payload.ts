@@ -4,6 +4,12 @@ import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
+export type ProfileOfferJsonLd = {
+  "@context": "https://schema.org";
+  "@type": "ItemList";
+  itemListElement: Array<Record<string, unknown>>;
+};
+
 export async function loadProfileStorefrontPayload(
   talentProfileId: string,
   locale: string,
@@ -11,7 +17,7 @@ export async function loadProfileStorefrontPayload(
 ): Promise<{
   storefrontOfferings: TalentOffering[];
   usdRates: UsdRates | null;
-  offerJsonLd: Record<string, unknown> | null;
+  offerJsonLd: ProfileOfferJsonLd | null;
 }> {
   const storefrontOfferings = await loadPublicOfferingsForProfile(
     talentProfileId,
@@ -19,7 +25,7 @@ export async function loadProfileStorefrontPayload(
     agencyTenantId,
   );
   const usdRates = needsUsdRates(storefrontOfferings) ? await loadUsdRates() : null;
-  const offerJsonLd =
+  const offerJsonLd: ProfileOfferJsonLd | null =
     storefrontOfferings.length > 0
       ? {
           "@context": "https://schema.org",
