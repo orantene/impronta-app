@@ -78,6 +78,12 @@ test("renderTalentMaxSite reads the actor session ONLY under previewDraft", () =
   assert.match(source, /const previewDraft = input\.previewDraft === true;/);
 });
 
+test("renderTalentMaxSite loads USD rates on the vanity path (D-MSG-421)", () => {
+  const source = src("src/lib/talent-site/server/render-max-site.tsx");
+  assert.match(source, /loadUsdRatesForSitePrices/);
+  assert.match(source, /loadPublicOfferingsForProfile\(talentProfileId, locale, null\)/);
+});
+
 test("every talent-reachable builder surface pins raw HTML off", () => {
   for (const file of [
     "src/components/talent/site/TalentMaxBuilderMount.tsx",

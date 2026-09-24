@@ -17,6 +17,7 @@ import {
   parseSocialPostUrl,
 } from "@/lib/social-embed/social-post-url";
 
+import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
@@ -285,6 +286,11 @@ export interface BuilderNodeRenderDataSources {
     /** Operator grouping ("Tacos", "Postres"), or null when ungrouped. */
     category?: string | null;
   }>;
+  /**
+   * D-MSG-421 — rates for the ≈ US$ line beside a non-dollar price. Absent
+   * means print the local amount only; never invent a dollar figure.
+   */
+  usdRates?: UsdRates | null;
   /**
    * The tenant's operator-editable menu nouns, resolved through the words
    * engine. Absent falls back to the message catalog, so a tenant that never
@@ -5581,6 +5587,34 @@ function renderBuilderNodeElement(
           return item.priceDisplay === "from" ? `from ${fallback}` : fallback;
         }
       };
+      const usdLine = (item: {
+        amountCents: number | null;
+        currency: string;
+      }): string | null =>
+        usdEquivalentLabel(
+          item.amountCents,
+          item.currency,
+          options.dataSources.usdRates,
+          options.contentLocale?.locale ?? "en",
+        );
+      const priceCell = (item: {
+        amountCents: number | null;
+        currency: string;
+        priceType: string;
+        priceDisplay: string;
+      }) => {
+        const usd = usdLine(item);
+        return (
+          <span className="site-builder-node--menu-board-item-price">
+            {formatPriceLabel(item)}
+            {usd ? (
+              <span data-usd-equivalent style={{ display: "block", fontSize: "0.72em", fontWeight: 400, opacity: 0.62 }}>
+                {usd}
+              </span>
+            ) : null}
+          </span>
+        );
+      };
       if (offerings.length === 0) {
         return (
           <section
@@ -5648,9 +5682,7 @@ function renderBuilderNodeElement(
                             {item.title}
                           </span>
                         </div>
-                        <span className="site-builder-node--menu-board-item-price">
-                          {formatPriceLabel(item)}
-                        </span>
+                        {priceCell(item)}
                       </li>
                     ))}
                   </ul>
@@ -5664,9 +5696,7 @@ function renderBuilderNodeElement(
                 <div className="site-builder-node--menu-board-item-copy">
                   <span className="site-builder-node--menu-board-item-title">{item.title}</span>
                 </div>
-                <span className="site-builder-node--menu-board-item-price">
-                  {formatPriceLabel(item)}
-                </span>
+                {priceCell(item)}
               </li>
             ))}
           </ul>
@@ -5676,6 +5706,7 @@ function renderBuilderNodeElement(
             offerings={offerings}
             copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
             locale={options.contentLocale?.locale}
+            usdRates={options.dataSources.usdRates ?? null}
           />
         </section>
       );

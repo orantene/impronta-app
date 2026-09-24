@@ -13,6 +13,7 @@ import {
   renderBuilderNodes,
   renderFreeformPageRootTree,
   type BuilderNode,
+  type BuilderNodeRenderDataSources,
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
@@ -56,6 +57,8 @@ import { buildTalentProfileJsonLd } from "@/lib/seo/talent-json-ld";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+
 import {
   loadMaxSiteByProfileId,
   loadMaxSiteBySlug,
@@ -67,6 +70,7 @@ import {
   loadTalentSiteIdentity,
   type TalentSiteIdentity,
 } from "./load-max-site";
+import { loadUsdRatesForSitePrices } from "./vanity-usd-rates";
 
 /**
  * Talent Max Site — REUSABLE public render.
@@ -437,11 +441,11 @@ async function renderMaxSiteDocument(args: {
   // Data sources + live components for the PAGE body (tenant-scoped). The SHELL
   // tree is the talent's own header/footer (logo/nav/copyright) — simple nodes
   // with no tenant-scoped bindings — so it renders without a data-source load.
-  const [dataSources, components, platformDefault, experimentContext, pageCaptcha] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale)
-        : Promise.resolve({}),
+        : Promise.resolve({} as BuilderNodeRenderDataSources),
       tenantId && treeHasInstances(blocks)
         ? loadBuilderComponentsForTenant(tenantId)
         : Promise.resolve({}),
@@ -452,7 +456,16 @@ async function renderMaxSiteDocument(args: {
       tenantId && pageHasFormNode
         ? resolveTenantCaptcha(tenantId)
         : Promise.resolve(null),
+      // D-MSG-421 — vanity hosts never went through profile-storefront-payload,
+      // so peso prices printed with no ≈ US$ line. Tenant stays null: this is
+      // the talent's own site, not an agency storefront.
+      loadPublicOfferingsForProfile(talentProfileId, locale, null),
     ]);
+  const usdRates = await loadUsdRatesForSitePrices([
+    ...talentOfferings,
+    ...(dataSources.menuOfferings ?? []),
+  ]);
+  const pricedDataSources = { ...dataSources, usdRates };
 
   const captchaConfig = pageCaptcha
     ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
@@ -652,7 +665,7 @@ async function renderMaxSiteDocument(args: {
           includeRendererStyles: false,
           includeFontLinks: false,
           styleClasses,
-          dataSources,
+          dataSources: pricedDataSources,
           components,
           componentStyleDefaults,
           captcha: captchaConfig,

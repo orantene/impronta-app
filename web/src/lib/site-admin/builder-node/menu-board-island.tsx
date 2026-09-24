@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import {
   MAX_QTY,
   REFRESH_MIN_INTERVAL_MS,
@@ -82,6 +83,7 @@ export interface MenuBoardIslandProps {
    * the same defect the `copy` prop exists to prevent.
    */
   locale?: string | null;
+  usdRates?: UsdRates | null;
 }
 
 const STORAGE_PREFIX = "impronta.menu-order.";
@@ -190,6 +192,7 @@ export function MenuBoardIsland({
   offerings: rendered,
   copy,
   locale,
+  usdRates = null,
 }: MenuBoardIslandProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [contactName, setContactName] = useState("");
@@ -405,6 +408,12 @@ export function MenuBoardIsland({
       <div className="site-builder-node--menu-board-stepper-group" aria-label={copy.selectQuantities}>
         {offerings.map((offering) => {
           const quantity = clampQty(quantities[offering.id] ?? 0);
+          const usd = usdEquivalentLabel(
+            offering.amountCents,
+            offering.currency,
+            usdRates,
+            locale ?? "en",
+          );
           return (
             <div key={offering.id} className="site-builder-node--menu-board-stepper-row">
               <div className="site-builder-node--menu-board-stepper-copy">
@@ -453,6 +462,11 @@ export function MenuBoardIsland({
                           price: formatMenuMoney(offering.amountCents, offering.currency),
                         })
                       : formatMenuMoney(offering.amountCents, offering.currency)}
+                  {usd ? (
+                    <span data-usd-equivalent style={{ display: "block", fontWeight: 400, opacity: 0.62, fontSize: "0.72em" }}>
+                      {usd}
+                    </span>
+                  ) : null}
                 </span>
                 {isSoldOut(offering) ? (
                   <span className="site-builder-node--menu-board-stepper-stock" data-sold-out="true">
