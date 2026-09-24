@@ -124,25 +124,18 @@ Cited against `origin/main` = `origin/production` = `cd27278d1` (Merge #2227). W
 
 ## Step 2. Vercel protection bypass
 
-**Not proven. Stopped as specified.**
+**Proven** after the gitignored file was placed. The secret is not in this report.
 
-`web/.env.capacity-isolated.local` was missing in the shared checkout and in this worktree when Step 2 started. The key `VERCEL_AUTOMATION_BYPASS_SECRET` is also absent from `.env.local` / `.env.prod` / `.env.vercel.local`. No value was read, written, rotated, or printed.
+With `x-vercel-protection-bypass` (header only):
 
-Bare request (no header):
+- `https://staging-qa-journeys.tulala.digital/` returned **200** HTML. Page `data-dpl-id` is `dpl_BMP8ryuJvTZuSrm5zrsp2126S6y8`. Not a redirect to `vercel.com/sso-api`.
+- `/api/dev/signin?email=qa-journeys-owner@impronta.test&next=/admin/messages` returned **307** to `https://staging-qa-journeys.tulala.digital/admin/messages`. The loaded page contains `[data-messages-v5]`. Session cookie name is `sb-fxlankepwnvelxjrahwk-auth-token`.
 
-- URL: `https://staging-qa-journeys.tulala.digital/`
-- Status: `302`
-- Location: `https://vercel.com/sso-api?url=https%3A%2F%2Fstaging-qa-journeys.tulala.digital%2F&nonce=…`
-
-That is Deployment Protection working. `/api/dev/signin` was not called. Playwright was not run.
-
-Unblock (owner, one line): put the existing Protection Bypass for Automation value into `web/.env.capacity-isolated.local` as `VERCEL_AUTOMATION_BYPASS_SECRET=…` (gitignored). Do not rotate. Do not paste it into chat, a PR, a commit, a log, or this report.
-
-No new product defect. No D-MSG-423.
+A request with no header still returns **302** to `https://vercel.com/sso-api?url=https%3A%2F%2Fstaging-qa-journeys.tulala.digital%2F&nonce=…`. That is Deployment Protection.
 
 ## Step 3. Stripe on journeys (D-MSG-330 / D-MSG-418)
 
-**Not proven.** Blocked on Step 2. `pk_test_` prefix was not read from a mounted pay sheet. `stripe-pay-refund.spec.ts` was not edited and not run. No card, no refund, no production pay.
+**Not proven.** The signed-in Messages bundle on this host contains `pk_test_` (prefix only; not `pk_live_`). `stripe-pay-refund.spec.ts` was not edited and not run. No card, no refund, no production pay. Parked: this run has no QA service-role key for `fxlankepwnvelxjrahwk`, and `web/.env.local` points at production Supabase.
 
 ## Step 4. Talent dashboard (QA fixtures only)
 
@@ -169,14 +162,31 @@ No new product defect. No D-MSG-423.
 | 3 | Permissions money | not proven | Step 2 stop |
 | 4 | Cross-tenant | not proven | Step 2 stop |
 | 5 | Expired / flipped / other-tenant links | not proven | Step 2 stop |
-| 6 | Reload and resume | not proven | Step 2 stop |
-| 7 | Restaurant vs services vocabulary | not proven | Step 2 stop |
-| 8 | Hostile data | not proven | Step 2 stop |
+| 6 | Reload and resume | proven | See Quick wins. `reload-resume.spec.ts` 2 passed. |
+| 7 | Restaurant vs services vocabulary | proven | See Quick wins. Menu on journeys, Services on journeys-b. |
+| 8 | Hostile data | proven | See Quick wins. `hostile-data.spec.ts` 2 passed. |
+
+## Quick wins (same day, after the bypass file existed)
+
+Playwright from `.claude/worktrees/round5-qa-proofs`, Node 20, `PLAYWRIGHT_BASE_URL=https://staging-qa-journeys.tulala.digital`, bypass header from the gitignored file. `web/.env.local` was not sourced.
+
+| Proof | Result | Evidence |
+|---|---|---|
+| Restaurant vocabulary | **Proven.** Items heading is Menu. Picker is not the talent cart. `vocabulary-restaurant.spec.ts` 1 passed (18.6s). | `web/e2e/qa-program/evidence/2026-09-18/vocab-restaurant-panel.jpg`, `vocab-restaurant-picker.jpg` |
+| Salon vocabulary | **Proven.** On `staging-qa-journeys-b.tulala.digital`, Items heading is Services, not Menu and not Talent & services. `vocabulary-salon.spec.ts` 1 passed (9.1s). | `vocab-salon-panel.jpg`, `vocab-salon-picker.jpg` |
+| Hostile data | **Proven.** 4000-character message leaves the shell up. `$0` custom line does not show an application error, NaN, or Infinity. `hostile-data.spec.ts` 2 passed (16.8s). | `hostile-long-message.jpg`, `hostile-zero-price.jpg` |
+| Reload and resume | **Proven.** Reload mid payment sheet does not add a Payment card. Back from POS returns to Messages on inquiry `ad22e3e4-9ad9-431b-b922-1ccf3bf5c10f`. `reload-resume.spec.ts` 2 passed (33.7s). | `reload-mid-payment-open.jpg`, `reload-mid-payment-after.jpg`, `reload-back-from-pos.jpg` |
+| Talent inbox v5 | **Not proven.** `QA_TALENT_INBOX_URL` is unset. Seed profile `QA-JNY-T1` has no talent login email in `seed_journeys_program.sql`. No talent was created and no site was published. | none |
 
 ## Not proven (must stay non-empty)
 
-Everything after Step 1. Next run starts at Step 2 once the gitignored env file exists on the machine that will run Playwright.
+- Stripe pay, full refund, and partial refund.
+- Capacity refusals (class, ticket tier, table, appointment) and the two-browser race.
+- Permissions, cross-tenant, and expired or flipped links.
+- Talent money split, group silence, accept or decline, ask in place, request-only, refusals, and builder publish.
+- Talent inbox v5, as above.
+- New restaurant or services businesses through `/get-started` (these proofs used the seeded journeys and journeys-b fixtures).
 
 ## Out of this run
 
-`proxy.ts`, Jorgelina catalogue, free-plan booking eligibility, #2202, #2127, CI 50% profile, attachments / talent notes / talent-started threads, frozen `$700` without ≈ US$. Production pointer was not moved by hand.
+`proxy.ts`, Jorgelina catalogue, free-plan booking eligibility, #2202, #2127, CI 50% profile, attachments / talent notes / talent-started threads, frozen `$700` without ≈ US$. Production pointer was not moved by hand. No D-MSG-423.
