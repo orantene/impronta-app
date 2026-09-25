@@ -210,6 +210,82 @@ const ES: Record<string, string> = {
   "Not paid yet": "Aún no pagado",
   "Complete stays off until a method is selected.":
     "Completar se queda desactivado hasta elegir un método.",
+  "Amount (MXN)": "Importe (MXN)",
+  "Add extras or deductions before closing out.":
+    "Añade extras o descuentos antes de cerrar.",
+  "Line description": "Descripción",
+  Amount: "Importe",
+  "Card needs a linked order": "La tarjeta necesita un pedido vinculado",
+  "Marks transfer awaiting. Confirm when the money lands.":
+    "Marca la transferencia como pendiente. Confirma cuando llegue el dinero.",
+  "Pay link ready": "Enlace de pago listo",
+  "Could not record cash": "No se pudo registrar el efectivo",
+  "Could not mark transfer": "No se pudo marcar la transferencia",
+  "Could not create pay link": "No se pudo crear el enlace",
+  "Could not complete": "No se pudo completar",
+  "Booking completed as unpaid.": "Reserva completada como impaga.",
+  "Booking completed. Cash recorded with you (no card payout).":
+    "Reserva completada. Efectivo registrado contigo (sin pago con tarjeta).",
+  "Booking completed. Transfer marked awaiting until you confirm paid.":
+    "Reserva completada. Transferencia pendiente hasta que confirmes el cobro.",
+  "Booking completed. Card link ready — open it on this phone or send it.":
+    "Reserva completada. Enlace de tarjeta listo: ábrelo en este teléfono o envíalo.",
+  "Convert to a confirmed booking or release the hold to free the slot.":
+    "Convierte a reserva confirmada o libera el hold para liberar el horario.",
+  "Convert to booking": "Convertir a reserva",
+  "Confirm: convert this hold to a booking?": "¿Confirmar: convertir este hold a reserva?",
+  "Confirm: release this hold?": "¿Confirmar: liberar este hold?",
+  Confirm: "Confirmar",
+  Cancel: "Cancelar",
+  "Hold converted to a confirmed booking.": "Hold convertido a reserva confirmada.",
+  "Hold released.": "Hold liberado.",
+  "Could not convert": "No se pudo convertir",
+  "Release failed": "Falló la liberación",
+  "Available after the start time": "Disponible después de la hora de inicio",
+  "Marking no-show…": "Marcando no presentación…",
+  "Marked no-show ✓": "Marcado como no presentación ✓",
+  "Could not mark no-show": "No se pudo marcar no presentación",
+  "Cancelling…": "Cancelando…",
+  "Cancelled ✓": "Cancelado ✓",
+  "Cancel failed": "Falló la cancelación",
+  "Refund of": "Reembolso de",
+  initiated: "iniciado",
+  All: "Todos",
+  Requests: "Solicitudes",
+  "On hold": "En hold",
+  "No-show": "No presentación",
+  "New date": "Nueva fecha",
+  Start: "Inicio",
+  End: "Fin",
+  "Reschedule fee (optional)": "Cargo por cambio (opcional)",
+  "Leave at 0 to reschedule at no extra charge.":
+    "Déjalo en 0 para cambiar sin cargo extra.",
+  "The client will be notified and must accept before the booking moves.":
+    "Se avisará al cliente y debe aceptar antes de mover la reserva.",
+  "Reschedule request sent ✓": "Solicitud de cambio enviada ✓",
+  Client: "Cliente",
+  Name: "Nombre",
+  "Work and time": "Trabajo y hora",
+  Service: "Servicio",
+  Payment: "Pago",
+  "Record payment received": "Registrar pago recibido",
+  "Due later": "Pagar después",
+  "Request a payment link": "Pedir un enlace de pago",
+  "Save stays off until a payment choice is selected.":
+    "Guardar se queda desactivado hasta elegir un pago.",
+  Save: "Guardar",
+  "Try one of these:": "Prueba una de estas:",
+  "No order attached — payment links require a booking or POS order.":
+    "Sin pedido: los enlaces de pago requieren una reserva o un pedido POS.",
+  "Link created ✓": "Enlace creado ✓",
+  "Could not save. Try another time.": "No se pudo guardar. Prueba otra hora.",
+  "Payment recorded as received. The client has not been told.":
+    "Pago registrado como recibido. El cliente no ha sido avisado.",
+  "Payment link still needed. The client has not been told.":
+    "Aún falta el enlace de pago. El cliente no ha sido avisado.",
+  "Due later. The client has not been told.":
+    "Pago después. El cliente no ha sido avisado.",
+  Failed: "Falló",
 };
 
 export function agendaI18n(locale: AgendaLocale = "en") {

@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createTalentAvailabilityBlock } from "@/lib/talent-calendar/actions";
 import { TALENT_AGENDA_VARS } from "./primitives";
+import { createOwnEventQuote, createOwnProjectQuote } from "@/lib/talent-agenda/create-quote";
 
-/** T7.2 Event quote composer (chef / dancer). Optional prep/hold as a calendar block. */
+/** T7.2 / G2.2 Event quote — writes draft inquiry + offer; optional date hold. */
 export function AgendaEventQuote({
   title = "New event quote",
-  talentProfileId,
   onCancel,
   onSent,
 }: {
@@ -23,36 +22,29 @@ export function AgendaEventQuote({
   const [pending, start] = useTransition();
 
   function handleSend() {
-    if (!what.trim()) return;
+    if (!what.trim() || !date) return;
     start(async () => {
-      if (hold && talentProfileId && date) {
-        const starts = new Date(`${date}T10:00:00`);
-        const ends = new Date(`${date}T18:00:00`);
-        const res = await createTalentAvailabilityBlock({
-          talentProfileId,
-          reason: `Event hold · ${what.trim()}`,
-          note: "Optional date hold while the quote is out. Other requests still show.",
-          startsAt: starts.toISOString(),
-          endsAt: ends.toISOString(),
-          allDay: false,
-        });
-        if (!res.ok) {
-          setStatus(res.error ?? "Could not hold the date.");
-          return;
-        }
-        setStatus("Quote ready. Date blocked while the quote is out. Nothing else is reserved until accepted.");
-      } else {
-        setStatus(
-          "Nothing is reserved until the quote is accepted. Send the quote from Messages when ready.",
-        );
+      const res = await createOwnEventQuote({
+        what: what.trim(),
+        eventDate: date,
+        holdDate: hold,
+      });
+      if (!res.ok) {
+        setStatus(res.message ?? `Could not save quote: ${res.reason}`);
+        return;
       }
+      setStatus(
+        hold
+          ? "Quote draft saved. Date blocked while the quote is out. Nothing else is reserved until accepted."
+          : "Quote draft saved. Nothing is reserved until the quote is accepted.",
+      );
       onSent?.();
     });
   }
 
   return (
     <div style={TALENT_AGENDA_VARS} className="mx-auto max-w-[720px] space-y-4">
-      <button type="button" onClick={onCancel} className="text-[13px] text-[var(--tc-accent)]">
+      <button type="button" onClick={onCancel} className="min-h-[44px] text-[13px] text-[var(--tc-accent)]">
         {"<"} Calendar
       </button>
       <h1 className="text-[24px] font-semibold">{title}</h1>
@@ -65,7 +57,7 @@ export function AgendaEventQuote({
           Event date
           <input type="date" className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
-        <label className="flex items-center gap-2 text-[14px]">
+        <label className="flex min-h-[44px] items-center gap-2 text-[14px]">
           <input type="checkbox" checked={hold} onChange={(e) => setHold(e.target.checked)} />
           Hold this date for a few days
         </label>
@@ -76,12 +68,12 @@ export function AgendaEventQuote({
       </section>
       {status ? <p className="text-[13px] text-[#5F6368]">{status}</p> : null}
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="rounded-full px-4 py-2 text-[13px]">Cancel</button>
+        <button type="button" onClick={onCancel} className="min-h-[44px] rounded-full px-4 text-[13px]">Cancel</button>
         <button
           type="button"
-          disabled={!what.trim() || pending || (hold && !date)}
+          disabled={!what.trim() || !date || pending}
           onClick={() => void handleSend()}
-          className="rounded-full bg-[var(--tc-primary)] px-4 py-2 text-[13px] text-white disabled:opacity-40"
+          className="min-h-[44px] rounded-full bg-[var(--tc-primary)] px-4 text-[13px] text-white disabled:opacity-40"
         >
           {pending ? "Working…" : "Send quote"}
         </button>
@@ -90,7 +82,7 @@ export function AgendaEventQuote({
   );
 }
 
-/** T7.3 Project quote composer (designer). No appointment is created. */
+/** T7.3 / G2.2 Project quote — draft booking + deliverables with due_at. No appointment. */
 export function AgendaProjectQuote({
   onCancel,
   onSent,
@@ -102,10 +94,34 @@ export function AgendaProjectQuote({
   const [deliverables, setDeliverables] = useState("");
   const [due, setDue] = useState("");
   const [status, setStatus] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  function handleSend() {
+    if (!what.trim()) return;
+    start(async () => {
+      const lines = deliverables
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+      const res = await createOwnProjectQuote({
+        scope: what.trim(),
+        dueDate: due || undefined,
+        deliverables: lines.length > 0 ? lines : undefined,
+      });
+      if (!res.ok) {
+        setStatus(res.message ?? `Could not save: ${res.reason}`);
+        return;
+      }
+      setStatus(
+        "Project quote drafted. Due dates appear on your calendar. No appointment was created.",
+      );
+      onSent?.();
+    });
+  }
 
   return (
     <div style={TALENT_AGENDA_VARS} className="mx-auto max-w-[720px] space-y-4">
-      <button type="button" onClick={onCancel} className="text-[13px] text-[var(--tc-accent)]">
+      <button type="button" onClick={onCancel} className="min-h-[44px] text-[13px] text-[var(--tc-accent)]">
         {"<"} Calendar
       </button>
       <h1 className="text-[24px] font-semibold">New project quote</h1>
@@ -123,24 +139,20 @@ export function AgendaProjectQuote({
           <input type="date" className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2" value={due} onChange={(e) => setDue(e.target.value)} />
         </label>
         <p className="rounded-xl bg-[#f5f5f0] p-3 text-[13px] text-[#5F6368]">
-          No appointment is created. Due dates appear in your calendar all-day row once the project booking exists
+          No appointment is created. Due dates appear in your calendar all-day row once saved
           {due ? ` (target ${due})` : ""}.
         </p>
       </section>
       {status ? <p className="text-[13px] text-[#5F6368]">{status}</p> : null}
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="rounded-full px-4 py-2 text-[13px]">Cancel</button>
+        <button type="button" onClick={onCancel} className="min-h-[44px] rounded-full px-4 text-[13px]">Cancel</button>
         <button
           type="button"
-          disabled={!what.trim()}
-          onClick={() => {
-            void deliverables;
-            setStatus("Project quote drafted. Attach deliverables on the booking after the client accepts.");
-            onSent?.();
-          }}
-          className="rounded-full bg-[var(--tc-primary)] px-4 py-2 text-[13px] text-white disabled:opacity-40"
+          disabled={!what.trim() || pending}
+          onClick={() => void handleSend()}
+          className="min-h-[44px] rounded-full bg-[var(--tc-primary)] px-4 text-[13px] text-white disabled:opacity-40"
         >
-          Send quote
+          {pending ? "Working…" : "Send quote"}
         </button>
       </div>
     </div>

@@ -393,13 +393,13 @@ export function AgendaCalendarPage({
       {view === "list" ? (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2 text-[12px]">
-            <span className="rounded-full border px-2 py-1">All {counts.all}</span>
-            <span className="rounded-full border px-2 py-1">Requests {counts.requests}</span>
-            <span className="rounded-full border px-2 py-1">On hold {counts.onHold}</span>
-            <span className="rounded-full border px-2 py-1">Confirmed {counts.confirmed}</span>
-            <span className="rounded-full border px-2 py-1">Completed {counts.completed}</span>
-            <span className="rounded-full border px-2 py-1">Cancelled {counts.cancelled}</span>
-            <span className="rounded-full border px-2 py-1">No-show {counts.noShow}</span>
+            <span className="rounded-full border px-2 py-1">{copy.t("All")} {counts.all}</span>
+            <span className="rounded-full border px-2 py-1">{copy.t("Requests")} {counts.requests}</span>
+            <span className="rounded-full border px-2 py-1">{copy.t("On hold")} {counts.onHold}</span>
+            <span className="rounded-full border px-2 py-1">{copy.t("Confirmed")} {counts.confirmed}</span>
+            <span className="rounded-full border px-2 py-1">{copy.t("Completed")} {counts.completed}</span>
+            <span className="rounded-full border px-2 py-1">{copy.t("Cancelled")} {counts.cancelled}</span>
+            <span className="rounded-full border px-2 py-1">{copy.t("No-show")} {counts.noShow}</span>
           </div>
           {days.map((day) => {
             const dayItems = itemsOnDay(allItems, day);

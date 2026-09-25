@@ -5,6 +5,7 @@ import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 import { createOwnSlotBooking } from "@/lib/talent-agenda/create-slot";
 import { TALENT_AGENDA_VARS } from "./primitives";
 import { AgendaEventQuote, AgendaProjectQuote } from "./AgendaQuotes";
+import { useAgendaCopy } from "./use-agenda-copy";
 
 type PayChoice = "received" | "due_later" | "request_link" | null;
 
@@ -54,6 +55,7 @@ function SlotComposer({
   onCancel: () => void;
   onSaved?: () => void;
 }) {
+  const copy = useAgendaCopy();
   const [clientName, setClientName] = useState("");
   const [service, setService] = useState("");
   const [date, setDate] = useState("");
@@ -86,16 +88,16 @@ function SlotComposer({
         paymentChoice: pay,
       });
       if (!result.ok) {
-        setConflict(result.message ?? "Could not save. Try another time.");
+        setConflict(result.message ?? copy.t("Could not save. Try another time."));
         setAlternatives(result.alternatives ?? []);
         return;
       }
       const payLabel =
         pay === "received"
-          ? "Payment recorded as received. The client has not been told."
+          ? copy.t("Payment recorded as received. The client has not been told.")
           : pay === "request_link"
-            ? "Payment link still needed. The client has not been told."
-            : "Due later. The client has not been told.";
+            ? copy.t("Payment link still needed. The client has not been told.")
+            : copy.t("Due later. The client has not been told.");
       setSavedNote(payLabel);
       onSaved?.();
     } finally {
@@ -106,7 +108,7 @@ function SlotComposer({
   return (
     <div style={TALENT_AGENDA_VARS} className="mx-auto max-w-[720px] space-y-4">
       <button type="button" onClick={onCancel} className="min-h-[44px] text-[13px] text-[var(--tc-accent)]">
-        {"<"} Calendar
+        {"<"} {copy.t("Calendar")}
       </button>
       <h1 className="text-[24px] font-semibold text-[var(--tc-primary)]">{newLabel}</h1>
 
@@ -117,9 +119,9 @@ function SlotComposer({
       ) : null}
 
       <section className="space-y-3 rounded-2xl border border-black/8 bg-white p-4">
-        <h2 className="text-[15px] font-semibold">Client</h2>
+        <h2 className="text-[15px] font-semibold">{copy.t("Client")}</h2>
         <label className="block text-[13px]">
-          Name
+          {copy.t("Name")}
           <input
             className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2"
             value={clientName}
@@ -129,9 +131,9 @@ function SlotComposer({
       </section>
 
       <section className="space-y-3 rounded-2xl border border-black/8 bg-white p-4">
-        <h2 className="text-[15px] font-semibold">Work and time</h2>
+        <h2 className="text-[15px] font-semibold">{copy.t("Work and time")}</h2>
         <label className="block text-[13px]">
-          Service
+          {copy.t("Service")}
           <input
             className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2"
             value={service}
@@ -140,22 +142,22 @@ function SlotComposer({
         </label>
         <div className="grid grid-cols-3 gap-2">
           <label className="block text-[13px]">
-            Date
+            {copy.t("Date")}
             <input type="date" className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
           <label className="block text-[13px]">
-            Starts
+            {copy.t("Start")}
             <input type="time" className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2" value={starts} onChange={(e) => { setStarts(e.target.value); setConflict(null); }} />
           </label>
           <label className="block text-[13px]">
-            Ends
+            {copy.t("End")}
             <input type="time" className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2" value={ends} onChange={(e) => { setEnds(e.target.value); setConflict(null); }} />
           </label>
         </div>
         {conflict ? <p className="text-[13px] text-[#B42318]">{conflict}</p> : null}
         {alternatives.length > 0 ? (
           <div className="space-y-1">
-            <p className="text-[12px] font-medium text-[var(--tc-primary)]">Try one of these:</p>
+            <p className="text-[12px] font-medium text-[var(--tc-primary)]">{copy.t("Try one of these:")}</p>
             {alternatives.map((iso) => {
               const d = new Date(iso);
               const label = d.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
@@ -180,12 +182,12 @@ function SlotComposer({
           </div>
         ) : null}
         {!pay ? (
-          <p className="text-[13px] text-[#5F6368]">Save stays off until a payment choice is selected.</p>
+          <p className="text-[13px] text-[#5F6368]">{copy.t("Save stays off until a payment choice is selected.")}</p>
         ) : null}
       </section>
 
       <section className="space-y-2 rounded-2xl border border-black/8 bg-white p-4">
-        <h2 className="text-[15px] font-semibold">Payment</h2>
+        <h2 className="text-[15px] font-semibold">{copy.t("Payment")}</h2>
         {(
           [
             ["received", "Record payment received"],
@@ -200,15 +202,14 @@ function SlotComposer({
               checked={pay === id}
               onChange={() => setPay(id)}
             />
-            {label}
+            {copy.t(label)}
           </label>
         ))}
       </section>
 
-      {/* T9.2 — action bar above home indicator / soft keyboard */}
       <div className="sticky bottom-0 z-10 -mx-1 flex justify-end gap-2 border-t border-black/5 bg-[var(--tc-canvas,#FAFAF7)] px-1 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         <button type="button" onClick={onCancel} className="min-h-[44px] rounded-full px-4 text-[13px]">
-          Cancel
+          {copy.t("Cancel")}
         </button>
         <button
           type="button"
@@ -216,7 +217,7 @@ function SlotComposer({
           onClick={() => void save()}
           className="min-h-[44px] rounded-full bg-[var(--tc-primary)] px-4 text-[13px] text-white disabled:opacity-40"
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? copy.t("Saving…") : copy.t("Save")}
         </button>
       </div>
     </div>
