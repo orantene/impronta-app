@@ -105,6 +105,8 @@ export type AgendaListItem = {
   primaryAction?: AgendaNowAction;
   secondaryAction?: AgendaNowAction;
   moneyLines?: AgendaMoneyItem[];
+  /** ISO 4217; defaults to MXN in UI when absent. */
+  currency?: string;
   dueCents?: number;
   orderId?: string | null;
   /** cash | transfer | other — gates Mark transfer received. */

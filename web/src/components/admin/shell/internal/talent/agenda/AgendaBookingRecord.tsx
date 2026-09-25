@@ -23,12 +23,13 @@ type MoreMenuAction = {
 };
 
 function MoreMenu({ actions }: { actions: MoreMenuAction[] }) {
+  const copy = useAgendaCopy();
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
       <button
         type="button"
-        aria-label="More actions"
+        aria-label={copy.t("More actions")}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
@@ -93,6 +94,7 @@ function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const copy = useAgendaCopy();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4">
       <div className="w-full max-w-[360px] rounded-2xl bg-white p-5 shadow-xl">
@@ -104,7 +106,7 @@ function ConfirmDialog({
             onClick={onCancel}
             className="rounded-full border border-black/10 px-4 py-2 text-[13px]"
           >
-            Cancel
+            {copy.t("Cancel")}
           </button>
           <button
             type="button"
@@ -158,6 +160,7 @@ export function AgendaBookingRecord({
 
   const canAct = !!bookingId;
   const cancellable = canAct && !isAgency;
+  const bookingCurrency = item.currency?.trim() || "MXN";
   const now = readAgendaNowClient(new Date());
   const startsMs = item.startsAtIso ? Date.parse(item.startsAtIso) : NaN;
   const noShowReady = Number.isFinite(startsMs) && startsMs < now.getTime();
@@ -191,7 +194,7 @@ export function AgendaBookingRecord({
       if (res.ok) {
         setStatus(
           res.refundableCents > 0
-            ? `${copy.t("Cancelled")}. ${copy.t("Refund of")} $${(res.refundableCents / 100).toFixed(2)} ${copy.t("initiated")}.`
+            ? `${copy.t("Cancelled")}. ${copy.t("Refund of")} ${(res.refundableCents / 100).toFixed(2)} ${bookingCurrency} ${copy.t("initiated")}.`
             : copy.t("Cancelled ✓"),
         );
         onCancelled?.();
@@ -246,10 +249,10 @@ export function AgendaBookingRecord({
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back to calendar"
+          aria-label={copy.t("Back to calendar")}
           className="min-h-[44px] px-1 text-[13px] text-[var(--tc-accent)]"
         >
-          ← Back
+          ← {copy.t("Back")}
         </button>
 
         <header className="flex flex-wrap items-start justify-between gap-3">
@@ -267,10 +270,10 @@ export function AgendaBookingRecord({
               <button
                 type="button"
                 onClick={onMessage}
-                aria-label="Message client"
+                aria-label={copy.t("Message client")}
                 className="min-h-[44px] rounded-full border border-black/10 bg-white px-4 py-2 text-[13px]"
               >
-                Message
+                {copy.t("Message")}
               </button>
             ) : null}
             {moreActions.length > 0 && <MoreMenu actions={moreActions} />}
@@ -280,31 +283,33 @@ export function AgendaBookingRecord({
         {item.bookingState === "requested" ? (
           <NowBox
             tone="attention"
-            title="Request"
-            body="Accepting re-checks the hour on the server. Suggest another time keeps the request open. Decline closes it."
+            title={copy.t("Request")}
+            body={copy.t(
+              "Accepting re-checks the hour on the server. Suggest another time keeps the request open. Decline closes it.",
+            )}
             primaryAction={{
-              label: "Accept",
+              label: copy.t("Accept"),
               onClick: () => {
                 const inquiryId = refTable === "inquiries" ? (refId || bookingId) : null;
                 if (!inquiryId) {
-                  setStatus("Open Messages to accept this request.");
+                  setStatus(copy.t("Open Messages to accept this request."));
                   onMessage?.();
                   return;
                 }
-                setStatus("Accepting…");
+                setStatus(copy.t("Accepting…"));
                 startTransition(async () => {
                   const res = await respondToInquiryOffer(inquiryId, "accepted");
                   if (res.ok) {
-                    setStatus("Accepted. The hour was re-checked on the server.");
+                    setStatus(copy.t("Accepted. The hour was re-checked on the server."));
                     router.refresh();
                   } else {
-                    setStatus(`Could not accept: ${res.error}`);
+                    setStatus(`${copy.t("Could not accept")}: ${res.error}`);
                   }
                 });
               },
             }}
             secondaryAction={{
-              label: "Suggest another time",
+              label: copy.t("Suggest another time"),
               onClick: () => setShowReschedule(true),
             }}
           />
@@ -317,19 +322,19 @@ export function AgendaBookingRecord({
             onClick={() => {
               const inquiryId = refId || bookingId;
               if (!inquiryId) return;
-              setStatus("Declining…");
+              setStatus(copy.t("Declining…"));
               startTransition(async () => {
                 const res = await declineInquiryInvitation(inquiryId);
                 if (res.ok) {
-                  setStatus("Declined. The request is closed.");
+                  setStatus(copy.t("Declined. The request is closed."));
                   router.refresh();
                 } else {
-                  setStatus(`Could not decline: ${res.error}`);
+                  setStatus(`${copy.t("Could not decline")}: ${res.error}`);
                 }
               });
             }}
           >
-            Decline request
+            {copy.t("Decline request")}
           </button>
         ) : null}
 
@@ -339,7 +344,7 @@ export function AgendaBookingRecord({
             onClose={() => setShowReschedule(false)}
             onProposed={() => {
               setShowReschedule(false);
-              setStatus("Reschedule proposed. Waiting for the client.");
+              setStatus(copy.t("Reschedule proposed. Waiting for the client."));
             }}
           />
         ) : null}
@@ -347,15 +352,15 @@ export function AgendaBookingRecord({
         <section className="rounded-2xl border border-black/8 bg-white p-4 text-[14px]">
           <dl className="space-y-2">
             <div className="flex justify-between gap-3">
-              <dt className="text-[#5F6368]">When</dt>
+              <dt className="text-[#5F6368]">{copy.t("When")}</dt>
               <dd>{item.whenLabel}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-[#5F6368]">Where</dt>
+              <dt className="text-[#5F6368]">{copy.t("Where")}</dt>
               <dd>{item.whereLabel}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-[#5F6368]">Came from</dt>
+              <dt className="text-[#5F6368]">{copy.t("Came from")}</dt>
               <dd>{item.sourceLabel}</dd>
             </div>
           </dl>
@@ -384,10 +389,10 @@ export function AgendaBookingRecord({
           <button
             type="button"
             onClick={() => setShowFinish(true)}
-            aria-label="Finish and collect"
+            aria-label={copy.t("Finish and collect")}
             className="w-full min-h-[44px] rounded-xl bg-[var(--tc-primary)] py-3 text-[14px] font-semibold text-white"
           >
-            Finish and collect
+            {copy.t("Finish and collect")}
           </button>
         ) : null}
 
@@ -399,7 +404,7 @@ export function AgendaBookingRecord({
             onClose={() => setShowFinish(false)}
             onDone={() => {
               setShowFinish(false);
-              setStatus("Finished and collected ✓");
+              setStatus(copy.t("Finished and collected ✓"));
               router.refresh();
             }}
           />
@@ -416,17 +421,17 @@ export function AgendaBookingRecord({
               startTransition(async () => {
                 const res = await markBookingTransferReceived({ bookingId });
                 if (res.ok) {
-                  setStatus("Transfer marked received ✓");
+                  setStatus(copy.t("Transfer marked received ✓"));
                   router.refresh();
                 } else {
-                  setStatus(`Could not confirm transfer: ${res.reason}`);
+                  setStatus(`${copy.t("Could not confirm transfer")}: ${res.reason}`);
                 }
               })
             }
-            aria-label="Mark transfer received"
+            aria-label={copy.t("Mark transfer received")}
             className="w-full min-h-[44px] rounded-xl border border-black/10 bg-white py-3 text-[14px] font-semibold text-[var(--tc-primary)]"
           >
-            Mark transfer received
+            {copy.t("Mark transfer received")}
           </button>
         ) : null}
 
@@ -443,7 +448,7 @@ export function AgendaBookingRecord({
         <MoneyBlock items={item.moneyLines ?? []} />
         {item.terms ? (
           <section className="rounded-2xl border border-black/8 bg-white p-4 text-[13px] text-[#5F6368]">
-            <h2 className="mb-2 text-[14px] font-semibold text-[var(--tc-primary)]">Terms</h2>
+            <h2 className="mb-2 text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("Terms")}</h2>
             <p>{item.terms}</p>
           </section>
         ) : null}
@@ -452,9 +457,9 @@ export function AgendaBookingRecord({
       {/* Cancel confirm dialog */}
       {confirmCancel && (
         <ConfirmDialog
-          title="Cancel this booking?"
-          body="This cannot be undone. Any refund due is calculated when you confirm."
-          confirmLabel="Cancel booking"
+          title={copy.t("Cancel this booking?")}
+          body={copy.t("This cannot be undone. Any refund due is calculated when you confirm.")}
+          confirmLabel={copy.t("Cancel booking")}
           destructive
           onConfirm={handleCancelConfirm}
           onCancel={() => setConfirmCancel(false)}

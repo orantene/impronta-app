@@ -83,7 +83,6 @@ const ES: Record<string, string> = {
 
   // Pay request
   "Request payment": "Solicitar pago",
-  "Amount (USD)": "Importe (MXN)",
   "Send request": "Enviar solicitud",
   "Creating link…": "Creando enlace…",
 
@@ -294,6 +293,70 @@ const ES: Record<string, string> = {
   "Due later. The client has not been told.":
     "Pago después. El cliente no ha sido avisado.",
   Failed: "Falló",
+
+  // Booking record (request flow)
+  Request: "Solicitud",
+  Accept: "Aceptar",
+  "Accepting…": "Aceptando…",
+  "Accepting re-checks the hour on the server. Suggest another time keeps the request open. Decline closes it.":
+    "Aceptar vuelve a comprobar la hora en el servidor. Sugerir otra hora mantiene la solicitud abierta. Rechazar la cierra.",
+  "Open Messages to accept this request.": "Abre Mensajes para aceptar esta solicitud.",
+  "Accepted. The hour was re-checked on the server.":
+    "Aceptado. La hora se volvió a comprobar en el servidor.",
+  "Could not accept": "No se pudo aceptar",
+  "Suggest another time": "Sugerir otra hora",
+  "Declining…": "Rechazando…",
+  "Declined. The request is closed.": "Rechazado. La solicitud está cerrada.",
+  "Could not decline": "No se pudo rechazar",
+  "Decline request": "Rechazar solicitud",
+  "Finished and collected ✓": "Finalizado y cobrado ✓",
+  "Reschedule proposed. Waiting for the client.":
+    "Cambio de fecha propuesto. Esperando al cliente.",
+  "Mark transfer received": "Marcar transferencia recibida",
+  "Transfer marked received ✓": "Transferencia marcada como recibida ✓",
+  "Could not confirm transfer": "No se pudo confirmar la transferencia",
+  Terms: "Términos",
+  "Cancel this booking?": "¿Cancelar esta reserva?",
+  "This cannot be undone. Any refund due is calculated when you confirm.":
+    "Esto no se puede deshacer. El reembolso pendiente se calcula al confirmar.",
+  "Message client": "Mensaje al cliente",
+
+  // Quotes
+  "New event quote": "Nueva cotización de evento",
+  "New project quote": "Nueva cotización de proyecto",
+  What: "Qué",
+  "Event date": "Fecha del evento",
+  "Hold this date for a few days": "Reservar esta fecha unos días",
+  "Saves a draft only. No client email is sent. Nothing is reserved until accepted.":
+    "Solo guarda un borrador. No se envía correo al cliente. Nada queda reservado hasta que se acepte.",
+  "Saves a draft only. No client email is sent. Nothing is reserved until accepted, except the optional hold. Other requests still show.":
+    "Solo guarda un borrador. No se envía correo al cliente. Nada queda reservado hasta que se acepte, salvo el hold opcional. Otras solicitudes siguen visibles.",
+  "Save draft": "Guardar borrador",
+  "Could not save draft": "No se pudo guardar el borrador",
+  "Draft saved. Date blocked while the draft is out. Nothing else is reserved until accepted.":
+    "Borrador guardado. La fecha queda bloqueada mientras el borrador está activo. Nada más queda reservado hasta que se acepte.",
+  "Draft saved. Nothing is reserved until the quote is accepted.":
+    "Borrador guardado. Nada queda reservado hasta que se acepte la cotización.",
+  Deliverables: "Entregables",
+  "Due date": "Fecha de entrega",
+  "Project draft saved. Due dates appear on your calendar. No appointment was created. No client email was sent.":
+    "Borrador de proyecto guardado. Las fechas de entrega aparecen en tu calendario. No se creó cita. No se envió correo al cliente.",
+  "Saves a draft only. No appointment is created. Due dates appear in your calendar all-day row once saved.":
+    "Solo guarda un borrador. No se crea cita. Las fechas de entrega aparecen en la fila de todo el día del calendario al guardar.",
+  target: "objetivo",
+
+  // Rebook
+  "Save rebook": "Guardar reagendado",
+  "Could not rebook. Try another time.": "No se pudo reagendar. Prueba otra hora.",
+  "Rebook saved. The client has not been told yet.":
+    "Reagendado guardado. El cliente aún no ha sido avisado.",
+  Note: "Nota",
+  Starts: "Inicia",
+  Ends: "Termina",
+  client: "cliente",
+
+  // Calendar month chips
+  Holds: "En hold",
 };
 
 export function agendaI18n(locale: AgendaLocale = "en") {

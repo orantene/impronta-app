@@ -25,12 +25,15 @@ describe("G3.1–G3.4 polish contracts", () => {
     assert.ok(!src.includes("Resend when a form link exists"));
   });
 
-  it("Finish/Hold/Pay/Reschedule use TaskShell", () => {
+  it("Finish/Hold/Pay/Reschedule/New/Quotes/Rebook use TaskShell", () => {
     for (const file of [
       "AgendaFinishCollect.tsx",
       "AgendaHoldFlows.tsx",
       "AgendaPayRequest.tsx",
       "AgendaRescheduleSheet.tsx",
+      "AgendaNewBooking.tsx",
+      "AgendaQuotes.tsx",
+      "AgendaRebookSuggestion.tsx",
     ]) {
       const src = readFileSync(path.join(AGENDA, file), "utf8");
       assert.ok(src.includes("TaskShell"), file);

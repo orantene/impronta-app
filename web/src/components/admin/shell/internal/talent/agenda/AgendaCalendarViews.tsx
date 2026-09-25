@@ -290,6 +290,7 @@ export function MonthGrid({
   items: readonly TalentAgendaItem[];
   onPick: (day: Date) => void;
 }) {
+  const copy = useAgendaCopy();
   const start = new Date(clock.getFullYear(), clock.getMonth(), 1);
   const cells: Date[] = [];
   for (let i = 0; i < 42; i += 1) {
@@ -317,8 +318,8 @@ export function MonthGrid({
               <div>{dayItems.length}</div>
             ) : (
               <div className="text-[11px] text-[#5F6368]">
-                {requests > 0 ? `Requests ${requests}` : ""}
-                {holds > 0 ? ` Holds ${holds}` : ""}
+                {requests > 0 ? `${copy.t("Requests")} ${requests}` : ""}
+                {holds > 0 ? ` ${copy.t("Holds")} ${holds}` : ""}
                 {confirmed > 0 ? ` ${confirmed}` : ""}
               </div>
             )}

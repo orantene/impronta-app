@@ -232,6 +232,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
         ]
       : [],
     dueCents: item.money.dueCents,
+    currency: item.money.currency?.trim() || "MXN",
     orderId: item.orderId ?? null,
     paymentMethod: item.paymentMethod ?? null,
     startsAtIso: item.startsAt,

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 import { createOwnSlotBooking } from "@/lib/talent-agenda/create-slot";
-import { TALENT_AGENDA_VARS } from "./primitives";
+import { TaskShell } from "./primitives/TaskShell";
 import { AgendaEventQuote, AgendaProjectQuote } from "./AgendaQuotes";
 import { useAgendaCopy } from "./use-agenda-copy";
 
@@ -106,19 +106,21 @@ function SlotComposer({
   }
 
   return (
-    <div style={TALENT_AGENDA_VARS} className="mx-auto max-w-[720px] space-y-4">
-      <button type="button" onClick={onCancel} className="min-h-[44px] text-[13px] text-[var(--tc-accent)]">
-        {"<"} {copy.t("Calendar")}
-      </button>
-      <h1 className="text-[24px] font-semibold text-[var(--tc-primary)]">{newLabel}</h1>
-
+    <TaskShell
+      open
+      onClose={onCancel}
+      title={newLabel}
+      primaryActionLabel={saving ? copy.t("Saving…") : copy.t("Save")}
+      onPrimaryAction={canSave ? () => void save() : undefined}
+      secondaryActionLabel={copy.t("Cancel")}
+    >
       {savedNote ? (
-        <p className="rounded-xl border border-[rgba(31,92,66,0.25)] bg-[rgba(31,92,66,0.08)] px-3 py-2 text-[13px] text-[#1F5C42]">
+        <p className="mb-4 rounded-xl border border-[rgba(31,92,66,0.25)] bg-[rgba(31,92,66,0.08)] px-3 py-2 text-[13px] text-[#1F5C42]">
           {savedNote}
         </p>
       ) : null}
 
-      <section className="space-y-3 rounded-2xl border border-black/8 bg-white p-4">
+      <section className="mb-4 space-y-3 rounded-2xl border border-black/8 bg-white p-4">
         <h2 className="text-[15px] font-semibold">{copy.t("Client")}</h2>
         <label className="block text-[13px]">
           {copy.t("Name")}
@@ -130,7 +132,7 @@ function SlotComposer({
         </label>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-black/8 bg-white p-4">
+      <section className="mb-4 space-y-3 rounded-2xl border border-black/8 bg-white p-4">
         <h2 className="text-[15px] font-semibold">{copy.t("Work and time")}</h2>
         <label className="block text-[13px]">
           {copy.t("Service")}
@@ -211,20 +213,6 @@ function SlotComposer({
           </p>
         ) : null}
       </section>
-
-      <div className="sticky bottom-0 z-10 -mx-1 flex justify-end gap-2 border-t border-black/5 bg-[var(--tc-canvas,#FAFAF7)] px-1 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-        <button type="button" onClick={onCancel} className="min-h-[44px] rounded-full px-4 text-[13px]">
-          {copy.t("Cancel")}
-        </button>
-        <button
-          type="button"
-          disabled={!canSave || saving}
-          onClick={() => void save()}
-          className="min-h-[44px] rounded-full bg-[var(--tc-primary)] px-4 text-[13px] text-white disabled:opacity-40"
-        >
-          {saving ? copy.t("Saving…") : copy.t("Save")}
-        </button>
-      </div>
-    </div>
+    </TaskShell>
   );
 }
