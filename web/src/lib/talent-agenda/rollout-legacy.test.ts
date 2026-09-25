@@ -6,35 +6,24 @@ import { join } from "node:path";
 import { readAgendaV2Mode } from "./flag";
 
 /**
- * ROLLOUT Step 4 — legacy Today/Calendar agenda paths removed.
- * Flag helpers stay for one release as a soft kill switch (empty V2 load).
+ * T9.6 — legacy Today/Calendar stay reachable while the flag is off.
+ * Deletion is a follow-up PR after ≥7 days of TALENT_AGENDA_V2=all.
  */
-describe("T9.6 legacy agenda surfaces removed (Step 4)", () => {
-  it("talent router does not import legacy CalendarPage", () => {
-    const src = readFileSync(
-      join(process.cwd(), "src/components/admin/shell/internal/talent.tsx"),
-      "utf8",
-    );
-    assert.match(src, /AgendaCalendarPage/);
-    assert.match(src, /TalentTodayPage/);
-    assert.doesNotMatch(src, /from ["']\.\/talent\/pages\/CalendarPage["']/);
-    assert.doesNotMatch(src, /agendaV2\s*\?/);
-  });
-
-  it("TodayPage is Agenda V2 only", () => {
+describe("T9.6 legacy surfaces retained for rollback", () => {
+  it("talent router still imports legacy Today and Calendar pages", () => {
     const src = readFileSync(
       join(
         process.cwd(),
-        "src/components/admin/shell/internal/talent/pages/TodayPage.tsx",
+        "src/components/admin/shell/internal/talent.tsx",
       ),
       "utf8",
     );
-    assert.match(src, /AgendaTodayPage/);
-    assert.doesNotMatch(src, /bridgeTalentAgendaV2/);
-    assert.doesNotMatch(src, /WeekRhythmStrip/);
+    assert.match(src, /TalentTodayPage/);
+    assert.match(src, /CalendarPage/);
+    assert.match(src, /isAgendaV2/);
   });
 
-  it("flag helpers still default off (soft kill switch retained)", () => {
+  it("flag defaults off so production stays on legacy until rollout", () => {
     assert.equal(readAgendaV2Mode(undefined), "off");
   });
 });
