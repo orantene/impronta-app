@@ -8,7 +8,10 @@ import {
   type TalentClientRow,
 } from "@/lib/talent/clients-merge";
 
-export type { TalentClientRow };
+// Do NOT `export type { TalentClientRow }` — a type re-export without `from`
+// in a "use server" file makes Next's SWC emit a runtime reference
+// ("TalentClientRow is not defined") and RSC 500s admin boot. Consumers
+// import the type from clients-merge.
 
 async function assertTalentOwner(talentProfileId: string): Promise<boolean> {
   const session = await getCachedActorSession();

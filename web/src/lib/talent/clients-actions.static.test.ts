@@ -46,4 +46,11 @@ describe("loadTalentClients column contract", () => {
     assert.match(src, /accumulateVisit:\s*false/);
     assert.match(src, /accumulateVisit:\s*true/);
   });
+
+  it("does not re-export types without from (use-server SWC trap)", () => {
+    // `export type { X }` of a locally-imported type makes Next emit a
+    // runtime reference → RSC 500 / Admin boot pageerror. Keep the type in
+    // clients-merge; consumers import it from there.
+    assert.doesNotMatch(src, /^export\s+type\s+\{/m);
+  });
 });
