@@ -1,0 +1,13 @@
+{
+  "email": "qa-admin@impronta.test",
+  "hasActionLink": true,
+  "afterMagic": {
+    "url": "https://app.tulala.digital/#access_token=eyJhbGciOiJFUzI1NiIsImtpZCI6ImJlN2ZjZjEwLTc1MmUtNDQ4Yy04Njg5LTZiNDI2YWRkNjRmNiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3BsdWhkYXBkbnVpdWx2eG15c3BkLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkNzBlOGRkZC1jMjA4LTQ0ZTMtYjAwMS1lMTUwM2QzNmVhOWQiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzkwMzE4NjY5LCJpYXQiOjE3OTAzMTUwNjksImVtYWlsIjoicWEtYWRtaW5AaW1wcm9udGEudGVzdCIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6Im90cCIsInRpbWVzdGFtcCI6MTc5MDMxNTA2OX1dLCJzZXNzaW9uX2lkIjoiMmViMTI3N2MtYjAxNy00MTYwLWI3MzctODlkMjJiMzA4MjQyIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.Bpowa7fPcTqtdp7t-GS5n0WpJ0LDlQt_fOL4eAqQ8RImGjKLgAddVfs-UCDgIflIVj62uYxjxok3KVbzxjIr2g&expires_at=1790318669&expires_in=3600&refresh_token=tfcx4jjeeva7&sb=&token_type=bearer&type=magiclink",
+    "title": "Tulala Workspace · Tulala"
+  },
+  "messages": {
+    "url": "https://qa-stripe-r2.tulala.digital/login?next=/admin",
+    "v5": 0,
+    "body": "QA STRIPE R2\n\nAGENT-OWNED STRIPE E2E\n\nYour work and your bookings, in one place.\n\nManage your profile, your bookings, and your messages with QA Stripe R2.\n\nOne sign-in for talent and clients\nEvery booking, message, and file in one thread\nSecure access with a code or a password\n\n© 2026 QA Stripe R2.\n\nBack to QA Stripe R2\n\nWELCOME BACK\n\nLog in\n\nContinue with Google or email. With Google, a password is optional, you can add one later under Account.\n\nContinue with Google\nOR\nEMAIL\nPASSWORD\nFORGOT PAS"
+  }
+}

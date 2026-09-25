@@ -1,0 +1,43 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/qa-program/admin/stripe-pay-refund.spec.ts:42:7 › QA Stripe pay + refund › mint pay link → 4242 → Paid → full refund → unpaid
+[1A[2K  1) [chromium] › e2e/qa-program/admin/stripe-pay-refund.spec.ts:42:7 › QA Stripe pay + refund › mint pay link → 4242 → Paid → full refund → unpaid 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-messages-v5]').first()
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for locator('[data-messages-v5]').first()[22m
+
+
+       at qa-program/_harness.ts:223
+
+      221 |     timeout: 60_000,
+      222 |   });
+    > 223 |   await expect(page.locator("[data-messages-v5]").first()).toBeVisible({ timeout: 30_000 });
+          |                                                            ^
+      224 |   await awaitHydrated(page);
+      225 | }
+      226 |
+        at signInAgentOwnedHost (/Users/oranpersonal/Desktop/impronta-app/web/e2e/qa-program/_harness.ts:223:60)
+        at /Users/oranpersonal/Desktop/impronta-app/web/e2e/qa-program/admin/stripe-pay-refund.spec.ts:59:5
+
+    Error Context: test-results/qa-program-admin-stripe-pa-990a3-Paid-→-full-refund-→-unpaid-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/qa-program-admin-stripe-pa-990a3-Paid-→-full-refund-→-unpaid-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/qa-program-admin-stripe-pa-990a3-Paid-→-full-refund-→-unpaid-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/qa-program/admin/stripe-pay-refund.spec.ts:42:7 › QA Stripe pay + refund › mint pay link → 4242 → Paid → full refund → unpaid 
