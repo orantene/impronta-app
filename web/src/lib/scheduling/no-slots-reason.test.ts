@@ -113,6 +113,32 @@ test("a saved 10 minute buffer removes the slot that would overlap the previous 
   assert.equal(buffered.starts[0], "2027-03-01T11:00:00.000Z");
 });
 
+test("prep bufferBeforeMin hides a start that would land inside preparation time", () => {
+  // Booking 10:00–11:00 + 15 min prep → busy pad starts 09:45, so 09:00 start
+  // (ends 10:00) still clears; a 09:30 start would overlap prep.
+  const busy = [{ startsAt: new Date("2027-03-01T10:00:00Z"), endsAt: new Date("2027-03-01T11:00:00Z") }];
+  const noPrep = computePublicSlots({
+    hours: hours({ slotMinutes: 30 }),
+    durationMinutes: 60,
+    from: MONDAY,
+    days: 1,
+    busy,
+    sellingDefaults: { bufferBeforeMin: 0, bufferAfterMin: 0 },
+  });
+  assert.equal(noPrep.starts.includes("2027-03-01T09:00:00.000Z"), true);
+  assert.equal(noPrep.starts.includes("2027-03-01T09:30:00.000Z"), false);
+  const withPrep = computePublicSlots({
+    hours: hours({ slotMinutes: 30 }),
+    durationMinutes: 60,
+    from: MONDAY,
+    days: 1,
+    busy,
+    sellingDefaults: { bufferBeforeMin: 15, bufferAfterMin: 0 },
+  });
+  // 09:00–10:00 overlaps padded busy 09:45–11:00
+  assert.equal(withPrep.starts.includes("2027-03-01T09:00:00.000Z"), false);
+});
+
 test("a saved minimum notice hides slots that start too soon", () => {
   const from = new Date("2027-03-01T09:00:00Z");
   const slots = computePublicSlots({

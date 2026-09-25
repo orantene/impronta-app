@@ -234,9 +234,9 @@ export async function GET(request: Request) {
     });
 
     const attr = offering.attributes;
-    const offeringBuffer =
+    const offeringBuffers =
       attr && typeof attr === "object" && !Array.isArray(attr)
-        ? (attr as { bufferAfterMin?: unknown }).bufferAfterMin
+        ? (attr as { bufferAfterMin?: unknown; bufferBeforeMin?: unknown })
         : null;
     const { starts: slots, reason } = computePublicSlots({
       hours,
@@ -248,7 +248,13 @@ export async function GET(request: Request) {
       days: horizon,
       busy,
       sellingDefaults: talent.selling_defaults,
-      offeringBufferAfterMin: typeof offeringBuffer === "number" ? offeringBuffer : null,
+      offeringBufferAfterMin:
+        typeof offeringBuffers?.bufferAfterMin === "number" ? offeringBuffers.bufferAfterMin : null,
+      offeringBufferBeforeMin:
+        typeof offeringBuffers?.bufferBeforeMin === "number"
+          ? offeringBuffers.bufferBeforeMin
+          : null,
+      offeringAttributes: attr,
     });
     return slotsJson(slots, 200, { timezone: hours.timezone, reason });
   } catch (err) {

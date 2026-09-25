@@ -140,6 +140,7 @@ import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
+import type { SheetCtaMode } from "@/lib/talent/sheet-cta-mode";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
@@ -286,6 +287,11 @@ export interface BuilderNodeRenderDataSources {
   talentOfferings?: ReadonlyArray<TalentOffering>;
   /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
   talentOfferingsConfirmsByHand?: boolean;
+  /**
+   * Talent selling_defaults.sheetCtaMode — Contact / Confirm now / Check availability.
+   * Omitted when unset (legacy sheet CTAs).
+   */
+  talentOfferingsSheetCtaMode?: SheetCtaMode;
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
   talentOfferingsUsdRates?: UsdRates;
   /** Saved `category_order` from the talent profile. Missing names append after. */
@@ -5780,6 +5786,7 @@ function renderBuilderNodeElement(
                 mobileBar={p.mobileBar ?? "float"}
                 showAskLink={p.showAskLink !== false}
                 sheetAccent={p.bookingSheet?.accent ?? "ink"}
+                sheetCtaMode={options.dataSources.talentOfferingsSheetCtaMode ?? null}
               />
             </CatalogIslandBoundary>
           )}

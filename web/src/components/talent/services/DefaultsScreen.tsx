@@ -128,6 +128,7 @@ export function DefaultsScreen({
   const cancelH = defaults.cancelHours ?? 24;
   const reschedH = defaults.rescheduleHours ?? 24;
   const buffer = defaults.bufferAfterMin ?? 0;
+  const prep = defaults.bufferBeforeMin ?? 0;
   const noticeMin = defaults.minNoticeMin ?? 0;
   const noticeHours = Math.round((noticeMin / 60) * 10) / 10;
   const travels = defaults.where.includes("client");
@@ -302,9 +303,18 @@ export function DefaultsScreen({
           )}
         </Card>
 
-        {/* Time between appointments */}
-        <Card title={copy.t("Time between appointments")} hint={copy.t("Blocked, never charged")}>
+        {/* Prep + time between appointments */}
+        <Card title={copy.t("Preparation and gaps")} hint={copy.t("Blocked on the calendar, never charged")}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <span className={fieldLabel}>{copy.t("Prep before each one")}</span>
+              <UnitInput
+                label={copy.t("Prep before each one")}
+                value={defaults.bufferBeforeMin}
+                unit="min"
+                onValue={(n) => patch({ bufferBeforeMin: n })}
+              />
+            </div>
             <div>
               <span className={fieldLabel}>{copy.t("Buffer after each one")}</span>
               <UnitInput
@@ -314,7 +324,7 @@ export function DefaultsScreen({
                 onValue={(n) => patch({ bufferAfterMin: n })}
               />
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <span className={fieldLabel}>{copy.t("Shortest notice you accept")}</span>
               <UnitInput
                 label={copy.t("Shortest notice you accept")}
@@ -326,9 +336,61 @@ export function DefaultsScreen({
           </div>
           <p className={noteBox}>
             {copy
-              .t("A 60 minute service booked at 10:00 therefore ends at 11:00 for the client and {end} for you.")
+              .t(
+                "A 60 minute service booked at 10:00 with {prep} min prep starts blocking at {block} for you and ends at {end}. Prep and buffer hide overlapping public slots.",
+              )
+              .replace("{prep}", String(prep))
+              .replace("{block}", clock(600 - prep))
               .replace("{end}", clock(660 + buffer))}{" "}
             {copy.t("These times are saved on your defaults. A buffer hides the next slot that would overlap, and the notice hides anything sooner.")}
+          </p>
+        </Card>
+
+        {/* How guests finish the booking sheet */}
+        <Card title={copy.t("Booking sheet button")} hint={copy.t("After they pick a time and leave their details")}>
+          <div className="flex flex-col gap-2">
+            {(
+              [
+                {
+                  id: "confirm_now" as const,
+                  title: copy.t("Confirm now"),
+                  sub: copy.t("They confirm the appointment on the spot (instant offerings)"),
+                },
+                {
+                  id: "contact" as const,
+                  title: copy.t("Contact"),
+                  sub: copy.t("Opens chat with their name, WhatsApp and email already filled"),
+                },
+                {
+                  id: "check_availability" as const,
+                  title: copy.t("Check availability"),
+                  sub: copy.t("Same chat path — wording for when you confirm times by hand"),
+                },
+              ] as const
+            ).map((opt) => {
+              const on = defaults.sheetCtaMode === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => patch({ sheetCtaMode: opt.id })}
+                  className={
+                    on
+                      ? "rounded-lg border border-emerald-900/50 bg-emerald-900/[0.06] px-3.5 py-3 text-left"
+                      : "rounded-lg border border-admin-border-soft bg-white px-3.5 py-3 text-left hover:border-admin-ink-dim/40"
+                  }
+                >
+                  <span className={`block text-[14px] font-semibold ${on ? "text-emerald-900" : "text-admin-ink"}`}>
+                    {opt.title}
+                  </span>
+                  <span className="mt-0.5 block text-[12.5px] leading-snug text-admin-ink-dim">{opt.sub}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[12.5px] text-admin-ink-dim">
+            {copy.t("Both paths still collect name, WhatsApp and email on the same step first.")}
           </p>
         </Card>
       </div>

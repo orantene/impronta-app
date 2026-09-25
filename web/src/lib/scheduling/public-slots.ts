@@ -8,6 +8,7 @@
 
 import { generateSlots, type BusyInterval } from "./slots";
 import type { BookingHours } from "./hours-types";
+import { resolveSellingTimeBuffers } from "./selling-time-buffers";
 
 export const PUBLIC_SLOTS_DEFAULT_DAYS = 7;
 export const PUBLIC_SLOTS_MAX_DAYS = 60;
@@ -73,45 +74,58 @@ export type PublicSlotsInput = {
   busy?: readonly BusyInterval[];
   /**
    * Talent selling defaults (`talent_profiles.selling_defaults`). When
-   * `bufferAfterMin` or `minNoticeMin` is a number, it replaces the hours-row
-   * value for this computation. Absent keys leave the hours row alone.
+   * `bufferBeforeMin`, `bufferAfterMin`, or `minNoticeMin` is a number, it
+   * replaces the hours-row value for this computation. Absent keys leave the
+   * hours row alone.
    */
   sellingDefaults?: unknown;
-  /** Per-service buffer. Wins over the defaults buffer when it is a number. */
+  /** Per-service cleanup buffer. Wins over the defaults buffer when set. */
   offeringBufferAfterMin?: number | null;
+  /** Per-service prep buffer (before start). Wins over defaults when set. */
+  offeringBufferBeforeMin?: number | null;
+  /** Raw offering.attributes — alternative to the two overrides above. */
+  offeringAttributes?: unknown;
 };
-
-function finiteInt(v: unknown, min: number, max: number): number | null {
-  if (typeof v !== "number" || !Number.isFinite(v)) return null;
-  const n = Math.trunc(v);
-  if (n < min || n > max) return null;
-  return n;
-}
 
 /**
  * Services defaults are saved on the profile, not on `talent_booking_hours`.
  * Slot generation only reads the hours object, so this copies the saved
- * buffer and minimum notice onto it before any start is offered.
+ * prep/cleanup buffers and minimum notice onto it before any start is offered.
  */
 export function applySellingTimeToHours(
   hours: BookingHours,
   sellingDefaults: unknown,
   offeringBufferAfterMin?: number | null,
+  offeringBufferBeforeMin?: number | null,
+  offeringAttributes?: unknown,
 ): BookingHours {
-  const raw =
-    sellingDefaults && typeof sellingDefaults === "object" && !Array.isArray(sellingDefaults)
-      ? (sellingDefaults as Record<string, unknown>)
-      : null;
-  const fromDefaults = raw ? finiteInt(raw.bufferAfterMin, 0, 240) : null;
-  const fromOffering =
-    typeof offeringBufferAfterMin === "number" ? finiteInt(offeringBufferAfterMin, 0, 240) : null;
-  const buffer = fromOffering ?? fromDefaults;
-  const notice = raw ? finiteInt(raw.minNoticeMin, 0, 60 * 24 * 30) : null;
-  if (buffer == null && notice == null) return hours;
+  const resolved = resolveSellingTimeBuffers({
+    sellingDefaults,
+    offeringAttributes:
+      offeringAttributes ??
+      (offeringBufferAfterMin != null || offeringBufferBeforeMin != null
+        ? {
+            ...(typeof offeringBufferAfterMin === "number"
+              ? { bufferAfterMin: offeringBufferAfterMin }
+              : {}),
+            ...(typeof offeringBufferBeforeMin === "number"
+              ? { bufferBeforeMin: offeringBufferBeforeMin }
+              : {}),
+          }
+        : undefined),
+  });
+  if (
+    resolved.bufferAfterMin == null &&
+    resolved.bufferBeforeMin == null &&
+    resolved.minNoticeMin == null
+  ) {
+    return hours;
+  }
   return {
     ...hours,
-    ...(buffer != null ? { bufferAfterMin: buffer } : {}),
-    ...(notice != null ? { minNoticeMin: notice } : {}),
+    ...(resolved.bufferAfterMin != null ? { bufferAfterMin: resolved.bufferAfterMin } : {}),
+    ...(resolved.bufferBeforeMin != null ? { bufferBeforeMin: resolved.bufferBeforeMin } : {}),
+    ...(resolved.minNoticeMin != null ? { minNoticeMin: resolved.minNoticeMin } : {}),
   };
 }
 
@@ -127,7 +141,13 @@ function hasAnyOpenWindow(hours: BookingHours): boolean {
 /** Starts plus the reason there are none. `computePublicSlotStarts` is this, minus the reason. */
 export function computePublicSlots(input: PublicSlotsInput): PublicSlots {
   const timed = input.hours
-    ? applySellingTimeToHours(input.hours, input.sellingDefaults, input.offeringBufferAfterMin)
+    ? applySellingTimeToHours(
+        input.hours,
+        input.sellingDefaults,
+        input.offeringBufferAfterMin,
+        input.offeringBufferBeforeMin,
+        input.offeringAttributes,
+      )
     : null;
   if (!timed || !hasAnyOpenWindow(timed)) {
     return { starts: [], reason: "no_booking_hours" };

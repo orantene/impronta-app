@@ -12,9 +12,9 @@ import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
 
 import {
-    catalogCanContinueWhen,
-    catalogNeedsOptions,
-    submitCatalogBooking,
+  catalogCanContinueWhen,
+  catalogNeedsOptions,
+  submitCatalogBooking,
   catalogNextDays,
   catalogTotalCents,
   demoReservationIso,
@@ -30,6 +30,12 @@ import {
 } from "./catalog-booking-chat";
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
+import {
+  sheetEffectiveIntent,
+  sheetWhoPrimaryLabel,
+  sheetWhoUsesChat,
+  type SheetCtaMode,
+} from "@/lib/talent/sheet-cta-mode";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -79,6 +85,7 @@ export function CatalogBookingSheet({
   showAsk = false,
   onAsk,
   captcha = null,
+  sheetCtaMode = null,
 }: {
   locale?: string;
   mode?: CatalogBookingMode;
@@ -89,6 +96,8 @@ export function CatalogBookingSheet({
   /** Override ask/chat handoff. Default opens existing guest chat with context. */
   onAsk?: (handoff: CatalogBookingChatHandoff) => void;
   captcha?: GuestCaptchaConfig | null;
+  /** Talent selling_defaults.sheetCtaMode — Contact / Confirm now / Check availability. */
+  sheetCtaMode?: SheetCtaMode | null;
 }) {
   const es = locale.startsWith("es");
   const DAYS = es ? DAYS_ES : DAYS_EN;
@@ -234,6 +243,9 @@ export function CatalogBookingSheet({
   const emailValid = /.+@.+\..+/.test(email.trim());
   const phoneValid = phone.trim() === "" || phone.replace(/\D/g, "").length >= 8;
   const isRequest = detail.intent === "request";
+  const whoUsesChat = sheetWhoUsesChat(sheetCtaMode, detail.intent);
+  const effectiveIntent = sheetEffectiveIntent(sheetCtaMode, detail.intent);
+  const whoPrimaryLabel = sheetWhoPrimaryLabel(sheetCtaMode, detail.intent, locale);
   const selectedTime = catalogCanContinueWhen(time);
   const chatNameValid = name.trim().length >= 2;
   const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
@@ -287,7 +299,7 @@ export function CatalogBookingSheet({
     }
     setBusy(true);
     setError(null);
-    const submitted = await submitCatalogBooking(mode, detail.intent, async () => {
+    const submitted = await submitCatalogBooking(mode, effectiveIntent, async () => {
       if (!tenantId || !detail.talentProfileId) {
         return { ok: false as const, error: es ? "Falta el estudio para guardar la cita." : "This site is not ready to take bookings." };
       }
@@ -741,22 +753,24 @@ export function CatalogBookingSheet({
             </button>
           ) : null}
           {step === "who" ? (
-            isRequest ? (
+            whoUsesChat ? (
               <button
                 type="button"
                 className="jb-cta"
                 data-catalog-continue="who"
                 data-catalog-chat="primary"
+                data-sheet-cta={sheetCtaMode ?? "legacy"}
                 disabled={busy}
                 onClick={() => startChat()}
               >
-                {es ? "Chateá ahora" : "Chat now"}
+                {whoPrimaryLabel}
               </button>
             ) : (
               <button
                 type="button"
                 className="jb-cta"
                 data-catalog-continue="who"
+                data-sheet-cta={sheetCtaMode ?? "confirm_now"}
                 disabled={busy}
                 onClick={() => void confirm()}
               >
@@ -764,9 +778,7 @@ export function CatalogBookingSheet({
                   ? es
                     ? "Enviando…"
                     : "Sending…"
-                  : es
-                    ? "Confirmar cita"
-                    : "Confirm"}
+                  : whoPrimaryLabel}
               </button>
             )
           ) : null}

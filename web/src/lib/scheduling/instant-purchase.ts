@@ -26,6 +26,10 @@ import type { PurchaseResult } from "@/lib/orders/purchase-types";
 import { parseOfferingResourceSet } from "@/lib/resources/offering-resource-set";
 import { spaceCapacityPool } from "@/lib/resources/reserve-set";
 import { instantBookPaymentChoice } from "@/lib/scheduling/instant-book-payment-choice";
+import {
+  resolveSellingTimeBuffers,
+  sellingBuffersAsHoldSeconds,
+} from "@/lib/scheduling/selling-time-buffers";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
@@ -183,6 +187,22 @@ export async function placeInstantPurchase(
     });
   }
 
+  // Prep + cleanup from selling defaults / offering attrs → hold padding so
+  // the calendar blocks preparation time, not only service duration.
+  const { data: talentDefaultsRow } = await admin
+    .from("talent_profiles")
+    .select("selling_defaults")
+    .eq("id", input.talentProfileId)
+    .maybeSingle();
+  const holdBuffers = sellingBuffersAsHoldSeconds(
+    resolveSellingTimeBuffers({
+      sellingDefaults: isRecord(talentDefaultsRow)
+        ? talentDefaultsRow.selling_defaults
+        : null,
+      offeringAttributes: policy.attributes,
+    }),
+  );
+
   return createPurchase(admin, {
     tenantId,
     clientOrderKey: input.clientOrderKey,
@@ -217,6 +237,8 @@ export async function placeInstantPurchase(
           startsAt: reservation.startsAt,
           endsAt: reservation.endsAt,
           poolId,
+          bufferBeforeSeconds: holdBuffers.bufferBeforeSeconds,
+          bufferAfterSeconds: holdBuffers.bufferAfterSeconds,
         }
       : null,
     // Several people (couples). Reserved with the primary slot as one set.
@@ -227,6 +249,8 @@ export async function placeInstantPurchase(
             startsAt: reservation.startsAt,
             endsAt: reservation.endsAt,
             title: "Couples therapist",
+            bufferBeforeSeconds: holdBuffers.bufferBeforeSeconds,
+            bufferAfterSeconds: holdBuffers.bufferAfterSeconds,
           }))
         : undefined,
     openThread: input.openThread,

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { parseSheetCtaMode, type SheetCtaMode } from "@/lib/talent/sheet-cta-mode";
+
 export type SellingDefaults = {
   depositPct: number | null;
   cancelHours: number | null;
@@ -11,8 +13,16 @@ export type SellingDefaults = {
   where: string[];
   travelRadiusKm: number | null;
   travelFeeCents: number | null;
+  /** Prep minutes blocked before each appointment start. */
+  bufferBeforeMin: number | null;
+  /** Cleanup / turnaround minutes after each appointment. */
   bufferAfterMin: number | null;
   minNoticeMin: number | null;
+  /**
+   * Who-step primary CTA mode for the public booking sheet.
+   * null → legacy (instant offerings confirm; request offerings chat).
+   */
+  sheetCtaMode: SheetCtaMode | null;
 };
 
 export type AddonGroup = {
@@ -64,8 +74,10 @@ export async function loadSellingDefaults(
       where: Array.isArray(raw.where) ? raw.where.filter((v): v is string => typeof v === "string") : ["studio"],
       travelRadiusKm: typeof raw.travelRadiusKm === "number" ? raw.travelRadiusKm : null,
       travelFeeCents: typeof raw.travelFeeCents === "number" ? raw.travelFeeCents : null,
+      bufferBeforeMin: typeof raw.bufferBeforeMin === "number" ? raw.bufferBeforeMin : null,
       bufferAfterMin: typeof raw.bufferAfterMin === "number" ? raw.bufferAfterMin : null,
       minNoticeMin: typeof raw.minNoticeMin === "number" ? raw.minNoticeMin : null,
+      sheetCtaMode: parseSheetCtaMode(raw.sheetCtaMode),
     },
   };
 }

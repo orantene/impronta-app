@@ -10,6 +10,7 @@
 import { headers } from "next/headers";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
+import { parseSheetCtaMode } from "@/lib/talent/sheet-cta-mode";
 import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import {
@@ -370,6 +371,7 @@ async function loadServicesCatalogSources(
     BuilderNodeRenderDataSources,
     | "talentOfferings"
     | "talentOfferingsConfirmsByHand"
+    | "talentOfferingsSheetCtaMode"
     | "talentOfferingsUsdRates"
     | "talentOfferingsCategoryOrder"
     | "talentOfferingsCategoryNotes"
@@ -379,6 +381,7 @@ async function loadServicesCatalogSources(
   let confirmsByHand = true;
   let categoryOrder: string[] = [];
   let categoryNotes: Record<string, string> | undefined;
+  let sheetCtaMode = parseSheetCtaMode(null);
   const admin = createServiceRoleClient();
   if (admin) {
     const { data, error } = await admin
@@ -392,7 +395,8 @@ async function loadServicesCatalogSources(
       );
       const raw = (data as { category_order?: string[] | null } | null)?.category_order;
       if (Array.isArray(raw)) categoryOrder = raw.filter((name): name is string => typeof name === "string");
-      const defaults = (data as { selling_defaults?: { categoryNotes?: unknown } | null } | null)?.selling_defaults;
+      const defaults = (data as { selling_defaults?: { categoryNotes?: unknown; sheetCtaMode?: unknown } | null } | null)?.selling_defaults;
+      sheetCtaMode = parseSheetCtaMode(defaults?.sheetCtaMode);
       const notes = defaults?.categoryNotes;
       if (notes && typeof notes === "object" && !Array.isArray(notes)) {
         const next: Record<string, string> = {};
@@ -407,6 +411,7 @@ async function loadServicesCatalogSources(
   return {
     talentOfferings: offerings,
     talentOfferingsConfirmsByHand: confirmsByHand,
+    ...(sheetCtaMode ? { talentOfferingsSheetCtaMode: sheetCtaMode } : {}),
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
     ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),
     ...(categoryNotes ? { talentOfferingsCategoryNotes: categoryNotes } : {}),

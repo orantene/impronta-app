@@ -12,6 +12,7 @@ import {
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
+import type { SheetCtaMode } from "@/lib/talent/sheet-cta-mode";
 
 export type CatalogGroup = { name: string | null; items: TalentOffering[]; note?: string | null };
 
@@ -86,6 +87,7 @@ export function ServicesCatalogFilter({
   mobileBar = "float",
   showAskLink = true,
   sheetAccent = "ink",
+  sheetCtaMode = null,
 }: {
   groups: CatalogGroup[];
   locale: string;
@@ -106,6 +108,8 @@ export function ServicesCatalogFilter({
   /** Pass-through to sheet; chat handoff owned by sibling sheet/chat PR. */
   showAskLink?: boolean;
   sheetAccent?: "ink" | "primary";
+  /** Talent selling_defaults.sheetCtaMode. */
+  sheetCtaMode?: SheetCtaMode | null;
 }) {
   const named = groups.filter((g) => g.name);
   const first = named[0]?.name ?? null;
@@ -294,6 +298,7 @@ export function ServicesCatalogFilter({
         mode={bookingMode}
         tenantId={tenantId}
         showAsk={showAskLink}
+        sheetCtaMode={sheetCtaMode}
       />
     </div>
   );
