@@ -208,6 +208,14 @@ export type BridgeData = {
   /** Set when loadTalentAgenda failed; null when ok or flag off. */
   talentAgendaError?: string | null;
   /**
+   * Server-evaluated Agenda V2 gate for this talent. Client shell must use
+   * this — `process.env.TALENT_AGENDA_V2` is not available in the browser
+   * bundle (non-NEXT_PUBLIC), so re-reading the flag on the client always
+   * looked "off" and kept legacy Today/Calendar even when Production env
+   * was set.
+   */
+  talentAgendaV2?: boolean;
+  /**
    * Phase D — talent earnings aggregated from commission snapshots. null = mock mode.
    * L49 (talent Money tabs): upgraded to `TalentEarningsByCurrency` so the Money
    * surface can render a per-currency tab strip when the talent has multi-currency

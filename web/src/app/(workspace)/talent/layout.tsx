@@ -178,6 +178,9 @@ export default async function PlatformTalentLayout({
       : baseProfile;
 
   const initialTalentPage = derivePlatformTalentPage(pathname);
+  // Evaluate once on the server and stamp onto the bridge — client
+  // components cannot read TALENT_AGENDA_V2 (non-NEXT_PUBLIC).
+  const talentAgendaV2 = isAgendaV2(talentSelfProfile.id);
 
   const [
     talentInquiries,
@@ -212,10 +215,10 @@ export default async function PlatformTalentLayout({
     loadProfileDisplayName(session.user.id),
     // Agenda V2: loadTalentAgenda behind the flag only. Flag off keeps the
     // legacy calendar bridge so Today/Calendar stay unchanged.
-    isAgendaV2(talentSelfProfile.id)
+    talentAgendaV2
       ? Promise.resolve([])
       : loadTalentCalendarEntries(talentSelfProfile.id),
-    isAgendaV2(talentSelfProfile.id)
+    talentAgendaV2
       ? loadTalentAgendaForLayout(talentSelfProfile.id)
       : Promise.resolve({ items: [], hours: null, error: null as string | null }),
     loadTalentEarningsByCurrency(talentSelfProfile.id),
@@ -342,6 +345,7 @@ export default async function PlatformTalentLayout({
         talentAgendaItems: talentAgendaLoad.items,
         talentAgendaHours: talentAgendaLoad.hours,
         talentAgendaError: talentAgendaLoad.error,
+        talentAgendaV2,
         talentEarnings: displayEarnings,
         userNotifications,
         profileEditorLayout,

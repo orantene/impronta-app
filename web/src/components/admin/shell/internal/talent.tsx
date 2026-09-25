@@ -23,7 +23,6 @@ import { AgendaAvailabilityPage } from "./talent/agenda/AgendaAvailabilityPage";
 import { AgendaBookingRecord } from "./talent/agenda/AgendaBookingRecord";
 import { AgendaNewBooking } from "./talent/agenda/AgendaNewBooking";
 import { buildAgendaListItemFromAgendaItem } from "./talent/agenda/view-model";
-import { isAgendaV2 } from "@/lib/talent-agenda/flag";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { tradeCalendarRules } from "@/lib/talent-agenda/trade-calendar";
 
@@ -259,8 +258,8 @@ function TalentSidebar() {
 // ─── Router ───────────────────────────────────────────────────────
 
 function TalentRouter() {
-  const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentAgendaHours, bridgeTalentAgendaError, toast } = useAdminShell();
-  const agendaV2 = isAgendaV2(bridgeTalentSelfProfile?.id);
+  const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentAgendaHours, bridgeTalentAgendaError, bridgeTalentAgendaV2, toast } = useAdminShell();
+  const agendaV2 = bridgeTalentAgendaV2;
   const agendaNow = readAgendaNowClient(new Date());
   const tradeRules = tradeCalendarRules(bridgeTalentSelfProfile?.primaryTypeLabel);
   const openAgendaPath = (path: string, fallbackPage: TalentPage) => {
