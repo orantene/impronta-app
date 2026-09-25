@@ -63,7 +63,13 @@ export type GuestDockCatalogProps = {
   /** Prefill the composer and jump to Chat. */
   onAsk: (text: string) => void;
   /** This talent's services. When present, chips are their category names. */
-  serviceMenu?: readonly { title: string; category: string }[];
+  serviceMenu?: readonly {
+    title: string;
+    category: string;
+    amountCents?: number | null;
+    currency?: string | null;
+    priceLabel?: string | null;
+  }[];
 };
 
 function Chip({ on, label, onClick, C, accent }: { on: boolean; label: string; onClick: () => void; C: Palette; accent: string }) {
@@ -228,7 +234,17 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
       {usingServices
         ? serviceMenu.filter((item) => item.category === activeService).map((item) => (
             <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
-              <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink }}>{item.title}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+                {item.priceLabel ? (
+                  <div
+                    data-guest-service-price
+                    style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  >
+                    {item.priceLabel}
+                  </div>
+                ) : null}
+              </div>
               <SmallButton label={t("public.guestChat.catalogAsk")} onClick={() => onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: item.title, business: businessName }))} C={C} accent={accent} accentInk={accentInk} />
             </div>
           ))

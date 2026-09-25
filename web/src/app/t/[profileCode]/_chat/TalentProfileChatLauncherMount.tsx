@@ -30,7 +30,9 @@
 import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 import { categoryChipLabel } from "./category-chip-label";
+import { guestDockServicePriceLabel } from "./guest-dock-service-price";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { loadUsdRatesForSitePrices } from "@/lib/talent-site/server/vanity-usd-rates";
 import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
 import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
 import { createTranslator } from "@/i18n/messages";
@@ -112,6 +114,11 @@ type TalentProfileChatLauncherMountProps = {
    * is what every agency surface wants. See `resolveTalentTradePreset`.
    */
   wordsPresetOverride?: IndustryPresetId | null;
+  /**
+   * Solo vanity host: omit the platform brand from guest-account copy so the
+   * panel never names Tulala on her own site (front-door Ana step 1).
+   */
+  omitPlatformBrand?: boolean;
 };
 
 export async function TalentProfileChatLauncherMount({
@@ -130,6 +137,7 @@ export async function TalentProfileChatLauncherMount({
   locale = null,
   backgroundMode = null,
   wordsPresetOverride = null,
+  omitPlatformBrand = false,
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
@@ -163,6 +171,7 @@ export async function TalentProfileChatLauncherMount({
   // with none get a single "Custom quote" default so EVERY talent is
   // requestable from the chat.
   const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, locale ?? "en");
+  const usdRates = await loadUsdRatesForSitePrices(publicOfferings);
   const chatOfferings: GuestChatOffering[] =
     publicOfferings.length > 0
       ? publicOfferings.slice(0, 8).map((o) => ({
@@ -210,14 +219,31 @@ export async function TalentProfileChatLauncherMount({
       brand={{
         ...dockFlags,
         dockServiceMenu: publicOfferings
-          .map((o) => ({ title: o.title, category: categoryChipLabel(o.category) }))
-          .filter((o) => o.category),
+          .map((o) => {
+            const category = categoryChipLabel(o.category);
+            if (!category) return null;
+            const amountCents = o.visibility === "on_request" ? null : o.amountCents;
+            return {
+              title: o.title,
+              category,
+              amountCents,
+              currency: o.currency,
+              priceLabel: guestDockServicePriceLabel(
+                amountCents,
+                o.currency,
+                usdRates,
+                locale ?? "en",
+              ),
+            };
+          })
+          .filter((o): o is NonNullable<typeof o> => o != null),
         agencyName,
         talentDisplayName,
         accentColor,
         logoUrl,
         greeting,
         locale,
+        omitPlatformBrand,
       }}
       label={t("public.guestChat.bookNow")}
       // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.

@@ -71,3 +71,9 @@ test("D-MSG-222: the guest catalog offers only people the public directory lists
   assert.match(reader, /\.is\("deleted_at", null\)/);
   assert.match(reader, /codes\.has\(r\.talentProfileId\)/);
 });
+
+test("solo service rows print a money line when priceLabel is set", () => {
+  const src = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.match(src, /data-guest-service-price/);
+  assert.match(src, /item\.priceLabel/);
+});

@@ -756,8 +756,22 @@ export type MiniChatBrand = {
   dockRepresentsPeople?: boolean;
   /** Progress-rail trade. Null keeps the numeric details chip. */
   dockIntake?: "beauty" | "chef" | "massage" | "agency" | null;
-  /** This talent's own services, grouped into catalogue chips by category name. */
-  dockServiceMenu?: readonly { title: string; category: string }[];
+  /**
+   * This talent's own services, grouped into catalogue chips by category name.
+   * `priceLabel` is the printed money line ("$500 MXN · ≈ US$28") when known.
+   */
+  dockServiceMenu?: readonly {
+    title: string;
+    category: string;
+    amountCents?: number | null;
+    currency?: string | null;
+    priceLabel?: string | null;
+  }[];
+  /**
+   * Talent vanity / solo hosts: the panel speaks as the trade, not the platform.
+   * When true, guest-account copy omits the platform brand name (Tulala).
+   */
+  omitPlatformBrand?: boolean;
 };
 
 export type MiniChatPanelProps = {
