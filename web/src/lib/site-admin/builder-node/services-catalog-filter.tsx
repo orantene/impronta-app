@@ -6,6 +6,7 @@ import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent"
 import { formatMoney } from "@/lib/talent/offerings-money";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { CatalogBookingSheet } from "@/components/public-booking/CatalogBookingSheet";
+import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import {
   catalogRowCtaLabel,
   catalogRowHasOptions,
@@ -86,6 +87,7 @@ export function ServicesCatalogFilter({
   mobileBar = "float",
   showAskLink = true,
   sheetAccent = "ink",
+  captcha = null,
 }: {
   groups: CatalogGroup[];
   locale: string;
@@ -106,6 +108,8 @@ export function ServicesCatalogFilter({
   /** Pass-through to sheet; chat handoff owned by sibling sheet/chat PR. */
   showAskLink?: boolean;
   sheetAccent?: "ink" | "primary";
+  /** Tenant captcha — required when createInstantBookingAction enforces it. */
+  captcha?: GuestCaptchaConfig | null;
 }) {
   const named = groups.filter((g) => g.name);
   const first = named[0]?.name ?? null;
@@ -294,6 +298,7 @@ export function ServicesCatalogFilter({
         mode={bookingMode}
         tenantId={tenantId}
         showAsk={showAskLink}
+        captcha={captcha}
       />
     </div>
   );
