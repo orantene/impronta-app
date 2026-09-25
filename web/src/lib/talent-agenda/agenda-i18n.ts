@@ -253,7 +253,6 @@ const ES: Record<string, string> = {
   "Not blocking your time until you accept.": "No bloquea tu tiempo hasta que aceptes.",
   "Agency client": "Cliente de agencia",
   "Agency-managed": "Gestionado por agencia",
-  "Direct booking": "Reserva directa",
   Agreed: "Acordado",
   "Flexible timing": "Horario flexible",
   "As agreed": "Según lo acordado",
@@ -337,7 +336,6 @@ const ES: Record<string, string> = {
   Failed: "Falló",
 
   // Booking record (request flow)
-  Request: "Solicitud",
   Accept: "Aceptar",
   "Accepting…": "Aceptando…",
   "Accepting re-checks the hour on the server. Suggest another time keeps the request open. Decline closes it.":
@@ -379,7 +377,6 @@ const ES: Record<string, string> = {
     "Borrador guardado. La fecha queda bloqueada mientras el borrador está activo. Nada más queda reservado hasta que se acepte.",
   "Draft saved. Nothing is reserved until the quote is accepted.":
     "Borrador guardado. Nada queda reservado hasta que se acepte la cotización.",
-  Deliverables: "Entregables",
   "Due date": "Fecha de entrega",
   "Project draft saved. Due dates appear on your calendar. No appointment was created. No client email was sent.":
     "Borrador de proyecto guardado. Las fechas de entrega aparecen en tu calendario. No se creó cita. No se envió correo al cliente.",
