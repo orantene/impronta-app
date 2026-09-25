@@ -26,6 +26,17 @@ describe("offeringChipPriceLabel", () => {
     assert.equal(offeringChipPriceLabel(offering({ amountCents: 50000, currency: "USD" }), "en"), "$500");
   });
 
+  it("formats MXN chips as amount + code (Hablar mockup)", () => {
+    assert.equal(
+      offeringChipPriceLabel(offering({ amountCents: 50000, currency: "MXN" }), "es"),
+      "500 MXN",
+    );
+    assert.equal(
+      offeringChipPriceLabel(offering({ amountCents: 30000, currency: "MXN" }), "es"),
+      "300 MXN",
+    );
+  });
+
   it("returns the localized quote word for a priceless real offering", () => {
     const o = offering({ offeringId: "svc-1", title: "Portrait session", amountCents: null });
     assert.equal(offeringChipPriceLabel(o, "en"), "quote");

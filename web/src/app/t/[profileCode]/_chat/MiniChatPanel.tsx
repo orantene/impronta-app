@@ -91,10 +91,12 @@ function readStoredDockView(): GuestDockView | null {
   return null;
 }
 
-/**
- * The view the dock opens into. A remembered session view wins. Otherwise the
- * panel opens on Chat (Talk). Home stays in the view union for a stored session.
- */
+/** Remap stale "home" sessions to Hablar chat (empty-home = bubble + chips). */
+function normalizeDockView(view: GuestDockView): GuestDockView {
+  return view === "home" ? "chat" : view;
+}
+
+/** Remembered view wins (home→chat); otherwise open on Hablar chat. */
 function resolveInitialDockView(
   existingInquiryId: string | null,
   cartTalentIds: readonly string[] | undefined,
@@ -102,7 +104,7 @@ function resolveInitialDockView(
   void existingInquiryId;
   void cartTalentIds;
   const stored = readStoredDockView();
-  if (stored) return stored;
+  if (stored) return normalizeDockView(stored);
   return "chat";
 }
 
@@ -114,10 +116,6 @@ function persistDockView(view: GuestDockView): void {
     /* best-effort */
   }
 }
-
-// ───────────────────────────────────────────────────────────────────────────
-// Component
-// ───────────────────────────────────────────────────────────────────────────
 
 export function MiniChatPanel({
   open,
@@ -235,14 +233,12 @@ export function MiniChatPanel({
     setDockViewState(view);
     persistDockView(view);
   };
-  // Fresh OPEN: remembered view, else Chat when context exists, else Home.
-  // Also apply booking-sheet Chat now contact + composer prefix.
+  // Fresh OPEN: remembered view (home→chat), else Hablar chat empty-home.
   const wasOpenRef = useRef(false);
-  const hasActiveContext = Boolean(existingInquiryId) || (cartTalentIds?.length ?? 0) > 0;
   useEffect(() => {
     if (open && !wasOpenRef.current) {
       const stored = readStoredDockView();
-      setDockViewState(stored ?? (hasActiveContext ? "chat" : "home"));
+      setDockViewState(stored ? normalizeDockView(stored) : "chat");
       const h = consumeBookingSheetChatHandoff(brand.locale ?? "en");
       if (h.firstName != null) setFirstName(h.firstName);
       if (h.lastName != null) setLastName(h.lastName);
@@ -254,7 +250,7 @@ export function MiniChatPanel({
       }
     }
     wasOpenRef.current = open;
-  }, [open, hasActiveContext, brand.locale]);
+  }, [open, brand.locale]);
 
   // useGuestInquiriesList — W2-A also feeds Projects; refresh on enter only.
   const inquiries = useGuestInquiriesList({

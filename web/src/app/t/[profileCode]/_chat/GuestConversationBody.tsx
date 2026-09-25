@@ -176,8 +176,10 @@ export function GuestConversationBody({
             // takes the editorial serif (display axis); subsequent thread
             // bubbles stay system-sans.
             fontFamily: FONT_DISPLAY,
-            fontSize: 14.5,
-            lineHeight: 1.5,
+            // Hablar empty-home mockup: greeting is a single prominent serif bubble.
+            fontSize: 16,
+            fontWeight: 500,
+            lineHeight: 1.45,
           }}
         >
           {/* Talent-pick-first lead (empty cart, plan §B.2): steer the visitor to
