@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 
+import { consumePendingConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { MessagesV5Shell } from "@/components/messages-v5/shell/MessagesV5Shell";
 import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine";
@@ -14,7 +16,15 @@ import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 function TalentMessagesV5() {
   const { bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
   const tenantId = bridgeTenantIdentity?.tenantId ?? "";
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  // Match admin InboxPage: `/talent/inbox?inquiry=<uuid>` deep links.
+  const linkedInquiry = searchParams.get("inquiry");
+  const fromQuery =
+    linkedInquiry && /^[0-9a-f-]{36}$/i.test(linkedInquiry) ? linkedInquiry : null;
+  // `/talent/inbox/[id]` PinThenRedirect pins then replaces to /talent/inbox.
+  const [fromPin] = useState(() => consumePendingConversation());
+  const initialInquiryId = fromQuery ?? fromPin;
+  const [activeId, setActiveId] = useState<string | null>(initialInquiryId);
   return (
     <div
       data-talent-messages-v5
@@ -31,6 +41,7 @@ function TalentMessagesV5() {
         workspaceType="talent"
         engine={talentShellEngine}
         live={Boolean(tenantId)}
+        initialInquiryId={initialInquiryId}
         onActiveInquiry={setActiveId}
       />
     </div>
