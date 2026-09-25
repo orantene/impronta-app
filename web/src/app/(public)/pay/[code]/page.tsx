@@ -168,7 +168,13 @@ export default async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
-        status={loaded.status === "cancelled" ? "cancelled" : "unknown"}
+        status={
+          loaded.status === "cancelled"
+            ? "cancelled"
+            : loaded.status === "replaced"
+              ? "replaced"
+              : "unknown"
+        }
         lines={[]}
         holdUntil={null}
         stripeUrl={null}
