@@ -84,6 +84,27 @@ test("renderTalentMaxSite loads USD rates on the vanity path (D-MSG-421)", () =>
   assert.match(source, /loadPublicOfferingsForProfile\(talentProfileId, locale, null\)/);
 });
 
+test("proxy rebinds talent headers on /_talent-site rewrite re-entry (D-MSG-431)", () => {
+  const source = src("src/proxy.ts");
+  // The short-circuit must NOT forward only the stripped clone — that wiped
+  // the first-pass talent headers and 404ed every vanity host under Next's
+  // rewrite re-invoke.
+  assert.doesNotMatch(
+    source,
+    /pathname\.startsWith\("\/_talent-site\/"\)\s*\)\s*\{\s*return NextResponse\.next\(\{\s*request:\s*\{\s*headers:\s*sanitizedInboundHeaders\s*\}\s*\}\)/,
+  );
+  assert.match(source, /D-MSG-431/);
+  assert.match(source, /resolveTenantContext\(request, candidateHost\)/);
+  assert.match(
+    source,
+    /rebound\.set\(HOST_TALENT_PROFILE_HEADER, reboundCtx\.talentProfileId\)/,
+  );
+  assert.match(
+    source,
+    /rebound\.set\(HOST_CONTEXT_HEADER, "talent_site"\)/,
+  );
+});
+
 test("every talent-reachable builder surface pins raw HTML off", () => {
   for (const file of [
     "src/components/talent/site/TalentMaxBuilderMount.tsx",

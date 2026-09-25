@@ -136,10 +136,29 @@ export async function proxy(request: NextRequest) {
     pathname === "/_talent-site" ||
     pathname.startsWith("/_talent-site/")
   ) {
-    // Forward the sanitized headers so the `/_talent-site` short-circuit can
-    // NEVER carry a client-forged `x-impronta-talent-profile` /
-    // `x-impronta-host-context` into the route.
-    return NextResponse.next({ request: { headers: sanitizedInboundHeaders } });
+    // Next re-invokes proxy on the rewrite destination. The first pass sets
+    // talent headers, but this short-circuit previously forwarded only the
+    // STRIPPED inbound clone — wiping `x-impronta-host-context` /
+    // `x-impronta-talent-profile` and 404ing every talent vanity host
+    // (D-MSG-431). Re-resolve from the proxy-written host name (or Host) and
+    // re-bind; never trust client-supplied talent headers alone.
+    const rebound = new Headers(sanitizedInboundHeaders);
+    const candidateHost =
+      (request.headers.get(HOST_NAME_HEADER) ?? "").trim() ||
+      (request.headers.get("host") ?? "").split(":")[0]?.trim() ||
+      "";
+    if (candidateHost) {
+      const reboundCtx = await resolveTenantContext(request, candidateHost);
+      if (reboundCtx.kind === "talent_site") {
+        rebound.set(HOST_CONTEXT_HEADER, "talent_site");
+        rebound.set(HOST_NAME_HEADER, reboundCtx.hostname);
+        rebound.set(HOST_TALENT_PROFILE_HEADER, reboundCtx.talentProfileId);
+        rebound.delete(TENANT_HEADER_NAME);
+        rebound.delete(HOST_TENANT_SLUG_HEADER);
+        rebound.delete(PUBLIC_PATH_PREFIX_HEADER);
+      }
+    }
+    return NextResponse.next({ request: { headers: rebound } });
   }
 
   // Dev surfaces skip host gating but still mint guest cookie for /c/[inquiryId].
