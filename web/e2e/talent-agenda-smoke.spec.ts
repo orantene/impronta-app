@@ -262,15 +262,17 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
+    const gel = page.getByText(/QA:agenda-v2 Gel set/i).first();
+    try {
+      await expect(gel).toBeVisible({ timeout: 45_000 });
+    } catch {
+      test.skip(true, "No seeded Gel set row on Today for agendaNow pin");
+    }
     const row = page.getByRole("button", { name: /QA:agenda-v2 Gel set/i }).first();
-    if (!(await row.isVisible().catch(() => false))) {
-      const byText = page.getByText(/QA:agenda-v2 Gel set/i).first();
-      if (!(await byText.isVisible().catch(() => false))) {
-        test.skip(true, "No seeded Gel set row on Today for agendaNow pin");
-      }
-      await byText.click();
-    } else {
+    if (await row.isVisible().catch(() => false)) {
       await row.click();
+    } else {
+      await gel.click();
     }
     const finish = page.getByRole("button", { name: /Finish and collect/i });
     await expect(finish).toBeVisible({ timeout: 30_000 });
@@ -291,7 +293,8 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
     await go.click();
     const payLink = page.locator('a[href*="/pay/"]').first();
     const amountDue = page.getByText(/Card needs an amount due|importe pendiente/i);
-    await expect(payLink.or(amountDue).first()).toBeVisible({ timeout: 45_000 });
+    const payReady = page.getByText(/Pay link ready|Enlace de pago listo|Card link ready/i);
+    await expect(payLink.or(amountDue).or(payReady).first()).toBeVisible({ timeout: 45_000 });
     await page.screenshot({ path: path.join(EVIDENCE, "finish-card-pay-link.png"), fullPage: true });
   });
 

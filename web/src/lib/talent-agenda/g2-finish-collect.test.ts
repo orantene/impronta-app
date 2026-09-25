@@ -73,6 +73,8 @@ describe("G2.1 / A0 finish-collect honesty", () => {
     const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
     assert.match(src, /ensureAgendaOrderShell/);
     assert.match(src, /source_channel:\s*"talent_agenda"/);
+    assert.match(src, /guest_session_id/);
+    assert.match(src, /ensureCustomer/);
     assert.doesNotMatch(src, /reason:\s*"no_order"/);
   });
 

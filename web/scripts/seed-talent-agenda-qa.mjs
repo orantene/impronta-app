@@ -259,6 +259,8 @@ async function seedWeekFixtures(talentProfileId, tenantId, createdByUserId) {
         contact_name: clientName,
         source_type_snapshot: "manual",
         internal_notes: internalNotes ?? `${TAG} fixture`,
+        // Email so Finish→Card can ensureCustomer (orders need an identity).
+        contact_email: `${clientName.toLowerCase().replace(/[^a-z0-9]+/g, ".")}@qa.agenda.local`,
       })
       .select("id")
       .single();
