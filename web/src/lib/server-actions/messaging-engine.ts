@@ -23,6 +23,7 @@ import { matchCustomers } from "@/lib/messaging/match-customers";
 import { mergeInquiries } from "@/lib/messaging/merge";
 import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { fail } from "@/lib/messaging/refusals";
+import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
 import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 import { renameInquiry } from "@/lib/messaging/rename";
 import { searchMessaging } from "@/lib/messaging/search";
@@ -464,10 +465,10 @@ export async function messagingSendOptions(input: {
 }
 
 export async function messagingEnsureSharedDraft(input: { inquiryId: string; currency?: string }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, currency: z.string().length(3).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   const { data: existing } = await scoped(g.admin, "orders", g.tenantId)
     .select("id, version")
     .eq("inquiry_id", parsed.data.inquiryId)
