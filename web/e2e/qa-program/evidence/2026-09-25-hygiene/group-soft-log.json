@@ -1,0 +1,21 @@
+[
+  {
+    "url": "https://staging-qa-journeys.tulala.digital/talent/inbox",
+    "title": "Tulala"
+  },
+  {
+    "bodyHead": "Skip to main content\nSELL WHAT YOU DO, NOT WHAT YOU SHIP\nQA Journeys (48-case fixture)\n$0 net YTD\n9+\nSkip to page content\nToday\nWORK\nMessages\nCalendar\nMoney\nPRESENCE\nProfile\nPublic page\nServices\nReviews\nPlan\nFREE\nPreview profile\nSettings\nInbox\n36 conversations\nNew\nNeeds action\n36\nWaiting\nAll\n36\nMine\nUnassigned\nUnread\nPayment issues\nOrders\nOffers\nAppointments\nUNASSIGNED\nQH\nQA Hub Client\nHub sale fixture for talent money split\nHub sale fixture for talent money split\nNeeds reply\nAccepted · deposit ",
+    "hasDollar": true,
+    "rowHints": [
+      "Inbox",
+      "conversation",
+      "Needs action",
+      "conversation",
+      "conversation",
+      "conversation"
+    ]
+  },
+  {
+    "clickables": 0
+  }
+]

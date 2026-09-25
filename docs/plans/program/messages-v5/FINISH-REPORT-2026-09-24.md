@@ -356,7 +356,7 @@ Pointer never hand-pushed. Prior tip `e90d9d3e4` had already been promoted via w
 | 1 | Money split both halves | **proven** | Hub seed inquiry `aaaaaaaa-…0001` (tenant hub `00000000-…0002`) money panel: `Total $150 Paid $0 Balance due $150` (`hub-money-open.png`). Agency `88122fb7-…` money panel shows her Total without a “client” label (`agency-money-panel-v2.png`). |
 | 2 | Group silence | still partial | Prior leftover: stream dollar check false on multi-participant thread. |
 | 3 | Accept / Decline | **proven** | Decline already DB-proven (`515d5c9e-…`). **Approve** (`data-talent-approve`) on Needs-action row; bar gone after click; DB `c08fbead-…` `status=active` + `accepted_at` set (`approve-after-v3.png`, `approve-scan-log.txt`). Label is **Approve**, not Accept. |
-| 4 | Ask in place | still partial | Prior leftover: dock present; dedicated `#talent-ask` count was 0 (bridge fallback may apply — see audit plan Phase 2). |
+| 4 | Ask in place | **proven** (hygiene pass) | `/t/QA-JNY-T1`: no `#talent-ask` (count 0). **Message QA Journeys** opens guest dock on the same URL (`ask-dialog.png`, `soft-proof-log2.json` under `evidence/2026-09-25-hygiene/`). Bridge/`#talent-ask` anchor still absent on this fixture tree. |
 | 5 | Request-only | still proven | Prior leftover. |
 | 6 | Named refusals | **proven** | Agency sale: Resolve → “cannot”; More menu `copy_link`, `rename`, `handover`, `close_lost`, `history` each return “You cannot…” (`refusals-final-log.txt`, `refusals-final.png`). Buttons stayed visible. |
 | 7 | Builder publish | **proven** | `talent_sites` `c4ac191d-…`: `version` 3→5, `published_at` / `draft_updated_at` moved to `2026-09-25 04:13:31+00`, `status=published`. |
@@ -371,10 +371,10 @@ Pointer never hand-pushed. Prior tip `e90d9d3e4` had already been promoted via w
 
 ### Still open (canonical)
 
-- Stripe test-mode Checkout on `qa-stripe-r2` (Vercel env: `sk_test_` / `pk_test_`), then `stripe-pay-refund.spec.ts` — see [`FINISH-AUDIT-EXECUTION-PLAN-2026-09-25.md`](./FINISH-AUDIT-EXECUTION-PLAN-2026-09-25.md) Phase 1.
+- Stripe test-mode Checkout on `qa-stripe-r2` (host uses **production** `STRIPE_SECRET_KEY`, livemode per env comment / D-MSG-330). Do **not** swap production live keys. Options: custom Vercel env for that host, or Preview+test keys aliased only to R2 — then `stripe-pay-refund.spec.ts`. See [`FINISH-AUDIT-EXECUTION-PLAN-2026-09-25.md`](./FINISH-AUDIT-EXECUTION-PLAN-2026-09-25.md) Phase 1.
 - Concurrent TOCTOU race (D-MSG-312) — product backlog, not finish CLEAN.
-- Ask-in-place `#talent-ask` / bridge fallback — audit plan Phase 2.
-- Group silence (soft), permissions/table Playwright without disk QA SRK — optional Phase 2.
+- Group silence (soft) — optional; inbox list shows money chrome (`$0 net YTD`); dedicated multi-participant stream assert still thin.
+- Permissions/table Playwright without disk QA SRK — optional Phase 2.
 
 No D-MSG-423 opened. No Impronta / Jorgelina / El Paisa content edits.
 
@@ -383,5 +383,6 @@ No D-MSG-423 opened. No Impronta / Jorgelina / El Paisa content edits.
 - Removed duplicate “pending close-out” section that landed twice on #2249.
 - Added top-of-file pointer to this canonical open list.
 - Added execution plan file for remaining work.
+- Soft proof: ask-in-place via Message CTA → dock (evidence `2026-09-25-hygiene/`). Confirmed production Stripe env comment is livemode — R2 cannot 4242 until a non-production test-key path exists.
 
 

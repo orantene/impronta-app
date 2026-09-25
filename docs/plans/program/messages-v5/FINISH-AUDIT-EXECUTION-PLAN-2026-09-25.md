@@ -97,7 +97,7 @@ Ordered by dependency. Each step has exit criteria. Do not start Stripe card fil
 
 | Step | Action | Owner | Exit |
 |---|---|---|---|
-| 1.1 | On Vercel project for **`qa-stripe-r2.tulala.digital`**, set Preview/Production env as appropriate: `STRIPE_SECRET_KEY=sk_test_…`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_…`. Redeploy / wait Ready. **Do not** swap production tulala live keys. | Human (or agent with explicit env permission) | Host mint returns `cs_test_` (not `cs_live_`) |
+| 1.1 | **`qa-stripe-r2` is aliased to production** and inherits production `STRIPE_SECRET_KEY` (env comment: livemode / D-MSG-330). **Do not** replace production live keys with `sk_test_`. Prefer: (a) a Vercel custom environment scoped to that host with `sk_test_`/`pk_test_`, or (b) a Preview deploy with journeys-branch test keys (already present for `program/journeys-2026-09`) temporarily aliased to R2 for the proof only. Explicit human approval required before any env write. | Human | Host mint returns `cs_test_` (not `cs_live_`) |
 | 1.2 | Optional but recommended: ensure R2 tenant has at least one Menu/Services row so a fresh-offer mint does not hang on “No items yet”. | Agent via QA MCP / fixture | Catalog non-empty on R2 Messages Items |
 | 1.3 | Re-run `web/e2e/qa-program/admin/stripe-pay-refund.spec.ts` with `QA_ALLOW_AGENT_PROD_HOST=1`, production URL/SRK/anon only for `signInAgentOwnedHost` cookies (not for journeys content). | Agent | 4242 → Paid surfaces → **full** refund → unpaid/refunded header; screenshots under a new evidence day folder |
 | 1.4 | (After 1.3) Add partial-refund case to the same spec (or sibling); run once. | Agent | Partial refund asserted in UI + DB |
@@ -109,7 +109,7 @@ Ordered by dependency. Each step has exit criteria. Do not start Stripe card fil
 
 | Step | Action | Exit |
 |---|---|---|
-| 2.1 Ask-in-place | On `/t/QA-JNY-T1` (or fixture site): prove either `#talent-ask` click opens dock **or** documented fallback bar opens dock; URL stays on profile; no Impronta edit. | Screenshot + short log; mark proven or open a product defect if neither path works |
+| 2.1 Ask-in-place | **Done (hygiene):** Message CTA opens guest dock on `/t/QA-JNY-T1` same URL; `#talent-ask` still 0 on fixture. Evidence `2026-09-25-hygiene/`. Optional later: publish tree with `#talent-ask` if product wants that anchor. | Proven via Message CTA |
 | 2.2 Group silence | Open a true multi-talent / group fixture; assert no client-total / dollar amounts in talent stream where policy requires silence. | Screenshot; mark proven or partial with reason |
 | 2.3 Permissions money | Prefer re-run `isolation/permissions-money.spec.ts` with disk QA SRK **or** accept leftover screenshot as proof and note “Playwright skip closed by MCP+UI”. | Spec green or report promotes partial → proven |
 | 2.4 Table overbook | Re-run `capacity/table-overbook.spec.ts` with QA SRK **or** document Items-chip-absent + MCP pool-full as sufficient for finish CLEAN. | Spec green or accepted substitute |
