@@ -198,6 +198,10 @@ export async function openBookingOrderForAgenda(
     .update({
       booking_id: input.bookingId,
       booking_kind: "agency_booking",
+      // Custom-line fallback writes talent_profile_id=null / hub owner_tenant_id.
+      // Stamp the agenda talent so commission lanes still attribute the line.
+      talent_profile_id: input.talentProfileId,
+      owner_tenant_id: null,
     })
     .eq("order_id", created.orderId)
     .eq("tenant_id", input.tenantId);
