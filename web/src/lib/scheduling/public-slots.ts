@@ -78,9 +78,12 @@ export type PublicSlotsInput = {
    * hours row alone.
    */
   sellingDefaults?: unknown;
-  /** Per-service buffer. Wins over the defaults buffer when it is a number. */
+  /** Per-service cleanup buffer. Wins over the defaults buffer when it is a number. */
   offeringBufferAfterMin?: number | null;
+  /** Per-service prep buffer. Wins over defaults when set. */
+  offeringBufferBeforeMin?: number | null;
 };
+
 
 function finiteInt(v: unknown, min: number, max: number): number | null {
   if (typeof v !== "number" || !Number.isFinite(v)) return null;
@@ -100,6 +103,7 @@ export function applySellingTimeToHours(
   hours: BookingHours,
   sellingDefaults: unknown,
   offeringBufferAfterMin?: number | null,
+  offeringBufferBeforeMin?: number | null,
 ): BookingHours {
   const raw =
     sellingDefaults && typeof sellingDefaults === "object" && !Array.isArray(sellingDefaults)
@@ -107,14 +111,17 @@ export function applySellingTimeToHours(
       : null;
   const fromDefaultsAfter = raw ? finiteInt(raw.bufferAfterMin, 0, 240) : null;
   const fromDefaultsBefore = raw ? finiteInt(raw.bufferBeforeMin, 0, 240) : null;
-  const fromOffering =
+  const fromOfferingAfter =
     typeof offeringBufferAfterMin === "number" ? finiteInt(offeringBufferAfterMin, 0, 240) : null;
-  const bufferAfter = fromOffering ?? fromDefaultsAfter;
+  const fromOfferingBefore =
+    typeof offeringBufferBeforeMin === "number" ? finiteInt(offeringBufferBeforeMin, 0, 240) : null;
+  const bufferAfter = fromOfferingAfter ?? fromDefaultsAfter;
+  const bufferBefore = fromOfferingBefore ?? fromDefaultsBefore;
   const notice = raw ? finiteInt(raw.minNoticeMin, 0, 60 * 24 * 30) : null;
-  if (bufferAfter == null && fromDefaultsBefore == null && notice == null) return hours;
+  if (bufferAfter == null && bufferBefore == null && notice == null) return hours;
   return {
     ...hours,
-    ...(fromDefaultsBefore != null ? { bufferBeforeMin: fromDefaultsBefore } : {}),
+    ...(bufferBefore != null ? { bufferBeforeMin: bufferBefore } : {}),
     ...(bufferAfter != null ? { bufferAfterMin: bufferAfter } : {}),
     ...(notice != null ? { minNoticeMin: notice } : {}),
   };
@@ -132,7 +139,7 @@ function hasAnyOpenWindow(hours: BookingHours): boolean {
 /** Starts plus the reason there are none. `computePublicSlotStarts` is this, minus the reason. */
 export function computePublicSlots(input: PublicSlotsInput): PublicSlots {
   const timed = input.hours
-    ? applySellingTimeToHours(input.hours, input.sellingDefaults, input.offeringBufferAfterMin)
+    ? applySellingTimeToHours(input.hours, input.sellingDefaults, input.offeringBufferAfterMin, input.offeringBufferBeforeMin)
     : null;
   if (!timed || !hasAnyOpenWindow(timed)) {
     return { starts: [], reason: "no_booking_hours" };
