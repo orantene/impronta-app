@@ -13,15 +13,15 @@ const AGENDA = path.join(ROOT, "../../components/admin/shell/internal/talent/age
 describe("G3.1–G3.4 polish contracts", () => {
     it("BookingRecord uses TradeSections and gates no-show", () => {
     const src = readFileSync(path.join(AGENDA, "AgendaBookingRecord.tsx"), "utf8");
-    assert.ok(src.includes("TradeSections"));
+    assert.ok(src.includes("<TradeSections"));
     assert.ok(!src.includes("function TradeSection("));
     assert.ok(src.includes("Available after the start time"));
-    assert.ok(src.includes("noShowReady"));
+    assert.ok(src.includes("!noShowReady"));
   });
 
   it("Intake Resend is hidden without resendUrl", () => {
     const src = readFileSync(path.join(AGENDA, "TradeSections.tsx"), "utf8");
-    assert.ok(src.includes("resendUrl"));
+    assert.ok(src.includes("d.resendUrl ?"));
     assert.ok(!src.includes("Resend when a form link exists"));
   });
 
@@ -36,8 +36,8 @@ describe("G3.1–G3.4 polish contracts", () => {
       "AgendaRebookSuggestion.tsx",
     ]) {
       const src = readFileSync(path.join(AGENDA, file), "utf8");
-      assert.ok(src.includes("TaskShell"), file);
-      assert.ok(src.includes("useAgendaCopy"), file);
+      assert.ok(src.includes("<TaskShell"), file);
+      assert.ok(src.includes("useAgendaCopy("), file);
     }
   });
 });

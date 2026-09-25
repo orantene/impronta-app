@@ -21,13 +21,13 @@ describe("G0.1 createOwnSlotBooking", () => {
 
   it("honors paymentChoice instead of voiding it", () => {
     assert.ok(!/void\s+input\.paymentChoice/.test(src));
-    assert.ok(src.includes("paymentStatusFor"));
+    assert.ok(src.includes("paymentStatusFor("));
     assert.ok(src.includes('payment_status: paymentStatus'));
   });
 
   it("reads buffer_after_min from talent_booking_hours", () => {
-    assert.ok(src.includes("buffer_after_min"));
-    assert.ok(src.includes("readBufferAfterMs"));
+    assert.ok(src.includes('.select("buffer_after_min")'));
+    assert.ok(src.includes("readBufferAfterMs("));
   });
 });
 

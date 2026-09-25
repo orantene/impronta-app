@@ -3,9 +3,9 @@
   "recordedAt": "2026-09-09",
   "budgets": {
     "admin": {
-      "maxBytes": 10094025,
-      "measuredBytes": 9569737,
-      "why": "Recorded at the commit that introduced this gate: 9.13 MB uncompressed, the union of the client chunks across all 75 routes under the /admin prefix, dominated by the admin shell every one of them shares. Headroom is 512 KB (~5%) — roughly one substantial new screen, and deliberately not generous, because growth in a UNION means the SHARED shell grew and that is the thing worth being asked about. This is a prefix total, i.e. an upper bound on any single route, not a first-load number."
+      "maxBytes": 10107337,
+      "measuredBytes": 9583049,
+      "why": "Recorded at the commit that introduced this gate: 9.13 MB uncompressed, the union of the client chunks across all 75 routes under the /admin prefix, dominated by the admin shell every one of them shares. Headroom is 512 KB (~5%) — roughly one substantial new screen, and deliberately not generous, because growth in a UNION means the SHARED shell grew and that is the thing worth being asked about. This is a prefix total, i.e. an upper bound on any single route, not a first-load number. Raised 2026-09-24 (+13 KB measured) for Talent Agenda V2 surfaces wired through the shared admin workspace shell (Today/Calendar/Attention routes and agenda primitives)."
     },
     "pos": {
       "maxBytes": 9613528,

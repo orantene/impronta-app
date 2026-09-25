@@ -36,8 +36,8 @@ describe("G2.2 quote writers", () => {
 
   it("cancel-actions use talent ownership, not staff()", () => {
     const src = readFileSync(path.join(ROOT, "cancel-actions.ts"), "utf8");
-    assert.ok(src.includes("requireOwnBooking"));
-    assert.ok(src.includes("cancelBookingSet"));
+    assert.ok(src.includes("requireOwnBooking("));
+    assert.ok(src.includes("cancelBookingSet("));
     assert.ok(!src.includes("cancelBookingSetAction"));
   });
 });

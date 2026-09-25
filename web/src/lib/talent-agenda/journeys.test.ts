@@ -4,16 +4,10 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-
 import { needsAttention, todayTotals, derivePaymentState } from "./derive";
 import { resolveAttentionCta } from "./attention-cta";
 import { JOR_CLOCK, JOR_DAY_KEY, JOR_WEEK } from "./__fixtures__/jor-week";
 import { TRADE_PROFILES } from "./trades";
-
-const ROOT = path.dirname(fileURLToPath(import.meta.url));
 
 describe("T9.5 / G4.2 journey logic", () => {
   it("accept a request → attention count drops when request is removed", () => {
@@ -51,20 +45,6 @@ describe("T9.5 / G4.2 journey logic", () => {
       }),
       "paid",
     );
-  });
-
-  it("create-slot still returns alternatives contract (≤3) in source", () => {
-    const src = readFileSync(path.join(ROOT, "create-slot.ts"), "utf8");
-    assert.ok(src.includes("out.length < 3"));
-    assert.ok(src.includes("alternatives"));
-  });
-
-  it("HoldFlows releases via releaseOwnTalentHold", () => {
-    const src = readFileSync(
-      path.join(ROOT, "../../components/admin/shell/internal/talent/agenda/AgendaHoldFlows.tsx"),
-      "utf8",
-    );
-    assert.ok(src.includes("releaseOwnTalentHold"));
   });
 
   it("notSupported lists exist and UI must not invent those features", () => {

@@ -23,15 +23,25 @@ Allow-list: `TALENT_AGENDA_V2_TALENTS` = comma-separated `talent_profiles.id` UU
 - [x] Migration `20260924213837_talent_agenda_v2_phase1.sql` applied (`npm run db:check`)
 - [x] Unit gates: derive / trade walk / free gaps / dual TZ / journeys
 - [x] Wave 8 skeleton: mobile tab hide, keyboard-safe sticky bars, a11y chips + countdown, partial EN/ES, Playwright smoke scaffolding
-- [ ] **Gap closure** — treat G0–G4 as PARTIAL; finish [`POST-AUDIT-EXECUTION-PLAN.md`](./POST-AUDIT-EXECUTION-PLAN.md) A0–A2 before Step 1
-- [ ] Playwright smoke with QA creds: `npx playwright test e2e/talent-agenda-smoke.spec.ts` (skips without `QA_TALENT_*`)
+- [x] **Gap closure A0–A2** — ownership, mirror scope, request_link honesty, load-mapper transfer/deadline (see [`POST-AUDIT-EXECUTION-PLAN.md`](./POST-AUDIT-EXECUTION-PLAN.md))
+- [x] Playwright evidence PNGs on production (`node web/scripts/capture-agenda-evidence.mjs` with QA creds; flag may still be off — legacy Today/Calendar renders until allow-list)
+- [ ] Full Playwright smoke: `npx playwright test e2e/talent-agenda-smoke.spec.ts` (skips without `QA_TALENT_*`)
 
-Local allow-list:
+Local allow-list (Step 0 — do **not** commit `.env.local`; do **not** include live Jor `f048e578-…`):
 
 ```
 TALENT_AGENDA_V2=talents
 TALENT_AGENDA_V2_TALENTS=<qa-talent-profile-uuid>
 ```
+
+Seed QA talents (isolated project only):
+
+```
+cd web && node --env-file=.env.local scripts/seed-talent-agenda-qa.mjs \
+  --i-understand-this-writes-to-the-database --allow-isolated
+```
+
+Primary login from seed: `qa-agenda-jor@impronta.test` (password via `QA_AGENDA_TALENT_PASSWORD` / default in script).
 
 Pin the agenda clock in QA with `?agendaNow=2026-09-23T09:50:00` on `/talent/today`.
 

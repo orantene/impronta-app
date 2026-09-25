@@ -17,7 +17,7 @@ Parent plans: [`GAP-EXECUTION-PLAN.md`](./GAP-EXECUTION-PLAN.md), [`CURSOR-EXECU
 | Track | State | Blocker |
 |---|---|---|
 | Services [#2244](https://github.com/orantene/impronta-app/pull/2244) | **MERGED** `9ab5feabf` | Talent Website E2E still flaky; Structural was green |
-| Agenda [#2245](https://github.com/orantene/impronta-app/pull/2245) | OPEN; tip rebased on main incl. services | A3.2 Playwright evidence still open; A0–A3.1+A3.3 landed |
+| Agenda [#2245](https://github.com/orantene/impronta-app/pull/2245) | OPEN; structural ratchets + A3.2 evidence on branch | A0–A2 + A3.1 landed; A3.2 PNGs in `docs/plans/program/evidence/today-calendar/*-evidence.png` (prod capture; V2 flag may be off) |
 | Services P7 live `#servicios` | Not started | Explicit owner “swap” only |
 | Gap plan G0–G4 “DONE” | Demoted to PARTIAL for overstated items | See A3.3 |
 
