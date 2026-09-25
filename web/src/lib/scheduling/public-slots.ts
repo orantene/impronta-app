@@ -73,8 +73,9 @@ export type PublicSlotsInput = {
   busy?: readonly BusyInterval[];
   /**
    * Talent selling defaults (`talent_profiles.selling_defaults`). When
-   * `bufferAfterMin` or `minNoticeMin` is a number, it replaces the hours-row
-   * value for this computation. Absent keys leave the hours row alone.
+   * `bufferBeforeMin`, `bufferAfterMin`, or `minNoticeMin` is a number, it
+   * replaces the hours-row value for this computation. Absent keys leave the
+   * hours row alone.
    */
   sellingDefaults?: unknown;
   /** Per-service buffer. Wins over the defaults buffer when it is a number. */
@@ -91,7 +92,9 @@ function finiteInt(v: unknown, min: number, max: number): number | null {
 /**
  * Services defaults are saved on the profile, not on `talent_booking_hours`.
  * Slot generation only reads the hours object, so this copies the saved
- * buffer and minimum notice onto it before any start is offered.
+ * prep (before), buffer-after, and minimum notice onto it before any start
+ * is offered. Prep minutes block adjacent starts the same way the hours-row
+ * `bufferBeforeMin` does.
  */
 export function applySellingTimeToHours(
   hours: BookingHours,
@@ -102,15 +105,17 @@ export function applySellingTimeToHours(
     sellingDefaults && typeof sellingDefaults === "object" && !Array.isArray(sellingDefaults)
       ? (sellingDefaults as Record<string, unknown>)
       : null;
-  const fromDefaults = raw ? finiteInt(raw.bufferAfterMin, 0, 240) : null;
+  const fromDefaultsAfter = raw ? finiteInt(raw.bufferAfterMin, 0, 240) : null;
+  const fromDefaultsBefore = raw ? finiteInt(raw.bufferBeforeMin, 0, 240) : null;
   const fromOffering =
     typeof offeringBufferAfterMin === "number" ? finiteInt(offeringBufferAfterMin, 0, 240) : null;
-  const buffer = fromOffering ?? fromDefaults;
+  const bufferAfter = fromOffering ?? fromDefaultsAfter;
   const notice = raw ? finiteInt(raw.minNoticeMin, 0, 60 * 24 * 30) : null;
-  if (buffer == null && notice == null) return hours;
+  if (bufferAfter == null && fromDefaultsBefore == null && notice == null) return hours;
   return {
     ...hours,
-    ...(buffer != null ? { bufferAfterMin: buffer } : {}),
+    ...(fromDefaultsBefore != null ? { bufferBeforeMin: fromDefaultsBefore } : {}),
+    ...(bufferAfter != null ? { bufferAfterMin: bufferAfter } : {}),
     ...(notice != null ? { minNoticeMin: notice } : {}),
   };
 }

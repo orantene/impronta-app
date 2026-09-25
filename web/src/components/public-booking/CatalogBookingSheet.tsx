@@ -30,6 +30,12 @@ import {
 } from "./catalog-booking-chat";
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
+import {
+  resolveWhoPrimaryAction,
+  whoStepPrimaryLabel,
+  DEFAULT_SHEET_BOOKING_SETTINGS,
+  type CatalogSheetBookingSettings,
+} from "@/lib/talent/selling-booking-settings";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -39,6 +45,7 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
 
 export type CatalogBookFn = (payload: InstantBookFormPayload) => Promise<InstantBookActionResult>;
 export type CatalogSlotsFn = (offeringId: string) => Promise<{ slots: string[]; timezone: string }>;
+export type { CatalogSheetBookingSettings };
 
 const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -79,6 +86,7 @@ export function CatalogBookingSheet({
   showAsk = false,
   onAsk,
   captcha = null,
+  bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
 }: {
   locale?: string;
   mode?: CatalogBookingMode;
@@ -89,6 +97,8 @@ export function CatalogBookingSheet({
   /** Override ask/chat handoff. Default opens existing guest chat with context. */
   onAsk?: (handoff: CatalogBookingChatHandoff) => void;
   captcha?: GuestCaptchaConfig | null;
+  /** Talent selling defaults: posture + who-step CTA vocabulary. */
+  bookingSettings?: CatalogSheetBookingSettings;
 }) {
   const es = locale.startsWith("es");
   const DAYS = es ? DAYS_ES : DAYS_EN;
@@ -234,6 +244,16 @@ export function CatalogBookingSheet({
   const emailValid = /.+@.+\..+/.test(email.trim());
   const phoneValid = phone.trim() === "" || phone.replace(/\D/g, "").length >= 8;
   const isRequest = detail.intent === "request";
+  const whoAction = resolveWhoPrimaryAction({
+    bookingPosture: bookingSettings.bookingPosture,
+    whoPrimaryCta: bookingSettings.whoPrimaryCta,
+    offeringIntent: detail.intent,
+  });
+  const whoCtaText = whoStepPrimaryLabel({
+    action: whoAction,
+    whoPrimaryCta: bookingSettings.whoPrimaryCta,
+    locale,
+  });
   const selectedTime = catalogCanContinueWhen(time);
   const chatNameValid = name.trim().length >= 2;
   const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
@@ -741,34 +761,21 @@ export function CatalogBookingSheet({
             </button>
           ) : null}
           {step === "who" ? (
-            isRequest ? (
-              <button
-                type="button"
-                className="jb-cta"
-                data-catalog-continue="who"
-                data-catalog-chat="primary"
-                disabled={busy}
-                onClick={() => startChat()}
-              >
-                {es ? "Chateá ahora" : "Chat now"}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="jb-cta"
-                data-catalog-continue="who"
-                disabled={busy}
-                onClick={() => void confirm()}
-              >
-                {busy
-                  ? es
-                    ? "Enviando…"
-                    : "Sending…"
-                  : es
-                    ? "Confirmar cita"
-                    : "Confirm"}
-              </button>
-            )
+            <button
+              type="button"
+              className="jb-cta"
+              data-catalog-continue="who"
+              data-catalog-chat={whoAction === "chat" ? "primary" : undefined}
+              data-catalog-who-cta={bookingSettings.whoPrimaryCta}
+              disabled={busy}
+              onClick={() => (whoAction === "chat" ? startChat() : void confirm())}
+            >
+              {busy && whoAction === "confirm"
+                ? es
+                  ? "Enviando…"
+                  : "Sending…"
+                : whoCtaText}
+            </button>
           ) : null}
           {step === "done" ? (
             <button type="button" className="jb-cta" onClick={() => setDetail(null)}>
