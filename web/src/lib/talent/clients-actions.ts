@@ -29,11 +29,15 @@ async function assertTalentOwner(talentProfileId: string): Promise<boolean> {
   return data?.user_id === session.user.id;
 }
 
+/**
+ * Merge by stable row id (booking / agency / inquiry), never by lower-cased name.
+ * A5 / defect #6 — two people named "Ana" must not collapse into one row.
+ */
 function upsertClient(
   byKey: Map<string, TalentClientRow>,
   row: TalentClientRow,
 ): void {
-  const key = row.name.toLowerCase();
+  const key = row.id;
   const existing = byKey.get(key);
   if (!existing) {
     byKey.set(key, row);
@@ -124,10 +128,17 @@ export async function loadTalentClients(
       if (booking.status === "cancelled") continue;
       const name = (booking.contact_name as string | null)?.trim() || "Client";
       const start = (booking.starts_at as string | null) ?? null;
-      const total = Math.max(0, Number(booking.total_client_revenue) || 0);
+      // total_client_revenue / client_charge_total are major units; deposit is cents.
+      const totalCents = Math.max(
+        0,
+        Math.round(Number(booking.total_client_revenue) * 100) || 0,
+      );
       const deposit = Math.max(0, Number(booking.deposit_amount_cents) || 0);
-      const charge = Math.max(0, Number(leg.client_charge_total) || 0);
-      const basis = charge > 0 ? charge : total;
+      const chargeCents = Math.max(
+        0,
+        Math.round(Number(leg.client_charge_total) * 100) || 0,
+      );
+      const basis = chargeCents > 0 ? chargeCents : totalCents;
       let owed: number | null = null;
       if (booking.payment_status === "paid") owed = 0;
       else if (booking.payment_status === "partial") owed = Math.max(0, basis - deposit);

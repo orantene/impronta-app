@@ -31,4 +31,9 @@ describe("loadTalentClients column contract", () => {
     assert.match(src, /source_inquiry_id/);
     assert.doesNotMatch(src, /\.eq\("talent_id"/);
   });
+
+  it("keys clients by row id, never by lower-cased name (A5)", () => {
+    assert.doesNotMatch(src, /name\.toLowerCase\(\)/);
+    assert.match(src, /const key = row\.id/);
+  });
 });
