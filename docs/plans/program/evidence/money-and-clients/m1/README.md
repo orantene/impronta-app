@@ -60,8 +60,8 @@ Note: LEDGER-CONTRACT outstanding table row for Lucía listed Paid 620 / Left 0;
 ## Base / rebase
 
 - Branch: `feat/mc-m1-definitions-read-model`
-- Base: `origin/main` @ `a619206ec` (A4 #2274 merged)
-- Rebased cleanly onto A4; restored `COLORS`/`FONTS` for `MoneyLoadError`
+- Base: `origin/main` @ `2bb8b3ef1` (rebased 2026-09-25 after Structural flake + conflicts)
+- A4 #2274 included; `COLORS`/`FONTS` kept for `MoneyLoadError`; `test:money` takes main lane + M1 tests
 
 ## Not in M1
 
