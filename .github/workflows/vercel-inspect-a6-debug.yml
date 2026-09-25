@@ -1,0 +1,40 @@
+# TEMPORARY — diagnose A6 #2276 Vercel preview FAILURE. Delete before merge.
+name: Debug — Vercel inspect A6
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/mc-a6-notes-privacy]
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: List + inspect latest failed preview for this commit
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "VERCEL_TOKEN secret missing"
+            exit 1
+          fi
+          SHA="${{ github.sha }}"
+          echo "commit=$SHA"
+          npx --yes vercel@latest whoami --token "$VERCEL_TOKEN"
+          npx --yes vercel@latest list tulala --token "$VERCEL_TOKEN" --scope oran-tenes-projects 2>&1 | tee /tmp/vercel-list.txt | head -80
+          DPL=$(gh api "repos/${{ github.repository }}/commits/${SHA}/statuses" \
+            --jq '[.[]|select(.context=="Vercel" and .state=="failure")][0].description' \
+            | sed -n 's/.*\(dpl_[A-Za-z0-9]*\).*/\1/p' || true)
+          if [ -z "$DPL" ]; then
+            DPL=$(grep -oE 'dpl_[A-Za-z0-9]+' /tmp/vercel-list.txt | head -1 || true)
+          fi
+          echo "inspecting DPL=${DPL:-unknown}"
+          if [ -n "${DPL:-}" ]; then
+            npx --yes vercel@latest inspect "$DPL" --token "$VERCEL_TOKEN" --scope oran-tenes-projects 2>&1 | tee /tmp/vercel-inspect.txt
+            npx --yes vercel@latest inspect "$DPL" --logs --token "$VERCEL_TOKEN" --scope oran-tenes-projects 2>&1 | tee /tmp/vercel-logs.txt | tail -200
+          fi
