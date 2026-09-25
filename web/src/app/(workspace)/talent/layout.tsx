@@ -1,6 +1,6 @@
 // Platform-scoped talent shell — /talent/* on app.tulala.digital (no tenant slug).
 // Agenda V2 rollout: see docs/plans/today-calendar/ROLLOUT.md (TALENT_AGENDA_V2).
-// Legacy Today/Calendar remain behind isAgendaV2 until Step 4 delete PR.
+// Step 4: legacy Today/Calendar removed; kill switch empties agenda load only.
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -14,7 +14,6 @@ import {
   loadTalentRepresentation,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadTalentSurfaceNotifications } from "@/app/(workspace)/[tenantSlug]/_data-bridge/notifications";
-import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
 import { loadTalentAgenda } from "@/lib/talent-agenda/load";
 import { isAgendaV2 } from "@/lib/talent-agenda/flag";
 import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
@@ -178,8 +177,9 @@ export default async function PlatformTalentLayout({
       : baseProfile;
 
   const initialTalentPage = derivePlatformTalentPage(pathname);
-  // Evaluate once on the server and stamp onto the bridge — client
-  // components cannot read TALENT_AGENDA_V2 (non-NEXT_PUBLIC).
+  // Agenda V2 is the only Today/Calendar surface (ROLLOUT Step 4).
+  // Kill switch TALENT_AGENDA_V2=0 still stamps talentAgendaV2 false and
+  // skips the agenda load (empty V2 chrome) — it no longer remounts legacy.
   const talentAgendaV2 = isAgendaV2(talentSelfProfile.id);
 
   const [
@@ -213,11 +213,9 @@ export default async function PlatformTalentLayout({
     loadUserPrefs(session.user.id),
     tenantId ? loadTenantIdentity(tenantId) : Promise.resolve(null),
     loadProfileDisplayName(session.user.id),
-    // Agenda V2: loadTalentAgenda behind the flag only. Flag off keeps the
-    // legacy calendar bridge so Today/Calendar stay unchanged.
-    talentAgendaV2
-      ? Promise.resolve([])
-      : loadTalentCalendarEntries(talentSelfProfile.id),
+    // Legacy calendar bridge retired with Step 4 — keep the slot empty.
+    Promise.resolve([]),
+    // Always load agenda when the flag is on; kill switch off → empty items.
     talentAgendaV2
       ? loadTalentAgendaForLayout(talentSelfProfile.id)
       : Promise.resolve({ items: [], hours: null, error: null as string | null }),

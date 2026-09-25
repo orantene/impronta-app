@@ -1075,11 +1075,6 @@
       "count": 9
     }
   },
-  "src/components/admin/shell/internal/talent/pages/TodayPage.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 16
-    }
-  },
   "src/components/admin/shell/internal/talent/pages/messages/Bubbles.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 33
