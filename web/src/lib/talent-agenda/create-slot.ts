@@ -155,11 +155,11 @@ export async function createOwnSlotBooking(input: {
   if (contactEmail || contactPhone) {
     const ensured = await ensureCustomer(
       {
-        tenantId: agency.tenantId,
+        tenantId,
         email: contactEmail || null,
         phone: contactPhone || null,
         displayName: clientName,
-        ownerTalentProfileId: identity.talentId,
+        ownerTalentProfileId: actor.talentProfileId,
       },
       { admin },
     );

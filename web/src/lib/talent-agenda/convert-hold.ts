@@ -116,7 +116,7 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
         email: contactEmail,
         phone: contactPhone,
         displayName: clientName,
-        ownerTalentProfileId: identity.talentId,
+        ownerTalentProfileId: actor.talentProfileId,
       },
       { admin },
     );
