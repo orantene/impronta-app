@@ -99,6 +99,19 @@ describe("resolveAttentionCta", () => {
       { kind: "collect", label: "Confirm transfer", mutates: true },
     );
   });
+
+  it("does not offer Confirm transfer for card-awaiting", () => {
+    const cta = resolveAttentionCta(
+      base({
+        booking: "completed",
+        payment: "awaiting",
+        paymentMethod: "card",
+        money: { totalCents: 100, paidCents: 0, dueCents: 100, currency: "MXN" },
+      }),
+    );
+    assert.notEqual(cta.label, "Confirm transfer");
+    assert.equal(cta.mutates, false);
+  });
 });
 
 describe("peekActionLabels", () => {

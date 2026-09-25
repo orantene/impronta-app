@@ -252,6 +252,8 @@ async function seedWeekFixtures(talentProfileId, tenantId, createdByUserId) {
         status,
         payment_status: paymentStatus,
         currency_code: "MXN",
+        // Cents — Finish→Card needs amount due to mint a real /pay link (A1.1).
+        total_client_revenue: 85000,
         starts_at: startsAt,
         ends_at: endsAt,
         contact_name: clientName,
@@ -273,10 +275,10 @@ async function seedWeekFixtures(talentProfileId, tenantId, createdByUserId) {
       units: 1,
       pricing_unit: "event",
       talent_cost_rate: 0,
-      client_charge_rate: 0,
+      client_charge_rate: 85000,
       talent_cost_total: 0,
-      client_charge_total: 0,
-      gross_profit: 0,
+      client_charge_total: 85000,
+      gross_profit: 85000,
     });
     if (legErr) {
       console.warn(`[seed] booking_talent ${title}:`, legErr.message);
