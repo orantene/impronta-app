@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
-import { Icon } from "@/components/admin/shell/internal/primitives";
+import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
 import { formatMoneyCents, type TalentEarningsRow } from "@/lib/talent/earnings-view";
 import { useResolvedTalentEarnings } from "./use-resolved-talent-earnings";
@@ -107,7 +106,6 @@ function StatusFilterChip({
 }
 
 export function EarningsLedger() {
-  const { openDrawer } = useAdminShell();
   const earnings = useResolvedTalentEarnings();
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -238,9 +236,7 @@ export function EarningsLedger() {
                     borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => openDrawer("talent-earnings-detail", { id: row.id })}
+                  <div
                     style={{
                       width: "100%",
                       display: "flex",
@@ -248,14 +244,9 @@ export function EarningsLedger() {
                       gap: 12,
                       padding: "12px 16px",
                       background: "transparent",
-                      border: "none",
-                      cursor: "pointer",
                       textAlign: "left",
                       fontFamily: FONTS.body,
-                      transition: "background .12s",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div
@@ -340,12 +331,9 @@ export function EarningsLedger() {
                         </div>
                       ) : null}
                       {row.status === "paid" && row.bookingId ? (
-                        /* Stop propagation so the download link doesn't also
-                           trigger the earnings-detail drawer open. */
                         <a
                           href={`/api/payout-statement/${row.bookingId}`}
                           download
-                          onClick={(e) => e.stopPropagation()}
                           style={{
                             display: "inline-block",
                             marginTop: 4,
@@ -366,8 +354,7 @@ export function EarningsLedger() {
                         </a>
                       ) : null}
                     </div>
-                    <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
-                  </button>
+                  </div>
                 </li>
               );
             })}
