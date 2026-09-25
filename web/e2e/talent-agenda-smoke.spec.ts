@@ -273,7 +273,7 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
       }
       await row.click();
       await page.waitForTimeout(800);
-      const finish = page.getByRole("button", { name: /Finish|Collect|Finalizar|Cobrar/i }).first();
+      const finish = page.getByRole("button", { name: /Finish and collect|Finish|Collect|Finalizar|Cobrar/i }).first();
       if (!(await finish.isVisible().catch(() => false))) {
         test.skip(true, "Finish/Collect not offered on opened booking record");
       }
