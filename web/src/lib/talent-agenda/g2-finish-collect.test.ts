@@ -78,6 +78,15 @@ describe("G2.1 / A0 finish-collect honesty", () => {
     assert.doesNotMatch(src, /reason:\s*"no_order"/);
   });
 
+  it("ensureAgendaOrderShell aligns a short unpaid talent_agenda shell before mint", () => {
+    const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
+    assert.match(src, /alignAgendaOrderShellToAmount/);
+    assert.match(src, /currentTotal >= input\.amountCents/);
+    assert.match(src, /state", "reserved"/);
+    // Must grow the shell to the owed mint amount — never zero it out.
+    assert.doesNotMatch(src, /total_cents:\s*0/);
+  });
+
   it("New booking request_link copy does not claim a link was created", () => {
     const ui = readFileSync(
       join(
