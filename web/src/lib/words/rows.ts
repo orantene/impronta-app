@@ -333,6 +333,17 @@ export const WORD_ROWS: ReadonlyArray<WordRow> = [
     fallback: { en: "Items", es: "Selección" },
   },
   {
+    key: "customers.chat_bookings",
+    feature: "customers",
+    where: {
+      en: "The chat tab for the guest's bookings / requests",
+      es: "La pestaña del chat con las citas o solicitudes del cliente",
+    },
+    // Default stays the i18n string (Mis citas / Yours). Only a preset that
+    // sets this key (private chef → Mis eventos) overrides the dock.
+    fallback: { en: "Yours", es: "Mis citas" },
+  },
+  {
     key: "customers.person",
     feature: "customers",
     where: { en: "The person buying", es: "Quien compra" },

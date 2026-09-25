@@ -750,6 +750,8 @@ export type MiniChatBrand = {
   dockCardsV5?: boolean;
   /** L13: the Items tab label per business ("Talent & services", "Your order", ...). */
   dockItemsLabel?: string | null;
+  /** Projects tab override when a trade sets `customers.chat_bookings` (chef → Mis eventos). */
+  dockProjectsLabel?: string | null;
   /** L13: the industry preset represents people (agency, act); false for a restaurant, venue, salon. */
   dockRepresentsPeople?: boolean;
   /** Progress-rail trade. Null keeps the numeric details chip. */
