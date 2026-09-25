@@ -21,6 +21,7 @@ import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-iden
 import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
+import { talentSiteRewriteReentryResponse } from "@/lib/saas/talent-site-rewrite-reentry";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
 import { brandedAdminRedirectPath, brandedAdminRewritePath, normalizeBrandedNextParam } from "@/lib/saas/branded-admin-url";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
@@ -136,38 +137,7 @@ export async function proxy(request: NextRequest) {
     pathname === "/_talent-site" ||
     pathname.startsWith("/_talent-site/")
   ) {
-    // Next re-invokes proxy on the rewrite destination. The first pass sets
-    // talent headers, but this short-circuit previously forwarded only the
-    // STRIPPED inbound clone — wiping `x-impronta-host-context` /
-    // `x-impronta-talent-profile` and 404ing every vanity host
-    // (D-MSG-431). Re-resolve from the proxy-written host name (or Host) and
-    // re-bind; never trust client-supplied talent headers alone.
-    // Also re-attach guest identity (D-MSG-422): a plain `next()` here would
-    // replace the first-pass rewrite response and drop Set-Cookie / the
-    // `x-impronta-guest` header the vanity dock actions need.
-    const rebound = new Headers(sanitizedInboundHeaders);
-    const candidateHost =
-      (request.headers.get(HOST_NAME_HEADER) ?? "").trim() ||
-      (request.headers.get("host") ?? "").split(":")[0]?.trim() ||
-      "";
-    let reboundTalentSite = false;
-    if (candidateHost) {
-      const reboundCtx = await resolveTenantContext(request, candidateHost);
-      if (reboundCtx.kind === "talent_site") {
-        reboundTalentSite = true;
-        rebound.set(HOST_CONTEXT_HEADER, "talent_site");
-        rebound.set(HOST_NAME_HEADER, reboundCtx.hostname);
-        rebound.set(HOST_TALENT_PROFILE_HEADER, reboundCtx.talentProfileId);
-        rebound.delete(TENANT_HEADER_NAME);
-        rebound.delete(HOST_TENANT_SLUG_HEADER);
-        rebound.delete(PUBLIC_PATH_PREFIX_HEADER);
-      }
-    }
-    if (reboundTalentSite) {
-      const attachGuest = attachTalentSiteGuestIdentity(request, rebound);
-      return attachGuest(NextResponse.next({ request: { headers: rebound } }));
-    }
-    return NextResponse.next({ request: { headers: rebound } });
+    return talentSiteRewriteReentryResponse(request, sanitizedInboundHeaders);
   }
 
   // Dev surfaces skip host gating but still mint guest cookie for /c/[inquiryId].

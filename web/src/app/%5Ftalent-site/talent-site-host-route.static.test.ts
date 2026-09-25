@@ -85,33 +85,28 @@ test("renderTalentMaxSite loads USD rates on the vanity path (D-MSG-421)", () =>
 });
 
 test("proxy rebinds talent headers on /_talent-site rewrite re-entry (D-MSG-431)", () => {
-  const source = src("src/proxy.ts");
-  // The short-circuit must NOT forward only the stripped clone — that wiped
-  // the first-pass talent headers and 404ed every vanity host under Next's
-  // rewrite re-invoke.
+  const proxy = src("src/proxy.ts");
+  const helper = src("src/lib/saas/talent-site-rewrite-reentry.ts");
+  // Short-circuit must delegate to the extracted helper (keeps proxy under
+  // max-lines and is the single place the rebound lives).
+  assert.match(proxy, /talentSiteRewriteReentryResponse\(request, sanitizedInboundHeaders\)/);
   assert.doesNotMatch(
-    source,
+    proxy,
     /pathname\.startsWith\("\/_talent-site\/"\)\s*\)\s*\{\s*return NextResponse\.next\(\{\s*request:\s*\{\s*headers:\s*sanitizedInboundHeaders\s*\}\s*\}\)/,
   );
-  assert.match(source, /D-MSG-431/);
-  assert.match(source, /resolveTenantContext\(request, candidateHost\)/);
+  assert.match(helper, /D-MSG-431/);
+  assert.match(helper, /resolveTenantContext\(request, candidateHost\)/);
   assert.match(
-    source,
+    helper,
     /rebound\.set\(HOST_TALENT_PROFILE_HEADER, reboundCtx\.talentProfileId\)/,
   );
   assert.match(
-    source,
+    helper,
     /rebound\.set\(HOST_CONTEXT_HEADER, "talent_site"\)/,
   );
-  // D-MSG-422 shape: rebound talent_site path must re-attach guest identity
-  // so a second-pass `next()` does not drop the vanity guest cookie/header.
-  const shortCircuitAt = source.indexOf('pathname.startsWith("/_talent-site/")');
-  const talentSiteBranchAt = source.indexOf('if (hostContext.kind === "talent_site")');
-  assert.ok(shortCircuitAt > 0, "short-circuit must exist");
-  assert.ok(talentSiteBranchAt > shortCircuitAt, "talent_site block follows short-circuit");
-  const shortCircuit = source.slice(shortCircuitAt, talentSiteBranchAt);
+  // D-MSG-422 shape: rebound talent_site path must re-attach guest identity.
   assert.match(
-    shortCircuit,
+    helper,
     /attachTalentSiteGuestIdentity\(request, rebound\)/,
     "rebound talent_site path must call attachTalentSiteGuestIdentity",
   );
