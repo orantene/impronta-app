@@ -1,47 +1,30 @@
 /**
- * Talent-owned slot booking create (T7.1 / G0.1).
- * Busy-check, then agency_bookings + booking_talent + talent_bookings (shared id).
+ * Talent-owned slot booking create (T7.1 / G0.1 / Stage B1).
+ * Busy-check, then agency_bookings + booking_talent + talent_bookings on the
+ * platform hub (talent as seller). No agency roster required.
  */
 
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
 import type { BusyInterval } from "@/lib/scheduling/slots";
-import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
+import { loadTalentActor } from "@/lib/messaging/talent-actor";
 import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
+import { resolveTalentOwnWorkTenant } from "@/lib/talent-agenda/own-work-tenant";
 
 export type CreateOwnSlotResult =
   | { ok: true; id: string; paymentStatus: "paid" | "unpaid" }
   | {
       ok: false;
-      reason: "unauthorized" | "unavailable" | "invalid" | "slot_taken" | "no_agency";
+      reason: "unauthorized" | "unavailable" | "invalid" | "slot_taken" | "no_hub";
       message?: string;
       alternatives?: string[];
     };
 
 export type PaymentChoice = "received" | "due_later" | "request_link";
-
-async function ownTalentProfileId(): Promise<{ talentId: string; userId: string } | null> {
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return null;
-  const { data: authData, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !authData?.user) return null;
-  const { data, error } = await supabase
-    .from("talent_profiles")
-    .select("id")
-    .eq("user_id", authData.user.id)
-    .maybeSingle();
-  if (error) {
-    logServerError("agenda.createSlot.ownTalent", error);
-    return null;
-  }
-  if (typeof data?.id !== "string") return null;
-  return { talentId: data.id, userId: authData.user.id };
-}
 
 function overlaps(aStart: Date, aEnd: Date, busy: readonly BusyInterval[]): boolean {
   return busy.some((b) => b.startsAt < aEnd && b.endsAt > aStart);
@@ -91,7 +74,7 @@ async function readBufferAfterMs(
 }
 
 /**
- * Create a manual slot booking for the signed-in talent.
+ * Create a manual slot booking for the signed-in talent on the platform hub.
  * Writes agency_bookings (commercial) + booking_talent + talent_bookings
  * (calendar mirror with the same id so loadTalentAgenda can join money).
  */
@@ -103,8 +86,8 @@ export async function createOwnSlotBooking(input: {
   paymentChoice: PaymentChoice;
   allowOverlap?: boolean;
 }): Promise<CreateOwnSlotResult> {
-  const identity = await ownTalentProfileId();
-  if (!identity) return { ok: false, reason: "unauthorized" };
+  const actor = await loadTalentActor();
+  if (!actor.ok) return { ok: false, reason: "unauthorized" };
 
   const clientName = input.clientName.trim();
   const title = input.title.trim();
@@ -122,20 +105,19 @@ export async function createOwnSlotBooking(input: {
     return { ok: false, reason: "invalid", message: "Pick a valid start and end." };
   }
 
-  const agency = await getActiveTalentAgencyContext(identity.talentId);
-  if (!agency?.tenantId) {
+  const ownTenant = await resolveTalentOwnWorkTenant();
+  if (!ownTenant.ok) {
     return {
       ok: false,
-      reason: "no_agency",
-      message: "Link an agency workspace before saving calendar bookings.",
+      reason: "no_hub",
+      message: "Platform hub is not available.",
     };
   }
-
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, reason: "unavailable" };
+  const tenantId = ownTenant.tenantId;
+  const admin = actor.admin;
 
   const durationMs = endsAt.getTime() - startsAt.getTime();
-  const bufferMs = await readBufferAfterMs(admin, identity.talentId);
+  const bufferMs = await readBufferAfterMs(admin, actor.talentProfileId);
   const paddedEnd = new Date(endsAt.getTime() + bufferMs);
   const paymentStatus = paymentStatusFor(input.paymentChoice);
 
@@ -143,7 +125,7 @@ export async function createOwnSlotBooking(input: {
   try {
     busy = await loadBusyIntervals({
       admin,
-      talentProfileId: identity.talentId,
+      talentProfileId: actor.talentProfileId,
       from: new Date(startsAt.getTime() - 60 * 60_000),
       to: new Date(endsAt.getTime() + 6 * 60 * 60_000),
     });
@@ -164,10 +146,10 @@ export async function createOwnSlotBooking(input: {
   const { data: agencyRow, error: agencyErr } = await admin
     .from("agency_bookings")
     .insert({
-      tenant_id: agency.tenantId,
+      tenant_id: tenantId,
       source_inquiry_id: null,
-      owner_staff_id: identity.userId,
-      created_by_staff_id: identity.userId,
+      owner_staff_id: actor.userId,
+      created_by_staff_id: actor.userId,
       title,
       status: "confirmed" as never,
       payment_status: paymentStatus as never,
@@ -195,9 +177,9 @@ export async function createOwnSlotBooking(input: {
   const totals = computeBookingTalentRowTotals(1, 0, 0);
 
   const { error: legErr } = await admin.from("booking_talent").insert({
-    tenant_id: agency.tenantId,
+    tenant_id: tenantId,
     booking_id: bookingId,
-    talent_profile_id: identity.talentId,
+    talent_profile_id: actor.talentProfileId,
     sort_order: 0,
     units: 1,
     pricing_unit: "event" as never,
@@ -215,15 +197,15 @@ export async function createOwnSlotBooking(input: {
 
   const { error: calErr } = await admin.from("talent_bookings").insert({
     id: bookingId,
-    talent_profile_id: identity.talentId,
-    tenant_id: agency.tenantId,
+    talent_profile_id: actor.talentProfileId,
+    tenant_id: tenantId,
     title,
     client_label: clientName,
     starts_at: startsAt.toISOString(),
     ends_at: endsAt.toISOString(),
     all_day: false,
     status: "confirmed",
-    created_by_user_id: identity.userId,
+    created_by_user_id: actor.userId,
   });
 
   if (calErr) {

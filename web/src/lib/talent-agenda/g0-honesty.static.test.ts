@@ -7,16 +7,25 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
+
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)));
 
 describe("G0.1 createOwnSlotBooking", () => {
-  const src = readFileSync(path.join(ROOT, "create-slot.ts"), "utf8");
+  const src = blankComments(readFileSync(path.join(ROOT, "create-slot.ts"), "utf8"));
 
   it("writes agency_bookings and booking_talent, not only talent_bookings", () => {
     assert.ok(src.includes('.from("agency_bookings")'));
     assert.ok(src.includes('.from("booking_talent")'));
     assert.ok(src.includes('.from("talent_bookings")'));
     assert.ok(src.includes("id: bookingId"), "calendar row shares commercial id");
+  });
+
+  it("uses hub seller tenant, not agency roster gate", () => {
+    assert.ok(src.includes("resolveTalentOwnWorkTenant"));
+    assert.ok(src.includes("loadTalentActor"));
+    assert.ok(!src.includes("getActiveTalentAgencyContext"));
+    assert.ok(!src.includes('"no_agency"'));
   });
 
   it("honors paymentChoice instead of voiding it", () => {
@@ -32,14 +41,16 @@ describe("G0.1 createOwnSlotBooking", () => {
 });
 
 describe("G0.2–G0.3 HoldFlows + convert", () => {
-  const flows = readFileSync(
-    path.join(
-      ROOT,
-      "../../components/admin/shell/internal/talent/agenda/AgendaHoldFlows.tsx",
+  const flows = blankComments(
+    readFileSync(
+      path.join(
+        ROOT,
+        "../../components/admin/shell/internal/talent/agenda/AgendaHoldFlows.tsx",
+      ),
+      "utf8",
     ),
-    "utf8",
   );
-  const convert = readFileSync(path.join(ROOT, "convert-hold.ts"), "utf8");
+  const convert = blankComments(readFileSync(path.join(ROOT, "convert-hold.ts"), "utf8"));
 
   it("HoldFlows uses convertOwnTalentHold and releaseOwnTalentHold", () => {
     assert.ok(flows.includes("convertOwnTalentHold"));
@@ -53,5 +64,7 @@ describe("G0.2–G0.3 HoldFlows + convert", () => {
     assert.ok(convert.includes('.from("talent_bookings")'));
     assert.ok(convert.includes('.from("talent_holds")'));
     assert.ok(convert.includes(".delete()"));
+    assert.ok(convert.includes("resolveTalentOwnWorkTenant"));
+    assert.ok(!convert.includes("getActiveTalentAgencyContext"));
   });
 });
