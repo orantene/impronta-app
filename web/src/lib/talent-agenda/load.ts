@@ -8,19 +8,6 @@ import { zonedLocalToUtc } from "@/lib/scheduling/tz";
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
 import type { TalentAgendaItem, TalentAgendaLoadResult, TalentAgendaRange } from "./types";
 
-type TalentBookingRow = {
-  id: string;
-  title: string;
-  client_label: string | null;
-  starts_at: string;
-  ends_at: string;
-  all_day: boolean;
-  status: string;
-  inquiry_id: string | null;
-  tenant_id: string | null;
-  location_text: string | null;
-};
-
 type AgencyBookingRow = {
   id: string;
   status: string;
@@ -37,6 +24,29 @@ type AgencyBookingRow = {
   contact_phone: string | null;
   venue_name: string | null;
   venue_location_text: string | null;
+  travel_before_min?: number | null;
+  travel_after_min?: number | null;
+  intake_status?: string | null;
+  intake_sent_at?: string | null;
+  order_id?: string | null;
+  tenant_id?: string | null;
+  payment_method?: string | null;
+  payment_notes?: string | null;
+};
+
+type TalentBookingRow = {
+  id: string;
+  title: string;
+  client_label: string | null;
+  starts_at: string;
+  ends_at: string;
+  all_day: boolean;
+  status: string;
+  inquiry_id: string | null;
+  tenant_id: string | null;
+  location_text: string | null;
+  travel_before_min?: number | null;
+  travel_after_min?: number | null;
 };
 
 type TransactionRow = {
@@ -46,6 +56,23 @@ type TransactionRow = {
   requested_at: string | null;
   paid_at: string | null;
   refunded_at: string | null;
+};
+
+type PaymentLinkRow = {
+  order_id: string | null;
+  inquiry_id: string | null;
+  status: string;
+  expires_at: string;
+};
+
+type RescheduleRequestRow = {
+  id: string;
+  booking_id: string;
+  new_starts_at: string;
+  new_ends_at: string;
+  fee_cents: number;
+  status: string;
+  created_at: string;
 };
 
 function initials(name: string | null | undefined): string {
@@ -126,7 +153,9 @@ export async function loadTalentAgenda(
     ] = await Promise.all([
       supabase
         .from("talent_bookings")
-        .select("id, title, client_label, starts_at, ends_at, all_day, status, inquiry_id, tenant_id, location_text")
+        .select(
+          "id, title, client_label, starts_at, ends_at, all_day, status, inquiry_id, tenant_id, location_text, travel_before_min, travel_after_min",
+        )
         .eq("talent_profile_id", talentProfileId)
         .gte("starts_at", fromIso)
         .lt("starts_at", toIso),
@@ -169,13 +198,14 @@ export async function loadTalentAgenda(
     const ownerUserId =
       typeof profileRes.data?.user_id === "string" ? profileRes.data.user_id : null;
 
-    const [agencyBookingsRes, transactionsRes, inquiriesRes, deliverablesRes] = await Promise.all([
+    const [agencyBookingsRes, transactionsRes, inquiriesRes, deliverablesRes, rescheduleRes] =
+      await Promise.all([
       bookingIds.length === 0
         ? Promise.resolve({ data: [], error: null })
         : supabase
             .from("agency_bookings")
             .select(
-              "id, status, payment_status, total_client_revenue, deposit_amount_cents, currency_code, timezone, client_timezone, balance_due_at, source_type_snapshot, contact_name, contact_email, contact_phone, venue_name, venue_location_text",
+              "id, status, payment_status, total_client_revenue, deposit_amount_cents, currency_code, timezone, client_timezone, balance_due_at, source_type_snapshot, contact_name, contact_email, contact_phone, venue_name, venue_location_text, travel_before_min, travel_after_min, intake_status, intake_sent_at, order_id, tenant_id, payment_method, payment_notes",
             )
             .in("id", bookingIds),
       bookingIds.length === 0
@@ -202,12 +232,20 @@ export async function loadTalentAgenda(
             .not("due_at", "is", null)
             .gte("due_at", fromIso)
             .lt("due_at", toIso),
+      bookingIds.length === 0
+        ? Promise.resolve({ data: [], error: null })
+        : supabase
+            .from("booking_reschedule_requests")
+            .select("id, booking_id, new_starts_at, new_ends_at, fee_cents, status, created_at")
+            .in("booking_id", bookingIds)
+            .eq("status", "pending"),
     ]);
 
     if (agencyBookingsRes.error) logServerError("talent-agenda.agency-bookings", agencyBookingsRes.error);
     if (transactionsRes.error) logServerError("talent-agenda.transactions", transactionsRes.error);
     if (inquiriesRes.error) logServerError("talent-agenda.inquiries", inquiriesRes.error);
     if (deliverablesRes.error) logServerError("talent-agenda.deliverables", deliverablesRes.error);
+    if (rescheduleRes.error) logServerError("talent-agenda.reschedule", rescheduleRes.error);
 
     const agencyById = new Map(
       ((agencyBookingsRes.data ?? []) as AgencyBookingRow[]).map((row) => [row.id, row]),
@@ -219,6 +257,105 @@ export async function loadTalentAgenda(
       transactionsByBooking.set(row.booking_id, current);
     }
 
+    const pendingRescheduleByBooking = new Map<string, RescheduleRequestRow>();
+    for (const row of (rescheduleRes.data ?? []) as RescheduleRequestRow[]) {
+      if (!pendingRescheduleByBooking.has(row.booking_id)) {
+        pendingRescheduleByBooking.set(row.booking_id, row);
+      }
+    }
+
+    const holds = (holdsRes.data ?? []) as Array<{
+      id: string;
+      title: string;
+      client_label: string | null;
+      starts_at: string;
+      ends_at: string;
+      all_day: boolean;
+      expires_at: string | null;
+      inquiry_id: string | null;
+      tenant_id: string | null;
+    }>;
+
+    const orderIds = [
+      ...new Set(
+        ((agencyBookingsRes.data ?? []) as AgencyBookingRow[])
+          .map((r) => r.order_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    ];
+    const holdInquiryIds = [
+      ...new Set(
+        holds
+          .map((h) => h.inquiry_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    ];
+
+    const paymentLinkQueries: PromiseLike<{ data: unknown; error: unknown }>[] = [];
+    if (orderIds.length > 0) {
+      paymentLinkQueries.push(
+        supabase
+          .from("payment_links")
+          .select("order_id, inquiry_id, status, expires_at")
+          .in("order_id", orderIds)
+          .eq("status", "open"),
+      );
+    }
+    if (holdInquiryIds.length > 0) {
+      paymentLinkQueries.push(
+        supabase
+          .from("payment_links")
+          .select("order_id, inquiry_id, status, expires_at")
+          .in("inquiry_id", holdInquiryIds)
+          .eq("status", "open"),
+      );
+    }
+    const paymentLinkResults =
+      paymentLinkQueries.length === 0
+        ? []
+        : await Promise.all(paymentLinkQueries);
+    for (const res of paymentLinkResults) {
+      if (res.error) logServerError("talent-agenda.payment-links", res.error);
+    }
+
+    const openLinkByOrder = new Map<string, PaymentLinkRow>();
+    const openLinkByInquiry = new Map<string, PaymentLinkRow>();
+    for (const res of paymentLinkResults) {
+      for (const row of (res.data ?? []) as PaymentLinkRow[]) {
+        if (row.order_id) {
+          const prev = openLinkByOrder.get(row.order_id);
+          if (!prev || Date.parse(row.expires_at) > Date.parse(prev.expires_at)) {
+            openLinkByOrder.set(row.order_id, row);
+          }
+        }
+        if (row.inquiry_id) {
+          const prev = openLinkByInquiry.get(row.inquiry_id);
+          if (!prev || Date.parse(row.expires_at) > Date.parse(prev.expires_at)) {
+            openLinkByInquiry.set(row.inquiry_id, row);
+          }
+        }
+      }
+    }
+
+    const agencyTenantIds = [
+      ...new Set(
+        bookings
+          .map((b) => b.tenant_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    ];
+    const agenciesRes =
+      agencyTenantIds.length === 0
+        ? { data: [], error: null }
+        : await supabase.from("agencies").select("id, display_name").in("id", agencyTenantIds);
+    if (agenciesRes.error) logServerError("talent-agenda.agencies", agenciesRes.error);
+    const agencyNameById = new Map(
+      ((agenciesRes.data ?? []) as Array<{ id: string; display_name: string | null }>).map((row) => [
+        row.id,
+        (row.display_name ?? "").trim() || "Agency",
+      ]),
+    );
+
     const items: TalentAgendaItem[] = [];
 
     for (const booking of bookings) {
@@ -226,6 +363,10 @@ export async function loadTalentAgenda(
       const txRows = transactionsByBooking.get(booking.id) ?? [];
       const latest = latestTransaction(txRows);
       const paidCents = paidCentsFrom(agency, txRows);
+      const openLink =
+        agency?.order_id != null ? openLinkByOrder.get(agency.order_id) : undefined;
+      const linkOpen =
+        openLink != null && Date.parse(openLink.expires_at) > range.from.getTime();
       const bookingState = deriveBookingState({
         kind: "booking",
         status: agency?.status ?? booking.status,
@@ -235,6 +376,9 @@ export async function loadTalentAgenda(
         booking: bookingState,
         paymentStatus: agency?.payment_status,
         transactionStatus: latest?.status,
+        checking: linkOpen && (latest?.status === "pending" || latest?.status === "processing"),
+        paymentMethod: agency?.payment_method ?? null,
+        transferAwaiting: (agency?.payment_method ?? "").toLowerCase() === "transfer",
         startsAt: booking.starts_at,
         balanceDueAt: agency?.balance_due_at ?? null,
         totalCents: agency?.total_client_revenue ?? 0,
@@ -243,6 +387,63 @@ export async function loadTalentAgenda(
         managedByAgency: mapSource(agency?.source_type_snapshot) === "agency",
         now: range.from,
       });
+      // Open unpaid link with no txn yet → awaiting deposit/payment.
+      const payment =
+        paymentState === "none" && linkOpen && (agency?.payment_status ?? "unpaid") === "unpaid"
+          ? "awaiting"
+          : paymentState;
+
+      const travelBefore = Math.max(
+        0,
+        agency?.travel_before_min ?? booking.travel_before_min ?? 0,
+      );
+      const travelAfter = Math.max(
+        0,
+        agency?.travel_after_min ?? booking.travel_after_min ?? 0,
+      );
+      // occupiedInterval uses one travelMin on both sides; take the larger pad.
+      const travelMin = Math.max(travelBefore, travelAfter);
+
+      const history: TalentAgendaItem["history"] = [];
+      const pendingReschedule = pendingRescheduleByBooking.get(booking.id);
+      if (pendingReschedule) {
+        history.push({
+          at: pendingReschedule.created_at,
+          text: "Reschedule pending.",
+        });
+      }
+
+      const intakeStatus = agency?.intake_status ?? null;
+      let tradeSection: TalentAgendaItem["tradeSection"];
+      if (intakeStatus === "pending" || intakeStatus === "complete" || intakeStatus === "waived") {
+        tradeSection = {
+          kind: "intake",
+          payload: {
+            status: intakeStatus,
+            sentAt: agency?.intake_sent_at ?? null,
+            ...(pendingReschedule
+              ? {
+                  rescheduleRequestId: pendingReschedule.id,
+                  rescheduleStatus: "pending",
+                  newStartsAt: pendingReschedule.new_starts_at,
+                  newEndsAt: pendingReschedule.new_ends_at,
+                  feeCents: pendingReschedule.fee_cents,
+                }
+              : {}),
+          },
+        };
+      } else if (pendingReschedule) {
+        tradeSection = {
+          kind: "event",
+          payload: {
+            rescheduleRequestId: pendingReschedule.id,
+            rescheduleStatus: "pending",
+            newStartsAt: pendingReschedule.new_starts_at,
+            newEndsAt: pendingReschedule.new_ends_at,
+            feeCents: pendingReschedule.fee_cents,
+          },
+        };
+      }
 
       const item: TalentAgendaItem = {
         id: booking.id,
@@ -268,10 +469,11 @@ export async function loadTalentAgenda(
             agency?.venue_location_text ??
             booking.location_text ??
             "Booking",
+          travelMin: travelMin > 0 ? travelMin : undefined,
         },
         bufferAfterMin: hours?.bufferAfterMin ?? 0,
         booking: bookingState,
-        payment: paymentState,
+        payment,
         money: {
           totalCents: agency?.total_client_revenue ?? 0,
           paidCents,
@@ -282,26 +484,42 @@ export async function loadTalentAgenda(
         source: mapSource(agency?.source_type_snapshot),
         managedBy:
           mapSource(agency?.source_type_snapshot) === "agency" && booking.tenant_id
-            ? { agencyId: booking.tenant_id, name: "Agency" }
+            ? {
+                agencyId: booking.tenant_id,
+                name: agencyNameById.get(booking.tenant_id) ?? "Agency",
+              }
             : undefined,
+        orderId: agency?.order_id ?? undefined,
         blocksTime: false,
-        history: [],
+        tradeSection,
+        history,
       };
       item.blocksTime = blocksTime(item);
       items.push(item);
     }
 
-    for (const hold of (holdsRes.data ?? []) as Array<{
-      id: string;
-      title: string;
-      client_label: string | null;
-      starts_at: string;
-      ends_at: string;
-      all_day: boolean;
-      expires_at: string | null;
-      inquiry_id: string | null;
-      tenant_id: string | null;
-    }>) {
+    for (const hold of holds) {
+      const openLink =
+        hold.inquiry_id != null ? openLinkByInquiry.get(hold.inquiry_id) : undefined;
+      const linkOpen =
+        openLink != null && Date.parse(openLink.expires_at) > range.from.getTime();
+      const bookingState = deriveBookingState({
+        kind: "hold",
+        holdUntil: hold.expires_at,
+        now: range.from,
+      });
+      let payment = derivePaymentState({
+        booking: bookingState,
+        paidCents: 0,
+        depositCents: 1,
+        totalCents: 1,
+        now: range.from,
+      });
+      if (linkOpen && payment === "awaiting") {
+        // Keep awaiting; open link reinforces hold deposit wait.
+      } else if (linkOpen && payment === "none") {
+        payment = "awaiting";
+      }
       const item: TalentAgendaItem = {
         id: hold.id,
         kind: "hold",
@@ -317,19 +535,15 @@ export async function loadTalentAgenda(
         tz: hours?.timezone ?? "UTC",
         where: { mode: "studio", label: "Hold" },
         bufferAfterMin: hours?.bufferAfterMin ?? 0,
-        booking: deriveBookingState({ kind: "hold", holdUntil: hold.expires_at, now: range.from}),
-        payment: derivePaymentState({
-          booking: "hold",
-          paidCents: 0,
-          depositCents: 1,
-          totalCents: 1,
-          now: range.from,
-        }),
+        booking: bookingState,
+        payment,
         money: { totalCents: 0, paidCents: 0, dueCents: 0, currency: "MXN" },
         source: "website",
         holdUntil: hold.expires_at ?? undefined,
         blocksTime: true,
-        history: [],
+        history: linkOpen
+          ? [{ at: openLink!.expires_at, text: "Payment link open." }]
+          : [],
       };
       item.blocksTime = blocksTime(item);
       items.push(item);

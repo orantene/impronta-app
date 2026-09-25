@@ -93,6 +93,10 @@ export type AgendaListItem = {
   whenLabel: string;
   whereLabel: string;
   sourceLabel: string;
+  /** ISO start for gating (no-show, etc.). */
+  startsAtIso?: string;
+  clientTz?: string;
+  talentTz?: string;
   bookingState?: AgendaBookingState;
   paymentState?: AgendaPaymentState;
   nowTitle?: string;
@@ -101,7 +105,14 @@ export type AgendaListItem = {
   primaryAction?: AgendaNowAction;
   secondaryAction?: AgendaNowAction;
   moneyLines?: AgendaMoneyItem[];
+  dueCents?: number;
+  orderId?: string | null;
   tradeSection?: AgendaTradeSection;
+  /** Structured trade payloads for TradeSections.tsx */
+  tradeSectionPayloads?: Array<{
+    type: "event" | "performance" | "intake" | "tz" | "estimate" | "project";
+    data?: Record<string, string | number | null | undefined>;
+  }>;
   history?: AgendaHistoryLine[];
   terms?: string;
 };

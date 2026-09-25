@@ -231,6 +231,42 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
           },
         ]
       : [],
+    dueCents: item.money.dueCents,
+    orderId: item.orderId ?? null,
+    startsAtIso: item.startsAt,
+    clientTz: item.clientTz,
+    talentTz: item.tz,
+    tradeSectionPayloads: (() => {
+      const out: NonNullable<AgendaListItem["tradeSectionPayloads"]> = [];
+      if (item.clientTz && item.clientTz !== item.tz) {
+        out.push({
+          type: "tz",
+          data: {
+            localTime: whenLabel.split(" · ")[0] ?? whenLabel,
+            clientTime: whenLabel.includes(" · ") ? whenLabel.split(" · ").slice(1).join(" · ") : undefined,
+          },
+        });
+      }
+      if (item.tradeSection) {
+        const kind = item.tradeSection.kind;
+        if (
+          kind === "event" ||
+          kind === "performance" ||
+          kind === "intake" ||
+          kind === "tz" ||
+          kind === "estimate" ||
+          kind === "project"
+        ) {
+          const data: Record<string, string | number | null | undefined> = {};
+          for (const [k, v] of Object.entries(item.tradeSection.payload)) {
+            if (typeof v === "string" || typeof v === "number" || v == null) data[k] = v;
+            else data[k] = String(v);
+          }
+          out.push({ type: kind, data });
+        }
+      }
+      return out.length > 0 ? out : undefined;
+    })(),
     terms: undefined,
   };
 }
@@ -307,25 +343,27 @@ export function buildAgendaListItem(entry: TalentCalendarEntry): AgendaListItem 
 export function buildAgendaMoneyItems(
   _profile: TalentSelfProfile | null | undefined,
 ): AgendaMoneyItem[] {
+  // Live Today path prefers moneyFromEarnings + todayTotals; this helper is only
+  // a safe empty shell when no earnings bridge is present.
   return [
     {
       id: "collected",
       label: "Collected this month",
-      value: "No data yet",
-      helper: "Live payout math plugs in during Phase 4.",
+      value: "—",
+      helper: "Appears when payout data is available.",
     },
     {
       id: "owed",
-      label: "Owed to you",
-      value: "No data yet",
-      helper: "Due totals will replace this placeholder.",
+      label: "Still to collect",
+      value: "—",
+      helper: "Computed from today’s due and overdue on the agenda.",
       tone: "attention",
     },
     {
       id: "payout",
       label: "Next payout",
-      value: "Not scheduled",
-      helper: "Payout timing appears once card collections are wired here.",
+      value: "—",
+      helper: "Appears when card payouts are set up.",
       tone: "success",
     },
   ];

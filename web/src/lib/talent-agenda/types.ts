@@ -76,6 +76,8 @@ export interface TalentAgendaItem {
   managedBy?: { agencyId: string; name: string };
   holdUntil?: string;
   blocksTime: boolean;
+  /** Linked POS/order for payment links; absent when booking has no order shell. */
+  orderId?: string;
   tradeSection?: { kind: TradeSectionKind; payload: Record<string, unknown> };
   history: { at: string; text: string }[];
 }

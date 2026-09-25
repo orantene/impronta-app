@@ -155,11 +155,142 @@ export async function recordBookingCashCollected(input: {
 
   const { error: upErr } = await admin
     .from("agency_bookings")
-    .update({ payment_status: nextStatus })
+    .update({
+      payment_status: nextStatus,
+      payment_method: "cash",
+      payment_notes: "Cash collected by talent at appointment.",
+    })
     .eq("id", input.bookingId);
   if (upErr) {
     logServerError("agenda.recordCash.update", upErr);
     return { ok: false, reason: "unavailable" };
   }
   return { ok: true };
+}
+
+const TRANSFER_AWAITING_NOTE = "Transfer awaiting confirmation.";
+
+/**
+ * T8.2 Mark bank transfer as sent by client, awaiting talent confirmation.
+ * Leaves payment_status unpaid/partial so money is not invented; derive maps
+ * payment_method=transfer to awaiting (not overdue after complete).
+ */
+export async function recordBookingTransferAwaiting(input: {
+  bookingId: string;
+}): Promise<AgendaActionResult> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, reason: "unavailable" };
+
+  const { data: row, error } = await admin
+    .from("agency_bookings")
+    .select("id, payment_status, payment_method, payment_notes")
+    .eq("id", input.bookingId)
+    .maybeSingle();
+  if (error) {
+    logServerError("agenda.recordTransferAwaiting.load", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (!row) return { ok: false, reason: "not_found" };
+  if (row.payment_status === "paid") return { ok: true, already: true };
+  if (row.payment_method === "transfer" && String(row.payment_notes ?? "").includes("awaiting")) {
+    return { ok: true, already: true };
+  }
+
+  const { error: upErr } = await admin
+    .from("agency_bookings")
+    .update({
+      payment_method: "transfer",
+      payment_notes: TRANSFER_AWAITING_NOTE,
+    })
+    .eq("id", input.bookingId);
+  if (upErr) {
+    logServerError("agenda.recordTransferAwaiting.update", upErr);
+    return { ok: false, reason: "unavailable" };
+  }
+  return { ok: true };
+}
+
+/**
+ * Confirm a previously awaiting bank transfer was received.
+ */
+export async function markBookingTransferReceived(input: {
+  bookingId: string;
+}): Promise<AgendaActionResult> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, reason: "unavailable" };
+
+  const { data: row, error } = await admin
+    .from("agency_bookings")
+    .select("id, payment_status, payment_method")
+    .eq("id", input.bookingId)
+    .maybeSingle();
+  if (error) {
+    logServerError("agenda.markTransferReceived.load", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (!row) return { ok: false, reason: "not_found" };
+  if (row.payment_status === "paid") return { ok: true, already: true };
+
+  const { error: upErr } = await admin
+    .from("agency_bookings")
+    .update({
+      payment_status: "paid",
+      payment_method: "transfer",
+      payment_notes: "Transfer confirmed received by talent.",
+    })
+    .eq("id", input.bookingId);
+  if (upErr) {
+    logServerError("agenda.markTransferReceived.update", upErr);
+    return { ok: false, reason: "unavailable" };
+  }
+  return { ok: true };
+}
+
+export type CreateAgendaPayLinkResult =
+  | { ok: true; url: string; code: string; already?: boolean }
+  | { ok: false; reason: string };
+
+/**
+ * Mint (or reuse) a payment link for a booking that already has an order.
+ * Does not invent money — webhook /pay confirms.
+ */
+export async function createAgendaBookingPayLink(input: {
+  bookingId: string;
+  amountCents?: number;
+  publicOrigin: string;
+}): Promise<CreateAgendaPayLinkResult> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, reason: "unavailable" };
+
+  const { data: row, error } = await admin
+    .from("agency_bookings")
+    .select("id, tenant_id, order_id, total_client_revenue, payment_status")
+    .eq("id", input.bookingId)
+    .maybeSingle();
+  if (error) {
+    logServerError("agenda.createPayLink.load", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (!row) return { ok: false, reason: "not_found" };
+  if (!row.order_id || !row.tenant_id) {
+    return { ok: false, reason: "no_order" };
+  }
+  if (row.payment_status === "paid") return { ok: false, reason: "already_paid" };
+
+  const total = Math.max(0, Number(row.total_client_revenue) || 0);
+  const amountCents =
+    input.amountCents != null && input.amountCents > 0 ? input.amountCents : total;
+  if (amountCents <= 0) return { ok: false, reason: "invalid_amount" };
+
+  const { createPaymentLink } = await import("@/lib/payments/links");
+  const minted = await createPaymentLink(admin, {
+    tenantId: String(row.tenant_id),
+    orderId: String(row.order_id),
+    amountCents,
+    idempotencyKey: `agenda-finish-card-${input.bookingId}-${amountCents}`,
+    actorUserId: null,
+    publicOrigin: input.publicOrigin.replace(/\/$/, ""),
+  });
+  if (!minted.ok) return { ok: false, reason: minted.reason };
+  return { ok: true, url: minted.url, code: minted.code, already: minted.already };
 }

@@ -3,50 +3,24 @@
 import { useState, useTransition } from "react";
 import { BookingStateChip, MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
 import type { AgendaListItem } from "./types";
-import { cancelBookingWithRefund, markBookingNoShow } from "@/lib/talent-agenda";
+import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived } from "@/lib/talent-agenda";
 import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-actions/talent-pipeline";
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
+import { TradeSections } from "./TradeSections";
+import { useAgendaCopy } from "./use-agenda-copy";
+import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { useRouter } from "next/navigation";
-
-// ─── Trade section renderers ─────────────────────────────────────────────────
-
-function TradeSection({ kind, payload }: { kind: string; payload: Record<string, unknown> }) {
-  if (!payload || Object.keys(payload).length === 0) return null;
-
-  const rows = Object.entries(payload).filter(([, v]) => v != null && v !== "");
-
-  if (rows.length === 0) return null;
-
-  const label: Record<string, string> = {
-    event: "Event details",
-    performance: "Performance",
-    intake: "Intake form",
-    tz: "Timezone",
-    estimate: "Estimate",
-    project: "Project",
-  };
-
-  return (
-    <section className="rounded-2xl border border-black/8 bg-white p-4">
-      <h2 className="mb-3 text-[14px] font-semibold text-[var(--tc-primary)]">
-        {label[kind] ?? kind}
-      </h2>
-      <dl className="space-y-2 text-[13px]">
-        {rows.map(([k, v]) => (
-          <div key={k} className="flex justify-between gap-3">
-            <dt className="text-[#5F6368] capitalize">{k.replace(/_/g, " ")}</dt>
-            <dd className="text-right">{String(v)}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
 
 // ─── More menu ────────────────────────────────────────────────────────────────
 
-type MoreMenuAction = { label: string; destructive?: boolean; onClick: () => void };
+type MoreMenuAction = {
+  label: string;
+  destructive?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
+  onClick: () => void;
+};
 
 function MoreMenu({ actions }: { actions: MoreMenuAction[] }) {
   const [open, setOpen] = useState(false);
@@ -78,12 +52,21 @@ function MoreMenu({ actions }: { actions: MoreMenuAction[] }) {
                 key={a.label}
                 role="menuitem"
                 type="button"
-                onClick={() => { setOpen(false); a.onClick(); }}
-                className={`flex w-full items-center px-4 py-3 text-left text-[13px] font-medium transition-colors hover:bg-[rgba(11,11,13,0.04)] ${
+                disabled={a.disabled}
+                title={a.disabled ? a.disabledReason : undefined}
+                onClick={() => {
+                  if (a.disabled) return;
+                  setOpen(false);
+                  a.onClick();
+                }}
+                className={`flex w-full flex-col items-start px-4 py-3 text-left text-[13px] font-medium transition-colors hover:bg-[rgba(11,11,13,0.04)] disabled:cursor-not-allowed disabled:opacity-50 ${
                   a.destructive ? "text-[#B42318]" : "text-[var(--tc-primary)]"
                 }`}
               >
-                {a.label}
+                <span>{a.label}</span>
+                {a.disabled && a.disabledReason ? (
+                  <span className="mt-0.5 text-[11px] font-normal text-[#5F6368]">{a.disabledReason}</span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -159,12 +142,13 @@ export function AgendaBookingRecord({
   /** Source table for request accept/decline (inquiries vs bookings). */
   refTable?: string;
   refId?: string;
-  /** Optional trade-type section data. */
+  /** Optional trade-type section data (legacy prop; prefer item.tradeSectionPayloads). */
   tradeSection?: { kind: string; payload: Record<string, unknown> };
   onBack: () => void;
   onMessage?: () => void;
   onCancelled?: () => void;
 }) {
+  const copy = useAgendaCopy();
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [status, setStatus] = useState<string | null>(null);
@@ -175,17 +159,20 @@ export function AgendaBookingRecord({
 
   const canAct = !!bookingId;
   const cancellable = canAct && !isAgency;
+  const now = readAgendaNowClient(new Date());
+  const startsMs = item.startsAtIso ? Date.parse(item.startsAtIso) : NaN;
+  const noShowReady = Number.isFinite(startsMs) && startsMs < now.getTime();
 
   // ── No-show ──────────────────────────────────────────────────────
   function handleNoShow() {
-    if (!bookingId) return;
-    setStatus("Marking no-show…");
+    if (!bookingId || !noShowReady) return;
+    setStatus(copy.t("Marking no-show…"));
     startTransition(async () => {
       const res = await markBookingNoShow({ bookingId });
       if (res.ok) {
-        setStatus("Marked no-show ✓");
+        setStatus(copy.t("Marked no-show ✓"));
       } else {
-        setStatus(`Could not mark no-show: ${res.reason}`);
+        setStatus(`${copy.t("Could not mark no-show")}: ${res.reason}`);
       }
     });
   }
@@ -208,30 +195,60 @@ export function AgendaBookingRecord({
   function handleCancelConfirm() {
     if (!bookingId) return;
     setConfirmCancel(false);
-    setStatus("Cancelling…");
+    setStatus(copy.t("Cancelling…"));
     startTransition(async () => {
       const res = await cancelBookingWithRefund({ bookingId, cancelledBy: "talent" });
       if (res.ok) {
         setStatus(
           res.refundableCents > 0
-            ? `Cancelled. Refund of $${(res.refundableCents / 100).toFixed(2)} initiated.`
-            : "Cancelled ✓",
+            ? `${copy.t("Cancelled")}. ${copy.t("Refund of")} $${(res.refundableCents / 100).toFixed(2)} ${copy.t("initiated")}.`
+            : copy.t("Cancelled ✓"),
         );
         onCancelled?.();
       } else {
-        setStatus(`Cancel failed: ${res.reason}`);
+        setStatus(`${copy.t("Cancel failed")}: ${res.reason}`);
       }
     });
   }
 
   const moreActions: MoreMenuAction[] = [
     ...(cancellable
-      ? [{ label: "Cancel booking", destructive: true, onClick: () => void handleCancelRequest() }]
+      ? [{ label: copy.t("Cancel booking"), destructive: true, onClick: () => void handleCancelRequest() }]
       : []),
-    ...(canAct
-      ? [{ label: "Mark no-show", destructive: true, onClick: handleNoShow }]
+    ...(canAct && item.bookingState === "confirmed"
+      ? [
+          {
+            label: copy.t("Mark no-show"),
+            destructive: true,
+            disabled: !noShowReady,
+            disabledReason: copy.t("Available after the start time"),
+            onClick: handleNoShow,
+          },
+        ]
       : []),
   ];
+
+  const sections =
+    item.tradeSectionPayloads ??
+    (tradeSection
+      ? [
+          {
+            type: tradeSection.kind as
+              | "event"
+              | "performance"
+              | "intake"
+              | "tz"
+              | "estimate"
+              | "project",
+            data: Object.fromEntries(
+              Object.entries(tradeSection.payload).map(([k, v]) => [
+                k,
+                typeof v === "string" || typeof v === "number" || v == null ? v : String(v),
+              ]),
+            ),
+          },
+        ]
+      : undefined);
 
   return (
     <div style={TALENT_AGENDA_VARS} className="mx-auto grid max-w-[1100px] gap-4 lg:grid-cols-[1fr_280px]">
@@ -387,6 +404,8 @@ export function AgendaBookingRecord({
         {showFinish && bookingId ? (
           <AgendaFinishCollect
             bookingId={bookingId}
+            orderId={item.orderId}
+            dueCents={item.dueCents}
             onClose={() => setShowFinish(false)}
             onDone={() => {
               setShowFinish(false);
@@ -396,15 +415,37 @@ export function AgendaBookingRecord({
           />
         ) : null}
 
+        {item.paymentState === "awaiting_deposit" &&
+        item.bookingState === "completed" &&
+        bookingId &&
+        canAct ? (
+          <button
+            type="button"
+            onClick={() =>
+              startTransition(async () => {
+                const res = await markBookingTransferReceived({ bookingId });
+                if (res.ok) {
+                  setStatus("Transfer marked received ✓");
+                  router.refresh();
+                } else {
+                  setStatus(`Could not confirm transfer: ${res.reason}`);
+                }
+              })
+            }
+            aria-label="Mark transfer received"
+            className="w-full min-h-[44px] rounded-xl border border-black/10 bg-white py-3 text-[14px] font-semibold text-[var(--tc-primary)]"
+          >
+            Mark transfer received
+          </button>
+        ) : null}
+
         {/* Status feedback */}
         {status ? (
           <p className="text-center text-[13px] text-[#5F6368]" aria-live="polite">{status}</p>
         ) : null}
 
         {/* Trade section */}
-        {tradeSection && (
-          <TradeSection kind={tradeSection.kind} payload={tradeSection.payload} />
-        )}
+        {sections && sections.length > 0 ? <TradeSections sections={sections} /> : null}
       </div>
 
       <aside className="space-y-4">

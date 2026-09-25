@@ -46,7 +46,7 @@ Parent plan: [`CURSOR-EXECUTION-PLAN.md`](./CURSOR-EXECUTION-PLAN.md). Audit sou
 
 Ship these before any beta allow-list expansion.
 
-### G0.1 New booking writes a commercial record (**P0**)
+### G0.1 New booking writes a commercial record (**P0**) — DONE 2026-09-24
 
 **Problem:** `createOwnSlotBooking` inserts only `talent_bookings` and `void`s `paymentChoice`. No `agency_bookings`, no money, payment UI is fake.
 
@@ -72,7 +72,7 @@ Ship these before any beta allow-list expansion.
 
 ---
 
-### G0.2 Hold convert is real (**P0**)
+### G0.2 Hold convert is real (**P0**) — DONE 2026-09-24
 
 **Problem:** `AgendaHoldFlows.handleConvert` only sets a message. No booking is created.
 
@@ -90,7 +90,7 @@ Ship these before any beta allow-list expansion.
 
 ---
 
-### G0.3 Hold release uses the hold action (**P0**)
+### G0.3 Hold release uses the hold action (**P0**) — DONE 2026-09-24
 
 **Problem:** Release calls `cancelBookingWithRefund({ bookingId: holdId })`. Hold ids are not booking ids.
 
@@ -111,7 +111,7 @@ Ship these before any beta allow-list expansion.
 
 Without these, numbers and Attention are wrong even when UI looks right.
 
-### G1.1 Load travel, intake, payment links, reschedule requests
+### G1.1 Load travel, intake, payment links, reschedule requests — DONE 2026-09-24
 
 **Problem:** Migration columns/tables exist; `load.ts` does not select them. Travel never enters `occupiedInterval`. Intake attention never fires. Pending reschedules never appear. Hold-linked payment link expiry is weak.
 
@@ -136,7 +136,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G1.2 Buffer / hours in conflict check
+### G1.2 Buffer / hours in conflict check — DONE 2026-09-24 (folded into G0.1)
 
 **Problem:** create-slot pads with 15 min always.
 
@@ -150,7 +150,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ## 3. Phase G2 — Money and quote honesty (P1)
 
-### G2.1 Finish and collect — transfer + card
+### G2.1 Finish and collect — transfer + card — DONE 2026-09-24
 
 **Problem:** Transfer copy says “awaiting” but nothing is written. Card never opens `/pay/[code]` or creates a link. Cash uses `payment_status` only (acceptable if labeled honestly; plan preferred `settleAtDoor` when POS/order exists).
 
@@ -168,7 +168,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G2.2 Event + project quotes write real offers
+### G2.2 Event + project quotes write real offers — DONE 2026-09-24
 
 **Problem:** Event quote optionally blocks a date; no `inquiry_offers`. Project quote is local status text.
 
@@ -184,7 +184,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G2.3 Pay request currency + copy
+### G2.3 Pay request currency + copy — DONE 2026-09-24 (MXN label)
 
 **Problem:** “Amount (USD)” while tenants often use MXN; `$` hard-coded in reschedule fee.
 
@@ -194,7 +194,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ## 4. Phase G3 — Record, CTAs, i18n (P1)
 
-### G3.1 Booking record uses `TradeSections`
+### G3.1 Booking record uses `TradeSections` — DONE 2026-09-24
 
 **Problem:** Inline key→value dump; plan §T6.4 wants section renderers (event, performance, intake+resend, estimate, project, tz).
 
@@ -204,7 +204,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G3.2 No-show UI gated until start
+### G3.2 No-show UI gated until start — DONE 2026-09-24
 
 **Problem:** Server blocks early; More menu still offers Mark no-show.
 
@@ -212,7 +212,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G3.3 Flow screens i18n (EN + ES)
+### G3.3 Flow screens i18n (EN + ES) — DONE 2026-09-24
 
 **Problem:** New booking, Finish/collect, Holds, Quotes, Reschedule, Rebook, Pay request are English-only. Calendar list chips hard-code “All / Requests / …”.
 
@@ -222,7 +222,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G3.4 Focused flows use `TaskShell`
+### G3.4 Focused flows use `TaskShell` — DONE 2026-09-24
 
 **Problem:** `TaskShell` exists; Finish/collect, Hold, Reschedule, Pay, Rebook build ad-hoc wrappers.
 
@@ -232,7 +232,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ## 5. Phase G4 — Fixtures, evidence, process (P2)
 
-### G4.1 Per-trade fixtures
+### G4.1 Per-trade fixtures — DONE 2026-09-24
 
 **Problem:** Only `jor-week` (beauty). Parent §2.2 asked for TR.* weeks.
 
@@ -240,7 +240,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G4.2 Replace shallow “journey” unit stubs
+### G4.2 Replace shallow “journey” unit stubs — DONE 2026-09-24
 
 **Problem:** `journeys.test.ts` includes `Array.slice` contract theater.
 
@@ -254,7 +254,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G4.3 Playwright with QA creds + evidence
+### G4.3 Playwright with QA creds + evidence — READY (skips without secrets)
 
 **Problem:** Specs skip without `QA_TALENT_*`; CI never proves journeys.
 
@@ -266,7 +266,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G4.4 Clean leftover placeholder money copy
+### G4.4 Clean leftover placeholder money copy — DONE 2026-09-24
 
 **Problem:** `view-model.ts` still has “Phase 4” / “No data yet” helpers. Today mostly overrides via earnings — remove dead placeholders or mark internal-only.
 

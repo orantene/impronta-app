@@ -53,6 +53,9 @@ export function derivePaymentState(input: {
   managedByAgency?: boolean;
   checking?: boolean;
   refundPending?: boolean;
+  /** Bank transfer recorded as awaiting confirmation (not overdue yet). */
+  transferAwaiting?: boolean;
+  paymentMethod?: string | null;
   now: Date;
   dueAt?: string | null;
   balanceDueAt?: string | null;
@@ -80,6 +83,11 @@ export function derivePaymentState(input: {
   if (ps === "partial" || (input.paidCents > 0 && input.paidCents < input.totalCents)) {
     return "partial";
   }
+  const transferAwaiting =
+    input.transferAwaiting === true ||
+    ((input.paymentMethod ?? "").toLowerCase() === "transfer" && dueCents > 0);
+  // Transfer awaiting stays awaiting even after complete — not overdue until "Not paid yet".
+  if (transferAwaiting && dueCents > 0) return "awaiting";
   if (input.booking === "completed" && dueCents > 0) return "overdue";
   if (dueAt && Date.parse(dueAt) < input.now.getTime() && dueCents > 0) {
     return "overdue";
@@ -124,9 +132,17 @@ export function needsAttention(
       rank = item.managedBy ? 50 : 10;
     } else if (item.booking === "hold" && (item.payment === "awaiting" || item.payment === "checking")) {
       rank = item.payment === "checking" ? 25 : 20;
+    } else if (item.history.some((h) => h.text === "Reschedule pending.")) {
+      rank = 22;
     } else if (item.payment === "overdue") rank = 30;
     else if (item.tradeSection?.kind === "intake" && item.tradeSection.payload.status === "pending") {
       rank = 40;
+    } else if (
+      item.tradeSection?.payload?.rescheduleRequestId ||
+      item.tradeSection?.payload?.rescheduleStatus === "pending" ||
+      item.history.some((h) => /reschedule pending/i.test(h.text))
+    ) {
+      rank = 45;
     }
     // Today's unpaid confirmed work also needs a collect action (prototype).
     else if (
