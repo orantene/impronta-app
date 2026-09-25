@@ -47,11 +47,16 @@ Pin the agenda clock in QA with `?agendaNow=2026-09-23T09:50:00` on `/talent/tod
 
 ### Step 1 — Beta cohort (~20 talents)
 
-1. Set `TALENT_AGENDA_V2=talents` in Vercel Production env.
-2. Add beta talent UUIDs to `TALENT_AGENDA_V2_TALENTS`.
-3. Confirm migration applied: `cd web && npm run db:check`.
-4. Run `npm run deploy:smoke` after the pointer advances.
-5. Monitor 48 h; collect feedback on Today, Calendar, booking-record.
+**Armed 2026-09-25 (Production):**
+- `TALENT_AGENDA_V2=talents`
+- `TALENT_AGENDA_V2_TALENTS=f9090640-e763-4f8c-8a0b-c2cc691defb2` (QA Agenda Jor only — **not** live Jor `f048e578-…`)
+- `deploy:smoke` exit 0 after #2245 merge
+- Expand UUID list when adding real beta talents; keep live Jor off until Step 3
+
+Remaining for full Step 1:
+1. Add up to ~19 more beta talent UUIDs to `TALENT_AGENDA_V2_TALENTS` (owner).
+2. Confirm migration applied: `cd web && npm run db:check`.
+3. Monitor 48 h; collect feedback on Today, Calendar, booking-record.
 
 ### Step 2 — Full rollout
 
