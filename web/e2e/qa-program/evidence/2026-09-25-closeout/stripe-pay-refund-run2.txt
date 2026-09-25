@@ -1,0 +1,84 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/qa-program/admin/stripe-pay-refund.spec.ts:42:7 › QA Stripe pay + refund › mint pay link → 4242 → Paid → full refund → unpaid
+[1A[2K[2/1] (retries) [chromium] › e2e/qa-program/admin/stripe-pay-refund.spec.ts:42:7 › QA Stripe pay + refund › mint pay link → 4242 → Paid → full refund → unpaid (retry #1)
+[1A[2K  1) [chromium] › e2e/qa-program/admin/stripe-pay-refund.spec.ts:42:7 › QA Stripe pay + refund › mint pay link → 4242 → Paid → full refund → unpaid 
+
+    Error: composer Plus tray control missing
+
+    [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-composer-wire] button.plus, [data-composer] button.plus, button.plus').first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - composer Plus tray control missing with timeout 15000ms[22m
+    [2m  - waiting for locator('[data-composer-wire] button.plus, [data-composer] button.plus, button.plus').first()[22m
+
+
+       at qa-program/_harness.ts:304
+
+      302 |   await awaitHydrated(page);
+      303 |   const plus = page.locator("[data-composer-wire] button.plus, [data-composer] button.plus, button.plus").first();
+    > 304 |   await expect(plus, "composer Plus tray control missing").toBeVisible({ timeout: 15_000 });
+          |                                                            ^
+      305 |   await expect(plus).toBeEnabled({ timeout: 10_000 });
+      306 |   // Close any leftover scrim/tray first
+      307 |   if (await page.locator("button.scrim").count()) {
+        at openPlusTray (/Users/oranpersonal/Desktop/impronta-app/web/e2e/qa-program/_harness.ts:304:60)
+        at /Users/oranpersonal/Desktop/impronta-app/web/e2e/qa-program/admin/stripe-pay-refund.spec.ts:91:5
+
+    Error Context: test-results/qa-program-admin-stripe-pa-990a3-Paid-→-full-refund-→-unpaid-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/qa-program-admin-stripe-pa-990a3-Paid-→-full-refund-→-unpaid-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/qa-program-admin-stripe-pa-990a3-Paid-→-full-refund-→-unpaid-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: composer Plus tray control missing
+
+    [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-composer-wire] button.plus, [data-composer] button.plus, button.plus').first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - composer Plus tray control missing with timeout 15000ms[22m
+    [2m  - waiting for locator('[data-composer-wire] button.plus, [data-composer] button.plus, button.plus').first()[22m
+
+
+       at qa-program/_harness.ts:304
+
+      302 |   await awaitHydrated(page);
+      303 |   const plus = page.locator("[data-composer-wire] button.plus, [data-composer] button.plus, button.plus").first();
+    > 304 |   await expect(plus, "composer Plus tray control missing").toBeVisible({ timeout: 15_000 });
+          |                                                            ^
+      305 |   await expect(plus).toBeEnabled({ timeout: 10_000 });
+      306 |   // Close any leftover scrim/tray first
+      307 |   if (await page.locator("button.scrim").count()) {
+        at openPlusTray (/Users/oranpersonal/Desktop/impronta-app/web/e2e/qa-program/_harness.ts:304:60)
+        at /Users/oranpersonal/Desktop/impronta-app/web/e2e/qa-program/admin/stripe-pay-refund.spec.ts:91:5
+
+    Error Context: test-results/qa-program-admin-stripe-pa-990a3-Paid-→-full-refund-→-unpaid-chromium-retry1/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/qa-program-admin-stripe-pa-990a3-Paid-→-full-refund-→-unpaid-chromium-retry1/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/qa-program-admin-stripe-pa-990a3-Paid-→-full-refund-→-unpaid-chromium-retry1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/qa-program/admin/stripe-pay-refund.spec.ts:42:7 › QA Stripe pay + refund › mint pay link → 4242 → Paid → full refund → unpaid 

@@ -369,20 +369,59 @@ Pointer never hand-pushed. Prior tip `e90d9d3e4` had already been promoted via w
 | Appointment double-book | **proven** | `appointment-double-book.spec.ts` **passed** (23.2s) with `PLAYWRIGHT_BASE_URL` set (`appt-double-log.txt`). Concurrent both-win race remains D-MSG-312 (product lock). |
 | Stripe 4242 + refund | **not proven** | Unchanged: `qa-stripe-r2` mints `cs_live_` (D-MSG-330). Local `.env.local` has `sk_test_`, but the **host** secret is live. Unblock: set `STRIPE_SECRET_KEY=sk_test_…` (and matching `pk_test_`) on `qa-stripe-r2` in Vercel, then re-run `stripe-pay-refund.spec.ts`. Do not 4242 live. |
 
-### Still open (canonical)
+### Still open (canonical) — superseded by close-out below
 
-- Stripe test-mode Checkout on `qa-stripe-r2` (host uses **production** `STRIPE_SECRET_KEY`, livemode per env comment / D-MSG-330). Do **not** swap production live keys. Options: custom Vercel env for that host, or Preview+test keys aliased only to R2 — then `stripe-pay-refund.spec.ts`. See [`FINISH-AUDIT-EXECUTION-PLAN-2026-09-25.md`](./FINISH-AUDIT-EXECUTION-PLAN-2026-09-25.md) Phase 1.
-- Concurrent TOCTOU race (D-MSG-312) — product backlog, not finish CLEAN.
-- Group silence (soft) — optional; inbox list shows money chrome (`$0 net YTD`); dedicated multi-participant stream assert still thin.
-- Permissions/table Playwright without disk QA SRK — optional Phase 2.
-
-No D-MSG-423 opened. No Impronta / Jorgelina / El Paisa content edits.
-
-### Hygiene (25 Sep, this PR)
+Historical list from hygiene PR. Updated open items: [§ Still open (canonical)](#still-open-canonical) at end of close-out attempt.
 
 - Removed duplicate “pending close-out” section that landed twice on #2249.
 - Added top-of-file pointer to this canonical open list.
 - Added execution plan file for remaining work.
 - Soft proof: ask-in-place via Message CTA → dock (evidence `2026-09-25-hygiene/`). Confirmed production Stripe env comment is livemode — R2 cannot 4242 until a non-production test-key path exists.
+
+---
+
+## Finish close-out attempt (25 Sep, night)
+
+Worktree / branch `docs/finish-closeout`. Evidence: `web/e2e/qa-program/evidence/2026-09-25-closeout/`.
+
+### Pointer
+
+| Ref | Sha |
+|---|---|
+| `origin/main` | `0c23d125b` (#2250 hygiene) |
+| `origin/production` | `7172f17a7` at close-out write — promote follows green CI; not hand-pushed |
+
+`qa-stripe-r2.tulala.digital` restored to production deploy `dpl_7uLhL814cHcUKsY5QbChQtATBKPr` after each test-key alias experiment.
+
+### Stripe unblock attempt (Phase 1)
+
+| Step | Result |
+|---|---|
+| Branch `qa/stripe-test-r2` + Preview `STRIPE_SECRET_KEY` / `pk_test_` (from local test keys) | **Done** — env on Vercel for that git branch only. Production live keys untouched. |
+| Preview deploy | `dpl_6EXsdBumUR3NteWX6dafDcR5rUXr` Ready |
+| Temporary alias R2 → test preview | Works; host 200 + production Supabase (`pluhdap…`) |
+| Journeys preview alias attempt | **Aborted** — QA Supabase → Host not registered. Restored immediately. |
+| Production promote / `*.tulala.digital` | **Steals** R2 alias back onto livemode production deploys mid-run |
+| Harness `stripe-pay-refund.spec.ts` | Sign-in flaky on preview; once past auth, Plus tray missing on fresh offer (empty catalog path). Existing inquiry `a3c937e7-a087-4d64-a68a-afae5d215859` used. |
+| Custom mint script | Inbox chrome visible; `[data-messages-v5]` count often 0 within wait window — mint/`cs_test_` not reached. |
+| 4242 + full refund | **Still not proven** |
+
+**Next Stripe attempt (do not invent workarounds):** keep `qa/stripe-test-r2` Preview test keys; alias R2 → that dpl; **pin** the alias for the duration (re-alias after any production promote); wait for `[data-messages-v5]` + open inquiry `a3c937e7-…`; assert `cs_test_` before 4242; restore R2 to current production dpl.
+
+### Soft proofs this pass
+
+| Item | Status | Evidence |
+|---|---|---|
+| Ask in place | already **proven** (hygiene) | Message CTA → dock |
+| Group silence | still soft | Journeys talent inbox opened Hub sale row; stream assert thin (`soft-closeout-log.json`). Group tab exists on R2 Messages chrome. |
+| Permissions / table Playwright | still soft | Specs failed: no disk QA SRK (`Invalid API key`). Leftover MCP+UI proofs stand. |
+
+### Still open (canonical)
+
+- Stripe 4242 + full refund on `cs_test_` (path half-built: `qa/stripe-test-r2` + alias; see above).
+- Concurrent TOCTOU race (D-MSG-312) — product backlog.
+- Group silence / permissions-table Playwright without disk QA SRK — optional.
+
+No D-MSG-423 opened. No Impronta / Jorgelina / El Paisa content edits. Production `STRIPE_SECRET_KEY` not swapped.
 
 
