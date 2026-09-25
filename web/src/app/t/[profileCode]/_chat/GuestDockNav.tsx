@@ -33,6 +33,8 @@ export type GuestDockNavProps = {
   itemsTab?: boolean;
   /** L13: per-business label for the Items tab; null → the i18n default. */
   itemsLabel?: string | null;
+  /** Per-trade label for the Projects tab; null → i18n (Mis citas / Yours). */
+  projectsLabel?: string | null;
   /** Live project (inquiry) count. 0 hides the badge. */
   projectsCount?: number;
 };
@@ -57,6 +59,7 @@ export function GuestDockNav({
   projectsCount = 0,
   itemsTab = true,
   itemsLabel = null,
+  projectsLabel = null,
 }: GuestDockNavProps) {
   const countFor = (view: GuestDockView): number =>
     view === "lineup" ? lineupCount : view === "projects" ? projectsCount : 0;
@@ -64,8 +67,11 @@ export function GuestDockNav({
   // services / Your order / Tickets & tables / Services / Items) and hidden
   // when the tenant switched it off.
   const tabs = itemsTab ? TABS : TABS.filter((tab) => tab.view !== "lineup");
-  const labelFor = (view: GuestDockView, labelKey: string): string =>
-    view === "lineup" && itemsLabel ? itemsLabel : t(labelKey);
+  const labelFor = (view: GuestDockView, labelKey: string): string => {
+    if (view === "lineup" && itemsLabel) return itemsLabel;
+    if (view === "projects" && projectsLabel) return projectsLabel;
+    return t(labelKey);
+  };
 
   return (
     <div

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { chatBookingsLabel } from "./chat-bookings-label";
 import { chatItemsLabel } from "./chat-items-label";
 import { INDUSTRY_PRESET_IDS, resolveIndustryPreset, talentSiteChatVoice } from "./presets";
 import { resolveWords } from "./resolve";
@@ -155,6 +156,11 @@ test("a private chef speaks as a chef, not a consultation", async () => {
   const words = resolveWords({ presetId: "private_chef", overrides: {}, terminologyId: null }, "es");
   assert.equal(chatItemsLabel(words), "Menús");
   const preset = resolveIndustryPreset("private_chef");
+  assert.equal(preset.words["appointments.item"]?.es, "Evento");
+  const chefWords = resolveWords({ presetId: "private_chef", overrides: {}, terminologyId: null }, "es");
+  assert.equal(chatBookingsLabel(chefWords), "Mis eventos");
+  const spaWordsDefault = resolveWords({ presetId: "spa_wellness", overrides: {}, terminologyId: null }, "es");
+  assert.equal(chatBookingsLabel(spaWordsDefault), null);
   assert.equal(preset.words["appointments.provider"]?.es, "Chef");
   assert.equal(talentSiteChatVoice(preset, "es"), "Cuéntame de la cena: la fecha, cuántas personas y si hay alergias.");
   assert.match(preset.chatVoice.es, /Cuéntanos/);
@@ -167,6 +173,8 @@ test("the singular greeting is only the talent-site helper", () => {
   const spa = resolveIndustryPreset("spa_wellness");
   assert.equal(talentSiteChatVoice(spa, "es"), "Agenda una sesión o pregúntame");
   assert.equal(spa.words["appointments.provider"]?.en, "Therapist");
+  const spaWords = resolveWords({ presetId: "spa_wellness", overrides: {}, terminologyId: null }, "es");
+  assert.equal(chatItemsLabel(spaWords), "Tratamientos");
 });
 
 test("a taxonomy error is a null, never a throw", async () => {
