@@ -1,9 +1,13 @@
 /**
  * Load-path money: agency total preferred; talent leg charge is the fallback
- * when agency_bookings is missing/zero (RLS or QA seeds).
+ * when agency_bookings is missing/zero. Talent session RLS cannot read those
+ * tables — loadTalentAgenda elevates via service role for booking ids already
+ * scoped by talent_bookings.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { mapAgencyBookingPayment } from "./load-map";
 
 describe("agenda load money fallback contract", () => {
@@ -35,5 +39,13 @@ describe("agenda load money fallback contract", () => {
       startsAt: "2026-09-23T10:00:00-05:00",
     });
     assert.equal(payment, "none");
+  });
+
+  it("load elevates commercial money joins via service role after talent_bookings scope", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/talent-agenda/load.ts"), "utf8");
+    assert.match(src, /createServiceRoleClient/);
+    assert.match(src, /moneyDb/);
+    assert.match(src, /agency_bookings/);
+    assert.match(src, /booking_talent/);
   });
 });

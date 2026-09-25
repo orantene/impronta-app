@@ -262,26 +262,33 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    const row = page.getByRole("button", { name: /Gel set/i }).first();
+    const row = page.getByRole("button", { name: /QA:agenda-v2 Gel set/i }).first();
     if (!(await row.isVisible().catch(() => false))) {
-      test.skip(true, "No seeded Gel set row on Today for agendaNow pin");
+      const byText = page.getByText(/QA:agenda-v2 Gel set/i).first();
+      if (!(await byText.isVisible().catch(() => false))) {
+        test.skip(true, "No seeded Gel set row on Today for agendaNow pin");
+      }
+      await byText.click();
+    } else {
+      await row.click();
     }
-    await row.click();
     const finish = page.getByRole("button", { name: /Finish and collect/i });
     await expect(finish).toBeVisible({ timeout: 30_000 });
     await finish.click();
     await expect(page.getByText(/Cash|Transfer|Card|Efectivo|Transferencia|Tarjeta/i).first()).toBeVisible({
       timeout: 30_000,
     });
-    const card = page.getByRole("button", { name: /Card|Tarjeta/i }).first();
+    const card = page.getByRole("radio", { name: /Card|Tarjeta/i }).first();
     if (!(await card.isVisible().catch(() => false))) {
-      test.skip(true, "Finish→Card not offered on this booking");
+      await page.locator("label").filter({ hasText: /^(Card|Tarjeta)$/i }).click();
+    } else {
+      await card.check().catch(async () => {
+        await card.click();
+      });
     }
-    await card.click();
-    const go = page.getByRole("button", { name: /Finish|Complete|Confirmar|Done|Listo|Create|Crear/i }).first();
-    if (await go.isVisible().catch(() => false)) {
-      await go.click();
-    }
+    const go = page.getByRole("button", { name: /^Complete booking$|^Completar reserva$/i });
+    await expect(go).toBeEnabled({ timeout: 15_000 });
+    await go.click();
     const payLink = page.locator('a[href*="/pay/"]').first();
     const amountDue = page.getByText(/Card needs an amount due|importe pendiente/i);
     await expect(payLink.or(amountDue).first()).toBeVisible({ timeout: 45_000 });

@@ -54,17 +54,19 @@ export function AgendaFinishCollect({
           return;
         }
       } else if (method === "card") {
-        if (!(dueCents && dueCents > 0)) {
-          setResult(copy.t("Card needs an amount due"));
-          return;
-        }
+        // dueCents may be missing when the bridge item was stubbed; the server
+        // re-reads total_client_revenue via service role after ownership check.
         const origin = typeof window !== "undefined" ? window.location.origin : "";
         const link = await createAgendaBookingPayLink({
           bookingId,
-          amountCents: dueCents,
+          amountCents: dueCents && dueCents > 0 ? dueCents : undefined,
           publicOrigin: origin,
         });
         if (!link.ok) {
+          if (link.reason === "invalid_amount") {
+            setResult(copy.t("Card needs an amount due"));
+            return;
+          }
           setResult(`${copy.t("Could not create pay link")}: ${link.reason}`);
           return;
         }
@@ -82,14 +84,13 @@ export function AgendaFinishCollect({
                 ? copy.t("Booking completed. Transfer marked awaiting until you confirm paid.")
                 : copy.t("Booking completed. Card link ready — open it on this phone or send it.");
         setResult(`${note} ✓`);
-        onDone?.();
+        // Card keeps the sheet open so the pay link stays visible.
+        if (method !== "card") onDone?.();
       } else {
         setResult(`${copy.t("Could not complete")}: ${res.reason}`);
       }
     });
   }
-
-  const cardBlocked = method === "card" && !(dueCents && dueCents > 0);
 
   return (
     <TaskShell
@@ -97,7 +98,7 @@ export function AgendaFinishCollect({
       onClose={onClose}
       title={copy.t("Finish and collect")}
       primaryActionLabel={pending ? copy.t("Completing…") : copy.t("Complete booking")}
-      onPrimaryAction={method && !cardBlocked ? handleFinish : undefined}
+      onPrimaryAction={method ? handleFinish : undefined}
       secondaryActionLabel={copy.t("Back")}
     >
       <div className="space-y-4">
@@ -124,10 +125,7 @@ export function AgendaFinishCollect({
           {!method ? (
             <p className="text-[13px] text-[#5F6368]">{copy.t("Complete stays off until a method is selected.")}</p>
           ) : null}
-          {cardBlocked ? (
-            <p className="text-[13px] text-[#B42318]">{copy.t("Card needs an amount due")}</p>
-          ) : null}
-          {method === "card" && !cardBlocked ? (
+          {method === "card" ? (
             <p className="text-[13px] text-[#5F6368]">
               {copy.t("Creates a pay link you can open or send. Works even without a prior order.")}
             </p>
