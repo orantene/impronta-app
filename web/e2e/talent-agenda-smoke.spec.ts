@@ -22,6 +22,12 @@ const AUTH_FILE = path.resolve(process.cwd(), "e2e/.auth/agenda-qa.json");
 
 test.setTimeout(180_000);
 
+// Stub so test.use({ storageState }) never ENOENT before beforeAll fills cookies.
+fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
+if (!fs.existsSync(AUTH_FILE)) {
+  fs.writeFileSync(AUTH_FILE, JSON.stringify({ cookies: [], origins: [] }));
+}
+
 async function login(page: import("@playwright/test").Page) {
   await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded", timeout: 90_000 });
   await page.locator('input[type="email"]').waitFor({ state: "visible", timeout: 60_000 });
@@ -33,21 +39,31 @@ async function login(page: import("@playwright/test").Page) {
   ]);
 }
 
+let authWrite: Promise<void> | null = null;
+
 async function ensureStorageState(browser: import("@playwright/test").Browser) {
-  fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
-  if (fs.existsSync(AUTH_FILE)) {
+  if (!QA_EMAIL) return;
+  if (authWrite) {
+    await authWrite;
+    return;
+  }
+  authWrite = (async () => {
     try {
       const ageMs = Date.now() - fs.statSync(AUTH_FILE).mtimeMs;
-      if (ageMs < 45 * 60_000) return; // reuse for 45m
+      const raw = fs.readFileSync(AUTH_FILE, "utf8");
+      const parsed = JSON.parse(raw) as { cookies?: unknown[] };
+      if (ageMs < 45 * 60_000 && (parsed.cookies?.length ?? 0) > 0) return;
     } catch {
       /* recreate */
     }
-  }
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  await login(page);
-  await context.storageState({ path: AUTH_FILE });
-  await context.close();
+    // Fresh context — do NOT inherit the empty storageState fixture.
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+    await login(page);
+    await context.storageState({ path: AUTH_FILE });
+    await context.close();
+  })();
+  await authWrite;
 }
 
 /** Skip when V2 routes are absent (flag off or commit not on this host yet). */
