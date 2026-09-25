@@ -258,32 +258,18 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
   });
 
   test("finish/collect Card mints a pay link for seeded unpaid booking", async ({ page }) => {
-    // Gel set is 10:00–11:00; pin after start so Finish is offered.
-    await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T10:30:00`, {
+    await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T09:50:00`, {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    const collect = page.getByRole("button", { name: /Collect|Finish|Cobrar|Finalizar/i }).first();
-    if (await collect.isVisible().catch(() => false)) {
-      await collect.click();
-    } else {
-      const row = page.getByRole("button", { name: /QA:agenda-v2|Gel set|Volume lashes|Brows/i }).first();
-      if (!(await row.isVisible().catch(() => false))) {
-        test.skip(true, "No seeded unpaid booking row on Today for this clock");
-      }
-      await row.click();
-      await page.waitForTimeout(800);
-      const more = page.getByRole("button", { name: /More actions/i });
-      if (await more.isVisible().catch(() => false)) {
-        await more.click();
-        await page.waitForTimeout(300);
-      }
-      const finish = page.getByRole("button", { name: /Finish and collect|Finish|Collect|Finalizar|Cobrar/i }).first();
-      if (!(await finish.isVisible().catch(() => false))) {
-        test.skip(true, "Finish/Collect not offered on opened booking record");
-      }
-      await finish.click();
+    const row = page.getByRole("button", { name: /Gel set/i }).first();
+    if (!(await row.isVisible().catch(() => false))) {
+      test.skip(true, "No seeded Gel set row on Today for agendaNow pin");
     }
+    await row.click();
+    const finish = page.getByRole("button", { name: /Finish and collect/i });
+    await expect(finish).toBeVisible({ timeout: 30_000 });
+    await finish.click();
     await expect(page.getByText(/Cash|Transfer|Card|Efectivo|Transferencia|Tarjeta/i).first()).toBeVisible({
       timeout: 30_000,
     });
