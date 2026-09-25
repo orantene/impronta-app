@@ -66,7 +66,7 @@ import {
   isReceiptVisibleStatus,
 } from "@/lib/inquiry/inquiry-receipt-data";
 import { getAppUrl } from "@/lib/auth-flow";
-import { CLIENT_CARD_KINDS } from "@/lib/messages-v5/client-thread-view";
+import { CLIENT_CARD_KINDS, isClientCardKind } from "@/lib/messages-v5/client-thread-view";
 import { resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
 import type {
   AddGuestClaimEmailInput,
@@ -298,8 +298,10 @@ function deriveAuthorRole(
   if (!row.sender_user_id && row.guest_session_id === thisGuestSessionId) {
     return "guest";
   }
-  // System / platform-authored (no sender, no guest) → system bubble.
-  if (!row.sender_user_id || row.message_kind === "payment_paid") {
+  // A3 / SHELL-REQUESTS: a payment_paid (or other client card) with no sender
+  // must still draw as a paid card, not a system note.
+  if (!row.sender_user_id) {
+    if (isClientCardKind(row.message_kind)) return "staff";
     return "system";
   }
   // Engine-authored lines ("Offer v3 sent", auto-ack) carry

@@ -534,7 +534,7 @@ export async function messagingRequestPayment(input: {
   if (!inquiry) return fail("not_found");
   if ((inquiry as { version: number }).version !== parsed.data.expectedVersion) return fail("conflict");
   const { data: order } = await scoped(g.admin, "orders", g.tenantId)
-    .select("id, version, status, total_cents")
+    .select("id, version, status, total_cents, currency")
     .eq("id", parsed.data.orderId)
     .maybeSingle();
   if (!order) return fail("not_found");
@@ -602,6 +602,7 @@ export async function messagingRequestPayment(input: {
     .select("id")
     .single();
   if (snapshot.error) logServerError("messaging.requestPayment.snapshot", snapshot.error);
+  const currency = (order as { currency?: string }).currency ?? "USD";
   const card = await insertMessage(g.admin, {
     tenantId: g.tenantId,
     inquiryId: parsed.data.inquiryId,
@@ -613,6 +614,7 @@ export async function messagingRequestPayment(input: {
       amountCents: minted.amountCents,
       amountKind: parsed.data.amountKind,
       expiresAt: minted.expiresAt,
+      currency,
     },
     senderUserId: g.userId,
   });

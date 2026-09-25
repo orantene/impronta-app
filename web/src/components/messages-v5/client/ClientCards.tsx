@@ -267,10 +267,12 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
 /* ---------- payment ---------- */
 
 export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: Omit<Common, "kit"> & { readonly view: PaymentView; readonly now: Date; readonly onPay?: (code: string) => void }) {
-  const paid = view.state === "paid";
+  // A3: paid + partially_refunded show money lines; refunded/cancelled/expired close Pay.
+  const paid = view.state === "paid" || view.state === "partially_refunded";
+  const refunded = view.state === "refunded";
   const cancelled = view.state === "cancelled";
   const expired = view.state === "expired" || (view.expiresAt ? Date.parse(view.expiresAt) < now.getTime() : false);
-  const closed = cancelled || expired;
+  const closed = cancelled || expired || refunded;
   const kind = view.amountKind === "deposit" ? copy.pay.deposit : copy.pay.full;
   const amount = view.amountCents != null ? money(view.amountCents, view.currency) : "";
   // Front-door v27 Paid: total / paid / due / method only when the shell stamped
@@ -307,6 +309,8 @@ export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: 
             <Pill tone="won">{copy.pay.paid}</Pill>
             {methodLabel ? <Pill tone="money">{methodLabel}</Pill> : null}
           </>
+        ) : refunded ? (
+          <Pill tone="lost">{copy.cancel.refunded}</Pill>
         ) : cancelled ? (
           <Pill tone="lost">{copy.pay.cancelledPill}</Pill>
         ) : expired ? (
@@ -316,13 +320,15 @@ export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: 
       foot={
         paid
           ? paidFoot
-          : cancelled
-            ? fill(copy.pay.cancelled, { business })
-            : expired
-              ? fill(copy.pay.expired, { business })
-              : view.expiresAt
-                ? fill(copy.pay.expiresAt, { date: formatClientDate(view.expiresAt, locale) })
-                : copy.pay.keepSlot
+          : refunded
+            ? copy.cancel.refunded
+            : cancelled
+              ? fill(copy.pay.cancelled, { business })
+              : expired
+                ? fill(copy.pay.expired, { business })
+                : view.expiresAt
+                  ? fill(copy.pay.expiresAt, { date: formatClientDate(view.expiresAt, locale) })
+                  : copy.pay.keepSlot
       }
       actions={!paid && !closed && view.code && onPay ? (
         <Btn size="sm" variant="primary" onClick={() => onPay(view.code as string)} data-client-action="pay">{fill(copy.pay.pay, { amount })}</Btn>
