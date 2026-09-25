@@ -81,7 +81,19 @@ export function summarizeCommercialEvent(
       return { label: "Manager reassigned", summary_lines: lines };
     }
     case BOOKING_AUDIT.STATUS_CHANGED: {
-      lines.push(`${humanizeEnum(p.from)} → ${humanizeEnum(p.to)}.`);
+      const kind = typeof p.kind === "string" ? p.kind : null;
+      if (kind === "reschedule_proposed") {
+        return { label: "Reschedule proposed", summary_lines: lines };
+      }
+      if (kind === "reschedule_declined") {
+        return { label: "Reschedule declined", summary_lines: lines };
+      }
+      if (kind === "rescheduled") {
+        return { label: "Booking rescheduled", summary_lines: lines };
+      }
+      if (p.from !== undefined || p.to !== undefined) {
+        lines.push(`${humanizeEnum(p.from)} → ${humanizeEnum(p.to)}.`);
+      }
       return { label: "Booking status changed", summary_lines: lines };
     }
     case BOOKING_AUDIT.PAYMENT_STATE_CHANGED: {

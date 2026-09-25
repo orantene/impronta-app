@@ -139,15 +139,12 @@ export function needsAttention(
       rank = item.managedBy ? 50 : 10;
     } else if (item.booking === "hold" && (item.payment === "awaiting" || item.payment === "checking")) {
       rank = item.payment === "checking" ? 25 : 20;
-    } else if (item.history.some((h) => h.text === "Reschedule pending.")) {
-      rank = 22;
     } else if (item.payment === "overdue") rank = 30;
     else if (item.tradeSection?.kind === "intake" && item.tradeSection.payload.status === "pending") {
       rank = 40;
     } else if (
       item.tradeSection?.payload?.rescheduleRequestId ||
-      item.tradeSection?.payload?.rescheduleStatus === "pending" ||
-      item.history.some((h) => /reschedule pending/i.test(h.text))
+      item.tradeSection?.payload?.rescheduleStatus === "pending"
     ) {
       rank = 45;
     }

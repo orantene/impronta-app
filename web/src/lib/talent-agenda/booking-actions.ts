@@ -10,6 +10,8 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { totalClientRevenueToCents } from "@/lib/money/total-client-revenue";
+import { logBookingActivity } from "@/lib/server/commercial-audit";
+import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 
 import { ownBookingGate, talentBookingMirrorEq } from "./ownership";
 import type { OwnBookingResult } from "./ownership";
@@ -47,6 +49,7 @@ export async function requireOwnBooking(bookingId: string): Promise<OwnBookingRe
     return ownBookingGate({
       bookingId,
       hasSessionUser: Boolean(user),
+      userId: user?.id ?? null,
       talentProfileId: talentId,
       onBookingTalent: false,
       ownsTalentBookingMirror: false,
@@ -85,6 +88,7 @@ export async function requireOwnBooking(bookingId: string): Promise<OwnBookingRe
   return ownBookingGate({
     bookingId,
     hasSessionUser: true,
+    userId: user.id,
     talentProfileId: talentId,
     onBookingTalent: Boolean(leg),
     ownsTalentBookingMirror: Boolean(tb),
@@ -155,6 +159,17 @@ export async function markBookingNoShow(input: {
     }
   }
 
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.STATUS_CHANGED,
+    payload: {
+      from: row.status,
+      to: "no_show",
+      surface: "talent_agenda",
+    },
+  });
+
   return { ok: true };
 }
 
@@ -201,6 +216,17 @@ export async function completeBooking(input: {
     .eq("id", talentBookingMirrorEq(input.bookingId, own.talentId).id)
     .eq("talent_profile_id", own.talentId);
 
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.STATUS_CHANGED,
+    payload: {
+      from: row.status,
+      to: "completed",
+      surface: "talent_agenda",
+    },
+  });
+
   return { ok: true };
 }
 
@@ -220,7 +246,7 @@ export async function recordBookingCashCollected(input: {
 
   const { data: row, error } = await admin
     .from("agency_bookings")
-    .select("id, status, payment_status, total_client_revenue, deposit_amount_cents")
+    .select("id, status, payment_status, payment_method, total_client_revenue, deposit_amount_cents")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (error) {
@@ -251,6 +277,19 @@ export async function recordBookingCashCollected(input: {
     logServerError("agenda.recordCash.update", upErr);
     return { ok: false, reason: "unavailable" };
   }
+
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+    payload: {
+      surface: "talent_agenda",
+      payment_status: { from: row.payment_status, to: nextStatus },
+      payment_method: { from: row.payment_method ?? null, to: "cash" },
+      amountCents: amount,
+    },
+  });
+
   return { ok: true };
 }
 
@@ -294,6 +333,19 @@ export async function recordBookingTransferAwaiting(input: {
     logServerError("agenda.recordTransferAwaiting.update", upErr);
     return { ok: false, reason: "unavailable" };
   }
+
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+    payload: {
+      surface: "talent_agenda",
+      payment_status: { from: row.payment_status, to: row.payment_status },
+      payment_method: { from: row.payment_method ?? null, to: "transfer" },
+      awaiting: true,
+    },
+  });
+
   return { ok: true };
 }
 
@@ -336,6 +388,19 @@ export async function markBookingTransferReceived(input: {
     logServerError("agenda.markTransferReceived.update", upErr);
     return { ok: false, reason: "unavailable" };
   }
+
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+    payload: {
+      surface: "talent_agenda",
+      payment_status: { from: row.payment_status, to: "paid" },
+      payment_method: { from: row.payment_method, to: "transfer" },
+      transfer_confirmed: true,
+    },
+  });
+
   return { ok: true };
 }
 
