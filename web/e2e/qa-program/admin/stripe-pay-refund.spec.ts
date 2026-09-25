@@ -24,8 +24,9 @@ import {
  * Sign-in uses magic-link cookies (dev signin is 403 on production).
  *
  * Flow: fresh conversation → offer → accept → mint pay link → /pay/<code> →
- * Stripe Checkout 4242 → Payment card Paid + Money + record chip → full refund →
- * surfaces flip back.
+ * Stripe Checkout 4242 → Payment card Paid + Money + record chip → the link, the
+ * order and ONE Stripe money row with its PaymentIntent (audit 2026-09-25 #1) →
+ * partial refund → full refund of the rest → surfaces flip back.
  */
 const AGENT_HOST =
   process.env.QA_STRIPE_HOST ?? process.env.PLAYWRIGHT_BASE_URL ?? "https://qa-stripe-r2.tulala.digital";
@@ -39,7 +40,7 @@ test.describe("QA Stripe pay + refund", () => {
   // Sign-in (magic link) + Checkout 4242 + refund easily exceeds 6m on prod.
   test.setTimeout(600_000);
 
-  test("mint pay link → 4242 → Paid → full refund → unpaid", async ({ page, context }) => {
+  test("mint pay link → 4242 → link + order + one money row paid → partial refund → full refund", async ({ page, context }) => {
     test.skip(
       !USE_AGENT_PROD,
       "Stripe 4242+refund requires QA_ALLOW_AGENT_PROD_HOST=1 on agent-owned production host (D-MSG-313; journeys mints mock)",
@@ -314,38 +315,51 @@ test.describe("QA Stripe pay + refund", () => {
     }
     await shot(page, "admin-stripe-paid-surfaces");
 
-    const refundBtn = page.getByRole("button", { name: /^refund$/i }).first();
-    const nextRefund = page.locator("[data-next-step-action]").filter({ hasText: /refund/i }).first();
-    if (await refundBtn.isVisible().catch(() => false)) {
-      await refundBtn.click();
-    } else if (await nextRefund.isVisible().catch(() => false)) {
-      await nextRefund.click();
-    } else {
-      await openPlusTray(page);
-      const cardRefund = page.locator('[data-card="payment"]').filter({ hasText: /paid/i }).getByRole("button", { name: /refund/i }).first();
-      await expect(
-        cardRefund,
-        "Refund door missing (header, next-step, Payment card) after paid",
-      ).toBeVisible({ timeout: 15_000 });
-      await cardRefund.click();
+    // THE MONEY ROW (audit 2026-09-25, defect #1). A paid link used to leave the
+    // link and the order open with no transaction at all. Now: the link, the
+    // order and exactly ONE Stripe money row, carrying the PaymentIntent the
+    // refund route needs.
+    const sbProof = await serviceClient();
+    let paidTxnId: string | null = null;
+    let paidGross = 0;
+    if (sbProof) {
+      const { data: linkRow } = await sbProof
+        .from("payment_links")
+        .select("status, order_id")
+        .eq("code", mintedCode!)
+        .maybeSingle();
+      expect(linkRow?.status, "payment link did not settle to paid").toBe("paid");
+      const orderId = String(linkRow?.order_id ?? "");
+      const { data: orderRow } = await sbProof.from("orders").select("status").eq("id", orderId).maybeSingle();
+      expect(orderRow?.status, "order did not settle to paid").toBe("paid");
+      const { data: txns } = await sbProof
+        .from("booking_transactions")
+        .select("id, status, provider, gross_amount_cents, provider_metadata, metadata")
+        .eq("order_id", orderId)
+        .is("refund_of_transaction_id", null)
+        .eq("provider", "stripe")
+        .in("status", ["paid", "payout_pending", "payout_sent"]);
+      expect(txns?.length ?? 0, `expected ONE paid Stripe money row for order ${orderId}`).toBe(1);
+      const txn = (txns ?? [])[0] as { id: string; gross_amount_cents: number; provider_metadata: Record<string, unknown> | null };
+      const pi = String(txn?.provider_metadata?.payment_intent_id ?? "");
+      expect(pi, "money row carries no PaymentIntent id; refunds could not find the charge").toMatch(/^pi_/);
+      paidTxnId = txn.id;
+      paidGross = Number(txn.gross_amount_cents);
     }
 
-    const refundSheet = page.locator("[data-cancel-refund-sheet], [data-sheet]").filter({ hasText: /refund/i }).first();
-    await expect(refundSheet, "Refund sheet did not open").toBeVisible({ timeout: 20_000 });
-    const fullRefund = refundSheet.getByText(/full refund/i).first();
-    if (await fullRefund.isVisible().catch(() => false)) await fullRefund.click();
-    const reason = refundSheet.locator("textarea, input[type='text']").first();
-    if (await reason.isVisible().catch(() => false)) {
-      await reason.fill("QA Stripe full refund proof");
+    // PARTIAL first (a quarter, at least $1), then FULL for the rest.
+    const partialCents = Math.max(100, Math.floor(paidGross / 4 / 100) * 100);
+    await refundFromThread(page, { mode: "partial", amountCents: partialCents, note: "QA Stripe partial refund proof" });
+    await shot(page, "admin-stripe-refunded-partial");
+    if (sbProof && paidTxnId) {
+      await expectRefundedCents(sbProof, paidTxnId, partialCents);
     }
-    const confirmRefund = refundSheet.getByRole("button", { name: /refund/i }).last();
-    await expect(confirmRefund, "Refund primary missing").toBeEnabled({ timeout: 15_000 });
-    await confirmRefund.click();
-    await expect(
-      page.getByText(/refunded|cancelled/i).first().or(page.locator("[data-cancel-refund-sheet]").filter({ hasText: /done|refunded/i })),
-      "Refund did not complete",
-    ).toBeVisible({ timeout: 40_000 });
+
+    await refundFromThread(page, { mode: "full", note: "QA Stripe full refund proof" });
     await shot(page, "admin-stripe-refunded");
+    if (sbProof && paidTxnId) {
+      await expectRefundedCents(sbProof, paidTxnId, paidGross);
+    }
 
     await page.keyboard.press("Escape");
     await page.waitForTimeout(1000);
@@ -359,3 +373,71 @@ test.describe("QA Stripe pay + refund", () => {
     expect(errors, errors.join("\n")).toEqual([]);
   });
 });
+
+async function serviceClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
+  const { createClient } = await import("@supabase/supabase-js");
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  });
+}
+
+/** Refund rows are children of the payment; the webhook books them. Poll until they add up. */
+async function expectRefundedCents(
+  sb: NonNullable<Awaited<ReturnType<typeof serviceClient>>>,
+  paymentId: string,
+  expectedCents: number,
+): Promise<void> {
+  let total = 0;
+  for (let i = 0; i < 30; i++) {
+    const { data } = await sb
+      .from("booking_transactions")
+      .select("gross_amount_cents, status")
+      .eq("refund_of_transaction_id", paymentId)
+      .eq("status", "refunded");
+    total = (data ?? []).reduce((sum, r) => sum + Number((r as { gross_amount_cents: number }).gross_amount_cents ?? 0), 0);
+    if (total >= expectedCents) break;
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  expect(total, `refunded ${total} of payment ${paymentId}; expected ${expectedCents}`).toBe(expectedCents);
+}
+
+async function refundFromThread(
+  page: import("@playwright/test").Page,
+  input: { mode: "partial" | "full"; amountCents?: number; note: string },
+): Promise<void> {
+  await page.keyboard.press("Escape").catch(() => undefined);
+  const refundBtn = page.getByRole("button", { name: /^refund$/i }).first();
+  const nextRefund = page.locator("[data-next-step-action]").filter({ hasText: /refund/i }).first();
+  if (await refundBtn.isVisible().catch(() => false)) {
+    await refundBtn.click();
+  } else if (await nextRefund.isVisible().catch(() => false)) {
+    await nextRefund.click();
+  } else {
+    await openPlusTray(page);
+    const cardRefund = page.locator('[data-card="payment"]').filter({ hasText: /paid|refund/i }).getByRole("button", { name: /refund/i }).first();
+    await expect(cardRefund, "Refund door missing (header, next-step, Payment card) after paid").toBeVisible({ timeout: 15_000 });
+    await cardRefund.click();
+  }
+
+  const refundSheet = page.locator("[data-cancel-refund-sheet], [data-sheet]").filter({ hasText: /refund/i }).first();
+  await expect(refundSheet, "Refund sheet did not open").toBeVisible({ timeout: 20_000 });
+  if (input.mode === "partial") {
+    await refundSheet.getByText(/partial refund/i).first().click();
+    const amount = refundSheet.locator("[data-cancel-partial] input").first();
+    await expect(amount, "Partial refund amount field missing").toBeVisible({ timeout: 10_000 });
+    await amount.fill(((input.amountCents ?? 0) / 100).toFixed(2));
+  } else {
+    const fullRefund = refundSheet.getByText(/full refund/i).first();
+    if (await fullRefund.isVisible().catch(() => false)) await fullRefund.click();
+  }
+  const reason = refundSheet.locator("[data-cancel-reason] input, textarea").first();
+  if (await reason.isVisible().catch(() => false)) await reason.fill(input.note);
+  const confirmRefund = refundSheet.getByRole("button", { name: /refund/i }).last();
+  await expect(confirmRefund, "Refund primary missing").toBeEnabled({ timeout: 15_000 });
+  await confirmRefund.click();
+  await expect(
+    page.getByText(/refunded|cancelled/i).first().or(page.locator("[data-cancel-refund-sheet]").filter({ hasText: /done|refunded/i })),
+    `${input.mode} refund did not complete`,
+  ).toBeVisible({ timeout: 40_000 });
+}

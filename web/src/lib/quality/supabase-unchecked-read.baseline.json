@@ -351,7 +351,6 @@
   "src/lib/site-admin/site-header/actions.ts": 1,
   "src/lib/stripe/client-billing.ts": 4,
   "src/lib/stripe/talent-billing.ts": 4,
-  "src/lib/stripe/webhook-handler.ts": 1,
   "src/lib/stripe/workspace-billing.ts": 5,
   "src/lib/support/diagnostics/enrich.ts": 2,
   "src/lib/support/guest-actions.ts": 1,

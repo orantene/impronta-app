@@ -59,7 +59,7 @@ import {
   findTalentByStripeAccountId,
 } from "@/lib/payments/stripe-connect-talent";
 import { handleTalentStripeSubscriptionEvent } from "@/lib/payments/stripe-talent-subscription";
-import { markPaid } from "@/lib/bookings/transactions";
+import { closeCheckoutSession, settleCheckoutPayment } from "@/lib/stripe/webhook-card-settle";
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
@@ -205,21 +205,6 @@ async function persistAccountFromObject(account: Stripe.Account, eventId: string
   );
 }
 
-/** Audit #5: pull the actually-charged amount + currency from the settlement event
- *  (PaymentIntent or Checkout Session) so it can be reconciled against the booking
- *  transaction before payout. Returns null for event types without a clear amount. */
-function extractChargedAmount(event: Stripe.Event): { amountCents: number; currency: string } | null {
-  if (event.type === "payment_intent.succeeded") {
-    const pi = event.data.object as Stripe.PaymentIntent;
-    return { amountCents: pi.amount ?? 0, currency: pi.currency ?? "" };
-  }
-  if (event.type === "checkout.session.completed") {
-    const s = event.data.object as Stripe.Checkout.Session;
-    return { amountCents: s.amount_total ?? 0, currency: s.currency ?? "" };
-  }
-  return null;
-}
-
 /**
  * Reconcile a failed/reversed Connect transfer into the booking_payouts ledger.
  *
@@ -315,56 +300,28 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
 
     case "booking_payment": {
-      // Audit #5: verify the actually-charged amount + currency match the booking
-      // transaction BEFORE marking paid + disbursing. The PaymentIntent is
-      // idempotency-keyed at its first amount, so a later gross edit can silently
-      // diverge; auto-paying out on a mismatched charge would over/under-pay the
-      // talent. On mismatch, skip markPaid and flag for manual reconciliation
-      // (logged) instead of auto-paying the wrong amount.
-      const charged = extractChargedAmount(event);
-      if (charged) {
-        const sbGuard = createServiceRoleClient();
-        if (sbGuard) {
-          const { data: txnRow } = await sbGuard
-            .from("booking_transactions")
-            .select("gross_amount_cents, currency")
-            .eq("id", action.transactionId)
-            .maybeSingle();
-          if (
-            txnRow &&
-            (Number(txnRow.gross_amount_cents) !== charged.amountCents ||
-              String(txnRow.currency).toLowerCase() !== charged.currency.toLowerCase())
-          ) {
-            logServerError(
-              "stripe-webhook.booking_payment.amount_mismatch",
-              new Error(
-                `charged ${charged.amountCents} ${charged.currency} != txn ${txnRow.gross_amount_cents} ${txnRow.currency} (txn ${action.transactionId}) — skipped markPaid for manual reconciliation`,
-              ),
-            );
-            return;
-          }
-        }
-      }
-      // Thread the settling PaymentIntent onto the transaction so a refund can
-      // later be issued against the real charge (see markPaid).
-      const result = await markPaid(action.transactionId, {
-        paymentIntentId: action.paymentIntentId,
-      });
-      if (!result.ok) {
-        // markPaid is idempotent (sets status=paid); a failure here is almost
-        // always a transient DB blip. Retry rather than silently lose a paid
-        // booking — the idempotency claim is released before the 5xx.
-        throw new TransientWebhookError(`markPaid(${action.transactionId}): ${result.error}`);
-      }
+      // One settle path for invoices, POS card sales and payment links: the
+      // audit #5 amount guard, `markPaid`, and "already settled" acknowledged
+      // rather than retried (`webhook-card-settle.ts`).
+      const settled = await settleCheckoutPayment(event, action);
+      if (!settled.ok) throw new TransientWebhookError(settled.error);
       // Payment settled — fan out the confirmation (PDF → Files + email).
       // Best-effort + idempotent; never throws, so a confirmation hiccup
       // cannot fail the webhook and force a needless Stripe retry.
-      await emitBookingConfirmation(action.transactionId);
+      if (settled.outcome === "paid") await emitBookingConfirmation(action.transactionId);
       // The 3-way payout fan-out (talent + workspace; platform keeps its fee) now
       // happens INSIDE markPaid (audit #6), so every paid path disburses — incl. a
       // manual admin "Mark received", not just this webhook. Don't call it again
       // here (recordPayoutLeg plain-inserts, so a second run would duplicate ledger
       // rows; Stripe idempotency already prevents a double transfer).
+      return;
+    }
+
+    case "checkout_session_closed": {
+      // Stripe will never take money on this session again: a payment link's
+      // row fails, its balance goes back and the link reads expired.
+      const closed = await closeCheckoutSession(action);
+      if (!closed.ok) throw new TransientWebhookError(closed.error);
       return;
     }
 

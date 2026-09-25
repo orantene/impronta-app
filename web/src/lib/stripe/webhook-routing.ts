@@ -27,6 +27,7 @@ import type Stripe from "stripe";
  *
  *   client_verification / client_balance_topup — client-trust economics (one-time)
  *   booking_payment                             — booking invoice via Checkout
+ *   checkout_session_closed                     — a Checkout session that can never be paid (expired / async failed)
  *   booking_deposit                             — booking deposit via PaymentIntent
  *   subscription_checkout                       — sub created; retrieve then sync
  *   subscription_lifecycle_talent               — talent plan update/delete
@@ -63,6 +64,15 @@ export type StripeAction =
        *  PaymentIntent does NOT carry `metadata.transaction_id` (that lives on
        *  the session), so it cannot be recovered by searching Stripe. */
       paymentIntentId: string | null;
+    }
+  | {
+      kind: "checkout_session_closed";
+      /** The money row the session was opened for (`client_reference_id`). */
+      transactionId: string;
+      /** `expired`: Stripe stopped accepting the session at its `expires_at`.
+       *  `async_payment_failed`: a delayed method completed the session and then
+       *  failed. Either way nothing can ever be collected on it again. */
+      reason: "expired" | "async_payment_failed";
     }
   | { kind: "subscription_checkout"; subscriptionId: string }
   | { kind: "subscription_lifecycle_talent" }
@@ -184,6 +194,11 @@ export function isTalentSubscription(metadata: Stripe.Metadata | null | undefine
   );
 }
 
+/** The money row a one-time Checkout session was opened for, if it names one. */
+export function checkoutTransactionId(session: Stripe.Checkout.Session): string | null {
+  return strOrNull(session.client_reference_id) ?? strOrNull(session.metadata?.transaction_id);
+}
+
 export const WORKSPACE_PLAN_KEYS = new Set(["studio", "agency", "network"]);
 
 // ─── The classifier ──────────────────────────────────────────────────────────────
@@ -230,14 +245,32 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
         // Booking invoice: the transaction id rides on client_reference_id
         // (and/or metadata.transaction_id). This is the path that previously
         // only the SECOND route handled — fold it in.
-        const transactionId =
-          strOrNull(session.client_reference_id) ??
-          strOrNull(session.metadata?.transaction_id);
+        const transactionId = checkoutTransactionId(session);
         if (transactionId) {
+          // A delayed method completes the session with `unpaid`: no money has
+          // moved yet. The settle waits for `async_payment_succeeded`, below.
+          if (session.payment_status === "unpaid") return { kind: "ignore" };
           return {
             kind: "booking_payment",
             transactionId,
             paymentIntentId: refId(session.payment_intent),
+          };
+        }
+
+        // A payment link paid through the session shape `/pay/<code>` minted
+        // before it opened its money row first: metadata {payment_link_code,
+        // order_id, tenant_id} and nothing else. The customer WAS charged and
+        // nothing can settle it automatically (no transaction, and the link
+        // lapsed long before the session did), so it is named loudly for a
+        // person to reconcile rather than lost in the generic fallthrough.
+        const legacyLinkCode = strOrNull(session.metadata?.payment_link_code);
+        if (legacyLinkCode) {
+          return {
+            kind: "invalid",
+            reason:
+              `PAYMENT LINK CHARGED BUT NOT SETTLED: link ${legacyLinkCode} was paid through a session with no `
+              + `transaction (session ${session.id}, order ${session.metadata?.order_id ?? "?"}, tenant `
+              + `${session.metadata?.tenant_id ?? "?"}). Reconcile by hand.`,
           };
         }
 
@@ -254,6 +287,31 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
       }
 
       return { kind: "ignore" };
+    }
+
+    case "checkout.session.async_payment_succeeded": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session.mode !== "payment") return { kind: "ignore" };
+      const transactionId = checkoutTransactionId(session);
+      if (!transactionId) {
+        return { kind: "invalid", reason: `async payment succeeded on session ${session.id} with no transaction` };
+      }
+      return { kind: "booking_payment", transactionId, paymentIntentId: refId(session.payment_intent) };
+    }
+
+    case "checkout.session.async_payment_failed":
+    case "checkout.session.expired": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session.mode !== "payment") return { kind: "ignore" };
+      const transactionId = checkoutTransactionId(session);
+      // No money row means nothing to close: a payment link's own timer
+      // (`reap_payment_links`) already lapses a session-less link.
+      if (!transactionId) return { kind: "ignore" };
+      return {
+        kind: "checkout_session_closed",
+        transactionId,
+        reason: event.type === "checkout.session.expired" ? "expired" : "async_payment_failed",
+      };
     }
 
     case "customer.subscription.updated":

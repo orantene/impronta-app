@@ -11,6 +11,7 @@
  */
 
 import { completeOrderForTransaction } from "@/lib/orders/complete-order";
+import { closePaidPaymentLink, paymentLinkIdFromMetadata } from "@/lib/payments/link-settlement";
 import {
   reservationIdFromMetadata,
   settleCollectionReservation,
@@ -926,6 +927,22 @@ export async function markPaid(
             logServerError(
               "transactions.markPaid.collectionReservation",
               `transaction ${result.data.id} is paid but reservation ${reservationId} did not close (${closed.reason})`,
+            );
+          }
+        }
+
+        // A PAYMENT LINK READS PAID HERE, and only here. The link opened this
+        // money row before sending the customer to Stripe, so the one settle
+        // path that books the charge (PaymentIntent id, order, transfers,
+        // receipt, recovery) is also what closes the link, last, after the
+        // money is recorded. See `lib/payments/link-settlement.ts`.
+        const linkId = paymentLinkIdFromMetadata((metaRow as { metadata?: unknown } | null)?.metadata);
+        if (linkId) {
+          const linkClosed = await closePaidPaymentLink(sbOrders, { linkId, transactionId: result.data.id });
+          if (!linkClosed.ok) {
+            logServerError(
+              "transactions.markPaid.paymentLink",
+              `transaction ${result.data.id} is paid but payment link ${linkId} did not close (${linkClosed.reason})`,
             );
           }
         }
