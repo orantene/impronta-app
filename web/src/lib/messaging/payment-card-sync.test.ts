@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { fakeAdmin, uuid } from "@/lib/storefront/__fixtures__/fake-admin";
 
-import { stampInquiryPaidCards, syncPaymentCardsForRecord } from "./payment-card-sync";
+import { cardsMatchingRequest, stampInquiryPaidCards, syncPaymentCardsForRecord } from "./payment-card-sync";
 
 const TENANT = uuid(1);
 const INQUIRY = uuid(2);
@@ -31,22 +31,29 @@ test("a paid record flips the thread's payment card to paid; other kinds untouch
   assert.equal(payload(store, 1), null);
 });
 
-test("a refund keeps the card paid and never reopens Pay", async () => {
+test("A3: a full refund writes refunded (never reopens Pay)", async () => {
   const { admin, store } = seed("paid");
   const result = await syncPaymentCardsForRecord(admin, { tenantId: TENANT, recordId: ORDER, paymentState: "refunded" });
-  assert.deepEqual(result, { ok: true, updated: 0 });
-  assert.equal(payload(store, 0)?.state, "paid");
+  assert.deepEqual(result, { ok: true, updated: 1 });
+  assert.equal(payload(store, 0)?.state, "refunded");
 });
 
-test("a refund on an unsettled card still marks it paid: the money did arrive", async () => {
+test("A3: partially_refunded is written as its own state", async () => {
   const { admin, store } = seed();
   const result = await syncPaymentCardsForRecord(admin, { tenantId: TENANT, recordId: ORDER, paymentState: "partially_refunded" });
   assert.deepEqual(result, { ok: true, updated: 1 });
-  assert.equal(payload(store, 0)?.state, "paid");
+  assert.equal(payload(store, 0)?.state, "partially_refunded");
+});
+
+test("A3: expired writes expired on the card", async () => {
+  const { admin, store } = seed();
+  const result = await syncPaymentCardsForRecord(admin, { tenantId: TENANT, recordId: ORDER, paymentState: "expired" });
+  assert.deepEqual(result, { ok: true, updated: 1 });
+  assert.equal(payload(store, 0)?.state, "expired");
 });
 
 test("an in-flight state writes nothing, so the card still shows Pay", async () => {
-  for (const state of ["requested", "opened", "failed", "expired", "none"] as const) {
+  for (const state of ["requested", "opened", "failed", "none"] as const) {
     const pending = seed();
     assert.deepEqual(await syncPaymentCardsForRecord(pending.admin, { tenantId: TENANT, recordId: ORDER, paymentState: state }), { ok: true, updated: 0 });
     assert.equal(payload(pending.store, 0)?.state, undefined);
@@ -66,14 +73,11 @@ test("no linked record writes nothing", async () => {
 });
 
 test("calls `from` as a method: a client whose from() needs `this` still works (D-MSG-342)", async () => {
-  // The real SupabaseClient.from uses `this`. `const from = admin.from` detaches
-  // it, which threw and was swallowed upstream, so the card silently never moved.
   const { admin } = seed();
   let sawThis = false;
   const clientLike = {
     _self: null as unknown,
     from(table: string) {
-      // Throws exactly like the real client would when called detached.
       if (this === undefined || (this as { _self?: unknown })._self === undefined) {
         throw new TypeError("Cannot read properties of undefined (reading '_self')");
       }
@@ -94,6 +98,7 @@ test("a paid order stamps total, paid, due, currency, and method", async () => {
   const { admin, store } = fakeAdmin({
     conversation_records: [{ id: "cr-1", tenant_id: TENANT, inquiry_id: INQUIRY, record_kind: "order", record_id: ORDER, unlinked_at: null }],
     orders: [{ id: ORDER, total_cents: 5000, currency: "MXN" }],
+    payment_links: [{ tenant_id: TENANT, order_id: ORDER, code: "pay_1", status: "paid" }],
     inquiry_messages: [
       {
         id: "m-1",
@@ -114,6 +119,49 @@ test("a paid order stamps total, paid, due, currency, and method", async () => {
   assert.equal(card.dueCents, 3000);
   assert.equal(card.currency, "MXN");
   assert.equal(card.method, "card");
+});
+
+test("A3: two requests on one inquiry — only the paid link's card flips", async () => {
+  const { admin, store } = fakeAdmin({
+    conversation_records: [{ id: "cr-1", tenant_id: TENANT, inquiry_id: INQUIRY, record_kind: "order", record_id: ORDER, unlinked_at: null }],
+    orders: [{ id: ORDER, total_cents: 5000, currency: "MXN" }],
+    payment_links: [
+      { tenant_id: TENANT, order_id: ORDER, code: "paid_code", status: "paid" },
+      { tenant_id: TENANT, order_id: ORDER, code: "open_code", status: "open" },
+    ],
+    inquiry_messages: [
+      {
+        id: "m-paid",
+        tenant_id: TENANT,
+        inquiry_id: INQUIRY,
+        message_kind: "payment_request",
+        card_payload: { amountCents: 2000, currency: "MXN", paymentLinkCode: "paid_code", state: "sent" },
+        deleted_at: null,
+      },
+      {
+        id: "m-open",
+        tenant_id: TENANT,
+        inquiry_id: INQUIRY,
+        message_kind: "payment_request",
+        card_payload: { amountCents: 3000, currency: "MXN", paymentLinkCode: "open_code", state: "sent" },
+        deleted_at: null,
+      },
+    ],
+  });
+  const result = await syncPaymentCardsForRecord(admin, { tenantId: TENANT, recordId: ORDER, paymentState: "paid" });
+  assert.deepEqual(result, { ok: true, updated: 1 });
+  const paid = store.inquiry_messages.find((m) => (m as { id: string }).id === "m-paid") as CardRow;
+  const open = store.inquiry_messages.find((m) => (m as { id: string }).id === "m-open") as CardRow;
+  assert.equal(paid.card_payload?.state, "paid");
+  assert.equal(open.card_payload?.state, "sent");
+});
+
+test("cardsMatchingRequest leaves siblings alone when codes are known but none match", () => {
+  const cards = [
+    { id: "a", card_payload: { paymentLinkCode: "x", state: "sent" } },
+    { id: "b", card_payload: { paymentLinkCode: "y", state: "sent" } },
+  ];
+  assert.deepEqual(cardsMatchingRequest(cards, new Set(["z"])), []);
 });
 
 test("a booking deposit stamps the sale total and the method that settled", async () => {

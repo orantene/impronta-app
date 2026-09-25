@@ -5,52 +5,45 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { PaymentState } from "./lifecycle";
 
 /**
- * D-MSG-338: the guest's Payment card could never read "Paid".
- *
- * `readPayment` (lib/messages-v5/client-thread-view.ts) takes the card's state
- * from `card_payload.state` and defaults it to "sent"; nothing in the product
- * ever wrote "paid" onto a `payment_request` card, so a client who had already
- * paid still read "Request sent" in the chat. `ClientPaymentCard` has rendered
- * the paid branch all along - only the writer was missing.
- *
- * This runs at the moment the money already settles: `syncConversationRecord`
- * calls the `messaging_sync_record_state` RPC from every payment path (POS
- * collection, complete-order, purchase, payment links, refunds, ticket mint),
- * and that RPC returns the derived payment state. No new POS writer, no new
- * reader, and no second source of truth: the CHIP stays the record of truth and
- * the card is brought in line with it.
+ * D-MSG-338 + A3 / audit §0.5 / SHELL-REQUESTS:
+ * Mirror the chip's payment state onto the matching payment_request card only
+ * (per request, matched by paymentLinkCode). Write expired / cancelled /
+ * refunded / partially_refunded truthfully; paid payload carries
+ * {total, paid, due, currency, method}.
  */
 
-/**
- * The caller is `record-sync`, whose own `Admin` declares only an optional
- * `rpc`. `rpc` is carried here purely so the two types share a property:
- * without it TypeScript's weak-type check rejects an all-optional type that
- * overlaps in nothing (TS2559). `from` is optional for the same reason
- * `record-sync` makes `rpc` optional - a client that cannot read simply does
- * not mirror the card, exactly as the rpc guard does.
- */
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from?: (table: string) => any;
   rpc?: unknown;
 };
 
-/**
- * Settled payment states, mapped to the card state `ClientPaymentCard` draws.
- * A refund keeps the card "paid": the money did arrive, and the refund is its
- * own `change_result` card. Every other state leaves the card alone, so an
- * in-flight request still shows Pay.
- */
-const CARD_STATE_FOR: Partial<Record<PaymentState, "paid">> = {
+/** Card states written onto `card_payload.state`. */
+export type PaymentCardState =
+  | "paid"
+  | "expired"
+  | "cancelled"
+  | "refunded"
+  | "partially_refunded";
+
+const CARD_STATE_FOR: Partial<Record<PaymentState, PaymentCardState>> = {
   paid: "paid",
-  partially_refunded: "paid",
-  refunded: "paid",
+  partially_refunded: "partially_refunded",
+  refunded: "refunded",
+  expired: "expired",
 };
 
-/** Already settled: never walk a card backwards (a refund must not reopen Pay).
- * "cancelled" is a card state staff set directly, not a payment state; a
- * cancelled card stays cancelled. */
-const TERMINAL = new Set(["paid", "cancelled"]);
+/** Link statuses that belong to each card target (per-request match). */
+const LINK_STATUS_FOR_CARD: Record<PaymentCardState, ReadonlySet<string>> = {
+  paid: new Set(["paid"]),
+  partially_refunded: new Set(["paid"]),
+  refunded: new Set(["paid"]),
+  expired: new Set(["expired"]),
+  cancelled: new Set(["cancelled"]),
+};
+
+/** Never reopen Pay once money settled or staff cancelled. */
+const TERMINAL = new Set<string>(["paid", "cancelled", "refunded", "partially_refunded"]);
 
 export type PaymentCardSyncResult =
   | { ok: true; updated: number }
@@ -87,10 +80,6 @@ export async function syncPaymentCardsForRecord(
   const target = input.paymentState ? CARD_STATE_FOR[input.paymentState] : undefined;
   if (!target || !input.tenantId || !input.recordId) return { ok: true, updated: 0 };
   if (typeof admin.from !== "function") return { ok: true, updated: 0 };
-  // Call it AS A METHOD. `const from = admin.from` detaches it, and
-  // `SupabaseClient.from` uses `this` internally, so the detached call threw;
-  // `syncConversationRecord`'s outer catch swallowed it and the card silently
-  // never moved while the chip did (D-MSG-342).
   const from = (table: string) => admin.from!(table);
 
   const { data: records, error: recordErr } = await from("conversation_records")
@@ -118,30 +107,63 @@ export async function syncPaymentCardsForRecord(
     return { ok: false, reason: "unavailable" };
   }
 
-  const orderTotal = target === "paid" ? await loadSaleTotal(from, input.recordId) : null;
+  const relevantCodes = await loadRelevantLinkCodes(from, {
+    tenantId: input.tenantId,
+    orderId: input.recordId,
+    target,
+  });
+
+  const needsPaidMoney = target === "paid" || target === "partially_refunded" || target === "refunded";
+  const orderTotal = needsPaidMoney ? await loadSaleTotal(from, input.recordId) : null;
+
+  const cardRows = (cards ?? []) as Array<{ id: string; card_payload: Record<string, unknown> | null }>;
+  const matching = cardsMatchingRequest(cardRows, relevantCodes);
 
   let updated = 0;
-  for (const row of (cards ?? []) as Array<{ id: string; card_payload: Record<string, unknown> | null }>) {
+  for (const row of matching) {
     const payload = row.card_payload && typeof row.card_payload === "object" ? row.card_payload : {};
     const current = typeof payload.state === "string" ? payload.state : "sent";
-    const needsMoney = input.paymentState === "paid" && typeof payload.totalCents !== "number";
-    if ((current === target || TERMINAL.has(current)) && !needsMoney) continue;
+    const needsMoney =
+      needsPaidMoney &&
+      (typeof payload.totalCents !== "number" || typeof payload.currency !== "string" || typeof payload.method !== "string");
+    // Never reopen Pay. Allow paid → refunded / partially_refunded (truth), and
+    // fill missing money fields on an already-paid card.
+    const refundForward =
+      current === "paid" && (target === "refunded" || target === "partially_refunded");
+    if (TERMINAL.has(current) && current !== target && !needsMoney && !refundForward) continue;
+    if (current === target && !needsMoney) continue;
+
     const paidCents = typeof payload.amountCents === "number" ? payload.amountCents : orderTotal?.totalCents;
     const method =
       input.method ??
       (typeof payload.method === "string" ? payload.method : null) ??
       (typeof payload.paymentLinkCode === "string" ? "card" : null);
+    const currency =
+      typeof payload.currency === "string" && payload.currency
+        ? payload.currency
+        : orderTotal?.currency ?? "USD";
     const money =
-      target === "paid" && orderTotal && typeof paidCents === "number" && method
+      needsPaidMoney && orderTotal && typeof paidCents === "number" && method
         ? paidMoneyFields({
             totalCents: orderTotal.totalCents,
             paidCents,
-            currency: typeof payload.currency === "string" ? payload.currency : orderTotal.currency,
+            currency,
             method,
           })
-        : {};
+        : typeof payload.currency !== "string" && currency
+          ? { currency }
+          : {};
+
+    const next: Record<string, unknown> = {
+      ...payload,
+      ...money,
+      state: target,
+      currency: (money as { currency?: string }).currency ?? currency,
+    };
+    if (needsPaidMoney) next.settledAt = new Date().toISOString();
+
     const { error: updateErr } = await from("inquiry_messages")
-      .update({ card_payload: { ...payload, ...money, state: target, settledAt: new Date().toISOString() } })
+      .update({ card_payload: next })
       .eq("id", row.id);
     if (updateErr) {
       logServerError("messaging.payment-card-sync/update", updateErr);
@@ -150,6 +172,53 @@ export async function syncPaymentCardsForRecord(
     updated += 1;
   }
   return { ok: true, updated };
+}
+
+/**
+ * Prefer cards whose paymentLinkCode matches links in the target status.
+ * If no codes resolve (booking cash path / legacy), update every unsettled card
+ * only when there is a single candidate — never flip a sibling request.
+ */
+export function cardsMatchingRequest(
+  cards: Array<{ id: string; card_payload: Record<string, unknown> | null }>,
+  relevantCodes: ReadonlySet<string> | null,
+): Array<{ id: string; card_payload: Record<string, unknown> | null }> {
+  if (relevantCodes && relevantCodes.size > 0) {
+    const matched = cards.filter((row) => {
+      const code = row.card_payload && typeof row.card_payload === "object" ? row.card_payload.paymentLinkCode : null;
+      return typeof code === "string" && relevantCodes.has(code);
+    });
+    if (matched.length > 0) return matched;
+    // Codes known but no card carries them — leave siblings alone.
+    return [];
+  }
+  if (cards.length <= 1) return cards;
+  // Multiple requests, no link filter: do not guess.
+  return [];
+}
+
+async function loadRelevantLinkCodes(
+  from: (table: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    select: (cols: string) => any;
+  },
+  input: { tenantId: string; orderId: string; target: PaymentCardState },
+): Promise<Set<string> | null> {
+  const statuses = LINK_STATUS_FOR_CARD[input.target];
+  try {
+    const { data, error } = await from("payment_links")
+      .select("code, status")
+      .eq("tenant_id", input.tenantId)
+      .eq("order_id", input.orderId);
+    if (error || !data) return null;
+    const codes = new Set<string>();
+    for (const row of data as Array<{ code?: string; status?: string }>) {
+      if (row.code && row.status && statuses.has(row.status)) codes.add(row.code);
+    }
+    return codes;
+  } catch {
+    return null;
+  }
 }
 
 /** Order totals are cents. Booking totals are major units. */
