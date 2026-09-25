@@ -23,8 +23,7 @@ export type AttentionCta = {
 function hasPendingReschedule(item: TalentAgendaItem): boolean {
   return Boolean(
     item.tradeSection?.payload?.rescheduleRequestId ||
-      item.tradeSection?.payload?.rescheduleStatus === "pending" ||
-      item.history.some((h) => /reschedule pending/i.test(h.text)),
+      item.tradeSection?.payload?.rescheduleStatus === "pending",
   );
 }
 

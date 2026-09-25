@@ -72,21 +72,37 @@ describe("A3.1 ownership — foreign bookingId → unauthorized", () => {
       ownBookingGate({
         bookingId: "b1",
         hasSessionUser: true,
+        userId: "user-1",
         talentProfileId: "talent-1",
         onBookingTalent: true,
         ownsTalentBookingMirror: false,
       }),
-      { ok: true, talentId: "talent-1" },
+      { ok: true, talentId: "talent-1", userId: "user-1" },
     );
     assert.deepEqual(
       ownBookingGate({
         bookingId: "b1",
         hasSessionUser: true,
+        userId: "user-1",
         talentProfileId: "talent-1",
         onBookingTalent: false,
         ownsTalentBookingMirror: true,
       }),
-      { ok: true, talentId: "talent-1" },
+      { ok: true, talentId: "talent-1", userId: "user-1" },
+    );
+  });
+
+  it("rejects owned booking when actor userId is missing", () => {
+    assert.deepEqual(
+      ownBookingGate({
+        bookingId: "b1",
+        hasSessionUser: true,
+        userId: null,
+        talentProfileId: "talent-1",
+        onBookingTalent: true,
+        ownsTalentBookingMirror: false,
+      }),
+      { ok: false, reason: "unauthorized" },
     );
   });
 });

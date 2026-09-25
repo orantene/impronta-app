@@ -8,6 +8,8 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
+import { logBookingActivity } from "@/lib/server/commercial-audit";
+import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { requireOwnBooking } from "./booking-actions";
 import type { AgendaActionResult } from "./booking-actions";
 
@@ -29,7 +31,7 @@ export async function cancelBookingWithRefund(input: {
 
   const { data: row, error } = await admin
     .from("agency_bookings")
-    .select("id, tenant_id")
+    .select("id, tenant_id, status")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (error || !row?.tenant_id) {
@@ -53,6 +55,21 @@ export async function cancelBookingWithRefund(input: {
       ok: false,
       reason: (result && "reason" in result && result.reason) || "unavailable",
     };
+  }
+
+  if (!result.already) {
+    await logBookingActivity(admin, {
+      bookingId: input.bookingId,
+      actorUserId: own.userId,
+      eventType: BOOKING_AUDIT.STATUS_CHANGED,
+      payload: {
+        from: row.status,
+        to: "cancelled",
+        surface: "talent_agenda",
+        cancelledBy: input.cancelledBy,
+        refundableCents: Number(result.refundableCents) || 0,
+      },
+    });
   }
 
   return {

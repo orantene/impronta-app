@@ -270,6 +270,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
       }
       return out.length > 0 ? out : undefined;
     })(),
+    history: item.history.map((h) => ({ at: h.at, label: h.text })),
     terms: undefined,
   };
 }

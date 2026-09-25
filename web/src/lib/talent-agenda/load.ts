@@ -12,6 +12,8 @@ import {
 
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
 import { mapAgencyBookingPayment, mapDeliverableDeadline } from "./load-map";
+import { summarizeCommercialEvent } from "@/lib/commercial-activity-summary";
+import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import type { TalentAgendaItem, TalentAgendaLoadResult, TalentAgendaRange } from "./types";
 
 type AgencyBookingRow = {
@@ -79,6 +81,14 @@ type RescheduleRequestRow = {
   fee_cents: number;
   status: string;
   created_at: string;
+};
+
+type ActivityLogRow = {
+  id: string;
+  booking_id: string;
+  created_at: string;
+  event_type: string;
+  payload: unknown;
 };
 
 function initials(name: string | null | undefined): string {
@@ -215,7 +225,7 @@ export async function loadTalentAgenda(
     const ownerUserId =
       typeof profileRes.data?.user_id === "string" ? profileRes.data.user_id : null;
 
-    const [agencyBookingsRes, transactionsRes, inquiriesRes, deliverablesRes, rescheduleRes, talentLegsRes] =
+    const [agencyBookingsRes, transactionsRes, inquiriesRes, deliverablesRes, rescheduleRes, talentLegsRes, activityLogRes] =
       await Promise.all([
       bookingIds.length === 0
         ? Promise.resolve({ data: [], error: null })
@@ -244,7 +254,7 @@ export async function loadTalentAgenda(
       Promise.resolve({ data: [], error: null }),
       bookingIds.length === 0
         ? Promise.resolve({ data: [], error: null })
-        : supabase
+        : moneyDb
             .from("booking_reschedule_requests")
             .select("id, booking_id, new_starts_at, new_ends_at, fee_cents, status, created_at")
             .in("booking_id", bookingIds)
@@ -253,6 +263,20 @@ export async function loadTalentAgenda(
         .from("booking_talent")
         .select("booking_id, client_charge_total")
         .eq("talent_profile_id", talentProfileId),
+      bookingIds.length === 0
+        ? Promise.resolve({ data: [], error: null })
+        : moneyDb
+            .from("booking_activity_log")
+            .select("id, booking_id, created_at, event_type, payload")
+            .in("booking_id", bookingIds)
+            // Talent surface: service-role bypasses staff-only RLS — only show
+            // events the agenda itself writes (status / payment), never staff
+            // client/manager/lineup audit rows.
+            .in("event_type", [
+              BOOKING_AUDIT.STATUS_CHANGED,
+              BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+            ])
+            .order("created_at", { ascending: false }),
     ]);
 
     if (agencyBookingsRes.error) logServerError("talent-agenda.agency-bookings", agencyBookingsRes.error);
@@ -260,6 +284,7 @@ export async function loadTalentAgenda(
     if (inquiriesRes.error) logServerError("talent-agenda.inquiries", inquiriesRes.error);
     if (rescheduleRes.error) logServerError("talent-agenda.reschedule", rescheduleRes.error);
     if (talentLegsRes.error) logServerError("talent-agenda.booking-talent", talentLegsRes.error);
+    if (activityLogRes.error) logServerError("talent-agenda.activity-log", activityLogRes.error);
 
     const legChargeByBooking = new Map<string, number>();
     const legBookingIds = [
@@ -310,6 +335,16 @@ export async function loadTalentAgenda(
       if (!pendingRescheduleByBooking.has(row.booking_id)) {
         pendingRescheduleByBooking.set(row.booking_id, row);
       }
+    }
+
+    const historyByBooking = new Map<string, TalentAgendaItem["history"]>();
+    for (const row of (activityLogRes.data ?? []) as ActivityLogRow[]) {
+      const { label, summary_lines } = summarizeCommercialEvent(row.event_type, row.payload);
+      const detail = summary_lines.filter((line) => typeof line === "string" && line.trim()).join(" ");
+      const text = detail ? `${label}: ${detail}` : label;
+      const current = historyByBooking.get(row.booking_id) ?? [];
+      current.push({ at: row.created_at, text });
+      historyByBooking.set(row.booking_id, current);
     }
 
     const holds = (holdsRes.data ?? []) as Array<{
@@ -456,14 +491,10 @@ export async function loadTalentAgenda(
           ? Math.max(travelBefore, travelAfter)
           : 0;
 
-      const history: TalentAgendaItem["history"] = [];
+      const history: TalentAgendaItem["history"] = [
+        ...(historyByBooking.get(booking.id) ?? []),
+      ];
       const pendingReschedule = pendingRescheduleByBooking.get(booking.id);
-      if (pendingReschedule) {
-        history.push({
-          at: pendingReschedule.created_at,
-          text: "Reschedule pending.",
-        });
-      }
 
       const intakeStatus = agency?.intake_status ?? null;
       let tradeSection: TalentAgendaItem["tradeSection"];
