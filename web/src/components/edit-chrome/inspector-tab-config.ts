@@ -87,6 +87,7 @@ function nodeUsesLayoutInspector(
     case "masonry":
     case "divider":
     case "spacer":
+    case "services_catalog":
       return true;
     default:
       return false;

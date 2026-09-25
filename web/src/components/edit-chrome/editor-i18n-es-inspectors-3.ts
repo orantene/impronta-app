@@ -61,4 +61,10 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Run of show": "Orden del show",
   "Item links (Reserve a spot, See more)": "Enlaces del elemento (Reservar lugar, Ver más)",
   "Tap opens the item details (off for compact and schedule unless ticked)": "Tocar abre el detalle del elemento (apagado en compacto y horario salvo que lo marques)",
+  // ── services_catalog inspector (#2283) ──────────────────────────────────
+  "Section copy and which catalog items this widget shows. Prices and booking rules stay in Services - use Edit offering there.":
+    "Texto de la sección y qué ítems del catálogo muestra este widget. Precios y reglas de reserva quedan en Servicios: úsalos en Editar oferta.",
+  "Leave blank for behavior-aware labels": "Déjalo en blanco para etiquetas según el comportamiento",
+  "How visitors open details and start booking. Chat Ask handoff is shared with the booking sheet.":
+    "Cómo abren los visitantes los detalles y empiezan a reservar. El Ask del chat se comparte con la hoja de reserva.",
 };

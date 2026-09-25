@@ -69,6 +69,7 @@ import { InlineNameInput } from "./kit/inline-name-input";
 import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
 import { GenericContent } from "./generic-content";
+import { ServicesCatalogContentInspector } from "./services-catalog-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
   Builder2027ContentInspector,
@@ -1557,92 +1558,12 @@ function BuilderNodeContentInspectorBody({
   }
 
   if (node.kind === "services_catalog") {
-    const catalog = node.props;
     return (
-      <BuilderNodeFlatPanel>
-        <BuilderNodeSection title="Copy">
-          <div className={KIT.field}>
-            <label className={KIT.label}>Eyebrow</label>
-            <input
-              className={KIT.input}
-              value={catalog.eyebrow ?? ""}
-              onChange={(e) => commitPatch({ eyebrow: e.target.value })}
-            />
-          </div>
-          <div className={KIT.field}>
-            <label className={KIT.label}>Title</label>
-            <input
-              className={KIT.input}
-              value={catalog.title ?? ""}
-              onChange={(e) => commitPatch({ title: e.target.value })}
-            />
-            <p className="text-xs text-black/50">Use {"{i}italic{/i}"} for the italic span.</p>
-          </div>
-          <div className={KIT.field}>
-            <label className={KIT.label}>Subtitle</label>
-            <input
-              className={KIT.input}
-              value={catalog.subtitle ?? ""}
-              onChange={(e) => commitPatch({ subtitle: e.target.value })}
-            />
-          </div>
-          <div className={KIT.field}>
-            <label className={KIT.label}>Button label</label>
-            <input
-              className={KIT.input}
-              value={catalog.ctaLabel ?? ""}
-              placeholder="Select / Seleccionar"
-              onChange={(e) => commitPatch({ ctaLabel: e.target.value })}
-            />
-          </div>
-        </BuilderNodeSection>
-        <BuilderNodeSection title="Layout">
-          <div className={KIT.field}>
-            <label className={KIT.label}>Layout</label>
-            <select
-              className={KIT.input}
-              value={catalog.layout ?? "rows"}
-              onChange={(e) => commitPatch({ layout: e.target.value })}
-            >
-              <option value="rows">Rows</option>
-              <option value="cards">Cards</option>
-              <option value="grid">Grid</option>
-              <option value="compact_list">Compact list</option>
-              <option value="editorial">Editorial</option>
-            </select>
-          </div>
-          <div className={KIT.field}>
-            <label className={KIT.label}>Category nav</label>
-            <select
-              className={KIT.input}
-              value={catalog.categoryNav ?? "pills"}
-              onChange={(e) => commitPatch({ categoryNav: e.target.value })}
-            >
-              <option value="pills">Pills (filter)</option>
-              <option value="tabs">Tabs (filter)</option>
-              <option value="jump_strip">Jump links</option>
-              <option value="sections">Sections</option>
-              <option value="none">None</option>
-            </select>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={catalog.showStats !== false} onChange={(e) => commitPatch({ showStats: e.target.checked })} />
-            Show stats
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={catalog.showPhoto !== false} onChange={(e) => commitPatch({ showPhoto: e.target.checked })} />
-            Show photo
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={catalog.showDuration !== false} onChange={(e) => commitPatch({ showDuration: e.target.checked })} />
-            Show duration
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={catalog.showUsdEquivalent !== false} onChange={(e) => commitPatch({ showUsdEquivalent: e.target.checked })} />
-            Show USD equivalent
-          </label>
-        </BuilderNodeSection>
-      </BuilderNodeFlatPanel>
+      <ServicesCatalogContentInspector
+        node={node}
+        commitPatch={commitPatch}
+        eligibleOfferings={[]}
+      />
     );
   }
 

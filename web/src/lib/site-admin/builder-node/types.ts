@@ -1278,17 +1278,49 @@ export interface BuilderQrCodeNode extends BuilderNodeBase {
 export interface BuilderServicesCatalogNode extends BuilderNodeBase {
   kind: "services_catalog";
   props: {
-    layout?: "rows" | "cards" | "grid" | "compact_list" | "editorial";
-    categoryNav?: "pills" | "tabs" | "jump_strip" | "sections" | "none";
+    /** rows = service list (mockup default); cards/grid/editorial = image cards; compact_list = price menu; featured = one hero + rest */
+    layout?: "rows" | "cards" | "grid" | "compact_list" | "editorial" | "featured";
+    categoryNav?: "pills" | "tabs" | "jump_strip" | "sections" | "accordion" | "none";
     eyebrow?: string;
     title?: string;
     subtitle?: string;
     showStats?: boolean;
     showPhoto?: boolean;
+    showDescription?: boolean;
     showDuration?: boolean;
     showUsdEquivalent?: boolean;
     ctaLabel?: string;
     emptyMessage?: string;
+    /** all = every eligible offering; categories / ids = subset by reference */
+    selectionMode?: "all" | "categories" | "ids";
+    selectedCategoryNames?: string[];
+    selectedOfferingIds?: string[];
+    /** When selectionMode is categories, new offerings in those categories appear automatically. */
+    autoIncludeNew?: boolean;
+    featuredOfferingIds?: string[];
+    sort?: "catalog" | "manual";
+    manualOrderIds?: string[];
+    rowCtaVariant?: "outline" | "solid";
+    photoRadius?: "square" | "soft" | "round";
+    durationFormat?: "auto" | "minutes" | "hours_minutes";
+    mobileBar?: "dock" | "float" | "hidden";
+    columns?: 1 | 2 | 3;
+    density?: "comfortable" | "compact";
+    /** Default true — inherit website theme tokens; Style overrides apply when false. */
+    useWebsiteTheme?: boolean;
+    detailPresentation?: "modal" | "sheet_mobile" | "inline";
+    showAskLink?: boolean;
+    bookingSheet?: {
+      accent?: "ink" | "primary";
+      payNoteMode?: "studio" | "none" | "custom";
+      payNoteCustom?: string;
+      extrasLegend?: string;
+      optionalBadge?: string;
+      continueChooseLabel?: string;
+      continueWhenLabel?: string;
+      confirmLabel?: string;
+      successKicker?: string;
+    };
     style?: BuilderNodeStyle;
   };
 }

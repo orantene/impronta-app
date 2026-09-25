@@ -18,6 +18,7 @@ import type {
   BuilderCtaGroupNode,
   BuilderDividerNode,
   BuilderMasonryNode,
+  BuilderServicesCatalogNode,
   BuilderSpacerNode,
   BuilderSplitNode,
   BuilderTabsNode,
@@ -113,7 +114,8 @@ export type AdvancedEditableBuilderNode =
   | BuilderCarouselNode
   | BuilderMasonryNode
   | BuilderDividerNode
-  | BuilderSpacerNode;
+  | BuilderSpacerNode
+  | BuilderServicesCatalogNode;
 
 // A container-layout override tier id. `tablet`/`mobile` are the built-ins;
 // any other slug is an operator-defined custom tier. `desktop` is the base
@@ -128,6 +130,26 @@ export type ContainerLayoutFieldKey =
   | "align"
   | "display"
   | "itemsPerView";
+
+const ADVANCED_EDITABLE_KINDS = new Set<AdvancedEditableBuilderNode["kind"]>([
+  "container",
+  "card",
+  "cta_group",
+  "split",
+  "accordion",
+  "tabs",
+  "carousel",
+  "masonry",
+  "divider",
+  "spacer",
+  "services_catalog",
+]);
+
+export function isAdvancedEditableBuilderKind(
+  kind: string,
+): kind is AdvancedEditableBuilderNode["kind"] {
+  return ADVANCED_EDITABLE_KINDS.has(kind as AdvancedEditableBuilderNode["kind"]);
+}
 
 export function nodeKindLabel(kind: AdvancedEditableBuilderNode["kind"]): string {
   switch (kind) {
@@ -151,6 +173,8 @@ export function nodeKindLabel(kind: AdvancedEditableBuilderNode["kind"]): string
       return "Divider";
     case "spacer":
       return "Spacer";
+    case "services_catalog":
+      return "Services catalog";
   }
 }
 

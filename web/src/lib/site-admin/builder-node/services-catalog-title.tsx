@@ -30,11 +30,22 @@ export function orderCategoryNames(names: string[], saved: readonly string[] | u
   return [...out, ...remaining];
 }
 
-export function catalogDurationPhrase(minutes: number, locale: string): string {
+export function catalogDurationPhrase(
+  minutes: number,
+  locale: string,
+  format: "auto" | "minutes" | "hours_minutes" = "auto",
+): string {
   const es = locale.startsWith("es");
   const estimated = es ? "duración estimada" : "estimated duration";
-  if (minutes >= 60 && minutes % 60 === 0) {
-    return `${minutes / 60} h · ${estimated}`;
+  if (format === "minutes") {
+    return `${minutes} min · ${estimated}`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  if (format === "hours_minutes" || format === "auto") {
+    if (hours <= 0) return `${minutes} min · ${estimated}`;
+    if (rem === 0) return `${hours} h · ${estimated}`;
+    return `${hours} h ${rem} min · ${estimated}`;
   }
   return `${minutes} min · ${estimated}`;
 }

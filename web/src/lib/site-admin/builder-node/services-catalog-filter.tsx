@@ -15,6 +15,8 @@ import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog
 
 export type CatalogGroup = { name: string | null; items: TalentOffering[]; note?: string | null };
 
+export type CatalogNavMode = "pills" | "tabs" | "jump" | "accordion" | "flat";
+
 function detailFor(offering: TalentOffering, confirmsByHand: boolean): OfferingRequestDetail {
   const raw = resolveOfferingCta(offering);
   const cta = confirmsByHand && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
@@ -71,6 +73,7 @@ export function ServicesCatalogFilter({
   locale,
   nav,
   showPhoto,
+  showDescription = true,
   showDuration,
   showUsdEquivalent,
   confirmsByHand,
@@ -79,11 +82,16 @@ export function ServicesCatalogFilter({
   bookingMode = "demo",
   tenantId = null,
   nodeId,
+  durationFormat = "auto",
+  mobileBar = "float",
+  showAskLink = true,
+  sheetAccent = "ink",
 }: {
   groups: CatalogGroup[];
   locale: string;
-  nav: "pills" | "tabs" | "jump" | "flat";
+  nav: CatalogNavMode;
   showPhoto: boolean;
+  showDescription?: boolean;
   showDuration: boolean;
   showUsdEquivalent: boolean;
   confirmsByHand: boolean;
@@ -93,10 +101,16 @@ export function ServicesCatalogFilter({
   tenantId?: string | null;
   /** Builder node id — used only for jump-nav fragment ids (serializable). */
   nodeId: string;
+  durationFormat?: "auto" | "minutes" | "hours_minutes";
+  mobileBar?: "dock" | "float" | "hidden";
+  /** Pass-through to sheet; chat handoff owned by sibling sheet/chat PR. */
+  showAskLink?: boolean;
+  sheetAccent?: "ink" | "primary";
 }) {
   const named = groups.filter((g) => g.name);
   const first = named[0]?.name ?? null;
   const [active, setActive] = useState<string | null>(first);
+  const [openAccordion, setOpenAccordion] = useState<string | null>(first);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
   const [selectedBits, setSelectedBits] = useState<string | null>(null);
@@ -157,7 +171,7 @@ export function ServicesCatalogFilter({
   };
 
   return (
-    <div className="cb-island">
+    <div className="cb-island" data-sheet-accent={sheetAccent}>
       {filterNav ? (
         <nav
           aria-label={es ? "Categorías" : "Categories"}
@@ -182,7 +196,11 @@ export function ServicesCatalogFilter({
           })}
         </nav>
       ) : nav === "jump" ? (
-        <nav aria-label={es ? "Categorías" : "Categories"} className="site-builder-node--services-catalog-nav">
+        <nav
+          aria-label={es ? "Categorías" : "Categories"}
+          className="site-builder-node--services-catalog-nav"
+          data-category-nav="jump"
+        >
           {groups.map((g) => (
             <a
               key={g.name ?? "_"}
@@ -197,6 +215,7 @@ export function ServicesCatalogFilter({
 
       {groups.map((g) => {
         const hidden = filterNav && Boolean(g.name) && active !== g.name;
+        const accordionOpen = nav !== "accordion" || openAccordion === g.name || (!g.name && openAccordion === null);
         return (
           <div
             key={g.name ?? "_"}
@@ -210,28 +229,48 @@ export function ServicesCatalogFilter({
                 {g.name ?? (es ? "Otros" : "Other")}
               </h3>
             ) : null}
-            <ul className="site-builder-node--services-catalog-list">
-              {g.items.map((item) => (
-                <CatalogRow
-                  key={item.id}
-                  item={item}
-                  locale={locale}
-                  showPhoto={showPhoto}
-                  showDuration={showDuration}
-                  showUsdEquivalent={showUsdEquivalent}
-                  confirmsByHand={confirmsByHand}
-                  usdRates={usdRates}
-                  ctaLabel={ctaLabel}
-                  selected={selectedId === item.id}
-                  onSelect={() => onRowAction(item, g.note)}
-                />
-              ))}
-            </ul>
+            {nav === "accordion" && g.name ? (
+              <button
+                type="button"
+                className="site-builder-node--services-catalog-accordion-trigger"
+                aria-expanded={accordionOpen}
+                onClick={() => setOpenAccordion(accordionOpen ? null : g.name)}
+              >
+                <span>{g.name}</span>
+                <span aria-hidden>{accordionOpen ? "−" : "+"}</span>
+              </button>
+            ) : null}
+            {nav !== "accordion" || accordionOpen || !g.name ? (
+              <ul className="site-builder-node--services-catalog-list">
+                {g.items.map((item) => (
+                  <CatalogRow
+                    key={item.id}
+                    item={item}
+                    locale={locale}
+                    showPhoto={showPhoto}
+                    showDescription={showDescription}
+                    showDuration={showDuration}
+                    showUsdEquivalent={showUsdEquivalent}
+                    confirmsByHand={confirmsByHand}
+                    usdRates={usdRates}
+                    ctaLabel={ctaLabel}
+                    durationFormat={durationFormat}
+                    selected={selectedId === item.id}
+                    onSelect={() => onRowAction(item, g.note)}
+                  />
+                ))}
+              </ul>
+            ) : null}
           </div>
         );
       })}
 
-      <div className="cb-bar" data-show={!sheetOpen} data-has-selection={selectedId !== null}>
+      <div
+        className="cb-bar"
+        data-show={!sheetOpen}
+        data-has-selection={selectedId !== null}
+        data-bar-style={mobileBar}
+      >
         <div className="cb-bar-text">
           <strong>{selectedTitle ?? (es ? "Elige tu servicio" : "Choose a service")}</strong>
           <span>
@@ -249,7 +288,13 @@ export function ServicesCatalogFilter({
         ) : null}
       </div>
 
-      <CatalogBookingSheet locale={locale} mode={bookingMode} tenantId={tenantId} showAsk />
+      {/* showAsk flag only — chat handoff serialization owned by sibling sheet/chat PR */}
+      <CatalogBookingSheet
+        locale={locale}
+        mode={bookingMode}
+        tenantId={tenantId}
+        showAsk={showAskLink}
+      />
     </div>
   );
 }
@@ -258,22 +303,26 @@ export function CatalogRow({
   item,
   locale,
   showPhoto,
+  showDescription = true,
   showDuration,
   showUsdEquivalent,
   confirmsByHand,
   usdRates,
   ctaLabel,
+  durationFormat = "auto",
   selected = false,
   onSelect,
 }: {
   item: TalentOffering;
   locale: string;
   showPhoto: boolean;
+  showDescription?: boolean;
   showDuration: boolean;
   showUsdEquivalent: boolean;
   confirmsByHand: boolean;
   usdRates: UsdRates | null;
   ctaLabel?: string;
+  durationFormat?: "auto" | "minutes" | "hours_minutes";
   selected?: boolean;
   onSelect?: () => void;
 }) {
@@ -293,9 +342,9 @@ export function CatalogRow({
       {cover ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
-      ) : (
+      ) : showPhoto ? (
         <span className="site-builder-node--services-catalog-photo" aria-hidden />
-      )}
+      ) : null}
       <span className="site-builder-node--services-catalog-copy">
         <strong className="site-builder-node--services-catalog-name" title={item.title}>
           {item.title}
@@ -306,12 +355,12 @@ export function CatalogRow({
             </span>
           ) : null}
         </strong>
-        {item.description ? (
+        {showDescription && item.description ? (
           <span className="site-builder-node--services-catalog-desc">{item.description}</span>
         ) : null}
         {showDuration && item.durationMinutes && item.kind !== "product" ? (
           <span className="site-builder-node--services-catalog-duration">
-            {catalogDurationPhrase(item.durationMinutes, locale)}
+            {catalogDurationPhrase(item.durationMinutes, locale, durationFormat)}
           </span>
         ) : null}
       </span>
