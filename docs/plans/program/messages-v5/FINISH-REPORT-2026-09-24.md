@@ -229,3 +229,48 @@ Merged as `25fc7c250` ([#2240](https://github.com/orantene/impronta-app/pull/224
 
 No new defect id. D-MSG-423 was not opened.
 
+## Finish proofs 1–12 (25 Sep)
+
+Host: `https://staging-qa-journeys.tulala.digital/` still served `dpl_C4vxn4tsVy3wQiQbyqgEDt7tqKHq` (#2240 / `25fc7c250`). QA SQL access was via authenticated Supabase MCP on `fxlankepwnvelxjrahwk` (not production). Local `web/.env.capacity-isolated.local` has the bypass and the QA URL; it still has no service-role key on disk. `web/.env.local` was not sourced. Pointer: `origin/main` = `origin/production` = `d714389e1`, which contains `25fc7c250`. No hand push of `production`.
+
+### 1–4 Live money cards
+
+| Item | Status | Evidence |
+|---|---|---|
+| 1. Transfer as deposit, method wire, due > 0 | proven | Inquiry `88122fb7-…`. Seeded `deposit_amount_cents=20000` on booking `478b569e-…` and accepted offer (fixture had deposit 0, which refused with unavailable). Recorded outside Transfer / Deposit 25% / ref `WIRE-FINISH-1-12`. DB `payment_request` card: `method=wire`, `totalCents=80000`, `paidCents=20000`, `dueCents=60000`. Screenshots under `web/e2e/qa-program/evidence/2026-09-24-finish/wire-*.png`. |
+| 2. Cash → one `order_confirmation` | proven | Inquiry `08f2a0b7-…`, order `a1dccc25-…` ($800). Confirmation row `48a2d3d4-…` with `orderId=a1dccc25-…`. |
+| 3. Second order → second confirmation | proven | Same inquiry, order `c282b624-…` ($54). Second confirmation `2f9973c2-…` with `orderId=c282b624-…`. Linked the pending order into `conversation_records` so both Order targets appeared. Screenshots `cash-second-order.png`. |
+| 4. Why `eccf0969-…` failed | proven (diagnosis) | QA SQL: `bookings=0`, `orders=0` for `eccf0969-…`. Matches `withInquiryBooking` → "No booking found" → sheet unavailable. Not a paid-card bug once a booking and deposit exist. |
+
+### 5–7 Stripe
+
+| Item | Status | Reason |
+|---|---|---|
+| 5. QA service-role key in env file | not proven on disk | MCP SQL worked. Local file has no `SUPABASE_SERVICE_ROLE_KEY`. |
+| 6–7. Stripe 4242 + full + partial refund | not proven | Ran `stripe-pay-refund.spec.ts` with `QA_ALLOW_AGENT_PROD_HOST=1` against `qa-stripe-r2`. Failed immediately: `signInAgentOwnedHost` requires production Supabase URL + service role + anon (`pluhdapdnuiulvxmyspd`). This lane did not source `web/.env.local`. Journeys shows `pk_test_` in signed-in chunks but D-MSG-313 still mints mock pay links there. Spec only covers full refund, not partial. Unblock: agent-host sign-in secrets for qa-stripe-r2 without using Impronta, or real Stripe mint on journeys. |
+
+### 8 Talent dashboard (seven)
+
+Read #2198 (starter home renders) and #2205 (shell header section pin) before any publish. Signed in as `qa-journeys-talent@impronta.test` (user on `QA-JNY-T1`). Inbox showed **0 conversations**. No money split, group silence, accept/decline, ask in place, request-only, refusal matrix, or builder publish was exercised. Screenshots `talent-*.png`. All seven: **not proven** (empty talent inbox / no fixture sales for this login).
+
+### 9–10 Matrix and hostile
+
+Playwright against journeys (bypass, no production SRK):
+
+| Spec area | Result |
+|---|---|
+| Class seat limit (Messages + POS 13th) | passed |
+| Appointment double-book confirm refusal | passed |
+| Cross-tenant: B order on POS, B inquiry on Messages, foreign /pay | passed |
+| Tampered client link | failed once (empty page body); treat as **not proven** / flaky |
+| Permissions money (Refund refusal) | skipped in run (4 skipped total across capacity/isolation) |
+| Table overbook / event tier | among skips or not re-listed as pass in the failing rerun |
+| Hostile 4000-char + $0 line | passed (`hostile-data.spec.ts`; title mentions $99,999 but body still only fills $0) |
+| Extra: emoji + RTL + 60-char in composer | no application error; screenshot `hostile-emoji-rtl-60.png` |
+| 30 offer lines / true $99,999 line | **not proven** |
+
+### Defects
+
+No D-MSG-423 opened. Closest product gap noted: outside **deposit** on a booking refuses with unavailable when `deposit_amount_cents` / `deposit_pct` are zero (`createInquiryTransactionDraft`: "This offer has no valid deposit configured.") while the sheet still offers Other amount as a deposit-shaped request.
+
+
