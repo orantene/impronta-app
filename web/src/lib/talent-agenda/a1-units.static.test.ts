@@ -35,4 +35,15 @@ describe("A1 money unit helper wiring", () => {
       /const total = Math\.max\(0, Number\(row\.total_client_revenue\) \|\| 0\);/,
     );
   });
+
+  it("QA agenda seed writes major units, not cent-scaled revenue", () => {
+    const seed = readFileSync(
+      join(process.cwd(), "scripts/seed-talent-agenda-qa.mjs"),
+      "utf8",
+    );
+    assert.match(seed, /total_client_revenue:\s*850\b/);
+    assert.match(seed, /client_charge_total:\s*850\b/);
+    assert.doesNotMatch(seed, /total_client_revenue:\s*85000\b/);
+    assert.doesNotMatch(seed, /\/\/ Cents — Finish→Card/);
+  });
 });
