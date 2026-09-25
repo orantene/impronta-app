@@ -214,3 +214,51 @@ test("the mint leaves an order that already belongs to another conversation alon
   const link = ((store as Record<string, Row[]>).payment_links ?? [])[0];
   assert.equal(link?.inquiry_id, "inq-new");
 });
+
+// A2 / #14: an expired operation key must not block a re-request with the same key.
+test("createPaymentLink frees an expired key and mints a new open link", async () => {
+  const store = makeStore();
+  store.orders.push({
+    id: "o1",
+    tenant_id: "t1",
+    status: "pending_payment",
+    currency: "USD",
+    total_cents: 5000,
+    version: 1,
+    inquiry_id: null,
+  });
+  (store as Record<string, Row[]>).payment_links = [
+    {
+      id: "old-1",
+      tenant_id: "t1",
+      order_id: "o1",
+      code: "oldcode01",
+      amount_cents: 1800,
+      currency: "USD",
+      status: "expired",
+      expires_at: new Date(Date.now() - 60_000).toISOString(),
+      operation_key: "stable-key-aaaa",
+      reservation_id: "res-old",
+      created_by: null,
+      inquiry_id: null,
+    },
+  ];
+  const admin = fakeAdmin(store);
+  const minted = await createPaymentLink(admin, {
+    tenantId: "t1",
+    orderId: "o1",
+    amountCents: 1800,
+    idempotencyKey: "stable-key-aaaa",
+    actorUserId: "0f3c6b7a-2d1e-4c5b-9a8f-7e6d5c4b3a21",
+    publicOrigin: "https://elpaisa.example",
+  });
+  assert.equal(minted.ok, true, JSON.stringify(minted));
+  if (!minted.ok) return;
+  assert.notEqual(minted.code, "oldcode01");
+  const links = (store as Record<string, Row[]>).payment_links ?? [];
+  const old = links.find((l) => l.code === "oldcode01");
+  const neu = links.find((l) => l.code === minted.code);
+  assert.ok(String(old?.operation_key ?? "").includes(":was:expired:"));
+  assert.equal(neu?.operation_key, "stable-key-aaaa");
+  assert.equal(neu?.status, "open");
+});
