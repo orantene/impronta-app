@@ -249,7 +249,7 @@ export function ServicesCatalogFilter({
         ) : null}
       </div>
 
-      <CatalogBookingSheet locale={locale} mode={bookingMode} tenantId={tenantId} />
+      <CatalogBookingSheet locale={locale} mode={bookingMode} tenantId={tenantId} showAsk />
     </div>
   );
 }

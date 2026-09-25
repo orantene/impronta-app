@@ -10,21 +10,16 @@
  * profile uses, so the conversation lands in Messages with provenance instead
  * of in a WhatsApp number nobody has confirmed.
  *
- * Two events are dispatched, on purpose:
- *
- *   tulala:ask-question    the INTENT, named for what it is, carrying context
- *                          (which service the visitor was looking at, where
- *                          the click came from). Nothing consumes it yet — see
- *                          docs/prompts/chat-ask-a-question.md.
- *   tulala:offering-request the seam that ALREADY works: TalentProfileChatLauncher
- *                          opens on this event and, with no detail, opens clean
- *                          with no pending offering attached.
- *
- * So the button works on the live profile now, and gets better the day the
- * launcher handles the named event.
+ * Sheet Chat now / Ask uses `openCatalogBookingChat` (selection + visitor).
+ * Menu ask still fires `tulala:ask-question` + bare `tulala:offering-request`
+ * so a clean dock opens when there is no offering detail yet.
  */
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import {
+  openCatalogBookingChat,
+  type CatalogBookingChatHandoff,
+} from "@/components/public-booking/catalog-booking-chat";
 
 export type MaisonAskContext = {
   talentName: string;
@@ -49,6 +44,14 @@ export function askQuestion(ctx: MaisonAskContext) {
   // The launcher's existing seam: no detail = open the chat with nothing
   // pre-attached. Harmless when the named event above is handled instead.
   window.dispatchEvent(new CustomEvent("tulala:offering-request"));
+}
+
+/** Booking-sheet Ask / Chat now — carrying selection + Nombre + WhatsApp. */
+export function askFromBookingSheet(handoff: CatalogBookingChatHandoff) {
+  openCatalogBookingChat({
+    ...handoff,
+    from: handoff.from ?? "sheet",
+  });
 }
 
 export function MaisonAskButton({

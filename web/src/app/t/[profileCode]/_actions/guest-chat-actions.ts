@@ -635,14 +635,37 @@ export async function startGuestChatInquiry(
   // request VISIBLE in the thread (coordinator + guest both see exactly what
   // was asked for) and persist the structured payload in source_context below.
   const offering = input.offeringIntent ? null : (input.offering ?? null);
-  const offeringPrefix = offering
-    ? `Requesting: ${offering.title}${
-        offering.amount_cents != null
-          ? ` (${offering.currency} ${(offering.amount_cents / 100).toLocaleString()})`
-          : ""
-      }\n\n`
-    : "";
   const rawFirstMessage = input.firstMessage?.trim() ?? "";
+  // Skip server prefix when the client already stamped one (picker / booking-sheet
+  // chat handoff). Avoids "Requesting: …\n\nQuestion about …" double headers.
+  const clientPrefixed =
+    /^(requesting:|solicito:|question about|consulta sobre)/i.test(rawFirstMessage);
+  const selectionBits = offering
+    ? [
+        offering.variant_label,
+        ...(offering.add_on_labels ?? []),
+        offering.slot_label,
+      ].filter((b): b is string => typeof b === "string" && b.trim().length > 0)
+    : [];
+  const offeringTitle = offering
+    ? selectionBits.length
+      ? `${offering.title} · ${selectionBits.join(" · ")}`
+      : offering.title
+    : "";
+  const offeringAmount =
+    offering?.total_cents != null
+      ? offering.total_cents
+      : offering?.amount_cents != null
+        ? offering.amount_cents
+        : null;
+  const offeringPrefix =
+    offering && !clientPrefixed
+      ? `Requesting: ${offeringTitle}${
+          offeringAmount != null
+            ? ` (${offering.currency} ${(offeringAmount / 100).toLocaleString()})`
+            : ""
+        }\n\n`
+      : "";
   const firstMessage = rawFirstMessage ? `${offeringPrefix}${rawFirstMessage}` : rawFirstMessage;
 
   const missing: string[] = [];
