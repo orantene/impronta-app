@@ -449,7 +449,7 @@ export function AgendaBookingRecord({
                   target="_blank"
                   rel="noreferrer"
                   aria-label={copy.t("Send on WhatsApp")}
-                  className="inline-flex min-h-[44px] items-center rounded-full bg-[#1F7A4C] px-4 text-[13px] font-semibold text-white"
+                  className="inline-flex min-h-[44px] items-center rounded-full bg-[var(--tc-ok)] px-4 text-[13px] font-semibold text-white"
                 >
                   {copy.t("Send on WhatsApp")}
                 </a>
