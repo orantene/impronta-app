@@ -60,13 +60,18 @@ Remaining for full Step 1:
 
 ### Step 2 — Full rollout
 
-1. Set `TALENT_AGENDA_V2=all`.
-2. Keep legacy flag-off branches for one week (rollback = set `TALENT_AGENDA_V2=0`).
+**Armed 2026-09-25 (Production):**
+- `TALENT_AGENDA_V2=all` (owner unlock via “do all”)
+- Rollback: set `TALENT_AGENDA_V2=0`
+- **Day-7 legacy clock starts:** 2026-09-25 → earliest Step 4 **2026-10-02**
+- Redeploy Production after env change so runtimes pick up `all`
 
 ### Step 3 — Jor demo (owner click-through)
 
-1. Add Jor's profile id to the allow-list **or** use `all` after Step 2.
-2. **Read-only first:** owner clicks; agents write nothing to her rows.
+**With Step 2 `all`, Jor is included.** Agents: **read-only only** — no writes to `f048e578-…` rows.
+1. Owner clicks Today / Calendar / a booking record on her account.
+2. Capture notes under `docs/plans/program/evidence/today-calendar/` if useful.
+3. Leave this item open until owner confirms the session.
 
 ### Step 4 — Delete legacy (separate PR, after ≥7 days green)
 

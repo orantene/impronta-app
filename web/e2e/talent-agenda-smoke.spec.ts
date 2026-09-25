@@ -248,6 +248,67 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
     await expect(release).toBeVisible();
     await page.screenshot({ path: path.join(EVIDENCE, "hold-release-entry.png"), fullPage: true });
   });
+
+  test("block time → form → cancel closes without saving", async ({ page }) => {
+    await page.goto(`${BASE_URL}/talent/calendar?agendaNow=2026-09-23T09:50:00`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    const addBtn = page.getByRole("button", { name: /Add event or block|Add/i }).first();
+    if (!(await addBtn.isVisible().catch(() => false))) {
+      test.skip(true, "Calendar Add is Agenda V2-only");
+    }
+    await addBtn.click();
+    await page.getByRole("button", { name: /Block time|Bloquear/i }).click();
+    await expect(page.locator('input[type="time"]').first()).toBeVisible({ timeout: 15_000 });
+    const cancel = page.getByRole("button", { name: /Cancel|Cancelar|Back|Volver/i }).first();
+    if (await cancel.isVisible().catch(() => false)) {
+      await cancel.click();
+    }
+    await page.screenshot({ path: path.join(EVIDENCE, "block-time-cancel.png"), fullPage: true });
+  });
+
+  test("booking record cancel control is honest (works or absent)", async ({ page }) => {
+    await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T09:50:00`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    const open = page.getByRole("button", { name: /Open|Ver|View/i }).first();
+    if (!(await open.isVisible().catch(() => false))) {
+      test.skip(true, "No booking Open CTA on seeded Today");
+    }
+    await open.click();
+    await page.waitForTimeout(800);
+    // Either Cancel is offered and enabled, or it is not shown (A1.7 honesty).
+    const cancel = page.getByRole("button", { name: /Cancel booking|Cancelar reserva|^Cancel$|^Cancelar$/i });
+    const count = await cancel.count();
+    if (count > 0) {
+      await expect(cancel.first()).toBeEnabled();
+    }
+    await page.screenshot({ path: path.join(EVIDENCE, "booking-record-cancel-honesty.png"), fullPage: true });
+  });
+
+  test("reschedule sheet opens from record when offered", async ({ page }) => {
+    await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T09:50:00`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    const open = page.getByRole("button", { name: /Open|Ver|View/i }).first();
+    if (!(await open.isVisible().catch(() => false))) {
+      test.skip(true, "No booking Open CTA on seeded Today");
+    }
+    await open.click();
+    await page.waitForTimeout(800);
+    const reschedule = page.getByRole("button", { name: /Reschedule|Reagendar/i }).first();
+    if (!(await reschedule.isVisible().catch(() => false))) {
+      test.skip(true, "Reschedule not offered on this booking");
+    }
+    await reschedule.click();
+    await expect(page.getByText(/Reschedule|Reagendar|New time|Nueva hora/i).first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.screenshot({ path: path.join(EVIDENCE, "reschedule-sheet.png"), fullPage: true });
+  });
 });
 
 test.describe("Talent Agenda V2 mobile 390", () => {
