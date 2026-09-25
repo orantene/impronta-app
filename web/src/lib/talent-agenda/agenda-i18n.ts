@@ -83,7 +83,7 @@ const ES: Record<string, string> = {
 
   // Pay request
   "Request payment": "Solicitar pago",
-  "Amount (USD)": "Importe (USD)",
+  "Amount (USD)": "Importe (MXN)",
   "Send request": "Enviar solicitud",
   "Creating link…": "Creando enlace…",
 
@@ -271,6 +271,9 @@ const ES: Record<string, string> = {
   "Record payment received": "Registrar pago recibido",
   "Due later": "Pagar después",
   "Request a payment link": "Pedir un enlace de pago",
+  "Collect later (no link yet)": "Cobrar después (sin enlace aún)",
+  "Does not create a pay link. Open Request payment from the booking when you are ready.":
+    "No crea un enlace de pago. Abre Solicitar pago desde la reserva cuando estés listo.",
   "Save stays off until a payment choice is selected.":
     "Guardar se queda desactivado hasta elegir un pago.",
   Save: "Guardar",
@@ -283,6 +286,8 @@ const ES: Record<string, string> = {
     "Pago registrado como recibido. El cliente no ha sido avisado.",
   "Payment link still needed. The client has not been told.":
     "Aún falta el enlace de pago. El cliente no ha sido avisado.",
+  "Saved as unpaid. Request a payment link from the booking when you are ready. The client has not been told.":
+    "Guardado sin pagar. Pide un enlace de pago desde la reserva cuando estés listo. El cliente no ha sido avisado.",
   "Due later. The client has not been told.":
     "Pago después. El cliente no ha sido avisado.",
   Failed: "Falló",

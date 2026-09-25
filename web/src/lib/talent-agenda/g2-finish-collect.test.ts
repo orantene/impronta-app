@@ -7,7 +7,7 @@ import { derivePaymentState } from "./derive";
 
 const root = join(process.cwd(), "src/lib/talent-agenda");
 
-describe("G2.1 finish-collect honesty", () => {
+describe("G2.1 / A0 finish-collect honesty", () => {
   it("transfer awaiting is awaiting after complete, not overdue", () => {
     const now = new Date("2026-09-23T18:00:00-05:00");
     assert.equal(
@@ -33,16 +33,20 @@ describe("G2.1 finish-collect honesty", () => {
     );
   });
 
-  it("booking-actions expose transfer + pay-link writers", () => {
+  it("booking-actions require ownership and scope calendar mirrors by id", () => {
     const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
+    assert.match(src, /requireOwnBooking/);
     assert.match(src, /recordBookingTransferAwaiting/);
     assert.match(src, /markBookingTransferReceived/);
     assert.match(src, /createAgendaBookingPayLink/);
     assert.match(src, /payment_method:\s*"transfer"/);
     assert.match(src, /createPaymentLink/);
+    assert.match(src, /\.eq\("id",\s*input\.bookingId\)/);
+    assert.doesNotMatch(src, /gte\("starts_at"/);
+    assert.doesNotMatch(src, /void input\.adjustLines/);
   });
 
-  it("FinishCollect wires cash, transfer, and card paths", () => {
+  it("FinishCollect wires cash, transfer, and card paths without adjust-lines theater", () => {
     const src = readFileSync(
       join(
         process.cwd(),
@@ -53,6 +57,21 @@ describe("G2.1 finish-collect honesty", () => {
     assert.match(src, /recordBookingTransferAwaiting/);
     assert.match(src, /createAgendaBookingPayLink/);
     assert.match(src, /recordBookingCashCollected/);
-    assert.match(src, /no_order|No order/);
+    assert.match(src, /Card needs a linked order/);
+    assert.doesNotMatch(src, /Adjust lines/);
+    assert.doesNotMatch(src, /adjustLines/);
+  });
+
+  it("New booking request_link copy does not claim a link was created", () => {
+    const ui = readFileSync(
+      join(
+        process.cwd(),
+        "src/components/admin/shell/internal/talent/agenda/AgendaNewBooking.tsx",
+      ),
+      "utf8",
+    );
+    assert.match(ui, /Collect later \(no link yet\)/);
+    assert.match(ui, /Does not create a pay link/);
+    assert.doesNotMatch(ui, /\["request_link", "Request a payment link"\]/);
   });
 });

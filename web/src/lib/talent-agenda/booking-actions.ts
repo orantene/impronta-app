@@ -1,16 +1,62 @@
 /**
- * Agenda V2 booking lifecycle actions (T1.3, T1.4).
+ * Agenda V2 booking lifecycle actions (T1.3, T1.4, G2.1, A0).
  * Idempotent. Typed { ok, reason } results.
+ * Every writer requires the signed-in talent to own the booking.
  */
 
 "use server";
 
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type AgendaActionOk = { ok: true; already?: boolean };
 export type AgendaActionFail = { ok: false; reason: string };
 export type AgendaActionResult = AgendaActionOk | AgendaActionFail;
+
+type OwnOk = { ok: true; talentId: string };
+
+/**
+ * Talent must appear on booking_talent or own the talent_bookings mirror id.
+ */
+async function requireOwnBooking(bookingId: string): Promise<OwnOk | AgendaActionFail> {
+  if (!bookingId) return { ok: false, reason: "missing" };
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, reason: "unavailable" };
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, reason: "unauthorized" };
+
+  const { data: profile } = await supabase
+    .from("talent_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (typeof profile?.id !== "string") return { ok: false, reason: "unauthorized" };
+  const talentId = profile.id;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, reason: "unavailable" };
+
+  const { data: leg } = await admin
+    .from("booking_talent")
+    .select("booking_id")
+    .eq("booking_id", bookingId)
+    .eq("talent_profile_id", talentId)
+    .maybeSingle();
+  if (leg) return { ok: true, talentId };
+
+  const { data: tb } = await admin
+    .from("talent_bookings")
+    .select("id")
+    .eq("id", bookingId)
+    .eq("talent_profile_id", talentId)
+    .maybeSingle();
+  if (tb) return { ok: true, talentId };
+
+  return { ok: false, reason: "unauthorized" };
+}
 
 /**
  * T1.3 Mark a booking no-show after its start time.
@@ -20,6 +66,9 @@ export async function markBookingNoShow(input: {
   bookingId: string;
   now?: Date;
 }): Promise<AgendaActionResult> {
+  const own = await requireOwnBooking(input.bookingId);
+  if (!own.ok) return own;
+
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 
@@ -51,13 +100,12 @@ export async function markBookingNoShow(input: {
     return { ok: false, reason: "unavailable" };
   }
 
-  // Mirror onto talent calendar copy when present (inquiry-linked or title match later).
+  // Mirror calendar copy by shared id only (never a naked time window).
   await admin
     .from("talent_bookings")
     .update({ status: "no_show", updated_at: now.toISOString() })
-    .eq("status", "confirmed")
-    .gte("starts_at", new Date(starts - 60_000).toISOString())
-    .lte("starts_at", new Date(starts + 60_000).toISOString());
+    .eq("id", input.bookingId)
+    .eq("talent_profile_id", own.talentId);
 
   if (row.customer_id) {
     const { data: cust } = await admin
@@ -74,11 +122,14 @@ export async function markBookingNoShow(input: {
 
 /**
  * T1.4 Mark booking completed. Does not change payment state.
+ * Line adjustments are not supported yet — Finish UI must not offer them.
  */
 export async function completeBooking(input: {
   bookingId: string;
-  adjustLines?: { label: string; cents: number }[];
 }): Promise<AgendaActionResult> {
+  const own = await requireOwnBooking(input.bookingId);
+  if (!own.ok) return own;
+
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 
@@ -97,8 +148,6 @@ export async function completeBooking(input: {
     return { ok: false, reason: "not_completable" };
   }
 
-  void input.adjustLines; // line adjustments land with Finish-and-collect (T8.2)
-
   const { error: upErr } = await admin
     .from("agency_bookings")
     .update({ status: "completed" })
@@ -108,15 +157,11 @@ export async function completeBooking(input: {
     return { ok: false, reason: "unavailable" };
   }
 
-  const starts = Date.parse(String(row.starts_at));
-  if (!Number.isNaN(starts)) {
-    await admin
-      .from("talent_bookings")
-      .update({ status: "completed", updated_at: new Date().toISOString() })
-      .in("status", ["confirmed"])
-      .gte("starts_at", new Date(starts - 60_000).toISOString())
-      .lte("starts_at", new Date(starts + 60_000).toISOString());
-  }
+  await admin
+    .from("talent_bookings")
+    .update({ status: "completed", updated_at: new Date().toISOString() })
+    .eq("id", input.bookingId)
+    .eq("talent_profile_id", own.talentId);
 
   return { ok: true };
 }
@@ -129,6 +174,9 @@ export async function recordBookingCashCollected(input: {
   bookingId: string;
   amountCents?: number;
 }): Promise<AgendaActionResult> {
+  const own = await requireOwnBooking(input.bookingId);
+  if (!own.ok) return own;
+
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 
@@ -172,12 +220,13 @@ const TRANSFER_AWAITING_NOTE = "Transfer awaiting confirmation.";
 
 /**
  * T8.2 Mark bank transfer as sent by client, awaiting talent confirmation.
- * Leaves payment_status unpaid/partial so money is not invented; derive maps
- * payment_method=transfer to awaiting (not overdue after complete).
  */
 export async function recordBookingTransferAwaiting(input: {
   bookingId: string;
 }): Promise<AgendaActionResult> {
+  const own = await requireOwnBooking(input.bookingId);
+  if (!own.ok) return own;
+
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 
@@ -216,6 +265,9 @@ export async function recordBookingTransferAwaiting(input: {
 export async function markBookingTransferReceived(input: {
   bookingId: string;
 }): Promise<AgendaActionResult> {
+  const own = await requireOwnBooking(input.bookingId);
+  if (!own.ok) return own;
+
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 
@@ -230,6 +282,9 @@ export async function markBookingTransferReceived(input: {
   }
   if (!row) return { ok: false, reason: "not_found" };
   if (row.payment_status === "paid") return { ok: true, already: true };
+  if (row.payment_method !== "transfer") {
+    return { ok: false, reason: "not_transfer" };
+  }
 
   const { error: upErr } = await admin
     .from("agency_bookings")
@@ -252,13 +307,15 @@ export type CreateAgendaPayLinkResult =
 
 /**
  * Mint (or reuse) a payment link for a booking that already has an order.
- * Does not invent money — webhook /pay confirms.
  */
 export async function createAgendaBookingPayLink(input: {
   bookingId: string;
   amountCents?: number;
   publicOrigin: string;
 }): Promise<CreateAgendaPayLinkResult> {
+  const own = await requireOwnBooking(input.bookingId);
+  if (!own.ok) return own;
+
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 

@@ -23,7 +23,7 @@ Allow-list: `TALENT_AGENDA_V2_TALENTS` = comma-separated `talent_profiles.id` UU
 - [x] Migration `20260924213837_talent_agenda_v2_phase1.sql` applied (`npm run db:check`)
 - [x] Unit gates: derive / trade walk / free gaps / dual TZ / journeys
 - [x] Wave 8 skeleton: mobile tab hide, keyboard-safe sticky bars, a11y chips + countdown, partial EN/ES, Playwright smoke scaffolding
-- [x] **Gap closure G0–G4** per [`GAP-EXECUTION-PLAN.md`](./GAP-EXECUTION-PLAN.md) (code ready; Playwright still needs QA creds for evidence screenshots)
+- [ ] **Gap closure** — treat G0–G4 as PARTIAL; finish [`POST-AUDIT-EXECUTION-PLAN.md`](./POST-AUDIT-EXECUTION-PLAN.md) A0–A2 before Step 1
 - [ ] Playwright smoke with QA creds: `npx playwright test e2e/talent-agenda-smoke.spec.ts` (skips without `QA_TALENT_*`)
 
 Local allow-list:

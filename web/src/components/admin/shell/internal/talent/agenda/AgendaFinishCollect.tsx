@@ -13,7 +13,8 @@ import { useAgendaCopy } from "./use-agenda-copy";
 type CollectMethod = "cash" | "card" | "transfer" | "unpaid" | null;
 
 /**
- * T8.2 / G2.1 / G3.4 Finish and collect inside TaskShell.
+ * T8.2 / G2.1 / G3.4 / A0.4 Finish and collect inside TaskShell.
+ * No adjust-lines UI until a real writer exists (A0.4).
  */
 export function AgendaFinishCollect({
   bookingId,
@@ -29,25 +30,10 @@ export function AgendaFinishCollect({
   onDone?: () => void;
 }) {
   const copy = useAgendaCopy();
-  const [lines, setLines] = useState<{ label: string; cents: number }[]>([]);
-  const [newLabel, setNewLabel] = useState("");
-  const [newAmount, setNewAmount] = useState("");
   const [method, setMethod] = useState<CollectMethod>(null);
   const [pending, start] = useTransition();
   const [result, setResult] = useState<string | null>(null);
   const [payUrl, setPayUrl] = useState<string | null>(null);
-
-  function addLine() {
-    const cents = Math.round(parseFloat(newAmount || "0") * 100);
-    if (!newLabel.trim() || cents === 0) return;
-    setLines((l) => [...l, { label: newLabel.trim(), cents }]);
-    setNewLabel("");
-    setNewAmount("");
-  }
-
-  function removeLine(idx: number) {
-    setLines((l) => l.filter((_, i) => i !== idx));
-  }
 
   function handleFinish() {
     if (!method) return;
@@ -84,7 +70,7 @@ export function AgendaFinishCollect({
         setPayUrl(link.url);
       }
 
-      const res = await completeBooking({ bookingId, adjustLines: lines });
+      const res = await completeBooking({ bookingId });
       if (res.ok) {
         const note =
           method === "unpaid"
@@ -112,53 +98,6 @@ export function AgendaFinishCollect({
       secondaryActionLabel={copy.t("Back")}
     >
       <div className="space-y-4">
-        <section className="space-y-3 rounded-2xl border border-black/8 bg-white p-4">
-          <h2 className="text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("Adjust lines")}</h2>
-          <p className="text-[13px] text-[#5F6368]">
-            {copy.t("Add extras or deductions before closing out.")}
-          </p>
-          {lines.length > 0 && (
-            <ul className="space-y-2">
-              {lines.map((l, i) => (
-                <li key={i} className="flex items-center justify-between gap-2 text-[13px]">
-                  <span>{l.label}</span>
-                  <span className="font-medium">${(l.cents / 100).toFixed(2)}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeLine(i)}
-                    className="min-h-[44px] text-[#B42318] underline"
-                  >
-                    {copy.t("Remove")}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <input
-              type="text"
-              placeholder={copy.t("Line description")}
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              className="min-h-[44px] flex-1 rounded-xl border border-black/10 px-3 py-2 text-[13px]"
-            />
-            <input
-              type="number"
-              placeholder={copy.t("Amount")}
-              value={newAmount}
-              onChange={(e) => setNewAmount(e.target.value)}
-              className="min-h-[44px] w-[100px] rounded-xl border border-black/10 px-3 py-2 text-[13px]"
-            />
-            <button
-              type="button"
-              onClick={addLine}
-              className="min-h-[44px] rounded-xl border border-black/10 px-3 text-[13px]"
-            >
-              {copy.t("Add")}
-            </button>
-          </div>
-        </section>
-
         <section className="space-y-2 rounded-2xl border border-black/8 bg-white p-4">
           <h2 className="text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("How was it paid?")}</h2>
           {(
@@ -202,7 +141,10 @@ export function AgendaFinishCollect({
         ) : null}
 
         {result ? (
-          <p aria-live="polite" className={`text-center text-[13px] ${result.includes("✓") ? "text-[#1F7A4C]" : "text-[#B42318]"}`}>
+          <p
+            aria-live="polite"
+            className={`text-center text-[13px] ${result.includes("✓") ? "text-[#1F7A4C]" : "text-[#B42318]"}`}
+          >
             {result}
           </p>
         ) : null}

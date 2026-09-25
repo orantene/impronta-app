@@ -174,7 +174,7 @@ export async function createOwnSlotBooking(input: {
       source_type_snapshot: "manual",
       internal_notes:
         input.paymentChoice === "request_link"
-          ? "Payment link still needed. Client has not been told."
+          ? "Collect later. No payment link created yet. Client has not been told."
           : input.paymentChoice === "due_later"
             ? "Due later. Client has not been told."
             : "Payment recorded as received by talent. Client has not been told.",

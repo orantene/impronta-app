@@ -3,6 +3,8 @@
 Audience: the implementing agent (Cursor). Owner: Oran. Written 2026-09-24.
 Goal: replace the talent dashboard's Today, Calendar, booking record and New booking with the approved design, working on real data, for every trade, with no invented numbers and no dead buttons.
 
+**Active follow-on:** post-audit honesty + Services unblock → [`POST-AUDIT-EXECUTION-PLAN.md`](./POST-AUDIT-EXECUTION-PLAN.md). Gap plan status → [`GAP-EXECUTION-PLAN.md`](./GAP-EXECUTION-PLAN.md).
+
 ---
 
 ## 0. Read this first

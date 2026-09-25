@@ -5,6 +5,8 @@ Parent plan: [`CURSOR-EXECUTION-PLAN.md`](./CURSOR-EXECUTION-PLAN.md). Audit sou
 
 **Goal:** Close every critical and medium gap between “code-complete skeleton” and the parent plan’s definition of done. Do not invent new product scope. Do not write to live Jor.
 
+> **Superseding plan (2026-09-24 audit):** Several G0–G4 items marked DONE below are **PARTIAL**. Execute remaining honesty/security work from [`POST-AUDIT-EXECUTION-PLAN.md`](./POST-AUDIT-EXECUTION-PLAN.md) before ROLLOUT Step 1.
+
 ---
 
 ## 0. Read this first

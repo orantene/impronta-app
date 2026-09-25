@@ -96,7 +96,7 @@ function SlotComposer({
         pay === "received"
           ? copy.t("Payment recorded as received. The client has not been told.")
           : pay === "request_link"
-            ? copy.t("Payment link still needed. The client has not been told.")
+            ? copy.t("Saved as unpaid. Request a payment link from the booking when you are ready. The client has not been told.")
             : copy.t("Due later. The client has not been told.");
       setSavedNote(payLabel);
       onSaved?.();
@@ -192,7 +192,7 @@ function SlotComposer({
           [
             ["received", "Record payment received"],
             ["due_later", "Due later"],
-            ["request_link", "Request a payment link"],
+            ["request_link", "Collect later (no link yet)"],
           ] as const
         ).map(([id, label]) => (
           <label key={id} className="flex min-h-[44px] items-center gap-2 text-[14px]">
@@ -205,6 +205,11 @@ function SlotComposer({
             {copy.t(label)}
           </label>
         ))}
+        {pay === "request_link" ? (
+          <p className="text-[13px] text-[#5F6368]">
+            {copy.t("Does not create a pay link. Open Request payment from the booking when you are ready.")}
+          </p>
+        ) : null}
       </section>
 
       <div className="sticky bottom-0 z-10 -mx-1 flex justify-end gap-2 border-t border-black/5 bg-[var(--tc-canvas,#FAFAF7)] px-1 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
