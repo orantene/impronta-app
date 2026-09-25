@@ -1,5 +1,5 @@
 /**
- * G0.1 / G0.3 — static contracts for create-slot and HoldFlows wiring.
+ * G0.1 / G0.3 / B1 / B3 — static contracts for create-slot and HoldFlows wiring.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -28,6 +28,11 @@ describe("G0.1 createOwnSlotBooking", () => {
     assert.ok(!src.includes('"no_agency"'));
   });
 
+  it("opens draft order + lines after booking insert (B3)", () => {
+    assert.ok(src.includes("openBookingOrderForAgenda"));
+    assert.ok(src.includes("offeringId"));
+  });
+
   it("honors paymentChoice instead of voiding it", () => {
     assert.ok(!/void\s+input\.paymentChoice/.test(src));
     assert.ok(src.includes("paymentStatusFor("));
@@ -37,6 +42,23 @@ describe("G0.1 createOwnSlotBooking", () => {
   it("reads buffer_after_min from talent_booking_hours", () => {
     assert.ok(src.includes('.select("buffer_after_min")'));
     assert.ok(src.includes("readBufferAfterMs("));
+  });
+});
+
+describe("B3 openBookingOrderForAgenda", () => {
+  const src = blankComments(readFileSync(path.join(ROOT, "open-booking-order.ts"), "utf8"));
+
+  it("reuses POS createDraftOrder / addLine / addCustomLine", () => {
+    assert.ok(src.includes("createDraftOrder"));
+    assert.ok(src.includes("addLine"));
+    assert.ok(src.includes("addCustomLine"));
+    assert.ok(src.includes('sourceChannel: "talent_agenda"'));
+  });
+
+  it("links agency_bookings.order_id and writes major-unit revenue", () => {
+    assert.ok(src.includes("order_id:"));
+    assert.ok(src.includes("total_client_revenue"));
+    assert.ok(src.includes("centsToTotalClientRevenue"));
   });
 });
 
@@ -66,5 +88,6 @@ describe("G0.2–G0.3 HoldFlows + convert", () => {
     assert.ok(convert.includes(".delete()"));
     assert.ok(convert.includes("resolveTalentOwnWorkTenant"));
     assert.ok(!convert.includes("getActiveTalentAgencyContext"));
+    assert.ok(convert.includes("openBookingOrderForAgenda"));
   });
 });

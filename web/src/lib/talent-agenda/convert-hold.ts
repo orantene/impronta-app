@@ -1,6 +1,8 @@
 /**
- * G0.2 / Stage B1 — Convert a talent-owned hold into a confirmed commercial
- * booking on the platform hub (talent as seller).
+ * G0.2 / Stage B1 + B2 + B3 — Convert a talent-owned hold into a confirmed
+ * commercial booking on the platform hub (talent as seller), then open a
+ * draft order with a custom line from the hold title. Links customer_id from
+ * the inquiry when available.
  */
 
 "use server";
@@ -12,14 +14,16 @@ import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
 import { loadTalentActor } from "@/lib/messaging/talent-actor";
 import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
 import { resolveTalentOwnWorkTenant } from "@/lib/talent-agenda/own-work-tenant";
+import { openBookingOrderForAgenda } from "@/lib/talent-agenda/open-booking-order";
 
 export type ConvertOwnHoldResult =
-  | { ok: true; bookingId: string; already?: boolean }
+  | { ok: true; bookingId: string; already?: boolean; orderId?: string }
   | { ok: false; reason: string; message?: string };
 
 /**
  * Turn a talent_holds row into agency_bookings + talent_bookings on the hub,
- * then delete the hold. Payment stays unpaid until collected.
+ * then delete the hold. Payment stays unpaid until collected. Opens a draft
+ * order (custom line from hold title) linked via `agency_bookings.order_id`.
  */
 export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHoldResult> {
   if (!holdId) return { ok: false, reason: "missing" };
@@ -116,7 +120,7 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
         email: contactEmail,
         phone: contactPhone,
         displayName: clientName,
-        ownerTalentProfileId: identity.talentId,
+        ownerTalentProfileId: actor.talentProfileId,
       },
       { admin },
     );
@@ -211,6 +215,21 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
     logServerError("agenda.convertHold.deleteHold", delErr);
   }
 
+  const order = await openBookingOrderForAgenda(admin, {
+    tenantId,
+    actorUserId: actor.userId,
+    talentProfileId: actor.talentProfileId,
+    bookingId,
+    title,
+  });
+  if (!order.ok) {
+    logServerError("agenda.convertHold.order", order.reason);
+  }
+
   revalidatePath("/", "layout");
-  return { ok: true, bookingId };
+  return {
+    ok: true,
+    bookingId,
+    orderId: order.ok ? order.orderId : undefined,
+  };
 }
