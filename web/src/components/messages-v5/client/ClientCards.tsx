@@ -272,15 +272,70 @@ export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: 
   const closed = cancelled || expired;
   const kind = view.amountKind === "deposit" ? copy.pay.deposit : copy.pay.full;
   const amount = view.amountCents != null ? money(view.amountCents, view.currency) : "";
+  // Front-door v27 Paid: total / paid / due / method only when the shell stamped
+  // them. Never invent amounts.
+  const hasMoney =
+    paid &&
+    typeof view.totalCents === "number" &&
+    typeof view.paidCents === "number" &&
+    typeof view.dueCents === "number";
+  const methodLabel =
+    view.method === "cash"
+      ? copy.pay.methodCash
+      : view.method === "transfer" || view.method === "wire"
+        ? copy.pay.methodTransfer
+        : view.method === "card" || view.method === "stripe" || view.method === "link"
+          ? view.amountKind === "deposit"
+            ? copy.pay.methodCardDeposit
+            : copy.pay.methodCard
+          : null;
+  const paidFoot =
+    hasMoney && view.dueCents! > 0
+      ? fill(copy.pay.paidBalanceDue, {
+          paid: money(view.paidCents, view.currency),
+          due: money(view.dueCents, view.currency),
+        })
+      : hasMoney
+        ? fill(copy.pay.paidInFull, { paid: money(view.paidCents, view.currency) })
+        : null;
   return (
     <Card category="pay" label={copy.pay.cat} title={copy.pay.title} variant="mobile" testId="client-pay"
-      pills={paid ? <Pill tone="won">{copy.pay.paid}</Pill> : cancelled ? <Pill tone="lost">{copy.pay.cancelledPill}</Pill> : expired ? <Pill tone="lost">{copy.pay.expired.split(".")[0]}</Pill> : null}
-      foot={paid ? null : cancelled ? fill(copy.pay.cancelled, { business }) : expired ? fill(copy.pay.expired, { business }) : view.expiresAt ? fill(copy.pay.expiresAt, { date: formatClientDate(view.expiresAt, locale) }) : copy.pay.keepSlot}
+      pills={
+        paid ? (
+          <>
+            <Pill tone="won">{copy.pay.paid}</Pill>
+            {methodLabel ? <Pill tone="money">{methodLabel}</Pill> : null}
+          </>
+        ) : cancelled ? (
+          <Pill tone="lost">{copy.pay.cancelledPill}</Pill>
+        ) : expired ? (
+          <Pill tone="lost">{copy.pay.expired.split(".")[0]}</Pill>
+        ) : null
+      }
+      foot={
+        paid
+          ? paidFoot
+          : cancelled
+            ? fill(copy.pay.cancelled, { business })
+            : expired
+              ? fill(copy.pay.expired, { business })
+              : view.expiresAt
+                ? fill(copy.pay.expiresAt, { date: formatClientDate(view.expiresAt, locale) })
+                : copy.pay.keepSlot
+      }
       actions={!paid && !closed && view.code && onPay ? (
         <Btn size="sm" variant="primary" onClick={() => onPay(view.code as string)} data-client-action="pay">{fill(copy.pay.pay, { amount })}</Btn>
       ) : null}
     >
-      <CardLine label={kind} amount={amount} />
+      {hasMoney ? (
+        <>
+          <CardLine label={copy.pay.total} amount={money(view.totalCents, view.currency)} />
+          <CardLine label={copy.pay.paidAmount} amount={money(view.paidCents, view.currency)} />
+          {view.dueCents! > 0 ? <CardLine label={copy.pay.balanceDue} amount={money(view.dueCents, view.currency)} /> : null}
+        </>
+      ) : (
+        <CardLine label={kind} amount={amount} />
+      )}
     </Card>
   );
 }

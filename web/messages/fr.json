@@ -7974,7 +7974,16 @@
             "expiresAt": "Lien valable jusqu'au {date}",
             "keepSlot": "Payer conserve votre réservation.",
             "cancelled": "Ce paiement a été annulé. Demandez à {business} si vous souhaitez encore payer.",
-            "cancelledPill": "Annulé"
+            "cancelledPill": "Annulé",
+            "total": "Total",
+            "paidAmount": "Payé",
+            "balanceDue": "Reste dû",
+            "paidBalanceDue": "{paid} payé. Reste {due} à régler.",
+            "paidInFull": "{paid} payé. Rien à devoir.",
+            "methodCard": "Payé par carte",
+            "methodCardDeposit": "Acompte par carte",
+            "methodCash": "Payé en espèces",
+            "methodTransfer": "Payé par virement"
           },
           "tickets": {
             "cat": "Billets",

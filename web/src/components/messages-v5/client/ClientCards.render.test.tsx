@@ -166,6 +166,32 @@ test("payment: open link shows Pay with the amount and the expiry; paid shows th
   const paid = renderToStaticMarkup(<ClientPaymentCard {...base} now={now} view={readPayment({ paymentLinkCode: "abc", amountCents: 114000, amountKind: "deposit", state: "paid" })} onPay={() => {}} />);
   assert.match(paid, />Paid</);
   assert.doesNotMatch(paid, /data-client-action/);
+  const paidMoney = renderToStaticMarkup(
+    <ClientPaymentCard
+      {...base}
+      now={now}
+      view={readPayment({
+        paymentLinkCode: "abc",
+        amountCents: 20000,
+        amountKind: "deposit",
+        state: "paid",
+        totalCents: 50000,
+        paidCents: 20000,
+        dueCents: 30000,
+        currency: "MXN",
+        method: "card",
+      })}
+      onPay={() => {}}
+    />,
+  );
+  assert.match(paidMoney, /Deposit by card/);
+  assert.match(paidMoney, />Total</);
+  assert.match(paidMoney, /200\.00 MXN/);
+  assert.match(paidMoney, /500\.00 MXN/);
+  assert.match(paidMoney, /Balance due/);
+  assert.match(paidMoney, /300\.00 MXN/);
+  assert.match(paidMoney, /200\.00 MXN paid\. Balance 300\.00 MXN still due\./);
+  assert.doesNotMatch(paidMoney, /data-client-action/);
   const expired = renderToStaticMarkup(<ClientPaymentCard {...base} now={now} view={readPayment({ paymentLinkCode: "abc", amountCents: 114000, amountKind: "full", expiresAt: "2026-09-01T00:00:00.000Z", state: "sent" })} onPay={() => {}} />);
   assert.match(expired, /This payment link has expired\. Ask Impronta for a new one\./);
   assert.doesNotMatch(expired, /data-client-action/);
