@@ -1693,6 +1693,9 @@ export function AdminShellProvider({
     // writes defaults to the URL and discards whatever the user navigated to.
     if (!urlHydrated) return;
     const params = new URLSearchParams();
+    // Preserve QA clock pin across shell URL rewrites (Today/Calendar smoke).
+    const pinnedAgendaNow = new URLSearchParams(window.location.search).get("agendaNow");
+    if (pinnedAgendaNow) params.set("agendaNow", pinnedAgendaNow);
     params.set("surface", surface);
     if (surface === "workspace") {
       params.set("plan", plan);
