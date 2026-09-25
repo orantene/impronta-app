@@ -88,6 +88,10 @@ const ES: Record<string, string> = {
 
   // Finish collect
   "Finish and collect": "Finalizar y cobrar",
+  "Collect deposit": "Cobrar depósito",
+  "Creating deposit link…": "Creando enlace de depósito…",
+  "Deposit link created ✓": "Enlace de depósito creado ✓",
+  "Send on WhatsApp": "Enviar por WhatsApp",
   "Adjust lines": "Ajustar líneas",
   "Complete booking": "Completar reserva",
   "Completing…": "Completando…",

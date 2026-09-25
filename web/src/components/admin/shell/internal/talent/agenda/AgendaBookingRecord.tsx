@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { BookingStateChip, MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
 import type { AgendaListItem } from "./types";
-import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived } from "@/lib/talent-agenda";
+import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived, createAgendaBookingPayLink } from "@/lib/talent-agenda";
 import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-actions/talent-pipeline";
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
@@ -157,6 +157,7 @@ export function AgendaBookingRecord({
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [showFinish, setShowFinish] = useState(false);
+  const [depositLink, setDepositLink] = useState<string | null>(null);
 
   const canAct = !!bookingId;
   const cancellable = canAct && !isAgency;
@@ -201,6 +202,34 @@ export function AgendaBookingRecord({
       } else {
         setStatus(`${copy.t("Cancel failed")}: ${res.reason}`);
       }
+    });
+  }
+
+  const needsDepositCollect =
+    canAct &&
+    item.bookingState === "confirmed" &&
+    item.paymentState !== "paid" &&
+    item.paymentState !== "paid_by_agency" &&
+    item.paymentState !== "deposit_paid" &&
+    item.paymentState !== "refund_pending";
+
+  function handleCollectDeposit() {
+    if (!bookingId) return;
+    setStatus(copy.t("Creating deposit link…"));
+    setDepositLink(null);
+    startTransition(async () => {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const link = await createAgendaBookingPayLink({
+        bookingId,
+        amountCents: item.dueCents && item.dueCents > 0 ? item.dueCents : undefined,
+        publicOrigin: origin,
+      });
+      if (!link.ok) {
+        setStatus(`${copy.t("Could not create pay link")}: ${link.reason}`);
+        return;
+      }
+      setDepositLink(link.url);
+      setStatus(copy.t("Deposit link created ✓"));
     });
   }
 
@@ -392,6 +421,41 @@ export function AgendaBookingRecord({
             primaryAction={item.primaryAction}
             secondaryAction={item.secondaryAction}
           />
+        ) : null}
+
+        {/* Collect deposit — mint pay link + WhatsApp share (criterion 3) */}
+        {needsDepositCollect && !showFinish ? (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={handleCollectDeposit}
+              aria-label={copy.t("Collect deposit")}
+              className="w-full min-h-[44px] rounded-xl border border-black/10 bg-white py-3 text-[14px] font-semibold text-[var(--tc-primary)]"
+            >
+              {copy.t("Collect deposit")}
+            </button>
+            {depositLink ? (
+              <div className="rounded-xl bg-[rgba(31,122,76,0.08)] p-3 text-[13px] space-y-2">
+                <a
+                  href={depositLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block break-all text-[var(--tc-accent)] underline"
+                >
+                  {depositLink}
+                </a>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(depositLink)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={copy.t("Send on WhatsApp")}
+                  className="inline-flex min-h-[44px] items-center rounded-full bg-[#1F7A4C] px-4 text-[13px] font-semibold text-white"
+                >
+                  {copy.t("Send on WhatsApp")}
+                </a>
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         {/* Finish and collect */}
