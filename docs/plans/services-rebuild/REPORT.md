@@ -60,8 +60,9 @@ Loader fix: hub `startingFrom` no longer prints raw `talent_profiles.starting_fr
 
 ### Phase 8 — Sign-off
 - REPORT rewritten (this file).
-- PR opened only after gates green.
-- Dev lease revoked when the marathon stops.
+- Gates green: typecheck, lint (`proxy.ts` ≤800 lines), builder-node-bindings 1802, billing 679.
+- PR: https://github.com/orantene/impronta-app/pull/2244
+- Dev lease revoked.
 
 ## Jor writes and undos (this marathon)
 
