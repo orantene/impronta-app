@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 describe("loadTalentClients column contract", () => {
   const here = dirname(fileURLToPath(import.meta.url));
   const src = readFileSync(join(here, "clients-actions.ts"), "utf8");
+  const mergeSrc = readFileSync(join(here, "clients-merge.ts"), "utf8");
 
   it("selects client_label from talent_bookings, not client_name/amount_cents", () => {
     const block = src.match(
@@ -32,8 +33,17 @@ describe("loadTalentClients column contract", () => {
     assert.doesNotMatch(src, /\.eq\("talent_id"/);
   });
 
-  it("keys clients by row id, never by lower-cased name (A5)", () => {
+  it("keys clients by inquiry or bare booking id, never by lower-cased name (A5)", () => {
     assert.doesNotMatch(src, /name\.toLowerCase\(\)/);
-    assert.match(src, /const key = row\.id/);
+    assert.doesNotMatch(mergeSrc, /name\.toLowerCase\(\)/);
+    assert.match(mergeSrc, /function clientMergeKey/);
+    assert.match(mergeSrc, /inquiry:\$\{opts\.inquiryId\}/);
+  });
+
+  it("does not accumulate visits from talent_bookings mirrors", () => {
+    // Shared-PK create-slot mirrors would otherwise list each name twice
+    // (Nothing owed + MXN amount) or double visit counts.
+    assert.match(src, /accumulateVisit:\s*false/);
+    assert.match(src, /accumulateVisit:\s*true/);
   });
 });
