@@ -199,6 +199,15 @@ export type BridgeData = {
   /** B.3 — talent calendar entries (bookings + holds + blocks). null = mock mode. */
   talentCalendarEntries?: TalentCalendarEntry[] | null;
   /**
+   * Agenda V2 read model (`loadTalentAgenda`). null/empty when the flag is off.
+   * V2 Today/Calendar/record read this only — not `talentCalendarEntries`.
+   */
+  talentAgendaItems?: import("@/lib/talent-agenda/types").TalentAgendaItem[] | null;
+  /** Booking hours paired with the agenda load (flag-on only). */
+  talentAgendaHours?: import("@/lib/scheduling/hours-types").BookingHours | null;
+  /** Set when loadTalentAgenda failed; null when ok or flag off. */
+  talentAgendaError?: string | null;
+  /**
    * Phase D — talent earnings aggregated from commission snapshots. null = mock mode.
    * L49 (talent Money tabs): upgraded to `TalentEarningsByCurrency` so the Money
    * surface can render a per-currency tab strip when the talent has multi-currency

@@ -109,6 +109,18 @@ test("MobileBottomNav hides on the point of sale route", () => {
   assert.ok(/if\s*\(onPosRoute\)\s*return null;/.test(src), "must bail out (render nothing) on the POS route");
 });
 
+test("MobileBottomNav hides on focused talent agenda flows", () => {
+  const src = read(SRC);
+  assert.ok(src.includes("bookings-new"), "must hide on new booking");
+  assert.ok(src.includes("booking-record"), "must hide on booking record");
+  assert.ok(src.includes("calendar-availability"), "must hide on availability");
+  assert.ok(src.includes("attention"), "must hide on attention");
+  assert.ok(
+    /focusedAgendaPages\.has\(state\.talentPage\)/.test(src),
+    "must bail out on focused agenda pages",
+  );
+});
+
 // ── The inline-style ratchet, COUNTED (not sampled) ──────────────────────
 //
 // The previous version of this test asserted that three class-name substrings

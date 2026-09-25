@@ -207,26 +207,31 @@ export default async function PayByCodePage({
     if (!origin) notFound();
     const stripe = getStripe();
     if (!stripe) notFound();
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: (orderRow?.currency ?? "usd").toLowerCase(),
-            unit_amount: loaded.amountCents,
-            product_data: { name: "Payment" },
+    // T1.6: retry after decline must reuse the same Stripe idempotency key
+    // for this payment-link attempt (tc_pay_card_fail).
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: (orderRow?.currency ?? "usd").toLowerCase(),
+              unit_amount: loaded.amountCents,
+              product_data: { name: "Payment" },
+            },
           },
+        ],
+        metadata: {
+          payment_link_code: code,
+          order_id: loaded.orderId,
+          tenant_id: loaded.tenantId,
         },
-      ],
-      metadata: {
-        payment_link_code: code,
-        order_id: loaded.orderId,
-        tenant_id: loaded.tenantId,
       },
-    });
+      { idempotencyKey: `pl_${code}_1` },
+    );
     if (!session.url) notFound();
     redirect(session.url);
   }

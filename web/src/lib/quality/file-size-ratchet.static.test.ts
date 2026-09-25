@@ -346,7 +346,7 @@ const BUDGETS: Record<string, number> = {
   // rather than on the head alone.
   // 2026-09-24 services-rebuild: +20 (5205). Measured wc -l after services
   // catalogue / hub fixtures landed; raise in the same commit as the growth.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5205,
+  "src/components/admin/shell/internal/state/fixtures.ts": 5209,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -535,7 +535,7 @@ const BUDGETS: Record<string, number> = {
   // note saying why deriving it turns a missed registration into a compile
   // error. Net +4 against the 29 literals it replaced.
   // 2026-09-24 services-rebuild: +1 (2891). Measured wc -l.
-  "src/components/admin/shell/internal/state/types.ts": 2891,
+  "src/components/admin/shell/internal/state/types.ts": 2895,
   // 2026-09-09 messages mobile pass: the ≤720px messages stylesheet (360
   // lines, no interpolation, a self-contained concern) moved out to
   // internal/messages-mobile-css.ts rather than growing this file past its
@@ -572,7 +572,7 @@ const BUDGETS: Record<string, number> = {
   // single fields threaded through, with their logic in lib/workspace and
   // lib/pos, so there is nothing here to extract.
   // 2026-09-24 services-rebuild: +13 (2464). Measured wc -l.
-  "src/components/admin/shell/internal/state/context.tsx": 2464,
+  "src/components/admin/shell/internal/state/context.tsx": 2483,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,

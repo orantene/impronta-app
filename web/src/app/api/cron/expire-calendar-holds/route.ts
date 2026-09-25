@@ -53,6 +53,8 @@ export async function GET(request: Request) {
   try {
     const nowIso = new Date().toISOString();
     const soonIso = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    // supabase-read-unchecked-ok: expiring-soon emit is best-effort hygiene —
+    // a failed select and an empty select both mean "no holds to notify".
     const { data: expiring } = await admin
       .from("talent_holds")
       .select("id, inquiry_id, starts_at")
@@ -76,19 +78,85 @@ export async function GET(request: Request) {
       });
     }
 
-    const { data, error } = await admin
+    // T1.5: if a firm hold expires while a checkout is still pending, extend it
+    // once by ten minutes instead of deleting it immediately.
+    const { data: expiredCandidates, error: expiredErr } = await admin
       .from("talent_holds")
-      .delete()
+      .select("id, inquiry_id, expires_at, created_at")
+      .eq("hold_strength", "firm")
       .not("expires_at", "is", null)
       .lt("expires_at", nowIso)
-      .select("id");
-
-    if (error) {
-      logServerError("cron/expire-calendar-holds", error);
+      .limit(100);
+    if (expiredErr) {
+      logServerError("cron/expire-calendar-holds/candidates", expiredErr);
       return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
     }
 
-    const deleted = (data ?? []).length;
+    let extended = 0;
+    const toDelete: string[] = [];
+    for (const hold of (expiredCandidates ?? []) as Array<{
+      id: string;
+      inquiry_id: string | null;
+      expires_at: string;
+      created_at: string;
+    }>) {
+      const createdMs = Date.parse(hold.created_at);
+      const expiresMs = Date.parse(hold.expires_at);
+      const alreadyExtended =
+        Number.isFinite(createdMs) &&
+        Number.isFinite(expiresMs) &&
+        expiresMs - createdMs > 10 * 60_000 + 5_000;
+      let pendingPay = false;
+      if (hold.inquiry_id && !alreadyExtended) {
+        // supabase-read-unchecked-ok: missing booking and a failed read both
+        // mean "do not extend" — the hold is deleted on the else branch.
+        const { data: booking } = await admin
+          .from("agency_bookings")
+          .select("id, payment_status")
+          .eq("source_inquiry_id", hold.inquiry_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (booking?.id && booking.payment_status !== "paid" && booking.payment_status !== "refunded") {
+          // supabase-read-unchecked-ok: missing tx and a failed read both mean
+          // no pending checkout — delete the hold rather than extend it.
+          const { data: tx } = await admin
+            .from("booking_transactions")
+            .select("id")
+            .eq("booking_id", booking.id)
+            .in("status", ["payment_requested", "pending", "processing"])
+            .limit(1)
+            .maybeSingle();
+          pendingPay = Boolean(tx?.id);
+        }
+      }
+      if (pendingPay && !alreadyExtended) {
+        const baseMs = Math.max(Date.now(), Date.parse(hold.expires_at));
+        const next = new Date(baseMs + 10 * 60_000).toISOString();
+        const { error: extErr } = await admin
+          .from("talent_holds")
+          .update({ expires_at: next })
+          .eq("id", hold.id);
+        if (!extErr) extended += 1;
+        else toDelete.push(hold.id);
+      } else {
+        toDelete.push(hold.id);
+      }
+    }
+
+    let deleted = 0;
+    if (toDelete.length > 0) {
+      const { data, error } = await admin
+        .from("talent_holds")
+        .delete()
+        .in("id", toDelete)
+        .select("id");
+      if (error) {
+        logServerError("cron/expire-calendar-holds", error);
+        return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
+      }
+      deleted = (data ?? []).length;
+    }
 
     // Capacity allocations. Best-effort and deliberately AFTER the talent_holds
     // delete: that one is a correctness guarantee, this one is housekeeping, so
@@ -103,8 +171,8 @@ export async function GET(request: Request) {
       allocationsReleased = typeof reaped === "number" ? reaped : 0;
     }
 
-    void improntaLog("calendar.cron.expire_holds", { deleted, allocationsReleased });
-    return NextResponse.json({ ok: true, deleted, allocationsReleased });
+    void improntaLog("calendar.cron.expire_holds", { deleted, extended, allocationsReleased });
+    return NextResponse.json({ ok: true, deleted, extended, allocationsReleased });
   } catch (err) {
     logServerError("cron/expire-calendar-holds", err);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });

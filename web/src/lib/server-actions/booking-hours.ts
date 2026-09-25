@@ -362,6 +362,8 @@ export async function saveBookingHours(
     bufferAfterMin: number;
     minNoticeMin: number;
     horizonDays: number;
+    /** When omitted, existing exceptions on the row are kept. */
+    exceptions?: unknown;
   },
 ): Promise<SaveHoursResult> {
   const auth = await authorizeHours(talentProfileId);
@@ -370,9 +372,28 @@ export async function saveBookingHours(
     return { ok: false, error: "This person sets their own hours." };
   }
 
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // Keep existing exceptions unless the caller sends a new list (T1.1).
+  // The previous path always wrote exceptions: [] and wiped time off.
+  let exceptionsPayload: unknown = payload.exceptions;
+  if (exceptionsPayload === undefined) {
+    const { data: existing, error: existingErr } = await admin
+      .from("talent_booking_hours")
+      .select("exceptions")
+      .eq("talent_profile_id", talentProfileId)
+      .maybeSingle();
+    if (existingErr) {
+      logServerError("booking-hours.save.loadExceptions", existingErr);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
+    exceptionsPayload = existing?.exceptions ?? [];
+  }
+
   const parsed = hoursPayloadSchema.safeParse({
     ...payload,
-    exceptions: [],
+    exceptions: exceptionsPayload,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid hours." };
@@ -381,21 +402,18 @@ export async function saveBookingHours(
     return { ok: false, error: "Pick a valid time zone." };
   }
   const weekly = parseWeeklyHours(parsed.data.weekly);
-  const exceptions = parseHoursExceptions([]);
+  const exceptions = parseHoursExceptions(parsed.data.exceptions);
   if (!weekly || !exceptions) return { ok: false, error: "Hours look incomplete." };
 
   const tenantId = await resolveHoursTenantId(talentProfileId, auth.staffTenantId);
   if (!tenantId) return { ok: false, error: "Could not resolve the workspace for these hours." };
-
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, error: "Server configuration error." };
 
   const row = {
     talent_profile_id: talentProfileId,
     tenant_id: tenantId,
     timezone: parsed.data.timezone,
     weekly: parsed.data.weekly,
-    exceptions: [],
+    exceptions: parsed.data.exceptions,
     slot_minutes: parsed.data.slotMinutes,
     buffer_before_min: parsed.data.bufferBeforeMin,
     buffer_after_min: parsed.data.bufferAfterMin,

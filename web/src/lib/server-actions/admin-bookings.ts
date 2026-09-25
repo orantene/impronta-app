@@ -1000,6 +1000,41 @@ export async function createManualBooking(formData: FormData): Promise<void> {
     contact_phone = c?.phone ?? null;
   }
 
+  const talentIds = formData
+    .getAll("talent_profile_ids")
+    .map((v) => String(v).trim())
+    .filter(Boolean);
+
+  // T1.2: refuse overlapping confirmed work / firm holds for each talent when
+  // starts_at and ends_at are set.
+  const allowOverlap = booleanFromEquals(formData, "allow_overlap");
+  if (!allowOverlap && d.starts_at && d.ends_at && talentIds.length > 0) {
+    const { loadBusyIntervals } = await import("@/lib/scheduling/load-busy");
+    const from = new Date(d.starts_at);
+    const to = new Date(d.ends_at);
+    if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
+      for (const tid of talentIds) {
+        try {
+          const busy = await loadBusyIntervals({
+            admin: supabase,
+            talentProfileId: tid,
+            from: new Date(from.getTime() - 60 * 60_000),
+            to: new Date(to.getTime() + 60 * 60_000),
+          });
+          const overlap = busy.some((b) => b.startsAt < to && b.endsAt > from);
+          if (overlap) {
+            redirect(
+              `${returnTo}?err=${encodeURIComponent("That time is taken. Pick another start, or confirm an override.")}`,
+            );
+          }
+        } catch (err) {
+          logServerError("admin/createManualBooking/busy", err);
+          redirect(`${returnTo}?err=${encodeURIComponent(CLIENT_ERROR.update)}`);
+        }
+      }
+    }
+  }
+
   const { data: bookingRow, error: bookErr } = await supabase
     .from("agency_bookings")
     .insert({
@@ -1034,11 +1069,6 @@ export async function createManualBooking(formData: FormData): Promise<void> {
     redirect(`${returnTo}?err=${encodeURIComponent(CLIENT_ERROR.update)}`);
   }
 
-  const talentIds = formData
-    .getAll("talent_profile_ids")
-    .map((v) => String(v).trim())
-    .filter(Boolean);
-
   let sortOrder = 0;
   for (const tid of talentIds) {
     const { data: tp } = await supabase
@@ -1065,6 +1095,24 @@ export async function createManualBooking(formData: FormData): Promise<void> {
     if (lineErr) {
       logServerError("admin/createManualBooking/talent", lineErr);
       redirect(`${returnTo}?err=${encodeURIComponent(CLIENT_ERROR.update)}`);
+    }
+
+    // T1.2: mirror onto talent_bookings when times exist
+    if (d.starts_at && d.ends_at) {
+      const { error: calErr } = await supabase.from("talent_bookings").insert({
+        talent_profile_id: tid,
+        tenant_id: tenantId,
+        title: d.title,
+        client_label: contact_name,
+        location_text: d.venue_location_text || d.venue_name || null,
+        starts_at: d.starts_at,
+        ends_at: d.ends_at,
+        status: "confirmed",
+        created_by_user_id: user.id,
+      });
+      if (calErr) {
+        logServerError("admin/createManualBooking/talent_bookings", calErr);
+      }
     }
   }
 

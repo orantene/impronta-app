@@ -1,4 +1,6 @@
 // Platform-scoped talent shell — /talent/* on app.tulala.digital (no tenant slug).
+// Agenda V2 rollout: see docs/plans/today-calendar/ROLLOUT.md (TALENT_AGENDA_V2).
+// Legacy Today/Calendar remain behind isAgendaV2 until Step 4 delete PR.
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -13,6 +15,8 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadTalentSurfaceNotifications } from "@/app/(workspace)/[tenantSlug]/_data-bridge/notifications";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
+import { loadTalentAgenda } from "@/lib/talent-agenda/load";
+import { isAgendaV2 } from "@/lib/talent-agenda/flag";
 import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
 import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
@@ -37,17 +41,20 @@ import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
 import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
+import { logServerError } from "@/lib/server/safe-error";
 
 export const dynamic = "force-dynamic";
 
 const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   today: "today",
+  attention: "attention",
   inbox: "messages",
   messages: "messages",
   services: "services",
   profile: "profile",
   reviews: "reviews",
   calendar: "calendar",
+  bookings: "booking-record",
   money: "money",
   clients: "clients",
   payouts: "payouts",
@@ -60,12 +67,35 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   settings: "settings",
 };
 
+/** Snapshot the agenda window outside the layout body so purity lint stays quiet. */
+async function loadTalentAgendaForLayout(talentProfileId: string) {
+  const nowMs = Date.now();
+  try {
+    const result = await loadTalentAgenda(talentProfileId, {
+      from: new Date(nowMs - 90 * 86_400_000),
+      to: new Date(nowMs + 270 * 86_400_000),
+    });
+    return { ...result, error: null as string | null };
+  } catch (err) {
+    logServerError("talent-layout.loadTalentAgenda", err);
+    return {
+      items: [] as import("@/lib/talent-agenda/types").TalentAgendaItem[],
+      hours: null,
+      error: "Could not load your agenda. Refresh and try again.",
+    };
+  }
+}
+
 function derivePlatformTalentPage(pathname: string): TalentPage {
   const prefix = "/talent";
   const after = pathname.startsWith(prefix)
     ? pathname.slice(prefix.length)
     : "";
-  const segment = after.replace(/^\//, "").split("/")[0] ?? "";
+  const parts = after.replace(/^\//, "").split("/").filter(Boolean);
+  const segment = parts[0] ?? "";
+  if (segment === "calendar" && parts[1] === "availability") return "calendar-availability";
+  if (segment === "bookings" && parts[1] === "new") return "bookings-new";
+  if (segment === "bookings" && parts[1]) return "booking-record";
   return TALENT_SEGMENT_MAP[segment] ?? "today";
 }
 
@@ -159,6 +189,7 @@ export default async function PlatformTalentLayout({
     tenantIdentity,
     profileDisplayName,
     talentCalendarEntries,
+    talentAgendaLoad,
     talentEarnings,
     talentSiteDashboardLoad,
     talentPayoutSnapshot,
@@ -179,7 +210,14 @@ export default async function PlatformTalentLayout({
     loadUserPrefs(session.user.id),
     tenantId ? loadTenantIdentity(tenantId) : Promise.resolve(null),
     loadProfileDisplayName(session.user.id),
-    loadTalentCalendarEntries(talentSelfProfile.id),
+    // Agenda V2: loadTalentAgenda behind the flag only. Flag off keeps the
+    // legacy calendar bridge so Today/Calendar stay unchanged.
+    isAgendaV2(talentSelfProfile.id)
+      ? Promise.resolve([])
+      : loadTalentCalendarEntries(talentSelfProfile.id),
+    isAgendaV2(talentSelfProfile.id)
+      ? loadTalentAgendaForLayout(talentSelfProfile.id)
+      : Promise.resolve({ items: [], hours: null, error: null as string | null }),
     loadTalentEarningsByCurrency(talentSelfProfile.id),
     loadTalentPersonalSiteDashboardState(),
     // Stripe Connect payout snapshot for the in-shell Payouts section.
@@ -301,6 +339,9 @@ export default async function PlatformTalentLayout({
         // would make the dismissal never stick for pure talents.
         talentChecklistDismissed: userPrefsRaw?.talentChecklistDismissed ?? false,
         talentCalendarEntries,
+        talentAgendaItems: talentAgendaLoad.items,
+        talentAgendaHours: talentAgendaLoad.hours,
+        talentAgendaError: talentAgendaLoad.error,
         talentEarnings: displayEarnings,
         userNotifications,
         profileEditorLayout,

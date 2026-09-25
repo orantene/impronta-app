@@ -104,6 +104,9 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // (card preview + travel reach + 30-day stats). Standalone server
   // component; talent.tsx mega-shell untouched.
   (s) => s[0] === "talent" && s[1] === "discover",
+  // Agenda V2 /talent/bookings/** and /talent/calendar/availability are
+  // TalentPageRouteSyncer pages — they must stay SPA-shell routes (like
+  // /talent/today), not canonical yielders, or the body paints blank.
   // /<tenant>/talent/site — personal site dashboard renders inside the
   // talent shell (public-page tab), not as a standalone canonical page.
   // /<tenant>/admin/roster/** — Phase 2.2: the entire Roster surface is

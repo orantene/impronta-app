@@ -1,0 +1,2 @@
+-- Remote-applied migration stub (offering_hidden_and_site_setup_draft).
+-- Already applied on linked remote as 20260924174306; local stub for history parity.

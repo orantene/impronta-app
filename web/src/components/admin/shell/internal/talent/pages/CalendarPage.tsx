@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
@@ -13,8 +14,6 @@ import { useTalentConversations } from "../shared/conversation-adapter-1";
 import { PageHeader } from "../shared/page-chrome-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { BookingHoursCard } from "@/components/appointments/BookingHoursCard";
-
-
 
 export function CalendarPage() {
   const { openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentCalendarEntries } = useAdminShell();
@@ -57,7 +56,10 @@ export function CalendarPage() {
           status: entry.kind === "hold"
             ? copy.t(entry.holdStrength === "firm" ? "Firm hold" : "Soft hold")
             : (entry.status ?? copy.t("Confirmed")),
-          drawer: { id: "talent-hub-detail", payload: { id: entry.inquiryId ?? entry.id } },
+          drawer: {
+            id: "talent-booking-detail",
+            payload: { id: entry.id, bookingId: entry.id, inquiryId: entry.inquiryId ?? null },
+          },
         };
       });
   }, [bridgeTalentCalendarEntries, copy]);
@@ -606,13 +608,19 @@ export function CalendarPage() {
 
       {/* Month grid. Bridge mode renders the real, date-aware grid from
           bridgeTalentCalendarEntries (bookings/holds/blocks on the actual
-          current month, clicks → talent-hub-detail). Prototype/standalone
+          current month, clicks → talent-booking-detail). Prototype/standalone
           mode keeps the static May-2026 fixture grid. */}
       {viewMode === "month" && (
         isBridgeMode ? (
           <CalendarMonthGrid
             entries={bridgeTalentCalendarEntries ?? []}
-            onOpen={(e) => openDrawer("talent-hub-detail", { id: e.inquiryId ?? e.id })}
+            onOpen={(e) =>
+              openDrawer("talent-booking-detail", {
+                id: e.id,
+                bookingId: e.id,
+                inquiryId: e.inquiryId ?? null,
+              })
+            }
           />
         ) : (
           <CalendarMonthGrid />

@@ -69,12 +69,16 @@ export type LegacyWorkspacePage =
 // memberships are separate products and must not leak into each other.
 export type TalentPage =
   | "today"
+  | "attention"
   | "messages"      // Chat-first inquiry/booking surface (replaces inbox)
   | "profile"
   | "services"      // Services storefront — what the talent sells (offerings catalog)
   | "reviews"       // Received reviews + reputation standing (first-class page)
   | "inbox"         // Legacy list view — kept for URL compat, not in nav
   | "calendar"
+  | "calendar-availability" // Agenda V2 hours / exceptions (T5.5)
+  | "bookings-new"  // Agenda V2 New booking / quote (T7)
+  | "booking-record" // Agenda V2 booking / hold / request record (T6)
   | "activity"      // Legacy — kept for URL compat; nav routes to settings tab
   | "reach"         // Legacy — kept for URL compat; nav routes to money
   | "agencies"      // Legacy — kept for URL compat; nav routes to money
