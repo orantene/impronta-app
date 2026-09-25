@@ -356,6 +356,9 @@ async function ensureAgendaOrderShell(
     amountCents: number;
     currencyCode: string | null;
     existingOrderId: string | null;
+    contactName?: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
   },
 ): Promise<{ ok: true; orderId: string } | AgendaActionFail> {
   if (input.existingOrderId) return { ok: true, orderId: String(input.existingOrderId) };
@@ -363,6 +366,27 @@ async function ensureAgendaOrderShell(
 
   const currency = (input.currencyCode?.trim() || "MXN").toUpperCase();
   const { generateOpaqueCode } = await import("@/lib/links/code");
+  const receiptCode = generateOpaqueCode();
+
+  // orders_draft_has_an_identity + orders_identified_before_payment:
+  // pending_payment needs customer_id OR (guest_session_id + receipt_code).
+  let customerId: string | null = null;
+  const hasContactKey =
+    Boolean((input.contactEmail ?? "").trim()) || Boolean((input.contactPhone ?? "").trim());
+  if (hasContactKey) {
+    const { ensureCustomer } = await import("@/lib/customers/ensure-customer");
+    const ensured = await ensureCustomer(
+      {
+        tenantId: input.tenantId,
+        email: input.contactEmail,
+        phone: input.contactPhone,
+        displayName: input.contactName,
+      },
+      { admin },
+    );
+    if (ensured.ok) customerId = ensured.customerId;
+  }
+  const guestSessionId = customerId ? null : `agenda:${input.bookingId}`;
 
   const { data: order, error: orderErr } = await admin
     .from("orders")
@@ -375,7 +399,9 @@ async function ensureAgendaOrderShell(
       discount_cents: 0,
       tax_cents: 0,
       total_cents: input.amountCents,
-      receipt_code: generateOpaqueCode(),
+      receipt_code: receiptCode,
+      customer_id: customerId,
+      guest_session_id: guestSessionId,
       source_channel: "talent_agenda",
       source_page: "finish_collect_card",
       payout_release_rule: "immediate",
@@ -443,7 +469,9 @@ export async function createAgendaBookingPayLink(input: {
 
   const { data: row, error } = await admin
     .from("agency_bookings")
-    .select("id, tenant_id, order_id, title, total_client_revenue, currency_code, payment_status")
+    .select(
+      "id, tenant_id, order_id, title, total_client_revenue, currency_code, payment_status, contact_name, contact_email, contact_phone",
+    )
     .eq("id", input.bookingId)
     .maybeSingle();
   if (error) {
@@ -467,6 +495,9 @@ export async function createAgendaBookingPayLink(input: {
     amountCents,
     currencyCode: row.currency_code ?? null,
     existingOrderId: row.order_id ? String(row.order_id) : null,
+    contactName: row.contact_name ?? null,
+    contactEmail: row.contact_email ?? null,
+    contactPhone: row.contact_phone ?? null,
   });
   if (!shell.ok) return shell;
 
