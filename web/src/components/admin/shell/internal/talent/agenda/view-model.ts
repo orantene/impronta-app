@@ -233,6 +233,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
       : [],
     dueCents: item.money.dueCents,
     orderId: item.orderId ?? null,
+    paymentMethod: item.paymentMethod ?? null,
     startsAtIso: item.startsAt,
     clientTz: item.clientTz,
     talentTz: item.tz,

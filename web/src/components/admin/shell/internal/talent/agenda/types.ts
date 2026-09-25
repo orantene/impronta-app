@@ -107,6 +107,8 @@ export type AgendaListItem = {
   moneyLines?: AgendaMoneyItem[];
   dueCents?: number;
   orderId?: string | null;
+  /** cash | transfer | other — gates Mark transfer received. */
+  paymentMethod?: string | null;
   tradeSection?: AgendaTradeSection;
   /** Structured trade payloads for TradeSections.tsx */
   tradeSectionPayloads?: Array<{

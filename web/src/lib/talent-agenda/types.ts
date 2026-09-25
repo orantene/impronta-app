@@ -78,6 +78,8 @@ export interface TalentAgendaItem {
   blocksTime: boolean;
   /** Linked POS/order for payment links; absent when booking has no order shell. */
   orderId?: string;
+  /** agency_bookings.payment_method when present (cash | transfer | other). */
+  paymentMethod?: string | null;
   tradeSection?: { kind: TradeSectionKind; payload: Record<string, unknown> };
   history: { at: string; text: string }[];
 }

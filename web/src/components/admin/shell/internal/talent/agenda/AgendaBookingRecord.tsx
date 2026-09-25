@@ -417,6 +417,7 @@ export function AgendaBookingRecord({
 
         {item.paymentState === "awaiting_deposit" &&
         item.bookingState === "completed" &&
+        item.paymentMethod === "transfer" &&
         bookingId &&
         canAct ? (
           <button

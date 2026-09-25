@@ -63,6 +63,29 @@ describe("resolveAttentionCta", () => {
       "complete",
     );
   });
+  it("reviews pending intake", () => {
+    assert.deepEqual(
+      resolveAttentionCta(
+        base({
+          tradeSection: { kind: "intake", payload: { status: "pending" } },
+        }),
+      ),
+      { kind: "intake", label: "Review intake", mutates: false },
+    );
+  });
+  it("responds to pending reschedule", () => {
+    assert.equal(
+      resolveAttentionCta(
+        base({
+          tradeSection: {
+            kind: "event",
+            payload: { rescheduleRequestId: "rr1", rescheduleStatus: "pending" },
+          },
+        }),
+      ).kind,
+      "reschedule",
+    );
+  });
 });
 
 describe("peekActionLabels", () => {

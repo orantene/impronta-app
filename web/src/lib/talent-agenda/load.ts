@@ -490,6 +490,7 @@ export async function loadTalentAgenda(
               }
             : undefined,
         orderId: agency?.order_id ?? undefined,
+        paymentMethod: agency?.payment_method ?? undefined,
         blocksTime: false,
         tradeSection,
         history,
