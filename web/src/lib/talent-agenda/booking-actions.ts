@@ -382,6 +382,7 @@ async function ensureAgendaOrderShell(
         email: input.contactEmail,
         phone: input.contactPhone,
         displayName: input.contactName,
+        ownerTalentProfileId: input.talentId,
       },
       { admin },
     );
@@ -433,9 +434,11 @@ async function ensureAgendaOrderShell(
     return { ok: false, reason: "unavailable" };
   }
 
+  const bookingPatch: Record<string, unknown> = { order_id: orderId };
+  if (customerId) bookingPatch.customer_id = customerId;
   const { error: linkErr } = await admin
     .from("agency_bookings")
-    .update({ order_id: orderId })
+    .update(bookingPatch)
     .eq("id", input.bookingId)
     .is("order_id", null);
   if (linkErr) {

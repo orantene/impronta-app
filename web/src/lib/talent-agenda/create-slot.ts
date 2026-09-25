@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
 import type { BusyInterval } from "@/lib/scheduling/slots";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
@@ -102,6 +103,9 @@ export async function createOwnSlotBooking(input: {
   endsAt: string;
   paymentChoice: PaymentChoice;
   allowOverlap?: boolean;
+  /** Optional — without email or phone, no customers row is created (name-only OK). */
+  contactEmail?: string | null;
+  contactPhone?: string | null;
 }): Promise<CreateOwnSlotResult> {
   const identity = await ownTalentProfileId();
   if (!identity) return { ok: false, reason: "unauthorized" };
@@ -161,6 +165,25 @@ export async function createOwnSlotBooking(input: {
     };
   }
 
+  // B2 — ensureCustomer when email/phone present; name-only skips (no identity key).
+  // Talent-owned pool so agency staff of this tenant cannot see private clients.
+  let customerId: string | null = null;
+  const contactEmail = (input.contactEmail ?? "").trim();
+  const contactPhone = (input.contactPhone ?? "").trim();
+  if (contactEmail || contactPhone) {
+    const ensured = await ensureCustomer(
+      {
+        tenantId: agency.tenantId,
+        email: contactEmail || null,
+        phone: contactPhone || null,
+        displayName: clientName,
+        ownerTalentProfileId: identity.talentId,
+      },
+      { admin },
+    );
+    if (ensured.ok) customerId = ensured.customerId;
+  }
+
   const { data: agencyRow, error: agencyErr } = await admin
     .from("agency_bookings")
     .insert({
@@ -175,6 +198,9 @@ export async function createOwnSlotBooking(input: {
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
       contact_name: clientName,
+      contact_email: contactEmail || null,
+      contact_phone: contactPhone || null,
+      customer_id: customerId,
       source_type_snapshot: "manual",
       internal_notes:
         input.paymentChoice === "request_link"

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
+import { resolveNextActionBy } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { resolveInquiryCoordination, seedOwningAgencyCoordinators } from "./coordinator-assignment";
@@ -12,6 +12,8 @@ import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { linkInquiryCustomer } from "./link-inquiry-customer";
+import { ensureClientRelationshipForInquiry } from "./ensure-client-relationship";
 import { refuseOfferingRequestIfPolicyOff } from "@/lib/scheduling/reservation-submit-gate";
 import { insertSystemMessage } from "./inquiry-system-messages";
 import { buildInquiryBells } from "./inquiry-notifications";
@@ -31,88 +33,6 @@ async function inquiryInTenant(
     .eq("tenant_id", tenantId)
     .maybeSingle();
   return !!data;
-}
-
-async function ensureClientRelationshipForInquiry(
-  supabase: SupabaseClient,
-  args: {
-    tenantId: string;
-    clientUserId: string;
-    inquiryId: string;
-    originDomain: string | null;
-    sourceWorkspaceId: string | null;
-  },
-): Promise<void> {
-  try {
-    const writeClient = await inquiryWriteClient(supabase);
-    const { data: clientProfile, error: clientProfileError } = await writeClient
-      .from("client_profiles")
-      .select("id")
-      .eq("user_id", args.clientUserId)
-      .maybeSingle();
-
-    if (clientProfileError || !clientProfile?.id) {
-      if (clientProfileError) {
-        logServerError("inquiry-engine-submit.clientRelationship.profile", clientProfileError);
-      }
-      return;
-    }
-
-    const now = new Date().toISOString();
-    const { data: existing, error: existingError } = await writeClient
-      .from("agency_client_relationships")
-      .select("id, first_inquiry_id")
-      .eq("tenant_id", args.tenantId)
-      .eq("client_profile_id", clientProfile.id)
-      .maybeSingle();
-
-    if (existingError) {
-      logServerError("inquiry-engine-submit.clientRelationship.find", existingError);
-      return;
-    }
-
-    if (existing?.id) {
-      const { error: updateError } = await writeClient
-        .from("agency_client_relationships")
-        .update({
-          status: "active",
-          last_interaction_at: now,
-          updated_at: now,
-          source_workspace_id: args.sourceWorkspaceId ?? args.tenantId,
-          origin_domain: args.originDomain,
-          ...(existing.first_inquiry_id ? {} : { first_inquiry_id: args.inquiryId }),
-        })
-        .eq("id", existing.id);
-
-      if (updateError) {
-        logServerError("inquiry-engine-submit.clientRelationship.update", updateError);
-      }
-      return;
-    }
-
-    const { error: insertError } = await writeClient
-      .from("agency_client_relationships")
-      .insert({
-        tenant_id: args.tenantId,
-        client_profile_id: clientProfile.id,
-        source_type: "inquiry",
-        status: "active",
-        first_inquiry_id: args.inquiryId,
-        added_by: args.clientUserId,
-        last_interaction_at: now,
-        source_workspace_id: args.sourceWorkspaceId ?? args.tenantId,
-        origin_domain: args.originDomain,
-      });
-
-    if (insertError) {
-      logServerError("inquiry-engine-submit.clientRelationship.insert", insertError);
-    }
-  } catch (err) {
-    logServerError(
-      "inquiry-engine-submit.clientRelationship",
-      err instanceof Error ? err : new Error(String(err)),
-    );
-  }
 }
 
 export type InquiryInitiatorRole = "client" | "admin" | "talent" | "hub" | "free_agent";
@@ -408,6 +328,18 @@ export async function submitInquiry(
 
     const inquiryId = row.id as string;
 
+    // B2: ensureCustomer + stamp inquiries.customer_id when email/phone present.
+    await linkInquiryCustomer({
+      tenantId: homeTenantId,
+      inquiryId,
+      contactEmail: input.contact_email,
+      contactPhone: input.contact_phone,
+      contactName: input.contact_name,
+      clientUserId: input.client_user_id,
+      talentProfileIds: input.talent_profile_ids,
+      owningParties,
+    });
+
     // M5.6 requirement: every inquiry needs a default `inquiry_requirement_groups`
     // row before any participants with role='talent' can be inserted (the
     // trg_inquiry_participants_default_group trigger auto-fills
@@ -686,115 +618,4 @@ export async function submitInquiry(
   });
 }
 
-export async function moveToCoordination(
-  supabase: SupabaseClient,
-  ctx: { inquiryId: string; tenantId: string; actorUserId: string; expectedVersion: number },
-): Promise<EngineResult> {
-  return runWithEngineLog("moveToCoordination", ctx.inquiryId, ctx.actorUserId, async () => {
-    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
-      return { success: false, forbidden: true, reason: "forbidden" };
-    }
-
-    const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "move_to_coordination");
-    if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
-
-    const { data: inq } = await supabase
-      .from("inquiries")
-      .select("status, version, is_frozen, uses_new_engine")
-      .eq("id", ctx.inquiryId)
-      .eq("tenant_id", ctx.tenantId)
-      .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
-    if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
-
-    const t = canTransition(inq.status as string, "coordination", { isFrozen: !!inq.is_frozen });
-    if (!t.ok) return { success: false, reason: t.reason };
-
-    const next = resolveNextActionBy("coordination");
-
-    const writeMove = await inquiryWriteClient(supabase);
-    const { data: updated, error } = await writeMove
-      .from("inquiries")
-      .update({
-        status: "coordination" as never,
-        next_action_by: next,
-        version: (inq.version as number) + 1,
-        last_edited_by: ctx.actorUserId,
-        last_edited_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", ctx.inquiryId)
-      .eq("tenant_id", ctx.tenantId)
-      .eq("version", ctx.expectedVersion)
-      .select("id")
-      .maybeSingle();
-
-    if (error || !updated) return { success: false, conflict: true, reason: "version_conflict" };
-
-    await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
-
-    await emitStandardEngineEvent(supabase, {
-      type: ENGINE_EVENT_TYPES.INQUIRY_MOVED_TO_COORDINATION,
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      data: {},
-    });
-
-    return { success: true };
-  });
-}
-
-export async function setPriority(
-  supabase: SupabaseClient,
-  ctx: {
-    inquiryId: string;
-    tenantId: string;
-    actorUserId: string;
-    expectedVersion: number;
-    priority: "low" | "normal" | "high" | "urgent";
-  },
-): Promise<EngineResult> {
-  return runWithEngineLog("setPriority", ctx.inquiryId, ctx.actorUserId, async () => {
-    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
-      return { success: false, forbidden: true, reason: "forbidden" };
-    }
-
-    const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "set_priority");
-    if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
-
-    const { data: inq } = await supabase
-      .from("inquiries")
-      .select("version, uses_new_engine, is_frozen")
-      .eq("id", ctx.inquiryId)
-      .eq("tenant_id", ctx.tenantId)
-      .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
-    if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
-
-    const writePriority = await inquiryWriteClient(supabase);
-    const { data: updated, error } = await writePriority
-      .from("inquiries")
-      .update({
-        priority: ctx.priority,
-        version: (inq.version as number) + 1,
-        last_edited_by: ctx.actorUserId,
-        last_edited_at: new Date().toISOString(),
-      })
-      .eq("id", ctx.inquiryId)
-      .eq("tenant_id", ctx.tenantId)
-      .eq("version", ctx.expectedVersion)
-      .select("id")
-      .maybeSingle();
-
-    if (error || !updated) return { success: false, conflict: true, reason: "version_conflict" };
-
-    await emitStandardEngineEvent(supabase, {
-      type: ENGINE_EVENT_TYPES.INQUIRY_PRIORITY_SET,
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      data: { priority: ctx.priority },
-    });
-
-    return { success: true };
-  });
-}
+export { moveToCoordination, setPriority } from "./inquiry-engine-submit-followups";
