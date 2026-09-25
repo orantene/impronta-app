@@ -445,7 +445,9 @@ const BUDGETS: Record<string, number> = {
   // 2026-09-24 services-rebuild: +359 (3968). Spanish + English catalogue /
   // services hub copy for the rebuild; ES_TEXT is a flat map so the strings
   // have nowhere else to live. Measured wc -l; raise with the growth.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3968,
+  // 2026-09-25 jor-day Clients/Actions: +1 (3969). ES for Messages seller
+  // Actions disabledReason "Pick a conversation first".
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3969,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
