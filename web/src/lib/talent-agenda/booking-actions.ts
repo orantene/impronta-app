@@ -529,12 +529,19 @@ export async function createAgendaBookingPayLink(input: {
   }
 
   const { createPaymentLink } = await import("@/lib/payments/links");
+  const { agendaFinishCardPayKey, newPaymentRequestAttemptId } = await import(
+    "@/lib/payments/payment-request-attempt"
+  );
   const minted = await createPaymentLink(admin, {
     tenantId: String(row.tenant_id),
     orderId: shell.orderId,
     amountCents,
     // Unique per mint so remints are not rebound to a cancelled/replaced row.
-    idempotencyKey: `agenda-pay-${input.bookingId}-${amountCents}-${Date.now()}`,
+    idempotencyKey: agendaFinishCardPayKey({
+      bookingId: input.bookingId,
+      amountCents,
+      attemptId: newPaymentRequestAttemptId(),
+    }),
     actorUserId: null,
     publicOrigin: input.publicOrigin.replace(/\/$/, ""),
   });
