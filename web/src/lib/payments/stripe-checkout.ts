@@ -109,6 +109,13 @@ export type CheckoutSessionInput = {
    * omitted and Stripe keeps its own default.
    */
   locale?: string | null;
+  /**
+   * Extra keys for the session's metadata, for tracing only (a payment link
+   * adds its `payment_link_code` so the Stripe dashboard can name it). Never
+   * routing: the webhook routes on `client_reference_id`, and these can never
+   * replace `transaction_id` / `inquiry_id` / `booking_id`.
+   */
+  metadata?: Record<string, string>;
 };
 
 export type CheckoutSessionResult =
@@ -189,6 +196,7 @@ export async function createCheckoutSessionForTransaction(
       cancel_url: input.cancelUrl,
       ...(expiresAtSeconds !== null ? { expires_at: expiresAtSeconds } : {}),
       metadata: {
+        ...tracingMetadata(input.metadata),
         transaction_id: input.transactionId,
         // Omitted rather than sent empty. Stripe metadata is optional per key,
         // and an absent key reads as absent everywhere downstream; `""` reads
@@ -221,5 +229,71 @@ export async function createCheckoutSessionForTransaction(
   } catch (err) {
     logServerError("payments.stripe.createCheckoutSessionForTransaction", err);
     return { ok: false, error: "Failed to create payment session." };
+  }
+}
+
+/** The routing keys this module owns; caller metadata can never set them. */
+const ROUTING_METADATA_KEYS = new Set(["transaction_id", "inquiry_id", "booking_id", "checkout_type"]);
+
+function tracingMetadata(extra: Record<string, string> | undefined): Record<string, string> {
+  if (!extra) return {};
+  return Object.fromEntries(Object.entries(extra).filter(([key]) => !ROUTING_METADATA_KEYS.has(key)));
+}
+
+export type CheckoutSessionLinkResult =
+  | { ok: true; status: string | null; url: string | null }
+  | { ok: false; error: string };
+
+/**
+ * Where to send a customer back to a session that already exists.
+ *
+ * A second tap on Pay must land on the SAME session, never mint a second one
+ * against one claim. Asking Stripe is the honest resume: re-running the create
+ * with the same idempotency key only works while every parameter is identical,
+ * and the URL is only there while the session is `open`.
+ */
+export async function retrieveCheckoutSessionLink(
+  sessionId: string,
+  deps: { stripe?: Stripe | null } = {},
+): Promise<CheckoutSessionLinkResult> {
+  const stripe = deps.stripe !== undefined ? deps.stripe : getStripe();
+  if (!stripe) return { ok: false, error: "Stripe is not configured." };
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    return { ok: true, status: session.status ?? null, url: session.url ?? null };
+  } catch (err) {
+    logServerError("payments.stripe.retrieveCheckoutSessionLink", err);
+    return { ok: false, error: "Stripe did not answer about this payment." };
+  }
+}
+
+export type ExpireCheckoutSessionResult =
+  | { ok: true; already: boolean }
+  | { ok: false; reason: "complete" | "unavailable" };
+
+/**
+ * Stop a Checkout session from taking money, now.
+ *
+ * A cancelled request whose session still works is a request the customer can
+ * still pay after the balance it held went back: the seller asks again, and
+ * the same money can be taken twice. `complete` is reported rather than
+ * swallowed, because then the customer HAS paid and the caller must not
+ * pretend otherwise.
+ */
+export async function expireCheckoutSession(
+  sessionId: string,
+  deps: { stripe?: Stripe | null } = {},
+): Promise<ExpireCheckoutSessionResult> {
+  const stripe = deps.stripe !== undefined ? deps.stripe : getStripe();
+  if (!stripe) return { ok: false, reason: "unavailable" };
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.status === "expired") return { ok: true, already: true };
+    if (session.status === "complete") return { ok: false, reason: "complete" };
+    await stripe.checkout.sessions.expire(sessionId);
+    return { ok: true, already: false };
+  } catch (err) {
+    logServerError("payments.stripe.expireCheckoutSession", err);
+    return { ok: false, reason: "unavailable" };
   }
 }

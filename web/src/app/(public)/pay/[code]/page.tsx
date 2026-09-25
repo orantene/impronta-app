@@ -2,8 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { loadPaymentLinkByCode, markPaymentLinkPaid } from "@/lib/payments/links";
-import { getStripe } from "@/lib/stripe/client";
+import { loadPaymentLinkByCode, markPaymentLinkPaid, mockPaymentsAllowed } from "@/lib/payments/links";
+import { openPaymentLinkCheckout } from "@/lib/payments/link-checkout";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { publicThreadPath, signThreadToken } from "@/lib/messaging/thread-token";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
@@ -181,7 +182,11 @@ export default async function PayByCodePage({
   const successUrl = `${origin}/pay/${code}?status=paid`;
   const cancelUrl = `${origin}/pay/${code}`;
 
-  if (query.confirm === "mock" && loaded.provider !== "stripe") {
+  // A mock link is a demo, and it never settles on production: whoever holds
+  // the code could otherwise mark it paid with no money moving. A Stripe link
+  // never settles here at all; its money arrives through the webhook.
+  const mockAllowed = mockPaymentsAllowed();
+  if (query.confirm === "mock" && loaded.provider !== "stripe" && mockAllowed) {
     const settled = await markPaymentLinkPaid(admin, { code, tenantId: loaded.tenantId });
     if (!settled.ok) {
       return (
@@ -205,38 +210,50 @@ export default async function PayByCodePage({
   let stripeUrl: string | null = null;
   if (loaded.provider === "stripe" && query.confirm === "stripe") {
     if (!origin) notFound();
-    const stripe = getStripe();
-    if (!stripe) notFound();
-    // T1.6: retry after decline must reuse the same Stripe idempotency key
-    // for this payment-link attempt (tc_pay_card_fail).
-    const session = await stripe.checkout.sessions.create(
-      {
-        mode: "payment",
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency: (orderRow?.currency ?? "usd").toLowerCase(),
-              unit_amount: loaded.amountCents,
-              product_data: { name: "Payment" },
-            },
-          },
-        ],
-        metadata: {
-          payment_link_code: code,
-          order_id: loaded.orderId,
-          tenant_id: loaded.tenantId,
-        },
-      },
-      { idempotencyKey: `pl_${code}_1` },
+    // The link opens a real money row first and the session names it, so the
+    // webhook settles the payment through `markPaid` (PaymentIntent id,
+    // receipt, transfers, the link itself); the session dies with the link.
+    // A second tap, or a retry after a decline, resumes the same session.
+    const opened = await openPaymentLinkCheckout(admin, {
+      code,
+      successUrl,
+      cancelUrl,
+      locale: await getRequestLocale(),
+    });
+    if (opened.ok) redirect(opened.url);
+    return (
+      <CheckoutView
+        code={code}
+        amountCents={loaded.amountCents}
+        currency={orderRow?.currency ?? ""}
+        expiresAt={expiresAtLabel}
+        status={opened.reason === "expired" ? "expired" : "unknown"}
+        lines={[]}
+        holdUntil={null}
+        stripeUrl={null}
+        threadHref={threadHref}
+        receiptHref={null}
+      />
     );
-    if (!session.url) notFound();
-    redirect(session.url);
   }
   if (loaded.provider === "stripe") {
     stripeUrl = `${origin || ""}/pay/${code}?confirm=stripe`;
+  } else if (!mockAllowed) {
+    // No mock Pay button on production: it would settle a link with no money.
+    return (
+      <CheckoutView
+        code={code}
+        amountCents={loaded.amountCents}
+        currency={orderRow?.currency ?? ""}
+        expiresAt={expiresAtLabel}
+        status="unknown"
+        lines={[]}
+        holdUntil={null}
+        stripeUrl={null}
+        threadHref={threadHref}
+        receiptHref={null}
+      />
+    );
   }
 
   return (
