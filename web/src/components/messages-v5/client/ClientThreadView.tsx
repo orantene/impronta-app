@@ -21,6 +21,7 @@ import {
   readChange,
   readChoices,
   readConfirmation,
+  readPaidPayment,
   readPayment,
   readTimes,
   type ClientCardKind,
@@ -161,6 +162,8 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
     }
     case "payment_request":
       return <ClientPaymentCard view={readPayment(payload)} copy={copy} business={name} locale={locale} now={now} onPay={p.onPay} />;
+    case "payment_paid":
+      return <ClientPaymentCard view={readPaidPayment(payload)} copy={copy} business={name} locale={locale} now={now} />;
     case "order_confirmation":
     case "appointment_confirmation": {
       const view = readConfirmation(payload);

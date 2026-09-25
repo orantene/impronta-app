@@ -16,6 +16,7 @@ import {
   readChange,
   readChoices,
   readConfirmation,
+  readPaidPayment,
   readPayment,
   readTickets,
   readTimes,
@@ -190,6 +191,40 @@ test("readPayment returns the paid money line", () => {
   assert.equal(view.paidCents, 2000);
   assert.equal(view.dueCents, 3000);
   assert.equal(view.method, "card");
+});
+
+test("payment_paid is a client card; readPaidPayment forces state paid and reads checkout_type", () => {
+  const items = buildClientStream([
+    msg({
+      id: "paid1",
+      kind: "payment_paid",
+      senderUserId: "staff",
+      payload: {
+        checkout_type: "deposit",
+        totalCents: 50000,
+        paidCents: 20000,
+        dueCents: 30000,
+        currency: "MXN",
+        method: "cash",
+      },
+    }),
+  ]);
+  const card = items.find((i) => i.kind === "card");
+  assert.ok(card && card.kind === "card");
+  assert.equal(card.cardKind, "payment_paid");
+  const view = readPaidPayment({
+    checkout_type: "deposit",
+    totalCents: 50000,
+    paidCents: 20000,
+    dueCents: 30000,
+    currency: "MXN",
+    method: "cash",
+  });
+  assert.equal(view.state, "paid");
+  assert.equal(view.amountKind, "deposit");
+  assert.equal(view.totalCents, 50000);
+  assert.equal(view.dueCents, 30000);
+  assert.equal(view.method, "cash");
 });
 
 test("a declined change_result stays declined", () => {
