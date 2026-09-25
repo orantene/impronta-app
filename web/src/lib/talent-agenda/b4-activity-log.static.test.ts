@@ -64,6 +64,9 @@ describe("B4 activity log writers", () => {
     assert.doesNotMatch(src, /Reschedule pending\./);
     assert.match(src, /booking_activity_log/);
     assert.match(src, /summarizeCommercialEvent/);
+    assert.match(src, /BOOKING_AUDIT\.STATUS_CHANGED/);
+    assert.match(src, /BOOKING_AUDIT\.PAYMENT_STATE_CHANGED/);
+    assert.match(src, /summary_lines\.filter/);
   });
 
   it("attention paths use tradeSection only for pending reschedule", () => {

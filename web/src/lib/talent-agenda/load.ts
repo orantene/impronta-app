@@ -13,6 +13,7 @@ import {
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
 import { mapAgencyBookingPayment, mapDeliverableDeadline } from "./load-map";
 import { summarizeCommercialEvent } from "@/lib/commercial-activity-summary";
+import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import type { TalentAgendaItem, TalentAgendaLoadResult, TalentAgendaRange } from "./types";
 
 type AgencyBookingRow = {
@@ -268,6 +269,13 @@ export async function loadTalentAgenda(
             .from("booking_activity_log")
             .select("id, booking_id, created_at, event_type, payload")
             .in("booking_id", bookingIds)
+            // Talent surface: service-role bypasses staff-only RLS — only show
+            // events the agenda itself writes (status / payment), never staff
+            // client/manager/lineup audit rows.
+            .in("event_type", [
+              BOOKING_AUDIT.STATUS_CHANGED,
+              BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+            ])
             .order("created_at", { ascending: false }),
     ]);
 
@@ -332,7 +340,8 @@ export async function loadTalentAgenda(
     const historyByBooking = new Map<string, TalentAgendaItem["history"]>();
     for (const row of (activityLogRes.data ?? []) as ActivityLogRow[]) {
       const { label, summary_lines } = summarizeCommercialEvent(row.event_type, row.payload);
-      const text = summary_lines[0] ? `${label}: ${summary_lines[0]}` : label;
+      const detail = summary_lines.filter((line) => typeof line === "string" && line.trim()).join(" ");
+      const text = detail ? `${label}: ${detail}` : label;
       const current = historyByBooking.get(row.booking_id) ?? [];
       current.push({ at: row.created_at, text });
       historyByBooking.set(row.booking_id, current);
