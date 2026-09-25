@@ -4,10 +4,11 @@
  * useCompactViewport — Jon 360 Phase 7. Reactive "is this a phone-class viewport"
  * signal for the MiniChatPanel's true full-screen mobile sheet.
  *
- * The panel renders as a ~380px floating card on desktop (a conversion risk on
+ * The panel renders as a ~408px floating card on desktop (a conversion risk on
  * phones, where it floats over content and the composer can hide behind the soft
- * keyboard). When this hook reports compact, the panel instead becomes a
- * full-screen, safe-area-inset sheet (100dvh) with the composer pinned.
+ * keyboard). When this hook reports compact, the panel instead becomes the
+ * front-door v27 Phone sheet: fixed from `top: 8vh` with top-only radius, and
+ * the composer stays above the soft keyboard via `useVisualViewportInset`.
  *
  * Compact = coarse pointer (touch) OR a narrow viewport (<= 520px). Either is a
  * phone-class context. SSR-safe: returns false until mounted (the desktop card is
