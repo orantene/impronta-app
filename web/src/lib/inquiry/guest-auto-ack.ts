@@ -52,6 +52,10 @@ export type EmitGuestAutoAckArgs = {
    * Override from agencies.auto_ack_message. When set and non-empty, we use it
    * verbatim (it may reference "~X" which the tenant has already set). When
    * absent/empty we compose the body from P1 data.
+   *
+   * Exception: the English seed default is treated as unset when the guest
+   * locale is Spanish, so a Spanish solo-site visitor is not answered in
+   * English by the platform hub's leftover default sentence.
    */
   customAckMessage?: string | null;
   /**
@@ -60,7 +64,15 @@ export type EmitGuestAutoAckArgs = {
    * row means auto_ack_enabled is implicitly true).
    */
   autoAckEnabled?: boolean;
+  /**
+   * Guest UI locale (from the vanity host / panel). Preferred over the tenant
+   * default when composing the fallback ack.
+   */
+  locale?: string | null;
 };
+
+/** English seed written by admin defaults — not a real custom sentence. */
+const ENGLISH_DEFAULT_ACK = "Thanks, we'll get back to you within 4 hours.";
 
 /**
  * Post the auto-ack system bubble into the GROUP thread and return it as a
@@ -78,9 +90,15 @@ export async function emitGuestAutoAck(
   try {
     // Build the ack body.
     let body: string;
+    const guestLocale = normalizeAckLocale(
+      args.locale ?? (await resolveTenantAckLocale(args.tenantId)),
+    );
+    const custom = args.customAckMessage?.trim() || "";
+    const customIsEnglishDefault =
+      custom === ENGLISH_DEFAULT_ACK || custom.length === 0;
 
-    if (args.customAckMessage?.trim()) {
-      body = args.customAckMessage.trim();
+    if (custom && !(guestLocale === "es" && customIsEnglishDefault)) {
+      body = custom;
     } else {
       // Try P1 for an honest latency fragment (e.g. "in ~2 hours", "within a
       // day"). getTypicalReplyLabel now returns a bare fragment, so we weave the
@@ -90,14 +108,9 @@ export async function emitGuestAutoAck(
         talentProfileId: args.talentProfileId,
       });
 
-      // Compose in the TENANT's language. This is the first thing a customer
-      // reads from a business, and it was English-only until 2026-09-06 — a
-      // Spanish-speaking customer of a Spanish-speaking tenant was answered in
-      // English. The latency fragment arrives in English and is translated
-      // inside buildGuestAckBody; an untranslatable fragment yields the
-      // no-latency sentence rather than English words inside a Spanish one.
-      const locale = normalizeAckLocale(await resolveTenantAckLocale(args.tenantId));
-      body = buildGuestAckBody({ locale, replyFragment });
+      // Compose in the guest's language (or the tenant default). This is the
+      // first thing a customer reads from a business.
+      body = buildGuestAckBody({ locale: guestLocale, replyFragment });
     }
 
     // Insert into the PRIVATE (client) thread as a system_event so it persists

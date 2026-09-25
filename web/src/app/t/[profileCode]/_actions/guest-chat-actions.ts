@@ -984,6 +984,7 @@ export async function startGuestChatInquiry(
     autoAckEnabled: ackSettings == null ? true : ackSettings.auto_ack_enabled !== false,
     customAckMessage:
       typeof ackSettings?.auto_ack_message === "string" ? ackSettings.auto_ack_message : null,
+    locale: input.locale ?? null,
   });
 
   // GUEST → CLIENT CLAIM (best-effort): email the guest a magic-link so they can
