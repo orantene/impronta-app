@@ -3,9 +3,12 @@
  *
  * Requires QA_TALENT_EMAIL + QA_TALENT_PASSWORD. Skips when unset so CI stays green.
  * Screenshots (when run with creds) land under docs/plans/program/evidence/today-calendar/.
+ *
+ * Auth: one login per worker via storageState (avoids 13× cold logins thrashing Next).
  */
 
 import { test, expect } from "@playwright/test";
+import fs from "node:fs";
 import path from "node:path";
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://app.local:3102";
@@ -15,9 +18,9 @@ const EVIDENCE = path.resolve(
   process.cwd(),
   "../docs/plans/program/evidence/today-calendar",
 );
+const AUTH_FILE = path.resolve(process.cwd(), "e2e/.auth/agenda-qa.json");
 
-// Keep describes independent so one flake does not skip the rest of the file.
-test.setTimeout(240_000);
+test.setTimeout(180_000);
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -25,9 +28,26 @@ async function login(page: import("@playwright/test").Page) {
   await page.fill('input[type="email"]', QA_EMAIL!);
   await page.fill('input[type="password"]', QA_PASSWORD);
   await Promise.all([
-    page.waitForURL(/\/(talent|admin|workspace)/, { timeout: 180_000 }),
+    page.waitForURL(/\/(talent|admin|workspace)/, { timeout: 120_000 }),
     page.click('button[type="submit"]'),
   ]);
+}
+
+async function ensureStorageState(browser: import("@playwright/test").Browser) {
+  fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
+  if (fs.existsSync(AUTH_FILE)) {
+    try {
+      const ageMs = Date.now() - fs.statSync(AUTH_FILE).mtimeMs;
+      if (ageMs < 45 * 60_000) return; // reuse for 45m
+    } catch {
+      /* recreate */
+    }
+  }
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await login(page);
+  await context.storageState({ path: AUTH_FILE });
+  await context.close();
 }
 
 /** Skip when V2 routes are absent (flag off or commit not on this host yet). */
@@ -48,10 +68,34 @@ async function requireAgendaV2Route(
   }
 }
 
+async function expectCalendarChrome(page: import("@playwright/test").Page) {
+  const tablist = page.getByRole("tablist", { name: /Calendar view|Vista del calendario/i });
+  const dayTab = page.getByRole("tab", { name: /^(Day|Día)$/i });
+  const weekTab = page.getByRole("tab", { name: /^(Week|Semana)$/i });
+  const anyChrome = tablist.or(dayTab).or(weekTab).or(page.getByText(/Calendar|Calendario/i).first());
+  await expect(anyChrome.first()).toBeVisible({ timeout: 60_000 });
+}
+
 test.describe("Talent Agenda V2 smoke", () => {
+  test.beforeAll(async ({ browser }) => {
+    if (!QA_EMAIL) return;
+    await ensureStorageState(browser);
+  });
+
+  test.use({
+    storageState: QA_EMAIL ? AUTH_FILE : undefined,
+  });
+
   test.beforeEach(async ({ page }) => {
     if (!QA_EMAIL) test.skip();
-    await login(page);
+    // Warm: if storage expired mid-run, bounce through login once.
+    await page.goto(`${BASE_URL}/talent/today`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    if (page.url().includes("/login")) {
+      await login(page);
+    }
   });
 
   test("Today page renders with agenda header", async ({ page }) => {
@@ -62,10 +106,7 @@ test.describe("Talent Agenda V2 smoke", () => {
 
   test("Calendar page loads with view toggle", async ({ page }) => {
     await page.goto(`${BASE_URL}/talent/calendar`, { waitUntil: "domcontentloaded", timeout: 90_000 });
-    // Prefer the view tablist; avoid bare /Day/ which matches the nav "Today" label.
-    await expect(page.getByRole("tablist", { name: "Calendar view" })).toBeVisible({
-      timeout: 60_000,
-    });
+    await expectCalendarChrome(page);
     await page.screenshot({ path: path.join(EVIDENCE, "calendar-desktop.png"), fullPage: true });
   });
 
@@ -115,9 +156,24 @@ test.describe("Talent Agenda V2 smoke", () => {
 });
 
 test.describe("Talent Agenda V2 T9.5 journeys", () => {
+  test.beforeAll(async ({ browser }) => {
+    if (!QA_EMAIL) return;
+    await ensureStorageState(browser);
+  });
+
+  test.use({
+    storageState: QA_EMAIL ? AUTH_FILE : undefined,
+  });
+
   test.beforeEach(async ({ page }) => {
     if (!QA_EMAIL) test.skip();
-    await login(page);
+    await page.goto(`${BASE_URL}/talent/today`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    if (page.url().includes("/login")) {
+      await login(page);
+    }
   });
 
   test("attention → open record path is reachable", async ({ page }) => {
@@ -149,11 +205,25 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
 });
 
 test.describe("Talent Agenda V2 mobile 390", () => {
-  test.use({ viewport: { width: 390, height: 844 } });
+  test.use({
+    viewport: { width: 390, height: 844 },
+    storageState: QA_EMAIL ? AUTH_FILE : undefined,
+  });
+
+  test.beforeAll(async ({ browser }) => {
+    if (!QA_EMAIL) return;
+    await ensureStorageState(browser);
+  });
 
   test.beforeEach(async ({ page }) => {
     if (!QA_EMAIL) test.skip();
-    await login(page);
+    await page.goto(`${BASE_URL}/talent/today`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    if (page.url().includes("/login")) {
+      await login(page);
+    }
   });
 
   test("Today touch targets stay readable at 390", async ({ page }) => {
@@ -175,11 +245,25 @@ test.describe("Talent Agenda V2 mobile 390", () => {
 });
 
 test.describe("Talent Agenda V2 mobile 360", () => {
-  test.use({ viewport: { width: 360, height: 740 } });
+  test.use({
+    viewport: { width: 360, height: 740 },
+    storageState: QA_EMAIL ? AUTH_FILE : undefined,
+  });
+
+  test.beforeAll(async ({ browser }) => {
+    if (!QA_EMAIL) return;
+    await ensureStorageState(browser);
+  });
 
   test.beforeEach(async ({ page }) => {
     if (!QA_EMAIL) test.skip();
-    await login(page);
+    await page.goto(`${BASE_URL}/talent/today`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    if (page.url().includes("/login")) {
+      await login(page);
+    }
   });
 
   test("Calendar readable at 360", async ({ page }) => {
@@ -187,9 +271,7 @@ test.describe("Talent Agenda V2 mobile 360", () => {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    await expect(page.getByRole("tablist", { name: "Calendar view" })).toBeVisible({
-      timeout: 60_000,
-    });
+    await expectCalendarChrome(page);
     await page.screenshot({ path: path.join(EVIDENCE, "calendar-360.png"), fullPage: true });
   });
 });

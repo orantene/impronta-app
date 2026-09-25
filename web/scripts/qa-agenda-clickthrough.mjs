@@ -51,10 +51,10 @@ try {
   await page.goto(`${BASE}/talent/calendar?agendaNow=${encodeURIComponent(CLOCK)}`, {
     waitUntil: "domcontentloaded",
   });
-  await page
-    .getByRole("tablist", { name: /Calendar view|Calendar/i })
-    .or(page.getByText(/Week|Day|Month|List/i).first())
-    .waitFor({ state: "visible", timeout: 90_000 });
+  await page.getByRole("tablist", { name: "Calendar view" }).waitFor({
+    state: "visible",
+    timeout: 90_000,
+  });
   const calShot = path.join(evidenceDir, "qa-calendar-agendaNow.png");
   await page.screenshot({ path: calShot, fullPage: true });
   console.log(`[qa] Calendar OK → ${calShot}`);
