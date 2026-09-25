@@ -1,0 +1,5 @@
+picker true
+held true
+sold_out_visible true
+sold_out_text That night just sold out at that ticket. Pick another and it is yours.
+EVENT_DONE
