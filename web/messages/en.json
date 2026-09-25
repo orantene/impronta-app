@@ -895,6 +895,7 @@
       "errGeneric": "Something went wrong. Please try again.",
       "tryAgainIn": "Try again in {secs}s.",
       "sendMessageAria": "Send message",
+      "statusDraft": "Draft",
       "statusOpen": "Open conversation",
       "statusOfferPending": "You have an offer",
       "statusApproved": "Approved",

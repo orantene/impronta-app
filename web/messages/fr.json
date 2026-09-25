@@ -161,6 +161,7 @@
       "errGeneric": "Une erreur est survenue. Veuillez réessayer.",
       "tryAgainIn": "Réessayez dans {secs}s.",
       "sendMessageAria": "Envoyer le message",
+      "statusDraft": "Brouillon",
       "statusOpen": "Conversation ouverte",
       "statusOfferPending": "Vous avez une offre",
       "statusApproved": "Approuvée",
