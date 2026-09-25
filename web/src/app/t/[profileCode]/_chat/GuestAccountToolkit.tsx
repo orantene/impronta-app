@@ -94,6 +94,11 @@ export type GuestAccountToolkitProps = {
    * required prop means a new call site cannot reintroduce that silently.
    */
   t: Translator;
+  /**
+   * Solo / talent vanity hosts speak as the trade. When true, body copy omits
+   * the platform brand name so the guest never sees "Tulala" on her site.
+   */
+  omitPlatformBrand?: boolean;
 };
 
 export function GuestAccountToolkit({
@@ -108,6 +113,7 @@ export function GuestAccountToolkit({
   deemphasizeButton = false,
   surfaceMode = "light",
   t,
+  omitPlatformBrand = false,
 }: GuestAccountToolkitProps) {
   const C = paletteFor(surfaceMode);
   const [sending, setSending] = useState(false);
@@ -179,7 +185,13 @@ export function GuestAccountToolkit({
         <span aria-hidden style={{ color: accent, fontWeight: 700 }}>
           ✓
         </span>
-        <span>{t("public.guestChat.accountSavedConfirm")}</span>
+        <span>
+          {t(
+            omitPlatformBrand
+              ? "public.guestChat.accountSavedConfirmSolo"
+              : "public.guestChat.accountSavedConfirm",
+          )}
+        </span>
       </div>
     );
   }
@@ -294,8 +306,16 @@ export function GuestAccountToolkit({
         </div>
         <div style={{ fontSize: 11.5, lineHeight: 1.45, color: C.inkMuted }}>
           {email
-            ? t("public.guestChat.accountBodyWithEmail")
-            : t("public.guestChat.accountBodyNoEmail")}
+            ? t(
+                omitPlatformBrand
+                  ? "public.guestChat.accountBodyWithEmailSolo"
+                  : "public.guestChat.accountBodyWithEmail",
+              )
+            : t(
+                omitPlatformBrand
+                  ? "public.guestChat.accountBodyNoEmailSolo"
+                  : "public.guestChat.accountBodyNoEmail",
+              )}
         </div>
       </div>
 

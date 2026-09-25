@@ -411,6 +411,7 @@ export function GuestDockHomeView({
             onCheckClaimEmail={onCheckClaimEmail}
             onGuestEmailUpdated={onGuestEmailUpdated}
             surfaceMode={surfaceMode}
+            omitPlatformBrand={Boolean(brand.omitPlatformBrand)}
           />
         </div>
       )}

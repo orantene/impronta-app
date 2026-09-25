@@ -116,6 +116,7 @@ export async function TalentSiteMessagesDock({
         locale={locale}
         greeting={tradeVoice}
         wordsPresetOverride={tradePreset}
+        omitPlatformBrand
       />
     </>
   );
