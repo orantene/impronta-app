@@ -1,13 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 import { createOwnSlotBooking } from "@/lib/talent-agenda/create-slot";
+import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
+import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
 import { TaskShell } from "./primitives/TaskShell";
 import { AgendaEventQuote, AgendaProjectQuote } from "./AgendaQuotes";
 import { useAgendaCopy } from "./use-agenda-copy";
 
 type PayChoice = "received" | "due_later" | "request_link" | null;
+
+const OTHER = "__other__";
 
 /**
  * T7.1–T7.3 New booking / quote. Kind comes from TRADE_PROFILES.
@@ -42,22 +46,31 @@ export function AgendaNewBooking({
   }
 
   return (
-    <SlotComposer newLabel={newLabel} onCancel={onCancel} onSaved={onSaved} />
+    <SlotComposer
+      newLabel={newLabel}
+      talentProfileId={talentProfileId}
+      onCancel={onCancel}
+      onSaved={onSaved}
+    />
   );
 }
 
 function SlotComposer({
   newLabel,
+  talentProfileId,
   onCancel,
   onSaved,
 }: {
   newLabel: string;
+  talentProfileId?: string;
   onCancel: () => void;
   onSaved?: () => void;
 }) {
   const copy = useAgendaCopy();
   const [clientName, setClientName] = useState("");
   const [service, setService] = useState("");
+  const [offeringId, setOfferingId] = useState<string>(OTHER);
+  const [offerings, setOfferings] = useState<TalentOffering[]>([]);
   const [date, setDate] = useState("");
   const [starts, setStarts] = useState("");
   const [ends, setEnds] = useState("");
@@ -67,9 +80,29 @@ function SlotComposer({
   const [alternatives, setAlternatives] = useState<string[]>([]);
   const [savedNote, setSavedNote] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!talentProfileId) return;
+    let cancelled = false;
+    void loadTalentOfferingsForEditor(talentProfileId).then((res) => {
+      if (cancelled || !res.ok) return;
+      const published = res.items.filter((item) => item.status === "published");
+      setOfferings(published);
+      if (published.length > 0) {
+        setOfferingId(published[0]!.id);
+        setService(published[0]!.title);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [talentProfileId]);
+
+  const serviceReady =
+    offeringId !== OTHER ? Boolean(offeringId) : Boolean(service.trim());
+
   const canSave = useMemo(
-    () => Boolean(clientName.trim() && service.trim() && date && starts && ends && pay) && !saving,
-    [clientName, service, date, starts, ends, pay, saving],
+    () => Boolean(clientName.trim() && serviceReady && date && starts && ends && pay) && !saving,
+    [clientName, serviceReady, date, starts, ends, pay, saving],
   );
 
   async function save() {
@@ -80,12 +113,15 @@ function SlotComposer({
     try {
       const startsAt = new Date(`${date}T${starts}:00`).toISOString();
       const endsAt = new Date(`${date}T${ends}:00`).toISOString();
+      const selected =
+        offeringId !== OTHER ? offerings.find((o) => o.id === offeringId) : undefined;
       const result = await createOwnSlotBooking({
         clientName,
-        title: service,
+        title: selected?.title?.trim() || service,
         startsAt,
         endsAt,
         paymentChoice: pay,
+        offeringId: selected?.id ?? null,
       });
       if (!result.ok) {
         setConflict(result.message ?? copy.t("Could not save. Try another time."));
@@ -134,14 +170,52 @@ function SlotComposer({
 
       <section className="mb-4 space-y-3 rounded-2xl border border-black/8 bg-white p-4">
         <h2 className="text-[15px] font-semibold">{copy.t("Work and time")}</h2>
-        <label className="block text-[13px]">
-          {copy.t("Service")}
-          <input
-            className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2"
-            value={service}
-            onChange={(e) => setService(e.target.value)}
-          />
-        </label>
+        {offerings.length > 0 ? (
+          <label className="block text-[13px]">
+            {copy.t("Service")}
+            <select
+              className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2"
+              value={offeringId}
+              onChange={(e) => {
+                const next = e.target.value;
+                setOfferingId(next);
+                if (next === OTHER) {
+                  setService("");
+                  return;
+                }
+                const picked = offerings.find((o) => o.id === next);
+                setService(picked?.title ?? "");
+              }}
+            >
+              {offerings.map((o) => {
+                const price =
+                  o.amountCents != null
+                    ? formatOfferingPrice(o.amountCents, o.currency, "en")
+                    : "";
+                const label = price ? `${o.title} · ${price}` : o.title;
+                return (
+                  <option key={o.id} value={o.id}>
+                    {label}
+                  </option>
+                );
+              })}
+              <option value={OTHER}>{copy.t("Other…")}</option>
+            </select>
+          </label>
+        ) : null}
+        {offerings.length === 0 || offeringId === OTHER ? (
+          <label className="block text-[13px]">
+            {offerings.length > 0 ? copy.t("Describe the work") : copy.t("Service")}
+            <input
+              className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2"
+              value={service}
+              onChange={(e) => {
+                setService(e.target.value);
+                setOfferingId(OTHER);
+              }}
+            />
+          </label>
+        ) : null}
         <div className="grid grid-cols-3 gap-2">
           <label className="block text-[13px]">
             {copy.t("Date")}

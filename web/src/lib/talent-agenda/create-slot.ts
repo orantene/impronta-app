@@ -1,7 +1,9 @@
 /**
- * Talent-owned slot booking create (T7.1 / G0.1 / Stage B1).
+ * Talent-owned slot booking create (T7.1 / G0.1 / Stage B1 + B2 + B3).
  * Busy-check, then agency_bookings + booking_talent + talent_bookings on the
- * platform hub (talent as seller). No agency roster required.
+ * platform hub (talent as seller). Opens draft order + line(s) from
+ * talent_offerings (or free-text custom line). Links customer_id when contact
+ * email/phone is present.
  */
 
 "use server";
@@ -15,9 +17,10 @@ import type { BusyInterval } from "@/lib/scheduling/slots";
 import { loadTalentActor } from "@/lib/messaging/talent-actor";
 import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
 import { resolveTalentOwnWorkTenant } from "@/lib/talent-agenda/own-work-tenant";
+import { openBookingOrderForAgenda } from "@/lib/talent-agenda/open-booking-order";
 
 export type CreateOwnSlotResult =
-  | { ok: true; id: string; paymentStatus: "paid" | "unpaid" }
+  | { ok: true; id: string; paymentStatus: "paid" | "unpaid"; orderId?: string }
   | {
       ok: false;
       reason: "unauthorized" | "unavailable" | "invalid" | "slot_taken" | "no_hub";
@@ -77,7 +80,8 @@ async function readBufferAfterMs(
 /**
  * Create a manual slot booking for the signed-in talent on the platform hub.
  * Writes agency_bookings (commercial) + booking_talent + talent_bookings
- * (calendar mirror with the same id so loadTalentAgenda can join money).
+ * (calendar mirror with the same id so loadTalentAgenda can join money), then
+ * opens a draft order linked via `agency_bookings.order_id`.
  */
 export async function createOwnSlotBooking(input: {
   clientName: string;
@@ -86,6 +90,10 @@ export async function createOwnSlotBooking(input: {
   endsAt: string;
   paymentChoice: PaymentChoice;
   allowOverlap?: boolean;
+  /** Prefer catalog when provided; else custom line from `title`. */
+  offeringId?: string | null;
+  variantId?: string | null;
+  addonIds?: string[] | null;
   /** Optional — without email or phone, no customers row is created (name-only OK). */
   contactEmail?: string | null;
   contactPhone?: string | null;
@@ -95,7 +103,8 @@ export async function createOwnSlotBooking(input: {
 
   const clientName = input.clientName.trim();
   const title = input.title.trim();
-  if (!clientName || !title) {
+  const offeringId = input.offeringId?.trim() || null;
+  if (!clientName || (!title && !offeringId)) {
     return { ok: false, reason: "invalid", message: "Name and service are required." };
   }
 
@@ -119,6 +128,19 @@ export async function createOwnSlotBooking(input: {
   }
   const tenantId = ownTenant.tenantId;
   const admin = actor.admin;
+
+  let bookingTitle = title;
+  if (offeringId && !bookingTitle) {
+    // supabase-read-unchecked-ok: missing offering and a failed read both fall
+    // back to "Booking" — callers never treat empty as a configured title.
+    const { data: off } = await admin
+      .from("talent_offerings")
+      .select("title")
+      .eq("id", offeringId)
+      .eq("talent_profile_id", actor.talentProfileId)
+      .maybeSingle();
+    bookingTitle = (off as { title?: string | null } | null)?.title?.trim() || "Booking";
+  }
 
   const durationMs = endsAt.getTime() - startsAt.getTime();
   const bufferMs = await readBufferAfterMs(admin, actor.talentProfileId);
@@ -155,11 +177,11 @@ export async function createOwnSlotBooking(input: {
   if (contactEmail || contactPhone) {
     const ensured = await ensureCustomer(
       {
-        tenantId: agency.tenantId,
+        tenantId,
         email: contactEmail || null,
         phone: contactPhone || null,
         displayName: clientName,
-        ownerTalentProfileId: identity.talentId,
+        ownerTalentProfileId: actor.talentProfileId,
       },
       { admin },
     );
@@ -173,7 +195,7 @@ export async function createOwnSlotBooking(input: {
       source_inquiry_id: null,
       owner_staff_id: actor.userId,
       created_by_staff_id: actor.userId,
-      title,
+      title: bookingTitle,
       status: "confirmed" as never,
       payment_status: paymentStatus as never,
       currency_code: "MXN",
@@ -225,7 +247,7 @@ export async function createOwnSlotBooking(input: {
     id: bookingId,
     talent_profile_id: actor.talentProfileId,
     tenant_id: tenantId,
-    title,
+    title: bookingTitle,
     client_label: clientName,
     starts_at: startsAt.toISOString(),
     ends_at: endsAt.toISOString(),
@@ -251,6 +273,26 @@ export async function createOwnSlotBooking(input: {
     return { ok: false, reason: "unavailable" };
   }
 
+  const order = await openBookingOrderForAgenda(admin, {
+    tenantId,
+    actorUserId: actor.userId,
+    talentProfileId: actor.talentProfileId,
+    bookingId,
+    title: bookingTitle,
+    offeringId,
+    variantId: input.variantId,
+    addonIds: input.addonIds,
+  });
+  if (!order.ok) {
+    // Booking spine is saved; Finish collect can still mint a late shell.
+    logServerError("agenda.createOwnSlot.order", order.reason);
+  }
+
   revalidatePath("/", "layout");
-  return { ok: true, id: bookingId, paymentStatus };
+  return {
+    ok: true,
+    id: bookingId,
+    paymentStatus,
+    orderId: order.ok ? order.orderId : undefined,
+  };
 }
