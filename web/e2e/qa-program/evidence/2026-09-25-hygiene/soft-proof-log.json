@@ -1,0 +1,23 @@
+[
+  {
+    "url": "https://staging-qa-journeys.tulala.digital/t/QA-JNY-T1",
+    "askCount": 0,
+    "askLinks": 0,
+    "openChatBtns": 1,
+    "askText": 0,
+    "title": "QA Journeys Talent — Talent · Tulala"
+  },
+  {
+    "afterClickUrl": "https://staging-qa-journeys.tulala.digital/t/QA-JNY-T1",
+    "dock": 0,
+    "dialog": 1,
+    "composer": 0
+  },
+  {
+    "talentUrl": "https://staging-qa-journeys.tulala.digital/talent/messages",
+    "v5": 0
+  },
+  {
+    "inboxRows": 0
+  }
+]

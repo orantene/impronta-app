@@ -1,0 +1,31 @@
+[
+  {
+    "btnText": "Message QA Journeys",
+    "url": "https://staging-qa-journeys.tulala.digital/t/QA-JNY-T1",
+    "dialogText": "Q\nQA Journeys\nHi, tell us about your event and we'll line up the right talent.\nStart a new inquiry\nTell QA Journeys Talent's team what you need\nYour inquiries\nTrack everything you've sent\nYour order\nWhat you picked and what was added for you\nSave this conversation\nSend your first message and we'll set up a free Tulala account so this conversation is always saved to you.\nType a message below to get started.\nHome\nChat\nYour order\nInquiries",
+    "hasComposer": 0,
+    "dialogVisible": true
+  },
+  {
+    "signinStatus": 200,
+    "after": "https://staging-qa-journeys.tulala.digital/talent/inbox"
+  },
+  {
+    "path": "/talent/messages",
+    "url": "https://staging-qa-journeys.tulala.digital/talent/messages",
+    "v5": 0,
+    "body": ""
+  },
+  {
+    "path": "/t/messages",
+    "url": "https://staging-qa-journeys.tulala.digital/t/messages",
+    "v5": 0,
+    "body": "TULALA\n\nPage not found\n\nThe page you're looking for doesn't exist or may have moved. Head back to the homepage, or sign in to your workspace.\n\nGo to homepage\nSign in"
+  },
+  {
+    "path": "/messages",
+    "url": "https://staging-qa-journeys.tulala.digital/messages",
+    "v5": 0,
+    "body": "QA JOURNEYS\n\nThis page is no longer here\n\nWe couldn't find that page on QA Journeys. The roster, news, or campaign you were looking for may have moved.\n\nBack to homepage\nSend an inquiry\n\nPowered by Tu"
+  }
+]
