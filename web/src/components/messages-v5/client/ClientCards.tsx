@@ -6,7 +6,8 @@
  *   ClientTicketsCard  tickets_card once paid/issued (opens /q/<code> when the engine stamped one)
  *   ClientTimesCard    professional_times (pick holds the time, countdown, hold ended)
  *   ClientOfferCard    offer_event / offer_review (accept exact version, ask for a change, decline)
- *   ClientPaymentCard  payment_request (Pay opens /pay/<code>)
+ *   ClientPaymentCard  payment_request (Pay opens /pay/<code>) and payment_paid
+ *                      (total / paid / due when the shell stamped them)
  *   ClientConfirmedCard order_confirmation / appointment_confirmation (Ask for a change, Receipt)
  *   ClientChangeCard   change_request / change_result, including cancel + refund sentences
  *   ClientDraftCard    basket (read-only: what the client picked so far)

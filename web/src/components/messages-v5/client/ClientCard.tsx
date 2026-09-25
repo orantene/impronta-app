@@ -13,6 +13,7 @@ import {
   readChange,
   readChoices,
   readConfirmation,
+  readPaidPayment,
   readPayment,
   readTickets,
   readTimes,
@@ -106,6 +107,8 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
     }
     case "payment_request":
       return <ClientPaymentCard view={readPayment(payload)} copy={copy} business={business} locale={locale} now={now} onPay={actions.onPay} />;
+    case "payment_paid":
+      return <ClientPaymentCard view={readPaidPayment(payload)} copy={copy} business={business} locale={locale} now={now} />;
     case "order_confirmation":
     case "appointment_confirmation": {
       const view = readConfirmation(payload);

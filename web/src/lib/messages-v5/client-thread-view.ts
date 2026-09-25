@@ -36,6 +36,9 @@ export const CLIENT_CARD_KINDS = [
   "offer_state",
   "offer_event",
   "payment_request",
+  // Same Paid money card as payment_request (state forced to paid). Front-door
+  // v27 step 12: /c/t and the guest dock must draw this, not a system line.
+  "payment_paid",
   "basket",
   "order_confirmation",
   "appointment_confirmation",
@@ -345,11 +348,13 @@ export type PaymentView = {
 
 export function readPayment(payload: Record<string, unknown> | null): PaymentView {
   const p = payload ?? {};
+  // Shell stamps `amountKind` (card) or `checkout_type` (outside payment). Same meaning.
+  const amountKind = str(p.amountKind) ?? str(p.checkout_type) ?? str(p.checkoutType);
   return {
     code: str(p.paymentLinkCode),
     amountCents: num(p.amountCents),
     currency: str(p.currency) ?? "USD",
-    amountKind: str(p.amountKind),
+    amountKind,
     expiresAt: str(p.expiresAt),
     state: str(p.state) ?? "sent",
     totalCents: num(p.totalCents),
@@ -357,6 +362,11 @@ export function readPayment(payload: Record<string, unknown> | null): PaymentVie
     dueCents: num(p.dueCents),
     method: str(p.method),
   };
+}
+
+/** A `payment_paid` row is always paid, even when the payload omitted `state`. */
+export function readPaidPayment(payload: Record<string, unknown> | null): PaymentView {
+  return { ...readPayment(payload), state: "paid" };
 }
 
 export type ConfirmationView = { readonly recordKind: string | null; readonly recordId: string | null; readonly when: string | null; readonly title: string | null; readonly summary: string | null; readonly receiptCode: string | null; readonly lines: readonly { readonly label: string; readonly units: number; readonly amountCents: number }[]; readonly currency: string };

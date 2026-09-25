@@ -28,6 +28,20 @@ const base: ClientThreadViewProps = {
     msg({ id: "e1", kind: "offer_event", senderUserId: "staff", body: "Offer sent to client.", payload: { status: "sent", offer_id: "of1", total_label: "3800.00 USD" }, createdAt: "2026-09-17T09:03:00.000Z" }),
     msg({ id: "c1", kind: "menu_options", senderUserId: "staff", payload: { offeringIds: ["a"], labels: ["Taco"], pricesCents: [900] }, createdAt: "2026-09-17T09:04:00.000Z" }),
     msg({ id: "p1", kind: "payment_request", senderUserId: "staff", payload: { paymentLinkCode: "abc", amountCents: 114000, amountKind: "deposit", state: "sent" }, createdAt: "2026-09-17T09:05:00.000Z" }),
+    msg({
+      id: "paid1",
+      kind: "payment_paid",
+      senderUserId: "staff",
+      payload: {
+        checkout_type: "deposit",
+        totalCents: 50000,
+        paidCents: 20000,
+        dueCents: 30000,
+        currency: "MXN",
+        method: "cash",
+      },
+      createdAt: "2026-09-17T09:05:30.000Z",
+    }),
     msg({ id: "k1", kind: "appointment_confirmation", senderUserId: "staff", payload: { recordKind: "appointment", recordId: "r1", when: "2026-09-20T15:00:00.000Z", title: "Balayage" }, createdAt: "2026-09-17T09:06:00.000Z" }),
     msg({ id: "q1", kind: "change_request", body: "Start later", payload: { state: "sent" }, createdAt: "2026-09-17T09:07:00.000Z" }),
     msg({ id: "s1", kind: "offer_state", body: "Accepted offer v2", payload: { offerId: "of1", offerStatus: "accepted" }, createdAt: "2026-09-17T09:08:00.000Z" }),
@@ -65,6 +79,8 @@ test("stream: staff bubble, client bubble as me, day separator, one card per kin
   assert.match(html, /data-card="client-offer"/);
   assert.match(html, /data-card="choices"/);
   assert.match(html, /data-card="client-pay"/);
+  assert.equal((html.match(/data-card="client-pay"/g) ?? []).length, 2);
+  assert.match(html, /Balance due/);
   assert.match(html, /data-card="client-confirmed"/);
   assert.match(html, /data-card="client-change"/);
   assert.match(html, /data-system-line[^>]*>.*Accepted offer v2/);
