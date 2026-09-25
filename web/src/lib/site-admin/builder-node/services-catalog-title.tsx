@@ -38,3 +38,9 @@ export function catalogDurationPhrase(minutes: number, locale: string): string {
   }
   return `${minutes} min · ${estimated}`;
 }
+
+/** Jump-nav fragment id — pure string helper (never pass a function across RSC). */
+export function catalogCategoryJumpId(nodeId: string, categoryName: string): string {
+  const slug = categoryName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return `${nodeId}-${slug || "_"}`;
+}

@@ -24,34 +24,11 @@ import { placeInstantPurchase } from "@/lib/scheduling/instant-purchase";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 
-export type InstantBookFormPayload = {
-  talentProfileId: string;
-  tenantId: string;
-  contactName?: string | null;
-  contactEmail?: string | null;
-  contactPhone?: string | null;
-  eventDate?: string | null;
-  eventLocation?: string | null;
-  sourcePage?: string | null;
-  offeringId?: string | null;
-  payInPerson?: boolean;
-  variantId?: string | null;
-  addOnIds?: string[];
-  quantity?: number;
-  reservation?: { startsAt: string; endsAt: string; timezone: string } | null;
-  captchaToken?: string | null;
-  honeypot?: string | null;
-};
-
-export type InstantBookActionResult =
-  | { ok: true; inquiryId: string; bookingId: string; redirectPath: string }
-  | {
-      ok: false;
-      error: string;
-      needsAuth?: boolean;
-      upgrade?: boolean;
-      slotTaken?: boolean;
-    };
+export type {
+  InstantBookActionResult,
+  InstantBookFormPayload,
+} from "./instant-book-types";
+import type { InstantBookActionResult, InstantBookFormPayload } from "./instant-book-types";
 
 export async function createInstantBookingAction(
   payload: InstantBookFormPayload,

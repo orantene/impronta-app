@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useFocusTrap } from "@/components/support/use-focus-trap";
-import type { OfferingRequestDetail } from "@/app/t/[profileCode]/_shared/OfferingCta";
-import type { InstantBookActionResult, InstantBookFormPayload } from "@/lib/server-actions/instant-book-action";
+import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import type {
+  InstantBookActionResult,
+  InstantBookFormPayload,
+} from "@/lib/server-actions/instant-book-types";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
 
