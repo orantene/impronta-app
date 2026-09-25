@@ -104,13 +104,17 @@ test.describe("Talent Agenda V2 smoke", () => {
 
   test.beforeEach(async ({ page }) => {
     if (!QA_EMAIL) test.skip();
-    // Warm: if storage expired mid-run, bounce through login once.
     await page.goto(`${BASE_URL}/talent/today`, {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    if (page.url().includes("/login")) {
+    const needsLogin =
+      page.url().includes("/login") ||
+      (await page.getByRole("heading", { name: /Page not found/i }).isVisible().catch(() => false)) ||
+      (await page.getByRole("link", { name: /Sign in/i }).isVisible().catch(() => false));
+    if (needsLogin) {
       await login(page);
+      await page.context().storageState({ path: AUTH_FILE });
     }
   });
 
@@ -187,8 +191,13 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    if (page.url().includes("/login")) {
+    const needsLogin =
+      page.url().includes("/login") ||
+      (await page.getByRole("heading", { name: /Page not found/i }).isVisible().catch(() => false)) ||
+      (await page.getByRole("link", { name: /Sign in/i }).isVisible().catch(() => false));
+    if (needsLogin) {
       await login(page);
+      await page.context().storageState({ path: AUTH_FILE });
     }
   });
 
@@ -212,11 +221,32 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
 
   test("finish/collect surface opens from a booking when linked", async ({ page }) => {
     try {
-      await page.goto(`${BASE_URL}/talent/today`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+      await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T09:50:00`, {
+        waitUntil: "domcontentloaded",
+        timeout: 90_000,
+      });
     } catch (err) {
       test.skip(true, `Today navigation failed: ${String(err).slice(0, 120)}`);
     }
+    // Seeded QA week has unpaid today cards — Collect/Finish when V2 is on.
+    const collect = page.getByRole("button", { name: /Collect|Finish|Cobrar|Finalizar/i }).first();
+    if (await collect.isVisible().catch(() => false)) {
+      await collect.click();
+      await expect(page.getByText(/Cash|Transfer|Card|Efectivo|Transferencia/i).first()).toBeVisible({
+        timeout: 30_000,
+      });
+    }
     await page.screenshot({ path: path.join(EVIDENCE, "finish-collect-entry.png"), fullPage: true });
+  });
+
+  test("hold release CTA reachable when hold is seeded", async ({ page }) => {
+    await requireAgendaV2Route(page, "/talent/today?agendaNow=2026-09-23T09:50:00");
+    const release = page.getByRole("button", { name: /Release|Liberar/i }).first();
+    if (!(await release.isVisible().catch(() => false))) {
+      test.skip(true, "No hold Release CTA on Today for this seed/clock");
+    }
+    await expect(release).toBeVisible();
+    await page.screenshot({ path: path.join(EVIDENCE, "hold-release-entry.png"), fullPage: true });
   });
 });
 
@@ -237,8 +267,13 @@ test.describe("Talent Agenda V2 mobile 390", () => {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    if (page.url().includes("/login")) {
+    const needsLogin =
+      page.url().includes("/login") ||
+      (await page.getByRole("heading", { name: /Page not found/i }).isVisible().catch(() => false)) ||
+      (await page.getByRole("link", { name: /Sign in/i }).isVisible().catch(() => false));
+    if (needsLogin) {
       await login(page);
+      await page.context().storageState({ path: AUTH_FILE });
     }
   });
 
@@ -277,8 +312,13 @@ test.describe("Talent Agenda V2 mobile 360", () => {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    if (page.url().includes("/login")) {
+    const needsLogin =
+      page.url().includes("/login") ||
+      (await page.getByRole("heading", { name: /Page not found/i }).isVisible().catch(() => false)) ||
+      (await page.getByRole("link", { name: /Sign in/i }).isVisible().catch(() => false));
+    if (needsLogin) {
       await login(page);
+      await page.context().storageState({ path: AUTH_FILE });
     }
   });
 
