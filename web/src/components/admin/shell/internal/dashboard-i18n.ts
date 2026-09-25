@@ -496,6 +496,7 @@ const ES_TEXT: Record<string, string> = {
   // Keyboard-shortcut panels (W2/W6/W7) — only WORKING shortcuts are listed
   "Navigation": "Navegación",
   "Actions": "Acciones",
+  "Pick a conversation first": "Elige una conversación primero",
   "List navigation (Messages)": "Navegación de lista (Mensajes)",
   "Command palette": "Paleta de comandos",
   "New inquiry (compose)": "Nueva consulta (redactar)",
