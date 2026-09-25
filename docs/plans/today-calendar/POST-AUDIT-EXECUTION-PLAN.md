@@ -16,10 +16,10 @@ Parent plans: [`GAP-EXECUTION-PLAN.md`](./GAP-EXECUTION-PLAN.md), [`CURSOR-EXECU
 
 | Track | State | Blocker |
 |---|---|---|
-| Services [#2244](https://github.com/orantene/impronta-app/pull/2244) | OPEN; Structural **FAIL**; Talent Website E2E **FAIL** | Must green Structural before merge |
-| Agenda [#2245](https://github.com/orantene/impronta-app/pull/2245) | OPEN; tip `450cb77c4` | Local: 1 failing unit (`g2-finish-collect`); P0 honesty/security below |
+| Services [#2244](https://github.com/orantene/impronta-app/pull/2244) | **MERGED** `9ab5feabf` | Talent Website E2E still flaky; Structural was green |
+| Agenda [#2245](https://github.com/orantene/impronta-app/pull/2245) | OPEN; tip rebased on main incl. services | A3.2 Playwright evidence still open; A0–A3.1+A3.3 landed |
 | Services P7 live `#servicios` | Not started | Explicit owner “swap” only |
-| Gap plan G0–G4 “DONE” | Overstated | This plan supersedes those stamps until A0–A3 green |
+| Gap plan G0–G4 “DONE” | Demoted to PARTIAL for overstated items | See A3.3 |
 
 Premature DONE in [`GAP-EXECUTION-PLAN.md`](./GAP-EXECUTION-PLAN.md) and [`ROLLOUT.md`](./ROLLOUT.md) Step 0 “G0–G4 code ready” must be demoted as part of **A5.1** (below: A3.3).
 
