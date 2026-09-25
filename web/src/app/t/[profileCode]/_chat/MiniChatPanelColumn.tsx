@@ -702,6 +702,7 @@ export function MiniChatPanelColumn({
         threadStatus={threadStatus}
         receipt={receipt}
         agencyName={brand.agencyName}
+        omitPlatformBrand={Boolean(brand.omitPlatformBrand)}
         rows={rows}
         scrollRef={scrollRef}
         suppressed={showGate || showSentAirlock}

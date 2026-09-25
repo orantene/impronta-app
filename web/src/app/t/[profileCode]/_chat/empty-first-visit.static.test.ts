@@ -32,3 +32,11 @@ test("empty Home still exposes the intake rail (Nada todavía) and paints Hablar
   const nav = readFileSync(join(DIR, "GuestDockNav.tsx"), "utf8");
   assert.match(nav, /active === "home" && view === "chat"/);
 });
+
+test("solo strip wires omitPlatformBrand so receipt Tulala cannot leak", () => {
+  const column = readFileSync(join(DIR, "MiniChatPanelColumn.tsx"), "utf8");
+  assert.match(column, /omitPlatformBrand=\{Boolean\(brand\.omitPlatformBrand\)\}/);
+  const strip = readFileSync(join(DIR, "ConversationStatusStrip.tsx"), "utf8");
+  assert.match(strip, /resolveStatusStripActor/);
+  assert.match(strip, /omitPlatformBrand/);
+});
