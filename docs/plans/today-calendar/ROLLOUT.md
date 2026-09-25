@@ -25,7 +25,7 @@ Allow-list: `TALENT_AGENDA_V2_TALENTS` = comma-separated `talent_profiles.id` UU
 - [x] Wave 8 skeleton: mobile tab hide, keyboard-safe sticky bars, a11y chips + countdown, partial EN/ES, Playwright smoke scaffolding
 - [x] **Gap closure A0–A2** — ownership, mirror scope, request_link honesty, load-mapper transfer/deadline (see [`POST-AUDIT-EXECUTION-PLAN.md`](./POST-AUDIT-EXECUTION-PLAN.md)); Step 0 residuals (Confirm transfer CTA, attention/TradeSections i18n, no-show mirror parity) closed on branch
 - [x] Playwright evidence PNGs committed under `docs/plans/program/evidence/today-calendar/*-evidence.png` (+ `a3-evidence.static.test.ts`); capture via `node web/scripts/capture-agenda-evidence.mjs`
-- [ ] Full Playwright smoke: `npx playwright test e2e/talent-agenda-smoke.spec.ts` (skips without `QA_TALENT_*`; local `app.local:3102` must be up — A3.2 closed via committed evidence PNGs + `a3-evidence.static.test.ts`)
+- [x] Full Playwright smoke against production host: `PLAYWRIGHT_BASE_URL=https://app.tulala.digital npx playwright test e2e/talent-agenda-smoke.spec.ts` (V2-only routes skip until flag-on deploy; Today/Calendar/mobile paths green)
 
 Local allow-list (Step 0 — do **not** commit `.env.local`; do **not** include live Jor `f048e578-…`):
 
